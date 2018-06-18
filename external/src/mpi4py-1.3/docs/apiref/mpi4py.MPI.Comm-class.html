@@ -1,0 +1,2053 @@
+<?xml version="1.0" encoding="ascii"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <title>mpi4py.MPI.Comm</title>
+  <link rel="stylesheet" href="epydoc.css" type="text/css" />
+  <script type="text/javascript" src="epydoc.js"></script>
+</head>
+
+<body bgcolor="white" text="black" link="blue" vlink="#204080"
+      alink="#204080">
+<!-- ==================== NAVIGATION BAR ==================== -->
+<table class="navbar" border="0" width="100%" cellpadding="0"
+       bgcolor="#a0c0ff" cellspacing="0">
+  <tr valign="middle">
+  <!-- Home link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="mpi4py-module.html">Home</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Tree link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="module-tree.html">Trees</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Index link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="identifier-index.html">Indices</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Help link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="help.html">Help</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Project homepage -->
+      <th class="navbar" align="right" width="100%">
+        <table border="0" cellpadding="0" cellspacing="0">
+          <tr><th class="navbar" align="center"
+            ><a class="navbar" target="_top" href="http://mpi4py.googlecode.com/">MPI for Python</a></th>
+          </tr></table></th>
+  </tr>
+</table>
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr valign="top">
+    <td width="100%">
+      <span class="breadcrumbs">
+        <a href="mpi4py-module.html">Package&nbsp;mpi4py</a> ::
+        <a href="mpi4py.MPI-module.html">Module&nbsp;MPI</a> ::
+        Class&nbsp;Comm
+      </span>
+    </td>
+    <td>
+      <table cellpadding="0" cellspacing="0">
+        <!-- hide/show private -->
+        <tr><td align="right"><span class="options">[<a href="javascript:void(0);" class="privatelink"
+    onclick="toggle_private();">hide&nbsp;private</a>]</span></td></tr>
+        <tr><td align="right"><span class="options"
+            >[<a href="frames.html" target="_top">frames</a
+            >]&nbsp;|&nbsp;<a href="mpi4py.MPI.Comm-class.html"
+            target="_top">no&nbsp;frames</a>]</span></td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+<!-- ==================== CLASS DESCRIPTION ==================== -->
+<h1 class="epydoc">Class Comm</h1><p class="nomargin-top"></p>
+<center>
+<center>  <map id="class_hierarchy_for_comm" name="class_hierarchy_for_comm">
+<area shape="rect" id="node1" href="mpi4py.MPI.Cartcomm-class.html" title="Cartcomm" alt="" coords="144,118,227,143"/>
+<area shape="rect" id="node2" href="mpi4py.MPI.Comm-class.html" title="Comm" alt="" coords="208,6,269,31"/>
+<area shape="rect" id="node6" href="mpi4py.MPI.Intracomm-class.html" title="Intracomm" alt="" coords="143,62,227,87"/>
+<area shape="rect" id="node5" href="mpi4py.MPI.Intercomm-class.html" title="Intercomm" alt="" coords="251,62,335,87"/>
+<area shape="rect" id="node3" href="mpi4py.MPI.Distgraphcomm-class.html" title="Distgraphcomm" alt="" coords="5,118,120,143"/>
+<area shape="rect" id="node4" href="mpi4py.MPI.Graphcomm-class.html" title="Graphcomm" alt="" coords="251,118,344,143"/>
+</map>
+  <img src="class_hierarchy_for_comm.png" alt='' usemap="#class_hierarchy_for_comm" ismap="ismap" class="graph-without-title" />
+</center>
+</center>
+<hr />
+Communicator
+
+<!-- ==================== INSTANCE METHODS ==================== -->
+<a name="section-InstanceMethods"></a>
+<table class="summary" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr bgcolor="#70b0f0" class="table-header">
+  <td colspan="2" class="table-header">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr valign="top">
+        <td align="left"><span class="table-header">Instance Methods</span></td>
+        <td align="right" valign="top"
+         ><span class="options">[<a href="#section-InstanceMethods"
+         class="privatelink" onclick="toggle_private();"
+         >hide private</a>]</span></td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a href="mpi4py.MPI.Comm-class.html#Abort" class="summary-sig-name">Abort</a>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">int errorcode</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Terminate MPI execution environment</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Allgather"></a><span class="summary-sig-name">Allgather</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>)</span><br />
+      Gather to All, gather data from all processes and
+distribute it to all other processes in a group</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Allgatherv"></a><span class="summary-sig-name">Allgatherv</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>)</span><br />
+      Gather to All Vector, gather data from all processes and
+distribute it to all other processes in a group providing
+different amount of data and displacements</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Allreduce"></a><span class="summary-sig-name">Allreduce</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>,
+        <span class="summary-sig-arg">Op op</span>=<span class="summary-sig-default">SUM</span>)</span><br />
+      All Reduce</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Alltoall"></a><span class="summary-sig-name">Alltoall</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>)</span><br />
+      All to All Scatter/Gather, send data from all to all
+processes in a group</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Alltoallv"></a><span class="summary-sig-name">Alltoallv</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>)</span><br />
+      All to All Scatter/Gather Vector, send data from all to all
+processes in a group providing different amount of data and
+displacements</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Alltoallw"></a><span class="summary-sig-name">Alltoallw</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>)</span><br />
+      Generalized All-to-All communication allowing different
+counts, displacements and datatypes for each partner</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Barrier"></a><span class="summary-sig-name">Barrier</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Barrier synchronization</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Bcast"></a><span class="summary-sig-name">Bcast</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int root</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Broadcast a message from one process
+to all other processes in a group</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Bsend"></a><span class="summary-sig-name">Bsend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Blocking send in buffered mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Bsend_init"></a><span class="summary-sig-name">Bsend_init</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Persistent request for a send in buffered mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Call_errhandler"></a><span class="summary-sig-name">Call_errhandler</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">int errorcode</span>)</span><br />
+      Call the error handler installed on a communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Clone"></a><span class="summary-sig-name">Clone</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Clone an existing communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Compare"></a><span class="summary-sig-name">Compare</span>(<span class="summary-sig-arg">type cls</span>,
+        <span class="summary-sig-arg">Comm comm1</span>,
+        <span class="summary-sig-arg">Comm comm2</span>)</span><br />
+      Compare two communicators</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Create_keyval"></a><span class="summary-sig-name">Create_keyval</span>(<span class="summary-sig-arg">type cls</span>,
+        <span class="summary-sig-arg">copy_fn</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">delete_fn</span>=<span class="summary-sig-default">None</span>)</span><br />
+      Create a new attribute key for communicators</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Delete_attr"></a><span class="summary-sig-name">Delete_attr</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">int keyval</span>)</span><br />
+      Delete attribute value associated with a key</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Disconnect"></a><span class="summary-sig-name">Disconnect</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Disconnect from a communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Free"></a><span class="summary-sig-name">Free</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Free a communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Free_keyval"></a><span class="summary-sig-name">Free_keyval</span>(<span class="summary-sig-arg">type cls</span>,
+        <span class="summary-sig-arg">int keyval</span>)</span><br />
+      Free and attribute key for communicators</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Gather"></a><span class="summary-sig-name">Gather</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>,
+        <span class="summary-sig-arg">int root</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Gather together values from a group of processes</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Gatherv"></a><span class="summary-sig-name">Gatherv</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>,
+        <span class="summary-sig-arg">int root</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Gather Vector, gather data to one process from all other
+processes in a group providing different amount of data and
+displacements at the receiving sides</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Get_attr"></a><span class="summary-sig-name">Get_attr</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">int keyval</span>)</span><br />
+      Retrieve attribute value by key</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Get_errhandler"></a><span class="summary-sig-name">Get_errhandler</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Get the error handler for a communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Get_group"></a><span class="summary-sig-name">Get_group</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Access the group associated with a communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Get_name"></a><span class="summary-sig-name">Get_name</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Get the print name for this communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Get_parent"></a><span class="summary-sig-name">Get_parent</span>(<span class="summary-sig-arg">type cls</span>)</span><br />
+      Return the parent intercommunicator for this process</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Get_rank"></a><span class="summary-sig-name">Get_rank</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Return the rank of this process in a communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Get_size"></a><span class="summary-sig-name">Get_size</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Return the number of processes in a communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Get_topology"></a><span class="summary-sig-name">Get_topology</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Determine the type of topology (if any)
+associated with a communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Ibsend"></a><span class="summary-sig-name">Ibsend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Nonblocking send in buffered mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Iprobe"></a><span class="summary-sig-name">Iprobe</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">int source</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">Status status</span>=<span class="summary-sig-default">None</span>)</span><br />
+      Nonblocking test for a message</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Irecv"></a><span class="summary-sig-name">Irecv</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int source</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Nonblocking receive</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Irsend"></a><span class="summary-sig-name">Irsend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Nonblocking send in ready mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Is_inter"></a><span class="summary-sig-name">Is_inter</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Test to see if a comm is an intercommunicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Is_intra"></a><span class="summary-sig-name">Is_intra</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Test to see if a comm is an intracommunicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Isend"></a><span class="summary-sig-name">Isend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Nonblocking send</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Issend"></a><span class="summary-sig-name">Issend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Nonblocking send in synchronous mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Join"></a><span class="summary-sig-name">Join</span>(<span class="summary-sig-arg">type cls</span>,
+        <span class="summary-sig-arg">int fd</span>)</span><br />
+      Create a intercommunicator by joining
+two processes connected by a socket</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a href="mpi4py.MPI.Comm-class.html#Probe" class="summary-sig-name">Probe</a>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">int source</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">Status status</span>=<span class="summary-sig-default">None</span>)</span><br />
+      Blocking test for a message</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a href="mpi4py.MPI.Comm-class.html#Recv" class="summary-sig-name">Recv</a>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int source</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">Status status</span>=<span class="summary-sig-default">None</span>)</span><br />
+      Blocking receive</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Recv_init"></a><span class="summary-sig-name">Recv_init</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int source</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Create a persistent request for a receive</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Reduce"></a><span class="summary-sig-name">Reduce</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>,
+        <span class="summary-sig-arg">Op op</span>=<span class="summary-sig-default">SUM</span>,
+        <span class="summary-sig-arg">int root</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Reduce</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Reduce_scatter"></a><span class="summary-sig-name">Reduce_scatter</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>,
+        <span class="summary-sig-arg">recvcounts</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">Op op</span>=<span class="summary-sig-default">SUM</span>)</span><br />
+      Reduce-Scatter (vector version)</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Reduce_scatter_block"></a><span class="summary-sig-name">Reduce_scatter_block</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>,
+        <span class="summary-sig-arg">Op op</span>=<span class="summary-sig-default">SUM</span>)</span><br />
+      Reduce-Scatter Block (regular, non-vector version)</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Rsend"></a><span class="summary-sig-name">Rsend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Blocking send in ready mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Rsend_init"></a><span class="summary-sig-name">Rsend_init</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Persistent request for a send in ready mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Scatter"></a><span class="summary-sig-name">Scatter</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>,
+        <span class="summary-sig-arg">int root</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Scatter data from one process
+to all other processes in a group</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Scatterv"></a><span class="summary-sig-name">Scatterv</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">recvbuf</span>,
+        <span class="summary-sig-arg">int root</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Scatter Vector, scatter data from one process to all other
+processes in a group providing different amount of data and
+displacements at the sending side</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a href="mpi4py.MPI.Comm-class.html#Send" class="summary-sig-name">Send</a>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Blocking send</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Send_init"></a><span class="summary-sig-name">Send_init</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Create a persistent request for a standard send</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a href="mpi4py.MPI.Comm-class.html#Sendrecv" class="summary-sig-name">Sendrecv</a>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendbuf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int sendtag</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">recvbuf</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int source</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int recvtag</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">Status status</span>=<span class="summary-sig-default">None</span>)</span><br />
+      Send and receive a message</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a href="mpi4py.MPI.Comm-class.html#Sendrecv_replace" class="summary-sig-name">Sendrecv_replace</a>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int sendtag</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int source</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int recvtag</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">Status status</span>=<span class="summary-sig-default">None</span>)</span><br />
+      Send and receive a message</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Set_attr"></a><span class="summary-sig-name">Set_attr</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">int keyval</span>,
+        <span class="summary-sig-arg">attrval</span>)</span><br />
+      Store attribute value associated with a key</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Set_errhandler"></a><span class="summary-sig-name">Set_errhandler</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">Errhandler errhandler</span>)</span><br />
+      Set the error handler for a communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Set_name"></a><span class="summary-sig-name">Set_name</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">name</span>)</span><br />
+      Set the print name for this communicator</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Ssend"></a><span class="summary-sig-name">Ssend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Blocking send in synchronous mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="Ssend_init"></a><span class="summary-sig-name">Ssend_init</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">buf</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Persistent request for a send in synchronous mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="__eq__"></a><span class="summary-sig-name">__eq__</span>(<span class="summary-sig-arg">y</span>)</span><br />
+      x==y</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="__ge__"></a><span class="summary-sig-name">__ge__</span>(<span class="summary-sig-arg">y</span>)</span><br />
+      x&gt;=y</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="__gt__"></a><span class="summary-sig-name">__gt__</span>(<span class="summary-sig-arg">y</span>)</span><br />
+      x&gt;y</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="__le__"></a><span class="summary-sig-name">__le__</span>(<span class="summary-sig-arg">y</span>)</span><br />
+      x&lt;=y</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="__lt__"></a><span class="summary-sig-name">__lt__</span>(<span class="summary-sig-arg">y</span>)</span><br />
+      x&lt;y</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="__ne__"></a><span class="summary-sig-name">__ne__</span>(<span class="summary-sig-arg">y</span>)</span><br />
+      x!=y</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">a new object with type S, a subtype of T</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a href="mpi4py.MPI.Comm-class.html#__new__" class="summary-sig-name">__new__</a>(<span class="summary-sig-arg">S</span>,
+        <span class="summary-sig-arg">...</span>)</span></td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="__nonzero__"></a><span class="summary-sig-name">__nonzero__</span>()</span><br />
+      x != 0</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="allgather"></a><span class="summary-sig-name">allgather</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">recvobj</span>=<span class="summary-sig-default">None</span>)</span><br />
+      Gather to All</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="allreduce"></a><span class="summary-sig-name">allreduce</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">recvobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">op</span>=<span class="summary-sig-default">SUM</span>)</span><br />
+      Reduce to All</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="alltoall"></a><span class="summary-sig-name">alltoall</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">recvobj</span>=<span class="summary-sig-default">None</span>)</span><br />
+      All to All Scatter/Gather</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="barrier"></a><span class="summary-sig-name">barrier</span>(<span class="summary-sig-arg">self</span>)</span><br />
+      Barrier</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="bcast"></a><span class="summary-sig-name">bcast</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">obj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int root</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Broadcast</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="bsend"></a><span class="summary-sig-name">bsend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">obj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Send in buffered mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="f2py"></a><span class="summary-sig-name">f2py</span>(<span class="summary-sig-arg">type cls</span>,
+        <span class="summary-sig-arg">arg</span>)</span></td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="gather"></a><span class="summary-sig-name">gather</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">recvobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int root</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Gather</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="ibsend"></a><span class="summary-sig-name">ibsend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">obj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Nonblocking send in buffered mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="irecv"></a><span class="summary-sig-name">irecv</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">obj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span></td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="isend"></a><span class="summary-sig-name">isend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">obj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Nonblocking send</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="issend"></a><span class="summary-sig-name">issend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">obj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Nonblocking send in synchronous mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="py2f"></a><span class="summary-sig-name">py2f</span>(<span class="summary-sig-arg">self</span>)</span></td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="recv"></a><span class="summary-sig-name">recv</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">obj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int source</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">Status status</span>=<span class="summary-sig-default">None</span>)</span><br />
+      Receive</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="reduce"></a><span class="summary-sig-name">reduce</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">recvobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">op</span>=<span class="summary-sig-default">SUM</span>,
+        <span class="summary-sig-arg">int root</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Reduce</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="scatter"></a><span class="summary-sig-name">scatter</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">recvobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int root</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Scatter</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="send"></a><span class="summary-sig-name">send</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">obj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Send</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="sendrecv"></a><span class="summary-sig-name">sendrecv</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">sendobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int sendtag</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">recvobj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int source</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int recvtag</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">Status status</span>=<span class="summary-sig-default">None</span>)</span><br />
+      Send and Receive</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td><span class="summary-sig"><a name="ssend"></a><span class="summary-sig-name">ssend</span>(<span class="summary-sig-arg">self</span>,
+        <span class="summary-sig-arg">obj</span>=<span class="summary-sig-default">None</span>,
+        <span class="summary-sig-arg">int dest</span>=<span class="summary-sig-default">0</span>,
+        <span class="summary-sig-arg">int tag</span>=<span class="summary-sig-default">0</span>)</span><br />
+      Send in synchronous mode</td>
+          <td align="right" valign="top">
+            
+            
+          </td>
+        </tr>
+      </table>
+      
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" class="summary">
+    <p class="indent-wrapped-lines"><b>Inherited from <code>object</code></b>:
+      <code>__delattr__</code>,
+      <code>__format__</code>,
+      <code>__getattribute__</code>,
+      <code>__hash__</code>,
+      <code>__init__</code>,
+      <code>__reduce__</code>,
+      <code>__reduce_ex__</code>,
+      <code>__repr__</code>,
+      <code>__setattr__</code>,
+      <code>__sizeof__</code>,
+      <code>__str__</code>,
+      <code>__subclasshook__</code>
+      </p>
+    </td>
+  </tr>
+</table>
+<!-- ==================== PROPERTIES ==================== -->
+<a name="section-Properties"></a>
+<table class="summary" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr bgcolor="#70b0f0" class="table-header">
+  <td colspan="2" class="table-header">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr valign="top">
+        <td align="left"><span class="table-header">Properties</span></td>
+        <td align="right" valign="top"
+         ><span class="options">[<a href="#section-Properties"
+         class="privatelink" onclick="toggle_private();"
+         >hide private</a>]</span></td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+        <a name="group"></a><span class="summary-name">group</span><br />
+      communicator group
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+        <a name="is_inter"></a><span class="summary-name">is_inter</span><br />
+      is intercommunicator
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+        <a name="is_intra"></a><span class="summary-name">is_intra</span><br />
+      is intracommunicator
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+        <a name="name"></a><span class="summary-name">name</span><br />
+      communicator name
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+        <a name="rank"></a><span class="summary-name">rank</span><br />
+      rank of this process in communicator
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+        <a name="size"></a><span class="summary-name">size</span><br />
+      number of processes in communicator
+    </td>
+  </tr>
+<tr>
+    <td width="15%" align="right" valign="top" class="summary">
+      <span class="summary-type">&nbsp;</span>
+    </td><td class="summary">
+        <a name="topology"></a><span class="summary-name">topology</span><br />
+      communicator topology type
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" class="summary">
+    <p class="indent-wrapped-lines"><b>Inherited from <code>object</code></b>:
+      <code>__class__</code>
+      </p>
+    </td>
+  </tr>
+</table>
+<!-- ==================== METHOD DETAILS ==================== -->
+<a name="section-MethodDetails"></a>
+<table class="details" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr bgcolor="#70b0f0" class="table-header">
+  <td colspan="2" class="table-header">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr valign="top">
+        <td align="left"><span class="table-header">Method Details</span></td>
+        <td align="right" valign="top"
+         ><span class="options">[<a href="#section-MethodDetails"
+         class="privatelink" onclick="toggle_private();"
+         >hide private</a>]</span></td>
+      </tr>
+    </table>
+  </td>
+</tr>
+</table>
+<a name="Abort"></a>
+<div>
+<table class="details" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr><td>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr valign="top"><td>
+  <h3 class="epydoc"><span class="sig"><span class="sig-name">Abort</span>(<span class="sig-arg">self</span>,
+        <span class="sig-arg">int errorcode</span>=<span class="sig-default">0</span>)</span>
+  </h3>
+  </td><td align="right" valign="top"
+    >&nbsp;
+    </td>
+  </tr></table>
+  
+  <p>Terminate MPI execution environment</p>
+This is a direct call, use it with care!!!.
+  <dl class="fields">
+  </dl>
+</td></tr></table>
+</div>
+<a name="Probe"></a>
+<div>
+<table class="details" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr><td>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr valign="top"><td>
+  <h3 class="epydoc"><span class="sig"><span class="sig-name">Probe</span>(<span class="sig-arg">self</span>,
+        <span class="sig-arg">int source</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">int tag</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">Status status</span>=<span class="sig-default">None</span>)</span>
+  </h3>
+  </td><td align="right" valign="top"
+    >&nbsp;
+    </td>
+  </tr></table>
+  
+  <p>Blocking test for a message</p>
+This function blocks until the message arrives.
+  <dl class="fields">
+  </dl>
+</td></tr></table>
+</div>
+<a name="Recv"></a>
+<div>
+<table class="details" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr><td>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr valign="top"><td>
+  <h3 class="epydoc"><span class="sig"><span class="sig-name">Recv</span>(<span class="sig-arg">self</span>,
+        <span class="sig-arg">buf</span>,
+        <span class="sig-arg">int source</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">int tag</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">Status status</span>=<span class="sig-default">None</span>)</span>
+  </h3>
+  </td><td align="right" valign="top"
+    >&nbsp;
+    </td>
+  </tr></table>
+  
+  <p>Blocking receive</p>
+This function blocks until the message is received
+  <dl class="fields">
+  </dl>
+</td></tr></table>
+</div>
+<a name="Send"></a>
+<div>
+<table class="details" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr><td>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr valign="top"><td>
+  <h3 class="epydoc"><span class="sig"><span class="sig-name">Send</span>(<span class="sig-arg">self</span>,
+        <span class="sig-arg">buf</span>,
+        <span class="sig-arg">int dest</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">int tag</span>=<span class="sig-default">0</span>)</span>
+  </h3>
+  </td><td align="right" valign="top"
+    >&nbsp;
+    </td>
+  </tr></table>
+  
+  <p>Blocking send</p>
+This function may block until the message is
+received. Whether or not <a href="mpi4py.MPI.Comm-class.html#Send" class="link">Send</a> blocks depends on
+several factors and is implementation dependent
+  <dl class="fields">
+  </dl>
+</td></tr></table>
+</div>
+<a name="Sendrecv"></a>
+<div>
+<table class="details" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr><td>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr valign="top"><td>
+  <h3 class="epydoc"><span class="sig"><span class="sig-name">Sendrecv</span>(<span class="sig-arg">self</span>,
+        <span class="sig-arg">sendbuf</span>,
+        <span class="sig-arg">int dest</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">int sendtag</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">recvbuf</span>=<span class="sig-default">None</span>,
+        <span class="sig-arg">int source</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">int recvtag</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">Status status</span>=<span class="sig-default">None</span>)</span>
+  </h3>
+  </td><td align="right" valign="top"
+    >&nbsp;
+    </td>
+  </tr></table>
+  
+  <p>Send and receive a message</p>
+This function is guaranteed not to deadlock in
+situations where pairs of blocking sends and receives may
+deadlock.A common mistake when using this function is to
+mismatch the tags with the source and destination ranks,
+which can result in deadlock.
+  <dl class="fields">
+  </dl>
+</td></tr></table>
+</div>
+<a name="Sendrecv_replace"></a>
+<div>
+<table class="details" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr><td>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr valign="top"><td>
+  <h3 class="epydoc"><span class="sig"><span class="sig-name">Sendrecv_replace</span>(<span class="sig-arg">self</span>,
+        <span class="sig-arg">buf</span>,
+        <span class="sig-arg">int dest</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">int sendtag</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">int source</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">int recvtag</span>=<span class="sig-default">0</span>,
+        <span class="sig-arg">Status status</span>=<span class="sig-default">None</span>)</span>
+  </h3>
+  </td><td align="right" valign="top"
+    >&nbsp;
+    </td>
+  </tr></table>
+  
+  <p>Send and receive a message</p>
+This function is guaranteed not to deadlock in
+situations where pairs of blocking sends and receives may
+deadlock.A common mistake when using this function is to
+mismatch the tags with the source and destination ranks,
+which can result in deadlock.
+  <dl class="fields">
+  </dl>
+</td></tr></table>
+</div>
+<a name="__new__"></a>
+<div>
+<table class="details" border="1" cellpadding="3"
+       cellspacing="0" width="100%" bgcolor="white">
+<tr><td>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr valign="top"><td>
+  <h3 class="epydoc"><span class="sig"><span class="sig-name">__new__</span>(<span class="sig-arg">S</span>,
+        <span class="sig-arg">...</span>)</span>
+  </h3>
+  </td><td align="right" valign="top"
+    >&nbsp;
+    </td>
+  </tr></table>
+  
+  
+  <dl class="fields">
+    <dt>Returns: a new object with type S, a subtype of T</dt>
+    <dt>Overrides:
+        object.__new__
+    </dt>
+  </dl>
+</td></tr></table>
+</div>
+<br />
+<!-- ==================== NAVIGATION BAR ==================== -->
+<table class="navbar" border="0" width="100%" cellpadding="0"
+       bgcolor="#a0c0ff" cellspacing="0">
+  <tr valign="middle">
+  <!-- Home link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="mpi4py-module.html">Home</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Tree link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="module-tree.html">Trees</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Index link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="identifier-index.html">Indices</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Help link -->
+      <th>&nbsp;&nbsp;&nbsp;<a
+        href="help.html">Help</a>&nbsp;&nbsp;&nbsp;</th>
+
+  <!-- Project homepage -->
+      <th class="navbar" align="right" width="100%">
+        <table border="0" cellpadding="0" cellspacing="0">
+          <tr><th class="navbar" align="center"
+            ><a class="navbar" target="_top" href="http://mpi4py.googlecode.com/">MPI for Python</a></th>
+          </tr></table></th>
+  </tr>
+</table>
+<table border="0" cellpadding="0" cellspacing="0" width="100%%">
+  <tr>
+    <td align="left" class="footer">
+    Generated by Epydoc 3.0.1 on Wed Aug  7 15:01:54 2013
+    </td>
+    <td align="right" class="footer">
+      <a target="mainFrame" href="http://epydoc.sourceforge.net"
+        >http://epydoc.sourceforge.net</a>
+    </td>
+  </tr>
+</table>
+
+<script type="text/javascript">
+  <!--
+  // Private objects are initially displayed (because if
+  // javascript is turned off then we want them to be
+  // visible); but by default, we want to hide them.  So hide
+  // them unless we have a cookie that says to show them.
+  checkCookie();
+  // -->
+</script>
+</body>
+</html>

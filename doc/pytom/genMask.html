@@ -1,0 +1,31 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: generate a spherical mask</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+<p class="Header">PyTom: generate a spherical mask</p>
+<p align="justify">
+If you do not have a mask for your particles, you can generate one using this script.
+
+
+</p>
+<p>
+<div class="codeFragment">
+	<code>
+  $ipytom<br/>
+  from pytom.basic.functions import initSphere<br/><br/>
+  sphere = initSphere(32,32,32,radius=10) <br/>#initializes a sphere into a volume with a size of 32x32x32 and a radius of 10<br/><br/>
+  sphere2 = initSphere(32,32,32,radius=10,smooth=4)<br/> #initializes a sphere into a volume with a size of 32x32x32 and a radius of 10 and a gaussian smoothing of 4 pixels<br/><br/>
+  sphere3 = initSphere(32,32,32,radius=10,smooth=4,filename='sphereMask.em') <br/>#initializes a sphere into a volume with a size of 32x32x32 and a radius of 10 and a gaussian smoothing of 4 pixels. Writes mask to disk.<br/>
+</code>
+</div></p>
+<p>Please note: with the radius parameter you should cover the whole, significant area around the particle. Also, the size of the mask should be the same as the size of your subtomograms.</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p><br/>
+</p>
+</body>
+</html>

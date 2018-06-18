@@ -1,0 +1,194 @@
+<div id="TomogramBox" class="box" style="left:30px;top:45px;width:200px;height:150px;">
+	
+	<center>
+		<div class="topBar"><font class="topBarHeader">Tomogram</font></div>
+			<table>
+			<td width=50 align="center">
+				<div id="LoadTomogram" class="smallButton" 
+				onMouseOver="document.getElementById('Help').innerHTML='<b>Load</b> Load a tomogram.';" onMouseOut="document.getElementById('Help').innerHTML='';"
+				onclick="setCookieFromOverlay(document.getElementById('overlayBox'),'Set path to <b>tomogram</b> file<br/> Provide full path','pytom_localization_tomogramPath');">
+					load
+				</div>
+			</td>
+			<td width=50 align="center">
+				<div id="PreviewTomogram" class="smallButton" 
+				onMouseOver="document.getElementById('Help').innerHTML='<b>View</b> Preview a tomogram.';" onMouseOut="document.getElementById('Help').innerHTML='';"
+				onclick="">
+					view
+				</div>
+			</td>
+			</table>
+		
+		<div id="Tomogram">
+			<img id="TomogramIMG" src="" width="100" height="100" border="0"/>
+		</div>
+	
+	</center>
+</div>
+
+<div id="ParallelBox" class="box" style="left:30px;top:205px;width:200px;height:150px;">
+	<center>
+		<div class="topBar"><font class="topBarHeader">Subcubes</font></div>
+			<table>
+				<tr>
+					<td width=50 align="center">
+						X
+					</td>
+					<td width=50 align="center">
+						Y
+					</td>
+					<td width=50 align="center">
+						Z
+					</td>
+				</tr>
+				<tr>
+					<td width=50 align="center">
+						<input type="text" id="xCubes" value="2" size='5' maxlength='10'
+						onMouseOver="document.getElementById('Help').innerHTML='The tomogram will be spit into subvolumes.<br/><b>X</b> Number of subvolumes along this dimension.<br/>1 specifies no subvolume along this dimension.';" onMouseOut="document.getElementById('Help').innerHTML='';"/>
+					</td>
+					<td width=50 align="center">
+						<input type="text" id="yCubes" value="2" size='5' maxlength='10'
+						onMouseOver="document.getElementById('Help').innerHTML='The tomogram will be spit into subvolumes.<br/><b>Y</b> Number of subvolumes along this dimension.<br/>1 specifies no subvolume along this dimension.';" onMouseOut="document.getElementById('Help').innerHTML='';"/>
+					</td>
+					<td width=50 align="center">
+						<input type="text" id="zCubes" value="2" size='5' maxlength='10'
+						onMouseOver="document.getElementById('Help').innerHTML='The tomogram will be spit into subvolumes.<br/><b>Z</b> Number of subvolumes along this dimension.<br/>1 specifies no subvolume along this dimension.';" onMouseOut="document.getElementById('Help').innerHTML='';"/>
+					</td>
+				</tr>
+			</table>
+	</center>
+</div>
+
+<div id="ReferenceBox" class="box" style="left:255px;top:45px;width:180px;height:150px;">
+	<center>
+	<div class="topBar"><font class="topBarHeader">Reference</font></div>
+
+		<div id="LoadReference" class="smallButton" 
+		onMouseOver="document.getElementById('Help').innerHTML='<b>Load</b> Load a reference (template) for localization.';" onMouseOut="document.getElementById('Help').innerHTML='';"
+		onclick="imageFromFileInputOverlay(document.getElementById('overlayBox'),'imageSlice.py','File','ReferenceIMG','Set path to <b>reference</b> file<br/> Provide full path','pytom_localization_reference');">
+			load
+		</div>
+
+		<div id="Reference">
+			<img id="ReferenceIMG" src="" width="100" height="100" border="0"/>
+		</div>
+		
+	</center>
+</div>
+	
+<div id="MaskBox" class="box" style="left:255px;top:205px;width:180px;height:150px;">
+	<center>
+	<div class="topBar"><font class="topBarHeader">Mask</font></div>
+	<div id="LoadMask" class="smallButton" 
+	onMouseOver="document.getElementById('Help').innerHTML='<b>Load</b> Load a mask. This mask will be applied to the reference during localization.';" onMouseOut="document.getElementById('Help').innerHTML='';"
+	onclick="imageFromFileInputOverlay(document.getElementById('overlayBox'),'imageSlice.py','File','MaskIMG','Set path to <b>mask</b> file<br/> Provide full path','pytom_localization_mask');">
+		load
+	</div>
+	<div id="Mask">
+	
+		<img id="MaskIMG" src="" width="100" height="100" border="0"/>
+	</div>
+	</center>
+</div>
+	
+<div id="AngleBox" class="box" style="left:460px;top:45px;width:380px;height:70px;">
+	<center>
+	<div class="topBar"><font class="topBarHeader">Sampling Angles</font></div>
+	
+	
+	<table border="0" class="angleSampling">
+	
+	<tr>
+	<select id="AngleList" onMouseOver="document.getElementById('Help').innerHTML='<b>Rotation List</b> Specify a list of orientations for localization. 20&deg; or 12&deg; rotation distance prooved to be sufficient.';" onMouseOut="document.getElementById('Help').innerHTML='';">
+		<option>Rotation Lists</option>
+    	<option value="angles_50_100.em" >100 rotations - 50&deg; Inc.</option>
+    	<option value="angles_38.53_256.em" >256 rotations - 39&deg; Inc.</option>
+    	<option value="angles_35.76_320.em" >320 rotations - 36&deg; Inc.</option>
+    	<option value="angles_25.25_980.em" >980 rotations - 26&deg; Inc.</option>
+    	<option value="angles_19.95_1944.em" >1944 rotations - 20&deg; Inc.</option>
+    	<option value="angles_18_3040.em" >3040 rotations - 18&deg; Inc.</option>    
+    	<option value="angles_12.85_7112.em" >7112 rotations - 12&deg; Inc.</option>    
+    	<option value="angles_11_15192.em" >15192 rotations - 11&deg; Inc.</option>    
+    	<option value="angles_07_45123.em" >45123 rotations - 7&deg; Inc.</option>
+    	<option value="angles_3_553680.em" >553680 rotations - 3&deg; Inc.</option>
+    </select>    
+    </tr>
+
+	</table>
+	</center>
+</div>
+	
+<div id="TomogramResultBox" class="box" style="left:460px;top:125px;width:380px;height:70px;">
+	<center>
+	<div class="topBar">
+			<font class="topBarHeader">Destination Path</font>
+	</div>
+	</center>
+	<br/>
+    <input type="text" id="Destination" value="Paste path here" size='70' maxlength='1000'
+    		onMouseOver="document.getElementById('Help').innerHTML='Destination directory where localization results will be stored.';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+    
+
+</div>
+
+<div id="BandpassBox" class="box" style="left:460px;top:205px;width:380px;height:60px;">
+	
+	<center>
+	<div class="topBar"><font class="topBarHeader">Bandpass</font></div>
+	<table border="0">
+	<td>
+	<center>
+		<text class="parameter">Lowest Frequency</text><br/>
+    	<input type="text" id="LowestFrequency" value="0" size='10' maxlength='500'
+    	onMouseOver="document.getElementById('Help').innerHTML='Lowest frequency of bandpass. <br/> Value in pixels! (between 0 - size of cube/2 (Determines bandpass by pixel)).';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+    </center>
+    </td><td>
+    <center>
+    	<text class="parameter">Highest Frequency</text><br/>
+    	<input type="text" id="HighestFrequency" value="1" size='10' maxlength='500'
+    	onMouseOver="document.getElementById('Help').innerHTML='Highest frequency of bandpass. <br/> Value in pixels! (between 0 - size of cube/2 (Determines bandpass by pixel value)).';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+    </center>
+    </td><td>
+    <center>
+    	<text class="parameter">Smoothing</text><br/>
+    	<input type="text" id="FilterSmooth" value="0" size='10' maxlength='500'
+    	onMouseOver="document.getElementById('Help').innerHTML='Smoothing at the edges of filter.<br/> Can be 0 (off) or a pixel value.';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+    	</text>
+    </center>
+    </td>
+    </table>
+   	</center>
+</div>
+
+<div id="WedgeParameters" class="box" style="left:460px;top:275px;width:380px;height:80px;">
+	<center>
+	<div class="topBar"><font class="topBarHeader">Missing Wedge</font></div>
+	
+	<table border="0">
+	
+	<td>
+		<text class="parameter">Angle 1</text><br/>
+    	<input type="text" id="Wedge1" value="0" size='10' maxlength='10'
+    	onMouseOver="document.getElementById('Help').innerHTML='<b>Angle1</b>: Specify first tilt angle (for a tilt to 60 you would specify [90-60=30] ).';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+	</td><td>
+    	<text class="parameter">Angle 2</text><br/>
+    	<input type="text" id="Wedge2" value="0" size='10' maxlength='10'
+    	onMouseOver="document.getElementById('Help').innerHTML='<b>Angle2</b>: Specify second tilt angle (for a tilt to 60 you would specify [90-60=30] ).';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+	</td>
+	
+	</table>
+	
+	</center>
+</div>
+
+<div id="CheckParamtersButton" class="bigButton" style="position:absolute;top:380;left:740;" onClick="updateLocalizationCookiesFromPage(document);checkLocalizationParameters(document.getElementById('overlayBox'))" onMouseOver="document.getElementById('Help').innerHTML='Check your current setup.';" onMouseOut="document.getElementById('Help').innerHTML='';">
+	<div style="position:relative;top:33%;">
+		Check Setup
+	</div>
+</div>
+
+<div id="Submit" class="bigButton" style="position:absolute;top:440;left:740;background-color:#00FF00;" onClick="updateLocalizationCookiesFromPage(document);createLocalizationJobFromParameters(document);" onMouseOver="document.getElementById('Help').innerHTML='Create alignment job.<br/>Works only when button is green.';" onMouseOut="document.getElementById('Help').innerHTML='';">
+	<div style="position:relative;top:33%;">
+		Create Job
+	</div>
+</div>

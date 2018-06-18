@@ -1,0 +1,222 @@
+@CHARSET "UTF-8";
+
+
+div.main{
+	background-color:#ffffff;
+    position:fixed;
+    left:0px;
+    top:0px;
+    width=900px;
+    heigth=680px;
+}
+
+div.help{
+	background-color:#DEEDF6;
+    position:fixed;
+    left:30px;
+	border:solid 1px #ddddff;
+    width=100%;
+    heigth=100px;
+    font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+	color:#1E90FF;
+	text-align:Left;
+	-moz-border-radius: 10px 10px 10px 10px;
+	border-radius: 10px 10px 10px 10px;
+}
+
+div.box{
+	background-color:#ffffff;
+	position:fixed;
+	overflow:auto;
+	border:solid 1px #ddddff;
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+	-moz-border-radius: 0px 0px 5px 5px;
+	border-radius: 0px 0px 5px 5px;
+}
+
+div.box:hover{
+	-moz-box-shadow: 0 0 5px rgba(0,0,0,0.5);
+	-webkit-box-shadow: 0 0 5px rgba(0,0,0,0.5);
+	box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+div.subbox{
+	background-color:#ffffff;
+	position:relative;
+	overflow:auto;
+	border:solid 1px #dfdfdf;
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+}
+
+
+div.particles{
+	background-color:#ffffff;
+	position:relative;
+	width:170px;
+	height:100px;
+	left:5px;
+	border:0px;
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+}
+
+div.projections{
+	background-color:#ffffff;
+	position:relative;
+	width:170px;
+	height:100px;
+	left:5px;
+	border:0px;
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+}
+
+div.smallButton{
+	background-color:#ddddff;
+	position:relative;
+	width:50px;
+	height:20px;
+	border:solid 1px #ddddff;
+	cursor:pointer;
+	text-align:center;
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+	font-weight:bold;
+	vertical-align: middle;
+}
+
+div.smallButton:hover{
+	-moz-box-shadow: 0 0 2px rgba(0,0,0,0.9);
+	-webkit-box-shadow: 0 0 2px rgba(0,0,0,0.9);
+	box-shadow: 0 0 2px rgba(0,0,0,0.9);
+}
+
+div.bigButton{
+	background-color:#ddddff;
+	position:relative;
+	width:100px;
+	height:50px;
+	border:0px;
+	cursor:pointer;
+	text-align:center;
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+	font-weight:bold;
+	vertical-align: middle;
+}
+
+div.bigButton:hover{
+	-moz-box-shadow: 0 0 5px rgba(0,0,0,0.5);
+	-webkit-box-shadow: 0 0 5px rgba(0,0,0,0.5);
+	box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+table.innerList{
+	border:0px;
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:10px;
+}
+
+tr.innerList{
+	border:solid 1px;
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:10px;
+}
+
+th.innerList{
+	border:solid 1px;
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:10px;
+}
+
+td.innerList{
+	border:solid 1px;
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:10px;
+}
+
+div.overlayBox {
+	z-index: 10000;
+	filter: alpha(opacity=90); /*older IE*/
+	filter:progid:DXImageTransform.Microsoft.Alpha(opacity=90); /* IE */
+	-moz-opacity: .90; /*older Mozilla*/
+	-khtml-opacity: 0.9;   /*older Safari*/
+	opacity: 0.9;   /*supported by current Mozilla, Safari, and Opera, screw IE*/
+	background-color:#000000;
+	position:fixed; top:0px; left:0px; width:100%; height:100%; color:#FFFFFF; text-align:center; vertical-align:middle;
+}
+
+div.overlayText{
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:32px;
+	color:#1E90FF;
+}
+
+
+table.angleSampling{
+	border:0px;
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:10px;
+}
+
+
+div.topBar{
+	background-color:#1E90FF;
+	position:relative;
+	top:0px;
+	left:0px;
+	height:18px;
+	width:100%;
+}
+
+font.topBarHeader{
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+	font-weight:bold;
+	color:#cccccc;
+}
+
+div.subBar{
+	background-color:#999999;
+	position:relative;
+	top:0px;
+	left:0px;
+	height:18px;
+	width:100%;
+}
+
+font.subBarHeader{
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+	font-weight:bold;
+	color:#cccccc;
+}
+
+font.checkTextName{
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+	color:#1E90FF;
+	font-weight:bold;
+}
+
+font.checkTextValue{
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+	color:#1E90FF;
+}
+
+font.wrongValue{
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:14px;
+	color:#FF0000;
+}
+
+text.parameter{	
+	font-family: Verdana, Helvetica, sans-serif;
+	font-size:10px;
+}
+
+

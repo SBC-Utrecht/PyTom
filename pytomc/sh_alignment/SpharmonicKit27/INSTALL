@@ -1,0 +1,500 @@
+/***************************************************************************
+  **************************************************************************
+  
+                Spherical Harmonic Transform Kit 2.7
+  
+  
+   Contact: Peter Kostelec
+            geelong@cs.dartmouth.edu
+  
+  
+   Copyright 1997-2003  Sean Moore, Dennis Healy,
+                        Dan Rockmore, Peter Kostelec
+  
+  
+   Copyright 2004  Peter Kostelec, Dan Rockmore
+
+
+     SpharmonicKit is free software; you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation; either version 2 of the License, or
+     (at your option) any later version.
+  
+     SpharmonicKit is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
+  
+     You should have received a copy of the GNU General Public License
+     along with this program; if not, write to the Free Software
+     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+  
+  
+   Commercial use is absolutely prohibited.
+  
+   See the accompanying LICENSE file for details.
+  
+  ************************************************************************
+  ************************************************************************/
+
+MAKEFILE/INSTALLATION/CONTENTS
+------------------------------
+
+The Makefile provides an easy way to compile the code.  If you are
+not familiar with Makefiles, either read the man pages on make, or
+get a copy of "The UNIX Programming Environment" by Kernighan and Pike,
+or talk to your local UNIX guru.
+
+By default, the transforms compiled here DO NOT make use of the fftpack-based
+routines. Use of the fftpack-based routines is encouraged -> the fft
+and dct in fftpack are faster than those we provide in this distribution.
+
+Before using the modified fftpack-library, it has to be made. See the
+README file included in our distribution of the modified fftpack-library
+for instructions in making the library.
+
+To compile SpharmonicKit code to make use of the fftpack-based routines,
+define FFTPACK in the Makefile before compilation. See the file
+HOWTO_FFTPACK for details of how fftpack was modified for our
+purposes, along with other useful information, including discussion
+of how SpharmonicKit can be (relatively) easily modified to use other,
+optimized fft and dct routines.
+
+If you want to start compiling and testing quickly ...
+
+ make legendre
+
+will compile all the Legendre transform code in the Kit
+(for all flavours of algorithms);
+
+ make sphere
+
+will compile all the spherical-related transform code in
+the Kit; and
+
+ make all
+
+will compile everything; and
+
+ make clean
+
+will remove all *.o files.
+
+One can also compile individual routines - see the Makefile
+for a list.
+
+IMPORTANT NOTES:
+
+ 1) Some of the executables expect to read data off the disk.
+    One executable ( FST_precomp2disk ) writes data to disk.
+    By default, all data is written to and read from the current
+    directory. To change this default, change the setting of
+    PRECOMP_DIR in config.h .
+
+ 2) The timing routines, by default, reflect cpu times. If you
+    want to time using walltime, define WALLCLOCK in the CFLAGS
+    setting in the Makefile.
+
+ 3) The Legendre transform routines: test_flt_classic, test_flt_dhmid,
+    test_flt_hybrid and test_semi all read random data (used when
+    timing and testing stability) from the file norm.dat . Another
+    random data file, more_norm.dat, is also provided. If you want
+    the routine to read this (or any other) data file, change the
+    value of the DATAFILE variable which is located in each of
+    the executable's "main" .c files, i.e. in test_flt_classic.c,
+    test_flt_dhmid.c, test_flt_hybrid.c and test_semi.c .
+
+
+Code note: If the name of the executable ends in
+
+   _MEMO : this function precomputes everything in memory
+	   before transforming
+
+   _DISK : this functions reads precomputed data off disk
+
+   _FLY : this functions computes precomputed data (sounds
+	  odd) on the fly, as needed.
+
+Why the differences? Precomputing everything prior to
+transforming takes a LOT of memory (e.g. see the two tables
+above), more than what most machines have. Reading off disk
+or computing on the fly are more memory friendly alternatives.
+
+
+Now for a little more description of the more major pieces
+in the Kit ...
+
+
+
+CONTENTS/SOURCE FILE DESCRIPTIONS
+---------------------------------
+
+FAST COSINE TRANSFORMS
+------------------------
+------------------------
+
+Many of the algorithms use fast cosine transform algorithms.  As such,
+there is a collection of files for implementing them.
+
+newFCT.c - Source code for implementing fast cosine transforms (FCTs).
+Algorithm based on Steidl and Tasche description using a polynomial
+division model. Power of 2 only.
+
+OURperms.c - FCTs permute data.  The permutation used is the OUR permutation
+described by Moore and Wisniewski in Dartmouth College Department of
+Computer Science technical report PCS-TR95-266. These are the permutations
+for various powers of 2.
+
+OURmods.c - This is the encoding of the supermoduli in the polynomial
+division tree for the FCTs.
+
+######################################################################
+######################################################################
+######################################################################
+
+DISCRETE LEGENDRE TRANSFORMS
+----------------------------
+----------------------------
+
+Naive algorithm
+-----------------
+
+naive_synthesis.c - Source code to synthesize functions using a naive method
+   based on recurrence.  This is slow but does not require any
+   precomputed functions, and is also stable. 
+
+test_naive.c - sample main for naive transform. For bandwidths through 1024
+
+test_stability_naive.c - sample main for computing error data
+for the Legendre transform using the naive algorithm. For bandwidths
+through 1024
+
+
+Compile the code with the command
+
+ make test_naive test_stability
+
+
+Semi-naive transform code
+---------------------------
+
+The seminaive algorithms use FCT code and some additional functions.
+
+cospmls.c - source code for generating cosine transforms of P(m,l) and
+G(m,l) functions.
+
+seminaive.c - source for functions implementing seminaive and inverse
+seminaive transforms.
+
+test_semi.c - sample main for computing Legendre transform using the
+seminaive algorithm; used for timing and stability-testing purposes.
+For bandwidths through 1024. Is stable!
+
+test_semi_roundtrip.c - sample main which reads in Legendre
+coefficients, does inverse transform, does forward transform.
+Result should be same as input up to numerical errors. For
+bandwidths through 1024.
+
+Compile the code with the command
+
+ make test_semi test_semi_roundtrip
+
+
+(basic) Driscoll-Healy algorithm:
+--------------------------------
+
+precomp_flt_classic.c - source for precomputing data necessary
+for the forward DH Legendre transform algorithm.
+
+flt_classic.c - source for performing the slight variation of
+the forward DH Legendre transform algorithm. The slight
+variation divides and conquers only so many levels (user
+input), then applies a seminaive approach to the smaller
+subproblems.
+
+test_flt_classic.c - sample main for computing the forward
+Legendre transform using variation of the basic DH algorithm;
+used for timing and stability-testing purposes. For bandwidths
+through 1024. Unstable for large order m's!
+
+Compile the code with the command
+
+ make test_flt_classic
+
+
+Bounded DH-Mid
+--------------
+
+precomp_flt_dhmid.c - source for precomputing data necessary
+for the forward Bounded DH-Mid Legendre transform algorithm.
+
+flt_dhmid.c - source for performing the Bounded DH-Mid algorithm.
+Basically, this variation uses both the forward and reverse
+Legendre three-term recurrences for so many divides and conquers,
+then applies a seminaive approach to the remaining subproblems
+(has lower overhead than flt_classic).
+
+test_flt_dhmid.c - sample main for computing the forward
+Bounded DH-Mid Legendre transform; used for timing and
+stability-testing purposes. For bandwidths through 1024.
+Unstable for large order m's!
+
+Compile the code with the command
+
+ make test_flt_dhmid
+
+
+Simple-Split/Hybrid
+-------------------
+
+precomp_flt_hybrid.c - source for precomputing data necessary
+for the forward simple-split/hybrid Legendre transform algorithm.
+Lots of informative documentation in here!
+
+flt_hybrid.c - source for performing the simple-split/hybrid
+algorithm. The simple-split algorithm work as follows: given
+a problem of size N, IMMEDIATELY reduce (i.e. SPLIT) it into
+smaller subproblems and apply a seminaive approach to each of
+the subproblems. The hybrid algorithm works as follows: apply
+the "pure" seminaive algorithm to compute the first X-many
+coefficients; then use the simple-split algorithm to compute
+the rest. What does X equal? That depends on many things. You
+need to determine which value of X works best for you. This
+"switch point" will depend on the bandwidth, order of the
+transform, and the number of splits (which controls stability)
+one does in the simple-split portion of the hybrid algorithm.
+The thing which needs to be done is determine those settings
+which make the hybrid algorithm a) stable and b) competitive
+with the seminaive algorithm.
+
+Look at the documentation in this file and in
+precomp_flt_hybrid.c !!! The current settings in the code seem
+to work well for us. They may be taken as a starting point.
+With the current settings, the hybrid algorithm was faster
+(and still stable) than the seminaive algorithm on the DEC
+at bw = 1024 for orders m = 0 through (roughly) m = 100;
+on an SGI and HP, at the same bandwidth, the hybrid algorithm
+was faster (and still stable) for orders m = 0 through
+(roughly) m = 512. Again, your mileage may vary!!!
+
+test_flt_hybrid.c - sample main for computing the forward
+simple-split/hybrid Legendre transform; used for timing and
+stability-testing purposes. For bandwidths through 1024.
+Is stable!
+
+Compile the code with the command
+
+ make test_flt_hybrid
+
+
+######################################################################
+######################################################################
+######################################################################
+
+
+CODE RELEVANT FOR SPHERICAL TRANSFORMS
+--------------------------------------
+--------------------------------------
+
+As the size/bandwidth of the spherical transform increases, so
+do the memory requirements, and at a very high (and alarming?)
+rate. Please read the BACKGROUND file for important information
+concerning this issue.
+
+
+
+MathFace.c - code to interface with Mathematica-generated tables.
+
+Fast Fourier Transform (FFT) code
+---------------------------------
+
+FFTcode.c - as advertised.
+
+permroots.c - contains the 4096 4096th roots of unity in 
+bit-reversed order.
+
+indextables.c - tables containing bit-reverse permutation indices.
+
+
+FAST SPHERICAL HARMONIC TRANSFORMS
+-----------------------------------
+
+
+FST_semi_memo.c - source code to perform convolutions on the
+2-sphere using a semi-naive algorithm; EXPECTS PRECOMPUTED
+DATA TO BE IN MEMORY
+
+FST_semi_fly.c - source code to perform convolutions on the
+2-sphere using a semi-naive algorithm; COMPUTES PRECOMPUTED
+DATA AS NEEDED, ON THE FLY
+
+FST_semi_disk.c - source code to perform convolutions on the
+2-sphere using a semi-naive algorithm; EXPECTS TO READ
+PRECOMPUTED DATA OFF DISK
+
+FST_hybrid_memo.c - source code to perform convolutions on the
+2-sphere using hybrid algorithm in the forward direction and
+semi-naive algorithm in the reverse; EXPECTS PRECOMPUTED
+DATA TO BE IN MEMORY
+
+FST_hybrid_memoX.c - just like FST_hybrid_memo.c EXCEPT it
+writes over the input data during the algorithm (i.e. so
+there is less memory to allocate)
+
+FST_hybrid_disk.c - source code to perform convolutions on the
+2-sphere using hybrid algorithm in the forward direction and
+semi-naive algorithm in the reverse; EXPECTS TO READ
+PRECOMPUTED DATA OFF DISK
+
+
+When we say that the hybrid algorithm was used in the
+forward transform direction, this is what we mean.
+Suppose we are doing a forward spherical transform of
+order BW. For orders m = 0 through m = LIM (where, in
+our tests, LIM = BW/4 for BW = 64 through 512, LIM = BW/2
+for BW = 1024), the hybrid Legendre transform algorithm
+was used. For orders m = LIM + 1 through m = BW - 1,
+the seminaive Legendre transform algorithm was used.
+The code here uses the above LIM settings. Other LIM
+settings may be better for you. Again, it cannot be
+stressed enough, see precomp_flt_hybrid.c and flt_hybrid.c
+for details!
+
+What follows are now the spherical executables:
+
+1) FST_precomp2disk.c - routine to compute and save to disk
+the precomputed data required by the forward and reverse
+seminaive spherical transform and the forward hybrid
+spherical transform; for bw = 8 for seminaive, bw = 16
+for hybrid, through 1024
+
+Compile the code with the command
+
+ make FST_precomp2disk
+
+
+2) test_FST_semi_memo.c - sample main for computing forward
+and reverse spherical transforms using the seminaive algorithm;
+used for timing and stability-testing purposes;
+for bw = 8 through 512; EXPECTS PRECOMPUTED DATA TO BE
+IN MEMORY
+
+Compile the code with the command
+
+ make test_FST_semi_memo
+
+
+3) test_FST_semi_fly.c - sample main for computing forward
+and reverse spherical transforms using the seminaive algorithm;
+used for timing and stability-testing purposes;
+for bw = 8 through 1024; COMPUTES PRECOMPUTED DATA AS NEEDED,
+ON THE FLY
+
+Compile the code with the command
+
+ make test_FST_semi_fly
+
+
+4) test_FST_semi_disk.c - sample main for computing forward
+and reverse spherical transforms using the seminaive algorithm;
+used for timing and stability-testing purposes;
+for bw = 8 through 1024; EXPECTS TO READ PRECOMPUTED DATA
+OFF DISK
+
+Compile the code with the command
+
+ make test_FST_semi_disk
+
+
+5) test_FST_hybrid_memo.c - sample main for computing forward
+spherical transform using the hybrid algorithm and the
+reverse spherical transform using the seminaive algorithm;
+used for timing and stability-testing purposes;
+for bw = 64 through 512; EXPECTS PRECOMPUTED DATA TO BE
+IN MEMORY
+
+Compile the code with the command
+
+ make test_FST_hybrid_memo
+
+6) test_FST_hybrid_memoX.c - sample main for computing forward
+spherical transform using the hybrid algorithm and the
+reverse spherical transform using the seminaive algorithm
+(memory-friendly version); used for timing and stability-testing
+purposes; for bw = 64 through 512; EXPECTS PRECOMPUTED DATA
+TO BE IN MEMORY
+
+Compile the code with the command
+
+ make test_FST_hybrid_memoX
+
+7) test_FST_hybrid_disk.c - sample main for computing forward
+spherical transform using the hybrid algorithm and the
+reverse spherical transform using the seminaive algorithm;
+used for timing and stability-testing purposes; for bw = 16
+through 1024; EXPECTS TO READ PRECOMPUTED DATA OFF DISK
+
+Compile the code with the command
+
+ make test_FST_hybrid_disk
+
+
+8) CONV_SEMI_MEMO.c - sample main for convolving two functions
+defined on the 2-sphere using the seminaive algorithm;
+for bw = 64 through 512; EXPECTS PRECOMPUTED DATA TO BE
+IN MEMORY
+
+Compile the code with the command
+
+ make CONV_SEMI_MEMO
+
+9) CONV_SEMI_FLY.c - sample main for convolving two functions
+defined on the 2-sphere using the seminaive algorithm;
+for bw = 64 through 1024; COMPUTES PRECOMPUTED DATA AS NEEDED,
+ON THE FLY
+
+Compile the code with the command
+
+ make CONV_SEMI_FLY
+
+
+10) CONV_SEMI_DISK.c - sample main for convolving two functions
+defined on the 2-sphere using the seminaive algorithm;
+for bw = 64 through 512; EXPECTS TO READ PRECOMPUTED DATA
+OFF DISK
+
+Compile the code with the command
+
+ make CONV_SEMI_DISK
+
+11) CONV_HYBRID_MEMO.c - sample main for convolving two functions
+defined on the 2-sphere using the hybrid algorithm in the
+forward direction and seminaive algorithm in the reverse;
+for bw = 64 through 512; EXPECTS PRECOMPUTED DATA TO BE
+IN MEMORY
+
+Compile the code with the command
+
+ make CONV_HYBRID_MEMO
+
+11) CONV_HYBRID_DISK.c - sample main for convolving two functions
+defined on the 2-sphere using the hybrid algorithm in the
+forward direction and seminaive algorithm in the reverse;
+for bw = 64 through 1024; EXPECTS TO READ PRECOMPUTED DATA
+OFF DISK
+
+Compile the code with the command
+
+ make CONV_HYBRID_DISK
+
+
+
+Two sets of data:
+
+sphere_bw64.dat, filter_bw64.dat
+
+sphere_bw128.dat, filter_bw128.dat
+
+are provided as examples of inputs for the convolution routines.
+These files were created by Mathematica (tm).
+

@@ -1,0 +1,144 @@
+/***************************************************************************
+  **************************************************************************
+  
+                Spherical Harmonic Transform Kit 2.7
+  
+  
+   Contact: Peter Kostelec
+            geelong@cs.dartmouth.edu
+  
+  
+   Copyright 1997-2003  Sean Moore, Dennis Healy,
+                        Dan Rockmore, Peter Kostelec
+  
+  
+   Copyright 2004  Peter Kostelec, Dan Rockmore
+
+
+     SpharmonicKit is free software; you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation; either version 2 of the License, or
+     (at your option) any later version.
+  
+     SpharmonicKit is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
+  
+     You should have received a copy of the GNU General Public License
+     along with this program; if not, write to the Free Software
+     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+  
+  
+   Commercial use is absolutely prohibited.
+  
+   See the accompanying LICENSE file for details.
+  
+  ************************************************************************
+  ************************************************************************/
+
+A considerably speed-up in runtime is possible by using a slightly
+modified version of fftpack, the freely available collection of Fortran
+routines which compute 1-dimensional Fourier (and related) transforms.
+The original, unmodified version of the library is available at
+
+ www.scd.ucar.edu/softlib/FFTPACK.html
+
+The modified version of the library that SpharmonicKit uses is
+available at
+
+ www.cs.dartmouth.edu/~geelong/sphere/modified_fftpack.html
+
+Directions to make and install the modified fftpack library are
+included in the distribution of fftpack we provide.
+
+
+The fftpack routines that are used by SpharmonicKit are:
+
+ rffti     ( initialize arrays necessary for doing ffts )
+ cosqi     ( initialize arrays necessary for doing dcts )
+
+ rfftf     ( forward fft: sample to coefficient )
+ rfftb     ( inverse fft: coefficient to sample )
+ cosqb     ( our forward dct: sample to coefficient )
+ cosqf     ( our inverse dct: coefficient to sample )
+
+The functions rffti, cosqi, rfftf, rfftb were *not* modified
+in anyway. The functions cosqb and cosqf were modified. (Details
+further down.) To allow easy use of the fftpack-based routines
+(which are written in Fortran), small C-"interface" functions
+were written that call the appropriate fftpack-library routines.
+This should make substituting your own optimized fft and dct
+routines relatively straightfoward - just modify the definitions
+of the "interface" functions. If you use your own fft and dct
+routines, make sure that all scaling of coefficients and samples
+is done properly.
+
+
+IMPORTANT: In order to use the fftpack-based (or your own) routines,
+define the symbol FFTPACK in the Makefile before compiling, and
+make sure the symbol FFTFLAGS in the Makefile is pointing to where
+the fftpack (or your own) library lives.
+
+
+Ok, the interface functions for the fft routines are
+
+     precomp_fft              ( calls the fftpack routine rffti )
+     grid_fourier_FFTPACK     ( calls the fftpack routine rfftf )
+     grid_invfourier_FFTPACK  ( calls the fftpack routine rfftb )
+
+and they are defined in fft_grids.c . If you want to use your
+own fft, these are the three functions you want to modify.
+
+
+The interface functions for the dct routines are
+
+     precomp_dct              ( calls the fftpack routine cosqi )
+     DCTf    ( "f" for forward: calls the modified fftpack routine cosqb )
+     DCTb    ( "b" for backward: calls the modified fftpack routine cosqf )
+
+and they are defined in newFCT.c . If you want to use your
+own dct, these are the three functions you want to modify.
+
+Now ...
+
+  NOTE: DCTf and DCTb use slightly modified versions of
+        the fftpack functions cosqb ( in DCTf ) and cosqf (in DCTb ).
+	Before compiling the fftpack library, these functions
+	were modified in order to scale the coefficients the same way
+	as they are in kFCT, kFCTX, and ExpIFCT (i.e. the routines
+        we provide). Originally, the transforms cosqb and cosqf
+	were not orthogonal. THEY ARE NOW.
+
+	Exactly how was the scaling modified in the original,
+	unmodified fftpack routines cosqb, cosqf ?
+
+	Let X be an input array of length N. Let Y be the output
+	of kFCT (or kFCTX - they're identical), Z be the
+	output of the original, unmodified fftpack routine cosqb.
+	Let SCALE = 1 / (2 * N) .Then (using C and not Fortran indexing)
+
+	Y[0] = SCALE * Z[0] / 2
+	Y[i] = SCALE * Z[i]    for i = 1, 2, ..., N-1
+
+	The original fftpack library routine cosqb was further
+	modified to return only the first p <= N many
+	coefficients. This required modifying the original,
+	unmodified fftpack-source file cosqb.f .
+
+
+	Let X be an input array of length N. Let Y be the output
+	of ExpIFCT. Now let me multiply the first coefficient of
+	X by 2 ( so X[0] *= 2 ) and plug this modified X into
+	the original, unmodified fftpack-routine cosqf.
+	Let Z be the resulting output of cosqf. Let SCALE = 1/2.
+	Then (using C and not Fortran indexing)
+
+	Y[i] = SCALE * Z[i]    for i = 0, 1, 2, ..., N-1
+
+
+
+	All this scaling is now done within the source files
+	cosqf1.f and cosqb1.f . It's a little hokey, but it
+	works.
+

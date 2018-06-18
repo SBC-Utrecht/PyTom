@@ -1,0 +1,45 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: UI Server</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+
+<h2 class="Header">PyTom: Start the UI Frontend Server</h2>
+
+The server provides you with pages through which you will be able to set up processing jobs.
+First, open a terminal and navigate into the
+<div class="codeFragment">
+	<code>pytom/frontend</code>
+</div>
+directory and run
+<div class="codeFragment">
+	<code>pytom pytomServer.py -h "YourComputerName"</code>
+</div>
+<code>-h</code> You have to specify the computer name here. Determine that name by typing 
+
+<div class="codeFragment">
+	<code>echo $HOSTNAME</code>
+</div> 
+
+<p>or bug your system administrator if that does not show you the name of the machine you are working on. </p>
+<p><code>--help</code> Print a more detailed help 
+</p>
+<p>This is what you should see if everything runs fine: </p>
+<div class="codeFragment">
+	<code>
+Starting Pytom Webserver on hostname localhost and port 8080<br/>
+Paste the following line into your browser to start<br/>
+http://localhost:8080<br/>
+Starting browser:  firefox<br/>
+	</code>
+</div>
+
+<p>On some well configured machines, running the above command will start a browser (preferably firefox) and display the start page. However, if that does not happen, you have to open a browser and open the webpage manually. Paste the listed URL into the address bar and start configuring your jobs.</p>
+<center>
+<iframe  width="420" height="315" src="http://www.youtube.com/embed/T6WbmPkrqYc" frameborder="0" allowfullscreen></iframe>
+</center>
+</body>
+</html>

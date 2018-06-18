@@ -1,0 +1,314 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Appendix &mdash; MPI for Python 1.3.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.3.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="MPI for Python 1.3.1 documentation" href="index.html" />
+    <link rel="prev" title="Tutorial" href="tutorial.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="tutorial.html" title="Tutorial"
+             accesskey="P">previous</a></li>
+        <li><a href="index.html">MPI for Python 1.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="appendix">
+<h1>Appendix<a class="headerlink" href="#appendix" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="mpi-enabled-python-interpreter">
+<span id="python-mpi"></span><h2>MPI-enabled Python interpreter<a class="headerlink" href="#mpi-enabled-python-interpreter" title="Permalink to this headline">¶</a></h2>
+<p>Some MPI-1 implementations (notably, MPICH 1) <strong>do require</strong> the
+actual command line arguments to be passed at the time
+<tt class="xref c c-func docutils literal"><span class="pre">MPI_Init()</span></tt> is called. In this case, you will need to use a
+re-built, MPI-enabled, Python interpreter binary executable. A basic
+implementation (targeting Python 2.X) of what is required is shown
+below:</p>
+<div class="highlight-c"><div class="highlight"><pre><span class="cp">#include &lt;Python.h&gt;</span>
+<span class="cp">#include &lt;mpi.h&gt;</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+   <span class="kt">int</span> <span class="n">status</span><span class="p">,</span> <span class="n">flag</span><span class="p">;</span>
+   <span class="n">MPI_Init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">argc</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">argv</span><span class="p">);</span>
+   <span class="n">status</span> <span class="o">=</span> <span class="n">Py_Main</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span> <span class="n">argv</span><span class="p">);</span>
+   <span class="n">MPI_Finalized</span><span class="p">(</span><span class="o">&amp;</span><span class="n">flag</span><span class="p">);</span>
+   <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">flag</span><span class="p">)</span> <span class="n">MPI_Finalize</span><span class="p">();</span>
+   <span class="k">return</span> <span class="n">status</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The source code above is straightforward; compiling it should also
+be. However, the linking step is more tricky: special flags have to be
+passed to the linker depending on your platform. In order to alleviate
+you for such low-level details, <em>MPI for Python</em> provides some
+pure-distutils based support to build and install an MPI-enabled
+Python interpreter executable:</p>
+<div class="highlight-python"><pre>$ cd mpi4py-X.X.X
+$ python setup.py build_exe [--mpi=&lt;name&gt;|--mpicc=/path/to/mpicc]
+$ [sudo] python setup.py install_exe [--install-dir=$HOME/bin]</pre>
+</div>
+<p>After the above steps you should have the MPI-enabled interpreter
+installed as <tt class="file docutils literal"><em><span class="pre">prefix</span></em><span class="pre">/bin/python</span><em><span class="pre">X</span></em><span class="pre">.</span><em><span class="pre">X</span></em><span class="pre">-mpi</span></tt> (or
+<tt class="file docutils literal"><span class="pre">$HOME/bin/python</span><em><span class="pre">X</span></em><span class="pre">.</span><em><span class="pre">X</span></em><span class="pre">-mpi</span></tt>). Assuming that
+<tt class="file docutils literal"><em><span class="pre">prefix</span></em><span class="pre">/bin</span></tt> (or <tt class="file docutils literal"><span class="pre">$HOME/bin</span></tt>) is listed on your
+<span class="target" id="index-0"></span><tt class="xref std std-envvar docutils literal"><span class="pre">PATH</span></tt>, you should be able to enter your MPI-enabled Python
+interactively, for example:</p>
+<div class="highlight-python"><pre>$ python2.6-mpi
+Python 2.6 (r26:66714, Jun  8 2009, 16:07:26)
+[GCC 4.4.0 20090506 (Red Hat 4.4.0-4)] on linux2
+Type "help", "copyright", "credits" or "license" for more information.
+&gt;&gt;&gt; import sys
+&gt;&gt;&gt; sys.executable
+'/usr/bin/python2.6-mpi'
+&gt;&gt;&gt;</pre>
+</div>
+</div>
+<div class="section" id="mac-os-x-and-universal-sdk-python-builds">
+<span id="macosx-universal-sdk"></span><h2>Mac OS X and Universal/SDK Python builds<a class="headerlink" href="#mac-os-x-and-universal-sdk-python-builds" title="Permalink to this headline">¶</a></h2>
+<p>Mac OS X users employing a Python distribution built with support for
+<a class="reference external" href="http://www.apple.com/universal/">Universal applications</a> could have
+trouble building <em>MPI for Python</em>, specially if they want to link
+against MPI libraries built without such support. Another source of
+trouble could be a Python build using a specific <em>deployment target</em>
+and <em>cross-development SDK</em> configuration. Workarounds for such issues
+are to temporarily set the environment variables
+<span class="target" id="index-1"></span><tt class="xref std std-envvar docutils literal"><span class="pre">MACOSX_DEPLOYMENT_TARGET</span></tt>, <span class="target" id="index-2"></span><tt class="xref std std-envvar docutils literal"><span class="pre">SDKROOT</span></tt> and/or
+<span class="target" id="index-3"></span><tt class="xref std std-envvar docutils literal"><span class="pre">ARCHFLAGS</span></tt> to appropriate values in the shell before trying
+to build/install <em>MPI for Python</em>.</p>
+<p>An appropriate value for <span class="target" id="index-4"></span><tt class="xref std std-envvar docutils literal"><span class="pre">MACOSX_DEPLOYMENT_TARGET</span></tt> should be
+any greater or equal than the one used to build Python, and less or
+equal than your system version. The safest choice for end-users would
+be to use the system version (e.g, if you are on <em>Leopard</em>, you should
+try <tt class="docutils literal"><span class="pre">MACOSX_DEPLOYMENT_TARGET=10.5</span></tt>).</p>
+<p>An appropriate value for <span class="target" id="index-5"></span><tt class="xref std std-envvar docutils literal"><span class="pre">SDKROOT</span></tt> is the full path name of
+any of the SDK&#8217;s you have at <tt class="file docutils literal"><span class="pre">/Developer/SDKs</span></tt> directory (e.g.,
+<tt class="docutils literal"><span class="pre">SDKROOT=/Developer/SDKs/MacOSX10.5.sdk</span></tt>). The safest choice for
+end-users would be the one matching the system version; or
+alternatively the root directory (i.e., <tt class="docutils literal"><span class="pre">SDKROOT=/</span></tt>).</p>
+<p>Appropriate values for <span class="target" id="index-6"></span><tt class="xref std std-envvar docutils literal"><span class="pre">ARCHFLAGS</span></tt> have the form <tt class="docutils literal"><span class="pre">-arch</span>
+<span class="pre">&lt;value&gt;</span></tt>, where <tt class="docutils literal"><span class="pre">&lt;value&gt;</span></tt> should be chosen from the following
+table:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="24%" />
+<col width="40%" />
+<col width="36%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">&#64;</th>
+<th class="head">Intel</th>
+<th class="head">PowerPC</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>32-bit</td>
+<td><tt class="docutils literal"><span class="pre">i386</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">ppc</span></tt></td>
+</tr>
+<tr class="row-odd"><td>64-bit</td>
+<td><tt class="docutils literal"><span class="pre">x86_64</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">ppc64</span></tt></td>
+</tr>
+</tbody>
+</table>
+<p>For example, assuming your Mac is running <strong>Snow Leopard</strong> on a
+<strong>64-bit Intel</strong> processor and you want to override the hard-wired
+cross-development SDK in Python configuration, you can build and
+install <em>MPI for Python</em> using any of the alternatives below. Note
+that environment variables may need to be passed/set both at the build
+and install steps (because <strong class="program">sudo</strong> may not pass environment
+variables to subprocesses for security reasons)</p>
+<ul>
+<li><p class="first">Alternative 1:</p>
+<div class="highlight-python"><pre>$ env MACOSX_DEPLOYMENT_TARGET=10.6 \
+      SDKROOT=/                     \
+      ARCHFLAGS='-arch x86_64'      \
+      python setup.py build [options]
+
+$ sudo env MACOSX_DEPLOYMENT_TARGET=10.6 \
+           SDKROOT=/                     \
+           ARCHFLAGS='-arch x86_64'      \
+           python setup.py install [options]</pre>
+</div>
+</li>
+<li><p class="first">Alternative 2:</p>
+<div class="highlight-python"><pre>$ export MACOSX_DEPLOYMENT_TARGET=10.6
+$ export SDKROOT=/
+$ export ARCHFLAGS='-arch x86_64'
+$ python setup.py build [options]
+
+$ sudo -s # enter interactive shell as root
+$ export MACOSX_DEPLOYMENT_TARGET=10.6
+$ export SDKROOT=/
+$ export ARCHFLAGS='-arch x86_64'
+$ python setup.py install [options]
+$ exit</pre>
+</div>
+</li>
+</ul>
+</div>
+<div class="section" id="building-mpi-from-sources">
+<span id="building-mpi"></span><h2>Building MPI from sources<a class="headerlink" href="#building-mpi-from-sources" title="Permalink to this headline">¶</a></h2>
+<p>In the list below you have some executive instructions for building
+some of the open-source MPI implementations out there with support for
+shared/dynamic libraries on POSIX environments.</p>
+<ul>
+<li><p class="first"><em>MPICH 2</em></p>
+<div class="highlight-python"><pre>$ tar -zxf mpich2-X.X.X.tar.gz
+$ cd mpich2-X.X.X
+$ ./configure --enable-shared --prefix=/usr/local/mpich2
+$ make
+$ make install</pre>
+</div>
+</li>
+<li><p class="first"><em>Open MPI</em></p>
+<div class="highlight-python"><pre>$ tar -zxf openmpi-X.X.X tar.gz
+$ cd openmpi-X.X.X
+$ ./configure --prefix=/usr/local/openmpi
+$ make all
+$ make install</pre>
+</div>
+</li>
+<li><p class="first"><em>LAM/MPI</em></p>
+<div class="highlight-python"><pre>$ tar -zxf lam-X.X.X.tar.gz
+$ cd lam-X.X.X
+$ ./configure --enable-shared --prefix=/usr/local/lam
+$ make
+$ make install</pre>
+</div>
+</li>
+<li><p class="first"><em>MPICH 1</em></p>
+<div class="highlight-python"><pre>$ tar -zxf mpich-X.X.X.tar.gz
+$ cd mpich-X.X.X
+$ ./configure --enable-sharedlib --prefix=/usr/local/mpich1
+$ make
+$ make install</pre>
+</div>
+</li>
+</ul>
+<p>Perhaps you will need to set the <span class="target" id="index-7"></span><tt class="xref std std-envvar docutils literal"><span class="pre">LD_LIBRARY_PATH</span></tt>
+environment variable (using <strong class="command">export</strong>, <strong class="command">setenv</strong> or
+what applies to your system) pointing to the directory containing the
+MPI libraries . In case of getting runtime linking errors when running
+MPI programs, the following lines can be added to the user login shell
+script (<tt class="file docutils literal"><span class="pre">.profile</span></tt>, <tt class="file docutils literal"><span class="pre">.bashrc</span></tt>, etc.).</p>
+<ul>
+<li><p class="first"><em>MPICH 2</em></p>
+<div class="highlight-python"><pre>MPI_DIR=/usr/local/mpich2
+export LD_LIBRARY_PATH=$MPI_DIR/lib:$LD_LIBRARY_PATH</pre>
+</div>
+</li>
+<li><p class="first"><em>Open MPI</em></p>
+<div class="highlight-python"><pre>MPI_DIR=/usr/local/openmpi
+export LD_LIBRARY_PATH=$MPI_DIR/lib:$LD_LIBRARY_PATH</pre>
+</div>
+</li>
+<li><p class="first"><em>LAM/MPI</em></p>
+<div class="highlight-python"><pre>MPI_DIR=/usr/local/lam
+export LD_LIBRARY_PATH=$MPI_DIR/lib:$LD_LIBRARY_PATH</pre>
+</div>
+</li>
+<li><p class="first"><em>MPICH 1</em></p>
+<div class="highlight-python"><pre>MPI_DIR=/usr/local/mpich1
+export LD_LIBRARY_PATH=$MPI_DIR/lib/shared:$LD_LIBRARY_PATH:
+export MPICH_USE_SHLIB=yes</pre>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">MPICH 1 support for dynamic libraries is not completely
+transparent. Users should set the environment variable
+<span class="target" id="index-8"></span><tt class="xref std std-envvar docutils literal"><span class="pre">MPICH_USE_SHLIB</span></tt> to <tt class="docutils literal"><span class="pre">yes</span></tt> in order to avoid link
+problems when using the <strong class="program">mpicc</strong> compiler wrapper.</p>
+</div>
+</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Appendix</a><ul>
+<li><a class="reference internal" href="#mpi-enabled-python-interpreter">MPI-enabled Python interpreter</a></li>
+<li><a class="reference internal" href="#mac-os-x-and-universal-sdk-python-builds">Mac OS X and Universal/SDK Python builds</a></li>
+<li><a class="reference internal" href="#building-mpi-from-sources">Building MPI from sources</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="tutorial.html"
+                        title="previous chapter">Tutorial</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/appendix.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="tutorial.html" title="Tutorial"
+             >previous</a></li>
+        <li><a href="index.html">MPI for Python 1.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Lisandro Dalcin.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

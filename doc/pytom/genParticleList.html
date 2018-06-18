@@ -1,0 +1,35 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: generate a spherical mask</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+<p class="Header">PyTom: generate a particle list from a directory</p>
+<p align="justify">
+If you already have the particles stored on the disk and want to generate a particle list out of it, you can use the script <strong>bin/createParticleListFromDir.py</strong>:
+<div class="codeFragment">
+<code>
+<pre>
+NAME
+    createParticleListFromDir.py
+DESCRIPTION
+    Create a particle list from the EM files in a directory.
+OPTIONS
+    -d    Directory (Is optional: No; Requires arguments: Yes)
+    -p    Particle name prefix (Is optional: Yes; Requires arguments: Yes)
+    -w    Wedge Angle (degree) (Is optional: No; Requires arguments: Yes)
+    -o    Output particle list (Is optional: No; Requires arguments: Yes)
+    -h, --help    Help. (Is optional: Yes; Requires arguments: No)
+AUTHORS
+    Yuxiang Chen
+</pre>
+</code>
+</div>
+
+<p align="justify">If the particle name prefix is specified, all the em files with that prefix in the given directory will be included in the output particle list. Otherwise, all the em files will be in. You should also specify the missing wedge angle (symmetric and single tilt axis assumed) in degrees. If it is not the case, you can use a text editor to find/replace the wedge parts later on.
+</p>
+
+</body>
+</html>

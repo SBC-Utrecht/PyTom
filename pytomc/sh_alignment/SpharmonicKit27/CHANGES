@@ -1,0 +1,294 @@
+/***************************************************************************
+  **************************************************************************
+  
+                Spherical Harmonic Transform Kit 2.7
+    
+   Contact: Peter Kostelec
+            geelong@cs.dartmouth.edu
+  
+  
+   Copyright 1997-2003  Sean Moore, Dennis Healy,
+                        Dan Rockmore, Peter Kostelec
+
+  
+   Copyright 2004  Peter Kostelec, Dan Rockmore  
+  
+     SpharmonicKit is free software; you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation; either version 2 of the License, or
+     (at your option) any later version.
+  
+     SpharmonicKit is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
+  
+     You should have received a copy of the GNU General Public License
+     along with this program; if not, write to the Free Software
+     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+  
+  
+   Commercial use is absolutely prohibited.
+  
+   See the accompanying LICENSE file for details.
+  
+  ************************************************************************
+  ************************************************************************/
+
+==================================================
+
+February, 2004: SpharmonicKit 2.7 released
+
+Another (and hopefully last) scaling discrepancy corrected.
+
+A user has identified another scaling error, this time
+in the TransMult() routine which is used for convolutions.
+The coefficients were not being weighted correctly prior to
+performing the inverse spherical transform.
+
+In the original Driscoll-Healy paper, in Theorem 1 it is proved
+that, for two function f and h defined on the sphere, the
+transform of their convolution is a pointwise product of
+the transforms
+
+(f*h)^(l,m) = 2*pi*sqrt(4*pi/(2*l+1)) f^(l,m) * h^(l,0)
+
+where ^ denotes the Fourier coefficient of degree l, order m.
+In a nutshell, we forgot the 2*pi*sqrt(4*pi/(2*l+1)) in the
+code.
+
+We thank the user for identifying this error, and providing the
+following correction.
+
+The main for-loops in TransMult() used to be
+
+************************************************
+
+  for (m=0; m<bw; m++) {
+    for (l=m; l<bw; l++) {
+      compmult(rfiltercoeffs[l], ifiltercoeffs[l],
+	       rdptr[l-m], idptr[l-m],
+	       rrptr[l-m], irptr[l-m]);
+    }
+    rdptr += bw-m; idptr += bw-m;
+    rrptr += bw-m; irptr += bw-m;
+  }
+  for (m=bw+1; m<size; m++) {
+    for (l=size-m; l<bw; l++){
+      compmult(rfiltercoeffs[l], ifiltercoeffs[l],
+	       rdptr[l-size+m], idptr[l-size+m],
+	       rrptr[l-size+m], irptr[l-size+m]);
+    }
+    rdptr += m-bw; idptr += m-bw;
+    rrptr += m-bw; irptr += m-bw;
+  }
+
+************************************************
+
+The corrected version is 
+
+************************************************
+
+  for (m=0; m<bw; m++) {
+    for (l=m; l<bw; l++) {
+      compmult(rfiltercoeffs[l], ifiltercoeffs[l],
+	       rdptr[l-m], idptr[l-m],
+	       rrptr[l-m], irptr[l-m]);
+
+      rrptr[l-m] *= sqrt(4*M_PI/(2*l+1));
+      irptr[l-m] *= sqrt(4*M_PI/(2*l+1));
+
+    }
+    rdptr += bw-m; idptr += bw-m;
+    rrptr += bw-m; irptr += bw-m;
+  }
+  for (m=bw+1; m<size; m++) {
+    for (l=size-m; l<bw; l++){
+      compmult(rfiltercoeffs[l], ifiltercoeffs[l],
+	       rdptr[l-size+m], idptr[l-size+m],
+	       rrptr[l-size+m], irptr[l-size+m]);
+
+      rrptr[l-size+m] *= sqrt(4*M_PI/(2*l+1));
+      irptr[l-size+m] *= sqrt(4*M_PI/(2*l+1));
+
+    }
+    rdptr += m-bw; idptr += m-bw;
+    rrptr += m-bw; irptr += m-bw;
+  }
+
+************************************************
+
+
+==================================================
+
+July, 2003: SpharmonicKit 2.6 released
+
+Scaling discrepancy corrected.
+
+While the code is internally consistent, as far as normalizations are
+concerned, a user recently pointed out to us that our scaling of the
+Y_lm's differs from the usual Y_lm's.
+
+If, for example, one sampled the spherical harmonic Y_1^0 on the
+sphere in Mathematica (tm), and then used SpharmonicKit to take
+its forward spherical transform, the computed coefficient
+would not be 1, but rather 1/(2*sqrt(PI)). And if one sampled
+Y_1^1, the computed coefficient would 1/sqrt(2*PI), and not 1.
+
+So, depending on the order of the spherical transform, we were missing
+either a 2*sqrt(PI), or a sqrt(2*PI). We are grateful for the user
+pointing this out to us, and apologize for any inconvenience this may
+have caused. The spherical transform routines, including those having
+to do with convolution, have been corrected in version 2.6.
+
+To detail the fix:
+
+A) Forward Spherical Transform
+
+Taking the forward spherical transform, as defined in version 2.5,
+the computed coefficients need to be scaled as follows:
+
+ - multiply all order m = 0 coefficients by 2*sqrt(pi)
+
+ - multiply all order m != 0 coefficients by sqrt(2*pi)
+
+For example, if the real and imaginary parts of the computed
+coefficients are in the arrays "rresult" and "iresult", do something
+like this:
+
+    for(m=0;m<bw;m++)
+      for(l=m;l<bw;l++){
+        dummy = seanindex(m,l,bw);
+        if ( m == 0 )
+          {
+            rresult[dummy] *= (2.*sqrt(pi));
+            iresult[dummy] *= (2.*sqrt(pi));
+          }
+        else
+          {
+            rresult[dummy] *= (sqrt(2.*pi));
+            iresult[dummy] *= (sqrt(2.*pi));
+          }
+        /* now for the negative-order coefficients */
+        if ( m != 0 )
+          {
+            dummy = seanindex(-m,l,bw);
+            rresult[dummy] *= (sqrt(2.*pi));
+            iresult[dummy] *= (sqrt(2.*pi));
+          }
+      }
+
+B) Inverse Spherical Transform
+
+Taking the inverse spherical transform, as defined in version 2.5,
+the computed coefficients need to be scaled as follows, *BEFORE*
+applying the inverse spherical transform:
+
+ - divide all order m = 0 coefficients by 2*sqrt(pi)
+
+ - divide all order m != 0 coefficients by sqrt(2*pi)
+
+For example, if the real and imaginary parts of the computed coefficients
+are in the arrays "rcoeffs" and "icoeffs", then you should do something
+like this:
+
+    for(m=0;m<bw;m++)
+      for(l=m;l<bw;l++){
+        dummy = seanindex(m,l,bw);
+        if ( m == 0 )
+          {
+            rcoeffs[dummy] /= (2.*sqrt(pi));
+            icoeffs[dummy] /= (2.*sqrt(pi));
+          }
+        else
+          {
+            rcoeffs[dummy] /= (sqrt(2.*pi));
+            icoeffs[dummy] /= (sqrt(2.*pi));
+          }
+        /* now for the negative-order coefficients */
+        if ( m != 0 )
+          {
+            dummy = seanindex(-m,l,bw);
+            rcoeffs[dummy] /= (sqrt(2.*pi));
+            icoeffs[dummy] /= (sqrt(2.*pi));
+          }
+      }
+
+
+To save some system calls to "sqrt", replace sqrt(2*pi), 2*sqrt(pi),
+1/sqrt(2*pi) and 1/2*sqrt(pi) by their numerical equivalents and make
+everything a (quicker) multiply.
+
+
+=========================================
+
+July, 1998: SpharmonicKit 2.5 released
+
+This version of the Kit is designed to use a slight variation
+of FFTPACK, the freely available collection of FORTRAN subprograms
+for "... calculating fast Fourier transforms for both complex and
+real periodic sequences and certain other symmetric sequences ...."
+To be precise, the Kit now uses slight modifications of the FFT
+and DCT routines found in FFTPACK. These routines are considerably
+more efficient than those provided in SpharmonicKit 2 (and are still
+included in this current release). Details can be found in HOWTO_FFTPACK.
+
+Making the reasonable assumption that the input data will always
+be strictly real, the fft-portions of all the spherical transforms
+were modified to take full advantage of the symmetries that this
+assumption brings. This is only in the case when FFTPACK is used.
+Up to now, the symmetries were only partially and not fully
+exploited.
+
+Also redesigned some of the documentation.
+
+==========================================
+
+March, 1998: SpharmonicKit 2 released
+
+In the original release of the Kit, all the Legendre transforms
+(and code relying on Legendre transforms) were based on the
+seminaive and naive algorithms. Code based on the work of Driscoll
+and Healy is introduced in this release. As an extremely brief
+"what's new in this release" ...
+
+In this latest edition of the Kit, the following are
+the new major additions:
+
+Forward Legendre transforms:
+
+ 1) a slight variation of the basic Driscoll-Healy (DH)
+    Legendre transform algorithm; for bw = 16 through
+    1024 (must be power of 2)
+
+ 2) the bounded DH-Mid algorithm; for bw = 16 through
+    1024 (must be power of 2)
+
+ 3) the simple-split and hybrid algorithms; for bw = 16
+    through 1024 (must be power of 2)
+
+
+Forward Spherical Transforms:
+
+ 1) a hybrid spherical transform (based on the hybrid
+    Legendre transform) that precomputes in memory all
+    necessary Legendre polynomial cosine transforms
+    prior to transforming; for bw = 64 through 512
+
+ 2) a hybrid spherical transform that reads the
+    precomputed data off disk; for bw = 16 through 1024
+
+ 3) a spherical convolution routine which uses the hybrid
+    spherical transform in the forward direction and
+    seminaive algorithm in the reverse; precomputes
+    in memory prior to transforming; for bw = 64 through
+    512
+
+ 4) a spherical convolution routine which uses the hybrid
+    spherical transform in the forward direction and
+    seminaive algorithm in the reverse; reads the precomputed
+    data off disk; for bw = 16 through 1024
+
+The seminaive spherical algorithms (forward and reverse)
+were modified and versions which read precomputed data
+off disk are provided, as well.

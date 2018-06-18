@@ -1,0 +1,580 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="Docutils 0.11: http://docutils.sourceforge.net/" />
+<title>HISTORY: MPI for Python</title>
+<meta name="author" content="Lisandro Dalcin" />
+<meta name="organization" content="CIMEC &lt;http://www.cimec.org.ar&gt;" />
+<style type="text/css">
+
+/*
+:Author: David Goodger (goodger@python.org)
+:Id: $Id: html4css1.css 7614 2013-02-21 15:55:51Z milde $
+:Copyright: This stylesheet has been placed in the public domain.
+
+Default cascading style sheet for the HTML output of Docutils.
+
+See http://docutils.sf.net/docs/howto/html-stylesheets.html for how to
+customize this style sheet.
+*/
+
+/* used to remove borders from tables and images */
+.borderless, table.borderless td, table.borderless th {
+  border: 0 }
+
+table.borderless td, table.borderless th {
+  /* Override padding for "table.docutils td" with "! important".
+     The right padding separates the table cells. */
+  padding: 0 0.5em 0 0 ! important }
+
+.first {
+  /* Override more specific margin styles with "! important". */
+  margin-top: 0 ! important }
+
+.last, .with-subtitle {
+  margin-bottom: 0 ! important }
+
+.hidden {
+  display: none }
+
+a.toc-backref {
+  text-decoration: none ;
+  color: black }
+
+blockquote.epigraph {
+  margin: 2em 5em ; }
+
+dl.docutils dd {
+  margin-bottom: 0.5em }
+
+object[type="image/svg+xml"], object[type="application/x-shockwave-flash"] {
+  overflow: hidden;
+}
+
+/* Uncomment (and remove this text!) to get bold-faced definition list terms
+dl.docutils dt {
+  font-weight: bold }
+*/
+
+div.abstract {
+  margin: 2em 5em }
+
+div.abstract p.topic-title {
+  font-weight: bold ;
+  text-align: center }
+
+div.admonition, div.attention, div.caution, div.danger, div.error,
+div.hint, div.important, div.note, div.tip, div.warning {
+  margin: 2em ;
+  border: medium outset ;
+  padding: 1em }
+
+div.admonition p.admonition-title, div.hint p.admonition-title,
+div.important p.admonition-title, div.note p.admonition-title,
+div.tip p.admonition-title {
+  font-weight: bold ;
+  font-family: sans-serif }
+
+div.attention p.admonition-title, div.caution p.admonition-title,
+div.danger p.admonition-title, div.error p.admonition-title,
+div.warning p.admonition-title, .code .error {
+  color: red ;
+  font-weight: bold ;
+  font-family: sans-serif }
+
+/* Uncomment (and remove this text!) to get reduced vertical space in
+   compound paragraphs.
+div.compound .compound-first, div.compound .compound-middle {
+  margin-bottom: 0.5em }
+
+div.compound .compound-last, div.compound .compound-middle {
+  margin-top: 0.5em }
+*/
+
+div.dedication {
+  margin: 2em 5em ;
+  text-align: center ;
+  font-style: italic }
+
+div.dedication p.topic-title {
+  font-weight: bold ;
+  font-style: normal }
+
+div.figure {
+  margin-left: 2em ;
+  margin-right: 2em }
+
+div.footer, div.header {
+  clear: both;
+  font-size: smaller }
+
+div.line-block {
+  display: block ;
+  margin-top: 1em ;
+  margin-bottom: 1em }
+
+div.line-block div.line-block {
+  margin-top: 0 ;
+  margin-bottom: 0 ;
+  margin-left: 1.5em }
+
+div.sidebar {
+  margin: 0 0 0.5em 1em ;
+  border: medium outset ;
+  padding: 1em ;
+  background-color: #ffffee ;
+  width: 40% ;
+  float: right ;
+  clear: right }
+
+div.sidebar p.rubric {
+  font-family: sans-serif ;
+  font-size: medium }
+
+div.system-messages {
+  margin: 5em }
+
+div.system-messages h1 {
+  color: red }
+
+div.system-message {
+  border: medium outset ;
+  padding: 1em }
+
+div.system-message p.system-message-title {
+  color: red ;
+  font-weight: bold }
+
+div.topic {
+  margin: 2em }
+
+h1.section-subtitle, h2.section-subtitle, h3.section-subtitle,
+h4.section-subtitle, h5.section-subtitle, h6.section-subtitle {
+  margin-top: 0.4em }
+
+h1.title {
+  text-align: center }
+
+h2.subtitle {
+  text-align: center }
+
+hr.docutils {
+  width: 75% }
+
+img.align-left, .figure.align-left, object.align-left {
+  clear: left ;
+  float: left ;
+  margin-right: 1em }
+
+img.align-right, .figure.align-right, object.align-right {
+  clear: right ;
+  float: right ;
+  margin-left: 1em }
+
+img.align-center, .figure.align-center, object.align-center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.align-left {
+  text-align: left }
+
+.align-center {
+  clear: both ;
+  text-align: center }
+
+.align-right {
+  text-align: right }
+
+/* reset inner alignment in figures */
+div.align-right {
+  text-align: inherit }
+
+/* div.align-center * { */
+/*   text-align: left } */
+
+ol.simple, ul.simple {
+  margin-bottom: 1em }
+
+ol.arabic {
+  list-style: decimal }
+
+ol.loweralpha {
+  list-style: lower-alpha }
+
+ol.upperalpha {
+  list-style: upper-alpha }
+
+ol.lowerroman {
+  list-style: lower-roman }
+
+ol.upperroman {
+  list-style: upper-roman }
+
+p.attribution {
+  text-align: right ;
+  margin-left: 50% }
+
+p.caption {
+  font-style: italic }
+
+p.credits {
+  font-style: italic ;
+  font-size: smaller }
+
+p.label {
+  white-space: nowrap }
+
+p.rubric {
+  font-weight: bold ;
+  font-size: larger ;
+  color: maroon ;
+  text-align: center }
+
+p.sidebar-title {
+  font-family: sans-serif ;
+  font-weight: bold ;
+  font-size: larger }
+
+p.sidebar-subtitle {
+  font-family: sans-serif ;
+  font-weight: bold }
+
+p.topic-title {
+  font-weight: bold }
+
+pre.address {
+  margin-bottom: 0 ;
+  margin-top: 0 ;
+  font: inherit }
+
+pre.literal-block, pre.doctest-block, pre.math, pre.code {
+  margin-left: 2em ;
+  margin-right: 2em }
+
+pre.code .ln { color: grey; } /* line numbers */
+pre.code, code { background-color: #eeeeee }
+pre.code .comment, code .comment { color: #5C6576 }
+pre.code .keyword, code .keyword { color: #3B0D06; font-weight: bold }
+pre.code .literal.string, code .literal.string { color: #0C5404 }
+pre.code .name.builtin, code .name.builtin { color: #352B84 }
+pre.code .deleted, code .deleted { background-color: #DEB0A1}
+pre.code .inserted, code .inserted { background-color: #A3D289}
+
+span.classifier {
+  font-family: sans-serif ;
+  font-style: oblique }
+
+span.classifier-delimiter {
+  font-family: sans-serif ;
+  font-weight: bold }
+
+span.interpreted {
+  font-family: sans-serif }
+
+span.option {
+  white-space: nowrap }
+
+span.pre {
+  white-space: pre }
+
+span.problematic {
+  color: red }
+
+span.section-subtitle {
+  /* font-size relative to parent (h1..h6 element) */
+  font-size: 80% }
+
+table.citation {
+  border-left: solid 1px gray;
+  margin-left: 1px }
+
+table.docinfo {
+  margin: 2em 4em }
+
+table.docutils {
+  margin-top: 0.5em ;
+  margin-bottom: 0.5em }
+
+table.footnote {
+  border-left: solid 1px black;
+  margin-left: 1px }
+
+table.docutils td, table.docutils th,
+table.docinfo td, table.docinfo th {
+  padding-left: 0.5em ;
+  padding-right: 0.5em ;
+  vertical-align: top }
+
+table.docutils th.field-name, table.docinfo th.docinfo-name {
+  font-weight: bold ;
+  text-align: left ;
+  white-space: nowrap ;
+  padding-left: 0 }
+
+/* "booktabs" style (no vertical lines) */
+table.docutils.booktabs {
+  border: 0px;
+  border-top: 2px solid;
+  border-bottom: 2px solid;
+  border-collapse: collapse;
+}
+table.docutils.booktabs * {
+  border: 0px;
+}
+table.docutils.booktabs th {
+  border-bottom: thin solid;
+  text-align: left;
+}
+
+h1 tt.docutils, h2 tt.docutils, h3 tt.docutils,
+h4 tt.docutils, h5 tt.docutils, h6 tt.docutils {
+  font-size: 100% }
+
+ul.auto-toc {
+  list-style-type: none }
+
+</style>
+</head>
+<body>
+<div class="document" id="history-mpi-for-python">
+<h1 class="title">HISTORY: MPI for Python</h1>
+<table class="docinfo" frame="void" rules="none">
+<col class="docinfo-name" />
+<col class="docinfo-content" />
+<tbody valign="top">
+<tr><th class="docinfo-name">Author:</th>
+<td>Lisandro Dalcin</td></tr>
+<tr><th class="docinfo-name">Contact:</th>
+<td><a class="first last reference external" href="mailto:dalcinl&#37;&#52;&#48;gmail&#46;com">dalcinl<span>&#64;</span>gmail<span>&#46;</span>com</a></td></tr>
+<tr class="field"><th class="docinfo-name">Web Site:</th><td class="field-body"><a class="reference external" href="http://mpi4py.googlecode.com/">http://mpi4py.googlecode.com/</a></td>
+</tr>
+<tr><th class="docinfo-name">Organization:</th>
+<td>CIMEC &lt;<a class="reference external" href="http://www.cimec.org.ar">http://www.cimec.org.ar</a>&gt;</td></tr>
+<tr><th class="docinfo-name">Address:</th>
+<td><pre class="address">
+CCT CONICET, 3000 Santa Fe, Argentina
+</pre>
+</td></tr>
+</tbody>
+</table>
+<div class="section" id="release-1-3-1-2013-08-07">
+<h1>Release 1.3.1 [2013-08-07]</h1>
+<ul>
+<li><p class="first">Regenerate C wrappers with Cython 0.19.1 to support Python 3.3.</p>
+</li>
+<li><p class="first">Install <tt class="docutils literal">*.pxd</tt> files in <tt class="docutils literal"><span class="pre">&lt;site-packages&gt;/mpi4py</span></tt> to ease the
+support for Cython's <tt class="docutils literal">cimport</tt> statement in code requiring to
+access mpi4py internals.</p>
+</li>
+<li><p class="first">As a side-effect of using Cython 0.19.1, ancient Python 2.3 is no
+longer supported. If you really need it, you can install an older
+Cython and run <tt class="docutils literal">python setup.py build_src <span class="pre">--force</span></tt>.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="release-1-3-2012-01-20">
+<h1>Release 1.3 [2012-01-20]</h1>
+<ul>
+<li><p class="first">Now <tt class="docutils literal">Comm.recv()</tt> accept a buffer to receive the message.</p>
+</li>
+<li><p class="first">Add <tt class="docutils literal">Comm.irecv()</tt> and <tt class="docutils literal"><span class="pre">Request.{wait|test}[any|all]()</span></tt>.</p>
+</li>
+<li><p class="first">Add <tt class="docutils literal">Intracomm.Spawn_multiple()</tt>.</p>
+</li>
+<li><p class="first">Better buffer handling for PEP 3118 and legacy buffer interfaces.</p>
+</li>
+<li><p class="first">Add support for attribute attribute caching on communicators,
+datatypes and windows.</p>
+</li>
+<li><p class="first">Install MPI-enabled Python interpreter as
+<tt class="docutils literal"><span class="pre">&lt;path&gt;/mpi4py/bin/python-mpi</span></tt>.</p>
+</li>
+<li><p class="first">Windows: Support for building with Open MPI.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="release-1-2-2-2010-09-13">
+<h1>Release 1.2.2 [2010-09-13]</h1>
+<ul>
+<li><p class="first">Add <tt class="docutils literal">mpi4py.get_config()</tt> to retrieve information (compiler
+wrappers, includes, libraries, etc) about the MPI implementation
+employed to build mpi4py.</p>
+</li>
+<li><p class="first">Workaround Python libraries with missing GILState-related API calls
+in case of non-threaded Python builds.</p>
+</li>
+<li><p class="first">Windows: look for MPICH2, DeinoMPI, Microsoft HPC Pack at their
+default install locations under %ProgramFiles.</p>
+</li>
+<li><p class="first">MPE: fix hacks related to old API's, these hacks are broken when MPE
+is built with a MPI implementations other than MPICH2.</p>
+</li>
+<li><p class="first">HP-MPI: fix for missing Fortran datatypes, use dlopen() to load the
+MPI shared library before MPI_Init()</p>
+</li>
+<li><p class="first">Many distutils-related fixes, cleanup, and enhancements, better
+logics to find MPI compiler wrappers.</p>
+</li>
+<li><p class="first">Support for <tt class="docutils literal">pip install mpi4py</tt>.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="release-1-2-1-2010-02-26">
+<h1>Release 1.2.1 [2010-02-26]</h1>
+<ul>
+<li><p class="first">Fix declaration in Cython include file. This declaration, while
+valid for Cython, broke the simple-minded parsing used in
+conf/mpidistutils.py to implement configure-tests for availability
+of MPI symbols.</p>
+</li>
+<li><p class="first">Update SWIG support and make it compatible with Python 3. Also
+generate an warning for SWIG &lt; 1.3.28.</p>
+</li>
+<li><p class="first">Fix distutils-related issues in Mac OS X. Now ARCHFLAGS environment
+variable is honored of all Python's <tt class="docutils literal">config/Makefile</tt> variables.</p>
+</li>
+<li><p class="first">Fix issues with Open MPI &lt; 1.4.2 releated to error checking and
+<tt class="docutils literal">MPI_XXX_NULL</tt> handles.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="release-1-2-2009-12-29">
+<h1>Release 1.2 [2009-12-29]</h1>
+<ul>
+<li><p class="first">Automatic MPI datatype discovery for NumPy arrays and PEP-3118
+buffers. Now buffer-like objects can be messaged directly, it is no
+longer required to explicitly pass a 2/3-list/tuple like <tt class="docutils literal">[data,
+MPI.DOUBLE]</tt>, or <tt class="docutils literal">[data, count, MPI.DOUBLE]</tt>. Only basic types
+are supported, i.e., all C/C99-native signed/unsigned integral types
+and single/double precision real/complex floating types. Many thanks
+to Eilif Muller for the initial feedback.</p>
+</li>
+<li><p class="first">Nonblocking send of pickled Python objects. Many thanks to Andreas
+Kloeckner for the initial patch and enlightening discussion about
+this enhancement.</p>
+</li>
+<li><p class="first"><tt class="docutils literal">Request</tt> instances now hold a reference to the Python object
+exposing the buffer involved in point-to-point communication or
+parallel I/O. Many thanks to Andreas Kloeckner for the initial
+feedback.</p>
+</li>
+<li><p class="first">Support for logging of user-defined states and events using <a class="reference external" href="http://www.mcs.anl.gov/research/projects/perfvis/">MPE</a>. Runtime
+(i.e., without requiring a recompile!)  activation of logging of all
+MPI calls is supported in POSIX platforms implementing <tt class="docutils literal">dlopen()</tt>.</p>
+</li>
+<li><p class="first">Support for all the new features in MPI-2.2 (new C99 and F90
+datatypes, distributed graph topology, local reduction operation,
+and other minor enhancements).</p>
+</li>
+<li><p class="first">Fix the annoying issues related to Open MPI and Python dynamic
+loading of extension modules in platforms supporting <tt class="docutils literal">dlopen()</tt>.</p>
+</li>
+<li><p class="first">Fix SLURM dynamic loading issues on SiCortex. Many thanks to Ian
+Langmore for providing me shell access.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="release-1-1-0-2009-06-06">
+<h1>Release 1.1.0 [2009-06-06]</h1>
+<ul>
+<li><p class="first">Fix bug in <tt class="docutils literal">Comm.Iprobe()</tt> that caused segfaults as Python C-API
+calls were issued with the GIL released (issue #2).</p>
+</li>
+<li><p class="first">Add <tt class="docutils literal">Comm.bsend()</tt> and <tt class="docutils literal">Comm.ssend()</tt> for buffered and
+synchronous send semantics when communicating general Python
+objects.</p>
+</li>
+<li><p class="first">Now the call <tt class="docutils literal">Info.Get(key)</tt> return a <em>single</em> value (i.e, instead
+of a 2-tuple); this value is <tt class="docutils literal">None</tt> if <tt class="docutils literal">key</tt> is not in the
+<tt class="docutils literal">Info</tt> object, or a string otherwise. Previously, the call
+redundantly returned <tt class="docutils literal">(None, False)</tt> for missing key-value pairs;
+<tt class="docutils literal">None</tt> is enough to signal a missing entry.</p>
+</li>
+<li><p class="first">Add support for parametrized Fortran datatypes.</p>
+</li>
+<li><p class="first">Add support for decoding user-defined datatypes.</p>
+</li>
+<li><p class="first">Add support for user-defined reduction operations on memory
+buffers. However, at most 16 user-defined reduction operations
+can be created. Ask the author for more room if you need it.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="release-1-0-0-2009-03-20">
+<h1>Release 1.0.0 [2009-03-20]</h1>
+<p>This is the fist release of the all-new, Cython-based, implementation
+of <em>MPI for Python</em>. Unfortunately, this implementation is not
+backward-compatible with the previous one. The list below summarizes
+the more important changes that can impact user codes.</p>
+<ul>
+<li><p class="first">Some communication calls had <em>overloaded</em> functionality. Now there
+is a clear distinction between communication of general Python
+object with <em>pickle</em>, and (fast, near C-speed) communication of
+buffer-like objects (e.g., NumPy arrays).</p>
+<ul>
+<li><p class="first">for communicating general Python objects, you have to use
+all-lowercase methods, like <tt class="docutils literal">send()</tt>, <tt class="docutils literal">recv()</tt>, <tt class="docutils literal">bcast()</tt>,
+etc.</p>
+</li>
+<li><p class="first">for communicating array data, you have to use <tt class="docutils literal">Send()</tt>,
+<tt class="docutils literal">Recv()</tt>, <tt class="docutils literal">Bcast()</tt>, etc. methods. Buffer arguments to these
+calls must be explicitly specified by using a 2/3-list/tuple like
+<tt class="docutils literal">[data, MPI.DOUBLE]</tt>, or <tt class="docutils literal">[data, count, MPI.DOUBLE]</tt> (the
+former one uses the byte-size of <tt class="docutils literal">data</tt> and the extent of the
+MPI datatype to define the <tt class="docutils literal">count</tt>).</p>
+</li>
+</ul>
+</li>
+<li><p class="first">Indexing a communicator with an integer returned a special object
+associating the communication with a target rank, alleviating you
+from specifying source/destination/root arguments in point-to-point
+and collective communications. This functionality is no longer
+available, expressions like:</p>
+<pre class="literal-block">
+MPI.COMM_WORLD[0].Send(...)
+MPI.COMM_WORLD[0].Recv(...)
+MPI.COMM_WORLD[0].Bcast(...)
+</pre>
+<p>have to be replaced by:</p>
+<pre class="literal-block">
+MPI.COMM_WORLD.Send(..., dest=0)
+MPI.COMM_WORLD.Recv(..., source=0)
+MPI.COMM_WORLD.Bcast(..., root=0)
+</pre>
+</li>
+<li><p class="first">Automatic MPI initialization (i.e., at import time) requests the
+maximum level of MPI thread support (i.e., it is done by calling
+<tt class="docutils literal">MPI_Init_thread()</tt> and passing <tt class="docutils literal">MPI_THREAD_MULTIPLE</tt>). In case
+you need to change this behavior, you can tweak the contents of the
+<tt class="docutils literal">mpi4py.rc</tt> module.</p>
+</li>
+<li><p class="first">In order to obtain the values of predefined attributes attached to
+the world communicator, now you have to use the <tt class="docutils literal">Get_attr()</tt>
+method on the <tt class="docutils literal">MPI.COMM_WORLD</tt> instance:</p>
+<pre class="literal-block">
+tag_ub = MPI.COMM_WORLD.Get_attr(MPI.TAG_UB)
+</pre>
+</li>
+<li><p class="first">In the previous implementation, <tt class="docutils literal">MPI.COMM_WORLD</tt> and
+<tt class="docutils literal">MPI.COMM_SELF</tt> were associated to <strong>duplicates</strong> of the (C-level)
+<tt class="docutils literal">MPI_COMM_WORLD</tt> and <tt class="docutils literal">MPI_COMM_SELF</tt> predefined communicator
+handles. Now this is no longer the case, <tt class="docutils literal">MPI.COMM_WORLD</tt> and
+<tt class="docutils literal">MPI.COMM_SELF</tt> proxies the <strong>actual</strong> <tt class="docutils literal">MPI_COMM_WORLD</tt> and
+<tt class="docutils literal">MPI_COMM_SELF</tt> handles.</p>
+</li>
+<li><p class="first">Convenience aliases <tt class="docutils literal">MPI.WORLD</tt> and <tt class="docutils literal">MPI.SELF</tt> were removed. Use
+instead <tt class="docutils literal">MPI.COMM_WORLD</tt> and <tt class="docutils literal">MPI.COMM_SELF</tt>.</p>
+</li>
+<li><p class="first">Convenience constants <tt class="docutils literal">MPI.WORLD_SIZE</tt> and <tt class="docutils literal">MPI.WORLD_RANK</tt> were
+removed. Use instead <tt class="docutils literal">MPI.COMM_WORLD.Get_size()</tt> and
+<tt class="docutils literal">MPI.COMM_WORLD.Get_rank()</tt>.</p>
+</li>
+</ul>
+</div>
+</div>
+</body>
+</html>

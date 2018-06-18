@@ -1,0 +1,108 @@
+<html>
+<head>
+<title>PyTom: Python and Tomography</title>
+
+<link rel="icon" href="/images/pytom_logo.png" type="image/png" />
+</head>
+<body>
+
+<script type="text/javascript" src="./javascript/functions.js"></script>
+<script type="text/javascript" src="./javascript/cookies.js"></script>
+<script type="text/javascript" src="./javascript/alignmentFunctions.js"></script>
+<script type="text/javascript" src="./javascript/localizationFunctions.js"></script>
+<script type="text/javascript" src="./javascript/mcoEXMXFunctions.js"></script>
+<script type="text/javascript" src="./javascript/mcoACFunctions.js"></script>
+<script type="text/javascript" src="./javascript/reconstructionFunctions.js"></script>
+
+<style type="text/css">
+	@import "./css/pytomMainCSS.css";
+	@import "./css/cssMainMenu.css";
+</style>
+
+
+
+<div id="Main" class="main">
+	<div class="menu">
+		<ul>
+          	<li>
+          		<a title="Reconstruct data" onMouseOver="document.getElementById('Help').innerHTML='<b>Reconstruction</b> Reconstruct complete tomograms or single subcubes.';" onMouseOut="document.getElementById('Help').innerHTML='';">Reconstruction</a>
+          				<ul>
+          					<li> <a title="Complete tomogram" onMouseOver="document.getElementById('Help').innerHTML='<b>Reconstruct</b> a complete tomogram.';" onMouseOut="document.getElementById('Help').innerHTML='';" onclick="setHTMLFromPage('pages/tomogramReconstruction.html',document.getElementById('MainDisplay'));">Tomogram</a></li>
+          					<li> <a title="Subtomograms" onMouseOver="document.getElementById('Help').innerHTML='<b>Reconstruct</b> subtomograms from a particle list.';" onMouseOut="document.getElementById('Help').innerHTML='';" onclick="setHTMLFromPage('pages/subtomogramReconstruction.html',document.getElementById('MainDisplay'));">Subtomograms</a></li>
+          				</ul>
+			</li>
+			<li>
+				<a title="Setup localization job" onMouseOver="document.getElementById('Help').innerHTML='<b>Localization</b> allows you to find macromollecules in tomograms.';" onMouseOut="document.getElementById('Help').innerHTML='';" >Localization</a>
+          				<ul>
+          					<li> <a title="New localization job" onMouseOver="document.getElementById('Help').innerHTML='<b>New Job</b>: create a new localization job.';" onMouseOut="document.getElementById('Help').innerHTML='';" onclick="setHTMLFromPage('pages/newLocalizationJob.html',document.getElementById('MainDisplay'));">New Job</a></li>
+          					<li> <a title="Load localization job" onMouseOver="document.getElementById('Help').innerHTML='<b>Load Job</b>: load an existing job and modify it.';" onMouseOut="document.getElementById('Help').innerHTML='';" onclick="">Load Job </a></li>
+          					<li> <a title="Clear job settings" onMouseOver="document.getElementById('Help').innerHTML='<b>Clear Job</b>:clear all settings made.';" onMouseOut="document.getElementById('Help').innerHTML='';" onclick="eraseLocalizationCookies();resetLocalizationValues();">Clear Job Settings</a></li>
+          				</ul>
+			</li>
+          	<li>
+          		<a title="Align subtomograms" onMouseOver="document.getElementById('Help').innerHTML='<b>Alignment</b> register all subtomograms to one rotation and one position.';" onMouseOut="document.getElementById('Help').innerHTML='';">Alignment</a>
+          			<ul>
+          					<li><a title="New alignment job" onMouseOver="document.getElementById('Help').innerHTML='<b>New Job</b>: create a new alignment job.';" onMouseOut="document.getElementById('Help').innerHTML='';"  onclick="setHTMLFromPage('pages/newAlignmentJob.html',document.getElementById('MainDisplay'));">New Job</a></li>
+          					<li><a title="Load alignment job" onMouseOver="document.getElementById('Help').innerHTML='<b>Load Job</b>: load an existing alignment job.';" onMouseOut="document.getElementById('Help').innerHTML='';" onclick="loadAlignmentJob()" >Load Job</a></li>
+          					<li><a title="Clear job settings" onMouseOver="document.getElementById('Help').innerHTML='<b>Clear Job</b>:clear all settings made.';" onMouseOut="document.getElementById('Help').innerHTML='';" onclick="eraseAlignmentCookies();resetAlignmentValues();">Clear Job Settings</a></li>
+          			</ul>
+          	</li>
+          	<li>
+          		<a title="Classify aligned subtomograms">Classification</a>
+          			<ul>
+          					<li><a title="New MCO-EXMX job" onMouseOver="document.getElementById('Help').innerHTML='<b>New Job</b>: create a new MCO-EXMX job.';" onMouseOut="document.getElementById('Help').innerHTML='';"  onclick="setHTMLFromPage('pages/newMCOEXMXJob.html',document.getElementById('MainDisplay'));">New MCO-EXMX Job</a></li>
+          					<li><a title="Load MCO-EMX job">Load Job</a></li>
+          					<li><a title="New MCO-AC job" onMouseOver="document.getElementById('Help').innerHTML='<b>New Job</b>: create a new MCO-AC job.';" onMouseOut="document.getElementById('Help').innerHTML='';"  onclick="setHTMLFromPage('pages/newMCOACJob.html',document.getElementById('MainDisplay'));">New MCO-AC Job</a></li>
+          					<li><a title="Load MCO-AC job">Load Job</a></li>
+          			</ul>
+          	</li>
+          	<li>
+          		<a title="Some quick processing tools">Tools</a>
+          			<ul>
+          					<li><a title="Quick average" onMouseOver="document.getElementById('Help').innerHTML='Generate average from particle list.';" onMouseOut="document.getElementById('Help').innerHTML='';">Average</a></li>
+          					<li><a title="Split particle list" onMouseOver="document.getElementById('Help').innerHTML='Split a particle list by class.';" onMouseOut="document.getElementById('Help').innerHTML='';">Split</a></li>
+          					<li><a title="" >---------------</a></li>
+          					<li><a title="Run Unit Tests" onMouseOver="document.getElementById('Help').innerHTML='Run unit test on PyTom to see whether installation is correct.';" onMouseOut="document.getElementById('Help').innerHTML='';">Unit Test</a></li>
+          			</ul>
+          	</li>
+          	<li>
+          		<a title="Documentation">Documentation</a>
+          				<ul>
+          					<li><a href="http://www.http://www.pytom.org/" id="documentationMenuLink" target="_blank" title="Documentation & Tutorials">Docu & FAQs</a></li>
+          				</ul>
+			</li>
+			<li>
+          		<a title="Update">Updates</a>
+          				<ul>
+          					<li><a href="http://sourceforge.net/p/pytom/" title="Open pytom update site" target="_blank">Update site</a></li>
+          				</ul>
+			</li>
+		</ul>
+	</div>
+	<div id="MainDisplay">
+	<br/><br/><br/>
+	<center>
+		<img src="images/pytom_logo.png"/>
+	</center>
+	</div>
+</div>
+
+<div id="overlayBox" class="overlayBox" style="display: none;"></div>
+
+<div id="Help" class="help" style="left:30px;top:650px;">
+
+</div>
+
+
+<script type="text/javascript">
+
+	var documentationLink = document.getElementById('documentationMenuLink');
+	
+	var apiLink = getAPIDocumentationURL();
+	
+	documentationLink.href= 'file://' + apiLink;
+
+</script>
+
+</body>
+</html>

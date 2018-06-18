@@ -1,0 +1,335 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<script type="text/javascript"
+	src="http://latex.codecogs.com/latexit.js"></script>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Align subtomograms</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+
+</head>
+<body>
+	<p class="Header">PyTom: Align subtomograms</p>
+	<h2 id="General">Overview</h2>
+	<p align="justify">Once you computed and stored the subtomograms,
+		you can average them in order to get a rough estimate of the
+		macromolecule. To obtain a higher resolution average you have to
+		refine the orientations and translations of all subtomograms
+		('alignment'). The alignment process can become time-consuming,
+		depending on the number of subtomograms, their size, and the power of
+		your computer setup (number of CPUs). Hence, subtomogram alignment is
+		parallelized and typically run on a computer cluster.</p>
+
+	<h2>
+		Subtomogram Alignment using
+		<code>align.py</code>
+	</h2>
+	<p align="justify">
+		The script
+		<code>bin/align.py</code>
+		performs iterative quasi-expectation maximization alignment using
+		constrained correlation. The rotational sampling is performed in real
+		space. A function call looks like this:
+	</p>
+	<div class="codeFragment">
+		<code> mpirun --hostfile "pathToYourHostfile" -c "numberOfCPUs"
+			pytom PathToPytom/bin/align.py -j alignment.xml </code>
+	</div>
+	<p align="justify">
+		The XML file
+		<code>alignment.xml</code>
+		contains all information required for subtomogram alignment:
+	<ul>
+		<li><strong>Particle List.</strong> A particle list in <code>XML</code>
+			format that points to all subtomograms. Alternatively, you can also
+			start with directory of <code>EM</code>, <code>MRC</code> or <code>CCP4</code>
+			files that contains all subtomograms. The advantage of a particle
+			list over plain files is that alignment can re-use previously
+			determined alignment parameters for refinement. Starting from plain
+			files does not allow that and will generate an <code>XML</code> with
+			default orienations and translation (all zero).</li>
+		<li><strong>An initial reference.</strong> The reference may be
+			an <code>EM</code>, <code>MRC</code> or <code>CCP4</code> file. The
+			reference can be the preleminary average from the roughly-aligned
+			particles, an existing density or a density generated from a a <code>PDB</code>
+			file. (For <code>PDB</code> files, you can use the <code>pytom.basic.files.pdb2em</code>
+			function to obtain densities).</li>
+		<li><strong>Mask.</strong> The mask may be spherical or
+			non-symmetrical. Default masks are spherical in PyTom. However, to
+			focus alignment on a particular region, you may use a mask of
+			aribtrary shape that will be rotated during alignment. Can be
+			generated using PyTom following <a href="genMask.html">these
+				instructions</a>.</li>
+		<li><strong>Sampling Angles.</strong> There are two different
+			modes for sampling different orientations: global and local. In
+			Global Sampling and exhaustive orientation sampling is performed.
+			Lists of angles are pre-computed in PyTom and can be selected. Global
+			sampling is typically only needed at early stages of the alignment
+			and fine sampling would cause enormous computational resources.
+			Therefore, the Local Search is the preferred option when the
+			orientations of the subtomograms have been determined to some degree
+			of accuracy. For explanation of the sampling we refer to Fig. 1. Note
+			that the specified Angular increment will be overruled by the
+			increment determined by the adaptive sampling if this option is
+			chosen. If you are not sure what increment to use for the alignment,
+			you can estimate the increment with the <code>angleFromResolution</code> function. Type:
+			<div class="codeFragment">
+				<code>
+				$ipytom<br/>
+				from pytom.basic.resolution import angleFromResolution<br/>
+				print angleFromResolution(30,250)<br/>
+				</code>
+			</div>
+			Here, 30 is a hypothetical resolution in Angstrom and 250 is a particle diameter in Angstrom.
+		</li>
+		<li><strong>Sample Information.</strong> Information on your macromolecule
+		of interest. The missing wedge is specified by two positive
+		parameters: angle to the left and to the right of 90 degrees.
+		</li>
+		<li><strong>Score.</strong> Different scoring functions can be used for
+		alignment: (Non-Normalized) Cross-Correlation function (XCF), Normalized
+		Cross-Correlation function (NXCF), Fast Local Correlation Function (FLCF),
+		Mutual Correlation Function (MCF). The FLCF is most extensively
+		tested.
+		</li>
+		<li><strong>Peak Prior.</strong> In some cases impose a prior for
+			the translations: The correlation function is multiplied with a
+			Gaussian mask with the chosen parameters.</li>
+		<li><strong>Adaptive Parameters.</strong> Angular sampling and resolution
+		of the reference can be adjusted to the resolution of the reference as
+		described in (Hrabe et al, 2012):
+		<span lang="latex">\Delta \theta = \frac{f}{  Diameter_p
+			\times Resolution(FSC_{Cutoff})}</span>and
+		<span lang="latex">Lowpass = Resolution(FSC_{Cutoff}) \times (1
+			+ Offset)</span>.
+		<li><strong>Bandpass.</strong> A bandpass filter can be specified
+			for filtering the reference. Note that the lowpass will be overruled
+			by the value determined by the adaptive sampling if this option is
+			chosen.</li>
+		<li><strong>Iterations.</strong> Number of iterations is
+			specified here as well as the destination directory for the output
+			files. Moreover, it can be chosen to bin (downscale) the data to make
+			computations faster (on the expense of obtainable resolution).</li>
+	</ul>
+	<center>
+		<img src="../images/local_sampling.png" align="center"
+			alt="Local Sampling" name="Local Sampling">
+	</center>
+	<strong>Fig. 1.</strong> Angular scanning. The angles Psi (Z1) and
+	Theta (X1) scanned around the old
+	<span lang="latex">\Psi</span> and
+	<span lang="latex">\Theta</span>, whereby the old values act as a
+	‘pole’. Here the Angular Increment
+	<span lang="latex">\Delta\Theta</span> is 3 degrees and the Number of
+	Shells
+	<span lang="latex">N_{shell}</span> is 2. That means the vector (
+	<span lang="latex">\Psi, \Theta</span>) is rotated by
+	<span lang="latex">\Delta\Theta=3</span> two times (the visible rings).
+	The increment along
+	<span lang="latex">\Psi</span> is chosen as
+	<span lang="latex">\Delta\Psi=\frac{N_{shell}}{sin(\Delta\theta*i_{shell})}</span>,
+	which accounts for the higher density of angles near the pole. The
+	third Euler angle
+	<span lang="latex">\Phi</span> (Z2) is scanned with a constant
+	increment
+	<span lang="latex">\Delta \Phi=\Delta \Theta</span> from
+	<span lang="latex">\Phi_{min}=\Phi_{old}-N_{shell}*\Delta\Theta</span>
+	to
+	<span lang="latex">\Phi_{max}=\Phi_{old}+N_{shell}*\Delta\Theta</span>.
+	</p>
+
+	This is a sample XML file specifying the alignment job:
+	<div class="codeFragment">
+		<code>
+			<p>
+				&lt;ExpectationMaximisationJob&gt;<br> &lt;Description
+				Destination=./results/&quot; NumberIterations=&quot;10&quot;
+				ResultClassification=&quot;0.1&quot; Binning=&quot;1&quot;
+				FSCCriterion=&quot;0.5&quot; AdaptiveResolution=&quot;True&quot;
+				AdaptiveOffset=&quot;0.1&quot; AngleFactor=&quot;0.5&quot;&gt;
+			</p>
+			<p>
+				&lt;!--Destination - result folder ; NumberIterations - number of
+				alignment rounds; ResultClassification - Classification of
+				correlation peak; Binning - Binning/Downscale used in alignment ;
+				FSCCriterion - Criterion used for resolution adaptive
+				alignment;AdaptiveOffset - resolution offset used for adaptive
+				alignment; AngleFactor - factor used for resolution adaptive
+				sampling--&gt;<br> &lt;ParticleList Path=&quot;&quot;&gt;<br>
+				&lt;Particle Filename=&quot;particle_0.em&quot;&gt;&lt;!-- A
+				subtomogram--&gt;<br> &lt;Rotation X=&quot;77.3204393293&quot;
+				Paradigm=&quot;ZXZ&quot; Z1=&quot;-59.9796818569&quot;
+				Z2=&quot;79.3052103398&quot;/&gt;&lt;!-- current alignment
+				rotation--&gt;<br> &lt;Shift Y=&quot;0.0&quot;
+				X=&quot;0.0&quot; Z=&quot;0.0&quot;/&gt;&lt;!-- current alignment
+				shift--&gt;<br> &lt;PickPosition
+				Origin=&quot;./tomogram.em&quot; Y=&quot;263.0&quot;
+				Z=&quot;67.0&quot; X=&quot;191.0&quot;/&gt;&lt;!-- position in
+				origin volume--&gt;<br> &lt;Score Type=&quot;FLCFScore&quot;
+				Value=&quot;0.546716570854&quot;&gt;&lt;!-- last correlation value
+				used--&gt;<br> &lt;PeakPrior Smooth=&quot;-1.0&quot;
+				Radius=&quot;0.0&quot; Filename=&quot;&quot;/&gt;&lt;!--peak prior
+				used in last alignment process--&gt;<br> &lt;/Score&gt;<br>
+				&lt;WedgeInfo Smooth=&quot;0.0&quot; Angle1=&quot;0.0&quot;
+				CutoffRadius=&quot;0.0&quot; TiltAxis=&quot;custom&quot;
+				Angle2=&quot;0.0&quot;&gt;&lt;!--Information about missing
+				wedge--&gt;<br> &lt;Rotation Z1=&quot;0.0&quot;
+				Z2=&quot;0.0&quot; X=&quot;0.0&quot;/&gt;<br>
+				&lt;/WedgeInfo&gt;<br> &lt;Class
+				Name=&quot;0&quot;/&gt;&lt;!--Class this subtomogram belongs
+				to--&gt;<br> &lt;/Particle&gt;<br> &lt;Particle
+				Filename=&quot;particle_1.em&quot;&gt;<br> &lt;Rotation
+				X=&quot;77.4490791121&quot; Paradigm=&quot;ZXZ&quot;
+				Z1=&quot;-53.600247606&quot; Z2=&quot;-135.235600887&quot;/&gt;<br>
+				&lt;Shift Y=&quot;0.0&quot; X=&quot;0.0&quot; Z=&quot;0.0&quot;/&gt;<br>
+				&lt;PickPosition Origin=&quot;./tomogram.em&quot; Y=&quot;92.0&quot;
+				Z=&quot;36.0&quot; X=&quot;436.0&quot;/&gt;<br> &lt;Score
+				Type=&quot;FLCFScore&quot; Value=&quot;0.546538472176&quot;&gt;<br>
+				&lt;PeakPrior Smooth=&quot;-1.0&quot; Radius=&quot;0.0&quot;
+				Filename=&quot;&quot;/&gt;<br> &lt;/Score&gt;<br>
+				&lt;WedgeInfo Smooth=&quot;0.0&quot; Angle1=&quot;0.0&quot;
+				CutoffRadius=&quot;0.0&quot; TiltAxis=&quot;custom&quot;
+				Angle2=&quot;0.0&quot;&gt;<br> &lt;Rotation Z1=&quot;0.0&quot;
+				Z2=&quot;0.0&quot; X=&quot;0.0&quot;/&gt;<br>
+				&lt;/WedgeInfo&gt;<br> &lt;Class Name=&quot;0&quot;/&gt;<br>
+				&lt;/Particle&gt;<br> ...<br> &lt;/ParticleList&gt;<br>
+				&lt;Reference PreWedge=&quot; File=reference.em&quot;
+				Weighting=&quot;&quot;&gt;&lt;!-- Initial reference used --&gt;<br>
+				&lt;ParticleList Path=&quot;/&quot;/&gt;<br> &lt;/Reference&gt;<br>
+				&lt;Mask Filename=&quot;mask.em&quot; Binning=&quot;1&quot;
+				isSphere=&quot;True&quot;/&gt;&lt;!-- Mask used during alignment
+				--&gt;<br> &lt;Score Type=&quot;FLCFScore&quot;
+				Value=&quot;-10000000000.0&quot;&gt;<br> &lt;PeakPrior
+				Smooth=&quot;-1.0&quot; Radius=&quot;-1.0&quot;
+				Filename=&quot;&quot;/&gt;<br> &lt;/Score&gt;<br>
+				&lt;Angles Type=&quot;FromEMFile&quot;
+				File=&quot;angles_19.95_1944.em&quot;/&gt;&lt;!--Angular sampling
+				strategy --&gt;<br> &lt;Preprocessing&gt;<br> &lt;Bandpass
+				LowestFrequency=&quot;0.0&quot; Smooth=&quot;0.0&quot;
+				HighestFrequency=&quot;10.0&quot;/&gt; &lt;!-- Bandpassfilter used,
+				in pixels--&gt;<br> &lt;/Preprocessing&gt;<br>
+				&lt;Symmetry X=&quot;0.0&quot; Z2=&quot;0.0&quot;
+				NFold=&quot;1&quot;/&gt;&lt;!-- Symmetry information (C-X) supported
+				currently)<br> &lt;SampleInformation PixelSize=&quot;4.7&quot;
+				ParticleDiameter=&quot;250.0&gt;<br> &lt;/Description&gt;<br>
+				&lt;/ExpectationMaximisationJob&gt;
+			</p>
+		</code>
+	</div>
+	</p>
+	<p>Please note that this XML file will not work due to the ... in
+		the particle list.</p>
+
+	<h2>
+		Create an Alignment job in the terminal with
+		<code>alignJob.py</code>
+	</h2>
+	The
+	<code>alignJob.py</code>
+	script allows you to set up alignment through the terminal instead
+	using the web-browser.
+	<br />
+	<br />
+
+
+
+	<div class="codeFragment">
+		<code>
+			<pre>
+NAME
+    alignJob.py
+DESCRIPTION
+    Create an EXMX alignment job.
+OPTIONS
+    -p, --particleList	Particle list : xml file storing information to all subvolumes (Is optional: No; Requires arguments: Yes)
+    -r, --reference	Reference : the alignment reference (Is optional: No; Requires arguments: Yes)
+    -m, --mask		Mask : a mask  (Is optional: No; Requires arguments: Yes)
+    --wedge1		Wedge : first tilt angle. Must be 90-tilt! (Is optional: No; Requires arguments: Yes)
+    --wedge2		Wedge : second tilt angle.  Must be 90-tilt! (Is optional: No; Requires arguments: Yes)
+    --angleShells	# angle shells used for angular refinement. (Is optional: No; Requires arguments: Yes)
+    --angleIncrement	Angular increment for refinement. (Is optional: No; Requires arguments: Yes)
+    --symmetry		Symmetry : specify n-fold symmetry (n) (Is optional: Yes; Requires arguments: Yes)
+    --symmetryAngleZ	Symmetry axis tilt around Z axis (Is optional: Yes; Requires arguments: Yes)
+    --symmetryAngleX	Symmetry axis tilt around X axis (Is optional: Yes; Requires arguments: Yes)
+    -l, --lowestFrequency	Highest frequency band used : in pixels (Is optional: No; Requires arguments: Yes)
+    -h, --highestFrequency	Lowest frequency band used : in pixels (Is optional: No; Requires arguments: Yes)
+    -d, --destination	Destination : destination directory (Is optional: No; Requires arguments: Yes)
+    -n, --numberIterations	Number of iterations (Is optional: No; Requires arguments: Yes)
+    -b, --binning	Perform binning (downscale) of subvolumes: 1: no binning, 2: 2 pixels = 1, 3: 3 = 1 ... (Is optional: No; Requires arguments: Yes)
+    --pixelSize		Pixelsize in Angstrom (Is optional: No; Requires arguments: Yes)
+    --particleDiameter	Particle diameter in Angstrom (Is optional: No; Requires arguments: Yes)
+    -j, --jobName	Specify job.xml filename (Is optional: No; Requires arguments: Yes)
+    -h, --help		Help. (Is optional: Yes; Requires arguments: No)
+
+			</pre>
+		</code>
+	</div>
+	
+	Please note that not all options available through the web interface are available in the terminal. 
+	However, the resulting <code>job.xml</code> files can be manipulated to modify specific properties.
+	
+	<h3>Results of alignment</h3>
+	<p align="justify">
+	<ul>
+		<li>The aligned average named 1,2,3, .... (iteration number)</li>
+		<li>The aligned average named 1,2,3, .... (iteration number)
+			filtered to the current resolution in Angstrom (<code>1-ANGXYZ.em</code>)
+		</li>
+		<li>The average with inverted gray values (<code>1-INV.em</code>)
+		</li>
+		<li>The sum of the missing wedges used for weighting the sum of
+			all particles</li>
+		<li>The job description (XML file) used for the current alignment
+			run</li>
+		<li>An alignment list per iteration storing the alignment job
+			parameters for each particle including the results. You can convert
+			any AlignmentList file to a particle list by running the terminal and
+			typing<br />
+			<div class="codeFragment">
+				<code>
+					$ipytom<br />
+					<br /> from pytom.basic.structures import ParticleList<br /> pl =
+					ParticleList()<br /> pl.fromAlignmentList('AlignmentList-1.xml')<br />
+					pl.toXMLFile('alignedParticles.xml')<br />
+				</code>
+			</div>
+		</li>
+		<li>Information about the current alignment progress from
+			iteration to iteration in html format</li>
+	</ul>
+	
+	<h2>Alignment of the tutorial data</h2>
+	
+	Alignment of the previously localized and roughly classified particles is shown in the <code>alignment</code> directory. Here, you will find 
+	<ul>
+		<li>the list of all particles <code>allParticles.xml</code> with their rough orientations determined by localization</li>
+		<li>a script <code>createParticleList.py</code> showing you how to create <code>allParticles.xml</code> from the previous MCO-EXMX classification step</li>
+		<li><code>job.xml</code> is a example job XML showing how a ready alignment job should look like and <code>job.sh</code> is the executeable with the respective call</li>
+		<li><code>reference.em</code> and <code>mask.em</code> are respective calls to the alignment reference and alignment mask</li>
+		<li>Alignment results will be written into the <code>results</code> directory (Please make sure it exists.)</li>
+	</ul>
+	You can go ahead and create your own job files with the tutorial data or modify copies of the <code>job.xml</code> yourself to see differences in results and get a feeling for parameters. 
+
+	<h2>Further modifications</h2>
+	<p align="justify">
+		For further runs with modified parameters you can either load the
+		<code>job.xml</code>
+		file into the user interface, or modify the
+		<code>XML</code>
+		file on disk. It's really easy to set up a new job for the same
+		particles. You can modify all parameters by using a standard text
+		editor. However, remember to update the destination where results will
+		be written to. You might overwrite old results otherwise.
+	</p>
+
+	<h2>Setting up an alignment job using the web server</h2>
+	<p align="justify">Using the Pytomserver all input files for
+		running the alingment can be created.</p>
+	<center>
+		<iframe width="420" height="315"
+			src="http://www.youtube.com/embed/QqZ2nbWeYP8" frameborder="0"
+			allowfullscreen></iframe>
+	</center>
+
+</body>
+</html>
