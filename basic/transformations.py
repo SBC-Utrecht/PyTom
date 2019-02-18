@@ -367,9 +367,9 @@ def mirror(volume,axis = 'x',copyFlag = True):
         from pytom_volume import vol
         returnVolume = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
         
-        for x in xrange(volume.sizeX()):
-            for y in xrange(volume.sizeY()):
-                for z in xrange(volume.sizeZ()):
+        for x in range(volume.sizeX()):
+            for y in range(volume.sizeY()):
+                for z in range(volume.sizeZ()):
                     
                     xMirrored = (x-centerX) * transformation[0] + centerX
                     yMirrored = (y-centerY) * transformation[1] + centerY
@@ -379,9 +379,9 @@ def mirror(volume,axis = 'x',copyFlag = True):
         return returnVolume
         
     else:
-        for x in xrange(volume.sizeX()):
-            for y in xrange(volume.sizeY()):
-                for z in xrange(volume.sizeZ()):
+        for x in range(volume.sizeX()):
+            for y in range(volume.sizeY()):
+                for z in range(volume.sizeZ()):
                     
                     tmp = volume.getV(x,y,z)
                     xMirrored = (x-centerX) * transformation[0] + centerX
@@ -604,7 +604,7 @@ def project(v, rot, verbose=False):
     if not isinstance(rot, Rotation):
         raise TypeError('project: rot must be of type Rotation or float! Got ' + str(v.__class__) + ' instead!')
     if verbose:
-        print "project: Rotation for projection: "+str(rot)
+        print("project: Rotation for projection: "+str(rot))
     rotvol = general_transform_crop(v=v, rot=rot, shift=None, scale=None, order=[0, 1, 2])
     # slightly awkward: projection in numpy ...
     npvol = vol2npy(rotvol)

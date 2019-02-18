@@ -197,7 +197,7 @@ class GlobalSampling(AngleObject):
         return len(self._angleList) 
     
     def __getitem__(self,key):
-        if isinstance(key, (int, long)):
+        if isinstance(key, int):
             
             if key < self.numberRotations():
                 return self._angleList[key];

@@ -21,7 +21,7 @@ def fromXML(xmlObj):
     fromXML
     @deprecated: Use AngleObject.fromXML instead!!!
     """
-    print 'This function is deprecated. Use the method of AngleObject.fromXML instead!'
+    print('This function is deprecated. Use the method of AngleObject.fromXML instead!')
     from pytom.angles.angle import AngleObject
     ang = AngleObject()
     return ang.fromXML(xmlObj)
@@ -110,7 +110,7 @@ class AngleObject(PyTomClass):
             raise TypeError('Type ' +angType+' not available in Angles.')
 
         if verbose:
-            print "AngleObject.fromXML: Returned AngleObject: "+str(ang)
+            print("AngleObject.fromXML: Returned AngleObject: "+str(ang))
         return ang
 
 
@@ -166,7 +166,7 @@ class AngleObject(PyTomClass):
         @rtype: L{pytom.angles.angle.AngleObject}
         @author: Thomas Hrabe 
         """
-        print 'This is an abstract method, You must override this method in your subclass'
+        print('This is an abstract method, You must override this method in your subclass')
         
         assert False
         
@@ -177,7 +177,7 @@ class AngleObject(PyTomClass):
         from lxml import etree
         oldElement = etree.Element("OldRotations")
         
-        for i in xrange(len(self._oldRotations)):
+        for i in range(len(self._oldRotations)):
             rotation = self._oldRotations[i]
             rotElement = etree.Element('Rotation',phi=str(rotation[0]),psi=str(rotation[1]),theta=str(rotation[2])) 
             oldElement.append(rotElement)
@@ -216,8 +216,8 @@ class AngleObject(PyTomClass):
         nextRotation: Returns the next rotation for the current object
         @author: Thomas Hrabe 
         """
-        print 'This is a virtual class and thus virtual member function'
-        print self.__class__
+        print('This is a virtual class and thus virtual member function')
+        print(self.__class__)
         assert False
     
     def getIncrement(self):
@@ -225,8 +225,8 @@ class AngleObject(PyTomClass):
         getIncrement:
         @return: Current angular increment
         """
-        print 'This is a virtual class and thus virtual member function'
-        print self.__class__
+        print('This is a virtual class and thus virtual member function')
+        print(self.__class__)
         assert False
         
     def focusRotation(self,rotation,refinementAngle=None): 
@@ -236,8 +236,8 @@ class AngleObject(PyTomClass):
         @return: New angle object
         @author: Thomas Hrabe 
         """
-        print 'This is a virtual class and thus virtual member function'
-        print self.__class__
+        print('This is a virtual class and thus virtual member function')
+        print(self.__class__)
         assert False
         
     def numberRotations(self):
@@ -246,7 +246,7 @@ class AngleObject(PyTomClass):
         @author: Thomas Hrabe 
         @deprecated: Use __len__ instead
         """
-        print 'This is a virtual class and thus virtual member function'
+        print('This is a virtual class and thus virtual member function')
         assert False
 
     def __len__(self):
@@ -257,7 +257,7 @@ class AngleObject(PyTomClass):
         rotations = self.getAllRotations()
         
         for i in range(len(rotations)):
-            print rotations[i]
+            print(rotations[i])
         
     def getAllRotations(self):
         """
@@ -282,8 +282,8 @@ class AngleObject(PyTomClass):
         reset: Resets the object that nextRotation would return the same same sequence of results again   
         @author: Thomas Hrabe 
         """
-        print 'This is a virtual class and thus virtual member function'
-        print self.__class__
+        print('This is a virtual class and thus virtual member function')
+        print(self.__class__)
         assert False
     
     def __getitem__(self,key):
@@ -293,7 +293,7 @@ class AngleObject(PyTomClass):
         @rtype: L{pytom.basic.structures.Rotation}
         """
                 
-        if isinstance(key, (int, long)): 
+        if isinstance(key, int): 
             
             index = 0
             rotation = self.nextRotation()
@@ -315,8 +315,8 @@ class AngleObject(PyTomClass):
         @param rotation: The other starting rotation   
         @author: Thomas Hrabe 
         """
-        print self.__class__
-        print 'This is a virtual class and thus virtual member function'
+        print(self.__class__)
+        print('This is a virtual class and thus virtual member function')
         assert False
         
     """
@@ -430,9 +430,9 @@ class AngleObject(PyTomClass):
         distanceMatrix = vol(numberOfRotations,numberOfRotations,1)
         distanceMatrix.setAll(0)
 
-        for i in xrange(len(self)):
+        for i in range(len(self)):
             if i < len(self):
-                for j in xrange(i+1,len(self)):
+                for j in range(i+1,len(self)):
                     ri = self[i]
                     rj = self[j]
 

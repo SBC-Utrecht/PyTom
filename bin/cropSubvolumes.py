@@ -52,7 +52,7 @@ def writeCroppedParticles(particleListName, output, center, cubesize):
         fname = part.getFilename()
         idx = fname.split('_')[-1].split('.')[0] 
         nfname = output+'_'+idx+'.em'
-        print "write file " + nfname
+        print("write file " + nfname)
         subV.write(nfname)
         pl_new[ipart].setFilename(newFilename=nfname)
         pl_new[ipart].setShift(shift=Shift(0,0,0))
@@ -79,7 +79,7 @@ if __name__ == '__main__':
                           options=options)
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     particleListName, output, center, cubesize, outParticleListName = parse_script_options(sys.argv[1:], helper)
 

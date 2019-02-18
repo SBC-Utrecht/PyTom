@@ -117,7 +117,7 @@ def applySymmetryOnParticleList(particleList,symmetry):
     from pytom.basic.structures import ParticleList,Rotation
     newList = ParticleList(particleList.getDirectory())
 
-    for i in xrange(len(particleList)):
+    for i in range(len(particleList)):
         particle = particleList[i] 
         
         originalRotation = particle.getRotation()
@@ -233,7 +233,7 @@ def _disrtibuteAverageMPI(particleList,averageName,showProgressBar = False,verbo
     preList = []
     wedgeList = []
     
-    for i in xrange(len(splitLists)):
+    for i in range(len(splitLists)):
         plist = splitLists[i]
         avgName = averageName + '_dist' +str(i) + '.em'
         avgNameList.append(avgName)
@@ -256,7 +256,7 @@ def _disrtibuteAverageMPI(particleList,averageName,showProgressBar = False,verbo
     result = read(preList[0])
     wedgeSum = read(wedgeList[0])
     
-    for i in xrange(1,len(preList)):
+    for i in range(1,len(preList)):
         r = read(preList[i])
         result += r
     
@@ -280,7 +280,7 @@ def _disrtibuteAverageMPI(particleList,averageName,showProgressBar = False,verbo
     result.write(averageName)
     
     # clean results
-    for i in xrange(0,len(preList)):
+    for i in range(0,len(preList)):
         os.system('rm ' + avgNameList[i])
         os.system('rm ' + preList[i])
         os.system('rm ' + wedgeList[i])
@@ -311,7 +311,7 @@ def distributeAverage(particleList,averageName,showProgressBar = False,verbose=F
                 mpiAvailable = True
             
         except:
-            print 'Could not initialize MPI properly! Running in sequential mode!'
+            print('Could not initialize MPI properly! Running in sequential mode!')
         
     if mpiAvailable:
         if pytom_mpi.rank() == 0:
@@ -322,7 +322,7 @@ def distributeAverage(particleList,averageName,showProgressBar = False,verbose=F
             worker.parallelRun(False)
             
     else:
-        print 'MPI not available'
+        print('MPI not available')
         return average(particleList,averageName,showProgressBar,verbose,createInfoVolumes)
 
 def average( particleList, averageName, showProgressBar=False, verbose=False,
@@ -368,13 +368,13 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             wsum += particleObject.getScore().getValue()
         if wsum < 0.00001:
             weighting = False
-            print "Warning: all scores have been zero - weighting not applied"
+            print("Warning: all scores have been zero - weighting not applied")
 
     
     for particleObject in particleList:
         
         if verbose:
-            print particleObject
+            print(particleObject)
         
         particle = read(particleObject.getFilename())
         if norm: # normalize the particle
@@ -805,7 +805,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
                                                z2=currentRotation[1], x=currentRotation[2], isReducedComplex=True,
                                                returnReducedComplex=True, binarize=False)
             particleCopy.copyVolume(particle)
-            r = filter(particleCopy, weight(weightingRotated))
+            r = list(filter(particleCopy, weight(weightingRotated)))
             particleCopy = r[0]
         
         scoringResult = scoreObject.score(particleCopy, simulatedVol, m, stdV)
@@ -828,8 +828,8 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         newPeak = Peak(peakValue, Rotation(currentRotation), Shift(shiftX, shiftY, shiftZ))
         
         if verbose:
-            print 'Rotation: z1=%3.1f, z2=%3.1f, x=%3.1f; Dx=%2.2f, Dy=%2.2f, Dz=%2.2f, CC=%2.3f' % \
-                  (currentRotation[0], currentRotation[1], currentRotation[2], shiftX, shiftY, shiftZ, peakValue)
+            print('Rotation: z1=%3.1f, z2=%3.1f, x=%3.1f; Dx=%2.2f, Dy=%2.2f, Dz=%2.2f, CC=%2.3f' % \
+                  (currentRotation[0], currentRotation[1], currentRotation[2], shiftX, shiftY, shiftZ, peakValue))
 
         if bestPeak is None:
             bestPeak = newPeak
@@ -862,9 +862,9 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         shiftZ = (peakPosition[2] - centerZ)
         bestPeak = Peak(peakValue, bestPeak.getRotation(), Shift(shiftX, shiftY, shiftZ))
     if verbose:
-            print 'BestAlignment: z1=%3.1f, z2=%3.1f, x=%3.1f; Dx=%2.2f, Dy=%2.2f, Dz=%2.2f, CC=%2.3f' % \
+            print('BestAlignment: z1=%3.1f, z2=%3.1f, x=%3.1f; Dx=%2.2f, Dy=%2.2f, Dz=%2.2f, CC=%2.3f' % \
                   (bestPeak.getRotation()[0], bestPeak.getRotation()[1], bestPeak.getRotation()[2],
-                   bestPeak.getShift()[0], bestPeak.getShift()[1], bestPeak.getShift()[2], bestPeak.getScoreValue())
+                   bestPeak.getShift()[0], bestPeak.getShift()[1], bestPeak.getShift()[2], bestPeak.getScoreValue()))
     rotations.reset()
     scoreObject._peakPrior.reset_weight()
     return bestPeak
@@ -944,7 +944,7 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
             particleCopy.info('pc')
             weightingRotated.info('wr')
         
-        r = filter(particleCopy,weight(weightingRotated))            
+        r = list(filter(particleCopy,weight(weightingRotated)))            
         particleCopy = r[0]
         
     scoringResult = scoreObject.scoringCoefficient(particleCopy,simulatedVol,m)

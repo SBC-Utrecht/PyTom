@@ -220,14 +220,14 @@ class Score:
         """
         @deprecated: Use getPeakPrior instead!
         """
-        print 'Deprecated: Use getPeakPrior instead!'
+        print('Deprecated: Use getPeakPrior instead!')
         return self._peakPrior
     
     def setDistanceFunction(self,filename='',mean=0,deviation=-1):
         """
         @deprecated: Use setPeakPrior instead!
         """
-        print 'Deprecated: Use setPeakPrior instead!'
+        print('Deprecated: Use setPeakPrior instead!')
         self.setPeakPrior(filename,mean,deviation)   
          
     def getPeakPrior(self):
@@ -377,7 +377,7 @@ class xcfScore(Score):
         self.ctor(xcf,xcc,Vol_G_Val)
         self._type = 'xcfScore'
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):
-        if value and (value.__class__ == int or value.__class__ == long or value.__class__ == float):
+        if value and (value.__class__ == int or value.__class__ == int or value.__class__ == float):
             self.setValue(value)
         else:
             self.setValue(self.getWorstValue())
@@ -400,7 +400,7 @@ class nxcfScore(Score):
         self.ctor(nXcf,nxcc,Vol_G_Val)   
         self._type = 'nxcfScore'
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):
-        if value and (value.__class__ == int or value.__class__ == long or value.__class__ == float):
+        if value and (value.__class__ == int or value.__class__ == int or value.__class__ == float):
             self.setValue(value)
         else:
             self.setValue(self.getWorstValue())
@@ -425,7 +425,7 @@ class FLCFScore(Score):
         self._type = 'FLCFScore'
         
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):
-        if value and (value.__class__ == int or value.__class__ == long or value.__class__ == float):
+        if value and (value.__class__ == int or value.__class__ == int or value.__class__ == float):
             self.setValue(value)
         else:
             self.setValue(self.getWorstValue())
@@ -509,7 +509,7 @@ def FSCWrapper(self,volume,reference):
         
     if self.numberOfBands == 0:
         from pytom.basic.exceptions import ParameterError
-        raise ParameterError, 'Bands attribute is empty. Abort.'
+        raise ParameterError('Bands attribute is empty. Abort.')
         
     return FSCSum(volume,reference,self.bands,self.wedgeAngle)
 
@@ -518,7 +518,7 @@ def FSFWrapper(self,volume,reference):
         
     if self.numberOfBands == 0:
         from pytom.basic.exceptions import ParameterError
-        raise ParameterError, 'Bands attribute is empty. Abort.'
+        raise ParameterError('Bands attribute is empty. Abort.')
         
     return weightedXCF(volume,reference,self.bands,self.wedgeAngle)   
   

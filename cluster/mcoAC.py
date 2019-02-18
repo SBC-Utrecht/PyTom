@@ -35,13 +35,13 @@ def classifyParticleList(particleList,alignmentLists,criterion,temperature,verbo
         swapList = SwapList()
         classifiedParticleList = ParticleList(particleList.getDirectory())
         
-        for particleIndex in xrange(len(particleList)):
+        for particleIndex in range(len(particleList)):
             
             particle = particleList[particleIndex]
 
             results = []
             
-            for alignmentIterator in xrange(len(alignmentLists)):
+            for alignmentIterator in range(len(alignmentLists)):
                 
                 alignmentList = alignmentLists[alignmentIterator]
                 results.append(alignmentList[particleIndex])
@@ -49,11 +49,11 @@ def classifyParticleList(particleList,alignmentLists,criterion,temperature,verbo
             #results = sorted(results, key=lambda MaximisationResult: MaximisationResult.getScore().getValue(),reverse=True)    
             
             if verbose:
-                print ''
-                print ''
-                print ''
-                print '----------------------'
-                print results
+                print('')
+                print('')
+                print('')
+                print('----------------------')
+                print(results)
             
             [bestResult, bestCluster,swapList] = criterion.apply(results,temperature,swapList,False)
             
@@ -66,7 +66,7 @@ def classifyParticleList(particleList,alignmentLists,criterion,temperature,verbo
             classifiedParticle.setShift(particle.getShift())
             
             if verbose:
-                print classifiedParticle
+                print(classifiedParticle)
                 
             classifiedParticleList.append(classifiedParticle)
     
@@ -109,13 +109,13 @@ def classifyParticleListThreads(particleList,alignmentLists,criterion,temperatur
         swapList = SwapList()
         classifiedParticleList = ParticleList(particleList.getDirectory())
         
-        for particleIndex in xrange(len(particleList)):
+        for particleIndex in range(len(particleList)):
             
             particle = particleList[particleIndex]
 
             results = []
             
-            for alignmentIterator in xrange(len(alignmentLists)):
+            for alignmentIterator in range(len(alignmentLists)):
                 
                 alignmentList = alignmentLists[alignmentIterator]
                 results.append(alignmentList[particleIndex])
@@ -123,11 +123,11 @@ def classifyParticleListThreads(particleList,alignmentLists,criterion,temperatur
             #results = sorted(results, key=lambda MaximisationResult: MaximisationResult.getScore().getValue(),reverse=True)    
             
             if verbose:
-                print ''
-                print ''
-                print ''
-                print '----------------------'
-                print results
+                print('')
+                print('')
+                print('')
+                print('----------------------')
+                print(results)
             
             [bestResult, bestCluster,swapList] = criterion.apply(results,temperature,swapList,False)
             
@@ -140,7 +140,7 @@ def classifyParticleListThreads(particleList,alignmentLists,criterion,temperatur
             classifiedParticle.setShift(particle.getShift())
             
             if verbose:
-                print classifiedParticle
+                print(classifiedParticle)
                 
             classifiedParticleList.append(classifiedParticle)
     
@@ -184,7 +184,7 @@ def mcoAC(annealingJob,doFinalize=True,verbose=False):
         numberClasses = annealingJob.getNumberClasses() 
 
         if verbose:
-            print annealingJob
+            print(annealingJob)
             
         if not checkDirExists(destinationDirectory):
             raise IOError('Destination directory ' + destinationDirectory + ' not found!')
@@ -199,7 +199,7 @@ def mcoAC(annealingJob,doFinalize=True,verbose=False):
             
             if numberClasses:
                 if verbose:
-                    print 'Randomizing particle list'
+                    print('Randomizing particle list')
                     
                 particleList = randomiseParticleListClasses(particleList,numberClasses)
                 particleList.toXMLFile(destinationDirectory + '/RandomisedParticleList.xml')
@@ -217,7 +217,7 @@ def mcoAC(annealingJob,doFinalize=True,verbose=False):
         while (not annealingJob.cooledDown()) and (not converged):
             
             if verbose:
-                print 'Running iteration ' + str(iteration) + ' of ' +str(numberIterations)
+                print('Running iteration ' + str(iteration) + ' of ' +str(numberIterations))
         
             iterationDirectory = destinationDirectory + '/' + str(iteration) + '/'
             mcoEXMXDirectory = iterationDirectory + 'mcoEXMX/'
@@ -267,7 +267,7 @@ def mcoAC(annealingJob,doFinalize=True,verbose=False):
             
             iteration = iteration + 1
             
-            print 'Annealing iteration ' + str(iteration) + ' finished!'
+            print('Annealing iteration ' + str(iteration) + ' finished!')
             
         if doFinalize: 
             from pytom.alignment.ExMaxAlignment import ExMaxManager

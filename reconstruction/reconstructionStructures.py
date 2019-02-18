@@ -379,7 +379,7 @@ class ProjectionList(PyTomClass):
         @type key: int
         @rtype: L{pytom.reconstructionStructures.Projection}. 
         """
-        if not isinstance(key, (int, long)):
+        if not isinstance(key, int):
             raise TypeError('Provide an int')
         
         if len(self) <= key:
@@ -397,7 +397,7 @@ class ProjectionList(PyTomClass):
         generateVolumes (old function name, now replaced by reconstructVolumes)
         @deprecated: 
         """
-        print 'Generate Volumes is deprecated, use reconstructVolumes instead!'
+        print('Generate Volumes is deprecated, use reconstructVolumes instead!')
         self.reconstructVolumes(particles, cubeSize, binning, applyWeighting,
 	        showProgressBar ,verbose,preScale,postScale)
 
@@ -462,7 +462,7 @@ class ProjectionList(PyTomClass):
         from pytom.basic.filter import circleFilter,rampFilter,fourierFilterShift
     
         if len(self) == 0:
-            print RuntimeWarning('This ProjectionList contains no projections!Abort!')
+            print(RuntimeWarning('This ProjectionList contains no projections!Abort!'))
             return 
         
         if len(particles) == 0:
@@ -489,23 +489,23 @@ class ProjectionList(PyTomClass):
        
         vol_bp = vol(cubeSize, cubeSize, cubeSize)
         
-        for particleIndex in xrange(len(particles)):    
+        for particleIndex in range(len(particles)):    
             p = particles[particleIndex]
             
             if verbose:
-                print p
+                print(p)
             
             vol_bp.setAll(0.0)
             
             # adjust coordinates of subvolumes to binned reconstruction
-            for i in xrange(len(self)):
+            for i in range(len(self)):
                 reconstructionPosition( float(p.getPickPosition().getX()/binning), 0, i, 0) 
                 reconstructionPosition( float(p.getPickPosition().getY()/binning), 1, i, 0)
                 reconstructionPosition( float(p.getPickPosition().getZ()/binning), 2, i, 0)   
             
             if verbose:
-                print(p.getPickPosition().getX()/binning,p.getPickPosition().getY()/binning, 
-	        p.getPickPosition().getZ()/binning)
+                print((p.getPickPosition().getX()/binning,p.getPickPosition().getY()/binning, 
+	        p.getPickPosition().getZ()/binning))
             
             backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition,vol_offsetProjections)
             
@@ -573,29 +573,29 @@ class ProjectionList(PyTomClass):
             particleProjectionListSpider = ProjectionList([])
             
             if verbose:
-                print p    
+                print(p)    
                         
             vector = [p.getPickPosition().getX()*binning, p.getPickPosition().getY()*binning, p.getPickPosition().getZ()*binning]
             
             if verbose:
-                print 'Original position: ' , vector
+                print('Original position: ' , vector)
             
             for i in range(len(self._list)):
                                
                 if verbose:
-                    print self._list[i]
+                    print(self._list[i])
                 
                 #position in aligned projection
                 #the angle MUST be negative because we want the inverse rotation! The matrix within the function is the forward rotation!
                 position2D = positionInProjection(vector,-self._list[i].getTiltAngle(),'Y')
                 if verbose:
-                    print 'Position in projection: ' ,position2D
+                    print('Position in projection: ' ,position2D)
                 
                 #position in unaligned projection
                 
                 vector2 = [position2D[0] * 1/self._list[i].getAlignmentMagnification() ,position2D[1] * 1/self._list[i].getAlignmentMagnification(),0.0]
                 if verbose:
-                    print 'Position after magnification: ', vector2
+                    print('Position after magnification: ', vector2)
                 
                 #position2D was extended to [x,y,0] -> 3D, can now be multiplied to a 3D rotation matrix. only the 2D part is used     
                 rotationMatrix = ZRotationMatrix(-self._list[i].getAlignmentRotation())
@@ -603,13 +603,13 @@ class ProjectionList(PyTomClass):
                 newPosition = rotationMatrix * vector2 
                 
                 if verbose:
-                    print 'Position after inplane rotation: ', newPosition
+                    print('Position after inplane rotation: ', newPosition)
                     
                 position2D[0] = newPosition[0] - self._list[i].getAlignmentTransX()
                 position2D[1] = newPosition[1] - self._list[i].getAlignmentTransY()
                 
                 if verbose:
-                    print position2D
+                    print(position2D)
                     
                 #catch io error (RuntimeError) exception when cut out piece is outside of big file. 
                 #in case of error, omit this projection, print warning
@@ -620,14 +620,14 @@ class ProjectionList(PyTomClass):
                     y = (int(position2D[1]) -(projectionSize/2) + imgSizeY/2)                    
                     
                     if verbose:
-                        print 'Final position in projection: ',x,y
+                        print('Final position in projection: ',x,y)
                 
                     #determining error from pick center -> offset
                     offsetX = position2D[0] - float(int(position2D[0]))
                     offsetY = position2D[1] - float(int(position2D[1])) 
                     
                     if verbose:
-                        print 'Position offset: ',offsetX,offsetY
+                        print('Position offset: ',offsetX,offsetY)
                         
                     projection = read(self._list[i].getFilename(), x, y, 0, projectionSize, projectionSize, 1, 0, 0, 0, 0, 0, 0)
                     
@@ -637,8 +637,8 @@ class ProjectionList(PyTomClass):
                     
                     try:
                         mean0std1(projection)
-                    except ValueError,e:
-                        print str(e.message)
+                    except ValueError as e:
+                        print(str(e.message))
                         continue
                      
                     if outputScale > 1:
@@ -656,9 +656,9 @@ class ProjectionList(PyTomClass):
                     particleProjectionListSpider.append(particleProjectionSpider)
                     
                 except RuntimeError:
-                    print 'Warning : Particle out of bounds ('+ str(x) + ',' + str(y) + ') for projection!'
-                    print p
-                    print self._list[i]
+                    print('Warning : Particle out of bounds ('+ str(x) + ',' + str(y) + ') for projection!')
+                    print(p)
+                    print(self._list[i])
                 #assert False
                 
                 if showProgressBar:
@@ -751,7 +751,7 @@ class ProjectionList(PyTomClass):
 
         for (i, projection) in enumerate(self._list):
             if verbose:
-                print projection
+                print(projection)
 
             image = read(projection.getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1)
             
@@ -795,7 +795,7 @@ class ProjectionList(PyTomClass):
         alignXML = etree.fromstring(string)
         
         if verbose:
-            print etree.tostring(alignXML,pretty_print = True)
+            print(etree.tostring(alignXML,pretty_print = True))
         
         for projection in self:
             
@@ -812,29 +812,29 @@ class ProjectionList(PyTomClass):
                     continue
                 
                 if verbose:
-                    print etree.tostring(name,pretty_print = True)
+                    print(etree.tostring(name,pretty_print = True))
                 
                 query = '/root/projection/alpha[@idx=' +str(id)+ ']'
                 if verbose:
-                    print query
+                    print(query)
                 angle = alignXML.xpath(query)
                 projection.setAlignmentRotation(float(angle[0].text))
                 
                 query = '/root/projection/tx[@idx="'+str(id)+'"]'
                 if verbose:
-                    print query
+                    print(query)
                 x = alignXML.xpath(query)
                 projection.setAlignmentTransX(float(x[0].text))
                 
                 query = '/root/projection/ty[@idx="'+str(id)+'"]'
                 if verbose:
-                    print query
+                    print(query)
                 y = alignXML.xpath(query)
                 projection.setAlignmentTransY(float(y[0].text))
                 
                 query = '/root/projection/s[@idx="'+str(id)+'"]'
                 if verbose:
-                    print query
+                    print(query)
                 magnification = alignXML.xpath(query)
                 projection.setAlignmentMagnification(float(magnification[0].text))
             
@@ -909,13 +909,13 @@ class WeightedBackprojection(PyTomClass):
         particleOffsetStack.setAll(0.0)
         
         
-        for particleIndex in xrange(len(self._particleList)):    
+        for particleIndex in range(len(self._particleList)):    
             p = self._particleList[particleIndex]
             
             if verbose:
-                print p
+                print(p)
             
-            for i in xrange(len(self)):
+            for i in range(len(self)):
                 particleOffsetStack.setV(p.getPickPosition().getX()*coordinatesScale, 0, i, 0) 
                 particleOffsetStack.setV(p.getPickPosition().getY()*coordinatesScale, 1, i, 0)
                 particleOffsetStack.setV(p.getPickPosition().getZ()*coordinatesScale, 2, i, 0)   

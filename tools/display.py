@@ -55,8 +55,8 @@ class VolDsp():
         from PIL import Image
         img = Image.new("RGB", (x,y))
         
-        for i in xrange(x):
-            for j in xrange(y):
+        for i in range(x):
+            for j in range(y):
                 img.putpixel((i,j), self.getRGB(slice[i][j]))
         
         return img

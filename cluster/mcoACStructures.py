@@ -113,9 +113,9 @@ class ThresholdAcceptance(AnnealingCriterion):
         #loop over all results
         for result in results:
             if verbose:
-                print ''
-                print bestResult
-                print result
+                print('')
+                print(bestResult)
+                print(result)
             
             difference = bestResult.getScore().getValue() - result.getScore().getValue()
             
@@ -126,13 +126,13 @@ class ThresholdAcceptance(AnnealingCriterion):
                 continue
             
             if verbose:
-                print 'Difference : ' + str(difference)
-                print 'Temperature : ' + str(temperature)
+                print('Difference : ' + str(difference))
+                print('Temperature : ' + str(temperature))
                 
                 
             if difference > temperature.getTemperature():
                 if verbose:
-                    print 'Swap!'
+                    print('Swap!')
                                   
                 jump = RandomJump(result,temperature,bestResult.getScore().getValue(),result.getScore().getValue(),-1,-1)
                 
@@ -178,13 +178,13 @@ class MetropolisCriterion(AnnealingCriterion):
         didJumpBefore = False
         
         #loop over all results
-        for resultIndex in xrange(len(results)):
+        for resultIndex in range(len(results)):
             result = results[resultIndex]
             
             if verbose:
-                print ''
-                print bestResult
-                print result
+                print('')
+                print(bestResult)
+                print(result)
             
             difference = bestResult.getScore().getValue() - result.getScore().getValue()
             
@@ -198,22 +198,22 @@ class MetropolisCriterion(AnnealingCriterion):
                 continue
             
             if verbose:
-                print 'Difference : ' + str(difference)
-                print 'Temperature : ' + str(temperature)
+                print('Difference : ' + str(difference))
+                print('Temperature : ' + str(temperature))
                 
             criterion = e**(- difference / temperature.getTemperature())
             
             if verbose:
-                print 'Criterion : ' + str(criterion)
+                print('Criterion : ' + str(criterion))
             
             rand = random.random()
             
             if verbose:
-                print 'Random : '+ str(rand)
+                print('Random : '+ str(rand))
                 
             if criterion > rand and not didJumpBefore:
                 if verbose:
-                    print 'Swap!'
+                    print('Swap!')
                                   
                 jump = RandomJump(result,temperature,bestResult.getScore().getValue(),result.getScore().getValue(),rand,criterion)
                 
@@ -325,7 +325,7 @@ class SigmaTemperature(AnnealingTemperature):
         scores = []
         
         for alignmentList in alignmentLists:
-            for resultIterator in xrange(len(alignmentList)):
+            for resultIterator in range(len(alignmentList)):
                 
                 result = alignmentList[resultIterator]
         

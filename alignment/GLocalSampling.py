@@ -32,21 +32,21 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
     assert isinstance(object=alignmentJob, class_or_type_or_tuple=GLocalSamplingJob), \
         "mainAlignmentLoop: alignmentJob must be of type GLocalSamplingJob"
     mpi.begin()
-    print "particleList    = "+str(alignmentJob.particleList.getFileName())
+    print("particleList    = "+str(alignmentJob.particleList.getFileName()))
     if alignmentJob.scoringParameters.reference.getFilename():
-        print "reference       = "+str(alignmentJob.scoringParameters.reference.getFilename())
+        print("reference       = "+str(alignmentJob.scoringParameters.reference.getFilename()))
     else:
-        print "reference       = using average from particleList"
+        print("reference       = using average from particleList")
 
-    print "mask            = "+str(alignmentJob.scoringParameters.mask.getFilename())
-    print "rotations       = "+str(alignmentJob.samplingParameters.rotations)
-    print "symmetries      = "+str(alignmentJob.scoringParameters.symmetries)
-    print "destination     = "+str(alignmentJob.destination)
-    print "numberIterations= "+str(alignmentJob.max_iter)
-    print "binning         = "+str(alignmentJob.samplingParameters.binning)
-    print "sampleInfo      = "+str(alignmentJob.samplingParameters.sampleInformation)
-    print "weighting       = "+str(alignmentJob.scoringParameters.weighting)
-    print "compound Wedge  = "+str(alignmentJob.scoringParameters.compoundWedge)
+    print("mask            = "+str(alignmentJob.scoringParameters.mask.getFilename()))
+    print("rotations       = "+str(alignmentJob.samplingParameters.rotations))
+    print("symmetries      = "+str(alignmentJob.scoringParameters.symmetries))
+    print("destination     = "+str(alignmentJob.destination))
+    print("numberIterations= "+str(alignmentJob.max_iter))
+    print("binning         = "+str(alignmentJob.samplingParameters.binning))
+    print("sampleInfo      = "+str(alignmentJob.samplingParameters.sampleInformation))
+    print("weighting       = "+str(alignmentJob.scoringParameters.weighting))
+    print("compound Wedge  = "+str(alignmentJob.scoringParameters.compoundWedge))
 
     for particle in alignmentJob.particleList:
         particle.setScoreValue(-1000.)
@@ -65,7 +65,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
 
     for ii in range(0, alignmentJob.max_iter):
         #if verbose:
-        print ">>>>>>>>> MPI rank: "+str(mpi.rank)+", Iteration: "+str(ii)
+        print(">>>>>>>>> MPI rank: "+str(mpi.rank)+", Iteration: "+str(ii))
         alignmentJob.scoringParameters.score.setRemoveAutocorrelation(flag=removeAutocorrelation)
 
         # generate averages - if not external reference provided use average to start with
@@ -85,7 +85,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             evenAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+'-Even.em')
             oddAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+'-Odd.em')
             t2 = time()
-            print ">>>>>>>>> averaging done ... took %3.2f seconds" % (t2-t1)
+            print(">>>>>>>>> averaging done ... took %3.2f seconds" % (t2-t1))
             # filter both volumes by sqrt(FSC)
             (averageEven, averageOdd, fsc, fil, optiRot, optiTrans) = \
                 alignVolumesAndFilterByFSC(vol1=evenAverage.getVolume(), vol2=oddAverage.getVolume(),
@@ -98,7 +98,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             averageAllVolume = evenAverage.getVolume() + oddAverage.getVolume()
             averageAllVolume.write(alignmentJob.destination+"/"+str(ii)+'-All.em')
             t1 = time()
-            print ">>>>>>>>> even and odd averages aligned ... took %3.2f seconds" % (t1-t2)
+            print(">>>>>>>>> even and odd averages aligned ... took %3.2f seconds" % (t1-t2))
             write_fsc2Ascii(fsc=fsc, filename=alignmentJob.destination+"/"+str(ii)+'-FSC.dat')
             # default name of Filter files
             write_fsc2Ascii(fsc=fil, filename=alignmentJob.destination+"/"+str(ii)+'-Filter.dat')
@@ -122,11 +122,11 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                 angularIncrement = angleFromResolution(resolution=resolutionAngstrom,
                             particleDiameter=alignmentJob.samplingParameters.sampleInformation.getParticleDiameter())
                 angularIncrement = round(alignmentJob.samplingParameters.adaptive_res * angularIncrement, 1)
-                print ">>>>>>>>> Iteration "+str(ii)+": Resolution = %3.2f A; angularIncrement= %2.1f deg." % \
-                      (resolutionAngstrom, angularIncrement)
+                print(">>>>>>>>> Iteration "+str(ii)+": Resolution = %3.2f A; angularIncrement= %2.1f deg." % \
+                      (resolutionAngstrom, angularIncrement))
                 alignmentJob.samplingParameters.rotations.setIncrement(increment=angularIncrement)
             else:
-                print ">>>>>>>>> Iteration "+str(ii)+": Resolution = %3.2f A." % resolutionAngstrom
+                print(">>>>>>>>> Iteration "+str(ii)+": Resolution = %3.2f A." % resolutionAngstrom)
         else:
             averageEven = alignmentJob.scoringParameters.reference.getVolume()
             averageOdd  = alignmentJob.scoringParameters.reference.getVolume()
@@ -149,42 +149,42 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                           generatedByParticleList=odd)
         # align particleLists
         if verbose:
-            print "mainAlignmentLoop: CurrentScore XML: "+str(alignmentJob.scoringParameters.score)
-            print "mainAlignmentLoop: CurrentRotations XML: "+str(alignmentJob.samplingParameters.rotations)
-            print "mainAlignmentLoop: CurrentMask XML: "+str(alignmentJob.scoringParameters.mask)
+            print("mainAlignmentLoop: CurrentScore XML: "+str(alignmentJob.scoringParameters.score))
+            print("mainAlignmentLoop: CurrentRotations XML: "+str(alignmentJob.samplingParameters.rotations))
+            print("mainAlignmentLoop: CurrentMask XML: "+str(alignmentJob.scoringParameters.mask))
         alignmentJob.scoringParameters.score.toXMLFile(filename=alignmentJob.destination+"/"+'CurrentScore.xml')
         alignmentJob.samplingParameters.rotations.toXMLFile(filename=alignmentJob.destination+"/"+'CurrentRotations.xml')
         alignmentJob.scoringParameters.mask.toXMLFile(filename=alignmentJob.destination+"/"+'CurrentMask.xml')
         # split particle lists
         evenSplitList = splitParticleList(particleList=even, setParticleNodesRatio=1)
         oddSplitList = splitParticleList(particleList=odd, setParticleNodesRatio=1)
-        print ">>>>>>>>> Aligning Even ...."
+        print(">>>>>>>>> Aligning Even ....")
         bestPeaksEvenSplit = mpi.parfor( alignParticleList,
-                                zip(evenSplitList, [currentReferenceEven]*len(evenSplitList),
+                                list(zip(evenSplitList, [currentReferenceEven]*len(evenSplitList),
                                     [evenCompoundWedgeFile]*len(evenSplitList),
                                     [alignmentJob.destination+"/"+'CurrentRotations.xml']*len(evenSplitList),
                                     [alignmentJob.destination+"/"+'CurrentScore.xml']*len(evenSplitList),
                                     [alignmentJob.destination+"/"+'CurrentMask.xml']*len(evenSplitList),
                                     [alignmentJob.scoringParameters.preprocessing]*len(evenSplitList),
                                     [progressBar]*neven, [alignmentJob.samplingParameters.binning]*len(evenSplitList),
-                                    [verbose]*len(evenSplitList)))
-        print ">>>>>>>>> Aligning Odd  ...."
+                                    [verbose]*len(evenSplitList))))
+        print(">>>>>>>>> Aligning Odd  ....")
         bestPeaksOddSplit = mpi.parfor( alignParticleList,
-                                zip(oddSplitList, [currentReferenceOdd]*len(oddSplitList),
+                                list(zip(oddSplitList, [currentReferenceOdd]*len(oddSplitList),
                                     [oddCompoundWedgeFile]*len(oddSplitList),
                                     [alignmentJob.destination+"/"+'CurrentRotations.xml']*len(oddSplitList),
                                     [alignmentJob.destination+"/"+'CurrentScore.xml']*len(oddSplitList),
                                     [alignmentJob.destination+"/"+'CurrentMask.xml']*len(oddSplitList),
                                     [alignmentJob.scoringParameters.preprocessing]*len(oddSplitList),
                                     [progressBar]*nodd, [alignmentJob.samplingParameters.binning]*len(oddSplitList),
-                                    [verbose]*len(oddSplitList)))
+                                    [verbose]*len(oddSplitList))))
         # merge peak lists
         bestPeaksEven = mergeLists(bestPeaksEvenSplit)
         bestPeaksOdd = mergeLists(bestPeaksOddSplit)
         # set orientations, translations, and cc values of particles # better update in alignOneParticle???
         even.updateFromPeaks(peaks=bestPeaksEven)
         odd.updateFromPeaks(peaks=bestPeaksOdd)
-        print ">>>>>>>>> Average scores: even %2.3f; odd %2.3f" % (even.averageScore(), odd.averageScore())
+        print(">>>>>>>>> Average scores: even %2.3f; odd %2.3f" % (even.averageScore(), odd.averageScore()))
         alignmentJob.particleList.updateFromOddEven(odd, even)
 
         # reset initial bandpass to zero and pre-process ONLY reference with bandpass in further iterations,
@@ -221,7 +221,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         odd.addRotation(rot=optiRot.invert())
         odd.addShift(translation=optiTrans.invert())
         alignmentJob.particleList.updateFromOddEven(odd, even)
-        print "rotation between averages > increment .... applying rotation and shift to odd particles"
+        print("rotation between averages > increment .... applying rotation and shift to odd particles")
         oddAverage = averageParallel(particleList=odd,
                                      averageName=alignmentJob.destination+"/average-Final-Odd.em",
                                      showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
@@ -243,7 +243,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
     resolutionAngstrom = bandToAngstrom(band=resolutionBand,
                                         pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),
                                         numberOfBands=len(fsc), upscale=1)
-    print ">>>>>>>>>> Final Resolution = %3.2f A." % resolutionAngstrom
+    print(">>>>>>>>>> Final Resolution = %3.2f A." % resolutionAngstrom)
 
     # filter final average according to resolution
     from pytom.basic.filter import lowpassFilter
@@ -313,10 +313,10 @@ def alignParticleList(pl, reference, referenceWeightingFile, rotationsFilename,
         referenceWeighting = None
 
     if verbose:
-        print "alignParticleList: rank "+str(mpi.rank)
-        print "alignParticleList: angleObject: "+str(rotations)
-        print "alignParticleList: scoreObject: "+str(scoreObject)
-        print "alignParticleList: mask:        "+str(mask)
+        print("alignParticleList: rank "+str(mpi.rank))
+        print("alignParticleList: angleObject: "+str(rotations))
+        print("alignParticleList: scoreObject: "+str(scoreObject))
+        print("alignParticleList: mask:        "+str(mask))
 
     bestPeaks = []
     for particle in pl:
@@ -373,10 +373,10 @@ def alignOneParticleWrapper(particle, reference, referenceWeighting=None, rotati
     mask.fromXMLFile(filename=maskFilename)
 
     if verbose:
-        print "alignOneParticleWrapper: rank "+str(mpi.rank)
-        print "alignOneParticleWrapper: angleObject: "+str(rotations)
-        print "alignOneParticleWrapper: scoreObject: "+str(scoreObject)
-        print "alignOneParticleWrapper: mask:        "+str(mask)
+        print("alignOneParticleWrapper: rank "+str(mpi.rank))
+        print("alignOneParticleWrapper: angleObject: "+str(rotations))
+        print("alignOneParticleWrapper: scoreObject: "+str(scoreObject))
+        print("alignOneParticleWrapper: mask:        "+str(mask))
 
     bestPeak = alignOneParticle( particle, reference, referenceWeighting, rotations,
                                  scoreObject, mask, preprocessing, progressBar=progressBar, binning=binning,
@@ -457,7 +457,7 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
                              progressBar=progressBar, binning=binning, bestPeak=None, verbose=verbose)
     angDiff = differenceAngleOfTwoRotations(rotation1=bestPeak.getRotation(), rotation2=oldRot)
     t2 = time()
-    print fname+": Angular Difference before and after alignment: %2.2f ... took %3.1f seconds ..." % (angDiff, t2-t1)
+    print(fname+": Angular Difference before and after alignment: %2.2f ... took %3.1f seconds ..." % (angDiff, t2-t1))
     rotations.reset()
 
     particle.setRotation(bestPeak.getRotation())
@@ -907,16 +907,16 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     #reference = average(particleList=plist, averageName=xxx, showProgressBar=True, verbose=False,
     # createInfoVolumes=False, weighting=weighting, norm=False)
 
-    averageList = mpi.parfor( average, zip(splitLists, avgNameList, [showProgressBar]*splitFactor,
+    averageList = mpi.parfor( average, list(zip(splitLists, avgNameList, [showProgressBar]*splitFactor,
                                            [verbose]*splitFactor, [createInfoVolumes]*splitFactor,
-                                           [weighting]*splitFactor, [norm]*splitFactor))
+                                           [weighting]*splitFactor, [norm]*splitFactor)))
     #collect results from files
     unweiAv = read(preList[0])
     wedgeSum = read(wedgeList[0])
     os.system('rm ' + wedgeList[0])
     os.system('rm ' + avgNameList[0])
     os.system('rm ' + preList[0])
-    for ii in xrange(1,splitFactor):
+    for ii in range(1,splitFactor):
         av = read(preList[ii])
         unweiAv += av
         os.system('rm ' + preList[ii])

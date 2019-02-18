@@ -56,18 +56,18 @@ if __name__ == '__main__':
                                    ScriptOption(['-h', '--help'], 'Help.', arg=False, optional=True)])
     
     if len(sys.argv) <= 2:
-        print helper
+        print(helper)
         sys.exit()
     try:
         particleList, reference, mask, isSphere, angShells, angleInc, symmetryN, symmetryAxisZ, symmetryAxisX,\
         destination, numberIterations, binning,\
         pixelSize, diameter, weighting, compound, jobName, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
         
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
 
     from pytom.alignment.GLocalSampling import GLocalSamplingJob, mainAlignmentLoop

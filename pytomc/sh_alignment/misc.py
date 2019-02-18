@@ -1,4 +1,4 @@
-from frm import *
+from .frm import *
 
 def frm_determine_orientation_rscore(vf, wf, vg, wg, b, radius=None, weights=None):
     """Obsolete.
@@ -6,7 +6,7 @@ def frm_determine_orientation_rscore(vf, wf, vg, wg, b, radius=None, weights=Non
     if not radius: # set the radius
         radius = vf.sizeX()/2
     if not weights: # set the weights
-        weights = [1 for i in xrange(radius)]
+        weights = [1 for i in range(radius)]
     
     if not b: # set the bandwidth adaptively
         b_min = 4
@@ -14,7 +14,7 @@ def frm_determine_orientation_rscore(vf, wf, vg, wg, b, radius=None, weights=Non
     elif b.__class__ == tuple or b.__class__ == list:
         b_min = b[0]
         b_max = b[1]
-    elif isinstance(b, (int, long)): # fixed bandwidth
+    elif isinstance(b, int): # fixed bandwidth
         b_min = b
         b_max = b
     else:
@@ -22,7 +22,7 @@ def frm_determine_orientation_rscore(vf, wf, vg, wg, b, radius=None, weights=Non
     
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
     from pytom_volume import vol, reducedToFull, rescale, abs, real
-    from vol2sf import vol2sf
+    from .vol2sf import vol2sf
     from pytom_numpy import vol2npy
     from math import log, ceil, pow
 
@@ -40,7 +40,7 @@ def frm_determine_orientation_rscore(vf, wf, vg, wg, b, radius=None, weights=Non
     
     res = None
     _last_bw = 0
-    for r in xrange(1, radius+1):
+    for r in range(1, radius+1):
         # calculate the appropriate bw
         bw = get_bw(r)
         if bw < b_min:
@@ -73,7 +73,7 @@ def frm_fourier_adaptive_wedge_vol_rscore(vf, wf, vg, wg, b, radius=None, weight
     if not radius: # set the radius
         radius = vf.sizeX()/2
     if not weights: # set the weights
-        weights = [1 for i in xrange(radius)]
+        weights = [1 for i in range(radius)]
 
     if not b: # set the bandwidth adaptively
         b_min = 4
@@ -81,7 +81,7 @@ def frm_fourier_adaptive_wedge_vol_rscore(vf, wf, vg, wg, b, radius=None, weight
     elif b.__class__ == tuple or b.__class__ == list:
         b_min = b[0]
         b_max = b[1]
-    elif isinstance(b, (int, long)): # fixed bandwidth
+    elif isinstance(b, int): # fixed bandwidth
         b_min = b
         b_max = b
     else:
@@ -89,7 +89,7 @@ def frm_fourier_adaptive_wedge_vol_rscore(vf, wf, vg, wg, b, radius=None, weight
 
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
     from pytom_volume import vol, reducedToFull, real, imag, rescale
-    from vol2sf import vol2sf
+    from .vol2sf import vol2sf
     from pytom_numpy import vol2npy
     from math import log, ceil, pow
 
@@ -107,7 +107,7 @@ def frm_fourier_adaptive_wedge_vol_rscore(vf, wf, vg, wg, b, radius=None, weight
 
     res = None
     _last_bw = 0
-    for r in xrange(1, radius+1):
+    for r in range(1, radius+1):
         # calculate the appropriate bw
         bw = get_bw(r)
         if bw < b_min:
@@ -155,7 +155,7 @@ def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=
         pass
     elif mask.__class__ == Mask:
         mask = mask.getVolume()
-    elif isinstance(mask, (int, long)):
+    elif isinstance(mask, int):
         mask_radius = mask
         mask = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(mask, mask_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
@@ -165,7 +165,7 @@ def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=
     if peak_offset is None:
         peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(peak_offset, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
-    elif isinstance(peak_offset, (int, long)):
+    elif isinstance(peak_offset, int):
         peak_radius = peak_offset
         peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
@@ -202,7 +202,7 @@ def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=
     old_pos = [-1, -1, -1]
     vg2 = vol(vg.sizeX(), vg.sizeY(), vg.sizeZ())
     lowpass_vf = lowpassFilter(vf, radius, 0)[0]
-    for i in xrange(max_iter):
+    for i in range(max_iter):
         peak_value = 0.0
         position = None
         for orientation in orientations:
@@ -279,7 +279,7 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     if peak_offset is None:
         peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(peak_offset, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
-    elif isinstance(peak_offset, (int, long)):
+    elif isinstance(peak_offset, int):
         peak_radius = peak_offset
         peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
@@ -290,7 +290,7 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
     from pytom_volume import vol, reducedToFull, rescale, abs, real
-    from vol2sf import vol2sf
+    from .vol2sf import vol2sf
     from pytom_numpy import vol2npy
     from math import log, ceil, pow
 
@@ -306,7 +306,7 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     mf = create_wedge_sf(wf[0], wf[1], b)
     mg = create_wedge_sf(wg[0], wg[1], b)
 
-    for r in xrange(3, radius+1): # Should start from 3 since the interpolation in the first 2 bands is not accurate.
+    for r in range(3, radius+1): # Should start from 3 since the interpolation in the first 2 bands is not accurate.
         if sf is None:
             sf = vol2sf(ff, r, b)
             sg = vol2sf(gg, r, b)
@@ -365,7 +365,7 @@ def frm_fourier_adaptive_wedge_vol(vf, wf, vg, wg, b, radius=None, weights=None,
     if not radius: # set the radius
         radius = vf.sizeX()/2
     if not weights: # set the weights
-        weights = [1 for i in xrange(radius)]
+        weights = [1 for i in range(radius)]
 
     if not b: # set the bandwidth adaptively
         b_min = 4
@@ -373,7 +373,7 @@ def frm_fourier_adaptive_wedge_vol(vf, wf, vg, wg, b, radius=None, weights=None,
     elif b.__class__ == tuple or b.__class__ == list:
         b_min = b[0]
         b_max = b[1]
-    elif isinstance(b, (int, long)): # fixed bandwidth
+    elif isinstance(b, int): # fixed bandwidth
         b_min = b
         b_max = b
     else:
@@ -381,7 +381,7 @@ def frm_fourier_adaptive_wedge_vol(vf, wf, vg, wg, b, radius=None, weights=None,
 
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
     from pytom_volume import vol, reducedToFull, real, imag, rescale
-    from vol2sf import vol2sf
+    from .vol2sf import vol2sf
     from pytom_numpy import vol2npy
     from math import log, ceil, pow
 
@@ -401,7 +401,7 @@ def frm_fourier_adaptive_wedge_vol(vf, wf, vg, wg, b, radius=None, weights=None,
     denominator1 = None
     denominator2 = None
     _last_bw = 0
-    for r in xrange(1, radius+1):
+    for r in range(1, radius+1):
         # calculate the appropriate bw
         bw = get_bw(r)
         if bw < b_min:
@@ -473,7 +473,7 @@ def frm_determine_orientation(vf, wf, vg, wg, b, radius=None, weights=None, r_sc
     if not radius: # set the radius
         radius = vf.sizeX()/2
     if not weights: # set the weights
-        weights = [1 for i in xrange(radius)]
+        weights = [1 for i in range(radius)]
     
     if not b: # set the bandwidth adaptively
         b_min = 4
@@ -481,7 +481,7 @@ def frm_determine_orientation(vf, wf, vg, wg, b, radius=None, weights=None, r_sc
     elif b.__class__ == tuple or b.__class__ == list:
         b_min = b[0]
         b_max = b[1]
-    elif isinstance(b, (int, long)): # fixed bandwidth
+    elif isinstance(b, int): # fixed bandwidth
         b_min = b
         b_max = b
     else:
@@ -489,7 +489,7 @@ def frm_determine_orientation(vf, wf, vg, wg, b, radius=None, weights=None, r_sc
     
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
     from pytom_volume import vol, reducedToFull, rescale, abs, real
-    from vol2sf import vol2sf
+    from .vol2sf import vol2sf
     from pytom_numpy import vol2npy
     from math import log, ceil, pow
 
@@ -509,7 +509,7 @@ def frm_determine_orientation(vf, wf, vg, wg, b, radius=None, weights=None, r_sc
     denominator1 = None
     denominator2 = None
     _last_bw = 0
-    for r in xrange(1, radius+1):
+    for r in range(1, radius+1):
         # calculate the appropriate bw
         bw = get_bw(r)
         if bw < b_min:
@@ -597,7 +597,7 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
         pass
     elif mask.__class__ == Mask:
         mask = mask.getVolume()
-    elif isinstance(mask, (int, long)):
+    elif isinstance(mask, int):
         mask_radius = mask
         mask = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(mask, mask_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
@@ -607,7 +607,7 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
     if peak_offset is None:
         peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(peak_offset, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
-    elif isinstance(peak_offset, (int, long)):
+    elif isinstance(peak_offset, int):
         peak_radius = peak_offset
         peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)

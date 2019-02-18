@@ -21,15 +21,15 @@ if __name__ == '__main__':
                                    ScriptOption(['-i','--imageFile'], 'Save plot to a image file.', True, True),
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         pl_filename, num_steps, peak_index, ccc_value, imageFile, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
     
     # process the arguments
@@ -54,12 +54,12 @@ if __name__ == '__main__':
     
     step = (max-min)/num_steps
     x = []
-    for i in xrange(num_steps):
+    for i in range(num_steps):
         x.append(min+i*step)
     x.append(max)
     
     y = []
-    for i in xrange(num_steps):
+    for i in range(num_steps):
         lower = x[i]; upper = x[i+1]
         n = len([v for v in scores if lower<=v<=upper])
         y.append(n)
@@ -85,12 +85,12 @@ if __name__ == '__main__':
         sigma = sigma.real
     if mu.__class__ in [complex,numpy.complex128]:
         mu = mu.real
-    print 'sigma: %f, mu: %f, a: %f' % (sigma, mu, a)
+    print('sigma: %f, mu: %f, a: %f' % (sigma, mu, a))
     
     # plot the Gaussian fitting
     from math import exp
     gaussian_fnc = lambda x: a*exp(-(x-mu)**2/(2*sigma**2))
-    plt.plot(x[1:],map(gaussian_fnc, x[1:]),'g--')
+    plt.plot(x[1:],list(map(gaussian_fnc, x[1:])),'g--')
     
     # print the estimation of number of true positives
     x.reverse()
@@ -107,7 +107,7 @@ if __name__ == '__main__':
             estimate += gaussian_fnc(i)
         else:
             break
-    print 'One sigma position: %f, number of estimation: %f' % (mu-sigma, estimate)
+    print('One sigma position: %f, number of estimation: %f' % (mu-sigma, estimate))
     
     estimate = 0.
     for i in x:
@@ -115,7 +115,7 @@ if __name__ == '__main__':
             estimate += gaussian_fnc(i)
         else:
             break
-    print 'Two sigma position: %f, number of estimation: %f' % (mu-2*sigma, estimate)
+    print('Two sigma position: %f, number of estimation: %f' % (mu-2*sigma, estimate))
     
     if ccc_value:
         ccc_value = float(ccc_value)
@@ -125,7 +125,7 @@ if __name__ == '__main__':
                 estimate += gaussian_fnc(i)
             else:
                 break
-        print 'CCC value position: %f, number of estimation: %f' % (ccc_value, estimate)
+        print('CCC value position: %f, number of estimation: %f' % (ccc_value, estimate))
     
     if imageFile is None:      
         pyplot.show()

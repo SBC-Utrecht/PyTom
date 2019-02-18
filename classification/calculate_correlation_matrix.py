@@ -5,7 +5,7 @@ Created on May 7, 2012
 '''
 
 import pytom_mpi
-import cPickle
+import pickle
 
 class CMWorker():
     def __init__(self):
@@ -33,13 +33,13 @@ class CMWorker():
             self.distribute_job(job, verbose)
 
             # fill in the diagnal line
-            for i in xrange(n):
+            for i in range(n):
                 correlation_matrix[i][i] = 1
 
             # gather the results
-            for i in xrange(self.num_workers):
+            for i in range(self.num_workers):
                 result = self.get_result()
-                pairs = result.keys()
+                pairs = list(result.keys())
                 for pair in pairs:
                     correlation_matrix[pair[0]][pair[1]] = result[pair]
                     correlation_matrix[pair[1]][pair[0]] = result[pair]
@@ -55,7 +55,7 @@ class CMWorker():
     
     def end(self, verbose=False):
         if verbose == True:
-            print self.node_name + ': sending end messages to others'
+            print(self.node_name + ': sending end messages to others')
         
         from pytom.parallel.messages import StatusMessage
         
@@ -85,7 +85,7 @@ class CMWorker():
                 pl_filename = job["ParticleList"]
             except:
                 if verbose:
-                    print self.node_name + ': end'
+                    print(self.node_name + ': end')
                 break # get some non-job message, break it
 
             from pytom.basic.structures import ParticleList
@@ -138,25 +138,25 @@ class CMWorker():
 
     
     def send_job(self, job, dest):
-        pytom_mpi.send(cPickle.dumps(job), dest)
+        pytom_mpi.send(pickle.dumps(job), dest)
     
     def get_job(self):
         from pytom.localization.parallel_extract_peaks import getMsgStr
         mpi_msgString = getMsgStr()
         try:
-            job = cPickle.loads(mpi_msgString)
+            job = pickle.loads(mpi_msgString)
         except:
             return None
         
         return job
     
     def send_result(self, result):
-        pytom_mpi.send(cPickle.dumps(result), 0)
+        pytom_mpi.send(pickle.dumps(result), 0)
     
     def get_result(self):
         from pytom.localization.parallel_extract_peaks import getMsgStr
         mpi_msgString = getMsgStr()
-        result = cPickle.loads(mpi_msgString)
+        result = pickle.loads(mpi_msgString)
         
         return result
     
@@ -167,14 +167,14 @@ class CMWorker():
         pl.fromXMLFile(pl_filename)
         nn = len(pl)
         all_pairs = []
-        for i in xrange(nn):
-            for j in xrange(i+1, nn):
+        for i in range(nn):
+            for j in range(i+1, nn):
                 all_pairs.append((i, j))
         n = len(all_pairs)
         particlesPerNode = int(n/self.num_workers)
         residual = n-particlesPerNode*self.num_workers
         start_idx = 0
-        for i in xrange(1, self.num_workers+1):
+        for i in range(1, self.num_workers+1):
             if i < residual+1: # since i starts from 1
                 l = particlesPerNode+1
             else:
@@ -193,7 +193,7 @@ class CMWorker():
             self.send_job(sub_job, i)
             
             if verbose:
-                print self.node_name + ': distributed %d particles to node %d' % (len(sub_pairs), i)
+                print(self.node_name + ': distributed %d particles to node %d' % (len(sub_pairs), i))
 
 if __name__ == '__main__':
     # parse command line arguments
@@ -212,7 +212,7 @@ if __name__ == '__main__':
                                     ScriptOption(['--help'], 'Help info.', False, True)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     
     try:
@@ -222,7 +222,7 @@ if __name__ == '__main__':
         sys.exit()
     
     if bHelp is True:
-        print helper
+        print(helper)
         sys.exit()
     
     if verbose:
@@ -246,4 +246,4 @@ if __name__ == '__main__':
     worker.start(job, verbose)
     
     if verbose:
-        print 'Overall execution time: %f s.' % t.end()
+        print('Overall execution time: %f s.' % t.end())

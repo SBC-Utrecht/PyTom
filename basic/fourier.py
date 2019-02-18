@@ -204,8 +204,8 @@ def ifft(Fdata):
                 #if x == y and x is odd, then z will be one pixel off. 
                 #adjust accordingly that x == y == z
                 z = y 
-                print 'Warning: PyTom assumes that the shape of the real volume is :',x,y,z
-                print 'Warning: Check if that is consistent with your data!'
+                print('Warning: PyTom assumes that the shape of the real volume is :',x,y,z)
+                print('Warning: Check if that is consistent with your data!')
                 
         real = pytom_volume.vol(int(x),int(y),int(z))
         returnValue = pytom_volume.vol(int(x),int(y),int(z))
@@ -319,8 +319,8 @@ def fourierSizeOperation(sizeX=0,sizeY=0,sizeZ=0,reducedToFull = True):
             #if x == y and x is odd, then z will be one pixel off. 
             #adjust accordingly that x == y == z
             z = y
-            print 'Warning: PyTom assumes that the shape of the real volume is :',x,y,z
-            print 'Warning: Check if that is consistent with your data!'
+            print('Warning: PyTom assumes that the shape of the real volume is :',x,y,z)
+            print('Warning: Check if that is consistent with your data!')
             
     else:
         x = sizeX 

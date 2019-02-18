@@ -21,13 +21,13 @@ def run(parameters,verbose = False):
     from pytom.frontend.serverpages.serverMessage import DataMessage
     
     if verbose:
-        print "Parsing image slice!"
+        print("Parsing image slice!")
         
     splitParameters = parameters.split('&')
     
     if splitParameters.__class__ == list:
         if verbose:
-            print splitParameters
+            print(splitParameters)
         filename = None
         v = None
         
@@ -35,7 +35,7 @@ def run(parameters,verbose = False):
         sliceY = None
         sliceZ = None
         
-        for i in xrange(len(splitParameters)):
+        for i in range(len(splitParameters)):
             
             parameter = splitParameters[i]
             
@@ -45,8 +45,8 @@ def run(parameters,verbose = False):
             argument = split[1]
             
             if verbose:
-                print 'Keyword : ', keyword
-                print 'Arguments : ', argument
+                print('Keyword : ', keyword)
+                print('Arguments : ', argument)
             
             if keyword == 'File':
                 filename = argument
@@ -64,9 +64,9 @@ def run(parameters,verbose = False):
         v = read(filename)
         data = ''
         
-        for x in xrange(v.sizeX()):
-            for y in xrange(v.sizeX()):
-                for z in xrange(v.sizeX()):
+        for x in range(v.sizeX()):
+            for y in range(v.sizeX()):
+                for z in range(v.sizeX()):
                     data += str(v(x,y,z)) + ';'
                     
         return str(DataMessage('volume',data,sizeX = str(v.sizeX),sizeY = str(v.sizeY),sizeZ = str(v.sizeZ)))

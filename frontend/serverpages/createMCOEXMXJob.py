@@ -25,9 +25,9 @@ def run(parameters,verbose=False):
     
     if splitParameters.__class__ == list:
         if verbose:
-            print splitParameters
+            print(splitParameters)
         
-        for i in xrange(len(splitParameters)):
+        for i in range(len(splitParameters)):
             
             parameter = splitParameters[i]
             
@@ -42,8 +42,8 @@ def run(parameters,verbose=False):
     try:
         response = interpretRequestParameters(parametersDictionary)
         
-    except Exception,err:
-        print err
+    except Exception as err:
+        print(err)
         response = ErrorMessage(err)
 
     return str(response)

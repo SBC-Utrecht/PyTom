@@ -170,7 +170,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     
     if ( r==None):
         if not mute:
-            print "Assign reference marker to default value"
+            print("Assign reference marker to default value")
 	r = numpy.array(3*[0.])
         r[0] = Markers_[irefmark-1].xProj[ireftilt-1]
         r[1] = Markers_[irefmark-1].yProj[ireftilt-1]
@@ -235,12 +235,12 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     sigma = sqrt(sumxx/(ndif - nmark ));
     #   deviation as angle in deg
     if not mute:
-        print('Number of tilts:.............. = %3d' %ntilt)
-        print('reference tilt index:......... = %3d' %ireftilt)
-        print('Total number of marker points  = %3d' %nmark)
-        print('Index of reference point:..... = %3d' %irefmark)
-        print('Tilt axis azimuth:............ = %6.2f deg' %psiindeg)
-        print('RMS error fit:................ = %4.2f pix' %sigma)
+        print(('Number of tilts:.............. = %3d' %ntilt))
+        print(('reference tilt index:......... = %3d' %ireftilt))
+        print(('Total number of marker points  = %3d' %nmark))
+        print(('Index of reference point:..... = %3d' %irefmark))
+        print(('Tilt axis azimuth:............ = %6.2f deg' %psiindeg))
+        print(('RMS error fit:................ = %4.2f pix' %sigma))
     
     #   ---- 2nd part: determination of shifts ----
     
@@ -249,7 +249,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     y = numpy.array(nmark*[0.])
     z = numpy.array(nmark*[0.])
     if not mute:
-        print('Coordinates of reference marker: %7.1f, %7.1f, %7.1f'%(r[0], r[1], r[2]))
+        print(('Coordinates of reference marker: %7.1f, %7.1f, %7.1f'%(r[0], r[1], r[2])))
         print('Difference vectors of marker points:')
     for (imark,Marker) in enumerate(Markers_):
         sumxx=0.; sumyy=0.; sumxy=0.; sumyx=0.; salpsq = 0.; scalph = 0.;
@@ -302,14 +302,14 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
             P_t[2,2]=temp[2]
             z[imark] = numpy.linalg.det(P_t)/dt;
             if not mute:
-                print('     %3d - %3d :.............. = %7.1f, %7.1f, %7.1f'
-                    %(imark+1, irefmark, x[imark], y[imark], z[imark]))
+                print(('     %3d - %3d :.............. = %7.1f, %7.1f, %7.1f'
+                    %(imark+1, irefmark, x[imark], y[imark], z[imark])))
             x[imark] = x[imark] + r[0] - imdim/2. -1. # move to center
             y[imark] = y[imark] + r[1] - imdim/2. -1.
             z[imark] = z[imark] + r[2] - imdim/2. -1.
         else:
             if not mute:
-                print('Marker '+str(imark)+' : undefined! det = 0! Click more!')
+                print(('Marker '+str(imark)+' : undefined! det = 0! Click more!'))
             x[imark] = 1000000
     
     if (len(y) < len(x)):
@@ -407,7 +407,7 @@ def simulate_markers(markCoords, tiltAngles, tiltAxis=-76.71, ireftilt=None,
     from pytom.tools.maths import rotate_vector2d
 
     if dBeam:
-        print('dBeam=%5.3f' %dBeam)
+        print(('dBeam=%5.3f' %dBeam))
     cent= [1025,1025]
     if dBeam:
         cdbeam = cos(dBeam*pi/180.)
@@ -429,7 +429,7 @@ def simulate_markers(markCoords, tiltAngles, tiltAxis=-76.71, ireftilt=None,
     nmarks = len(markCoords)
     Markers = []
     for (imark, markCoord) in enumerate(markCoords):
-        Marker = TiltAlignmentStructures.Marker(range(0,ntilt))
+        Marker = TiltAlignmentStructures.Marker(list(range(0,ntilt)))
 	Marker.set_r(markCoord)
 	Markers.append(Marker)
 
@@ -590,7 +590,7 @@ def readIMODmarkerfile(markerfile, binning=1):
     ntilt = int(tmp[3])
 
     markers = []
-    marker = Marker(projIndices=range(1,ntilt+1))
+    marker = Marker(projIndices=list(range(1,ntilt+1)))
     markers.append(marker)
 
     lines = fh.readlines()
@@ -602,7 +602,7 @@ def readIMODmarkerfile(markerfile, binning=1):
 	    continue
 	elif tmp[0] == 'Object':
 	    ii = ii + 1
-            marker = Marker(projIndices=range(1,ntilt+1))
+            marker = Marker(projIndices=list(range(1,ntilt+1)))
 	    markers.append(marker)
         elif tmp[0] == '#':
 	    continue

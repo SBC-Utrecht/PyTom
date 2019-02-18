@@ -36,7 +36,7 @@ def rotate_vector(r, rotation):
         if len(rotation) != 3:
 	    raise TypeError('rotation has to be 3d array for 3D input vector!')
 	else:
-	    print "Function not implemented, yet"
+	    print("Function not implemented, yet")
 
 def rotate_vector2d(r, cpsi, spsi):
     """
@@ -80,7 +80,7 @@ def euclidianDistance(v1,v2):
     
     sum = 0.0
     
-    for i in xrange(len(v1)):
+    for i in range(len(v1)):
         sum += pow(float(v1[i]) - float(v2[i]),2)
     
     return checkEpsilon(sum**0.5)
@@ -96,7 +96,7 @@ def listMean(theList):
         theList = [theList]
     
     mean = 0
-    for i in xrange(len(theList)):
+    for i in range(len(theList)):
         l = theList[i]
         mean = mean + l
     
@@ -118,7 +118,7 @@ def listStd(theList,mean=None):
     
     std = 0
      
-    for i in xrange(len(theList)):
+    for i in range(len(theList)):
         std = std + (theList[i]-mean)**2
         
     return checkEpsilon(sqrt(std/len(theList)))
@@ -136,7 +136,7 @@ def scale(v,value):
    
     newV = [0] * len(v)
    
-    for i in xrange(len(v)):
+    for i in range(len(v)):
         if not (v[i].__class__ in [int,float]):
             raise RuntimeError('Please provide a list of ints or floats to pytom.tools.maths.scale!' + str(v))
        
@@ -152,7 +152,7 @@ def plus(v1,v2):
     assert len(v1) == len(v2)
     newV = [0] * len(v1)
 
-    for i in xrange(len(v1)):
+    for i in range(len(v1)):
         newV[i] = checkEpsilon(v1[i] + v2[i])
     
     return newV
@@ -165,7 +165,7 @@ def mult(v1,v2):
     assert len(v1) == len(v2)
     newV = [0] * len(v1)
 
-    for i in xrange(len(v1)):
+    for i in range(len(v1)):
         newV[i] = checkEpsilon(v1[i] * v2[i])
     
     return newV
@@ -177,7 +177,7 @@ def scalar(v1,v2):
     assert len(v1) == len(v2)
     
     scal = 0
-    for i in xrange(len(v1)):
+    for i in range(len(v1)):
         scal = scal + v1[i] * v2[i]
     
     return checkEpsilon(scal)
@@ -230,7 +230,7 @@ class Matrix(object):
     
     def __str__(self):
         strng = ''
-        for x in xrange(self.getSizeX()):
+        for x in range(self.getSizeX()):
             strng = strng + str(self.getRow(x)) + '\n'
             
         return strng
@@ -239,7 +239,7 @@ class Matrix(object):
         
         vector = []
         
-        for y in xrange(self.getSizeY()):
+        for y in range(self.getSizeY()):
             vector.append(self[index,y])
             
         return vector
@@ -248,7 +248,7 @@ class Matrix(object):
         
         vector = []
         
-        for x in xrange(self.getSizeX()):
+        for x in range(self.getSizeX()):
             vector.append(self[x,index])
         
         return vector
@@ -256,8 +256,8 @@ class Matrix(object):
     def __eq__(self,otherMatrix):
         equal = True
         
-        for x in xrange(self.getSizeX()):
-            for y in xrange(self.getSizeY()):
+        for x in range(self.getSizeX()):
+            for y in range(self.getSizeY()):
                 equal = equal and abs(self[x,y] - otherMatrix[x,y]) <= epsilon
                 
         return equal
@@ -266,8 +266,8 @@ class Matrix(object):
         
         symmetric = True
         
-        for x in xrange(self.getSizeX()):
-            for y in xrange(self.getSizeY()):
+        for x in range(self.getSizeX()):
+            for y in range(self.getSizeY()):
         
                 if not x == y:
                     symmetric = symmetric and (abs(self[x,y] - self[y,x]) < epsilon)
@@ -278,8 +278,8 @@ class Matrix(object):
         
         identity = True
         
-        for x in xrange(self.getSizeX()):
-            for y in xrange(self.getSizeY()):
+        for x in range(self.getSizeX()):
+            for y in range(self.getSizeY()):
         
                 if not x == y:
                     identity = identity and ( abs(self[x,y]) < epsilon)
@@ -291,16 +291,16 @@ class Matrix(object):
     
     def trace(self):
         tmp = 0.0
-        for i in xrange(self.getSizeX()):
-            for j in xrange(self.getSizeY()):
+        for i in range(self.getSizeX()):
+            for j in range(self.getSizeY()):
                 tmp += self[i, j]
         
         return tmp
     
     def transpose(self):
         tmp = Matrix(self.getSizeY(), self.getSizeX())
-        for i in xrange(self.getSizeX()):
-            for j in xrange(self.getSizeY()):
+        for i in range(self.getSizeX()):
+            for j in range(self.getSizeY()):
                 tmp[i,j] = self[j,i]
         
         return tmp
@@ -314,12 +314,12 @@ class Matrix(object):
         return Matrix(result)
         
     def __mul__(self,value):
-        if isinstance(value, (int, long)) or value.__class__ == float:
+        if isinstance(value, int) or value.__class__ == float:
             #multiply self by scalar
             newMatrix = Matrix(self.getSizeX(),self.getSizeY())
             
-            for x in xrange(self.getSizeX()):
-                for y in xrange(self.getSizeY()):
+            for x in range(self.getSizeX()):
+                for y in range(self.getSizeY()):
                     newMatrix[x,y] = checkEpsilon(self[x,y] * value)
             return newMatrix
         
@@ -332,9 +332,9 @@ class Matrix(object):
             if self.isIdentity():
                 return vector
             
-            newVector = [0 for _ in xrange(len(vector))]
+            newVector = [0 for _ in range(len(vector))]
             
-            for x in xrange(self.getSizeX()):
+            for x in range(self.getSizeX()):
                 row = self.getRow(x)
             
                 newVector[x] = scalar(row,vector)
@@ -353,8 +353,8 @@ class Matrix(object):
             
             newMatrix = Matrix(self.getSizeX(),self.getSizeY())
             
-            for x in xrange(self.getSizeX()):
-                for y in xrange(self.getSizeY()):
+            for x in range(self.getSizeX()):
+                for y in range(self.getSizeY()):
                     
                     row = self.getRow(x)
                     column = otherMatrix.getColumn(y)
@@ -371,7 +371,7 @@ class Identity(Matrix):
     def __init__(self,sizeX,sizeY):
         super(Identity,self).__init__(sizeX,sizeY)
 
-        for x in xrange(sizeX):
+        for x in range(sizeX):
             self._matrix(1,x,x,0)
     
     def __setitem__(self,key,value):
@@ -475,7 +475,7 @@ def pcacov(matrix):
        
     maxIndex = abscoeff.argmax(1)
 
-    for x in xrange(sizeX):
+    for x in range(sizeX):
         if coeff[x,maxIndex[x]] < 0:
             coeff[x,:] = coeff[x,:] * -1;
 
@@ -508,17 +508,17 @@ def normalize2D(data, start=None, end=None, byRow=True):
             end = col
         
         ndata = []
-        m = [0 for i in xrange(col)]
-        scale = [1 for i in xrange(col)]
+        m = [0 for i in range(col)]
+        scale = [1 for i in range(col)]
         
-        for i in xrange(start, end):
+        for i in range(start, end):
             tmp = [d[i] for d in data]
             m[i] = mean(tmp)
             scale[i] = std(tmp)
         
         for d in data:
             nd = []
-            for i in xrange(col):
+            for i in range(col):
                 nd.append((d[i]-m[i])/scale[i])
             ndata.append(nd)
     
@@ -632,7 +632,7 @@ def gaussian_fit(x, y, h=0.2):
     import numpy as np
     ymax = np.max(y)
     ynew = []; xnew = []
-    for i in xrange(len(y)):
+    for i in range(len(y)):
         if y[i] > ymax*h and y[i]>0.:
             ynew.append(y[i])
             xnew.append(x[i])

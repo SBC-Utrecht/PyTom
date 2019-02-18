@@ -36,7 +36,7 @@ def multipleParticlesVolume(particleList, templateMap, dimX, dimY, dimZ):
     from pytom_volume import read, vol
     
     volumeMap = {}
-    keys = templateMap.keys()
+    keys = list(templateMap.keys())
     for key in keys:        
         volume = vol(dimX, dimY, dimZ)
         volume.setAll(0.0)        

@@ -20,14 +20,14 @@ if __name__ == '__main__':
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         pl_filename, class_label, bHelp = parse_script_options(sys.argv[1:], helper)
     except:
         sys.exit()
     if bHelp is True:
-        print helper
+        print(helper)
         sys.exit()
 
     # load the particle list
@@ -59,7 +59,7 @@ if __name__ == '__main__':
             x = 360-x
             z2 += 180
         else:
-            print 'Ignore particle: ', p.getFilename()
+            print('Ignore particle: ', p.getFilename())
         
         while z2 < 0 or z2 > 360:
             if z2 < 0:
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     ax = plt.subplot(122, polar=True)
     ax.plot(bottom_longitude, bottom_latitude, 'ro')
     ax.set_rmax(90.)
-    ax.set_yticks(range(0, 100, 10)) # change the yticks for the bottom sphere
+    ax.set_yticks(list(range(0, 100, 10))) # change the yticks for the bottom sphere
     ax.set_yticklabels(('180', '170', '160', '150', '140', '130', '120', '110', '100', '90'))
     ax.grid(True)
     ax.set_title("Bottom View", va='bottom')

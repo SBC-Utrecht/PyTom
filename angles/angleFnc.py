@@ -66,19 +66,19 @@ def angleFromResolutionDeprecated(band,cubeSize,pixelSize=-1,particleDiameter=-1
     from pytom.angles.angle import rad2deg
     
     if pixelSize == -1:
-        print 'Error pixelSize in angleFromResolution, returning default value'
+        print('Error pixelSize in angleFromResolution, returning default value')
         return cubeSize / 4
     
     if particleDiameter == -1:
-        print 'Error particleDiameter in angleFromResolution, returning default value'
+        print('Error particleDiameter in angleFromResolution, returning default value')
         return cubeSize / 4
     
     if not band or band == 0: 
-        print 'Error band in angleFromResolution, returning default value'
+        print('Error band in angleFromResolution, returning default value')
         return cubeSize / 4
     
     if not cubeSize or cubeSize == 0:
-        print 'Error cubeSize in angleFromResolution, returning default value'
+        print('Error cubeSize in angleFromResolution, returning default value')
         return cubeSize / 4
     
     if shrinkFactor <= 0:
@@ -125,7 +125,7 @@ def matToZXZ(rotMatrix,inRad=False):
     @author: Friedrich Forster
     """
     if not (rotMatrix.getSizeX() == 3 and rotMatrix.getSizeY() == 3):
-        raise RuntimeError, 'Input matrix must have a shape of (3x3).'
+        raise RuntimeError('Input matrix must have a shape of (3x3).')
 
     import math
     from pytom.basic.structures import Rotation
@@ -485,13 +485,13 @@ def angleObjectCheckDistance(angleObject):
     
     mean = 0
     
-    for i in xrange(n):
+    for i in range(n):
         
         mean = mean + float(distances[i] / n)
     
     std = 0
     from math import sqrt
-    for i in xrange(n):
+    for i in range(n):
         
         std = std + float((distances[i] - mean) * (distances[i] - mean) / n)
     
@@ -569,13 +569,13 @@ def rotationDistancesFromAngleList(angleList):
     
     numberRotations = angleList.numberRotations()
     
-    listDistances = [[None] * numberRotations for _ in xrange(numberRotations)]
+    listDistances = [[None] * numberRotations for _ in range(numberRotations)]
     
-    for i in xrange(numberRotations):
+    for i in range(numberRotations):
         
         quat1 = angleList[i].toQuaternion()
         
-        for j in xrange(i+1,numberRotations):
+        for j in range(i+1,numberRotations):
             
             quat2 = angleList[j].toQuaternion()
             
@@ -593,8 +593,8 @@ def meanAndStdRotationDistance(distances):
     
     counter = 0
     
-    for i in xrange(len(distances)):
-        for j in xrange(len(distances[i])):
+    for i in range(len(distances)):
+        for j in range(len(distances[i])):
             
             if distances[i][j] and (not i == j):
                 dists.append(distances[i][j])
@@ -607,7 +607,7 @@ def meanAndStdRotationDistance(distances):
         #print 'Warning - no class member here!'
         
     std =0    
-    for i in xrange(len(dists)):
+    for i in range(len(dists)):
         std = std + sqrt((dists[i]-mean)*(dists[i]-mean))
     
     if counter > 0:

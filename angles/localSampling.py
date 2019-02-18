@@ -352,7 +352,7 @@ class ExtendedInplaneSampling(AngleList):
     
     def _initRotationList(self):
         
-        for currentShell in xrange(self._numberShells+1):
+        for currentShell in range(self._numberShells+1):
             
             if currentShell == 0.0:
                 self._rotationList = self._rotationList + self._doAllInplaneRotations(self._startZ2, self._startX)

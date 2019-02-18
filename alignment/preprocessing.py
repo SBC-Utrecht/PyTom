@@ -169,7 +169,7 @@ class Preprocessing(PyTomClass):
         setRotation:
         @author: Thomas Hrabe
         """
-        self._prerotateOn = not (isinstance(rotation, (int, long)))
+        self._prerotateOn = not (isinstance(rotation, int))
         self._prerotate = rotation
         
     def setWeighting(self,weightingFile=''):
@@ -193,8 +193,8 @@ class Preprocessing(PyTomClass):
             self._bandpassFilter = None
             self._bandpassSmooth = -1
         elif lowestFrequency > highestFrequency:
-            print 'Lowest  frequency: ', lowestFrequency
-            print 'Highest frequency: ', highestFrequency
+            print('Lowest  frequency: ', lowestFrequency)
+            print('Highest frequency: ', highestFrequency)
             raise RuntimeError('Preprocessing object: lowest frequency > highest frequency. Abort!')
         else:
             self._bandpassOn = 0.0 <= lowestFrequency < highestFrequency 
@@ -327,7 +327,7 @@ class Prerotation(PyTomClass):
             import random
             random.seed()
         
-        for i in xrange(numberParticles):
+        for i in range(numberParticles):
             particle = self._particleList[i]
             origin = particle.getPickPosition()
             [z2,x] = z2XFromCenterVector(origin.toVector(),self._centerVector)

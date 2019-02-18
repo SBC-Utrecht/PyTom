@@ -23,14 +23,14 @@ if __name__ == '__main__':
 
     verbose = False
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         jobFile, verbose, helpme = parse_script_options(sys.argv[1:], helper)
     except:
         sys.exit()
     if helpme is True:
-        print helper
+        print(helper)
         sys.exit()
     
     # fix the verbose bug

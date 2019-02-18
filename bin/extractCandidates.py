@@ -7,7 +7,7 @@ Created on Jun 9, 2010
 '''
 
 def usage():
-    print "Usage: ./scriptname -j jobFilename -r resultFilename -o orientationFilename -n maxNumOfParticles [-v minScoreValue] -s sizeOfParticleInRadius -p particleList -m  [-w (write to disk, length along each dimension)] [-g margin]"
+    print("Usage: ./scriptname -j jobFilename -r resultFilename -o orientationFilename -n maxNumOfParticles [-v minScoreValue] -s sizeOfParticleInRadius -p particleList -m  [-w (write to disk, length along each dimension)] [-g margin]")
 
 
 def extractCandidates(jobFilename='', resultFilename='', orientFilename='', sizeParticle=None, maxNumParticle=0, minScore=-1, write2disk=0, margin=None):
@@ -71,7 +71,7 @@ if __name__ == '__main__':
                                     ScriptOption(['--help'], 'Print this help.', arg=False,optional= True)])
     
     if len(sys.argv) ==1:
-        print helper
+        print(helper)
         sys.exit()
     
     
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     except:
         sys.exit()
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
         
     if minScore == None:

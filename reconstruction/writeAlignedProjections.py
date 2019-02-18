@@ -50,7 +50,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             header.set_dim(x=imdim, y=imdim, z=1)
             idx = projection._index
             if verbose:
-                print "reading in projection %d" % idx
+                print("reading in projection %d" % idx)
             image = read(file=projection._filename, subregion=[0,0,idx-1,TiltSeries_._imdim,TiltSeries_._imdim,1],
                          sampling=[0,0,0], binning=[0,0,0])
             if not (binning == 1) or (binning == None):
@@ -93,7 +93,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             tline = tline + (", transY=%6.1f" %transY)
             tline = tline + (", rot=%6.2f" %rot)
             tline = tline + (", mag=%5.4f" %mag)
-            print tline
+            print(tline)
             
         image = general_transform2d(v=image, rot=rot, shift=[transX,transY], scale=mag, order=[2, 1, 0], crop=True)
         

@@ -378,7 +378,7 @@ def bandCC(volume,reference,band,verbose = False):
     from math import sqrt
     
     if verbose:
-        print 'lowest freq : ', band[0],' highest freq' , band[1]
+        print('lowest freq : ', band[0],' highest freq' , band[1])
         
     vf = bandpassFilter(volume,band[0],band[1],fourierOnly=True)
     rf = bandpassFilter(reference,band[0],band[1],vf[1],fourierOnly=True)
@@ -455,7 +455,7 @@ def weightedXCC(volume,reference,numberOfBands,wedgeAngle=-1):
         
         increment = int(volume.sizeX()/2 * 1/numberOfBands)
         band = [0,100]
-        for i in xrange(0,volume.sizeX()/2, increment):
+        for i in range(0,volume.sizeX()/2, increment):
         
             band[0] = i
             band[1] = i + increment
@@ -532,7 +532,7 @@ def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1):
     freference.shiftscale(0,1/float(numelem))
 
     #print '-----'
-    for i in xrange(numberOfBands):
+    for i in range(numberOfBands):
         #process bandCorrelation
         band = []
         band[0] = i*volume.sizeX()/numberOfBands 
@@ -724,13 +724,13 @@ def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
     
     increment = int(volume1.sizeX()/2 * 1/numberBands)
     
-    for i in xrange(0,volume1.sizeX()/2, increment):
+    for i in range(0,volume1.sizeX()/2, increment):
         
         band[0] = i
         band[1] = i + increment
         
         if verbose:
-            print 'Band : ' ,band
+            print('Band : ' ,band)
             
         res = bandCC(volume1,volume2,band,verbose)
         
@@ -739,7 +739,7 @@ def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
             res[0] = 1
   
         if verbose:
-            print 'Correlation ' ,res[0]
+            print('Correlation ' ,res[0])
 
         fscResult.append(res[0])
 
@@ -765,13 +765,13 @@ def determineResolution(fsc,resolutionCriterion,verbose=False):
     
     band = numberBands
 
-    for i in xrange(numberBands):
+    for i in range(numberBands):
         if fsc[i] < resolutionCriterion:     
             band = i-1  #select the band that is still larger than criterion
             break
     
     if verbose:
-        print 'Band detected at ', band
+        print('Band detected at ', band)
     
     if band == -1:
         raise RuntimeError("Please check your resolution criterion or you FSC!")
@@ -790,16 +790,16 @@ def determineResolution(fsc,resolutionCriterion,verbose=False):
         interpolatedBand = band
         
     if verbose:
-        print 'Band interpolated to ', interpolatedBand
+        print('Band interpolated to ', interpolatedBand)
         
     resolution = (interpolatedBand+1) / float(numberBands)
     
     if resolution < 0 :
         resolution = 1
         interpolatedBand = numberBands
-        print 'Warning: PyTom determined a resolution < 0 for your data. Please check "mass" in data is positive or negative for all cubes.'
-        print 'Warning: Setting resolution to 1 and ',interpolatedBand
-        print ''
+        print('Warning: PyTom determined a resolution < 0 for your data. Please check "mass" in data is positive or negative for all cubes.')
+        print('Warning: Setting resolution to 1 and ',interpolatedBand)
+        print('')
         
     return [resolution,interpolatedBand,numberBands]
 
@@ -835,7 +835,7 @@ def subPixelPeakParabolic(scoreVolume, coordinates, verbose=False):
                 coordinates[1] == 0 or coordinates[1] == scoreVolume.sizeY()-1 or
                 coordinates[2] == 0 or coordinates[2] == scoreVolume.sizeZ()-1 ):
         if verbose:
-            print "subPixelPeakParabolic: peak near borders - no interpolation done"
+            print("subPixelPeakParabolic: peak near borders - no interpolation done")
         return [scoreVolume.getV(coordinates[0], coordinates[1], coordinates[2]), coordinates]
     peakCoordinates = coordinates
     (x, p1, a1) = qint(ym1=scoreVolume.getV(coordinates[0]-1, coordinates[1], coordinates[2]), 

@@ -33,18 +33,18 @@ if __name__ == '__main__':
                                     ScriptOption(['--help'], 'Print this help.', arg=False, optional=True)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     
     try:
         particleListName, averageName, startIndex, endIndex, minimum, maximum, infoVolumes, progressbarOff, alignmentFileName ,subRegion, help= parse_script_options(sys.argv[1:], helper)
         
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
         
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
         
     pl = None
@@ -57,8 +57,8 @@ if __name__ == '__main__':
         try:
             pl = pl[int(startIndex):int(endIndex)]
         except ValueError:
-            print 'Your start or end index is not an integer: ', startIndex, endIndex
-            print 'Aborting...'
+            print('Your start or end index is not an integer: ', startIndex, endIndex)
+            print('Aborting...')
             sys.exit()
     try:
         if subRegion and '[' in subRegion and ']' in subRegion:
@@ -80,7 +80,7 @@ if __name__ == '__main__':
             if len(newPl) > 0:
                 pl = newPl
     except:
-        print 'Your subregion parameters seem to be incorrect. Use --help to look at their specification.'
+        print('Your subregion parameters seem to be incorrect. Use --help to look at their specification.')
         sys.exit()
         
     if startIndex is None and endIndex is None and minimum is not None and maximum is not None:

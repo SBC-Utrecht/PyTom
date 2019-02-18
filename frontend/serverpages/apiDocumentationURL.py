@@ -16,6 +16,6 @@ def run(parameters,verbose = True):
     apiDocPath = pytomPath + '/doc/index.html'
     
     if verbose:
-        print 'API DOC PATH : ', apiDocPath
+        print('API DOC PATH : ', apiDocPath)
     
     return apiDocPath

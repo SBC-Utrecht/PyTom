@@ -15,10 +15,10 @@ def combinations(iterable, r):
     n = len(pool)
     if r > n:
         return
-    indices = range(r)
+    indices = list(range(r))
     yield tuple(pool[i] for i in indices)
     while True:
-        for i in reversed(range(r)):
+        for i in reversed(list(range(r))):
             if indices[i] != i + n - r:
                 break
         else:
@@ -257,7 +257,7 @@ def calculate_averages(pl, binning, mask):
                 spp = [None] * 2
                 spp[0] = pp[:len(pp)/2]
                 spp[1] = pp[len(pp)/2:]
-            args = zip(spp, [True]*len(spp), [binning]*len(spp), [False]*len(spp))
+            args = list(zip(spp, [True]*len(spp), [binning]*len(spp), [False]*len(spp)))
             avgs = mpi.parfor(paverage, args)
 
             even_a, even_w, odd_a, odd_w = None, None, None, None
@@ -333,9 +333,9 @@ def score_noalign_proxy(p, ref, freq, offset, binning, mask):
 
 def calculate_scores(pl, references, freqs, offset, binning, mask, noalign=False):
     res = {}
-    for c, ref in references.iteritems():
+    for c, ref in references.items():
         freq = int(freqs[c]) # get the corresponding frequency of this class
-        args = zip(pl, [ref]*len(pl), [freq]*len(pl), [offset]*len(pl), [binning]*len(pl), [mask]*len(pl))
+        args = list(zip(pl, [ref]*len(pl), [freq]*len(pl), [offset]*len(pl), [binning]*len(pl), [mask]*len(pl)))
         if noalign:
             scores = mpi.parfor(score_noalign_proxy, args)
         else:
@@ -365,12 +365,12 @@ def voting(p, i, scores, references, frequencies, dmaps, binning, noise):
         return new_label
 
     votes = defaultdict(lambda: 0)
-    class_labels = scores.keys()
+    class_labels = list(scores.keys())
     for c1, c2 in combinations(class_labels, 2):
-        if dmaps.has_key((c1, c2)):
+        if (c1, c2) in dmaps:
             dmap1 = dmaps[(c1, c2)][0]
             dmap2 = dmaps[(c1, c2)][1]
-        elif dmaps.has_key((c2, c1)):
+        elif (c2, c1) in dmaps:
             dmap2 = dmaps[(c2, c1)][0]
             dmap1 = dmaps[(c2, c1)][1]
         else:
@@ -391,7 +391,7 @@ def voting(p, i, scores, references, frequencies, dmaps, binning, noise):
 
     # count the votes and determine the class label
     peak = 0
-    for c, v in votes.iteritems():
+    for c, v in votes.items():
         if v > peak:
             peak = v
             new_label = c
@@ -403,7 +403,7 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
     # make sure the particle list and scores have the same order
     for i, p in enumerate(pl):
         fname1 = p.getFilename()
-        for label in scores.keys():
+        for label in list(scores.keys()):
             fname2 = scores[label][i][3]
             if fname1 != fname2:
                 raise Exception("Particle list and the scores do not have the same order!")
@@ -413,8 +413,8 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
 
     # track the class changes
     class_changes = {}
-    class_labels = scores.keys()
-    class_labels_with_noise = scores.keys()
+    class_labels = list(scores.keys())
+    class_labels_with_noise = list(scores.keys())
     if not '-1' in class_labels_with_noise: # append the noise class label
         class_labels_with_noise.append('-1')
     for c1 in class_labels_with_noise:
@@ -424,9 +424,9 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
     # calculate the probabilities of being noise class
     if noise_percentage:
         noise_prob_distribution = []
-        for i in xrange(len(pl)):
+        for i in range(len(pl)):
             prob = 1.
-            for label in scores.keys():
+            for label in list(scores.keys()):
                 prob *= calculate_prob(scores[label][i][2], scores[label])
             noise_prob_distribution.append(prob)
         prob_order = np.argsort(noise_prob_distribution)
@@ -435,7 +435,7 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
         noise = []
 
     # determine the class labels by voting
-    args = zip(pl, range(len(pl)), [scores]*len(pl), [references]*len(pl), [frequencies]*len(pl), [dmaps]*len(pl), [binning]*len(pl), [noise]*len(pl))
+    args = list(zip(pl, list(range(len(pl))), [scores]*len(pl), [references]*len(pl), [frequencies]*len(pl), [dmaps]*len(pl), [binning]*len(pl), [noise]*len(pl)))
     new_labels = mpi.parfor(voting, args)
     for i, p in enumerate(pl):
         old_label = p.getClass()
@@ -451,21 +451,21 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
             p.setScore(FRMScore(scores[new_label][i][2]))
 
         # track the changes
-        if class_changes.has_key((old_label, new_label)):
+        if (old_label, new_label) in class_changes:
             class_changes[(old_label, new_label)] += 1
 
 
     # print the changes
-    print "Class changes:"
-    print "   ",
+    print("Class changes:")
+    print("   ", end=' ')
     for c in class_labels_with_noise:
-        print "%3s" % str(c),
-    print
+        print("%3s" % str(c), end=' ')
+    print()
     for c1 in class_labels_with_noise:
-        print "%3s" % str(c1),
+        print("%3s" % str(c1), end=' ')
         for c2 in class_labels_with_noise:
-            print "%3d" % class_changes[(c1, c2)],
-        print
+            print("%3d" % class_changes[(c1, c2)], end=' ')
+        print()
 
     return pl
 
@@ -501,7 +501,7 @@ def split_topn_classes(pls, n):
             p2.setClassAllParticles(str(max_label+2))
             new_pls.append(p1)
             new_pls.append(p2)
-            print "Split class %s to %s and %s" % (class_label, str(max_label+1), str(max_label+2))
+            print("Split class %s to %s and %s" % (class_label, str(max_label+1), str(max_label+2)))
             max_label += 2
 
             i += 1
@@ -560,7 +560,7 @@ def initialize(pl, settings):
     # from pytom.alignment.alignmentFunctions import average2
     from pytom.basic.filter import lowpassFilter
 
-    print "Initializing the class centroids ..."
+    print("Initializing the class centroids ...")
     pl = pl.copy()
     pl.sortByScore()
     if settings["noise"]:
@@ -585,12 +585,12 @@ def initialize(pl, settings):
     references['0'] = p
     frequencies['0'] = freq
 
-    for k in xrange(1, K):
+    for k in range(1, K):
         distances = [4]*len(pl)
-        for c, ref in references.iteritems():
-            args = zip(pl, [ref]*len(pl), [freq]*len(pl), [settings["fmask"]]*len(pl), [settings["binning"]]*len(pl))
+        for c, ref in references.items():
+            args = list(zip(pl, [ref]*len(pl), [freq]*len(pl), [settings["fmask"]]*len(pl), [settings["binning"]]*len(pl)))
             dist = mpi.parfor(distance, args)
-            for i in xrange(len(pl)):
+            for i in range(len(pl)):
                 if distances[i] > dist[i]:
                     distances[i] = dist[i]
 
@@ -640,7 +640,7 @@ def classify(pl, settings):
     else:
         if not settings["resume"]:
             if not settings["ncluster"]:
-                print "Must specify the number of clusters!"
+                print("Must specify the number of clusters!")
                 return
 
             # k-means++ way to initialize
@@ -649,7 +649,7 @@ def classify(pl, settings):
         else:
             avgs, tmp, tmp2 = calculate_averages(pl, binning, mask)
 
-            for class_label, r in avgs.iteritems():
+            for class_label, r in avgs.items():
                 fname = 'initial_class'+str(class_label)+'.em'
                 rr = lowpassFilter(r, sfrequency, sfrequency/10.)[0]
                 rr.write(fname)
@@ -660,18 +660,18 @@ def classify(pl, settings):
                 ncluster += 1
 
     # start the classification
-    for i in xrange(settings["niteration"]):
+    for i in range(settings["niteration"]):
         if ncluster < 2:
-            print 'Not enough number of clusters. Exit!'
+            print('Not enough number of clusters. Exit!')
             break
 
-        print "Starting iteration %d ..." % i
+        print("Starting iteration %d ..." % i)
         old_pl = pl.copy()
 
         # compute the difference maps
-        print "Calculate difference maps ..."
+        print("Calculate difference maps ...")
         args = []
-        for pair in combinations(references.keys(), 2):
+        for pair in combinations(list(references.keys()), 2):
             args.append((references[pair[0]], frequencies[pair[0]], references[pair[1]], frequencies[pair[1]], mask, settings["fmask"], binning, i, settings["sigma"], settings["threshold"]))
 
         dmaps = {}
@@ -681,7 +681,7 @@ def classify(pl, settings):
 
 
         # start the alignments
-        print "Start alignments ..."
+        print("Start alignments ...")
         scores = calculate_scores(pl, references, frequencies, offset, binning, mask, settings["noalign"])
 
         # determine the class labels & track the class changes
@@ -692,36 +692,36 @@ def classify(pl, settings):
         nlabels = {}
         for pp in pls:
             nlabels[pp[0].getClass()] = len(pp)
-            print "Number of class " + str(pp[0].getClass()) + ": " + str(len(pp))
+            print("Number of class " + str(pp[0].getClass()) + ": " + str(len(pp)))
 
-        max_labels = np.max(nlabels.values())
+        max_labels = np.max(list(nlabels.values()))
         to_delete = []
         if settings["dispersion"]:
             min_labels = float(max_labels)/settings["dispersion"]
-            for key, value in nlabels.iteritems():
+            for key, value in nlabels.items():
                 if value <= min_labels:
                     to_delete.append(key)
 
         for pp in pls:
             if pp[0].getClass() in to_delete:
                 pp.setClassAllParticles('-1')
-                print "Set class " + str(pp[0].getClass()) + " to noise"
+                print("Set class " + str(pp[0].getClass()) + " to noise")
 
         # split the top n classes
         pl = split_topn_classes(pls, len(to_delete))
         
         # update the references
-        print "Calculate averages ..."
+        print("Calculate averages ...")
         avgs, freqs, wedgeSum = calculate_averages(pl, binning, mask)
         ncluster = 0
         references = {}
-        for class_label, r in avgs.iteritems():
+        for class_label, r in avgs.items():
             if not settings["fixed_frequency"]:
                 freq = freqs[str(class_label)]
             else:
                 freq = sfrequency
             frequencies[str(class_label)] = int(freq)
-            print 'Resolution of class %s: %d' % (str(class_label), freq)
+            print('Resolution of class %s: %d' % (str(class_label), freq))
 
             fname = 'iter'+str(i)+'_class'+str(class_label)+'.em'
             rr = lowpassFilter(r, freq, freq/10.)[0]
@@ -813,8 +813,8 @@ if __name__ == '__main__':
         pl.fromXMLFile(options.filename)
 
         classify(pl, settings)
-    except Exception, e:
-        print e
+    except Exception as e:
+        print(e)
     finally:
         mpi.end()
 

@@ -216,7 +216,7 @@ class ExPeakResult:
         
         # find the particles
         resList = []
-        for i in xrange(maxNumParticle):
+        for i in range(maxNumParticle):
             prog.update(i)
             
             try:

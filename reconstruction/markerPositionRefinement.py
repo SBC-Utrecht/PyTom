@@ -45,7 +45,7 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
 		    appliedShiftX=0, appliedShiftY=0, index=itilt)
 	    else:
 	        proj = MyTiltSeries._ProjectionList[itilt]
-	        print "marker not clicked in "+proj.getFilename()
+	        print("marker not clicked in "+proj.getFilename())
         #markerImageStack.normalize( normtype="StdMeanInMask", mask=mask)
         markerImageStack.bandpass( lowfreq=dimBox/32., hifreq=6.*dimBox/32., 
 	    smooth=2.*dimBox/32., bpf=None)

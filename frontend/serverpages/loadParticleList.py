@@ -18,15 +18,15 @@ def run(parameters,verbose=False):
     from pytom.tools.files import checkDirExists,checkFileExists
     
     if verbose:
-        print "Parsing particleList request!"
+        print("Parsing particleList request!")
         
     splitParameters = parameters.split('&')
     
     if splitParameters.__class__ == list:
         if verbose:
-            print splitParameters
+            print(splitParameters)
         
-        for i in xrange(len(splitParameters)):
+        for i in range(len(splitParameters)):
             
             parameter = splitParameters[i]
             
@@ -36,12 +36,12 @@ def run(parameters,verbose=False):
             argument = split[1]
             
             if verbose:
-                print 'Keyword : ', keyword
-                print 'Arguments : ', argument
+                print('Keyword : ', keyword)
+                print('Arguments : ', argument)
             
             if keyword == 'XML':
                 from pytom.tools.files import readStringFile,getPytomPath
-                import StringIO
+                import io
                 from lxml import etree
                 
                 if not checkFileExists(argument):
@@ -51,7 +51,7 @@ def run(parameters,verbose=False):
                 pl.fromXMLFile(argument)
                 
                 xsltString = readStringFile(getPytomPath() + '/frontend/html/xslt/ParticleList.xsl')
-                xsltTransform = StringIO.StringIO(xsltString)
+                xsltTransform = io.StringIO(xsltString)
                 
                 transformed = pl.xsltTransform(xsltTransform)
                 
@@ -59,7 +59,7 @@ def run(parameters,verbose=False):
                 
             elif keyword == 'DIR':
                 from pytom.tools.files import checkDirExists,getPytomPath,readStringFile
-                import StringIO
+                import io
                 from lxml import etree
                 
                 if not checkDirExists(argument):
@@ -69,7 +69,7 @@ def run(parameters,verbose=False):
                 pl.loadDirectory()
                 
                 xsltString = readStringFile(getPytomPath() + '/frontend/html/xslt/ParticleList.xsl')
-                xsltTransform = StringIO.StringIO(xsltString)
+                xsltTransform = io.StringIO(xsltString)
                 
                 transformed = pl.xsltTransform(xsltTransform)
                 
@@ -78,7 +78,7 @@ def run(parameters,verbose=False):
             elif keyword == 'ALIG':
                 
                 from pytom.tools.files import checkDirExists,getPytomPath,readStringFile
-                import StringIO
+                import io
                 from lxml import etree
                 
                 if not checkDirExists(argument):
@@ -88,7 +88,7 @@ def run(parameters,verbose=False):
                 pl.fromAlignmentFile(argument)
                 
                 xsltString = readStringFile(getPytomPath() + '/frontend/html/xslt/ParticleList.xsl')
-                xsltTransform = StringIO.StringIO(xsltString)
+                xsltTransform = io.StringIO(xsltString)
                 
                 transformed = pl.xsltTransform(xsltTransform)
                 
@@ -97,5 +97,5 @@ def run(parameters,verbose=False):
             
     elif splitParameters.__class__ == str:
         if verbose:
-            print splitParameters
+            print(splitParameters)
 

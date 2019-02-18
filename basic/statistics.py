@@ -119,9 +119,9 @@ def statisticOfDistanceMatrix(distanceMatrix):
 
     values = []
 
-    for i in xrange(distanceMatrix.sizeX()):
+    for i in range(distanceMatrix.sizeX()):
         if i < distanceMatrix.sizeX():
-            for j in xrange(i+1,distanceMatrix.sizeY()):
+            for j in range(i+1,distanceMatrix.sizeY()):
                 values.append(distanceMatrix(i,j,0))
 
     m = listMean(values)
@@ -145,7 +145,7 @@ def averagePlanes(volume,sliceStart,sliceEnd,sliceStep=1,axis='Z'):
     planes = []
     
     
-    for i in xrange(sliceStart,sliceEnd,sliceStep):
+    for i in range(sliceStart,sliceEnd,sliceStep):
         
         if axis == 'X':
             v = subvolume(volume,0,0,i,volume.sizeX(),volume.sizeY(),1)
@@ -162,7 +162,7 @@ def averagePlanes(volume,sliceStart,sliceEnd,sliceStep=1,axis='Z'):
     if len(planes)>0:
         p = planes[0]
         
-        for i in xrange(len(planes)-1):
+        for i in range(len(planes)-1):
             
             p += planes[i+1]
             

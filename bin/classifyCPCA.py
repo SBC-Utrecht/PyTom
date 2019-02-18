@@ -39,14 +39,14 @@ if __name__ == '__main__':
 				       'name for class averages.', True, True),
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         pl, cpl, ccc, neig, nclass, cName, help = parse_script_options(sys.argv[1:], helper)
     except Exception:
         sys.exit()
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
     neig = int(neig)
     nclass = int(nclass)

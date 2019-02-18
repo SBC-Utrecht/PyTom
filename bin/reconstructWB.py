@@ -39,7 +39,7 @@ if __name__ == '__main__':
                                 ScriptOption(['--help'], 'Print this help.', arg=False, optional=False)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
         
     particleList = None
@@ -50,11 +50,11 @@ if __name__ == '__main__':
         tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, recOffset, projBinning, help= parse_script_options(sys.argv[1:], helper)
     
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
    
     if help:
-        print helper
+        print(helper)
         sys.exit()
    
     size = [int(i) for i in size.split(",")]
@@ -109,7 +109,7 @@ if __name__ == '__main__':
         try:
             particleList.fromXMLFile(particleListXMLPath)
         except RuntimeError:
-            print 'Error reading particleList XML file! Abort'
+            print('Error reading particleList XML file! Abort')
             sys.exit()
 
         from pytom.basic.structures import PickPosition

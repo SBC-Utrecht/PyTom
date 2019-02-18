@@ -224,7 +224,7 @@ class Alignment:
 
         if self.verbose:
             # alignment score before optimization
-            print "CC before optimization %1.3f" % (-1.*self.evalScore(self.rot_trans))
+            print("CC before optimization %1.3f" % (-1.*self.evalScore(self.rot_trans)))
     
         # optimize scoring function
         maxiter=20
@@ -251,9 +251,9 @@ class Alignment:
         finscore = self.evalScore(self.rot_trans)
         rot, trans = self.vector2transRot(rot_trans)
         if self.verbose:
-            print "CC after optimization %1.3f" % (-1.*finscore)
-            print "rot_trans = ", rot_trans
-            print rot, trans
+            print("CC after optimization %1.3f" % (-1.*finscore))
+            print("rot_trans = ", rot_trans)
+            print(rot, trans)
 
         return -1.*finscore, rot, trans
     
@@ -308,9 +308,9 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
         from pytom.angles.angleFnc import differenceAngleOfTwoRotations
         from pytom.basic.structures import Rotation
         diffAng = differenceAngleOfTwoRotations(rotation1=Rotation(0,0,0), rotation2=optiRot)
-        print "Alignment densities: Rotations: %2.3f, %2.3f, %2.3f; Translations: %2.3f, %2.3f, %2.3f " % (optiRot[0],
-                                    optiRot[1], optiRot[2], optiTrans[0], optiTrans[1], optiTrans[2])
-        print "Orientation difference: %2.3f deg" % diffAng
+        print("Alignment densities: Rotations: %2.3f, %2.3f, %2.3f; Translations: %2.3f, %2.3f, %2.3f " % (optiRot[0],
+                                    optiRot[1], optiRot[2], optiTrans[0], optiTrans[1], optiTrans[2]))
+        print("Orientation difference: %2.3f deg" % diffAng)
     vol2_alig = vol(vol2.sizeX(), vol2.sizeY(), vol2.sizeZ())
     transformSpline(vol2, vol2_alig, optiRot[0], optiRot[1], optiRot[2],
                     int(vol2.sizeX()/2),int(vol2.sizeY()/2),int(vol2.sizeY()/2),

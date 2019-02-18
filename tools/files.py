@@ -47,7 +47,7 @@ def readStringFile(filename):
         for line in f:
             lines = lines + line
     except :
-        print 'Error reading ' + filename + '!'
+        print('Error reading ' + filename + '!')
         assert False
     finally:
         f.close()
@@ -225,12 +225,12 @@ def writeSpider(volume,filename,z1=0,y=0,z2=0,xOff=0,yOff=0,zOff=0):
     fillup = int(ceil(256.0/float(volume.sizeY())) * volume.sizeY() * 4 - fileHandle.tell())
     
     
-    for i in xrange(fillup):
+    for i in range(fillup):
         fileHandle.write(struct.pack('b',0)) # fill remaining empty bytes till header is full
 
-    for z in xrange(volume.sizeZ()):
-        for y in xrange(volume.sizeY()):
-            for x in xrange(volume.sizeX()):
+    for z in range(volume.sizeZ()):
+        for y in range(volume.sizeY()):
+            for x in range(volume.sizeX()):
                 fileHandle.write(struct.pack("f",volume.getV(x,y,z)))
          
     fileHandle.close()
@@ -261,9 +261,9 @@ def readSpider(filename):
     
     fileHandle.seek(int(ceil(256.0/float(y)) * y * 4))
     
-    for z in xrange(volume.sizeZ()):
-        for y in xrange(volume.sizeY()):
-            for x in xrange(volume.sizeX()):
+    for z in range(volume.sizeZ()):
+        for y in range(volume.sizeY()):
+            for x in range(volume.sizeX()):
                 value = float(struct.unpack('f',fileHandle.read(4))[0])
                 volume(value,x,y,z)
     
@@ -288,8 +288,8 @@ def writeMatrix2RMatrix(matrix,filename):
     
     fileHandle = open(filename,'w')
     
-    for x in xrange(matrix.sizeX()):
-        for y in xrange(matrix.sizeY()):
+    for x in range(matrix.sizeX()):
+        for y in range(matrix.sizeY()):
             fileHandle.write(str(matrix(x,y,0)))
             fileHandle.write(' ')
         fileHandle.write('\n')

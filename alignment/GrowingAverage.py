@@ -108,12 +108,12 @@ class GAWorker(PyTomClass):
         self._resultList.append(result)
         self._createNewAverage(self._startParticleNumber)
         
-        for particleIterator in xrange(numberParticles):
+        for particleIterator in range(numberParticles):
             
             if particleIterator == self._startParticleNumber:
                 continue
                     
-            print 'Running particle no ' + str(particleIterator) 
+            print('Running particle no ' + str(particleIterator)) 
                     
             particle = self._particleList[particleIterator]
             
@@ -197,18 +197,18 @@ class GAManager(PyTomClass):
 
         
         
-        for classIterator in xrange(numberClasses):
+        for classIterator in range(numberClasses):
             #distribute Jobs, make sure all available nodes are working 
             
 
-            print 'Sending class ' +classIterator.__str__()
+            print('Sending class ' +classIterator.__str__())
             
             os.system('mkdir ' + self.destinationDirectory + '/class' + classIterator.__str__())
             
             job = GrowingAverageJob(self.particleClassLists[classIterator],self.angleObject,self.mask,self.score,0,self.destinationDirectory+ '/class' + str(classIterator),self.preprocessing)
                 
             if verbose:
-                print job
+                print(job)
             
             
             worker = GAWorker(-1)
@@ -247,7 +247,7 @@ def growingAverage(particleClassLists,score,angleObject,mask,destinationDirector
             w.run()
     
     else:
-        print 'Processing in sequential mode'
+        print('Processing in sequential mode')
         
         manager = GAManager(particleClassLists,score,angleObject,mask,destinationDirectory,preprocessing)
         
@@ -272,8 +272,8 @@ def growingAverageNew(particleList=None,angleObject=None,maskFile=None,scoreObje
     
     numberOfClasses = len(particleList.splitByClass())
     if verbose:
-        print 'Processing ' + str(numberOfClasses) + ' classes.'
-        print 'Generating start average'
+        print('Processing ' + str(numberOfClasses) + ' classes.')
+        print('Generating start average')
         
     startAverageList = particleList.particlesFromClass(float(startClassNumber))
     
@@ -288,27 +288,27 @@ def growingAverageNew(particleList=None,angleObject=None,maskFile=None,scoreObje
         
         growingAverageParticleList.append(p)
     
-    for i in xrange(2,numberOfClasses):
+    for i in range(2,numberOfClasses):
         
         currentParticleList = particleList.particlesFromClass(float(i))
         
         if verbose:
-            print 'Generating ' + str(i) + '. class average'
+            print('Generating ' + str(i) + '. class average')
             
         currentParticleList.average(destinationDirectory + '/CA_it'+str(i)+'.em',progressBar=verbose)
         
         currentParticle = Particle(destinationDirectory + '/CA_it'+str(i)+'.em',wedgeInfo=currentParticleList[0].getWedgeInfo())
         
         if verbose:
-            print 'Running alignment iteration ' + str(i)
-            print currentParticle
-            print currentReference    
+            print('Running alignment iteration ' + str(i))
+            print(currentParticle)
+            print(currentReference)    
         
         currentPeak = bestAlignment(currentParticle.getVolume(),currentReference.getVolume(),currentReference.getWeighting(),currentParticle.getWedgeInfo(),angleObject,scoreObject,maskFile,preprocessing=preprocessing,binning=binning)
         
         if verbose:
-            print 'Parameters determined:'
-            print currentPeak
+            print('Parameters determined:')
+            print(currentPeak)
             
         for p in currentParticleList:
             p.setRotation(currentPeak.getRotation())
@@ -317,7 +317,7 @@ def growingAverageNew(particleList=None,angleObject=None,maskFile=None,scoreObje
             growingAverageParticleList.append(p)
         
         if verbose:
-            print 'Generating growing average ' + str(i)
+            print('Generating growing average ' + str(i))
             
         growingAverageParticleList.average(destinationDirectory + '/GA_it'+ str(i) +'.em',progressBar=verbose)
         

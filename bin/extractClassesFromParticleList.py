@@ -23,14 +23,14 @@ if __name__ == '__main__':
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         pl_name, class_names, output, bHelp = parse_script_options(sys.argv[1:], helper)
     except:
         sys.exit()
     if bHelp is True:
-        print helper
+        print(helper)
         sys.exit()
     
     from pytom.basic.structures import ParticleList

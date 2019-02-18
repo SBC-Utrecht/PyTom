@@ -30,7 +30,7 @@ class CorrelationVector(PyTomClass):
     def __getitem__(self,key):
         """
         """
-        if isinstance(key, (int, long)):
+        if isinstance(key, int):
             if key < len(self):
                 return self._correlations[key]
             else:
@@ -51,7 +51,7 @@ class CorrelationVector(PyTomClass):
         vectorElement.append(self._particle.toXML())
         vectorElement.append(self._particleList.toXML())
         
-        for i in xrange(len(self._correlations)):
+        for i in range(len(self._correlations)):
             
             valueElement = etree.Element("Correlation",Index=i.__str__(),Value=self._correlations[i].__str__())
             
@@ -85,7 +85,7 @@ class CorrelationVector(PyTomClass):
         
         values = xmlObj.xpath('Correlation')
         
-        self._correlations = [0  for _ in xrange(len(values))]
+        self._correlations = [0  for _ in range(len(values))]
         
         for v in values:
             
@@ -334,14 +334,14 @@ class CorrelationMatrixJob(PyTomClass):
         @param filename: HTML filename
         """
         from lxml import etree
-        import StringIO
+        import io
         from pytom.tools.files import getPytomPath,readStringFile
         
         pytomPath = getPytomPath()
         
         xsltString = readStringFile(pytomPath + '/xslt/CorrelationMatrix.xsl')
         
-        xsltStringIO = StringIO.StringIO(xsltString)
+        xsltStringIO = io.StringIO(xsltString)
         
         selfHTML = self.xsltTransform(xsltStringIO)
         

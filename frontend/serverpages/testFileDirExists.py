@@ -20,9 +20,9 @@ def run(parameters,verbose=False):
     
     if splitParameters.__class__ == list:
         if verbose:
-            print splitParameters
+            print(splitParameters)
         
-        for i in xrange(len(splitParameters)):
+        for i in range(len(splitParameters)):
             
             parameter = splitParameters[i]
             

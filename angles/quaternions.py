@@ -116,10 +116,10 @@ class Quaternion(PyTomClass):
         try: 
             d1 = acos(d1) * rad2deg * 2
         except:
-            print ('Warning: Quarternion distance - acos can not be determined for ' + str(d1) + ' returning 0 instead!')
-            print 'Quaternion values: '
-            print self
-            print otherQuaternion
+            print(('Warning: Quarternion distance - acos can not be determined for ' + str(d1) + ' returning 0 instead!'))
+            print('Quaternion values: ')
+            print(self)
+            print(otherQuaternion)
             return 0.0
         
         d2 = self.dotProduct(otherQuaternion.flip())
@@ -131,10 +131,10 @@ class Quaternion(PyTomClass):
         try:
             d2 = acos(d2) * rad2deg * 2
         except:
-            print 'Warning: Quarternion distance - acos can not be determined for ' + str(d2) + ' returning 0 instead!'
-            print 'Quaternion values: '
-            print self
-            print otherQuaternion
+            print('Warning: Quarternion distance - acos can not be determined for ' + str(d2) + ' returning 0 instead!')
+            print('Quaternion values: ')
+            print(self)
+            print(otherQuaternion)
             return 0.0
         
         dist = d1

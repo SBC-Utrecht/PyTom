@@ -25,15 +25,15 @@ if __name__ == '__main__':
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         vol_filename, pl_filename, binning, radius, w, dest_dir, res_name, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
     
     binning = int(binning)

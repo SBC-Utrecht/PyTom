@@ -212,8 +212,8 @@ class FRMWorker():
                 import numpy as np
                 n = len(job.particleList)
                 labels = np.random.randint(2, size=(n,))
-                print self.node_name + ': Number of 1st half set:', n-np.sum(labels), 'Number of 2nd half set:', np.sum(labels)
-                for i in xrange(n):
+                print(self.node_name + ': Number of 1st half set:', n-np.sum(labels), 'Number of 2nd half set:', np.sum(labels))
+                for i in range(n):
                     p = job.particleList[i]
                     p.setClass(labels[i])
             
@@ -221,9 +221,9 @@ class FRMWorker():
             old_freq = job.freq
             new_freq = job.freq
             # main node
-            for i in xrange(job.max_iter):
+            for i in range(job.max_iter):
                 if verbose:
-                    print self.node_name + ': starting iteration %d ...' % i
+                    print(self.node_name + ': starting iteration %d ...' % i)
                 
                 # construct a new job by updating the reference and the frequency
                 new_job = FRMJob(job.particleList, new_reference, job.mask, job.peak_offset, job.sampleInformation, job.bw_range, new_freq, job.destination, job.max_iter-i, job.r_score, job.weighting)
@@ -237,7 +237,7 @@ class FRMWorker():
                 all_odd_pre = None # the 2nd set
                 all_odd_wedge = None
                 pl = ParticleList()
-                for j in xrange(self.num_workers):
+                for j in range(self.num_workers):
                     result = self.get_result()
                     pl += result.pl
                     pre, wedge = self.retrieve_res_vols(result.name)
@@ -262,7 +262,7 @@ class FRMWorker():
                 
                 # create the averages separately
                 if verbose:
-                    print self.node_name + ': determining the resolution ...'
+                    print(self.node_name + ': determining the resolution ...')
                 even = self.create_average(all_even_pre, all_even_wedge)
                 odd = self.create_average(all_odd_pre, all_odd_wedge)
                 
@@ -274,7 +274,7 @@ class FRMWorker():
                 # here we assume the wedge from both sets are fully sampled
                 from sh_alignment.frm import frm_align
                 pos, angle, score = frm_align(odd, None, even, None, job.bw_range, new_freq, job.peak_offset)
-                print self.node_name + 'Transform of even set to match the odd set - shift: '+str(pos)+' rotation: '+str(angle)
+                print(self.node_name + 'Transform of even set to match the odd set - shift: '+str(pos)+' rotation: '+str(angle))
                 
                 # transform the odd set accordingly
                 from pytom_volume import vol, transformSpline
@@ -305,7 +305,7 @@ class FRMWorker():
                 
                 current_resolution = bandToAngstrom(resolutionBand, job.sampleInformation.getPixelSize(), numberBands, 1)
                 if verbose:
-                    print self.node_name + ': current resolution ' + str(current_resolution), resNyquist
+                    print(self.node_name + ': current resolution ' + str(current_resolution), resNyquist)
                 
                 # create new average
                 all_even_pre += all_odd_pre
@@ -333,20 +333,20 @@ class FRMWorker():
                 new_freq = int(ceil(resolutionBand))+1
                 if new_freq <= old_freq:
                     if job.adaptive_res is not False: # two different strategies
-                        print self.node_name + ': Determined resolution gets worse. Include additional %f percent frequency to be aligned!' % job.adaptive_res
+                        print(self.node_name + ': Determined resolution gets worse. Include additional %f percent frequency to be aligned!' % job.adaptive_res)
                         new_freq = int((1+job.adaptive_res)*old_freq)
                     else: # always increase by 1
-                        print self.node_name + ': Determined resolution gets worse. Increase the frequency to be aligned by 1!'
+                        print(self.node_name + ': Determined resolution gets worse. Increase the frequency to be aligned by 1!')
                         new_freq = old_freq+1
                         old_freq = new_freq
                 else:
                     old_freq = new_freq
                 if new_freq >= numberBands:
-                    print self.node_name + ': New frequency too high. Terminate!'
+                    print(self.node_name + ': New frequency too high. Terminate!')
                     break
                 
                 if verbose:
-                    print self.node_name + ': change the frequency to ' + str(new_freq)
+                    print(self.node_name + ': change the frequency to ' + str(new_freq))
             
             # send end signal to other nodes and terminate itself
             self.end(verbose)
@@ -356,7 +356,7 @@ class FRMWorker():
     
     def end(self, verbose=False):
         if verbose == True:
-            print self.node_name + ': sending end messages to others'
+            print(self.node_name + ': sending end messages to others')
         
         from pytom.parallel.messages import StatusMessage
         
@@ -381,7 +381,7 @@ class FRMWorker():
                 job = self.get_job()
             except:
                 if verbose:
-                    print self.node_name + ': end'
+                    print(self.node_name + ': end')
                 break # get some non-job message, break it
             
             if verbose:
@@ -459,7 +459,7 @@ class FRMWorker():
         
         fsc = FSC(even, odd, numberBands, mask, verbose=False)
         if verbose:
-            print self.node_name + ': FSC: ' + str(fsc)
+            print(self.node_name + ': FSC: ' + str(fsc))
         
         return determineResolution(fsc, criterion, verbose=False)
     
@@ -501,7 +501,7 @@ class FRMWorker():
         particlesPerNode = int(len(pl)/num_workers)
         residual = len(pl)-particlesPerNode*num_workers
         start_idx = 0
-        for i in xrange(1, self.num_workers/2+1):
+        for i in range(1, self.num_workers/2+1):
             if i < residual+1: # since i starts from 1
                 l = particlesPerNode+1
             else:
@@ -516,7 +516,7 @@ class FRMWorker():
             self.assignment[i] = label
             
             if verbose:
-                print self.node_name + ': distributed %d particles of label %d to node %d' % (len(subPL), label, i)
+                print(self.node_name + ': distributed %d particles of label %d to node %d' % (len(subPL), label, i))
         
         # the second half set
         pl = pls[1]
@@ -525,7 +525,7 @@ class FRMWorker():
         particlesPerNode = int(len(pl)/num_workers)
         residual = len(pl)-particlesPerNode*num_workers
         start_idx = 0
-        for i in xrange(self.num_workers/2+1, self.num_workers+1):
+        for i in range(self.num_workers/2+1, self.num_workers+1):
             if i < residual+self.num_workers/2+1: # since i starts from self.num_workers/2+1
                 l = particlesPerNode+1
             else:
@@ -540,7 +540,7 @@ class FRMWorker():
             self.assignment[i] = label
             
             if verbose:
-                print self.node_name + ': distributed %d particles of label %d to node %d' % (len(subPL), label, i)
+                print(self.node_name + ': distributed %d particles of label %d to node %d' % (len(subPL), label, i))
 
 if __name__ == '__main__':
     # parse command line arguments
@@ -556,7 +556,7 @@ if __name__ == '__main__':
                                     ScriptOption(['--help'], 'Help info.', False, False)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     
     try:
@@ -565,7 +565,7 @@ if __name__ == '__main__':
         sys.exit()
         
     if bHelp is True:
-        print helper
+        print(helper)
         sys.exit()
     
     # check the job
@@ -584,4 +584,4 @@ if __name__ == '__main__':
     worker.start(job, verbose)
     
     if verbose:
-        print 'Overall execution time: %f s.' % t.end()
+        print('Overall execution time: %f s.' % t.end())

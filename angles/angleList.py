@@ -59,7 +59,7 @@ class AngleList(AngleObject):
         
         job_element = etree.Element('Angles',Type='AngleList')
         
-        for i in xrange(self.numberRotations()):
+        for i in range(self.numberRotations()):
             
             rotation = self._rotationList[i]
             if rotation.__class__ == list:
@@ -96,7 +96,7 @@ class AngleList(AngleObject):
         return len(self._rotationList)
     
     def __getitem__(self,key):
-        if isinstance(key, (int, long)):
+        if isinstance(key, int):
             
             if key < self.numberRotations():
                 return self._rotationList[key]
@@ -241,11 +241,11 @@ def angleRange(start,end,inc):
 
     dif = (end-start)
     if dif <0:
-        r = range(start,360,inc)
-        r1 = range(0,end,inc)
+        r = list(range(start,360,inc))
+        r1 = list(range(0,end,inc))
         r.extend(r1)
     else:
-        r = range(start,start+dif,inc)
+        r = list(range(start,start+dif,inc))
         
         
     return r
@@ -352,8 +352,8 @@ class EulerAngleList(AngleObject):
         increment = abs(angleRange[0] - angleRange[1])
         
         if dist > increment:
-            print angleName , ' value : ' , angle , ' ' , angleRange
-            raise AngleError, ' The ' + angleName + ' value was not found in the range of this object!'
+            print(angleName , ' value : ' , angle , ' ' , angleRange)
+            raise AngleError(' The ' + angleName + ' value was not found in the range of this object!')
         
         return pos
         
@@ -524,4 +524,4 @@ class AngleError(Exception):
     def __init__(self,value):
         self.value = value
     def __str__(self):
-        print self.value
+        print(self.value)

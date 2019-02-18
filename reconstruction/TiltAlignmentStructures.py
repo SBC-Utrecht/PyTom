@@ -48,7 +48,7 @@ class TiltSeries(PyTomClass):
         if projIndices:
             self._projIndices = projIndices
         else:
-            self._projIndices = range(firstProj, lastProj + 1)
+            self._projIndices = list(range(firstProj, lastProj + 1))
         self._tiltSeriesFormat = tiltSeriesFormat
         self._TiltAlignmentParas = TiltAlignmentParas
         self._alignedTiltSeriesName = alignedTiltSeriesName
@@ -110,11 +110,11 @@ class TiltSeries(PyTomClass):
         self._Markers = []
         if markerFileName:
             if self.verbose:
-                print "reading marker file: " + str(markerFileName)
+                print("reading marker file: " + str(markerFileName))
             self._Markers = self.readMarkerFile(markerFileName)
         else:
             if self.verbose:
-                print "No marker file specified"
+                print("No marker file specified")
 
     def info(self):
         """
@@ -136,7 +136,7 @@ class TiltSeries(PyTomClass):
             tline = tline + ("transY=%9.3f; " % transY)
             tline = tline + ("rot=%9.3f; " % rot)
             tline = tline + ("mag=%9.3f\n" % mag)
-        print tline
+        print(tline)
 
     def toXML(self):
         """
@@ -199,7 +199,7 @@ class TiltSeries(PyTomClass):
             Marker.yProj.pop(kk)
             Marker._projIndices.remove(iremove)
         if self.verbose:
-            print "Projection " + str(iremove) + " removed from TiltSeries"
+            print("Projection " + str(iremove) + " removed from TiltSeries")
 
     def readMarkerFile(self, markerFileName):
         """
@@ -217,22 +217,22 @@ class TiltSeries(PyTomClass):
         # make sure that nproj matches number of Projections in self._ProjectionList
         if (nproj != len(self._ProjectionList._list)):
             print("Number of projections specified in TiltSeries and MarkerFileName do not match!")
-            print "  Markerfile: " + str(nproj)
-            print "  TiltSeries: " + str(len(self._ProjectionList._list))
-            print "Please fix!"
+            print("  Markerfile: " + str(nproj))
+            print("  TiltSeries: " + str(len(self._ProjectionList._list)))
+            print("Please fix!")
         nmark = markerFileVol.sizeZ()
         markerFile = vol2npy(markerFileVol)
         # check that tilt angles in marker file and projections are the same
         for (iproj, proj) in enumerate(self._ProjectionList._list):
             tiltAngle = markerFile[0, iproj, 0]
             if abs(tiltAngle - proj._tiltAngle) > 0.01:
-                print("Warning: tilt angles in Projection " + str(iproj + 1)
-                      + " differ in markerFile")
-                print ("MarkerFile: %4.1f" % tiltAngle) + (" vs. image Header: %4.1f" % proj._tiltAngle)
+                print(("Warning: tilt angles in Projection " + str(iproj + 1)
+                      + " differ in markerFile"))
+                print(("MarkerFile: %4.1f" % tiltAngle) + (" vs. image Header: %4.1f" % proj._tiltAngle))
 
         # delete old markerFiles
         if (len(self._Markers) > 0):
-            print "overwriting pre-loaded Markers"
+            print("overwriting pre-loaded Markers")
         self._Markers = []
         for imark in range(0, nmark):
             self._Markers.append(Marker(self._projIndices))
@@ -265,9 +265,9 @@ class TiltSeries(PyTomClass):
         from pytom.reconstruction.tiltAlignmentFunctions import applyPreshiftsToMarkers
         self._Markers = readIMODmarkerfile(markerFileName, binning=preBin)
         if verbose:
-            print "########################"
-            print "Markers before prexgfile"
-            print "########################"
+            print("########################")
+            print("Markers before prexgfile")
+            print("########################")
             for marker in self._Markers:
                 marker.info()
         if tltfile:
@@ -277,9 +277,9 @@ class TiltSeries(PyTomClass):
             (shiftX, shiftY) = getIMODpreshifts(prexgfile)
             applyPreshiftsToMarkers(markers=self._Markers, shiftX=shiftX, shiftY=shiftY)
             if verbose:
-                print "########################"
-                print "Markers after prexgfile "
-                print "########################"
+                print("########################")
+                print("Markers after prexgfile ")
+                print("########################")
                 for marker in self._Markers:
                     marker.info()
 
@@ -300,8 +300,8 @@ class TiltSeries(PyTomClass):
 
         tiltAngles = readIMODtiltAngles(tltfile)
         if len(tiltAngles) != len(self._ProjectionList):
-            print "Number of tilt angles in tiltfile:   " + len(tiltAngles)
-            print "Number of tilt angles in tiltseries: " + len(self._ProjectionList)
+            print("Number of tilt angles in tiltfile:   " + len(tiltAngles))
+            print("Number of tilt angles in tiltseries: " + len(self._ProjectionList))
             raise IndexError('Number of tilt angles in tltfile does not match TiltSeries')
         for (iproj, proj) in enumerate(self._ProjectionList):
             proj._tiltAngle = tiltAngles[iproj]
@@ -388,7 +388,7 @@ class TiltSeries(PyTomClass):
                 header.set_dim(x=imdim, y=imdim, z=1)
                 idx = projection._index
                 if verbose:
-                    print "reading in projection %d" % idx
+                    print("reading in projection %d" % idx)
                 image = read(file=projection._filename, subregion=[0, 0, idx - 1, self._imdim, self._imdim, 1],
                              sampling=[0, 0, 0], binning=[0, 0, 0])
             else:
@@ -402,7 +402,7 @@ class TiltSeries(PyTomClass):
 
             tiltAngle = projection._tiltAngle
             if verbose:
-                print "tiltAngle=%2.2f" % tiltAngle
+                print("tiltAngle=%2.2f" % tiltAngle)
             header.set_tiltangle(tiltAngle)
             newFilename = (filename + "_" + str(projection.getIndex()) + '.em')
             write_em(filename=newFilename, data=image, header=header)
@@ -505,7 +505,7 @@ class TiltAlignment:
             tline = tline + ("%6.1f, " % marker.get_r()[1])
             tline = tline + ("%6.1f\n" % marker.get_r()[2])
 
-        print tline
+        print(tline)
 
     def resetAlignmentCenter(self):
         """
@@ -652,7 +652,7 @@ class TiltAlignment:
         from math import sin, cos, pi
 
         if len(TiltSeries_._projIndices) != self._ntilt:
-            print "Houston: We have a problem!"
+            print("Houston: We have a problem!")
         # initialize alignment in seperate array - easier for optimization
         # sin and cos
         self._tiltAngles = numpy.array(self._ntilt * [0.])
@@ -792,12 +792,12 @@ class TiltAlignment:
         #check that irefmark and ireftilt are set properly
         if not (TiltAlignmentParameters_.irefmark in range(1, nmark + 1)):
             TiltAlignmentParameters_.irefmark = 1
-            print "Warning: irefmark must be 1<= irefmark <=nmark"
-            print "New irefmark: " + str(TiltAlignmentParameters_.irefmark)
+            print("Warning: irefmark must be 1<= irefmark <=nmark")
+            print("New irefmark: " + str(TiltAlignmentParameters_.irefmark))
         if not (TiltAlignmentParameters_.ireftilt in self._projIndices):
             TiltAlignmentParameters_.ireftilt = self._tiltAngles.argmin() + 1
-            print "Warning: ireftilt must be in range of projection indices"
-            print "New ireftilt: " + str(TiltAlignmentParameters_.ireftilt)
+            print("Warning: ireftilt must be in range of projection indices")
+            print("New ireftilt: " + str(TiltAlignmentParameters_.ireftilt))
 
         #variable rotation for projections 
         if TiltAlignmentParameters_.drot:
@@ -905,8 +905,8 @@ class TiltAlignment:
 
         # check that number of variables is ok
         if len(optimizableVariables) != nopti:
-            print "Length optimizableVariables: " + str(len(optimizableVariables))
-            print "N optmization: " + str(nopti)
+            print("Length optimizableVariables: " + str(len(optimizableVariables)))
+            print("N optmization: " + str(nopti))
             raise IndexError('length of optimizableVariables does not match TiltAlignmentParameters')
 
             # marker 3D coords
@@ -978,28 +978,28 @@ class TiltAlignment:
         if self.TiltSeries_._TiltAlignmentParas.optimizer == 'fmin':
             optimizer = scipy.optimize.fmin
             if not mute:
-                print "using scipy fmin optimizer"
+                print("using scipy fmin optimizer")
         elif self.TiltSeries_._TiltAlignmentParas.optimizer == 'fmin_slsqp':
             optimizer = scipy.optimize.fmin_slsqp
             if not mute:
-                print "using scipy fmin_slsqp (Sequential Least SQuares Programming) optimizer"
+                print("using scipy fmin_slsqp (Sequential Least SQuares Programming) optimizer")
         elif self.TiltSeries_._TiltAlignmentParas.optimizer == 'fmin_cg':
             optimizer = scipy.optimize.fmin_cg
             if not mute:
-                print "using scipy fmin_cg (conjugate gradients) optimizer"
+                print("using scipy fmin_cg (conjugate gradients) optimizer")
         elif self.TiltSeries_._TiltAlignmentParas.optimizer == 'leastsq':
             optimizer = scipy.optimize.leastsq
             if not mute:
-                print "using scipy leastsq optimizer - optimize matrix instead of scalar function"
+                print("using scipy leastsq optimizer - optimize matrix instead of scalar function")
             self.TiltSeries_._TiltAlignmentParas.leastsq = True
         elif self.TiltSeries_._TiltAlignmentParas.optimizer == 'fmin_powell':
             optimizer = scipy.optimize.fmin_powell
             if not mute:
-                print "using scipy fmin_powell optimizer"
+                print("using scipy fmin_powell optimizer")
         else:
             if not mute:
-                print("optimizer " + str(self.TiltSeries_._TiltAlignmentParas.optimizer) +
-                      " not known")
+                print(("optimizer " + str(self.TiltSeries_._TiltAlignmentParas.optimizer) +
+                      " not known"))
         # first update alignment from projections
         self.getMarkersFromTiltSeries(self.TiltSeries_)
         self.getTranslationsFromTiltSeries(self.TiltSeries_)
@@ -1017,8 +1017,8 @@ class TiltAlignment:
             isoMag=self._alignmentMagnifications, dBeam=self._alignmentBeamTilt,
             dMagnFocus=None, dRotFocus=None, equationSet=False)
         if not mute:
-            print( "Alignment score before optimization (square root of residual): "
-                   + str(sqrt(score)) )
+            print(( "Alignment score before optimization (square root of residual): "
+                   + str(sqrt(score)) ))
 
         # optimize scoring function
         if ((self.TiltSeries_._TiltAlignmentParas.optimizer == 'fmin') or
@@ -1047,7 +1047,7 @@ class TiltAlignment:
             isoMag=self._alignmentMagnifications, dBeam=self._alignmentBeamTilt,
             dMagnFocus=None, dRotFocus=None, equationSet=False)
         if not mute:
-            print "Alignment Score after optimization: " + str(sqrt(score))
+            print("Alignment Score after optimization: " + str(sqrt(score)))
 
         self.setOptimizableVariables(self.TiltSeries_._TiltAlignmentParas,
                                      optimizableVariables)
@@ -1086,7 +1086,7 @@ class TiltAlignment:
             r=TiltSeries_._TiltAlignmentParas.r, imdim=TiltSeries_._imdim,
             handflip=TiltSeries_._TiltAlignmentParas.handflip, mute=mute)
         if not mute:
-            print("Tilt Axis: %.2f" % psiindeg)
+            print(("Tilt Axis: %.2f" % psiindeg))
         # copy parameters to TiltSeries
         self._alignmentRotations = numpy.array(self._ntilt * [psiindeg])
         self.setRotationsInTiltSeries(TiltSeries_)
@@ -1159,7 +1159,7 @@ class TiltAlignment:
         mask = None
 
         # coarse alignment to get errors
-        print ">>> Alignment error before marker position fitting:"
+        print(">>> Alignment error before marker position fitting:")
         self.computeCoarseAlignment(TiltSeries_, mute=True)
 
         for (imark, marker) in enumerate(TiltSeries_._Markers):
@@ -1177,7 +1177,7 @@ class TiltAlignment:
                                                       appliedShiftX=0, appliedShiftY=0, index=itilt)
                 else:
                     proj = TiltSeries_._ProjectionList[itilt]
-                    print "marker not clicked in " + proj.getFilename()
+                    print("marker not clicked in " + proj.getFilename())
             #markerImageStack.normalize( normtype="StdMeanInMask", mask=mask)
             markerImageStack.bandpass(lowfreq=dimBox / 20., hifreq=7. * dimBox / 32.,
                                       smooth=3. * dimBox / 32., bpf=None)
@@ -1198,7 +1198,7 @@ class TiltAlignment:
                     marker.set_xProj(itilt, x + markerImageStack.images[irun].shiftX)
                     marker.set_yProj(itilt, y + markerImageStack.images[irun].shiftY)
                     irun = irun + 1
-        print ">>> Alignment error after marker position fitting:"
+        print(">>> Alignment error after marker position fitting:")
         self.computeCoarseAlignment(TiltSeries_, mute=True)
         #write new coordinates
         if finealigfile:
@@ -1250,7 +1250,7 @@ class Marker:
             tline = tline + ("%3d: " % (iproj + 1))
             tline = tline + ("%7.1f, " % self.get_xProj(iproj))
             tline = tline + ("%7.1f\n" % self.get_yProj(iproj))
-        print tline
+        print(tline)
 
     def set_xProj(self, iproj, xProj):
         """

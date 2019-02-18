@@ -37,18 +37,18 @@ if __name__ == '__main__':
                                    ScriptOption(['-h', '--help'], 'Help.', arg=False, optional=True)])
     
     if len(sys.argv) <= 2:
-        print helper
+        print(helper)
         sys.exit()
     try:
         particleList, mask, numberClasses, endThreshold,wedge1,wedge2,symmetryN,symmetryAxisZ,symmetryAxisX,\
         lowestFrequency,highestFrequency,destination,numberIterations,binning,\
         pixelSize,diameter,jobName,help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
         
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
 
     if not checkFileExists(particleList):

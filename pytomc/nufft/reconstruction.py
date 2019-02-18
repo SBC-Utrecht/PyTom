@@ -18,7 +18,7 @@ def fourier_3d_iter_reconstruct(projections, tilt_angles, iteration=10):
     kz = None
     weights = None # weights
 
-    for i in xrange(len(tilt_angles)):
+    for i in range(len(tilt_angles)):
         proj = projections[i]
         NX, NY, NZ = proj.shape
         assert NZ == 1 and NX == NY # for now only supports the square
@@ -66,7 +66,7 @@ def fourier_3d_iter_reconstruct(projections, tilt_angles, iteration=10):
             ang_interval = tilt_angles[-1]-tilt_angles[-2]
         else:
             ang_interval = (tilt_angles[i+1] - tilt_angles[i-1])/2
-        w = np.abs(ang_interval/360.*(np.array(range(NX/2, -NX/2, -1), dtype="float32")*2))
+        w = np.abs(ang_interval/360.*(np.array(list(range(NX/2, -NX/2, -1)), dtype="float32")*2))
         wei = np.tile(w, (NY, 1))
         if weights is None:
             weights = wei.reshape((wei.size))
@@ -106,7 +106,7 @@ def fourier_2d1d_iter_reconstruct(projections, tilt_angles, iteration=10, err=No
     kz = None
     weights = None # weights
 
-    for i in xrange(len(tilt_angles)):
+    for i in range(len(tilt_angles)):
         proj = projections[i]
         if len(proj.shape) == 3:
             NX, NY, NZ = proj.shape
@@ -155,7 +155,7 @@ def fourier_2d1d_iter_reconstruct(projections, tilt_angles, iteration=10, err=No
             ang_interval = tilt_angles[-1]-tilt_angles[-2]
         else:
             ang_interval = (tilt_angles[i+1] - tilt_angles[i-1])/2
-        w = np.abs(ang_interval/180.*np.pi*(np.array(range(NX/2, -NX/2, -1), dtype="float32")*2)/(NX/2)**2)
+        w = np.abs(ang_interval/180.*np.pi*(np.array(list(range(NX/2, -NX/2, -1)), dtype="float32")*2)/(NX/2)**2)
         w[NX/2] = np.pi/(4*len(tilt_angles)*(NX/2)**2) # take care of the duplicates
         if weights is None:
             weights = w.reshape((w.size))
@@ -220,7 +220,7 @@ def fourier_2d1d_gridding_reconstruct(projections, tilt_angles):
     kz = None
     weights = None # weights
 
-    for i in xrange(len(tilt_angles)):
+    for i in range(len(tilt_angles)):
         proj = projections[i]
         NX, NY, NZ = proj.shape
         assert NZ == 1 and NX == NY # for now only supports the square
@@ -262,7 +262,7 @@ def fourier_2d1d_gridding_reconstruct(projections, tilt_angles):
             ang_interval = tilt_angles[-1]-tilt_angles[-2]
         else:
             ang_interval = (tilt_angles[i+1] - tilt_angles[i-1])/2
-        w = np.abs(ang_interval/180.*np.pi*(np.array(range(NX/2, -NX/2, -1), dtype="float32")*2)/(NX/2)**2)
+        w = np.abs(ang_interval/180.*np.pi*(np.array(list(range(NX/2, -NX/2, -1)), dtype="float32")*2)/(NX/2)**2)
         w[NX/2] = np.pi/(4*len(tilt_angles)*(NX/2)**2) # take care of the duplicates
         if weights is None:
             weights = w.reshape((w.size))

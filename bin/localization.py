@@ -11,7 +11,7 @@ def startLocalizationJob(filename, splitX=0, splitY=0, splitZ=0, doSplitAngles=F
     job.check()
 
     if doSplitAngles:
-        print 'Ignore split volume parameters ...'
+        print('Ignore split volume parameters ...')
         from pytom.localization.parallel_extract_peaks import PeakManager
         manager = PeakManager()
         manager.parallelStart_splitAng(job, verbose)
@@ -36,14 +36,14 @@ if __name__ == '__main__':
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     
     try:
         jobName, splitX, splitY, splitZ, b_help = parse_script_options(sys.argv[1:], helper)
         
         if b_help is True:
-            print helper
+            print(helper)
             sys.exit()
         
         if splitX is None:
@@ -66,7 +66,7 @@ if __name__ == '__main__':
         if len(sys.argv) == 2 or len(sys.argv) == 5:
             pass
         else:
-            print helper
+            print(helper)
         
         jobName = sys.argv[1]
         
@@ -81,6 +81,6 @@ if __name__ == '__main__':
     
     startLocalizationJob(jobName, splitX, splitY, splitZ, doSplitAngles=False)
     
-    time = t.end(); print 'The overall execution time: %f' % time
+    time = t.end(); print('The overall execution time: %f' % time)
     
     

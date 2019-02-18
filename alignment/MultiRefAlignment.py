@@ -43,7 +43,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
         sampleInfo = exMaxJob.getSampleInformation()
         
         if verbose:
-            print multiRefJob
+            print(multiRefJob)
             
         if not checkDirExists(destinationDirectory):
             raise IOError('Destination directory ' + destinationDirectory + ' not found!')
@@ -58,7 +58,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
             
             if numberClasses:
                 if verbose:
-                    print 'Randomizing particle list'
+                    print('Randomizing particle list')
                     
                 particleList = randomiseParticleListClasses(particleList,numberClasses)
                 particleList.toXMLFile(destinationDirectory + '/RandomisedParticleList.xml')
@@ -73,7 +73,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
         while iteration < numberIterations and (not converged):
             
             if verbose:
-                print 'Running iteration ' + str(iteration) + ' of ' +str(numberIterations)
+                print('Running iteration ' + str(iteration) + ' of ' +str(numberIterations))
                 
             iterationDirectory = destinationDirectory + '/' + str(iteration) + '/'
             
@@ -88,7 +88,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
             if not checkDirExists(iterationDirectory+'resolution/'):
                 mkdir(iterationDirectory+'resolution/')
             
-            for classIterator in xrange(len(particleLists)):
+            for classIterator in range(len(particleLists)):
                 currentParticleList = particleLists[classIterator]
                 if len(currentParticleList) > 1:
                     [resNyquist,resolutionBand,numberBands] = currentParticleList.determineResolution( criterion= exMaxJob.getFSCCriterion(), numberBands = cubeSize / 2, mask= exMaxJob.getMask(), keepHalfsetAverages = False, halfsetPrefix=iterationDirectory +'resolution/' + 'class'+str(classIterator)+'_fsc-', verbose=verbose )
@@ -103,7 +103,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
                     minRes = resolutionBand
                     
                 if verbose:
-                    print 'Class ',classIterator,' - current resolution :' + str(resolutionAngstrom) + ' Angstrom'
+                    print('Class ',classIterator,' - current resolution :' + str(resolutionAngstrom) + ' Angstrom')
             
             #set highest frequency according to user specification
             band = maxRes
@@ -112,8 +112,8 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
             
             if band == numberBands:   
                 #determineResolution returns numberBands for filter if fsc result is invalid. in that case, use nyquist /2 as filter setting
-                print 'Warning MultiRefAlignment.py: LL 114'
-                print 'Warning: Resolution determined for all classes was invalid. Will use Nyquist/2 for current iteration' 
+                print('Warning MultiRefAlignment.py: LL 114')
+                print('Warning: Resolution determined for all classes was invalid. Will use Nyquist/2 for current iteration') 
                 band = numberBands / 2
                 
             preprocessing.setHighestFrequency(band)
@@ -124,7 +124,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
             #generate cluster centers
             referenceList = distributeExpectation(particleLists,iterationDirectory,'clusterCenter'+ str(iteration),verbose,exMaxJob.getSymmetry())
             
-            for classIterator in xrange(len(particleLists)):
+            for classIterator in range(len(particleLists)):
                 
                 classDirectory = iterationDirectory + 'class' + str(classIterator) + '/'
 
@@ -132,7 +132,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
                 refinementDirectory = classDirectory + 'refinement/'
                 
                 if verbose:
-                    print refinementDirectory
+                    print(refinementDirectory)
                     
                 if not checkDirExists(refinementDirectory):
                     mkdir(refinementDirectory)
@@ -152,7 +152,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
 
             #perform classification here    
             if verbose:
-                print 'Classifying after iteration ' + str(iteration)
+                print('Classifying after iteration ' + str(iteration))
                 
             particleList = classifyParticleList(initialParticleList,alignmentLists,verbose)
             particleList.toXMLFile(iterationDirectory + 'classifiedParticles.xml')

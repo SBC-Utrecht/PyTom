@@ -130,7 +130,7 @@ class ReconstructionWorker(PyTomClass):
             mpi_msgString = pytom_mpi.receive()
             
             if verbose:
-                print mpi_msgString
+                print(mpi_msgString)
                 
             try:
                 
@@ -165,10 +165,10 @@ class ReconstructionWorker(PyTomClass):
                     except (MessageError,PyTomClassError,ParameterError):
                         #print mpi_msgString
                         #raise MessageError('Message unknown!')
-                        print 'Error parsing message. Message either unknown or invalid.'
+                        print('Error parsing message. Message either unknown or invalid.')
                         assert False
             except:
-                    print 'wild except'
+                    print('wild except')
                     
         
         
@@ -197,12 +197,12 @@ def parallelReconstruction(particleList, projectionList, cubeSize, binning, appl
                 
         pl = []
         
-        for i in xrange(0,len(particleList),splitSize):
+        for i in range(0,len(particleList),splitSize):
 
             pl.append(particleList[i:i+splitSize])
                
         
-        for i in xrange(0,numberWorkers):
+        for i in range(0,numberWorkers):
                                             
             msg = ReconstructionMessage(0,i+1,pl[i],projectionList,cubeSize, binning,applyWeighting)
                                     
@@ -221,14 +221,14 @@ def parallelReconstruction(particleList, projectionList, cubeSize, binning, appl
             msg.fromStr(mpi_msgString)
             
             if not msg.getStatus() == 'Finished':
-                print 'Worker ' + str(msg.getSender()) + ' sent status: ' + str(msg.getStatus())
+                print('Worker ' + str(msg.getSender()) + ' sent status: ' + str(msg.getStatus()))
                  
             msgCounter += 1
             
             finished = msgCounter == numberWorkers
                         
             
-        for i in xrange(0,numberWorkers):
+        for i in range(0,numberWorkers):
             msg = StatusMessage(mpi_id,'0')
             msg.setStatus('End')
             pytom_mpi.send(str(msg),i+1)

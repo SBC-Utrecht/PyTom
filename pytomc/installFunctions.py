@@ -1,25 +1,25 @@
 import os
 
 def help():
-    print 'PyTom compile script'
-    print ''
-    print 'OPTIONS'
-    print '--libDir             Specify multiple directories for dynamic library search'
-    print '--includeDir         Specify multiple directories for header file search'
-    print '--exeDir             Specify multiple directories for excecuteable search'
-    print '--pythonVersion      Specify a python version you want to link against if you have many (2.5, 2.6 ...)'
-    print '--target             Specify which build target you like'
-    print '                     all         : build everything'
-    print '                     swig        : build swig modules only (part of all)'
-    print '                     libtomc     : build C++ libraries only (part of all)'
-    print '                     np          : build numpy interface (part of all)'
-    print '                     smpi        : build mpi module (part of all)'
-    print '                     clean       : clean all files'
-    print '                     cleanswig   : clean all swig files'
-    print '                     cleanlibtomc: clean C++ libraries'
-    print '                     check       : check if compile was correct'
-    print ''
-    print 'Good luck!'
+    print('PyTom compile script')
+    print('')
+    print('OPTIONS')
+    print('--libDir             Specify multiple directories for dynamic library search')
+    print('--includeDir         Specify multiple directories for header file search')
+    print('--exeDir             Specify multiple directories for excecuteable search')
+    print('--pythonVersion      Specify a python version you want to link against if you have many (2.5, 2.6 ...)')
+    print('--target             Specify which build target you like')
+    print('                     all         : build everything')
+    print('                     swig        : build swig modules only (part of all)')
+    print('                     libtomc     : build C++ libraries only (part of all)')
+    print('                     np          : build numpy interface (part of all)')
+    print('                     smpi        : build mpi module (part of all)')
+    print('                     clean       : clean all files')
+    print('                     cleanswig   : clean all swig files')
+    print('                     cleanlibtomc: clean C++ libraries')
+    print('                     check       : check if compile was correct')
+    print('')
+    print('Good luck!')
     
 def parseArguments(args):
     libParameter        = '--libDir'
@@ -34,7 +34,7 @@ def parseArguments(args):
     pythonIndex = None
     targetIndex = None
     
-    for i in xrange(len(args)):
+    for i in range(len(args)):
         
         if libParameter in args[i]:    
             libIndex = i
@@ -52,7 +52,7 @@ def parseArguments(args):
     exePaths = []
 
     if libIndex != None:
-        for libIterator in xrange(libIndex+1,len(args)):
+        for libIterator in range(libIndex+1,len(args)):
             otherKeyword = incParameter in args[libIterator] or exeParameter in args[libIterator] or pythonVersion in args[libIterator] or target in args[libIterator]
             
             if not otherKeyword:
@@ -61,7 +61,7 @@ def parseArguments(args):
             else:
                 break
     if incIndex  != None:  
-        for incIterator in xrange(incIndex+1,len(args)):
+        for incIterator in range(incIndex+1,len(args)):
             otherKeyword = libParameter in args[incIterator] or exeParameter in args[incIterator] or pythonVersion in args[incIterator] or target in args[incIterator]
             
             if not otherKeyword:
@@ -70,7 +70,7 @@ def parseArguments(args):
             else:
                 break    
     if exeIndex  != None:            
-        for exeIterator in xrange(exeIndex+1,len(args)):
+        for exeIterator in range(exeIndex+1,len(args)):
             otherKeyword = incParameter in args[exeIterator] or libParameter in args[exeIterator] or pythonVersion in args[exeIterator] or target in args[exeIterator]
             
             if not otherKeyword:
@@ -148,10 +148,10 @@ def findObj(obj, searchDir):
     for dir in searchDir:
         parentDir = find_file(obj, dir)
         if parentDir:
-            print 'Searching : ' , obj, '\t\t Found : ', True
+            print('Searching : ' , obj, '\t\t Found : ', True)
             return parentDir
     else:
-        print 'Searching : ' , obj, '\t\t Found : ', False
+        print('Searching : ' , obj, '\t\t Found : ', False)
         return None
 
 def adjustLibraryVersions(library,versionList,flag,extension, search_dir):
@@ -287,7 +287,7 @@ def _readStringFile(filename):
         for line in f:
             lines = lines + line
     except :
-        print 'Error reading ' + filename + '!'
+        print('Error reading ' + filename + '!')
         assert False
     finally:
         f.close()

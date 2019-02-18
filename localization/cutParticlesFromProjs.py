@@ -12,19 +12,19 @@ if __name__ == '__main__':
     import sys, getopt
     
     if len(sys.argv) ==1:
-        print "No argument is given!"
-        print usage
+        print("No argument is given!")
+        print(usage)
         sys.exit() 
     
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hl:p:o:s:b:f:", ["help"])
     except getopt.GetoptError:
-        print 'Command not right. Exit!'
+        print('Command not right. Exit!')
         sys.exit()
     
     for o,a in opts:
         if o in ("-h", "--help"):
-            print usage
+            print(usage)
             sys.exit()
         if o in ("-l"):
             projDir = a

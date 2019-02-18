@@ -19,15 +19,15 @@ if __name__ == '__main__':
                                    ScriptOption('-i', 'Number of iterations to run.', True, True),
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         proj_dir, output_filename, iter, b_help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
     if b_help is True:
-        print helper
+        print(helper)
         sys.exit()
     
     # parse the arguments
