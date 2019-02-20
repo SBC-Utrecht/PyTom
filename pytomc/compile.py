@@ -296,7 +296,10 @@ if nonfft is False:
         set_flags += ' && export FFTW_INCLUDE_PATH="%s"' % include_fftw
         set_flags += ' && export FFTW_LIB_PATH="%s"' % lib_fftw
         set_flags += ' && export NFFT_LIB_PATH="%s"' % (install_path+"lib/")
-        set_flags += ' && export NFFT_INCLUDE_PATH="%s"' % (install_path+"include/")
+        set_flags += ' && export NFFT_INCLUDE_PATH="%s"' % (install_path+"src/nfft-3.1.3/include/")
+        set_flags += ' && export PYTHON_LIB_PATH="%s"' % lib_python
+        set_flags += ' && export PYTHON_VERSION="python%s"' % pythonVersion
+        
         command = set_flags+" && cd nufft/ && chmod +x mkswig.sh && ./mkswig.sh"
         print(command)
         os.system(command)

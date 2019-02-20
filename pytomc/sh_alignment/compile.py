@@ -4,7 +4,7 @@ import os
 import sys
 import platform
 
-def compile(include_path=None, library_path=None):
+def compile(include_path=None, library_path=None,python_version='python3.7'):
     # search and set the relevant env variables
     # for the include files
     to_find_headers = {}
@@ -21,6 +21,7 @@ def compile(include_path=None, library_path=None):
         raise RuntimeError("Platform not supported!")
     to_find_libs = {}
     to_find_libs["libfftw3"+lib_suffix] = ""
+    to_find_libs['lib'+python_version+lib_suffix] = ""
 
     # get the HOME directory and try to deduce the Numpy position
     home_dir = os.path.expanduser("~")
@@ -96,6 +97,8 @@ def compile(include_path=None, library_path=None):
         set_flags += ' && export NUMPY_INCLUDE_PATH="%s"' % to_find_headers["arrayobject.h"]
         set_flags += ' && export FFTW_INCLUDE_PATH="%s"' % to_find_headers["fftw3.h"]
         set_flags += ' && export FFTW_LIB_PATH="%s"' % to_find_libs["libfftw3"+lib_suffix]
+        set_flags += ' && export PYTHON_LIB_PATH="%s"' % to_find_libs['lib'+python_version+lib_suffix]
+        set_flags += ' && export PYTHON_VERSION="%s"' % python_version
         
         # compile
         command = set_flags+" && cd sh_alignment/SpharmonicKit27 && make all"

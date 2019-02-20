@@ -97,7 +97,8 @@ def find_file(name, dir):
     for root, dirnames, filenames in os.walk(dir):
         if name in filenames:
             return root
-	return None
+
+    return None
 
 def find_dir(dirname, dir):
     """
@@ -109,7 +110,7 @@ def find_dir(dirname, dir):
             if dirname in directory:
                 return root + os.sep + directory
 
-	return None
+    return None
 
 def findDir(dirname,dirs):
     for directory in dirs:
