@@ -185,12 +185,12 @@ def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None):
     generatePathsFile(pytomDirectory,libPaths,binPaths,pyPaths)
     
     
-def generatePyTomScript(pytomDirectory):
+def generatePyTomScript(pytomDirectory, pythonVersion):
 
     pytomCommand = '#!/usr/bin/env csh\n'
     pytomCommand += 'cat ' + pytomDirectory + os.sep + 'LICENSE.txt\n'
     pytomCommand += 'source ' + pytomDirectory + os.sep + 'bin' + os.sep + 'paths.csh\n'
-    pytomCommand += 'python -O $*\n'
+    pytomCommand += 'python{} -O $*\n'.format(pythonVersion)
     
     f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'pytom','w')
     f.write(pytomCommand)
@@ -255,9 +255,9 @@ def generatePathsFile(pytomDirectory,libPaths,binPaths,pyPaths):
             cshCommands += "endif\n\n"
             
         cshCommands += "if ($?PYTHONPATH>0) then\n"
-        cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + "':'" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules':$PYTHONPATH\n"
+        cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules':$PYTHONPATH\n"
         cshCommands += "else\n"
-        cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + "':'" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules'\n"
+        cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules'\n"
         cshCommands += "endif\n\n"
  
         f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'paths.csh','w')
