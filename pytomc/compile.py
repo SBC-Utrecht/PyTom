@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import os
 import sys
 import platform
@@ -239,7 +238,7 @@ if nosh is False:
         print("############ Start to compile the SH Alignment Library ############")
         print()
         from sh_alignment.compile import compile
-        sh_ld_library_paths, sh_python_paths = compile(include_path=includePaths, library_path=libPaths)
+        sh_ld_library_paths, sh_python_paths = compile(include_path=includePaths, library_path=libPaths, python_version='python'+pythonVersion)
         sh_ld_library_paths = sh_ld_library_paths.split(':')
         sh_python_paths = sh_python_paths.split(':')
     except Exception as e:
@@ -328,4 +327,6 @@ if os.path.isfile("./swigModules/_pytom_fftplan.so") \
     print('Generating executables:')
     print('../bin/pytom')
     print('../bin/ipytom')
-    generateExecuteables([lib_mpi,lib_fftw,lib_python]+sh_ld_library_paths,exePaths,sh_python_paths,pythonVersion)
+
+    generateExecuteables([lib_mpi,lib_fftw,lib_python]+sh_ld_library_paths,exePaths,sh_python_paths,python_version=pythonVersion)
+

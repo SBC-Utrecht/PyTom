@@ -174,23 +174,25 @@ def adjustLibraryVersions(library,versionList,flag,extension, search_dir):
     
     
     
-def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None):
+def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None,python_version=''):
     
     os.chdir('..')
     pytomDirectory = os.getcwd()
     os.chdir(pytomDirectory + os.sep + 'bin')
     os.chdir(pytomDirectory + os.sep + 'pytomc')
-    generatePyTomScript(pytomDirectory)
+    generatePyTomScript(pytomDirectory, python_version)
     generateIPyTomScript(pytomDirectory)
     generatePathsFile(pytomDirectory,libPaths,binPaths,pyPaths)
     
     
-def generatePyTomScript(pytomDirectory, pythonVersion):
+
+def generatePyTomScript(pytomDirectory,python_version):
+
 
     pytomCommand = '#!/usr/bin/env csh\n'
     pytomCommand += 'cat ' + pytomDirectory + os.sep + 'LICENSE.txt\n'
     pytomCommand += 'source ' + pytomDirectory + os.sep + 'bin' + os.sep + 'paths.csh\n'
-    pytomCommand += 'python{} -O $*\n'.format(pythonVersion)
+    pytomCommand += 'python{} -O $*\n'.format(python_version)
     
     f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'pytom','w')
     f.write(pytomCommand)
