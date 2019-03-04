@@ -82,8 +82,8 @@ class Projection(PyTomClass):
     def info(self):
         tline = (" %3d: " %self.getIndex())
         tline = tline + ("Filename: %20s" %self._filename)
-	tline = tline + (", TiltAngle= %6.2f" %self._tiltAngle)
-	return tline
+        tline = tline + (", TiltAngle= %6.2f" %self._tiltAngle)
+        return tline
             
         
     def _loadTiltAngle(self):

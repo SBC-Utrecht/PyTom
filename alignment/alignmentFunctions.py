@@ -723,7 +723,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     from pytom.basic.transformations import resize, resizeFourier
     binningType = 'Fourier' # or 'Fourier'
 
-    assert isinstance(object=rotations, class_or_type_or_tuple=AngleObject), "bestAlignment: rotations must be " \
+    assert isinstance(rotations, AngleObject), "bestAlignment: rotations must be " \
                                                                              "AngleObject!"
     currentRotation = rotations.nextRotation()
     if currentRotation == [None,None,None]:

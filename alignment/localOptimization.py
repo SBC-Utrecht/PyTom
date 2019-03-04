@@ -35,7 +35,7 @@ class Alignment:
         from pytom.tools.macros import volumesSameSize
         from pytom_volume import vol
         from pytom.basic.structures import Rotation, Shift
-        assert isinstance(object=interpolation, class_or_type_or_tuple=str), "interpolation must be of type str"
+        assert isinstance(interpolation, str), "interpolation must be of type str"
 
         self.verbose = verbose
         if not volumesSameSize(vol1,vol2):
@@ -51,18 +51,18 @@ class Alignment:
         self.vol2 = vol2
         self.rotvol2 = vol(self.vol1.sizeX(), self.vol2.sizeY(), self.vol2.sizeZ())
         self.mask = mask
-
+        
         if not iniRot:
             iniRot=Rotation()
-        if not iniTrans:
+        if not iniTrans == None:
             iniTrans=Shift()
         self.rot_trans = self.transRot2vector( rot=iniRot, trans=iniTrans)
 
         self.score = score
         self.val = -100000.
-        self.centX = int(self.vol1.sizeX()/2)
-        self.centY = int(self.vol1.sizeY()/2)
-        self.centZ = int(self.vol1.sizeZ()/2)
+        self.centX = int(self.vol1.sizeX()//2)
+        self.centY = int(self.vol1.sizeY()//2)
+        self.centZ = int(self.vol1.sizeZ()//2)
         self.binning = 1
         self.interpolation = interpolation
 

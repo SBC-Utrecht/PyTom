@@ -11,9 +11,9 @@ def fromStr(string):
         @author: Thomas Hrabe 
         """
         from lxml import etree
-            
+
         root = etree.fromstring(string)
-        
+
         return fromXML(root)
     
 def fromXML(xmlObj):

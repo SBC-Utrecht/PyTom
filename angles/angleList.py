@@ -1,5 +1,5 @@
 from pytom.angles.angle import AngleObject
-
+from numpy import arange
 
 class AngleList(AngleObject):
     """
@@ -241,11 +241,11 @@ def angleRange(start,end,inc):
 
     dif = (end-start)
     if dif <0:
-        r = list(range(start,360,inc))
-        r1 = list(range(0,end,inc))
+        r = list(arange(start,360,inc))
+        r1 = list(arange(0,end,inc))
         r.extend(r1)
     else:
-        r = list(range(start,start+dif,inc))
+        r = list(arange(start,start+dif,inc))
         
         
     return r

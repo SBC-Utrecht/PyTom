@@ -21,18 +21,18 @@ class MaximisationJob(PyTomClass):
     """    
     def __init__(self,particle='',reference='',score='',rotations='',
             mask='',numberRefinementRounds=1,preprocessing='',binning=1):
-	"""
-	@param particle: particle to be aligned
-	@type particle: L{pytom.basic.structures.Particle} or str
-	@param reference: reference for particle alignment
-	@param score: type of score used for alignment
-	@param rotations: rotations scanned in search
-	@param mask: mask on reference
-	@param numberRefinementRounds: iteration number
-	@param preprocessing: preprocessing parameters
-	@param binning: Binning Factor
-	@type binning: int
-	"""
+        """
+        @param particle: particle to be aligned
+        @type particle: L{pytom.basic.structures.Particle} or str
+        @param reference: reference for particle alignment
+        @param score: type of score used for alignment
+        @param rotations: rotations scanned in search
+        @param mask: mask on reference
+        @param numberRefinementRounds: iteration number
+        @param preprocessing: preprocessing parameters
+        @param binning: Binning Factor
+        @type binning: int
+        """
        
         from lxml.etree import _Element
         
@@ -182,7 +182,8 @@ class MaximisationResult(PyTomClass):
     def __init__(self,particle='',reference=-1.0,score=-1.0,shift=-1.0,rotation=-1.0,angleObject=-1):
         
         from pytom.basic.structures import Particle,Reference,Shift,Rotation
-        
+        from numpy import long
+
         if particle.__class__ == str:
             self._particle = Particle(particle)
         elif particle.__class__ == Particle:

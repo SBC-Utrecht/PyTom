@@ -724,7 +724,7 @@ def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
     
     increment = int(volume1.sizeX()/2 * 1/numberBands)
     
-    for i in range(0,volume1.sizeX()/2, increment):
+    for i in range(0,volume1.sizeX()//2, increment):
         
         band[0] = i
         band[1] = i + increment
@@ -911,36 +911,29 @@ def subPixelPeak(scoreVolume, coordinates, cubeLength=8, interpolation='Spline',
     if scoreVolume.sizeZ() == 1:
         twoD = True
 
-    cubeStart = cubeLength/2
+    cubeStart = cubeLength//2
     sizeX = scoreVolume.sizeX()
     sizeY = scoreVolume.sizeY()
     sizeZ = scoreVolume.sizeZ()
     
     if twoD:
-        if (coordinates[0]-cubeStart < 1 \
-            or coordinates[1]-cubeStart < 1) or\
-            (coordinates[0]-cubeStart + cubeLength >= sizeX \
-            or coordinates[1]-cubeStart + cubeLength >= sizeY):
+        if (coordinates[0]-cubeStart < 1 or coordinates[1]-cubeStart < 1) or\
+            (coordinates[0]-cubeStart + cubeLength >= sizeX or coordinates[1]-cubeStart + cubeLength >= sizeY):
             if verbose:
                 print ("SubPixelPeak: position too close to border for sub-pixel")
             return [scoreVolume(coordinates[0],coordinates[1],coordinates[2]),coordinates]
 
-        subVolume = subvolume(scoreVolume,coordinates[0]-cubeStart,
-              coordinates[1]-cubeStart,0,
-              cubeLength,cubeLength,1)
+        subVolume = subvolume(scoreVolume,coordinates[0]-cubeStart,coordinates[1]-cubeStart,0,cubeLength,cubeLength,1)
     else:
-        if (coordinates[0]-cubeStart < 1 \
-            or coordinates[1]-cubeStart < 1 
-            or coordinates[2]-cubeStart < 1) or \
-            (coordinates[0]-cubeStart + cubeLength >= sizeX \
-            or coordinates[1]-cubeStart + cubeLength >= sizeY \
-            or coordinates[2]-cubeStart + cubeLength >= sizeZ):
+        if (coordinates[0]-cubeStart < 1 or coordinates[1]-cubeStart < 1 or coordinates[2]-cubeStart < 1) or \
+                (coordinates[0]-cubeStart + cubeLength >= sizeX or coordinates[1]-cubeStart + cubeLength >= sizeY or \
+                 coordinates[2]-cubeStart + cubeLength >= sizeZ):
             if verbose:
                 print ("SubPixelPeak: position too close to border for sub-pixel")
             return [scoreVolume(coordinates[0],coordinates[1],coordinates[2]),coordinates]
-        subVolume = subvolume(scoreVolume,coordinates[0]-cubeStart,
-	          coordinates[1]-cubeStart,coordinates[2]-cubeStart,
-	          cubeLength,cubeLength,cubeLength)
+
+        subVolume = subvolume(scoreVolume,coordinates[0]-cubeStart,coordinates[1]-cubeStart,coordinates[2]-cubeStart,
+                              cubeLength,cubeLength,cubeLength)
     
     #size of interpolated volume
     scaleSize = 10*cubeLength

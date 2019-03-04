@@ -77,7 +77,7 @@ class TiltSeries(PyTomClass):
                                           alignmentRotation=0., alignmentMagnification=1.)
                     projs.append(proj)
                     if self.verbose:
-                        "Projection " + fname + " appended ..."
+                        print("Projection " + fname + " appended ...")
             else:
                 tmp = tiltSeriesName.split('.')[-1]
                 if tmp != 'st':
@@ -102,7 +102,7 @@ class TiltSeries(PyTomClass):
                                           alignmentRotation=0., alignmentMagnification=1.)
                     projs.append(proj)
                     if self.verbose:
-                        "Projection " + fname + " appended ..."
+                        print("Projection " + fname + " appended ...")
             self._ProjectionList = ProjectionList(projs)
             self._imdim = proj.getDimensions()[0]
         # read markerFile if set

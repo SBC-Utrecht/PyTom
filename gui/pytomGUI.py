@@ -30,7 +30,9 @@ def update_env_vars(pytompath):
                     update_vars = True
         #If any of the env vars are updated reopen this script.
         if update_vars:
-            if len(sys.argv) < 2: sys.argv = ['/cm/shared/apps/python3/3.7/bin/python3.7'] + sys.argv
+            if len(sys.argv) < 2:
+                python3 = os.popen('which python3').read()[-1]
+                sys.argv = [python3] + sys.argv
             os.execv(sys.argv[0],sys.argv)
             #os.execv('/cm/shared/apps/python3/3.7/bin/python3.7', sys.argv)
 update_env_vars(pytompath)

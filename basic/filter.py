@@ -237,12 +237,12 @@ def fourierFilterShift(filter):
     from pytom_volume import vol
     
     widthX = filter.sizeX()
-    centerX = filter.sizeX()/2
-    boxX = filter.sizeX()/2
+    centerX = filter.sizeX()//2
+    boxX = filter.sizeX()//2
     
     widthY = filter.sizeY()
-    centerY = filter.sizeY()/2
-    boxY = filter.sizeY()/2    
+    centerY = filter.sizeY()//2
+    boxY = filter.sizeY()//2
     
     shifted_filter = vol(widthX, widthY, 1)
     shifted_filter.setAll(0.0)
@@ -299,10 +299,10 @@ def rampFilter( sizeX, sizeY):
     from pytom_volume import vol
     from math import exp
     
-    centerX = sizeX/2
+    centerX = sizeX//2
     
-    centerY = sizeY/2
-    sizeY = (sizeY/2) +1
+    centerY = sizeY//2
+    sizeY = (sizeY//2) +1
     
     Ny = sizeX/2
         

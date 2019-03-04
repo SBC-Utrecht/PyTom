@@ -55,8 +55,8 @@ class PyTomClass(object):
         
         tree = self.toXML()
     
-        self._xmlString = etree.tostring(tree, pretty_print=True)
-         
+        self._xmlString = etree.tostring(tree, pretty_print=True).decode("utf-8")[:-1]
+
         return self._xmlString
     
     def fromXMLFile(self, filename):
@@ -928,7 +928,7 @@ class SingleTiltWedge(PyTomClass):
             self._wedgeAngle2 = wedgeAngle
 
         if rotation:
-            print("average: Warning - input rotation will not be used because deprecated!")
+            pass#print("average: Warning - input rotation will not be used because deprecated!")
         self._cutoffRadius = cutoffRadius
         self._tiltAxisRotation = Rotation(0.0,0.0,0.0)
         
