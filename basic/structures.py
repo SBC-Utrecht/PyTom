@@ -43,7 +43,7 @@ class PyTomClass(object):
         from lxml import etree
         
         root = etree.fromstring(string)
-    
+
         self.fromXML(root)
         
     def __str__(self):

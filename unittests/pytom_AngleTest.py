@@ -119,7 +119,6 @@ class pytom_AngleTest(unittest.TestCase):
         from pytom.angles.angleFnc import zxzToMat,matToZXZ
         m = zxzToMat(z1,z2,x)
         r = matToZXZ(m)
-        print(z1,z2,x,r.getZ1(),r.getZ2(),r.getX())
         assert abs(r.getZ1() - z1) < 0.00001 and abs(r.getZ2() - z2) < 0.00001 and abs(r.getX() - x) < 0.00001
     
     def zxzToMatToZXZ_Test(self):
@@ -135,8 +134,10 @@ class pytom_AngleTest(unittest.TestCase):
     def axisAngleToMatToAxisAngle_T(self,axis,angle):
         from pytom.angles.angleFnc import zxzToAxisAngle,axisAngleToZXZ
         from pytom.tools.maths import epsilon
+        epsilon = 0.001
         r = axisAngleToZXZ(axis,angle)
         a = zxzToAxisAngle(r.getZ1(),r.getZ2(),r.getX())
+        print(angle,a[0],a[1][0],a[1][1],a[1][2])
         assert abs(angle-a[0]) < epsilon and abs(axis[0] - a[1][0]) < epsilon and abs(axis[1]- a[1][1]) < epsilon and abs(axis[2] - a[1][2]) < epsilon
         
         
@@ -182,6 +183,7 @@ class pytom_AngleTest(unittest.TestCase):
         ang.fromStr('<Angles Type="Equidistant"><Parameters Increment="3.0" \
              Shells="3.0" Phi_old="0" Psi_old="0" Theta_old="0" \
              ShellsParameter="1" IncrementParameter="1"/></Angles>')
+
         assert len(ang) == 148
 
     def matrixMult_Test(self):

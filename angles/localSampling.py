@@ -206,7 +206,6 @@ class LocalSampling(AngleObject):
         
         if xmlObj.get('Type') == 'Equidistant':
             xmlObj = xmlObj.xpath('Parameters')[0]
-            
         try:    
             self._increment = float(xmlObj.get('Increment'))
         except TypeError:
@@ -233,6 +232,7 @@ class LocalSampling(AngleObject):
             self._startX  = float(xmlObj.get('Theta_old'))
 
         self.reset()
+
         self.setStartRotation(startRotation=Rotation(z1=self._startZ1, z2=self._startZ2, x=self._startX))
     
     def numberRotations(self):
@@ -251,7 +251,8 @@ class LocalSampling(AngleObject):
         self.reset()
         
         return counter
-            
+
+
     def reset(self):
         """
         reset: Resets the object that nextRotation would return the same sequence of results again

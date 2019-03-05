@@ -94,7 +94,7 @@ class AngleList(AngleObject):
             
     def numberRotations(self):
         return len(self._rotationList)
-    
+
     def __getitem__(self,key):
         if isinstance(key, int):
             

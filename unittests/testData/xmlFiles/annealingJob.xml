@@ -1,0 +1,136 @@
+<MCOACJob NumberIterations="3" DestinationDirectory="./resGT_10FLCF/" NumberClasses="3" EndThreshold="-1" LocalSearchIncrement="2.0">
+  <ExpectationMaximisationJob>
+    <Description Destination="./resGT_10FLCF/" NumberIterations="1" ResultClassification="-1.0" Binning="2" FSCCriterion="0.5" AdaptiveResolution="True" AdaptiveOffset="0.1" AngleFactor="0.5">
+      <ParticleList Path="/fs/pool/pool-foerster/data/thomas/simulations/model1/SNR100/">
+        <Particle Filename="/fs/pool/pool-foerster/data/thomas/simulations/model1/SNR100/p_1.em">
+          <Rotation X="52.6013" Paradigm="ZXZ" Z1="146.7974" Z2="-51.9611"/>
+          <Shift Y="1.7527" X="2.752" Z="1.3216"/>
+          <PickPosition Origin="" Y="0.0" Z="0.0" X="0.0"/>
+          <Wedge Type="SingleTiltWedge">
+            <SingleTiltWedge Smooth="0.0" Angle1="30.0" CutoffRadius="0.0" TiltAxis="custom" Angle2="30.0">
+              <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+            </SingleTiltWedge>
+          </Wedge>
+          <Class Name="0"/>
+        </Particle>
+        <Particle Filename="/fs/pool/pool-foerster/data/thomas/simulations/model1/SNR100/p_2.em">
+          <Rotation X="16.1957" Paradigm="ZXZ" Z1="123.5212" Z2="-26.9091"/>
+          <Shift Y="2.5276" X="1.3404" Z="2.3618"/>
+          <PickPosition Origin="" Y="0.0" Z="0.0" X="0.0"/>
+          <Wedge Type="SingleTiltWedge">
+            <SingleTiltWedge Smooth="0.0" Angle1="30.0" CutoffRadius="0.0" TiltAxis="custom" Angle2="30.0">
+              <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+            </SingleTiltWedge>
+          </Wedge>
+          <Class Name="0"/>
+        </Particle>
+        <Particle Filename="/fs/pool/pool-foerster/data/thomas/simulations/model1/SNR100/p_3.em">
+          <Rotation X="-32.4251" Paradigm="ZXZ" Z1="-45.7218" Z2="-45.7654"/>
+          <Shift Y="2.0281" X="1.3556" Z="0.86456"/>
+          <PickPosition Origin="" Y="0.0" Z="0.0" X="0.0"/>
+          <Wedge Type="SingleTiltWedge">
+            <SingleTiltWedge Smooth="0.0" Angle1="30.0" CutoffRadius="0.0" TiltAxis="custom" Angle2="30.0">
+              <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+            </SingleTiltWedge>
+          </Wedge>
+          <Class Name="0"/>
+        </Particle>
+        <Particle Filename="/fs/pool/pool-foerster/data/thomas/simulations/model1/SNR100/p_4.em">
+          <Rotation X="50.9191" Paradigm="ZXZ" Z1="-15.9799" Z2="-121.9856"/>
+          <Shift Y="2.6173" X="0.4758" Z="1.6666"/>
+          <PickPosition Origin="" Y="0.0" Z="0.0" X="0.0"/>
+          <Wedge Type="SingleTiltWedge">
+            <SingleTiltWedge Smooth="0.0" Angle1="30.0" CutoffRadius="0.0" TiltAxis="custom" Angle2="30.0">
+              <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+            </SingleTiltWedge>
+          </Wedge>
+          <Class Name="0"/>
+        </Particle>
+        <Particle Filename="/fs/pool/pool-foerster/data/thomas/simulations/model1/SNR100/p_5.em">
+          <Rotation X="-4.7147" Paradigm="ZXZ" Z1="133.5648" Z2="-68.7875"/>
+          <Shift Y="2.6037" X="0.0050652" Z="2.8462"/>
+          <PickPosition Origin="" Y="0.0" Z="0.0" X="0.0"/>
+          <Wedge Type="SingleTiltWedge">
+            <SingleTiltWedge Smooth="0.0" Angle1="30.0" CutoffRadius="0.0" TiltAxis="custom" Angle2="30.0">
+              <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+            </SingleTiltWedge>
+          </Wedge>
+          <Class Name="0"/>
+        </Particle>
+        <Particle Filename="/fs/pool/pool-foerster/data/thomas/simulations/model1/SNR100/p_6.em">
+          <Rotation X="82.2572" Paradigm="ZXZ" Z1="110.5798" Z2="-135.9886"/>
+          <Shift Y="1.4033" X="1.9334" Z="2.0451"/>
+          <PickPosition Origin="" Y="0.0" Z="0.0" X="0.0"/>
+          <Wedge Type="SingleTiltWedge">
+            <SingleTiltWedge Smooth="0.0" Angle1="30.0" CutoffRadius="0.0" TiltAxis="custom" Angle2="30.0">
+              <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+            </SingleTiltWedge>
+          </Wedge>
+          <Class Name="0"/>
+        </Particle>
+        <Particle Filename="/fs/pool/pool-foerster/data/thomas/simulations/model1/SNR100/p_7.em">
+          <Rotation X="2.9492" Paradigm="ZXZ" Z1="85.0029" Z2="119.1622"/>
+          <Shift Y="1.0246" X="1.9727" Z="0.073121"/>
+          <PickPosition Origin="" Y="0.0" Z="0.0" X="0.0"/>
+          <Wedge Type="SingleTiltWedge">
+            <SingleTiltWedge Smooth="0.0" Angle1="30.0" CutoffRadius="0.0" TiltAxis="custom" Angle2="30.0">
+              <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+            </SingleTiltWedge>
+          </Wedge>
+          <Class Name="0"/>
+        </Particle>
+        <Particle Filename="/fs/pool/pool-foerster/data/thomas/simulations/model1/SNR100/p_8.em">
+          <Rotation X="-80.3819" Paradigm="ZXZ" Z1="61.9502" Z2="-95.0275"/>
+          <Shift Y="2.8827" X="0.37076" Z="0.48939"/>
+          <PickPosition Origin="" Y="0.0" Z="0.0" X="0.0"/>
+          <Wedge Type="SingleTiltWedge">
+            <SingleTiltWedge Smooth="0.0" Angle1="30.0" CutoffRadius="0.0" TiltAxis="custom" Angle2="30.0">
+              <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+            </SingleTiltWedge>
+          </Wedge>
+          <Class Name="0"/>
+        </Particle>
+        <Particle Filename="/fs/pool/pool-foerster/data/thomas/simulations/model1/SNR100/p_9.em">
+          <Rotation X="-58.9456" Paradigm="ZXZ" Z1="128.5883" Z2="-147.0846"/>
+          <Shift Y="2.9844" X="1.9803" Z="0.58796"/>
+          <PickPosition Origin="" Y="0.0" Z="0.0" X="0.0"/>
+          <Wedge Type="SingleTiltWedge">
+            <SingleTiltWedge Smooth="0.0" Angle1="30.0" CutoffRadius="0.0" TiltAxis="custom" Angle2="30.0">
+              <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+            </SingleTiltWedge>
+          </Wedge>
+          <Class Name="0"/>
+        </Particle>
+        <Particle Filename="/fs/pool/pool-foerster/data/thomas/simulations/model1/SNR100/p_10.em">
+          <Rotation X="19.999" Paradigm="ZXZ" Z1="23.4318" Z2="-18.6202"/>
+          <Shift Y="1.9317" X="2.1148" Z="0.7492"/>
+          <PickPosition Origin="" Y="0.0" Z="0.0" X="0.0"/>
+          <Wedge Type="SingleTiltWedge">
+            <SingleTiltWedge Smooth="0.0" Angle1="30.0" CutoffRadius="0.0" TiltAxis="custom" Angle2="30.0">
+              <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+            </SingleTiltWedge>
+          </Wedge>
+          <Class Name="0"/>
+        </Particle>
+      </ParticleList>
+      <Reference PreWedge="" File="" Weighting="">
+        <ParticleList Path="/"/>
+      </Reference>
+      <Mask Filename="/fs/pool/pool-foerster/data/thomas/simulations/mask.em" Binning="1" isSphere="True"/>
+      <Score Type="FLCFScore" Value="-10000000000.0">
+        <PeakPrior Smooth="-1.0" Radius="0.0" Filename=""/>
+      </Score>
+      <Angles Type="AngleList">
+        <Rotation X="0.0" Paradigm="ZXZ" Z1="0.0" Z2="0.0" Index="0"/>
+      </Angles>
+      <Preprocessing/>
+      <SingleTiltWedge Smooth="0.0" Angle1="0" CutoffRadius="0.0" TiltAxis="custom" Angle2="0">
+        <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </SingleTiltWedge>
+      <Symmetry X="0.0" Z2="0.0" NFold="4"/>
+      <SampleInformation PixelSize="4.7" ParticleDiameter="250.0"/>
+    </Description>
+  </ExpectationMaximisationJob>
+  <AnnealingTemperature TemperatureStep="0.1" Name="SigmaTemperature" Temperature="0.3"/>
+  <AnnealingCriterion AllowClassCollapse="True" Name="MetropolisCriterion"/>
+</MCOACJob>

@@ -1,0 +1,14 @@
+<JobDescription Destination="./results/" ID="0" Members="1">
+  <Volume Sampling="[0, 0, 0]" Subregion="[0, 0, 0, 0, 0, 0]" Binning="[0, 0, 0]" Filename="/Users/hrabe/projects/ScInVitroTrans/pytomTutorialFiles/localization/tomogram.em"/>
+  <Reference PreWedge="" File="./reference.em" Weighting="">
+  </Reference>
+  <Mask Filename="./mask.em" Binning="1" isSphere="True"/>
+  <WedgeInfo Smooth="0.0" Angle1="30.0" CutoffRadius="0.0" TiltAxis="custom" Angle2="30.0">
+    <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+  </WedgeInfo>
+  <Angles Type="FromEMFile" File="angles_90_26.em"/>
+  <Score Type="FLCFScore" Value="-10000000000.0">
+    <PeakPrior Smooth="-1.0" Radius="0.0" Filename=""/>
+  </Score>
+  <BandPassFilter LowestFrequency="0.0" Smooth="2.0" HighestFrequency="10.0"/>
+</JobDescription>
