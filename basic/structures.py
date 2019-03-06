@@ -2994,7 +2994,8 @@ class ParticleList(PyTomClass):
         if not name_prefix:
             name_prefix = './particle_'
         
-        self._particleList = []
+        try: self._particleList
+        except: self._particleList = []
         if wedgeAngle:
             wedge = SingleTiltWedge( wedgeAngle=wedgeAngle)
         try:

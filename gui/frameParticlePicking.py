@@ -21,6 +21,7 @@ from pytom.gui.guiStructures import *#GuiTabWidget, CommonFunctions, SimpleTable
 from pytom.gui.guiFunctions import avail_gpu
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.guiSupportCommands import *
+from pytom.bin.coordsPL import convertCoords2PL
 
 class ParticlePick(GuiTabWidget):
     '''Collect Preprocess Widget'''
@@ -364,28 +365,31 @@ class ParticlePick(GuiTabWidget):
     def mass_convert_txt2xml(self,pid,values):
         fname = str(QFileDialog.getSaveFileName(self, 'Save particle list.', self.pickpartfolder, filter='*.xml')[0])
         if not fname: return
+        if not fname.endswidth('.xml'):fname+='.xml'
 
-        out = open(fname,'w')
+        conf = [[],[],[],[],[]]
         for row in range(self.tables[pid].table.rowCount()):
             try:
                 c = values[row][0]
                 p = self.tab22_widgets['widget_{}_{}'.format(row, 1)].text()
-                w1 = self.tab22_widgets['widget_{}_{}'.format(row,2)].text()
-                w2 = self.tab22_widgets['widget_{}_{}'.format(row,3)].text()
+                w1 = float(self.tab22_widgets['widget_{}_{}'.format(row,2)].text() )
+                w2 = float(self.tab22_widgets['widget_{}_{}'.format(row,3)].text() )
                 pl = self.tab22_widgets['widget_{}_{}'.format(row,4)].text()
                 pl = os.path.join(self.pickpartfolder, pl)
-                print(createParticleList.format(d=[c, p, w1, w2, pl]))
-                #os.system(createParticleList.format(d=[c, p, w1, w2, pl]))
-                temp = open(pl, 'r')
-                data = temp.read()
-                temp.close()
-                if row > 0:
-                    data = data[1:-1]
+                #print(createParticleList.format(d=[c, p, w1, w2, pl]))
+                wedge = '{},{}'.format(w1,w2)
+                for n, inp in enumerate((c, pl, p, w1, w2)):
+                    if n==4: n=3
+                    conf[n].append(inp)
 
-                out.write(data+'\n')
+                convertCoords2PL([c], [pl], subtomoPrefix=[p], wedgeAngles=[wedge])
+                #os.system(createParticleList.format(d=[c, p, wedge, pl]))
+
             except:
-                print('Writing {} failed.'.format(os.path.basename(pl)))
+                print('Writing {} failed.'.format(os.path.basename(fname)))
+                return
 
-        out.close()
+        convertCoords2PL(conf[0], conf[1], subtomoPrefix=conf[2], wedgeAngles=conf[3])
+
 
 

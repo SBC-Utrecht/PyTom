@@ -5,11 +5,11 @@
 """
 from pytom.basic.structures import ParticleList
 
-def convertCoords2PL(coordinate_file, particleList_file, subtomoPrefix=None, 
-        wedgeAngle=None):
+def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None):
     pl = ParticleList()
-    pl.loadCoordinateFile( filename=coordinate_file, name_prefix=subtomoPrefix, 
-        wedgeAngle=wedgeAngle)
+    for n, coordinate_file in enumerate(coordinate_files):
+        wedgeAngle = wedgeAngles[2*n:2*(n+1)]
+        pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle)
     pl.toXMLFile(particleList_file)
 
 
@@ -55,6 +55,10 @@ if __name__ == '__main__':
     else:
         wedgeAngle = None
 
-    convertCoords2PL(coordinate_file=coordName, particleList_file=plName, 
-        subtomoPrefix=subtomoPrefix, wedgeAngle=wedgeAngle)
+    coordName = coordName.split(',')
+    subtomoPrefix = subtomoPrefix.split(',')
+    assert len(coordName) == len(subtomoPrefix)
+    assert lem(wedgeAngle) == len(coordName)*2
+    convertCoords2PL(coordinate_files=coordName, particleList_file=plName, subtomoPrefix=subtomoPrefix,
+                     wedgeAngles=wedgeAngle)
 
