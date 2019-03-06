@@ -25,8 +25,10 @@ class pytom_FRMTest(unittest.TestCase):
         
         pos, ang, score = frm_align(vMod, None, v, None, [4, 64], 10)
 
-        print(Rotation(ang), rotation)
+        print('\nFRM: ', Rotation(ang), rotation)
 
+
+        
         assert Rotation(ang) == rotation
         assert Shift(pos) == shiftO
         

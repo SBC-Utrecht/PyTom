@@ -22,18 +22,18 @@ if __name__ == '__main__':
                           description='Convert coordinate list to particle list.',
                           authors='Friedrich Foerster',
                           options=[ScriptOption(['-p','--particleList'], 
-			               'Particle List', True, False),
+                           'Particle List', True, False),
                                    ScriptOption(['-c','--coords'], 
-				       'Coordinate List (ascii file from EMAN2)', 
-				       True, False),
+                       'Coordinate List (ascii file from EMAN2)',
+                       True, False),
                                    ScriptOption(['-s','--subtomoPrefix'], 
-				       'path and filename for subtomogram files (e.g., MyPath/particle_)', 
-				       True, True),
+                       'path and filename for subtomogram files (e.g., MyPath/particle_)',
+                       True, True),
                                    ScriptOption(['-w','--wedgeAngles'], 
-				       'missing wedge angle(s) [counter-clock, clock] or single angle', 
-				       True, True),
+                       'missing wedge angle(s) [counter-clock, clock] or single angle',
+                       True, True),
                                    ScriptOption(['-h', '--help'], 'Help.', 
-				       False, True)])
+                       False, True)])
     if len(sys.argv) == 1:
         print(helper)
         sys.exit()
@@ -48,10 +48,10 @@ if __name__ == '__main__':
     if w:
         if len(w.split(',')) > 1:
             wedgeAngle = []
-	    for kk in w.split(','):
-	        wedgeAngle.append(float(kk))
+            for kk in w.split(','):
+                wedgeAngle.append(float(kk))
         else:
-	    wedgeAngle = float(w)
+            wedgeAngle = float(w)
     else:
         wedgeAngle = None
 

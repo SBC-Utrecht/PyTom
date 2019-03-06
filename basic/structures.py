@@ -2998,10 +2998,12 @@ class ParticleList(PyTomClass):
         if wedgeAngle:
             wedge = SingleTiltWedge( wedgeAngle=wedgeAngle)
         try:
-            f = open(filename, 'rb')
+            f = open(filename, 'r')
+            ff = [line for line in f.readlines()]
             i = 0
-            for line in f:
-                x, y, z = [float(n) for n in line.split('\t')]
+            for line in ff:
+                try: x, y, z = [float(n) for n in line.split('\t')]
+                except: x, y, z = [float(n) for n in line.split()]
                 p = Particle(name_prefix+str(i)+'.em', rotation=None, shift=None,
                         wedge=None, className=0, pickPosition=PickPosition(x,y,z),
                         score=None)

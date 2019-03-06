@@ -119,6 +119,7 @@ class pytom_AngleTest(unittest.TestCase):
         from pytom.angles.angleFnc import zxzToMat,matToZXZ
         m = zxzToMat(z1,z2,x)
         r = matToZXZ(m)
+        print(z1,z2,x,r.getZ1(),r.getZ2(),r.getX())
         assert abs(r.getZ1() - z1) < 0.00001 and abs(r.getZ2() - z2) < 0.00001 and abs(r.getX() - x) < 0.00001
     
     def zxzToMatToZXZ_Test(self):
@@ -175,7 +176,7 @@ class pytom_AngleTest(unittest.TestCase):
         rotations = [[1,1,1],[2,2,2]]
         res = angleObject[1:3]
         assert res == rotations
-    
+
     
     def LocalSamplingNumberAngles_Test(self):
         from pytom.angles.angle import AngleObject

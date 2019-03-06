@@ -83,7 +83,8 @@ class pytom_AlignTest(unittest.TestCase):
         referenceWeighting = referenceWeighting or ''
         
         rotation = rotation or Rotation(10,20,30)
-        shiftO = shiftO or Shift(1,-3,5)
+        
+        if (shiftO==None): shiftO = Shift(1,-3,5)
         
         if not mask:
             m = vol(32,32,32)
@@ -101,7 +102,7 @@ class pytom_AlignTest(unittest.TestCase):
         
         import os
         os.system('rm testMask.em')
-        print(peak.getShift(), shiftO)
+        print('\nAlign: ', peak.getShift(), shiftO)
         assert peak.getRotation() == rotation
         assert peak.getShift() == shiftO
         
