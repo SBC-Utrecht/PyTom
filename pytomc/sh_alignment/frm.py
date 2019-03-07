@@ -713,7 +713,7 @@ def frm_find_topn_angles_interp2(corr, n=5, dist_cut=3.0):
 
     nx, ny, nz = corr.shape
     corr = corr.reshape((nx*ny*nz,))
-    b = nx/2
+    b = nx//2
 
     peaks = np.zeros((n*4,), dtype='double')
     

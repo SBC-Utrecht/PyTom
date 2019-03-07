@@ -327,4 +327,6 @@ if os.path.isfile("./swigModules/_pytom_fftplan.so") \
     print('Generating executables:')
     print('../bin/pytom')
     print('../bin/ipytom')
+
     generateExecuteables([lib_mpi,lib_fftw,lib_python]+sh_ld_library_paths,exePaths,sh_python_paths,python_version=pythonVersion)
+

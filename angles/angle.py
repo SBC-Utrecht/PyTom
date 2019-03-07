@@ -11,9 +11,9 @@ def fromStr(string):
         @author: Thomas Hrabe 
         """
         from lxml import etree
-            
+
         root = etree.fromstring(string)
-        
+
         return fromXML(root)
     
 def fromXML(xmlObj):
@@ -53,7 +53,7 @@ class AngleObject(PyTomClass):
         G{callgraph}
         """
         angType = xmlObj.get('Type')
-        
+
         if angType == 'Eulerian':
             from pytom.angles.angleList import EulerAngleList
             ang = EulerAngleList()
@@ -62,6 +62,7 @@ class AngleObject(PyTomClass):
             from pytom.angles.localSampling import LocalSampling
             ang = LocalSampling()
             ang.fromXML(xmlObj)
+
         elif angType == 'AV3Sampling':
             from pytom.angles.localSampling import AV3Sampling
             ang = AV3Sampling()
@@ -111,6 +112,9 @@ class AngleObject(PyTomClass):
 
         if verbose:
             print("AngleObject.fromXML: Returned AngleObject: "+str(ang))
+
+
+
         return ang
 
 

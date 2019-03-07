@@ -179,7 +179,7 @@ def matToZXZ(rotMatrix,inRad=False):
             z2 = math.acos(cosZ2)
         # x=0 deg
         if cosX > 0:
-            if rotMatrix[0,1] < 0.:
+            if rotMatrix[0,1] > 0.:
                 z2 = 2*math.pi - z2
         # x=180 deg
         else:

@@ -43,7 +43,7 @@ class PyTomClass(object):
         from lxml import etree
         
         root = etree.fromstring(string)
-    
+
         self.fromXML(root)
         
     def __str__(self):
@@ -54,9 +54,9 @@ class PyTomClass(object):
         from lxml import etree
         
         tree = self.toXML()
-        
+    
         self._xmlString = etree.tostring(tree, pretty_print=True).decode("utf-8")[:-1]
-         
+
         return self._xmlString
     
     def fromXMLFile(self, filename):
@@ -928,7 +928,7 @@ class SingleTiltWedge(PyTomClass):
             self._wedgeAngle2 = wedgeAngle
 
         if rotation:
-            print("average: Warning - input rotation will not be used because deprecated!")
+            pass#print("average: Warning - input rotation will not be used because deprecated!")
         self._cutoffRadius = cutoffRadius
         self._tiltAxisRotation = Rotation(0.0,0.0,0.0)
         
@@ -2994,14 +2994,16 @@ class ParticleList(PyTomClass):
         if not name_prefix:
             name_prefix = './particle_'
         
-        self._particleList = []
+        try: self._particleList
+        except: self._particleList = []
         if wedgeAngle:
             wedge = SingleTiltWedge( wedgeAngle=wedgeAngle)
         try:
             f = open(filename, 'r')
             ff = [line for line in f.readlines()]
             i = 0
-            for line in f:
+
+            for line in ff:
                 try: x, y, z = [float(n) for n in line.split('\t')]
                 except: x, y, z = [float(n) for n in line.split()]
                 p = Particle(name_prefix+str(i)+'.em', rotation=None, shift=None,

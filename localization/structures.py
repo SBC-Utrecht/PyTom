@@ -5,6 +5,7 @@ Created on May 21, 2010
 '''
 
 from pytom.basic.structures import PyTomClass
+from numpy import long
 
 class Volume(PyTomClass):
     """

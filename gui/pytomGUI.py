@@ -4,9 +4,12 @@ import os
 import pickle, json
 import numpy as np
 
+if sys.version_info[0] < 3:
+    print(sys.version_info[0])
+    raise Exception("The GUI requires Python 3")
+
 global pytompath
 pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
-print(pytompath)
 
 if not pytompath:
     print('Pytom package is not available. Please load, or install Pytom.')
@@ -30,7 +33,11 @@ def update_env_vars(pytompath):
                     update_vars = True
         #If any of the env vars are updated reopen this script.
         if update_vars:
-            if len(sys.argv) < 2: sys.argv = ['/cm/shared/apps/python3/3.7/bin/python3.7'] + sys.argv
+            if len(sys.argv) < 2:
+                pythonVersion = 'python{d[0]}.{d[1]}'.format( d=sys.version_info )
+                path = os.popen('which {}'.format(pythonVersion)).read()[:-1]
+                sys.argv = [path] + sys.argv
+
             os.execv(sys.argv[0],sys.argv)
             #os.execv('/cm/shared/apps/python3/3.7/bin/python3.7', sys.argv)
 update_env_vars(pytompath)

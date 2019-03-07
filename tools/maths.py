@@ -28,15 +28,15 @@ def rotate_vector(r, rotation):
     from math import cos, sin, pi
     if len(r) == 2:
         if type(rotation) != float:
-	    raise TypeError('rotation has to be float for 2D input vector!')
+            raise TypeError('rotation has to be float for 2D input vector!')
         cpsi = cos(rotation/180.*pi)
         spsi = sin(rotation/180.*pi)
         return rotate_vector2d(r, cpsi, spsi)
     if len(r) == 3:
         if len(rotation) != 3:
-	    raise TypeError('rotation has to be 3d array for 3D input vector!')
-	else:
-	    print("Function not implemented, yet")
+            raise TypeError('rotation has to be 3d array for 3D input vector!')
+        else:
+            print("Function not implemented, yet")
 
 def rotate_vector2d(r, cpsi, spsi):
     """
@@ -477,7 +477,7 @@ def pcacov(matrix):
 
     for x in range(sizeX):
         if coeff[x,maxIndex[x]] < 0:
-            coeff[x,:] = coeff[x,:] * -1;
+            coeff[x,:] = coeff[x,:] * -1
 
     return [coeff,latent,explained]
 

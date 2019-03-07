@@ -237,12 +237,12 @@ def fourierFilterShift(filter):
     from pytom_volume import vol
     
     widthX = filter.sizeX()
-    centerX = filter.sizeX()/2
-    boxX = filter.sizeX()/2
+    centerX = filter.sizeX()//2
+    boxX = filter.sizeX()//2
     
     widthY = filter.sizeY()
-    centerY = filter.sizeY()/2
-    boxY = filter.sizeY()/2    
+    centerY = filter.sizeY()//2
+    boxY = filter.sizeY()//2
     
     shifted_filter = vol(widthX, widthY, 1)
     shifted_filter.setAll(0.0)
@@ -257,6 +257,33 @@ def fourierFilterShift(filter):
                 
     return shifted_filter
 
+def fourierFilterShift_ReducedComplex(filter):
+    """
+    fourierFilterShift: NEEDS Documentation
+    @param filter: NEEDS Documentation
+    """
+    from pytom_volume import vol
+
+    widthX = filter.sizeX()
+    centerX = filter.sizeX()/2
+    boxX = filter.sizeX()/2
+
+    widthY = filter.sizeY()
+    centerY = filter.sizeY()/2
+    boxY = filter.sizeY()/2
+
+    shifted_filter = vol(widthX, widthY, 1)
+    shifted_filter.setAll(0.0)
+
+    for i in range(widthX):
+        rx = (boxX-i)%widthX
+
+        for j in range(widthY):
+            ry = (boxY-j)%widthY
+
+            shifted_filter.setV(filter.getV(i, j, 0), rx, widthY-j-1, 0)
+
+    return shifted_filter
 
 def circleFilter(sizeX,sizeY, radiusCutoff):
     """
@@ -299,10 +326,10 @@ def rampFilter( sizeX, sizeY):
     from pytom_volume import vol
     from math import exp
     
-    centerX = sizeX/2
+    centerX = sizeX//2
     
-    centerY = sizeY/2
-    sizeY = (sizeY/2) +1
+    centerY = sizeY//2
+    sizeY = (sizeY//2) +1
     
     Ny = sizeX/2
         

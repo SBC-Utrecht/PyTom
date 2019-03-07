@@ -55,9 +55,9 @@ def peakCoef(self,volume,reference,mask=None):
     else:
         resFunction = self.scoringFunction(volume,reference,mask)
     
-    centerX = resFunction.sizeX()/2 -1
-    centerY = resFunction.sizeY()/2 -1
-    centerZ = resFunction.sizeZ()/2 -1
+    centerX = resFunction.sizeX()//2 -1
+    centerY = resFunction.sizeY()//2 -1
+    centerZ = resFunction.sizeZ()//2 -1
     
     #c = resFunction.getV(centerX,centerY,centerZ)
     
@@ -407,8 +407,7 @@ class nxcfScore(Score):
             
     def getWorstValue(self):
         return -10000000000
-    
-        
+
 class FLCFScore(Score):    
     """
     FLCFScore: Uses the FLCF correlation function for scoring
@@ -710,7 +709,7 @@ class PeakPrior(PyTomClass):
         
         tree = self.toXML()
         
-        return etree.tostring(tree,pretty_print=True)
+        return etree.tostring(tree,pretty_print=True).decode("utf-8")[:-1]
     
 class SOCScore(Score):    
     """

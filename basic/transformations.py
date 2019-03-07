@@ -258,7 +258,7 @@ def resizeFourier(fvol, factor):
     """
     from pytom_volume import vol_comp
 
-    assert isinstance(object=fvol, class_or_type_or_tuple=vol_comp), "fvol must be reduced complex"
+    assert isinstance(fvol, vol_comp), "fvol must be reduced complex"
 
     oldFNx = fvol.sizeX()
     oldFNy = fvol.sizeY()
@@ -273,12 +273,12 @@ def resizeFourier(fvol, factor):
     # check 2D images
     if oldNz > 1:
         newNz = int(float(oldNz*factor)+0.5)
-        newFNz = newNz / 2 +1
+        newFNz = newNz // 2 +1
         newFNy = newNy
     else:
         newNz = 1
         newFNz = 1
-        newFNy = newNy /2 + 1
+        newFNy = newNy //2 + 1
 
     newfvol = vol_comp(newFNx, newFNy, newFNz)
     newfvol.setFtSizeX(newNx)
@@ -288,7 +288,7 @@ def resizeFourier(fvol, factor):
     # magnify image
     if factor >= 1.:
         newfvol.setAll(0.)
-        oldFNx_2 = oldFNx/2+1
+        oldFNx_2 = oldFNx//2+1
         if oldNz == 1:
             iz = 0
             for iy in range(oldFNy):
@@ -298,7 +298,7 @@ def resizeFourier(fvol, factor):
                     ixNew = ix + (newFNx - oldFNx)
                     newfvol.setV( fvol.getV(ix, iy, iz)*scf, ixNew, iy, iz)
         else:
-            oldFNy_2 = oldFNy/2+1
+            oldFNy_2 = oldFNy//2+1
             for iz in range(oldFNz):
                 for iy in range(oldFNy_2):
                     for ix in range(oldFNx_2):
@@ -315,7 +315,7 @@ def resizeFourier(fvol, factor):
                         newfvol.setV( fvol.getV(ix, iy, iz)*scf, ixNew, iyNew, iz)
     # de-magnify image
     else:
-        newFNx_2 = newFNx/2+1
+        newFNx_2 = newFNx//2+1
         if oldFNz == 1:
             iz = 0
             for iy in range(newFNy):
@@ -325,7 +325,7 @@ def resizeFourier(fvol, factor):
                     ixOld = ix + (oldFNx - newFNx)
                     newfvol.setV( fvol.getV(ixOld, iy, iz)*scf, ix, iy, iz)
         else:
-            newFNy_2 = newFNy/2+1
+            newFNy_2 = newFNy//2+1
             for iz in range(newFNz):
                 for iy in range(newFNy_2):
                     for ix in range(newFNx_2):

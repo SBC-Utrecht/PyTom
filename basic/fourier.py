@@ -135,11 +135,11 @@ def fft(data):
         real.copyVolume(data)
         
         if(data.sizeZ() > 1):
-            complexVolume = pytom_volume.vol_comp(data.sizeX(),data.sizeY(),data.sizeZ()/2+1)
-            returnValue = pytom_volume.vol_comp(data.sizeX(),data.sizeY(),data.sizeZ()/2+1)
+            complexVolume = pytom_volume.vol_comp(data.sizeX(),data.sizeY(),data.sizeZ()//2+1)
+            returnValue = pytom_volume.vol_comp(data.sizeX(),data.sizeY(),data.sizeZ()//2+1)
         else:
-            complexVolume = pytom_volume.vol_comp(data.sizeX(),data.sizeY()/2+1,1)
-            returnValue = pytom_volume.vol_comp(data.sizeX(),data.sizeY()/2+1,1)
+            complexVolume = pytom_volume.vol_comp(data.sizeX(),data.sizeY()//2+1,1)
+            returnValue = pytom_volume.vol_comp(data.sizeX(),data.sizeY()//2+1,1)
             
         plan = pytom_fftplan.plan(real,complexVolume)
         plan.transform()

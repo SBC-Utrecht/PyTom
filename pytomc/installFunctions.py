@@ -185,7 +185,9 @@ def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None,python_version
     generatePathsFile(pytomDirectory,libPaths,binPaths,pyPaths)
     
     
+
 def generatePyTomScript(pytomDirectory,python_version):
+
 
     pytomCommand = '#!/usr/bin/env csh\n'
     pytomCommand += 'cat ' + pytomDirectory + os.sep + 'LICENSE.txt\n'
