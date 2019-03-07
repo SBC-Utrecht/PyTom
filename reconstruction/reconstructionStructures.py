@@ -723,7 +723,7 @@ class ProjectionList(PyTomClass):
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import fft,ifft
-        from pytom.basic.filter import circleFilter,rampFilter,fourierFilterShift
+        from pytom.basic.filter import circleFilter,rampFilter,fourierFilterShift, fourierFilterShift_ReducedComplex
         
         # determine image dimensions according to first image in projection list
         imgDim = read(self._list[0].getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1).sizeX()        
@@ -743,7 +743,7 @@ class ProjectionList(PyTomClass):
         if applyWeighting:
             weightSlice = fourierFilterShift(rampFilter(imgDim,imgDim))
             circleFilterRadius = imgDim/2
-            circleSlice = fourierFilterShift(circleFilter(imgDim,imgDim, circleFilterRadius))
+            circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imgDim,imgDim, circleFilterRadius))
         
         if showProgressBar:
             progressBar = FixedProgBar(0,len(self._particleList),'Particle volumes generated ')

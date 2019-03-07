@@ -257,6 +257,33 @@ def fourierFilterShift(filter):
                 
     return shifted_filter
 
+def fourierFilterShift_ReducedComplex(filter):
+    """
+    fourierFilterShift: NEEDS Documentation
+    @param filter: NEEDS Documentation
+    """
+    from pytom_volume import vol
+
+    widthX = filter.sizeX()
+    centerX = filter.sizeX()/2
+    boxX = filter.sizeX()/2
+
+    widthY = filter.sizeY()
+    centerY = filter.sizeY()/2
+    boxY = filter.sizeY()/2
+
+    shifted_filter = vol(widthX, widthY, 1)
+    shifted_filter.setAll(0.0)
+
+    for i in range(widthX):
+        rx = (boxX-i)%widthX
+
+        for j in range(widthY):
+            ry = (boxY-j)%widthY
+
+            shifted_filter.setV(filter.getV(i, j, 0), rx, widthY-j-1, 0)
+
+    return shifted_filter
 
 def circleFilter(sizeX,sizeY, radiusCutoff):
     """
