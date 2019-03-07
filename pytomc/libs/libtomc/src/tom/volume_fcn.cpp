@@ -134,9 +134,9 @@ void tom::back_project(tom::Volume<T> &src,
 					   float x_offset, float y_offset, float z_offset,
 					   float projectionOffsetX,float projectionOffsetY){
 	
-	float Tr11, Tr12, Tr13;
-	float Tr21, Tr22, Tr23;
-	float Tr31, Tr32, Tr33;
+	float Tr11, Tr12;
+	float Tr21, Tr22;
+	float Tr31, Tr32;
 	
 	float interpolationPositionX,interpolationPositionY,interpolationOffsetX,interpolationOffsetY;
 	
@@ -163,9 +163,9 @@ void tom::back_project(tom::Volume<T> &src,
 	Tr32 = (float)(sin(Y)*sin(Z2));
 	//std::cout << Tr12 << " " << Tr22 << " " << Tr32 << std::endl;	
 	//third row of ZYZ Matrix
-	Tr13 = (float)(sin(Y)*cos(Z1));
-	Tr23 = (float)(sin(Y)*sin(Z1));
-	Tr33 = (float)(cos(Y));
+	//Tr13 = (float)(sin(Y)*cos(Z1));
+	//Tr23 = (float)(sin(Y)*sin(Z1));
+	//Tr33 = (float)(cos(Y));
 	
 	/*
 	//Reconstruction works with these settings!

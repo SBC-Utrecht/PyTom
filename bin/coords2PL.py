@@ -10,6 +10,7 @@ def convertCoords2PL(coordinate_file, particleList_file, subtomoPrefix=None,
     pl = ParticleList()
     pl.loadCoordinateFile( filename=coordinate_file, name_prefix=subtomoPrefix, 
         wedgeAngle=wedgeAngle)
+    print(particleList_file)
     pl.toXMLFile(particleList_file)
 
 
@@ -39,6 +40,7 @@ if __name__ == '__main__':
         sys.exit()
     try:
         plName, coordName, subtomoPrefix, w, help = parse_script_options(sys.argv[1:], helper)
+        print(plName, coordName, subtomoPrefix, w)
     except Exception as e:
         print(e)
         sys.exit()
@@ -48,13 +50,12 @@ if __name__ == '__main__':
     if w:
         if len(w.split(',')) > 1:
             wedgeAngle = []
-	    for kk in w.split(','):
-	        wedgeAngle.append(float(kk))
+            for kk in w.split(','):
+                wedgeAngle.append(float(kk))
         else:
-	    wedgeAngle = float(w)
+            wedgeAngle = float(w)
     else:
         wedgeAngle = None
 
-    convertCoords2PL(coordinate_file=coordName, particleList_file=plName, 
-        subtomoPrefix=subtomoPrefix, wedgeAngle=wedgeAngle)
+    convertCoords2PL(coordinate_file=coordName, particleList_file=plName, subtomoPrefix=subtomoPrefix, wedgeAngle=wedgeAngle)
 
