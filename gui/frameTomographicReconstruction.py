@@ -22,7 +22,6 @@ from pytom.gui.guiFunctions import avail_gpu, sort
 from pytom.gui.guiSupportCommands import *
 import pytom.gui.guiFunctions as guiFunctions
 
-
 class TomographReconstruct(GuiTabWidget):
     '''Collect Preprocess Widget'''
     def __init__(self, parent=None):
@@ -377,7 +376,7 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch['fname'] = 'ReconstructionINFR'
         paramsSbatch['folder'] = execfilename
 
-        self.insert_gen_text_exe(parent,mode,jobfield=False,action=self.convert_em,paramsAction=[mode,'INFR','sorted_'],
+        self.insert_gen_text_exe(parent,mode,jobfield=False,action=self.convert_em,paramsAction=[mode,'INFR','sorted'],
                                  exefilename=execfilename, paramsSbatch=paramsSbatch,
                                  paramsCmd=[mode+'tomofolder',self.parent().pytompath,mode+'FirstIndex',mode+'LastIndex',
                                             mode + 'RefTiltIndex',mode + 'RefMarkerIndex',mode+'BinningFactor',
@@ -434,7 +433,8 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch['fname'] = 'ReconstructionWBP'
         paramsSbatch[ 'folder' ] = execfilename
 
-        self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch=paramsSbatch,
+        self.insert_gen_text_exe(parent,mode,jobfield=False,action=self.convert_em,paramsAction=[mode,'WBP','sorted'],
+                                 exefilename=execfilename, paramsSbatch=paramsSbatch,
                                  paramsCmd=[mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex',
                                             mode + 'LastIndex',
                                             mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor',
@@ -459,15 +459,14 @@ class TomographReconstruct(GuiTabWidget):
         try: os.system('cp {}/{}/markerfile.em {}/markerfile.em'.format(directory, 'sorted', output_folder))
         except: pass
 
-        try:
+        if len([line for line in os.listdir(output_folder) if line.startswith(prefix.split('/')[-1])]):
             os.system('rm {}/sorted*.em'.format(output_folder))
-        except:
-            pass
 
-        #guiFunctions.conv_mrc2em(self.widgets[mode+'FolderSorted'].text(), output_folder)
-        #guiFunctions.renumber_gui2pytom(output_folder, prefix.split('/')[-1])
-        print (self.pytompath)
-        print ('{}/bin/pytom rename_renumber.py {} {} {}'.format(self.pytompath, sorted_folder, output_folder, prefix))
+
+        guiFunctions.conv_mrc2em(self.widgets[mode+'FolderSorted'].text(), output_folder)
+        guiFunctions.renumber_gui2pytom(output_folder, prefix.split('/')[-1])
+        #print (self.pytompath)
+        #print ('{}/bin/pytom rename_renumber.py {} {} {}'.format(self.pytompath, sorted_folder, output_folder, prefix))
 
 
         # print '{}/reconstruction/{}/reconstruction.sh'.format(tomofolderpath,p)

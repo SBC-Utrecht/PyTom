@@ -1,4 +1,4 @@
-def simpleSimulation(volume,rotation,shiftV,wedgeInfo=None,SNR=0,mask=None):
+def simpleSimulation(volume,rotation,shiftV,wedgeInfo=None,SNR=0.1,mask=None):
     """
     simpleSimulation: Simulates an ET by applying rotation,shift,wedge and noise to an volume
     
@@ -27,8 +27,8 @@ def simpleSimulation(volume,rotation,shiftV,wedgeInfo=None,SNR=0,mask=None):
     if not mask:
         #print 'EMSimulation simpleSimulation: in mask 1' 
         mask = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
-        initSphere(mask,volume.sizeX()/2-1,0,0, volume.sizeX()/2, 
-	    volume.sizeX()/2, volume.sizeX()/2)
+        initSphere(mask,volume.sizeX()//2-1,0,0, volume.sizeX()//2,
+	    volume.sizeX()//2, volume.sizeX()//2)
         maskedCopy = rotatedCopy * mask
     if not mask.__class__ == vol:
         #print 'EMSimulation simpleSimulation: in mask 2'

@@ -1,24 +1,25 @@
 #!/usr/bin/env pytom
 
 def mrc2em(filename,destination):
-	from pytom_volume import read
-	from pytom.tools.files import checkFileExists,checkDirExists
-	import os
-	if not checkFileExists(filename):
-		raise RuntimeError('MRC file not found! ',filename)
+    #from pytom_volume import read
+    from pytom.basic.files import read
+    from pytom.tools.files import checkFileExists,checkDirExists
+    import os
+    if not checkFileExists(filename):
+        raise RuntimeError('MRC file not found! ',filename)
 
-	if not checkDirExists(destination):
-		raise RuntimeError('Destination directory not found! ', destination)
+    if not checkDirExists(destination):
+        raise RuntimeError('Destination directory not found! ', destination)
 
-	emfile = read(filename)
-	
-	splitName = filename.split(os.sep)
-	filename = splitName[len(splitName)-1]
-	
-	
-	newFilename = destination + os.sep + filename[0:len(filename)-4] + '.em'
+    emfile = read(filename)
 
-	emfile.write(newFilename,'em')
+    splitName = filename.split(os.sep)
+    filename = splitName[len(splitName)-1]
+
+
+    newFilename = destination + os.sep + filename[0:len(filename)-4] + '.em'
+
+    emfile.write(newFilename,'em')
 
 if __name__ == '__main__':
     # parse command line arguments

@@ -138,7 +138,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
     @author: FF
     """
     if verbose:
-        print "Function alignWeightReconstruct started"
+        print("Function alignWeightReconstruct started")
         mute = False
     else:
         mute = True
@@ -153,7 +153,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
         preBin=1
     if markerFileType == 'wimp':
         if verbose:
-            print " WIMP file used for alignment"
+            print(" WIMP file used for alignment")
         tiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName, TiltAlignmentParas=tiltParas,
                                 alignedTiltSeriesName=alignedTiltSeriesName,
                                 markerFileName=None, firstProj=firstProj, lastProj=lastProj,
@@ -162,7 +162,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
                                 verbose=False)
     else:
         if verbose:
-            print " EM markerfile file used for alignment"
+            print(" EM markerfile file used for alignment")
         tiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName, TiltAlignmentParas=tiltParas,
                                 alignedTiltSeriesName=alignedTiltSeriesName,
                                 markerFileName=markerFileName, firstProj=firstProj, lastProj=lastProj,
@@ -182,7 +182,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
         try:
             mkdir('align')
         except OSError:
-            print " dir 'align' already exists - writing aligned files into existing dir"
+            print(" dir 'align' already exists - writing aligned files into existing dir")
 
     tiltSeries.write_aligned_projs(weighting=weightingType, lowpassFilter=lowpassFilter, binning=projBinning,
                                    verbose=verbose)

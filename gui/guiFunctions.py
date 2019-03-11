@@ -4,8 +4,8 @@ from numpy import int32, arange, conj, zeros, ones, bool8, sqrt, newaxis
 import os
 
 import time
-#from pytom_volume import read
-#from pytom.tools.files import checkFileExists, checkDirExists
+from pytom_volume import read
+from pytom.tools.files import checkFileExists, checkDirExists
 
 
 def conv_mrc2em(directory, output_folder):

@@ -17,11 +17,20 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.fiducialAssignment import FiducialAssignment
-from pytom.gui.guiStructures import *#GuiTabWidget, CommonFunctions, SimpleTable, ParticlePicker, CreateMaskFile, ConvertEM2PDB
+from pytom.gui.guiStructures import * #GuiTabWidget, CommonFunctions, SimpleTable, ParticlePicker, CreateMaskFile, ConvertEM2PDB
 from pytom.gui.guiFunctions import avail_gpu
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.guiSupportCommands import *
-from pytom.bin.coordsPL import convertCoords2PL
+from pytom.basic.structures import ParticleList
+
+def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None):
+    pl = ParticleList()
+    for n, coordinate_file in enumerate(coordinate_files):
+        wedgeAngle = wedgeAngles[2*n:2*(n+1)]
+
+        pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle)
+    pl.toXMLFile(particleList_file)
+
 
 class ParticlePick(GuiTabWidget):
     '''Collect Preprocess Widget'''
@@ -341,8 +350,8 @@ class ParticlePick(GuiTabWidget):
             except:
                 tomogramNUM = n
 
-            prefix = 'tomogram_{:03d}'.format(tomogramNUM)
-            fname_plist = 'particleList_{}.xml'.format(prefix)
+            prefix = 'tomogram_{:03d}_'.format(tomogramNUM)
+            fname_plist = 'particleList_{}.xml'.format(prefix[:-1])
 
             values.append( [coordinateFile, prefix, 30, 30, fname_plist] )
 
@@ -365,11 +374,11 @@ class ParticlePick(GuiTabWidget):
     def mass_convert_txt2xml(self,pid,values):
         fname = str(QFileDialog.getSaveFileName(self, 'Save particle list.', self.pickpartfolder, filter='*.xml')[0])
         if not fname: return
-        if not fname.endswidth('.xml'):fname+='.xml'
+        if not fname.endswith('.xml'):fname+='.xml'
 
         conf = [[],[],[],[],[]]
         for row in range(self.tables[pid].table.rowCount()):
-            try:
+            if 1:
                 c = values[row][0]
                 p = self.tab22_widgets['widget_{}_{}'.format(row, 1)].text()
                 w1 = float(self.tab22_widgets['widget_{}_{}'.format(row,2)].text() )
@@ -377,19 +386,19 @@ class ParticlePick(GuiTabWidget):
                 pl = self.tab22_widgets['widget_{}_{}'.format(row,4)].text()
                 pl = os.path.join(self.pickpartfolder, pl)
                 #print(createParticleList.format(d=[c, p, w1, w2, pl]))
-                wedge = '{},{}'.format(w1,w2)
+                wedge = [w1,w2]
                 for n, inp in enumerate((c, pl, p, w1, w2)):
                     if n==4: n=3
                     conf[n].append(inp)
 
-                convertCoords2PL([c], [pl], subtomoPrefix=[p], wedgeAngles=[wedge])
+                convertCoords2PL([c], pl, subtomoPrefix=[p], wedgeAngles=wedge)
                 #os.system(createParticleList.format(d=[c, p, wedge, pl]))
 
-            except:
+            else:
                 print('Writing {} failed.'.format(os.path.basename(fname)))
                 return
 
-        convertCoords2PL(conf[0], conf[1], subtomoPrefix=conf[2], wedgeAngles=conf[3])
+        convertCoords2PL(conf[0], fname, subtomoPrefix=conf[2], wedgeAngles=conf[3])
 
 
 

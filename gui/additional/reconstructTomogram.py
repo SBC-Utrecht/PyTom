@@ -71,7 +71,7 @@ if __name__ == '__main__':
                           options = options)
 
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         tiltSeriesName, tiltSeriesFormat, firstProj, lastProj, \
@@ -82,12 +82,12 @@ if __name__ == '__main__':
         reconstructionCenterX, reconstructionCenterY, reconstructionCenterZ, \
         weightingType, verbose, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print sys.version_info
-        print e
+        print(sys.version_info)
+        print(e)
         sys.exit()
         
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
     # input parameters
     #tiltSeriesName = tiltSeriesPath + tiltSeriesPrefix  # "../projections/tomo01_sorted" # ending is supposed to be tiltSeriesName_index.em (or mrc)
@@ -159,20 +159,20 @@ if __name__ == '__main__':
 
     outMarkerFileName = 'MyMarkerFile.em'
     if verbose:
-        print "Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj)
-        print "Index of Reference Projection: "+str(referenceIndex)
-        print "Marker Filename: "+str(markerFileName)
-        print "TltFile: "+str(tltFile)
-        print "prexgFile: "+str(prexgFile)
-        print "Index of Reference Marker: "+str(referenceMarkerIndex)
-        print "Handflip: "+str(handflip)
-        print "Projection Targets: "+str(projectionTargets)
-        print "FineAlignmentFile: "+str(fineAlignFile)
-        print "Binning Factor of Projections: "+str(projBinning)+", lowpass filter (in Ny): "+str(lowpassFilter)
-        print "Name of Reconstruction Volume: "+str(volumeName)+" of Filetype: "+str(filetype)
-        print "Reconstruction size: "+str(voldims)
-        print "Reconstruction center: "+str(reconstructionPosition)
-        print "write only aligned projections out: "+str(onlyWeightedProjections)
+        print("Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj))
+        print("Index of Reference Projection: "+str(referenceIndex))
+        print("Marker Filename: "+str(markerFileName))
+        print("TltFile: "+str(tltFile))
+        print("prexgFile: "+str(prexgFile))
+        print("Index of Reference Marker: "+str(referenceMarkerIndex))
+        print("Handflip: "+str(handflip))
+        print("Projection Targets: "+str(projectionTargets))
+        print("FineAlignmentFile: "+str(fineAlignFile))
+        print("Binning Factor of Projections: "+str(projBinning)+", lowpass filter (in Ny): "+str(lowpassFilter))
+        print("Name of Reconstruction Volume: "+str(volumeName)+" of Filetype: "+str(filetype))
+        print("Reconstruction size: "+str(voldims))
+        print("Reconstruction center: "+str(reconstructionPosition))
+        print("write only aligned projections out: "+str(onlyWeightedProjections))
 
     alignWeightReconstruct(tiltSeriesName=tiltSeriesName, markerFileName=markerFileName, lastProj=lastProj,
                            tltfile=tltFile, prexgfile=prexgFile, preBin=preBin,
