@@ -133,13 +133,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
     def __init__(self, parent=None, fname=''):
         super(FiducialAssignment, self).__init__(parent)
         self.size_policies()
-        try:
+        if 1:
             self.pytompath = self.parent().pytompath
             self.projectname = self.parent().projectname
-        except:
-            self.projectname = '/Users/gijs/Documents/PostDocUtrecht/Data/Juliette'
-            if not os.path.exists(self.projectname): self.projectname = '/home/gijsvds/testcase'
-            pass
+        #except:
+            #self.projectname = '/Users/gijs/Documents/PostDocUtrecht/Data/Juliette'
+            #if not os.path.exists(self.projectname): self.projectname = '/home/gijsvds/testcase'
+        #    pass
 
         self.tomofolder = os.path.join(self.projectname, '03_Tomographic_Reconstruction')
         self.tomogram_names = sorted( [line.split()[0] for line in os.listdir(self.tomofolder) if line.startswith('tomogram_')] )

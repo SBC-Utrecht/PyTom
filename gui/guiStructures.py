@@ -73,7 +73,7 @@ class BrowseWindowRemote(QMainWindow):
         except:
             pass
 
-        self.servername,self.username,self.password = 'emsquare1.science.uu.nl','emuser','#99@3584cg'
+        #self.servername,self.username,self.password = 'emsquare1.science.uu.nl','emuser','#99@3584cg'
 
 
 

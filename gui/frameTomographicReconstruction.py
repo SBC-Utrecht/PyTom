@@ -27,6 +27,8 @@ class TomographReconstruct(GuiTabWidget):
     def __init__(self, parent=None):
         super(TomographReconstruct, self).__init__(parent)
 
+
+        self.projectname = self.parent().projectname
         self.tomogram_folder = self.parent().tomogram_folder
         self.rawnanographs_folder = self.parent().rawnanographs_folder
         self.motioncor_folder = self.parent().motioncor_folder
