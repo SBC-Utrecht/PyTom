@@ -31,7 +31,7 @@ templateXML       = '''<JobDescription Destination="{d[6]}">
 
 templateAlignment = '''cd {d[0]}
 
-{d[1]}/bin/pytom {d[1]}/gui/reconstructTomogram.py \\
+{d[1]}/bin/pytom {d[1]}/gui/additional/reconstructTomogram.py \\
     --tiltSeriesName alignment/sorted  \\
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\
@@ -45,7 +45,7 @@ templateAlignment = '''cd {d[0]}
 
 templateWBP       = '''cd {d[0]}
 
-{d[1]}/bin/pytom {d[1]}/gui/reconstructTomogram.py \\
+{d[1]}/bin/pytom {d[1]}/gui/additional/reconstructTomogram.py \\
     --tiltSeriesName reconstruction/WBP/sorted \\
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\
@@ -67,7 +67,7 @@ templateWBP       = '''cd {d[0]}
 
 templateINFR      = '''cd {d[0]}
 
-{d[1]}/bin/pytom {d[1]}/gui/reconstructTomogram.py \\
+{d[1]}/bin/pytom {d[1]}/gui/additional/reconstructTomogram.py \\
     --tiltSeriesName reconstruction/INFR/sorted  \\
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\

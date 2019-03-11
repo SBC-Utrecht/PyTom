@@ -39,7 +39,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             lowpassFilter = 1.
             print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
         # weighting filter: arguments: (angle, cutoff radius, dimx, dimy,
-        lpf = pytom_freqweight.weight(0.0,lowpassFilter*imdim/2, imdim, imdim/2+1,1, lowpassFilter/5.*imdim)
+        lpf = pytom_freqweight.weight(0.0,lowpassFilter*imdim//2, imdim, imdim//2+1,1, lowpassFilter/5.*imdim)
         #lpf = bandpassFilter(volume=vol(imdim, imdim,1),lowestFrequency=0,highestFrequency=int(lowpassFilter*imdim/2),
         #                     bpf=None,smooth=lowpassFilter/5.*imdim,fourierOnly=False)[1]
 

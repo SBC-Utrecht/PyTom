@@ -292,7 +292,7 @@ class TomographReconstruct(GuiTabWidget):
                         mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', templateAlignment]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch = paramsSbatch,
-                                 paramsCmd=paramsCmd)
+                                 paramsCmd=paramsCmd, action=self.convert_em, paramsAction=[mode,'alignment','sorted'])
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         self.table_layouts[id].addWidget(label)
@@ -378,7 +378,7 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch['fname'] = 'ReconstructionINFR'
         paramsSbatch['folder'] = execfilename
 
-        self.insert_gen_text_exe(parent,mode,jobfield=False,action=self.convert_em,paramsAction=[mode,'INFR','sorted'],
+        self.insert_gen_text_exe(parent,mode,jobfield=False,action=self.convert_em,paramsAction=[mode,'reconstruction/INFR','sorted'],
                                  exefilename=execfilename, paramsSbatch=paramsSbatch,
                                  paramsCmd=[mode+'tomofolder',self.parent().pytompath,mode+'FirstIndex',mode+'LastIndex',
                                             mode + 'RefTiltIndex',mode + 'RefMarkerIndex',mode+'BinningFactor',
@@ -435,8 +435,8 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch['fname'] = 'ReconstructionWBP'
         paramsSbatch[ 'folder' ] = execfilename
 
-        self.insert_gen_text_exe(parent,mode,jobfield=False,action=self.convert_em,paramsAction=[mode,'WBP','sorted'],
-                                 exefilename=execfilename, paramsSbatch=paramsSbatch,
+        self.insert_gen_text_exe(parent,mode,jobfield=False,action=self.convert_em, exefilename=execfilename,
+                                 paramsAction=[mode,'reconstruction/WBP','sorted'],paramsSbatch=paramsSbatch,
                                  paramsCmd=[mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex',
                                             mode + 'LastIndex',
                                             mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor',
@@ -455,11 +455,14 @@ class TomographReconstruct(GuiTabWidget):
     def convert_em(self,params):
         mode = params[0]
         directory = self.widgets[mode+'tomofolder'].text()
-        output_folder = '{}/reconstruction/{}'.format(directory, params[1])
+        output_folder = '{}/{}'.format(directory, params[1])
         prefix = params[2]
         sorted_folder = self.widgets[mode+'FolderSorted'].text()
-        try: os.system('cp {}/{}/markerfile.em {}/markerfile.em'.format(directory, 'sorted', output_folder))
+        try: os.system(f'cp {directory}/sorted/markerfile.em {output_folder}/markerfile.em')
         except: pass
+
+
+        if not os.path.exists(f'{output_folder}/temp_files_unweighted'): os.mkdir(f'{output_folder}/temp_files_unweighted')
 
         if len([line for line in os.listdir(output_folder) if line.startswith(prefix.split('/')[-1])]):
             os.system('rm {}/sorted*.em'.format(output_folder))
