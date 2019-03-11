@@ -10,6 +10,7 @@ if sys.version_info[0] < 3:
 
 global pytompath
 pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
+if not pytompath: pytompath = '/Users/gijs/Documents/pytom_private'
 
 if not pytompath:
     print('Pytom package is not available. Please load, or install Pytom.')
@@ -137,7 +138,7 @@ class menudemo(QMainWindow, CommonFunctions):
         tb = QToolBar()
         tb.setStyleSheet('background: #{};'.format(self.bars))
         self.addToolBar(tb)
-
+        print(self.pytompath+'/gui/Icons/new_project4.png')
         new=QAction(QIcon("{}/gui/Icons/new_project4.png".format(self.pytompath)),"Create New Project",self)
         tb.addAction(new)
         load=QAction(QIcon("{}/gui/Icons/open_project4.png".format(self.pytompath)),"Load Project",self)

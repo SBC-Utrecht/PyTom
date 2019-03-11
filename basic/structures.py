@@ -54,7 +54,6 @@ class PyTomClass(object):
         from lxml import etree
         
         tree = self.toXML()
-    
         self._xmlString = etree.tostring(tree, pretty_print=True).decode("utf-8")[:-1]
 
         return self._xmlString
@@ -4074,7 +4073,7 @@ class MultiSymmetries(PyTomClass):
 class HelicalSymmetry(Symmetry):
     
     def __init__(self,nfold=None,symmetryAngle=None,repeatShift=None,isRightSymmetry = True,x = 0 , z2 = 0):
-        
+
         self._nfold             = nfold
         self._symmetryAngle     = symmetryAngle
         self._repeatShift       = repeatShift

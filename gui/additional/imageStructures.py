@@ -255,7 +255,7 @@ class ImageStack(PyTomClass):
         @type image: L{ptom_volume.vol}
         """
         if (type(image) != Image):
-            print type(image)
+            print(type(image))
             raise TypeError("Input must be Image")
         else:
             self.images.append(image)
@@ -366,7 +366,7 @@ class ImageStack(PyTomClass):
 
         for iexMax in range(0, niter):
             if self.verbose:
-                print "Starting Ex-Max iteration " + str(iexMax + 1) + " of " + str(niter)
+                print("Starting Ex-Max iteration " + str(iexMax + 1) + " of " + str(niter))
             meanX = 0.
             meanY = 0.
             #Max - step
@@ -404,7 +404,7 @@ class ImageStack(PyTomClass):
             self.p = self.images[ii].normalize(normtype=normtype, mask=mask,
                                                p=self.p)
             if self.verbose:
-                print "normalized image " + str(ii + 1) + " of " + str(len(self.images))
+                print("normalized image " + str(ii + 1) + " of " + str(len(self.images)))
 
     def taper_edges(self, width, taper_mask=None):
         """
@@ -420,7 +420,7 @@ class ImageStack(PyTomClass):
         for ii in range(0, len(self.images)):
             taper_mask = self.images[ii].taper_edges(width=width, taper_mask=taper_mask)
             if self.verbose:
-                print "edge tapered for image " + str(ii + 1) + " of " + str(len(self.images))
+                print("edge tapered for image " + str(ii + 1) + " of " + str(len(self.images)))
         return taper_mask
 
     def bandpass(self, lowfreq, hifreq, smooth=0., bpf=None):
@@ -439,7 +439,7 @@ class ImageStack(PyTomClass):
             bpf = self.images[ii].bandpass(lowfreq=lowfreq, hifreq=hifreq,
                                            smooth=smooth, bpf=bpf)
             if self.verbose:
-                print "bandpass filtered image " + str(ii + 1) + " of " + str(len(self.images))
+                print("bandpass filtered image " + str(ii + 1) + " of " + str(len(self.images)))
 
         return bpf
 

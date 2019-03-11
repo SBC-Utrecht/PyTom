@@ -137,13 +137,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
             self.pytompath = self.parent().pytompath
             self.projectname = self.parent().projectname
         except:
-            self.projectname = '/Users/gijs/Documents/PostDocUtrecht/GUI/testcase'
+            self.projectname = '/Users/gijs/Documents/PostDocUtrecht/Data/Juliette'
             if not os.path.exists(self.projectname): self.projectname = '/home/gijsvds/testcase'
             pass
 
         self.tomofolder = os.path.join(self.projectname, '03_Tomographic_Reconstruction')
         self.tomogram_names = sorted( [line.split()[0] for line in os.listdir(self.tomofolder) if line.startswith('tomogram_')] )
-
+        self.loaded_data = False
         self.layout = QGridLayout(self)
         self.cw = QWidget(self)
         self.cw.setSizePolicy(self.sizePolicyB)
@@ -378,9 +378,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.remove_all_circles()
         self.add_circles_new_frame2()
         self.main_image.setRange(xRange=(0,self.dim),yRange=(0,self.dim),padding=None)
-        title = '{} (tilt = {:5.1f} deg){}'.format(self.fnames[self.imnr].split('/')[-1],
-                                                           self.tiltangles[self.imnr],
-                                                           ' excluded'*self.excluded[self.imnr])
+        title = '{} (tilt = {:5.1f} deg){}'.format(self.fnames[self.imnr].split('/')[-1], self.tiltangles[self.imnr],
+                                                   ' excluded'*self.excluded[self.imnr])
         self.setWindowTitle(title)
 
     def add_circles_new_frame2(self):
@@ -388,6 +387,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
 #        for n,(fx,fy) in enumerate(self.mark_frames[self.imnr]):
         for n,(fx,fy, dummy) in enumerate(self.tiltimages[self.imnr].fiducials):
             if fx < 0.1 or fy<0.1: continue
+
             fc = self.bin_alg/self.bin_read
             color = self.tiltimages[self.imnr].indexed_fiducials[n]
             label = self.tiltimages[self.imnr].labels[n]
@@ -438,7 +438,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
 
         self.pixel_size = float(self.settings.widgets['pixel_size'].text())
         self.fiducial_size = float(self.settings.widgets['fiducial_size'].text() )
-        self.radius = int( (self.fiducial_size*5.)/self.pixel_size/self.bin_read )
+        self.settings.update_radius()
 
         self.algorithm = self.settings.widgets['algorithm'].currentText()
 
@@ -540,7 +540,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
             self.tiltimages.append(TiltImage(self, n, excluded=self.excluded[n]))
 
         self.imnr = numpy.abs(self.tiltangles).argmin()
-        self.settings.widgets['ref_frame'].setText(str(int(round(self.imnr))))
+        self.settings.widgets['ref_frame'].setValue( int(round(self.imnr)) )
 
         self.markermove = numpy.zeros_like(self.frames_full[self.imnr])
 
@@ -630,6 +630,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.mark_frames = -1 * numpy.ones((len(self.fnames), 300, 2), dtype=float)
         cntr = numpy.zeros((200), dtype=int)
         for tiltNr in range(len(self.fnames)):
+            print(numpy.array(self.tiltimages[tiltNr].fiducials))
             temp_fid = numpy.array(self.tiltimages[tiltNr].fiducials)[:,:2]
 
             dx,dy = temp_fid.shape
@@ -675,7 +676,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
                                                                           self.frame_shifts, tiltangles=self.tiltangles,
                                                                           plot=False, user_coords=self.user_coordinates,
                                                                           zero_angle=ref_frame, excluded=self.excluded,
-                                                                          diag=True, add_marker=self.add_markers)
+                                                                          diag=True, add_marker=self.add_markers,cut=3.)
 
         for tiltNr in range(len(self.fnames)):
             self.tiltimages[tiltNr].update_indexing(self.coordinates[tiltNr]*1.*self.bin_alg/self.bin_read)
@@ -706,13 +707,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.selectMarkers.deleteAll()
         self.manual_adjust_marker.deleteAll()
 
-    def recenter(self, markerFileName='markerfile_ref_TEMP.mrc', outFileName='markerfile_ref_TEMP.mrc',
+    def recenter(self, markerFileName='markerfile_ref_TEMP.em', outFileName='markerfile_ref_TEMP.em',
                      tiltSeriesFormat='mrc', return_ref_coords=True, selected_markers=True, save=False):
         if not mf_write:
             print ("NO RECENTERING: loading pytom failed")
             return 0
-
-        ret = self.write(markerFileName=markerFileName, selected_markers=selected_markers)
+        markerFileName = os.path.join(os.path.dirname(self.fnames[0]).replace('/excluded', ''), markerFileName)
+        ret = self.save(markerFileName=markerFileName, selected_markers=selected_markers)
         if ret == 0: return ret
 
 
@@ -722,18 +723,16 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         projIndices = list(projIndices[take.astype(bool)])
         prefix = '{}/{}/sorted/sorted_'.format(self.tomofolder, self.tomogram_name)
 
-
+        ref_frame = int(self.settings.widgets['ref_frame'].text())
         # Calculate the refined fiducial positions.
         self.ref_coords, self.errors, tX, tY = refineMarkerPositions(prefix, markerFileName, 0,
-                                                                     len(self.frames) - 1,
-                                                                     outFileName, dimBox=64,
+                                                                     len(self.frames) - 1, outFileName, dimBox=64,
                                                                      projIndices=projIndices,
                                                                      tiltSeriesFormat=tiltSeriesFormat,
                                                                      ret=return_ref_coords, write=False,
-                                                                     ireftilt=int(
-                                                                         self.controller.reference_frame.get()))
-
-        self.ref_coords /= (self.bin_ds * 1.)
+                                                                     ireftilt=ref_frame)
+        print(self.errors)
+        self.ref_coords /= (self.bin_alg* 1.)
 
         self.old_coords = numpy.zeros_like(self.coordinates)
 
@@ -766,8 +765,10 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
             else:
                 model = self.selectMarkers.model
 
-            data = zip(names,num_fid,self.errors)
+            data = list(zip(names,num_fid,self.errors))
             model.removeRows(0,model.rowCount())
+
+            print(data)
 
             self.selectMarkers.addMarker(model,data)
 
@@ -795,21 +796,23 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
 
 
         # Update tiltimages to include refined fiducial locations.
-        for tiltNr in range(len(fnames)):
-            labels = copy(self.tiltimages[tiltNr].labels)
-            index = copy(self.tiltimages[tiltNr].indexed_fiducials)
-
+        for tiltNr in range(len(self.fnames)):
+            labels = copy.deepcopy(self.tiltimages[tiltNr].labels)
+            index = copy.deepcopy(self.tiltimages[tiltNr].indexed_fiducials)
+            print(labels)
+            print(index)
             self.tiltimages[tiltNr].clear()
 
             for n, (cx, cy) in enumerate( self.mark_frames[tiltNr] ):
+                if cx < 0 and cy < 0: continue
+                print(n,tiltNr,index[n], self.tiltimages[tiltNr])
                 FY,FX = cx*self.bin_alg/self.bin_read, cy*self.bin_alg/self.bin_read
-                self.tiltimages[tiltNr].add_fiducial(FX-self.xmin,FY-self.ymin,FX,FY,label=labels[tiltNr][n])
+                self.tiltimages[tiltNr].add_fiducial(FX-self.xmin,FY-self.ymin,FX,FY,label=labels[n])
                 self.tiltimages[tiltNr].indexed_fiducials[n] = index[n]
 
         self.replot2()
 
-
-    def save(self, markerFileName='markerfile.mrc', ask_recent=1, selected_markers=True):
+    def save(self, markerFileName='markerfile.em', ask_recent=1, selected_markers=True):
 
         output_type = markerFileName.split('.')[-1]
         markerFileName = os.path.join(os.path.dirname(self.fnames[0]).replace('/excluded', ''), markerFileName)
@@ -890,29 +893,31 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         self.insert_label_combobox(self.grid, 'Tomogram Name', 'tomogram_name', self.parent().tomogram_names, rstep=1, cstep=-1,
                                    tooltip='Algorithm used for automatic fiducial detection.')
 
-        self.insert_label_line(self.grid, 'Angle Tilt Axis (degrees)', 'tilt_axis', rstep=1,
-                               validator=QDoubleValidator(),
-                               tooltip='Angle of the Tiltaxis, North direction = 0, West = 270.', value=270)
+        self.insert_label_spinbox(self.grid, 'tilt_axis', text='Angle Tilt Axis (degrees)', rstep=1,
+                               value=270, maximum=359, stepsize=5,
+                               tooltip='Angle of the Tiltaxis, North direction = 0, West = 270.')
 
-        self.insert_label_line(self.grid, 'Reference Frame', 'ref_frame', rstep=1, validator=QIntValidator(),
-                               tooltip='Fiducial sets are calculated from the reference frame.',value=19)
-
-        self.insert_label(self.grid,rstep=1)
-
-        self.insert_label_line(self.grid, 'Pixel Size (A)', 'pixel_size', rstep=1, validator=QDoubleValidator(),
-                               tooltip='Pixel Size in Angstrom.', value=1.75)
-
-        self.insert_label_line(self.grid, 'Fiducial Size (nm)', 'fiducial_size', rstep=1, validator=QIntValidator(),
-                               tooltip='Size of Fiducuials in nanometer.', value=5)
+        self.insert_label_spinbox(self.grid, 'ref_frame', text='Reference Frame', rstep=1,
+                                  value=19,minimum=1,maximum=91,stepsize=1,
+                                  tooltip='Fiducial sets are calculated from the reference frame.')
 
         self.insert_label(self.grid,rstep=1)
 
+        self.insert_label_spinbox(self.grid, 'pixel_size', text=r'Pixel Size (Å)', rstep=1,
+                                  value=1.75,maximum=300, stepsize=1., wtype=QDoubleSpinBox,
+                                  tooltip=r'Pixel Size in Ångstrom.')
 
-        self.insert_label_spinbox(self.grid,'bin_read', text='Binning Factor Reading', rstep=1, minimum=2, maximum=12,
+        self.insert_label_spinbox(self.grid, 'fiducial_size', text='Fiducial Size (Å)', rstep=1,
+                                  value=50, maximum=350, stepsize=10, tooltip='Size of Fiducuials in nanometer.')
+
+        self.insert_label(self.grid,rstep=1)
+
+
+        self.insert_label_spinbox(self.grid,'bin_read', text='Binning Factor Reading', rstep=1, minimum=1, maximum=16,
                                   stepsize=2,tooltip='Binning factor for reading.',value=2,wtype=QSpinBox,cstep=-1)
 
         self.insert_label_spinbox(self.grid,'bin_alg', text='Binning Factor Finding Fiducials',rstep=1,
-                                  minimum=2,maximum=16,stepsize=2,value=8,wtype=QSpinBox,cstep=-1,
+                                  minimum=1,maximum=16,stepsize=2,value=8,wtype=QSpinBox,cstep=-1,
                                   tooltip='Binning factor for finding fiducials, used to improve contrast.')
 
         self.insert_label(self.grid,rstep=1)
@@ -928,17 +933,23 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         self.setCentralWidget(self.settings)
 
         #CONNECT
-        self.widgets['pixel_size'].textChanged.connect(self.update_radius)
-        self.widgets['fiducial_size'].textChanged.connect(self.update_radius)
-        self.widgets['ref_frame'].textChanged.connect(self.update_ref_frame)
+        self.widgets['pixel_size'].valueChanged.connect(self.update_radius)
+        self.widgets['fiducial_size'].valueChanged.connect(self.update_radius)
+        self.widgets['ref_frame'].valueChanged.connect(self.update_ref_frame)
+        self.update_radius()
 
     def update_ref_frame(self):
         self.parent().ref_frame = int(self.widgets['ref_frame'].text())
 
     def update_radius(self):
-        self.parent().radius = float(self.widgets['fiducial_size'].text())*5./float(self.widgets['pixel_size'].text())\
-                               /int(self.widgets['bin_read'].text())
-        if self.parent().loaded_data: self.parent().replot()
+        w = self.widgets
+        fiducial_size,pixel_size,bin_read = map(float,(w['fiducial_size'].text(),
+                                                       w['pixel_size'].text(),
+                                                       w['bin_read'].text()) )
+
+        self.parent().radius = fiducial_size/(pixel_size*bin_read*2.)
+
+        if self.parent().loaded_data: self.parent().replot2()
 
 class SelectAndSaveMarkers(QMainWindow,CommonFunctions):
     def __init__(self,parent=None):

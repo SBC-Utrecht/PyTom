@@ -61,7 +61,7 @@ def dist_z(y0,y1,a1):
     z1 = (y1-y0*numpy.cos(a1) )/ (numpy.sin(a1))
     return z1
     
-def compare(cur, ref, imnr, cutoff=3.4,v=False,tiltangles=[],y0=0,a0=0,pos=1,cutoff_dist=10):
+def compare(cur, ref, imnr, cutoff=13.4,v=False,tiltangles=[],y0=0,a0=0,pos=1,cutoff_dist=10):
 
     dist_map = [1000]*(ref.shape[0])
     index_map = numpy.zeros((ref.shape[0]),dtype=int)

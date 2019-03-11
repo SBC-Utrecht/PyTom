@@ -9,7 +9,7 @@ class PyTomClassError(Exception):
     def __init__(self,value):
         self._value = value
     def __str__(self):
-        print self._value
+        print(self._value)
 
 class PyTomClass(object):
     """
@@ -22,14 +22,14 @@ class PyTomClass(object):
         @param xmlObj: A xml object
         @type xmlObj: L{lxml.etree._Element}
         """
-        print 'fromXML: This is an abstract method!'
+        print('fromXML: This is an abstract method!')
         assert False
         
     def toXML(self):
         """
         toXML: Serializes child object to a XML element. You MUST overload this function in a child class.
         """
-        print 'toXML: This is an abstract method!'
+        print('toXML: This is an abstract method!')
         assert False
         #raise RuntimeError("Function should not be called")
         
@@ -143,7 +143,7 @@ class PyTomClass(object):
         """
         check: Performs logical check on self to make sure that job settings are correct. Will display error message if not.
         """
-        print 'check: This is an abstract method!'
+        print('check: This is an abstract method!')
         assert False
 
     def toHTMLFile(self,filename,xsltFile=None,xsltTransform=None):
@@ -159,9 +159,9 @@ class PyTomClass(object):
         
         if xsltFile:
             from pytom.tools.files import readStringFile
-            import StringIO
+            import io
             xsltString = readStringFile(xsltFile)
-            xsltTransform = StringIO.StringIO(xsltString)
+            xsltTransform = io.StringIO(xsltString)
         else:
             raise RuntimeError('You did not provide a valid XSLT transformation.')
         
@@ -728,7 +728,7 @@ class ReferenceList(PyTomClass):
         return len(self._referenceList)
     
     def __getitem__(self,key):
-        if isinstance(key, (int, long)):
+        if isinstance(key, int):
             if key < self.len():
                 return self._referenceList[key]
             else:
@@ -750,7 +750,7 @@ class ReferenceList(PyTomClass):
         """
         
         
-        if isinstance(key, (int, long)):
+        if isinstance(key, int):
             if key < self.len():
                 self._referenceList[key] = value
             else:
@@ -928,7 +928,7 @@ class SingleTiltWedge(PyTomClass):
             self._wedgeAngle2 = wedgeAngle
 
         if rotation:
-            print "average: Warning - input rotation will not be used because deprecated!"
+            print("average: Warning - input rotation will not be used because deprecated!")
         self._cutoffRadius = cutoffRadius
         self._tiltAxisRotation = Rotation(0.0,0.0,0.0)
         
@@ -1069,7 +1069,7 @@ class SingleTiltWedge(PyTomClass):
             
             wedgeFilter = self.returnWedgeFilter(volume.sizeX(), volume.sizeY(), volume.sizeZ(), rotation)
             
-            result = filter(volume,wedgeFilter)
+            result = list(filter(volume,wedgeFilter))
             result = result[0]
             
             return result
@@ -1098,8 +1098,8 @@ class SingleTiltWedge(PyTomClass):
         from math import pi, sin, cos
         res = []
         
-        for j in xrange(2*b):
-            for k in xrange(2*b):
+        for j in range(2*b):
+            for k in range(2*b):
                 the = pi*(2*j+1)/(4*b) # (0,pi)
                 phi = pi*k/b # [0,2*pi)
                 
@@ -1167,7 +1167,7 @@ class SingleTiltWedge(PyTomClass):
 	    Angle2 = str(self._wedgeAngle2), CutoffRadius = str(self._cutoffRadius), 
 	    Smooth = str(self._smooth))
         
-        if((not isinstance(self._tiltAxisRotation, (int, long))) or 
+        if((not isinstance(self._tiltAxisRotation, int)) or 
 	        (not self._tiltAxisRotation.__class__ == float)):
             rotationElement = etree.Element('TiltAxisRotation')
             
@@ -1291,8 +1291,8 @@ be generated. If omitted / 0, filter is fixed to size/2.
         from math import pi, sin, cos
         res = []
         
-        for j in xrange(2*b):
-            for k in xrange(2*b):
+        for j in range(2*b):
+            for k in range(2*b):
                 the = pi*(2*j+1)/(4*b) # (0,pi)
                 phi = pi*k/b # [0,2*pi)
                 
@@ -1426,7 +1426,7 @@ class GeneralWedge(PyTomClass):
         
         from pytom.basic.filter import filter
         wedgeFilter = self.returnWedgeFilter(None, None, None, rotation)
-        result = filter(volume, wedgeFilter)
+        result = list(filter(volume, wedgeFilter))
         result = result[0]
         
         return result
@@ -1457,8 +1457,8 @@ class GeneralWedge(PyTomClass):
         x_ind = []
         y_ind = []
         z_ind = []
-        for j in xrange(2*b):
-            for k in xrange(2*b):
+        for j in range(2*b):
+            for k in range(2*b):
                 the = pi*(2*j+1)/(4*b) # (0,pi)
                 phi = pi*k/b # [0,2*pi)
                 
@@ -1956,7 +1956,7 @@ class ParticleList(PyTomClass):
                     self._particleList.append(Particle(self._directory + pli))
                 numberParticles = numberParticles + 1
         if av3Indexing:
-            for i in xrange(numberParticles):
+            for i in range(numberParticles):
                 self._particleList.append(Particle(self._directory+av3Prefix+str(i+1)+'.em'));
     
     def __len__(self):
@@ -2044,7 +2044,7 @@ class ParticleList(PyTomClass):
         @type key: int or string 
         @rtype: L{pytom.basic.Particle} if key is a int or string. L{pytom.basic.ParticleList} if key is a slice initialised with [start:stop]. Step is ignored completely 
         """
-        if isinstance(key, (int, long)):
+        if isinstance(key, int):
             
             if key < len(self):
                 return self._particleList[key]
@@ -2074,7 +2074,7 @@ class ParticleList(PyTomClass):
             
             newParticleList = ParticleList(self.getDirectory())
             
-            for i in xrange(start,stop,step):
+            for i in range(start,stop,step):
                 newParticleList.append(self._particleList[i])
             
             return newParticleList
@@ -2090,7 +2090,7 @@ class ParticleList(PyTomClass):
         @param value: A particle
         @type value: L{pytom.basic.structures.Particle}   
         """
-        if isinstance(key, (int, long)):
+        if isinstance(key, int):
             if key < len(self._particleList):
                 
                 from pytom.basic.structures import Particle
@@ -2122,7 +2122,7 @@ class ParticleList(PyTomClass):
             if not ((stop - start) == len(value)):
                 raise RuntimeError('Range and ParticleList length must match!')
             
-            for i in xrange(start,stop,step):
+            for i in range(start,stop,step):
                 self[i] = value[i-start]
             
         else:
@@ -2171,7 +2171,7 @@ class ParticleList(PyTomClass):
             filename = sourceDirectory + particlePrefix + str(int(motifList(3,i,0))+particleStartOffset) + '.em'
             
             if not checkFileExists(filename):
-                print 'File ', filename, 'does not exist! ', i , ' (Matlab index)'
+                print('File ', filename, 'does not exist! ', i , ' (Matlab index)')
                 
             currentClass = str(motifList(19,i,0))
             
@@ -2295,7 +2295,7 @@ class ParticleList(PyTomClass):
                 classNames.append(str(aClass))
         
         if verbose:
-            print classNames
+            print(classNames)
         
         particleListList = []
         
@@ -2304,7 +2304,7 @@ class ParticleList(PyTomClass):
             particleList = self.particlesFromClass(className)
             
             if verbose:
-                print particleList
+                print(particleList)
             
             particleListList.append(particleList)
         
@@ -2356,7 +2356,7 @@ class ParticleList(PyTomClass):
         if not particleList.__class__ == ParticleList:
             raise TypeError('ParticleList: Can not concatenate this particleList to a non ParticleList object!')
         
-        for i in xrange(len(particleList)):
+        for i in range(len(particleList)):
             
             self._particleList.append(particleList[i])
         
@@ -2368,7 +2368,7 @@ class ParticleList(PyTomClass):
         @param wedge: Wedge
         @type wedge: L{pytom.basic.structures.Wedge}
         """
-        for i in xrange(len(self)):
+        for i in range(len(self)):
             p = self._particleList[i]
             p.setWedge(wedge)
             self._particleList[i] = p
@@ -2410,7 +2410,7 @@ class ParticleList(PyTomClass):
         import os
         
         if not particlePrefix:
-            print 'Warning: Particle Prefix is empty. Will return original particle list.'
+            print('Warning: Particle Prefix is empty. Will return original particle list.')
             return self
         
         if directoryName.__class__ != str:
@@ -2423,7 +2423,7 @@ class ParticleList(PyTomClass):
         
         newParticleList = ParticleList(self._directory)
         
-        for index in xrange(startIndex,numberParticles+startIndex):
+        for index in range(startIndex,numberParticles+startIndex):
             try:
                 particle = self.getParticleByFilename(directoryName + particlePrefix + str(index) + '.em')
             except:
@@ -2445,7 +2445,7 @@ class ParticleList(PyTomClass):
         lines = readStringFile(filename)
         class_labels = [int(i) for i in lines.split('\n')[:-1]]
 
-        for index in xrange(len(self)):
+        for index in range(len(self)):
             particle = self[index]
             particle.setClass(class_labels[index])
             self[index] = particle
@@ -2460,14 +2460,14 @@ class ParticleList(PyTomClass):
     
     def setPickPositionFromParticleList(self, pl):
         assert len(self._particleList) == len(pl)
-        for i in xrange(len(pl)):
+        for i in range(len(pl)):
             self._particleList[i].setPickPosition(pl[i].getPickPosition())
     
     def fromLocalizationResult(self, filename):
         from pytom.localization.structures import readParticleFile
         particles = readParticleFile(filename)
     
-        for i in xrange(len(particles)):
+        for i in range(len(particles)):
             particle = particles[i]
             p = particle.toParticle()
     
@@ -2483,7 +2483,7 @@ class ParticleList(PyTomClass):
         for particle in self:
             score = particle.getScore()
             if score.__class__ == None:
-                print 'Warning: score was not set for particleList.averageScore!'
+                print('Warning: score was not set for particleList.averageScore!')
             else:
                 scores = scores + score.getValue()
         return scores / float(len(self))
@@ -2538,7 +2538,7 @@ class ParticleList(PyTomClass):
         @lastchange: 10.12.2012: changed name of function, FF
         """
         
-        for i in xrange(len(self)):
+        for i in range(len(self)):
             particle = self[i]
             particle.setPickPositionCenter(x,y,z)
             self[i] = particle
@@ -2580,7 +2580,7 @@ class ParticleList(PyTomClass):
         
         pls = self.splitByClass()
         
-        for i in xrange(len(pls)):
+        for i in range(len(pls)):
             particle = pls[i][0]
             className = particle.getClassName()
             pls[i].average(directory + '/class_' + str(className) + '.em',progressBar,False,pytom_mpi.isInitialised())
@@ -2598,8 +2598,8 @@ class ParticleList(PyTomClass):
         even = ParticleList('/')
         odd = ParticleList('/')
         if verbose:
-            print 'Number of particles in particle list: ', len(self)
-        for particleCounter in xrange(len(self)):
+            print('Number of particles in particle list: ', len(self))
+        for particleCounter in range(len(self)):
             if particleCounter % 2 == 0:
                 even.append(self[particleCounter])
             else:
@@ -2616,10 +2616,10 @@ class ParticleList(PyTomClass):
         assert type(even) == ParticleList
         assert len(even)+len(odd) == len(self)
         if verbose:
-            print 'Number of particles in particle list: ', len(self), ", odd:", len(odd), ", even:", len(even)
+            print('Number of particles in particle list: ', len(self), ", odd:", len(odd), ", even:", len(even))
         iodd = 0
         ieven = 0
-        for ii in xrange(len(self)):
+        for ii in range(len(self)):
             if ii %2 == 0:
                 self._particleList[ii] = even[ieven]
                 ieven = ieven + 1
@@ -2655,9 +2655,9 @@ class ParticleList(PyTomClass):
         odd = ParticleList('/')
         
         if verbose:
-            print 'Number of particles in particle list: ', len(self)
+            print('Number of particles in particle list: ', len(self))
             
-        for particleCounter in xrange(len(self)):
+        for particleCounter in range(len(self)):
         
             if particleCounter % 2 == 0:
                 even.append(self[particleCounter])
@@ -2665,12 +2665,12 @@ class ParticleList(PyTomClass):
                 odd.append(self[particleCounter])
         
         if verbose:
-            print 'Averaging even:'
+            print('Averaging even:')
         
         even.average(halfsetPrefix+'even.em',verbose,_mpiParallel=( pytom_mpi.isInitialised() and parallel) )
         
         if verbose:
-            print 'Averaging odd:'  
+            print('Averaging odd:')  
               
         odd.average(halfsetPrefix+'odd.em',verbose,_mpiParallel=( pytom_mpi.isInitialised() and parallel) )
         
@@ -2689,13 +2689,13 @@ class ParticleList(PyTomClass):
             numberBands = oddVolume.sizeX()/2
         
         if verbose:
-            print 'Using ', numberBands ,' shells for FSC'
+            print('Using ', numberBands ,' shells for FSC')
         
         fsc = FSC(oddVolume,evenVolume,numberBands,mask,verbose)
         
         if verbose:
-            print 'FSC list:'
-            print fsc
+            print('FSC list:')
+            print(fsc)
         
         if not plot == '':
             try:
@@ -2730,7 +2730,7 @@ class ParticleList(PyTomClass):
             currentClassLabel = self[0].getClass()
             currentColor = 0
             
-        for particleIndex in xrange(len(self)):
+        for particleIndex in range(len(self)):
             
             particle = self[particleIndex]
             
@@ -2780,7 +2780,7 @@ class ParticleList(PyTomClass):
         lastIndex = 0
         lists = []
         
-        for i in xrange(stepSize,len(self),stepSize):
+        for i in range(stepSize,len(self),stepSize):
             lists.append(self[lastIndex:i])
             lastIndex = i
             if i + stepSize >= len(self):
@@ -2827,7 +2827,7 @@ class ParticleList(PyTomClass):
         assert num >= 0 and num <= total_num
         
         if num == 0 or num == total_num:
-            random_index = range(0, total_num)
+            random_index = list(range(0, total_num))
         else:
             random_index = numpy.random.randint(0, total_num, num)
         
@@ -2971,8 +2971,8 @@ class ParticleList(PyTomClass):
             raise ValueError("Invalid argument.")
         
         import random
-        sample = range(len(self))
-        random_sample = [ sample[i] for i in sorted(random.sample(xrange(len(sample)), n)) ]
+        sample = list(range(len(self)))
+        random_sample = [ sample[i] for i in sorted(random.sample(range(len(sample)), n)) ]
         
         res = ParticleList()
         for s in random_sample:
@@ -3283,7 +3283,7 @@ class Rotation(PyTomClass):
         @param value: The valueset
         @type value: L{float}
         """
-        if isinstance(key, (int, long)):
+        if isinstance(key, int):
             if key< 0:
                 raise IndexError('Index out of range for Rotation class!')
             if key == 0:
@@ -3419,7 +3419,7 @@ class Shift(PyTomClass):
         @param value: A value
         @type value: L{float}
         """
-        if isinstance(key, (int, long)):
+        if isinstance(key, int):
             if key< 0:
                 raise IndexError('Index out of range for Rotation class!')
             if key == 0:
@@ -3443,15 +3443,15 @@ class Shift(PyTomClass):
         return self._z
     
     def setX(self,x):
-        assert x.__class__ == float or isinstance(x, (int, long))
+        assert x.__class__ == float or isinstance(x, int)
         self._x = x
         
     def setY(self,y):
-        assert y.__class__ == float or isinstance(y, (int, long))
+        assert y.__class__ == float or isinstance(y, int)
         self._y = y
         
     def setZ(self,z):
-        assert z.__class__ == float or isinstance(z, (int, long))
+        assert z.__class__ == float or isinstance(z, int)
         self._z = z
         
     def toXML(self):
@@ -3517,7 +3517,7 @@ class Shift(PyTomClass):
         getLength:
         @deprecated: Use len(Object) instead!
         """
-        print 'Shift.getLength is deprecated! Use len(Shift) instead!'
+        print('Shift.getLength is deprecated! Use len(Shift) instead!')
         return len(self)
     
     def __len__(self):
@@ -3878,7 +3878,7 @@ class PointSymmetry(Symmetry):
         newList = ParticleList(particleList.getDirectory())
         
         
-        for i in xrange(len(particleList)):
+        for i in range(len(particleList)):
             particle = particleList[i]
             
             for inplaneAngle in frange(0,360,360.0/float(self._nfold)):
@@ -3950,7 +3950,7 @@ class PointSymmetry(Symmetry):
             #rotatedVolume.write('rot'+str(currentRotation[0])+'.em')
             cc = nxcc(volume, rotatedVolume, mask)
             if verbose:
-                print 'Rotation ', currentRotation, ' Value' ,cc
+                print('Rotation ', currentRotation, ' Value' ,cc)
                 
             ccList.append(cc)
         
@@ -3982,7 +3982,7 @@ class PointSymmetry(Symmetry):
             
         symmetryAngle = 360 / float(self._nfold)
         
-        for i in xrange(self._nfold):
+        for i in range(self._nfold):
             if i == 0:
                 symVolume = volume
                 continue
@@ -3997,10 +3997,10 @@ class PointSymmetry(Symmetry):
                 tmp = vol(sizeX,sizeY,sizeZ)
                 max_cc = None
                 best_ang = None
-                if isinstance(self._search_ang, (int, long)):
+                if isinstance(self._search_ang, int):
                     best_ang = self._search_ang
                 else:
-                    for ang in xrange(self._search_ang[0], self._search_ang[1]):
+                    for ang in range(self._search_ang[0], self._search_ang[1]):
                         rot = Rotation(0,self._search_axis_z2,self._search_axis_x) * Rotation(ang,0,0) * Rotation(-self._search_axis_z2,0,-self._search_axis_x)
                         rotateSpline(rotVolume,tmp,rot.getZ1(),rot.getZ2(),rot.getX())
                         cc = xcc(volume, tmp)
@@ -4093,10 +4093,10 @@ class HelicalSymmetry(Symmetry):
         
         factor = 1 if self._isRightSymmetry else -1
 
-        for i in xrange(len(particleList)):
+        for i in range(len(particleList)):
             particle = particleList[i]
                 
-            for i in xrange(int(self._nfold)):
+            for i in range(int(self._nfold)):
                 #get a new object -> make sure we do not modify any property of the object
                 p2 = particle.copy()
                 particleRotation = p2.getRotation()
@@ -4141,7 +4141,7 @@ class HelicalSymmetry(Symmetry):
         
         factor = 1 if self._isRightSymmetry else -1
          
-        for i in xrange(self._nfold):
+        for i in range(self._nfold):
             tmp = rotate(particle,Rotation(self._symmetryAngle * i,0,0)) 
             tmp2= shift(tmp,0,0,factor * self._repeatShift *i)
             result += tmp2
@@ -4339,7 +4339,7 @@ class BandPassFilter(PyTomClass):
         from pytom.basic.filter import bandpassFilter
         
         if volume.sizeX()/2 < self._highestFrequency or volume.sizeY()/2 < self._highestFrequency or volume.sizeZ()/2 < self._highestFrequency:
-            print "Warning: Highest frequency in bandpass is larger than volume size."
+            print("Warning: Highest frequency in bandpass is larger than volume size.")
         
         res = bandpassFilter(volume,self._lowestFrequency,self._highestFrequency,bpf=None,smooth=self._smooth,fourierOnly=False)
         return res[0]

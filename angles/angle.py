@@ -62,7 +62,6 @@ class AngleObject(PyTomClass):
             from pytom.angles.localSampling import LocalSampling
             ang = LocalSampling()
             ang.fromXML(xmlObj)
-
         elif angType == 'AV3Sampling':
             from pytom.angles.localSampling import AV3Sampling
             ang = AV3Sampling()
@@ -113,7 +112,7 @@ class AngleObject(PyTomClass):
         if verbose:
             print("AngleObject.fromXML: Returned AngleObject: "+str(ang))
 
-
+        self.ang = ang
 
         return ang
 
