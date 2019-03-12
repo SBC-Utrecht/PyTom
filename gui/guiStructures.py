@@ -71,19 +71,20 @@ class BrowseWindowRemote(QMainWindow):
             self.username   = str(credentials[1])
             self.password   = str(credentials[2])
         except:
-            pass
+            return
+
 
         #self.servername,self.username,self.password = 'emsquare1.science.uu.nl','emuser','#99@3584cg'
 
         print(self.servername,self.username,self.password)
 
-        try:
+        if 1:
             self.connect_ftp_server(self.servername, self.username, self.password)
             self.setCentralWidget(splitter0)
             self.success = True
             self.add_folders()
 
-        except:
+        else:
             if validate:
                 QMessageBox().critical(self, "Credentials not valid.",
                                        "Please provide a valid combination of servername, username, and password",
@@ -484,12 +485,13 @@ class CommonFunctions():
 
     def set_attribute(self, wname):
         txt = self.widgets[wname].text()
+
         if wname[-1] == '1':
             wname = wname[:-1]
-            setattr(self, wname, self.widgets[wname].text())
+            setattr(self, wname, txt)
             self.widgets[wname].setText(txt)
         else:
-            setattr(self, wname, self.widgets[wname].text())
+            setattr(self, wname, txt)
             wname = wname + '1'
             self.widgets[wname].setText(txt)
 

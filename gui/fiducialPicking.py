@@ -61,14 +61,14 @@ def dist_z(y0,y1,a1):
     z1 = (y1-y0*numpy.cos(a1) )/ (numpy.sin(a1))
     return z1
     
-def compare(cur, ref, imnr, cutoff=13.4,v=False,tiltangles=[],y0=0,a0=0,pos=1,cutoff_dist=10):
-
+def compare(cur, ref, imnr, cutoff=3.4,v=False,tiltangles=[],y0=0,a0=0,pos=1,cutoff_dist=10,tiltaxis=0):
+    angle = tiltaxis
     dist_map = [1000]*(ref.shape[0])
     index_map = numpy.zeros((ref.shape[0]),dtype=int)
     coordinates = numpy.zeros_like(ref)
     for i,p in enumerate(cur):
         if p.sum() == 0: continue
-        index,dist = closest_point(p,ref,cutoff)
+        index,dist = closest_point(p,ref,cutoff,alpha=angle)
         
         if dist< 4*cutoff_dist:
             index_map[i] = index+1
@@ -99,9 +99,9 @@ def compare(cur, ref, imnr, cutoff=13.4,v=False,tiltangles=[],y0=0,a0=0,pos=1,cu
             for n,index in enumerate(index_map):
                 if index==0 or index != ind or cur[n].sum() == 0: continue
                 for ii in range(len(index_map)):
-                    ind1,dis1 = closest_point(cur[n],    ref,it=ii)
+                    ind1,dis1 = closest_point(cur[n],    ref,it=ii, alpha=angle)
                     if ind1+1==ind: break
-                ind2,dis2 = closest_point(cur[n],    ref,it=ii+1)                
+                ind2,dis2 = closest_point(cur[n],    ref,it=ii+1, alpha=angle)
                 closest.append([n,ind1+1,dis1,ind2+1,dis2])
             
             candidates = []
@@ -357,7 +357,7 @@ def frames_without_indexed_fiducials(c,tiltangle):
 
 
 def index_potential_fiducials(frames, mark_frames, frame_shifts, plot=True, cut=3, zero_angle=20, tiltangles=[],
-                              add_marker=False, excluded=[], user_coords=[],diag=False):
+                              add_marker=False, excluded=[], user_coords=[],diag=False,tiltaxis=0):
     from time import time
     s = time()
     c = 300
@@ -396,7 +396,7 @@ def index_potential_fiducials(frames, mark_frames, frame_shifts, plot=True, cut=
                     ref_fid[n] = [x+1,y+1]
              
 
-        index_cur_fid, coordinates_cur_sorted = compare(cur_fid, ref_fid, tiltangle, cutoff=cut,tiltangles=tiltangles,pos=1)
+        index_cur_fid, coordinates_cur_sorted = compare(cur_fid, ref_fid, tiltangle, cutoff=cut,tiltangles=tiltangles,pos=1,tiltaxis=tiltaxis)
         index_map[tiltangle,:] = index_cur_fid
         #print coordinates_cur_sorted
         coordinates_sorted[tiltangle,:] = coordinates_cur_sorted
@@ -413,7 +413,7 @@ def index_potential_fiducials(frames, mark_frames, frame_shifts, plot=True, cut=
             absent = (((ref_fid == [0,0]).sum(axis=1) ==2)*1)[:,numpy.newaxis]*markers
             ref_fid += absent
 
-        index_cur_fid, coordinates_cur_sorted = compare(cur_fid, ref_fid, tiltangle, cutoff=cut,tiltangles=tiltangles,pos=0)
+        index_cur_fid, coordinates_cur_sorted = compare(cur_fid, ref_fid, tiltangle, cutoff=cut, tiltangles=tiltangles, pos=0, tiltaxis=tiltaxis)
         index_map[tiltangle,:] = index_cur_fid
         coordinates_sorted[tiltangle,:] = coordinates_cur_sorted
     #frames_without_indexed_fiducials(coordinates_sorted[tiltangle,:], tiltangle)
