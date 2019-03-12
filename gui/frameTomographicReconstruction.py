@@ -198,7 +198,7 @@ class TomographReconstruct(GuiTabWidget):
                 tomofoldername = widgets['widget_{}_{}'.format(row, 4)].text()
                 shutil.rmtree( os.path.join(self.tomogram_folder, tomofoldername) )
                 # self.create_tomodir_instance(tomofoldername,mdocfile,folder)
-        self.update_create_tomoname(id,values)
+        self.update_create_tomoname(id)
 
     def create_tomodir_instance(self, tomofoldername, mdocfile, folder):
         src = os.path.join(self.tomogram_folder, '.tomoname')
@@ -235,10 +235,10 @@ class TomographReconstruct(GuiTabWidget):
             dst_mcor = os.path.join(os.path.dirname(mdoc_dst), 'sorted_{:02d}.mrc'.format(n))
 
             if os.path.exists(src_mcor):
-                shutil.copyfile(src_mcor, dst_mcor)
-                proc = Process(target=square_mrc, args=([dst_mcor]))
-                procs.append(proc)
-                proc.start()
+                os.system('cp {} {}'.format(src_mcor, dst_mcor))
+                #proc = Process(target=square_mrc, args=([dst_mcor]))
+                #procs.append(proc)
+                #proc.start()
                 # out = square_mrc(dst_mcor)
 
     def tab2UI(self):
