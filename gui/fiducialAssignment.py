@@ -670,13 +670,15 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
                     cnt[itilt][imark] = 1
         print ('num_particles = ', cnt.sum())
         self.frame_shifts = temp
-        ref_frame = int(self.settings.widgets['ref_frame'].text())
+        ref_frame = int(self.settings.widgets['ref_frame'].value())
+        tiltaxis = int(self.settings.widgets['tilt_axis'].value())
         self.coordinates, self.index_map, \
         self.frame_shifts_sorted, self.listdx = index_potential_fiducials(self.fnames, self.mark_frames,
                                                                           self.frame_shifts, tiltangles=self.tiltangles,
                                                                           plot=False, user_coords=self.user_coordinates,
                                                                           zero_angle=ref_frame, excluded=self.excluded,
-                                                                          diag=True, add_marker=self.add_markers,cut=3.)
+                                                                          diag=True, add_marker=self.add_markers,cut=3.,
+                                                                          tiltaxis=tiltaxis)
 
         for tiltNr in range(len(self.fnames)):
             self.tiltimages[tiltNr].update_indexing(self.coordinates[tiltNr]*1.*self.bin_alg/self.bin_read)
