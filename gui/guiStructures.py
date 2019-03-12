@@ -75,14 +75,14 @@ class BrowseWindowRemote(QMainWindow):
 
         #self.servername,self.username,self.password = 'emsquare1.science.uu.nl','emuser','#99@3584cg'
 
-
+        print(self.servername,self.username,self.password)
 
         try:
             self.connect_ftp_server(self.servername, self.username, self.password)
             self.setCentralWidget(splitter0)
             self.success = True
             self.add_folders()
-            self.show()
+
         except:
             if validate:
                 QMessageBox().critical(self, "Credentials not valid.",

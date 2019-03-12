@@ -272,12 +272,13 @@ class CollectPreprocess(GuiTabWidget):
                           tooltip='Select the folder and the data format in which the nanographs are stored.')
         self.insert_checkbox(parent, 'v01_batch_remote_nanograph', cstep=1, alignment=QtCore.Qt.AlignHCenter,
                              logvar=True)
-        self.insert_combobox(parent, 'v01_batch_filetype_nanographs', ['tif', 'mrc'], cstep=1, logvar=True)
+        self.insert_combobox(parent, 'v01_batch_filetype_nanographs', ['tif', 'mrc', 'em'], cstep=1, logvar=True)
         self.insert_lineedit(parent, 'v01_batch_folder_nanographs', cstep=1, logvar=True)
         self.insert_pushbutton(parent, cstep=self.column * -1 + 1, rstep=1, text='Browse',
                                action=self.browse,
-                               params=['folder', self.items[self.row][self.column - 1],
-                                       self.items[self.row][self.column - 2], self.items[self.row][self.column - 3]])
+                               params=['folder', self.widgets['v01_batch_folder_nanographs'],
+                                       self.widgets['v01_batch_filetype_nanographs'],
+                                       self.widgets['v01_batch_remote_nanograph']])
 
         # MDOC LINE
         self.insert_checkbox(parent, 'v01_batch_collect_mdoc', cstep=1, alignment=QtCore.Qt.AlignHCenter, logvar=True)

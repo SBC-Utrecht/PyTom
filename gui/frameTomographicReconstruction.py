@@ -270,14 +270,16 @@ class TomographReconstruct(GuiTabWidget):
         self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB,width=400 )
         self.insert_label_line_push(parent,'Folder Sorted Tilt Images', 'v02_Align_FolderSorted',
                                     'Select the folder where the sorted tiltimages are located.\n')
-        self.insert_label_line(parent, 'First Index', 'v02_Align_FirstIndex', 'Index of first image.',value='1')
-        self.insert_label_line(parent, 'Last Index', 'v02_Align_LastIndex', 'Index of last image.',value=str(last))
-        self.insert_label_line(parent, 'Reference Tilt Image', 'v02_Align_RefTiltIndex', value=str(reftilt),
-                               tooltip='Index of reference tilt image. Typically zeros degree image.')
-        self.insert_label_line(parent, 'Reference Marker', 'v02_Align_RefMarkerIndex', value='1',
-                               tooltip='Index of reference marker. See previous step.')
-        self.insert_label_line(parent, 'Binning Factor', 'v02_Align_BinningFactor', value='1', cstep=0,
-                               tooltip='Binning factor used for reconstruction')
+        self.insert_label_spinbox(parent, mode+'FirstIndex', text='First Index', tooltip='Index of first image.',
+                                  value=1,minimum=1,stepsize=1)
+        self.insert_label_spinbox(parent, mode +'LastIndex', text='Last Index', tooltip='Index of last image.',
+                                  value=last, minimum=2,stepsize=1)
+        self.insert_label_spinbox(parent, mode +'RefTiltIndex', text='Reference Tilt Image', value=reftilt,minimum=1,
+                                  tooltip='Index of reference tilt image. Typically zeros degree image.')
+        self.insert_label_spinbox(parent, mode +'RefMarkerIndex', text='Reference Marker', value=1,
+                                  tooltip='Index of reference marker. See previous step.')
+        self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=8, cstep=0,
+                                  tooltip='Binning factor used for reconstruction')
         #self.insert_label(parent,'Orientation tilt axis', rstep=1, cstep=1,
         #                  tooltip='Orientation of the tiltaxis with respect to the orientation of the camera.'+
         #                 'The point of the arrow indicates the rotation direction, following the left hand rule.')
@@ -355,14 +357,16 @@ class TomographReconstruct(GuiTabWidget):
         self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB,width=400 )
         self.insert_label_line_push(parent,'Folder Sorted Tilt Images', mode+'FolderSorted',
                                     'Select the folder where the sorted tiltimages are located.\n')
-        self.insert_label_line(parent, 'First Index', mode+'FirstIndex', 'Index of first image.',value='1')
-        self.insert_label_line(parent, 'Last Index', mode+'LastIndex', 'Index of last image.',value=str(last))
-        self.insert_label_line(parent, 'Reference Tilt Image', mode+'RefTiltIndex', value=str(reftilt),
-                               tooltip='Index of reference tilt image. Typically zeros degree image.')
-        self.insert_label_line(parent, 'Reference Marker', mode+'RefMarkerIndex', value='1',
-                               tooltip='Index of reference marker. See previous step.')
-        self.insert_label_line(parent, 'Binning Factor', mode+'BinningFactor', value='8', cstep=0,
-                               tooltip='Binning factor used for reconstruction')
+        self.insert_label_spinbox(parent, mode+'FirstIndex', text='First Index', tooltip='Index of first image.',
+                                  value=1,minimum=1,stepsize=1)
+        self.insert_label_spinbox(parent, mode +'LastIndex', text='Last Index', tooltip='Index of last image.',
+                                  value=last, minimum=2,stepsize=1)
+        self.insert_label_spinbox(parent, mode +'RefTiltIndex', text='Reference Tilt Image', value=reftilt,minimum=1,
+                                  tooltip='Index of reference tilt image. Typically zeros degree image.')
+        self.insert_label_spinbox(parent, mode +'RefMarkerIndex', text='Reference Marker', value=1,
+                                  tooltip='Index of reference marker. See previous step.')
+        self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=8, cstep=0,
+                                  tooltip='Binning factor used for reconstruction')
 
         #self.insert_label(parent,'Orientation tilt axis', rstep=1, cstep=1,
         #                  tooltip='Orientation of the tiltaxis with respect to the orientation of the camera.'+
@@ -392,9 +396,33 @@ class TomographReconstruct(GuiTabWidget):
         self.table_layouts[id].addWidget(label)
 
     def updateTomoFolder(self, mode):
-        t = self.widgets[mode+'FolderSorted'].text().replace('/sorted','')
+
+        folderSorted = self.widgets[mode+'FolderSorted'].text()
+        print(folderSorted)
+        if not folderSorted: return
+        t = folderSorted.replace('/sorted','')
         self.widgets[mode+'tomofolder'].setText(t)
         self.widgets[mode+ 'tomogramNR'].setText( os.path.basename(t) )
+
+        files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')]
+        lastIndex = len(files)
+        self.widgets[mode+'LastIndex'].setValue(lastIndex)
+        mdocfiles = [line for line in os.listdir(folderSorted) if line.endswith('.mdoc')]
+
+        if len(mdocfiles) ==1:
+            mdocfile = mdocfiles[0]
+            angles = []
+            for line in [line for line in open(f'{folderSorted}/{mdocfile}','r').readlines()]:
+                if line.startswith('TiltAngle = '):
+                    angles.append( float(line[len('TiltAngle = '):]))
+            angles = numpy.array(sorted(angles))
+
+            for i in range(len(files)):
+                if not 'sorted_{:02d}.mrc'.format(i) in files:
+                    angles[i]+=10000
+
+            refIndex = 1 + abs(angles).argmin()
+            self.widgets[mode+'RefTiltIndex'].setValue(refIndex)
 
     def tab42UI(self):
         id = 'tab42'
@@ -410,20 +438,17 @@ class TomographReconstruct(GuiTabWidget):
         self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB,width=400 )
         self.insert_label_line_push(parent,'Folder Sorted Tilt Images', h+'FolderSorted',
                                     'Select the folder where the sorted tiltimages are located.\n')
-        self.insert_label_line(parent, 'First Index', h+'FirstIndex', 'Index of first image.',value='1',
-                               validator=QIntValidator())
-        self.insert_label_line(parent, 'Last Index', h+'LastIndex', 'Index of last image.',value=str(last),
-                               validator = QIntValidator())
-        self.insert_label_line(parent, 'Reference Tilt Image', h+'RefTiltIndex', value=str(reftilt),
-                               tooltip='Index of reference tilt image. Typically zeros degree image.',
-                               validator = QIntValidator())
-        self.insert_label_line(parent, 'Reference Marker', h+'RefMarkerIndex', value='1',
-                               tooltip='Index of reference marker. See previous step.', validator=QIntValidator())
-        self.insert_label_line(parent, 'Binning Factor', h + 'BinningFactor', value='8', cstep=0,
-                               tooltip='Binning factor used for reconstruction')
-        #self.insert_label(parent,'Orientation tilt axis', rstep=1, cstep=1,
-        #                  tooltip='Orientation of the tiltaxis with respect to the orientation of the camera.'+
-        #                 'The point of the arrow indicates the rotation direction, following the left hand rule.')
+        self.insert_label_spinbox(parent, mode+'FirstIndex', text='First Index', tooltip='Index of first image.',
+                                  value=1,minimum=1,stepsize=1)
+        self.insert_label_spinbox(parent, mode +'LastIndex', text='Last Index', tooltip='Index of last image.',
+                                  value=last, minimum=2,stepsize=1)
+        self.insert_label_spinbox(parent, mode +'RefTiltIndex', text='Reference Tilt Image', value=reftilt,minimum=1,
+                                  tooltip='Index of reference tilt image. Typically zeros degree image.')
+        self.insert_label_spinbox(parent, mode +'RefMarkerIndex', text='Reference Marker', value=1,
+                                  tooltip='Index of reference marker. See previous step.')
+        self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=8, cstep=0,
+                                  tooltip='Binning factor used for reconstruction')
+
         self.widgets[h + 'tomofolder'] = QLineEdit()
         self.widgets[h + 'tomogramNR'] = QLineEdit()
         self.widgets[h + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
@@ -435,19 +460,15 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch['fname'] = 'ReconstructionWBP'
         paramsSbatch[ 'folder' ] = execfilename
 
-        self.insert_gen_text_exe(parent,mode,jobfield=False,action=self.convert_em, exefilename=execfilename,
+        paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex',
+                     mode + 'LastIndex',
+                     mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor',
+                     mode + 'tomogramNR', '.em', '464', templateWBP]
+
+        self.insert_gen_text_exe(parent,mode, jobfield=False, action=self.convert_em, exefilename=execfilename,
                                  paramsAction=[mode,'reconstruction/WBP','sorted'],paramsSbatch=paramsSbatch,
-                                 paramsCmd=[mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex',
-                                            mode + 'LastIndex',
-                                            mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor',
-                                            mode + 'tomogramNR', '.em', '464', templateWBP]
-                                )
+                                 paramsCmd=paramsCmd)
 
-
-
-        #self.insert_label_action_label(parent,'Generate command',cstep=-2, sizepolicy=self.sizePolicyB)
-        #self.insert_textfield(parent, h+'CommandText', columnspan=3, rstep=1, cstep=2)
-        #self.insert_label_action_label(parent,'Execute command', rstep=1)
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         self.table_layouts[id].addWidget(label)
