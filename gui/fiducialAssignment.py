@@ -196,9 +196,10 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
                                action=self.index_fid,params=0, wname='indexButton',state=False)
         self.insert_label(parent, rstep=1)
         self.insert_pushbutton(parent,text='Manually Adjust Markers',rstep=1,tooltip='Manually adjust marker sets.',
-                               action=self.raise_window, params=self.manual_adjust_marker)
+                               action=self.raise_window, params=self.manual_adjust_marker, wname='adjustManually',
+                               state=False)
         self.insert_pushbutton(parent, text='Create Markerfile', rstep=1, tooltip='Select and save marker sets.',
-                               action=self.raise_window, params=self.selectMarkers)
+                               action=self.raise_window, params=self.selectMarkers,wname='createMarkerfile',state=False)
         self.insert_label(parent, rstep=1)
         self.insert_pushbutton(parent,text='Settings',rstep=1,tooltip='Adjust Settings.',
                                action=self.raise_window,params=self.settings)
@@ -477,7 +478,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.mark_frames = [[], ] * len(self.fnames)
 
         self.widgets['findButton'].setEnabled(True)
-
+        self.widgets['createMarkerfile'].setEnabled(True)
         self.replot2()
 
     def read_list(self, fnames, proc_id, nr_procs, frames, frames_full, frames_adj, transpose):
@@ -624,6 +625,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.bin = 0
         print (time.time()-s)
         self.widgets['detectButton'].setEnabled(True)
+        self.widgets['createMarkerfile'].setEnabled(True)
 
     def update_mark(self):
 
@@ -703,6 +705,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
 
         self.replot2()
         #self.controller.RecenterFid.config(state='active')
+        self.widgets['adjustManually'].setEnabled(True)
 
     def add_markers(self, data):
         self.selectMarkers.addMarker(self.selectMarkers.model, data)
@@ -950,7 +953,6 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
 
         self.widgets['detectButton'].setEnabled(True)
         self.detect_frameshift()
-        self.widgets['indexButton'].setEnabled(True)
         self.index_fid()
 
 

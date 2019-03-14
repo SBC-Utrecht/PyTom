@@ -56,7 +56,7 @@ templateWBP       = '''cd {d[0]}
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9  \\
     --weightingType -1  \\
-    --tomogramFile reconstruction/WBP/{d[7]}_WBP.em \\ 
+    --tomogramFile reconstruction/WBP/{d[7]}_WBP.em \\
     --fileType {d[8]}  \\
     --tomogramSizeX {d[9]}  \\
     --tomogramSizeY {d[9]} \\
