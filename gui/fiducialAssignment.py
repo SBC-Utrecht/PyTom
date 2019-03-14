@@ -884,63 +884,24 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         from pytom.basic.files import read as read_pytom
         from pytom.gui.mrcOperations import read_mrc
         from pytom_numpy import vol2npy as v2n
+        from pytom.gui.guiFunctions import wimp2markerfile, mrc2markerfile, em2markerfile
 
         if markfilename[-4:]=='.mrc':
-            mf = read_mrc(markfilename)
+            self.mark_frames = mrc2markerfile(markfilename, len(self.fnames))
         elif markfilename[-3:]=='.em':
-            v = read_pytom(markfilename)
-            data = v2n(v)
-            mf = copy.deepcopy( data )
+            mf = em2markerfile( markfilename, len(self.fnames) )
+        elif markfilename[-5:] == '.wimp':
         else:
             return
 
-        (num,angles,d) = mf.shape
 
         self.deleteAllMarkers()
 
         self.mark_frames = -1*numpy.ones((len(self.fnames),num,2))
         self.coordinates = -1*numpy.ones((len(self.fnames),num,2))
         self.fs = numpy.zeros((angles,2))
-        #print mf[0,:,1:3].shape,self.coordinates[:,0,:].shape
-        markers = []
-        if d==12:
-            for i in range(num):
-                for j in range(angles):
-                    for n, angle in enumerate(self.tiltangles):
-                        if abs(mf[2,j,i] - angle) < 0.1:
-                            j = n
-                            break
-
-                    self.coordinates[j,i,0] = mf[i,j,1]/float(self.bin_read)
-                    self.coordinates[j,i,1] = mf[i,j,2]/float(self.bin_read)
-
-                #self.coordinates[:,i,:] = mf[i,:,1:3]/float(self.bin_ds)
-                self.mark_frames[:,i,:] = self.coordinates[:,i,:]
-        else:
-            (d,angles,num) = mf.shape
-            #print mf.shape
-            locX,locY = 1,2
 
 
-            self.mark_frames = -1*numpy.ones((len(self.fnames),num,2))
-            self.coordinates = -1*numpy.ones((len(self.fnames),num,2))
-
-            #print mf[0,:,1:3].shape,self.coordinates[:,0,:].shape
-            markers = []
-            for i in range(num):
-                for j in range(angles):
-                    m=-1
-
-                    for n, angle in enumerate(self.tiltangles):
-                        if abs(mf[0,j,i] - angle) < 1:
-                            m = n
-                            break
-                    if m==-1: continue
-
-                    self.coordinates[m,i,0] = mf[locX,j,i]/float(self.bin_read)
-                    self.coordinates[m,i,1] = mf[locY,j,i]/float(self.bin_read)
-
-                self.mark_frames[:,i,:] = self.coordinates[:,i,:]
 
         for n in range(len(self.tiltimages)):
             self.tiltimages[n].clear()
