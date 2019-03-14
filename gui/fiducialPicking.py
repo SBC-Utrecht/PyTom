@@ -2,6 +2,8 @@
 import sys
 import os
 import glob
+from typing import Any, Union
+
 import numpy
 import pytom.gui.mrcOperations
 from time import time
@@ -30,6 +32,7 @@ def diff(vec0, vec1):
 def closest_point(ref_vec, points,cutoff=3.4, it=0, alpha=270):
 
     if alpha < 0.: alpha += 360
+    '''
     if alpha < 45 or alpha > 315 or (alpha > 135 and alpha < 225):
         vertical = True
     else:
@@ -43,13 +46,22 @@ def closest_point(ref_vec, points,cutoff=3.4, it=0, alpha=270):
     if not vertical:
         for n, p in enumerate(points):
             c[n] = diff(ref_vec,p)
+            print(p, ref_vec,abs(distance(p, ref_vec, alpha)),abs(ref_vec[1] - (p[1] - t90 * (p[0]-ref_vec[0]))))
             if abs(ref_vec[1] - (p[1] - t90 * (p[0]-ref_vec[0]))) > cutoff:
                 c[n] = 1000
     else:
         for n, p in enumerate(points):
+            c[n] = diff(ref_vec, p)
+
+            print(p, ref_vec, abs(distance(p,ref_vec,alpha)),abs(ref_vec[0] - (p[0] - t00 * (p[1]-ref_vec[1]))))
             if vertical and abs(ref_vec[0] - (p[0] - t00 * (p[1]-ref_vec[1]))) > cutoff:
                 c[n] = 1000
-
+    '''
+    c = numpy.zeros(len(points), dtype=float)
+    for n, p in enumerate(points):
+        c[n] = diff(ref_vec, p)
+        if abs(distance(p, ref_vec, alpha))> cutoff:
+            c[n] = 1000
     try:
         for i in range(it): c[c.argmin()] = 10000
         return c.argmin(), c.min()
@@ -120,7 +132,7 @@ def compare(cur, ref, imnr, cutoff=3.4,v=False,tiltangles=[],y0=0,a0=0,pos=1,cut
 
                     if c[4] < 100:
                         if v: print ('changed', index_map[c[0]], index_map[c[1]])
-                        index_map[c[0]]==c[3]
+                        index_map[c[0]]=c[3]
                     else: index_map[c[0]] = 0
             
             elif len(candidates) ==2:
@@ -136,12 +148,14 @@ def compare(cur, ref, imnr, cutoff=3.4,v=False,tiltangles=[],y0=0,a0=0,pos=1,cut
 
                 if std2<4 and std2 <4:
                     p1,p2 = cur[c1[0]],cur[c2[0]]
-                    
-                    diff = abs(p1[1]*4.-p2[1]*4.)
+
+                    diff = distance(p1,p2,angle)
+
+                    #diff = abs(p1[1]*4.-p2[1]*4.)
                     #print diff
-                    if diff>3.:
+                    if abs(diff)>3.:
                         #print p1, p2
-                        if p1[1] > p2[1]:
+                        if diff < 0. : #p1[1] > p2[1]:
                             m = c1
                             index_map[c2[0]] = c2[3]
                         else:
@@ -198,6 +212,16 @@ def compare(cur, ref, imnr, cutoff=3.4,v=False,tiltangles=[],y0=0,a0=0,pos=1,cut
 
     return index_map, coordinates
 
+def distance(p0, p1, angle):
+    dx = p1[0]-p0[0]
+    dy = p1[1]-p0[1]
+    a = arctan2(dy, dx)
+    v = sqrt(dx**2+dy**2)
+    diff_angle = a-angle*pi/180.
+    dist = v*cos(diff_angle)
+    return dist
+
+
 def sort( obj, nrcol ):
     obj.sort(key=lambda i: float(i[nrcol]))
 
@@ -210,8 +234,9 @@ def detect_shifts_many(mark_frames, max_shiftx=5.5,max_shifty=2.,sd=1,diag=False
 
     tilt_nr,mark_nr, k = mark_frames.shape
     dimx,dimy = image.shape
-
-    out = numpy.zeros((dimx,dimy,tilt_nr))
+    factor = max(1,numpy.ceil(dimx / 1024.))
+    factor = 1
+    out = numpy.zeros((dimx//factor,dimy//factor,tilt_nr))
 
     frame_shifts = numpy.zeros((tilt_nr,mark_nr,2),dtype=float)
     fs = numpy.zeros((tilt_nr,2),dtype=float)
@@ -220,12 +245,14 @@ def detect_shifts_many(mark_frames, max_shiftx=5.5,max_shifty=2.,sd=1,diag=False
 
     for itilt in range(tilt_nr):
         for imark in range(mark_nr):
-            x,y = mark_frames[itilt][imark]
+            x,y = mark_frames[itilt][imark]/factor
             #if x> dimx-1 or y> dimy-1: print x,y
             if x > 0 and y > 0 and x < dimx-1 and y< dimy-1: out[int(round(x))][int(round(y))][itilt] = 1
     for itilt in range(tilt_nr-1):
+
         c, shifty, shiftx, m = detect_shift(gaussian_filter(out[:,:,itilt],sd), gaussian_filter(out[:,:,itilt+1],sd),image=image)
-        
+        shiftx *= factor
+        shifty *= factor
         if m > 0.001:#abs(shiftx) > max_shiftx or abs(shifty) > max_shifty: 
             print ("\t{:2d}-{:2d} {:4.0f} {:4.0f} {:4.3f}".format(itilt,itilt+1,shiftx,shifty,m))
             frame_shifts[itilt+1:] += [ shiftx, shifty]
@@ -235,7 +262,7 @@ def detect_shifts_many(mark_frames, max_shiftx=5.5,max_shifty=2.,sd=1,diag=False
     
     frame_shifts *= (mark_frames.sum(axis=-1) > 0)[:,:,numpy.newaxis]
     if diag: print ('detect frame shifts: {:.0f} msec'.format(1000*(time()-s)))
-    print
+
     return frame_shifts, num_shifts, outline_detect_shifts, fs
 
 

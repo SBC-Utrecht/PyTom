@@ -38,7 +38,7 @@ templateAlignment = '''cd {d[0]}
     --referenceIndex {d[4]} \\
     --markerFile alignment/markerfile.em \\
     --referenceMarkerIndex {d[5]} \\
-    --projectionTargets alignment/temp_files_unweighted/temp \\
+    --projectionTargets alignment/unweighted_unbinned/temp \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9 \\
     --weightingType 0 '''
