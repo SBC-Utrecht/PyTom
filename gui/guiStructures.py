@@ -663,6 +663,7 @@ class CommonFunctions():
         mode = params[0]
         line = params[1]
         filetype = params[2]
+
         try:
             remote = params[3].isChecked()
         except:
@@ -688,6 +689,7 @@ class CommonFunctions():
             if mode == 'folder':
                 line.setText(QFileDialog.getExistingDirectory(self, 'Open file', initdir))
             if mode == 'file':
+
                 filename = QFileDialog.getOpenFileName(self, 'Open file', initdir, filters)
                 if str(filename[0]): line.setText(str(filename[0]))
         if remote:
@@ -1325,18 +1327,13 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
     def load_image(self):
 
-        if self.title == 'Dummy Data':
-            dim = 256
-            self.vol = np.ones((dim,dim,dim),dtype=float)*5
-            x,y,z = meshgrid(arange(dim),arange(dim),arange(dim))
-            for m in (x,y,z):
-                m -= dim/2
-            R = sqrt(4*x**2+2*y**2+z**2)
-            self.vol[R<(dim/4)] = 20.
-            self.vol += np.random.poisson(self.vol)
-            self.vol[:dim/8,:,:] = 0
-            self.vol[-dim / 8:, :, :] = 0
-        else:
+        if self.title.endswith('em'):
+            from pytom.basic.files import read
+            from pytom_numpy import vol2npy
+            vol  = read(self.title)
+            self.vol = copy.deepcopy( vol2npy(vol) )
+            self.vol = self.vol.T
+        elif self.title.endswith('mrc'):
             self.vol = read_mrc(self.title)
 
         #self.vol[self.vol < -4.] = -4.
