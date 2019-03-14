@@ -8,6 +8,74 @@ from pytom_volume import read
 from pytom.tools.files import checkFileExists, checkDirExists
 
 
+def wimp2markerfile(filename, num_tiltimages, write=False):
+    data = [line for line in open(filename).readlines()]
+
+    for i in range(10):
+        if '# of object' in data[i]:
+            num_markers = int(data[i].split()[-1])
+
+    markerset = numpy.ones((num_tiltimages,num_markers,2))*-1.
+
+    for line in data:
+        if 'Object #:' in line:
+            objectID = int(line.split()[-1])-1
+            if objectID >= num_markers:
+                raise Exception('Wimp file contains more tiltimages than you have loaded! Conversion Failed.')
+        try:
+            x,y,itilt = map(float, line.split()[1:4])
+            markerset[int(itilt)][objectID] = [x,y]
+        except:
+            pass
+
+    return markerset
+
+def mrc2markerfile(filename, num_tiltimages):
+    mf = read_mrc(markfilename)
+
+    mark_frames = -1 * numpy.ones((num_tiltimages, mf.shape[0], 2))
+    for i in range(num):
+        for j in range(angles):
+            for n, angle in enumerate(self.tiltangles):
+                if abs(mf[2, j, i] - angle) < 0.1:
+                    j = n
+                    break
+
+            self.coordinates[j, i, 0] = mf[i, j, 1] / float(self.bin_read)
+            self.coordinates[j, i, 1] = mf[i, j, 2] / float(self.bin_read)
+
+        # self.coordinates[:,i,:] = mf[i,:,1:3]/float(self.bin_ds)
+
+def em2markerfile(filename,num_tiltimages):
+    vol = read(filename)
+    mf = copy.deepcopy(vol2npy(vol))
+
+        (d, angles, num) = mf.shape
+        # print mf.shape
+        locX, locY = 1, 2
+
+        self.mark_frames = -1 * numpy.ones((len(self.fnames), num, 2))
+        self.coordinates = -1 * numpy.ones((len(self.fnames), num, 2))
+
+        # print mf[0,:,1:3].shape,self.coordinates[:,0,:].shape
+        markers = []
+        for i in range(num):
+            for j in range(angles):
+                m = -1
+
+                for n, angle in enumerate(self.tiltangles):
+                    if abs(mf[0, j, i] - angle) < 1:
+                        m = n
+                        break
+                if m == -1: continue
+
+                self.coordinates[m, i, 0] = mf[locX, j, i] / float(self.bin_read)
+                self.coordinates[m, i, 1] = mf[locY, j, i] / float(self.bin_read)
+
+            self.mark_frames[:, i, :] = self.coordinates[:, i, :]
+
+
+
 def conv_mrc2em(directory, output_folder):
     '''This function converts all mrc files in the specified
     directory to the .em format and saves the files in the
