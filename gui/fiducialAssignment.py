@@ -770,7 +770,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
             data = list(zip(names,num_fid,self.errors))
             model.removeRows(0,model.rowCount())
 
-            print(data)
+            
 
             self.selectMarkers.addMarker(model,data)
 
@@ -801,13 +801,12 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         for tiltNr in range(len(self.fnames)):
             labels = copy.deepcopy(self.tiltimages[tiltNr].labels)
             index = copy.deepcopy(self.tiltimages[tiltNr].indexed_fiducials)
-            print(labels)
-            print(index)
+            
             self.tiltimages[tiltNr].clear()
 
             for n, (cx, cy) in enumerate( self.mark_frames[tiltNr] ):
                 if cx < 0 and cy < 0: continue
-                print(n,tiltNr,index[n], self.tiltimages[tiltNr])
+                
                 FY,FX = cx*self.bin_alg/self.bin_read, cy*self.bin_alg/self.bin_read
                 self.tiltimages[tiltNr].add_fiducial(FX-self.xmin,FY-self.ymin,FX,FY,label=labels[n])
                 self.tiltimages[tiltNr].indexed_fiducials[n] = index[n]
@@ -818,7 +817,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
 
         output_type = markerFileName.split('.')[-1]
         markerFileName = os.path.join(os.path.dirname(self.fnames[0]).replace('/excluded', ''), markerFileName)
-        print (markerFileName)
+        
         tiltangles = self.tiltangles
 
         num_markers = self.manual_adjust_marker.MRMmodel.rowCount()
@@ -856,7 +855,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
                     markerFileVol[num][itilt][locY] = int(self.coordinates[iproj][imark][0] * self.bin_alg)
             convert_numpy_array3d_mrc(markerFileVol, markerFileName)
         elif output_type == 'em':
-            print ('em', 12, len(projIndices), num_markers)
+            
             markerFileVol = vol(12, len(projIndices), num_markers)
             markerFileVol.setAll(-1)
             for (imark, Marker) in enumerate(markIndices):
