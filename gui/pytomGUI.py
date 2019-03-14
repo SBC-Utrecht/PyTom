@@ -91,7 +91,7 @@ class NewProject(QMainWindow, CommonFunctions):
     def return_value(self,params):
         path = self.widgets['projectname'].text()
 
-        if os.path.exists(path):
+        if os.path.exists(os.path.join(path,'logfile.js')):
             QMessageBox().warning(self, "Folder exists",
                                    "Please provide a non existing folder name.", QMessageBox.Ok)
         else:
@@ -111,7 +111,8 @@ class menudemo(QMainWindow, CommonFunctions):
         self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         print(pytompath)
         self.pytompath=pytompath
-
+        self.projectname = None
+        self.stage_buttons = []
         y,b,g,w = 'f9ce00', '343434', 'cacaca','fcfaf1'
         ly = 'f4e8c1'
         green = 'a0c1b8'
@@ -139,15 +140,15 @@ class menudemo(QMainWindow, CommonFunctions):
         tb.setStyleSheet('background: #{};'.format(self.bars))
         self.addToolBar(tb)
         print(self.pytompath+'/gui/Icons/new_project4.png')
-        new=QAction(QIcon("{}/gui/Icons/new_project4.png".format(self.pytompath)),"Create New Project",self)
+        new=QAction(QIcon("{}/gui/Icons/new_project4.png".format(self.pytompath)),"New",self)
         tb.addAction(new)
-        load=QAction(QIcon("{}/gui/Icons/open_project4.png".format(self.pytompath)),"Load Project",self)
+        load=QAction(QIcon("{}/gui/Icons/open_project4.png".format(self.pytompath)),"Open",self)
         tb.addAction(load)
 
-        save = QAction(QIcon("{}/gui/Icons/save_project4.png".format(self.pytompath)), "Save Project", self)
+        save = QAction(QIcon("{}/gui/Icons/save_project4.png".format(self.pytompath)), "Save", self)
         tb.addAction(save)
 
-        settings = QAction(QIcon("{}/gui/Icons/cogwheel.png".format(self.pytompath)), "Open Settings", self)
+        settings = QAction(QIcon("{}/gui/Icons/cogwheel.png".format(self.pytompath)), "Settings", self)
         tb.insertSeparator(settings)
         tb.addAction(settings)
 
@@ -172,7 +173,7 @@ class menudemo(QMainWindow, CommonFunctions):
 
                 dropdown[-1].addAction(action)
 
-                dropdown[-1].triggered[QAction].connect(self.processtrigger)
+            dropdown[-1].triggered[QAction].connect(self.processtrigger)
 
         self.sbar = QStatusBar(self)
         self.sbar.setStyleSheet('background: #{}'.format(self.bars))
@@ -198,7 +199,7 @@ class menudemo(QMainWindow, CommonFunctions):
                 scrollarea.resize(w-280-frame.scrolloffset[n]/2,h-80-frame.scrolloffset[n])
 
     def save_logfile(self):
-
+        if not self.projectname: return
         with open(os.path.join(self.projectname, 'logfile.js'),'w') as f:
                 json.dump(self.logbook, f, indent=4, sort_keys=True)
         #np.save('logfile.npy', self.logbook)
@@ -221,14 +222,14 @@ class menudemo(QMainWindow, CommonFunctions):
 
     def processtrigger(self,q):
 
-        if q.text() == 'Create New Project': self.new_project()
-        elif q.text() == 'Load Project':     self.open_project()
+        if q.text() == 'New': self.new_project()
+        elif q.text() == 'Open':     self.open_project()
         elif q.text() == 'Quit':             sys.exit()
-        elif q.text() == 'Open Settings':    self.open_settings()
-        elif q.text() == 'Save Project':     self.save_logfile()
+        elif q.text() == 'Settings':    self.open_settings()
+        elif q.text() == 'Save':     self.save_logfile()
         else:
             for n, subname in enumerate(self.drs[1]):
-                if q.text() == subname:
+                if q.text() == subname and len(self.stage_buttons) > n+1:
                     self.stage_buttons[n+1].setEnabled(True)
                     self.logbook['00_framebutton_{}'.format(self.targets[n+1][0])] = True
 
@@ -247,7 +248,7 @@ class menudemo(QMainWindow, CommonFunctions):
     def go_you(self):
         self.projectname = os.path.join(os.getcwd(), self.label.text())
 
-        os.mkdir(self.projectname)
+        if not os.path.exists(self.projectname): os.mkdir(self.projectname)
         self.setWindowTitle(basename(self.projectname))
         self.logbook = {}
         for t, text in self.targets:

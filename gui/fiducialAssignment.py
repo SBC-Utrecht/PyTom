@@ -630,7 +630,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.mark_frames = -1 * numpy.ones((len(self.fnames), 300, 2), dtype=float)
         cntr = numpy.zeros((200), dtype=int)
         for tiltNr in range(len(self.fnames)):
-            print(numpy.array(self.tiltimages[tiltNr].fiducials))
+            #print(numpy.array(self.tiltimages[tiltNr].fiducials))
             temp_fid = numpy.array(self.tiltimages[tiltNr].fiducials)[:,:2]
 
             dx,dy = temp_fid.shape
@@ -672,13 +672,16 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.frame_shifts = temp
         ref_frame = int(self.settings.widgets['ref_frame'].value())
         tiltaxis = int(self.settings.widgets['tilt_axis'].value())
+        max_shift = self.radius*2.*self.bin_read/self.bin_alg
+        print(max_shift)
         self.coordinates, self.index_map, \
         self.frame_shifts_sorted, self.listdx = index_potential_fiducials(self.fnames, self.mark_frames,
                                                                           self.frame_shifts, tiltangles=self.tiltangles,
                                                                           plot=False, user_coords=self.user_coordinates,
                                                                           zero_angle=ref_frame, excluded=self.excluded,
-                                                                          diag=True, add_marker=self.add_markers,cut=3.,
-                                                                          tiltaxis=tiltaxis)
+                                                                          diag=True, add_marker=self.add_markers,
+                                                                          cut=max_shift, tiltaxis=tiltaxis)
+        numpy.save(os.path.join(self.projectname,'mark_frames.npy'), self.mark_frames)
 
         for tiltNr in range(len(self.fnames)):
             self.tiltimages[tiltNr].update_indexing(self.coordinates[tiltNr]*1.*self.bin_alg/self.bin_read)
@@ -710,7 +713,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.manual_adjust_marker.deleteAll()
 
     def recenter(self, markerFileName='markerfile_ref_TEMP.em', outFileName='markerfile_ref_TEMP.em',
-                     tiltSeriesFormat='mrc', return_ref_coords=True, selected_markers=True, save=False):
+                     tiltSeriesFormat='mrc', return_ref_coords=True, selected_markers=True, save=True):
         if not mf_write:
             print ("NO RECENTERING: loading pytom failed")
             return 0
@@ -733,7 +736,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
                                                                      tiltSeriesFormat=tiltSeriesFormat,
                                                                      ret=return_ref_coords, write=False,
                                                                      ireftilt=ref_frame)
-        print(self.errors)
+
         self.ref_coords /= (self.bin_alg* 1.)
 
         self.old_coords = numpy.zeros_like(self.coordinates)
@@ -760,19 +763,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
             imark = int(name.split('_')[-1])
             markIndices.append(imark)
 
+        model.removeRows(0,model.rowCount())
 
-        if len(self.errors):
-            if selected_markers:
-                model = self.selectMarkers.model1
-            else:
-                model = self.selectMarkers.model
 
-            data = list(zip(names,num_fid,self.errors))
-            model.removeRows(0,model.rowCount())
+        for n in range(len(self.errors)):
+            error = '{:5.2f}'.format(self.errors[n])
+            self.selectMarkers.addMarker(model,[names[n],num_fid[n],error])
 
-            
-
-            self.selectMarkers.addMarker(model,data)
 
 
         self.update_mark()
@@ -801,12 +798,12 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         for tiltNr in range(len(self.fnames)):
             labels = copy.deepcopy(self.tiltimages[tiltNr].labels)
             index = copy.deepcopy(self.tiltimages[tiltNr].indexed_fiducials)
-            
+
             self.tiltimages[tiltNr].clear()
 
             for n, (cx, cy) in enumerate( self.mark_frames[tiltNr] ):
                 if cx < 0 and cy < 0: continue
-                
+
                 FY,FX = cx*self.bin_alg/self.bin_read, cy*self.bin_alg/self.bin_read
                 self.tiltimages[tiltNr].add_fiducial(FX-self.xmin,FY-self.ymin,FX,FY,label=labels[n])
                 self.tiltimages[tiltNr].indexed_fiducials[n] = index[n]
@@ -1031,6 +1028,7 @@ class SelectAndSaveMarkers(QMainWindow,CommonFunctions):
     def addMarker(self, model, data):
         model.insertRow(model.rowCount())
         for i in range(min(len(data),len(self.header_names) )):
+
             model.setData(model.index(model.rowCount()-1, i), data[i])
             for view in (self.dataView,self.selectView):
             #for i in range(self.num_columns):
