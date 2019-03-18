@@ -11,7 +11,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.mrcOperations import *
-
+from pytom.gui.guiFunctions import read_markerfile
 import pyqtgraph as pg
 from pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
 from pyqtgraph import ImageItem
@@ -876,32 +876,18 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
     def load(self):
 
         markfilename = QFileDialog.getOpenFileName(self, 'Open file', self.projectname, "Image files (*.*)")
-        print(markfilename)
-
         markfilename = markfilename[0]
+
         if not markfilename or not os.path.exists(markfilename): return
 
-        from pytom.basic.files import read as read_pytom
-        from pytom.gui.mrcOperations import read_mrc
-        from pytom_numpy import vol2npy as v2n
-        from pytom.gui.guiFunctions import wimp2markerfile, mrc2markerfile, em2markerfile
-
-        if markfilename[-4:]=='.mrc':
-            self.mark_frames = mrc2markerfile(markfilename, len(self.fnames))
-        elif markfilename[-3:]=='.em':
-            mf = em2markerfile( markfilename, len(self.fnames) )
-        elif markfilename[-5:] == '.wimp':
-        else:
-            return
+        mark_frames = read_markerfile(markfilename,self.tiltangles)
 
 
         self.deleteAllMarkers()
 
-        self.mark_frames = -1*numpy.ones((len(self.fnames),num,2))
-        self.coordinates = -1*numpy.ones((len(self.fnames),num,2))
-        self.fs = numpy.zeros((angles,2))
-
-
+        self.mark_frames = mark_frames / float(self.bin_read)
+        self.coordinates = copy.deepcopy(self.mark_frames)
+        self.fs = numpy.zeros( (len(self.fnames),2) )
 
         for n in range(len(self.tiltimages)):
             self.tiltimages[n].clear()
@@ -911,6 +897,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         for imnr in range(itilt):
             for index in range(ifid):
                 CX,CY = self.mark_frames[imnr][index]
+                if CX < 0 or CY< 0: continue
                 self.tiltimages[imnr].add_fiducial(CX - self.xmin, CY - self.ymin, CX, CY, check=False, draw=False)
 
         self.widgets['detectButton'].setEnabled(True)

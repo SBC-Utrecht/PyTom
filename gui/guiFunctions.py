@@ -2,20 +2,35 @@
 from numpy.fft import fft2, ifft2, fftshift
 from numpy import int32, arange, conj, zeros, ones, bool8, sqrt, newaxis
 import os
-
+import numpy
+import copy
 import time
 from pytom_volume import read
 from pytom.tools.files import checkFileExists, checkDirExists
+from pytom.basic.files import read as read_pytom
+from pytom.gui.mrcOperations import read_mrc
+from pytom_numpy import vol2npy
 
 
-def wimp2markerfile(filename, num_tiltimages, write=False):
+def read_markerfile(filename,tiltangles):
+    if filename[-4:] == '.mrc':
+        mark_frames = mrc2markerfile(filename, tiltangles)
+    elif filename[-3:] == '.em':
+        mark_frames = em2markerfile(filename, tiltangles)
+    elif filename[-5:] == '.wimp':
+        mark_frames = wimp2markerfile(filename, tiltangles)
+    else:
+        return 0
+
+    return mark_frames
+def wimp2markerfile(filename, tiltangles, write=False):
     data = [line for line in open(filename).readlines()]
 
     for i in range(10):
         if '# of object' in data[i]:
             num_markers = int(data[i].split()[-1])
 
-    markerset = numpy.ones((num_tiltimages,num_markers,2))*-1.
+    markerset = numpy.ones((len(tiltangles),num_markers,2))*-1.
 
     for line in data:
         if 'Object #:' in line:
@@ -30,49 +45,48 @@ def wimp2markerfile(filename, num_tiltimages, write=False):
 
     return markerset
 
-def mrc2markerfile(filename, num_tiltimages):
-    mf = read_mrc(markfilename)
-
-    mark_frames = -1 * numpy.ones((num_tiltimages, mf.shape[0], 2))
+def mrc2markerfile(filename, tiltangles):
+    mf = read_mrc(filename)
+    num,angles,d = mf.shape
+    markers = -1 * numpy.ones((len(tiltangles), mf.shape[0], 2))
     for i in range(num):
         for j in range(angles):
-            for n, angle in enumerate(self.tiltangles):
+            for n, angle in enumerate(tiltangles):
                 if abs(mf[2, j, i] - angle) < 0.1:
                     j = n
                     break
 
-            self.coordinates[j, i, 0] = mf[i, j, 1] / float(self.bin_read)
-            self.coordinates[j, i, 1] = mf[i, j, 2] / float(self.bin_read)
+            markers[j, i, 0] = mf[i, j, 1]
+            markers[j, i, 1] = mf[i, j, 2]
 
-        # self.coordinates[:,i,:] = mf[i,:,1:3]/float(self.bin_ds)
+    return markers
 
-def em2markerfile(filename,num_tiltimages):
+def em2markerfile(filename,tiltangles):
     vol = read(filename)
     mf = copy.deepcopy(vol2npy(vol))
 
-        (d, angles, num) = mf.shape
-        # print mf.shape
-        locX, locY = 1, 2
+    (d, angles, num) = mf.shape
+    # print mf.shape
+    locX, locY = 1, 2
 
-        self.mark_frames = -1 * numpy.ones((len(self.fnames), num, 2))
-        self.coordinates = -1 * numpy.ones((len(self.fnames), num, 2))
+    mark_frames = -1 * numpy.ones((len(tiltangles), num, 2))
 
-        # print mf[0,:,1:3].shape,self.coordinates[:,0,:].shape
-        markers = []
-        for i in range(num):
-            for j in range(angles):
-                m = -1
+    # print mf[0,:,1:3].shape,self.coordinates[:,0,:].shape
+    markers = []
+    for i in range(num):
+        for j in range(angles):
+            m = -1
 
-                for n, angle in enumerate(self.tiltangles):
-                    if abs(mf[0, j, i] - angle) < 1:
-                        m = n
-                        break
-                if m == -1: continue
+            for n, angle in enumerate(tiltangles):
+                if abs(mf[0, j, i] - angle) < 1:
+                    m = n
+                    break
+            if m == -1: continue
 
-                self.coordinates[m, i, 0] = mf[locX, j, i] / float(self.bin_read)
-                self.coordinates[m, i, 1] = mf[locY, j, i] / float(self.bin_read)
+            mark_frames[m, i, 0] = mf[locX, j, i]
+            mark_frames[m, i, 1] = mf[locY, j, i]
 
-            self.mark_frames[:, i, :] = self.coordinates[:, i, :]
+    return mark_frames
 
 
 

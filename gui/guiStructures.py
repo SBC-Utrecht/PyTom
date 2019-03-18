@@ -1326,6 +1326,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.particleList = []
 
     def load_image(self):
+        if not self.title: return
 
         if self.title.endswith('em'):
             from pytom.basic.files import read
