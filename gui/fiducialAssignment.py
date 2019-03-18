@@ -889,19 +889,17 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         if markfilename[-4:]=='.mrc':
             self.mark_frames = mrc2markerfile(markfilename, len(self.fnames))
         elif markfilename[-3:]=='.em':
-            mf = em2markerfile( markfilename, len(self.fnames) )
+            self.mark_frames = em2markerfile( markfilename, len(self.fnames) )
         elif markfilename[-5:] == '.wimp':
+            self.mark_frames = wimp2markerfile(markfilename,len(self.fnames))
         else:
             return
 
 
         self.deleteAllMarkers()
 
-        self.mark_frames = -1*numpy.ones((len(self.fnames),num,2))
-        self.coordinates = -1*numpy.ones((len(self.fnames),num,2))
+        self.coordinates = self.mark_frames[:,:,:]
         self.fs = numpy.zeros((angles,2))
-
-
 
         for n in range(len(self.tiltimages)):
             self.tiltimages[n].clear()
@@ -911,6 +909,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         for imnr in range(itilt):
             for index in range(ifid):
                 CX,CY = self.mark_frames[imnr][index]
+                if CX < 0 or CY < 0: continue
                 self.tiltimages[imnr].add_fiducial(CX - self.xmin, CY - self.ymin, CX, CY, check=False, draw=False)
 
         self.widgets['detectButton'].setEnabled(True)
