@@ -2,6 +2,10 @@ from math import sin, cos, pi
 from sys import exit
 import numpy
 
+def cmp(a,b):
+    return (a > b) - (a < b)
+
+
 def markerResidual(cent, Markers_, cTilt, sTilt, 
         transX, transY, rotInPlane, 
         isoMag=None, 

@@ -98,7 +98,7 @@ class ParticlePick(GuiTabWidget):
 
 
         self.insert_label_line_push(parent, 'Tomogram', mode + 'tomogramFname',
-                                    'Select the particle list.', mode='file', filetype='mrc',cstep=-1)
+                                    'Select the particle list.', mode='file', filetype=['mrc','em'],cstep=-1)
         self.insert_pushbutton(parent, 'Pick!', tooltip='Select the folder with the aligned tilt images.',
                                rstep=1, cstep=2, action=self.insert_image, params = [parent])
 
