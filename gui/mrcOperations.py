@@ -33,6 +33,7 @@ def read_angle(mrc_fname, single=True,extra='user'):
     
 def read_mrc_header(mrc_fname):
     a = MRC_Data(mrc_fname,'mrc')
+    print(a)
     return a.header
 
 def square_mrc(mrc_fname):

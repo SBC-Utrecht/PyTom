@@ -69,6 +69,7 @@ if __name__ == '__main__':
                           arg=True, optional=True),
              ScriptOption(['--weightingType'], 'Type of weighting (-1 default r-weighting, 0 no weighting)', arg=True,
                           optional=True),
+             ScriptOption(['--projIndices'], 'Supply Indices', arg=False, optional=True),
              ScriptOption(['--verbose'], 'Enable verbose mode', arg=False, optional=True),
              ScriptOption(['-h', '--help'], 'Help.', False, True)]
     
@@ -79,7 +80,7 @@ if __name__ == '__main__':
                           options = options)
 
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         tiltSeriesName, tiltSeriesFormat, firstProj, lastProj, \
@@ -88,14 +89,14 @@ if __name__ == '__main__':
         volumeName, filetype, \
         tomogramSizeX, tomogramSizeY, tomogramSizeZ, \
         reconstructionCenterX, reconstructionCenterY, reconstructionCenterZ, \
-        numberProcesses, weightingType, verbose, help = parse_script_options(sys.argv[1:], helper)
+        numberProcesses, weightingType, projIndices, verbose, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print sys.version_info
-        print e
+        print(sys.version_info)
+        print(e)
         sys.exit()
         
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
     # input parameters
     #tiltSeriesName = tiltSeriesPath + tiltSeriesPrefix  # "../projections/tomo01_sorted" # ending is supposed to be tiltSeriesName_index.em (or mrc)
@@ -172,21 +173,28 @@ if __name__ == '__main__':
 
     outMarkerFileName = 'MyMarkerFile.em'
     if verbose:
-        print "Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj)
-        print "Index of Reference Projection: "+str(referenceIndex)
-        print "Marker Filename: "+str(markerFileName)
-        print "TltFile: "+str(tltFile)
-        print "prexgFile: "+str(prexgFile)
-        print "Index of Reference Marker: "+str(referenceMarkerIndex)
-        print "Handflip: "+str(handflip)
-        print "Projection Targets: "+str(projectionTargets)
-        print "FineAlignmentFile: "+str(fineAlignFile)
-        print "Binning Factor of Projections: "+str(projBinning)+", lowpass filter (in Ny): "+str(lowpassFilter)
-        print "Name of Reconstruction Volume: "+str(volumeName)+" of Filetype: "+str(filetype)
-        print "Reconstruction size: "+str(voldims)
-        print "Reconstruction center: "+str(reconstructionPosition)
-        print "write only aligned projections out: "+str(onlyWeightedProjections)
+        print("Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj) )
+        print("Index of Reference Projection: "+str(referenceIndex) )
+        print("Marker Filename: "+str(markerFileName) )
+        print("TltFile: "+str(tltFile) )
+        print("prexgFile: "+str(prexgFile) )
+        print("Index of Reference Marker: "+str(referenceMarkerIndex) )
+        print("Handflip: "+str(handflip) )
+        print("Projection Targets: "+str(projectionTargets) )
+        print("FineAlignmentFile: "+str(fineAlignFile) )
+        print("Binning Factor of Projections: "+str(projBinning)+", lowpass filter (in Ny): "+str(lowpassFilter) )
+        print("Name of Reconstruction Volume: "+str(volumeName)+" of Filetype: "+str(filetype) )
+        print("Reconstruction size: "+str(voldims) )
+        print("Reconstruction center: "+str(reconstructionPosition) )
+        print("write only aligned projections out: "+str(onlyWeightedProjections) )
 
+
+    if projIndices:
+        folder = os.path.basename(tiltSeriesName)
+        prefix = os.path.dirname(tiltSeriesName)
+        projIndices = [int(line.split('.')[-2].split('_')[-1]) for line in os.listdir(folder) if line.startswith(prefix) and line.endswith('.mrc')]
+        projIndices = sorted(projIndices)
+    print(projIndices)
 
     markerfile = read(markerFileName)
     markerdata = vol2npy(markerfile).copy()
@@ -198,11 +206,11 @@ if __name__ == '__main__':
             time.sleep(2)
             procs = [proc for proc in procs if proc.is_alive()]
 
-        print 'Spawned job for Marker_{}'.format(irefmark)
-        falignedTiltSeriesName= '{}/unweighted_unbinned_marker_{}/sorted_aligned'.format(alignedTiltSeriesName, irefmark)
+        print('Spawned job for Marker_{}'.format(irefmark))
+        falignedTiltSeriesName= '{}/unweighted_unbinned_marker_{}/sorted'.format(alignedTiltSeriesName, irefmark)
         outdir = os.path.dirname(falignedTiltSeriesName) 
         if not os.path.exists(outdir): os.mkdir( outdir )
-
+        print(os.getcwd())
 
         kwargs={'tiltSeriesName': tiltSeriesName, 
                 'markerFileName': markerFileName, 
@@ -211,12 +219,12 @@ if __name__ == '__main__':
                 'prexgfile': prexgFile, 
                 'preBin': preBin,
                 'volumeName': volumeName, 
-                'volumeFileType': filetype,
+                'volumeFileType': 'mrc',
                 'voldims': voldims, "recCent":reconstructionPosition,
-                'tiltSeriesFormat': tiltSeriesFormat, "firstProj":firstProj, "irefmark":irefmark+1, "ireftilt":ireftilt,
+                'tiltSeriesFormat': 'mrc', "firstProj":firstProj, "irefmark":irefmark+1, "ireftilt":ireftilt,
                 'handflip': handflip, "alignedTiltSeriesName":falignedTiltSeriesName,
                 'weightingType': weightingType, "lowpassFilter":lowpassFilter, "projBinning":projBinning,
-                'outMarkerFileName': outMarkerFileName, 'verbose':True}
+                'outMarkerFileName': outMarkerFileName, 'verbose':True,'projIndices':projIndices}
 
         if numberProcesses == 1:
             alignWeightReconstruct(**kwargs)

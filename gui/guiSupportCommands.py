@@ -163,3 +163,21 @@ extractParticles = '''cd {d[8]}
 reconstructWB.py -p {d[0]} --projectionDirectory {d[1]} -s {d[3]} -b {d[4]} -o {d[5]} {d[6]} {d[7]}'''
 
 
+multiple_alignment = '''cd {d[0]}
+
+{d[1]}/bin/pytom {d[1]}/gui/additional/multi_tilt_alignment.py \\
+--start {d[2]} \\
+--end {d[3]} \\
+--numberProcesses {d[4]} \\
+--tiltSeriesName {d[5]} \\
+--markerFile {d[6]} \\
+--projectionTargets {d[7]} \\
+--tomogramFolder {d[8]} \\
+--firstIndex {d[9]} \\
+--lastIndex {d[10]} \\
+--referenceIndex {d[11]} \\
+--weightingType {d[12]} \\
+--projIndices \\
+--fnames {d[13]} \\
+--deploy \\
+--sbatch'''

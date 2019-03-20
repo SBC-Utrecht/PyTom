@@ -5,6 +5,7 @@ import glob
 import numpy
 import time
 import shutil
+import copy
 
 from os.path import dirname, basename
 from ftplib import FTP_TLS, FTP
@@ -20,6 +21,9 @@ from pytom.gui.fiducialAssignment import FiducialAssignment
 from pytom.gui.guiStructures import *
 from pytom.gui.guiFunctions import avail_gpu, sort
 from pytom.gui.guiSupportCommands import *
+from pytom.basic.files import read
+from pytom_numpy import vol2npy
+
 import pytom.gui.guiFunctions as guiFunctions
 
 class TomographReconstruct(GuiTabWidget):
@@ -315,7 +319,8 @@ class TomographReconstruct(GuiTabWidget):
 
         tomodir = 'Juliette/03_Tomographic_Reconstruction'
 
-        markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(tomodir)))
+        markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
+        print('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder))
 
 
         values = []
@@ -327,7 +332,7 @@ class TomographReconstruct(GuiTabWidget):
             tangs = numpy.abs(numpy.array(sorted([float(line.split()[-1]) for line in
                                         os.popen('cat {} | grep TiltAngle '.format(mdocfile)).readlines()])) )
 
-            sortedfiles = glob.glob(qsortedfiles)
+            sortedfiles = sorted(glob.glob(qsortedfiles))
             last_frame = len(sortedfiles)
             index_zero_angle = 0
             mm = 9999
@@ -337,11 +342,46 @@ class TomographReconstruct(GuiTabWidget):
                     mm = tangs[index_s]
                     index_zero_angle = n+1
 
-            data = read_em(markerfile)
-            options_reference = map(str, range(1, data.shape[2] + 1)) + ['all']
-            values.append( [markerfile, True, 1, last_frame, index_zero_angle, options_reference] )
+            d = read(markerfile)
+            data = copy.deepcopy( vol2npy(d) )
+
+            options_reference = list(map(str, range(1, data.shape[2] + 1))) + ['all']
+            values.append( [markerfile.split('/')[-3], True, 1, last_frame, index_zero_angle, options_reference] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+
+        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_align(pid, v))
+
+    def run_multi_align(self,id,values):
+        print('multi_align', id)
+        num_procs = 20
+        n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.mdoc'.format(self.tomogram_folder))))
+        table = self.tables[id].table
+        widgets = self.tables[id].widgets
+        file_tomoname = os.path.join(self.tomogram_folder, '.multi_alignment.txt')
+        tomofolder_file = open(file_tomoname, 'w')
+        number_tomonames = 0
+        num_procs_per_proc = 0
+
+        for row in range(table.rowCount()):
+            wname = 'widget_{}_{}'.format(row, 1)
+
+            # Align
+            if wname in widgets.keys() and widgets[wname].isChecked():
+                tomofoldername = values[row][0]
+                refindex = values[row][4]
+                tomofolder_file.write('{} {}\n'.format(tomofoldername,refindex))
+                num_procs_per_proc = max(num_procs_per_proc, len(values[row][-1] ) - 1)
+                number_tomonames += 1
+                folder = os.path.join(self.tomogram_folder,tomofoldername)
+                os.system('cp {}/sorted/markerfile.em {}/alignment'.format(folder,folder))
+
+        tomofolder_file.close()
+
+        guiFunctions.batch_tilt_alignment( number_tomonames, fnames_tomograms=file_tomoname,
+                                           projectfolder=self.tomogram_folder, num_procs=20, num_procs_per_proc=num_procs_per_proc,
+                                           tiltseriesname='sorted/sorted', markerfile='alignment/markerfile.em',
+                                           targets='alignment', weightingtype=0, deploy=False)
 
     def tab41UI(self):
         id = 'tab41'

@@ -15,8 +15,8 @@ def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='
         if not n % num_procs == 0: 
             continue
 
-        cmd = cmd_batch_alignment.format( projectfolder, pytompath, n, min(number_tomonames,num_procs+n),num_procs_per_proc, 
-                                          tiltseriesname, markerfile, targets, projectfolder,
+        cmd = cmd_batch_alignment.format( projectfolder, pytompath, n, min(number_tomonames, num_procs+n),
+                                          num_procs_per_proc, tiltseriesname, markerfile, targets, projectfolder,
                                           firstindex, lastindex, refindex, weightingtype, fnames_tomograms)
 
         write_text2file(cmd,'{}/jobscripts/alignment_{:03d}.job'.format(projectfolder, n), 'w' )
@@ -44,7 +44,7 @@ if __name__=="__main__":
              ScriptOption(['--tiltSeriesName'],'Path to tilt images including prefix (relative to projectfolder)', arg=True,optional=True),
              ScriptOption(['--firstIndex'],'First index.', arg=True,optional=True),
              ScriptOption(['--lastIndex'],'Last index.', arg=True,optional=True),
-             ScriptOption(['--referenceIndex'],'Last index.', arg=True,optional=True),
+             ScriptOption(['--referenceIndex'],'Reference index.', arg=True,optional=True),
              ScriptOption(['--markerFileName'],'Markerfile name, relative to projectfolder.', arg=True,optional=True),
              ScriptOption(['--projectionTargets'],'Path to output folder. In this folder unbinned)unweighted_marker_XXX is created. (Relative to projectfolder)', arg=True,optional=True),
              ScriptOption(['--weightingType'],'Last index.', arg=True,optional=True),
@@ -76,7 +76,7 @@ if __name__=="__main__":
         numTomograms=len(tomonames)
     if not num_procs: num_procs=20
     if not procPerTomo: procPerTomo=1
-    if not tiltSeriesName: tiltSeriesName= 'sorted/sorted_aligned'
+    if not tiltSeriesName: tiltSeriesName= 'sorted/sorted'
     if not markerFileName: markerFileName='sorted/markerfile.em'
     if not projectionTargets: projectionTargets='alignment'
     if not weightingType: weightingType = 0

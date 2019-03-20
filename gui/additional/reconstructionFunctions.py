@@ -87,7 +87,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
                            volumeName=None, volumeFileType='em',
                            voldims=None, recCent=[0,0,0], tiltSeriesFormat='st', firstProj=1, irefmark=1, ireftilt=1,
                            handflip=False, alignedTiltSeriesName='align/myTilt', weightingType=-1,
-                           lowpassFilter=1., projBinning=1, outMarkerFileName=None, verbose=False):
+                           lowpassFilter=1., projBinning=1, outMarkerFileName=None, verbose=False, projIndices=None):
     """
     @param tiltSeriesName: Name of tilt series (set of image files in .em or .mrc format) or stack file (ending '.st').\
     Note: the actual file ending should NOT be provided.
@@ -164,7 +164,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
         if verbose:
             print(" EM markerfile file used for alignment")
         tiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName, TiltAlignmentParas=tiltParas,
-                                alignedTiltSeriesName=alignedTiltSeriesName,
+                                alignedTiltSeriesName=alignedTiltSeriesName, projIndices=projIndices,
                                 markerFileName=markerFileName, firstProj=firstProj, lastProj=lastProj,
                                 tiltSeriesFormat=tiltSeriesFormat)
         if tltfile:

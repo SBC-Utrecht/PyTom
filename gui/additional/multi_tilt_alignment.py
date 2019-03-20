@@ -5,11 +5,14 @@ import sys
 global pytompath
 pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
 
-def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, lastIndex, refIndex, markerFileName, targets, weightingType, tomogramFolder,fnames): 
+def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, lastIndex, refIndex, markerFileName,
+                              targets, weightingType, tomogramFolder,fnames, projIndices=False):
     '''Aligns tilt images, looping over markers in markerfile as reference. OPTIONAL: procs defines the number of processes running parallel.'''
 
 
     tomogram_names = [line.split()[0] for line in open(fnames).readlines()]
+    print(tomogram_names)
+    refIndices = [line.split()[1] for line in open(fnames).readlines()]
     for t in tomogram_names:
         if not os.path.exists(os.path.join(t,'alignment')):
             os.mkdir(os.path.join(t,'alignment'))
@@ -25,10 +28,10 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 	--projectionBinning 1 \
 	--lowpassFilter 0.9 \
 	--weightingType {} \
-        --numberProcesses {} > alignment/logfile.alignment.txt'''
+    {}    --numberProcesses {} > alignment/logfile.alignment.txt'''
         cmd = cmd.format(tomogram_names[index], pytompath, tiltSeriesName, firstIndex, 
-                         lastIndex, refIndex, markerFileName, targets, weightingType, 
-                         procs) 
+                         lastIndex, refIndices[index], markerFileName, targets, weightingType,
+                         '--projIndices '*projIndices, procs)
 
         p = Process(target=os.system,args=([cmd]))
         p.start()
@@ -38,7 +41,7 @@ def extract_subtomograms(start,end,fnames,folders,binning_tomogram=1,binning_sub
     for i in range(start,end):
 
         cmd = 'reconstructWB.py -p {} --projectionDirectory {} -s {} -b {} -o {} --applyWeighting {}'.format(fnames[i],folders[i],size,binning_tomogram,offset,weighting_type)
-        print cmd
+        print(cmd)
         p = Process(target=os.system,args=([cmd]))
         p.start()
 
@@ -60,14 +63,15 @@ if __name__=='__main__':
                  ScriptOption(['--end'],'Ending index tomogram folder', arg=True,optional=False),
                  ScriptOption(['--numberProcesses'],'Number of processes spawned by each process', arg=True,optional=False),
                  ScriptOption(['--tiltSeriesName'], 'Name tilt series - either prefix of sequential tilt series files expected as "tiltSeriesName_index.em/mrc"', arg=True, optional=False),
-                 ScriptOption(['--firstIndex'], 'Index of first projection.', arg=True, optional=False),
-                 ScriptOption(['--lastIndex'], 'Index of last projection.', arg=True, optional=False),
-                 ScriptOption(['--referenceIndex'], 'Index of reference projection used for alignment.', arg=True, optional=False),
+                 ScriptOption(['--firstIndex'], 'Index of first projection.', arg=True, optional=True),
+                 ScriptOption(['--lastIndex'], 'Index of last projection.', arg=True, optional=True),
+                 ScriptOption(['--referenceIndex'], 'Index of reference projection used for alignment.', arg=True, optional=True),
                  ScriptOption(['--markerFile'], 'Name of EM markerfile or IMOD wimp File containing marker coordinates.', arg=True, optional=False),
                  ScriptOption(['--projectionTargets'], 'Relative or absolute path to the aligned projections that will be generated + file prefix. default: "align/myTilt"', arg=True, optional=False),
                  ScriptOption(['--weightingType'], 'Type of weighting (-1 default r-weighting, 0 no weighting)', arg=True,optional=False),
                  ScriptOption(['--tomogramFolder'], 'Folder in which tomogram_XXX is located', arg=True,optional=False),
                  ScriptOption(['--fnames'], 'File with tomogram names.', arg=True,optional=False),
+                 ScriptOption(['--projIndices'], 'Use projection indices.', arg=False, optional=True),
                  ScriptOption(['--help'],'Help function.',arg=False,optional=True)
         ]
 
@@ -77,20 +81,23 @@ if __name__=='__main__':
                           options = options)
 
         if len(sys.argv) == 1:
-            print helper
+            print(helper)
             sys.exit()
-        if 1:
-            start, end, procs, tiltSeriesName, firstProj, lastProj, referenceIndex, markerFileName, projectionTargets, weightingType,tomogramfolder,fnames,help = parse_script_options(sys.argv[1:], helper)
-        else:# Exception as e:
-            print sys.version_info
-            print e
+        try:
+            start, end, procs, tiltSeriesName, firstProj, lastProj, referenceIndex, markerFileName, projectionTargets, \
+            weightingType,tomogramfolder,fnames, projIndices, help = parse_script_options(sys.argv[1:], helper)
+        except:# Exception as e:
+            print(sys.version_info)
+
             sys.exit()
 
 
         start = int(start)
         end = int(end)
     
-        tiltalignment_all_markers(start,end,procs,tiltSeriesName,firstProj,lastProj,referenceIndex,markerFileName,projectionTargets,weightingType,tomogramfolder,fnames)
+        tiltalignment_all_markers(start,end,procs,tiltSeriesName,firstProj,lastProj,referenceIndex,markerFileName,
+                                  projectionTargets,weightingType,tomogramfolder,fnames, projIndices=projIndices,
+                                  deploy=True, )
 
 
     except:
@@ -111,19 +118,18 @@ if __name__=='__main__':
                           options = options)
 
         if len(sys.argv) == 1:
-            print helper
+            print(helper)
             sys.exit()
     
 
         try:
             start, end, fnames,binning_tomogram,binning_subtomograms,offset,size,weighting_type,help = parse_script_options(sys.argv[1:], helper)
         except Exception as e:                                                                                                                                                                                    
-            print sys.version_info
-            print e
+            print(sys.version_info)
             sys.exit()
 
         if help is True:
-            print helper
+            print(helper)
             sys.exit()
 
         start = int(start)

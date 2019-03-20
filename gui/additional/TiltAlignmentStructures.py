@@ -65,12 +65,11 @@ class TiltSeries(PyTomClass):
                 for cnt, ii in enumerate(self._projIndices):
 
                     fname = tiltSeriesName + "_" + str( ii ) + "." + tiltSeriesFormat
-                    if tiltSeriesFormat == 'mrc': fname = tiltSeriesName + "" + "{:02d}".format( ii ) + "." + tiltSeriesFormat
+                    if tiltSeriesFormat == 'mrc': fname = tiltSeriesName + "_" + "{:02d}".format( ii ) + "." + tiltSeriesFormat
                     if alignedTiltSeriesName:
         
                         proj = Projection(filename=fname,
-                                          alignedFilename=alignedTiltSeriesName + "_" + str(
-                                              ii) + "." + tiltSeriesFormat,
+                                          alignedFilename=alignedTiltSeriesName + "_" + str(ii) + "." +tiltSeriesFormat,
                                           index=ii, tiltAngle=self.mf[0,cnt,0],
                                           offsetX=0., offsetY=0.,
                                           alignmentTransX=0., alignmentTransY=0.,

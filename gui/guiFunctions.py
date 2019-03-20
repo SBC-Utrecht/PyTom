@@ -10,7 +10,7 @@ from pytom.tools.files import checkFileExists, checkDirExists
 from pytom.basic.files import read as read_pytom
 from pytom.gui.mrcOperations import read_mrc
 from pytom_numpy import vol2npy
-
+from pytom.gui.guiSupportCommands import multiple_alignment
 
 def read_markerfile(filename,tiltangles):
     if filename[-4:] == '.mrc':
@@ -169,7 +169,8 @@ def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['openmpi/
     return slurm_generic_command
 
 
-def gen_queue_header(name='TemplateMatch', folder='./', cmd='', modules=['openmpi/2.1.1', 'pytom/0.971'],
+def gen_queue_header(name='TemplateMatch', folder='./', cmd='',
+                     modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/python3'],
                      qtype='slurm'):
     module_load = ''
     if modules:
@@ -178,7 +179,7 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', modules=['openmp
         module_load += module + ' '
 
     if qtype == 'slurm':
-        queue_command = '''#!/usr/bin/sh
+        queue_command = '''#!/usr/bin/bash
 #SBATCH --time        12:00:00
 #SBATCH -N 1
 #SBATCH --ntasks-per-node 20
@@ -195,7 +196,8 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', modules=['openmp
 
     return queue_command
 
-def createGenericDict(fname='template',cmd='', folder='', modules=['openmpi/2.1.1', 'pytom/0.971']):
+def createGenericDict(fname='template',cmd='', folder='',
+                      modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/python3']):
     genericSbatchDict = {'fname':fname,'cmd':cmd,'folder':folder, 'modules':modules}
     return genericSbatchDict
 
@@ -346,6 +348,33 @@ def write_text2file(text,fname,mode='a'):
     out = open(fname,mode)
     out.write(text)
     out.close()
+
+
+def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='.', num_procs=20, num_procs_per_proc=1, tiltseriesname='sorted/sorted',
+                         markerfile='sorted/markerfile.em',targets='alignment', firstindex=1, lastindex=21, refindex=11, weightingtype=0, deploy=False):
+    '''BATCHMODE: tilt alignment. Submits a number of sbatch jobs to slurm queueing system. Each job calculates the tilt aligment for each marker in a markerfile.  It divides the number or jobs with respect to the num_procs.'''
+
+    pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
+
+    for n in range(number_tomonames):
+
+        if not n % num_procs == 0:
+            continue
+
+        cmd = multiple_alignment.format( d=(projectfolder, pytompath, n, min(number_tomonames,num_procs+n),
+                                          num_procs_per_proc, tiltseriesname, markerfile, targets, projectfolder,
+                                          firstindex, lastindex, refindex, weightingtype, fnames_tomograms) )
+
+
+
+
+
+        write_text2file(cmd,'{}/jobscripts/alignment_{:03d}.job'.format(projectfolder, n), 'w' )
+
+        if deploy:
+            os.system('sbatch {}/jobscripts/alignment_{:03d}.job'.format(projectfolder, n))
+
+
 
 
 def create_folderstructure(folderstructure, enter, projectdir='.'):

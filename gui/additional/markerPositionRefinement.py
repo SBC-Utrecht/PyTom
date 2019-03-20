@@ -6,7 +6,7 @@ from pytom.gui.additional.TiltAlignmentStructures import TiltAlignmentParameters
 from pytom.basic.functions import initSphere, taper_edges
 
 def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj, 
-                           lastProj, finealigfile, dimBox=32, projIndices=None, tiltSeriesFormat='em',ret=False,write=True,ireftilt=21):
+                           lastProj, finealigfile, dimBox=32, projIndices=None, tiltSeriesFormat='em',ret=False,write=True,ireftilt=21,size=30000):
     """
     refine coordinates of markers
     """
@@ -43,9 +43,16 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
                 filename = proj.getFilename()
                 #copy data to ImageStack
 
-                markerImageStack.addImageFromFile(filename=filename, boxCoords=[x-dimBox/2-2,y-dimBox/2-2,0],
-                                                  dims=[dimBox,dimBox,1], shiftX=0, shiftY=0, rotation=0,
+                xmin, ymin = x-dimBox/2-2, y-dimBox/2-2
+                xend, yend= min(xmin+dimBox, size), min(ymin+dimBox,size)
+                xoff, yoff = dimBox-(xend-xmin), dimBox-(yend-ymin)
+
+                markerImageStack.addImageFromFile(filename=filename, boxCoords=[max(0,xmin), max(0,ymin), 0],
+                                                  dims=[dimBox+min(0,xmin)-xoff, dimBox+min(0,yoff)-xoff, 1], shiftX=0, shiftY=0, rotation=0,
                                                   appliedShiftX=0, appliedShiftY=0, index=itilt)
+
+
+
                 len_stack +=1
             else:
                 proj = MyTiltSeries._ProjectionList[itilt]
