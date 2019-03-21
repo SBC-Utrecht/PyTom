@@ -178,6 +178,4 @@ multiple_alignment = '''cd {d[0]}
 --referenceIndex {d[11]} \\
 --weightingType {d[12]} \\
 --projIndices \\
---fnames {d[13]} \\
---deploy \\
---sbatch'''
+--fnames {d[13]}'''

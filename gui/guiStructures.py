@@ -939,10 +939,14 @@ class SimpleTable(QMainWindow):
                     table.setCellWidget(v, i, widget)
                     self.widgets['widget_{}_{}'.format(v,i)] = le
                     widget.setStyleSheet('background: white;')
+
+                elif types[i] == 'spinbox':
+                    widget = QSpinBox()
+                    widget.setValue(values[v][i])
+
                 elif types[i] == 'combobox':
                     widget = QComboBox()
                     for t in values[v][i]:
-                        print (t)
                         widget.addItem(t)
                     table.setCellWidget(v, i, widget)
                     self.widgets['widget_{}_{}'.format(v,i)] = widget

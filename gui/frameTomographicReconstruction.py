@@ -50,6 +50,7 @@ class TomographReconstruct(GuiTabWidget):
         self.tables = {}
         self.pbs = {}
         self.ends = {}
+        self.checkbox = {}
 
         self.tabs = {'tab1': self.tab1,
                      'tab2':  self.tab2,
@@ -66,7 +67,7 @@ class TomographReconstruct(GuiTabWidget):
             empty = 1*(len(subheaders[i]) == 0)
             for j in range(len(subheaders[i])+empty):
                 tt = t+str(j+1)*(1-empty)
-                if tt in ('tab2', 'tab31', 'tab41', 'tab42'):
+                if tt in ('tab2', 'tab31', 'tab32',  'tab41', 'tab42'):
                     self.table_layouts[tt] = QGridLayout()
                 else:
                     self.table_layouts[tt] = QVBoxLayout()
@@ -78,6 +79,7 @@ class TomographReconstruct(GuiTabWidget):
                 self.pbs[tt] = QWidget()
                 self.ends[tt] = QWidget()
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
+                self.checkbox[tt] = QCheckBox('sbatch')
 
                 if tt in ('tab1','tab32','tab43'):
                     self.table_layouts[tt].addWidget(button)
@@ -101,6 +103,7 @@ class TomographReconstruct(GuiTabWidget):
             self.tables[id].setParent(None)
             self.pbs[id].setParent(None)
             self.ends[id].setParent(None)
+            self.checkbox[id].setParent(None)
         except:
             pass
 
@@ -111,7 +114,7 @@ class TomographReconstruct(GuiTabWidget):
         self.ends[id] = QWidget()
         self.ends[id].setSizePolicy(self.sizePolicyA)
 
-        for a in (self.tables[id], self.pbs[id], self.ends[id]):
+        for a in (self.tables[id], self.checkbox[id], self.pbs[id], self.ends[id]):
             self.table_layouts[id].addWidget(a)
 
     def tab1UI(self):
@@ -155,7 +158,6 @@ class TomographReconstruct(GuiTabWidget):
         #self.tables[id].table.cellChanged.connect(lambda d, ID=id: self.update_create_tomoname(ID))
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.create_tomogram_folders(pid, v))
-
 
     def update_create_tomoname(self, id):
         n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.mdoc'.format(self.tomogram_folder))))
@@ -345,14 +347,28 @@ class TomographReconstruct(GuiTabWidget):
             d = read(markerfile)
             data = copy.deepcopy( vol2npy(d) )
 
-            options_reference = list(map(str, range(1, data.shape[2] + 1))) + ['all']
+            options_reference = list(map(str, range( data.shape[2] ))) + ['all']
             values.append( [markerfile.split('/')[-3], True, 1, last_frame, index_zero_angle, options_reference] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_align(pid, v))
 
+        '''
+        self.W= QWidget()
+        checkButton = QCheckBox('sbatch')
+        layout=QVBoxLayout(self.W)
+        layout.addWidget(checkButton)
+        layout.setAlignment(Qt.AlignLeft)
+
+        #self.checkButton.setA.AlignLeft)
+        #self.checkButton.setStyleSheet('QChecbox::indicator{background-color: red;}')
+        #self.checkButton.setPalette(QtGui.QPalette(QtGui.QColor(255, 0, 0)))
+        self.table_layouts[id].addWidget(self.W,3,1)
+        '''
     def run_multi_align(self,id,values):
+
+
         print('multi_align', id)
         num_procs = 20
         n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.mdoc'.format(self.tomogram_folder))))
@@ -370,7 +386,8 @@ class TomographReconstruct(GuiTabWidget):
             if wname in widgets.keys() and widgets[wname].isChecked():
                 tomofoldername = values[row][0]
                 refindex = values[row][4]
-                tomofolder_file.write('{} {}\n'.format(tomofoldername,refindex))
+                markindex =  widgets['widget_{}_{}'.format(row,5)].currentText()
+                tomofolder_file.write('{} {} {}\n'.format(tomofoldername,refindex, markindex))
                 num_procs_per_proc = max(num_procs_per_proc, len(values[row][-1] ) - 1)
                 number_tomonames += 1
                 folder = os.path.join(self.tomogram_folder,tomofoldername)
@@ -378,10 +395,10 @@ class TomographReconstruct(GuiTabWidget):
 
         tomofolder_file.close()
 
-        guiFunctions.batch_tilt_alignment( number_tomonames, fnames_tomograms=file_tomoname,
-                                           projectfolder=self.tomogram_folder, num_procs=20, num_procs_per_proc=num_procs_per_proc,
+        guiFunctions.batch_tilt_alignment( number_tomonames, fnames_tomograms=file_tomoname, num_procs=20, deploy=True,
+                                           projectfolder=self.tomogram_folder, num_procs_per_proc=num_procs_per_proc,
                                            tiltseriesname='sorted/sorted', markerfile='alignment/markerfile.em',
-                                           targets='alignment', weightingtype=0, deploy=False)
+                                           targets='alignment', weightingtype=0, queue=self.checkbox[id].isChecked())
 
     def tab41UI(self):
         id = 'tab41'
@@ -573,9 +590,9 @@ class TomographReconstruct(GuiTabWidget):
                    'Reference Marker number.',
                    'Binning factor applied to images.']
 
-        tomodir = 'Juliette/03_Tomographic_Reconstruction'
 
-        markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(tomodir)))
+
+        markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
 
         values = []
 
