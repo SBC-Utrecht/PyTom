@@ -882,7 +882,6 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
 
         mark_frames = read_markerfile(markfilename,self.tiltangles)
 
-
         self.deleteAllMarkers()
 
         self.mark_frames = mark_frames / float(self.bin_read)
@@ -897,7 +896,9 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         for imnr in range(itilt):
             for index in range(ifid):
                 CX,CY = self.mark_frames[imnr][index]
-                if CX < 0 or CY< 0: continue
+
+                if CX < 0 or CY < 0: continue
+
                 self.tiltimages[imnr].add_fiducial(CX - self.xmin, CY - self.ymin, CX, CY, check=False, draw=False)
 
         self.widgets['detectButton'].setEnabled(True)
@@ -1095,7 +1096,7 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
         dataLayout = QHBoxLayout()
         dataLayout.addWidget(self.dataView)
         self.dataGroupBox.setLayout(dataLayout)
-        self.MRMmodel = self.createMarkResultModel(self)
+        self.MRMmodel = self.model = self.createMarkResultModel(self)
         self.dataView.setModel(self.MRMmodel)
 
         self.layout.addWidget(self.dataGroupBox, 0, 0, 20, 1)

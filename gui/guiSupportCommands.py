@@ -160,7 +160,7 @@ createParticleList = 'coords2PL.py -c {d[0]}  -s {d[1]} -w {d[2]} -p {d[3]}'
 
 extractParticles = '''cd {d[8]}
 
-reconstructWB.py -p {d[0]} --projectionDirectory {d[1]} -s {d[3]} -b {d[4]} -o {d[5]} {d[6]} {d[7]}'''
+reconstructWB.py -p {d[0]} --projectionDirectory {d[1]} -s {d[3]} -b {d[4]} -o {d[5]},{d[6]},{d[7]}'''
 
 
 multiple_alignment = '''cd {d[0]}

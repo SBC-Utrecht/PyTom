@@ -240,7 +240,7 @@ class CollectPreprocess(GuiTabWidget):
         self.grid_batch.addWidget(self.gbc, 5, 0)
 
         p = QPushButton(text='Run')
-        p.clicked.connect(lambda ignore, p=[self.cba,self.cbm]: self.downloading(p))
+        p.clicked.connect(lambda ignore, p=[self.cba,self.cbm]: self.download(p))
         p.setFixedWidth(100)
         self.grid_batch.addWidget(p, 6, 0, Qt.AlignRight)
 
@@ -543,7 +543,6 @@ class CollectPreprocess(GuiTabWidget):
         total = 0
         num_files_downloaded = 0
         for fname in flist:
-
             try:
                 outname = "%s/%s" % (folder_local, fname.split('/')[-1])
                 if not outname in existing_files:
@@ -563,13 +562,13 @@ class CollectPreprocess(GuiTabWidget):
                         try:
                             os.link(fname, outname)
                         except:
-                            shutil.copyfile(fname, outname)
+                            os.system('cp {} {}'.format(fname, outname))
 
                     else:
                         try:
                             os.link(fname, outname)
                         except:
-                            shutil.copyfile(fname, outname)
+                            os.system('cp {} {}'.format(fname, outname))
                     num_files_downloaded += 1
 
         return num_files_downloaded
@@ -627,13 +626,14 @@ class CollectPreprocess(GuiTabWidget):
         self.patchsize = int(self.widgets[mode+'patchsize'].text())
         mdoc_list = []
         flist = []
-        self.username, self.servername, self.password = 'emsquare1.science.uu.nl','emuser','#99@3584cg'
+        #self.username, self.servername, self.password = 'emsquare1.science.uu.nl','emuser','#99@3584cg'
 
         procs = []
         flist = []
         motioncor_flist = []
         e = Event()
-
+        finish_collect = Event()
+        finish_motioncor = Event()
         try:
             ftps = self.connect_ftp_server(self.servername, self.username, self.password)
         except:
@@ -720,9 +720,11 @@ class CollectPreprocess(GuiTabWidget):
                 procs.append(proc)
                 proc.start()
             self.flist = flist + mdoc_list
-            self.progressBar_Collect.setRange(0, len(self.flist))
+            #self.progressBar_Collect.setRange(0, len(self.flist))
 
         self.motioncor_flist = []
+
+        self.mcor_procs = []
 
         if self.m:
             # Sleep 100 ms in order to ensure processes are started.
@@ -747,22 +749,30 @@ class CollectPreprocess(GuiTabWidget):
 
             self.progressBar_Motioncor.setRange(0,len(motioncor_flist))
             self.motioncor_flist = motioncor_flist
-            for i in range(min(len(avail_gpu), self.number_motioncor_subprocesses)):
+
+            availableGPU = avail_gpu()
+
+            for i in range(min(len(availableGPU), self.number_motioncor_subprocesses)):
+                finish_motioncor = Event()
+                self.mcor_procs.append(finish_motioncor)
                 proc = Process(target=self.apply_motioncor,args=(motioncor_flist[i::self.number_motioncor_subprocesses],
-                                                                 i + 1, e, avail_gpu[i],self.completedMC))
+                                                                 i + 1, e, availableGPU[i],self.completedMC,
+                                                                 finish_motioncor))
                 procs.append(proc)
                 proc.start()
 
         if self.c or self.m:
-            self.check_run(procs)
+            #proc = Process(target=self.check_run,args=(procs,[e]+self.mcor_procs) )
+            #proc.start()
+            self.check_run(procs, [e]+self.mcor_procs)
 
-    def check_run(self, procs):
+    def check_run(self, procs, events):
+        print(events, procs, 'test')
         self.widgets['CandP'].setEnabled(False)
-
         if not self.continuous and (self.m or self.c):
-            while len(procs):
-                procs = [proc for proc in procs if proc.is_alive()]
-
+            while len(events):
+                events = [proc for proc in events if not proc.is_set()]
+                print(events)
                 a = [os.path.basename(line) for line in glob.glob( os.path.join(self.rawnanographs_folder,'*')) ]
                 b = [os.path.basename(line) for line in glob.glob( os.path.join(self.motioncor_folder,    '*')) ]
 
@@ -799,9 +809,9 @@ class CollectPreprocess(GuiTabWidget):
                 #self.controller.LogBook.save()
                 self.popup_messagebox("Info", "Completion", 'Successfully finished motion correction')
         self.widgets['CandP'].setEnabled(True)
-        self.parent().stage_buttons[1].setEnabled(True)
+        self.parent().parent().parent().stage_buttons[1].setEnabled(True)
 
-    def apply_motioncor(self, flist, process_id, e, gpu, value):
+    def apply_motioncor(self, flist, process_id, e, gpu, value,finish_mcor):
         mc_dir = '{}/02_Preprocessed_Nanographs/Motion_corrected'.format(os.path.dirname(self.local_data_folder))
 
         if self.apply_gaincorrection: gainfile = os.path.join(self.local_data_folder, self.dm4_file) + '.mrc'
@@ -845,6 +855,8 @@ class CollectPreprocess(GuiTabWidget):
                 break
             else:
                 time.sleep(10)
+
+        finish_mcor.set()
 
 def main():
     app = QApplication(sys.argv)

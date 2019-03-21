@@ -78,13 +78,13 @@ class BrowseWindowRemote(QMainWindow):
 
         print(self.servername,self.username,self.password)
 
-        if 1:
+        try:
             self.connect_ftp_server(self.servername, self.username, self.password)
             self.setCentralWidget(splitter0)
             self.success = True
             self.add_folders()
 
-        else:
+        except:
             if validate:
                 QMessageBox().critical(self, "Credentials not valid.",
                                        "Please provide a valid combination of servername, username, and password",
@@ -245,6 +245,19 @@ class SelectFiles(BrowseWindowRemote):
 
         self.pathdisplay.setText(self.folderpath)
         self.add_folders()
+
+class ProcessRunnable(QRunnable):
+    def __init__(self, target, args):
+        QRunnable.__init__(self)
+        self.t = target
+        self.args = args
+
+    def run(self):
+        self.t(*self.args)
+
+    def start(self):
+        QThreadPool.globalInstance().start(self)
+
 
 class CommonFunctions():
     def __init__(self,parent=None):
