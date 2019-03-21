@@ -1096,7 +1096,7 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
         dataLayout = QHBoxLayout()
         dataLayout.addWidget(self.dataView)
         self.dataGroupBox.setLayout(dataLayout)
-        self.MRMmodel = self.createMarkResultModel(self)
+        self.MRMmodel = self.model = self.createMarkResultModel(self)
         self.dataView.setModel(self.MRMmodel)
 
         self.layout.addWidget(self.dataGroupBox, 0, 0, 20, 1)
@@ -1132,7 +1132,7 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
         self.MRMmodel.removeRows(0,self.MRMmodel.rowCount())
 
     def add_marker(self, params=None):
-        self.addMarker(self.model,['Marker_{:03d}'.format(self.model.rowCount()), ''])
+        self.addMarker(self.MRMmodel,['Marker_{:03d}'.format(self.MRMmodel.rowCount()), ''])
         pass
 
     def delete_marker(self, params=None):

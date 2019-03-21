@@ -145,8 +145,10 @@ def mrc2em(filename,destination):
     splitName = filename.split(os.sep)
     filename = splitName[len(splitName)-1]
     newFilename = destination + os.sep + filename[0:len(filename)-4] + '.em'
-    emfile.write(newFilename,'em')
-
+    try:
+        emfile.write(newFilename,'em')
+    except:
+        pass
 
 def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['openmpi/2.1.1', 'pytom/0.971']):
 
