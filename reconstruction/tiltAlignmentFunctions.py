@@ -615,6 +615,146 @@ def readIMODmarkerfile(markerfile, binning=1):
             marker.set_yProj( iproj=int(float(tmp[3])), yProj=float(tmp[2]) * scalefac)
     return markers
 
+
+class Marker:
+    """
+    Marker in tilt series
+    """
+
+    def __init__(self, projIndices):
+        """
+        initialize Marker class
+
+        @param projIndices: projection Indices
+        @type projIndices: list of integers
+
+        @author: FF
+        """
+        self._nproj = len(projIndices)
+        self._projIndices = projIndices
+        # coords in projections
+        self.xProj = numpy.array(self._nproj * [-1.])
+        self.yProj = numpy.array(self._nproj * [-1.])
+        # 3D coordinates of marker
+        self._r = numpy.array([0., 0., 0.])
+
+    def get_numberOfProjections(self):
+        """
+        get number of projections for marker (also update nproj in structure)
+
+        @return: number of projections
+        @rtype: L{int}
+        """
+        self._nproj = len(self._projIndices)
+        return self._nproj
+
+    def info(self):
+        """
+        """
+        r = self.get_r()
+        tline = ("3D model: x=%7.1f, " % r[0])
+        tline = tline + ("y=%7.1f, " % r[1])
+        tline = tline + ("z=%7.1f\n" % r[2])
+        tline = tline + "============================================\n"
+        tline = tline + "Coordinates in projections: \n"
+        for iproj in range(0, self._nproj):
+            tline = tline + ("%3d: " % (iproj + 1))
+            tline = tline + ("%7.1f, " % self.get_xProj(iproj))
+            tline = tline + ("%7.1f\n" % self.get_yProj(iproj))
+        print(tline)
+
+    def set_xProj(self, iproj, xProj):
+        """
+        set x-value of marker in projection iproj
+
+        @param iproj: index of projection
+        @type iproj: L{int}
+        @param xProj: x-coordinate
+        @type xProj: L{float}
+
+        @author: FF
+        """
+        self.xProj[iproj] = xProj
+
+    def get_xProj(self, iproj):
+        """
+        get x-value of marker in projection iproj
+
+        @author: FF
+        """
+        return self.xProj[iproj]
+
+    def set_yProj(self, iproj, yProj):
+        """
+        set y-value of marker in projection iproj
+
+        @param iproj: index of projection
+        @type iproj: L{int}
+        @param yProj: y-coordinate
+        @type yProj: L{float}
+
+        @author: FF
+        """
+        self.yProj[iproj] = yProj
+
+    def get_yProj(self, iproj):
+        """
+        get y-value of marker in projection iproj
+
+        @author: FF
+        """
+        return self.yProj[iproj]
+
+    def set_xProjs(self, xProjs):
+        """
+        set x-values of marker in all projections of tilt series
+
+        @param xProjs: x-coordinates of markers in projection
+        @type xProjs: numpy array
+
+        @author: FF
+        """
+        for (ii, xProj) in enumerate(xProjs):
+            self.xProj[ii] = xProj
+
+    def set_yProjs(self, yProjs):
+        """
+        set y-values of marker in all projections of tilt series
+
+        @param yProjs: y-coordinates of markers in projection
+        @type yProjs: numpy array
+
+        @author: FF
+        """
+        for (ii, yProj) in enumerate(yProjs):
+            self.yProj[ii] = yProj
+
+    def set_r(self, r):
+        """
+        set 3d coordinates r of marker
+
+        @param r: marker
+        @type r: 3d numpy array
+
+        @author: FF
+        """
+        self._r = r
+
+    def get_r(self):
+        """
+        get 3d coordinates r of marker
+
+        @return: coordinates of marker
+        @rtype: 3d numpy array
+
+        @author: FF
+        """
+        return self._r
+
+
+
+
+
 def readIMODtiltAngles(tltfile):
     """
     read tilt angles from IMOD file
