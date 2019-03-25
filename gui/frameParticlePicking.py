@@ -280,8 +280,8 @@ class ParticlePick(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
 
         self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB, width=200)
-        self.insert_label_line_push(parent, 'Coordinate File', mode + 'CoordinateFile',
-                                    'Select the coordinate file which contains the x,y,z coordinates of the particles.')
+        self.insert_label_line_push(parent, 'Coordinate File', mode + 'CoordinateFile',mode='file',filetype='txt',
+                                    tooltip='Select the coordinate file which contains the x,y,z coordinates of the particles.')
 
         self.insert_label_line(parent, 'Prefix Subtomograms', mode + 'PrefixSubtomo',
                                'Define a prefix that is prepended to the particle name. A unique identifier makes it'+
