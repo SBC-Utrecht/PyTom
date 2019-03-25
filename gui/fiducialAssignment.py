@@ -11,7 +11,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.mrcOperations import *
-from pytom.gui.guiFunctions import read_markerfile
+from pytom.gui.guiFunctions import read_markerfile, datatype
 import pyqtgraph as pg
 from pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
 from pyqtgraph import ImageItem
@@ -461,11 +461,10 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         for n, line in enumerate(fnames):
             fnames[n] = os.path.join(line[0],line[1])
 
-        tiltfile = [os.path.join(folder,line) for line in os.listdir(folder) if line.endswith('.mdoc')][0]
-
-        cmd = "cat {} | grep TiltAngle | sort -nk3 | awk '{{print $3}}'".format(tiltfile)
-
-        self.tiltangles = numpy.array([float(line) for line in os.popen(cmd).readlines()], dtype=float)
+        self.metafile = [os.path.join(folder,line) for line in os.listdir(folder) if line.endswith('.meta')][0]
+        self.tiltangles = numpy.loadtxt(metafile,dtype=datatype)['TiltAngle']
+        #cmd = "cat {} | grep TiltAngle | sort -nk3 | awk '{{print $3}}'".format(tiltfile)
+        #self.tiltangles = numpy.array([float(line) for line in os.popen(cmd).readlines()], dtype=float)
 
         self.excluded = [0,]*len(fnames)
         for n, excl in enumerate(fnames):

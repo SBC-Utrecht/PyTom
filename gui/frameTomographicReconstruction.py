@@ -124,20 +124,20 @@ class TomographReconstruct(GuiTabWidget):
         self.filepath_tomodata['Motion Corrected'] = self.motioncor_folder
         self.filepath_tomodata['Raw Nanographs']  = self.rawnanographs_folder
 
-        headers = ["mdoc file", "create", 'pututive name',"input files", 'Name tomogram', 'redo', 'delete']
+        headers = ["meta file", "create", 'pututive name',"input files", 'Name tomogram', 'redo', 'delete']
         types = ['txt', 'checkbox', 'txt', 'combobox', 'txt', 'checkbox', 'checkbox']
         sizes = [0, 80, 500, 0, 200, 80, 80]
 
-        tooltip = ['Name of mdoc files. This file indicates which images belong together, as well as the tiltangles.',
+        tooltip = ['Name of meta files. This file indicates which images belong together, as well as the tiltangles.',
                    'Create new tomogram folders.',
                    'Putative name of tomogram',
                    'Names of existing tomogram folder.',
                    'Redo the creation of a tomogram file.',
                    'Select items to delete tomogram folders.']
 
-        processed = sorted(glob.glob('{}/tomogram_*/sorted/*.mdoc'.format(self.tomogram_folder)))
+        processed = sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder)))
         processed_fn = [basename(line) for line in processed]
-        unprocessed = numpy.array(sorted(glob.glob('{}/*.mdoc'.format(self.rawnanographs_folder))))
+        unprocessed = numpy.array(sorted(glob.glob('{}/*.meta'.format(self.rawnanographs_folder))))
         unprocessed = unprocessed[[not (basename(u_item) in processed_fn) for u_item in unprocessed]]
 
         values = []
@@ -160,7 +160,7 @@ class TomographReconstruct(GuiTabWidget):
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.create_tomogram_folders(pid, v))
 
     def update_create_tomoname(self, id):
-        n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.mdoc'.format(self.tomogram_folder))))
+        n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables['tab1'].table
         widgets = self.tables['tab1'].widgets
         for row in range(table.rowCount()):
@@ -175,7 +175,7 @@ class TomographReconstruct(GuiTabWidget):
         table.resizeColumnsToContents()
 
     def create_tomogram_folders(self, id, values):
-        n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.mdoc'.format(self.tomogram_folder))))
+        n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables['tab1'].table
         widgets = self.tables['tab1'].widgets
         for row in range(table.rowCount()):
@@ -184,19 +184,19 @@ class TomographReconstruct(GuiTabWidget):
             # Create
             if wname in widgets.keys() and widgets[wname].isChecked():
                 tomofoldername = widgets['widget_{}_{}'.format(row, 2)].text()
-                mdocfile = values[row][0]
+                metafile = values[row][0]
                 folder = self.filepath_tomodata[widgets['widget_{}_{}'.format(row, 3)].currentText()]
-                self.create_tomodir_instance(tomofoldername,mdocfile,folder)
+                self.create_tomodir_instance(tomofoldername,metafile,folder)
 
             # Redo
             wname = 'widget_{}_{}'.format(row, 5)
             if wname in widgets.keys() and widgets[wname].isChecked():
                 tomofoldername = widgets['widget_{}_{}'.format(row, 4)].text()
-                mdocfile = os.path.basename(values[row][0])
+                metafile = os.path.basename(values[row][0])
                 folder = self.filepath_tomodata[widgets['widget_{}_{}'.format(row, 3)].currentText()]
-                mdocfile = os.path.join( self.filepath_tomodata[folder], mdocfile )
+                metafile = os.path.join( self.filepath_tomodata[folder], metafile )
                 shutil.rmtree( os.path.join(self.tomogram_folder, tomofoldername) )
-                self.create_tomodir_instance(tomofoldername,mdocfile,folder)
+                self.create_tomodir_instance(tomofoldername,metafile,folder)
 
             # Delete
             wname = 'widget_{}_{}'.format(row, 6)
@@ -206,7 +206,7 @@ class TomographReconstruct(GuiTabWidget):
                 # self.create_tomodir_instance(tomofoldername,mdocfile,folder)
         self.update_create_tomoname(id)
 
-    def create_tomodir_instance(self, tomofoldername, mdocfile, folder):
+    def create_tomodir_instance(self, tomofoldername, metafile, folder):
         src = os.path.join(self.tomogram_folder, '.tomoname')
         num_subprocesses = 10
         dst = os.path.join(self.tomogram_folder, tomofoldername)
@@ -214,13 +214,17 @@ class TomographReconstruct(GuiTabWidget):
             print('{} exists: QUIT'.format(dst))
             return
         shutil.copytree(src, dst)
-        mdoc_dst = os.path.join(dst, 'sorted', os.path.basename(mdocfile))
-        os.link(mdocfile, mdoc_dst)
+        meta_dst = os.path.join(dst, 'sorted', os.path.basename(metafile))
+        os.link(metafile, meta_dst)
 
         # tif_files = [ line for line in open(os.path.join(mdoc_dst) ,'r').readlines() if line.strip(' ').startswith('SubFramePath')]
-        tif_files = [line for line in os.popen('cat {} | grep SubFramePath '.format(mdocfile)).readlines()]
-        tiltangles = [float(line.split()[-1]) for line in
-                      os.popen('cat {} | grep TiltAngle '.format(mdocfile)).readlines()]
+        #tif_files = [line for line in os.popen('cat {} | grep SubFramePath '.format(metafile)).readlines()]
+        #tiltangles = [float(line.split()[-1]) for line in
+        #              os.popen('cat {} | grep TiltAngle '.format(metafile)).readlines()]
+
+        metafile = numpy.loadtxt(metafile, dtype=guiFunctions.datatype)
+        tif_files  = metafile['FileName']
+        tiltangles = metafile['TiltAngle']
 
         if len(tif_files) == 0: return
 
@@ -238,7 +242,7 @@ class TomographReconstruct(GuiTabWidget):
                 procs = [proc for proc in procs if proc.is_alive()]
 
             src_mcor = os.path.join(folder, tif)
-            dst_mcor = os.path.join(os.path.dirname(mdoc_dst), 'sorted_{:02d}.mrc'.format(n))
+            dst_mcor = os.path.join(os.path.dirname(meta_dst), 'sorted_{:02d}.mrc'.format(n))
 
             if os.path.exists(src_mcor):
                 os.system('cp {} {}'.format(src_mcor, dst_mcor))
@@ -328,11 +332,11 @@ class TomographReconstruct(GuiTabWidget):
         values = []
 
         for markerfile in markerfiles:
-            qmarkerfile = markerfile.replace('markerfile.em','*.mdoc')
+            qmarkerfile = markerfile.replace('markerfile.em','*.meta')
             qsortedfiles = markerfile.replace('markerfile.em','sorted_*.mrc')
-            mdocfile = glob.glob( qmarkerfile )[0]
+            metafile = glob.glob( qmarkerfile )[0]
             tangs = numpy.abs(numpy.array(sorted([float(line.split()[-1]) for line in
-                                        os.popen('cat {} | grep TiltAngle '.format(mdocfile)).readlines()])) )
+                                        os.popen('cat {} | grep TiltAngle '.format(metafile)).readlines()])) )
 
             sortedfiles = sorted(glob.glob(qsortedfiles))
             last_frame = len(sortedfiles)
@@ -371,7 +375,7 @@ class TomographReconstruct(GuiTabWidget):
 
         print('multi_align', id)
         num_procs = 20
-        n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.mdoc'.format(self.tomogram_folder))))
+        n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables[id].table
         widgets = self.tables[id].widgets
         file_tomoname = os.path.join(self.tomogram_folder, '.multi_alignment.txt')
@@ -464,12 +468,12 @@ class TomographReconstruct(GuiTabWidget):
         files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')]
         lastIndex = len(files)
         self.widgets[mode+'LastIndex'].setValue(lastIndex)
-        mdocfiles = [line for line in os.listdir(folderSorted) if line.endswith('.mdoc')]
+        metafiles = [line for line in os.listdir(folderSorted) if line.endswith('.meta')]
 
-        if len(mdocfiles) ==1:
-            mdocfile = mdocfiles[0]
+        if len(metafiles) ==1:
+            metafile = metafiles[0]
             angles = []
-            for line in [line for line in open(f'{folderSorted}/{mdocfile}','r').readlines()]:
+            for line in [line for line in open(f'{folderSorted}/{metafile}','r').readlines()]:
                 if line.startswith('TiltAngle = '):
                     angles.append( float(line[len('TiltAngle = '):]))
             angles = numpy.array(sorted(angles))
@@ -597,11 +601,11 @@ class TomographReconstruct(GuiTabWidget):
         values = []
 
         for markerfile in markerfiles:
-            qmarkerfile = markerfile.replace('markerfile.em','*.mdoc')
+            qmarkerfile = markerfile.replace('markerfile.em','*.meta')
             qsortedfiles = markerfile.replace('markerfile.em','sorted_*.mrc')
-            mdocfile = glob.glob( qmarkerfile )[0]
+            metafile = glob.glob( qmarkerfile )[0]
             tangs = numpy.abs(numpy.array(sorted([float(line.split()[-1]) for line in
-                                        os.popen('cat {} | grep TiltAngle '.format(mdocfile)).readlines()])) )
+                                        os.popen('cat {} | grep TiltAngle '.format(metafile)).readlines()])) )
 
             sortedfiles = glob.glob(qsortedfiles)
             last_frame = len(sortedfiles)

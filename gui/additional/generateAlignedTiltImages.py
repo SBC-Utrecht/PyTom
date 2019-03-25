@@ -109,7 +109,9 @@ if __name__ == '__main__':
     lastProj = int(lastProj)  # 41 # index of last projection
     ireftilt = int(referenceIndex)  # 21 # reference projection (used for alignment)
     if referenceMarkerIndex:
-        irefmark = int(referenceMarkerIndex)  # reference marker (defines 3D coordinate system)
+        try:
+            irefmark = int(referenceMarkerIndex)
+        except: pass # reference marker (defines 3D coordinate system)
     else:
         irefmark = 1
 
@@ -198,9 +200,14 @@ if __name__ == '__main__':
 
     markerfile = read(markerFileName)
     markerdata = vol2npy(markerfile).copy()
+    if referenceMarkerIndex == 'all':
+        refmarks = range(markerdata.shape[2])
+    else:
+        refmarks = [int(referenceMarkerIndex)]
+
     procs = []
 
-    for irefmark in range(markerdata.shape[2]):
+    for irefmark in refmarks:
         procs = [proc for proc in procs if proc.is_alive()]
         while len(procs) >= numberProcesses:
             time.sleep(2)

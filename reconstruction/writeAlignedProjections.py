@@ -57,11 +57,28 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
                 image = resize(volume=image, factor=1/float(binning))[0]
         else:
             # read projection files
+            from pytom.basic.files import EMHeader, read, read_em_header
+
+            image = read(projection._filename)
+            image = resize(volume=image, factor=1 / float(binning))[0]
+
+            if projection._filename[-3:] == '.em':
+                header = read_em_header(projection._filename)
+            else:
+                header = EMHeader()
+                header.set_dim(x=imdim, y=imdim, z=1)
+            '''                
             if ( binning==None or binning==1):
-                (image, header) = read_em(projection._filename)
+                if projection._filename[-3:] == '.em':
+                    (image, header) = read_em(projection._filename)
+                else:
+                    from pytom.basic.files import read
+                    image = read(projection._filename,binning=[binning,binning,1])
             else:
                 (image, header) = read_em(projection._filename)
                 image = resize(volume=image, factor=1/float(binning))[0]
+            '''
+
         if lowpassFilter:
             filtered = filterFunction( volume=image, filterObject=lpf, fourierOnly=False)
             image = filtered[0]

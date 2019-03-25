@@ -28,12 +28,13 @@ def read_angle(mrc_fname, single=True,extra='user'):
     angles = []
     for fname in mrc_fname:
         angles.append( float(read_mrc_header(fname)[extra][0])/1000.)
-    if single: angles = angles[0]
+    if single:
+        angles = angles[0]
     return angles
     
 def read_mrc_header(mrc_fname):
     a = MRC_Data(mrc_fname,'mrc')
-    print(a)
+
     return a.header
 
 def square_mrc(mrc_fname):

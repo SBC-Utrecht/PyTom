@@ -797,6 +797,8 @@ class CollectPreprocess(GuiTabWidget):
                 mdocs = glob.glob("{}/*.mdoc.temp".format(self.local_data_folder))
                 for mdoc in mdocs:
                     os.system("mv {} {}".format(mdoc, mdoc[:-5]))
+
+                guiFunctions.createMetaDataFiles(self.rawnanographs_folder,'')
                 self.popup_messagebox("Info", "Completion", 'Successfully finished data transfer')
                 #self.controller.frames['StageSelect'].buttons['TomographReconstruct'].configure(state='active')
                 #self.controller.LogBook.state_framebuttons['TomographReconstruct'] = 'active'

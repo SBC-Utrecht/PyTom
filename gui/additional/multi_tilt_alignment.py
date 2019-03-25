@@ -6,13 +6,15 @@ global pytompath
 pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
 
 def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, lastIndex, refIndex, markerFileName,
-                              targets, weightingType, tomogramFolder,fnames, projIndices=False):
+                              targets, weightingType, tomogramFolder,fnames, projIndices=True):
     '''Aligns tilt images, looping over markers in markerfile as reference. OPTIONAL: procs defines the number of processes running parallel.'''
 
 
     tomogram_names = [line.split()[0] for line in open(fnames).readlines()]
     print(tomogram_names)
     refIndices = [line.split()[1] for line in open(fnames).readlines()]
+    refMarkIndices = [line.split()[2] for line in open(fnames).readlines()]
+
     for t in tomogram_names:
         if not os.path.exists(os.path.join(t,'alignment')):
             os.mkdir(os.path.join(t,'alignment'))
@@ -23,6 +25,7 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 	--firstIndex {} \
 	--lastIndex {} \
 	--referenceIndex {} \
+	--referenceMarkerIndex {}\
 	--markerFile {} \
 	--projectionTargets {} \
 	--projectionBinning 1 \
@@ -30,7 +33,7 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 	--weightingType {} \
     {}    --numberProcesses {} > alignment/logfile.alignment.txt'''
         cmd = cmd.format(tomogram_names[index], pytompath, tiltSeriesName, firstIndex, 
-                         lastIndex, refIndices[index], markerFileName, targets, weightingType,
+                         lastIndex, refIndices[index], refMarkIndices[index], markerFileName, targets, weightingType,
                          '--projIndices '*projIndices, procs)
 
         p = Process(target=os.system,args=([cmd]))
@@ -96,8 +99,7 @@ if __name__=='__main__':
         end = int(end)
     
         tiltalignment_all_markers(start,end,procs,tiltSeriesName,firstProj,lastProj,referenceIndex,markerFileName,
-                                  projectionTargets,weightingType,tomogramfolder,fnames, projIndices=projIndices,
-                                  deploy=True, )
+                                  projectionTargets,weightingType,tomogramfolder,fnames, projIndices=projIndices)
 
 
     except:

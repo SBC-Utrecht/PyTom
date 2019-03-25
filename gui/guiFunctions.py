@@ -8,7 +8,8 @@ import time
 from pytom_volume import read
 from pytom.tools.files import checkFileExists, checkDirExists
 from pytom.basic.files import read as read_pytom
-from pytom.gui.mrcOperations import read_mrc
+from pytom.basic.files import read_em_header
+from pytom.gui.mrcOperations import read_mrc, read_angle
 from pytom_numpy import vol2npy
 from pytom.gui.guiSupportCommands import multiple_alignment
 
@@ -484,3 +485,179 @@ def create_project_filestructure(projectdir='.'):
     if not os.path.exists(projectdir):
         os.mkdir(projectdir)
     create_folderstructure(folderstructure, projectdir)
+
+datatype = [('DefocusU', 'f4'),
+            ('DefocusV', 'f4'),
+            ('DefocusAngle', 'f4'),
+            ('Voltage', 'i4'),
+            ('SphericalAberration', 'f4'),
+            ('AmplitudeContrast', 'f4'),
+            ('PhaseShift', 'f4'),
+            ('PixelSpacing', 'f4'),
+            ('MarkerDiameter', 'i4'),
+            ('TiltAngle', 'f4'),
+            ('RotationTheta', 'f4'),
+            ('InPlaneRotation', 'f4'),
+            ('TranslationX', 'f4'),
+            ('TranslationY', 'f4'),
+            ('TranslationZ', 'f4'),
+            ('Magnification', 'f4'),
+            ('Intensity', 'f4'),
+            ('FileName', 'U1000')]
+
+headerText = ''
+units = ['nm', 'nm', 'deg', 'kV', 'mm', '', 'deg', 'A', 'A', 'deg', 'deg', 'deg', 'px', 'px', 'px', '', '', '' ]
+fmt='%11.6f %11.6f %6.2f %4d %6.2f %4.2f %11.6f %11.6f %4d %7.3f %7.3f %7.3f %6.2f %6.2f %6.2f %5.3f %5.3f %s'
+
+for n, h in enumerate(datatype):
+    headerText += '{} {}\n'.format(h[0], '({})'.format(units[n])*(units[n]!=''))
+
+
+def update_metafile(filename, columnID, values ):
+    metadata= numpy.loadtxt(filename,dtype=datatype)
+    metadata[columnID] = values
+    numpy.savetxt(filename,metadata,fmt=fmt,header=headerText)
+
+def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=False):
+
+    if not mdocfiles:
+        mdocfiles = [mdocfile for mdocfile in os.listdir(nanographfolder) if mdocfile.endswith('.mdoc')]
+    datafiles = [fname for fname in os.listdir(nanographfolder) if fname.split('.')[-1] in ('tif','mrc','em') and not (fname[0] in '0123456789')]
+
+    annotated = {}
+
+    tomo_from_filename = {}
+
+    for df in datafiles:
+        annotated[os.path.basename(df)] = 0
+
+    tiltAxis = 180
+    pixelSpacing = 1.5
+    voltage = 300
+
+
+    for nr, mdocfile in enumerate(sorted(mdocfiles)):
+        metadata = []
+        mdocfilepath = os.path.join(nanographfolder, mdocfile)
+        header = False
+        datadict = {'TiltAngle':tiltAxis, 'Magnification': 79000, 'Intensity':0.0, 'PixelSpacing':pixelSpacing,
+                    'Defocus':-3, 'RotationAngle':270, 'SubFramePath':'', 'Voltage':voltage, 'MarkerDiameter': 100,
+                    'SphericalAberration':2.7, 'AmplitudeContrast': 0.1, 'PhaseContrast':0.,}
+        for description, dtype in datatype:
+            if not description in datadict.keys(): datadict[description] = 0.
+
+        mdocdata = [line.split() for line in open(mdocfilepath).readlines() if len(line.split()) >=3]
+
+        for line in mdocdata:
+            if '[ZValue' == line[0] and not header:
+                header = True
+                continue
+
+            if not header:
+                if line[0] == 'PixelSpacing': datadict[line[0]] = float(line[2])
+                elif line[0] == 'Voltage':    datadict[line[0]] = int(line[2])
+                elif 'axis' in line:          datadict['InPlaneRotation'] = float(line[6].strip(','))-250
+                continue
+
+            if line[0] in datadict.keys():
+                if line[0] == 'RotationAngle': line[0] = 'RotationTheta'
+                try: datadict[line[0]] = float(line[2])
+                except:
+                    fname = os.path.basename( line[2].replace('\\','/') )
+                    datadict['FileName'] = fname
+                    if fname in annotated.keys():
+                        annotated[fname] += 1
+
+            if '[ZValue' == line[0]:
+                data = [0.,]*len(datatype)
+                for n, (description, dtype) in enumerate(datatype):
+                    if description in datadict.keys():
+                        data[n] = datadict[description]
+                if 'Defocus' in datadict.keys():
+                    data[0] = datadict['Defocus']
+                    data[1] = datadict['Defocus']
+
+                metadata.append(tuple(data))
+
+        a = numpy.rec.array(metadata, dtype=datatype)
+        a = numpy.sort(a,order='TiltAngle')
+
+        outname = mdocfilepath.replace('mdoc','meta')
+        if target: outname = os.path.join(target, mdocfile.replace('mdoc','meta'))
+        numpy.savetxt(outname, a, fmt=fmt, header=headerText)
+
+    if mdoc_only: return
+
+    for k, v in annotated.items():
+        if v ==0:
+            tomoname = k.split('_')[0]
+            if not tomoname in tomo_from_filename.keys():
+                tomo_from_filename[tomoname] = []
+            #Find tiltangle
+
+            if k.endswith('em'):
+                fileHeader = read_em_header(os.path.join(nanographfolder, k))
+                tiltangle = fileHeader.get_tiltangle()
+
+            elif k.endswith('mrc'):
+                tiltangle = read_angle(os.path.join(nanographfolder,k))
+            else:
+                tiltangle = 0.
+
+
+            tomo_from_filename[tomoname].append([k.replace('[','_').replace(']','_').split('_'), tiltangle, k])
+
+    for NR, (k, v) in enumerate(tomo_from_filename.items()):
+
+        neg = numpy.array( [0,]*len(v[0][0]), dtype=int)
+        tiltangles_header = []
+        for list, angle, fname in v:
+            tiltangles_header.append(angle)
+            for n, part in enumerate(list):
+                if '-' in part:
+                    neg[n] += 1
+
+
+        loc = numpy.argmax(neg[neg < len(v)])
+
+        if not neg[loc] > 0:
+            loc = -1
+
+
+        tiltangles_header = numpy.array(tiltangles_header)
+        metadata = [[0., ] * len(datatype), ] * len(v)
+        for NR, (d,t) in enumerate(datatype):
+            if d == 'TiltAngle':
+                break
+
+        if len(v) < 10:
+            return
+
+        if loc > -0.5:
+            for i in range(len(v)):
+                metadata[i][NR] = float(v[i][0][loc])
+                metadata[i][-1] = v[i][2]
+                metadata[i] = tuple(metadata[i])
+            a = numpy.rec.array(metadata, dtype=datatype)
+            a = numpy.sort(a, order='TiltAngle')
+
+            outname = '{}/{}_filename.meta'.format(nanographfolder, v[0][0][0])
+            numpy.savetxt(outname, a, fmt=fmt, header=headerText)
+
+        elif len(numpy.unique(numpy.round(tiltangles_header).astype(int))) == len(tiltangles_header):
+            #print(v[0][2])
+            for i in range(len(v)):
+
+                metadata[i][NR] = float(tiltangles_header[i])
+                metadata[i][-1] = v[i][2]
+                metadata[i] = tuple(metadata[i])
+            a = numpy.rec.array(metadata, dtype=datatype)
+            a = numpy.sort(a, order='TiltAngle')
+
+            outname = '{}/{}_header.meta'.format(nanographfolder, v[0][0][0])
+            numpy.savetxt(outname, a, fmt=fmt, header=headerText)
+
+        else:
+            continue
+
+
