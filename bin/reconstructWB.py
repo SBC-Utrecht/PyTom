@@ -31,7 +31,7 @@ if __name__ == '__main__':
                                 ScriptOption(['-p','--particleList'], 'XML particle list.', arg=True, optional=False),
                                 ScriptOption(['--projectionList'], 'XML projection list.', arg=True, optional=False),
                                 ScriptOption(['--projectionDirectory'], 'Directory containing the projections.', arg=True, optional=False),
-                                ScriptOption(['-w','--applyWeighting'], 'If projections are not weighted, apply weighting before. If omited, no weighting.', arg=False, optional=True),
+                                ScriptOption(['-w','--applyWeighting'], 'If projections are not weighted, apply weighting before. If omited, no weighting.', arg=True, optional=True),
                                 ScriptOption(['-s','--size'], 'Size of particle cube / tomogram.', arg=True, optional=False),
                                 ScriptOption(['-b','--coordinateBinning'], 'Binning factor of coordinates. If particle coordinates are determined in binned volume (with respect to projections) this binning factor needs to be specified.', arg=True, optional=True),
                                 ScriptOption(['-o','--recOffset'], 'Cropping offset of the binned tomogram.', arg=True, optional=False),

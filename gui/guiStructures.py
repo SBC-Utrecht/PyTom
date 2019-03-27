@@ -258,7 +258,6 @@ class ProcessRunnable(QRunnable):
     def start(self):
         QThreadPool.globalInstance().start(self)
 
-
 class CommonFunctions():
     def __init__(self,parent=None):
         pass
@@ -807,7 +806,8 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
         radius = int(self.widgets['radius'].text())
         smooth = float(self.widgets['smooth_factor'].value())
         size = int(self.widgets['size_template'].text())
-        maskfilename = str(QFileDialog.getSaveFileName( self, 'Save particle list.', sef.parent().partpickfolder, filter='*.em')[0])
+        fname = os.path.join(self.parent().frmdir, 'FRM_mask.em')
+        maskfilename = str(QFileDialog.getSaveFileName( self, 'Save particle list.', fname, filter='*.em')[0])
         if maskfilename and not maskfilename.endswith('.em'): maskfilename += '.em'
         try:
             initSphere(size, size, size, radius=radius, smooth=smooth, filename=maskfilename)
@@ -1258,7 +1258,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
     def replot(self):
         crop = self.vol[int(self.slice), :, :]
-        self.img1m.setImage(image=crop)
+        self.img1m.setImage(image=crop.T)
 
         #self.centcanvas.removeItem(self.hist)
         #self.hist = pg.HistogramLUTItem()

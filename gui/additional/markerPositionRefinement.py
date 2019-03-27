@@ -43,12 +43,12 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
                 filename = proj.getFilename()
                 #copy data to ImageStack
 
-                xmin, ymin = x-dimBox/2-2, y-dimBox/2-2
+                xmin, ymin = x-dimBox//2-2, y-dimBox//2-2
                 xend, yend= min(xmin+dimBox, size), min(ymin+dimBox,size)
                 xoff, yoff = dimBox-(xend-xmin), dimBox-(yend-ymin)
 
                 markerImageStack.addImageFromFile(filename=filename, boxCoords=[max(0,xmin), max(0,ymin), 0],
-                                                  dims=[dimBox+min(0,xmin)-xoff, dimBox+min(0,yoff)-xoff, 1], shiftX=0, shiftY=0, rotation=0,
+                                                  dims=[int(dimBox+min(0,xmin)-xoff), int(dimBox+min(0,yoff)-xoff), 1], shiftX=0, shiftY=0, rotation=0,
                                                   appliedShiftX=0, appliedShiftY=0, index=itilt)
 
 

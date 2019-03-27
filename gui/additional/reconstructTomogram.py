@@ -18,7 +18,8 @@ if __name__ == '__main__':
              ScriptOption(['--tiltSeriesFormat'], 'Format of tilt series (series of "em" or "mrc" images or "st" stack).',
                           arg=True, optional=True),
              ScriptOption(['--firstIndex'], 'Index of first projection.', arg=True, optional=True),
-             ScriptOption(['--lastIndex'], 'Index of last projection.', arg=True, optional=False),
+             ScriptOption(['--lastIndex'], 'Index of last projection.', arg=True, optional=True),
+             ScriptOption(['--projIndices'], 'Use numbering in filename as index', arg=False, optional=True),
              ScriptOption(['--tltFile'], 'tltFile containing tilt angles.', arg=True, optional=True),
              ScriptOption(['--prexgFile'], 'prexgFile containing pre-shifts from IMOD.', arg=True, optional=True),
              ScriptOption(['--preBin'], 'pre-Binning in IMOD prior to marker determination.', arg=True, optional=True),
@@ -74,7 +75,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        tiltSeriesName, tiltSeriesFormat, firstProj, lastProj, \
+        tiltSeriesName, tiltSeriesFormat, firstProj, lastProj, projIndices,\
         tltFile, prexgFile, preBin, referenceIndex, markerFileName, referenceMarkerIndex, handflip, \
         projectionTargets, fineAlignFile, projBinning, lowpassFilter, \
         volumeName, filetype, \

@@ -151,7 +151,7 @@ def mrc2em(filename,destination):
     except:
         pass
 
-def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['openmpi/2.1.1', 'pytom/0.971']):
+def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['python3/3.7', 'lib64/append', 'openmpi/2.1.1', 'pytom/dev/python3']):
 
     module_load = ''
     if modules:
@@ -548,7 +548,7 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
         mdocdata = [line.split() for line in open(mdocfilepath).readlines() if len(line.split()) >=3]
 
-        for line in mdocdata:
+        for nn, line in enumerate(mdocdata):
             if '[ZValue' == line[0] and not header:
                 header = True
                 continue
@@ -568,7 +568,7 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
                     if fname in annotated.keys():
                         annotated[fname] += 1
 
-            if '[ZValue' == line[0]:
+            if '[ZValue' == line[0] or nn+1 == len(mdocdata):
                 data = [0.,]*len(datatype)
                 for n, (description, dtype) in enumerate(datatype):
                     if description in datadict.keys():
@@ -579,6 +579,7 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
                 metadata.append(tuple(data))
 
+        if len(metadata) == 0: continue
         a = numpy.rec.array(metadata, dtype=datatype)
         a = numpy.sort(a,order='TiltAngle')
 

@@ -359,11 +359,11 @@ class ProjectionList(PyTomClass):
         
         
         files = os.listdir(directory)
-        
+        self.tilt_angles = []
         for file in files:
             if file[len(file)-3:len(file)] == '.em':
                 projection = Projection(directory + file)
-            
+                self.tilt_angles.append(projection._tiltAngle)
                 self.append(projection)
     
     def sort(self):
@@ -729,7 +729,7 @@ class ProjectionList(PyTomClass):
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import fft,ifft
-        from pytom.basic.filter import circleFilter,rampFilter,fourierFilterShift
+        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift
         
         # determine image dimensions according to first image in projection list
         imgDim = read(self._list[0].getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1).sizeX()        
@@ -749,6 +749,9 @@ class ProjectionList(PyTomClass):
         
         if applyWeighting:
             weightSlice = fourierFilterShift(rampFilter(imgDim,imgDim))
+            if (applyWeighting > 1):
+                weightSlice = fourierFilterShift( exactFilter(self.tilt_angles, projection._tiltAngle,
+                                                              imgDim, imgDim, imgDim))
             circleFilterRadius = imgDim/2
             circleSlice = fourierFilterShift(circleFilter(imgDim,imgDim, circleFilterRadius))
         

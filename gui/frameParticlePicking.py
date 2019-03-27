@@ -41,6 +41,7 @@ class ParticlePick(GuiTabWidget):
         self.projectname = self.parent().projectname
         self.templatematchfolder = os.path.join( self.projectname, '04_Particle_Picking/Template_Matching' )
         self.pickpartfolder = os.path.join(self.projectname, '04_Particle_Picking/Picked_Particles')
+        self.subtomofolder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
 
         headers = ["Pick Particles","Create Particle List"]
         subheaders  = [['Manual Picking','Template Matching'],['Single','Batch']]
@@ -283,8 +284,8 @@ class ParticlePick(GuiTabWidget):
         self.insert_label_line_push(parent, 'Coordinate File', mode + 'CoordinateFile',mode='file',filetype='txt',
                                     tooltip='Select the coordinate file which contains the x,y,z coordinates of the particles.')
 
-        self.insert_label_line(parent, 'Prefix Subtomograms', mode + 'PrefixSubtomo',
-                               'Define a prefix that is prepended to the particle name. A unique identifier makes it'+
+        self.insert_label_line(parent, 'Prefix Subtomograms', mode + 'PrefixSubtomo', value='Subtomograms/',
+                               tooltip='Define a prefix that is prepended to the particle name. A unique identifier makes it'+
                                'easier to track the respective particles.')
 
         self.insert_label_spinbox(parent, mode + 'Wedge1', 'Wedge degrees(positive)',
@@ -296,6 +297,8 @@ class ParticlePick(GuiTabWidget):
         self.insert_label_line_push(parent, 'Filename particleList', mode+'FnameParticleList', cstep=-1, rstep=1,
                                     pushtext='Browse', width=150, action=self.setFnameParticleList)
 
+
+
         execfilename = os.path.join( self.pickpartfolder, 'createParticleList.sh')
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'createPrtclLst'
@@ -303,10 +306,14 @@ class ParticlePick(GuiTabWidget):
 
         self.insert_gen_text_exe(parent,mode,paramsCmd=[mode+'CoordinateFile', mode+'PrefixSubtomo', mode+'Wedge1',
                                                         mode+'Wedge2', mode+'FnameParticleList', createParticleList],
-                                 exefilename=execfilename,paramsSbatch=paramsSbatch,)
+                                 exefilename=execfilename,paramsSbatch=paramsSbatch)
 
         setattr(self, mode + 'gb_create_particle_list', groupbox)
         return groupbox
+
+    def update_prefix(self,params):
+        prefix = os.path.basename(self.widgets[params].text())
+        self.widgets[params].setText( os.path.join(self.subtomofolder, 'Subtomograms', prefix) )
 
     def setFnameParticleList(self,params):
         particleListFname = str(QFileDialog.getSaveFileName(self, 'Save particle list.',
@@ -350,7 +357,7 @@ class ParticlePick(GuiTabWidget):
             except:
                 tomogramNUM = n
 
-            prefix = 'tomogram_{:03d}_'.format(tomogramNUM)
+            prefix = 'Subtomograms/tomogram_{:03d}_'.format(tomogramNUM)
             fname_plist = 'particleList_{}.xml'.format(prefix[:-1])
 
             values.append( [coordinateFile, prefix, 30, 30, fname_plist] )

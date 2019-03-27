@@ -241,10 +241,12 @@ class TomographReconstruct(GuiTabWidget):
                 time.sleep(0.5)
                 procs = [proc for proc in procs if proc.is_alive()]
 
-            src_mcor = os.path.join(folder, tif)
+            src_mcor = os.path.join(folder, tif[1:-1])
+
             dst_mcor = os.path.join(os.path.dirname(meta_dst), 'sorted_{:02d}.mrc'.format(n))
 
             if os.path.exists(src_mcor):
+                # print('test', src_mcor)
                 os.system('cp {} {}'.format(src_mcor, dst_mcor))
                 #proc = Process(target=square_mrc, args=([dst_mcor]))
                 #procs.append(proc)
@@ -370,6 +372,7 @@ class TomographReconstruct(GuiTabWidget):
         #self.checkButton.setPalette(QtGui.QPalette(QtGui.QColor(255, 0, 0)))
         self.table_layouts[id].addWidget(self.W,3,1)
         '''
+
     def run_multi_align(self,id,values):
 
 
@@ -472,11 +475,8 @@ class TomographReconstruct(GuiTabWidget):
 
         if len(metafiles) ==1:
             metafile = metafiles[0]
-            angles = []
-            for line in [line for line in open(f'{folderSorted}/{metafile}','r').readlines()]:
-                if line.startswith('TiltAngle = '):
-                    angles.append( float(line[len('TiltAngle = '):]))
-            angles = numpy.array(sorted(angles))
+
+            angles = numpy.loadtxt(os.path.join(folderSorted,metafile),dtype=guiFunctions.datatype)['TiltAngle']
 
             for i in range(len(files)):
                 if not 'sorted_{:02d}.mrc'.format(i) in files:
@@ -550,8 +550,8 @@ class TomographReconstruct(GuiTabWidget):
             os.system('rm {}/sorted*.em'.format(output_folder))
 
 
-        guiFunctions.conv_mrc2em(self.widgets[mode+'FolderSorted'].text(), output_folder)
-        guiFunctions.renumber_gui2pytom(output_folder, prefix.split('/')[-1])
+        #guiFunctions.conv_mrc2em(self.widgets[mode+'FolderSorted'].text(), output_folder)
+        #guiFunctions.renumber_gui2pytom(output_folder, prefix.split('/')[-1])
         #print (self.pytompath)
         #print ('{}/bin/pytom rename_renumber.py {} {} {}'.format(self.pytompath, sorted_folder, output_folder, prefix))
 
@@ -577,7 +577,6 @@ class TomographReconstruct(GuiTabWidget):
         except:
             pass
 
-
     def tab43UI(self):
         id='tab43'
         headers = ["name tomogram", "INFR", 'WBP', 'First Index', "Last Index", 'Reference Image', 'Reference Marker',
@@ -593,9 +592,6 @@ class TomographReconstruct(GuiTabWidget):
                    'Reference Image number.',
                    'Reference Marker number.',
                    'Binning factor applied to images.']
-
-
-
         markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
 
         values = []
@@ -604,21 +600,81 @@ class TomographReconstruct(GuiTabWidget):
             qmarkerfile = markerfile.replace('markerfile.em','*.meta')
             qsortedfiles = markerfile.replace('markerfile.em','sorted_*.mrc')
             metafile = glob.glob( qmarkerfile )[0]
-            tangs = numpy.abs(numpy.array(sorted([float(line.split()[-1]) for line in
-                                        os.popen('cat {} | grep TiltAngle '.format(metafile)).readlines()])) )
 
-            sortedfiles = glob.glob(qsortedfiles)
-            last_frame = len(sortedfiles)
-            index_zero_angle = 0
-            mm = 9999
-            for n, sortedfile in enumerate(sortedfiles):
-                index_s = int(sortedfile.split('_')[-1].split('.')[0])
-                if tangs[index_s] < mm:
-                    mm = tangs[index_s]
-                    index_zero_angle = n+1
+            metadata=numpy.loadtxt(metafile, dtype=guiFunctions.datatype)
+            tilt_angles = metadata['TiltAngle']
+            index_zero_angle = numpy.argmin(numpy.abs(tilt_angles)) + 1
+            files =  os.listdir( os.path.dirname(markerfile) )
+            fnames = sorted([fname for fname in files if fname.startswith('sorted') and fname.endswith('mrc') ])
 
-            values.append( [markerfile, True, True, 1, last_frame, index_zero_angle, 1, 8] )
+            print(tilt_angles, fnames)
+
+
+            values.append( [markerfile.split('/')[-3], True, True, 1, len(fnames), index_zero_angle, 1, 8] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_reconstruction(pid, v))
 
-        pass
+    def run_multi_reconstruction(self, id, values):
+        print('multi_reconstructions', id)
+
+        n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
+        table = self.tables[id].table
+        widgets = self.tables[id].widgets
+        mode = 'batch_recon_'
+        dd = {1:'reconstruction/INFR',2:'reconstruction/WBP'}
+
+        for row in range(table.rowCount()):
+            tomofolder = os.path.join(self.tomogram_folder, values[row][0])
+            sortedFolder = os.path.join(tomofolder, 'sorted')
+            self.widgets[mode + 'tomofolder'] = QLineEdit(text=tomofolder)
+            self.widgets[mode + 'FolderSorted'] = QLineEdit(text=sortedFolder)
+
+            for i in (1,2):
+                widget = 'widget_{}_{}'.format(row, i)
+                if widgets[widget].isChecked():
+
+                    params = [mode,dd[i],'sorted']
+                    self.convert_em(params)
+
+                    execfilename = os.path.join(tomofolder, '{}/{}'.format(dd[i], dd[i].split('/')[-1]))
+                    paramsSbatch = guiFunctions.createGenericDict()
+                    paramsSbatch['fname'] = dd[i]
+                    paramsSbatch['folder'] = execfilename
+
+                    if i == 1:
+                        paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4],
+                                     values[row][5], values[row][6], values[row][7],
+                                     self.pytompath, os.path.basename(tomofolder)]
+                        commandText = templateINFR.format(d=paramsCmd)
+                    elif i==2:
+                        paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4],values[row][5],
+                                     values[row][6], values[row][7], os.path.basename(tomofolder), '.em', '464']
+                        commandText= templateWBP.format(d=paramsCmd)
+                    else:
+                        print( 'No Batch Submission' )
+
+                    if self.checkbox[id].isChecked():
+                        header = guiFunctions.gen_queue_header(name=paramsSbatch['fname'], folder=paramsSbatch['folder'],
+                                                               modules=paramsSbatch['modules'])
+                        commandText = header + commandText
+
+                    params = [execfilename, commandText]
+                    self.submit_multi_recon_job(params)
+
+    def submit_multi_recon_job(self, params):
+        print(params[1])
+        return
+        try:
+
+            exefile = open(params[0], 'w')
+            exefile.write(params[1])
+            exefile.close()
+
+            if len(params[1].split('SBATCH')) > 2:
+                os.system('sbatch {}'.format(params[0]))
+            else:
+                os.system('sh {}'.format(params[0]))
+        except:
+            print ('Please check your input parameters. They might be incomplete.')
+pass

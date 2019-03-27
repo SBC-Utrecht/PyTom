@@ -462,7 +462,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
             fnames[n] = os.path.join(line[0],line[1])
 
         self.metafile = [os.path.join(folder,line) for line in os.listdir(folder) if line.endswith('.meta')][0]
-        self.tiltangles = numpy.loadtxt(metafile,dtype=datatype)['TiltAngle']
+        self.tiltangles = numpy.loadtxt(self.metafile,dtype=datatype)['TiltAngle']
         #cmd = "cat {} | grep TiltAngle | sort -nk3 | awk '{{print $3}}'".format(tiltfile)
         #self.tiltangles = numpy.array([float(line) for line in os.popen(cmd).readlines()], dtype=float)
 
@@ -632,8 +632,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         cntr = numpy.zeros((200), dtype=int)
         for tiltNr in range(len(self.fnames)):
             #print(numpy.array(self.tiltimages[tiltNr].fiducials))
-            temp_fid = numpy.array(self.tiltimages[tiltNr].fiducials)[:,:2]
-
+            try: temp_fid = numpy.array(self.tiltimages[tiltNr].fiducials)[:,:2]
+            except: continue
             dx,dy = temp_fid.shape
             data = temp_fid.flatten()[::-1].reshape(dx,dy)[::-1]
             self.mark_frames[tiltNr][:len(data),:] = data
@@ -728,7 +728,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         projIndices = numpy.arange(len(self.frames))
         take = 1 - numpy.array(self.excluded, dtype=int)
         projIndices = list(projIndices[take.astype(bool)])
-        prefix = '{}/{}/sorted/sorted_'.format(self.tomofolder, self.tomogram_name)
+        prefix = '{}/{}/sorted/sorted'.format(self.tomofolder, self.tomogram_name)
 
         ref_frame = int(self.settings.widgets['ref_frame'].text())
         # Calculate the refined fiducial positions.
@@ -791,7 +791,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
                             self.coordinates[imnr][imark] = [xx, yy]
                             self.mark_frames[imnr][m] = [xx, yy]
                             self.old_coords[imnr][imark] = [fx, fy]
-
+                            print('marker',xx,yy,fx,fy)
         for name in (markerFileName, outFileName):
             if os.path.exists(name): os.system('rm {}'.format(name))
 
@@ -850,8 +850,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
             for num, imark in enumerate(markIndices):
                 for (itilt, iproj) in enumerate(projIndices):
                     markerFileVol[num][itilt][0] = self.tiltangles[iproj]
-                    markerFileVol[num][itilt][locX] = int(self.coordinates[iproj][imark][1] * self.bin_alg)
-                    markerFileVol[num][itilt][locY] = int(self.coordinates[iproj][imark][0] * self.bin_alg)
+                    markerFileVol[num][itilt][locX] = int(round(self.coordinates[iproj][imark][1] * self.bin_alg))
+                    markerFileVol[num][itilt][locY] = int(round(self.coordinates[iproj][imark][0] * self.bin_alg))
             convert_numpy_array3d_mrc(markerFileVol, markerFileName)
         elif output_type == 'em':
             
@@ -886,6 +886,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.mark_frames = mark_frames / float(self.bin_read)
         self.coordinates = copy.deepcopy(self.mark_frames)
         self.fs = numpy.zeros( (len(self.fnames),2) )
+        self.frame_shifts = numpy.zeros( (len(self.fnames),2) )
 
         for n in range(len(self.tiltimages)):
             self.tiltimages[n].clear()

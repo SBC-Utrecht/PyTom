@@ -359,8 +359,8 @@ def pair(l1,l2,pr=0):
 
         n2,distance=diff.argmin(),diff.min()
 
-        x1,y1=n/len_l1,n%len_l1
-        x2,y2=n2/len_l1,n2%len_l1
+        x1,y1=n//len_l1, n%len_l1
+        x2,y2=n2//len_l1, n2%len_l1
 
         shift = (l1[x1]+l1[y1])/2-(l2[x2]+l2[y2])/2
         norm = numpy.linalg.norm(shift)

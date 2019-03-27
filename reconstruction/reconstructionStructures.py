@@ -353,11 +353,12 @@ class ProjectionList(PyTomClass):
         
         
         files = os.listdir(directory)
-        
+        self.tilt_angles = []
+
         for file in files:
             if file[len(file)-3:len(file)] == '.em':
                 projection = Projection(directory + file)
-            
+                self.tilt_angles.append(projection._tiltAngle)
                 self.append(projection)
     
     def sort(self):
@@ -704,7 +705,7 @@ class ProjectionList(PyTomClass):
         self._list = sorted(self._list, key=lambda Projection: Projection._tiltAngle)
             
                
-    def toProjectionStack(self,binning=1,applyWeighting=False,showProgressBar=False,verbose=False):
+    def toProjectionStack(self,binning=1, applyWeighting=False, tiltAngle=None, showProgressBar=False,verbose=False):
         """
         toProjectionStack:
 
@@ -723,7 +724,7 @@ class ProjectionList(PyTomClass):
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import fft,ifft
-        from pytom.basic.filter import circleFilter,rampFilter,fourierFilterShift, fourierFilterShift_ReducedComplex
+        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
         
         # determine image dimensions according to first image in projection list
         imgDim = read(self._list[0].getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1).sizeX()        
@@ -736,26 +737,41 @@ class ProjectionList(PyTomClass):
         
         thetaStack = vol(1, 1, len(self._list))
         thetaStack.setAll(0.0)
-        
+
         offsetStack = vol(1, 2, len(self._list))
         offsetStack.setAll(0.0)
         
-        if applyWeighting:
+        if int(applyWeighting):
             weightSlice = fourierFilterShift(rampFilter(imgDim,imgDim))
-            circleFilterRadius = imgDim/2
+
+            circleFilterRadius = imgDim//2
             circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imgDim,imgDim, circleFilterRadius))
         
         if showProgressBar:
             progressBar = FixedProgBar(0,len(self._particleList),'Particle volumes generated ')
             progressBar.update(0)
 
+        self.tilt_angles = []
+
+        for (i, projection) in enumerate(self._list):
+            self.tilt_angles.append(projection._tiltAngle)
+
+        self.tilt_angles = sorted(self.tilt_angles)
+        print( self.tilt_angles )
+
         for (i, projection) in enumerate(self._list):
             if verbose:
                 print(projection)
 
+            if (int(applyWeighting) >= 1):
+                
+                weightSlice = fourierFilterShift( exactFilter(self.tilt_angles, projection._tiltAngle,
+                                                              imgDim, imgDim, imgDim))
+
+
             image = read(projection.getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1)
             
-            if applyWeighting:
+            if int(applyWeighting):
                 image = ifft( complexRealMult( complexRealMult( fft(image), weightSlice), circleSlice) )
 
             thetaStack(projection.getTiltAngle(), 0, 0, i)

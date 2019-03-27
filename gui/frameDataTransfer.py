@@ -596,6 +596,7 @@ class CollectPreprocess(GuiTabWidget):
         e.set()
         if ftps: ftps.close()
 
+
     def connect_ftp_server(self, username, servername, password):
         ftps = FTP_TLS(servername, username, password)
         ftps.prot_p()
@@ -772,7 +773,7 @@ class CollectPreprocess(GuiTabWidget):
         if not self.continuous and (self.m or self.c):
             while len(events):
                 events = [proc for proc in events if not proc.is_set()]
-                print(events)
+
                 a = [os.path.basename(line) for line in glob.glob( os.path.join(self.rawnanographs_folder,'*')) ]
                 b = [os.path.basename(line) for line in glob.glob( os.path.join(self.motioncor_folder,    '*')) ]
 
@@ -826,7 +827,7 @@ class CollectPreprocess(GuiTabWidget):
                 name, ext = os.path.splitext(os.path.basename(fname))
                 if not os.path.exists(os.path.join(self.local_data_folder, os.path.basename(fname))):
                     continue
-                if 1 or not os.path.exists(os.path.join(mc_dir, name + '.mrc')):
+                if not os.path.exists(os.path.join(mc_dir, name + '.mrc')):
                     intiff = os.path.join(self.local_data_folder, os.path.basename(fname))
                     outmrc = os.path.join(mc_dir, name + '.mrc')
                     gain, patch, ftbin = '', '', ''
@@ -856,7 +857,7 @@ class CollectPreprocess(GuiTabWidget):
             elif e.is_set() and quit:
                 break
             else:
-                time.sleep(10)
+                time.sleep(1)
 
         finish_mcor.set()
 

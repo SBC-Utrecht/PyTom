@@ -32,7 +32,7 @@ templateXML       = '''<JobDescription Destination="{d[6]}">
 templateAlignment = '''cd {d[0]}
 
 {d[1]}/bin/pytom {d[1]}/gui/additional/reconstructTomogram.py \\
-    --tiltSeriesName alignment/sorted  \\
+    --tiltSeriesName sorted/sorted  \\
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\
     --referenceIndex {d[4]} \\
@@ -41,6 +41,7 @@ templateAlignment = '''cd {d[0]}
     --projectionTargets alignment/unweighted_unbinned/temp \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9 \\
+    --tiltSeriesFormat mrc \\
     --weightingType 0 '''
 
 templateWBP       = '''cd {d[0]}
@@ -160,7 +161,13 @@ createParticleList = 'coords2PL.py -c {d[0]}  -s {d[1]} -w {d[2]},{d[3]} -p {d[4
 
 extractParticles = '''cd {d[8]}
 
-reconstructWB.py -p {d[0]} --projectionDirectory {d[1]} -s {d[3]} -b {d[4]} -o {d[5]},{d[6]},{d[7]}'''
+reconstructWB.py --particleList {d[0]} \\
+--projectionDirectory {d[1]} \\
+--coordinateBinning {d[2]} \\
+--size {d[3]} \\
+--applyWeighting {d[9]} \\
+--projBinning {d[4]} \\
+--recOffset {d[5]},{d[6]},{d[7]}'''
 
 
 multiple_alignment = '''cd {d[0]}

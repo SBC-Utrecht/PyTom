@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.7
+#! /cm/shared/apps/python3/3.7/bin/python3
 import sys
 import os
 import pickle, json
@@ -43,11 +43,13 @@ def update_env_vars(pytompath):
             #os.execv('/cm/shared/apps/python3/3.7/bin/python3.7', sys.argv)
 update_env_vars(pytompath)
 
+import matplotlib
+matplotlib.use('Qt5Agg')
 from pylab import *
 from pytom.gui.guiFunctions import datatype, headerText, units, fmt, createMetaDataFiles
 
-def mdoc2meta(path,mdocfiles,target):
-    createMetaDataFiles(path, mdocfiles, target)
+def mdoc2meta(path, mdocfiles, target, mdoc_only=True):
+    createMetaDataFiles(path, mdocfiles, target,mdoc_only=mdoc_only)
 
 
 if __name__ == '__main__':

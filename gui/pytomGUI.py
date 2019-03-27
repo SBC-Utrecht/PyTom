@@ -413,4 +413,11 @@ def main():
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
+
+
+    for module in ('lib64/append', 'python3/3.7', 'openmpi/2.1.1', 'pytom/dev/python3'):
+        try:
+            os.system('module load {}'.format(module))
+        except:
+            print('Failed loading {}'.format(module))
     main()

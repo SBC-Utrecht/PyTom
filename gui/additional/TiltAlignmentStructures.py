@@ -106,7 +106,7 @@ class TiltSeries(PyTomClass):
                         
                         proj = Projection(filename=fname,
                                           alignedFilename=None,
-                                          index=ii, tiltAngle=mf[0,:,0],
+                                          index=ii, tiltAngle=mf[0,ii,0],
                                           offsetX=0., offsetY=0.,
                                           alignmentTransX=0., alignmentTransY=0.,
                                           alignmentRotation=0., alignmentMagnification=1.)

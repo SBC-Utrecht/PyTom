@@ -283,7 +283,7 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict(fname='subtomoExtract', folder=self.subtomodir)
         paramsCmd = [mode+'particlelist', mode+'AlignedTiltDir', mode + 'BinFactorReconstruction',
                      mode+'SizeSubtomos', mode+'BinFactorSubtomos', mode+'OffsetX', mode+'OffsetY', mode+'OffsetZ',
-                     self.subtomodir, extractParticles]
+                     self.subtomodir, mode+'WeightingFactor', extractParticles]
 
         self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename,paramsSbatch=paramsSbatch)
         setattr(self, mode + 'gb_inputFiles', groupbox)
@@ -435,7 +435,7 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsJob = [mode+'bwMin',mode+'bwMax',mode+'frequency',mode+'maxIterations', mode+'peakOffset',
                      rscore, weightedAv, mode+'filenameAverage', weighting, mode+'filenameMask', binning_mask, sphere,
                      mode+'pixelSize', mode+'particleDiameter', mode+'particleList', self.frmdir]
-        paramsCmd = [ self.frmdir, self.pytompath, jobfilename,templateFRMSlurm]
+        paramsCmd = [ self.subtomodir, self.pytompath, jobfilename, templateFRMSlurm]
 
 
         self.insert_gen_text_exe(parent, self.stage, xmlfilename=jobfilename, jobfield=True, exefilename=exefilename,
@@ -467,7 +467,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
         w = 170
 
-        self.insert_label_line_push(parent, 'Particle List', mode + 'particlelist',
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
                                     'Select the particle list.', mode='file', filetype='xml')
         self.insert_label_line_push(parent, 'Initial reference model', mode + 'referenceModel', mode='file', filetype='xml',
                                     tooltip='Reference : the initial reference - if none provided average of particle list')
@@ -481,7 +481,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_spinbox(parent, mode + 'numIterations', 'Number of Iterations',
                                   minimum=1, value=4, stepsize=1,
                                   tooltip='Sets the number of iterations.')
-        self.insert_label_spinbox(parent, mode+'pixelSize', 'Pixel Size (A)',
+        self.insert_label_spinbox(parent, mode + 'pixelSize', 'Pixel Size (A)',
                                   wtype=QDoubleSpinBox, minimum=0.1, value=1.75, stepsize=0.1,
                                   tooltip='Pixelsize in Angstrom ')
         self.insert_label_spinbox(parent, mode+'particleDiameter', 'Particle Diameter (A)',
@@ -495,8 +495,8 @@ class SubtomoAnalysis(GuiTabWidget):
         glocalpath = os.path.join(self.subtomodir, 'Alignment/GLocal')
         exefilename = os.path.join(glocalpath, 'GLocal_Alignment.sh')
         paramsSbatch = guiFunctions.createGenericDict(fname='GLocal', folder=glocalpath)
-        paramsCmd = [glocalpath, self.pytompath, self.pytompath, mode+'particleList', 'referenceCommand',
-                     mode+'filenameMask', mode+'numIterations', mode+'pixelSize', mode+'particleDiamter',
+        paramsCmd = [self.subtomodir, self.pytompath, self.pytompath, mode+'particleList', 'referenceCommand',
+                     mode+'filenameMask', mode+'numIterations', mode+'pixelSize', mode+'particleDiameter',
                      mode+'binning', glocalpath, templateGLocal]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
@@ -534,7 +534,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         exefilename = os.path.join(self.cpcadir, 'CPCA_Classification.sh')
         paramsSbatch = guiFunctions.createGenericDict(fname='CPCA', folder=self.cpcadir)
-        paramsCmd = [self.cpcadir, self.pytompath, mode + 'particleList', mode + 'outputFilename',
+        paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'outputFilename',
                      mode + 'cccFile', mode + 'numEig', mode+'numClasses', mode+'prefix',  templateCPCA]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
@@ -574,7 +574,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.cpcadir = os.path.join(self.parent().subtomo_folder, 'Classification/CPCA')
         exefilename = os.path.join(self.cpcadir, 'CCC_Classification.sh')
         paramsSbatch = guiFunctions.createGenericDict(fname='CCC_Class', folder=self.cpcadir)
-        paramsCmd = [self.cpcadir, self.pytompath, mode + 'particleList', mode + 'filenameMask',
+        paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'filenameMask',
                      mode + 'lowpass', mode + 'binning', templateCCC]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
@@ -628,7 +628,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         paramsSbatch = guiFunctions.createGenericDict(fname='AutoFocus', folder=acpath)
 
-        paramsCmd = [acpath, self.pytompath, mode + 'particleList', mode + 'filenameMask1', mode + 'filenameMask',
+        paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'filenameMask1', mode + 'filenameMask',
                      mode + 'numClasses', mode + 'bwMax', mode + 'maxIterations', mode + 'peakOffset',
                      mode + 'noisePercentage', mode + 'partDensThresh', mode + 'stdDiffMap', templateAC]
 

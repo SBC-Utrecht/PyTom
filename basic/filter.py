@@ -265,12 +265,12 @@ def fourierFilterShift_ReducedComplex(filter):
     from pytom_volume import vol
 
     widthX = filter.sizeX()
-    centerX = filter.sizeX()/2
-    boxX = filter.sizeX()/2
+    centerX = filter.sizeX()//2
+    boxX = filter.sizeX()//2
 
     widthY = filter.sizeY()
-    centerY = filter.sizeY()/2
-    boxY = filter.sizeY()/2
+    centerY = filter.sizeY()//2
+    boxY = filter.sizeY()//2
 
     shifted_filter = vol(widthX, widthY, 1)
     shifted_filter.setAll(0.0)
@@ -294,10 +294,10 @@ def circleFilter(sizeX,sizeY, radiusCutoff):
     """
     from pytom_volume import vol
     
-    centerX = sizeX/2
+    centerX = sizeX//2
         
-    centerY = sizeY/2
-    sizeY = (sizeY/2) +1
+    centerY = sizeY//2
+    sizeY = (sizeY//2) +1
         
     filter_vol = vol(sizeX, sizeY, 1)
     filter_vol.setAll(0.0)
@@ -331,7 +331,7 @@ def rampFilter( sizeX, sizeY):
     centerY = sizeY//2
     sizeY = (sizeY//2) +1
     
-    Ny = sizeX/2
+    Ny = sizeX//2
         
     filter_vol = vol(sizeX, sizeY, 1)
     filter_vol.setAll(0.0)
@@ -343,6 +343,58 @@ def rampFilter( sizeX, sizeY):
             filter_vol.setV(ratio, i, j, 0)
                 
     return filter_vol
+
+
+def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth):
+    """
+    exactFilter: Generates the exact weighting function required for weighted backprojection - y-axis is tilt axis
+    Reference : Optik, Exact filters for general geometry three dimensional reconstuction, vol.73,146,1986.
+    @param tilt_angles: list of all the tilt angles in one tilt series
+    @param titlAngle: tilt angle for which the exact weighting function is calculated
+    @param sizeX: size of weighted image in X
+    @param sizeY: size of weighted image in Y
+
+    @return: filter volume
+
+    """
+
+    from pytom_volume import read, vol, vol_comp
+    import numpy as np
+
+    sizeY = (sY // 2) + 1
+    IijFunc_sum = [0.0] * sX
+    IijFunc = []
+    weightFunc = vol(sX, sizeY, 1)
+    weightFunc.setAll(0.0)
+
+
+    for n in range(1, len(tilt_angles) + 1):
+        theta = tilt_angles[n - 1]
+        reltheta = abs(theta - tiltAngle)
+        if reltheta == 0:
+            continue
+        ds = float(sliceWidth / sX)
+        fijh = float(1. / (ds * np.sin(reltheta * np.pi / 180)))
+        for ix in range(-sX // 2, sX // 2):
+            freq = ix
+            if 0 <= freq <= fijh:
+                Iij = 1. - (freq / fijh)
+                IijFunc.append(Iij)
+            elif -fijh <= freq <= 0:
+                Iij = 1. + (freq / fijh)
+                IijFunc.append(Iij)
+            else:
+                Iij = 0.0
+                IijFunc.append(Iij)
+        IijFunc_sum = np.array(IijFunc_sum) + np.array(IijFunc)
+        IijFunc = []
+    InterFunc = 1. + (IijFunc_sum)
+    wf = 1. / InterFunc
+    for ix in range(0, sX):
+        for iy in range(0, sizeY):
+            weightFunc.setV(wf[ix], ix, iy, 0)
+
+    return weightFunc
 
 
 def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, returnReducedComplex=False, binarize=False):

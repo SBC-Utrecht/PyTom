@@ -19,7 +19,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     from pytom.basic.transformations import general_transform2d
     from pytom.basic.fourier import ifft, fft
     from pytom.basic.filter import filter as filterFunction, bandpassFilter
-    from pytom.basic.filter import circleFilter, rampFilter, fourierFilterShift
+    from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift
     from pytom_volume import complexRealMult, vol
     import pytom_freqweight
     from pytom.basic.transformations import resize
@@ -28,6 +28,8 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         imdim = int(float(TiltSeries_._imdim)/float(binning)+.5)
     else:
         imdim = TiltSeries_._imdim
+
+    sliceWidth = imdim
 
     # pre-determine analytical weighting function and lowpass for speedup
     if (weighting != None) and (weighting < 0):
@@ -43,6 +45,13 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         #lpf = bandpassFilter(volume=vol(imdim, imdim,1),lowestFrequency=0,highestFrequency=int(lowpassFilter*imdim/2),
         #                     bpf=None,smooth=lowpassFilter/5.*imdim,fourierOnly=False)[1]
 
+
+    tilt_angles = []
+
+    for projection in TiltSeries_._ProjectionList:
+        tilt_angles.append( projection._tiltAngle )
+    tilt_angles = sorted(tilt_angles)
+    print(tilt_angles)
     for (ii,projection) in enumerate(TiltSeries_._ProjectionList):
         if projection._filename.split('.')[-1] == 'st':
             from pytom.basic.files import EMHeader, read
@@ -118,8 +127,8 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         image = taper_edges(image, imdim/30)[0]
         
         # 'exact weighting, i.e., compute overlap of frequencies in Fourier space
-        if weighting >0:
-           print("Exact weighting still needs to be ported ... - doing analytical weighting instead")
+        #if weighting >0:
+        #   print("Exact weighting still needs to be ported ... - doing analytical weighting instead")
                 #fimage = fftshift(tom_fourier(image));
                 ## perform weighting
                 #w_func = tom_calc_weight_function([size(image,1), size(image,2)], ...
@@ -130,9 +139,17 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             image = (ifft( complexRealMult( fft( image), w_func) )/
                   (image.sizeX()*image.sizeY()*image.sizeZ()) )
     
+        elif (weighting != None) and (weighting > 0):
+            #print "Exact weighting for tilt angle =", tiltAngle                                                                     
+            w_func = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
+            image = (ifft( complexRealMult( fft( image), w_func) )/
+                  (image.sizeX()*image.sizeY()*image.sizeZ()) )
+
+
         # write out projs
         #  imt.Header.Tiltaxis=0;
         #imt.Header.Tiltangle = Tiltangle;
+        header.set_tiltangle(tilt_angles[ii])
         write_em(filename=newFilename, data=image, header=header)
         if verbose:
             tline = ("%30s written ..." %newFilename)
