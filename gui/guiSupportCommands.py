@@ -47,17 +47,18 @@ templateAlignment = '''cd {d[0]}
 templateWBP       = '''cd {d[0]}
 
 {d[1]}/bin/pytom {d[1]}/gui/additional/reconstructTomogram.py \\
-    --tiltSeriesName reconstruction/WBP/sorted \\
+    --tiltSeriesName sorted/sorted \\
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\
     --referenceIndex {d[4]} \\
     --markerFile reconstruction/WBP/markerfile.em \\
     --referenceMarkerIndex {d[5]} \\
-    --projectionTargets reconstruction/WBP/temp_files_unweighted/temp \\
+    --projectionTargets reconstruction/WBP/temp_files_unweighted/sorted \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9  \\
-    --weightingType -1  \\
-    --tomogramFile reconstruction/WBP/{d[7]}_WBP.em \\
+    --weightingType {d[10]}  \\
+    --tomogramFile reconstruction/WBP/{d[7]}_WBP.mrc \\
+    --tiltSeriesFormat {d[8]} \\
     --fileType {d[8]}  \\
     --tomogramSizeX {d[9]}  \\
     --tomogramSizeY {d[9]} \\

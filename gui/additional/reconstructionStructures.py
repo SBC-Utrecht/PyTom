@@ -730,9 +730,11 @@ class ProjectionList(PyTomClass):
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import fft,ifft
         from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift
-        
+
+
+        fname = self._list[0].getFilename().replace('.em','.mrc')
         # determine image dimensions according to first image in projection list
-        imgDim = read(self._list[0].getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1).sizeX()        
+        imgDim = read(fname,0,0,0,0,0,0,0,0,0,binning,binning,1).sizeX()
         
         stack = vol(imgDim, imgDim, len(self._list))
         stack.setAll(0.0)
@@ -763,7 +765,8 @@ class ProjectionList(PyTomClass):
             if verbose:
                 print(projection)
 
-            image = read(projection.getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1)
+            fname = projection.getFilename().replace('.em','.mrc')
+            image = read(fname,0,0,0,0,0,0,0,0,0,binning,binning,1)
             
             if applyWeighting:
                 image = ifft( complexRealMult( complexRealMult( fft(image), weightSlice), circleSlice) )

@@ -48,6 +48,8 @@ class TiltSeries(PyTomClass):
         self._lastProj = lastProj
         if projIndices:
             self._projIndices = projIndices
+        elif tiltSeriesFormat == 'mrc':
+            self._projIndices = list(range(0,lastProj))
         else:
             self._projIndices = list(range(firstProj, lastProj + 1))
         self._tiltSeriesFormat = tiltSeriesFormat
@@ -65,9 +67,14 @@ class TiltSeries(PyTomClass):
                 for cnt, ii in enumerate(self._projIndices):
 
                     fname = tiltSeriesName + "_" + str( ii ) + "." + tiltSeriesFormat
-                    if tiltSeriesFormat == 'mrc': fname = tiltSeriesName + "_" + "{:02d}".format( ii ) + "." + tiltSeriesFormat
+                    if tiltSeriesFormat == 'mrc':
+                        fname = tiltSeriesName + "_" + "{:02d}".format( ii ) + "." + tiltSeriesFormat
                     if alignedTiltSeriesName:
-        
+
+                        #projname = alignedTiltSeriesName + "_" + str(ii) + "." +tiltSeriesFormat
+                        #if tiltSeriesFormat == 'mrc':
+                        #    projname = alignedTiltSeriesName + "_" + "{:02d}".format( ii ) + "." + tiltSeriesFormat
+
                         proj = Projection(filename=fname,
                                           alignedFilename=alignedTiltSeriesName + "_" + str(ii) + "." +tiltSeriesFormat,
                                           index=ii, tiltAngle=self.mf[0,cnt,0],

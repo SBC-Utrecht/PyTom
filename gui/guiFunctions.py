@@ -12,8 +12,8 @@ from pytom.basic.files import read_em_header
 from pytom.gui.mrcOperations import read_mrc, read_angle
 from pytom_numpy import vol2npy
 from pytom.gui.guiSupportCommands import multiple_alignment
-from pylab import imread
 matplotlib.use('Qt5Agg')
+from pylab import imread
 
 def read_markerfile(filename,tiltangles):
     if filename[-4:] == '.mrc':

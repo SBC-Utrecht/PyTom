@@ -133,8 +133,8 @@ if __name__ == '__main__':
     if filetype is None:
         if volumeName:
             filetype = volumeName.split('.')[-1]
-    else:
-        filetype = 'em'
+        else:
+            filetype = tiltSeriesFormat
 
     if tomogramSizeX is not None or tomogramSizeY is not None or tomogramSizeZ is not None:
         # dimensions of reconstructed tomogram

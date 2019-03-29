@@ -740,6 +740,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.ref_coords, self.errors, tX, tY = refineMarkerPositions(prefix, markerFileName, 0,
                                                                      len(self.frames) - 1, outFileName, dimBox=64,
                                                                      projIndices=projIndices,
+                                                                     size=self.frames_full[0].shape[0]*self.bin_read,
                                                                      tiltSeriesFormat=tiltSeriesFormat,
                                                                      ret=return_ref_coords, write=False,
                                                                      ireftilt=ref_frame)
