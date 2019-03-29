@@ -281,7 +281,9 @@ class ParticlePick(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
 
         self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB, width=200)
+
         self.insert_label_line_push(parent, 'Coordinate File', mode + 'CoordinateFile',mode='file',filetype='txt',
+                                    initdir=self.pickpartfolder,
                                     tooltip='Select the coordinate file which contains the x,y,z coordinates of the particles.')
 
         self.insert_label_line(parent, 'Prefix Subtomograms', mode + 'PrefixSubtomo', value='Subtomograms/',
@@ -294,9 +296,16 @@ class ParticlePick(GuiTabWidget):
         self.insert_label_spinbox(parent, mode + 'Wedge2','Wedge degrees(negative)',
                                   'Angle between -90 and the lowest tilt angle.',
                                   stepsize=1,minimum=0,maximum=90,value=30, cstep=-1,rstep=1)
-        self.insert_label_line_push(parent, 'Filename particleList', mode+'FnameParticleList', cstep=-1, rstep=1,
+
+        self.insert_label_line_push(parent, 'Filename particleList', mode+'FnameParticleList', cstep=-2, rstep=1,
                                     pushtext='Browse', width=150, action=self.setFnameParticleList)
 
+        self.insert_label_checkbox(parent, 'Randomize Particle Orientation', mode+'Randomize', cstep=0, rstep=1,
+                                   tooltip='Randomize the orientation angles of the particles in the particle list.')
+
+        self.widgets[mode+'flagRandomize'] = QLineEdit()
+        self.widgets[mode+'Randomize'].stateChanged.connect(lambda dummy, m=mode: self.update_flag(m) )
+        self.widgets[ mode + 'CoordinateFile'].textChanged.connect(lambda d, mm=mode: self.update_prefix_pL(mm))
 
 
         execfilename = os.path.join( self.pickpartfolder, 'createParticleList.sh')
@@ -304,21 +313,38 @@ class ParticlePick(GuiTabWidget):
         paramsSbatch['fname'] = 'createPrtclLst'
         paramsSbatch[ 'folder' ] = self.pickpartfolder
 
-        self.insert_gen_text_exe(parent,mode,paramsCmd=[mode+'CoordinateFile', mode+'PrefixSubtomo', mode+'Wedge1',
-                                                        mode+'Wedge2', mode+'FnameParticleList', createParticleList],
-                                 exefilename=execfilename,paramsSbatch=paramsSbatch)
+        paramsCmd=[mode+'CoordinateFile', mode+'PrefixSubtomo', mode+'Wedge1', mode+'Wedge2', mode+'FnameParticleList',
+                   mode+'flagRandomize', createParticleList]
+
+        self.insert_gen_text_exe(parent,mode,paramsCmd=paramsCmd, exefilename=execfilename,paramsSbatch=paramsSbatch)
 
         setattr(self, mode + 'gb_create_particle_list', groupbox)
         return groupbox
 
-    def update_prefix(self,params):
-        prefix = os.path.basename(self.widgets[params].text())
-        self.widgets[params].setText( os.path.join(self.subtomofolder, 'Subtomograms', prefix) )
+    def update_prefix_pL(self, mode):
+        coords, prefixS = mode + 'CoordinateFile', mode + 'PrefixSubtomo'
+        prefix = os.path.basename(self.widgets[coords].text())[:-4].replace('coords_', '')
+        self.widgets[prefixS].setText(os.path.join('Subtomograms', prefix))
+        self.setFnameParticleList(['file',self.widgets[mode + 'FnameParticleList']], ask=False)
 
-    def setFnameParticleList(self,params):
-        particleListFname = str(QFileDialog.getSaveFileName(self, 'Save particle list.',
-                                                            self.projectname+'/04_Particle_Picking/Picked_Particles/',
-                                                            filter='*.xml')[0])
+    def update_flag(self,mode):
+        w1 = self.widgets[mode+'flagRandomize']
+        w2 = self.widgets[mode+'Randomize']
+        w1.setText(w2.isChecked()*'-r')
+
+    def update_prefix(self,params):
+        prefix = os.path.basename(self.widgets[params[0]].text())[:-4].replace('coords_','')
+        self.widgets[params[1]].setText( os.path.join('Subtomograms', prefix) )
+
+    def setFnameParticleList(self,params,ask=True):
+        t = os.path.basename( self.widgets[ self.stage+'partlist_' + 'CoordinateFile'].text() )
+        t = t.replace('coords_','').replace('.txt', '')
+        initdir = os.path.join(self.projectname,'04_Particle_Picking/Picked_Particles', 'particleList_{}.xml'.format(t))
+
+        if ask:
+            particleListFname = str(QFileDialog.getSaveFileName(self,'Save particle list.', initdir, filter='*.xml')[0])
+        else:
+            particleListFname = initdir
 
         if particleListFname:
             if particleListFname.endswith('.xml'): params[1].setText(particleListFname)

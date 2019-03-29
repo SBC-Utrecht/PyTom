@@ -25,6 +25,7 @@ from pytom.basic.files import read
 from pytom_numpy import vol2npy
 
 import pytom.gui.guiFunctions as guiFunctions
+from pytom.gui.mrcOperations import square_mrc
 
 class TomographReconstruct(GuiTabWidget):
     '''Collect Preprocess Widget'''
@@ -51,6 +52,8 @@ class TomographReconstruct(GuiTabWidget):
         self.pbs = {}
         self.ends = {}
         self.checkbox = {}
+
+        self.subprocesses = 10
 
         self.tabs = {'tab1': self.tab1,
                      'tab2':  self.tab2,
@@ -143,7 +146,7 @@ class TomographReconstruct(GuiTabWidget):
         values = []
 
         for t in processed:
-            values.append([t, False, '', ['Motion Corrected', 'Raw Nanographs'], t.split('/')[-3], True, True])
+            values.append([t, False, '', ['Raw Nanographs', 'Motion Corrected'], t.split('/')[-3], True, True])
         for t in unprocessed:
             values.append([t, True, '', ['Raw Nanographs','Motion Corrected'], '', False, False])
 
@@ -178,6 +181,10 @@ class TomographReconstruct(GuiTabWidget):
         n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables['tab1'].table
         widgets = self.tables['tab1'].widgets
+        procs = []
+
+        jobs = []
+
         for row in range(table.rowCount()):
             wname = 'widget_{}_{}'.format(row, 1)
 
@@ -186,7 +193,10 @@ class TomographReconstruct(GuiTabWidget):
                 tomofoldername = widgets['widget_{}_{}'.format(row, 2)].text()
                 metafile = values[row][0]
                 folder = self.filepath_tomodata[widgets['widget_{}_{}'.format(row, 3)].currentText()]
-                self.create_tomodir_instance(tomofoldername,metafile,folder)
+
+                jobs.append([self.create_tomodir_instance, (tomofoldername,metafile,folder)])
+
+                #self.create_tomodir_instance(tomofoldername,metafile,folder)
 
             # Redo
             wname = 'widget_{}_{}'.format(row, 5)
@@ -196,7 +206,7 @@ class TomographReconstruct(GuiTabWidget):
                 folder = self.filepath_tomodata[widgets['widget_{}_{}'.format(row, 3)].currentText()]
                 metafile = os.path.join( self.filepath_tomodata[folder], metafile )
                 shutil.rmtree( os.path.join(self.tomogram_folder, tomofoldername) )
-                self.create_tomodir_instance(tomofoldername,metafile,folder)
+                jobs.append( [self.create_tomodir_instance, (tomofoldername,metafile,folder)])
 
             # Delete
             wname = 'widget_{}_{}'.format(row, 6)
@@ -204,6 +214,22 @@ class TomographReconstruct(GuiTabWidget):
                 tomofoldername = widgets['widget_{}_{}'.format(row, 4)].text()
                 shutil.rmtree( os.path.join(self.tomogram_folder, tomofoldername) )
                 # self.create_tomodir_instance(tomofoldername,mdocfile,folder)
+
+        events = []
+        self.jobs_nr_create_tomofolders = len(jobs)
+
+        self.run_jobs(jobs)
+
+    def run_jobs(self, jobs):
+        procs = []
+        for target, args in jobs:
+            procs = [proc for proc in procs if not proc.is_alive()]
+            while len(procs) >= self.subprocesses:
+                time.sleep(0.5)
+            proc = Process(target=target, args=args)
+            procs.append(proc)
+            proc.start()
+
         self.update_create_tomoname(id)
 
     def create_tomodir_instance(self, tomofoldername, metafile, folder):
@@ -215,12 +241,7 @@ class TomographReconstruct(GuiTabWidget):
             return
         shutil.copytree(src, dst)
         meta_dst = os.path.join(dst, 'sorted', os.path.basename(metafile))
-        os.link(metafile, meta_dst)
-
-        # tif_files = [ line for line in open(os.path.join(mdoc_dst) ,'r').readlines() if line.strip(' ').startswith('SubFramePath')]
-        #tif_files = [line for line in os.popen('cat {} | grep SubFramePath '.format(metafile)).readlines()]
-        #tiltangles = [float(line.split()[-1]) for line in
-        #              os.popen('cat {} | grep TiltAngle '.format(metafile)).readlines()]
+        os.system('cp {} {}'.format(metafile, meta_dst) )
 
         metafile = numpy.loadtxt(metafile, dtype=guiFunctions.datatype)
         tif_files  = metafile['FileName']
@@ -235,7 +256,7 @@ class TomographReconstruct(GuiTabWidget):
         sort(name_angle, 1)
 
         procs = []
-        newstack_in = '{:d}\n'.format(len(name_angle))
+        num_copied = 0
         for n, (tif, angle) in enumerate(name_angle):
             while len(procs) >= num_subprocesses:
                 time.sleep(0.5)
@@ -247,11 +268,14 @@ class TomographReconstruct(GuiTabWidget):
 
             if os.path.exists(src_mcor):
                 # print('test', src_mcor)
+                num_copied += 1
                 os.system('cp {} {}'.format(src_mcor, dst_mcor))
                 #proc = Process(target=square_mrc, args=([dst_mcor]))
                 #procs.append(proc)
                 #proc.start()
-                # out = square_mrc(dst_mcor)
+                #out = square_mrc(dst_mcor)
+        if num_copied < 5:
+            shutil.rmtree(dst)
 
     def tab2UI(self):
         id = 'tab2'

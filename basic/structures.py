@@ -3003,6 +3003,7 @@ class ParticleList(PyTomClass):
             i = 0
 
             for line in ff:
+                if '#' in line or not line: continue
                 try: x, y, z = [float(n) for n in line.split('\t')]
                 except: x, y, z = [float(n) for n in line.split()]
                 p = Particle(name_prefix+str(i)+'.em', rotation=None, shift=None,

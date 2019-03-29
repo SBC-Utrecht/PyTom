@@ -1,4 +1,5 @@
-#! /cm/shared/apps/python3/3.7/bin/python3
+#!/usr/bin/env pytom
+
 import sys
 import os
 import pickle, json

@@ -602,6 +602,28 @@ class CollectPreprocess(GuiTabWidget):
         ftps.prot_p()
         return ftps
 
+    def update_progress_collect(self,total):
+        self.progressBar_Collect.setValue(total)
+
+    def update_progress_motioncor(self,total):
+        self.progressBar_Motioncor.setValue(total)
+
+    def delete_progressbar_motioncor(self):
+        self.statusBar.removeWidget(self.progressBar_Motioncor)
+        self.popup_messagebox("Info", "Completion", 'Successfully finished motion correction')
+        self.widgets['CandP'].setEnabled(True)
+
+    def delete_progressbar_collect(self):
+        self.statusBar.removeWidget(self.progressBar_Collect)
+
+        mdocs = glob.glob("{}/*.mdoc.temp".format(self.local_data_folder))
+        for mdoc in mdocs:
+            os.system("mv {} {}".format(mdoc, mdoc[:-5]))
+
+        guiFunctions.createMetaDataFiles(self.rawnanographs_folder, '')
+        self.popup_messagebox("Info", "Completion", 'Successfully finished data transfer')
+        self.widgets['CandP'].setEnabled(True)
+
     def em_fscollect(self,mode='v01_batch_'):
 
         self.widgets['CandP'].setEnabled(False)
@@ -763,64 +785,59 @@ class CollectPreprocess(GuiTabWidget):
                 proc.start()
 
         if self.c or self.m:
-            #proc = Process(target=self.check_run,args=(procs,[e]+self.mcor_procs) )
-            #proc.start()
-            self.check_run(procs, [e]+self.mcor_procs)
+            self.widgets['CandP'].setEnabled(False)
+            proc = Worker( fn=self.check_run, args=(procs,[e]+self.mcor_procs, self.c, self.m, self.flist,
+                                                    self.motioncor_flist, self.continuous, self.rawnanographs_folder,
+                                                    self.motioncor_folder) )
 
-    def check_run(self, procs, events):
-        print(events, procs, 'test')
-        self.widgets['CandP'].setEnabled(False)
-        if not self.continuous and (self.m or self.c):
+            proc.signals.result1.connect(self.update_progress_collect)
+            proc.signals.result2.connect(self.update_progress_motioncor)
+            proc.signals.finished_collect.connect(self.delete_progressbar_collect)
+            proc.signals.finished_mcor.connect(self.delete_progressbar_motioncor)
+
+            proc.start()
+
+
+
+    def check_run(self, procs, events, collect, mcor, flist, motioncor_flist, continuous, folder1, folder2, signals):
+
+        if not continuous and (mcor or collect):
             while len(events):
+
                 events = [proc for proc in events if not proc.is_set()]
 
-                a = [os.path.basename(line) for line in glob.glob( os.path.join(self.rawnanographs_folder,'*')) ]
-                b = [os.path.basename(line) for line in glob.glob( os.path.join(self.motioncor_folder,    '*')) ]
+                a = [os.path.basename(line) for line in glob.glob( os.path.join(folder1, '*')) ]
+                b = [os.path.basename(line) for line in glob.glob( os.path.join(folder2, '*')) ]
 
-                if self.c:
+                if collect:
                     total = 0
-                    for f in self.flist:
+                    for f in flist:
                         if os.path.basename(f) in a: total += 1
-                    self.progressBar_Collect.setValue(total)
-                    if total >= len(self.flist):
-                        self.statusBar.removeWidget(self.progressBar_Collect)
+                    signals.result1.emit(total)
 
-                if self.m:
+                    if total >= len(flist):
+                        signals.finished_collect.emit()
+
+                if mcor:
                     total = 0
-                    for f in self.motioncor_flist:
+                    for f in motioncor_flist:
                         print (f)
                         if os.path.basename(f).replace('.tif','.mrc') in b: total += 1
-                    self.progressBar_Motioncor.setValue(total)
-                    if total == len(self.motioncor_flist): self.statusBar.removeWidget(self.progressBar_Motioncor)
-                time.sleep(.3)
-            if self.c:
-                #self.c1.configure(bg='green')
-                mdocs = glob.glob("{}/*.mdoc.temp".format(self.local_data_folder))
-                for mdoc in mdocs:
-                    os.system("mv {} {}".format(mdoc, mdoc[:-5]))
+                    signals.result2.emit(total)
+                    if total >= len(motioncor_flist):
+                        signals.finished_mcor.emit()
+                time.sleep(.1)
 
-                guiFunctions.createMetaDataFiles(self.rawnanographs_folder,'')
-                self.popup_messagebox("Info", "Completion", 'Successfully finished data transfer')
-                #self.controller.frames['StageSelect'].buttons['TomographReconstruct'].configure(state='active')
-                #self.controller.LogBook.state_framebuttons['TomographReconstruct'] = 'active'
-                #self.controller.LogBook.save()
-
-            if len(self.motioncor_flist) > 0:
-
-                #self.controller.frames['StageSelect'].buttons['TomographReconstruct'].configure(state='active')
-                #self.controller.LogBook.state_framebuttons['TomographReconstruct'] = 'active'
-                #self.controller.LogBook.save()
-                self.popup_messagebox("Info", "Completion", 'Successfully finished motion correction')
-        self.widgets['CandP'].setEnabled(True)
-        self.parent().parent().parent().stage_buttons[1].setEnabled(True)
 
     def apply_motioncor(self, flist, process_id, e, gpu, value,finish_mcor):
         mc_dir = '{}/02_Preprocessed_Nanographs/Motion_corrected'.format(os.path.dirname(self.local_data_folder))
 
-        if self.apply_gaincorrection: gainfile = os.path.join(self.local_data_folder, self.dm4_file) + '.mrc'
+        if self.apply_gaincorrection:
+            gainfile = os.path.join(self.local_data_folder, self.dm4_file) + '.mrc'
+
         quit = False
         while True:
-            devnull = open(os.devnull, 'wb')
+
             for fname in flist:
 
                 logfile = os.path.join(mc_dir, '{}.log'.format(fname[:-4]))
@@ -839,16 +856,16 @@ class CollectPreprocess(GuiTabWidget):
                     if self.use_patches:
                         patch = '-Patch {} {}'.format(self.patchsize, self.patchsize)
 
-                    mcor2cmd = "-InTiff {} -OutMrc {} {} {} {} -Gpu {} -LogFile {} >> {}/logfile.motioncor.process{}.txt".format(
-                        intiff, outmrc, gain, patch, ftbin, gpu, logfile, mc_dir, process_id)
+                    logfile2 = "{}/logfile.motioncor.process{}.txt".format(mc_dir, process_id)
+
+                    mcor2cmd = "-InTiff {} -OutMrc {} {} {} {} -Gpu {} -LogFile {} >> {}".format( intiff, outmrc, gain,
+                                                                                                  patch, ftbin, gpu,
+                                                                                                  logfile, logfile2)
                     if fname[-3:] == 'mrc':
-                        mcor2cmd = "-InMrc {} -OutMrc {} {} {} {} -Gpu {} -LogFile {} >> {}/logfile.motioncor.process{}.txt".format(
-                            intiff, outmrc, gain, patch, ftbin, gpu, logfile, mc_dir, process_id)
-                    #print (mcor2cmd)
+                        mcor2cmd = mcor2cmd.replace('-InTiff','-InMrc')
+
                     os.system('motioncor2 ' + mcor2cmd)
-                    #print ( value.text() )
-                    #value.setText(str(int(value.text())+1))
-                    #print ('ss')
+
                 continue
 
             if e.is_set() and not quit:

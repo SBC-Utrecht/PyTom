@@ -295,7 +295,8 @@ class SubtomoAnalysis(GuiTabWidget):
         id='tab12'
         headers = ["Filename particleList", "Reference marker", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin factor subtomos", "Offset X", "Offset Y", "Offset Y"]
         types = ['txt', 'combobox', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit']
-        sizes = [0, 80, 80, 0, 0, 0, 0, 0, 0, 0]
+        a=40
+        sizes = [0, 80, 80, a, a, a, a, a, a, a]
 
         tooltip = ['Name of coordinate files',
                    'Prefix used for subtomograms',

@@ -13,7 +13,7 @@ from pytom.basic.files import pdb2em
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.mrcOperations import *
 import pytom.gui.guiFunctions as guiFunctions
-
+import traceback
 from numpy import zeros, meshgrid, arange, sqrt
 import numpy as np
 
@@ -246,14 +246,38 @@ class SelectFiles(BrowseWindowRemote):
         self.pathdisplay.setText(self.folderpath)
         self.add_folders()
 
-class ProcessRunnable(QRunnable):
-    def __init__(self, target, args):
-        QRunnable.__init__(self)
-        self.t = target
-        self.args = args
+class WorkerSignals(QObject):
+    '''
+    Defines the signals available from a running worker thread.
+    Supported signals are:
+
+    finished
+        No data
+
+    error
+        `tuple` (exctype, value, traceback.format_exc() )
+
+    result
+        `object` data returned from processing, anything
+
+    '''
+
+    finished_mcor = pyqtSignal()
+    finished_collect = pyqtSignal()
+    error = pyqtSignal(tuple)
+    result1 = pyqtSignal(object)
+    result2 = pyqtSignal(object)
+
+class Worker(QRunnable):
+    def __init__(self, fn=None, args=[]):
+        #super(ProcessRunnable,self).__init__(parent)
+        super(Worker, self).__init__()
+        self.signals = WorkerSignals()
+        self.fn = fn
+        self.args = tuple(list(args)+[self.signals])
 
     def run(self):
-        self.t(*self.args)
+        self.fn(*self.args)
 
     def start(self):
         QThreadPool.globalInstance().start(self)
@@ -556,7 +580,7 @@ class CommonFunctions():
 
     def insert_label_spinbox(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=1, cstep=-1, width=0, height=0,
                              validator=None, tooltip='', value=None, att=False, enabled=True, maximum=0, minimum=0,
-                             wtype=QSpinBox, stepsize='',logvar=True):
+                             wtype=QSpinBox, stepsize=0,logvar=True):
 
         self.insert_label(parent, text=text, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
         self.insert_spinbox(parent, wname, validator=validator, width=width, enabled=enabled,
@@ -564,7 +588,8 @@ class CommonFunctions():
                             stepsize=stepsize, logvar=logvar)
 
     def insert_label_line_push(self, parent, textlabel, wname, tooltip='', text='', cstep=-2, rstep=1, validator=None,
-                               mode='folder', remote=False, pushtext='Browse', width=150, filetype='',action=''):
+                               mode='folder', remote=False, pushtext='Browse', width=150, filetype='',action='',
+                               initdir=''):
 
         if action == '':
             action = self.browse
@@ -572,14 +597,24 @@ class CommonFunctions():
 
         self.insert_label(parent, text=textlabel, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
         self.insert_lineedit(parent, wname, cstep=1, logvar=True, text='',validator=validator,width=width,enabled=False)
+
+        if initdir:
+            params = [mode, self.widgets[wname], filetype, remote, initdir]
+        else:
+            params = [mode, self.widgets[wname], filetype, remote]
+
         self.insert_pushbutton(parent, cstep=cstep, rstep=rstep, text=pushtext,width=100,
-                               action=action, params=[mode, self.widgets[wname], filetype, remote])
+                               action=action, params=params)
 
     def insert_label_line(self, parent, textlabel, wname, tooltip='', value='', cstep=-1, rstep=1, validator=None,
                           width=150,logvar=True):
         self.insert_label(parent, text=textlabel, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
         self.insert_lineedit(parent, wname, cstep=cstep, rstep=rstep, value=value, logvar=logvar, validator=validator,
                              width=width)
+
+    def insert_label_checkbox(self, parent, textlabel, wname, tooltip='', cstep=-1, rstep=1, logvar=True):
+        self.insert_label(parent, text=textlabel, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
+        self.insert_checkbox(parent, wname, logvar=logvar, cstep=cstep, rstep=rstep,alignment=Qt.AlignLeft)
 
     def insert_label_combobox(self, parent, textlabel, wname, labels, rowspan=1, columnspan=1, rstep=1, cstep=-1,
                         width=150, tooltip='', logvar=False ):
@@ -681,6 +716,26 @@ class CommonFunctions():
         except:
             remote = False
 
+
+        if line.text():
+            if not remote:
+                initdir = os.path.join('/', line.text())
+            else:
+                initdir = line.text()
+        else:
+            try:
+                initdir = params[4]
+            except:
+                try:
+                    initdir = self.projectname
+                except:
+                    initdir='./'
+
+
+        try: initdir = initdir.text()
+        except: pass
+
+
         if filetype:
             try:
                 filters = "Image files (*.{})".format( filetype.currentText() )
@@ -697,7 +752,6 @@ class CommonFunctions():
             filters = "Image files (*.*)"
 
         if not remote:
-            initdir = os.path.join('/', line.text())
             if mode == 'folder':
                 line.setText(QFileDialog.getExistingDirectory(self, 'Open file', initdir))
             if mode == 'file':
@@ -705,7 +759,6 @@ class CommonFunctions():
                 filename = QFileDialog.getOpenFileName(self, 'Open file', initdir, filters)
                 if str(filename[0]): line.setText(str(filename[0]))
         if remote:
-            initdir = line.text()
             credentials = [self.servername, self.username, self.password]
             if not initdir: initdir = '/'
             filters = ['*.{}'.format(filetype.currentText())]
@@ -894,7 +947,8 @@ class SimpleTable(QMainWindow):
         super(SimpleTable, self).__init__()
         central_widget = QWidget(self)
         #self.setGeometry(10, 10, 700, 300)  # Create a central widget
-        grid_layout = QGridLayout(self)  # Create QGridLayout
+        grid_layout = QGridLayout(self)
+        grid_layout.setContentsMargins(0,0,0,0) # Create QGridLayout
         central_widget.setLayout(grid_layout)  # Set this layout in central widget
         table = QTableWidget(self)
         table.setColumnCount(len(headers))  # Set three columns
@@ -905,23 +959,33 @@ class SimpleTable(QMainWindow):
         table.setHorizontalHeaderLabels(headers)
         table.setVerticalHeaderLabels(['', ] * len(values))
         table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-
+        #table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         # Set the tooltips to headings
         hh = table.horizontalHeader()
-
+        table.verticalHeader().hide()
         # Set the alignment to the headers
         for i in range(len(headers)):
 
-            if sizes[i] == 0 :  hh.setSectionResizeMode(i,QHeaderView.ResizeToContents)
-            else: hh.setSectionResizeMode(i,sizes[i])
-            table.horizontalHeaderItem(i).setTextAlignment(Qt.AlignHCenter)
+            if i+1 == len(headers):
+                hh.setResizeMode(i, QtGui.QHeaderView.Stretch)
+            elif sizes[i] == 0:
+                hh.setSectionResizeMode(i,QHeaderView.ResizeToContents)
+            else:
+                hh.setSectionResizeMode(i,sizes[i])
+
+            if i+1 != len(headers):
+                table.horizontalHeaderItem(i).setTextAlignment(Qt.AlignHCenter)
+            else:
+                table.horizontalHeaderItem(i).setTextAlignment(Qt.AlignLeft)
+
             if len(tooltip) > i: table.horizontalHeaderItem(i).setToolTip(tooltip[i])
 
             for v in range(len(values)):
                 # Fill the first line
                 if types[i] == 'txt':
                     widget = QWidget()
-                    cb = QLabel("{}".format(values[v][i].split('/')[-1]) )
+                    data= "{}".format(values[v][i].split('/')[-1])
+                    cb = QLabel( data )
                     layoutCheckBox = QHBoxLayout(widget)
                     layoutCheckBox.addWidget(cb)
                     layoutCheckBox.setAlignment(Qt.AlignCenter)
@@ -937,6 +1001,7 @@ class SimpleTable(QMainWindow):
                     layoutCheckBox = QHBoxLayout(widget)
                     layoutCheckBox.addWidget(cb)
                     layoutCheckBox.setAlignment(Qt.AlignCenter)
+                    if i+1==len(headers): layoutCheckBox.setAlignment(Qt.AlignLeft)
                     layoutCheckBox.setContentsMargins(10, 0, 10, 0)
                     table.setCellWidget(v,i,widget)
                     self.widgets['widget_{}_{}'.format(v,i)] = cb
@@ -945,10 +1010,11 @@ class SimpleTable(QMainWindow):
                     widget = QWidget()
                     layoutCheckBox = QHBoxLayout(widget)
                     le = QLineEdit()
+                    le.setFixedWidth(table.columnWidth(i))
                     le.setText(str(values[v][i]))
                     layoutCheckBox.addWidget(le)
                     layoutCheckBox.setAlignment(Qt.AlignCenter)
-                    layoutCheckBox.setContentsMargins(10, 0, 10, 0)
+                    layoutCheckBox.setContentsMargins(0, 0, 0, 0)
                     table.setCellWidget(v, i, widget)
                     self.widgets['widget_{}_{}'.format(v,i)] = le
                     widget.setStyleSheet('background: white;')
@@ -975,10 +1041,113 @@ class SimpleTable(QMainWindow):
                     widget.setStyleSheet('background: white;')
 
         #if not sizes: table.resizeColumnsToContents()
+        self.sizePolicyC = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.sizePolicyC.setHorizontalStretch(0)
+        self.sizePolicyC.setVerticalStretch(0)
+        self.sizePolicyB = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.sizePolicyB.setVerticalStretch(0)
 
+
+
+        self.types = types
+        self.general_widgets = []
+        self.table2 = QTableWidget()
+        self.table2.setColumnCount(len(headers))  # Set three columns
+        self.table2.setRowCount(1)
+        self.table2.verticalHeader().hide()
+        self.table2.horizontalHeader().hide()
+        self.table2.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.table2.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        applyOptionSum = 0
+
+        for n, t in enumerate(types):
+            if t == 'checkbox':
+                widget = QWidget()
+                cb = QCheckBox()
+                l = QVBoxLayout(widget)
+                l.addWidget(cb)
+                #cb.setStyleSheet('QCheckBox::indicator{ width: 10px; height: 10px; }')
+                cb.setFixedWidth(table.columnWidth(n))
+                widget.setSizePolicy(self.sizePolicyC)
+                cb.setToolTip('{} All'.format( headers[n].capitalize() ))
+                l.setAlignment(Qt.AlignCenter)
+                cb.setContentsMargins(10, 0, 10, 0)
+                l.setContentsMargins(10, 0, 10, 0)
+                #widget.setStyleSheet('background: white;')
+                #glayout.addWidget(cb)
+                self.general_widgets.append(cb)
+                self.table2.setCellWidget(0, n, widget)
+                cb.stateChanged.connect(lambda dummy, rowIndex=n, c=t: self.on_changeItem(rowIndex,c))
+                applyOptionSum +=1
+            elif t == 'combobox':
+                widget = QWidget()
+                cb = QComboBox()
+                l = QVBoxLayout(widget)
+                l.addWidget(cb)
+                cb.setContentsMargins(0, 0, 0, 0)
+                l.setContentsMargins(0, 0, 0, 0)
+                cb.setFixedWidth(table.columnWidth(n))
+                for t in values[0][n]:
+                    cb.addItem(t)
+                #glayout.addWidget(cb)
+                widget.setStyleSheet('selection-background-color: #1989ac;')
+                self.general_widgets.append(cb)
+                self.table2.setCellWidget(0, n, widget)
+                cb.currentTextChanged.connect(lambda dummy, rowIndex=n, c=t: self.on_changeItem(rowIndex, c))
+                applyOptionSum +=1
+
+            elif t == 'lineedit':
+                widget = QWidget()
+                layoutCheckBox = QHBoxLayout(widget)
+                le = QLineEdit()
+                le.setText(str(values[0][n]))
+                layoutCheckBox.addWidget(le)
+                layoutCheckBox.setAlignment(Qt.AlignCenter)
+                layoutCheckBox.setContentsMargins(0, 0, 0, 0)
+                self.table2.setCellWidget(0, n, widget)
+                self.general_widgets.append(le)
+                le.textChanged.connect(lambda dummy, rowIndex=n, c=t: self.on_changeItem(rowIndex, c))
+            else:
+                widget = QWidget()
+                a = QLabel('')
+                l = QVBoxLayout(widget)
+                l.setAlignment(Qt.AlignCenter)
+                if n == 0:
+                    a.setText('Apply to all')
+                    l.setAlignment(Qt.AlignCenter)
+                l.addWidget(a)
+                a.setFixedWidth(table.columnWidth(n))
+                widget.setSizePolicy(self.sizePolicyC)
+                l.setContentsMargins(0, 0, 0, 0)
+                self.table2.setCellWidget(0, n, widget)
+                self.general_widgets.append(a)
+
+        #glayout.addWidget(self.table2)
         self.table = table
-        grid_layout.addWidget(table, 0, 0)
+        self.table2.setMaximumHeight(self.table2.rowHeight(0))
+        self.table.setMinimumHeight(min(400, self.table2.rowHeight(0)*(len(values)+.8)))
+
+        if applyOptionSum: grid_layout.addWidget(self.table2, 0, 0)
+        grid_layout.addWidget(table, 1, 0)
+        #self.table2.horizontalHeaderItem(len(headers) - 1).setTextAlignment(Qt.AlignLeft)
+
+        for i in range(self.table.columnCount()):
+            self.table2.setColumnWidth(i, self.table.columnWidth(i))
         self.setCentralWidget(central_widget)
+
+    def on_changeItem(self, rowIndex,widgetType):
+        for i in range(self.table.rowCount()):
+            if 'widget_{}_{}'.format(i,rowIndex) in self.widgets.keys() and widgetType=='combobox':
+                self.widgets['widget_{}_{}'.format(i,rowIndex)].setCurrentText(self.general_widgets[rowIndex].currentText())
+            elif 'widget_{}_{}'.format(i,rowIndex) in self.widgets.keys() and widgetType=='checkbox':
+                self.widgets['widget_{}_{}'.format(i,rowIndex)].setChecked(self.general_widgets[rowIndex].isChecked())
+            elif 'widget_{}_{}'.format(i,rowIndex) in self.widgets.keys() and widgetType=='lineedit':
+                self.widgets['widget_{}_{}'.format(i,rowIndex)].setText(self.general_widgets[rowIndex].text())
+
+        for i in range(self.table.columnCount()):
+            self.table2.setColumnWidth(i, self.table.columnWidth(i))
+
 
 class GuiTabWidget(QWidget, CommonFunctions):
     def __init__(self, parent=None, headers=[],offx=0,offy=0,dimx=900,dimy=721,logbook=[]):
@@ -1044,6 +1213,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
             setattr(self,'tab{}'.format(n+1),tab)
             self.tabWidget.addTab(tab, header)
 
+
 class KeyPressGraphicsWindow(pg.GraphicsWindow):
     sigKeyPress = QtCore.pyqtSignal(object)
 
@@ -1054,11 +1224,13 @@ class KeyPressGraphicsWindow(pg.GraphicsWindow):
         self.scene().keyPressEvent(ev)
         self.sigKeyPress.emit(ev)
 
+
 class ParticlePicker(QMainWindow, CommonFunctions):
     def __init__(self,parent=None, fname=''):
         super(ParticlePicker,self).__init__(parent)
         self.size_policies()
         self.pytompath = self.parent().pytompath
+        self.projectname = self.parent().projectname
         self.layout = QGridLayout(self)
         self.cw = QWidget(self)
         self.cw.setSizePolicy(self.parent().sizePolicyB)
@@ -1117,7 +1289,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.subtomo_plots = PlotterSubPlots(self)
         self.subtomo_plots.show()
         pg.QtGui.QApplication.processEvents()
-
 
     def wheelEvent(self, event):
 
@@ -1186,19 +1357,40 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         elif q.text() == 'Load Project': self.load_particleList()
 
     def save_particleList(self):
-        fname = str(QFileDialog.getSaveFileName( self, 'Save particle list.', './', filter='*.txt')[0])
+
+        ext = '.'+os.path.basename(self.title).split('.')[-1]
+        fname = os.path.join(self.parent().pickpartfolder,'coords_' + os.path.basename(self.title.replace(ext,'')))
+
+        fname = str(QFileDialog.getSaveFileName( self, 'Save particle list.', fname, filter='*.txt')[0])
 
         if fname:
             out = open(fname, 'w')
+            out.write('#FNAME \t\t{}\n'.format(os.path.basename(self.title)))
+
+            folder = os.path.dirname(self.title)
+            if 'INFR' in os.path.basename(self.title):
+                key = 'INFR'
+            else:
+                key='WBP'
+
+            inputJobName = "cat {}/{}_reconstruction.sh | grep 'referenceMarkerIndex' | awk '{print $2}'"
+
+            try:
+                refMarkIndex = os.popen(inputJobName.format(folder,key)).read()[:-1]
+            except:
+                refMarkIndex = 1
+
+            out.write('#MARKERINDEX \t{}\n'.format(refMarkIndex))
+
             for x, y, z in self.particleList:
                 outtext =  '{:8.0f} {:8.0f} {:8.0f}\n'.format(x,y,z)
                 out.write(outtext)
 
     def load_particleList(self):
-        filetype = '.txt'
-        initdir = './'
+        filetype = 'txt'
+        initdir = self.parent().pickpartfolder
 
-        filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "Image files (*{})".format(filetype))[0])
+        filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "Coordinate files (*.{})".format(filetype))[0])
         if not filename: return
 
         particlePos = [map(float, line.split()) for line in open(filename).readlines()]
@@ -1474,7 +1666,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         ymax = min(tomo.shape[2], y + int(self.size_subtomo / 2))
 
         subtomo = zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
-        subtomo[:xmax-xmin,:ymax-ymin] = tomo[position[2], xmin:xmax, ymin:ymax]
+        subtomo[:xmax-xmin,:ymax-ymin] = (tomo[position[2]].T)[xmin:xmax, ymin:ymax]
 
         self.position = position
         if self.index[1] == 0:

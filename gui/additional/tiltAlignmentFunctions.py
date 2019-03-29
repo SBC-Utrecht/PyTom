@@ -209,7 +209,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
             if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark-1].xProj[itilt] > -1.)): #allow overlapping MPs
                 meanx[imark] = meanx[imark] + Marker.xProj[itilt] - Markers_[irefmark-1].xProj[itilt]
                 meany[imark] = meany[imark] + Marker.yProj[itilt] - Markers_[irefmark-1].yProj[itilt]
-                norm[imark]  = norm[imark] +1;
+                norm[imark]  = norm[imark] +1
         meanx[imark] = meanx[imark] / norm[imark]
         meany[imark] = meany[imark] / norm[imark]
     #   calculate some sums for determination of tilt axis azimuth

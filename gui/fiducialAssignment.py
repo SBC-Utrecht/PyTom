@@ -11,7 +11,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.mrcOperations import *
-from pytom.gui.guiFunctions import read_markerfile, datatype
+from pytom.gui.guiFunctions import read_markerfile, datatype, fmt, headerText
 import pyqtgraph as pg
 from pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
 from pyqtgraph import ImageItem
@@ -128,7 +128,6 @@ class TiltImage():
                     self.labels[n] = "{:03d}".format(m)
                     break
 
-
 class FiducialAssignment(QMainWindow, CommonFunctions):
     def __init__(self, parent=None, fname=''):
         super(FiducialAssignment, self).__init__(parent)
@@ -153,6 +152,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.operationbox = QWidget()
         self.layout_operationbox = prnt = QGridLayout()
         self.operationbox.setLayout(self.layout_operationbox)
+        self.metafile = ''
         self.settings = SettingsFiducialAssignment(self)
         self.selectMarkers = SelectAndSaveMarkers(self)
         self.manual_adjust_marker = ManuallyAdjustMarkers(self)
@@ -430,21 +430,26 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
             self.widgets[name].setEnabled(False)
         pg.QtGui.QApplication.processEvents()
 
-
         self.tomogram_name = self.settings.widgets['tomogram_name'].currentText()
-        self.tilt_axis = float(self.settings.widgets['tilt_axis'].text())
+        folder = os.path.join(self.tomofolder, self.tomogram_name, 'sorted/')
+        self.metafile = [os.path.join(folder, line) for line in os.listdir(folder) if line.endswith('.meta')][0]
+        self.metadata = numpy.loadtxt(self.metafile,dtype=datatype)
 
+        ps,fs = float(self.metadata['PixelSpacing'][0]), int(self.metadata['MarkerDiameter'][0])
+        self.settings.widgets['tilt_axis'].setValue(int(self.metadata['InPlaneRotation'][0]))
+        self.settings.widgets['pixel_size'].setValue(ps)
+        self.settings.widgets['fiducial_size'].setValue(fs)
+
+
+        self.tilt_axis = float(self.settings.widgets['tilt_axis'].text())
         self.bin_read = int( self.settings.widgets['bin_read'].text() )
         self.bin_alg = int( self.settings.widgets['bin_alg'].text() )
-
         self.pixel_size = float(self.settings.widgets['pixel_size'].text())
         self.fiducial_size = float(self.settings.widgets['fiducial_size'].text() )
+
         self.settings.update_radius()
 
         self.algorithm = self.settings.widgets['algorithm'].currentText()
-
-
-        folder = os.path.join(self.tomofolder,self.tomogram_name,'sorted/')
 
         self.xmin, self.ymin = 0, 0
 
@@ -461,8 +466,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         for n, line in enumerate(fnames):
             fnames[n] = os.path.join(line[0],line[1])
 
-        self.metafile = [os.path.join(folder,line) for line in os.listdir(folder) if line.endswith('.meta')][0]
-        self.tiltangles = numpy.loadtxt(self.metafile,dtype=datatype)['TiltAngle']
+
+        self.tiltangles = self.metadata['TiltAngle']
         #cmd = "cat {} | grep TiltAngle | sort -nk3 | awk '{{print $3}}'".format(tiltfile)
         #self.tiltangles = numpy.array([float(line) for line in os.popen(cmd).readlines()], dtype=float)
 
@@ -918,6 +923,9 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         self.logbook = {}
         self.widgets = {}
         rows, columns = 20, 20
+
+
+
         self.items = [['', ] * columns, ] * rows
 
         self.insert_label_combobox(self.grid, 'Tomogram Name', 'tomogram_name', self.parent().tomogram_names, rstep=1, cstep=-1,
@@ -938,7 +946,8 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
                                   tooltip=r'Pixel Size in Ångstrom.')
 
         self.insert_label_spinbox(self.grid, 'fiducial_size', text='Fiducial Size (Å)', rstep=1,
-                                  value=50, maximum=350, stepsize=10, tooltip='Size of Fiducuials in nanometer.')
+                                  value=50, maximum=350, stepsize=10, minimum=20,
+                                  tooltip='Size of Fiducuials in nanometer.')
 
         self.insert_label(self.grid,rstep=1)
 
@@ -963,6 +972,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         self.setCentralWidget(self.settings)
 
         #CONNECT
+        self.widgets['tilt_axis'].valueChanged.connect(self.update_tilt_axis)
         self.widgets['pixel_size'].valueChanged.connect(self.update_radius)
         self.widgets['fiducial_size'].valueChanged.connect(self.update_radius)
         self.widgets['ref_frame'].valueChanged.connect(self.update_ref_frame)
@@ -971,6 +981,14 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
     def update_ref_frame(self):
         self.parent().ref_frame = int(self.widgets['ref_frame'].text())
 
+    def update_tilt_axis(self):
+        tilt_axis = float(self.widgets['tilt_axis'].text())
+        metafile = self.parent().metafile
+        if metafile:
+            metadata = self.parent().metadata
+            metadata['InPlaneRotation'] = tilt_axis
+            numpy.savetxt(metafile, metadata, fmt=fmt, header=headerText)
+
     def update_radius(self):
         w = self.widgets
         fiducial_size,pixel_size,bin_read = map(float,(w['fiducial_size'].text(),
@@ -978,6 +996,13 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
                                                        w['bin_read'].text()) )
 
         self.parent().radius = fiducial_size/(pixel_size*bin_read*2.)
+
+        metafile = self.parent().metafile
+        if metafile:
+            metadata = self.parent().metadata
+            metadata['PixelSpacing'] = pixel_size
+            metadata['MarkerDiameter'] = fiducial_size
+            numpy.savetxt(metafile, metadata, fmt=fmt, header=headerText)
 
         if self.parent().loaded_data: self.parent().replot2()
 
@@ -1136,7 +1161,7 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
         pass
 
     def delete_marker(self, params=None):
-        self.MRMmodel.removeRows()
+        #self.MRMmodel.removeRows()
         pass
 
     def select_marker(self, params=None):

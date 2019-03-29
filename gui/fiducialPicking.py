@@ -272,8 +272,6 @@ def detect_shift(arr0,arr1,image=[]):
     locx,locy =  (abs((cross))**2).flatten().argmax()%y, (abs((cross))**2).flatten().argmax()/y
     return cross, locx-y/2, locy-x/2, cross[int(locy)][int(locx)]
 
-
-
 def detect_shifts_few(mark_frames, maxshift=9, max_shiftx=5.5, max_shifty=2.,diag=False, image=[]):
     from time import time
     if diag: s = time()
@@ -775,8 +773,6 @@ def refine(cx, cy, frame, imnr, fact, cropsize):
                 list_cx_cy.append([dcx,dcy,imnr])
                 
     return list_cx_cy
-
-
 
 
 def testing_done(rr,aa=20,ff=4):

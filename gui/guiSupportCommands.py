@@ -157,7 +157,7 @@ templateTM        = '''cd {d[0]}
 mpirun -np 20 {d[1]}/bin/pytom localization.py {d[2]} 2 2 2 '''
 
 
-createParticleList = 'coords2PL.py -c {d[0]}  -s {d[1]} -w {d[2]},{d[3]} -p {d[4]}'
+createParticleList = 'coords2PL.py -c {d[0]}  -s {d[1]} -w {d[2]},{d[3]} -p {d[4]} {d[5]}'
 
 extractParticles = '''cd {d[8]}
 
