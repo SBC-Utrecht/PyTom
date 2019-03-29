@@ -165,6 +165,7 @@ class BrowseWindowRemote(QMainWindow):
         self.pathdisplay.setText(self.folderpath)
         self.add_folders()
 
+
 class SelectFiles(BrowseWindowRemote):
     def __init__(self,parent=None, initdir='/',filter=[''],search='file',credentials=['','',''],outputline='',
                  validate=False):
@@ -246,6 +247,7 @@ class SelectFiles(BrowseWindowRemote):
         self.pathdisplay.setText(self.folderpath)
         self.add_folders()
 
+
 class WorkerSignals(QObject):
     '''
     Defines the signals available from a running worker thread.
@@ -268,6 +270,7 @@ class WorkerSignals(QObject):
     result1 = pyqtSignal(object)
     result2 = pyqtSignal(object)
 
+
 class Worker(QRunnable):
     def __init__(self, fn=None, args=[]):
         #super(ProcessRunnable,self).__init__(parent)
@@ -281,6 +284,7 @@ class Worker(QRunnable):
 
     def start(self):
         QThreadPool.globalInstance().start(self)
+
 
 class CommonFunctions():
     def __init__(self,parent=None):
@@ -831,6 +835,7 @@ class CommonFunctions():
         groupbox.setLayout(parent)
         return groupbox, parent
 
+
 class CreateMaskFile(QMainWindow, CommonFunctions):
     def __init__(self,parent=None,maskfname=''):
         super(CreateMaskFile,self).__init__(parent)
@@ -869,6 +874,7 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
             self.popup_messagebox('Error','Mask Generation Failed', 'Generation of the mask failed. Please select an existing mask, or generate a mask yourself.')
 
         self.close()
+
 
 class ConvertEM2PDB(QMainWindow, CommonFunctions):
     def __init__(self,parent,emfname='',folder='./'):
@@ -916,6 +922,7 @@ class ConvertEM2PDB(QMainWindow, CommonFunctions):
         self.parent().widgets[params[-1]].setText(out_fname)
         self.close()
 
+
 class MyCircleOverlay(pg.EllipseROI):
     def __init__(self, pos, size, label='', **args):
         pg.ROI.__init__(self, pos, size, **args)
@@ -935,9 +942,11 @@ class MyCircleOverlay(pg.EllipseROI):
                                              self.state['size'][1]/1.5 ))
             #self.label = pg.TextItem(text=label,anchor=(),angle=180)
 
+
 def circle(pos, size = 2, label='',color=Qt.blue):
     pensize = 0.02*40./size
     return MyCircleOverlay(pos=pos, pen=QtGui.QPen(color, pensize), size=size, movable=False, label=label)
+
 
 class SimpleTable(QMainWindow):
 
@@ -961,6 +970,7 @@ class SimpleTable(QMainWindow):
         table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         #table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         # Set the tooltips to headings
+        self.headers = headers
         hh = table.horizontalHeader()
         table.verticalHeader().hide()
         # Set the alignment to the headers
@@ -1024,11 +1034,16 @@ class SimpleTable(QMainWindow):
                     widget.setValue(values[v][i])
 
                 elif types[i] == 'combobox':
-                    widget = QComboBox()
+                    widget = QWidget()
+                    cb = QComboBox()
+                    l = QVBoxLayout(widget)
+                    l.addWidget(cb)
+                    cb.setContentsMargins(0, 0, 0, 0)
+                    l.setContentsMargins(0, 0, 0, 0)
                     for t in values[v][i]:
-                        widget.addItem(t)
+                        cb.addItem(t)
                     table.setCellWidget(v, i, widget)
-                    self.widgets['widget_{}_{}'.format(v,i)] = widget
+                    self.widgets['widget_{}_{}'.format(v,i)] = cb
                     widget.setStyleSheet('background: white; selection-background-color: #1989ac;')
                 else:
                     widget = QWidget()
@@ -1071,7 +1086,7 @@ class SimpleTable(QMainWindow):
                 cb.setFixedWidth(table.columnWidth(n))
                 widget.setSizePolicy(self.sizePolicyC)
                 cb.setToolTip('{} All'.format( headers[n].capitalize() ))
-                l.setAlignment(Qt.AlignCenter)
+                #l.setAlignment(Qt.AlignCenter)
                 cb.setContentsMargins(10, 0, 10, 0)
                 l.setContentsMargins(10, 0, 10, 0)
                 #widget.setStyleSheet('background: white;')
@@ -1085,11 +1100,12 @@ class SimpleTable(QMainWindow):
                 cb = QComboBox()
                 l = QVBoxLayout(widget)
                 l.addWidget(cb)
+
                 cb.setContentsMargins(0, 0, 0, 0)
                 l.setContentsMargins(0, 0, 0, 0)
                 cb.setFixedWidth(table.columnWidth(n))
-                for t in values[0][n]:
-                    cb.addItem(t)
+                for value in values[0][n]:
+                    cb.addItem(value)
                 #glayout.addWidget(cb)
                 widget.setStyleSheet('selection-background-color: #1989ac;')
                 self.general_widgets.append(cb)
@@ -1144,6 +1160,8 @@ class SimpleTable(QMainWindow):
                 self.widgets['widget_{}_{}'.format(i,rowIndex)].setChecked(self.general_widgets[rowIndex].isChecked())
             elif 'widget_{}_{}'.format(i,rowIndex) in self.widgets.keys() and widgetType=='lineedit':
                 self.widgets['widget_{}_{}'.format(i,rowIndex)].setText(self.general_widgets[rowIndex].text())
+
+        self.table.horizontalHeader().setResizeMode(len(self.headers)-1, QtGui.QHeaderView.Stretch)
 
         for i in range(self.table.columnCount()):
             self.table2.setColumnWidth(i, self.table.columnWidth(i))
@@ -1393,7 +1411,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "Coordinate files (*.{})".format(filetype))[0])
         if not filename: return
 
-        particlePos = [map(float, line.split()) for line in open(filename).readlines()]
+        particlePos = [map(float, line.split()) for line in open(filename).readlines() if line != '' and not '#' in line]
 
         self.remove_all()
         self.slice = int(self.vol.shape[0]/2)

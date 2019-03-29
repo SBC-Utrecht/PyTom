@@ -500,7 +500,10 @@ class TomographReconstruct(GuiTabWidget):
         if len(metafiles) ==1:
             metafile = metafiles[0]
 
-            angles = numpy.loadtxt(os.path.join(folderSorted,metafile),dtype=guiFunctions.datatype)['TiltAngle']
+            try:
+                angles = numpy.loadtxt(os.path.join(folderSorted, metafile), dtype=guiFunctions.datatype)['TiltAngle']
+            except:
+                angles = numpy.loadtxt(os.path.join(folderSorted,metafile),dtype=guiFunctions.datatype0)['TiltAngle']
 
             for i in range(len(files)):
                 if not 'sorted_{:02d}.mrc'.format(i) in files:

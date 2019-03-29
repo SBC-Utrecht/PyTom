@@ -505,28 +505,18 @@ class CollectPreprocess(GuiTabWidget):
 
             self.progressBar_Collect = QProgressBar()
             self.progressBar_Collect.setSizePolicy(self.sizePolicyA)
-            #self.progressBar_Collect.setRange(0,num_files)
             self.progressBar_Collect.setStyleSheet(DEFAULT_STYLE_PROGRESSBAR)
             self.progressBar_Collect.setFormat('Collect Data: %v/%m')
             self.progressBar_Collect.setSizePolicy(self.sizePolicyB)
-            #self.statusBar.addWidget(self.progressBar_Collect)
-            #self.progressBar_Collect.setMaximumWidth(400)
             layout.addWidget(self.progressBar_Collect)
             self.statusBar.addPermanentWidget(self.progressBar_Collect,stretch=1)
 
-
-            #self.completedC = QLineEdit()
-            #self.completedC.setText('0')
-            #self.completedC.textChanged.connect(lambda ignore, value=self.completedC, pb=self.progressBar_Collect:
-            #                               self.update_pb(pb,value))
         if self.motioncor:
 
             self.progressBar_Motioncor = QProgressBar()
             self.progressBar_Motioncor.setSizePolicy(self.sizePolicyA)
-            #self.progressBar_Motioncor.setRange(0,num_files)
             self.progressBar_Motioncor.setStyleSheet(DEFAULT_STYLE_PROGRESSBAR)
             self.progressBar_Motioncor.setFormat('Motion Correct: %v/%m')
-            #self.progressBar_Motioncor.setMaximumWidth(400)
             self.progressBar_Motioncor.setSizePolicy(self.sizePolicyB)
             layout.addWidget(self.progressBar_Motioncor)
             self.statusBar.addPermanentWidget(self.progressBar_Motioncor,stretch=1)
@@ -543,7 +533,7 @@ class CollectPreprocess(GuiTabWidget):
         total = 0
         num_files_downloaded = 0
         for fname in flist:
-            try:
+            if not os.path.exists(fname):
                 outname = "%s/%s" % (folder_local, fname.split('/')[-1])
                 if not outname in existing_files:
                     gFile = open("%s.temp" % outname, "wb")
@@ -554,8 +544,8 @@ class CollectPreprocess(GuiTabWidget):
                     else:
                         os.system('mv {}.temp {}'.format(outname, outname))
                     num_files_downloaded += 1
-            except:
-                outname = "{}/{}".format(folder_local, fname.split('/')[-1])
+            else:
+                outname = "{}/{}".format(folder_local, os.path.basename(fname) )
                 if os.path.exists(fname) and not os.path.exists(outname):
 
                     if '.tif' == outname[-4:]:

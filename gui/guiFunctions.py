@@ -1,10 +1,10 @@
-
-from numpy.fft import fft2, ifft2, fftshift
-from numpy import int32, arange, conj, zeros, ones, bool8, sqrt, newaxis
 import os
 import numpy
 import copy
 import time
+import matplotlib
+from numpy.fft import fft2, ifft2, fftshift
+from numpy import int32, arange, conj, zeros, ones, bool8, sqrt, newaxis
 from pytom_volume import read
 from pytom.tools.files import checkFileExists, checkDirExists
 from pytom.basic.files import read as read_pytom
@@ -12,6 +12,8 @@ from pytom.basic.files import read_em_header
 from pytom.gui.mrcOperations import read_mrc, read_angle
 from pytom_numpy import vol2npy
 from pytom.gui.guiSupportCommands import multiple_alignment
+from pylab import imread
+matplotlib.use('Qt5Agg')
 
 def read_markerfile(filename,tiltangles):
     if filename[-4:] == '.mrc':
@@ -486,7 +488,7 @@ def create_project_filestructure(projectdir='.'):
         os.mkdir(projectdir)
     create_folderstructure(folderstructure, projectdir)
 
-datatype = [('DefocusU', 'f4'),
+datatype0 = [('DefocusU', 'f4'),
             ('DefocusV', 'f4'),
             ('DefocusAngle', 'f4'),
             ('Voltage', 'i4'),
@@ -505,12 +507,41 @@ datatype = [('DefocusU', 'f4'),
             ('Intensity', 'f4'),
             ('FileName', 'U1000')]
 
+headerText0 = ''
+units0 = ['um', 'um', 'deg', 'kV', 'mm', '', 'deg', 'A', 'A', 'deg', 'deg', 'deg', 'px', 'px', 'px', '', '', '' ]
+fmt0='%11.6f %11.6f %6.2f %4d %6.2f %4.2f %11.6f %11.6f %4d %7.3f %7.3f %7.3f %6.2f %6.2f %6.2f %5.3f %5.3f %s'
+
+
+datatype = [('DefocusU', 'f4'),
+            ('DefocusV', 'f4'),
+            ('DefocusAngle', 'f4'),
+            ('Voltage', 'i4'),
+            ('SphericalAberration', 'f4'),
+            ('AmplitudeContrast', 'f4'),
+            ('PhaseShift', 'f4'),
+            ('PixelSpacing', 'f4'),
+            ('MarkerDiameter', 'i4'),
+            ('TiltAngle', 'f4'),
+            ('RotationTheta', 'f4'),
+            ('InPlaneRotation', 'f4'),
+            ('TranslationX', 'f4'),
+            ('TranslationY', 'f4'),
+            ('TranslationZ', 'f4'),
+            ('Magnification', 'f4'),
+            ('Intensity', 'f4'),
+            ('ImageSize', 'i4'),
+            ('AcquisitionOrder', 'i4'),
+            ('FileName', 'U1000')]
+
 headerText = ''
-units = ['nm', 'nm', 'deg', 'kV', 'mm', '', 'deg', 'A', 'A', 'deg', 'deg', 'deg', 'px', 'px', 'px', '', '', '' ]
-fmt='%11.6f %11.6f %6.2f %4d %6.2f %4.2f %11.6f %11.6f %4d %7.3f %7.3f %7.3f %6.2f %6.2f %6.2f %5.3f %5.3f %s'
+units = ['um', 'um', 'deg', 'kV', 'mm', '', 'deg', 'A', 'A', 'deg', 'deg', 'deg', 'px', 'px', 'px', '', '','px', '', '' ]
+fmt='%11.6f %11.6f %6.2f %4d %6.2f %4.2f %11.6f %11.6f %4d %7.3f %7.3f %7.3f %6.2f %6.2f %6.2f %5.3f %5.3f %4d %3d %s'
 
 for n, h in enumerate(datatype):
     headerText += '{} {}\n'.format(h[0], '({})'.format(units[n])*(units[n]!=''))
+
+for n, h in enumerate(datatype):
+    headerText0 += '{} {}\n'.format(h[0], '({})'.format(units[n])*(units[n]!=''))
 
 
 def update_metafile(filename, columnID, values ):
@@ -541,22 +572,25 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
         mdocfilepath = os.path.join(nanographfolder, mdocfile)
         header = False
         datadict = {'TiltAngle':tiltAxis, 'Magnification': 79000, 'Intensity':0.0, 'PixelSpacing':pixelSpacing,
-                    'Defocus':-3, 'RotationAngle':270, 'SubFramePath':'', 'Voltage':voltage, 'MarkerDiameter': 100,
-                    'SphericalAberration':2.7, 'AmplitudeContrast': 0.1, 'PhaseContrast':0.,}
+                    'Defocus':3, 'RotationAngle':270, 'SubFramePath':'', 'Voltage':voltage, 'MarkerDiameter': 100,
+                    'SphericalAberration':2.7, 'AmplitudeContrast': 0.08, 'PhaseContrast':0.,}
         for description, dtype in datatype:
             if not description in datadict.keys(): datadict[description] = 0.
 
         mdocdata = [line.split() for line in open(mdocfilepath).readlines() if len(line.split()) >=3]
-
+        nrTiltImages = 0
         for nn, line in enumerate(mdocdata):
             if '[ZValue' == line[0] and not header:
                 header = True
                 continue
 
             if not header:
-                if line[0] == 'PixelSpacing': datadict[line[0]] = float(line[2])
-                elif line[0] == 'Voltage':    datadict[line[0]] = int(line[2])
-                elif 'axis' in line:          datadict['InPlaneRotation'] = float(line[6].strip(','))-250
+                if line[0]   == 'PixelSpacing': datadict[line[0]] = float(line[2])
+                elif line[0] == 'Voltage':      datadict[line[0]] = int(line[2])
+                elif line[0] == 'ImageSize':
+                    try: datadict[line[0]] = min( int(line[2]), int(line[3]) )
+                    except: pass
+                elif 'axis' in line:            datadict['InPlaneRotation'] = float(line[6].strip(','))-250
                 continue
 
             if line[0] in datadict.keys():
@@ -577,6 +611,10 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
                     data[0] = datadict['Defocus']
                     data[1] = datadict['Defocus']
 
+                if 'AcquisitionOrder' == datatype[-2][0]:
+                    data[-2] = nrTiltImages
+                    nrTiltImages +=1
+
                 metadata.append(tuple(data))
 
         if len(metadata) == 0: continue
@@ -589,11 +627,25 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
     if mdoc_only: return
 
+
+    acquisition_order = {}
+    size = {}
+
     for k, v in annotated.items():
         if v ==0:
             tomoname = k.split('_')[0]
             if not tomoname in tomo_from_filename.keys():
                 tomo_from_filename[tomoname] = []
+
+                if k.split('.')[-1] in ('mrc', 'em'):
+                    vol = read(os.path.join(nanographfolder,k))
+                    data = copy.deepcopy(vol2npy(vol))
+                    size[tomoname] = numpy.min(data.shape)
+                else:
+
+                    data = imread( os.path.join(nanographfolder,k) )
+                    size[tomoname] = numpy.min(data.shape)
+
             #Find tiltangle
 
             if k.endswith('em'):
@@ -624,11 +676,12 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
         if not neg[loc] > 0:
             loc = -1
 
-
         tiltangles_header = numpy.array(tiltangles_header)
         metadata = [[0., ] * len(datatype), ] * len(v)
+
         for NR, (d,t) in enumerate(datatype):
             if d == 'TiltAngle':
+
                 break
 
         if len(v) < 10:
@@ -638,27 +691,21 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
             for i in range(len(v)):
                 metadata[i][NR] = float(v[i][0][loc])
                 metadata[i][-1] = v[i][2]
+                if datatype[-3][0] == 'ImageSize':  metadata[i][-3] = size[k]
                 metadata[i] = tuple(metadata[i])
-            a = numpy.rec.array(metadata, dtype=datatype)
-            a = numpy.sort(a, order='TiltAngle')
-
-            outname = '{}/{}_filename.meta'.format(nanographfolder, v[0][0][0])
-            numpy.savetxt(outname, a, fmt=fmt, header=headerText)
 
         elif len(numpy.unique(numpy.round(tiltangles_header).astype(int))) == len(tiltangles_header):
-            #print(v[0][2])
             for i in range(len(v)):
-
                 metadata[i][NR] = float(tiltangles_header[i])
                 metadata[i][-1] = v[i][2]
+                if datatype[-3][0] == 'ImageSize':  metadata[i][-3] = size[k]
                 metadata[i] = tuple(metadata[i])
-            a = numpy.rec.array(metadata, dtype=datatype)
-            a = numpy.sort(a, order='TiltAngle')
-
-            outname = '{}/{}_header.meta'.format(nanographfolder, v[0][0][0])
-            numpy.savetxt(outname, a, fmt=fmt, header=headerText)
 
         else:
             continue
 
+        a = numpy.rec.array(metadata, dtype=datatype)
+        a = numpy.sort(a, order='TiltAngle')
 
+        outname = '{}/{}.meta'.format(nanographfolder, v[0][0][0])
+        numpy.savetxt(outname, a, fmt=fmt, header=headerText)
