@@ -808,13 +808,17 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
 
             self.tiltimages[tiltNr].clear()
 
+            tiltImageIndex = 0
             for n, (cx, cy) in enumerate( self.mark_frames[tiltNr] ):
-                if cx < 0 and cy < 0: continue
+                if cx < 0 and cy < 0:
+                    continue
 
                 FY,FX = cx*self.bin_alg/self.bin_read, cy*self.bin_alg/self.bin_read
-                self.tiltimages[tiltNr].add_fiducial(FX-self.xmin,FY-self.ymin,FX,FY,label=labels[n])
-                self.tiltimages[tiltNr].indexed_fiducials[n] = index[n]
+                self.tiltimages[tiltNr].add_fiducial(FX-self.xmin,FY-self.ymin,FX,FY,label=labels[tiltImageIndex])
+                
+                self.tiltimages[tiltNr].indexed_fiducials[tiltImageIndex] = index[tiltImageIndex]
 
+                tiltImageIndex += 1
         self.replot2()
 
     def save(self, markerFileName='markerfile.em', ask_recent=1, selected_markers=True):
