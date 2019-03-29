@@ -534,6 +534,10 @@ class TomographReconstruct(GuiTabWidget):
                                   tooltip='Index of reference tilt image. Typically zeros degree image.')
         self.insert_label_spinbox(parent, mode +'RefMarkerIndex', text='Reference Marker', value=1,
                                   tooltip='Index of reference marker. See previous step.')
+        self.insert_label_spinbox(parent, mode + 'WeightingType', text='Weighting Type',
+                                  value=1, minimum=-1, maximum=3000, stepsize=1,
+                                  tooltip='Select weighting type:\n\t 0: no weighting\n\t-1: analytical weighting'+
+                                          '\n\t 1: "exact" weighting')
         self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=8, cstep=0,
                                   tooltip='Binning factor used for reconstruction')
 
@@ -551,7 +555,7 @@ class TomographReconstruct(GuiTabWidget):
         paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex',
                      mode + 'LastIndex',
                      mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor',
-                     mode + 'tomogramNR', '.em', '464', templateWBP]
+                     mode + 'tomogramNR', 'mrc', '464', mode + 'WeightingType', templateWBP]
 
         self.insert_gen_text_exe(parent,mode, jobfield=False, action=self.convert_em, exefilename=execfilename,
                                  paramsAction=[mode,'reconstruction/WBP','sorted'],paramsSbatch=paramsSbatch,
