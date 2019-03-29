@@ -360,39 +360,18 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth):
 
     from pytom_volume import read, vol, vol_comp
     import numpy as np
+    from numpy import array, matrix, sin, pi,arange
 
     sizeY = (sY // 2) + 1
-    IijFunc_sum = [0.0] * sX
-    IijFunc = []
     weightFunc = vol(sX, sizeY, 1)
     weightFunc.setAll(0.0)
+    arr = matrix(abs(arange(-sX // 2, sX // 2)))
+    wfunc = 1. / (np.clip(1 - array(matrix(abs(sin((tilt_angles - tiltAngle) * pi / 180.))).T * arr), 0, 2)).sum(axis=0)
+    wstacked = np.row_stack(([np.fft.fftshift(wfunc), ] * (sX // 2 + 1)))
 
-
-    for n in range(1, len(tilt_angles) + 1):
-        theta = tilt_angles[n - 1]
-        reltheta = abs(theta - tiltAngle)
-        if reltheta == 0:
-            continue
-        ds = float(sliceWidth / sX)
-        fijh = float(1. / (ds * np.sin(reltheta * np.pi / 180)))
-        for ix in range(-sX // 2, sX // 2):
-            freq = ix
-            if 0 <= freq <= fijh:
-                Iij = 1. - (freq / fijh)
-                IijFunc.append(Iij)
-            elif -fijh <= freq <= 0:
-                Iij = 1. + (freq / fijh)
-                IijFunc.append(Iij)
-            else:
-                Iij = 0.0
-                IijFunc.append(Iij)
-        IijFunc_sum = np.array(IijFunc_sum) + np.array(IijFunc)
-        IijFunc = []
-    InterFunc = 1. + (IijFunc_sum)
-    wf = 1. / InterFunc
     for ix in range(0, sX):
         for iy in range(0, sizeY):
-            weightFunc.setV(wf[ix], ix, iy, 0)
+            weightFunc.setV(wstacked[iy][ix], ix, iy, 0)
 
     return weightFunc
 
