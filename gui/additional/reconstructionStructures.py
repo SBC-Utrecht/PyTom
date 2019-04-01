@@ -5,6 +5,7 @@ started on Mar 10, 2011
 '''
 
 from pytom.basic.structures import PyTomClass
+import numpy as np
 
 
 class Projection(PyTomClass):
@@ -725,16 +726,16 @@ class ProjectionList(PyTomClass):
 
         @return: Will return a stack of projections - [Imagestack,phiStack,thetaStack,offsetStack]
         """
-        from pytom_volume import vol,paste,complexRealMult
+        from pytom_volume import vol, paste, complexRealMult
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import fft,ifft
         from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift
 
 
-        fname = self._list[0].getFilename().replace('.em','.mrc')
+        #fname = self._list[0].getFilename().replace('.em','.mrc')
         # determine image dimensions according to first image in projection list
-        imgDim = read(fname,0,0,0,0,0,0,0,0,0,binning,binning,1).sizeX()
+        imgDim = read(self._list[0].getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1).sizeX()
         
         stack = vol(imgDim, imgDim, len(self._list))
         stack.setAll(0.0)
@@ -748,25 +749,29 @@ class ProjectionList(PyTomClass):
         
         offsetStack = vol(1, 2, len(self._list))
         offsetStack.setAll(0.0)
-        
+
         if applyWeighting:
-            weightSlice = fourierFilterShift(rampFilter(imgDim,imgDim))
-            if (applyWeighting > 1):
-                weightSlice = fourierFilterShift( exactFilter(self.tilt_angles, projection._tiltAngle,
-                                                              imgDim, imgDim, imgDim))
-            circleFilterRadius = imgDim/2
-            circleSlice = fourierFilterShift(circleFilter(imgDim,imgDim, circleFilterRadius))
+            if applyWeighting==-1:
+                weightSlice= fourierFilterShift(rampFilter(imgDim, imgDim))
+            circleFilterRadius = imgDim//2
+            circleSlice = fourierFilterShift(circleFilter(imgDim, imgDim, circleFilterRadius))
         
         if showProgressBar:
             progressBar = FixedProgBar(0,len(self._particleList),'Particle volumes generated ')
             progressBar.update(0)
 
+        q = np.matrix(abs(np.arange(-imgDim//2, imgDim//2)))
+
         for (i, projection) in enumerate(self._list):
             if verbose:
                 print(projection)
 
-            fname = projection.getFilename().replace('.em','.mrc')
-            image = read(fname,0,0,0,0,0,0,0,0,0,binning,binning,1)
+            if (applyWeighting >= 1):
+                weightSlice = fourierFilterShift( exactFilter(self.tilt_angles, projection._tiltAngle,
+                                                              imgDim, imgDim, imgDim, arr=q))
+
+            #fname = projection.getFilename().replace('.em','.mrc')
+            image = read(projection.getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1)
             
             if applyWeighting:
                 image = ifft( complexRealMult( complexRealMult( fft(image), weightSlice), circleSlice) )

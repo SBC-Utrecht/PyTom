@@ -23,7 +23,7 @@ from pytom.gui.guiFunctions import avail_gpu, sort
 from pytom.gui.guiSupportCommands import *
 from pytom.basic.files import read
 from pytom_numpy import vol2npy
-
+from pytom.gui.mrcOperations import read_mrc
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.mrcOperations import square_mrc
 
@@ -546,6 +546,9 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[h + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
         self.updateTomoFolder(mode)
 
+        self.widgets[h+'Voldims'] = QLineEdit()
+        self.widgets[h + 'BinningFactor'].valueChanged.connect(lambda dummy, m=mode: self.updateVoldims(m))
+        self.updateVoldims(mode)
         execfilename = [mode + 'tomofolder', 'reconstruction/WBP/WBP_reconstruction.sh']
 
         paramsSbatch = guiFunctions.createGenericDict()
@@ -555,7 +558,7 @@ class TomographReconstruct(GuiTabWidget):
         paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex',
                      mode + 'LastIndex',
                      mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor',
-                     mode + 'tomogramNR', 'mrc', '464', mode + 'WeightingType', templateWBP]
+                     mode + 'tomogramNR', 'mrc', mode+'Voldims', mode + 'WeightingType', templateWBP]
 
         self.insert_gen_text_exe(parent,mode, jobfield=False, action=self.convert_em, exefilename=execfilename,
                                  paramsAction=[mode,'reconstruction/WBP','sorted'],paramsSbatch=paramsSbatch,
@@ -564,6 +567,12 @@ class TomographReconstruct(GuiTabWidget):
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         self.table_layouts[id].addWidget(label)
+
+    def updateVoldims(self,mode):
+        folderSorted = self.widgets[mode+'FolderSorted'].text()
+        files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')][0]
+        imdim = read_mrc(os.path.join(folderSorted, files)).shape[0]
+        self.widgets[mode+'Voldims'].setText(str(int(float(imdim)/float(self.widgets[mode+'BinningFactor'].text())+.5)))
 
     def convert_em(self,params):
         mode = params[0]

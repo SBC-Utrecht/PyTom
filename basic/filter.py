@@ -325,7 +325,9 @@ def rampFilter( sizeX, sizeY):
     """
     from pytom_volume import vol
     from math import exp
-    
+    import time
+
+    s = time.time()
     centerX = sizeX//2
     
     centerY = sizeY//2
@@ -341,11 +343,11 @@ def rampFilter( sizeX, sizeY):
         ratio = distX/Ny
         for j in range(sizeY):            
             filter_vol.setV(ratio, i, j, 0)
-                
+    print('ramp filter takes: ', time.time()-s, sizeX, sizeY)
     return filter_vol
 
 
-def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth):
+def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     """
     exactFilter: Generates the exact weighting function required for weighted backprojection - y-axis is tilt axis
     Reference : Optik, Exact filters for general geometry three dimensional reconstuction, vol.73,146,1986.
@@ -358,20 +360,35 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth):
 
     """
 
-    from pytom_volume import read, vol, vol_comp
-    import numpy as np
-    from numpy import array, matrix, sin, pi,arange
+    from pytom_numpy import npy2vol, vol2npy
+    import copy
+    from numpy import array, matrix, sin, pi, arange, float32, column_stack, asfortranarray, clip, argmin, ones, ceil
+    from pylab import   imshow,show
+    from time import time
 
-    sizeY = (sY // 2) + 1
-    weightFunc = vol(sX, sizeY, 1)
-    weightFunc.setAll(0.0)
-    arr = matrix(abs(arange(-sX // 2, sX // 2)))
-    wfunc = 1. / (np.clip(1 - array(matrix(abs(sin((tilt_angles - tiltAngle) * pi / 180.))).T * arr), 0, 2)).sum(axis=0)
-    wstacked = np.row_stack(([np.fft.fftshift(wfunc), ] * (sX // 2 + 1)))
+    s = time()
+    sY = sX//2+1
 
-    for ix in range(0, sX):
-        for iy in range(0, sizeY):
-            weightFunc.setV(wstacked[iy][ix], ix, iy, 0)
+    #arr = matrix(abs(arange(-sX // 2, sX // 2)))
+    #w = 1. / (clip(1 - array(matrix(abs(sin((tilt_angles - tiltAngle) * pi / 180.))).T * arr), 0, 2)).sum(axis=0)
+
+    diffAngles = (tilt_angles-tiltAngle)*pi/180.
+    spacing = min(abs(diffAngles)[abs(diffAngles)>0.01]) #closest angle to tiltAngle
+    crowtherFreq = int(ceil(1 / sin( spacing )))
+    arrC = matrix(abs(arange(-crowtherFreq, crowtherFreq)))
+    wfuncC = 1. / (clip(1 - array(matrix(abs(sin(diffAngles))).T * arrC), 0, 2)).sum(axis=0)
+    wfunc = ones((sX,sY,1),dtype=float32)
+    wfunc[sX//2-crowtherFreq:sX//2+crowtherFreq,:, 0] = column_stack(([(wfuncC), ] * (sY))).astype(float32)
+
+    # Create pytom vol object of wfunc.
+    fortran_wfunc = asfortranarray(wfunc)
+    weightFunc = npy2vol(fortran_wfunc,3)
+    rr =copy.deepcopy(vol2npy(weightFunc))
+
+    if abs(rr).sum() < 0.1:
+        print('npy2vol failed: no weighting for image.')
+
+    print('Computational time exact weighting: ', time()-s)
 
     return weightFunc
 

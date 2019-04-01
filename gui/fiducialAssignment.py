@@ -11,7 +11,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.mrcOperations import *
-from pytom.gui.guiFunctions import read_markerfile, datatype, fmt, headerText
+from pytom.gui.guiFunctions import read_markerfile, datatype, fmt, headerText, datatype0
 import pyqtgraph as pg
 from pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
 from pyqtgraph import ImageItem
@@ -432,9 +432,21 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
 
         self.tomogram_name = self.settings.widgets['tomogram_name'].currentText()
         folder = os.path.join(self.tomofolder, self.tomogram_name, 'sorted/')
-        self.metafile = [os.path.join(folder, line) for line in os.listdir(folder) if line.endswith('.meta')][0]
-        self.metadata = numpy.loadtxt(self.metafile,dtype=datatype)
+        excl = os.path.join(folder,'excluded/')
+        fnames = [[folder,line] for line in os.listdir(folder) if line.endswith('.mrc') and line.startswith('sorted')] +\
+                 [[excl,line]   for line in os.listdir( excl ) if line.endswith('.mrc') and line.startswith('sorted')]
 
+        self.metafile = [os.path.join(folder, line) for line in os.listdir(folder) if line.endswith('.meta')][0]
+        try:
+            self.metadata = numpy.loadtxt(self.metafile,dtype=datatype)
+        except:
+            metadata_old = numpy.loadtxt(self.metafile,dtype=datatype0)
+            self.metadata = numpy.rec.array([(0.,)*len(datatype),]*len(fnames), dtype=datatype)
+
+            for key, value in datatype0:
+                print(key, value)
+                self.metadata[key] = metadata_old[key]
+            
         ps,fs = float(self.metadata['PixelSpacing'][0]), int(self.metadata['MarkerDiameter'][0])
         self.settings.widgets['tilt_axis'].setValue(int(self.metadata['InPlaneRotation'][0]))
         self.settings.widgets['pixel_size'].setValue(ps)
@@ -453,9 +465,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
 
         self.xmin, self.ymin = 0, 0
 
-        excl = os.path.join(folder,'excluded/')
-        fnames = [[folder,line] for line in os.listdir(folder) if line.endswith('.mrc') and line.startswith('sorted')] +\
-                 [[excl,line]   for line in os.listdir( excl ) if line.endswith('.mrc') and line.startswith('sorted')]
+
 
         if len(fnames) == 0:
             print ('Directory is empty')

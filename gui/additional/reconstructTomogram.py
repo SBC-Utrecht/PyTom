@@ -86,7 +86,10 @@ if __name__ == '__main__':
         print(sys.version_info)
         print(e)
         sys.exit()
-        
+
+    print(weightingType)
+
+
     if help is True:
         print(helper)
         sys.exit()
@@ -125,6 +128,7 @@ if __name__ == '__main__':
         weightingType = -1
     else:
         weightingType = int(weightingType)
+
     # only write projections and do NOT reconstruct tomogram (following parameters would be obsolete)
     onlyWeightedProjections = False
     if not volumeName:

@@ -170,6 +170,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
         if tltfile:
             tiltSeries.getTiltAnglesFromIMODfile(tltfile=tltfile)
     tiltAlignment = TiltAlignment(TiltSeries_=tiltSeries)
+    print('dimensions: ', tiltSeries._imdim)
     if outMarkerFileName:
         tiltSeries.writeMarkerFile(markerFileName=outMarkerFileName)
         tiltSeries._markerFileName = outMarkerFileName
@@ -188,7 +189,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
                                    verbose=verbose)
     if voldims and voldims[0] != 0:
         # overrule tiltSeriesFormat - aligned tiltseries is always a series of em files
-        tiltSeries._tiltSeriesFormat = 'em'
+        #tiltSeries._tiltSeriesFormat = 'em'
         
         vol_bp = tiltSeries.reconstructVolume(dims=voldims, reconstructionPosition=recCent, binning=1)
         vol_bp.write(volumeName, volumeFileType)

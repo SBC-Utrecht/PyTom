@@ -103,7 +103,7 @@ class TiltSeries(PyTomClass):
                 for ii in self._projIndices:
                     if alignedTiltSeriesName:
                         proj = Projection(filename=fname,
-                                          alignedFilename=alignedTiltSeriesName + "_" + str(ii) + ".mrc",
+                                          alignedFilename=alignedTiltSeriesName + "_" + str(ii) + tiltSeriesFormat,
                                           index=ii, tiltAngle=mf[0,ii,0],
                                           offsetX=0., offsetY=0.,
                                           alignmentTransX=0., alignmentTransY=0.,
@@ -260,7 +260,6 @@ class TiltSeries(PyTomClass):
             self._Markers[imark].set_yProjs(y)
         return self._Markers
 
-
     def readIMODwimp(self, markerFileName, prexgfile=None, tltfile=None, preBin=1, verbose=False):
         """
         read Marker coordinates from IMOD wimp file
@@ -300,7 +299,6 @@ class TiltSeries(PyTomClass):
                 print("########################")
                 for marker in self._Markers:
                     marker.info()
-
 
     def getTiltAnglesFromIMODfile(self, tltfile):
         """
@@ -531,9 +529,10 @@ class TiltAlignment:
         """
         cent = self.TiltSeries_._TiltAlignmentParas.cent
         imdim = self.TiltSeries_._imdim
-        if cent[0] != imdim/2+1:
+        print(imdim)
+        if cent[0] != imdim//2+1:
             #rint "Centers do not match: cent="+str(cent)+", imdim="+str(imdim)
-            self.TiltSeries_._TiltAlignmentParas.cent = [imdim/2+1, imdim/2+1]
+            self.TiltSeries_._TiltAlignmentParas.cent = [imdim//2+1, imdim//2+1]
 
     def getMarkersFromTiltSeries(self, TiltSeries_):
         """

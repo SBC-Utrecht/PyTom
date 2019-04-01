@@ -38,7 +38,7 @@ templateAlignment = '''cd {d[0]}
     --referenceIndex {d[4]} \\
     --markerFile alignment/markerfile.em \\
     --referenceMarkerIndex {d[5]} \\
-    --projectionTargets alignment/unweighted_unbinned/temp \\
+    --projectionTargets alignment/unweighted_unbinned/sorted_aligned \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9 \\
     --tiltSeriesFormat mrc \\
@@ -53,7 +53,7 @@ templateWBP       = '''cd {d[0]}
     --referenceIndex {d[4]} \\
     --markerFile reconstruction/WBP/markerfile.em \\
     --referenceMarkerIndex {d[5]} \\
-    --projectionTargets reconstruction/WBP/temp_files_unweighted/sorted \\
+    --projectionTargets reconstruction/WBP/temp_files_unweighted/sorted_aligned \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9  \\
     --weightingType {d[10]}  \\
@@ -76,7 +76,7 @@ templateINFR      = '''cd {d[0]}
     --referenceIndex {d[4]} \\
     --markerFile reconstruction/INFR/markerfile.em \\
     --referenceMarkerIndex {d[5]} \\
-    --projectionTargets reconstruction/INFR/temp_files_unweighted/temp \\
+    --projectionTargets reconstruction/INFR/temp_files_unweighted/sorted_aligned \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9 \\
     --weightingType 0 

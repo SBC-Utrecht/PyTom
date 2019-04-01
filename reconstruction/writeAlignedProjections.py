@@ -1,3 +1,8 @@
+import mrcfile
+import copy
+from pylab import imshow, show
+from numpy import abs, float32
+
 def writeAlignedProjections(TiltSeries_, weighting=None,
                             lowpassFilter=None, binning=None,verbose=False):
     """write weighted and aligned projections to disk
@@ -51,7 +56,9 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     for projection in TiltSeries_._ProjectionList:
         tilt_angles.append( projection._tiltAngle )
     tilt_angles = sorted(tilt_angles)
-    print(tilt_angles)
+
+    q = numpy.matrix(abs(numpy.arange(-imdim//2, imdim//2)))
+
     for (ii,projection) in enumerate(TiltSeries_._ProjectionList):
         if projection._filename.split('.')[-1] == 'st':
             from pytom.basic.files import EMHeader, read
@@ -97,9 +104,9 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         # normalize to contrast - subtract mean and norm to mean
         immean = vol2npy(image).mean()
         image = (image - immean)/immean
-
+        print('stats: ', immean, type(immean))
         # smoothen borders to prevent high contrast oscillations
-        image = taper_edges(image, imdim/30)[0]
+        image = taper_edges(image, imdim//30)[0]
         
         # transform projection according to tilt alignment
         transX = -projection._alignmentTransX / binning
@@ -124,7 +131,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         image = general_transform2d(v=image, rot=rot, shift=[transX,transY], scale=mag, order=[2, 1, 0], crop=True)
         
         # smoothen once more to avoid edges 
-        image = taper_edges(image, imdim/30)[0]
+        image = taper_edges(image, imdim//30)[0]
         
         # 'exact weighting, i.e., compute overlap of frequencies in Fourier space
         #if weighting >0:
@@ -145,12 +152,17 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             image = (ifft( complexRealMult( fft( image), w_func) )/
                   (image.sizeX()*image.sizeY()*image.sizeZ()) )
 
-
         # write out projs
         #  imt.Header.Tiltaxis=0;
         #imt.Header.Tiltangle = Tiltangle;
         header.set_tiltangle(tilt_angles[ii])
-        write_em(filename=newFilename, data=image, header=header)
+
+        if newFilename.endswith ('.mrc'):
+            data = copy.deepcopy(vol2npy(image))
+            mrcfile.new(newFilename,data.T.astype(float32),overwrite=True)
+        else:
+            write_em(filename=newFilename, data=image, header=header)
+
         if verbose:
             tline = ("%30s written ..." %newFilename)
         #write_em(filename=fname, data=image)
