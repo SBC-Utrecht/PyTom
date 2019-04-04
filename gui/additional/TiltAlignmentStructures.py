@@ -4,6 +4,7 @@ Structures for alignment of tilt series using fiducial markers
 from pytom_volume import vol, read, transform
 from pytom_numpy import vol2npy
 import numpy
+import os
 from pytom.gui.additional.reconstructionStructures import Projection, ProjectionList
 from pytom.gui.additional.tiltAlignmentFunctions import markerResidual, alignmentFixMagRot
 from pytom.basic.structures import PyTomClass
@@ -46,12 +47,12 @@ class TiltSeries(PyTomClass):
         self._tiltSeriesName = tiltSeriesName
         self._firstProj = firstProj
         self._lastProj = lastProj
-        if projIndices:
-            self._projIndices = projIndices
-        elif tiltSeriesFormat == 'mrc':
-            self._projIndices = list(range(0,lastProj))
-        else:
-            self._projIndices = list(range(firstProj, lastProj + 1))
+
+        folder = os.path.dirname(tiltSeriesName)
+        prefix = os.path.basename(tiltSeriesName)
+        files = [line for line in os.listdir(folder) if line.endswith(tiltSeriesFormat) and line.startswith(prefix)]
+        self._projIndices = numpy.sort( numpy.array([line.split('_')[-1].split('.')[0] for line in files ]))
+        print(self._projIndices)
         self._tiltSeriesFormat = tiltSeriesFormat
         self._TiltAlignmentParas = TiltAlignmentParas
         self._alignedTiltSeriesName = alignedTiltSeriesName
@@ -67,14 +68,8 @@ class TiltSeries(PyTomClass):
                 for cnt, ii in enumerate(self._projIndices):
 
                     fname = tiltSeriesName + "_" + str( ii ) + "." + tiltSeriesFormat
-                    if tiltSeriesFormat == 'mrc':
-                        fname = tiltSeriesName + "_" + "{:02d}".format( ii ) + "." + tiltSeriesFormat
+
                     if alignedTiltSeriesName:
-
-                        #projname = alignedTiltSeriesName + "_" + str(ii) + "." +tiltSeriesFormat
-                        #if tiltSeriesFormat == 'mrc':
-                        #    projname = alignedTiltSeriesName + "_" + "{:02d}".format( ii ) + "." + tiltSeriesFormat
-
                         proj = Projection(filename=fname,
                                           alignedFilename=alignedTiltSeriesName + "_" + str(ii) + "." +tiltSeriesFormat,
                                           index=ii, tiltAngle=self.mf[0,cnt,0],
@@ -100,11 +95,12 @@ class TiltSeries(PyTomClass):
                     fname = tiltSeriesName + ".st"
                 else:
                     fname = tiltSeriesName
-                for ii in self._projIndices:
+
+                for cnt, ii in enumerate(self._projIndices):
                     if alignedTiltSeriesName:
                         proj = Projection(filename=fname,
                                           alignedFilename=alignedTiltSeriesName + "_" + str(ii) + tiltSeriesFormat,
-                                          index=ii, tiltAngle=mf[0,ii,0],
+                                          index=ii, tiltAngle=self.mf[0,cnt,0],
                                           offsetX=0., offsetY=0.,
                                           alignmentTransX=0., alignmentTransY=0.,
                                           alignmentRotation=0., alignmentMagnification=1.)
@@ -113,7 +109,7 @@ class TiltSeries(PyTomClass):
                         
                         proj = Projection(filename=fname,
                                           alignedFilename=None,
-                                          index=ii, tiltAngle=mf[0,ii,0],
+                                          index=ii, tiltAngle=self.mf[0,cnt,0],
                                           offsetX=0., offsetY=0.,
                                           alignmentTransX=0., alignmentTransY=0.,
                                           alignmentRotation=0., alignmentMagnification=1.)
@@ -817,8 +813,9 @@ class TiltAlignment:
             TiltAlignmentParameters_.irefmark = 1
             print("Warning: irefmark must be 1<= irefmark <=nmark")
             print("New irefmark: " + str(TiltAlignmentParameters_.irefmark))
-        if not (TiltAlignmentParameters_.ireftilt in self._projIndices):
-            TiltAlignmentParameters_.ireftilt = self._tiltAngles.argmin() + 1
+
+        if not (TiltAlignmentParameters_.ireftilt in self._projIndices.astype(int)):
+            TiltAlignmentParameters_.ireftilt = abs(self._tiltAngles).argmin() + 1
             print("Warning: ireftilt must be in range of projection indices")
             print("New ireftilt: " + str(TiltAlignmentParameters_.ireftilt))
 
@@ -840,9 +837,11 @@ class TiltAlignment:
         #if TiltAlignmentParameters_.dGradRotMag:
         #    nopti = nopti + 2
 
+        print(nopti)
         optimizableVariables = numpy.array(nopti * [0.])
 
-        # marker 3D coords 
+        # marker 3D coords
+
         ivar = 0
         for (imark, Marker) in enumerate(self._Markers):
             # reference marker irefmark is fixed to standard value
@@ -875,7 +874,7 @@ class TiltAlignment:
         if TiltAlignmentParameters_.dmag:
             for itilt in range(0, ntilt):
                 # magnification of reference projection is 1.
-                if self._projIndices[itilt] != TiltAlignmentParameters_.ireftilt:
+                if int(self._projIndices[itilt]) != TiltAlignmentParameters_.ireftilt:
                     optimizableVariables[ivar] = self._alignmentMagnifications[itilt]
                     ivar = ivar + 1
         # beam inclination
@@ -964,7 +963,7 @@ class TiltAlignment:
         if TiltAlignmentParameters_.dmag:
             for itilt in range(0, ntilt):
                 # magnification of reference projection is 1.
-                if (self._projIndices[itilt] != TiltAlignmentParameters_.ireftilt):
+                if (int(self._projIndices[itilt]) != TiltAlignmentParameters_.ireftilt):
                     self._alignmentMagnifications[itilt] = optimizableVariables[ivar]
                     ivar = ivar + 1
 
@@ -1101,10 +1100,11 @@ class TiltAlignment:
 
         @author: FF
         """
+        print('ref index: ', numpy.argwhere( self._projIndices.astype(int) == TiltSeries_._TiltAlignmentParas.ireftilt)[0][0], TiltSeries_._TiltAlignmentParas.ireftilt )
         (psiindeg, shiftX, shiftY, x, y, z, distLine, diffX, diffY,
          shiftVarX, shiftVarY) = alignmentFixMagRot(
             Markers_=self._Markers, cTilt=self._cTilt, sTilt=self._sTilt,
-            ireftilt=self._projIndices.index(TiltSeries_._TiltAlignmentParas.ireftilt) + 1,
+            ireftilt=numpy.argwhere( self._projIndices.astype(int) == TiltSeries_._TiltAlignmentParas.ireftilt)[0][0],
             irefmark=TiltSeries_._TiltAlignmentParas.irefmark,
             r=TiltSeries_._TiltAlignmentParas.r, imdim=TiltSeries_._imdim,
             handflip=TiltSeries_._TiltAlignmentParas.handflip, mute=mute)

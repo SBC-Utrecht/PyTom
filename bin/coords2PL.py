@@ -17,7 +17,9 @@ def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, we
     pl = ParticleList()
     for n, coordinate_file in enumerate(coordinate_files):
         wedgeAngle = wedgeAngles[2*n:2*(n+1)]
-        pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle)
+        sourceInfo = pl.loadCoordinateFileHeader(coordinate_file)
+        pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle,
+                              sourceInfo=sourceInfo)
         try:
             z1, z2, x = random.choice(angleList)
             pl[-1].setRotation(rotation=Rotation(z1=z1, z2=z2, x=x, paradigm='ZXZ'))

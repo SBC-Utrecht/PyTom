@@ -415,7 +415,7 @@ def main():
 if __name__ == '__main__':
 
 
-    for module in ('lib64/append', 'python3/3.7', 'openmpi/2.1.1', 'pytom/dev/python3'):
+    for module in ('lib64/append', 'python3/3.7', 'openmpi/2.1.1', 'pytom/dev/python3','imod/4.10.25'):
         try:
             os.system('module load {}'.format(module))
         except:

@@ -948,7 +948,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
 
         self.insert_label_spinbox(self.grid, 'tilt_axis', text='Angle Tilt Axis (degrees)', rstep=1,
                                value=270, maximum=359, stepsize=5,
-                               tooltip='Angle of the Tiltaxis, North direction = 0, West = 270.')
+                               tooltip='Specifies how much the tilt axis deviates from vertical (Y axis), clockwise.')
 
         self.insert_label_spinbox(self.grid, 'ref_frame', text='Reference Frame', rstep=1,
                                   value=19,minimum=1,maximum=91,stepsize=1,

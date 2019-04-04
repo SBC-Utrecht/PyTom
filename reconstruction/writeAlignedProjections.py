@@ -104,7 +104,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         # normalize to contrast - subtract mean and norm to mean
         immean = vol2npy(image).mean()
         image = (image - immean)/immean
-        print('stats: ', immean, type(immean))
+
         # smoothen borders to prevent high contrast oscillations
         image = taper_edges(image, imdim//30)[0]
         

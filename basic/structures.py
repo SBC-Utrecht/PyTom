@@ -4,12 +4,15 @@ Created on Mar 23, 2010
 @author: hrabe
 '''
 analytWedge=False
+
+
 class PyTomClassError(Exception):
        
     def __init__(self,value):
         self._value = value
     def __str__(self):
         print(self._value)
+
 
 class PyTomClass(object):
     """
@@ -173,7 +176,8 @@ class PyTomClass(object):
         file.write(htmlString)
     
         file.close()   
-        
+
+
 class Mask(PyTomClass):
     """
     Mask: A mask object. Used to control whether mask is spherical or not. 
@@ -299,7 +303,8 @@ class Mask(PyTomClass):
         
         if not checkFileExists(self._filename):
             raise IOError('Could not find mask file: ' + str(self._filename))
-        
+
+
 class Reference(PyTomClass):
     """
     Reference: Stores information about the current reference.
@@ -650,6 +655,7 @@ class Reference(PyTomClass):
         
         if not checkFileExists(self._referenceFile):
             raise IOError('Could not find reference file: ' + str(self._referenceFile))
+
 
 class ReferenceList(PyTomClass):
     """
@@ -1178,11 +1184,13 @@ class SingleTiltWedge(PyTomClass):
         
         return wedgeElement
 
+
 class WedgeInfo(SingleTiltWedge):        
     """
     WedgeInfo:
     @deprecated: Used for backward compatibility only..
     """
+
 
 class DoubleTiltWedge(SingleTiltWedge):
     """
@@ -1513,7 +1521,8 @@ class Particle(PyTomClass):
     Particle: Stores information about individual particle. 
     """
     
-    def __init__(self,filename='',rotation=None,shift=None,wedge=None,className = 0,pickPosition=None,score=None):
+    def __init__(self,filename='',rotation=None,shift=None,wedge=None,className = 0,pickPosition=None,score=None,
+                 sourceInfo=None):
         """
         @param filename: name of particle volume file (.em or .mrc file)
         @type filename: L{str}
@@ -1531,7 +1540,7 @@ class Particle(PyTomClass):
         @type score: L{pytom.score.score.Score}
         """
         self._filename = filename
-        from pytom.basic.structures import Rotation,Shift
+        from pytom.basic.structures import Rotation, Shift
         
         if not rotation:    
             self._rotation = Rotation(0.0,0.0,0.0)
@@ -1550,7 +1559,16 @@ class Particle(PyTomClass):
             self._shift = shift
         else:
             raise TypeError('Unknown type for shift parameter!')
-        
+
+        if not sourceInfo:
+            self._sourceInfo = SourceInformation('', 0, 1)
+        elif sourceInfo.__class__ == list:
+            self._sourceInfo = SourceInformation(sourceInfo[0],sourceInfo[1],sourceInfo[2])
+        elif sourceInfo.__class__ == SourceInformation:
+            self._sourceInfo = sourceInfo
+        else:
+            raise TypeError('Unknown type for sourceInfo parameter')
+
         if not pickPosition:
             from pytom.basic.structures import PickPosition
             self._pickPosition = PickPosition()
@@ -1712,7 +1730,6 @@ class Particle(PyTomClass):
         self._score.setValue(value=scoreValue)
         self._scoreValue = scoreValue
 
-
     def getScoreValue(self):
         """
         get score value
@@ -1724,7 +1741,6 @@ class Particle(PyTomClass):
         else:
             return self._score.getValue()
 
-        
     def setClass(self,className):
         """
 	    set class of particle
@@ -1747,6 +1763,7 @@ class Particle(PyTomClass):
         particle_element.append(self._shift.toXML())
         particle_element.append(self._pickPosition.toXML())
         particle_element.append(self._wedge.toXML())
+        particle_element.append(self._sourceInfo.toXML())
 
         if self._score != None:
             particle_element.append(self._score.toXML())
@@ -1794,7 +1811,15 @@ class Particle(PyTomClass):
             self._shift.fromXML(shift_element)
         else:
             self._shift = Shift([0.0,0.0,0.0])
-        
+
+        source_element = particle_element.xpath('InfoTomogram')
+        if len(shift_element) > 0:
+            source_element = source_element[0]
+            self._sourceInfo = SourceInformation(['', 1, 1])
+            self._sourceInfo.fromXML(source_element)
+        else:
+            self._sourceInfo = SourceInformation(['', 1, 1])
+
         position_element = particle_element.xpath('PickPosition')
         if len(position_element) > 0:
             position_element = position_element[0]
@@ -1827,7 +1852,7 @@ class Particle(PyTomClass):
         if len(score_element) > 0:
             from pytom.score.score import fromXML
             self._score = fromXML(score_element[0])
-    
+
     def copy(self):
         """
         copy: Copies self to new Particle object
@@ -1881,12 +1906,14 @@ class Particle(PyTomClass):
      
         return cmp(self.getScore(),otherParticle.getScore())
 
+
 def keyFunctionForParticleSortingByScore(particle):
     return particle.getScore()
 
 def keyFunctionForParticleSortingByClassLabel(particle):
     return str(particle.getClass())
-    
+
+
 class ParticleList(PyTomClass):
     """
     ParticleList: Stores a list of particle objects L{pytom.basic.structures.Particle}
@@ -1960,8 +1987,7 @@ class ParticleList(PyTomClass):
     
     def __len__(self):
         return len(self._particleList)
-    
-    
+
     def append(self,particle):
         """
         append: Appends particle to self.particleList
@@ -1997,8 +2023,7 @@ class ParticleList(PyTomClass):
         else:
             particleList_element = etree.Element('ParticleList', Path=self._directory)
         return particleList_element
-    
-    
+
     def toHTMLFile(self,filename):
         """
         toHTMLFile: Overrides parent method and stores ParticleList to HMTL
@@ -2252,8 +2277,7 @@ class ParticleList(PyTomClass):
             res.append(p.getClass())
         
         return res
-        
-    
+
     def particlesFromClass(self,className):
         """
         particlesFromClass: Selects all members of className
@@ -2979,7 +3003,7 @@ class ParticleList(PyTomClass):
         
         return res
     
-    def loadCoordinateFile(self, filename, name_prefix=None, wedgeAngle=None):
+    def loadCoordinateFile(self, filename, name_prefix=None, wedgeAngle=None, sourceInfo=None):
         """
         Initialize the particle list using the given coordinate file.
         The coordinate file simply contains three columns of X, Y and Z separated 
@@ -3008,14 +3032,30 @@ class ParticleList(PyTomClass):
                 except: x, y, z = [float(n) for n in line.split()]
                 p = Particle(name_prefix+str(i)+'.em', rotation=None, shift=None,
                         wedge=None, className=0, pickPosition=PickPosition(x,y,z),
-                        score=None)
+                        score=None, sourceInfo=sourceInfo)
                 if wedgeAngle:
                     p.setWedge(wedge)
                 self._particleList.append(p)
                 i += 1
         finally:
             f.close()
-    
+
+    def loadCoordinateFileHeader(self, filename):
+        header = [line.strip('#').split() for line in open(filename, 'r').readlines() if '#' in line]
+        headerInfo = ['', 1, 1]
+
+        for l in header:
+            if not l or len(l) < 2:
+                continue
+            if l[0] == 'TOMONAME':
+                headerInfo[0] = l[1]
+            elif l[0] == 'MARKERINDEX':
+                headerInfo[1] = l[1]
+            elif l[0] == 'BINNINGFACTOR':
+                headerInfo[2] = int(l[1])
+
+        return headerInfo
+
     def listFromBestScorePercentage(self,percentage):
         """
         listFromBestParticles: Returns a particle list from all N% best scored particles
@@ -3091,7 +3131,61 @@ class ParticleList(PyTomClass):
             particle.setShift(shift=ttrans+translation.rotate(rot=trot))
 
 
-class Rotation(PyTomClass):  
+class SourceInformation(PyTomClass):
+    """
+    SourceInformation: Stores information used for the generation of the tomogram from which the particle originates.
+    Information that is stored: tomogram name, reference marker index, and binning factor.
+    """
+    def __init__(self, tomogramName='', refMarkIndex=0, binningFactor=1):
+        self._tomoname = tomogramName
+        self._refMarkIndex = int(refMarkIndex)
+        self._binningFactor = int(binningFactor)
+
+    def getTomoName(self):
+        return self._tomoname
+
+    def setTomoName(self,tomoname):
+        self._tomoname = str(tomoname)
+
+    def getRefMarkIndex(self):
+        return self._refMarkIndex
+
+    def setRefMarkIndex(self,index):
+        self._refMarkIndex = int(index)
+
+    def getBinningFactor(self):
+        return self._binningFactor
+
+    def setBinningFactor(self,factor):
+        self._binningFactor = int(factor)
+
+    def toXML(self):
+        from lxml import etree
+
+        info_element = etree.Element('InfoTomogram', TomoName=str(self._tomoname),
+                                         RefMarkIndex=str(self._refMarkIndex), BinningFactor=str(self._binningFactor))
+        return info_element
+
+    def fromXML(self, xmlObj):
+        from lxml.etree import _Element
+
+        if xmlObj.__class__ != _Element:
+            raise TypeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
+
+        if xmlObj.tag == 'InfoTomogram':
+            info_element = xmlObj
+        else:
+            TypeError('InfoTomogram: You must provide a valid SourceInformation XML object.')
+
+        self._tomoname = str(info_element.get('TomoName'))
+        self._refMarkIndex = int(info_element.get('RefMarkIndex'))
+        self._binningFactor = int(info_element.get('BinningFactor'))
+
+        if self._binningFactor < 1:
+            self._binningFactor = 1
+
+
+class Rotation(PyTomClass):
     """
     Rotation: Stores a 3D Euler Rotation according to multiple supported \
     paradigms. supported are: (ZXZ = default, ZYZ, YZY, XYZ, ZYX, ...). 
@@ -3216,7 +3310,7 @@ class Rotation(PyTomClass):
         """
         """
         from lxml import etree
-        
+
         rotation_element = etree.Element('Rotation', Z1=str(self._z1), Z2=str(self._z2), X=str(self._x),
                                          Paradigm=self._paradigm)
         return rotation_element
@@ -3706,6 +3800,7 @@ class PickPosition(PyTomClass):
         
         self.__add__(scale(vector,-1))
 
+
 class Symmetry(PyTomClass):
     
 #     def __init__(self,nfold=1,z2=0,x=0, search_ang=0, search_axis_z2=0, search_axis_x=0):
@@ -3791,7 +3886,8 @@ class Symmetry(PyTomClass):
 
     def getX(self):
         return self._x
-     
+
+
 class PointSymmetry(Symmetry):
     """
     PointSymmetry: Stores all neccessary information about the symmetry of an object 
@@ -4025,6 +4121,7 @@ class PointSymmetry(Symmetry):
         
         return symVolume
 
+
 class MultiSymmetries(PyTomClass):
     """Multiple symmetries support.
     """
@@ -4070,6 +4167,7 @@ class MultiSymmetries(PyTomClass):
             symVolume = sym.applyToParticle(symVolume)
         
         return symVolume
+
 
 class HelicalSymmetry(Symmetry):
     
@@ -4187,7 +4285,8 @@ class HelicalSymmetry(Symmetry):
         self._z2 = float(symmetry_element.get('Z2'))
         self._x = float(symmetry_element.get('X'))
         self._isRightSymmetry = symmetry_element.get('IsRightSymmetry') == 'True'
-        
+
+
 class SampleInformation(PyTomClass):
     """
     SampleInformation: Contains aquisition details of image data such as pixelsize, diameter of the imaged complex.
@@ -4252,7 +4351,8 @@ class SampleInformation(PyTomClass):
         
         self._pixelSize = float(symmetry_element.get('PixelSize'))       
         self._particleDiameter = float(symmetry_element.get('ParticleDiameter'))
-        
+
+
 class Resolution(PyTomClass):
     """
     Resolution: Stores current resolution information. Stores sample specific parameters
