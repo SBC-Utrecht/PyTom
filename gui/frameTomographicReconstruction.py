@@ -32,7 +32,7 @@ class TomographReconstruct(GuiTabWidget):
     def __init__(self, parent=None):
         super(TomographReconstruct, self).__init__(parent)
 
-
+        self.stage = 'v02_'
         self.projectname = self.parent().projectname
         self.tomogram_folder = self.parent().tomogram_folder
         self.rawnanographs_folder = self.parent().rawnanographs_folder
@@ -43,8 +43,8 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets['pytomPath'].setText(self.parent().pytompath)
 
         self.pytompath = self.parent().pytompath
-        headers = ["Select Tomograms", "Create Markerfile", "Alignment", 'Reconstruction']
-        subheaders = [[], [], ['Individual Alignment', 'Batch Alignment'], ['INFR', 'WBP', 'Batch Reconstruction']]
+        headers = ["Select Tomograms", "Create Markerfile", "Alignment", 'CTF Determination', 'Reconstruction']
+        subheaders = [[], [], ['Individual Alignment', 'Batch Alignment'], [], ['INFR', 'WBP', 'Batch Reconstruction']]
         self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders)
 
         self.table_layouts = {}
@@ -58,19 +58,21 @@ class TomographReconstruct(GuiTabWidget):
         self.tabs = {'tab1': self.tab1,
                      'tab2':  self.tab2,
                      'tab31': self.tab31, 'tab32': self.tab32,
-                     'tab41': self.tab41, 'tab42': self.tab42, 'tab43': self.tab43}
+                     'tab4': self.tab4,
+                     'tab51': self.tab51, 'tab52': self.tab52, 'tab53': self.tab53}
 
         self.tab_actions = {'tab1':  self.tab1UI,
                             'tab2':  self.tab2UI,
                             'tab31': self.tab31UI, 'tab32': self.tab32UI,
-                            'tab41': self.tab41UI, 'tab42': self.tab42UI, 'tab43': self.tab43UI}
+                            'tab4': self.tab4UI,
+                            'tab51': self.tab51UI, 'tab52': self.tab52UI, 'tab53': self.tab53UI}
 
         for i in range(len(headers)):
             t = 'tab{}'.format(i+1)
             empty = 1*(len(subheaders[i]) == 0)
             for j in range(len(subheaders[i])+empty):
                 tt = t+str(j+1)*(1-empty)
-                if tt in ('tab2', 'tab31', 'tab32',  'tab41', 'tab42'):
+                if tt in ('tab2', 'tab31', 'tab32', 'tab4', 'tab51', 'tab52'):
                     self.table_layouts[tt] = QGridLayout()
                 else:
                     self.table_layouts[tt] = QVBoxLayout()
@@ -84,11 +86,11 @@ class TomographReconstruct(GuiTabWidget):
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
                 self.checkbox[tt] = QCheckBox('sbatch')
 
-                if tt in ('tab1','tab32','tab43'):
+                if tt in ('tab1','tab32','tab53'):
                     self.table_layouts[tt].addWidget(button)
                     self.table_layouts[tt].addWidget(self.ends[tt])
 
-                if tt in ('tab2','tab31','tab41','tab42'):
+                if tt in ('tab2','tab31','tab4', 'tab51','tab52'):
                     self.tab_actions[tt]()
 
 
@@ -361,17 +363,18 @@ class TomographReconstruct(GuiTabWidget):
             qmarkerfile = markerfile.replace('markerfile.em','*.meta')
             qsortedfiles = markerfile.replace('markerfile.em','sorted_*.mrc')
             metafile = glob.glob( qmarkerfile )[0]
-            tangs = numpy.abs(numpy.array(sorted([float(line.split()[-1]) for line in
-                                        os.popen('cat {} | grep TiltAngle '.format(metafile)).readlines()])) )
-
+            #tangs = numpy.abs(numpy.array(sorted([float(line.split()[-1]) for line in
+            #                            os.popen('cat {} | grep TiltAngle '.format(metafile)).readlines()])) )
+            metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
+            tangs = metadata['TiltAngle']
             sortedfiles = sorted(glob.glob(qsortedfiles))
             last_frame = len(sortedfiles)
             index_zero_angle = 0
             mm = 9999
             for n, sortedfile in enumerate(sortedfiles):
                 index_s = int(sortedfile.split('_')[-1].split('.')[0])
-                if tangs[index_s] < mm:
-                    mm = tangs[index_s]
+                if abs(tangs[index_s]) < mm:
+                    mm = abs(tangs[index_s])
                     index_zero_angle = n+1
 
             d = read(markerfile)
@@ -398,8 +401,6 @@ class TomographReconstruct(GuiTabWidget):
         '''
 
     def run_multi_align(self,id,values):
-
-
         print('multi_align', id)
         num_procs = 20
         n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
@@ -431,8 +432,8 @@ class TomographReconstruct(GuiTabWidget):
                                            tiltseriesname='sorted/sorted', markerfile='alignment/markerfile.em',
                                            targets='alignment', weightingtype=0, queue=self.checkbox[id].isChecked())
 
-    def tab41UI(self):
-        id = 'tab41'
+    def tab51UI(self):
+        id = 'tab51'
         alg = 'INFR'
         mode = 'v02_{}_'.format(alg)
         self.row, self.column = 0,0
@@ -512,8 +513,8 @@ class TomographReconstruct(GuiTabWidget):
             refIndex = 1 + abs(angles).argmin()
             self.widgets[mode+'RefTiltIndex'].setValue(refIndex)
 
-    def tab42UI(self):
-        id = 'tab42'
+    def tab52UI(self):
+        id = 'tab52'
         alg = 'WBP'
         h =  mode = 'v02_{}_'.format(alg)
         self.row, self.column = 0,0
@@ -538,7 +539,7 @@ class TomographReconstruct(GuiTabWidget):
                                   value=1, minimum=-1, maximum=3000, stepsize=1,
                                   tooltip='Select weighting type:\n\t 0: no weighting\n\t-1: analytical weighting'+
                                           '\n\t 1: "exact" weighting')
-        self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=8, cstep=0,
+        self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=8, minimum=1, cstep=0,
                                   tooltip='Binning factor used for reconstruction')
 
         self.widgets[h + 'tomofolder'] = QLineEdit()
@@ -580,8 +581,7 @@ class TomographReconstruct(GuiTabWidget):
         output_folder = '{}/{}'.format(directory, params[1])
         prefix = params[2]
         sorted_folder = self.widgets[mode+'FolderSorted'].text()
-        try: os.system(f'cp {directory}/sorted/markerfile.em {output_folder}/markerfile.em')
-        except: pass
+
 
 
         if not os.path.exists(f'{output_folder}/temp_files_unweighted'): os.mkdir(f'{output_folder}/temp_files_unweighted')
@@ -597,8 +597,8 @@ class TomographReconstruct(GuiTabWidget):
 
 
         # print '{}/reconstruction/{}/reconstruction.sh'.format(tomofolderpath,p)
-        try:
-            if os.path.exists('{}/reconstruction.sh'.format(output_folder)):
+        if 1:
+            if os.path.exists('{}/{}_reconstruction.sh'.format(output_folder,os.path.basename(output_folder))):
                 for i in range(1000):
                     if not os.path.exists('{}/backup'.format(output_folder)): os.mkdir(
                         '{}/backup'.format(output_folder))
@@ -607,18 +607,20 @@ class TomographReconstruct(GuiTabWidget):
 
                     os.mkdir(fname)
                     for f in ('temp_files_binned', 'temp_files_unweighted', 'temp_files_weighted', 'tomogram.em',
-                              'reconstruction.sh', 'markerfile.em'):
-                        if os.path.exists('{}/{}'.format(output_folder, f)): os.system(
-                            'mv {}/{} {}/'.format(output_folder, f, fname))
-                        if f != 'tomogram.em' and f != 'reconstruction.sh':
-                            if not os.path.exists("{}/{}".format(output_folder, f)): os.mkdir(
-                                "{}/{}".format(output_folder, f))
+                              '{}_reconstruction.sh'.format(os.path.basename(output_folder)), 'markerfile.em'):
+                        if os.path.exists('{}/{}'.format(output_folder, f)):
+                            os.system('mv {}/{} {}/'.format(output_folder, f, fname))
+                        if not '.' in f and not os.path.exists("{}/{}".format(output_folder, f)):
+                            os.mkdir("{}/{}".format(output_folder, f))
                     break
-        except:
+        else:
             pass
 
-    def tab43UI(self):
-        id='tab43'
+        try: os.system(f'cp {directory}/sorted/markerfile.em {output_folder}/markerfile.em')
+        except: pass
+
+    def tab53UI(self):
+        id='tab53'
         headers = ["name tomogram", "INFR", 'WBP', 'First Index', "Last Index", 'Reference Image', 'Reference Marker',
                    'Binning Factor']
         types = ['txt', 'checkbox', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit']
@@ -717,4 +719,182 @@ class TomographReconstruct(GuiTabWidget):
                 os.system('sh {}'.format(params[0]))
         except:
             print ('Please check your input parameters. They might be incomplete.')
-pass
+
+
+
+
+
+
+
+    def tab4UI(self):
+        key = 'tab4'
+        grid = self.table_layouts[key]
+        grid.setAlignment(self, Qt.AlignTop)
+
+        items = []
+
+        t0, t1 = self.stage + 'CtfDetermination_', self.stage + 'CtfCorrection_'
+
+        items += list(self.create_expandable_group(self.ctfDetermination, self.sizePolicyB, 'CTF Determination',
+                                                   mode=t0))
+        items[-1].setVisible(False)
+
+        for n, item in enumerate(items):
+            grid.addWidget(item, n, 0, 1, 3)
+
+        label = QLabel()
+        label.setSizePolicy(self.sizePolicyA)
+        grid.addWidget(label, n + 1, 0, Qt.AlignRight)
+
+
+
+    def ctfDetermination(self, mode):
+
+        title = "CTF Determination"
+        tooltip = 'Run IMOD ctfplotter.'
+        sizepol = self.sizePolicyB
+        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
+
+        self.row, self.column = 0, 0
+        rows, columns = 40, 20
+        self.items = [['', ] * columns, ] * rows
+
+        self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB,width=400 )
+        self.insert_label_line_push(parent,'Folder Sorted & Aligned Tilt Images', mode + 'FolderSortedAligned',
+                                    'Select the folder where the sorted tiltimages are located.\n',
+                                    initdir=self.tomogram_folder, mode='folder')
+        self.insert_label_line_push(parent, 'Angle File', mode + 'AngleFile',mode='file',filetype='tlt',
+                                    tooltip='File with a list of tilt angles. (.tlt extension)',
+                                    initdir=self.tomogram_folder)
+        self.insert_label_line_push(parent, 'Defocus File', mode + 'DefocusFile',mode='file',filetype='defocus',
+                                    tooltip='Filename to store results (.defocus extension).',
+                                    initdir=self.tomogram_folder)
+        self.insert_label_line_push(parent, 'Config File (OPTIONAL)', mode + 'ConfigFile', mode='file',filetype='cfg',
+                                    tooltip='File with a list of noise files used to estimate the noise (.cfg extension).',
+                                    initdir=self.tomogram_folder)
+
+        self.insert_label_spinbox(parent, mode +'AxisAngle', text='Axis Angle (deg)',
+                                  tooltip='Specifies how much the tilt axis deviates from vertical (Y axis).',
+                                  value=270, minimum=0, maximum=359, stepsize=1)
+        self.insert_label_spinbox(parent, mode + 'PixelSpacing', text='Pixel Spacing (nm)',
+                                  tooltip='Size of pixels in nm.', wtype=QDoubleSpinBox, decimals=3,
+                                  value=0.175, minimum=.1, maximum=10, stepsize=.1)
+        self.insert_label_spinbox(parent, mode + 'ExpectedDefocus', text='Expected Defocus (nm)',
+                                  value=6000, minimum=-60000, maximum=60000, wtype=QDoubleSpinBox,
+                                  stepsize=100, tooltip='Expected defocus at the tilt axis in nanometers.')
+        self.insert_label_spinbox(parent, mode + 'AngleRangeMin', text='Angle Range(min)',
+                                  value=-60, minimum=-180, maximum=-2, stepsize=1)
+        self.insert_label_spinbox(parent, mode + 'AngleRangeMax', text='Angle Range (max)',
+                                  tooltip='Maximal angle of tilt images.',
+                                  value=60, minimum=2, maximum=180, stepsize=1)
+        self.insert_label_spinbox(parent, mode + 'Voltage', text='Voltage (kV)',
+                                  tooltip='Specifies how much the tilt axis deviates from vertical (Y axis).',
+                                  value=200, minimum=2, maximum=1300, stepsize=1)
+        self.insert_label_spinbox(parent, mode + 'SphericalAberration', text='Spherical Aberration',
+                                  value=2.7, stepsize=0.1, minimum=0, maximum=10., wtype=QDoubleSpinBox,
+                                  tooltip='Expected defocus at the tilt axis in nanometers.')
+        self.insert_label_spinbox(parent, mode + 'AmplitudeContrast', text='Amplitude Contrast',
+                                  value=0.8, stepsize=0.1, minimum=0, maximum=1, wtype=QDoubleSpinBox)
+        self.insert_label_checkbox(parent, mode+'FindAstigmatism', 'Find Astigmatism')
+        self.insert_label_checkbox(parent, mode + 'FindPhaseShift', 'Find PhaseShift')
+        self.insert_label_checkbox(parent, mode + 'FindCutOn', 'Find Cut On Frequency',rstep=1, cstep=0)
+
+        exefilename = [mode+'tomofolder', 'ctf/CTFPlotter.sh']
+        xmlfilename = [mode+'tomofolder', 'ctf/ctfplotter.com']
+
+        paramsSbatch = guiFunctions.createGenericDict()
+        paramsSbatch['fname'] = 'CTF Plotting'
+        paramsSbatch[ 'folder' ] = exefilename
+
+        paramsXML = [mode + 'StackFile', mode + 'AngleFile', mode + 'DefocusFile', mode + 'ConfigFile',
+                     mode + 'AxisAngle', mode + 'PixelSpacing', mode + 'ExpectedDefocus', mode + 'AngleRangeMin',
+                     mode + 'AngleRangeMax', mode + 'Voltage', mode + 'SphericalAberration', mode + 'AmplitudeContrast',
+                     mode + 'FindAstigmatism', mode + 'FindPhaseShift', mode + 'FindCutOn', mode + 'ConfigHeader',
+                     ParamsFileCTFPlotter]
+
+        paramsCmd = [mode + 'tomofolder', 'ctf/ctfplotter.com', templateCTFPlotter]
+
+        self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=exefilename, paramsSbatch=paramsSbatch,
+                                 paramsCmd=paramsCmd, paramsXML=paramsXML, xmlfilename=xmlfilename)
+
+        label = QLabel()
+        label.setSizePolicy(self.sizePolicyA)
+        parent.addWidget(label)
+
+        self.widgets[mode+'tomofolder'] = QLineEdit()
+        self.widgets[mode+'StackFile'] = QLineEdit()
+        self.widgets[mode+'ConfigHeader'] = QLineEdit()
+        self.widgets[mode + 'FolderSortedAligned'].textChanged.connect(lambda dummy, m=mode: self.updateCTFPlotter(m))
+        self.widgets[mode + 'ConfigFile'].textChanged.connect(lambda  dummy, m=mode: self.updateConfigHeader(m))
+        self.updateCTFPlotter(mode)
+        self.updateConfigHeader(mode)
+
+        setattr(self, mode + 'gb_CD', groupbox)
+        return groupbox
+
+    def updateConfigHeader(self, mode):
+        if self.widgets[mode + 'ConfigFile'].text():
+            self.widgets[mode + 'ConfigHeader'].setText('ConfigFile')
+        else:
+            self.widgets[mode + 'ConfigHeader'].setText('          ')
+
+    def updateCTFPlotter(self, mode):
+        folder = self.widgets[mode + 'FolderSortedAligned'].text()
+        if not folder:
+            return
+        try:
+            tomogramID = folder.split('tomogram_')[-1][:3]
+            sortedFolder = '{}/tomogram_{}/sorted/'.format(self.tomogram_folder, tomogramID)
+            tomoname = '{}/tomogram_{}'.format(self.tomogram_folder, tomogramID)
+            tID = int(tomogramID)
+            outstack = '{}/tomogram_{}.st'.format(folder,tomogramID)
+        except:
+            return
+        files = [line for line  in os.listdir(folder) if line.endswith('.mrc') and line.startswith('sorted_')]
+        if not files:
+            return
+        dd = []
+        for file in files:
+            id = int(file.split('_')[-1].split('.')[0])
+            dd.append([file,id])
+        guiFunctions.sort(dd,1)
+        files, ids = zip(*dd)
+        cmd = 'cd {}; newstack -in '.format(folder)
+        cmd += ' '.join(files)
+        cmd += '-out {}'.format(outstack)
+        os.system(cmd)
+        print(cmd)
+        metafile = [os.path.join(sortedFolder, line) for line in os.listdir(sortedFolder) if line.endswith('.meta')][0]
+        metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
+        outAngle   = outstack.replace('.st','.tlt')
+        out = open(outAngle,'w')
+        for id in ids: out.write('{}\n'.format(metadata['TiltAngle'][id]))
+        out.close()
+        outDefocus = os.path.join(tomoname, 'ctf', os.path.basename(outstack).replace('.st','.defocus'))
+
+        self.widgets[mode + 'tomofolder'].setText(tomoname)
+        self.widgets[mode + 'StackFile'].setText(outstack)
+        self.widgets[mode + 'AngleFile'].setText(outAngle)
+        self.widgets[mode + 'DefocusFile'].setText(outDefocus)
+
+        self.widgets[mode + 'AxisAngle'].setValue(metadata['InPlaneRotation'][0])
+        self.widgets[mode + 'PixelSpacing'].setValue(metadata['PixelSpacing'][0]/10.)
+        self.widgets[mode + 'ExpectedDefocus'].setValue(1000.*metadata['DefocusU'][abs(metadata['TiltAngle']).argmin()])
+        self.widgets[mode + 'AngleRangeMin'].setValue(floor(metadata['TiltAngle'][ids[0]]))
+        self.widgets[mode + 'AngleRangeMax'].setValue(ceil(metadata['TiltAngle'][ids[-1]]))
+        self.widgets[mode + 'Voltage'].setValue(metadata['Voltage'][0])
+        self.widgets[mode + 'SphericalAberration'].setValue(metadata['SphericalAberration'][0])
+        self.widgets[mode + 'AmplitudeContrast'].setValue(metadata['AmplitudeContrast'][0])
+
+    def prep_value(self, params):
+
+        mode = params[0]
+        outtext = '''# command file to run ctfplotter\n#\n'''
+
+        folder = self.widgets[mode +'FolderSortedAligned'].text()
+        metafile = [line for line in os.listdir('{}/../../sorted/'.format(folder)) if line.endswith('.meta')][0]
+        metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
+
+        files = [os.path.join(folder,line) for line in os.listdir(folder) if line.endswith('.mrc') and line.startswith('sorted_aligned')]
+
+        files = sorted(files)

@@ -438,7 +438,6 @@ class SubtomoAnalysis(GuiTabWidget):
                      mode+'pixelSize', mode+'particleDiameter', mode+'particleList', self.frmdir]
         paramsCmd = [ self.subtomodir, self.pytompath, jobfilename, templateFRMSlurm]
 
-
         self.insert_gen_text_exe(parent, self.stage, xmlfilename=jobfilename, jobfield=True, exefilename=exefilename,
                                  paramsXML=paramsJob + [templateFRMJob], paramsCmd=paramsCmd,
                                  paramsSbatch=paramsSbatch)

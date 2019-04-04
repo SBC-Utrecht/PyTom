@@ -187,3 +187,27 @@ multiple_alignment = '''cd {d[0]}
 --weightingType {d[12]} \\
 --projIndices \\
 --fnames {d[13]}'''
+
+ParamsFileCTFPlotter = '''#
+InputStack           {d[0]}
+AngleFile            {d[1]}
+DefocusFile          {d[2]}
+{d[15]}           {d[3]}
+AxisAngle            {d[4]}
+PixelSize            {d[5]}
+ExpectedDefocus      {d[6]}
+AngleRange           {d[7]} {d[8]}
+Voltage              {d[9]}
+SphericalAberration  {d[10]}
+AmplitudeContrast    {d[11]}
+DefocusTol           200
+PSResolution         101
+TileSize             256
+LeftDefTol           2000.0
+RightDefTol          2000.0
+FindAstigPhaseCuton  {d[12]} {d[13]} {d[14]}
+'''
+
+templateCTFPlotter = '''cd {d[0]}
+
+ctfplotter -pa {d[1]}'''

@@ -272,12 +272,13 @@ class WorkerSignals(QObject):
 
 
 class Worker(QRunnable):
-    def __init__(self, fn=None, args=[]):
+    def __init__(self, fn=None, args=[], sig=True):
         #super(ProcessRunnable,self).__init__(parent)
         super(Worker, self).__init__()
         self.signals = WorkerSignals()
         self.fn = fn
-        self.args = tuple(list(args)+[self.signals])
+        self.args = tuple(list(args))
+        if sig: self.args += tuple(list(args)+[self.signals])
 
     def run(self):
         self.fn(*self.args)
@@ -449,7 +450,7 @@ class CommonFunctions():
 
     def insert_spinbox(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=0, cstep=0,width=0, height=0,
                        validator=None, password=False, tooltip='', logvar=False, value=None, att=False, enabled=True,
-                       maximum=0, minimum=0, stepsize=0, widgetType=QSpinBox):
+                       maximum=0, minimum=0, stepsize=0, widgetType=QSpinBox, decimals=0):
 
         widget = widgetType(self)
         widget.setLocale(QLocale('.'))
@@ -481,7 +482,8 @@ class CommonFunctions():
         if stepsize: widget.setSingleStep(stepsize)
         if value: widget.setValue(value)
         if att and not logvar: widget.textChanged.connect(lambda ignore, name=wname: self.set_attribute(wname))
-
+        if decimals:
+            widget.setDecimals(decimals)
         parent.addWidget(widget, self.row, self.column, rowspan, columnspan)
         setattr(self, wname, widget)
 
@@ -584,12 +586,12 @@ class CommonFunctions():
 
     def insert_label_spinbox(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=1, cstep=-1, width=0, height=0,
                              validator=None, tooltip='', value=None, att=False, enabled=True, maximum=0, minimum=0,
-                             wtype=QSpinBox, stepsize=0,logvar=True):
+                             wtype=QSpinBox, stepsize=0, logvar=True, decimals=0):
 
         self.insert_label(parent, text=text, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
         self.insert_spinbox(parent, wname, validator=validator, width=width, enabled=enabled,
-                            maximum=maximum, minimum=minimum, cstep=cstep, rstep=rstep, value=value, widgetType=wtype,
-                            stepsize=stepsize, logvar=logvar)
+                            maximum=maximum, minimum=minimum, cstep=cstep, rstep=rstep, value=value,
+                            widgetType=wtype, stepsize=stepsize, logvar=logvar, decimals=decimals)
 
     def insert_label_line_push(self, parent, textlabel, wname, tooltip='', text='', cstep=-2, rstep=1, validator=None,
                                mode='folder', remote=False, pushtext='Browse', width=150, filetype='',action='',
@@ -616,7 +618,7 @@ class CommonFunctions():
         self.insert_lineedit(parent, wname, cstep=cstep, rstep=rstep, value=value, logvar=logvar, validator=validator,
                              width=width)
 
-    def insert_label_checkbox(self, parent, textlabel, wname, tooltip='', cstep=-1, rstep=1, logvar=True):
+    def insert_label_checkbox(self, parent, wname, textlabel, tooltip='', cstep=-1, rstep=1, logvar=True):
         self.insert_label(parent, text=textlabel, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
         self.insert_checkbox(parent, wname, logvar=logvar, cstep=cstep, rstep=rstep,alignment=Qt.AlignLeft)
 
@@ -656,9 +658,11 @@ class CommonFunctions():
 
         if params[4]: params[4](params[5])
 
-        try:
+        if 1:
             # Check if one needs to write pytom related XML file.
             if params[2]:
+                if len(params[2][0]) > 1:
+                    params[2] = os.path.join(self.widgets[params[2][0]].text(), params[2][1])
                 jobfile = open(params[2],'w')
                 jobfile.write(self.widgets[params[3]].toPlainText())
                 jobfile.close()
@@ -673,8 +677,10 @@ class CommonFunctions():
             if len(self.widgets[params[1]].toPlainText().split('SBATCH') ) > 2:
                 os.system('sbatch {}'.format(params[0]))
             else:
-                os.system('sh {}'.format(params[0]))
-        except:
+                proc = Worker(fn=os.system, args=['sh {}'.format(params[0])], sig=False)
+                proc.start()
+#                os.system('sh {}'.format(params[0]))
+        else:
             print ('Please check your input parameters. They might be incomplete.')
 
     def gen_action(self, params):
@@ -686,11 +692,13 @@ class CommonFunctions():
                 if params[i][1:-1]:
                     d = []
                     for a in params[i][1:-1]:
-
-                        if a in self.widgets.keys():
+                        if type(a) == type([]):
+                            d.append(os.path.join(self.widgets[a[0]].text(), a[1]))
+                        elif a in self.widgets.keys():
                             datatype = type(self.widgets[a])
                             if datatype in (QSpinBox, QDoubleSpinBox, QLineEdit): d.append(self.widgets[a].text())
                             elif datatype == QComboBox: d.append(self.widgets[a].currentText())
+                            elif datatype == QCheckBox: d.append(str(int(self.widgets[a].isChecked())))
                         elif type(str(a)) == type(''):
                             d.append(a)
 
@@ -1227,7 +1235,6 @@ class GuiTabWidget(QWidget, CommonFunctions):
                 tab = QWidget()
             self.tabs.append(tab)
             tab.setObjectName(header)
-
             setattr(self,'tab{}'.format(n+1),tab)
             self.tabWidget.addTab(tab, header)
 
@@ -1382,23 +1389,31 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         fname = str(QFileDialog.getSaveFileName( self, 'Save particle list.', fname, filter='*.txt')[0])
 
         if fname:
-            out = open(fname, 'w')
-            out.write('#FNAME \t\t{}\n'.format(os.path.basename(self.title)))
 
             folder = os.path.dirname(self.title)
             if 'INFR' in os.path.basename(self.title):
                 key = 'INFR'
             else:
-                key='WBP'
+                key ='WBP'
 
-            inputJobName = "cat {}/{}_reconstruction.sh | grep 'referenceMarkerIndex' | awk '{print $2}'"
+            inputJobName = "cat {}/{}_reconstruction.sh | grep '{}' | {}"
 
-            try:
-                refMarkIndex = os.popen(inputJobName.format(folder,key)).read()[:-1]
-            except:
-                refMarkIndex = 1
+            headerInfo = []
+            for i in ('referenceMarkerIndex', 'projectionBinning'):
+                if 1:
+                    print(inputJobName.format(folder,key, i, "awk '{print $2}'"))
+                    d = os.popen(inputJobName.format(folder,key, i, "awk '{print $2}'")).read()[:-1]
+                else:
+                    d = 1
+                headerInfo.append(d)
 
-            out.write('#MARKERINDEX \t{}\n'.format(refMarkIndex))
+
+            out = open(fname, 'w')
+            out.write('#\n')
+            out.write('#TOMONAME \t{}\n'.format(os.path.basename(self.title)))
+            out.write('#MARKERINDEX \t{}\n'.format(headerInfo[0]))
+            out.write('#BINNINGFACTOR \t{}\n'.format(headerInfo[1]))
+            out.write('#\n')
 
             for x, y, z in self.particleList:
                 outtext =  '{:8.0f} {:8.0f} {:8.0f}\n'.format(x,y,z)

@@ -22,8 +22,11 @@ from pytom.gui.guiFunctions import avail_gpu
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.guiSupportCommands import *
 from pytom.basic.structures import ParticleList
+from pytom.basic.files import read
+from copy import deepcopy
+from pytom_numpy import vol2npy
 
-def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None):
+def convertCoords2PLold(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None):
     pl = ParticleList()
     for n, coordinate_file in enumerate(coordinate_files):
         wedgeAngle = wedgeAngles[2*n:2*(n+1)]
@@ -31,6 +34,19 @@ def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, we
         pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle)
     pl.toXMLFile(particleList_file)
 
+def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None, angleList=False):
+    pl = ParticleList()
+    for n, coordinate_file in enumerate(coordinate_files):
+        wedgeAngle = wedgeAngles[2*n:2*(n+1)]
+        sourceInfo = pl.loadCoordinateFileHeader(coordinate_file)
+        pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle,
+                              sourceInfo=sourceInfo)
+        try:
+            z1, z2, x = random.choice(angleList)
+            pl[-1].setRotation(rotation=Rotation(z1=z1, z2=z2, x=x, paradigm='ZXZ'))
+        except:
+            pass
+    pl.toXMLFile(particleList_file)
 
 class ParticlePick(GuiTabWidget):
     '''Collect Preprocess Widget'''
@@ -300,7 +316,7 @@ class ParticlePick(GuiTabWidget):
         self.insert_label_line_push(parent, 'Filename particleList', mode+'FnameParticleList', cstep=-2, rstep=1,
                                     pushtext='Browse', width=150, action=self.setFnameParticleList)
 
-        self.insert_label_checkbox(parent, 'Randomize Particle Orientation', mode+'Randomize', cstep=0, rstep=1,
+        self.insert_label_checkbox(parent, mode+'Randomize', 'Randomize Particle Orientation', cstep=0, rstep=1,
                                    tooltip='Randomize the orientation angles of the particles in the particle list.')
 
         self.widgets[mode+'flagRandomize'] = QLineEdit()
@@ -316,15 +332,21 @@ class ParticlePick(GuiTabWidget):
         paramsCmd=[mode+'CoordinateFile', mode+'PrefixSubtomo', mode+'Wedge1', mode+'Wedge2', mode+'FnameParticleList',
                    mode+'flagRandomize', createParticleList]
 
-        self.insert_gen_text_exe(parent,mode,paramsCmd=paramsCmd, exefilename=execfilename,paramsSbatch=paramsSbatch)
+        self.insert_gen_text_exe(parent,mode,paramsCmd=paramsCmd, exefilename=execfilename,paramsSbatch=paramsSbatch,
+                                 action=self.createFolder,paramsAction=mode)
 
         setattr(self, mode + 'gb_create_particle_list', groupbox)
         return groupbox
 
+    def createFolder(self,mode):
+        prefix=self.widgets[mode+'PrefixSubtomo'].text()
+        a = os.path.join(self.subtomofolder, os.path.dirname(prefix))
+        if not os.path.exists(a): os.mkdir(a)
+
     def update_prefix_pL(self, mode):
         coords, prefixS = mode + 'CoordinateFile', mode + 'PrefixSubtomo'
         prefix = os.path.basename(self.widgets[coords].text())[:-4].replace('coords_', '')
-        self.widgets[prefixS].setText(os.path.join('Subtomograms', prefix))
+        self.widgets[prefixS].setText(os.path.join('Subtomograms', prefix, 'particle_'))
         self.setFnameParticleList(['file',self.widgets[mode + 'FnameParticleList']], ask=False)
 
     def update_flag(self,mode):
@@ -362,15 +384,16 @@ class ParticlePick(GuiTabWidget):
         coordinateFiles = sorted( self.particleLists.text().split('\n') )
 
         id='tab22'
-        headers = ["Filename Coordinate List", "Prefix Subtomograms", 'Wedge Angle 1', 'Wedge Angle 2', "Filename Particle List"]
-        types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit']
-        sizes = [0, 80, 80, 0, 0]
+        headers = ["Filename Coordinate List", "Prefix Subtomograms", 'Wedge Angle 1', 'Wedge Angle 2', "Filename Particle List", 'Randomize Angles']
+        types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'checkbox']
+        sizes = [0, 80, 80, 0, 0, 0]
 
         tooltip = ['Name of coordinate files',
                    'Prefix used for subtomograms',
                    'Angle between 90 and the highest tilt angle.',
                    'Angle between -90 and the lowest tilt angle.',
-                   'Filename of generate particle list file (xml)',]
+                   'Filename of generate particle list file (xml)',
+                   'Randomize angles in particleList']
 
         values = []
 
@@ -383,10 +406,10 @@ class ParticlePick(GuiTabWidget):
             except:
                 tomogramNUM = n
 
-            prefix = 'Subtomograms/tomogram_{:03d}_'.format(tomogramNUM)
-            fname_plist = 'particleList_{}.xml'.format(prefix[:-1])
+            prefix = 'Subtomograms/{}/particle_'.format(os.path.basename(coordinateFile).replace('coords_','')[:-4])
+            fname_plist = 'particleList_{}.xml'.format(os.path.basename(coordinateFile).replace('coords_','')[:-4])
 
-            values.append( [coordinateFile, prefix, 30, 30, fname_plist] )
+            values.append( [coordinateFile, prefix, 30, 30, fname_plist, True] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
 
@@ -418,13 +441,33 @@ class ParticlePick(GuiTabWidget):
                 w2 = float(self.tab22_widgets['widget_{}_{}'.format(row,3)].text() )
                 pl = self.tab22_widgets['widget_{}_{}'.format(row,4)].text()
                 pl = os.path.join(self.pickpartfolder, pl)
+                r = self.tab22_widgets['widget_{}_{}'.format(row,5)].isChecked()
                 #print(createParticleList.format(d=[c, p, w1, w2, pl]))
                 wedge = [w1,w2]
                 for n, inp in enumerate((c, pl, p, w1, w2)):
                     if n==4: n=3
                     conf[n].append(inp)
+                pFolder = os.path.join(self.subtomofolder, os.path.basename(p))
+                if not os.path.exists(pFolder): os.mkdir(pFolder)
 
-                convertCoords2PL([c], pl, subtomoPrefix=[p], wedgeAngles=wedge)
+                angleList = os.path.join(self.pytompath, 'angles/angleLists/angles_18_3040.em')*r
+
+                if angleList:
+                    if not os.path.exists(angleList):
+                        raise Exception('Angle List is not existing.')
+                        angleList = None
+                    elif not angleList.split('.')[-1] in ('em', 'mrc'):
+                        raise Exception('File format should be mrc or em.')
+                        angleList = None
+                    else:
+                        vol = read(angleList)
+                        angleList = deepcopy(vol2npy(vol)).T.astype(numpy.float32)
+                        rotation = random.choice(angleList)
+                        if len(rotation) != 3 or type(rotation[0]) != numpy.float32:
+                            raise Exception('AngleList should contain three floats per row.')
+                            angleList = None
+
+                convertCoords2PL([c], pl, subtomoPrefix=[p], wedgeAngles=wedge, angleList=angleList)
                 #os.system(createParticleList.format(d=[c, p, wedge, pl]))
 
             else:
