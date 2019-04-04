@@ -570,6 +570,7 @@ class TomographReconstruct(GuiTabWidget):
 
     def updateVoldims(self,mode):
         folderSorted = self.widgets[mode+'FolderSorted'].text()
+        if not folderSorted: return
         files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')][0]
         imdim = read_mrc(os.path.join(folderSorted, files)).shape[0]
         self.widgets[mode+'Voldims'].setText(str(int(float(imdim)/float(self.widgets[mode+'BinningFactor'].text())+.5)))

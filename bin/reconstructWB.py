@@ -36,6 +36,7 @@ if __name__ == '__main__':
                                 ScriptOption(['-b','--coordinateBinning'], 'Binning factor of coordinates. If particle coordinates are determined in binned volume (with respect to projections) this binning factor needs to be specified.', arg=True, optional=True),
                                 ScriptOption(['-o','--recOffset'], 'Cropping offset of the binned tomogram.', arg=True, optional=False),
                                 ScriptOption(['--projBinning'], 'Bin projections BEFORE reconstruction. 1 is no binning, 2 will merge two voxels to one, 3 -> 1, 4 ->1 ...', arg=True, optional=True),
+                                ScriptOption(['-m', '--metafile'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
                                 ScriptOption(['--help'], 'Print this help.', arg=False, optional=False)])
     
     if len(sys.argv) == 1:
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     aw = False
     
     try:
-        tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, recOffset, projBinning, help= parse_script_options(sys.argv[1:], helper)
+        tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, recOffset, projBinning, metafile, help= parse_script_options(sys.argv[1:], helper)
     
     except Exception as e:
         print(e)
@@ -85,7 +86,7 @@ if __name__ == '__main__':
     if checkFileExists(projectionList):
         projections.fromXMLFile(projectionList)
     elif checkDirExists(projectionDirectory):
-        projections.loadDirectory(projectionDirectory)
+        projections.loadDirectory(projectionDirectory, metafile=metafile)
     else:
         raise RuntimeError('Neither projectionList existed nor the projectionDirectory you specified! Abort')
 

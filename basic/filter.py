@@ -359,38 +359,32 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     @return: filter volume
 
     """
+    from pytom_numpy import npy2vol
+    from numpy import array, matrix, sin, pi, arange, float32, column_stack, argmin, clip, ones, ceil
 
-    from pytom_numpy import npy2vol, vol2npy
-    import copy
-    from numpy import array, matrix, sin, pi, arange, float32, column_stack, asfortranarray, clip, argmin, ones, ceil
-    from pylab import   imshow,show
-    from time import time
+    # Using Friedel Symmetry in Fourier space.
+    sY = sY//2+1
 
-    s = time()
-    sY = sX//2+1
+    # Calculate the relative angles in radians.
+    diffAngles = (array(tilt_angles)-tiltAngle)*pi/180.
 
-    #arr = matrix(abs(arange(-sX // 2, sX // 2)))
-    #w = 1. / (clip(1 - array(matrix(abs(sin((tilt_angles - tiltAngle) * pi / 180.))).T * arr), 0, 2)).sum(axis=0)
+    # Closest angle to tiltAngle (but not tiltAngle) sets the maximal frequency of overlap (Crowther's frequency).
+    # Weights only need to be calculated up to this frequency.
+    sampling =  min(abs(diffAngles)[abs(diffAngles)>0.001])
+    crowtherFreq = min(sX//2, int(ceil(1 / sin( sampling ))))
+    arrCrowther = matrix(abs(arange(-crowtherFreq, min(sX//2, crowtherFreq+1))))
 
-    diffAngles = (tilt_angles-tiltAngle)*pi/180.
-    spacing = min(abs(diffAngles)[abs(diffAngles)>0.01]) #closest angle to tiltAngle
-    crowtherFreq = int(ceil(1 / sin( spacing )))
-    arrC = matrix(abs(arange(-crowtherFreq, crowtherFreq)))
-    wfuncC = 1. / (clip(1 - array(matrix(abs(sin(diffAngles))).T * arrC), 0, 2)).sum(axis=0)
-    wfunc = ones((sX,sY,1),dtype=float32)
-    wfunc[sX//2-crowtherFreq:sX//2+crowtherFreq,:, 0] = column_stack(([(wfuncC), ] * (sY))).astype(float32)
+    # Calculate weights
+    wfuncCrowther = 1. / (clip(1 - array(matrix(abs(sin(diffAngles))).T * arrCrowther), 0, 2)).sum(axis=0)
 
-    # Create pytom vol object of wfunc.
-    fortran_wfunc = asfortranarray(wfunc)
-    weightFunc = npy2vol(fortran_wfunc,3)
-    rr =copy.deepcopy(vol2npy(weightFunc))
+    # Create full with weightFunc
+    wfunc = ones((sX, sY, 1), dtype=float32)
+    wfunc[sX//2-crowtherFreq:sX//2+min(sX//2,crowtherFreq+1),:, 0] = column_stack(([(wfuncCrowther), ] * (sY))).astype(float32)
 
-    if abs(rr).sum() < 0.1:
-        print('npy2vol failed: no weighting for image.')
-
-    print('Computational time exact weighting: ', time()-s)
+    weightFunc = npy2vol(array(wfunc, dtype='float32', order='F'), 3)
 
     return weightFunc
+
 
 
 def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, returnReducedComplex=False, binarize=False):

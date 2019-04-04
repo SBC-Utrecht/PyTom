@@ -364,7 +364,7 @@ class ParticlePick(GuiTabWidget):
         id='tab22'
         headers = ["Filename Coordinate List", "Prefix Subtomograms", 'Wedge Angle 1', 'Wedge Angle 2', "Filename Particle List"]
         types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit']
-        sizes = [0, 80, 80, 0, 0]
+        sizes = [0, 80, 80, 0, 200]
 
         tooltip = ['Name of coordinate files',
                    'Prefix used for subtomograms',
@@ -383,8 +383,11 @@ class ParticlePick(GuiTabWidget):
             except:
                 tomogramNUM = n
 
-            prefix = 'Subtomograms/tomogram_{:03d}_'.format(tomogramNUM)
-            fname_plist = 'particleList_{}.xml'.format(prefix[:-1])
+            prefix = 'Subtomograms/{}/particle_'.format(os.path.basename(coordinateFile[:-4]))
+            print('Prefix = ', prefix)
+            ff = os.path.join(self.subtomofolder,os.path.dirname(prefix))
+            if not os.path.exists(ff): os.mkdir(ff)
+            fname_plist = 'particleList_{}.xml'.format(os.path.basename(coordinateFile[:-4]))
 
             values.append( [coordinateFile, prefix, 30, 30, fname_plist] )
 
