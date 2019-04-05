@@ -275,6 +275,7 @@ class menudemo(QMainWindow, CommonFunctions):
         elif self.projectname and self.is_pytomgui_project(self.projectname):
             #self.destroy(error_dialog)
             self.setWindowTitle(basename(self.projectname))
+            guiFunctions.create_project_filestructure(projectdir=self.projectname)
             self.run_project()
 
     def keyPressEvent(self, e):
