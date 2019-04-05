@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ "$#" -ne 2 ]; then
+    echo "Illegal number of parameters"
+else
+
+    wget -P $2 http://www.rcsb.org/pdb/files/$1.pdb.gz 
+    gunzip $2/$1.pdb.gz
+   
+fi
