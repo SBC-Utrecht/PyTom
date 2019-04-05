@@ -64,7 +64,6 @@ class ExPeakResult:
         """
         if self.result==None or self.orient==None or self.angleList==None:
             self.readAll()
-        
         score = self.result.getV(x, y, z)
         orientIdx = self.orient.getV(x, y, z)
         if int(orientIdx)<len(self.angleList):

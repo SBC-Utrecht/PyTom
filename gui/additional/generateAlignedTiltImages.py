@@ -214,10 +214,10 @@ if __name__ == '__main__':
             procs = [proc for proc in procs if proc.is_alive()]
 
         print('Spawned job for Marker_{}'.format(irefmark))
-        falignedTiltSeriesName= '{}/unweighted_unbinned_marker_{}/sorted'.format(alignedTiltSeriesName, irefmark)
+        falignedTiltSeriesName= '{}/unweighted_unbinned_marker_{}/sorted_aligned'.format(alignedTiltSeriesName, irefmark)
         outdir = os.path.dirname(falignedTiltSeriesName) 
         if not os.path.exists(outdir): os.mkdir( outdir )
-        print(os.getcwd())
+
 
         kwargs={'tiltSeriesName': tiltSeriesName, 
                 'markerFileName': markerFileName, 
@@ -239,4 +239,3 @@ if __name__ == '__main__':
             p = Process( target=alignWeightReconstruct, kwargs=kwargs)
             procs.append(p)
             p.start()
-        

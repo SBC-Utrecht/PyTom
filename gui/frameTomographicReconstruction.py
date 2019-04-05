@@ -707,7 +707,7 @@ class TomographReconstruct(GuiTabWidget):
 
     def submit_multi_recon_job(self, params):
         print(params[1])
-        return
+
         try:
 
             exefile = open(params[0], 'w')
@@ -827,7 +827,7 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[mode+'ConfigHeader'] = QLineEdit()
         self.widgets[mode + 'FolderSortedAligned'].textChanged.connect(lambda dummy, m=mode: self.updateCTFPlotter(m))
         self.widgets[mode + 'ConfigFile'].textChanged.connect(lambda  dummy, m=mode: self.updateConfigHeader(m))
-        self.updateCTFPlotter(mode)
+        self.updateCTFPlotter(mode,newstack=False)
         self.updateConfigHeader(mode)
 
         setattr(self, mode + 'gb_CD', groupbox)
@@ -839,7 +839,7 @@ class TomographReconstruct(GuiTabWidget):
         else:
             self.widgets[mode + 'ConfigHeader'].setText('          ')
 
-    def updateCTFPlotter(self, mode):
+    def updateCTFPlotter(self, mode, newstack=True):
         folder = self.widgets[mode + 'FolderSortedAligned'].text()
         if not folder:
             return
@@ -860,11 +860,17 @@ class TomographReconstruct(GuiTabWidget):
             dd.append([file,id])
         guiFunctions.sort(dd,1)
         files, ids = zip(*dd)
-        cmd = 'cd {}; newstack -in '.format(folder)
-        cmd += ' '.join(files)
-        cmd += '-out {}'.format(outstack)
-        os.system(cmd)
-        print(cmd)
+        if newstack:
+            infile, outfile = open(os.path.join(folder, 'filein.txt'), 'w'), open(os.path.join(folder, 'fileout.txt'),'w')
+            cmd = 'cd {}; newstack -filei filein.txt -fileo fileout.txt '.format(folder)
+            outfile.write('{}\n{}\n{}\n'.format(1, outstack, len(files)))
+            infile.write('{}\n'.format(len(files)))
+            for fname in files:
+                infile.write('{}\n0\n'.format(fname))
+            infile.close()
+            outfile.close()
+            os.system(cmd)
+
         metafile = [os.path.join(sortedFolder, line) for line in os.listdir(sortedFolder) if line.endswith('.meta')][0]
         metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
         outAngle   = outstack.replace('.st','.tlt')

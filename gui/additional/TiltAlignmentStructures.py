@@ -356,7 +356,7 @@ class TiltSeries(PyTomClass):
         @author: FF
         """
         from pytom.reconstruction.writeAlignedProjections import writeAlignedProjections
-
+        print('todo')
         writeAlignedProjections(self, weighting=weighting, lowpassFilter=lowpassFilter, binning=binning,
                                 verbose=verbose)
 

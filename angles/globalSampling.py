@@ -205,16 +205,18 @@ class GlobalSampling(AngleObject):
                 raise IndexError('Index out of range.');
             
         elif key.__class__ == slice:
-            
+
             start = key.start
             stop = key.stop
             step = key.step
-            
-            if stop >= 922337203685477580:
+            if start ==None: start=0
+
+            if step == None: step = 1
+
+            if stop ==None or stop >= 922337203685477580:
                 stop = self.numberRotations()
                 
             rotations = []
-            
             for r in self._angleList[start:stop:step]:
                 rotations.append(r)
                 

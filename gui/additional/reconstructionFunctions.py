@@ -185,6 +185,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
         except OSError:
             print(" dir 'align' already exists - writing aligned files into existing dir")
 
+    print(weightingType, lowpassFilter, projBinning, verbose)
     tiltSeries.write_aligned_projs(weighting=weightingType, lowpassFilter=lowpassFilter, binning=projBinning,
                                    verbose=verbose)
     if voldims and voldims[0] != 0:

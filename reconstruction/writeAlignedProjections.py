@@ -1,6 +1,5 @@
 import mrcfile
 import copy
-from pylab import imshow, show
 from numpy import abs, float32
 
 def writeAlignedProjections(TiltSeries_, weighting=None,
@@ -28,18 +27,18 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     from pytom_volume import complexRealMult, vol
     import pytom_freqweight
     from pytom.basic.transformations import resize
-
+    print(binning)
     if binning:
         imdim = int(float(TiltSeries_._imdim)/float(binning)+.5)
     else:
         imdim = TiltSeries_._imdim
-
+    print('imdim', imdim)
     sliceWidth = imdim
 
     # pre-determine analytical weighting function and lowpass for speedup
-    if (weighting != None) and (weighting < 0):
+    if (weighting != None) and (weighting < -0.001):
         w_func = fourierFilterShift(rampFilter( imdim, imdim))
-
+    print('start weighting')
     # design lowpass filter
     if lowpassFilter:
         if lowpassFilter > 1.:
@@ -57,7 +56,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         tilt_angles.append( projection._tiltAngle )
     tilt_angles = sorted(tilt_angles)
 
-    q = numpy.matrix(abs(numpy.arange(-imdim//2, imdim//2)))
+    #q = numpy.matrix(abs(numpy.arange(-imdim//2, imdim//2)))
 
     for (ii,projection) in enumerate(TiltSeries_._ProjectionList):
         if projection._filename.split('.')[-1] == 'st':
@@ -83,17 +82,6 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             else:
                 header = EMHeader()
                 header.set_dim(x=imdim, y=imdim, z=1)
-            '''                
-            if ( binning==None or binning==1):
-                if projection._filename[-3:] == '.em':
-                    (image, header) = read_em(projection._filename)
-                else:
-                    from pytom.basic.files import read
-                    image = read(projection._filename,binning=[binning,binning,1])
-            else:
-                (image, header) = read_em(projection._filename)
-                image = resize(volume=image, factor=1/float(binning))[0]
-            '''
 
         if lowpassFilter:
             filtered = filterFunction( volume=image, filterObject=lpf, fourierOnly=False)
@@ -133,28 +121,17 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         # smoothen once more to avoid edges 
         image = taper_edges(image, imdim//30)[0]
         
-        # 'exact weighting, i.e., compute overlap of frequencies in Fourier space
-        #if weighting >0:
-        #   print("Exact weighting still needs to be ported ... - doing analytical weighting instead")
-                #fimage = fftshift(tom_fourier(image));
-                ## perform weighting
-                #w_func = tom_calc_weight_function([size(image,1), size(image,2)], ...
-                #        double([ProjDirResult; Tiltangles]'), weighting, ...
-                #    double([ProjDirResult(ii) Tiltangles(ii)]));
+
         # analytical weighting
         if (weighting != None) and (weighting < 0):
             image = (ifft( complexRealMult( fft( image), w_func) )/
                   (image.sizeX()*image.sizeY()*image.sizeZ()) )
     
         elif (weighting != None) and (weighting > 0):
-            #print "Exact weighting for tilt angle =", tiltAngle                                                                     
             w_func = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
             image = (ifft( complexRealMult( fft( image), w_func) )/
                   (image.sizeX()*image.sizeY()*image.sizeZ()) )
 
-        # write out projs
-        #  imt.Header.Tiltaxis=0;
-        #imt.Header.Tiltangle = Tiltangle;
         header.set_tiltangle(tilt_angles[ii])
 
         if newFilename.endswith ('.mrc'):
@@ -165,6 +142,5 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
 
         if verbose:
             tline = ("%30s written ..." %newFilename)
-        #write_em(filename=fname, data=image)
-        #image.write(fname)
+
 
