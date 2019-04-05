@@ -131,7 +131,7 @@ class ParticlePick(GuiTabWidget):
     def tab12UI(self):
         key = 'tab12'
 
-        mode = self.stage + 'TemplateMatch_'
+        mode, mode2 = self.stage + 'TemplateMatch_', self.stage+ 'ExtractCandidates_'
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -140,6 +140,12 @@ class ParticlePick(GuiTabWidget):
         items += list(self.create_expandable_group(self.templateMatch, self.sizePolicyB, 'Template Matching',
                                                    mode=mode))
         items[-1].setVisible(False)
+
+        items += list(self.create_expandable_group(self.extractCandidates, self.sizePolicyB, 'Extract Candidates',
+                                                   mode=mode2))
+        items[-1].setVisible(False)
+
+
 
         for n, item in enumerate(items):
             grid.addWidget(item, n, 0, 1, 3)
@@ -159,7 +165,7 @@ class ParticlePick(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
         w=170
 
-
+        self.ccfolder = os.path.join(self.templatematchfolder,'cross_correlation')
 
         self.insert_label_line_push(parent, 'Tomogram file', wname=mode+'tomoFname',width=w,
                                     tooltip='Select the tomogram file used for template matching.',
@@ -168,7 +174,7 @@ class ParticlePick(GuiTabWidget):
                                     tooltip='Select the tomogram file used for template matching.',
                                     filetype=['em', 'mrc'], mode='file', rstep=0,cstep=1)
         #self.insert_label(parent, 'PDB2EM', cstep=2, alignment=Qt.AlignRight)
-        self.insert_pushbutton(parent, 'Create', action=self.pdb2em, params=[mode + 'templateFname'], cstep=-3, rstep=1)
+        self.insert_pushbutton(parent, 'Create', action=self.pdb2em, params=[mode + 'templateFname', mode], cstep=-3, rstep=1)
         self.insert_label_line_push(parent, 'Mask file', wname=mode+'maskFname',width=w,
                                     tooltip='Select the tomogram file used for template matching.',
                                     filetype=['em', 'mrc'], mode='file',cstep=1,rstep=0)
@@ -186,28 +192,120 @@ class ParticlePick(GuiTabWidget):
                                    tooltip='Select the file that describes the angular sampling of the template model',
                                    width=w,cstep=0)
 
+        self.widgets[mode + 'tomoFname'].textChanged.connect(lambda d, m=mode: self.updateTM(m))
 
-        execfilename = os.path.join( self.templatematchfolder, 'templateMatch.sh')
-        xmlfilename  = os.path.join( self.templatematchfolder, 'job.xml')
+        self.execfilenameTM = os.path.join( self.templatematchfolder, 'templateMatch.sh')
+        self.xmlfilename  = os.path.join( self.templatematchfolder, 'job.xml')
+        self.widgets[mode+'outfolderTM'] = QLineEdit()
+        self.widgets[mode + 'outfolderTM'].setText(self.ccfolder)
+
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'TemplateMatching'
-        paramsSbatch[ 'folder' ] = self.templatematchfolder
+        paramsSbatch[ 'folder' ] = self.ccfolder
 
-        self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=execfilename, paramsSbatch=paramsSbatch,
+        self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=self.execfilenameTM, paramsSbatch=paramsSbatch,
                                  paramsXML=[mode+'tomoFname', mode + 'templateFname', mode+'maskFname', mode + 'Wedge1',
-                                            mode + 'Wedge2',mode+'angleFname', self.templatematchfolder, templateXML],
-                                 paramsCmd=[self.templatematchfolder, self.pytompath, 'job.xml' ,templateTM], xmlfilename=xmlfilename)
+                                            mode + 'Wedge2',mode+'angleFname', mode + 'outfolderTM', templateXML],
+                                 paramsCmd=[mode+'outfolderTM', self.pytompath, 'job.xml' ,templateTM],
+                                 xmlfilename=self.xmlfilename)
 
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
 
         setattr(self, mode + 'gb_TMatch', groupbox)
         return groupbox
 
+    def updateTM(self,mode):
+        tomoname = os.path.basename(self.widgets[mode + 'tomoFname'].text())
+        if not tomoname: return
+        filename, file_extension = os.path.splitext(tomoname)
+        if not os.path.exists(os.path.join(self.templatematchfolder, 'cross_correlation', filename)):
+            os.mkdir(os.path.join(self.templatematchfolder, 'cross_correlation', filename))
+        self.execfilenameTM = os.path.join( self.templatematchfolder, 'cross_correlation', filename, 'templateMatch.sh')
+        self.xmlfilename = os.path.join(self.templatematchfolder, 'cross_correlation', filename, 'job.xml')
+        self.widgets[mode + 'outfolderTM'].setText(os.path.dirname(self.xmlfilename))
+
+    def extractCandidates(self,mode):
+        title = "Extract Candidates"
+        tooltip = 'Run pytom extractCandidates.py'
+        sizepol = self.sizePolicyB
+        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
+        self.row, self.column = 0, 2
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        w=170
+
+        self.insert_label_line_push(parent, 'Job File', wname=mode + 'jobXML', width=w,
+                                    tooltip='Localization job XML file.',
+                                    filetype='xml', mode='file')
+        self.insert_label_line_push(parent, 'Score File', wname=mode + 'scoreFile', width=w,
+                                    tooltip='File with score coefficients (score.em).',
+                                    filetype=['em','mrc'], mode='file')
+        self.insert_label_line_push(parent, 'Angles File', wname=mode + 'anglesFile', width=w,
+                                    tooltip='File with orientation indices (angles.em).',
+                                    filetype=['em', 'mrc'], mode='file')
+        self.insert_label_line_push(parent, 'File Name Particle List', wname=mode + 'particleList', width=w,
+                                    tooltip='Select the angles.em file produced by template matching.',
+                                    filetype=['xml'], mode='file')
+        self.insert_label_line(parent, 'Prefix', mode + 'particlePath', width=w,
+                               tooltip='Path prepended to each particle.')
+
+        self.insert_label_spinbox(parent, mode + 'Size', 'Size particle (px)', width=w, cstep=-1,
+                                  value=10, stepsize=1, minimum=0, maximum=90,
+                                  tooltip='Radius around potential candidate that will be ignored during further processing.')
+        self.insert_label_spinbox(parent, mode + 'NumberOfCandidates', 'Number of Candidates', width=w, cstep=-1,
+                                  value=1000, stepsize=100, minimum=0, maximum=5000,
+                                  tooltip='Number of candidates to extract.')
+        self.insert_label_spinbox(parent, mode + 'MinimalScoreValue', 'Minimal Score Value', width=w, cstep=0,
+                                  value=0., stepsize=0.1, minimum=0, maximum=1.,wtype=QDoubleSpinBox,
+                                  tooltip='Minimal score value to which to extract.')
+
+        self.widgets[mode + 'jobXML'].textChanged.connect(lambda d, m=mode: self.jobXMLChanged(m))
+        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.particleListChanged(m))
+        self.jobXMLChanged(mode)
+
+
+        execfilename = os.path.join( self.templatematchfolder, 'extractCandidates.sh')
+        paramsSbatch = guiFunctions.createGenericDict()
+        paramsSbatch['fname'] = 'ExtractCandidates'
+        paramsSbatch[ 'folder' ] = self.templatematchfolder
+
+        paramsCmd=[self.templatematchfolder, self.pytompath, mode+'jobXML', mode+'scoreFile', mode+'anglesFile',
+                   mode+'particleList', mode+'particlePath', mode+'Size', mode+'NumberOfCandidates',
+                   mode+'MinimalScoreValue', templateExtractCandidates]
+
+        self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch=paramsSbatch,
+                                 paramsCmd=paramsCmd)
+
+        self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
+
+        setattr(self, mode + 'gb_TMatch', groupbox)
+        return groupbox
+        self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
+        setattr(self, mode + 'gb_extractCandidates', groupbox)
+        return groupbox
+
+    def jobXMLChanged(self, mode):
+        jobXML = self.widgets[mode+'jobXML'].text()
+        if not jobXML: return
+        folder = os.path.basename(jobXML)[:-4]
+
+
+        particleList = os.path.join(self.ccfolder, folder, 'particleList_{}.xml'.format(folder))
+        if not os.path.exists(os.path.dirname(particleList)): os.mkdir(os.path.dirname(particleList))
+        self.widgets[mode + 'particleList'].setText(particleList)
+
+    def particleListChanged(self, mode):
+        particleList = self.widgets[mode + 'particleList'].text()
+        if not particleList: return
+        folder = os.path.basename(particleList)[:-4]
+        self.widgets[mode + 'particlePath'].setText('Subtomograms/{}/particle_'.format(folder))
+
     def create_maskfile(self,params):
         maskfilename = CreateMaskFile(self,maskfname=params[-1])
 
     def pdb2em(self, params):
-        ConvertEM2PDB(self, emfname=params[-1],folder=self.pickpartfolder)
+        print(params)
+        ConvertEM2PDB(self, emfname=params[0],folder=self.widgets[params[1]+'outfolderTM'].text())
 
     def tab21UI(self):
         key = 'tab21'

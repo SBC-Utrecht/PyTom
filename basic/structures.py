@@ -1813,7 +1813,7 @@ class Particle(PyTomClass):
             self._shift = Shift([0.0,0.0,0.0])
 
         source_element = particle_element.xpath('InfoTomogram')
-        if len(shift_element) > 0:
+        if len(source_element) > 0:
             source_element = source_element[0]
             self._sourceInfo = SourceInformation(['', 1, 1])
             self._sourceInfo.fromXML(source_element)

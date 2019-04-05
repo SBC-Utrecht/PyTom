@@ -10,7 +10,9 @@ templateXML       = '''<JobDescription Destination="{d[6]}">
 <Score Type="FLCFScore" Value="-100000000">
 <DistanceFunction Deviation="0.0" Mean="0.0" Filename=""/>
 </Score>
-</JobDescription>
+</JobDescription>'''
+
+old = '''
 <JobDescription>
   <Volume Filename="{d[0]}">
   </Volume>
@@ -188,6 +190,18 @@ multiple_alignment = '''cd {d[0]}
 --projIndices \\
 --fnames {d[13]}'''
 
+templateExtractCandidates = '''cd {d[0]}
+
+{d[1]}/bin/pytom {d[1]}/bin/extractCandidates.py \\
+--jobFile {d[2]} \\
+--result {d[3]} \\
+--orientation {d[4]} \\
+--particleList {d[5]} \\
+--particlePath {d[6]} \\
+--size {d[7]} \\
+--numberCandidates {d[8]} \\
+--minimalScoreValue {d[9]}'''
+
 ParamsFileCTFPlotter = '''#
 InputStack           {d[0]}
 AngleFile            {d[1]}
@@ -211,3 +225,5 @@ FindAstigPhaseCuton  {d[12]} {d[13]} {d[14]}
 templateCTFPlotter = '''cd {d[0]}
 
 ctfplotter -pa {d[1]}'''
+
+

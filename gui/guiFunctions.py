@@ -430,6 +430,7 @@ def create_project_filestructure(projectdir='.'):
                 "raw": "",
                 "stacks": "",
                 "imod": "",
+                "ctf": "",
                 "sorted": {
                     "excluded": ""
                 },
@@ -460,7 +461,7 @@ def create_project_filestructure(projectdir='.'):
             "Tomograms": "",
             "Picked_Particles": "",
             "Template_Matching": {
-                "ccf_out_mirr": "",
+                "cross_correlation": "",
                 "motlfiles": "",
                 "classification": ""
             },

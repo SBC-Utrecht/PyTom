@@ -209,8 +209,8 @@ class GlobalSampling(AngleObject):
             start = key.start
             stop = key.stop
             step = key.step
-            if start ==None: start=0
 
+            if start ==None: start=0
             if step == None: step = 1
 
             if stop ==None or stop >= 922337203685477580:

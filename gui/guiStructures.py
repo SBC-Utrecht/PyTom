@@ -872,7 +872,15 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
         radius = int(self.widgets['radius'].text())
         smooth = float(self.widgets['smooth_factor'].value())
         size = int(self.widgets['size_template'].text())
-        fname = os.path.join(self.parent().frmdir, 'FRM_mask.em')
+        try:
+            fname = os.path.join(self.parent().frmdir, 'FRM_mask.em')
+        except:
+            tomoname = os.path.basename(self.parent().widgets['v03_TemplateMatch_tomoFname'].text())
+            filename, file_extension = os.path.splitext(tomoname)
+            if not os.path.exists(os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename)):
+                os.mkdir(os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename))
+            fname = os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename, 'TM_mask.em')
+
         maskfilename = str(QFileDialog.getSaveFileName( self, 'Save particle list.', fname, filter='*.em')[0])
         if maskfilename and not maskfilename.endswith('.em'): maskfilename += '.em'
         try:
@@ -1266,11 +1274,14 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.layout_operationbox = prnt = QGridLayout()
         self.operationbox.setLayout(self.layout_operationbox)
         self.add_toolbar(self.open_load)
-
+        self.logbook = {}
         self.radius = 20
         self.jump = 1
         self.current_width = 0.
         self.pos = QPoint(0,0)
+        self.max_score = 1.
+        self.min_score = 0.
+        self.xmlfile = ''
 
         self.circles_left = []
         self.circles_cent = []
@@ -1375,6 +1386,14 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.insert_lineedit(prnt,'width_gaussian_filter', validator=vDouble, rstep=1, cstep=-1, value='1.')
         self.widgets['apply_gaussian_filter'].stateChanged.connect(self.stateGaussianChanged)
 
+        self.insert_label_spinbox(prnt,'minScore','Minimal Score', value=0.,wtype=QDoubleSpinBox, minimum=0, maximum=1,
+                                  stepsize=0.05)
+        self.insert_label_spinbox(prnt, 'maxScore', 'Maximal Score', value=1., wtype=QDoubleSpinBox, minimum=0,
+                                  maximum=1., stepsize=0.05)
+
+        self.widgets['minScore'].valueChanged.connect(self.stateScoreChanged)
+        self.widgets['maxScore'].valueChanged.connect(self.stateScoreChanged)
+
         self.insert_label(prnt, sizepolicy=self.sizePolicyA)
 
     def open_load(self, q):
@@ -1420,20 +1439,49 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 out.write(outtext)
 
     def load_particleList(self):
-        filetype = 'txt'
+        filetype = 'xml'
         initdir = self.parent().pickpartfolder
 
         filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "Coordinate files (*.{})".format(filetype))[0])
         if not filename: return
 
+        if filename.endswith('.txt'):
+            self.load_txtFile(filename)
+
+        elif filename.endswith('.xml'):
+            self.load_xmlFile(filename)
+            self.xmlfile = filename
+
+    def load_xmlFile(self,filename):
+        from lxml import etree
+        xmlObj = etree.parse(filename)
+        particles = xmlObj.xpath('Particle')
+
+        self.remove_all()
+        self.slice = int(self.vol.shape[0] / 2)
+
+        for p in particles:
+            score = float( p.xpath('Score')[0].get('Value') )
+
+            if score < self.max_score and score > self.min_score:
+                x,y,z = map(float, (p.xpath('PickPosition')[0].get('X'), p.xpath('PickPosition')[0].get('Y'), p.xpath('PickPosition')[0].get('Z')))
+                self.add_points(self.pos, int(round(x)), int(round(y)), min(188,int(round(z))), self.radius)
+                print(score,x,y,z)
+
+        self.replot()
+        self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
+
+        particlePos = [line.split() for line in open(filename).readlines() if 'PickPosition' in line]
+
+    def load_txtFile(self, filename):
         particlePos = [map(float, line.split()) for line in open(filename).readlines() if line != '' and not '#' in line]
 
         self.remove_all()
         self.slice = int(self.vol.shape[0]/2)
 
         for x,y,z in particlePos:
-
             self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), self.radius, add=True)
+
         self.replot()
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
 
@@ -1470,11 +1518,19 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
 
         for nn, (x,y,z) in enumerate(plist):
-            self.add_points(QPoint(0,0), x, y, z, self.radius, add=True)
+            add= True
+            if self.xmlfile and len(self.particleList) > 100: add=False
+            self.add_points(QPoint(0,0), x, y, z, self.radius, add=add)
 
         self.subtomo_plots.size_subtomo = self.radius*2
 
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
+
+    def stateScoreChanged(self):
+        self.min_score = float(self.widgets['minScore'].value())
+        self.max_score = float(self.widgets['maxScore'].value())
+        if self.xmlfile and os.path.exists(self.xmlfile):
+            self.load_xmlFile(self.xmlfile)
 
     def replot_all(self):
         self.replot()
@@ -1614,7 +1670,10 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             radius = self.radius
             if abs(cz - self.slice) < self.radius:
                 radius = sqrt(self.radius ** 2 - (cz - self.slice)**2)
-            self.add_points(self.pos, cx, cy, cz, radius,add=True)
+            if self.xmlfile and len(plist) > 100:
+                add = False
+            else: add = True
+            self.add_points(self.pos, cx, cy, cz, radius,add=add)
         self.slice += update
 
 class GeneralSettings(QMainWindow, CommonFunctions):
