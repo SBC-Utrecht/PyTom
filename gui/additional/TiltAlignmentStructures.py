@@ -806,10 +806,10 @@ class TiltAlignment:
 
         # coordinates of reference (imark) mark and reference projection (iproj) are fixed
         #nopti = (nmark-1)*3 + (ntilt-1)*2
-        nopti = (nmark - 1) * 3 + (ntilt) * 2
+        nopti = (nmark-1) * 3 + (ntilt) * 2
 
         #check that irefmark and ireftilt are set properly
-        if not (TiltAlignmentParameters_.irefmark in range(1, nmark + 1)):
+        if not (TiltAlignmentParameters_.irefmark in range(nmark)):
             TiltAlignmentParameters_.irefmark = 1
             print("Warning: irefmark must be 1<= irefmark <=nmark")
             print("New irefmark: " + str(TiltAlignmentParameters_.irefmark))
@@ -845,7 +845,7 @@ class TiltAlignment:
         ivar = 0
         for (imark, Marker) in enumerate(self._Markers):
             # reference marker irefmark is fixed to standard value
-            if ((imark + 1) != TiltAlignmentParameters_.irefmark):
+            if ((imark ) != TiltAlignmentParameters_.irefmark):
                 r = Marker.get_r()
                 optimizableVariables[ivar] = r[0]
                 optimizableVariables[ivar + 1] = r[1]
@@ -935,7 +935,7 @@ class TiltAlignment:
         ivar = 0
         for (imark, Marker) in enumerate(self._Markers):
             # reference marker irefmark is fixed to standard value
-            if ((imark + 1) != TiltAlignmentParameters_.irefmark):
+            if ((imark ) != TiltAlignmentParameters_.irefmark):
                 r = numpy.array([optimizableVariables[ivar],
                                  optimizableVariables[ivar + 1], optimizableVariables[ivar + 2]])
                 self._Markers[imark].set_r(r)
@@ -1100,7 +1100,7 @@ class TiltAlignment:
 
         @author: FF
         """
-        print('ref index: ', numpy.argwhere( self._projIndices.astype(int) == TiltSeries_._TiltAlignmentParas.ireftilt)[0][0], TiltSeries_._TiltAlignmentParas.ireftilt )
+        #print('ref index: ', numpy.argwhere( self._projIndices.astype(int) == TiltSeries_._TiltAlignmentParas.ireftilt)[0][0], TiltSeries_._TiltAlignmentParas.ireftilt )
         (psiindeg, shiftX, shiftY, x, y, z, distLine, diffX, diffY,
          shiftVarX, shiftVarY) = alignmentFixMagRot(
             Markers_=self._Markers, cTilt=self._cTilt, sTilt=self._sTilt,

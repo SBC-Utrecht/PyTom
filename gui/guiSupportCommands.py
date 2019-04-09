@@ -1,15 +1,14 @@
 templateXML       = '''<JobDescription Destination="{d[6]}">
-<Volume Filename="{d[0]}"/>
-<Reference Weighting="" File="{d[1]}"/>
-<Mask Filename="{d[2]}" Binning="1" isSphere="True"/>
-<WedgeInfo Angle1="{d[3]}" Angle2="{d[4]}" TiltAxis="custom">
-<Rotation Z1="0.0" Z2="0.0" X="0.0"/>
-</WedgeInfo>
-<Angles Type="FromEMFile" File="{d[5]}">
-</Angles>
-<Score Type="FLCFScore" Value="-100000000">
-<DistanceFunction Deviation="0.0" Mean="0.0" Filename=""/>
-</Score>
+  <Volume Filename="{d[0]}"/>
+  <Reference Weighting="" File="{d[1]}"/>
+  <Mask Filename="{d[2]}" Binning="1" isSphere="True"/>
+  <WedgeInfo Angle1="{d[3]}" Angle2="{d[4]}" CutoffRadius="0.0" TiltAxis="custom">
+    <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+  </WedgeInfo>
+  <Angles Type="FromEMFile" File="{d[5]}"/>
+  <Score Type="FLCFScore" Value="-100000000">
+    <DistanceFunction Deviation="0.0" Mean="0.0" Filename=""/>
+  </Score>
 </JobDescription>'''
 
 old = '''
@@ -157,7 +156,7 @@ mpirun -c 20 {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
 
 templateTM        = '''cd {d[0]}
 
-mpirun -np 20 {d[1]}/bin/pytom localization.py {d[2]} 2 2 2 '''
+mpiexec --tag-output -n 16 pytom /cm/shared/apps/pytom/0.971/pytom/bin/localization.py {d[2]} 4 4 1 '''
 
 
 createParticleList = 'coords2PL.py -c {d[0]}  -s {d[1]} -w {d[2]},{d[3]} -p {d[4]} {d[5]}'

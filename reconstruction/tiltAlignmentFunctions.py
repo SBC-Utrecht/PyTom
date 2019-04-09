@@ -56,7 +56,6 @@ def markerResidual(TiltAlignmentParameters_, Markers_, cTilt, sTilt,
     nmark = len(Markers_)
     if equationSet:
         Dev = []
-
     # approximate tilt axis = mean
     meanpsi = mean(rotInPlane)
     cmeanpsi = cos(- meanpsi/180.*pi - pi/2.)
@@ -100,7 +99,7 @@ def markerResidual(TiltAlignmentParameters_, Markers_, cTilt, sTilt,
                 if isoMag:
                     x_meas = x_meas * isoMag[iproj]
                     y_meas = y_meas * isoMag[iproj]
-         
+
                 # model projection
 
                 # beam inclination
@@ -108,6 +107,7 @@ def markerResidual(TiltAlignmentParameters_, Markers_, cTilt, sTilt,
                     x_proj = cTilt[iproj]*xmod - sTilt[iproj]*sdbeam*ymod - sTilt[iproj]*cdbeam*zmod
                     y_proj = sTilt[iproj]*sdbeam*xmod + ( cdbeam**2+sdbeam**2*cTilt[iproj]*ymod + 
                              cdbeam*sdbeam*(1-cTilt[iproj])*zmod )
+
                 else:
                     x_proj = cTilt[iproj] * xmod - sTilt[iproj]*zmod
                     y_proj = ymod
@@ -138,6 +138,7 @@ def markerResidual(TiltAlignmentParameters_, Markers_, cTilt, sTilt,
     normf = 1. /(ndif - nmark)
     # residual = sqrt(residual/(ndif - size(Matrixmark,3)));
     residual = residual*normf
+
     if equationSet:
         return Dev
     else:

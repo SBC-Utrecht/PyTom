@@ -202,6 +202,7 @@ class ParticlePick(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'TemplateMatching'
         paramsSbatch[ 'folder' ] = self.ccfolder
+        paramsSbatch['modules'] = ['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/0.971']
 
         self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=self.execfilenameTM, paramsSbatch=paramsSbatch,
                                  paramsXML=[mode+'tomoFname', mode + 'templateFname', mode+'maskFname', mode + 'Wedge1',

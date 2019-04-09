@@ -194,11 +194,11 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
         if not mute:
             print("Assign reference marker to default value")
         r = numpy.array(3*[0.])
-        r[0] = Markers_[irefmark-1].xProj[ireftilt-1]
-        r[1] = Markers_[irefmark-1].yProj[ireftilt-1]
+        r[0] = Markers_[irefmark].xProj[ireftilt]
+        r[1] = Markers_[irefmark].yProj[ireftilt]
         r[2] = float(imdim/2 +1)
     else:
-        r = Markers_[irefmark-1].get_r()
+        r = Markers_[irefmark].get_r()
         
     #   calculate means of difference vectors
     meanx=numpy.array(nmark*[0.])
@@ -206,9 +206,9 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     norm =numpy.array(nmark*[0.])
     for (imark,Marker) in enumerate(Markers_):
         for itilt in range(0,ntilt):
-            if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark-1].xProj[itilt] > -1.)): #allow overlapping MPs
-                meanx[imark] = meanx[imark] + Marker.xProj[itilt] - Markers_[irefmark-1].xProj[itilt]
-                meany[imark] = meany[imark] + Marker.yProj[itilt] - Markers_[irefmark-1].yProj[itilt]
+            if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark].xProj[itilt] > -1.)): #allow overlapping MPs
+                meanx[imark] = meanx[imark] + Marker.xProj[itilt] - Markers_[irefmark].xProj[itilt]
+                meany[imark] = meany[imark] + Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt]
                 norm[imark]  = norm[imark] +1
         meanx[imark] = meanx[imark] / norm[imark]
         meany[imark] = meany[imark] / norm[imark]
@@ -220,11 +220,11 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     for (imark,Marker) in enumerate(Markers_):
         for itilt in range(0,ntilt):
             
-            if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark-1].xProj[itilt] > -1.)): #allow overlapping MPs
-                sumxx = (Marker.xProj[itilt] - Markers_[irefmark-1].xProj[itilt] -meanx[imark])**2 + sumxx
-                sumyy = (Marker.yProj[itilt] - Markers_[irefmark-1].yProj[itilt] -meany[imark])**2 + sumyy
-                sumxy = ((Marker.xProj[itilt] - Markers_[irefmark-1].xProj[itilt] -meanx[imark]) * 
-                 (Marker.yProj[itilt] - Markers_[irefmark-1].yProj[itilt] -meany[imark]) + sumxy)
+            if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark].xProj[itilt] > -1.)): #allow overlapping MPs
+                sumxx = (Marker.xProj[itilt] - Markers_[irefmark].xProj[itilt] -meanx[imark])**2 + sumxx
+                sumyy = (Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt] -meany[imark])**2 + sumyy
+                sumxy = ((Marker.xProj[itilt] - Markers_[irefmark].xProj[itilt] -meanx[imark]) *
+                 (Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt] -meany[imark]) + sumxy)
     
     #  calculate azimuth :
     #  minimize sum( (x(i)*sin(psi) + y(i)*cos(psi))^2) =: Min(F)  --- linear regression  
@@ -251,11 +251,11 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     distLine = numpy.array(nmark*[ntilt*[0.]])
     for (imark,Marker) in enumerate(Markers_):
         for itilt in range(0,ntilt):
-            if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark-1].xProj[itilt] > -1.)): #allow overlapping MPs
-                if (imark != irefmark-1):
+            if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark].xProj[itilt] > -1.)): #allow overlapping MPs
+                if (imark != irefmark):
                     ndif= ndif +1 # count all markers except for refmark
-                distLine[imark,itilt] = ((Marker.xProj[itilt] - Markers_[irefmark-1].xProj[itilt] -meanx[imark])*cpsi +
-                (Marker.yProj[itilt] - Markers_[irefmark-1].yProj[itilt] -meany[imark])*spsi)
+                distLine[imark,itilt] = ((Marker.xProj[itilt] - Markers_[irefmark].xProj[itilt] -meanx[imark])*cpsi +
+                (Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt] -meany[imark])*spsi)
                 sumxx = distLine[imark,itilt]**2 +sumxx
     sigma = sqrt(sumxx/(ndif - nmark ));
     #   deviation as angle in deg
@@ -286,18 +286,18 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
 
         for itilt in range(0,ntilt):
 
-            if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark-1].xProj[itilt] > -1.)): #allow overlapping MPs
+            if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark].xProj[itilt] > -1.)): #allow overlapping MPs
                 norm[imark]= norm[imark]+1;
                 salpsq = salpsq + sTilt[itilt]**2; #sum sin^2
                 scalph = scalph + cTilt[itilt]*sTilt[itilt] #sum cos*sin
                 #sum delta x * cos
-                sumxx = sumxx+ (Marker.xProj[itilt] - Markers_[irefmark-1].xProj[itilt])* cTilt[itilt]
+                sumxx = sumxx+ (Marker.xProj[itilt] - Markers_[irefmark].xProj[itilt])* cTilt[itilt]
                 #sum delta(y)*cos
-                sumyy = sumyy + (Marker.yProj[itilt] - Markers_[irefmark-1].yProj[itilt])* cTilt[itilt]
+                sumyy = sumyy + (Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt])* cTilt[itilt]
                 #sum delta(x)*sin
-                sumxy = sumxy+ (Marker.xProj[itilt] - Markers_[irefmark-1].xProj[itilt])* sTilt[itilt]
+                sumxy = sumxy+ (Marker.xProj[itilt] - Markers_[irefmark].xProj[itilt])* sTilt[itilt]
                 #sum delta(y)*sin
-                sumyx = sumyx + (Marker.yProj[itilt] - Markers_[irefmark-1].yProj[itilt])* sTilt[itilt]
+                sumyx = sumyx + (Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt])* sTilt[itilt]
         P[0,0] = norm[imark] - salpsq*spsi**2
         P[0,1] = salpsq*cpsi*spsi
         P[0,2] = scalph*spsi
@@ -332,7 +332,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
             z[imark] = numpy.linalg.det(P_t)/dt;
             if not mute:
                 print(('     %3d - %3d :.............. = %7.1f, %7.1f, %7.1f'
-                    %(imark+1, irefmark, x[imark], y[imark], z[imark])))
+                    %(imark, irefmark, x[imark], y[imark], z[imark])))
             x[imark] = x[imark] + r[0] - imdim/2. -1. # move to center
             y[imark] = y[imark] + r[1] - imdim/2. -1.
             z[imark] = z[imark] + r[2] - imdim/2. -1.
