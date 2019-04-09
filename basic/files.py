@@ -376,6 +376,7 @@ def pdb2em(pdbPath, pixelSize, cubeSize, chain=None, densityNegative=False, fnam
     if fname: vol.write(fname)
     else: return vol
 
+
 def mmCIF2em(mmCIFPath, pixelSize, cubeSize, chain=None, densityNegative=False):
     """
     pdb2em: Creates an volume out of a mmCIF file

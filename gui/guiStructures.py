@@ -278,7 +278,9 @@ class Worker(QRunnable):
         self.signals = WorkerSignals()
         self.fn = fn
         self.args = tuple(list(args))
-        if sig: self.args += tuple(list(args)+[self.signals])
+
+        if sig:
+            self.args = tuple(list(args)+[self.signals])
 
     def run(self):
         self.fn(*self.args)

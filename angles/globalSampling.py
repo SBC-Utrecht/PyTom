@@ -209,15 +209,15 @@ class GlobalSampling(AngleObject):
             start = key.start
             stop = key.stop
             step = key.step
-
-            if start ==None: start=0
+            print(key)
+            if start ==None: start= 0
             if step == None: step = 1
 
             if stop ==None or stop >= 922337203685477580:
-                stop = self.numberRotations()
+                stop = int(self.numberRotations())
                 
             rotations = []
-            for r in self._angleList[start:stop:step]:
+            for r in self._angleList[int(start):int(stop):int(step)]:
                 rotations.append(r)
                 
             return rotations

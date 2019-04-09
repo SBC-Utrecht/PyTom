@@ -215,6 +215,7 @@ class PeakJob(PyTomClass):
         msg.setJob(self)
         
         import pytom_mpi
+    
         pytom_mpi.send(str(msg), destination)
 
         
