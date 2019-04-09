@@ -857,7 +857,11 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
         parent = l
-        self.insert_label_line(parent,'Size of Template',wname='size_template',rstep=1,cstep=-1,
+        self.insert_label_line(parent,'Sixe X (px)',wname='size_template_x',rstep=1,cstep=-1,
+                               validator=QIntValidator())
+        self.insert_label_line(parent,'Size Y (px)',wname='size_template_y',rstep=1,cstep=-1,
+                               validator=QIntValidator())
+        self.insert_label_line(parent,'Size Z (px)',wname='size_template_z',rstep=1,cstep=-1,
                                validator=QIntValidator())
         self.insert_label_line(parent, 'Radius Spherical Mask', wname='radius',rstep=1, cstep=-1,
                                validator=QIntValidator())
@@ -871,7 +875,9 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
     def generate_mask(self,params):
         radius = int(self.widgets['radius'].text())
         smooth = float(self.widgets['smooth_factor'].value())
-        size = int(self.widgets['size_template'].text())
+        sizeX = int(self.widgets['size_template_x'].text())
+        sizeY = int(self.widgets['size_template_y'].text())
+        sizeZ = int(self.widgets['size_template_z'].text())
         try:
             fname = os.path.join(self.parent().frmdir, 'FRM_mask.em')
         except:
@@ -884,7 +890,7 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
         maskfilename = str(QFileDialog.getSaveFileName( self, 'Save particle list.', fname, filter='*.em')[0])
         if maskfilename and not maskfilename.endswith('.em'): maskfilename += '.em'
         try:
-            initSphere(size, size, size, radius=radius, smooth=smooth, filename=maskfilename)
+            initSphere(sizeX, sizeY, sizeZ, radius=radius, smooth=smooth, filename=maskfilename)
             self.parent().widgets[params[-1]].setText(maskfilename)
         except:
             self.popup_messagebox('Error','Mask Generation Failed', 'Generation of the mask failed. Please select an existing mask, or generate a mask yourself.')
@@ -1275,7 +1281,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.operationbox.setLayout(self.layout_operationbox)
         self.add_toolbar(self.open_load)
         self.logbook = {}
-        self.radius = 20
+        self.radius = 10
         self.jump = 1
         self.current_width = 0.
         self.pos = QPoint(0,0)
@@ -1339,10 +1345,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             w = self.widgets['apply_gaussian_filter']
             w.setChecked(w.isChecked()==False)
 
-        if Qt.Key_D == evt.key():
-            w = self.widgets['delete_item']
-            w.setChecked(w.isChecked()==False)
-
         if Qt.Key_Right == evt.key():
             if self.slice + int(self.widgets['step_size'].text()) < self.dim:
                 update = int(self.widgets['step_size'].text())
@@ -1367,29 +1369,26 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
 
-
-        self.insert_label(prnt, text='Size Selection: ',cstep=1)
-        self.insert_spinbox(prnt, wname='size_selection: ',cstep=-2,rstep=1, value=self.radius*2, minimum=1, maximum=100)
-        self.widgets['size_selection: '].valueChanged.connect(self.sizeChanged)
-
-        self.insert_checkbox(prnt, 'delete_item', cstep=1)
-        self.insert_label(prnt, text='Delete Particle', alignment=Qt.AlignLeft,rstep=1)
-
-        self.insert_label(prnt, sizepolicy=self.sizePolicyB, rstep=1, cstep=0)
-
-        self.insert_label(prnt,text='Step Size',cstep=1,alignment=Qt.AlignLeft)
-        self.insert_spinbox(prnt,wname='step_size',cstep=-2, value=10, rstep=1,
-                            minimum=1, maximum=int(self.vol.shape[0]/4))
-
         self.insert_checkbox(prnt, 'apply_gaussian_filter', cstep=1)
         self.insert_label(prnt, text='Apply Gaussian Filter', cstep=1, alignment=Qt.AlignLeft)
-        self.insert_lineedit(prnt,'width_gaussian_filter', validator=vDouble, rstep=1, cstep=-1, value='1.')
+        self.insert_lineedit(prnt,'width_gaussian_filter', validator=vDouble, rstep=1, cstep=-1, value='1.',width=50)
+
+        self.insert_label(prnt, text='Size Selection: ',cstep=1)
+        self.insert_spinbox(prnt, wname='size_selection: ',cstep=-1,rstep=1, value=20, minimum=1, maximum=1000,width=50)
+        self.widgets['size_selection: '].valueChanged.connect(self.sizeChanged)
+
+        self.insert_label(prnt,text='Step Size',cstep=1,alignment=Qt.AlignLeft)
+        self.insert_spinbox(prnt,wname='step_size',cstep=-1, value=10, rstep=1,width=50,
+                            minimum=1, maximum=int(self.vol.shape[0]/4))
+
+        self.insert_label(prnt,text='', cstep=0)
         self.widgets['apply_gaussian_filter'].stateChanged.connect(self.stateGaussianChanged)
 
+        self.insert_label_line(prnt,'Number Particles','numSelected',validator=vInt,width=50)
         self.insert_label_spinbox(prnt,'minScore','Minimal Score', value=0.,wtype=QDoubleSpinBox, minimum=0, maximum=1,
-                                  stepsize=0.05)
+                                  stepsize=0.05,width=50)
         self.insert_label_spinbox(prnt, 'maxScore', 'Maximal Score', value=1., wtype=QDoubleSpinBox, minimum=0,
-                                  maximum=1., stepsize=0.05)
+                                  maximum=1., stepsize=0.05,width=50)
 
         self.widgets['minScore'].valueChanged.connect(self.stateScoreChanged)
         self.widgets['maxScore'].valueChanged.connect(self.stateScoreChanged)
@@ -1442,7 +1441,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         filetype = 'xml'
         initdir = self.parent().pickpartfolder
 
-        filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "Coordinate files (*.{})".format(filetype))[0])
+        filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "Coordinate files (*.txt);; Particle List (*.xml)")[0])
         if not filename: return
 
         if filename.endswith('.txt'):
@@ -1555,7 +1554,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             return
 
         add = True
-        remove = self.widgets['delete_item'].isChecked() or evt.button()==2
+        remove = evt.button()==2
         self.pos = pos
 
         if pos.x() < 0 or pos.y() < 0 or pos.x() >= self.vol.shape[1] or pos.y() >= self.vol.shape[2]:
@@ -1575,6 +1574,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
             self.add_points(pos, X, Y, self.slice, self.radius,add=add)
             self.subtomo_plots.add_subplot(self.vol, self.particleList[-1])
+
+        self.widgets['numSelected'].setText(str(len(self.particleList)))
 
     def add_points(self, pos, cx, cy, cz, radius, add=False):
         self.particleList.append([int(round(cx)), int(round(cy)), int(round(cz))])

@@ -122,19 +122,6 @@ def renumber_gui2pytom(output_folder, prefix):
         fname = os.path.join(output_folder, fname)
         os.system('mv {} {}'.format(fname, fname[:-len('.temp')]))
 
-
-
-def popup_messagebox(mtype, title, message):
-    '''This function creates an Error message, info statement, warning message, question, ask ok cancel reques\
-t'''
-    d = {"Error":showerror, 
-         "Info":showinfo, 
-         "Warning":showwarning, 
-         "Question":askquestion, 
-         "Cancel":askokcancel}
-    d[mtype](title,message)
-
-
 def mrc2em(filename,destination):
 
 
@@ -287,26 +274,6 @@ def detect_shift(arr0,arr1,image=[]):
     locx,locy =  (abs((cross))**2).flatten().argmax()%y, (abs((cross))**2).flatten().argmax()/y
     return cross, locx-y/2, locy-x/2, cross[int(locy)][int(locx)]
 
-'''
-def browse_for_entry( entry_box, dialog_type, remote=1, initialdir='.',dir=True,pattern='*'):
-    """Browse for a file and put that filename in an entry box.
-
-    @param entry_box: The entry box to put the filename in.
-    @type entry_box: tkinter.Entry
-    @param dialog_type: The type of dialog to display. Should be 'open' or
-        'save as'
-    @type dialog_type: str
-    """
-    #filetypes=[('dm4 files', '.dm4')]
-    dialog_type = dialog_type.lower()
-    if dialog_type == 'file': name = askopenfilename( initialdir=initialdir,remote=remote,pattern=pattern)
-    elif dialog_type == 'dir':  name = askdirectory(initialdir=initialdir,remote=remote,pattern=pattern)
-    else: raise ValueError('%s not a valid dialog type.' % dialog_type)
-    
-    entry_box.delete(0, tk.END)
-    entry_box.insert(0, str(name) )
-'''
-
 def browse_for_entry( entry_box, dialog_type, remote=1, initialdir='.',dir=True,pattern='*',function=None,p='',mod=0):
     """Browse for a file and put that filename in an entry box.
 
@@ -379,8 +346,6 @@ def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='
             else:
                 os.system('bash {}/jobscripts/alignment_{:03d}.job'.format(projectfolder, n))
 
-
-
 def create_folderstructure(folderstructure, enter, projectdir='.'):
     for mainfolder in sorted(folderstructure):
 
@@ -390,7 +355,6 @@ def create_folderstructure(folderstructure, enter, projectdir='.'):
 
         if len(folderstructure[mainfolder]) and not type(folderstructure[mainfolder]) == type([]):
             create_folderstructure(folderstructure[mainfolder], "%s/%s" % (enter, mainfolder))
-
 
 def copy_files(folderstructure, enter, projectdir='.'):
     for mainfolder in sorted(folderstructure):
@@ -406,7 +370,6 @@ def copy_files(folderstructure, enter, projectdir='.'):
             continue
         if len(folderstructure[mainfolder]) and not type(folderstructure[mainfolder]) == type([]):
             copy_files(folderstructure[mainfolder], "%s/%s" % (enter, mainfolder), projectdir)
-
 
 def create_project_filestructure(projectdir='.'):
     # with open('config.json') as json_data_file:

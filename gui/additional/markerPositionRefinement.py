@@ -60,8 +60,7 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
         #markerImageStack.normalize( normtype="StdMeanInMask", mask=mask)
         if len_stack == 0:
             continue
-        markerImageStack.bandpass( lowfreq=dimBox/32., hifreq=6.*dimBox/32.,
-        smooth=2.*dimBox/32., bpf=None)
+        markerImageStack.bandpass( lowfreq=dimBox/32., hifreq=6.*dimBox/32., smooth=2.*dimBox/32., bpf=None)
         markerImageStack.normalize( normtype="StdMean")
         # smoothen edges
         markerImageStack.taper_edges( width=dimBox/8.)

@@ -586,8 +586,8 @@ class TomographReconstruct(GuiTabWidget):
 
         if not os.path.exists(f'{output_folder}/temp_files_unweighted'): os.mkdir(f'{output_folder}/temp_files_unweighted')
 
-        if len([line for line in os.listdir(output_folder) if line.startswith(prefix.split('/')[-1])]):
-            os.system('rm {}/sorted*.em'.format(output_folder))
+        #if len([line for line in os.listdir(output_folder) if line.startswith(prefix.split('/')[-1])]):
+        #    os.system('rm {}/sorted*.em'.format(output_folder))
 
 
         #guiFunctions.conv_mrc2em(self.widgets[mode+'FolderSorted'].text(), output_folder)

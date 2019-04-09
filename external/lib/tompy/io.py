@@ -12,7 +12,7 @@ def read(filename):
     @return The data from the EM file in ndarray
     """
     f = open(filename, 'r')
-    try:
+    if filename[-3:] == '.em':
         dt_header = np.dtype('int32')
         header = np.fromfile(f, dt_header, 128)
         x = header[1]
@@ -42,14 +42,24 @@ def read(filename):
             raise Exception("Data type not supported yet!")
 
         v = np.fromfile(f, dt_data, x*y*z)
-    finally:
-        f.close()
+
+    else:
+        dt_header = np.dtype('int32')
+        header = np.fromfile(f, dt_header, 256)
+        x = header[0]
+        y = header[1]
+        z = header[2]
+        print(x,y,z)
+        v = np.fromfile(f, np.dtype('<f4'), x * y * z)
+        default_type=False
+    f.close()
+    print(v.shape)
 
     if default_type:
         volume = v.reshape((x, y, z), order='F') # fortran-order array
     else: # if the input data is not the default type, convert
         volume = np.array(v.reshape((x, y, z), order='F'), dtype='float32') # fortran-order array
-    
+
     return volume
 
 

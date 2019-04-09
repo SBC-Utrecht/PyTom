@@ -33,6 +33,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.glocaldir      = os.path.join(self.subtomodir, 'GLocal/FRM')
         self.cpcadir        = os.path.join(self.subtomodir, 'Classification/CPCA')
         self.acdir          = os.path.join(self.subtomodir, 'Classification/AutoFocus')
+        self.pickpartdir    = self.parent().particlepick_folder+'/Picked_Particles'
 
         headers = ["Reconstruct Subtomograms","Align Subtomograms","Classify Subtomograms"]
         subheaders = [['Single Reconstruction','Batch Reconstruction'],['FRM Alignment','GLocal'],['CPCA','Auto Focus']]
@@ -128,36 +129,6 @@ class SubtomoAnalysis(GuiTabWidget):
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
-
-        '''
-        self.row, self.column = 10, 2
-        rows, columns = 20, 20
-        self.items = [['', ] * columns, ] * rows
-        mode = self.stage
-
-
-        rscore = 'False'
-        weightedAv = 'False'
-        weighting = ''
-        binning_mask = '1'
-        sphere = 'True'
-        ad_res = '0.00'
-        fsc = '0.50'
-
-        jobfilename = os.path.join(self.frmdir, 'job_description.xml')
-        exefilename = os.path.join(self.frmdir, 'frmAlignment.sh')
-
-        paramsSbatch = guiFunctions.createGenericDict(fname='FRMAlign', folder=self.frmdir)
-        paramsJob = [t1+'bwMin',t1+'bwMax',t1+'frequency',t1+'maxIterations', t1+'peakOffset',
-                     rscore, weightedAv, t0+'fnameAverage', weighting, t0+'filenameMask',
-                     binning_mask, sphere, t2+'pixelSize', t2+'particleDiameter', t0+'particleList']
-        paramsCmd = [ self.frmdir, self.pytompath, jobfilename,templateFRMSlurm]
-
-
-        self.insert_gen_text_exe(grid, self.stage, xmlfilename=jobfilename, jobfield=True, exefilename=exefilename,
-                                 paramsXML=paramsJob + [templateFRMJob], paramsCmd=paramsCmd,
-                                 paramsSbatch=paramsSbatch)
-        '''
 
     def tab22UI(self):
         key = 'tab22'
@@ -321,59 +292,6 @@ class SubtomoAnalysis(GuiTabWidget):
 
         pass
 
-    def sampleInformation(self,mode=None):
-        title = "Sample Information"
-        tooltip = 'Sample Information.'
-        sizepol = self.sizePolicyB
-        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
-        groupbox.setEnabled(True)
-        groupbox.setVisible(True)
-        groupbox.setCheckable(False)
-
-        self.row, self.column = 0, 0
-        rows, columns = 20, 20
-        self.items = [['', ] * columns, ] * rows
-
-        self.insert_label_spinbox(parent,'pixelSize', 'Pixel Size (A)',
-                                  wtype=QDoubleSpinBox,minimum=0.1,stepsize=0.1,value=1.75)
-        self.insert_label_spinbox(parent,'particleDiameter','Particle Diameter (A)', rstep=0, cstep=1,
-                                  minimum=10, stepsize=1, value=300, maximum=10000, width=150)
-        #self.insert_lineedit(parent,'small',enabled=False,logvar=False,width=185)
-        label = QLabel(' ', self)
-        parent.addWidget(label, self.row, self.column)
-        label.setFixedSize(180, 10)
-        label.setStyleSheet("QLabel{background: transparent;}")
-        setattr(self, mode + 'gb_inputFiles', groupbox)
-        return groupbox
-
-    def frmSettings(self,mode=None):
-        title = "FRM Settings"
-        tooltip = 'FRM Settings'
-        sizepol = self.sizePolicyB
-        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
-        groupbox.setEnabled(True)
-        groupbox.setVisible(True)
-        groupbox.setCheckable(False)
-
-        self.row, self.column = 0, 0
-        rows, columns = 20, 20
-        self.items = [['', ] * columns, ] * rows
-
-        self.insert_label_line(parent,'Min Bandwidth Reconstruction (px)',mode+'bwMin',validator=QIntValidator(), tooltip='The minimal frequency used for reconstruction.')
-        self.insert_label_line(parent,'Max Bandwidth Reconstruction (px)',mode+'bwMax',validator=QIntValidator(), tooltip='The maximal frequency used for reconstruction.')
-        self.insert_label_line(parent, 'Frequency (px)', mode+'frequency', validator=QIntValidator(), tooltip='The minimal frequency used for reconstruction.')
-        self.insert_label_line(parent, 'Maximum Iterations', mode+'maxIterations', validator=QIntValidator(), tooltip='Sets the maximal number of iterations of alignmment.')
-        self.insert_label_line(parent, 'Peak Offset', mode+'peakOffset', validator=QIntValidator(),rstep=0,cstep=1, tooltip='Sets the peak offset.')
-        self.insert_label(parent,' ',width=185, cstep=0, rstep=0, sizepolicy='')
-        label = QLabel(' ', self)
-        parent.addWidget(label,self.row,self.column)
-        label.setFixedSize(180,10)
-        label.setStyleSheet("QLabel{background: transparent;}")
-        #self.insert_lineedit(parent,'small',enabled=False,logvar=False,width=185)
-        #self.widgets['small'].setVisible(False)
-        setattr(self, mode + 'gb_inputFiles', groupbox)
-        return groupbox
-
     def inputFiles(self, mode=None):
         title = "FRM Alignment"
         tooltip = ''
@@ -388,23 +306,26 @@ class SubtomoAnalysis(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
 
         self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB)
-        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
-                                    'Select the particle list.', mode='file', filetype='xml')
-        self.insert_label_line_push(parent, 'Filename Mask', mode + 'filenameMask',
-                                    'Select the mask file.', mode='file',filetype=['em','mrc'],cstep=1,rstep=0)
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList', initdir=self.pickpartdir,
+                                    tooltip='Select the particle list.', mode='file', filetype='xml')
+        self.insert_label_line_push(parent, 'Filename Mask', mode + 'filenameMask', initdir=self.frmdir,
+                                    tooltip='Select the mask file.', mode='file',filetype=['em','mrc'],cstep=1,rstep=0)
         self.insert_pushbutton(parent,'Create',rstep=1,cstep=-3,action=self.gen_mask,params=[mode+'filenameMask'])
-        self.insert_label_line_push(parent, 'Filename Average', mode + 'filenameAverage',
-                                    'Choose a filename for the average of all particles.', mode='file',
-                                    filetype=['em','mrc'])
+        self.insert_label_line_push(parent, 'Filename Average', mode + 'filenameAverage',initdir=self.frmdir,
+                                    tooltip='Choose a filename for the average of all particles.', mode='file',
+                                    filetype=['em','mrc'],cstep=1,rstep=0)
+        self.insert_pushbutton(parent, 'Average', rstep=1, cstep=-3, action=self.gen_average,
+                               params=[mode + 'particleList', mode + 'filenameAverage', mode + 'outputDir'])
+
         self.insert_label_line_push(parent, 'Output Directory', mode + 'outputDir',
                                     'Folder in which the output will be written.')
         self.insert_label(parent,rstep=1,cstep=0)
-        self.insert_label_spinbox(parent, mode + 'bwMin', 'Min Bandwidth Reconstruction (px)',
+        self.insert_label_spinbox(parent, mode + 'bwMin', 'Min Order Zernike Polynomial',
                                   value=8,minimum=0,stepsize=1,
-                                  tooltip='The minimal frequency used for reconstruction.')
-        self.insert_label_spinbox(parent, mode + 'bwMax', 'Max Bandwidth Reconstruction (px)',
+                                  tooltip='The minimal order of the Zernike polynomial used for spherical harmonics alignment.')
+        self.insert_label_spinbox(parent, mode + 'bwMax', 'Max Order Zernike Polynomial',
                                   value=64, minimum=0, stepsize=1,
-                                tooltip='The maximal frequency used for reconstruction.')
+                                  tooltip='The maximal order of the Zernike polynomial used for spherical harmonics alignment.')
         self.insert_label_spinbox(parent, mode + 'frequency', 'Frequency (px)',
                                   value=8, minimum=0, stepsize=1,
                                   tooltip='The minimal frequency used for reconstruction.')
@@ -420,6 +341,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_spinbox(parent,mode+ 'particleDiameter','Particle Diameter (A)',rstep=1,cstep=0,
                                   minimum=10, stepsize=1, value=300, maximum=10000, width=150)
 
+        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.updateFRM(m))
 
         rscore = 'False'
         weightedAv = 'False'
@@ -445,10 +367,34 @@ class SubtomoAnalysis(GuiTabWidget):
         setattr(self, mode + 'gb_inputFiles', groupbox)
         return groupbox
 
+    def updateFRM(self,mode):
+        item = self.widgets[mode + 'particleList'].text()
+        if not item:
+            return
+        folder, ext = os.path.splitext( os.path.basename(item))
+        outputDir = os.path.join(self.frmdir, folder.replace('particleList_', ''))
+        if not os.path.exists(outputDir): os.mkdir(outputDir)
+        self.widgets[mode+'outputDir'].setText(outputDir)
+
+    def gen_average(self, params):
+        key_particleList, key_filename_average, key_outputDir = params
+        particleList = self.widgets[key_particleList].text()
+        if not particleList:
+            self.popup_messagebox('Warning', 'Averaging Failed', 'Averaging did not succeed. No particle list selected.')
+            return
+        folder = self.widgets[key_outputDir].text()
+        if not os.path.exists(folder): os.mkdir(folder)
+        output_name = os.path.join( folder, 'average.em')
+        out = os.popen('cd {}; average.py -p {} -a {} >& /dev/null&'.format(self.subtomodir, particleList, output_name)).read()
+        if not os.path.exists(output_name):
+            self.popup_messagebox('Warning', 'Averaging Failed',
+                                  'Averaging did not succeed, please try again.')
+            return
+        self.widgets[key_filename_average].setText(output_name)
+
     def gen_mask(self,params):
         maskfilename = CreateMaskFile(self, maskfname=params[-1])
         maskfilename.show()
-        #print ('fname mask: {}'.format(self.widgets[params[0]].text()))
 
     def referenceUpdate(self, mode):
         if self.widgets[mode + 'referenceModel'].text():
