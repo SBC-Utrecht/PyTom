@@ -39,7 +39,7 @@ import glob
 import numpy
 import time
 import shutil
-
+import mrcfile
 
 from scipy.ndimage import sobel, gaussian_filter, laplace, label, median_filter, maximum_filter, convolve
 from scipy.ndimage import binary_closing, binary_fill_holes, binary_erosion, center_of_mass
@@ -51,7 +51,7 @@ from skimage.morphology import remove_small_objects
 from skimage.feature import canny
 from skimage.morphology import watershed
 from skimage.feature import peak_local_max
-
+from pytom.gui.mrcOperations import downsample
 
 from multiprocessing import Process, Event, Manager, Pool, cpu_count
 
@@ -59,6 +59,8 @@ from pytom.gui.guiStructures import *
 
 def sort_str( obj, nrcol ):
     obj.sort(key=lambda i: str(i[nrcol]))
+
+from numpy import zeros
 
 class TiltImage():
     def __init__(self, parent, imnr, excluded=0):
@@ -128,7 +130,8 @@ class TiltImage():
                     self.labels[n] = "{:03d}".format(m)
                     break
 
-class FiducialAssignment(QMainWindow, CommonFunctions):
+
+class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
     def __init__(self, parent=None, fname=''):
         super(FiducialAssignment, self).__init__(parent)
         self.size_policies()
@@ -175,10 +178,6 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.main_image.setMouseEnabled(False)
         self.main_image.invertY(True)
 
-
-        #self.top_canvas = w1 = KeyPressGraphicsWindow(size=(300, 300), border=True)
-        #self.top_image = w1.addViewBox(row=0, col=0, lockAspect=True)
-        #self.top_image.setMenuEnabled(False)
         self.actionwidget = QWidget(self,width=300,height=300)
         self.al = parent = QGridLayout(self)
         self.row, self.column = 0, 0
@@ -308,6 +307,44 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         elif Qt.Key_I == evt.key():
             print ('Index Fiducials')
             self.index_fid()
+
+        elif Qt.Key_1 == evt.key():
+            self.imnr = 0
+            self.replot2()
+
+        elif Qt.Key_2 == evt.key():
+            self.imnr = len(self.fnames)//2
+            self.replot2()
+
+        elif Qt.Key_3 == evt.key():
+            self.imnr = len(self.fnames) -1
+            self.replot2()
+
+        elif Qt.Key_L == evt.key():
+
+            for i in range(len(self.fnames)):
+                self.imnr = i
+                self.replot2()
+                pg.QtGui.QApplication.processEvents()
+                time.sleep(0.04)
+
+            for i in range(len(self.fnames)):
+                self.imnr -= 1
+                self.replot2()
+                pg.QtGui.QApplication.processEvents()
+                time.sleep(0.04)
+
+        elif Qt.Key_P == evt.key():
+            save_index = self.imnr
+            for i in range(len(self.fnames)):
+                self.imnr = i
+                self.replot2()
+                from pyqtgraph.exporters import ImageExporter
+                exporter = ImageExporter( self.main_image )
+                exporter.export('assignedMarkers_{:02d}.png'.format(i))
+
+            self.imnr = save_index
+            self.replot2()
 
         elif Qt.Key_E == evt.key():
             self.exclude_status_change()
@@ -495,26 +532,36 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.widgets['createMarkerfile'].setEnabled(True)
         self.replot2()
 
-    def read_list(self, fnames, proc_id, nr_procs, frames, frames_full, frames_adj, transpose):
-        print ("Start reading files process {}/{}".format(proc_id + 1, nr_procs))
+    def read_list(self, fnames, proc_id, nr_procs, frames, frames_full, dummy):
 
+        print ("Start reading files process {}/{}".format(proc_id + 1, nr_procs))
+        from copy import deepcopy
         for nr, fname in enumerate(fnames):
-            dataf = read_mrc('{}'.format(str(fname)), binning=[1, 1, 1])
-            dataf[dataf>dataf.mean()+dataf.std()*5] = dataf.mean()
-            dataf = pytom.gui.mrcOperations.downsample(dataf,self.bin_read)
-            if transpose: dataf = dataf.T
+
+            #m = mrcfile.open(fname, permissive=True)
+            #dataf = copy.deepcopy(m.data)
+            #m.close()
+            #dataf = downsample(dataf,self.bin_read)
+            #dataf = read_mrc('{}'.format(str(fname)), binning=[1, 1, 1])
+            #frames_adj[nr_procs * nr + proc_id] = mrcfile.open(fname,permissive=True)
+
+            dataf = self.frames_adj[nr*nr_procs + proc_id, :,:]
+
+            dataf = downsample(dataf,self.bin_read)
+
             w = wiener(dataf)
-            hpf = dataf - gaussian_filter(dataf, 10) * 0
+            hpf = dataf #- gaussian_filter(dataf, 10) * 0
             data = downsample(w + hpf, int(round(self.bin_alg * 1. / self.bin_read)))
             data -= data.min()
             data /= data.max()
 
-            dataf -= dataf.min()
-            dataf /= dataf.max()
+
             frames[nr_procs * nr + proc_id] = (data) ** 0.75
-            frames_full[nr_procs * nr + proc_id] = wiener(dataf)
+            frames_full[nr_procs * nr + proc_id] = w
 
     def read_data(self, fnames):
+        start = time.time()
+        from copy import deepcopy
 
         s = time.time()
         self.fnames = fnames
@@ -539,11 +586,29 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         f = manager.list(frames)
         ff = manager.list(frames_full)
         ffa = manager.list(frames_full_adj)
+
+        start = time.time()
+
+        temp = mrcfile.open(fnames[0], permissive=True)
+        dimx, dimy = temp.data.shape
+        temp.close()
+        self.frames_adj = zeros((len(self.fnames), dimx, dimy))
+
+        for i in range(len(fnames)):
+            if 1:
+                datafile = mrcfile.open(self.fnames[i], permissive=True)
+                fa = deepcopy(datafile.data)
+                fa[fa > fa.mean() + 5 * fa.std()] = fa.mean()
+                self.frames_adj[i, :, :] = fa
+                datafile.close()
+
+
+
         procs = []
 
         for proc_id in range(nr_procs):
             proc = Process(target=self.read_list,
-                           args=(fnames[proc_id::nr_procs], proc_id, nr_procs, f, ff, ffa, True))
+                           args=(fnames[proc_id::nr_procs], proc_id, nr_procs, f, ff, True))
             procs.append(proc)
             proc.start()
 
@@ -551,7 +616,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
             procs = [proc for proc in procs if proc.is_alive()]
             time.sleep(1)
 
-        self.frames, self.frames_full, self.frames_adj = f, ff, ffa
+
+
+        self.frames = zeros((len(fnames), f[0].shape[0], f[0].shape[1]) )
+        self.frames_full = zeros((len(fnames),ff[0].shape[0],ff[0].shape[1]) )
+        for i in range(len(fnames)):
+            self.frames[i, :, :] = f[i]
+            self.frames_full[i, :, :] = ff[i]
 
         for n in range(len(self.fnames)):
             self.tiltimages.append(TiltImage(self, n, excluded=self.excluded[n]))
@@ -562,7 +633,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         self.markermove = numpy.zeros_like(self.frames_full[self.imnr])
 
         self.dim = self.frames_full[0].shape[0]
-
+        print(time.time() - start)
         #self.update()
 
     def find_fid(self):
@@ -576,6 +647,55 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         if self.widgets['findButton'].isEnabled()==True:
             self.find_fiducials()
             self.replot2()
+
+    def create_average_markers(self, start_frame, end_frame, display=False, markersize=128):
+        r = markersize // 2
+        dimx, dimy = self.frames_adj[0,:,:].shape
+        image = numpy.zeros((r, r))
+        total = 0
+        from numpy.fft import ifftn, fftn, fftshift
+        from numpy import zeros, ones_like, median, array
+
+        for nn in range(start_frame, end_frame):
+
+            for y, x in self.mark_frames[nn, :, :]*self.bin_alg:
+
+                if x < 0 or y<0: continue
+                y = int(round(y))
+                x = int(round(x))
+
+                if x > r // 2 and y > r // 2 and x < dimx - r // 2 and y < dimy - r // 2:
+                    total += 1
+                    print(x,y)
+                    imp = self.frames_adj[nn, x - r // 2:x + r // 2, y - r // 2:y + r // 2]
+                    print(imp.sum())
+                    if image.sum():
+                        ar = fftshift(fftn(imp))
+                        br = numpy.conj(fftshift(fftn(image)))
+                        dd = fftshift(abs(ifftn(fftshift(ar * br))))
+
+                        ddd = dd.flatten()
+                        cx, cy = ddd.argmax() // r - r // 2, ddd.argmax() % r - r // 2
+
+                        imp = self.frames_adj[nn, max(0, x + cx - r // 2):x + cx + r // 2, max(0, y + cy - r // 2):y + cy + r // 2]
+
+
+
+                    if imp.shape[0] == image.shape[0] and imp.shape[1] == image.shape[1]:
+                        image += imp
+
+        image /= total
+        print(total, image.sum())
+        imgx, imgy = array(image.shape) // 2
+        marker = ones_like(self.frames_adj[0,:,:]) * median(image)
+        mx, my = array(marker.shape) // 2
+        marker[mx - imgx:mx + imgx, my - imgy:my + imgy] = image
+        from pylab import imshow, show
+
+        imshow(marker)
+        show()
+        return marker
+
 
     def find_fiducials(self):
         if self.widgets['findButton'].isEnabled()==False: return
@@ -596,16 +716,33 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         manager = Manager()
         out = [0.] * num_procs
         for i in range(num_procs): out[i] = manager.list(fid_list)
+        ref_frame = int(self.settings.widgets['ref_frame'].value())
+        threshold = float(self.settings.widgets['threshold'].value())
+        average_marker = None
 
+        if len(self.mark_frames[ref_frame]) > 2 and self.algorithm == 'cross_correlation':
+            average_marker = self.create_average_markers(ref_frame - 5, ref_frame + 6)
+        print('average marker time: ', time.time()-s)
         for proc_id in range(num_procs):
-            if self.algorithm == 'sensitive':
-                level = find_potential_fiducials_sensitive
-            else:
-                level = find_potential_fiducials
+            print(proc_id)
+            if self.algorithm == 'cross_correlation':
+                if len(self.mark_frames[ref_frame]) > 2:
+                    level = self.find_potential_fiducials_crosscorr
+                else:
+                    level = self.find_potential_fiducials
+
+            elif self.algorithm == 'sensitive':
+                level = self.find_potential_fiducials_sensitive
+
+            elif self.algorithm == 'normal':
+                level = self.find_potential_fiducials
+
+            else: return
+
 
             proc = Process(target=level, args=( self.frames[proc_id::num_procs], self.frames_full[proc_id::num_procs],
                                                 self.bin_alg, self.bin_read, 50, self.imnr, out[proc_id], proc_id,
-                                                num_procs))
+                                                num_procs,average_marker, threshold ))
             procs.append(proc)
             proc.start()
 
@@ -628,6 +765,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
             self.tiltimages[n].clear()
 
         for cx, cy, imnr in self.list_cx_cy_imnr:
+
             CX,CY =cx*self.bin_alg*1./self.bin_read,cy*self.bin_alg*1./self.bin_read
             self.tiltimages[imnr].add_fiducial(CX-self.xmin,CY-self.ymin,CX,CY, check=False,draw=self.imnr==imnr)
             self.mark_frames[imnr][cntr[imnr]][:] = numpy.array((cy, cx))
@@ -829,8 +967,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
                 FY,FX = cx*self.bin_alg/self.bin_read, cy*self.bin_alg/self.bin_read
                 self.tiltimages[tiltNr].add_fiducial(FX-self.xmin,FY-self.ymin,FX,FY,label=labels[tiltImageIndex])
                 
-                self.tiltimages[tiltNr].indexed_fiducials[tiltImageIndex] = index[tiltImageIndex]
-
+                try: self.tiltimages[tiltNr].indexed_fiducials[tiltImageIndex] = index[tiltImageIndex]
+                except: pass
                 tiltImageIndex += 1
         self.replot2()
 
@@ -925,7 +1063,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
 
         self.widgets['detectButton'].setEnabled(True)
         self.detect_frameshift()
-        self.index_fid()
+        if not markfilename.endswith('.npy'): self.index_fid()
 
 
 class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
@@ -978,9 +1116,12 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
 
         self.insert_label(self.grid,rstep=1)
 
-        self.insert_label_combobox(self.grid, 'Accuracy level', 'algorithm', ['normal', 'sensitive'], rstep=1,cstep=-1,
+        self.insert_label_combobox(self.grid, 'Accuracy level', 'algorithm', ['normal', 'sensitive','cross_correlation'], rstep=1,cstep=-1,
                                    tooltip='Algorithm used for automatic fiducial detection.')
 
+        self.insert_label_spinbox(self.grid, 'threshold', text='Threshold cc_map.', rstep=1,
+                                  value=1.75,maximum=10, stepsize=0.1, wtype=QDoubleSpinBox,
+                                  tooltip='Threshold detecting a peak in cross correlation map.')
         self.insert_label(self.grid,rstep=1, cstep=1)
 
         self.insert_pushbutton(self.grid, text='Load Tilt Images', rstep=1, action=self.parent().load_images,params='',

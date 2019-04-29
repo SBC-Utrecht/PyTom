@@ -62,8 +62,8 @@ class ParticlePick(GuiTabWidget):
         self.pickpartfolder = os.path.join(self.projectname, '04_Particle_Picking/Picked_Particles')
         self.subtomofolder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
 
-        headers = ["Pick Particles","Create Particle List"]
-        subheaders  = [['Manual Picking','Template Matching'],['Single','Batch']]
+        headers = ["Manual Picking","Template Matching", "Create Particle List"]
+        subheaders  = [[],['Single', 'Batch'], ['Single','Batch']]
         self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders)
 
         self.table_layouts = {}
@@ -71,21 +71,24 @@ class ParticlePick(GuiTabWidget):
         self.pbs = {}
         self.ends = {}
 
-        self.tabs = {'tab11': self.tab11, 'tab12': self.tab12,
-                     'tab21': self.tab21, 'tab22': self.tab22}
+        self.tabs = {'tab1': self.tab1,
+                     'tab21': self.tab21, 'tab22': self.tab22,
+                     'tab31': self.tab31, 'tab32': self.tab32}
 
-        self.tab_actions = {'tab11': self.tab11UI, 'tab12': self.tab12UI,
-                            'tab21': self.tab21UI, 'tab22': self.tab22UI}
+        self.tab_actions = {'tab1': self.tab1UI,
+                            'tab21': self.tab21UI, 'tab22': self.tab22UI,
+                            'tab31': self.tab31UI, 'tab32': self.tab32UI}
 
         for i in range(len(headers)):
             t = 'tab{}'.format(i + 1)
             empty = 1 * (len(subheaders[i]) == 0)
             for j in range(len(subheaders[i]) + empty):
                 tt = t + str(j + 1) * (1 - empty)
-                if tt in ('tab11', 'tab12', 'tab21'):
+                if tt in ('tab1', 'tab21', 'tab31'):
                     self.table_layouts[tt] = QGridLayout()
                 else:
                     self.table_layouts[tt] = QVBoxLayout()
+
                 button = QPushButton('Refresh Tab')
                 button.setSizePolicy(self.sizePolicyC)
                 button.clicked.connect(self.tab_actions[tt])
@@ -95,18 +98,18 @@ class ParticlePick(GuiTabWidget):
                 self.ends[tt] = QWidget()
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
 
-                if tt in ('tab22'):
+                if tt in ('tab22', 'tab32'):
                     self.table_layouts[tt].addWidget(button)
                     self.table_layouts[tt].addWidget(self.ends[tt])
 
-                if not tt in ('tab22'):
+                if not tt in ('tab22', 'tab32'):
                     self.tab_actions[tt]()
 
                 tab = self.tabs[tt]
                 tab.setLayout(self.table_layouts[tt])
 
-    def tab11UI(self):
-        key = 'tab11'
+    def tab1UI(self):
+        key = 'tab1'
         self.no_image = False
         parent = self.table_layouts[key]
         parent.setAlignment(self, Qt.AlignTop)
@@ -131,8 +134,8 @@ class ParticlePick(GuiTabWidget):
             self.partpick.show()
             #params[0].addWidget(self.partpick,self.row+1,0,4,4)
 
-    def tab12UI(self):
-        key = 'tab12'
+    def tab21UI(self):
+        key = 'tab21'
 
         mode, mode2 = self.stage + 'TemplateMatch_', self.stage+ 'ExtractCandidates_'
         grid = self.table_layouts[key]
@@ -314,8 +317,104 @@ class ParticlePick(GuiTabWidget):
         print(params)
         ConvertEM2PDB(self, emfname=params[0],folder=self.widgets[params[1]+'outfolderTM'].text())
 
-    def tab21UI(self):
-        key = 'tab21'
+
+    def tab22UI(self):
+        try: self.jobFiles.text()
+        except: self.jobFiles = QLineEdit()
+
+        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
+                                   outputline=self.jobFiles, run_upon_complete=self.getTemplateFiles)
+
+    def getTemplateFiles(self):
+        try: self.templateFiles.text()
+        except: self.templateFiles = QLineEdit()
+        self.batchTM.close()
+        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
+                                   outputline=self.templateFiles, run_upon_complete=self.getMaskFiles)
+    def getMaskFiles(self):
+        try: self.maskFiles.text()
+        except: self.maskFiles = QLineEdit()
+        self.batchTM.close()
+        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
+                                   outputline=self.maskFiles, run_upon_complete=self.populate_batch_templatematch)
+
+
+    def populate_batch_templatematch(self):
+        print('multiple template matching job-submissions')
+        self.batchTM.close()
+        tomogramFiles = sorted(self.jobFiles.text().split('\n'))
+        templateFiles = sorted(self.templateFiles.text().split('\n'))
+        maskFiles     = sorted(self.maskFiles.text().split('\n'))
+
+        if len(maskFiles) == 0 or len(templateFiles) == 0 or len(tomogramFiles) == 0:
+            print('\n\nPlease select at least one tomogram, template and mask file.\n\n')
+            return
+
+        id = 'tab22'
+        headers = ["Filename Tomogram", "Run", "Optional Templates", 'Optional Masks', 'Wedge Angle 1',
+                   "Wedge Angle 2", 'Angle List']
+        types = ['txt', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox']
+        sizes = [0, 0, 80, 80, 0, 0, 0]
+
+        tooltip = ['Name of tomogram files.',
+                   'Check this box if you want to do template matching using the optional settings.',
+                   'Optional templates.',
+                   'Optional masks.'
+                   'Angle between 90 and the highest tilt angle.',
+                   'Angle between -90 and the lowest tilt angle.',
+                   'Optional angle lists.']
+
+        values = []
+
+        angleLists = os.listdir(os.path.join(self.pytompath, 'gui/angleLists'))
+        for n, tomogramFile in enumerate(tomogramFiles):
+            print(templateFiles, maskFiles, angleLists)
+            values.append([tomogramFile, 1, templateFiles, maskFiles, 30, 30, angleLists])
+            print(values[-1])
+
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+
+        self.tab22_widgets = self.tables[id].widgets
+
+
+        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_submitTM(pid, v))
+
+
+    def mass_submitTM(self, pid, values):
+        for row in range(self.tables[pid].table.rowCount()):
+            if not self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked(): continue
+            tomogramFile = values[row][0]
+            templateFile = values[row][2][self.tab22_widgets['widget_{}_{}'.format(row, 2)].currentIndex()]
+            maskFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
+            w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 4)].text())
+            w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
+            angleList = self.tab22_widgets['widget_{}_{}'.format(row, 6)].currentText()
+
+
+            tomofile, ext = os.path.splitext(tomogramFile)
+            outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
+            if not os.path.exists(outDirectory): os.mkdir(outDirectory)
+
+            jobxml = templateXML.format(d=[tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory])
+            outjob = open(os.path.join(outDirectory, 'job.xml'), 'w')
+            outjob.write(jobxml)
+            outjob.close()
+
+
+            fname = 'TemplateMatchingBatch'
+            folder = outDirectory
+            print(outDirectory)
+            modules = ['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/0.971']
+            cmd = templateTM.format(d=[outDirectory, self.pytompath, 'job.xml'])
+            job = guiFunctions.gen_queue_header(modules=modules, folder=folder,name=fname) + cmd
+            outjob = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
+            outjob.write(job)
+            outjob.close()
+
+            os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
+
+    def tab31UI(self):
+        key = 'tab31'
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -477,18 +576,20 @@ class ParticlePick(GuiTabWidget):
             if particleListFname.endswith('.xml'): params[1].setText(particleListFname)
             else: params[1].setText('')
 
-    def tab22UI(self):
+    def tab32UI(self):
 
         try: self.particleLists.text()
         except: self.particleLists = QLineEdit()
 
-        self.b = SelectFiles(self, initdir=self.projectname, search='file', filter=['.txt'], outputline=self.particleLists)
+        self.b = SelectFiles(self, initdir=self.projectname, search='file', filter=['.txt'],
+                             outputline=self.particleLists, run_upon_complete=self.populate_batch_create)
 
     def populate_batch_create(self):
         self.b.close()
         coordinateFiles = sorted( self.particleLists.text().split('\n') )
 
-        id='tab22'
+
+        id='tab32'
 
         headers = ["Filename Coordinate List", "Prefix Subtomograms", 'Wedge Angle 1', 'Wedge Angle 2', "Filename Particle List", 'Randomize Angles']
         types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'checkbox']
@@ -523,19 +624,19 @@ class ParticlePick(GuiTabWidget):
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
 
-        self.tab22_widgets = tw = self.tables[id].widgets
+        self.tab32_widgets = tw = self.tables[id].widgets
 
         for row in range(self.tables[id].table.rowCount()):
             val = values[row][1]
-            widget1 = self.tab22_widgets['widget_{}_{}'.format(row,1)]
-            widget2 = self.tab22_widgets['widget_{}_{}'.format(row,4)]
-            widget1.textChanged.connect(lambda d, w1=widget1, w2=widget2: self.update_change_tab22_table(w1, w2))
+            widget1 = self.tab32_widgets['widget_{}_{}'.format(row,1)]
+            widget2 = self.tab32_widgets['widget_{}_{}'.format(row,4)]
+            widget1.textChanged.connect(lambda d, w1=widget1, w2=widget2: self.update_change_tab32_table(w1, w2))
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_convert_txt2xml(pid, v))
         pass
 
-    def update_change_tab22_table(self,widget1, widget2):
-        widget2.setText('particleList_{}.xml'.format(widget1.text()))
+    def update_change_tab32_table(self,widget1, widget2):
+        widget2.setText('particleList_{}.xml'.format(widget1.text().replace('/particle_','')))
 
     def mass_convert_txt2xml(self,pid,values):
         fname = str(QFileDialog.getSaveFileName(self, 'Save particle list.', self.pickpartfolder, filter='*.xml')[0])
@@ -547,12 +648,12 @@ class ParticlePick(GuiTabWidget):
         for row in range(self.tables[pid].table.rowCount()):
             if 1:
                 c = values[row][0]
-                p = self.tab22_widgets['widget_{}_{}'.format(row, 1)].text()
-                w1 = float(self.tab22_widgets['widget_{}_{}'.format(row,2)].text() )
-                w2 = float(self.tab22_widgets['widget_{}_{}'.format(row,3)].text() )
-                pl = self.tab22_widgets['widget_{}_{}'.format(row,4)].text()
+                p = self.tab32_widgets['widget_{}_{}'.format(row, 1)].text()
+                w1 = float(self.tab32_widgets['widget_{}_{}'.format(row,2)].text() )
+                w2 = float(self.tab32_widgets['widget_{}_{}'.format(row,3)].text() )
+                pl = self.tab32_widgets['widget_{}_{}'.format(row,4)].text()
                 pl = os.path.join(self.pickpartfolder, pl)
-                r = self.tab22_widgets['widget_{}_{}'.format(row,5)].isChecked()
+                r = self.tab32_widgets['widget_{}_{}'.format(row,5)].isChecked()
                 #print(createParticleList.format(d=[c, p, w1, w2, pl]))
                 wedge = [w1,w2]
                 for n, inp in enumerate((c, pl, p, w1, w2)):
