@@ -208,21 +208,37 @@ PDB example
 ATOM   4366  OXT SER I 456      10.602  32.380  -1.590  1.00 53.05           O
             '''
 
+            '''
+CIF example
+ATOM   3458 O OXT . GLU B 1 220 ? 28.062  59.037 64.587 1.00 43.20  ? 220 GLU B OXT 1 
+            '''
+
             name = line[:6]
 
             if name == "ATOM  ":
                 chain = line[21]
+                if chainName != 'all' and chainName != 'All':
+                    if chainName is not None and chain != chainName:
+                        continue
+                atomdata = line.split()
+                if len(atomdata) > 17:
+                    line = atomdata
+                    atomSeq  = line[1]
+                    atomType = line[3]
+                    resType  = line[5]
+                    resSeq   = line[8]
+                    x        = float(line[10])
+                    y        = float(line[11])
+                    z        = float(line[12])
 
-                if chainName is not None and chain != chainName:
-                    continue
-
-                atomSeq = line[5:11]
-                atomType = line[11:17].strip()
-                resType = line[17:20]
-                resSeq = line[22:26]
-                x = float(line[29:38])
-                y = float(line[38:46])
-                z = float(line[46:54])
+                else:
+                    atomSeq  = line[5:11]
+                    atomType = line[11:17].strip()
+                    resType  = line[17:20]
+                    resSeq   = line[22:26]
+                    x        = float(line[29:38])
+                    y        = float(line[38:46])
+                    z        = float(line[46:54])
 
                 atomList.append(NaiveAtom(atomSeq, atomType, x, y, z, resSeq, resType))
     finally:

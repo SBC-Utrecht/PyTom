@@ -499,7 +499,9 @@ class FiducialAssignment(QMainWindow, CommonFunctions):
         print ("Start reading files process {}/{}".format(proc_id + 1, nr_procs))
 
         for nr, fname in enumerate(fnames):
-            dataf = read_mrc('{}'.format(str(fname)), binning=[self.bin_read, self.bin_read, 1])
+            dataf = read_mrc('{}'.format(str(fname)), binning=[1, 1, 1])
+            dataf[dataf>dataf.mean()+dataf.std()*5] = dataf.mean()
+            dataf = pytom.gui.mrcOperations.downsample(dataf,self.bin_read)
             if transpose: dataf = dataf.T
             w = wiener(dataf)
             hpf = dataf - gaussian_filter(dataf, 10) * 0

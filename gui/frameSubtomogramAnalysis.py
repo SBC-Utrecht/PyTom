@@ -216,6 +216,10 @@ class SubtomoAnalysis(GuiTabWidget):
                                     'Select the particle list.', mode='file', filetype='xml')
         self.insert_label_line_push(parent, 'Folder with aligned tilt images', mode + 'AlignedTiltDir',
                                     'Select the folder with the aligned tilt images.')
+        self.insert_label_line_push(parent, 'Meta file with tilt angles', mode + 'MetaFile',mode='file',filetype='meta',
+                                    tooltip='Select the corresponding metafile.')
+
+
 
         self.insert_label_spinbox(parent, mode + 'BinFactorReconstruction', 'Binning factor used in the reconstruction.',
                                   'Defines the binning factor used in the reconstruction of the tomogram from which'+
@@ -254,7 +258,7 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict(fname='subtomoExtract', folder=self.subtomodir)
         paramsCmd = [mode+'particlelist', mode+'AlignedTiltDir', mode + 'BinFactorReconstruction',
                      mode+'SizeSubtomos', mode+'BinFactorSubtomos', mode+'OffsetX', mode+'OffsetY', mode+'OffsetZ',
-                     self.subtomodir, mode+'WeightingFactor', extractParticles]
+                     self.subtomodir, mode+'WeightingFactor', mode+'MetaFile', extractParticles]
 
         self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename,paramsSbatch=paramsSbatch)
         setattr(self, mode + 'gb_inputFiles', groupbox)
@@ -354,7 +358,7 @@ class SubtomoAnalysis(GuiTabWidget):
         jobfilename = os.path.join(self.frmdir, 'job_description.xml')
         exefilename = os.path.join(self.frmdir, 'frmAlignment.sh')
 
-        paramsSbatch = guiFunctions.createGenericDict(fname='FRMAlign', folder=self.frmdir)
+        paramsSbatch = guiFunctions.createGenericDict(fname='FRMAlign', folder=self.frmdir, modules=['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/0.971'])
         paramsJob = [mode+'bwMin',mode+'bwMax',mode+'frequency',mode+'maxIterations', mode+'peakOffset',
                      rscore, weightedAv, mode+'filenameAverage', weighting, mode+'filenameMask', binning_mask, sphere,
                      mode+'pixelSize', mode+'particleDiameter', mode+'particleList', self.frmdir]

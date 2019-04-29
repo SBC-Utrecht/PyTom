@@ -982,13 +982,18 @@ class PeakLeader(PeakWorker):
                 self.resOrient = vol(vsizeX, vsizeY, vsizeZ)
                 self.resOrient.setAll(0)
             
+            [vsizeX, vsizeY, vsizeZ] = self.jobInfoPool[jobID].originalSize
             [sizeX ,sizeY, sizeZ] = self.jobInfoPool[jobID].splitSize
             sub_start = self.jobInfoPool[jobID].sub_start
             start = self.jobInfoPool[jobID].whole_start
 
+            stepSizeX = min(vsizeX-sub_start[0], sizeX)
+            stepSizeY = min(vsizeY-sub_start[1], sizeY)
+            stepSizeZ = min(vsizeZ-sub_start[2], sizeZ)
+            print(sub_start, stepSizeX, stepSizeY, stepSizeZ, vsizeX, vsizeY, vsizeZ)
             from pytom_volume import subvolume, putSubVolume
-            sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], sizeX,sizeY,sizeZ)
-            sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], sizeX,sizeY,sizeZ)
+            sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
+            sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
             
             putSubVolume(sub_resV, self.resVol, start[0],start[1],start[2])
             putSubVolume(sub_resO, self.resOrient, start[0],start[1],start[2])

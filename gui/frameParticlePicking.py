@@ -21,10 +21,11 @@ from pytom.gui.guiStructures import * #GuiTabWidget, CommonFunctions, SimpleTabl
 from pytom.gui.guiFunctions import avail_gpu
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.guiSupportCommands import *
-from pytom.basic.structures import ParticleList
+from pytom.basic.structures import ParticleList, Rotation
 from pytom.basic.files import read
 from copy import deepcopy
 from pytom_numpy import vol2npy
+import random
 
 def convertCoords2PLold(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None):
     pl = ParticleList()
@@ -41,15 +42,17 @@ def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, we
         sourceInfo = pl.loadCoordinateFileHeader(coordinate_file)
         pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle,
                               sourceInfo=sourceInfo)
-        try:
+        if 1:
             z1, z2, x = random.choice(angleList)
             pl[-1].setRotation(rotation=Rotation(z1=z1, z2=z2, x=x, paradigm='ZXZ'))
-        except:
-            pass
+        #except:
+        #    pass
     pl.toXMLFile(particleList_file)
 
 class ParticlePick(GuiTabWidget):
     '''Collect Preprocess Widget'''
+
+    # noinspection PyInterpreter
     def __init__(self, parent=None):
         super(ParticlePick, self).__init__(parent)
         self.stage='v03_'
@@ -204,11 +207,13 @@ class ParticlePick(GuiTabWidget):
         paramsSbatch[ 'folder' ] = self.ccfolder
         paramsSbatch['modules'] = ['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/0.971']
 
-        self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=self.execfilenameTM, paramsSbatch=paramsSbatch,
+        self.updateTM(mode)
+
+        self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=[mode+'outfolderTM','templateMatch.sh'], paramsSbatch=paramsSbatch,
                                  paramsXML=[mode+'tomoFname', mode + 'templateFname', mode+'maskFname', mode + 'Wedge1',
                                             mode + 'Wedge2',mode+'angleFname', mode + 'outfolderTM', templateXML],
                                  paramsCmd=[mode+'outfolderTM', self.pytompath, 'job.xml' ,templateTM],
-                                 xmlfilename=self.xmlfilename)
+                                 xmlfilename=[mode+'outfolderTM','job.xml'])
 
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
 
@@ -224,6 +229,7 @@ class ParticlePick(GuiTabWidget):
         self.execfilenameTM = os.path.join( self.templatematchfolder, 'cross_correlation', filename, 'templateMatch.sh')
         self.xmlfilename = os.path.join(self.templatematchfolder, 'cross_correlation', filename, 'job.xml')
         self.widgets[mode + 'outfolderTM'].setText(os.path.dirname(self.xmlfilename))
+        print(os.path.dirname(self.xmlfilename))
 
     def extractCandidates(self,mode):
         title = "Extract Candidates"
@@ -535,7 +541,8 @@ class ParticlePick(GuiTabWidget):
         fname = str(QFileDialog.getSaveFileName(self, 'Save particle list.', self.pickpartfolder, filter='*.xml')[0])
         if not fname: return
         if not fname.endswith('.xml'):fname+='.xml'
-
+        randomize = False
+        AL = False
         conf = [[],[],[],[],[]]
         for row in range(self.tables[pid].table.rowCount()):
             if 1:
@@ -556,6 +563,7 @@ class ParticlePick(GuiTabWidget):
 
                 angleList = os.path.join(self.pytompath, 'angles/angleLists/angles_18_3040.em')*r
 
+
                 if angleList:
                     if not os.path.exists(angleList):
                         raise Exception('Angle List is not existing.')
@@ -571,6 +579,10 @@ class ParticlePick(GuiTabWidget):
                             raise Exception('AngleList should contain three floats per row.')
                             angleList = None
 
+                if r and not randomize:
+                    randomize = True
+                    AL = deepcopy(angleList)
+
                 convertCoords2PL([c], pl, subtomoPrefix=[p], wedgeAngles=wedge, angleList=angleList)
                 #os.system(createParticleList.format(d=[c, p, wedge, pl]))
 
@@ -578,7 +590,8 @@ class ParticlePick(GuiTabWidget):
                 print('Writing {} failed.'.format(os.path.basename(fname)))
                 return
 
-        convertCoords2PL(conf[0], fname, subtomoPrefix=conf[2], wedgeAngles=conf[3])
+
+        convertCoords2PL(conf[0], fname, subtomoPrefix=conf[2], wedgeAngles=conf[3], angleList=AL)
 
 
 

@@ -379,7 +379,7 @@ class TomographReconstruct(GuiTabWidget):
 
             d = read(markerfile)
             data = copy.deepcopy( vol2npy(d) )
-
+            if len(data.shape) < 3: continue
             options_reference = list(map(str, range( data.shape[2] ))) + ['all']
             values.append( [markerfile.split('/')[-3], True, 1, last_frame, index_zero_angle, options_reference] )
 
@@ -587,12 +587,12 @@ class TomographReconstruct(GuiTabWidget):
 
         if not os.path.exists(f'{output_folder}/temp_files_unweighted'): os.mkdir(f'{output_folder}/temp_files_unweighted')
 
-        #if len([line for line in os.listdir(output_folder) if line.startswith(prefix.split('/')[-1])]):
-        #    os.system('rm {}/sorted*.em'.format(output_folder))
+        if os.path.basename(params[1]) == 'INFR':
+            if len([line for line in os.listdir(output_folder) if line.startswith(prefix.split('/')[-1])]):
+                os.system('rm {}/sorted*.em'.format(output_folder))
 
-
-        #guiFunctions.conv_mrc2em(self.widgets[mode+'FolderSorted'].text(), output_folder)
-        #guiFunctions.renumber_gui2pytom(output_folder, prefix.split('/')[-1])
+            guiFunctions.conv_mrc2em(self.widgets[mode+'FolderSorted'].text(), output_folder)
+            guiFunctions.renumber_gui2pytom(output_folder, prefix.split('/')[-1])
         #print (self.pytompath)
         #print ('{}/bin/pytom rename_renumber.py {} {} {}'.format(self.pytompath, sorted_folder, output_folder, prefix))
 
@@ -678,12 +678,12 @@ class TomographReconstruct(GuiTabWidget):
                 if widgets[widget].isChecked():
 
                     params = [mode,dd[i],'sorted']
+                    print(params)
                     self.convert_em(params)
 
-                    execfilename = os.path.join(tomofolder, '{}/{}'.format(dd[i], dd[i].split('/')[-1]))
+                    execfilename = os.path.join(tomofolder, '{}/{}_Reconstruction.sh'.format(dd[i], dd[i].split('/')[-1]))
                     paramsSbatch = guiFunctions.createGenericDict()
-                    paramsSbatch['fname'] = dd[i]
-                    paramsSbatch['folder'] = execfilename
+                    paramsSbatch['folder'] = os.path.dirname(execfilename)
 
                     if i == 1:
                         paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4],
@@ -691,8 +691,8 @@ class TomographReconstruct(GuiTabWidget):
                                      self.pytompath, os.path.basename(tomofolder)]
                         commandText = templateINFR.format(d=paramsCmd)
                     elif i==2:
-                        paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4],values[row][5],
-                                     values[row][6], values[row][7], os.path.basename(tomofolder), '.em', '464']
+                        paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4], values[row][5],
+                                     values[row][6], values[row][7], os.path.basename(tomofolder), 'mrc', '464', '1']
                         commandText= templateWBP.format(d=paramsCmd)
                     else:
                         print( 'No Batch Submission' )
@@ -707,7 +707,7 @@ class TomographReconstruct(GuiTabWidget):
 
     def submit_multi_recon_job(self, params):
         print(params[1])
-
+        print(params[0])
         try:
 
             exefile = open(params[0], 'w')

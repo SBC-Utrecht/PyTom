@@ -57,6 +57,7 @@ if __name__ == '__main__':
     projs = []
     tilt_angles = []
     for p in projections:
+        print(p.getTiltAngle(), p.getFilename())
         projs.append(read(p.getFilename()))
         tilt_angles.append(p.getTiltAngle())
     
