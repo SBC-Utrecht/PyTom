@@ -138,10 +138,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         if 1:
             self.pytompath = self.parent().pytompath
             self.projectname = self.parent().projectname
-        #except:
-            #self.projectname = '/Users/gijs/Documents/PostDocUtrecht/Data/Juliette'
-            #if not os.path.exists(self.projectname): self.projectname = '/home/gijsvds/testcase'
-        #    pass
+
 
         self.tomofolder = os.path.join(self.projectname, '03_Tomographic_Reconstruction')
         self.tomogram_names = sorted( [line.split()[0] for line in os.listdir(self.tomofolder) if line.startswith('tomogram_')] )
@@ -597,7 +594,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         for i in range(len(fnames)):
             if 1:
                 datafile = mrcfile.open(self.fnames[i], permissive=True)
-                fa = deepcopy(datafile.data)
+                fa = deepcopy(datafile.data.T)
                 fa[fa > fa.mean() + 5 * fa.std()] = fa.mean()
                 self.frames_adj[i, :, :] = fa
                 datafile.close()
@@ -742,7 +739,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
             proc = Process(target=level, args=( self.frames[proc_id::num_procs], self.frames_full[proc_id::num_procs],
                                                 self.bin_alg, self.bin_read, 50, self.imnr, out[proc_id], proc_id,
-                                                num_procs,average_marker, threshold ))
+                                                num_procs, average_marker, threshold ))
             procs.append(proc)
             proc.start()
 
@@ -753,7 +750,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         for i in range(num_procs):
             self.list_cx_cy_imnr += [el for el in out[i]]
 
-        self.mark_frames = -1 * numpy.ones((len(self.fnames), 300, 2), dtype=float)
+        self.mark_frames = -1 * numpy.ones((len(self.fnames), 3000, 2), dtype=float)
 
         sort(self.list_cx_cy_imnr, 1)
 
@@ -800,9 +797,9 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         if self.widgets['detectButton'].isEnabled()==False: return
 
         self.update_mark()
-        detect_shifts = detect_shifts_few
+        detect_shifts = self.detect_shifts_few
         if len(self.mark_frames[0]) > 5:
-            detect_shifts = detect_shifts_many
+            detect_shifts = self.detect_shifts_many
         self.frame_shifts, self.numshifts, self.outline_detect_shifts, self.fs = detect_shifts(self.mark_frames,
                                                                                                diag=True,
                                                                                                image=self.frames[0])
@@ -831,7 +828,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         max_shift = self.radius*2.*self.bin_read/self.bin_alg
         print(max_shift)
         self.coordinates, self.index_map, \
-        self.frame_shifts_sorted, self.listdx = index_potential_fiducials(self.fnames, self.mark_frames,
+        self.frame_shifts_sorted, self.listdx = self.index_potential_fiducials(self.fnames, self.mark_frames,
                                                                           self.frame_shifts, tiltangles=self.tiltangles,
                                                                           plot=False, user_coords=self.user_coordinates,
                                                                           zero_angle=ref_frame, excluded=self.excluded,
@@ -1116,7 +1113,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
 
         self.insert_label(self.grid,rstep=1)
 
-        self.insert_label_combobox(self.grid, 'Accuracy level', 'algorithm', ['normal', 'sensitive','cross_correlation'], rstep=1,cstep=-1,
+        self.insert_label_combobox(self.grid, 'Accuracy level', 'algorithm', ['normal', 'sensitive'], rstep=1,cstep=-1,
                                    tooltip='Algorithm used for automatic fiducial detection.')
 
         self.insert_label_spinbox(self.grid, 'threshold', text='Threshold cc_map.', rstep=1,

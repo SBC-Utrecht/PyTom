@@ -23,31 +23,10 @@ import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.guiSupportCommands import *
 from pytom.basic.structures import ParticleList, Rotation
 from pytom.basic.files import read
+from pytom.bin.coords2PL import convertCoords2PL
 from copy import deepcopy
 from pytom_numpy import vol2npy
 import random
-
-def convertCoords2PLold(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None):
-    pl = ParticleList()
-    for n, coordinate_file in enumerate(coordinate_files):
-        wedgeAngle = wedgeAngles[2*n:2*(n+1)]
-
-        pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle)
-    pl.toXMLFile(particleList_file)
-
-def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None, angleList=False):
-    pl = ParticleList()
-    for n, coordinate_file in enumerate(coordinate_files):
-        wedgeAngle = wedgeAngles[2*n:2*(n+1)]
-        sourceInfo = pl.loadCoordinateFileHeader(coordinate_file)
-        pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle,
-                              sourceInfo=sourceInfo)
-        if 1:
-            z1, z2, x = random.choice(angleList)
-            pl[-1].setRotation(rotation=Rotation(z1=z1, z2=z2, x=x, paradigm='ZXZ'))
-        #except:
-        #    pass
-    pl.toXMLFile(particleList_file)
 
 class ParticlePick(GuiTabWidget):
     '''Collect Preprocess Widget'''
@@ -317,7 +296,6 @@ class ParticlePick(GuiTabWidget):
         print(params)
         ConvertEM2PDB(self, emfname=params[0],folder=self.widgets[params[1]+'outfolderTM'].text())
 
-
     def tab22UI(self):
         try: self.jobFiles.text()
         except: self.jobFiles = QLineEdit()
@@ -331,13 +309,13 @@ class ParticlePick(GuiTabWidget):
         self.batchTM.close()
         self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
                                    outputline=self.templateFiles, run_upon_complete=self.getMaskFiles)
+
     def getMaskFiles(self):
         try: self.maskFiles.text()
         except: self.maskFiles = QLineEdit()
         self.batchTM.close()
         self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
                                    outputline=self.maskFiles, run_upon_complete=self.populate_batch_templatematch)
-
 
     def populate_batch_templatematch(self):
         print('multiple template matching job-submissions')
@@ -378,7 +356,6 @@ class ParticlePick(GuiTabWidget):
 
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_submitTM(pid, v))
-
 
     def mass_submitTM(self, pid, values):
         for row in range(self.tables[pid].table.rowCount()):

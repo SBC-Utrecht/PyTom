@@ -23,9 +23,10 @@ def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, we
                               sourceInfo=sourceInfo)
 
         try:
+            cc = 180./numpy.pi
             for i in range(len(pl)-l2):
                 z1, z2, x = random.choice(angleList)
-                pl[-i-1].setRotation(rotation=Rotation(z1=z1, z2=z2, x=x, paradigm='ZXZ'))
+                pl[-i-1].setRotation(rotation=Rotation(z1=z1*cc, z2=z2*cc, x=x*cc, paradigm='ZXZ'))
         except:
             pass
     pl.toXMLFile(particleList_file)

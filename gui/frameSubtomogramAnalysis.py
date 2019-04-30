@@ -381,6 +381,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode+'outputDir'].setText(outputDir)
 
     def gen_average(self, params):
+        print(params)
         key_particleList, key_filename_average, key_outputDir = params
         particleList = self.widgets[key_particleList].text()
         if not particleList:
@@ -389,7 +390,7 @@ class SubtomoAnalysis(GuiTabWidget):
         folder = self.widgets[key_outputDir].text()
         if not os.path.exists(folder): os.mkdir(folder)
         output_name = os.path.join( folder, 'average.em')
-        out = os.popen('cd {}; average.py -p {} -a {} >& /dev/null&'.format(self.subtomodir, particleList, output_name)).read()
+        out = os.popen('cd {}; average.py -p {} -a {} '.format(self.subtomodir, particleList, output_name)).read()
         if not os.path.exists(output_name):
             self.popup_messagebox('Warning', 'Averaging Failed',
                                   'Averaging did not succeed, please try again.')
