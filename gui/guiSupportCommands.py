@@ -223,6 +223,7 @@ TileSize             256
 LeftDefTol           2000.0
 RightDefTol          2000.0
 FindAstigPhaseCuton  {d[12]} {d[13]} {d[14]}
+Offset 0.02
 '''
 
 templateCTFPlotter = '''cd {d[0]}

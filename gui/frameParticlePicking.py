@@ -276,10 +276,10 @@ class ParticlePick(GuiTabWidget):
     def jobXMLChanged(self, mode):
         jobXML = self.widgets[mode+'jobXML'].text()
         if not jobXML: return
-        folder = os.path.basename(jobXML)[:-4]
+        folder = os.path.basename(os.path.dirname(jobXML))
 
 
-        particleList = os.path.join(self.ccfolder, folder, 'particleList_{}.xml'.format(folder))
+        particleList = os.path.join(self.pickpartfolder, 'particleList_TM_{}.xml'.format(folder))
         if not os.path.exists(os.path.dirname(particleList)): os.mkdir(os.path.dirname(particleList))
         self.widgets[mode + 'particleList'].setText(particleList)
 

@@ -1465,7 +1465,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
             if score < self.max_score and score > self.min_score:
                 x,y,z = map(float, (p.xpath('PickPosition')[0].get('X'), p.xpath('PickPosition')[0].get('Y'), p.xpath('PickPosition')[0].get('Z')))
-                self.add_points(self.pos, int(round(x)), int(round(y)), min(188,int(round(z))), self.radius)
+                self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), self.radius)
                 print(score,x,y,z)
 
         self.replot()

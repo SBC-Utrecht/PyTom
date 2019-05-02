@@ -842,6 +842,7 @@ class TomographReconstruct(GuiTabWidget):
     def updateCTFPlotter(self, mode, newstack=True):
         folder = self.widgets[mode + 'FolderSortedAligned'].text()
         if not folder:
+            print('No Folder Selected.')
             return
         try:
             tomogramID = folder.split('tomogram_')[-1][:3]
@@ -850,9 +851,11 @@ class TomographReconstruct(GuiTabWidget):
             tID = int(tomogramID)
             outstack = '{}/tomogram_{}.st'.format(folder,tomogramID)
         except:
+            print('update CTF Plotter failed.')
             return
         files = [line for line  in os.listdir(folder) if line.endswith('.mrc') and line.startswith('sorted_')]
         if not files:
+            print('No files wuth MRC-format found in: {}'.format(folder))
             return
         dd = []
         for file in files:
