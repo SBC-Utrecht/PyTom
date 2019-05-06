@@ -661,23 +661,24 @@ class CommonFunctions():
             # Check if one needs to write pytom related XML file.
             if params[2]:
                 if len(params[2][0]) > 1:
-                    params[2] = os.path.join(self.widgets[params[2][0]].text(), params[2][1])
-                jobfile = open(params[2],'w')
-                print(params[2])
+                    tempfilename = os.path.join(self.widgets[params[2][0]].text(), params[2][1])
+                jobfile = open(tempfilename,'w')
+                print(tempfilename)
                 jobfile.write(self.widgets[params[3]].toPlainText())
                 jobfile.close()
 
             # Write executable file
             if len(params[0][0]) > 1:
-                params[0] = os.path.join(self.widgets[params[0][0]].text(), params[0][1])
-            exefile = open(params[0], 'w')
+                exefilename = os.path.join(self.widgets[params[0][0]].text(), params[0][1])
+            exefile = open(exefilename, 'w')
+            print(exefilename)
             exefile.write(self.widgets[params[1]].toPlainText())
             exefile.close()
 
             if len(self.widgets[params[1]].toPlainText().split('SBATCH') ) > 2:
-                os.system('sbatch {}'.format(params[0]))
+                os.system('sbatch {}'.format(exefilename))
             else:
-                proc = Worker(fn=os.system, args=['sh {}'.format(params[0])], sig=False)
+                proc = Worker(fn=os.system, args=['sh {}'.format(exefilename)], sig=False)
                 proc.start()
 #                os.system('sh {}'.format(params[0]))
         else:
@@ -1482,7 +1483,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
     def remove_deselected_particles_from_XML(self):
         tree = et.parse(self.xmlfile)
 
-        new =numpy.zeros()
 
         for particle in tree.xpath("Particle"):
             remove = True

@@ -58,7 +58,6 @@ class TiltSeries(PyTomClass):
         d,self._projIndices = zip(*a)
         self._projIndices = numpy.array(self._projIndices,dtype=str)
 
-        print(self._projIndices)
         self._tiltSeriesFormat = tiltSeriesFormat
         self._TiltAlignmentParas = TiltAlignmentParas
         self._alignedTiltSeriesName = alignedTiltSeriesName

@@ -40,6 +40,7 @@ class ParticlePick(GuiTabWidget):
         self.templatematchfolder = os.path.join( self.projectname, '04_Particle_Picking/Template_Matching' )
         self.pickpartfolder = os.path.join(self.projectname, '04_Particle_Picking/Picked_Particles')
         self.subtomofolder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
+        self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
 
         headers = ["Manual Picking","Template Matching", "Create Particle List"]
         subheaders  = [[],['Single', 'Batch'], ['Single','Batch']]
@@ -99,8 +100,8 @@ class ParticlePick(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
 
 
-        self.insert_label_line_push(parent, 'Tomogram', mode + 'tomogramFname',
-                                    'Select the particle list.', mode='file', filetype=['mrc','em'],cstep=-1)
+        self.insert_label_line_push(parent, 'Tomogram', mode + 'tomogramFname', initdir=self.tomogramfolder,
+                                    tooltip='Select the particle list.', mode='file', filetype=['mrc','em'],cstep=-1)
         self.insert_pushbutton(parent, 'Pick!', tooltip='Select the folder with the aligned tilt images.',
                                rstep=1, cstep=2, action=self.insert_image, params = [parent])
 
@@ -187,7 +188,6 @@ class ParticlePick(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'TemplateMatching'
         paramsSbatch[ 'folder' ] = self.ccfolder
-        paramsSbatch['modules'] = ['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/0.971']
 
         self.updateTM(mode)
 

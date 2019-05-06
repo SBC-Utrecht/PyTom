@@ -4,6 +4,8 @@ import sys
 
 global pytompath
 pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
+#pytompath = '/data/gijsvds/pytom-develop/pytom_python3/pytom'
+
 
 def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, lastIndex, refIndex, markerFileName,
                               targets, weightingType, tomogramFolder,fnames, projIndices=True):
@@ -18,6 +20,7 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
     for t in tomogram_names:
         if not os.path.exists(os.path.join(t,'alignment')):
             os.mkdir(os.path.join(t,'alignment'))
+
 
     for index in range(start,end):
         cmd = '''cd {}; pytom {}/gui/additional/generateAlignedTiltImages.py \
