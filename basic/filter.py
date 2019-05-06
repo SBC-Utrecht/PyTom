@@ -360,9 +360,6 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
 
     """
 
-
-
-
     from pytom_numpy import npy2vol
     from numpy import array, matrix, sin, pi, arange, float32, column_stack, argmin, clip, ones, ceil
 
@@ -389,6 +386,7 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     weightFunc = npy2vol(array(wfunc, dtype='float32', order='F'), 3)
 
     return weightFunc
+
 
 
 def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, returnReducedComplex=False, binarize=False):

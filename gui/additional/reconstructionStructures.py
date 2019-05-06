@@ -359,10 +359,13 @@ class ProjectionList(PyTomClass):
             directory += os.sep
         
         
-        files = os.listdir(directory)
+        files = [[int(line.split('_')[-1].split('.')[0]), line] for line in os.listdir(directory) if line.endswith('.mrc') or line.endswith('.em')]
+
+        files.sort(key=lambda i: int(i[0]))
+
+
         self.tilt_angles = []
-        for n, file in enumerate(files):
-            print(file)
+        for n, (dummy, file) in enumerate(files):
             if file[len(file)-3:len(file)] == '.em' or file[len(file)-4:len(file)] == '.mrc':
                 projection = Projection(directory + file)
 

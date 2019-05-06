@@ -595,12 +595,12 @@ class PickingFunctions():
                         local_maxi[int(cx)][int(cy)] = False
 
         if sen==False: fid_list += list_cx_cy_imnr
-        #return numpy.zeros_like(self.frames_full[0]), list_cx_cy_imnr
+        return numpy.zeros_like(self.frames_full[0]), list_cx_cy_imnr
 
     def find_potential_fiducials_sensitive(self, frames, frames_full, bin, bin_full, cropsize=32,target=0,fid_list=[],proc_id=0,num_procs=1,
                                            average_marker=None, threshold=1.7, mrcdata=[], aa=20):
 
-        a, l1 = self.find_potential_fiducials(bin, bin_full, cropsize, target, fid_list, proc_id, num_procs, sen=True)
+        a, l1 = self.find_potential_fiducials(frames, frames_full, bin, bin_full, cropsize, target, fid_list, proc_id, num_procs, average_marker, sen=True)
 
         list_cx_cy_imnr = []
         fact = 1.*bin/bin_full

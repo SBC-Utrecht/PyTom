@@ -21,35 +21,17 @@ from pytom.gui.guiStructures import * #GuiTabWidget, CommonFunctions, SimpleTabl
 from pytom.gui.guiFunctions import avail_gpu
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.guiSupportCommands import *
-from pytom.basic.structures import ParticleList
+from pytom.basic.structures import ParticleList, Rotation
 from pytom.basic.files import read
+from pytom.bin.coords2PL import convertCoords2PL
 from copy import deepcopy
 from pytom_numpy import vol2npy
-
-def convertCoords2PLold(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None):
-    pl = ParticleList()
-    for n, coordinate_file in enumerate(coordinate_files):
-        wedgeAngle = wedgeAngles[2*n:2*(n+1)]
-
-        pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle)
-    pl.toXMLFile(particleList_file)
-
-def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None, angleList=False):
-    pl = ParticleList()
-    for n, coordinate_file in enumerate(coordinate_files):
-        wedgeAngle = wedgeAngles[2*n:2*(n+1)]
-        sourceInfo = pl.loadCoordinateFileHeader(coordinate_file)
-        pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle,
-                              sourceInfo=sourceInfo)
-        try:
-            z1, z2, x = random.choice(angleList)
-            pl[-1].setRotation(rotation=Rotation(z1=z1, z2=z2, x=x, paradigm='ZXZ'))
-        except:
-            pass
-    pl.toXMLFile(particleList_file)
+import random
 
 class ParticlePick(GuiTabWidget):
     '''Collect Preprocess Widget'''
+
+    # noinspection PyInterpreter
     def __init__(self, parent=None):
         super(ParticlePick, self).__init__(parent)
         self.stage='v03_'
@@ -207,11 +189,13 @@ class ParticlePick(GuiTabWidget):
         paramsSbatch[ 'folder' ] = self.ccfolder
         paramsSbatch['modules'] = ['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/0.971']
 
-        self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=self.execfilenameTM, paramsSbatch=paramsSbatch,
+        self.updateTM(mode)
+
+        self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=[mode+'outfolderTM','templateMatch.sh'], paramsSbatch=paramsSbatch,
                                  paramsXML=[mode+'tomoFname', mode + 'templateFname', mode+'maskFname', mode + 'Wedge1',
                                             mode + 'Wedge2',mode+'angleFname', mode + 'outfolderTM', templateXML],
                                  paramsCmd=[mode+'outfolderTM', self.pytompath, 'job.xml' ,templateTM],
-                                 xmlfilename=self.xmlfilename)
+                                 xmlfilename=[mode+'outfolderTM','job.xml'])
 
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
 
@@ -227,6 +211,7 @@ class ParticlePick(GuiTabWidget):
         self.execfilenameTM = os.path.join( self.templatematchfolder, 'cross_correlation', filename, 'templateMatch.sh')
         self.xmlfilename = os.path.join(self.templatematchfolder, 'cross_correlation', filename, 'job.xml')
         self.widgets[mode + 'outfolderTM'].setText(os.path.dirname(self.xmlfilename))
+        print(os.path.dirname(self.xmlfilename))
 
     def extractCandidates(self,mode):
         title = "Extract Candidates"
@@ -291,10 +276,10 @@ class ParticlePick(GuiTabWidget):
     def jobXMLChanged(self, mode):
         jobXML = self.widgets[mode+'jobXML'].text()
         if not jobXML: return
-        folder = os.path.basename(jobXML)[:-4]
+        folder = os.path.basename(os.path.dirname(jobXML))
 
 
-        particleList = os.path.join(self.ccfolder, folder, 'particleList_{}.xml'.format(folder))
+        particleList = os.path.join(self.pickpartfolder, 'particleList_TM_{}.xml'.format(folder))
         if not os.path.exists(os.path.dirname(particleList)): os.mkdir(os.path.dirname(particleList))
         self.widgets[mode + 'particleList'].setText(particleList)
 
@@ -311,7 +296,6 @@ class ParticlePick(GuiTabWidget):
         print(params)
         ConvertEM2PDB(self, emfname=params[0],folder=self.widgets[params[1]+'outfolderTM'].text())
 
-
     def tab22UI(self):
         try: self.jobFiles.text()
         except: self.jobFiles = QLineEdit()
@@ -325,13 +309,13 @@ class ParticlePick(GuiTabWidget):
         self.batchTM.close()
         self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
                                    outputline=self.templateFiles, run_upon_complete=self.getMaskFiles)
+
     def getMaskFiles(self):
         try: self.maskFiles.text()
         except: self.maskFiles = QLineEdit()
         self.batchTM.close()
         self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
                                    outputline=self.maskFiles, run_upon_complete=self.populate_batch_templatematch)
-
 
     def populate_batch_templatematch(self):
         print('multiple template matching job-submissions')
@@ -373,7 +357,6 @@ class ParticlePick(GuiTabWidget):
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_submitTM(pid, v))
 
-
     def mass_submitTM(self, pid, values):
         for row in range(self.tables[pid].table.rowCount()):
             if not self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked(): continue
@@ -386,7 +369,7 @@ class ParticlePick(GuiTabWidget):
 
 
             tomofile, ext = os.path.splitext(tomogramFile)
-            outDirectory = os.path.join(self.ccfolder, tomofile)
+            outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
             if not os.path.exists(outDirectory): os.mkdir(outDirectory)
 
             jobxml = templateXML.format(d=[tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory])
@@ -397,6 +380,7 @@ class ParticlePick(GuiTabWidget):
 
             fname = 'TemplateMatchingBatch'
             folder = outDirectory
+            print(outDirectory)
             modules = ['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/0.971']
             cmd = templateTM.format(d=[outDirectory, self.pytompath, 'job.xml'])
             job = guiFunctions.gen_queue_header(modules=modules, folder=folder,name=fname) + cmd
@@ -581,10 +565,13 @@ class ParticlePick(GuiTabWidget):
         self.b.close()
         coordinateFiles = sorted( self.particleLists.text().split('\n') )
 
+
         id='tab32'
+
         headers = ["Filename Coordinate List", "Prefix Subtomograms", 'Wedge Angle 1', 'Wedge Angle 2', "Filename Particle List", 'Randomize Angles']
         types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'checkbox']
         sizes = [0, 80, 80, 0, 0, 0]
+
 
         tooltip = ['Name of coordinate files',
                    'Prefix used for subtomograms',
@@ -604,8 +591,11 @@ class ParticlePick(GuiTabWidget):
             except:
                 tomogramNUM = n
 
-            prefix = 'Subtomograms/{}/particle_'.format(os.path.basename(coordinateFile).replace('coords_','')[:-4])
-            fname_plist = 'particleList_{}.xml'.format(os.path.basename(coordinateFile).replace('coords_','')[:-4])
+
+            prefix = 'Subtomograms/{}/particle_'.format(os.path.basename(coordinateFile[:-4]))
+            ff = os.path.join(self.subtomofolder,os.path.dirname(prefix))
+            if not os.path.exists(ff): os.mkdir(ff)
+            fname_plist = 'particleList_{}.xml'.format(os.path.basename(coordinateFile[:-4]))
 
             values.append( [coordinateFile, prefix, 30, 30, fname_plist, True] )
 
@@ -629,7 +619,8 @@ class ParticlePick(GuiTabWidget):
         fname = str(QFileDialog.getSaveFileName(self, 'Save particle list.', self.pickpartfolder, filter='*.xml')[0])
         if not fname: return
         if not fname.endswith('.xml'):fname+='.xml'
-
+        randomize = False
+        AL = False
         conf = [[],[],[],[],[]]
         for row in range(self.tables[pid].table.rowCount()):
             if 1:
@@ -650,6 +641,7 @@ class ParticlePick(GuiTabWidget):
 
                 angleList = os.path.join(self.pytompath, 'angles/angleLists/angles_18_3040.em')*r
 
+
                 if angleList:
                     if not os.path.exists(angleList):
                         raise Exception('Angle List is not existing.')
@@ -665,6 +657,10 @@ class ParticlePick(GuiTabWidget):
                             raise Exception('AngleList should contain three floats per row.')
                             angleList = None
 
+                if r and not randomize:
+                    randomize = True
+                    AL = deepcopy(angleList)
+
                 convertCoords2PL([c], pl, subtomoPrefix=[p], wedgeAngles=wedge, angleList=angleList)
                 #os.system(createParticleList.format(d=[c, p, wedge, pl]))
 
@@ -672,7 +668,8 @@ class ParticlePick(GuiTabWidget):
                 print('Writing {} failed.'.format(os.path.basename(fname)))
                 return
 
-        convertCoords2PL(conf[0], fname, subtomoPrefix=conf[2], wedgeAngles=conf[3])
+
+        convertCoords2PL(conf[0], fname, subtomoPrefix=conf[2], wedgeAngles=conf[3], angleList=AL)
 
 
 

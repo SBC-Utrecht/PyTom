@@ -80,7 +80,9 @@ templateINFR      = '''cd {d[0]}
     --projectionTargets reconstruction/INFR/temp_files_unweighted/sorted_aligned \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9 \\
-    --weightingType 0 
+    --weightingType 0 \\
+    --tiltSeriesFormat em \\
+    --fileType em
 
 {d[1]}/bin/pytom {d[7]}/reconstruction/reconstruct_INFR.py -d reconstruction/INFR/temp_files_unweighted/ -o reconstruction/INFR/{d[8]}_INFR.em '''
 
@@ -95,12 +97,12 @@ templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[
 </FRMJob>
 '''
 
-templateFRMSlurm  = '''export PYTHONPATH=/cm/local/apps/cuda/libs/current/pynvml
-export PATH=/cm/local/apps/cuda/libs/current/bin:/cm/shared/apps/cuda80/sdk/8.0.61/bin/x86_64/linux/release:/cm/shared/apps/cuda80/toolkit/8.0.61/bin:/cm/shared/apps/utilities/bin:/cm/shared/apps/slurm/17.02.2/sbin:/cm/shared/apps/slurm/17.02.2/bin:/usr/lib64/qt-3.3/bin:/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/sbin:/cm/local/apps/environment-modules/3.2.10/bin
+templateFRMSlurm  = '''
+module unload python3/3.7 pytom/dev/python3
 
 cd {d[0]}
 
-mpirun -np 20 pytom {d[1]}/frm/FRMAlignment.py -j {d[2]} -v
+mpiexec --tag-output -n 16 pytom {d[1]}/frm/FRMAlignment.py -j {d[2]} -v
 
 '''
 
@@ -128,7 +130,7 @@ export PATH=/cm/local/apps/cuda/libs/current/bin:/cm/shared/apps/cuda80/sdk/8.0.
 
 cd {d[0]}
 
-mpirun -c 20 {d[1]}/bin/pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]}
+mpiexec --tag-output -n 16 {d[1]}/bin/pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]}
 """
 
 templateCPCA      = """export PYTHONPATH=/cm/local/apps/cuda/libs/current/pynvml
@@ -154,7 +156,9 @@ mpirun -c 20 {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
 -t {d[11]}\\
 '''
 
-templateTM        = '''cd {d[0]}
+templateTM        = '''module unload python3/3.7
+
+cd {d[0]}
 
 mpiexec --tag-output -n 16 pytom /cm/shared/apps/pytom/0.971/pytom/bin/localization.py {d[2]} 4 4 1 '''
 
@@ -169,8 +173,8 @@ reconstructWB.py --particleList {d[0]} \\
 --size {d[3]} \\
 --applyWeighting {d[9]} \\
 --projBinning {d[4]} \\
---recOffset {d[5]},{d[6]},{d[7]}'''
-
+--recOffset {d[5]},{d[6]},{d[7]} \\
+--metafile {d[10]}'''
 
 multiple_alignment = '''cd {d[0]}
 
@@ -219,6 +223,7 @@ TileSize             256
 LeftDefTol           2000.0
 RightDefTol          2000.0
 FindAstigPhaseCuton  {d[12]} {d[13]} {d[14]}
+Offset 0.02
 '''
 
 templateCTFPlotter = '''cd {d[0]}

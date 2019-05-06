@@ -379,7 +379,7 @@ class TomographReconstruct(GuiTabWidget):
 
             d = read(markerfile)
             data = copy.deepcopy( vol2npy(d) )
-
+            if len(data.shape) < 3: continue
             options_reference = list(map(str, range( data.shape[2] ))) + ['all']
             values.append( [markerfile.split('/')[-3], True, 1, last_frame, index_zero_angle, options_reference] )
 
@@ -589,11 +589,8 @@ class TomographReconstruct(GuiTabWidget):
 
 
         if os.path.basename(params[1]) == 'INFR':
-
             if len([line for line in os.listdir(output_folder) if line.startswith(prefix.split('/')[-1])]):
                 os.system('rm {}/sorted*.em'.format(output_folder))
-
-
             guiFunctions.conv_mrc2em(self.widgets[mode+'FolderSorted'].text(), output_folder)
             guiFunctions.renumber_gui2pytom(output_folder, prefix.split('/')[-1])
         #print (self.pytompath)
@@ -681,12 +678,12 @@ class TomographReconstruct(GuiTabWidget):
                 if widgets[widget].isChecked():
 
                     params = [mode,dd[i],'sorted']
+                    print(params)
                     self.convert_em(params)
 
-                    execfilename = os.path.join(tomofolder, '{}/{}'.format(dd[i], dd[i].split('/')[-1]))
+                    execfilename = os.path.join(tomofolder, '{}/{}_Reconstruction.sh'.format(dd[i], dd[i].split('/')[-1]))
                     paramsSbatch = guiFunctions.createGenericDict()
-                    paramsSbatch['fname'] = dd[i]
-                    paramsSbatch['folder'] = execfilename
+                    paramsSbatch['folder'] = os.path.dirname(execfilename)
 
                     if i == 1:
                         paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4],
@@ -694,8 +691,8 @@ class TomographReconstruct(GuiTabWidget):
                                      self.pytompath, os.path.basename(tomofolder)]
                         commandText = templateINFR.format(d=paramsCmd)
                     elif i==2:
-                        paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4],values[row][5],
-                                     values[row][6], values[row][7], os.path.basename(tomofolder), '.em', '464']
+                        paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4], values[row][5],
+                                     values[row][6], values[row][7], os.path.basename(tomofolder), 'mrc', '464', '1']
                         commandText= templateWBP.format(d=paramsCmd)
                     else:
                         print( 'No Batch Submission' )
@@ -710,7 +707,7 @@ class TomographReconstruct(GuiTabWidget):
 
     def submit_multi_recon_job(self, params):
         print(params[1])
-        return
+        print(params[0])
         try:
 
             exefile = open(params[0], 'w')
@@ -824,7 +821,7 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[mode+'ConfigHeader'] = QLineEdit()
         self.widgets[mode + 'FolderSortedAligned'].textChanged.connect(lambda dummy, m=mode: self.updateCTFPlotter(m))
         self.widgets[mode + 'ConfigFile'].textChanged.connect(lambda  dummy, m=mode: self.updateConfigHeader(m))
-        self.updateCTFPlotter(mode)
+        self.updateCTFPlotter(mode,newstack=False)
         self.updateConfigHeader(mode)
 
         setattr(self, mode + 'gb_CD', groupbox)
@@ -836,9 +833,10 @@ class TomographReconstruct(GuiTabWidget):
         else:
             self.widgets[mode + 'ConfigHeader'].setText('          ')
 
-    def updateCTFPlotter(self, mode):
+    def updateCTFPlotter(self, mode, newstack=True):
         folder = self.widgets[mode + 'FolderSortedAligned'].text()
         if not folder:
+            print('No Folder Selected.')
             return
         try:
             tomogramID = folder.split('tomogram_')[-1][:3]
@@ -847,9 +845,11 @@ class TomographReconstruct(GuiTabWidget):
             tID = int(tomogramID)
             outstack = '{}/tomogram_{}_{}.st'.format(folder,tomogramID, os.path.basename(folder))
         except:
+            print('update CTF Plotter failed.')
             return
         files = [line for line  in os.listdir(folder) if line.endswith('.mrc') and line.startswith('sorted_')]
         if not files:
+            print('No files wuth MRC-format found in: {}'.format(folder))
             return
         dd = []
         for file in files:
@@ -857,11 +857,17 @@ class TomographReconstruct(GuiTabWidget):
             dd.append([file,id])
         guiFunctions.sort(dd,1)
         files, ids = zip(*dd)
-        cmd = 'cd {}; newstack -in '.format(folder)
-        cmd += ' '.join(files)
-        cmd += '-out {}'.format(outstack)
-        os.system(cmd)
-        print(cmd)
+        if newstack:
+            infile, outfile = open(os.path.join(folder, 'filein.txt'), 'w'), open(os.path.join(folder, 'fileout.txt'),'w')
+            cmd = 'cd {}; newstack -filei filein.txt -fileo fileout.txt '.format(folder)
+            outfile.write('{}\n{}\n{}\n'.format(1, outstack, len(files)))
+            infile.write('{}\n'.format(len(files)))
+            for fname in files:
+                infile.write('{}\n0\n'.format(fname))
+            infile.close()
+            outfile.close()
+            os.system(cmd)
+
         metafile = [os.path.join(sortedFolder, line) for line in os.listdir(sortedFolder) if line.endswith('.meta')][0]
         metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
         outAngle   = outstack.replace('.st','.tlt')

@@ -334,14 +334,18 @@ class ProjectionList(PyTomClass):
         return tline
 
         
-    def loadDirectory(self, directory):
+    def loadDirectory(self, directory, metafile=''):
         """
         loadDirectory: Will take all projections in a directory, determine their respective tilt angle from the header and populate this list object.
         @param directory: directory where files are located
         @type directory: L{str}
         """    
         from pytom.tools.files import checkDirExists
-        
+        from pytom.gui.guiFunctions import datatype
+        import numpy
+
+        metadata = numpy.loadtxt(metafile,dtype=datatype)
+        tiltAngles = metadata['TiltAngle']
         if not checkDirExists(directory):
             raise RuntimeError('Directory ' + directory +' does not exist!')
         
@@ -352,12 +356,15 @@ class ProjectionList(PyTomClass):
             directory += os.sep
         
         
-        files = os.listdir(directory)
+        files = [line for line in os.listdir(directory) if not 'raw_aligned' in line]
         self.tilt_angles = []
 
-        for file in files:
-            if file[len(file)-3:len(file)] == '.em':
+        for n, file in enumerate(files):
+            if file[len(file)-3:len(file)] == '.em' or file[-4:] == '.mrc':
                 projection = Projection(directory + file)
+                if metafile:
+                    N = int(file.split('_')[-1].split('.')[0])
+                    projection.setTiltAngle(int(round(tiltAngles[N])))
                 self.tilt_angles.append(projection._tiltAngle)
                 self.append(projection)
     
@@ -745,7 +752,7 @@ class ProjectionList(PyTomClass):
             weightSlice = fourierFilterShift(rampFilter(imgDim,imgDim))
 
             circleFilterRadius = imgDim//2
-            circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imgDim,imgDim, circleFilterRadius))
+            circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imgDim, imgDim, circleFilterRadius))
         
         if showProgressBar:
             progressBar = FixedProgBar(0,len(self._particleList),'Particle volumes generated ')
@@ -757,14 +764,13 @@ class ProjectionList(PyTomClass):
             self.tilt_angles.append(projection._tiltAngle)
 
         self.tilt_angles = sorted(self.tilt_angles)
-        print( self.tilt_angles )
 
         for (i, projection) in enumerate(self._list):
             if verbose:
                 print(projection)
 
-            if (int(applyWeighting) >= 1):
-                
+            if int(applyWeighting) >= 1:
+                print(projection._tiltAngle, imgDim, self.tilt_angles)
                 weightSlice = fourierFilterShift( exactFilter(self.tilt_angles, projection._tiltAngle,
                                                               imgDim, imgDim, imgDim))
 

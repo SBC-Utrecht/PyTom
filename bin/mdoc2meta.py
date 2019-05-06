@@ -1,5 +1,7 @@
 #!/usr/bin/env pytom
-
+import matplotlib
+import matplotlib.backends.backend_qt5agg
+matplotlib.use('Qt5Agg')
 import sys
 import os
 import pickle, json
@@ -11,7 +13,6 @@ if sys.version_info[0] < 3:
 
 global pytompath
 pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
-if not pytompath: pytompath = '/Users/gijs/Documents/pytom_private'
 
 if not pytompath:
     print('Pytom package is not available. Please load, or install Pytom.')
@@ -19,9 +20,9 @@ if not pytompath:
 
 def update_env_vars(pytompath):
     '''Make sure all pytom functionality can be imported from within the script. '''
-    if 0:
+    try:
         from pytom_volume import read
-    else:
+    except:
         update_vars = False
         for search in ('LD_LIBRARY_PATH','PATH','PYTHONPATH'):
             # Check if env vars include all paths set in paths.csh
@@ -44,8 +45,6 @@ def update_env_vars(pytompath):
             #os.execv('/cm/shared/apps/python3/3.7/bin/python3.7', sys.argv)
 update_env_vars(pytompath)
 
-import matplotlib
-matplotlib.use('Qt5Agg')
 from pylab import *
 from pytom.gui.guiFunctions import datatype, headerText, units, fmt, createMetaDataFiles
 

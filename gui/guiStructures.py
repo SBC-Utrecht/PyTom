@@ -19,7 +19,7 @@ import numpy as np
 
 from scipy.ndimage.filters import gaussian_filter
 from ftplib import FTP_TLS, FTP
-
+import lxml.etree as et
 
 class BrowseWindowRemote(QMainWindow):
     '''This class creates a new windows for browsing'''
@@ -275,7 +275,9 @@ class Worker(QRunnable):
         self.signals = WorkerSignals()
         self.fn = fn
         self.args = tuple(list(args))
+
         if sig: self.args = tuple(list(args)+[self.signals])
+
 
     def run(self):
         self.fn(*self.args)
@@ -661,6 +663,7 @@ class CommonFunctions():
                 if len(params[2][0]) > 1:
                     params[2] = os.path.join(self.widgets[params[2][0]].text(), params[2][1])
                 jobfile = open(params[2],'w')
+                print(params[2])
                 jobfile.write(self.widgets[params[3]].toPlainText())
                 jobfile.close()
 
@@ -1288,6 +1291,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.max_score = 1.
         self.min_score = 0.
         self.xmlfile = ''
+        self.filetype = 'txt'
 
         self.circles_left = []
         self.circles_cent = []
@@ -1370,25 +1374,25 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.items = [['', ] * columns, ] * rows
 
         self.insert_checkbox(prnt, 'apply_gaussian_filter', cstep=1)
-        self.insert_label(prnt, text='Apply Gaussian Filter', cstep=1, alignment=Qt.AlignLeft)
-        self.insert_lineedit(prnt,'width_gaussian_filter', validator=vDouble, rstep=1, cstep=-1, value='1.',width=50)
+        self.insert_label(prnt, text='Gaussian Filter', cstep=1, alignment=Qt.AlignLeft)
+        self.insert_lineedit(prnt,'width_gaussian_filter', validator=vDouble, rstep=1, cstep=-1, value='1.',width=100)
 
         self.insert_label(prnt, text='Size Selection: ',cstep=1)
-        self.insert_spinbox(prnt, wname='size_selection: ',cstep=-1,rstep=1, value=20, minimum=1, maximum=1000,width=50)
+        self.insert_spinbox(prnt, wname='size_selection: ',cstep=-1,rstep=1, value=20, minimum=1, maximum=1000,width=100)
         self.widgets['size_selection: '].valueChanged.connect(self.sizeChanged)
 
         self.insert_label(prnt,text='Step Size',cstep=1,alignment=Qt.AlignLeft)
-        self.insert_spinbox(prnt,wname='step_size',cstep=-1, value=10, rstep=1,width=50,
+        self.insert_spinbox(prnt,wname='step_size',cstep=-1, value=10, rstep=1,width=100,
                             minimum=1, maximum=int(self.vol.shape[0]/4))
 
         self.insert_label(prnt,text='', cstep=0)
         self.widgets['apply_gaussian_filter'].stateChanged.connect(self.stateGaussianChanged)
 
-        self.insert_label_line(prnt,'Number Particles','numSelected',validator=vInt,width=50)
+        self.insert_label_line(prnt,'Number Particles','numSelected',validator=vInt,width=100)
         self.insert_label_spinbox(prnt,'minScore','Minimal Score', value=0.,wtype=QDoubleSpinBox, minimum=0, maximum=1,
-                                  stepsize=0.05,width=50)
+                                  stepsize=0.05, width=100, decimals=4)
         self.insert_label_spinbox(prnt, 'maxScore', 'Maximal Score', value=1., wtype=QDoubleSpinBox, minimum=0,
-                                  maximum=1., stepsize=0.05,width=50)
+                                  maximum=1., stepsize=0.05, width=100, decimals=4)
 
         self.widgets['minScore'].valueChanged.connect(self.stateScoreChanged)
         self.widgets['maxScore'].valueChanged.connect(self.stateScoreChanged)
@@ -1400,11 +1404,23 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         elif q.text() == 'Load Project': self.load_particleList()
 
     def save_particleList(self):
+        if self.filetype == 'xml':
+            self.save_particleList_xml()
+        else:
+            self.save_particleList_txt()
 
+    def save_particleList_xml(self):
+        if 1:
+            self.remove_deselected_particles_from_XML()
+        else:
+            print('particleList not saved.')
+
+    def save_particleList_txt(self):
         ext = '.'+os.path.basename(self.title).split('.')[-1]
         fname = os.path.join(self.parent().pickpartfolder,'coords_' + os.path.basename(self.title.replace(ext,'')))
 
         fname = str(QFileDialog.getSaveFileName( self, 'Save particle list.', fname, filter='*.txt')[0])
+        if not fname.endswith('.txt'): fname += '.txt'
 
         if fname:
 
@@ -1433,23 +1449,67 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             out.write('#BINNINGFACTOR \t{}\n'.format(headerInfo[1]))
             out.write('#\n')
 
-            for x, y, z in self.particleList:
+            for x, y, z, s in self.particleList:
                 outtext =  '{:8.0f} {:8.0f} {:8.0f}\n'.format(x,y,z)
                 out.write(outtext)
 
     def load_particleList(self):
-        filetype = 'xml'
+        filetype = 'txt'
         initdir = self.parent().pickpartfolder
 
         filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "Coordinate files (*.txt);; Particle List (*.xml)")[0])
         if not filename: return
 
         if filename.endswith('.txt'):
+            self.filetype = 'txt'
             self.load_txtFile(filename)
 
         elif filename.endswith('.xml'):
+            self.filetype = 'xml'
             self.load_xmlFile(filename)
             self.xmlfile = filename
+
+    def remove_element(self, el):
+        parent = el.getparent()
+        if el.tail.strip():
+            prev = el.getprevious()
+            if prev:
+                prev.tail = (prev.tail or '') + el.tail
+            else:
+                parent.text = (parent.text or '') + el.tail
+        parent.remove(el)
+
+    def remove_deselected_particles_from_XML(self):
+        tree = et.parse(self.xmlfile)
+
+        new =numpy.zeros()
+
+        for particle in tree.xpath("Particle"):
+            remove = True
+
+            position = []
+
+            for tag in ('X', 'Y', 'Z'):
+                position.append(float(particle.xpath('PickPosition')[0].get(tag)))
+
+            x, y, z = position
+
+            for cx, cy, cz, score in self.particleList:
+                if abs(x - cx) < 1 or abs(y - cy) < 1 or abs(z - cz) < 1:
+                    remove = False
+                    break
+            if remove:
+                self.remove_element(particle)
+
+        fname = str(QFileDialog.getSaveFileName(self, 'Save particle list.', self.xmlfile, filter='*.xml')[0])
+        if not fname.endswith('.xml'): fname += '.xml'
+        if fname:
+            try:
+                tree.write(fname.replace('.xml', '_deselected.xml'), pretty_print=True)
+            except:
+                print('writing {} failed.'.format(fname))
+        else:
+            print('No file written.')
 
     def load_xmlFile(self,filename):
         from lxml import etree
@@ -1460,12 +1520,16 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.slice = int(self.vol.shape[0] / 2)
 
         for p in particles:
-            score = float( p.xpath('Score')[0].get('Value') )
-
+            try:    score = float( p.xpath('Score')[0].get('Value') )
+            except: score = 0.5
             if score < self.max_score and score > self.min_score:
                 x,y,z = map(float, (p.xpath('PickPosition')[0].get('X'), p.xpath('PickPosition')[0].get('Y'), p.xpath('PickPosition')[0].get('Z')))
-                self.add_points(self.pos, int(round(x)), int(round(y)), min(188,int(round(z))), self.radius)
-                print(score,x,y,z)
+                dx,dy,dz = self.vol.shape
+                if abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 :
+                    print('particle not added: ', x,y,z)
+                    continue
+                self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), score, self.radius)
+
 
         self.replot()
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
@@ -1479,7 +1543,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.slice = int(self.vol.shape[0]/2)
 
         for x,y,z in particlePos:
-            self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), self.radius, add=True)
+            self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), 0., self.radius, add=True)
 
         self.replot()
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
@@ -1561,7 +1625,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             return
 
         num_deleted_items = 0
-        for n, (x,y,z) in enumerate(self.particleList):
+        for n, (x,y,z,s) in enumerate(self.particleList):
             if sqrt( (x-pos.x())**2 + (y-pos.y())**2 + (z-self.slice)**2 ) < self.radius:
                 add = False
                 if remove:
@@ -1572,13 +1636,21 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         if add and not remove:
             X, Y = pos.x(), pos.y()
 
-            self.add_points(pos, X, Y, self.slice, self.radius,add=add)
+            self.add_points(pos, X, Y, self.slice, 0, self.radius,add=add)
             self.subtomo_plots.add_subplot(self.vol, self.particleList[-1])
 
         self.widgets['numSelected'].setText(str(len(self.particleList)))
 
-    def add_points(self, pos, cx, cy, cz, radius, add=False):
-        self.particleList.append([int(round(cx)), int(round(cy)), int(round(cz))])
+    def remove_from_coords(self,coords):
+        cx,cy,cz = coords[:3]
+        for n, (x,y,z,s) in enumerate(self.particleList):
+            if sqrt( (x-cx)**2 + (y-cy)**2 + (z-cz)**2 ) < self.radius:
+                self.remove_point(n, z)
+                self.subtomo_plots.delete_subplot([x, y, z])
+                break
+
+    def add_points(self, pos, cx, cy, cz, cs, radius, add=False, score=0.):
+        self.particleList.append([int(round(cx)), int(round(cy)), int(round(cz)), score])
 
         pos.setX( cx-radius)
         pos.setY( cy-radius)
@@ -1667,14 +1739,14 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         plist = copy.deepcopy(self.particleList)
         self.remove_all()
 
-        for n, (cx, cy, cz) in enumerate(plist):
+        for n, (cx, cy, cz, cs) in enumerate(plist):
             radius = self.radius
             if abs(cz - self.slice) < self.radius:
                 radius = sqrt(self.radius ** 2 - (cz - self.slice)**2)
             if self.xmlfile and len(plist) > 100:
                 add = False
             else: add = True
-            self.add_points(self.pos, cx, cy, cz, radius,add=add)
+            self.add_points(self.pos, cx, cy, cz, cs, radius,add=add)
         self.slice += update
 
 
@@ -1754,7 +1826,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
             self.parent().close()
 
     def add_subplot(self, tomo, position):
-        [x,y,z]  = position
+        [x,y,z,s]  = position
         xmin = max(0, x - int(self.size_subtomo / 2))
         xmax = min(tomo.shape[1], x + int(self.size_subtomo / 2))
         ymin = max(0, y - int(self.size_subtomo / 2))
@@ -1786,7 +1858,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
                     break
 
     def delete_subplot(self, position):
-        for x,y,z,index in self.coordinates:
+        for x,y,z,s, index in self.coordinates:
             if x == position[0] and y == position[1] and z == position[2]:
                 blank = zeros((int(self.size_subtomo), int(self.size_subtomo)), dtype=float)
                 self.iItemList[index].setImage(image=blank)
@@ -1794,6 +1866,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
                     self.index = [index,1]
                 self.assigned[index] = 0
                 self.num_assigned -= 1
+                self.coordinates[index][:3] = [-1, -1, -1]
                 break
 
     def newViewBox(self):
@@ -1826,7 +1899,12 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         except:
             return
 
-        if ID > -1:
+        if ID < 0: return
+
+        if event.button() == 2:
+            self.parent().remove_from_coords(self.coordinates[ID])
+
+        elif self.coordinates[ID][2] > -1:
             self.parent().slice = self.coordinates[ID][2]
             self.parent().replot()
             self.parent().update_circles()
@@ -1839,8 +1917,8 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
 
         self.num_subtomo_per_row = int(self.width/self.size_subplot)
 
-        for n, (x,y,z) in enumerate(particleList):
-            self.add_subplot( volume, [x,y,z] )
+        for n, (x,y,z,s) in enumerate(particleList):
+            self.add_subplot( volume, [x,y,z,s] )
         self.show()
 
 

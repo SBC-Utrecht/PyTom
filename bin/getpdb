@@ -6,5 +6,7 @@ else
 
     wget -P $2 http://www.rcsb.org/pdb/files/$1.pdb.gz 
     gunzip $2/$1.pdb.gz
-   
+    wget -P $2 http://www.rcsb.org/pdb/files/$1.cif.gz
+    gunzip $2/$1.cif.gz
+    mv $2/$1.cif $2/$1.pdb
 fi

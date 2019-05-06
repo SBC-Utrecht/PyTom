@@ -1,8 +1,11 @@
+import matplotlib
+import matplotlib.backends.backend_qt5agg
+try: matplotlib.use('Qt5Agg')
+except: pass
 import os
 import numpy
 import copy
 import time
-import matplotlib
 from numpy.fft import fft2, ifft2, fftshift
 from numpy import int32, arange, conj, zeros, ones, bool8, sqrt, newaxis
 from pytom_volume import read
@@ -12,7 +15,6 @@ from pytom.basic.files import read_em_header
 from pytom.gui.mrcOperations import read_mrc, read_angle
 from pytom_numpy import vol2npy
 from pytom.gui.guiSupportCommands import multiple_alignment
-matplotlib.use('Qt5Agg')
 from pylab import imread
 import mrcfile
 import copy

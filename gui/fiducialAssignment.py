@@ -138,10 +138,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         if 1:
             self.pytompath = self.parent().pytompath
             self.projectname = self.parent().projectname
-        #except:
-            #self.projectname = '/Users/gijs/Documents/PostDocUtrecht/Data/Juliette'
-            #if not os.path.exists(self.projectname): self.projectname = '/home/gijsvds/testcase'
-        #    pass
+
 
         self.tomofolder = os.path.join(self.projectname, '03_Tomographic_Reconstruction')
         self.tomogram_names = sorted( [line.split()[0] for line in os.listdir(self.tomofolder) if line.startswith('tomogram_')] )
@@ -537,6 +534,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         print ("Start reading files process {}/{}".format(proc_id + 1, nr_procs))
         from copy import deepcopy
         for nr, fname in enumerate(fnames):
+
             #m = mrcfile.open(fname, permissive=True)
             #dataf = copy.deepcopy(m.data)
             #m.close()
@@ -597,9 +595,11 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         for i in range(len(fnames)):
             if 1:
+
                 #datafile = mrcfile.open(self.fnames[i], permissive=True)
                 datafile = read_mrc('{}'.format(self.fnames[i]), binning=[1, 1, 1])
                 fa = deepcopy(datafile)
+
                 fa[fa > fa.mean() + 5 * fa.std()] = fa.mean()
                 self.frames_adj[i, :, :] = fa
                 #datafile.close()
@@ -744,7 +744,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
             proc = Process(target=level, args=( self.frames[proc_id::num_procs], self.frames_full[proc_id::num_procs],
                                                 self.bin_alg, self.bin_read, 50, self.imnr, out[proc_id], proc_id,
-                                                num_procs,average_marker, threshold ))
+                                                num_procs, average_marker, threshold ))
             procs.append(proc)
             proc.start()
 
@@ -755,7 +755,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         for i in range(num_procs):
             self.list_cx_cy_imnr += [el for el in out[i]]
 
-        self.mark_frames = -1 * numpy.ones((len(self.fnames), 300, 2), dtype=float)
+        self.mark_frames = -1 * numpy.ones((len(self.fnames), 3000, 2), dtype=float)
 
         sort(self.list_cx_cy_imnr, 1)
 
@@ -1118,7 +1118,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
 
         self.insert_label(self.grid,rstep=1)
 
-        self.insert_label_combobox(self.grid, 'Accuracy level', 'algorithm', ['normal', 'sensitive','cross_correlation'], rstep=1,cstep=-1,
+        self.insert_label_combobox(self.grid, 'Accuracy level', 'algorithm', ['normal', 'sensitive'], rstep=1,cstep=-1,
                                    tooltip='Algorithm used for automatic fiducial detection.')
 
         self.insert_label_spinbox(self.grid, 'threshold', text='Threshold cc_map.', rstep=1,

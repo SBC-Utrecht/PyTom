@@ -3,6 +3,7 @@ Created on May 20, 2010
 
 @author: chen
 '''
+import numpy
 
 def getMsgStr():
     '''
@@ -80,6 +81,7 @@ class PeakWorker(object):
 #        t = timing(); t.start()
         
         # read the necessary files on the disk
+
         v = self.volume.getVolume(self.volume.subregion)
         ref = self.reference.getVolume()
         maskFilename = self.mask.getFilename()
@@ -270,7 +272,7 @@ class PeakManager():
             raise RuntimeError('This function can only be processed by mpi_id = 0! ID == ' + str(mpi_myid) +' Aborting!')
         
         # split the job into smaller ones 
-        rotationsPerWorker = job.rotations.numberRotations()/self.numWorkers
+        rotationsPerWorker = job.rotations.numberRotations()//self.numWorkers
         if rotationsPerWorker == 0:
             raise RuntimeError("Not enough angles to split!")
         
@@ -422,7 +424,7 @@ class PeakManager():
         r = job.reference.getVolume()
         
         vsizeX = v.sizeX(); vsizeY = v.sizeY(); vsizeZ = v.sizeZ()
-        sizeX = vsizeX/splitX; sizeY = vsizeY/splitY; sizeZ = vsizeZ/splitZ
+        sizeX = vsizeX//splitX; sizeY = vsizeY//splitY; sizeZ = vsizeZ//splitZ
         rsizeX = r.sizeX(); rsizeY = r.sizeY(); rsizeZ = r.sizeZ()
         if rsizeX>sizeX or rsizeY>sizeY or rsizeZ>sizeZ:
             raise RuntimeError("Not big enough volume to split!")
@@ -433,13 +435,13 @@ class PeakManager():
         # read the target volume, calculate the respective subregion
         from pytom.localization.peak_job import PeakJob
         from pytom.localization.structures import Volume
-        _start = [-rsizeX/2,-rsizeX/2,-rsizeZ/2]
+        _start = [-rsizeX//2,-rsizeX//2,-rsizeZ//2]
         _size = [sizeX+rsizeX, sizeY+rsizeY, sizeZ+rsizeZ]
         
         for i in range(splitX*splitY*splitZ):
             strideZ = splitX*splitY; strideY = splitX
-            incZ = i/strideZ; incY = (i%strideZ)/strideY; incX = i%strideY
-            _start = [-rsizeX/2+incX*sizeX,-rsizeX/2+incY*sizeY,-rsizeZ/2+incZ*sizeZ]
+            incZ = i//strideZ; incY = (i%strideZ)//strideY; incX = i%strideY
+            _start = [-rsizeX//2+incX*sizeX,-rsizeX//2+incY*sizeY,-rsizeZ//2+incZ*sizeZ]
             
             start = _start[:]
             end = [start[j]+_size[j] for j in range(len(start))]
@@ -464,14 +466,14 @@ class PeakManager():
             whole_start = start[:]
             sub_start = [0, 0, 0]
             if start[0] != 0:
-                whole_start[0] = start[0]+rsizeX/2
-                sub_start[0] = rsizeX/2
+                whole_start[0] = start[0]+rsizeX//2
+                sub_start[0] = rsizeX//2
             if start[1] != 0:
-                whole_start[1] = start[1]+rsizeY/2
-                sub_start[1] = rsizeY/2
+                whole_start[1] = start[1]+rsizeY//2
+                sub_start[1] = rsizeY//2
             if start[2] != 0:
-                whole_start[2] = start[2]+rsizeZ/2
-                sub_start[2] = rsizeZ/2
+                whole_start[2] = start[2]+rsizeZ//2
+                sub_start[2] = rsizeZ//2
             self.jobInfo[i+1] = [sub_start, whole_start]
             
             subVol = Volume(job.volume.getFilename(),
@@ -701,14 +703,15 @@ class PeakLeader(PeakWorker):
         originalJobID = job.jobID
         
         while self.members > 1 and totalNum > 1:
-            numEach = totalNum/self.members
-            subMem1 = self.members/2
-            subMem2 = self.members-self.members/2
+            numEach = totalNum//self.members
+            subMem1 = self.members//2
+            subMem2 = self.members-self.members//2
             
             from pytom.angles.angleList import AngleList
             subRot1 = AngleList(job.rotations[:numEach*subMem1])
             subRot2 = AngleList(job.rotations[numEach*subMem1:])
             
+
             # avoid the collision of the job id
             subJob1 = PeakJob(job.volume, job.reference, job.mask, job.wedge, subRot1, job.score, job.jobID*10+1, subMem1, self.dstDir, job.bandpass)
             subJob2 = PeakJob(job.volume, job.reference, job.mask, job.wedge, subRot2, job.score, job.jobID*10+2, subMem2, self.dstDir, job.bandpass)
@@ -762,7 +765,7 @@ class PeakLeader(PeakWorker):
             vsizeY = job.volume.subregion[4]
             vsizeZ = job.volume.subregion[5]
             
-        sizeX = vsizeX/splitX; sizeY = vsizeY/splitY; sizeZ = vsizeZ/splitZ
+        sizeX = vsizeX//splitX; sizeY = vsizeY//splitY; sizeZ = vsizeZ//splitZ
         r = job.reference.getVolume()
         rsizeX = r.sizeX(); rsizeY = r.sizeY(); rsizeZ = r.sizeZ()
         if rsizeX>sizeX or rsizeY>sizeY or rsizeZ>sizeZ:
@@ -781,18 +784,18 @@ class PeakLeader(PeakWorker):
         # read the target volume, calculate the respective subregion
         from pytom.localization.peak_job import PeakJob
         from pytom.localization.structures import Volume
-        _start = [-rsizeX/2+origin[0],-rsizeX/2+origin[1],-rsizeZ/2+origin[2]]
+        _start = [-rsizeX//2+origin[0],-rsizeX//2+origin[1],-rsizeZ//2+origin[2]]
         _size = [sizeX+rsizeX, sizeY+rsizeY, sizeZ+rsizeZ]
         
         numPieces = splitX*splitY*splitZ
         totalMem = self.members
-        numMemEach = totalMem/numPieces
+        numMemEach = totalMem//numPieces
         targetID = self.mpi_id
         
         for i in range(numPieces):
             strideZ = splitX*splitY; strideY = splitX
-            incZ = i/strideZ; incY = (i%strideZ)/strideY; incX = i%strideY
-            _start = [-rsizeX/2+origin[0]+incX*sizeX,-rsizeX/2+origin[1]+incY*sizeY,-rsizeZ/2+origin[2]+incZ*sizeZ]
+            incZ = i//strideZ; incY = (i%strideZ)//strideY; incX = i%strideY
+            _start = [-rsizeX//2+origin[0]+incX*sizeX,-rsizeX//2+origin[1]+incY*sizeY,-rsizeZ//2+origin[2]+incZ*sizeZ]
             
             start = _start[:]
             end = [start[j]+_size[j] for j in range(len(start))]
@@ -821,14 +824,14 @@ class PeakLeader(PeakWorker):
             whole_start = start[:]
             sub_start = [0, 0, 0]
             if start[0] != origin[0]:
-                whole_start[0] = start[0]+rsizeX/2
-                sub_start[0] = rsizeX/2
+                whole_start[0] = start[0]+rsizeX//2
+                sub_start[0] = rsizeX//2
             if start[1] != origin[1]:
-                whole_start[1] = start[1]+rsizeY/2
-                sub_start[1] = rsizeY/2
+                whole_start[1] = start[1]+rsizeY//2
+                sub_start[1] = rsizeY//2
             if start[2] != origin[2]:
-                whole_start[2] = start[2]+rsizeZ/2
-                sub_start[2] = rsizeZ/2
+                whole_start[2] = start[2]+rsizeZ//2
+                sub_start[2] = rsizeZ//2
             
 #            self.jobInfo[subJobID] = [sub_start, whole_start]
             subJobID = job.jobID+i+1
@@ -855,6 +858,7 @@ class PeakLeader(PeakWorker):
             else:
                 if verbose==True:
                     print(self.name + ' : send part of the volume to ' + str(targetID))
+                print(targetID, type(targetID))
                 subJob.send(self.mpi_id, targetID)
             
             targetID = targetID + numMem
@@ -893,6 +897,7 @@ class PeakLeader(PeakWorker):
             if numPieces==0 or numPieces==1 or numPieces > self.members: # node num not enough for split vol
                 self.splitAngles(job)
             else:
+                print(type(splitX),type(splitY),type(splitZ))
                 self.splitVolumes(job, splitX, splitY, splitZ)
         
     
@@ -977,13 +982,18 @@ class PeakLeader(PeakWorker):
                 self.resOrient = vol(vsizeX, vsizeY, vsizeZ)
                 self.resOrient.setAll(0)
             
+            [vsizeX, vsizeY, vsizeZ] = self.jobInfoPool[jobID].originalSize
             [sizeX ,sizeY, sizeZ] = self.jobInfoPool[jobID].splitSize
             sub_start = self.jobInfoPool[jobID].sub_start
             start = self.jobInfoPool[jobID].whole_start
 
+            stepSizeX = min(vsizeX-sub_start[0], sizeX)
+            stepSizeY = min(vsizeY-sub_start[1], sizeY)
+            stepSizeZ = min(vsizeZ-sub_start[2], sizeZ)
+            print(sub_start, stepSizeX, stepSizeY, stepSizeZ, vsizeX, vsizeY, vsizeZ)
             from pytom_volume import subvolume, putSubVolume
-            sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], sizeX,sizeY,sizeZ)
-            sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], sizeX,sizeY,sizeZ)
+            sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
+            sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
             
             putSubVolume(sub_resV, self.resVol, start[0],start[1],start[2])
             putSubVolume(sub_resO, self.resOrient, start[0],start[1],start[2])
@@ -1024,6 +1034,7 @@ class PeakLeader(PeakWorker):
 #            if not pytom_mpi.isInitialised():
 #                pytom_mpi.init()
             job.members = pytom_mpi.size()
+            print('job members', job.members)
             job.send(0, 0)
             print("\n")
         
