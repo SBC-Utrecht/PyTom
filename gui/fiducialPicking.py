@@ -39,7 +39,7 @@ class PickingFunctions():
 
         c = numpy.zeros(len(points), dtype=float)
         for n, p in enumerate(points):
-            c[n] = diff(ref_vec, p)
+            c[n] = self.diff(ref_vec, p)
             if abs(self.distance(p, ref_vec, alpha))> cutoff:
                 c[n] = 1000
         try:
@@ -59,7 +59,7 @@ class PickingFunctions():
         coordinates = numpy.zeros_like(ref)
         for i,p in enumerate(cur):
             if p.sum() == 0: continue
-            index,dist = closest_point(p,ref,cutoff,alpha=angle)
+            index,dist = self.closest_point(p,ref,cutoff,alpha=angle)
 
             if dist< 4*cutoff_dist:
                 index_map[i] = index+1
@@ -90,7 +90,7 @@ class PickingFunctions():
                 for n,index in enumerate(index_map):
                     if index==0 or index != ind or cur[n].sum() == 0: continue
                     for ii in range(len(index_map)):
-                        ind1,dis1 = closest_point(cur[n],    ref,it=ii, alpha=angle)
+                        ind1,dis1 = self.closest_point(cur[n],    ref,it=ii, alpha=angle)
                         if ind1+1==ind: break
                     ind2,dis2 = self.closest_point(cur[n],    ref,it=ii+1, alpha=angle)
                     closest.append([n,ind1+1,dis1,ind2+1,dis2])
@@ -128,7 +128,7 @@ class PickingFunctions():
                     if std2<4 and std2 <4:
                         p1,p2 = cur[c1[0]],cur[c2[0]]
 
-                        diff = distance(p1,p2,angle)
+                        diff = self.distance(p1,p2,angle)
 
                         #diff = abs(p1[1]*4.-p2[1]*4.)
                         #print diff
@@ -238,7 +238,7 @@ class PickingFunctions():
                 if x > 0 and y > 0 and x < dimx-1 and y< dimy-1: out[int(round(x))][int(round(y))][itilt] = 1
         for itilt in range(tilt_nr-1):
 
-            c, shifty, shiftx, m = detect_shift(gaussian_filter(out[:,:,itilt],sd), gaussian_filter(out[:,:,itilt+1],sd),image=image)
+            c, shifty, shiftx, m = self.detect_shift(gaussian_filter(out[:,:,itilt],sd), gaussian_filter(out[:,:,itilt+1],sd),image=image)
             shiftx *= factor
             shifty *= factor
             if m > 0.001:#abs(shiftx) > max_shiftx or abs(shifty) > max_shifty:
@@ -270,7 +270,7 @@ class PickingFunctions():
         size_shift = numpy.ones((x-1,y),dtype=float)
 
         for ii in range(x-1):
-            distance_matrix[ii,:], shift[ii,:,:], size_shift[ii,:] = pair(mark_frames[ii],mark_frames[ii+1],pr=(ii==8))
+            distance_matrix[ii,:], shift[ii,:,:], size_shift[ii,:] = self.pair(mark_frames[ii],mark_frames[ii+1],pr=(ii==8))
             #print ii, distance_matrix[ii]
         frame_shifts = numpy.zeros((x,y,2),dtype=float)
         fs = numpy.zeros((x,2),dtype=float)
@@ -406,7 +406,7 @@ class PickingFunctions():
                         ref_fid[n] = [x+1,y+1]
 
 
-            index_cur_fid, coordinates_cur_sorted = compare(cur_fid, ref_fid, tiltangle, cutoff=cut,tiltangles=tiltangles,pos=1,tiltaxis=tiltaxis)
+            index_cur_fid, coordinates_cur_sorted = self.compare(cur_fid, ref_fid, tiltangle, cutoff=cut,tiltangles=tiltangles,pos=1,tiltaxis=tiltaxis)
             index_map[tiltangle,:] = index_cur_fid
             #print coordinates_cur_sorted
             coordinates_sorted[tiltangle,:] = coordinates_cur_sorted
@@ -423,7 +423,7 @@ class PickingFunctions():
                 absent = (((ref_fid == [0,0]).sum(axis=1) ==2)*1)[:,numpy.newaxis]*markers
                 ref_fid += absent
 
-            index_cur_fid, coordinates_cur_sorted = compare(cur_fid, ref_fid, tiltangle, cutoff=cut, tiltangles=tiltangles, pos=0, tiltaxis=tiltaxis)
+            index_cur_fid, coordinates_cur_sorted = self.compare(cur_fid, ref_fid, tiltangle, cutoff=cut, tiltangles=tiltangles, pos=0, tiltaxis=tiltaxis)
             index_map[tiltangle,:] = index_cur_fid
             coordinates_sorted[tiltangle,:] = coordinates_cur_sorted
         #frames_without_indexed_fiducials(coordinates_sorted[tiltangle,:], tiltangle)
@@ -564,7 +564,7 @@ class PickingFunctions():
                             add = False
                             break
                     if add and cx*fact+16 < frames_full[0].shape[1] and cy*fact+16 < frames_full[0].shape[0]:
-                        list_cx_cy_imnr.append([float(cx),float(cy),imnr])
+                        list_cx_cy_imnr.append([float(cx),float(cy),imnr*num_procs+proc_id])
 
 
 
@@ -658,7 +658,7 @@ class PickingFunctions():
         out = l1
         for rx,ry,im in list_cx_cy_imnr:
             #print rx,ry,imnr
-            points = refine(rx, ry, frames_full[im], im, fact, cropsize)
+            points = self.refine(rx, ry, frames_full[im], im, fact, cropsize)
             #print 'points: ', points
             for cx,cy,ims in points:
                 add = True

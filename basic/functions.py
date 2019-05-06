@@ -37,7 +37,6 @@ def initSphere(sizeX, sizeY, sizeZ, radius, smooth=0, maxradius=0, cent=None, fi
     
     return v
 
-
 def taper_edges(image, width, taper_mask=None):
     """
     taper edges of image (or volume) with cos function
@@ -165,8 +164,6 @@ def limit_in_sphere( invol, r_max=None, lowlimit=None, lowval=0., hilimit=None, 
                         if v > hilimit:
                             invol.setV( hival, ix, iy, iz)
 
-
-
 def scale(volume,factor,interpolation='Spline'):
     """
     scale: Scale (enlarge/shrink) a volume by a factor (=change size) . 
@@ -203,8 +200,6 @@ def scale(volume,factor,interpolation='Spline'):
     rescale(volume,newVolume)
     
     return newVolume
-
-
 
 def mirror(volume,axis = 'x',copyFlag = True):
     """

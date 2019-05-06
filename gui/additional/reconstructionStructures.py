@@ -448,7 +448,7 @@ class ProjectionList(PyTomClass):
         recPosVol.setAll(0.0)
         for iproj in range(0,vol_img.sizeZ()):
             for ii in range(0,3):
-                recPosVol.setV(float(reconstructionPosition[ii]/binning),ii,iproj,0)
+                recPosVol.setV(float(reconstructionPosition[ii]//binning),ii,iproj,0)
         
         # finally backproject into volume
         backProject(vol_img, vol_bp, vol_phi, vol_the, recPosVol, vol_offsetProjections)
@@ -738,7 +738,7 @@ class ProjectionList(PyTomClass):
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import fft,ifft
-        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift
+        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
 
 
         #fname = self._list[0].getFilename().replace('.em','.mrc')
@@ -760,14 +760,15 @@ class ProjectionList(PyTomClass):
 
         if applyWeighting:
             if applyWeighting==-1:
-                weightSlice= fourierFilterShift(rampFilter(imgDim, imgDim))
+                weightSlice= fourierFilterShift_ReducedComplex(rampFilter(imgDim, imgDim))
             circleFilterRadius = imgDim//2
-            circleSlice = fourierFilterShift(circleFilter(imgDim, imgDim, circleFilterRadius))
+            circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imgDim, imgDim, circleFilterRadius))
         
         if showProgressBar:
             progressBar = FixedProgBar(0,len(self._particleList),'Particle volumes generated ')
             progressBar.update(0)
 
+        print(imgDim)
         q = np.matrix(abs(np.arange(-imgDim//2, imgDim//2)))
 
         for (i, projection) in enumerate(self._list):

@@ -682,7 +682,7 @@ class CommonFunctions():
 
     def gen_action(self, params):
         mode = params[1][0][:-len('CommandText')]
-
+        print(params)
         for i in range(2):
             if params[i][0] in self.widgets.keys():
                 text = params[i][-1]
@@ -696,9 +696,11 @@ class CommonFunctions():
                             if datatype in (QSpinBox, QDoubleSpinBox, QLineEdit): d.append(self.widgets[a].text())
                             elif datatype == QComboBox: d.append(self.widgets[a].currentText())
                             elif datatype == QCheckBox: d.append(str(int(self.widgets[a].isChecked())))
+                            else: print(a, datatype)
                         elif type(str(a)) == type(''):
                             d.append(a)
-
+                        else: print(a)
+                    print(d)
                     text = text.format( d=d )
                 if i==0: self.widgets[params[i][0]].setPlainText(text)
         # Check if user wants to submit to queue. If so, add queue header.

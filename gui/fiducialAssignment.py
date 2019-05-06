@@ -547,16 +547,17 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             dataf = self.frames_adj[nr*nr_procs + proc_id, :,:]
 
             dataf = downsample(dataf,self.bin_read)
-            #if transpose: dataf = dataf.T
+
             w = wiener(dataf)
             hpf = dataf #- gaussian_filter(dataf, 10) * 0
             data = downsample(w + hpf, int(round(self.bin_alg * 1. / self.bin_read)))
             data -= data.min()
             data /= data.max()
 
-
+            dataf -= dataf.min()
+            dataf /= dataf.max()
             frames[nr_procs * nr + proc_id] = (data) ** 0.75
-            frames_full[nr_procs * nr + proc_id] = w
+            frames_full[nr_procs * nr + proc_id] = wiener(dataf)
 
     def read_data(self, fnames):
         start = time.time()
@@ -568,6 +569,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         try:
             del self.frames
             del self.frames_full
+            del self.frames_adj
         except:
             pass
         nr_procs = min(len(self.fnames), cpu_count() * 2)
@@ -595,11 +597,12 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         for i in range(len(fnames)):
             if 1:
-                datafile = mrcfile.open(self.fnames[i], permissive=True)
-                fa = deepcopy(datafile.data)
+                #datafile = mrcfile.open(self.fnames[i], permissive=True)
+                datafile = read_mrc('{}'.format(self.fnames[i]), binning=[1, 1, 1])
+                fa = deepcopy(datafile)
                 fa[fa > fa.mean() + 5 * fa.std()] = fa.mean()
                 self.frames_adj[i, :, :] = fa
-                datafile.close()
+                #datafile.close()
 
 
 
@@ -799,9 +802,9 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         if self.widgets['detectButton'].isEnabled()==False: return
 
         self.update_mark()
-        detect_shifts = detect_shifts_few
+        detect_shifts = self.detect_shifts_few
         if len(self.mark_frames[0]) > 5:
-            detect_shifts = detect_shifts_many
+            detect_shifts = self.detect_shifts_many
         self.frame_shifts, self.numshifts, self.outline_detect_shifts, self.fs = detect_shifts(self.mark_frames,
                                                                                                diag=True,
                                                                                                image=self.frames[0])
@@ -830,7 +833,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         max_shift = self.radius*2.*self.bin_read/self.bin_alg
         print(max_shift)
         self.coordinates, self.index_map, \
-        self.frame_shifts_sorted, self.listdx = index_potential_fiducials(self.fnames, self.mark_frames,
+        self.frame_shifts_sorted, self.listdx = self.index_potential_fiducials(self.fnames, self.mark_frames,
                                                                           self.frame_shifts, tiltangles=self.tiltangles,
                                                                           plot=False, user_coords=self.user_coordinates,
                                                                           zero_angle=ref_frame, excluded=self.excluded,

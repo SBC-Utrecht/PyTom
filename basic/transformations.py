@@ -216,7 +216,6 @@ def scale(volume,factor,interpolation='Spline'):
     
     return newVolume
 
-
 def resize(volume, factor, interpolation='Fourier'):
     """
     resize volume in real or Fourier space
@@ -242,7 +241,6 @@ def resize(volume, factor, interpolation='Fourier'):
         newvol = ifft(newfvol)
 
         return newvol, newfvol
-
 
 def resizeFourier(fvol, factor):
     """
@@ -342,7 +340,6 @@ def resizeFourier(fvol, factor):
                         newfvol.setV( fvol.getV(ixOld, iyOld, iz)*scf, ix, iy, iz)
     return newfvol
 
-
 def mirror(volume,axis = 'x',copyFlag = True):
     """
     mirror: Mirrors a volume at defined axis (x,y,z)
@@ -391,7 +388,6 @@ def mirror(volume,axis = 'x',copyFlag = True):
                     volume.setV(volume.getV(xMirrored,yMirrored,zMirrored),x,y,z)
                     
                     volume.setV(tmp,xMirrored,yMirrored,zMirrored)
-
 
 def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2]):
     """

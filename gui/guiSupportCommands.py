@@ -225,4 +225,11 @@ templateCTFPlotter = '''cd {d[0]}
 
 ctfplotter -pa {d[1]}'''
 
-
+templateCTFCorrection = '''cd {d[0]}
+{d[1]}/bin/pytom {d[1]}/gui/ctfCorrection.py \\
+-u {d[2]} \\
+-c {d[3]} \\
+--metafile {d[4]} \\
+--gridSpacing {d[5]} \\
+--fieldSize {d[6]} \\
+--binningFactor {d[7]}'''

@@ -14,6 +14,8 @@ from pytom_numpy import vol2npy
 from pytom.gui.guiSupportCommands import multiple_alignment
 matplotlib.use('Qt5Agg')
 from pylab import imread
+import mrcfile
+import copy
 
 def read_markerfile(filename,tiltangles):
     if filename[-4:] == '.mrc':
@@ -22,10 +24,16 @@ def read_markerfile(filename,tiltangles):
         mark_frames = em2markerfile(filename, tiltangles)
     elif filename[-5:] == '.wimp':
         mark_frames = wimp2markerfile(filename, tiltangles)
+    elif filename[-4:] == '.npy':
+        mark_frames = npy2markerfile(filename, tiltangles)
     else:
         return 0
 
     return mark_frames
+
+def npy2markerfile(filename,tiltangles):
+    return numpy.load(filename)
+
 def wimp2markerfile(filename, tiltangles, write=False):
     data = [line for line in open(filename).readlines()]
 
@@ -49,7 +57,12 @@ def wimp2markerfile(filename, tiltangles, write=False):
     return markerset
 
 def mrc2markerfile(filename, tiltangles):
-    mf = read_mrc(filename)
+    if 0:
+        mf = read_mrc(filename)
+    else:
+        m = mrcfile.open(filename, permissive=True)
+        mf = copy.deepcopy(m.data)
+        m.close()
     num,angles,d = mf.shape
     markers = -1 * numpy.ones((len(tiltangles), mf.shape[0], 2))
     for i in range(num):
@@ -91,8 +104,6 @@ def em2markerfile(filename,tiltangles):
 
     return mark_frames
 
-
-
 def conv_mrc2em(directory, output_folder):
     '''This function converts all mrc files in the specified
     directory to the .em format and saves the files in the
@@ -103,7 +114,6 @@ def conv_mrc2em(directory, output_folder):
     for fname in [f for f in fileList if f[-4:] == '.mrc']:
 
         mrc2em(os.path.join(directory, fname), output_folder)
-
 
 def renumber_gui2pytom(output_folder, prefix):
     # store em files under different index (old_index +1), marked with .temp
@@ -160,7 +170,6 @@ def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['python3/
 {}'''.format(name,folder,module_load,cmd)
     return slurm_generic_command
 
-
 def gen_queue_header(name='TemplateMatch', folder='./', cmd='',
                      modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/python3'],
                      qtype='slurm'):
@@ -199,7 +208,6 @@ def sort( obj, nrcol ):
 def sort_str( obj, nrcol ):
     obj.sort(key=lambda i: str(i[nrcol]))
 
-
 def avail_gpu(cutoff_busy=.25, cutoff_space = 0.5):
     lines = [line.split() for line in os.popen('nvidia-smi').readlines()]
 
@@ -218,7 +226,10 @@ def avail_gpu(cutoff_busy=.25, cutoff_space = 0.5):
 
     sort(comb,1)
 
-    av, b = zip(*comb)
+    try:
+        av, b = zip(*comb)
+    except:
+        av = []
     return av
 
 def delete( path):
@@ -673,3 +684,30 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
         outname = '{}/{}.meta'.format(nanographfolder, v[0][0][0])
         numpy.savetxt(outname, a, fmt=fmt, header=headerText)
+
+def update_metadata_from_defocusfile(metafile, defocusfile):
+    metadata = numpy.loadtxt(metafile, dtype=datatype)
+    defocusResults = numpy.loadtxt(defocusfile,skiprows=1)
+
+    tiltImages, columns = defocusResults.shape
+
+    resultsNames = ['ID_start', 'ID_end', 'AngleStart', 'AngleEnd', 'DefocusU', 'DefocusV', 'DefocusAngle',
+                    'PhaseShift', 'CutOn']
+    if defocusResults[0][5] < 400:
+        resultsNames[5] = 'Empty'
+        resultsNames[6] = 'Empty'
+    resultsNames = resultsNames[:columns]
+
+    for n, line in enumerate(defocusResults):
+        for query in ('DefocusU', 'DefocusV', 'DefocusAngle', 'PhaseShift'):
+            for nn, ii in enumerate(resultsNames):
+                if query == ii:
+                    metadata[query][n] = line[nn]
+                    if query in ('DefocusU', 'DefocusV'):
+                        metadata[query][n] /= 1000.
+                    break
+        if 'Empty' in resultsNames:
+            metadata['DefocusV'][n] = metadata['DefocusU'][n]
+            metadata['DefocusAngle'][n] = 0.
+
+    numpy.savetxt(metafile, metadata, fmt=fmt, header=headerText)

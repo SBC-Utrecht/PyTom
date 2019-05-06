@@ -348,6 +348,12 @@ class CollectPreprocess(GuiTabWidget):
         self.tab2.setLayout(gridLayout)
 
     def createCollectGroup(self,mode='v01_single_'):
+
+        if mode=='v01_single_':
+            m = 1
+        else:
+            m=0
+
         groupbox = QGroupBox("Collect Data")
         groupbox.setToolTip('Collect file from local or remote file system')
         groupbox.setCheckable(False)
@@ -366,6 +372,9 @@ class CollectPreprocess(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
 
         parent = gridLayout
+
+        dict_type={0: 'folder', 1: 'file'}
+
 
         self.row, self.column = 0, 3
         #self.insert_checkbox(parent, 'v01_single_collect', cstep=1, alignment=QtCore.Qt.AlignHCenter)
@@ -386,21 +395,21 @@ class CollectPreprocess(GuiTabWidget):
         self.insert_lineedit(parent, mode+'folder_nanographs', cstep=1, logvar=True)
         self.insert_pushbutton(parent, cstep=self.column * -1 + 1, rstep=1, text='Browse',
                                action=self.browse,
-                               params=['folder', self.items[self.row][self.column - 1],
+                               params=[dict_type[m], self.items[self.row][self.column - 1],
                                        self.v01_single_filetype_nanographs, self.items[self.row][self.column - 3]])
 
 
         # MDOC LINE
-        self.insert_checkbox(parent, 'v01_batch_collect_mdoc', cstep=1, alignment=QtCore.Qt.AlignHCenter,
+        self.insert_checkbox(parent, mode +'collect_mdoc', cstep=1, alignment=QtCore.Qt.AlignHCenter,
                              logvar=True)
         self.insert_label(parent, text=' - Mdoc Folder', cstep=1,
                       tooltip='If you hae accompanying mdoc files, select the folder where these files are stored')
-        self.insert_checkbox(parent, 'v01_batch_remote_mdoc', cstep=2)
-        # self.insert_combobox(parent, 'batch_filtype_mdoc', ['dm4','mrc'], cstep=1)
-        self.insert_lineedit(parent, 'v01_batch_folder_mdoc', cstep=1, logvar=True)
+        self.insert_checkbox(parent, mode + 'remote_mdoc', cstep=1)
+        self.insert_combobox(parent, mode + 'filtype_mdoc', ['mdoc'], cstep=1)
+        self.insert_lineedit(parent, mode + 'folder_mdoc', cstep=1, logvar=True)
         self.insert_pushbutton(parent, cstep=self.column * -1, rstep=1, text='Browse',
                                action=self.browse,
-                               params=['folder', self.items[self.row][self.column - 1],
+                               params=[dict_type[m], self.items[self.row][self.column - 1],
                                        self.items[self.row][self.column - 2],
                                        self.items[self.row][self.column - 3]])
         groupbox.setLayout(gridLayout)
@@ -658,8 +667,11 @@ class CollectPreprocess(GuiTabWidget):
             # Check list of nanograph files (flist), either from remote or local files.
             if self.search_remote_nanograph:
                 try:
-                    ftps = self.connect_ftp_server(self.servername, self.username, self.password)
-                    flist_all = ftps.nlst(self.remote_data_folder)
+                    if not os.path.splitext(self.remote_data_folder)[-1]:
+                        ftps = self.connect_ftp_server(self.servername, self.username, self.password)
+                        flist_all = ftps.nlst(self.remote_data_folder)
+                    else:
+                        flist_all = [self.remote_data_folder]
                     flist = [tiffile for tiffile in flist_all if tiffile[-3:] == self.data_file_type[-3:]]
                 except:
                     self.popup_messagebox("Error", "Error", "Remote data folder does not exist.")
@@ -667,7 +679,10 @@ class CollectPreprocess(GuiTabWidget):
 
             else:
                 try:
-                    flist_all = os.listdir(self.remote_data_folder)
+                    if not os.path.isfile(self.remote_data_folder):
+                        flist_all = os.listdir(self.remote_data_folder)
+                    else:
+                        flist_all = [self.remote_data_folder]
                     flist = [os.path.join(self.remote_data_folder, tiffile) for tiffile in flist_all if
                              tiffile[-3:] == self.data_file_type[-3:]]
                 except:
@@ -682,11 +697,18 @@ class CollectPreprocess(GuiTabWidget):
             # Check mdoc input.
             if self.widgets[mode+'collect_mdoc'].isChecked():
                 try:
-                    all_files = ftps.nlst(self.remote_mdoc_folder)
+                    if not os.path.splitext(self.remote_mdoc_folder)[-1]:
+                        all_files = ftps.nlst(self.remote_mdoc_folder)
+                    else:
+                        all_files = [self.remote_mdoc_folder]
                     mdoc_list = [mdocfile for mdocfile in all_files if mdocfile[-4:] == 'mdoc']
                 except:
                     try:
-                        all_files = os.listdir(self.remote_mdoc_folder)
+                        if not os.path.isfile(self.remote_mdoc_folder):
+                            all_files = os.listdir(self.remote_mdoc_folder)
+                        else:
+                            all_files = [self.remote_mdoc_folder]
+
                         mdoc_list = [os.path.join(self.remote_mdoc_folder, mdocfile) for mdocfile in all_files if
                                      mdocfile[-4:] == 'mdoc']
                     except:
@@ -764,15 +786,17 @@ class CollectPreprocess(GuiTabWidget):
             self.motioncor_flist = motioncor_flist
 
             availableGPU = avail_gpu()
-
-            for i in range(min(len(availableGPU), self.number_motioncor_subprocesses)):
-                finish_motioncor = Event()
-                self.mcor_procs.append(finish_motioncor)
-                proc = Process(target=self.apply_motioncor,args=(motioncor_flist[i::self.number_motioncor_subprocesses],
-                                                                 i + 1, e, availableGPU[i],self.completedMC,
-                                                                 finish_motioncor))
-                procs.append(proc)
-                proc.start()
+            if len(avail_gpu) == 0:
+                self.popup_messagebox('Warning', 'No Motioncor', 'No available GPUs, motioncor is not running.')
+            else:
+                for i in range(min(len(availableGPU), self.number_motioncor_subprocesses)):
+                    finish_motioncor = Event()
+                    self.mcor_procs.append(finish_motioncor)
+                    proc = Process(target=self.apply_motioncor,args=(motioncor_flist[i::self.number_motioncor_subprocesses],
+                                                                     i + 1, e, availableGPU[i],self.completedMC,
+                                                                     finish_motioncor))
+                    procs.append(proc)
+                    proc.start()
 
         if self.c or self.m:
             self.widgets['CandP'].setEnabled(False)

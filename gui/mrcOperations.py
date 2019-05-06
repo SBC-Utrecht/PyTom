@@ -39,7 +39,6 @@ def read_mrc_header(mrc_fname):
 
 def square_mrc(mrc_fname):
     i = read_mrc(mrc_fname)
-
     if len(i.shape)==3:
         o = i[i.shape[0],:min(i.shape[1:]),:min(i.shape[1:])]
     elif len(i.shape)==2:

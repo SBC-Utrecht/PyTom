@@ -360,6 +360,9 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
 
     """
 
+
+
+
     from pytom_numpy import npy2vol
     from numpy import array, matrix, sin, pi, arange, float32, column_stack, argmin, clip, ones, ceil
 
@@ -368,6 +371,7 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
 
     # Calculate the relative angles in radians.
     diffAngles = (array(tilt_angles)-tiltAngle)*pi/180.
+
 
     # Closest angle to tiltAngle (but not tiltAngle) sets the maximal frequency of overlap (Crowther's frequency).
     # Weights only need to be calculated up to this frequency.
