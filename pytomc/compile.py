@@ -294,6 +294,8 @@ if nonfft is False:
         set_flags += ' && export NUMPY_INCLUDE_PATH="%s"' % parent_include_numpy
         set_flags += ' && export FFTW_INCLUDE_PATH="%s"' % include_fftw
         set_flags += ' && export FFTW_LIB_PATH="%s"' % lib_fftw
+        #set_flags += ' && export NFFT_LIB_PATH="%s"' % ("/usr/local/lib/")
+        #set_flags += ' && export NFFT_INCLUDE_PATH="%s"' % ("/Users/gijs/Documents/PostDocUtrecht/nfft/include/")
         set_flags += ' && export NFFT_LIB_PATH="%s"' % (install_path+"lib/")
         set_flags += ' && export NFFT_INCLUDE_PATH="%s"' % (install_path+"src/nfft-3.1.3/include/")
         set_flags += ' && export PYTHON_LIB_PATH="%s"' % lib_python
