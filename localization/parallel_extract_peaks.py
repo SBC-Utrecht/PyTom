@@ -422,6 +422,8 @@ class PeakManager():
         # check if the split is feasible
         v = job.volume.getVolume()
         r = job.reference.getVolume()
+
+        print(r.sizeX(), r.sizeY())
         
         vsizeX = v.sizeX(); vsizeY = v.sizeY(); vsizeZ = v.sizeZ()
         sizeX = vsizeX//splitX; sizeY = vsizeY//splitY; sizeZ = vsizeZ//splitZ
@@ -435,13 +437,13 @@ class PeakManager():
         # read the target volume, calculate the respective subregion
         from pytom.localization.peak_job import PeakJob
         from pytom.localization.structures import Volume
-        _start = [-rsizeX//2,-rsizeX//2,-rsizeZ//2]
+        _start = [-rsizeX//2,-rsizeY//2,-rsizeZ//2]
         _size = [sizeX+rsizeX, sizeY+rsizeY, sizeZ+rsizeZ]
         
         for i in range(splitX*splitY*splitZ):
             strideZ = splitX*splitY; strideY = splitX
             incZ = i//strideZ; incY = (i%strideZ)//strideY; incX = i%strideY
-            _start = [-rsizeX//2+incX*sizeX,-rsizeX//2+incY*sizeY,-rsizeZ//2+incZ*sizeZ]
+            _start = [-rsizeX//2+incX*sizeX,-rsizeY//2+incY*sizeY,-rsizeZ//2+incZ*sizeZ]
             
             start = _start[:]
             end = [start[j]+_size[j] for j in range(len(start))]
@@ -461,7 +463,7 @@ class PeakManager():
             
             size = [end[j]-start[j] for j in range(len(start))]
 #            print start[0], start[1], start[2], size[0], size[1], size[2]
-            
+            print(size)
             # for reassembling the result
             whole_start = start[:]
             sub_start = [0, 0, 0]
@@ -784,7 +786,7 @@ class PeakLeader(PeakWorker):
         # read the target volume, calculate the respective subregion
         from pytom.localization.peak_job import PeakJob
         from pytom.localization.structures import Volume
-        _start = [-rsizeX//2+origin[0],-rsizeX//2+origin[1],-rsizeZ//2+origin[2]]
+        _start = [-rsizeX//2+origin[0],-rsizeY//2+origin[1],-rsizeZ//2+origin[2]]
         _size = [sizeX+rsizeX, sizeY+rsizeY, sizeZ+rsizeZ]
         
         numPieces = splitX*splitY*splitZ
@@ -795,7 +797,7 @@ class PeakLeader(PeakWorker):
         for i in range(numPieces):
             strideZ = splitX*splitY; strideY = splitX
             incZ = i//strideZ; incY = (i%strideZ)//strideY; incX = i%strideY
-            _start = [-rsizeX//2+origin[0]+incX*sizeX,-rsizeX//2+origin[1]+incY*sizeY,-rsizeZ//2+origin[2]+incZ*sizeZ]
+            _start = [-rsizeX//2+origin[0]+incX*sizeX,-rsizeY//2+origin[1]+incY*sizeY,-rsizeZ//2+origin[2]+incZ*sizeZ]
             
             start = _start[:]
             end = [start[j]+_size[j] for j in range(len(start))]
@@ -990,7 +992,8 @@ class PeakLeader(PeakWorker):
             stepSizeX = min(vsizeX-sub_start[0], sizeX)
             stepSizeY = min(vsizeY-sub_start[1], sizeY)
             stepSizeZ = min(vsizeZ-sub_start[2], sizeZ)
-            print(sub_start, stepSizeX, stepSizeY, stepSizeZ, vsizeX, vsizeY, vsizeZ)
+            print(sub_start[0],sub_start[1],sub_start[2], stepSizeX, stepSizeY, stepSizeZ, vsizeX, vsizeY, vsizeZ)
+            print(resV.sizeX(), resV.sizeY(), resV.sizeZ())
             from pytom_volume import subvolume, putSubVolume
             sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
             sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)

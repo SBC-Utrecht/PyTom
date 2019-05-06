@@ -598,7 +598,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
                 #datafile = mrcfile.open(self.fnames[i], permissive=True)
                 datafile = read_mrc('{}'.format(self.fnames[i]), binning=[1, 1, 1])
-                fa = deepcopy(datafile)
+                fa = deepcopy(datafile).T
 
                 fa[fa > fa.mean() + 5 * fa.std()] = fa.mean()
                 self.frames_adj[i, :, :] = fa

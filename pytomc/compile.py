@@ -255,8 +255,8 @@ if nompi4py is False:
         print()
         mpicc_exe, mpicc_exePath = find("mpicc", exePaths)
         mpicc_exe = mpicc_exePath + '/' + mpicc_exe
-        os.system("cd ../external/src/mpi4py-1.3/ && python setup.py build --mpicc="+mpicc_exe)
-        os.system("cd ../external/src/mpi4py-1.3/ && python setup.py install --prefix=../../")
+        os.system("cd ../external/src/mpi4py/ && python"+str(pythonVersion)+" setup.py build --mpicc="+mpicc_exe)
+        os.system("cd ../external/src/mpi4py/ && python"+str(pythonVersion)+" setup.py install --prefix=../../")
         print()
         # add into the path
         path1 = os.path.abspath(os.path.join(os.getcwd(), os.pardir)) + '/external/lib/'

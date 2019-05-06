@@ -3,6 +3,8 @@ from pytom.gui.guiFunctions import datatype
 import os
 import numpy as np
 from tompy.mpi import MPI
+import mrcfile
+
 
 mpi = MPI()
 
@@ -39,12 +41,12 @@ def CorrectTiltseries(metafile, uprefix, cprefix, gs, fs, binning_factor):
     NumOfProj = len(glob.glob(uprefix+"*"))
     args = []
 
-    for fname in fnames:
+    for p, fname in enumerate(fnames):
         # Corrected projection name
-        new_fname = cprefix + '_' + os.path.basename(fname).split("_")[-1]
+        new_fname = cprefix + os.path.basename(fname).split("_")[-1]
 
         args.append((fname, new_fname, p, metafile, gs, fs, binning_factor))
-
+        #CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_factor)
     # Parallelization
     res = mpi.parfor(CorrectProjection_proxy, args)
 
@@ -70,7 +72,8 @@ dzp --- defocus plane /in mu m
 dzm --- central line of defocus plane parallel to the x-axis /in mu m
     """
     # Calculate defocus plane
-    dzp = dz0 + (1./1000)*np.arange(-Imdim, Imdim)*Objectpixelsize*np.tan(Tiltangle*np.pi/180)
+
+    dzp = dz0 + (1./1000) * np.arange(-Imdim, Imdim)*Objectpixelsize * np.tan(Tiltangle*np.pi/180)
     dzp = np.transpose(np.tile(dzp, [2*Imdim,1]))
 
     # Inverse transformation
@@ -78,10 +81,10 @@ dzm --- central line of defocus plane parallel to the x-axis /in mu m
         dzp = AlignProjectionINV(dzp,Tiltaxis,tx,ty,sfx,sfy)
 
     # Cut defocus plane
-    dzp = dzp[Imdim-Imdim/2:2*Imdim-Imdim/2,Imdim-Imdim/2:2*Imdim-Imdim/2]
+    dzp = dzp[Imdim-Imdim//2:2*Imdim-Imdim//2,Imdim-Imdim//2:2*Imdim-Imdim//2]
 
     # Cut central line
-    dzm = dzp[:,Imdim/2]
+    dzm = dzp[:,Imdim//2]
 
     return dzp
 
@@ -209,7 +212,6 @@ def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_facto
     # Alignment parameter
     Tiltangles = metadata['TiltAngle']
     Tiltaxis = metadata['InPlaneRotation']
-    Imdim = metadata['ImageSize'] 
 
     dz1 = metadata['DefocusU']
     dz2 = metadata['DefocusV']
@@ -218,6 +220,9 @@ def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_facto
     Voltage = metadata['Voltage'][p]
     Cs = metadata['SphericalAberration'][p]
     A = metadata['AmplitudeContrast'][p]
+    Imdim = metadata['ImageSize'][p]
+
+    if Imdim == 0: Imdim = 3710
 
     Objectpixelsize = metadata['PixelSpacing'][p] * 10. * metadata['Magnification'][p] * binning_factor
                     
@@ -242,7 +247,8 @@ def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_facto
     projc = CorrectProjection(proj,dz1p,dz2p,alphap,gs,fs,Objectpixelsize,Voltage,Cs,A)
 
     # Save projection
-    write(new_fname, projc, Tiltangles[p])
+    mrcfile.new(new_fname, projc.T,overwrite=True)
+    #write(new_fname, projc, Tiltangles[p])
 
     return True
 
@@ -280,11 +286,11 @@ def CorrectProjection(proj,dzp1,dzp2,alphap,gs,fs,Objectpixelsize,Voltage,Cs,A):
     projc = np.copy(proj)
 
     # Prepare coordinate list
-    x = np.arange(gs/2-1, proj.shape[0]-gs/2, gs)
-    ind = ~np.logical_or(x<fs/2-1, x>proj.shape[0]-fs/2-1)
+    x = np.arange(gs//2-1, proj.shape[0]-gs//2, gs)
+    ind = ~np.logical_or(x<fs//2-1, x>proj.shape[0]-fs//2-1)
     x = x[ind]
-    y = np.arange(gs/2-1, proj.shape[1]-gs/2, gs)
-    ind = ~np.logical_or(y<fs/2-1, y>proj.shape[1]-fs/2-1)
+    y = np.arange(gs//2-1, proj.shape[1]-gs//2, gs)
+    ind = ~np.logical_or(y<fs//2-1, y>proj.shape[1]-fs//2-1)
     y = y[ind]
 
     for xx in range(len(x)):
@@ -295,15 +301,15 @@ def CorrectProjection(proj,dzp1,dzp2,alphap,gs,fs,Objectpixelsize,Voltage,Cs,A):
             # Extract correction patch
             # smooth edges
             # and do the phase flipping
-            tmp = np.array(proj[x[xx]-fs/2+1:x[xx]+fs/2+1,y[yy]-fs/2+1:y[yy]+fs/2+1], copy=True)
+            tmp = np.array(proj[x[xx]-fs//2+1:x[xx]+fs//2+1,y[yy]-fs//2+1:y[yy]+fs//2+1], copy=True)
             tmp2 = SmoothEdges(tmp)
             cpatch = PhaseDeconv(tmp2,ctf)
             
             # Cut correction patch
-            cpatchc = cpatch[fs/2-gs/2:fs/2+gs/2,fs/2-gs/2:fs/2+gs/2]
+            cpatchc = cpatch[fs//2-gs//2:fs//2+gs//2,fs//2-gs//2:fs//2+gs//2]
             
             # Paste correction patch into corrected projection
-            projc[x[xx]-gs/2+1:x[xx]+gs/2+1,y[yy]-gs/2+1:y[yy]+gs/2+1] = cpatchc
+            projc[x[xx]-gs//2+1:x[xx]+gs//2+1,y[yy]-gs//2+1:y[yy]+gs//2+1] = cpatchc
 
 
     return projc
@@ -355,7 +361,7 @@ def PhaseDeconv(proj,otf):
     otf = np.sign(otf)
 
     # Set sign of center pixel to (+)
-    otf[otf.shape[0]/2,otf.shape[1]/2] = 1
+    otf[otf.shape[0]//2,otf.shape[1]//2] = 1
 
     # Phase deconvolution
     projfft = projfft*otf
@@ -394,11 +400,8 @@ if __name__ == '__main__':
     # start the clustering
     mpi.begin()
 
-    try:
-        CorrectTiltseries(metafile, uprefix, cprefix, gs, fs, binningFactor)
-    except Exception, e:
-        print e
-    finally:
-        mpi.end()
+    CorrectTiltseries(metafile, uprefix, cprefix, gs, fs, binningFactor)
+
+    mpi.end()
 
 

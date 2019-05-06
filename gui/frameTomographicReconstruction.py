@@ -422,7 +422,7 @@ class TomographReconstruct(GuiTabWidget):
                 tomofolder_file.write('{} {} {}\n'.format(tomofoldername,refindex, markindex))
                 num_procs_per_proc = max(num_procs_per_proc, len(values[row][-1] ) - 1)
                 number_tomonames += 1
-                folder = os.path.join(self.tomogram_folder,tomofoldername)
+                folder = os.path.join(self.tomogram_folder, tomofoldername)
                 os.system('cp {}/sorted/markerfile.em {}/alignment'.format(folder,folder))
 
         tomofolder_file.close()
@@ -512,6 +512,8 @@ class TomographReconstruct(GuiTabWidget):
 
             refIndex = 1 + abs(angles).argmin()
             self.widgets[mode+'RefTiltIndex'].setValue(refIndex)
+
+        self.updateVoldims(mode)
 
     def tab52UI(self):
         id = 'tab52'
@@ -838,13 +840,13 @@ class TomographReconstruct(GuiTabWidget):
         if not folder:
             print('No Folder Selected.')
             return
-        try:
+        if 1:
             tomogramID = folder.split('tomogram_')[-1][:3]
             sortedFolder = '{}/tomogram_{}/sorted/'.format(self.tomogram_folder, tomogramID)
             tomoname = '{}/tomogram_{}'.format(self.tomogram_folder, tomogramID)
-            tID = int(tomogramID)
+
             outstack = '{}/tomogram_{}_{}.st'.format(folder,tomogramID, os.path.basename(folder))
-        except:
+        else:
             print('update CTF Plotter failed.')
             return
         files = [line for line  in os.listdir(folder) if line.endswith('.mrc') and line.startswith('sorted_')]
@@ -889,6 +891,8 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[mode + 'Voltage'].setValue(metadata['Voltage'][0])
         self.widgets[mode + 'SphericalAberration'].setValue(metadata['SphericalAberration'][0])
         self.widgets[mode + 'AmplitudeContrast'].setValue(metadata['AmplitudeContrast'][0])
+
+        print(self.widgets[mode + 'tomofolder'].text())
 
     def prep_value(self, params):
 
@@ -938,7 +942,7 @@ class TomographReconstruct(GuiTabWidget):
 
 
         paramsSbatch = guiFunctions.createGenericDict()
-        paramsSbatch['fname'] = 'CTF Correction'
+        paramsSbatch['fname'] = 'CTF_Correction'
         paramsSbatch['folder'] = exefilename
 
 
@@ -998,9 +1002,9 @@ class TomographReconstruct(GuiTabWidget):
     def updateGridAndFieldSize(self, mode):
         gridSpacing = float(self.widgets[mode + 'GridSpacing'].value())
         fieldSize   = float(self.widgets[mode + 'FieldSize'].value())
-        if gridSpacing < fieldSize:
-            self.widgets[mode + 'FieldSize'].setValue(gridSpacing)
-        self.widgets[mode+'FieldSize'].setMinimum(gridSpacing)
+        if gridSpacing > fieldSize:
+            self.widgets[mode + 'GridSpacing'].setValue(fieldSize)
+        self.widgets[mode+'GridSpacing'].setMinimum(fieldSize)
 
     def updateMetaFile(self,params):
         mode = params[0]

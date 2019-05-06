@@ -228,7 +228,7 @@ if __name__ == '__main__':
                 'volumeName': volumeName, 
                 'volumeFileType': 'mrc',
                 'voldims': voldims, "recCent":reconstructionPosition,
-                'tiltSeriesFormat': 'mrc', "firstProj":firstProj, "irefmark":irefmark+1, "ireftilt":ireftilt,
+                'tiltSeriesFormat': 'mrc', "firstProj":firstProj, "irefmark":irefmark, "ireftilt":ireftilt,
                 'handflip': handflip, "alignedTiltSeriesName":falignedTiltSeriesName,
                 'weightingType': weightingType, "lowpassFilter":lowpassFilter, "projBinning":projBinning,
                 'outMarkerFileName': outMarkerFileName, 'verbose':True,'projIndices':projIndices}

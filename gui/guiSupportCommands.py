@@ -66,7 +66,13 @@ templateWBP       = '''cd {d[0]}
     --tomogramSizeZ {d[9]} \\
     --reconstructionCenterX 0 \\
     --reconstructionCenterY 0 \\
-    --reconstructionCenterZ 0'''
+    --reconstructionCenterZ 0
+
+
+unlink ../../04_Particle_Picking/Tomograms/{d[7]}_WBP.{d[8]}
+ln -s {d[0]}/reconstruction/WBP/{d[7]}_WBP.{d[8]} ../../04_Particle_Picking/Tomograms/{d[7]}_WBP.{d[8]}'''
+
+
 
 templateINFR      = '''cd {d[0]}
 
@@ -84,7 +90,9 @@ templateINFR      = '''cd {d[0]}
     --tiltSeriesFormat em \\
     --fileType em
 
-{d[1]}/bin/pytom {d[7]}/reconstruction/reconstruct_INFR.py -d reconstruction/INFR/temp_files_unweighted/ -o reconstruction/INFR/{d[8]}_INFR.em '''
+unlink ../../04_Particle_Picking/Tomograms/{d[8]}_INFR.em
+{d[1]}/bin/pytom {d[7]}/reconstruction/reconstruct_INFR.py -d reconstruction/INFR/temp_files_unweighted/ -o reconstruction/INFR/{d[8]}_INFR.em 
+ln -s {d[0]}/reconstruction/INFR/{d[8]}_INFR.em ../../04_Particle_Picking/Tomograms/{d[8]}_INFR.em'''
 
 
 
@@ -156,9 +164,7 @@ mpirun -c 20 {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
 -t {d[11]}\\
 '''
 
-templateTM        = '''module unload python3/3.7
-
-cd {d[0]}
+templateTM        = '''cd {d[0]}
 
 mpiexec --tag-output -n 16 pytom /cm/shared/apps/pytom/0.971/pytom/bin/localization.py {d[2]} 4 4 1 '''
 
@@ -231,6 +237,7 @@ templateCTFPlotter = '''cd {d[0]}
 ctfplotter -pa {d[1]}'''
 
 templateCTFCorrection = '''cd {d[0]}
+
 {d[1]}/bin/pytom {d[1]}/gui/ctfCorrection.py \\
 -u {d[2]} \\
 -c {d[3]} \\
