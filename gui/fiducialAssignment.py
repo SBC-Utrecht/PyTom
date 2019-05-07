@@ -1338,9 +1338,62 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
             pass
 
     def next_missing(self, params=None):
-        pass
+        sel_marker = self.parent().selected_marker
+        sizeCut = self.parent().sizeCut
+        bin_alg = self.parent().bin_alg
+        bin_read = self.parent().bin_read
+        dim = self.parent().dim
+        fs = self.parent().fs
+
+        if sel_marker > -1:
+            imnr = self.parent().imnr
+            for i in range(imnr, len(self.parent().fnames)):
+                tx,ty = self.parent().coordinates[i, sel_marker]
+                if tx < 0.01 or ty < 0.01:
+                    self.parent().imnr = i
+                    px, py = self.parent().coordinates[i-1, sel_marker]
+                    fx,fy = fs[i-1][0]-fs[i][0], fs[i-1][1]-fs[i][1]
+                    print(px*bin_alg/bin_read - fx, py*bin_alg/bin_read-fy, fx, fy)
+                    xmin = int(max(0, py*bin_alg/bin_read + fy - sizeCut // 2))
+                    ymin = int(max(0, px*bin_alg/bin_read + fx - sizeCut // 2))
+                    if xmin + sizeCut >= dim: xmin = dim - sizeCut
+                    if ymin + sizeCut >= dim: ymin = dim - sizeCut
+
+
+                    self.parent().ymin = ymin #int(max(0, px*bin_alg/bin_read + fx - sizeCut // 2))
+                    self.parent().xmin = xmin #int(max(0, px*bin_alg/bin_read + fy - sizeCut // 2))
+                    self.parent().replot2()
+                    break
 
     def prev_missing(self,params=None):
+
+        try: sel_marker = self.parent().selected_marker
+        except: return
+        sizeCut = self.parent().sizeCut
+        bin_alg = self.parent().bin_alg
+        bin_read = self.parent().bin_read
+        dim = self.parent().dim
+        fs = self.parent().fs
+
+        if sel_marker > -1:
+            imnr = self.parent().imnr
+            for i in numpy.arange(imnr, -1, -1):
+                tx, ty = self.parent().coordinates[i, sel_marker]
+                if tx < 0.01 or ty < 0.01:
+                    self.parent().imnr = i
+                    px, py = self.parent().coordinates[i + 1, sel_marker]
+                    fx, fy = fs[i][0] - fs[i+1][0], fs[i][1] - fs[i+1][1]
+                    print(px * bin_alg / bin_read - fx, py * bin_alg / bin_read - fy, fx, fy)
+                    xmin = int(max(0, py * bin_alg / bin_read - fy - sizeCut // 2))
+                    ymin = int(max(0, px * bin_alg / bin_read - fx - sizeCut // 2))
+
+                    self.parent().ymin = ymin  # int(max(0, px*bin_alg/bin_read + fx - sizeCut // 2))
+                    self.parent().xmin = xmin  # int(max(0, px*bin_alg/bin_read + fy - sizeCut // 2))
+                    self.parent().replot2()
+                    break
+
+
+
         pass
 
 def main():

@@ -662,6 +662,8 @@ class CommonFunctions():
             if params[2]:
                 if len(params[2][0]) > 1:
                     tempfilename = os.path.join(self.widgets[params[2][0]].text(), params[2][1])
+                else:
+                    tempfilename = params[2]
                 jobfile = open(tempfilename,'w')
                 print(tempfilename)
                 jobfile.write(self.widgets[params[3]].toPlainText())
@@ -670,6 +672,8 @@ class CommonFunctions():
             # Write executable file
             if len(params[0][0]) > 1:
                 exefilename = os.path.join(self.widgets[params[0][0]].text(), params[0][1])
+            else:
+                exefilename = params[0]
             exefile = open(exefilename, 'w')
             print(exefilename)
             exefile.write(self.widgets[params[1]].toPlainText())
@@ -943,7 +947,9 @@ class ConvertEM2PDB(QMainWindow, CommonFunctions):
         out_fname = str(QFileDialog.getSaveFileName(self, 'Save EM model.', self.folder, filter='*.em')[0])
         if not out_fname: return
         if not out_fname.endswith('.em'): out_fname += '.em'
-        pdb2em('{}/{}.pdb'.format(self.folder,pdbid), pixel_size, cube_size, chain=chain, fname=out_fname)
+        pdb2em('{}/{}.pdb'.format(self.folder,pdbid), pixel_size, cube_size, chain=chain, fname=out_fname,
+               densityNegative=True)
+
         self.parent().widgets[params[-1]].setText(out_fname)
         self.close()
 
@@ -1580,10 +1586,10 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.radius = int(self.widgets['size_selection: '].text()) / 2
 
 
-        for nn, (x,y,z) in enumerate(plist):
+        for nn, (x,y,z,s) in enumerate(plist):
             add= True
             if self.xmlfile and len(self.particleList) > 100: add=False
-            self.add_points(QPoint(0,0), x, y, z, self.radius, add=add)
+            self.add_points(QPoint(0,0), x, y, z, s, self.radius, add=add)
 
         self.subtomo_plots.size_subtomo = self.radius*2
 

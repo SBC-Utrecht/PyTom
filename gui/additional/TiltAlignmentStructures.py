@@ -1094,7 +1094,7 @@ class TiltAlignment:
         """
         """
 
-    def computeCoarseAlignment(self, TiltSeries_, mute=True):
+    def computeCoarseAlignment(self, TiltSeries_, mute=True, outfile=''):
         """
         compute alignment analytically (constant mag. and tilt axis)
 
@@ -1112,7 +1112,7 @@ class TiltAlignment:
             ireftilt=numpy.argwhere( self._projIndices.astype(int) == TiltSeries_._TiltAlignmentParas.ireftilt)[0][0],
             irefmark=TiltSeries_._TiltAlignmentParas.irefmark,
             r=TiltSeries_._TiltAlignmentParas.r, imdim=TiltSeries_._imdim,
-            handflip=TiltSeries_._TiltAlignmentParas.handflip, mute=mute)
+            handflip=TiltSeries_._TiltAlignmentParas.handflip, mute=mute, writeResults=outfile)
         if not mute:
             print(("Tilt Axis: %.2f" % psiindeg))
         # copy parameters to TiltSeries

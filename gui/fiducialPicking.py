@@ -459,6 +459,11 @@ class PickingFunctions():
                                 tempn+=1
 
                 if cur > 19:
+
+                    cc = 0
+                    for x,y in coordinates_sorted[:,nr,:]:
+                        if x > 0 and y>0: cc+=1
+                    cur = cc
                     tot +=cur
 
                     index = coordinates_sorted[:,nr,0].argmax()

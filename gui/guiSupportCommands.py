@@ -166,7 +166,7 @@ mpirun -c 20 {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
 
 templateTM        = '''cd {d[0]}
 
-mpiexec --tag-output -n 16 pytom /cm/shared/apps/pytom/0.971/pytom/bin/localization.py {d[2]} 4 4 1 '''
+mpiexec --tag-output -n 16 {d[1]}/bin/pytom {d[1]}/bin/localization.py {d[2]} 4 4 1 '''
 
 
 createParticleList = 'coords2PL.py -c {d[0]}  -s {d[1]} -w {d[2]},{d[3]} -p {d[4]} {d[5]}'

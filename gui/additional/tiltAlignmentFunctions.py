@@ -168,7 +168,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
 
 def alignmentFixMagRot( Markers_, cTilt, sTilt,
         ireftilt, irefmark=1, r=None, imdim=2048, handflip=False,
-    mute=True):
+    mute=True, writeResults=''):
     """
     compute alignment analytically (constant mag. and tilt axis)
 
@@ -186,6 +186,11 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     @author: FF
     """
     from math import atan, tan, pi, sqrt
+
+    if writeResults:
+        from pytom.gui.guiFunctions import headerMarkerResults
+        outfile=open(writeResults, 'w')
+        outfile.write(headerMarkerResults)
 
     ntilt = len(cTilt)
     nmark = len(Markers_)
@@ -257,7 +262,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
                 distLine[imark,itilt] = ((Marker.xProj[itilt] - Markers_[irefmark].xProj[itilt] -meanx[imark])*cpsi +
                 (Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt] -meany[imark])*spsi)
                 sumxx = distLine[imark,itilt]**2 +sumxx
-    sigma = sqrt(sumxx/(ndif - nmark ));
+    sigma = sqrt(sumxx/(ndif - nmark ))
     #   deviation as angle in deg
     if not mute:
         print(('Number of tilts:.............. = %3d' %ntilt))
@@ -277,7 +282,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
         print(('Coordinates of reference marker: %7.1f, %7.1f, %7.1f'%(r[0], r[1], r[2])))
         print('Difference vectors of marker points:')
     for (imark,Marker) in enumerate(Markers_):
-        sumxx=0.; sumyy=0.; sumxy=0.; sumyx=0.; salpsq = 0.; scalph = 0.;
+        sumxx=0.; sumyy=0.; sumxy=0.; sumyx=0.; salpsq = 0.; scalph = 0.
         P = numpy.array(3*[3*[0.]])
         P_t = numpy.array(3*[3*[0.]])
         temp = numpy.array(3*[0.])
@@ -287,8 +292,8 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
         for itilt in range(0,ntilt):
 
             if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark].xProj[itilt] > -1.)): #allow overlapping MPs
-                norm[imark]= norm[imark]+1;
-                salpsq = salpsq + sTilt[itilt]**2; #sum sin^2
+                norm[imark]= norm[imark]+1
+                salpsq = salpsq + sTilt[itilt]**2 #sum sin^2
                 scalph = scalph + cTilt[itilt]*sTilt[itilt] #sum cos*sin
                 #sum delta x * cos
                 sumxx = sumxx+ (Marker.xProj[itilt] - Markers_[irefmark].xProj[itilt])* cTilt[itilt]
@@ -329,7 +334,13 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
             P_t[0,2]=temp[0]
             P_t[1,2]=temp[1]
             P_t[2,2]=temp[2]
-            z[imark] = numpy.linalg.det(P_t)/dt;
+            z[imark] = numpy.linalg.det(P_t)/dt
+
+            if writeResults:
+                result = '{:4d} {:7.1f} {:7.1f} {:7.1f} {:7.1f} {:7.1f} {:7.1f}\n'
+                result = result.format(imark, x[imark], y[imark], z[imark], x[imark]+r[0], y[imark]+r[1], z[imark]+r[2])
+                outfile.write(result)
+
             if not mute:
                 print(('     %3d - %3d :.............. = %7.1f, %7.1f, %7.1f'
                     %(imark, irefmark, x[imark], y[imark], z[imark])))
@@ -401,7 +412,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
             shiftVarX[itilt]=None
             shiftVarY[itilt]=None
 
-        
+    if writeResults: outfile.close()
 
     return(psiindeg, shiftX, shiftY, x, y, z, distLine, diffX, diffY, 
            shiftVarX, shiftVarY)

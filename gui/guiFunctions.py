@@ -521,6 +521,19 @@ for n, h in enumerate(datatype):
 for n, h in enumerate(datatype):
     headerText0 += '{} {}\n'.format(h[0], '({})'.format(units[n])*(units[n]!=''))
 
+datatypeMR = [('MarkerIndex', 'i4'),
+              ('OffsetX',     'f4'),
+              ('OffsetY',     'f4'),
+              ('OffsetZ',     'f4'),
+              ('PositionX',   'f4'),
+              ('PositionY',   'f4'),
+              ('PositionZ',   'f4')]
+
+headerMarkerResults = ''
+unitsMR = ['', 'px', 'px', 'px', 'px', 'px', 'px']
+fmtMR='%3d %7.1f %7.1f %7.1f %7.1f %7.1f %7.1f'
+for n, h in enumerate(datatypeMR):
+    headerMarkerResults += '{} {}\n'.format(h[0], '({})'.format(unitsMR[n])*(unitsMR[n]!=''))
 
 def update_metafile(filename, columnID, values ):
     metadata= numpy.loadtxt(filename,dtype=datatype)

@@ -175,7 +175,12 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
         tiltSeries.writeMarkerFile(markerFileName=outMarkerFileName)
         tiltSeries._markerFileName = outMarkerFileName
     tiltAlignment.resetAlignmentCenter()  # overrule cent in Paras
-    tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute)
+
+    import os
+    base, ext = os.path.splitext(os.path.basename(volumeName))
+    outfile = "{}/marker_locations_{}.txt".format(os.path.dirname(volumeName), base)
+
+    tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute, outfile=outfile)
     tiltAlignment.alignFromFiducials(mute=mute)
     # creating dir for aligned tilt series if default filename
     if alignedTiltSeriesName == 'align/myTilt':

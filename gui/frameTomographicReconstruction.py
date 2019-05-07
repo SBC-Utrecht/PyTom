@@ -513,7 +513,7 @@ class TomographReconstruct(GuiTabWidget):
             refIndex = 1 + abs(angles).argmin()
             self.widgets[mode+'RefTiltIndex'].setValue(refIndex)
 
-        self.updateVoldims(mode)
+        if 'WBP' in mode: self.updateVoldims(mode)
 
     def tab52UI(self):
         id = 'tab52'
@@ -526,6 +526,9 @@ class TomographReconstruct(GuiTabWidget):
 
 
         last,reftilt = 10, 5
+
+        self.widgets[h + 'Voldims'] = QLineEdit()
+
         self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB,width=400 )
         self.insert_label_line_push(parent,'Folder Sorted Tilt Images', h+'FolderSorted',
                                     'Select the folder where the sorted tiltimages are located.\n')
@@ -549,7 +552,6 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[h + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
         self.updateTomoFolder(mode)
 
-        self.widgets[h+'Voldims'] = QLineEdit()
         self.widgets[h + 'BinningFactor'].valueChanged.connect(lambda dummy, m=mode: self.updateVoldims(m))
         self.updateVoldims(mode)
         execfilename = [mode + 'tomofolder', 'reconstruction/WBP/WBP_reconstruction.sh']

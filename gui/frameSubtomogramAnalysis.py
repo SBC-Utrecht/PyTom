@@ -14,6 +14,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+from pytom.basic.files import read
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.guiSupportCommands import *
 from pytom.gui.guiStructures import *
@@ -34,7 +35,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.cpcadir        = os.path.join(self.subtomodir, 'Classification/CPCA')
         self.acdir          = os.path.join(self.subtomodir, 'Classification/AutoFocus')
         self.pickpartdir    = self.parent().particlepick_folder+'/Picked_Particles'
-
+        self.tomogramfolder = os.path.join(self.parent().particlepick_folder, 'Tomograms')
         headers = ["Reconstruct Subtomograms","Align Subtomograms","Classify Subtomograms"]
         subheaders = [['Single Reconstruction','Batch Reconstruction'],['FRM Alignment','GLocal'],['CPCA','Auto Focus']]
 
@@ -106,7 +107,8 @@ class SubtomoAnalysis(GuiTabWidget):
         try: self.extractLists.text()
         except: self.extractLists = QLineEdit()
 
-        self.b = SelectFiles(self, initdir=self.projectname, search='file', filter=['.xml'], outputline=self.extractLists)
+        self.mass_extract = SelectFiles(self, initdir=self.pickpartdir, search='file', filter=['.xml'],
+                             outputline=self.extractLists, run_upon_complete=self.populate_batch_create)
         pass
 
     def tab21UI(self):
@@ -265,34 +267,60 @@ class SubtomoAnalysis(GuiTabWidget):
         return groupbox
 
     def populate_batch_create(self):
-        self.b.close()
+        self.mass_extract.close()
         particleFiles = sorted( self.extractLists.text().split('\n') )
         id='tab12'
-        headers = ["Filename particleList", "Reference marker", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin factor subtomos", "Offset X", "Offset Y", "Offset Y"]
+        headers = ["Filename particleList", "Reference marker", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Y"]
         types = ['txt', 'combobox', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit']
         a=40
         sizes = [0, 80, 80, a, a, a, a, a, a, a]
 
-        tooltip = ['Name of coordinate files',
-                   'Prefix used for subtomograms',
-                   'Angle between 90 and the highest tilt angle.',
+        tooltip = ['Names of the particleList files',
+                   'Reference Marker Indices',
+                   'Binning factor used for the reconstruction (read from the .',
                    'Angle between -90 and the lowest tilt angle.',
                    'Filename of generate particle list file (xml)','','','','']
 
         values = []
-
+        refmarkindices = []
         for n, particleFile in enumerate( particleFiles ):
             if not particleFile: continue
-            #outfolder = os.path.join( self.projectname, '04_Particle_Picking/Picked_Particles' )
+            base, ext = os.path.splitext(os.path.basename(particleFile).replace('particleList_', ''))
 
+            if base+'.mrc' in os.listdir(self.tomogramfolder) or base+'.em' in os.listdir(self.tomogramfolder):
+                if os.path.exists(os.path.join(self.tomogramfolder, base+'.mrc')):
+                    folder = os.popen('ls -alrt {}.mrc'.format(os.path.join(self.tomogramfolder, base))).read()[:-1]
+                elif os.path.exists(os.path.join(self.tomogramfolder, base+'.em')):
+                    folder = os.popen('ls -alrt {}.em'.format(os.path.join(self.tomogramfolder, base))).read()[:-1]
+                else:
+                    folder=''
+                if not folder: continue
+                folder = os.path.dirname(folder.split()[-1])
 
+                markerfile  = os.path.join(folder, 'markerfile.em')
+                markerdata = read(markerfile,binning=[1,1,1])
+                choices = list(map(str,range(markerdata.sizeZ()))) + ['closest']
+                #a = sorted(glob.glob('{}/Reconstruction*-*.out'.format(folder)))[-1]
 
-            #prefix = 'tomogram_{:03d}'.format(n)
-            #fname_plist = 'particleList_{}.xml'.format(prefix)
+                try:
+                    from lxml import etree
+                    xmlObj = etree.parse(particleFile)
+                    particles = xmlObj.xpath('Particle')
+                    binning = int( particles[0].xpath('InfoTomogram')[0].get('BinningFactor') )
+                    refmarkindex = int(particles[0].xpath('InfoTomogram')[0].get('RefMarkIndex'))
+                except:
+                    print('Default values used for {}:\n\tbin recon = 8\n\t ref mark index = 1'.format(os.path.basename(particleFile)))
+                    binning = 8
+                    refmarkindex = 1
+                #binning = os.popen('cat {} | grep "--referenceMarkerIndex" '.format(a)).read()[:-1]
+                #print(binning)
+                values.append( [os.path.basename(particleFile), choices, binning, 0, 128, 1, 0, 0, 0] )
+                refmarkindices.append(refmarkindex)
 
-            values.append( [os.path.basename(particleFile), ['0','1','closest'], 8, 0, 132, 1, 0, 0, 0] )
-
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+        if values: self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+        self.tab12_widgets = self.tables[id].widgets
+        for n, index in enumerate(refmarkindices):
+            self.tab12_widgets['widget_{}_1'.format(n)].setCurrentIndex(index)
 
         pass
 
