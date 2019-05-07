@@ -483,51 +483,74 @@ class ProjectionList(PyTomClass):
             progressBar = FixedProgBar(0,len(particles),'Particle volumes generated ')
             progressBar.update(0)
             numberParticleVolumes = 0
+        else:
+            numberParticleVolumes = 0
+            progressBar = 0
         
         imgDim = read(self._list[0].getFilename(),0,0,0,0,0,0,0,0,0,preScale,preScale,1).sizeX()        
         
         # stacks for images, projections angles etc.
-        [vol_img, vol_phi, vol_the, vol_offsetProjections] =  self.toProjectionStack(
-	    binning=binning, applyWeighting=applyWeighting,showProgressBar=False,
-	    verbose=False)
+        resultProjstack =  self.toProjectionStack(binning=binning, applyWeighting=applyWeighting,showProgressBar=False,
+	                                              verbose=False)
+        [vol_img, vol_phi, vol_the, vol_offsetProjections] = resultProjstack
 
-        #volume storing center (x,y,z)   
+        #volume storing center (x,y,z)
         reconstructionPosition = vol(3, len(self) ,1)
         reconstructionPosition.setAll(0.0)
        
         vol_bp = vol(cubeSize, cubeSize, cubeSize)
-        
-        for particleIndex in range(len(particles)):    
+
+        procs = []
+
+        import time
+        from multiprocessing import Process
+
+        for particleIndex in range(len(particles)):
+            while len(procs) >= 16:
+                time.sleep(.1)
+                procs = [proc for proc in procs if not proc.is_alive()]
+
             p = particles[particleIndex]
-            
-            if verbose:
-                print(p)
-            
-            vol_bp.setAll(0.0)
-            
-            # adjust coordinates of subvolumes to binned reconstruction
-            for i in range(len(self)):
-                reconstructionPosition( float(p.getPickPosition().getX()/binning), 0, i, 0) 
-                reconstructionPosition( float(p.getPickPosition().getY()/binning), 1, i, 0)
-                reconstructionPosition( float(p.getPickPosition().getZ()/binning), 2, i, 0)   
-            
-            if verbose:
-                print((p.getPickPosition().getX()/binning,p.getPickPosition().getY()/binning, 
-	        p.getPickPosition().getZ()/binning))
-            
-            backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition,vol_offsetProjections)
-            
-            if postScale > 1:
-                from pytom_volume import rescaleSpline
-                volumeRescaled = vol(cubeSize/postScale,cubeSize/postScale,cubeSize/postScale)
-                rescaleSpline(vol_bp,volumeRescaled)
-                volumeRescaled.write(p.getFilename())
-            else:
-                vol_bp.write(p.getFilename())
-            
-            if showProgressBar:
-                numberParticleVolumes = numberParticleVolumes + 1
-                progressBar.update(numberParticleVolumes)
+
+            proc = Process(self.extract_single_particle,
+                           args = (p, verbose, vol_bp, reconstructionPosition, binning, vol_img, vol_phi, vol_the,
+                                   vol_offsetProjections, postScale, showProgressBar, numberParticleVolumes,
+                                   progressBar, backProject, cubeSize) )
+            procs.append(proc)
+            proc.start()
+
+    def extract_single_particle(self, p, verbose, vol_bp, reconstructionPosition, binning,
+                                vol_img, vol_phi, vol_the, vol_offsetProjections, postScale, showProgressBar,
+                                numberParticleVolumes, progressBar, backProject, cubeSize):
+
+        if verbose:
+            print(p)
+
+        vol_bp.setAll(0.0)
+
+        # adjust coordinates of subvolumes to binned reconstruction
+        for i in range(len(self)):
+            reconstructionPosition( float(p.getPickPosition().getX()/binning), 0, i, 0)
+            reconstructionPosition( float(p.getPickPosition().getY()/binning), 1, i, 0)
+            reconstructionPosition( float(p.getPickPosition().getZ()/binning), 2, i, 0)
+
+        if verbose:
+            print((p.getPickPosition().getX()/binning,p.getPickPosition().getY()/binning,
+        p.getPickPosition().getZ()/binning))
+
+        backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition,vol_offsetProjections)
+
+        if postScale > 1:
+            from pytom_volume import rescaleSpline, vol
+            volumeRescaled = vol(cubeSize/postScale,cubeSize/postScale,cubeSize/postScale)
+            rescaleSpline(vol_bp,volumeRescaled)
+            volumeRescaled.write(p.getFilename())
+        else:
+            vol_bp.write(p.getFilename())
+
+        if showProgressBar:
+            numberParticleVolumes = numberParticleVolumes + 1
+            progressBar.update(numberParticleVolumes)
     
     
     def saveParticleProjections(self, particles, projectionSize,binning=1, 
