@@ -518,7 +518,8 @@ class ProjectionList(PyTomClass):
                                    progressBar, backProject, cubeSize) )
             procs.append(proc)
             proc.start()
-
+            print('start extraction particle {:d}'.format(particleIndex))
+            
     def extract_single_particle(self, p, verbose, vol_bp, reconstructionPosition, binning,
                                 vol_img, vol_phi, vol_the, vol_offsetProjections, postScale, showProgressBar,
                                 numberParticleVolumes, progressBar, backProject, cubeSize):
