@@ -85,20 +85,20 @@ class TiltImage():
         self.indexed_fiducials = []
         self.labels = []
 
-    def add_fiducial(self, x, y, FX, FY, cutoff=5, check=True, draw=True, label=''):
+    def add_fiducial(self, x, y, FX, FY, cutoff=5, check=True, draw=True, label='', color=Qt.red):
         added = False
         new = True
         radius = self.parent.radius
 
         if check:
             for n, (fx, fy, fi) in enumerate(self.fiducials):
-                if fx >0 and fy >0 and abs(x-fx) < cutoff and abs(y-fy)< cutoff:
+                if fx > 0 and fy > 0 and abs(x-fx) < cutoff and abs(y-fy) < cutoff:
                     new = False
                     return new
 
 
         self.fiducials.append([FX, FY, self.imnr])
-        self.indexed_fiducials.append( Qt.red )
+        self.indexed_fiducials.append( color )
         self.labels.append( label )
 
         if draw:
@@ -135,9 +135,9 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
     def __init__(self, parent=None, fname=''):
         super(FiducialAssignment, self).__init__(parent)
         self.size_policies()
-        if 1:
-            self.pytompath = self.parent().pytompath
-            self.projectname = self.parent().projectname
+
+        self.pytompath = self.parent().pytompath
+        self.projectname = self.parent().projectname
 
 
         self.tomofolder = os.path.join(self.projectname, '03_Tomographic_Reconstruction')
@@ -164,6 +164,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.current_width = 0.
         self.pos = QPoint(0, 0)
         self.xmin, self.ymin = 0,0
+        self.selected_markers = -1
         self.circles_left = []
         self.circles_cent = []
         self.circles_bottom = []
@@ -275,7 +276,16 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             fx, fy = x + self.xmin, y + self.ymin
 
             if event.button() == 1:
-                self.tiltimages[self.imnr].add_fiducial(x,y,fx,fy,cutoff=self.radius)
+                if self.selected_marker > -1:
+                    px,py = self.coordinates[self.imnr,self.selected_marker]*self.bin_alg / self.bin_read
+                    if px > 0.1 or py > 0.1:
+                        self.tiltimages[self.imnr].remove_fiducial(py, px, cutoff=self.radius)
+                    self.coordinates[self.imnr,self.selected_marker] = [fy*self.bin_read/self.bin_alg,fx*self.bin_read/self.bin_alg]
+                    self.tiltimages[self.imnr].add_fiducial(x, y, fx, fy, cutoff=self.radius,color=Qt.green,label="{:03d}".format(self.selected_marker))
+                    self.replot2()
+                else:
+                    self.tiltimages[self.imnr].add_fiducial(x,y,fx,fy,cutoff=self.radius)
+
 
             elif event.button() == 2:
                 self.tiltimages[self.imnr].remove_fiducial(fx, fy, cutoff=self.radius)
@@ -697,7 +707,6 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         imshow(marker)
         show()
         return marker
-
 
     def find_fiducials(self):
         if self.widgets['findButton'].isEnabled()==False: return
@@ -1166,6 +1175,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
 
         if self.parent().loaded_data: self.parent().replot2()
 
+
 class SelectAndSaveMarkers(QMainWindow,CommonFunctions):
     def __init__(self,parent=None):
         super(SelectAndSaveMarkers,self).__init__(parent)
@@ -1254,6 +1264,7 @@ class SelectAndSaveMarkers(QMainWindow,CommonFunctions):
     def deleteAll(self):
         for m in (self.model,self.model1):
             m.removeRows(0,m.rowCount())
+
 
 class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
     def __init__(self, parent=None):
@@ -1344,14 +1355,23 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
         bin_read = self.parent().bin_read
         dim = self.parent().dim
         fs = self.parent().fs
+        ref_frame = int(self.parent().settings.widgets['ref_frame'].value())
 
         if sel_marker > -1:
             imnr = self.parent().imnr
             for i in range(imnr, len(self.parent().fnames)):
                 tx,ty = self.parent().coordinates[i, sel_marker]
                 if tx < 0.01 or ty < 0.01:
+
+                    found =False
+                    for prev in range(1,i+1):
+                        px, py = self.parent().coordinates[i-prev, sel_marker]
+                        if px > 0 and py > 0:
+                            found = True
+                            break
+                    if not found: break
+
                     self.parent().imnr = i
-                    px, py = self.parent().coordinates[i-1, sel_marker]
                     fx,fy = fs[i-1][0]-fs[i][0], fs[i-1][1]-fs[i][1]
                     print(px*bin_alg/bin_read - fx, py*bin_alg/bin_read-fy, fx, fy)
                     xmin = int(max(0, py*bin_alg/bin_read + fy - sizeCut // 2))
@@ -1374,14 +1394,21 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
         bin_read = self.parent().bin_read
         dim = self.parent().dim
         fs = self.parent().fs
-
+        numim = len(self.parent().fnames)
         if sel_marker > -1:
             imnr = self.parent().imnr
             for i in numpy.arange(imnr, -1, -1):
                 tx, ty = self.parent().coordinates[i, sel_marker]
                 if tx < 0.01 or ty < 0.01:
+                    found = False
+                    for next in range(1, numim-i):
+                        px, py = self.parent().coordinates[i + 1, sel_marker]
+                        if px > 0 and py >0:
+                            found = True
+                            break
+                    if not found: break
+
                     self.parent().imnr = i
-                    px, py = self.parent().coordinates[i + 1, sel_marker]
                     fx, fy = fs[i][0] - fs[i+1][0], fs[i][1] - fs[i+1][1]
                     print(px * bin_alg / bin_read - fx, py * bin_alg / bin_read - fy, fx, fy)
                     xmin = int(max(0, py * bin_alg / bin_read - fy - sizeCut // 2))

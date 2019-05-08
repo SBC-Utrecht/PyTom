@@ -170,16 +170,20 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
         if tltfile:
             tiltSeries.getTiltAnglesFromIMODfile(tltfile=tltfile)
     tiltAlignment = TiltAlignment(TiltSeries_=tiltSeries)
-    print('dimensions: ', tiltSeries._imdim)
+    #print('dimensions: ', tiltSeries._imdim)
     if outMarkerFileName:
         tiltSeries.writeMarkerFile(markerFileName=outMarkerFileName)
         tiltSeries._markerFileName = outMarkerFileName
     tiltAlignment.resetAlignmentCenter()  # overrule cent in Paras
 
-    import os
-    base, ext = os.path.splitext(os.path.basename(volumeName))
-    outfile = "{}/marker_locations_{}.txt".format(os.path.dirname(volumeName), base)
 
+    try:
+        import os
+        base, ext = os.path.splitext(os.path.basename(volumeName))
+        name = os.path.dirname(os.path.dirname(alignedTiltSeriesName))
+        outfile = "{}/marker_locations_{}_irefmark_{}.txt".format(name, base, irefmark)
+    except:
+        outfile = ''
     tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute, outfile=outfile)
     tiltAlignment.alignFromFiducials(mute=mute)
     # creating dir for aligned tilt series if default filename
@@ -190,7 +194,6 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
         except OSError:
             print(" dir 'align' already exists - writing aligned files into existing dir")
 
-    print(weightingType, lowpassFilter, projBinning, verbose)
     tiltSeries.write_aligned_projs(weighting=weightingType, lowpassFilter=lowpassFilter, binning=projBinning,
                                    verbose=verbose)
     if voldims and voldims[0] != 0:

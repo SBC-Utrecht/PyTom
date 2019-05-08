@@ -518,6 +518,7 @@ class ProjectionList(PyTomClass):
                                    progressBar, backProject, cubeSize) )
             procs.append(proc)
             proc.start()
+            print('extraction for particle {} has started.'.format(particleIndex))
 
     def extract_single_particle(self, p, verbose, vol_bp, reconstructionPosition, binning,
                                 vol_img, vol_phi, vol_the, vol_offsetProjections, postScale, showProgressBar,
@@ -793,7 +794,7 @@ class ProjectionList(PyTomClass):
                 print(projection)
 
             if int(applyWeighting) >= 1:
-                print(projection._tiltAngle, imgDim, self.tilt_angles)
+                print(projection._tiltAngle, imgDim, self.tilt_angles-projection._tiltAngle)
                 weightSlice = fourierFilterShift( exactFilter(self.tilt_angles, projection._tiltAngle,
                                                               imgDim, imgDim, imgDim))
 

@@ -771,7 +771,6 @@ class ProjectionList(PyTomClass):
             progressBar = FixedProgBar(0,len(self._particleList),'Particle volumes generated ')
             progressBar.update(0)
 
-        print(imgDim)
         q = np.matrix(abs(np.arange(-imgDim//2, imgDim//2)))
 
         for (i, projection) in enumerate(self._list):
