@@ -383,7 +383,7 @@ class ParticlePick(GuiTabWidget):
             print(outDirectory)
             modules = ['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/0.971']
             cmd = templateTM.format(d=[outDirectory, self.pytompath, 'job.xml'])
-            job = guiFunctions.gen_queue_header(modules=modules, folder=folder,name=fname) + cmd
+            job = guiFunctions.gen_queue_header(folder=folder,name=fname) + cmd
             outjob = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
             outjob.write(job)
             outjob.close()

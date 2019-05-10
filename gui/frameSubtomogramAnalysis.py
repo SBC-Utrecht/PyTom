@@ -285,7 +285,7 @@ class SubtomoAnalysis(GuiTabWidget):
         refmarkindices = []
         for n, particleFile in enumerate( particleFiles ):
             if not particleFile: continue
-            base, ext = os.path.splitext(os.path.basename(particleFile).replace('particleList_', ''))
+            base, ext = os.path.splitext(os.path.basename(particleFile).replace('particleList_', '').replace('coords_',''))
 
             if base+'.mrc' in os.listdir(self.tomogramfolder) or base+'.em' in os.listdir(self.tomogramfolder):
                 if os.path.exists(os.path.join(self.tomogramfolder, base+'.mrc')):
@@ -299,7 +299,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                 markerfile  = os.path.join(folder, 'markerfile.em')
                 markerdata = read(markerfile,binning=[1,1,1])
-                choices = list(map(str,range(markerdata.sizeZ()))) + ['closest']
+                choices = list(map(str,range(markerdata.sizeZ()))) # + ['closest']
                 #a = sorted(glob.glob('{}/Reconstruction*-*.out'.format(folder)))[-1]
 
                 try:
@@ -317,12 +317,47 @@ class SubtomoAnalysis(GuiTabWidget):
                 values.append( [os.path.basename(particleFile), choices, binning, 0, 128, 1, 0, 0, 0] )
                 refmarkindices.append(refmarkindex)
 
-        if values: self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
-        self.tab12_widgets = self.tables[id].widgets
-        for n, index in enumerate(refmarkindices):
-            self.tab12_widgets['widget_{}_1'.format(n)].setCurrentIndex(index)
+        if values:
+            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+            self.tab12_widgets = self.tables[id].widgets
+            for n, index in enumerate(refmarkindices):
+                self.tab12_widgets['widget_{}_1'.format(n)].setCurrentIndex(index)
+            self.particleFilesBatchExtract = particleFiles
+            self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_extract_particles(pid, v))
+        else:
+            print
 
-        pass
+    def mass_extract_particles(self,pid, values):
+
+        for row in range(self.tables[pid].table.rowCount()):
+            if 1:
+                particleXML = self.particleFilesBatchExtract[row] #[row][0]
+                tomoindex = particleXML.split('tomogram_')[-1][:3]
+                ref_marker = self.tab12_widgets['widget_{}_{}'.format(row,1)].currentText()
+                metafile = glob.glob('{}/03_Tomographic_Reconstruction/tomogram_{}/sorted/*.meta'.format(self.projectname,tomoindex))
+                if not metafile: continue
+                metafile = metafile[0]
+                q = '{}/03_Tomographic_Reconstruction/tomogram_{}/alignment/unweighted_unbinned_marker_{}'
+                folder_aligned = q.format(self.projectname,tomoindex,ref_marker)
+                bin_read = self.tab12_widgets['widget_{}_{}'.format(row,2)].text()
+                weight = self.tab12_widgets['widget_{}_{}'.format(row, 3)].text()
+                size = self.tab12_widgets['widget_{}_{}'.format(row, 4)].text()
+                bin_subtomo = self.tab12_widgets['widget_{}_{}'.format(row,5)].text()
+                offx = self.tab12_widgets['widget_{}_{}'.format(row, 6)].text()
+                offy = self.tab12_widgets['widget_{}_{}'.format(row, 7)].text()
+                offz = self.tab12_widgets['widget_{}_{}'.format(row, 8)].text()
+                outname = 'extract_tomogram_{:03d}.sh'.format(int(tomoindex))
+                execfilename = os.path.join(self.subtomodir, outname)
+
+                paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
+                             self.subtomodir, weight, metafile]
+
+                txt = extractParticles.format(d=paramsCmd)
+                jobtxt = guiFunctions.gen_queue_header(folder=self.subtomodir, name=outname[:-3], num_jobs_per_node=1, time=12) + txt
+                out = open(execfilename, 'w')
+                out.write(jobtxt)
+                out.close()
+                os.system('sbatch {}'.format(execfilename) )
 
     def inputFiles(self, mode=None):
         title = "FRM Alignment"

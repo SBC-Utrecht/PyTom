@@ -164,7 +164,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.current_width = 0.
         self.pos = QPoint(0, 0)
         self.xmin, self.ymin = 0,0
-        self.selected_markers = -1
+        self.selected_marker = -1
         self.circles_left = []
         self.circles_cent = []
         self.circles_bottom = []
@@ -373,6 +373,12 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         elif evt.key() == Qt.Key_Escape:
             self.close()
 
+        elif Qt.Key_Comma == evt.key():
+            self.manual_adjust_marker.prev_missing()
+
+        elif Qt.Key_Period == evt.key():
+            self.manual_adjust_marker.next_missing()
+
     def exclude_status_change(self):
         i = self.imnr
         f = self.fnames[i].replace('/excluded','')
@@ -470,6 +476,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.bottom_circles = []
 
     def load_images(self,folder='', bin_read=8, bin_alg=12):
+        self.selected_marker = -1
         for name in ('findButton','detectButton','indexButton'):
             self.widgets[name].setEnabled(False)
         pg.QtGui.QApplication.processEvents()
@@ -568,6 +575,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             frames_full[nr_procs * nr + proc_id] = wiener(dataf)
 
     def read_data(self, fnames):
+        self.selected_marker = -1
         start = time.time()
         from copy import deepcopy
 
@@ -709,6 +717,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         return marker
 
     def find_fiducials(self):
+        self.selected_marker = -1
         if self.widgets['findButton'].isEnabled()==False: return
         print ('find potential fiducials time: ',)
         procs = []
@@ -820,6 +829,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.widgets['indexButton'].setEnabled(True)
 
     def index_fid(self):
+        self.selected_marker = -1
         if self.widgets['indexButton'].isEnabled()==False: return
 
         self.deleteAllMarkers()
@@ -1349,7 +1359,8 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
             pass
 
     def next_missing(self, params=None):
-        sel_marker = self.parent().selected_marker
+        try: sel_marker = self.parent().selected_marker
+        except: return
         sizeCut = self.parent().sizeCut
         bin_alg = self.parent().bin_alg
         bin_read = self.parent().bin_read

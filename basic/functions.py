@@ -22,7 +22,7 @@ def initSphere(sizeX, sizeY, sizeZ, radius, smooth=0, maxradius=0, cent=None, fi
     @type cent: array (3-dim)
     @param filename: If specified by the user, the spherical mask will be written to disk.    
     """
-    from pytom_volume import initSphere,vol
+    from pytom_volume import initSphere, vol
     
         
     v = vol(sizeX,sizeY,sizeZ)

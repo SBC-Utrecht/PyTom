@@ -327,6 +327,8 @@ class TomographReconstruct(GuiTabWidget):
         self.updateTomoFolder(mode)
 
         execfilename = [mode + 'tomofolder', 'alignment/alignment.sh']
+
+
         paramsSbatch = guiFunctions.createGenericDict(fname='Alignment',folder=execfilename)
         paramsCmd    = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex', mode + 'LastIndex',
                         mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', templateAlignment]
@@ -470,6 +472,9 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'ReconstructionINFR'
         paramsSbatch['folder'] = execfilename
+        paramsSbatch['partition'] = 'fastq'
+        paramsSbatch['time'] = 1
+        paramsSbatch['num_jobs_per_node'] = 1
 
         self.insert_gen_text_exe(parent,mode,jobfield=False,action=self.convert_em,paramsAction=[mode,'reconstruction/INFR','sorted'],
                                  exefilename=execfilename, paramsSbatch=paramsSbatch,
@@ -559,6 +564,9 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'ReconstructionWBP'
         paramsSbatch[ 'folder' ] = execfilename
+        paramsSbatch['partition'] = 'fastq'
+        paramsSbatch['time'] = 1
+        paramsSbatch['num_jobs_per_node'] = 1
 
         paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex',
                      mode + 'LastIndex',
@@ -576,7 +584,9 @@ class TomographReconstruct(GuiTabWidget):
     def updateVoldims(self,mode):
         folderSorted = self.widgets[mode+'FolderSorted'].text()
         if not folderSorted: return
-        files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')][0]
+        files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')]
+        if not files: return
+        files = files[0]
         imdim = read_mrc(os.path.join(folderSorted, files)).shape[0]
         self.widgets[mode+'Voldims'].setText(str(int(float(imdim)/float(self.widgets[mode+'BinningFactor'].text())+.5)))
 
@@ -703,7 +713,8 @@ class TomographReconstruct(GuiTabWidget):
 
                     if self.checkbox[id].isChecked():
                         header = guiFunctions.gen_queue_header(name=paramsSbatch['fname'], folder=paramsSbatch['folder'],
-                                                               modules=paramsSbatch['modules'])
+                                                               modules=paramsSbatch['modules'], time=1, num_jobs_per_node=1,
+                                                               partition='fastq')
                         commandText = header + commandText
 
                     params = [execfilename, commandText]

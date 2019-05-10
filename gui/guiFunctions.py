@@ -18,6 +18,47 @@ from pytom.gui.guiSupportCommands import multiple_alignment
 from pylab import imread
 import mrcfile
 import copy
+from pytom.basic.files import write_em
+
+
+def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, filename='', cutoff_SD=3):
+    from scipy.ndimage import gaussian_filter
+    if cent_x < 0 or cent_x > x: cent_x = x // 2
+    if cent_y < 0 or cent_y > y: cent_y = y // 2
+    if cent_z < 0 or cent_z > z: cent_z = z // 2
+
+    if x < 1 or y < 1 or z < 1 or radius < 1:
+        return 0
+
+    X, Y, Z = numpy.meshgrid(numpy.arange(x), numpy.arange(y), numpy.arange(z))
+    X = X.astype('float32')
+    Y = Y.astype('float32')
+    Z = Z.astype('float32')
+
+    X -= x - cent_x - 0.5
+    Y -= y - cent_y - 0.5
+    Z -= z - cent_z - 0.5
+
+    R = numpy.sqrt(X ** 2 + Y ** 2 + Z ** 2)
+    R2 = R.copy()
+    sphere = numpy.zeros((x, y, z), dtype='float32')
+    sphere[R <= radius] = 1.
+
+    if smooth:
+        R2[R <= radius] = radius
+        sphere = numpy.exp(-1 * ((R2 - radius) / smooth) ** 2)
+        sphere[sphere <= numpy.exp(-cutoff_SD**2/2.)] = 0
+    if filename:
+        from numpy import array
+        from pytom_numpy import npy2vol
+        #maskVol = npy2vol(array(sphere, dtype='float32', order='F'), 3)
+        #write_em(filename, maskVol)
+        import mrcfile
+        mrcfile.new(filename.replace('.em', '.mrc'), sphere,overwrite=True)
+        return 1
+    else:
+        return sphere
+
 
 def read_markerfile(filename,tiltangles):
     if filename[-4:] == '.mrc':
@@ -174,24 +215,30 @@ def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['python3/
 
 def gen_queue_header(name='TemplateMatch', folder='./', cmd='',
                      modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/python3'],
-                     qtype='slurm'):
+                     qtype='slurm', num_jobs_per_node=20, time=12, partition='defq'):
     module_load = ''
     if modules:
         module_load = 'module load '
     for module in modules:
         module_load += module + ' '
 
+    if partition == 'fastq':
+        oversubscribe = '#SBATCH --oversubscribe'
+    else: oversubscribe = ''
+
     if qtype == 'slurm':
         queue_command = '''#!/usr/bin/bash
-#SBATCH --time        12:00:00
+#SBATCH --time        {}:00:00
 #SBATCH -N 1
-#SBATCH --ntasks-per-node 20
+#SBATCH --partition {}
+#SBATCH --ntasks-per-node {}
 #SBATCH --job-name    {}                                                                       
 #SBATCH --output      {}/%x-%j.out 
+{}
 
 {}
 
-{}'''.format(name, folder, module_load, cmd)
+{}'''.format(time, partition, num_jobs_per_node, name, folder, oversubscribe, module_load, cmd)
 
     if qtype == 'qsub':
         print ('qsub has not been defined.')
@@ -199,9 +246,10 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='',
 
     return queue_command
 
-def createGenericDict(fname='template',cmd='', folder='',
+def createGenericDict(fname='template',cmd='', folder='', partition='defq', num_jobs_per_node=20, time=12,
                       modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/python3']):
-    genericSbatchDict = {'fname':fname,'cmd':cmd,'folder':folder, 'modules':modules}
+    genericSbatchDict = {'fname':fname,'cmd':cmd,'folder':folder, 'modules':modules, 'time':time, 'partition':partition,
+                         'num_jobs_per_node': num_jobs_per_node}
     return genericSbatchDict
 
 def sort( obj, nrcol ):
@@ -634,8 +682,13 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
                     size[tomoname] = numpy.min(data.shape)
                 else:
 
-                    data = imread( os.path.join(nanographfolder,k) )
-                    size[tomoname] = numpy.min(data.shape)
+                    #try:
+                    #    data = imread( os.path.join(nanographfolder,k) )
+                    #    size[tomoname] = numpy.min(data.shape)
+                    #except:
+                    aa = os.popen('header {} | grep "Number of columns, rows, sections" '.format( os.path.join(nanographfolder,k) )).read()[:-1]
+                    dd = list(map(int, aa.split()[-3:-1]))
+                    size[tomoname] = numpy.min(dd)
 
             #Find tiltangle
 
@@ -655,9 +708,9 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
         neg = numpy.array( [0,]*len(v[0][0]), dtype=int)
         tiltangles_header = []
-        for list, angle, fname in v:
+        for list2, angle, fname in v:
             tiltangles_header.append(angle)
-            for n, part in enumerate(list):
+            for n, part in enumerate(list2):
                 if '-' in part:
                     neg[n] += 1
 

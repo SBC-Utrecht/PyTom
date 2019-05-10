@@ -561,13 +561,13 @@ class CollectPreprocess(GuiTabWidget):
                         try:
                             os.link(fname, outname)
                         except:
-                            os.system('cp {} {}'.format(fname, outname))
+                            os.system('cp -f {} {}'.format(fname, outname))
 
                     else:
                         try:
                             os.link(fname, outname)
                         except:
-                            os.system('cp {} {}'.format(fname, outname))
+                            os.system('cp -f {} {}'.format(fname, outname))
                     num_files_downloaded += 1
 
         return num_files_downloaded
@@ -786,7 +786,7 @@ class CollectPreprocess(GuiTabWidget):
             self.motioncor_flist = motioncor_flist
 
             availableGPU = avail_gpu()
-            if len(avail_gpu) == 0:
+            if len(availableGPU) == 0:
                 self.popup_messagebox('Warning', 'No Motioncor', 'No available GPUs, motioncor is not running.')
             else:
                 for i in range(min(len(availableGPU), self.number_motioncor_subprocesses)):

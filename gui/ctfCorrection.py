@@ -252,7 +252,7 @@ def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_facto
 
     return True
 
-def CorrectProjection(proj,dzp1,dzp2,alphap,gs,fs,Objectpixelsize,Voltage,Cs,A):
+def CorrectProjection(proj, dzp1, dzp2, alphap, gs, fs, Objectpixelsize, Voltage, Cs, A):
     """
     This function corrects a defocus gradient on a projection with phase-flipping.
     A patch of size fs is cutted out and corrected, then a region of size gs

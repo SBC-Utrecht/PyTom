@@ -38,16 +38,25 @@ def read_mrc_header(mrc_fname):
     return a.header
 
 def square_mrc(mrc_fname):
-    i = read_mrc(mrc_fname)
+    #i = read_mrc(mrc_fname)
+    import mrcfile
+    i = mrcfile.open(mrc_fname, permissive=True).data
+
     if len(i.shape)==3:
         o = i[i.shape[0],:min(i.shape[1:]),:min(i.shape[1:])]
     elif len(i.shape)==2:
         o = i[:min(i.shape),:min(i.shape)]
     else:
         raise Exception('no valid dimension mrcfile')
-    
-    convert_numpy_array3d_mrc(o[newaxis,:,:],mrc_fname)
 
+
+    o = remove_hot_pixels(o)
+    mrcfile.new(mrc_fname,o,overwrite=True)
+    #convert_numpy_array3d_mrc(o[newaxis,:,:],mrc_fname)
+
+def remove_hot_pixels(fa, SD=5.):
+    fa[fa > fa.mean() + SD * fa.std()] = fa.mean()
+    return fa
 
 def transpose_mrc_2d(mrc_fname):
     '''Transposes a mrc file'''

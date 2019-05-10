@@ -8,10 +8,12 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5 import QtWidgets, QtCore, QtGui
 
-from pytom.basic.functions import initSphere
+#from pytom.basic.functions import initSphere
 from pytom.basic.files import pdb2em
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.mrcOperations import *
+from pytom.gui.guiFunctions import initSphere
+
 import pytom.gui.guiFunctions as guiFunctions
 import traceback
 from numpy import zeros, meshgrid, arange, sqrt
@@ -715,13 +717,18 @@ class CommonFunctions():
         if self.widgets[mode+'queue'].isChecked():
             d = params[2]
             folder = d['folder']
+            num_jobs_per_node = d['num_jobs_per_node']
+            time = d['time' ]
+            partition = d['partition']
 
             if type(folder) == type([]):
                 folder = os.path.dirname( os.path.join(self.widgets[mode + 'tomofolder'].text(),
                                                        self.widgets[folder[0]].text(), folder[1]) )
 
 
-            text = guiFunctions.gen_queue_header(d['fname'], folder, d['cmd'], d['modules']) + text
+            text = guiFunctions.gen_queue_header(d['fname'], folder, d['cmd'], d['modules'],
+                                                 partition=partition, time=time,
+                                                 num_jobs_per_node=num_jobs_per_node) + text
 
         self.widgets[params[i][0]].setPlainText(text)
 
@@ -886,20 +893,25 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
         sizeY = int(self.widgets['size_template_y'].text())
         sizeZ = int(self.widgets['size_template_z'].text())
         try:
-            fname = os.path.join(self.parent().frmdir, 'FRM_mask.em')
+            fname = os.path.join(self.parent().frmdir, 'FRM_mask.mrc')
         except:
             tomoname = os.path.basename(self.parent().widgets['v03_TemplateMatch_tomoFname'].text())
             filename, file_extension = os.path.splitext(tomoname)
             if not os.path.exists(os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename)):
                 os.mkdir(os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename))
-            fname = os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename, 'TM_mask.em')
+            fname = os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename, 'TM_mask.mrc')
 
-        maskfilename = str(QFileDialog.getSaveFileName( self, 'Save particle list.', fname, filter='*.em')[0])
-        if maskfilename and not maskfilename.endswith('.em'): maskfilename += '.em'
-        try:
-            initSphere(sizeX, sizeY, sizeZ, radius=radius, smooth=smooth, filename=maskfilename)
-            self.parent().widgets[params[-1]].setText(maskfilename)
-        except:
+        maskfilename = str(QFileDialog.getSaveFileName( self, 'Save particle list.', fname, filter='*.mrc')[0])
+        if maskfilename and not maskfilename.endswith('.mrc'): maskfilename += '.mrc'
+        if 1:
+            success = initSphere(sizeX, sizeY, sizeZ, radius=radius, smooth=smooth, filename=maskfilename)
+            if success:
+                self.parent().widgets[params[-1]].setText(maskfilename)
+            else:
+                self.popup_messagebox('Error', 'Mask Generation Failed',
+                                      'Generation of the mask failed. Please select an existing mask, or generate a mask yourself.')
+
+        else:
             self.popup_messagebox('Error','Mask Generation Failed', 'Generation of the mask failed. Please select an existing mask, or generate a mask yourself.')
 
         self.close()
@@ -1489,7 +1501,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
     def remove_deselected_particles_from_XML(self):
         tree = et.parse(self.xmlfile)
 
-
+        print(self.max_score, self.min_score)
         for particle in tree.xpath("Particle"):
             remove = True
 
@@ -1498,13 +1510,15 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             for tag in ('X', 'Y', 'Z'):
                 position.append(float(particle.xpath('PickPosition')[0].get(tag)))
 
+            score = float(particle.xpath('Score')[0].get('Value'))
             x, y, z = position
-
-            for cx, cy, cz, score in self.particleList:
-                if abs(x - cx) < 1 or abs(y - cy) < 1 or abs(z - cz) < 1:
+            print(x, y, z)
+            for cx, cy, cz, s in self.particleList:
+                if abs(x - cx) < 1 and abs(y - cy) < 1 and abs(z - cz) < 1 and score <= self.max_score and score >= self.min_score:
                     remove = False
                     break
             if remove:
+                print(particle)
                 self.remove_element(particle)
 
         fname = str(QFileDialog.getSaveFileName(self, 'Save particle list.', self.xmlfile, filter='*.xml')[0])
@@ -1689,6 +1703,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.circles_left = self.circles_left[:n] + self.circles_left[n + 1:]
 
         self.bottomimage.removeItem(self.circles_bottom[n])
+
         self.circles_bottom = self.circles_bottom[:n] + self.circles_bottom[n + 1:]
 
     def remove_all(self):

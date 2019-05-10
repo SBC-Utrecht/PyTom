@@ -403,16 +403,13 @@ class PickingFunctions():
                 for n,(x,y) in enumerate(user_coords[tiltangle]):
                     if x>0 and y>0:
                         print ('found user selected marker: {:6.1f},{:6.1f}'.format(x,y))
-                        ref_fid[n] = [x+1,y+1]
+                        ref_fid[n] = [x+.1,y+.1]
 
 
             index_cur_fid, coordinates_cur_sorted = self.compare(cur_fid, ref_fid, tiltangle, cutoff=cut,tiltangles=tiltangles,pos=1,tiltaxis=tiltaxis)
             index_map[tiltangle,:] = index_cur_fid
-            #print coordinates_cur_sorted
             coordinates_sorted[tiltangle,:] = coordinates_cur_sorted
-        #frames_without_indexed_fiducials(coordinates_sorted[tiltangle,:],tiltangle)
-        #for j, [mx,my] in enumerate(coordinates_cur_sorted):
-        #    if mx+my> 0: self.ax.scatter(tiltangle+(10+len(self.fnames))*j, mx,c=cmap[j%9], cmap=plt.cm.jet)
+
 
         for tiltangle in numpy.arange(zero_angle-1,-1,-1):
             cur_fid = mark_frames[tiltangle,:].copy()
@@ -530,9 +527,10 @@ class PickingFunctions():
             image =  gaussian_filter(frames[imnr,:,:],1)
             #cf = numpy.zeros_like(frames_full[0])
             lap = laplace(image.copy())
+            
             lap -= lap.min()
             lap /= lap.max()
-            lap[lap< lap.mean()*1.8]=lap.min()
+            lap[lap< lap.mean()*threshold]=lap.min()
             label_im, nb_labels = label(lap)
             laps = remove_small_objects(label_im,3)
             label_im, nr_labels = label(laps)
@@ -679,7 +677,7 @@ class PickingFunctions():
 
 
 
-        return list_cx_cy_imnr, tot, ds
+        return numpy.zeros_like(frames_full[0]), list_cx_cy_imnr
 
     def find_potential_fiducials_crosscorr(self, frames, frames_full, bin, bin_full, cropsize=50, target=0, fid_list=[],
                                            proc_id=0, num_procs=1, average_marker=None, threshold=1.7):
