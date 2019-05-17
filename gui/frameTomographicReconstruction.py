@@ -1132,6 +1132,7 @@ class TomographReconstruct(GuiTabWidget):
     def run_multi_ctf_correction(self, id, values):
         print('multi_reconstructions', id)
         num_nodes = self.tables[id].table.rowCount()
+        num_submitted_jobs = 0
         try:
             num_nodes = self.num_nodes[id].value()
         except:
@@ -1171,4 +1172,14 @@ class TomographReconstruct(GuiTabWidget):
                 for folder in folders:
                     jobParams = [tomofolder, self.pytompath, uPrefix, cPrefix, metafile, gridspacing, fieldsize, binning]
                     jobscript = templateCTFCorrection.format(d=jobParams)
-                    print(jobscript)
+                    
+                    
+                    fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
+                    outDirectory = os.path.dirname(cPrefix) 
+                    
+                    job = guiFunctions.gen_queue_header(folder=outDirectory, name=fname, singleton=True) + jobscript
+                    outjob = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
+                    outjob.write(job)
+                    outjob.close()
+                    os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
+                    num_submitted_jobs += 1
