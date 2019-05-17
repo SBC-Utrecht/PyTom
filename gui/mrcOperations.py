@@ -55,6 +55,8 @@ def square_mrc(mrc_fname):
     #convert_numpy_array3d_mrc(o[newaxis,:,:],mrc_fname)
 
 def remove_hot_pixels(fa, SD=5.):
+    import copy
+    fa = copy.deepcopy(fa)
     fa[fa > fa.mean() + SD * fa.std()] = fa.mean()
     return fa
 

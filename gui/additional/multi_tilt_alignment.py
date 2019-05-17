@@ -8,7 +8,7 @@ pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
 
 
 def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, lastIndex, refIndex, markerFileName,
-                              targets, weightingType, tomogramFolder,fnames, projIndices=True):
+                              targets, weightingType, tomogramFolder,fnames, projIndices=True, expectedRotationAngle=0):
     '''Aligns tilt images, looping over markers in markerfile as reference. OPTIONAL: procs defines the number of processes running parallel.'''
 
 
@@ -34,10 +34,11 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 	--projectionBinning 1 \
 	--lowpassFilter 0.9 \
 	--weightingType {} \
+	--expectedRotationAngle {} \
     {}    --numberProcesses {} > alignment/logfile.alignment.txt'''
         cmd = cmd.format(tomogram_names[index], pytompath, tiltSeriesName, firstIndex, 
                          lastIndex, refIndices[index], refMarkIndices[index], markerFileName, targets, weightingType,
-                         '--projIndices '*projIndices, procs)
+                         expectedRotationAngle, '--projIndices '*projIndices, procs)
 
         p = Process(target=os.system,args=([cmd]))
         p.start()
@@ -78,6 +79,7 @@ if __name__=='__main__':
                  ScriptOption(['--tomogramFolder'], 'Folder in which tomogram_XXX is located', arg=True,optional=False),
                  ScriptOption(['--fnames'], 'File with tomogram names.', arg=True,optional=False),
                  ScriptOption(['--projIndices'], 'Use projection indices.', arg=False, optional=True),
+                 ScriptOption(['--expectedRotationAngle'], 'Use projection indices.', arg=True, optional=True),
                  ScriptOption(['--help'],'Help function.',arg=False,optional=True)
         ]
 
@@ -91,7 +93,7 @@ if __name__=='__main__':
             sys.exit()
         try:
             start, end, procs, tiltSeriesName, firstProj, lastProj, referenceIndex, markerFileName, projectionTargets, \
-            weightingType,tomogramfolder,fnames, projIndices, help = parse_script_options(sys.argv[1:], helper)
+            weightingType,tomogramfolder,fnames, projIndices, expectedRotationAngle, help = parse_script_options(sys.argv[1:], helper)
         except:# Exception as e:
             print(sys.version_info)
 
@@ -102,7 +104,8 @@ if __name__=='__main__':
         end = int(end)
     
         tiltalignment_all_markers(start,end,procs,tiltSeriesName,firstProj,lastProj,referenceIndex,markerFileName,
-                                  projectionTargets,weightingType,tomogramfolder,fnames, projIndices=projIndices)
+                                  projectionTargets,weightingType,tomogramfolder,fnames, projIndices=projIndices,
+                                  expectedRotationAngle=expectedRotationAngle)
 
 
     except:

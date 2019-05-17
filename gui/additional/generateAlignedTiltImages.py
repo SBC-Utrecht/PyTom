@@ -33,6 +33,7 @@ if __name__ == '__main__':
                           arg=True, optional=False),
              ScriptOption(['--referenceMarkerIndex'], 'Index of reference marker to set up coordinate system.',
                           arg=True, optional=False),
+             ScriptOption(['--expectedRotationAngle'], 'Expected In-Plane Rotation Angle', arg=True, optional=False),
              ScriptOption(['--handflip'], 'Is your tilt series outside of 0-180deg (Specify if yes).', arg=False,
                           optional=True),
              ScriptOption(['--projectionTargets'],
@@ -84,7 +85,7 @@ if __name__ == '__main__':
         sys.exit()
     try:
         tiltSeriesName, tiltSeriesFormat, firstProj, lastProj, \
-        tltFile, prexgFile, preBin, referenceIndex, markerFileName, referenceMarkerIndex, handflip, \
+        tltFile, prexgFile, preBin, referenceIndex, markerFileName, referenceMarkerIndex, expectedRotationAngle, handflip, \
         projectionTargets, fineAlignFile, projBinning, lowpassFilter, \
         volumeName, filetype, \
         tomogramSizeX, tomogramSizeY, tomogramSizeZ, \
@@ -173,6 +174,11 @@ if __name__ == '__main__':
     else: 
         numberProcesses = 1
 
+    try:
+        expectedRotationAngle = int(float(expectedRotationAngle))
+    except:
+        expectedRotationAngle = 0
+
     outMarkerFileName = 'MyMarkerFile.em'
     if verbose:
         print("Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj) )
@@ -181,7 +187,7 @@ if __name__ == '__main__':
         print("TltFile: "+str(tltFile) )
         print("prexgFile: "+str(prexgFile) )
         print("Index of Reference Marker: "+str(referenceMarkerIndex) )
-        print("Handflip: "+str(handflip) )
+        print("Handflip: "+str(expectedRotationAngle) )
         print("Projection Targets: "+str(projectionTargets) )
         print("FineAlignmentFile: "+str(fineAlignFile) )
         print("Binning Factor of Projections: "+str(projBinning)+", lowpass filter (in Ny): "+str(lowpassFilter) )
@@ -229,7 +235,7 @@ if __name__ == '__main__':
                 'volumeFileType': 'mrc',
                 'voldims': voldims, "recCent":reconstructionPosition,
                 'tiltSeriesFormat': 'mrc', "firstProj":firstProj, "irefmark":irefmark, "ireftilt":ireftilt,
-                'handflip': handflip, "alignedTiltSeriesName":falignedTiltSeriesName,
+                'handflip': expectedRotationAngle, "alignedTiltSeriesName":falignedTiltSeriesName,
                 'weightingType': weightingType, "lowpassFilter":lowpassFilter, "projBinning":projBinning,
                 'outMarkerFileName': outMarkerFileName, 'verbose':True,'projIndices':projIndices}
 

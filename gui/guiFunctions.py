@@ -382,7 +382,8 @@ def write_text2file(text,fname,mode='a'):
 
 
 def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='.', num_procs=20, num_procs_per_proc=1, tiltseriesname='sorted/sorted',
-                         markerfile='sorted/markerfile.em',targets='alignment', firstindex=1, lastindex=21, refindex=11, weightingtype=0, deploy=False, queue=False):
+                         markerfile='sorted/markerfile.em',targets='alignment', firstindex=1, lastindex=21, refindex=11,
+                          weightingtype=0, deploy=False, queue=False, expectedRotationAngle=0):
     '''BATCHMODE: tilt alignment. Submits a number of sbatch jobs to slurm queueing system. Each job calculates the tilt aligment for each marker in a markerfile.  It divides the number or jobs with respect to the num_procs.'''
 
     pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
@@ -395,7 +396,7 @@ def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='
 
         cmd = multiple_alignment.format( d=(projectfolder, pytompath, n, min(number_tomonames,num_procs+n),
                                           num_procs_per_proc, tiltseriesname, markerfile, targets, projectfolder,
-                                          firstindex, lastindex, refindex, weightingtype, fnames_tomograms) )
+                                          firstindex, lastindex, refindex, weightingtype, fnames_tomograms, expectedRotationAngle) )
 
         if queue:
             cmd = gen_queue_header(name='Alignment', folder=projectfolder, cmd=cmd )

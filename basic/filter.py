@@ -359,7 +359,8 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     @return: filter volume
 
     """
-
+    from pytom_volume import vol
+    from pytom.basic.files import read
     from pytom_numpy import npy2vol
     from numpy import array, matrix, sin, pi, arange, float32, column_stack, argmin, clip, ones, ceil
 
@@ -383,8 +384,17 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     wfunc = ones((sX, sY, 1), dtype=float32)
     wfunc[sX//2-crowtherFreq:sX//2+min(sX//2,crowtherFreq+1),:, 0] = column_stack(([(wfuncCrowther), ] * (sY))).astype(float32)
 
-    weightFunc = npy2vol(array(wfunc, dtype='float32', order='F'), 3)
 
+    weightFunc = vol(sX, sY, 1)
+    weightFunc.setAll(0.0)
+
+    for ix in range(0, sX):
+        for iy in range(0, sY):
+            #print(ix,iy)
+            weightFunc.setV(float(wfunc[ix][iy]), ix, iy, 0)
+    
+    #weightFunc = npy2vol(array(wfunc, dtype='float32', order='F'), 3)
+        
     return weightFunc
 
 

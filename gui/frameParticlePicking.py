@@ -50,6 +50,7 @@ class ParticlePick(GuiTabWidget):
         self.tables = {}
         self.pbs = {}
         self.ends = {}
+        self.num_nodes = {}
 
         self.tabs = {'tab1': self.tab1,
                      'tab21': self.tab21, 'tab22': self.tab22,
@@ -110,6 +111,7 @@ class ParticlePick(GuiTabWidget):
 
     def insert_image(self,params):
         if self.no_image == False:
+            #self.partpick = CreateMaskTM(self)
             self.partpick = ParticlePicker(self)
             self.partpick.show()
             #params[0].addWidget(self.partpick,self.row+1,0,4,4)
@@ -117,7 +119,8 @@ class ParticlePick(GuiTabWidget):
     def tab21UI(self):
         key = 'tab21'
 
-        mode, mode2 = self.stage + 'TemplateMatch_', self.stage+ 'ExtractCandidates_'
+        mode, mode2, mode3 = self.stage + 'TemplateMatch_', self.stage+ 'ExtractCandidates_', self.stage+ 'CreateMask_'
+
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -131,6 +134,10 @@ class ParticlePick(GuiTabWidget):
                                                    mode=mode2))
         items[-1].setVisible(False)
 
+        #items += list(self.create_expandable_group(self.createTemplateMask, self.sizePolicyB, 'Create Mask Template',
+        #                                           mode=mode2))
+
+        #items[-1].setVisible(False)
 
 
         for n, item in enumerate(items):
@@ -212,6 +219,32 @@ class ParticlePick(GuiTabWidget):
         self.xmlfilename = os.path.join(self.templatematchfolder, 'cross_correlation', filename, 'job.xml')
         self.widgets[mode + 'outfolderTM'].setText(os.path.dirname(self.xmlfilename))
         print(os.path.dirname(self.xmlfilename))
+
+    def createTemplateMask(self, mode):
+        title = "Create Mask for Template Matching"
+        tooltip = 'Run pytom template matching routine.'
+        sizepol = self.sizePolicyB
+        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
+
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        w = 170
+
+        self.ccfolder = os.path.join(self.templatematchfolder, 'cross_correlation')
+
+        self.insert_label_line_push(parent, 'Tomogram', mode + 'tomogramFname', initdir=self.ccfolder,
+                                    tooltip='Select the particle list.', mode='file', filetype=['em','mrc'],cstep=-1)
+        self.insert_pushbutton(parent, 'Pick!', tooltip='Select the folder with the aligned tilt images.',
+                               rstep=1, cstep=2, action=self.cm, params = [parent])
+
+        self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
+        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyB,width=200)
+
+    def cm(self):
+        if self.no_image == False:
+            self.partpick = ParticlePicker(self)
+            self.partpick.show()
 
     def extractCandidates(self,mode):
         title = "Extract Candidates"
@@ -350,7 +383,7 @@ class ParticlePick(GuiTabWidget):
             values.append([tomogramFile, 1, templateFiles, maskFiles, 30, 30, angleLists])
             print(values[-1])
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True)
 
         self.tab22_widgets = self.tables[id].widgets
 
@@ -358,37 +391,47 @@ class ParticlePick(GuiTabWidget):
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_submitTM(pid, v))
 
     def mass_submitTM(self, pid, values):
-        for row in range(self.tables[pid].table.rowCount()):
-            if not self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked(): continue
-            tomogramFile = values[row][0]
-            templateFile = values[row][2][self.tab22_widgets['widget_{}_{}'.format(row, 2)].currentIndex()]
-            maskFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
-            w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 4)].text())
-            w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
-            angleList = self.tab22_widgets['widget_{}_{}'.format(row, 6)].currentText()
+        num_nodes = int(ceil(self.tables[pid].table.rowCount()/int(self.num_nodes[pid].value())))
+        if 1:#for j in range(num_nodes):
+            for row in range(self.tables[pid].table.rowCount()):
+                if not self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked(): continue
+                tomogramFile = values[row][0]
+                templateFile = values[row][2][self.tab22_widgets['widget_{}_{}'.format(row, 2)].currentIndex()]
+                maskFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
+                w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 4)].text())
+                w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
+                angleList = self.tab22_widgets['widget_{}_{}'.format(row, 6)].currentText()
+
+                
+                tomofile, ext = os.path.splitext(tomogramFile)
+                outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
+                if not os.path.exists(outDirectory): os.mkdir(outDirectory)
+                
+                jobxml = templateXML.format(d=[tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory])
+                outjob = open(os.path.join(outDirectory, 'job.xml'), 'w')
+                outjob.write(jobxml)
+                outjob.close()
 
 
-            tomofile, ext = os.path.splitext(tomogramFile)
-            outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
-            if not os.path.exists(outDirectory): os.mkdir(outDirectory)
+                fname = 'TemplateMatchingBatch'
+                folder = outDirectory
+                print(outDirectory)
+                modules = ['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/0.971']
+                cmd = templateTM.format(d=[outDirectory, self.pytompath, 'job.xml'])
+                
+                if row%num_nodes == 0:
+            
+                    job = guiFunctions.gen_queue_header(folder=folder,name=fname) + cmd
+                    print(os.path.join(outDirectory, 'templateMatchingBatch.sh'))
+                    outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
+                    outjob2.write(job)
 
-            jobxml = templateXML.format(d=[tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory])
-            outjob = open(os.path.join(outDirectory, 'job.xml'), 'w')
-            outjob.write(jobxml)
-            outjob.close()
+                else:
+                    outjob2.write(cmd)
 
-
-            fname = 'TemplateMatchingBatch'
-            folder = outDirectory
-            print(outDirectory)
-            modules = ['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/0.971']
-            cmd = templateTM.format(d=[outDirectory, self.pytompath, 'job.xml'])
-            job = guiFunctions.gen_queue_header(folder=folder,name=fname) + cmd
-            outjob = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
-            outjob.write(job)
-            outjob.close()
-
-            os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
+                if row % num_nodes == num_nodes-1 or row+1 == self.tables[pid].table.rowCount():
+                    outjob2.close()
+                    os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
 
     def tab31UI(self):
         key = 'tab31'

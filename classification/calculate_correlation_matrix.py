@@ -138,7 +138,8 @@ class CMWorker():
 
     
     def send_job(self, job, dest):
-        pytom_mpi.send(pickle.dumps(job), dest)
+        pickled = pickle.dumps(job, protocol=0, fix_imports=True).decode('utf-8').replace('V',"S")
+        pytom_mpi.send(pickled, dest)
     
     def get_job(self):
         from pytom.localization.parallel_extract_peaks import getMsgStr

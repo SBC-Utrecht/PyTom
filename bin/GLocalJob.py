@@ -59,9 +59,10 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
+        results = parse_script_options(sys.argv[1:], helper)
         particleList, reference, mask, isSphere, angShells, angleInc, symmetryN, symmetryAxisZ, symmetryAxisX,\
         destination, numberIterations, binning,\
-        pixelSize, diameter, weighting, compound, jobName, help = parse_script_options(sys.argv[1:], helper)
+        pixelSize, diameter, weighting, compound, jobName, help = results
     except Exception as e:
         print(e)
         sys.exit()
@@ -97,7 +98,7 @@ if __name__ == '__main__':
     else:
         isSphere = False
     m = Mask(filename=mask, isSphere=isSphere)
-    
+
     if not checkDirExists(destination):
         raise RuntimeError('Destination directory ' + destination + ' does not exist!')
 

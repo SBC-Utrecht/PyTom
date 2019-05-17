@@ -316,6 +316,10 @@ class TomographReconstruct(GuiTabWidget):
                                   tooltip='Index of reference tilt image. Typically zeros degree image.')
         self.insert_label_spinbox(parent, mode +'RefMarkerIndex', text='Reference Marker', value=1,
                                   tooltip='Index of reference marker. See previous step.')
+        self.insert_label_spinbox(parent, mode + 'RotationTiltAxis', text='Angle Tilt Axis (degrees)',
+                                  value=0, minimum=0, maximum=359,
+                                  tooltip='Angle of the tilt axis (degrees). 0 degrees is facing norther, '+
+                                          '90 degrees is facing east.')
         self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=8, cstep=0,
                                   tooltip='Binning factor used for reconstruction')
         #self.insert_label(parent,'Orientation tilt axis', rstep=1, cstep=1,
@@ -331,7 +335,8 @@ class TomographReconstruct(GuiTabWidget):
 
         paramsSbatch = guiFunctions.createGenericDict(fname='Alignment',folder=execfilename)
         paramsCmd    = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex', mode + 'LastIndex',
-                        mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', templateAlignment]
+                        mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', mode+'RotationTiltAxis',
+                        templateAlignment]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch = paramsSbatch,
                                  paramsCmd=paramsCmd, action=self.convert_em, paramsAction=[mode,'alignment','sorted'])
@@ -341,9 +346,9 @@ class TomographReconstruct(GuiTabWidget):
 
     def tab32UI(self):
         id='tab32'
-        headers = ["name tomogram", "align", 'First Index',"Last Index", 'Reference Image', 'Reference Marker']
-        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox']
-        sizes = [0, 80, 0, 0, 0, 0, 0]
+        headers = ["name tomogram", "align", 'First Index',"Last Index", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle']
+        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox','lineedit']
+        sizes = [0, 80, 0, 0, 0, 0, 0, 0]
 
         tooltip = ['Names of existing tomogram folders.',
                    'Do alignment.',
@@ -351,7 +356,8 @@ class TomographReconstruct(GuiTabWidget):
                    'Last index of tiltimages',
                    'Reference image number.',
                    'Redo the creation of a tomogram file.',
-                   'Select items to delete tomogram folders.']
+                   'Select items to delete tomogram folders.',
+                   'Expected Rotation Angle']
 
         tomodir = 'Juliette/03_Tomographic_Reconstruction'
 
@@ -383,7 +389,8 @@ class TomographReconstruct(GuiTabWidget):
             data = copy.deepcopy( vol2npy(d) )
             if len(data.shape) < 3: continue
             options_reference = list(map(str, range( data.shape[2] ))) + ['all']
-            values.append( [markerfile.split('/')[-3], True, 1, last_frame, index_zero_angle, options_reference] )
+            expect = int(float(metadata['InPlaneRotation'][0]))
+            values.append( [markerfile.split('/')[-3], True, 1, last_frame, index_zero_angle, options_reference, expect] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
 
@@ -412,7 +419,8 @@ class TomographReconstruct(GuiTabWidget):
         tomofolder_file = open(file_tomoname, 'w')
         number_tomonames = 0
         num_procs_per_proc = 0
-
+        expected = values[0][6]
+        print(expected)
         for row in range(table.rowCount()):
             wname = 'widget_{}_{}'.format(row, 1)
 
@@ -422,7 +430,7 @@ class TomographReconstruct(GuiTabWidget):
                 refindex = values[row][4]
                 markindex =  widgets['widget_{}_{}'.format(row,5)].currentText()
                 tomofolder_file.write('{} {} {}\n'.format(tomofoldername,refindex, markindex))
-                num_procs_per_proc = max(num_procs_per_proc, len(values[row][-1] ) - 1)
+                num_procs_per_proc = max(num_procs_per_proc, len(values[row][5]) - 1)
                 number_tomonames += 1
                 folder = os.path.join(self.tomogram_folder, tomofoldername)
                 os.system('cp {}/sorted/markerfile.em {}/alignment'.format(folder,folder))
@@ -432,7 +440,8 @@ class TomographReconstruct(GuiTabWidget):
         guiFunctions.batch_tilt_alignment( number_tomonames, fnames_tomograms=file_tomoname, num_procs=20, deploy=True,
                                            projectfolder=self.tomogram_folder, num_procs_per_proc=num_procs_per_proc,
                                            tiltseriesname='sorted/sorted', markerfile='alignment/markerfile.em',
-                                           targets='alignment', weightingtype=0, queue=self.checkbox[id].isChecked())
+                                           targets='alignment', weightingtype=0, queue=self.checkbox[id].isChecked(),
+                                           expectedRotationAngle=expected)
 
     def tab51UI(self):
         id = 'tab51'
@@ -456,6 +465,10 @@ class TomographReconstruct(GuiTabWidget):
                                   tooltip='Index of reference tilt image. Typically zeros degree image.')
         self.insert_label_spinbox(parent, mode +'RefMarkerIndex', text='Reference Marker', value=1,
                                   tooltip='Index of reference marker. See previous step.')
+        self.insert_label_spinbox(parent, mode + 'RotationTiltAxis', text='Angle Tilt Axis (degrees)',
+                                  value=0, minimum=0, maximum=359,
+                                  tooltip='Angle of the tilt axis (degrees). 0 degrees is facing norther, ' +
+                                          '90 degrees is facing east.')
         self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=8, cstep=0,
                                   tooltip='Binning factor used for reconstruction')
 
@@ -480,7 +493,8 @@ class TomographReconstruct(GuiTabWidget):
                                  exefilename=execfilename, paramsSbatch=paramsSbatch,
                                  paramsCmd=[mode+'tomofolder',self.parent().pytompath,mode+'FirstIndex',mode+'LastIndex',
                                             mode + 'RefTiltIndex',mode + 'RefMarkerIndex',mode+'BinningFactor',
-                                            self.parent().pytompath, mode + 'tomogramNR', templateINFR])
+                                            self.parent().pytompath, mode + 'tomogramNR',  mode+'RotationTiltAxis',
+                                            templateINFR])
 
         #self.insert_label_action_label(parent,'Generate command',cstep=-2, sizepolicy=self.sizePolicyB)
         #self.insert_textfield(parent, h+'CommandText', columnspan=3, rstep=1, cstep=2)
@@ -507,10 +521,12 @@ class TomographReconstruct(GuiTabWidget):
             metafile = metafiles[0]
 
             try:
-                angles = numpy.loadtxt(os.path.join(folderSorted, metafile), dtype=guiFunctions.datatype)['TiltAngle']
+                metadata = numpy.loadtxt(os.path.join(folderSorted, metafile), dtype=guiFunctions.datatype)
             except:
-                angles = numpy.loadtxt(os.path.join(folderSorted,metafile),dtype=guiFunctions.datatype0)['TiltAngle']
+                metadata = numpy.loadtxt(os.path.join(folderSorted,metafile),dtype=guiFunctions.datatype0)
 
+            angles = metadata['TiltAngle']
+            self.widgets['RotationTiltAxis'] = metadata
             for i in range(len(files)):
                 if not 'sorted_{:02d}.mrc'.format(i) in files:
                     angles[i]+=10000
@@ -545,6 +561,11 @@ class TomographReconstruct(GuiTabWidget):
                                   tooltip='Index of reference tilt image. Typically zeros degree image.')
         self.insert_label_spinbox(parent, mode +'RefMarkerIndex', text='Reference Marker', value=1,
                                   tooltip='Index of reference marker. See previous step.')
+        self.insert_label_spinbox(parent, mode + 'RotationTiltAxis', text='Angle Tilt Axis (degrees)',
+                                  value=0, minimum=0, maximum=359,
+                                  tooltip='Angle of the tilt axis (degrees). 0 degrees is facing norther, '+
+                                          '90 degrees is facing east.')
+
         self.insert_label_spinbox(parent, mode + 'WeightingType', text='Weighting Type',
                                   value=1, minimum=-1, maximum=3000, stepsize=1,
                                   tooltip='Select weighting type:\n\t 0: no weighting\n\t-1: analytical weighting'+
@@ -568,10 +589,9 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch['time'] = 1
         paramsSbatch['num_jobs_per_node'] = 1
 
-        paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex',
-                     mode + 'LastIndex',
-                     mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor',
-                     mode + 'tomogramNR', 'mrc', mode+'Voldims', mode + 'WeightingType', templateWBP]
+        paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex', mode + 'LastIndex',
+                     mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', mode + 'tomogramNR', 'mrc',
+                     mode + 'Voldims', mode + 'WeightingType', mode+'RotationTiltAxis', templateWBP]
 
         self.insert_gen_text_exe(parent,mode, jobfield=False, action=self.convert_em, exefilename=execfilename,
                                  paramsAction=[mode,'reconstruction/WBP','sorted'],paramsSbatch=paramsSbatch,
@@ -636,10 +656,10 @@ class TomographReconstruct(GuiTabWidget):
 
     def tab53UI(self):
         id='tab53'
-        headers = ["name tomogram", "INFR", 'WBP', 'First Index', "Last Index", 'Reference Image', 'Reference Marker',
-                   'Binning Factor']
-        types = ['txt', 'checkbox', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit']
-        sizes = [0, 80, 80, 0, 0, 0, 0, 0]
+        headers = ["name tomogram", "INFR", 'WBP', 'First Index', "Last Index", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle',
+                   'Bin Factor']
+        types = ['txt', 'checkbox', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit']
+        sizes = [0, 80, 80, 0, 0, 0, 0, 0, 0]
 
         tooltip = ['Names of existing tomogram folders.',
                    'Do INFR Reconstruction.',
@@ -648,7 +668,9 @@ class TomographReconstruct(GuiTabWidget):
                    'Last index of tiltimages',
                    'Reference Image number.',
                    'Reference Marker number.',
+                   'Expected in-plane Rotation Angle',
                    'Binning factor applied to images.']
+
         markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
 
         values = []
@@ -665,9 +687,9 @@ class TomographReconstruct(GuiTabWidget):
             fnames = sorted([fname for fname in files if fname.startswith('sorted') and fname.endswith('mrc') ])
 
             print(tilt_angles, fnames)
+            rot = int(float(metadata['InPlaneRotation'][0]))
 
-
-            values.append( [markerfile.split('/')[-3], True, True, 1, len(fnames), index_zero_angle, 1, 8] )
+            values.append( [markerfile.split('/')[-3], True, True, 1, len(fnames), index_zero_angle, 1, rot, 8] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_reconstruction(pid, v))
@@ -683,6 +705,12 @@ class TomographReconstruct(GuiTabWidget):
 
         for row in range(table.rowCount()):
             tomofolder = os.path.join(self.tomogram_folder, values[row][0])
+            metafile = glob.glob(os.path.join(tomofolder,'sorted/*.meta'))
+            expectedRotation = int(float(widgets['widget_{}_{}'.format(row,7)].text()))
+            try:
+                metadata = numpy.loadtxt(metafile[-1], dtype=guiFunctions.datatype)
+            except:
+                continue
             sortedFolder = os.path.join(tomofolder, 'sorted')
             self.widgets[mode + 'tomofolder'] = QLineEdit(text=tomofolder)
             self.widgets[mode + 'FolderSorted'] = QLineEdit(text=sortedFolder)
@@ -701,12 +729,14 @@ class TomographReconstruct(GuiTabWidget):
 
                     if i == 1:
                         paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4],
-                                     values[row][5], values[row][6], values[row][7],
-                                     self.pytompath, os.path.basename(tomofolder)]
+                                     values[row][5], values[row][6], values[row][8],
+                                     self.pytompath, os.path.basename(tomofolder),
+                                     expectedRotation]
                         commandText = templateINFR.format(d=paramsCmd)
                     elif i==2:
                         paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4], values[row][5],
-                                     values[row][6], values[row][7], os.path.basename(tomofolder), 'mrc', '464', '1']
+                                     values[row][6], values[row][8], os.path.basename(tomofolder), 'mrc', '464', '1',
+                                     expectedRotation]
                         commandText= templateWBP.format(d=paramsCmd)
                     else:
                         print( 'No Batch Submission' )
@@ -1010,8 +1040,7 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[mode + 'uPrefix'].setText( uPrefix )
         self.widgets[mode + 'cPrefix'].setText( cPrefix )
         self.widgets[mode + 'MetaFile'].setText( metafile )
-
-
+        
     def updateGridAndFieldSize(self, mode):
         gridSpacing = float(self.widgets[mode + 'GridSpacing'].value())
         fieldSize   = float(self.widgets[mode + 'FieldSize'].value())

@@ -167,7 +167,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
 
 
 def alignmentFixMagRot( Markers_, cTilt, sTilt,
-        ireftilt, irefmark=1, r=None, imdim=2048, handflip=False,
+        ireftilt, irefmark=1, r=None, imdim=2048, handflip=0,
     mute=True, writeResults=''):
     """
     compute alignment analytically (constant mag. and tilt axis)
@@ -178,8 +178,8 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     @type sTilt: numpy array
     @param r: coordinates of reference marker
     @type r: numpy.array
-    @param handflip: flip handedness 
-    @type handflip: logical
+    @param handflip: expected angle tilt axis
+    @type handflip: int
     @param mute: turn output silent
     @type mute: L{bool}
 
@@ -239,8 +239,30 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
         psi = 0.5*atan(2*sumxy/(sumxx-sumyy))
     if (sumxx > sumyy):
         psi = psi - 0.5*pi*cmp(psi, 0)
-    if handflip:
-        psi = psi + pi
+
+
+    result = (270*pi/180) - psi
+
+    query = handflip
+
+    print(result*180/pi, query*180/pi)
+
+    a = abs((result+pi)%(2*pi)-query)
+    b = abs((result)%(2*pi)-query)
+
+    if a > 270*pi/180: 
+        a = 360*pi/180-a
+    if b > 270*pi/180: 
+        b = 360*pi/180-b
+
+    if a < b:
+        psi = (psi+pi)
+    
+
+    #print(handflip*180/pi, psi*180/pi)
+    #if abs((pi+psi)%(pi)-handflip) < abs(psi%(pi) - handflip):
+    #    psi = (psi + pi)%(2*pi)
+    #if psi < 0.: psi += (2*pi)
     psiindeg = psi*180/pi
     
     #  psi 2?!

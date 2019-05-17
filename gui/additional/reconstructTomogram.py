@@ -11,6 +11,7 @@ if __name__ == '__main__':
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
     from pytom.gui.additional.reconstructionFunctions import alignWeightReconstruct
+    import numpy
 
     options=[ScriptOption(['--tiltSeriesName'], 'Name tilt series - either prefix of sequential tilt series files \
              expected as "tiltSeriesName_index.em/mrc" or full name of stack "tiltSeriesName.st"',
@@ -29,8 +30,8 @@ if __name__ == '__main__':
                           arg=True, optional=False),
              ScriptOption(['--referenceMarkerIndex'], 'Index of reference marker to set up coordinate system.',
                           arg=True, optional=False),
-             ScriptOption(['--handflip'], 'Is your tilt series outside of 0-180deg (Specify if yes).', arg=False,
-                          optional=True),
+             ScriptOption(['--expectedRotationAngle'], 'Is your tilt series outside of 0-180deg (Specify if yes).',
+                          arg=True, optional=True),
              ScriptOption(['--projectionTargets'],
                           'Relative or absolute path to the aligned projections that will be generated + file prefix.\
                           default: "align/myTilt"', arg=True, optional=True),
@@ -76,7 +77,7 @@ if __name__ == '__main__':
         sys.exit()
     try:
         tiltSeriesName, tiltSeriesFormat, firstProj, lastProj, projIndices,\
-        tltFile, prexgFile, preBin, referenceIndex, markerFileName, referenceMarkerIndex, handflip, \
+        tltFile, prexgFile, preBin, referenceIndex, markerFileName, referenceMarkerIndex, expectedRotationAngle, \
         projectionTargets, fineAlignFile, projBinning, lowpassFilter, \
         volumeName, filetype, \
         tomogramSizeX, tomogramSizeY, tomogramSizeZ, \
@@ -87,7 +88,13 @@ if __name__ == '__main__':
         print(e)
         sys.exit()
 
-    print(weightingType)
+    print(tiltSeriesName, tiltSeriesFormat, firstProj, lastProj, projIndices,\
+        tltFile, prexgFile, preBin, referenceIndex, markerFileName, referenceMarkerIndex, expectedRotationAngle, \
+        projectionTargets, fineAlignFile, projBinning, lowpassFilter, \
+        volumeName, filetype, \
+        tomogramSizeX, tomogramSizeY, tomogramSizeZ, \
+        reconstructionCenterX, reconstructionCenterY, reconstructionCenterZ, \
+        weightingType, verbose, help)
 
 
     if help is True:
@@ -108,7 +115,11 @@ if __name__ == '__main__':
     else:
         irefmark = 1
 
-    handflip = handflip is not None  # False # is your tilt axis outside 0-180 deg?
+    try:
+        expectedRotationAngle = int(expectedRotationAngle)
+    except:
+        expectedRotationAngle = 0
+    #handflip = handflip is not None  # False # is your tilt axis outside 0-180 deg?
     # output parameters
     if projectionTargets:
         # weighted and aligned projections are stored as alignedTiltSeriesName_index.em
@@ -170,7 +181,7 @@ if __name__ == '__main__':
         print("TltFile: "+str(tltFile))
         print("prexgFile: "+str(prexgFile))
         print("Index of Reference Marker: "+str(referenceMarkerIndex))
-        print("Handflip: "+str(handflip))
+        print("Expected Rotation Angle: "+str(expectedRotationAngle))
         print("Projection Targets: "+str(projectionTargets))
         print("FineAlignmentFile: "+str(fineAlignFile))
         print("Binning Factor of Projections: "+str(projBinning)+", lowpass filter (in Ny): "+str(lowpassFilter))
@@ -184,7 +195,7 @@ if __name__ == '__main__':
                            volumeName=volumeName, volumeFileType=filetype,
                            voldims=voldims, recCent=reconstructionPosition,
                            tiltSeriesFormat=tiltSeriesFormat, firstProj=firstProj, irefmark=irefmark, ireftilt=ireftilt,
-                           handflip=handflip,
+                           handflip=expectedRotationAngle*numpy.pi/180,
                            alignedTiltSeriesName=alignedTiltSeriesName,
                            weightingType=weightingType,
                            lowpassFilter=lowpassFilter, projBinning=projBinning,

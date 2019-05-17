@@ -288,6 +288,8 @@ class Score:
 
         self._filename = filename
         versionString = '<!-- PyTom Version: ' + pytom.__version__ + ' -->\n'
+
+
         file = open(filename, "w")
         file.write(versionString + str(self))
         file.close()
@@ -314,9 +316,11 @@ class Score:
         from lxml.etree import tostring
         
         doc = self.toXML()
-        
-        return tostring(doc,pretty_print=True)
-    
+
+        xmlstring =  tostring(doc, pretty_print=True).decode('utf-8')
+
+        return xmlstring
+
     def getWorstValue(self):
         raise RuntimeError('This function must be overridden by child!')
         
@@ -356,7 +360,19 @@ class Score:
             return 0
         elif self.scoreValue > otherScore.getValue():
             return 1
-        
+    
+    def __lt__(self, otherScore):
+        self.__cmp__(otherScore)
+
+    def __gt__(self, otherScore):
+        if self.scoreValue > otherScore.getValue():
+            return -1
+        elif self.scoreValue == otherScore.getValue():
+            return 0
+        elif self.scoreValue < otherScore.getValue():
+            return 1
+
+    
     def copy(self):    
         selfAsXML = self.toXML()
         return fromXML(selfAsXML)

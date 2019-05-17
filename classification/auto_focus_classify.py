@@ -44,12 +44,12 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
     if align:
         from sh_alignment.frm import frm_align
         band = int(band1 if band1<band2 else band2)
-        pos, angle, score = frm_align(lv2, None, lv1, None, [4,64], band, lv1.sizeX()/4, mask)
-        shift = [pos[0]-v1.sizeX()/2, pos[1]-v1.sizeY()/2, pos[2]-v1.sizeZ()/2]
+        pos, angle, score = frm_align(lv2, None, lv1, None, [4,64], band, lv1.sizeX()//4, mask)
+        shift = [pos[0]-v1.sizeX()//2, pos[1]-v1.sizeY()//2, pos[2]-v1.sizeZ()//2]
 
         # transform v2
         lvv2 = vol(lv2)
-        transformSpline(lv2, lvv2, -angle[1],-angle[0],-angle[2],lv2.sizeX()/2,lv2.sizeY()/2,lv2.sizeZ()/2,-shift[0],-shift[1],-shift[2],0,0,0)
+        transformSpline(lv2, lvv2, -angle[1],-angle[0],-angle[2],lv2.sizeX()//2,lv2.sizeY()//2,lv2.sizeZ()//2,-shift[0],-shift[1],-shift[2],0,0,0)
     else:
         lvv2 = lv2
 
@@ -98,11 +98,11 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
     limit(std_map, threshold, 0, threshold, 1, True, True)
 
     # do a lowpass filtering
-    std_map1 = lowpassFilter(std_map, v1.sizeX()/4, v1.sizeX()/40.)[0]
+    std_map1 = lowpassFilter(std_map, v1.sizeX()//4, v1.sizeX()/40.)[0]
 
     if align:
         std_map2 = vol(std_map)
-        transformSpline(std_map1, std_map2, angle[0],angle[1],angle[2],v1.sizeX()/2,v1.sizeY()/2,v1.sizeZ()/2,0,0,0,shift[0],shift[1],shift[2])
+        transformSpline(std_map1, std_map2, angle[0],angle[1],angle[2],v1.sizeX()//2,v1.sizeY()//2,v1.sizeZ()//2,0,0,0,shift[0],shift[1],shift[2])
     else:
         std_map2 = std_map1
 
@@ -174,7 +174,7 @@ def paverage(particleList, norm, binning, verbose):
     newParticle = None
     
     for particleObject in particleList:
-        
+        #print(particleObject.getFilename())
         particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, binning,binning,binning)
         if norm:
             mean0std1(particle)
@@ -188,9 +188,9 @@ def paverage(particleList, norm, binning, verbose):
             
             newParticle = vol(sizeX,sizeY,sizeZ)
             
-            centerX = sizeX/2 
-            centerY = sizeY/2 
-            centerZ = sizeZ/2 
+            centerX = sizeX//2 
+            centerY = sizeY//2 
+            centerZ = sizeZ//2 
             
             result = vol(sizeX,sizeY,sizeZ)
             result.setAll(0.0)
@@ -209,8 +209,8 @@ def paverage(particleList, norm, binning, verbose):
         shiftV = particleObject.getShift()
         newParticle.setAll(0)
         transform(particle,newParticle,-rotation[1],-rotation[0],-rotation[2],
-            centerX,centerY,centerZ,-shiftV[0]/binning,
-        -shiftV[1]/binning,-shiftV[2]/binning,0,0,0)
+            centerX,centerY,centerZ,-shiftV[0]//binning,
+        -shiftV[1]//binning,-shiftV[2]//binning,0,0,0)
         
         result += newParticle
         
@@ -218,7 +218,7 @@ def paverage(particleList, norm, binning, verbose):
             numberAlignedParticles = numberAlignedParticles + 1
             progressBar.update(numberAlignedParticles)
 
-    
+
     # write to the disk
     result.write('avg_'+str(mpi.rank)+'.em')
     result = Particle('avg_'+str(mpi.rank)+'.em')
@@ -255,8 +255,8 @@ def calculate_averages(pl, binning, mask):
                 spp = mpi._split_seq(pp, mpi.size)
             else: # not enough particle to do averaging on one node
                 spp = [None] * 2
-                spp[0] = pp[:len(pp)/2]
-                spp[1] = pp[len(pp)/2:]
+                spp[0] = pp[:len(pp)//2]
+                spp[1] = pp[len(pp)//2:]
             args = list(zip(spp, [True]*len(spp), [binning]*len(spp), [False]*len(spp)))
             avgs = mpi.parfor(paverage, args)
 
@@ -285,7 +285,7 @@ def calculate_averages(pl, binning, mask):
                 os.remove(w.getFilename())
 
             # determine the resolution
-            fsc = FSC(even_a, odd_a, even_a.sizeX()/2, mask)
+            fsc = FSC(even_a, odd_a, even_a.sizeX()//2, mask)
             band = determineResolution(fsc, 0.5)[1]
 
             aa = even_a + odd_a
@@ -301,7 +301,7 @@ def calculate_averages(pl, binning, mask):
             ww2 = reducedToFull(ww)
             fftShift(ww2, True)
             wedgeSum[class_label] = ww2
-
+    print('done')
     return res, freqs, wedgeSum
 
 
@@ -314,7 +314,7 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
         mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
     pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
 
-    return (Shift([pos[0]-v.sizeX()/2, pos[1]-v.sizeY()/2, pos[2]-v.sizeZ()/2]), Rotation(angle), score, p.getFilename())
+    return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), Rotation(angle), score, p.getFilename())
 
 
 def score_noalign_proxy(p, ref, freq, offset, binning, mask):
@@ -469,6 +469,8 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
 
     return pl
 
+def cmp(a,b)
+    return (a>b) - (a<b)
 
 def split_topn_classes(pls, n):
     # sort the particle list by the length
@@ -494,8 +496,8 @@ def split_topn_classes(pls, n):
         if i<n:
             pp.sortByScore()
             l = len(pp)
-            p1 = pp[:l/2]
-            p2 = pp[l/2:]
+            p1 = pp[:l//2]
+            p2 = pp[l//2:]
 
             p1.setClassAllParticles(str(max_label+1))
             p2.setClassAllParticles(str(max_label+2))
@@ -545,7 +547,7 @@ def distance(p, ref, freq, mask, binning):
 
     if not mask:
         mask = vol(r)
-        initSphere(mask, r.sizeX()/2-3, 3, 0, r.sizeX()/2, r.sizeY()/2, r.sizeZ()/2)
+        initSphere(mask, r.sizeX()//2-3, 3, 0, r.sizeX()//2, r.sizeY()//2, r.sizeZ()//2)
     else:
         mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
 
@@ -568,7 +570,7 @@ def initialize(pl, settings):
 
     K = settings["ncluster"]
     freq = settings["frequency"]
-    kn = len(pl)/K
+    kn = len(pl)//K 
     references = {}
     frequencies = {}
 

@@ -39,6 +39,7 @@ templateAlignment = '''cd {d[0]}
     --referenceIndex {d[4]} \\
     --markerFile alignment/markerfile.em \\
     --referenceMarkerIndex {d[5]} \\
+    --expectedRotationAngle {d[7]} \\
     --projectionTargets alignment/unweighted_unbinned/sorted_aligned \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9 \\
@@ -54,6 +55,7 @@ templateWBP       = '''cd {d[0]}
     --referenceIndex {d[4]} \\
     --markerFile reconstruction/WBP/markerfile.em \\
     --referenceMarkerIndex {d[5]} \\
+    --expectedRotationAngle {d[11]} \\
     --projectionTargets reconstruction/WBP/temp_files_unweighted/sorted_aligned \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9  \\
@@ -83,6 +85,7 @@ templateINFR      = '''cd {d[0]}
     --referenceIndex {d[4]} \\
     --markerFile reconstruction/INFR/markerfile.em \\
     --referenceMarkerIndex {d[5]} \\
+    --expectedRotationAngle {d[7]} \\
     --projectionTargets reconstruction/INFR/temp_files_unweighted/sorted_aligned \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9 \\
@@ -106,7 +109,7 @@ templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[
 '''
 
 templateFRMSlurm  = '''
-module unload python3/3.7 pytom/dev/python3
+module unload python/2.7 pytom/dev/gui pytom/0.971
 
 cd {d[0]}
 
@@ -114,10 +117,7 @@ mpiexec --tag-output -n 16 pytom {d[1]}/frm/FRMAlignment.py -j {d[2]} -v
 
 '''
 
-templateGLocal    = '''export PYTHONPATH=/cm/local/apps/cuda/libs/current/pynvml
-export PATH=/cm/local/apps/cuda/libs/current/bin:/cm/shared/apps/cuda80/sdk/8.0.61/bin/x86_64/linux/release:/cm/shared/apps/cuda80/toolkit/8.0.61/bin:/cm/shared/apps/utilities/bin:/cm/shared/apps/slurm/17.02.2/sbin:/cm/shared/apps/slurm/17.02.2/bin:/usr/lib64/qt-3.3/bin:/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/sbin:/cm/local/apps/environment-modules/3.2.10/bin 
-
-cd {d[0]}
+templateGLocal    = '''cd {d[0]}
 
 mpirun -n 20 {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
 --particleList {d[3]} \\
@@ -125,26 +125,20 @@ mpirun -n 20 {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
 --numberIterations {d[6]} \\
 --pixelSize {d[7]} \\
 --particleDiameter {d[8]} \\
---binning {d[9]}\\ 
---destination ./ \\
+--binning {d[9]} \\
+--destination {d[11]} \\
 --SphericalMask \\
 --angleShells 3 \\
---angleIncrement 3.\\
+--angleIncrement 3 \\
+--jobName {d[10]} \\
 {d[4]}'''
 
-templateCCC       = """. unload_modules_pytomGUI.sh
-export PYTHONPATH=/cm/local/apps/cuda/libs/current/pynvml
-export PATH=/cm/local/apps/cuda/libs/current/bin:/cm/shared/apps/cuda80/sdk/8.0.61/bin/x86_64/linux/release:/cm/shared/apps/cuda80/toolkit/8.0.61/bin:/cm/shared/apps/utilities/bin:/cm/shared/apps/slurm/17.02.2/sbin:/cm/shared/apps/slurm/17.02.2/bin:/usr/lib64/qt-3.3/bin:/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/sbin:/cm/local/apps/environment-modules/3.2.10/bin
-
-cd {d[0]}
+templateCCC       = """cd {d[0]}
 
 mpiexec --tag-output -n 16 {d[1]}/bin/pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]}
 """
 
-templateCPCA      = """export PYTHONPATH=/cm/local/apps/cuda/libs/current/pynvml
-export PATH=/cm/local/apps/cuda/libs/current/bin:/cm/shared/apps/cuda80/sdk/8.0.61/bin/x86_64/linux/release:/cm/shared/apps/cuda80/toolkit/8.0.61/bin:/cm/shared/apps/utilities/bin:/cm/shared/apps/slurm/17.02.2/sbin:/cm/shared/apps/slurm/17.02.2/bin:/usr/lib64/qt-3.3/bin:/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/sbin:/cm/local/apps/environment-modules/3.2.10/bin
-
-cd {d[0]}
+templateCPCA      = """cd {d[0]}
 
 {d[1]}/bin/pytom {d[1]}/bin/classifyCPCA.py -p {d[2]} -o {d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[7]}
 """
@@ -159,14 +153,12 @@ mpirun -c 20 {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
 -f {d[6]} \\
 -i {d[7]} \\
 -s {d[8]} \\
--n {d[9]} \\
--g {d[10]}\\
--t {d[11]}\\
-'''
+-n {d[9]} -g {d[10]} -t {d[11]}'''
 
 templateTM        = '''cd {d[0]}
 
-mpiexec --tag-output -n 16 {d[1]}/bin/pytom {d[1]}/bin/localization.py {d[2]} 4 4 1 '''
+mpiexec --tag-output -n 16 {d[1]}/bin/pytom {d[1]}/bin/localization.py {d[2]} 4 4 1 
+'''
 
 
 createParticleList = 'coords2PL.py -c {d[0]}  -s {d[1]} -w {d[2]},{d[3]} -p {d[4]} {d[5]}'
@@ -180,7 +172,8 @@ reconstructWB.py --particleList {d[0]} \\
 --applyWeighting {d[9]} \\
 --projBinning {d[4]} \\
 --recOffset {d[5]},{d[6]},{d[7]} \\
---metafile {d[10]}'''
+--metafile {d[10]} \\
+--numProcesses {d[11]}'''
 
 multiple_alignment = '''cd {d[0]}
 
@@ -197,7 +190,8 @@ multiple_alignment = '''cd {d[0]}
 --referenceIndex {d[11]} \\
 --weightingType {d[12]} \\
 --projIndices \\
---fnames {d[13]}'''
+--fnames {d[13]} \\
+--expectedRotationAngle {d[14]}'''
 
 templateExtractCandidates = '''cd {d[0]}
 

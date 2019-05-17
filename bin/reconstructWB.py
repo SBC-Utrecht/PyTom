@@ -37,6 +37,8 @@ if __name__ == '__main__':
                                 ScriptOption(['-o','--recOffset'], 'Cropping offset of the binned tomogram.', arg=True, optional=False),
                                 ScriptOption(['--projBinning'], 'Bin projections BEFORE reconstruction. 1 is no binning, 2 will merge two voxels to one, 3 -> 1, 4 ->1 ...', arg=True, optional=True),
                                 ScriptOption(['-m', '--metafile'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
+                                ScriptOption(['-n', '--numProcesses'], 'Supply a metafile to get tiltangles.', arg=True,
+                                             optional=True),
                                 ScriptOption(['--help'], 'Print this help.', arg=False, optional=False)])
     
     if len(sys.argv) == 1:
@@ -48,7 +50,7 @@ if __name__ == '__main__':
     aw = False
     
     try:
-        tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, recOffset, projBinning, metafile, help= parse_script_options(sys.argv[1:], helper)
+        tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, recOffset, projBinning, metafile, numProcesses, help= parse_script_options(sys.argv[1:], helper)
     
     except Exception as e:
         print(e)
@@ -81,6 +83,10 @@ if __name__ == '__main__':
     else:
         recOffset = [0.,0.,0.]
     
+    try:
+        numProcesses = int(numProcesses)
+    except:
+        numProcesses = 0
         
     projections = ProjectionList()
     if checkFileExists(projectionList):
@@ -116,15 +122,16 @@ if __name__ == '__main__':
         from pytom.basic.structures import PickPosition
         for particle in particleList:
             pickPosition = particle.getPickPosition()
-            x = (pickPosition.getX()*coordinateBinning+ recOffset[0])/projBinning
-            y = (pickPosition.getY()*coordinateBinning+ recOffset[1])/projBinning
-            z = (pickPosition.getZ()*coordinateBinning+ recOffset[2])/projBinning
+            x = (pickPosition.getX()*coordinateBinning+ recOffset[0])#/projBinning
+            y = (pickPosition.getY()*coordinateBinning+ recOffset[1])#/projBinning
+            z = (pickPosition.getZ()*coordinateBinning+ recOffset[2])#/projBinning
+            print(x,y,z)
             particle.setPickPosition( PickPosition(x=x, y=y, z=z))
          
         projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \
                                        binning=projBinning, applyWeighting = aw, \
                                        showProgressBar = True,verbose=False, \
-                                       preScale=projBinning,postScale=1)
+                                       preScale=projBinning,postScale=1, num_procs=numProcesses)
 
             
 

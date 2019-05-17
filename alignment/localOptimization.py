@@ -54,7 +54,7 @@ class Alignment:
         
         if not iniRot:
             iniRot=Rotation()
-        if not iniTrans == None:
+        if not iniTrans:
             iniTrans=Shift()
         self.rot_trans = self.transRot2vector( rot=iniRot, trans=iniTrans)
 
