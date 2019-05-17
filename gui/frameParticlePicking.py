@@ -391,47 +391,40 @@ class ParticlePick(GuiTabWidget):
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_submitTM(pid, v))
 
     def mass_submitTM(self, pid, values):
-        num_nodes = int(ceil(self.tables[pid].table.rowCount()/int(self.num_nodes[pid].value())))
-        if 1:#for j in range(num_nodes):
-            for row in range(self.tables[pid].table.rowCount()):
-                if not self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked(): continue
-                tomogramFile = values[row][0]
-                templateFile = values[row][2][self.tab22_widgets['widget_{}_{}'.format(row, 2)].currentIndex()]
-                maskFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
-                w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 4)].text())
-                w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
-                angleList = self.tab22_widgets['widget_{}_{}'.format(row, 6)].currentText()
+        num_nodes = int(self.num_nodes[pid].value())
+        num_submitted_jobs = 0
 
-                
-                tomofile, ext = os.path.splitext(tomogramFile)
-                outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
-                if not os.path.exists(outDirectory): os.mkdir(outDirectory)
-                
-                jobxml = templateXML.format(d=[tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory])
-                outjob = open(os.path.join(outDirectory, 'job.xml'), 'w')
-                outjob.write(jobxml)
-                outjob.close()
+        for row in range(self.tables[pid].table.rowCount()):
+            if not self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked():
+                continue
+
+            tomogramFile = values[row][0]
+            templateFile = values[row][2][self.tab22_widgets['widget_{}_{}'.format(row, 2)].currentIndex()]
+            maskFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
+            w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 4)].text())
+            w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
+            angleList = self.tab22_widgets['widget_{}_{}'.format(row, 6)].currentText()
 
 
-                fname = 'TemplateMatchingBatch'
-                folder = outDirectory
-                print(outDirectory)
-                modules = ['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/0.971']
-                cmd = templateTM.format(d=[outDirectory, self.pytompath, 'job.xml'])
-                
-                if row%num_nodes == 0:
-            
-                    job = guiFunctions.gen_queue_header(folder=folder,name=fname) + cmd
-                    print(os.path.join(outDirectory, 'templateMatchingBatch.sh'))
-                    outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
-                    outjob2.write(job)
+            tomofile, ext = os.path.splitext(tomogramFile)
+            outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
+            if not os.path.exists(outDirectory): os.mkdir(outDirectory)
 
-                else:
-                    outjob2.write(cmd)
+            jobxml = templateXML.format(d=[tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory])
+            outjob = open(os.path.join(outDirectory, 'job.xml'), 'w')
+            outjob.write(jobxml)
+            outjob.close()
 
-                if row % num_nodes == num_nodes-1 or row+1 == self.tables[pid].table.rowCount():
-                    outjob2.close()
-                    os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
+
+            fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
+            folder = outDirectory
+            cmd = templateTM.format(d=[outDirectory, self.pytompath, 'job.xml'])
+            job = guiFunctions.gen_queue_header(folder=folder,name=fname, singleton=True) + cmd
+            outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
+            outjob2.write(job)
+            outjob2.close()
+            os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
+            num_submitted_jobs += 1
 
     def tab31UI(self):
         key = 'tab31'

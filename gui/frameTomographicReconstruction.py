@@ -43,8 +43,10 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets['pytomPath'].setText(self.parent().pytompath)
 
         self.pytompath = self.parent().pytompath
-        headers = ["Select Tomograms", "Create Markerfile", "Alignment", 'CTF Determination', 'Reconstruction']
-        subheaders = [[], [], ['Individual Alignment', 'Batch Alignment'], [], ['INFR', 'WBP', 'Batch Reconstruction']]
+        headers = ["Select Tomograms", "Create Markerfile", "Alignment", 'CTF Correction', 'Reconstruction']
+        subheaders = [[], [], ['Individual Alignment', 'Batch Alignment'],
+                      ['CTF Determination', 'CTF Correction', 'Batch Correction'],
+                      ['INFR', 'WBP', 'Batch Reconstruction']]
         self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders)
 
         self.table_layouts = {}
@@ -52,19 +54,20 @@ class TomographReconstruct(GuiTabWidget):
         self.pbs = {}
         self.ends = {}
         self.checkbox = {}
+        self.num_nodes = {}
 
         self.subprocesses = 10
 
         self.tabs = {'tab1': self.tab1,
                      'tab2':  self.tab2,
                      'tab31': self.tab31, 'tab32': self.tab32,
-                     'tab4': self.tab4,
+                     'tab41': self.tab41, 'tab42': self.tab42, 'tab43': self.tab43,
                      'tab51': self.tab51, 'tab52': self.tab52, 'tab53': self.tab53}
 
         self.tab_actions = {'tab1':  self.tab1UI,
                             'tab2':  self.tab2UI,
                             'tab31': self.tab31UI, 'tab32': self.tab32UI,
-                            'tab4': self.tab4UI,
+                            'tab41': self.tab41UI, 'tab42': self.tab42UI, 'tab43': self.tab43UI,
                             'tab51': self.tab51UI, 'tab52': self.tab52UI, 'tab53': self.tab53UI}
 
         for i in range(len(headers)):
@@ -72,7 +75,7 @@ class TomographReconstruct(GuiTabWidget):
             empty = 1*(len(subheaders[i]) == 0)
             for j in range(len(subheaders[i])+empty):
                 tt = t+str(j+1)*(1-empty)
-                if tt in ('tab2', 'tab31', 'tab32', 'tab4', 'tab51', 'tab52'):
+                if tt in ('tab2', 'tab31', 'tab32', 'tab41', 'tab42', 'tab51', 'tab52'):
                     self.table_layouts[tt] = QGridLayout()
                 else:
                     self.table_layouts[tt] = QVBoxLayout()
@@ -86,11 +89,11 @@ class TomographReconstruct(GuiTabWidget):
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
                 self.checkbox[tt] = QCheckBox('sbatch')
 
-                if tt in ('tab1','tab32','tab53'):
+                if tt in ('tab1','tab32', 'tab43', 'tab53'):
                     self.table_layouts[tt].addWidget(button)
                     self.table_layouts[tt].addWidget(self.ends[tt])
 
-                if tt in ('tab2','tab31','tab4', 'tab51','tab52'):
+                if tt in ('tab2','tab31','tab41', 'tab42', 'tab51','tab52'):
                     self.tab_actions[tt]()
 
 
@@ -103,7 +106,7 @@ class TomographReconstruct(GuiTabWidget):
         self.fidass.show()
         pass
 
-    def fill_tab(self, id, headers, types, values, sizes, tooltip=[],connect=0):
+    def fill_tab(self, id, headers, types, values, sizes, tooltip=[],connect=0, nn=False):
         try:
             self.tables[id].setParent(None)
             self.pbs[id].setParent(None)
@@ -119,7 +122,20 @@ class TomographReconstruct(GuiTabWidget):
         self.ends[id] = QWidget()
         self.ends[id].setSizePolicy(self.sizePolicyA)
 
-        for a in (self.tables[id], self.checkbox[id], self.pbs[id], self.ends[id]):
+        if nn:
+            num_nodes = QSpinBox()
+            num_nodes.setValue(2)
+            num_nodes.setRange(1, 9)
+            num_nodes.setPrefix('Num Nodes: ')
+
+        try:
+            self.num_nodes[id] = num_nodes
+        except:
+            self.num_nodes = {}
+            self.num_nodes[id] = 0
+
+        for n, a in enumerate((self.tables[id], self.num_nodes[id], self.checkbox[id], self.pbs[id], self.ends[id])):
+            if n==1 and not nn: continue
             self.table_layouts[id].addWidget(a)
 
     def tab1UI(self):
@@ -766,8 +782,8 @@ class TomographReconstruct(GuiTabWidget):
         except:
             print ('Please check your input parameters. They might be incomplete.')
 
-    def tab4UI(self):
-        key = 'tab4'
+    def tab41UI(self):
+        key = 'tab41'
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -778,9 +794,7 @@ class TomographReconstruct(GuiTabWidget):
         items += list(self.create_expandable_group(self.ctfDetermination, self.sizePolicyB, 'CTF Determination',
                                                    mode=t0))
         items[-1].setVisible(False)
-        items += list(self.create_expandable_group(self.ctfCorrection, self.sizePolicyB, 'CTF Correction',
-                                                   mode=t1))
-        items[-1].setVisible(False)
+
         for n, item in enumerate(items):
             grid.addWidget(item, n, 0, 1, 3)
 
@@ -950,6 +964,25 @@ class TomographReconstruct(GuiTabWidget):
 
         files = sorted(files)
 
+    def tab42UI(self):
+        id = 'tab42'
+        grid = self.table_layouts[id]
+        grid.setAlignment(self, Qt.AlignTop)
+
+        items = []
+
+        t0 = self.stage + 'CtfCorrection_'
+
+        items += list(self.create_expandable_group(self.ctfCorrection, self.sizePolicyB, 'CTF Correction',
+                                                   mode=t0))
+        items[-1].setVisible(False)
+        for n, item in enumerate(items):
+            grid.addWidget(item, n, 0, 1, 3)
+
+        label = QLabel()
+        label.setSizePolicy(self.sizePolicyA)
+        grid.addWidget(label, n + 1, 0, Qt.AlignRight)
+
     def ctfCorrection(self, mode):
         title = "CTF Correction"
         tooltip = 'CTF Correction for aligned tilt images.'
@@ -966,16 +999,16 @@ class TomographReconstruct(GuiTabWidget):
                                     'Select the folder where the sorted tiltimages are located.\n',
                                     initdir=self.tomogram_folder, mode='folder')
         self.insert_label_line_push(parent, 'Defocus File', mode + 'DefocusFile', mode='file', filetype='defocus',
-                                    tooltip='Filename to store results (.defocus extension).',
+                                    tooltip='Filename with results from CTF Correction (.defocus extension).',
                                     initdir=self.tomogram_folder)
         self.insert_label_spinbox(parent, mode + 'GridSpacing', text='Grid Spacing',
-                                  tooltip= 'grid spacing [2,4,6,...] is the size of the area which is corrected with a'+
-                                           'constant ctf. The ctf value is taken from the center of this area. This '+
-                                           'area builds up the corrected projection.',
+                                  tooltip='Grid spacing [2,4,6,...] is the size of the area which is corrected with a' +
+                                          'constant ctf. The ctf value is taken from the center of this area. This ' +
+                                          'area builds up the corrected projection.',
                                   value=1, stepsize=1, minimum=1, maximum=1000)
         self.insert_label_spinbox(parent, mode + 'FieldSize', text='FieldSize',
-                                  tooltip='fieldsize [2,4,6,...] & (fs>=gs) is the size of the area which is extracted'+
-                                          ' from the projection and corrected with a constant ctf. Fieldsize is also '+
+                                  tooltip='Field size [2,4,6,...] & (fs>=gs) is the size of the area which is extracted' +
+                                          ' from the projection and corrected with a constant ctf. Fieldsize is also ' +
                                           'the size of the modelled ctf.',
                                   value=1, stepsize=1, minimum=1, maximum=1000)
         self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',
@@ -983,13 +1016,11 @@ class TomographReconstruct(GuiTabWidget):
 
         exefilename = [mode + 'tomofolder', 'ctf/CTFCorrection.sh']
 
-
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'CTF_Correction'
         paramsSbatch['folder'] = exefilename
 
-
-        paramsCmd = [mode + 'tomofolder', self.pytompath, mode+'uPrefix', mode + 'cPrefix', mode + 'MetaFile',
+        paramsCmd = [mode + 'tomofolder', self.pytompath, mode + 'uPrefix', mode + 'cPrefix', mode + 'MetaFile',
                      mode + 'GridSpacing', mode + 'FieldSize', mode + 'BinningFactor', templateCTFCorrection]
 
         self.insert_gen_text_exe(parent, mode, exefilename=exefilename, paramsSbatch=paramsSbatch,
@@ -1004,7 +1035,8 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[mode + 'cPrefix'] = QLineEdit()
         self.widgets[mode + 'MetaFile'] = QLineEdit()
 
-        self.widgets[mode + 'FolderSortedAligned'].textChanged.connect(lambda dummy, m=mode: self.updateCTFCorrection(m))
+        self.widgets[mode + 'FolderSortedAligned'].textChanged.connect(
+            lambda dummy, m=mode: self.updateCTFCorrection(m))
         self.widgets[mode + 'GridSpacing'].valueChanged.connect(lambda dummy, m=mode: self.updateGridAndFieldSize(m))
 
         self.updateCTFCorrection(mode)
@@ -1028,7 +1060,7 @@ class TomographReconstruct(GuiTabWidget):
             sortedFolder = os.path.join(tomoname, 'sorted')
             print(sortedFolder)
             metafile = glob.glob(sortedFolder + '/*.meta')[0]
-            #defocusfile = glob.glob( os.path.join( os.path.dirname(cOut), '*.defocus'))
+            # defocusfile = glob.glob( os.path.join( os.path.dirname(cOut), '*.defocus'))
         except:
             self.popup_messagebox('Error', 'Setting values for CTF Correction Failed',
                                   'The setting of the parameters for CTF correction has failed. \n' +
@@ -1036,23 +1068,107 @@ class TomographReconstruct(GuiTabWidget):
                                   'Try to select Folder Sorted Aligned again.')
             return
 
-        self.widgets[mode +'tomofolder'].setText(tomoname)
-        self.widgets[mode + 'uPrefix'].setText( uPrefix )
-        self.widgets[mode + 'cPrefix'].setText( cPrefix )
-        self.widgets[mode + 'MetaFile'].setText( metafile )
-        
+        self.widgets[mode + 'tomofolder'].setText(tomoname)
+        self.widgets[mode + 'uPrefix'].setText(uPrefix)
+        self.widgets[mode + 'cPrefix'].setText(cPrefix)
+        self.widgets[mode + 'MetaFile'].setText(metafile)
+
     def updateGridAndFieldSize(self, mode):
         gridSpacing = float(self.widgets[mode + 'GridSpacing'].value())
-        fieldSize   = float(self.widgets[mode + 'FieldSize'].value())
+        fieldSize = float(self.widgets[mode + 'FieldSize'].value())
         if gridSpacing > fieldSize:
             self.widgets[mode + 'GridSpacing'].setValue(fieldSize)
-        self.widgets[mode+'GridSpacing'].setMinimum(fieldSize)
+        self.widgets[mode + 'GridSpacing'].setMinimum(fieldSize)
 
-    def updateMetaFile(self,params):
+    def updateMetaFile(self, params):
         mode = params[0]
         metafile = self.widgets[mode + 'MetaFile'].text()
         defocusfile = self.widgets[mode + 'DefocusFile'].text()
         try:
-            guiFunctions.update_metadata_from_defocusfile(metafile,defocusfile)
+            guiFunctions.update_metadata_from_defocusfile(metafile, defocusfile)
         except:
-            self.popup_messagebox('Error','Update MetaData Failed', 'Update metadata has failed. Your job is not using the paramaters from the selected defocus file.')
+            self.popup_messagebox('Error', 'Update MetaData Failed',
+                                  'Update metadata has failed. Your job is not using the paramaters from the selected defocus file.')
+
+    def tab43UI(self):
+        id='tab43'
+        headers = ["Name Tomogram", 'Correct', "Reference Marker", "Defocus File", "Rot. Angle", 'Grid Spacing', 'Field Size', 'Bin Factor']
+        types = ['txt', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit', 'lineedit']
+        sizes = [0, 80, 80, 0, 0, 0, 0, 0]
+
+        tooltip = ['Names of existing tomogram folders.',
+                   'CTF Correction.',
+                   'Reference Marker.',
+                   'Defocus file (from correction).',
+                   'In-plane Rotation Angle. Consider which angle you have used last for the alignment.',
+                   'Grid spacing [2,4,6,...] is the size of the area which is corrected with a' +
+                   'constant ctf. The ctf value is taken from the center of this area. This ' +
+                   'area builds up the corrected projection.',
+                   'Field size[2, 4, 6, ...] & (fs >= gs) is the size of the area which is extracted ' +
+                   'from the projection and corrected with a constant ctf. Fieldsize is also ' +
+                   'the size of the modelled ctf.',
+                   'Binning factor applied to images.']
+
+        markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
+
+        values = []
+
+        for markerfile in markerfiles:
+            tomogramName = os.path.dirname( os.path.dirname(markerfile) )
+            query = '{}/alignment/unweighted*'.format(tomogramName)
+            folders = [folder for folder in glob.glob(query) if os.path.isdir(folder)]
+            folders = sorted( [folder for folder in folders if len(os.listdir(folder)) > 1] )
+            if not folders: continue
+            referenceMarkerOptions = folders + ['all']
+            defocusFile = glob.glob( os.path.join(tomogramName, 'ctf/*.defocus') )
+            if not defocusFile: continue
+            values.append( [tomogramName, True, referenceMarkerOptions, defocusFile, 0, 256, 16, 1] )
+
+        if values:
+            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True)
+            self.tab43_widgets = self.tables[id].widgets
+            self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_ctf_correction(pid, v))
+
+    def run_multi_ctf_correction(self, id, values):
+        print('multi_reconstructions', id)
+        num_nodes = self.tables[id].table.rowCount()
+        try:
+            num_nodes = self.num_nodes[id].value()
+        except:
+            pass
+        for row in range(self.tables[id].table.rowCount()):
+            widget = 'widget_{}_1'.format(row)
+            if self.tab43_widgets[widget].isChecked():
+                folder = values[row][2][self.tab43_widgets['widget_{}_{}'.format(row, 2)].currentIndex()]
+                #self.tab43_widgets['widget_{}_{}'.format(row, 2)].currentText()
+                if folder == 'all':
+                    folders = values[row][2]
+                else:
+                    folders = [folder]
+
+                defocusFile = values[row][3][self.tab43_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
+                gridspacing = self.tab43_widgets['widget_{}_{}'.format(row, 4)].text()
+                fieldsize   = self.tab43_widgets['widget_{}_{}'.format(row, 5)].text()
+                binning     = self.tab43_widgets['widget_{}_{}'.format(row, 6)].text()
+                metafile = glob.glob(os.path.join(values[row][0], 'sorted/*.meta'))
+                tomofolder = os.path.dirname(os.path.dirname(defocusFile))
+
+                cPrefix = os.path.join(self.tomogram_folder, folder.replace('alignment/','ctf/'), 'sorted_aligned_ctf_')
+                uPrefix = os.path.join(self.tomogram_folder, folder, 'sorted_aligned_')
+
+                if not os.path.exists(os.path.dirname(cPrefix)):
+                    os.mkdir(os.path.dirname(cPrefix))
+
+                if not metafile: continue
+                else: metafile = metafile[-1]
+
+                print(defocusFile, metafile)
+                try:
+                    guiFunctions.update_metadata_from_defocusfile(metafile, defocusFile)
+                except:
+                    print('submission {} failed due to error in either the metafile or the defocus file.'.format(tomofolder))
+
+                for folder in folders:
+                    jobParams = [tomofolder, self.pytompath, uPrefix, cPrefix, metafile, gridspacing, fieldsize, binning]
+                    jobscript = templateCTFCorrection.format(d=jobParams)
+                    print(jobscript)

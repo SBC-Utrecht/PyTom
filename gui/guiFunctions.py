@@ -215,12 +215,17 @@ def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['python3/
 
 def gen_queue_header(name='TemplateMatch', folder='./', cmd='',
                      modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/python3'],
-                     qtype='slurm', num_jobs_per_node=20, time=12, partition='defq'):
+                     qtype='slurm', num_jobs_per_node=20, time=12, partition='defq', singleton=False):
     module_load = ''
     if modules:
         module_load = 'module load '
     for module in modules:
         module_load += module + ' '
+
+    if singleton:
+        singletoncommand = '#SBATCH --dependency=singleton'
+    else:
+        singletoncommand = ''
 
     if partition == 'fastq':
         oversubscribe = '#SBATCH --oversubscribe'
@@ -235,10 +240,11 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='',
 #SBATCH --job-name    {}                                                                       
 #SBATCH --output      {}/%x-%j.out 
 {}
+{}
 
 {}
 
-{}'''.format(time, partition, num_jobs_per_node, name, folder, oversubscribe, module_load, cmd)
+{}'''.format(time, partition, num_jobs_per_node, name, folder, oversubscribe, singletoncommand, module_load, cmd)
 
     if qtype == 'qsub':
         print ('qsub has not been defined.')
