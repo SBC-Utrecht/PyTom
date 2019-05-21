@@ -10,7 +10,8 @@ def usage():
     print("Usage: ./scriptname -j jobFilename -r resultFilename -o orientationFilename -n maxNumOfParticles [-v minScoreValue] -s sizeOfParticleInRadius -p particleList -m  [-w (write to disk, length along each dimension)] [-g margin]")
 
 
-def extractCandidates(jobFilename='', resultFilename='', orientFilename='', sizeParticle=None, maxNumParticle=0, minScore=-1, write2disk=0, margin=None):
+def extractCandidates(jobFilename='', resultFilename='', orientFilename='', sizeParticle=None, maxNumParticle=0,
+                      minScore=-1, write2disk=0, margin=None,mask=None):
     # construct the original job from the xml file
     if jobFilename=='':
         jobFilename='JobInfo.xml'
@@ -22,7 +23,13 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
     from pytom.localization.extraction_peak_result import ExPeakResult
     res = ExPeakResult()
     res.volFilename = job.volume.getFilename()
-    
+
+
+    from pytom.basic.files import read
+    from pytom_numpy import vol2npy
+    from copy import deepcopy
+
+
     if resultFilename=='':
         res.resultFilename='scores.em'
     else:
@@ -31,7 +38,19 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
         res.orientFilename='angles.em'
     else:
         res.orientFilename = orientFilename
-        
+
+    if mask:
+        resultfile, maskfile = read(res.resultFilename), read(mask)
+        resultdata, maskdata = deepcopy(vol2npy(resultfile)), deepcopy(vol2npy(maskfile))
+
+        import mrcfile
+        masked_data = (resultdata*maskdata)
+        #masked_data[masked_data < 0.00001] = resultdata.median()
+
+        mrcfile.new(res.resultFilename.replace('.em', '_masked.em'),masked_data.T, overwrite=True)
+        res.resultFilename = res.resultFilename.replace('.em', '_masked.em')
+
+
     res.angleList = job.rotations[:]
     res.score = job.score.__class__
     
@@ -57,7 +76,8 @@ if __name__ == '__main__':
                           description='Extract candidate molecules from localization result.',
                           authors='Yuxiang Chen',
                           options= [ScriptOption(['-j','--jobFile'], 'Localization job XML file.', arg=True, optional=False),
-                                    ScriptOption(['-r','--result'], 'File with score coefficients (score.em).', arg=True, optional=False),
+                                    ScriptOption(['-q', '--mask'], 'Mask file (mask.em).',arg=True, optional=True),
+                                    ScriptOption(['-r', '--result'], 'File with score coefficients (score.em).',arg=True, optional=False),
                                     ScriptOption(['-o','--orientation'], 'File with orientation indices (angles.em).', arg=True, optional=False),
                                     ScriptOption(['-n','--numberCandidates'], 'Number of candidates to extract.', arg=True, optional=False),
                                     ScriptOption(['-s','--size'], 'Radius around potential candidate that will be ignored during further processing.', arg=True, optional=False),
@@ -76,7 +96,7 @@ if __name__ == '__main__':
     
     
     try:
-        jobFilename, resultFilename, orientFilename, maxNumParticle, sizeParticle, plFilename, particlePath, minScore, motlFilename, margin, write2disk, scale, help = parse_script_options(sys.argv[1:], helper)
+        jobFilename, maskFile, resultFilename, orientFilename, maxNumParticle, sizeParticle, plFilename, particlePath, minScore, motlFilename, margin, write2disk, scale, help = parse_script_options(sys.argv[1:], helper)
     except:
         sys.exit()
     if help is True:
@@ -99,7 +119,7 @@ if __name__ == '__main__':
         scale = 1.0
 
     print(jobFilename,resultFilename,orientFilename,int(sizeParticle),int(maxNumParticle),minScore,int(write2disk),margin)
-    res=extractCandidates(jobFilename,resultFilename,orientFilename,int(sizeParticle),int(maxNumParticle),minScore,int(write2disk),margin)
+    res=extractCandidates(jobFilename,resultFilename,orientFilename,int(sizeParticle),int(maxNumParticle),minScore,int(write2disk),margin, mask = maskFile)
     if not plFilename and not motlFilename:
         raise RuntimeError('You must specify at least a particle list or a motl file as result of this script!')
     

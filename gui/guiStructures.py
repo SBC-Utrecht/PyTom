@@ -1301,6 +1301,7 @@ class KeyPressGraphicsWindow(pg.GraphicsWindow):
         self.scene().keyPressEvent(ev)
         self.sigKeyPress.emit(ev)
 
+
 class CreateMaskTM(QMainWindow, CommonFunctions):
     def __init__(self,parent=None, fname=''):
         super(CreateMaskTM,self).__init__(parent)
@@ -1430,8 +1431,6 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
         #self.insert_lineedit(prnt, 'width_gaussian_filter', validator=vDouble, rstep=1, cstep=-1, value='1.', width=100)
 
         self.insert_label(prnt, sizepolicy=self.sizePolicyA)
-
-
 
     def show_maskTM(self):
         w = self.widgets['show_mask']
@@ -1612,7 +1611,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
 
         num_deleted_items = 0
         for n, (x,y,z,s) in enumerate(self.particleList):
-            if sqrt( (x-pos.x())**2 + (y-pos.y())**2 + (z-self.slice)**2 ) < self.radius:
+            if 1:#sqrt( (x-pos.x())**2 + (y-pos.y())**2 + (z-self.slice)**2 ) < self.radius:
                 add = False
                 if remove:
                     self.remove_point(n-num_deleted_items,z)
@@ -1741,8 +1740,6 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
         self.slice += update
 
 
-
-
 class ParticlePicker(QMainWindow, CommonFunctions):
     def __init__(self,parent=None, fname=''):
         super(ParticlePicker,self).__init__(parent)
@@ -1760,7 +1757,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.operationbox.setLayout(self.layout_operationbox)
         self.add_toolbar(self.open_load)
         self.logbook = {}
-        self.radius = 50
+        self.radius = 13
         self.jump = 1
         self.current_width = 0.
         self.pos = QPoint(0,0)
@@ -1800,9 +1797,15 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         if not self.title: self.title = 'Dummy Data'
         self.setWindowTitle( "Manual Particle Selection From: {}".format( os.path.basename(self.title)) )
         self.centcanvas.wheelEvent = self.wheelEvent
+
         self.centimage.scene().sigMouseClicked.connect(self.mouseHasMoved)
+        self.leftimage.scene().sigMouseClicked.connect(self.mouseHasMovedLeft)
+        self.bottomimage.scene().sigMouseClicked.connect(self.mouseHasMovedBottom)
+
+
         #self.centcanvas.sigKeyPress.connect(self.keyPress)
         self.centcanvas.sigMouseReleased.connect(self.empty)
+
         self.load_image()
         self.leftimage.setXRange(0, self.vol.shape[0])
 
@@ -2038,7 +2041,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 x,y,z = map(float, (p.xpath('PickPosition')[0].get('X'), p.xpath('PickPosition')[0].get('Y'), p.xpath('PickPosition')[0].get('Z')))
                 dx,dy,dz = self.vol.shape
 
-                if self.mask[int(x),int(y),int(z)] or not self.widgets['apply_mask']: include =True
+                if self.mask[int(x),int(y),int(z)] or not self.widgets['apply_mask'].isChecked(): include =True
                 else: include = False
                 if not include: continue
 
@@ -2114,8 +2117,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
     def replot_all(self):
         self.replot()
-        self.img1a.setImage(image=self.vol.sum(axis=1))
-        self.img1b.setImage(image=self.vol.sum(axis=2).T)
+        self.img1a.setImage(image=self.vol.sum(axis=2))
+        self.img1b.setImage(image=self.vol.sum(axis=1).T)
 
     def replot(self):
         crop = self.vol[int(self.slice), :, :]
@@ -2157,6 +2160,20 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.subtomo_plots.add_subplot(self.vol, self.particleList[-1])
 
         self.widgets['numSelected'].setText(str(len(self.particleList)))
+
+    def mouseHasMovedBottom(self, evt):
+        pos = self.bottomimage.mapSceneToView( evt.scenePos() )
+        step = pos.y() - self.slice
+        self.update_circles(step)
+        self.replot()
+        print('bottom: ', pos.x(), pos.y())
+
+    def mouseHasMovedLeft(self, evt):
+        pos = self.leftimage.mapSceneToView( evt.scenePos() )
+        step = pos.x()-self.slice
+        self.update_circles(step)
+        self.replot()
+        print('left: ', pos.x(), pos.y())
 
     def remove_from_coords(self,coords):
         cx,cy,cz = coords[:3]
@@ -2299,8 +2316,6 @@ class GeneralSettings(QMainWindow, CommonFunctions):
         self.show()
 
 
-
-
 class PlotterSubPlots(QMainWindow,CommonFunctions):
     def __init__(self, parent=None, width=400, size_subplot=80, size_subtomo=40, height=1000, offset_x=0, offset_y=0):
         super(PlotterSubPlots,self).__init__(parent)
@@ -2426,6 +2441,12 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
             self.parent().remove_from_coords(self.coordinates[ID])
 
         elif self.coordinates[ID][2] > -1:
+            print(self.coordinates[ID])
+
+            self.parent().pos.setX(self.coordinates[ID][0] - self.parent().radius)
+            self.parent().pos.setY(self.coordinates[ID][1] - self.parent().radius)
+            self.parent().centimage.addItem(circle(self.parent().pos, size=(radius)*2, color=Qt.yellow))
+            self.setWindowTitle("Error Score: {:6.3f}".format( self.coordinates[ID][3]))
             self.parent().slice = self.coordinates[ID][2]
             self.parent().replot()
             self.parent().update_circles()

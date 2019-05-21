@@ -52,12 +52,8 @@ class TiltSeries(PyTomClass):
         prefix = os.path.basename(tiltSeriesName)
         files = [line for line in os.listdir(folder) if line.endswith(tiltSeriesFormat) and line.startswith(prefix)]
         self._projIndices = numpy.array([line.split('_')[-1].split('.')[0] for line in files ])
-        print(folder,prefix,tiltSeriesFormat, self._projIndices)
-        a = list(zip(list(self._projIndices.astype(int)), list(self._projIndices)))
-        a.sort(key=lambda i: int(i[0]))
-        d,self._projIndices = zip(*a)
-        self._projIndices = numpy.array(self._projIndices, dtype=str)
-
+        self._projIndices.sort()
+        print(self._projIndices)
         self._tiltSeriesFormat = tiltSeriesFormat
         self._TiltAlignmentParas = TiltAlignmentParas
         self._alignedTiltSeriesName = alignedTiltSeriesName

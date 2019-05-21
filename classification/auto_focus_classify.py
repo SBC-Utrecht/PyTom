@@ -469,13 +469,19 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
 
     return pl
 
-def cmp(a,b)
+def compare(l):
+    a,b = l
+
+    return cmp(len(a),len(b))
+
+def cmp(a,b):
     return (a>b) - (a<b)
 
 def split_topn_classes(pls, n):
     # sort the particle list by the length
     assert len(pls) >= n
-    pls.sort(lambda x,y: -cmp(len(x), len(y)))
+
+    pls.sort(key=lambda a:len(a))
 
     # find the maximal running label
     max_label = -1

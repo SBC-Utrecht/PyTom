@@ -782,6 +782,7 @@ class ProjectionList(PyTomClass):
         submitted = 0
         if num_procs:
             for n, result in enumerate(resultProjstack):
+                if not os.path.exists(os.path.dirname(particles[0].getFilename())): os.mkdir(os.path.dirname(particles[0].getFilename()))
                 write_em(os.path.dirname(particles[0].getFilename()) + '/.temp_{}.em'.format(n), result)
             
             for particleIndex in range(len(particles)):

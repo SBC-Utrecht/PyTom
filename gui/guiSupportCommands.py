@@ -85,7 +85,7 @@ templateINFR      = '''cd {d[0]}
     --referenceIndex {d[4]} \\
     --markerFile reconstruction/INFR/markerfile.em \\
     --referenceMarkerIndex {d[5]} \\
-    --expectedRotationAngle {d[7]} \\
+    --expectedRotationAngle {d[9]} \\
     --projectionTargets reconstruction/INFR/temp_files_unweighted/sorted_aligned \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9 \\
@@ -203,7 +203,7 @@ templateExtractCandidates = '''cd {d[0]}
 --particlePath {d[6]} \\
 --size {d[7]} \\
 --numberCandidates {d[8]} \\
---minimalScoreValue {d[9]}'''
+--minimalScoreValue {d[9]} {d[10]}'''
 
 ParamsFileCTFPlotter = '''#
 InputStack           {d[0]}

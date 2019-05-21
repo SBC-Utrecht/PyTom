@@ -193,7 +193,7 @@ def mrc2em(filename,destination):
     except:
         pass
 
-def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['python3/3.7', 'lib64/append', 'openmpi/2.1.1', 'pytom/dev/python3']):
+def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['python3/3.7', 'lib64/append', 'openmpi/2.1.1', 'pytom/dev/gui_devel']):
 
     module_load = ''
     if modules:
@@ -214,7 +214,7 @@ def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['python3/
     return slurm_generic_command
 
 def gen_queue_header(name='TemplateMatch', folder='./', cmd='',
-                     modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/python3'],
+                     modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel'],
                      qtype='slurm', num_jobs_per_node=20, time=12, partition='defq', singleton=False):
     module_load = ''
     if modules:

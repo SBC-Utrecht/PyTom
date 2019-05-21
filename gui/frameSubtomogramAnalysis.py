@@ -36,6 +36,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.acdir          = os.path.join(self.subtomodir, 'Classification/AutoFocus')
         self.pickpartdir    = self.parent().particlepick_folder+'/Picked_Particles'
         self.tomogramfolder = os.path.join(self.parent().particlepick_folder, 'Tomograms')
+        self.tomogram_folder = self.parent().tomogram_folder
+
         headers = ["Reconstruct Subtomograms","Align Subtomograms","Classify Subtomograms"]
         subheaders = [['Single Reconstruction','Batch Reconstruction'],['FRM Alignment','GLocal'],['CPCA','Auto Focus']]
 
@@ -255,6 +257,8 @@ class SubtomoAnalysis(GuiTabWidget):
                                   ' in the z-dimension.', cstep=0, rstep=1,
                                   value=0, stepsize=1, minimum=0, maximum=1000)
 
+        self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateMeta(m))
+
 
         execfilename = os.path.join( self.subtomodir, 'extractSubtomograms.sh')
         paramsSbatch = guiFunctions.createGenericDict(fname='subtomoExtract', folder=self.subtomodir)
@@ -265,6 +269,19 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename,paramsSbatch=paramsSbatch)
         setattr(self, mode + 'gb_inputFiles', groupbox)
         return groupbox
+
+    def updateMeta(self,mode):
+        pl = self.widgets[mode + 'particlelist'].text()
+        try: 
+            tomoID = int(pl.split('tomogram_')[-1][:3])
+            tomo = os.path.join(self.tomogram_folder, 'tomogram_{:03d}/sorted/'.format(tomoID))
+            print(tomo)
+            a = glob.glob(tomo+'*.meta')
+            if not a: print('No meta file found. auto update stopped.')
+            a = a[-1]
+            self.widgets[mode+'MetaFile'].setText(a)
+        except:
+            pass
 
     def populate_batch_create(self):
         self.mass_extract.close()
@@ -287,6 +304,10 @@ class SubtomoAnalysis(GuiTabWidget):
         for n, particleFile in enumerate( particleFiles ):
             if not particleFile: continue
             base, ext = os.path.splitext(os.path.basename(particleFile).replace('particleList_', '').replace('coords_','').replace('_flipped',''))
+            if 'tomogram_' in base: base = 'tomogram_' + base.split('tomogram_')[1]
+
+            for t in ('WBP', 'INFR'):
+                if t in base: base = base.split(t)[0]+t
 
             if base+'.mrc' in os.listdir(self.tomogramfolder) or base+'.em' in os.listdir(self.tomogramfolder):
                 if os.path.exists(os.path.join(self.tomogramfolder, base+'.mrc')):
@@ -657,14 +678,14 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_spinbox(parent, mode + 'stdDiffMap', 'STD Threshold Diff Map', rstep=1, cstep=0,
                                   wtype=QDoubleSpinBox, stepsize=.1, minimum=0, maximum=1, value=0.4,
                                   tooltip='STD threshold for the difference map (optional, by default 0.4). This value should be between 0 and 1. 1 means only the place with the peak value will be set to 1 in the difference map (too much discriminative ability). 0 means all the places with the value above the average of STD will be set to 1 (not enough discriminative ability).')
-
-
-        acpath = os.path.join(self.parent().subtomo_folder, 'Classification/AutoFocus')
+        self.widgets[mode + 'outFolder'] = QLineEdit() 
+        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.updateOutFolder(mode))
+        self.acpath = acpath = os.path.join(self.parent().subtomo_folder, 'Classification/AutoFocus')
         exefilename = os.path.join(acpath, 'AC_Classification.sh')
 
         paramsSbatch = guiFunctions.createGenericDict(fname='AutoFocus', folder=acpath)
 
-        paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'filenameMask1', mode + 'filenameMask',
+        paramsCmd = [mode + 'outFolder' , self.pytompath, mode + 'particleList', mode + 'filenameMask1', mode + 'filenameMask',
                      mode + 'numClasses', mode + 'bwMax', mode + 'maxIterations', mode + 'peakOffset',
                      mode + 'noisePercentage', mode + 'partDensThresh', mode + 'stdDiffMap', templateAC]
 
@@ -673,3 +694,18 @@ class SubtomoAnalysis(GuiTabWidget):
 
         setattr(self, mode + 'gb_AC', groupbox)
         return groupbox
+
+    def updateOutFolder(self,mode):
+        pl = self.widgets[mode + 'particleList'].text()
+        if not pl: return
+
+        folder = os.path.basename(pl).replace('particleList_','')[:-4]
+        folder = os.path.join(self.acpath,folder)
+        if os.path.exists(folder):
+            folder = folder
+            if not folder: return
+
+        if not os.path.exists(folder): 
+            os.mkdir(folder)
+            os.system('ln -s {}/Subtomograms {}/Subtomograms'.format(self.subtomodir, folder ) )
+        self.widgets[mode + 'outFolder'].setText(folder) 

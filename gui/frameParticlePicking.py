@@ -265,6 +265,10 @@ class ParticlePick(GuiTabWidget):
         self.insert_label_line_push(parent, 'Angles File', wname=mode + 'anglesFile', width=w,
                                     tooltip='File with orientation indices (angles.em).',
                                     filetype=['em', 'mrc'], mode='file')
+        self.insert_label_line_push(parent, 'Mask File', wname=mode + 'maskFile', width=w,
+                                    tooltip='File with selected area used for finding hits.',
+                                    filetype=['em', 'mrc'], mode='file')
+
         self.insert_label_line_push(parent, 'File Name Particle List', wname=mode + 'particleList', width=w,
                                     tooltip='Select the angles.em file produced by template matching.',
                                     filetype=['xml'], mode='file')
@@ -285,15 +289,21 @@ class ParticlePick(GuiTabWidget):
         self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.particleListChanged(m))
         self.jobXMLChanged(mode)
 
+        self.widgets[mode + 'maskGenerate'] = QLineEdit()
+        self.widgets[mode + 'maskFile'].textChanged.connect(lambda d, m=mode: self.updateMaskGenerate(m))
+
 
         execfilename = os.path.join( self.templatematchfolder, 'extractCandidates.sh')
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'ExtractCandidates'
         paramsSbatch[ 'folder' ] = self.templatematchfolder
+        paramsSbatch['partition'] = 'fastq'
+        paramsSbatch['time'] = 1
+        paramsSbatch['num_jobs_per_node'] = 1
 
         paramsCmd=[self.templatematchfolder, self.pytompath, mode+'jobXML', mode+'scoreFile', mode+'anglesFile',
                    mode+'particleList', mode+'particlePath', mode+'Size', mode+'NumberOfCandidates',
-                   mode+'MinimalScoreValue', templateExtractCandidates]
+                   mode+'MinimalScoreValue', mode+'maskGenerate', templateExtractCandidates]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch=paramsSbatch,
                                  paramsCmd=paramsCmd)
@@ -306,21 +316,29 @@ class ParticlePick(GuiTabWidget):
         setattr(self, mode + 'gb_extractCandidates', groupbox)
         return groupbox
 
+    def updateMaskGenerate(self,mode):
+        if self.widgets[mode + 'maskFile'].text():
+            self.widgets[mode+'maskGenerate'].setText(' \\\n    --mask {}'.format(self.widgets[mode + 'maskFile'].text()))
+
     def jobXMLChanged(self, mode):
         jobXML = self.widgets[mode+'jobXML'].text()
         if not jobXML: return
         folder = os.path.basename(os.path.dirname(jobXML))
 
+        scores = os.path.join( os.path.dirname(jobXML), 'scores.em')
+        angles = os.path.join( os.path.dirname(jobXML), 'angles.em')
 
         particleList = os.path.join(self.pickpartfolder, 'particleList_TM_{}.xml'.format(folder))
         if not os.path.exists(os.path.dirname(particleList)): os.mkdir(os.path.dirname(particleList))
         self.widgets[mode + 'particleList'].setText(particleList)
+        if os.path.exists(scores): self.widgets[mode + 'scoreFile'].setText(scores)
+        if os.path.exists(angles): self.widgets[mode + 'anglesFile'].setText(angles)
 
     def particleListChanged(self, mode):
         particleList = self.widgets[mode + 'particleList'].text()
         if not particleList: return
         folder = os.path.basename(particleList)[:-4]
-        self.widgets[mode + 'particlePath'].setText('Subtomograms/{}/particle_'.format(folder))
+        self.widgets[mode + 'particlePath'].setText('Subtomograms/{}'.format(folder))
 
     def create_maskfile(self,params):
         maskfilename = CreateMaskFile(self,maskfname=params[-1])
