@@ -1302,7 +1302,7 @@ class KeyPressGraphicsWindow(pg.GraphicsWindow):
         self.sigKeyPress.emit(ev)
 
 
-class CreateMaskTM(QMainWindow, CommonFunctions):
+class CreateMaskTMOld(QMainWindow, CommonFunctions):
     def __init__(self,parent=None, fname=''):
         super(CreateMaskTM,self).__init__(parent)
         self.size_policies()
@@ -1738,6 +1738,476 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
             else: add = True
             self.add_points(self.pos, cx, cy, cz, cs, radius,add=add,score=cs)
         self.slice += update
+
+
+class CreateMaskTM(QMainWindow, CommonFunctions):
+    def __init__(self, parent=None, fname=''):
+        super(CreateMaskTM, self).__init__(parent)
+        self.size_policies()
+        self.pytompath = self.parent().pytompath
+        self.projectname = self.parent().projectname
+        self.layout = QGridLayout(self)
+        self.cw = QWidget(self)
+        self.cw.setSizePolicy(self.parent().sizePolicyB)
+        self.cw.setLayout(self.layout)
+        self.setCentralWidget(self.cw)
+        self.setGeometry(0, 0, 1000, 1000)
+        self.operationbox = QWidget()
+        self.layout_operationbox = prnt = QGridLayout()
+        self.operationbox.setLayout(self.layout_operationbox)
+        self.add_toolbar(self.open_load)
+        self.logbook = {}
+        self.radius = 50
+        self.jump = 1
+        self.current_width = 0.
+        self.pos = QPoint(0, 0)
+        self.max_score = 1.
+        self.min_score = 0.
+        self.xmlfile = ''
+        self.filetype = 'txt'
+
+        self.circles_left = []
+        self.circles_cent = []
+        self.circles_bottom = []
+        self.circles_list = [self.circles_left, self.circles_cent, self.circles_bottom]
+        self.particleList = []
+
+        self.leftcanvas = w1 = pg.GraphicsWindow(size=(250, 750), border=True)
+        self.leftimage = w1.addViewBox(row=0, col=0)
+        self.leftimage.setMouseEnabled(False, False)
+
+        self.centcanvas = w = KeyPressGraphicsWindow(size=(750, 750), border=True)
+        self.centimage = w.addViewBox(row=0, col=0, lockAspect=True)
+        self.centimage.setMenuEnabled(False)
+        self.target = w3 = pg.ImageView()
+
+        self.bottomcanvas = w2 = pg.GraphicsWindow(size=(750, 250), border=True)
+        self.bottomimage = w2.addViewBox(row=0, col=0)
+        self.bottomimage.setMouseEnabled(False, False)
+
+        self.image_list = [self.leftimage, self.centimage, self.bottomimage]
+
+        self.layout.addWidget(w1, 0, 0)
+        self.layout.addWidget(w, 0, 1)
+        self.layout.addWidget(w2, 1, 1)
+        self.layout.addWidget(self.operationbox, 1, 0)
+        self.title = self.parent().parent().widgets['v03_manualpp_tomogramFname'].text()
+        if not self.title: self.title = 'Dummy Data'
+        self.setWindowTitle("Create Mask File for: {}".format(os.path.basename(self.title)))
+        self.centcanvas.wheelEvent = self.wheelEvent
+        self.centimage.scene().sigMouseClicked.connect(self.mouseHasMoved)
+        # self.centcanvas.sigKeyPress.connect(self.keyPress)
+        self.centcanvas.sigMouseReleased.connect(self.empty)
+        self.load_image()
+        self.leftimage.setXRange(0, self.vol.shape[0])
+
+        self.add_controls(self.layout_operationbox)
+
+        pg.QtGui.QApplication.processEvents()
+
+    def wheelEvent(self, event):
+
+        step = event.angleDelta().y() / 120
+        increment = int(self.widgets['step_size'].text()) * step
+        if self.slice + increment < self.vol.shape[0] and self.slice + increment > -1:
+            self.update_circles(increment)
+            self.replot()
+
+    def keyPressEvent(self, evt):
+        if Qt.Key_G == evt.key():
+            w = self.widgets['apply_gaussian_filter']
+            w.setChecked(w.isChecked() == False)
+
+        if Qt.Key_Right == evt.key():
+            if self.slice + int(self.widgets['step_size'].text()) < self.dim:
+                update = int(self.widgets['step_size'].text())
+                self.update_circles(update)
+                self.replot()
+
+        if Qt.Key_Left == evt.key():
+            if self.slice > int(self.widgets['step_size'].text()) - 1:
+                update = -1 * int(self.widgets['step_size'].text())
+                self.update_circles(update)
+                self.replot()
+
+        if evt.key() == Qt.Key_Escape:
+            self.close()
+
+    def add_controls(self, prnt):
+        vDouble = QtGui.QDoubleValidator()
+        vInt = QtGui.QIntValidator()
+        self.widgets = {}
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+
+        self.insert_checkbox(prnt, 'apply_gaussian_filter', cstep=1)
+        self.insert_label(prnt, text='Gaussian Filter', cstep=1, alignment=Qt.AlignLeft)
+        self.insert_lineedit(prnt, 'width_gaussian_filter', validator=vDouble, rstep=1, cstep=-1, value='1.', width=100)
+
+        self.insert_label(prnt, text='Size Selection: ', cstep=1)
+        self.insert_spinbox(prnt, wname='size_selection: ', cstep=-1, rstep=1, value=100, minimum=1, maximum=1000,
+                            width=100, stepsize=20)
+        self.widgets['size_selection: '].valueChanged.connect(self.sizeChanged)
+
+        self.insert_label(prnt, text='Step Size', cstep=1, alignment=Qt.AlignLeft)
+        self.insert_spinbox(prnt, wname='step_size', cstep=-1, value=10, rstep=1, width=100,
+                            minimum=1, maximum=int(self.vol.shape[0] / 4))
+
+        self.insert_label(prnt, text='', cstep=0)
+        self.widgets['apply_gaussian_filter'].stateChanged.connect(self.stateGaussianChanged)
+
+        self.insert_label_line(prnt, 'Number Particles', 'numSelected', validator=vInt, width=100)
+
+        self.insert_checkbox(prnt, 'show_mask', cstep=1)
+        self.insert_label(prnt, text='Show Mask', cstep=0, rstep=1, alignment=Qt.AlignLeft)
+        self.widgets['show_mask'].stateChanged.connect(self.show_maskTM)
+        # self.insert_lineedit(prnt, 'width_gaussian_filter', validator=vDouble, rstep=1, cstep=-1, value='1.', width=100)
+
+        self.insert_label(prnt, sizepolicy=self.sizePolicyA)
+
+    def show_maskTM(self):
+        w = self.widgets['show_mask']
+        width = self.widgets['show_mask'].text()
+
+        if w.isChecked():
+            # Y,Z,X= numpy.meshgrid(numpy.arange(float(self.dim)),numpy.arange(float(self.dim)),numpy.arange(float(self.dim)))
+
+            if len(self.particleList):
+                try:
+                    self.mask += 0
+                except:
+                    self.mask = numpy.zeros_like(self.vol)
+
+                self.mask *= 0
+
+                for x, y, z, r in self.particleList:
+                    dim = r * 2. + 2.
+                    Y, Z, X = numpy.meshgrid(numpy.arange(dim), numpy.arange(dim), numpy.arange(dim))
+
+                    X -= dim // 2 - 0.5
+                    Y -= dim // 2 - 0.5
+                    Z -= dim // 2 - 0.5
+                    R = numpy.sqrt(X ** 2 + Y ** 2 + Z ** 2)
+
+                    startx, endx = int(max(0, x - dim // 2)), int(min(self.dim, x + dim // 2))
+                    starty, endy = int(max(0, y - dim // 2)), int(min(self.dim, y + dim // 2))
+                    startz, endz = int(max(0, z - dim // 2)), int(min(self.dim, z + dim // 2))
+
+                    rsx, rex, rsy, rey, rsz, rez = 0, dim, 0, dim, 0, dim
+
+                    if endx - startx < dim:
+                        if x - dim // 2 < 0:
+                            rsx = dim // 2 - x
+                        else:
+                            rex = dim // 2 - x + self.dim
+                    if endy - starty < dim:
+                        if y - dim // 2 < 0:
+                            rsy = dim // 2 - y
+                        else:
+                            rey = dim // 2 - y + self.dim
+                    if endz - startz < dim:
+                        if z - dim // 2 < 0:
+                            rsz = dim // 2 - z
+                        else:
+                            rez = dim // 2 - z + self.dim
+
+                    rsx, rex, rsy, rey, rsz, rez = map(int, (rsx, rex, rsy, rey, rsz, rez))
+                    R = R[rsz:rez, rsy:rey, rsx:rex]
+
+                    self.mask[startz:endz, starty:endy, startx:endx][R <= r] = 1
+
+                self.vol = self.volg = self.vol * (0.25 + self.mask)
+
+            else:
+                self.vol = self.volg
+        else:
+            self.vol = self.backup.copy()
+        self.replot_all()
+
+    def open_load(self, q):
+        if q.text() == 'Save Project':
+            self.save_particleList()
+        elif q.text() == 'Load Project':
+            self.load_particleList()
+
+    def save_particleList(self):
+        try:
+            self.mask += 0
+        except:
+            print('Please create a mask before saving.')
+            return
+        import mrcfile
+        base, ext = os.path.splitext(self.title)
+        fname = os.path.join(self.parent().parent().pickpartfolder,
+                             'mask_' + os.path.basename(self.title.replace(ext, '')))
+        fname = str(
+            QFileDialog.getSaveFileName(self, 'Save particle list.', fname, filter="MRC File (*.mrc);; EM File (*.em)")[
+                0])
+        if not fname.endswith('.mrc'): fname += '.mrc'
+        if not self.mask.sum(): self.mask += 1
+        mrcfile.new(fname, self.mask, overwrite=True)
+        self.parent().widgets['filenameMask'].setText(fname)
+
+    def load_particleList(self):
+        filetype = 'txt'
+        initdir = self.parent().parent().pickpartfolder
+
+        filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "MRC File (*.mrc);; EM File (*.em)")[0])
+        if not filename: return
+
+        if self.title.endswith('em'):
+            from pytom.basic.files import read
+            from pytom_numpy import vol2npy
+            vol = read(self.title)
+            self.mask = copy.deepcopy(vol2npy(vol))
+            self.mask = self.mask.T
+
+        elif self.title.endswith('mrc'):
+            self.mask = read_mrc(self.title)
+
+        if not self.widgets['show_mask'].isChecked():
+            self.widgets['show_mask'].setChecked(True)
+        else:
+            self.show_maskTM()
+
+    def remove_element(self, el):
+        parent = el.getparent()
+        if el.tail.strip():
+            prev = el.getprevious()
+            if prev:
+                prev.tail = (prev.tail or '') + el.tail
+            else:
+                parent.text = (parent.text or '') + el.tail
+        parent.remove(el)
+
+    def remove_deselected_particles_from_XML(self):
+        tree = et.parse(self.xmlfile)
+
+        for particle in tree.xpath("Particle"):
+            remove = True
+
+            position = []
+
+            for tag in ('X', 'Y', 'Z'):
+                position.append(float(particle.xpath('PickPosition')[0].get(tag)))
+
+            x, y, z = position
+
+            for cx, cy, cz, score in self.particleList:
+                if abs(x - cx) < 1 or abs(y - cy) < 1 or abs(z - cz) < 1:
+                    remove = False
+                    break
+            if remove:
+                self.remove_element(particle)
+
+        fname = str(QFileDialog.getSaveFileName(self, 'Save particle list.', self.xmlfile, filter='*.xml')[0])
+        if not fname.endswith('.xml'): fname += '.xml'
+        if fname:
+            try:
+                tree.write(fname.replace('.xml', '_deselected.xml'), pretty_print=True)
+            except:
+                print('writing {} failed.'.format(fname))
+        else:
+            print('No file written.')
+
+    def empty(self):
+        pass
+
+    def stateGaussianChanged(self):
+        w = self.widgets['apply_gaussian_filter']
+        width = self.widgets['width_gaussian_filter'].text()
+
+        if w.isChecked():
+            if len(width) > 0 and abs(self.current_width - float(width)) > 0.01:
+                self.vol = self.volg = gaussian_filter(self.backup, float(width))
+                self.current_width = float(width)
+            else:
+                self.vol = self.volg
+        else:
+            self.vol = self.backup.copy()
+        self.replot_all()
+
+        #self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
+
+    def sizeChanged(self):
+        a = self.widgets['size_selection: '].text()
+        if not a: return
+
+        plist = copy.deepcopy(self.particleList)
+
+        self.radius = int(self.widgets['size_selection: '].text()) / 2
+
+    def stateScoreChanged(self):
+        pass
+
+    def replot_all(self):
+        self.replot()
+        self.img1a.setImage(image=self.vol.sum(axis=2))
+        self.img1b.setImage(image=self.vol.sum(axis=1).T)
+
+    def replot(self):
+        crop = self.vol[int(self.slice), :, :]
+        self.img1m.setImage(image=crop.T)
+
+        # self.centcanvas.removeItem(self.hist)
+        # self.hist = pg.HistogramLUTItem()
+        self.hist.setImageItem(self.img1m)
+        self.hist.setLevels(numpy.median(crop) - crop.std() * 3, numpy.median(crop) + crop.std() * 3)
+        # self.centcanvas.addItem(self.hist)
+        del crop
+
+    def mouseHasMoved(self, evt):
+
+        try:
+            pos = self.centimage.mapSceneToView(evt.scenePos())
+        except:
+            return
+
+        add = True
+        remove = evt.button() == 2
+        self.pos = pos
+
+        if pos.x() < 0 or pos.y() < 0 or pos.x() >= self.vol.shape[1] or pos.y() >= self.vol.shape[2]:
+            return
+
+        num_deleted_items = 0
+        for n, (x, y, z, s) in enumerate(self.particleList):
+            if sqrt((x - pos.x()) ** 2 + (y - pos.y()) ** 2 + (z - self.slice) ** 2) < self.radius:
+                add = False
+                if remove:
+                    self.remove_point(n - num_deleted_items, z)
+
+                    num_deleted_items += 1
+            add=True
+
+        if add and not remove:
+            X, Y = pos.x(), pos.y()
+
+            self.add_points(pos, X, Y, self.slice, self.radius, self.radius, add=add, score=self.radius)
+
+        self.widgets['numSelected'].setText(str(len(self.particleList)))
+
+    def remove_from_coords(self, coords):
+        cx, cy, cz = coords[:3]
+        for n, (x, y, z, s) in enumerate(self.particleList):
+            if sqrt((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2) < self.radius:
+                self.remove_point(n, z)
+                break
+
+    def add_points(self, pos, cx, cy, cz, cs, radius, add=False, score=0., new=True):
+        print(cx, cy, cz, cs, radius)
+        if new:
+            self.particleList.append([int(round(cx)), int(round(cy)), int(round(cz)), score])
+            print(cx, cy, cz, score)
+
+        if radius < 1: return
+
+        pos.setX(cx - radius)
+        pos.setY(cy - radius)
+        self.circles_cent.append(circle(pos, size=(radius) * 2))
+
+        if abs(cz - self.slice) < self.radius:
+            self.centimage.addItem(self.circles_cent[-1])
+
+        if new:
+            pos.setX(cx - self.radius)
+            pos.setY(cz - self.radius)
+            self.circles_bottom.append(circle(pos, size=self.radius * 2))
+            self.bottomimage.addItem(self.circles_bottom[-1])
+
+            pos.setX(cz - self.radius)
+            pos.setY(cy - self.radius)
+            self.circles_left.append(circle(pos, size=self.radius * 2))
+            self.leftimage.addItem(self.circles_left[-1])
+
+    def remove_point(self, n, z, from_particleList=True):
+        if from_particleList:
+            self.particleList.pop(n)
+            # self.particleList = self.particleList[:n] + self.particleList[n + 1:]
+
+        if abs(z - self.slice) <= self.radius:
+            self.centimage.removeItem(self.circles_cent[n])
+        self.circles_cent.pop(n)  # = self.circles_cent[:n] + self.circles_cent[n + 1:]
+
+        self.leftimage.removeItem(self.circles_left[n])
+        self.circles_left.pop(n)  # = self.circles_left[:n] + self.circles_left[n + 1:]
+
+        self.bottomimage.removeItem(self.circles_bottom[n])
+        self.circles_bottom.pop(n)  # = self.circles_bottom[:n] + self.circles_bottom[n + 1:]
+
+    def remove_all(self):
+        for image in self.image_list:
+            for child in image.allChildren():
+                if type(child) == MyCircleOverlay:
+                    image.removeItem(child)
+
+        self.circles_left = []
+        self.circles_cent = []
+        self.circles_bottom = []
+        self.particleList = []
+
+    def remove_cent(self):
+        for child in self.centimage.allChildren():
+            if type(child) == MyCircleOverlay:
+                self.centimage.removeItem(child)
+
+        for i in range(len(self.circles_cent)):
+            self.circles_cent.pop(0)
+
+    def load_image(self):
+        if not self.title: return
+
+        if self.title.endswith('em'):
+            from pytom.basic.files import read
+            from pytom_numpy import vol2npy
+            vol = read(self.title)
+            self.vol = copy.deepcopy(vol2npy(vol))
+            self.vol = self.vol.T
+        elif self.title.endswith('mrc'):
+            self.vol = read_mrc(self.title)
+
+        # self.vol[self.vol < -4.] = -4.
+        self.backup = self.vol.copy()
+        self.origin = self.vol.copy()
+
+        self.vol[self.vol < self.vol.min()] = self.vol.min()
+
+        self.volg = self.vol
+        self.mask = numpy.zeros_like(self.vol)
+        self.dim = self.vol.shape[0]
+        self.slice = self.d = int(self.dim / 2)
+
+        self.img1a = pg.ImageItem(self.vol.sum(axis=1))
+        self.img1b = pg.ImageItem(self.vol.sum(axis=2))
+        self.img1m = pg.ImageItem(self.vol[int(self.slice), :, :])
+
+        self.leftimage.addItem(self.img1a)
+        self.centimage.addItem(self.img1m)
+        self.bottomimage.addItem(self.img1b)
+
+        self.leftcanvas.setAspectLocked(True)
+        self.bottomcanvas.setAspectLocked(True)
+
+        self.hist = pg.HistogramLUTItem()
+        self.hist.setImageItem(self.img1m)
+        self.centcanvas.addItem(self.hist)
+
+        self.replot_all()
+
+    def update_circles(self, update=0):
+        self.slice += update
+        self.remove_cent()
+
+        for n, (cx, cy, cz, cs) in enumerate(self.particleList):
+            radius = 0
+            if abs(cz - self.slice) <= cs:
+                radius = sqrt(cs ** 2 - (cz - self.slice) ** 2)
+
+            add = False
+            self.add_points(self.pos, cx, cy, cz, cs, radius, add=add, score=cs, new=False)
+
+        print(len(self.circles_bottom), len(self.circles_cent), len(self.circles_left), len(self.particleList))
 
 
 class ParticlePicker(QMainWindow, CommonFunctions):
