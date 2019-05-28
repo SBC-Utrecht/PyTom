@@ -2633,6 +2633,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
     def mouseHasMovedBottom(self, evt):
         pos = self.bottomimage.mapSceneToView( evt.scenePos() )
+        if pos.y() < 0 or pos.y() >= self.vol.shape[2]: return
         step = pos.y() - self.slice
         self.update_circles(step)
         self.replot()
@@ -2640,6 +2641,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
     def mouseHasMovedLeft(self, evt):
         pos = self.leftimage.mapSceneToView( evt.scenePos() )
+        if pos.x() < 0 or pos.x() >= self.vol.shape[1]: return
+
         step = pos.x()-self.slice
         self.update_circles(step)
         self.replot()
