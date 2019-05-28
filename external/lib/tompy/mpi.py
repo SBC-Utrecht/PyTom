@@ -28,7 +28,7 @@ class MPI:
             new_seq = [None] * size
             n, N = 0, len(seq)
             for i in range(size):
-                l = N / size + (N % size > i)
+                l = N // size + (N % size > i)
                 new_seq[i] = seq[n:n+l]
                 n += l
             return new_seq

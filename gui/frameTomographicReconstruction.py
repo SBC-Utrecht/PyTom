@@ -1068,7 +1068,7 @@ class TomographReconstruct(GuiTabWidget):
         try:
             tomogramID = folder.split('tomogram_')[-1][:3]
             tomoname = '{}/tomogram_{}'.format(self.tomogram_folder, tomogramID)
-            cOut = '{}/ctf/{}'.format(tomoname, os.path.basename(folder))
+            cOut = '{}/ctf/ctf_{}'.format(tomoname, os.path.basename(folder))
             if not os.path.exists(cOut): os.mkdir(cOut)
             cPrefix = os.path.join(cOut, 'sorted_aligned_ctf_')
             uPrefix = os.path.join(folder, 'sorted_aligned_')
