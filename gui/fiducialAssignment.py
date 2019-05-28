@@ -890,6 +890,10 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.selectMarkers.deleteAll()
         self.manual_adjust_marker.deleteAll()
 
+    def deleteSelectedMarkers(self,ids, names=[]):
+        self.selectMarkers.deleteMarkers(ids, names)
+        self.manual_adjust_marker.deleteMarkers(ids)
+
     def recenter(self, markerFileName='markerfile_ref_TEMP.em', outFileName='markerfile_ref_TEMP.em',
                      tiltSeriesFormat='mrc', return_ref_coords=True, selected_markers=True, save=True):
         if not mf_write:
@@ -1271,6 +1275,12 @@ class SelectAndSaveMarkers(QMainWindow,CommonFunctions):
             #for i in range(self.num_columns):
                 view.resizeColumnToContents(i)
 
+    def deleteMarkers(self,ids, names):
+        for m in (self.model,self.model1):
+            for row in range(m.rowCount()):
+                if self.dataView.model().item(row, 0).text() in names:
+                    m.removeRows(row,row+2)
+
     def deleteAll(self):
         for m in (self.model,self.model1):
             m.removeRows(0,m.rowCount())
@@ -1283,7 +1293,7 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
         self.layout = self.grid = QGridLayout(self)
         self.general = QWidget(self)
         self.general.setLayout(self.layout)
-        self.setWindowTitle('Select and Save Marker Sets')
+        self.setWindowTitle('Manually Adjust Marker Sets')
         self.header_names = ['Name','#Markers']
         self.row, self.column = 0, 1
         self.logbook = {}
@@ -1334,16 +1344,30 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
             self.MRMmodel.setData(model.index(self.MRMmodel.rowCount() - 1, i), data[i])
             self.dataView.resizeColumnToContents(i)
 
+    def deleteMarkers(self,ids):
+        for id in reversed(ids):
+            print(id)
+            self.MRMmodel.removeRows(id,id+1)
+
     def deleteAll(self):
         self.MRMmodel.removeRows(0,self.MRMmodel.rowCount())
 
     def add_marker(self, params=None):
-        self.addMarker(self.MRMmodel,['Marker_{:03d}'.format(self.MRMmodel.rowCount()), ''])
-        pass
+
+        self.parent().add_markers(['Marker_{:03d}'.format(self.MRMmodel.rowCount()), ''])
 
     def delete_marker(self, params=None):
         #self.MRMmodel.removeRows()
-        pass
+        for d in dir(self.dataView.selectionModel()): print(d)
+        idsx = self.dataView.selectionModel().selectedIndexes()
+        ids = [id.row() for id in idsx[::2]]
+
+        markernames = [self.dataView.model().item(id.row(),id.column()).text() for id in idsx[::2]]
+
+        if len(ids):
+            print(markernames)
+            self.parent().deleteSelectedMarkers(ids, markernames)
+
 
     def select_marker(self, params=None):
         try:

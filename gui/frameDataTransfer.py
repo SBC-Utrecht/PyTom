@@ -789,10 +789,11 @@ class CollectPreprocess(GuiTabWidget):
             if len(availableGPU) == 0:
                 self.popup_messagebox('Warning', 'No Motioncor', 'No available GPUs, motioncor is not running.')
             else:
-                for i in range(min(len(availableGPU), self.number_motioncor_subprocesses)):
+                num_jobs = min(len(availableGPU), self.number_motioncor_subprocesses)
+                for i in range(num_jobs):
                     finish_motioncor = Event()
                     self.mcor_procs.append(finish_motioncor)
-                    proc = Process(target=self.apply_motioncor,args=(motioncor_flist[i::self.number_motioncor_subprocesses],
+                    proc = Process(target=self.apply_motioncor,args=(motioncor_flist[i::num_jobs],
                                                                      i + 1, e, availableGPU[i],self.completedMC,
                                                                      finish_motioncor))
                     procs.append(proc)

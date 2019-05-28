@@ -133,7 +133,9 @@ mpirun -n 20 {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
 --jobName {d[10]} \\
 {d[4]}'''
 
-templateCCC       = """cd {d[0]}
+templateCCC       = """module unload pytom/dev/gui_devel python3/3.7
+
+cd {d[0]}
 
 mpiexec --tag-output -n 16 {d[1]}/bin/pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]}
 """
@@ -232,10 +234,11 @@ ctfplotter -pa {d[1]}'''
 
 templateCTFCorrection = '''cd {d[0]}
 
-{d[1]}/bin/pytom {d[1]}/gui/ctfCorrection.py \\
+mpiexec --tag-output -n 20  {d[1]}/bin/pytom {d[1]}/gui/ctfCorrection.py \\
 -u {d[2]} \\
 -c {d[3]} \\
 --metafile {d[4]} \\
---gridSpacing {d[5]} \\
---fieldSize {d[6]} \\
---binningFactor {d[7]}'''
+--rotationAngle {d[5]} \\
+--gridSpacing {d[6]} \\
+--fieldSize {d[7]} \\
+--binningFactor {d[8]}'''

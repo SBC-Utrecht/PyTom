@@ -110,7 +110,8 @@ class SubtomoAnalysis(GuiTabWidget):
         except: self.extractLists = QLineEdit()
 
         self.mass_extract = SelectFiles(self, initdir=self.pickpartdir, search='file', filter=['.xml'],
-                             outputline=self.extractLists, run_upon_complete=self.populate_batch_create)
+                                        outputline=self.extractLists, run_upon_complete=self.populate_batch_create,
+                                        title='Select particlLists')
         pass
 
     def tab21UI(self):
@@ -287,14 +288,14 @@ class SubtomoAnalysis(GuiTabWidget):
         self.mass_extract.close()
         particleFiles = sorted( self.extractLists.text().split('\n') )
         id='tab12'
-        headers = ["Filename particleList", "Run", "Reference marker", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Y"]
+        headers = ["Filename particleList", "Run", "Tilt Images", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Y"]
         types = ['txt', 'checkbox', 'combobox', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit']
         a=40
         sizes = [0, 0, 80, 80, a, a, a, a, a, a, a]
 
         tooltip = ['Names of the particleList files', 
                    'Check this box to run subtomogram reconstruction.',
-                   'Reference Marker Indices',
+                   'Aligned Images',
                    'Binning factor used for the reconstruction (read from the .',
                    'Angle between -90 and the lowest tilt angle.',
                    'Filename of generate particle list file (xml)','','','','']
@@ -321,7 +322,12 @@ class SubtomoAnalysis(GuiTabWidget):
 
                 markerfile  = os.path.join(folder, 'markerfile.em')
                 markerdata = read(markerfile,binning=[1,1,1])
-                choices = list(map(str,range(markerdata.sizeZ()))) # + ['closest']
+
+                al  = os.path.join(os.path.dirname(os.path.dirname(folder) ),'alignment')
+                ctf = os.path.join(os.path.dirname(os.path.dirname(folder) ),'ctf')
+                choices = [al+'/'+f for f in os.listdir(al) if 'unweighted_unbinned' in f and os.path.isdir(al+'/'+f)]
+                choices += [ctf+'/'+f for f in os.listdir(ctf) if 'unweighted_unbinned' in f and os.path.isdir(ctf+'/'+f)]
+                #choices = list(map(str,range(markerdata.sizeZ()))) # + ['closest']
                 #a = sorted(glob.glob('{}/Reconstruction*-*.out'.format(folder)))[-1]
 
                 try:
@@ -355,12 +361,12 @@ class SubtomoAnalysis(GuiTabWidget):
             if self.tab12_widgets['widget_{}_1'.format(row)].isChecked():
                 particleXML = self.particleFilesBatchExtract[row] #[row][0]
                 tomoindex = particleXML.split('tomogram_')[-1][:3]
-                ref_marker = self.tab12_widgets['widget_{}_{}'.format(row,2)].currentText()
+                folder_aligned = values[row][2][self.tab12_widgets['widget_{}_{}'.format(row,2)].currentIndex()]
                 metafile = glob.glob('{}/03_Tomographic_Reconstruction/tomogram_{}/sorted/*.meta'.format(self.projectname,tomoindex))
                 if not metafile: continue
                 metafile = metafile[0]
                 q = '{}/03_Tomographic_Reconstruction/tomogram_{}/alignment/unweighted_unbinned_marker_{}'
-                folder_aligned = q.format(self.projectname,tomoindex,ref_marker)
+                #folder_aligned = q.format(self.projectname,tomoindex,ref_marker)
                 bin_read = self.tab12_widgets['widget_{}_{}'.format(row,3)].text()
                 weight = self.tab12_widgets['widget_{}_{}'.format(row, 4)].text()
                 size = self.tab12_widgets['widget_{}_{}'.format(row, 5)].text()
@@ -630,7 +636,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         self.cpcadir = os.path.join(self.parent().subtomo_folder, 'Classification/CPCA')
         exefilename = os.path.join(self.cpcadir, 'CCC_Classification.sh')
-        paramsSbatch = guiFunctions.createGenericDict(fname='CCC_Class', folder=self.cpcadir)
+        paramsSbatch = guiFunctions.createGenericDict(fname='CCC_Class', folder=self.cpcadir,modules=['openmpi/2.1.1','python/2.7', 'lib64/append', 'pytom/0.971'])
         paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'filenameMask',
                      mode + 'lowpass', mode + 'binning', templateCCC]
 

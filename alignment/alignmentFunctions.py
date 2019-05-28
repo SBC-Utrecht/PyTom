@@ -348,7 +348,8 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
     from pytom.basic.normalise import mean0std1
     from pytom.tools.ProgressBar import FixedProgBar
     from math import exp
-    
+    import os
+
     if len(particleList) == 0:
         raise RuntimeError('The particle list is empty. Aborting!')
     
@@ -375,7 +376,9 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
         
         if verbose:
             print(particleObject)
-        
+
+    
+        if not os.path.exists(particleObject.getFilename()): continue
         particle = read(particleObject.getFilename())
         if norm: # normalize the particle
             mean0std1(particle) # happen inplace

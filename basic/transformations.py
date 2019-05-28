@@ -172,9 +172,7 @@ def rotateFourierSpline(volume,z1,z2,x,twice=False):
 #    return res
     
     return transformFourierSpline(volume,z1,z2,x,0,0,0,twice)
-    
-    
-    
+
 def scale(volume,factor,interpolation='Spline'):
     """
     scale: Scale a volume by a factor in REAL SPACE - see also resize function for more accurate operation in Fourier \
@@ -573,7 +571,6 @@ def general_transform2d(v, rot=None, shift=None, scale=None, order=[0, 1, 2], cr
     else:
         vv = general_transform(v, rot, shift, [scale, scale, 1], order)
     return vv
-
 
 def project(v, rot, verbose=False):
     """

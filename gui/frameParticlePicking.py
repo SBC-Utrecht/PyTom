@@ -351,22 +351,25 @@ class ParticlePick(GuiTabWidget):
         try: self.jobFiles.text()
         except: self.jobFiles = QLineEdit()
 
-        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
-                                   outputline=self.jobFiles, run_upon_complete=self.getTemplateFiles)
+        self.batchTM = SelectFiles(self, initdir=self.tomogramfolder, search='file', filter=['em','mrc'],
+                                   outputline=self.jobFiles, run_upon_complete=self.getTemplateFiles,
+                                   title='Select Tomograms.')
 
     def getTemplateFiles(self):
         try: self.templateFiles.text()
         except: self.templateFiles = QLineEdit()
         self.batchTM.close()
         self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
-                                   outputline=self.templateFiles, run_upon_complete=self.getMaskFiles)
+                                   outputline=self.templateFiles, run_upon_complete=self.getMaskFiles,
+                                   title='Select Template')
 
     def getMaskFiles(self):
         try: self.maskFiles.text()
         except: self.maskFiles = QLineEdit()
         self.batchTM.close()
         self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
-                                   outputline=self.maskFiles, run_upon_complete=self.populate_batch_templatematch)
+                                   outputline=self.maskFiles, run_upon_complete=self.populate_batch_templatematch,
+                                   title='Select Masks.')
 
     def populate_batch_templatematch(self):
         print('multiple template matching job-submissions')
@@ -401,7 +404,13 @@ class ParticlePick(GuiTabWidget):
             values.append([tomogramFile, 1, templateFiles, maskFiles, 30, 30, angleLists])
             print(values[-1])
 
+        try:
+            self.num_nodes[id].setParent(None)
+        except:
+            pass
+
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True)
+
 
         self.tab22_widgets = self.tables[id].widgets
 

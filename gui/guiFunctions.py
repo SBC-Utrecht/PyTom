@@ -763,17 +763,40 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
 def update_metadata_from_defocusfile(metafile, defocusfile):
     metadata = numpy.loadtxt(metafile, dtype=datatype)
-    defocusResults = numpy.loadtxt(defocusfile,skiprows=1)
+
+    data = open(defocusfile,'r')
+    header = list(map(float, data.readlines()[0].split()))
+    skiprows = 0
+
+    for h in header[2:-1]:
+        print(abs(h))
+        if abs(h) < 0.001:
+            skiprows=1
+
+    data.close()
+
+    if skiprows: print('First Line of {} is ignorned'.format(os.path.basename(defocusfile)))
+
+    for dd in (10,9,8,7,6,5):
+        try:
+            defocusResults = numpy.loadtxt(defocusfile,skiprows=skiprows, usecols=range(0,dd))
+        except:
+            continue
+        break
+
+    if not len(defocusResults) == len(metadata):
+        raise Exception('Defocus file and meta file are not of equal length')
 
     tiltImages, columns = defocusResults.shape
 
     resultsNames = ['ID_start', 'ID_end', 'AngleStart', 'AngleEnd', 'DefocusU', 'DefocusV', 'DefocusAngle',
                     'PhaseShift', 'CutOn']
-    if defocusResults[0][5] < 400:
+    if columns < 6 or defocusResults[0][5] < 400:
         resultsNames[5] = 'Empty'
         resultsNames[6] = 'Empty'
+        columns+=2
     resultsNames = resultsNames[:columns]
-
+    print(resultsNames, len(defocusResults[0]))
     for n, line in enumerate(defocusResults):
         for query in ('DefocusU', 'DefocusV', 'DefocusAngle', 'PhaseShift'):
             for nn, ii in enumerate(resultsNames):
@@ -785,5 +808,7 @@ def update_metadata_from_defocusfile(metafile, defocusfile):
         if 'Empty' in resultsNames:
             metadata['DefocusV'][n] = metadata['DefocusU'][n]
             metadata['DefocusAngle'][n] = 0.
+
+
 
     numpy.savetxt(metafile, metadata, fmt=fmt, header=headerText)

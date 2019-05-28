@@ -161,6 +161,8 @@ class TomographReconstruct(GuiTabWidget):
         unprocessed = numpy.array(sorted(glob.glob('{}/*.meta'.format(self.rawnanographs_folder))))
         unprocessed = unprocessed[[not (basename(u_item) in processed_fn) for u_item in unprocessed]]
 
+
+
         values = []
 
         for t in processed:
@@ -168,7 +170,12 @@ class TomographReconstruct(GuiTabWidget):
         for t in unprocessed:
             values.append([t, True, '', ['Raw Nanographs','Motion Corrected'], '', False, False])
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, connect=self.update_create_tomoname)
+        if values:
+            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, connect=self.update_create_tomoname)
+
+        else:
+            self.popup_messagebox('Warning','No meta files found', 'No meta files found. Have you downloaded your mdoc files, or are file names sufficient to determine the tiltangles?')
+            return
         #for row in range(self.tables[id].table.rowCount()):
 
         #   if self.tables[id].table.item(row,2):
@@ -731,9 +738,15 @@ class TomographReconstruct(GuiTabWidget):
             self.widgets[mode + 'tomofolder'] = QLineEdit(text=tomofolder)
             self.widgets[mode + 'FolderSorted'] = QLineEdit(text=sortedFolder)
 
+
             for i in (1,2):
                 widget = 'widget_{}_{}'.format(row, i)
                 if widgets[widget].isChecked():
+                    refmarkindex = widgets['widget_{}_{}'.format(row, 6)].text()
+                    a = widgets['widget_{}_{}'.format(row, 3)].text()
+                    b = widgets['widget_{}_{}'.format(row, 4)].text()
+                    c = widgets['widget_{}_{}'.format(row, 5)].text()
+                    d = widgets['widget_{}_{}'.format(row, 8)].text()
 
                     params = [mode,dd[i],'sorted']
                     print(params)
@@ -744,15 +757,14 @@ class TomographReconstruct(GuiTabWidget):
                     paramsSbatch['folder'] = os.path.dirname(execfilename)
 
                     if i == 1:
-                        paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4],
-                                     values[row][5], values[row][6], values[row][8],
+                        paramsCmd = [tomofolder, self.pytompath, a, b,
+                                     c, refmarkindex, d,
                                      self.pytompath, os.path.basename(tomofolder),
                                      expectedRotation]
                         commandText = templateINFR.format(d=paramsCmd)
                     elif i==2:
-                        paramsCmd = [tomofolder, self.pytompath, values[row][3], values[row][4], values[row][5],
-                                     values[row][6], values[row][8], os.path.basename(tomofolder), 'mrc', '464', '1',
-                                     expectedRotation]
+                        paramsCmd = [tomofolder, self.pytompath, a, b, c, refmarkindex, d, os.path.basename(tomofolder),
+                                     'mrc', '464', '1', expectedRotation]
                         commandText= templateWBP.format(d=paramsCmd)
                     else:
                         print( 'No Batch Submission' )
@@ -1011,6 +1023,9 @@ class TomographReconstruct(GuiTabWidget):
                                           ' from the projection and corrected with a constant ctf. Fieldsize is also ' +
                                           'the size of the modelled ctf.',
                                   value=1, stepsize=1, minimum=1, maximum=1000)
+        self.insert_label_spinbox(parent, mode + 'rotationAngle', text='In-plane Rotation Angle of tilt axis',
+                                  tooltip='In-plane rotation angle of tilt axis after alignment.',
+                                  value=0, stepsize=1, minimum=0, maximum=359)
         self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',
                                   value=1, stepsize=1, minimum=1, maximum=16, rstep=1, cstep=0)
 
@@ -1021,7 +1036,7 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch['folder'] = exefilename
 
         paramsCmd = [mode + 'tomofolder', self.pytompath, mode + 'uPrefix', mode + 'cPrefix', mode + 'MetaFile',
-                     mode + 'GridSpacing', mode + 'FieldSize', mode + 'BinningFactor', templateCTFCorrection]
+                     mode + 'rotationAngle', mode + 'GridSpacing', mode + 'FieldSize', mode + 'BinningFactor', templateCTFCorrection]
 
         self.insert_gen_text_exe(parent, mode, exefilename=exefilename, paramsSbatch=paramsSbatch,
                                  paramsCmd=paramsCmd, action=self.updateMetaFile, paramsAction=[mode])
@@ -1076,9 +1091,9 @@ class TomographReconstruct(GuiTabWidget):
     def updateGridAndFieldSize(self, mode):
         gridSpacing = float(self.widgets[mode + 'GridSpacing'].value())
         fieldSize = float(self.widgets[mode + 'FieldSize'].value())
-        if gridSpacing > fieldSize:
-            self.widgets[mode + 'GridSpacing'].setValue(fieldSize)
-        self.widgets[mode + 'GridSpacing'].setMinimum(fieldSize)
+        if gridSpacing < fieldSize:
+            self.widgets[mode + 'FieldSize'].setValue(gridSpacing)
+        self.widgets[mode + 'FieldSize'].setMaximum(gridSpacing)
 
     def updateMetaFile(self, params):
         mode = params[0]
@@ -1122,9 +1137,13 @@ class TomographReconstruct(GuiTabWidget):
             referenceMarkerOptions = folders + ['all']
             defocusFile = glob.glob( os.path.join(tomogramName, 'ctf/*.defocus') )
             if not defocusFile: continue
-            values.append( [tomogramName, True, referenceMarkerOptions, defocusFile, 0, 256, 16, 1] )
+            values.append( [tomogramName, True, referenceMarkerOptions, defocusFile, 0, 16, 256, 1] )
 
         if values:
+            try:
+                self.num_nodes[id].setParent(None)
+            except:
+                pass
             self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True)
             self.tab43_widgets = self.tables[id].widgets
             self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_ctf_correction(pid, v))
@@ -1148,9 +1167,10 @@ class TomographReconstruct(GuiTabWidget):
                     folders = [folder]
 
                 defocusFile = values[row][3][self.tab43_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
-                gridspacing = self.tab43_widgets['widget_{}_{}'.format(row, 4)].text()
-                fieldsize   = self.tab43_widgets['widget_{}_{}'.format(row, 5)].text()
-                binning     = self.tab43_widgets['widget_{}_{}'.format(row, 6)].text()
+                rotationangle = self.tab43_widgets['widget_{}_{}'.format(row, 4)].text()
+                gridspacing   = self.tab43_widgets['widget_{}_{}'.format(row, 5)].text()
+                fieldsize     = self.tab43_widgets['widget_{}_{}'.format(row, 6)].text()
+                binning       = self.tab43_widgets['widget_{}_{}'.format(row, 7)].text()
                 metafile = glob.glob(os.path.join(values[row][0], 'sorted/*.meta'))
                 tomofolder = os.path.dirname(os.path.dirname(defocusFile))
 
@@ -1168,9 +1188,9 @@ class TomographReconstruct(GuiTabWidget):
                     guiFunctions.update_metadata_from_defocusfile(metafile, defocusFile)
                 except:
                     print('submission {} failed due to error in either the metafile or the defocus file.'.format(tomofolder))
-
+                    continue
                 for folder in folders:
-                    jobParams = [tomofolder, self.pytompath, uPrefix, cPrefix, metafile, gridspacing, fieldsize, binning]
+                    jobParams = [tomofolder, self.pytompath, uPrefix, cPrefix, metafile, rotationangle, gridspacing, fieldsize, binning]
                     jobscript = templateCTFCorrection.format(d=jobParams)
                     
                     
@@ -1178,8 +1198,8 @@ class TomographReconstruct(GuiTabWidget):
                     outDirectory = os.path.dirname(cPrefix) 
                     
                     job = guiFunctions.gen_queue_header(folder=outDirectory, name=fname, singleton=True) + jobscript
-                    outjob = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
+                    outjob = open(os.path.join(outDirectory, 'ctfCorrectionBatch.sh'), 'w')
                     outjob.write(job)
                     outjob.close()
-                    os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
+                    os.system('sbatch {}/{}'.format(outDirectory, 'ctfCorrectionBatch.sh'))
                     num_submitted_jobs += 1

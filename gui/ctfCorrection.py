@@ -9,7 +9,7 @@ import mrcfile
 mpi = MPI()
 
 
-def CorrectTiltseries(metafile, uprefix, cprefix, gs, fs, binning_factor):
+def CorrectTiltseries(metafile, uprefix, cprefix, gs, fs, binning_factor,rotation_angle):
     """
     This function corrects the astigmatic defocus gradient of a tiltseries.
 
@@ -45,12 +45,12 @@ def CorrectTiltseries(metafile, uprefix, cprefix, gs, fs, binning_factor):
         # Corrected projection name
         new_fname = cprefix + os.path.basename(fname).split("_")[-1]
 
-        args.append((fname, new_fname, p, metafile, gs, fs, binning_factor))
+        args.append((fname, new_fname, p, metafile, gs, fs, binning_factor, rotation_angle))
         #CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_factor)
     # Parallelization
     res = mpi.parfor(CorrectProjection_proxy, args)
 
-def CalculateDefocusModel(dz0,Objectpixelsize,Imdim,Tiltangle,Tiltaxis,tx=0,ty=0,sfx=1,sfy=1):
+def CalculateDefocusModel(dz0, Objectpixelsize, Imdim, Tiltangle, Tiltaxis, tx=0,ty=0,sfx=1,sfy=1):
     """
 This program models a defocus plane.
 The defocus plane rely on the assumption that the defocus is constant parallel 
@@ -73,13 +73,15 @@ dzm --- central line of defocus plane parallel to the x-axis /in mu m
     """
     # Calculate defocus plane
 
-    dzp = dz0 + (1./1000) * np.arange(-Imdim, Imdim)*Objectpixelsize * np.tan(Tiltangle*np.pi/180)
+    dzp = dz0 + (1./1000) * np.arange(-Imdim, Imdim)*Objectpixelsize * np.tan( Tiltangle * np.pi / 180)
     dzp = np.transpose(np.tile(dzp, [2*Imdim,1]))
-
+    print(type(Tiltaxis), Tiltaxis==True)
     # Inverse transformation
     if Tiltaxis:
+        print('inv transform')
         dzp = AlignProjectionINV(dzp,Tiltaxis,tx,ty,sfx,sfy)
 
+    
     # Cut defocus plane
     dzp = dzp[Imdim-Imdim//2:2*Imdim-Imdim//2,Imdim-Imdim//2:2*Imdim-Imdim//2]
 
@@ -200,7 +202,7 @@ def imtransform(proj, T):
 
     return projt
 
-def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_factor):
+def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_factor, rotation_angle):
     """
     """
     print('Correct projection:', fname)
@@ -211,7 +213,7 @@ def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_facto
     
     # Alignment parameter
     Tiltangles = metadata['TiltAngle']
-    Tiltaxis = metadata['InPlaneRotation']
+    Tiltaxis = rotation_angle 
 
     dz1 = metadata['DefocusU']
     dz2 = metadata['DefocusV']
@@ -231,19 +233,19 @@ def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_facto
     # Load projection
     proj = read(fname)
     proj = np.squeeze(proj) # squeeze it to 2D
-
+    print('loaded', Tiltaxis, Tiltangles[p])
     # Create defocus plane dz1
-    dz1p = CalculateDefocusModel(dz1[p],Objectpixelsize,Imdim,Tiltangles[p],Tiltaxis[p])
+    dz1p = CalculateDefocusModel(dz1[p],Objectpixelsize,Imdim,Tiltangles[p],Tiltaxis)
     
     # Create defocus plane dz2
-    dz2p = CalculateDefocusModel(dz2[p],Objectpixelsize,Imdim,Tiltangles[p],Tiltaxis[p])
-    
+    dz2p = CalculateDefocusModel(dz2[p],Objectpixelsize,Imdim,Tiltangles[p],Tiltaxis)
+  
     # Create astigmatism angle plane
-    alphap = (alpha[p]+Tiltaxis[p]*0)*np.ones((Imdim,Imdim))
+    alphap = (alpha[p]+Tiltaxis*0)*np.ones((Imdim,Imdim))
     
     # !!! ADDED Tiltaxis(1,p) to astigmatsm angle to correct for Tiltaxis rotation during CTF determination !!! -- SP 7.7.16
     # originally: alphap = alpha[p]*np.ones((Imdim,Imdim))
-
+    print('correcting')
     projc = CorrectProjection(proj,dz1p,dz2p,alphap,gs,fs,Objectpixelsize,Voltage,Cs,A)
 
     # Save projection
@@ -380,6 +382,7 @@ if __name__ == '__main__':
                       help="Name prefix of uncorrected projections")
     parser.add_option("-c", dest="cprefix",
                       help="Name prefix of corrected projections")
+    parser.add_option('--rotationAngle', dest='rotationAngle', help='In-plane Rotation Angle of the tiltaxis. Please note that Alignment corrects for 180')
     parser.add_option('--gridSpacing', dest='gridSpacing', help='Grid Spacing')
     parser.add_option('--fieldSize', dest='fieldSize', help='Field Size')
     parser.add_option("--metafile", dest="metafile",
@@ -392,15 +395,15 @@ if __name__ == '__main__':
     metafile = options.metafile
     uprefix  = options.uprefix
     cprefix  = options.cprefix
-
+    rotangle = int(options.rotationAngle)
     gs = int(options.gridSpacing)
     fs = int(options.fieldSize)
     binningFactor = int(options.binningFactor)
 
     # start the clustering
     mpi.begin()
-
-    CorrectTiltseries(metafile, uprefix, cprefix, gs, fs, binningFactor)
+    print(rotangle)
+    CorrectTiltseries(metafile, uprefix, cprefix, gs, fs, binningFactor, rotangle)
 
     mpi.end()
 

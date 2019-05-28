@@ -2,14 +2,13 @@ PyTom v0.971
 
 This license affects the software package PyTom and all the herein distributed source / data files.
 Authors: 
+Gijs van der Schot
 Thomas Hrabe
 Yuxiang Chen
 Friedrich Foerster
 
-Copyright (c) 2008-2016
-Max-Planck-Institute for Biochemistry
-Dept. Molecular Structural Biology
-82152 Martinsried, Germany
+Copyright (c) 2019
+Utrecht University
 http://www.pytom.org
 
 This program is free software: you can redistribute it and/or modify

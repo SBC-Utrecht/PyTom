@@ -28,7 +28,7 @@ class BrowseWindowRemote(QMainWindow):
     def __init__(self, parent=None, initdir='/',filter=[''],search='file',credentials=['','',''],outputline='',
                  validate=True):
         super(BrowseWindowRemote, self).__init__(parent)
-        self.setGeometry(50, 50, 400, 300)
+        self.setGeometry(50, 50, 800, 300)
         self.pathdisplay = QLineEdit()
         self.pathdisplay.setStyleSheet(WHITE)
         self.pathdisplay.setEnabled(False)
@@ -43,7 +43,7 @@ class BrowseWindowRemote(QMainWindow):
         self.splitter1 = splitter1 = QSplitter(Qt.Horizontal)
         splitter1.addWidget(self.topleft)
         splitter1.addWidget(self.topright)
-        splitter1.setSizes([200,200])
+        splitter1.setSizes([300,500])
 
         bottom_layout = QHBoxLayout()
         ok_button = QPushButton(text='OK')
@@ -168,11 +168,11 @@ class BrowseWindowRemote(QMainWindow):
 
 class SelectFiles(BrowseWindowRemote):
     def __init__(self,parent=None, initdir='/',filter=[''],search='file',credentials=['','',''],outputline='',
-                 validate=False, run_upon_complete=print):
+                 validate=False, run_upon_complete=print, title=''):
         self.finished = False
         super(SelectFiles,self).__init__(parent,initdir=initdir,filter=[''],search='file',credentials=['','',''],
                                          outputline=outputline, validate=validate)
-
+        self.setWindowTitle(title)
         self.run_upon_complete = run_upon_complete
         self.filters = filter
         self.matchingfiles = []
@@ -2518,7 +2518,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 if abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 :
                     print('particle not added: ', x,y,z)
                     continue
-                self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), score, self.radius)
+                self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), score, self.radius, score=score)
 
 
         self.replot()
@@ -2839,7 +2839,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         ymax = min(tomo.shape[2], y + int(self.size_subtomo / 2))
 
         subtomo = zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
-        subtomo[:xmax-xmin,:ymax-ymin] = (tomo[position[2]].T)[xmin:xmax, ymin:ymax]
+        subtomo[:xmax-xmin,:ymax-ymin] = (tomo[position[2]-4:position[2]+4].sum(axis=0).T)[xmin:xmax, ymin:ymax]
 
         self.position = position
         if self.index[1] == 0:
@@ -2913,14 +2913,17 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         elif self.coordinates[ID][2] > -1:
             print(self.coordinates[ID])
 
-            self.parent().pos.setX(self.coordinates[ID][0] - self.parent().radius)
-            self.parent().pos.setY(self.coordinates[ID][1] - self.parent().radius)
-            self.parent().centimage.addItem(circle(self.parent().pos, size=(radius)*2, color=Qt.yellow))
+            #self.parent().pos.setX(self.coordinates[ID][0] - self.parent().radius)
+            #self.parent().pos.setY(self.coordinates[ID][1] - self.parent().radius)
+            #self.parent().centimage.addItem(circle(self.parent().pos, size=(self.parent().radius)*1.5, color=Qt.yellow))
             self.setWindowTitle("Error Score: {:6.3f}".format( self.coordinates[ID][3]))
             self.parent().slice = self.coordinates[ID][2]
             self.parent().replot()
             self.parent().update_circles()
 
+            self.parent().pos.setX(self.coordinates[ID][0] - self.parent().radius)
+            self.parent().pos.setY(self.coordinates[ID][1] - self.parent().radius)
+            self.parent().centimage.addItem(circle(self.parent().pos, size=(self.parent().radius) * 2, color=Qt.red))
     def reset_display_subtomograms(self, particleList, volume ):
         for child in self.vBoxList:
             self.canvas.removeItem(child)
