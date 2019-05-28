@@ -1885,9 +1885,9 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
                     dim = r * 2. + 2.
                     Y, Z, X = numpy.meshgrid(numpy.arange(dim), numpy.arange(dim), numpy.arange(dim))
 
-                    X -= dim // 2 - 0.5
-                    Y -= dim // 2 - 0.5
-                    Z -= dim // 2 - 0.5
+                    X -= dim / 2 - 0.5
+                    Y -= dim / 2 - 0.5
+                    Z -= dim / 2 - 0.5
                     R = numpy.sqrt(X ** 2 + Y ** 2 + Z ** 2)
 
                     startx, endx = int(max(0, x - dim // 2)), int(min(self.dim, x + dim // 2))
@@ -2221,13 +2221,13 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.cw.setSizePolicy(self.parent().sizePolicyB)
         self.cw.setLayout(self.layout)
         self.setCentralWidget(self.cw)
-        self.setGeometry(0, 0, 1000, 1000)
+        self.setGeometry(0, 0, 800, 800)
         self.operationbox = QWidget()
         self.layout_operationbox = prnt = QGridLayout()
         self.operationbox.setLayout(self.layout_operationbox)
         self.add_toolbar(self.open_load)
         self.logbook = {}
-        self.radius = 13
+        self.radius = 7
         self.jump = 1
         self.current_width = 0.
         self.pos = QPoint(0,0)
@@ -2242,16 +2242,16 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.circles_list = [self.circles_left, self.circles_cent, self.circles_bottom]
         self.particleList = []
 
-        self.leftcanvas = w1 = pg.GraphicsWindow(size=(250, 750), border=True)
+        self.leftcanvas = w1 = pg.GraphicsWindow(size=(200, 600), border=True)
         self.leftimage  = w1.addViewBox(row=0, col=0)
         self.leftimage.setMouseEnabled(False, False)
 
-        self.centcanvas = w = KeyPressGraphicsWindow(size=(750, 750), border=True)
+        self.centcanvas = w = KeyPressGraphicsWindow(size=(600, 600), border=True)
         self.centimage  = w.addViewBox(row=0, col=0, lockAspect=True)
         self.centimage.setMenuEnabled(False)
         self.target = w3 = pg.ImageView()
 
-        self.bottomcanvas = w2 = pg.GraphicsWindow(size=(750, 250), border=True)
+        self.bottomcanvas = w2 = pg.GraphicsWindow(size=(600, 200), border=True)
         self.bottomimage  = w2.addViewBox(row=0, col=0 )
         self.bottomimage.setMouseEnabled(False, False)
 
@@ -2327,11 +2327,11 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.insert_lineedit(prnt,'width_gaussian_filter', validator=vDouble, rstep=1, cstep=-1, value='1.',width=100)
 
         self.insert_label(prnt, text='Size Selection: ',cstep=1)
-        self.insert_spinbox(prnt, wname='size_selection: ',cstep=-1,rstep=1, value=20, minimum=1, maximum=1000,width=100)
+        self.insert_spinbox(prnt, wname='size_selection: ',cstep=-1,rstep=1, value=14, minimum=1, maximum=1000,width=100)
         self.widgets['size_selection: '].valueChanged.connect(self.sizeChanged)
 
         self.insert_label(prnt,text='Step Size',cstep=1,alignment=Qt.AlignLeft)
-        self.insert_spinbox(prnt,wname='step_size',cstep=-1, value=10, rstep=1,width=100,
+        self.insert_spinbox(prnt,wname='step_size',cstep=-1, value=1, rstep=1,width=100,
                             minimum=1, maximum=int(self.vol.shape[0]/4))
 
         self.insert_label(prnt,text='', cstep=0)
