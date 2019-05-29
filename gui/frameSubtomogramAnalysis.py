@@ -261,8 +261,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateMeta(m))
 
 
-        execfilename = os.path.join( self.subtomodir, 'extractSubtomograms.sh')
-        paramsSbatch = guiFunctions.createGenericDict(fname='subtomoExtract', folder=self.subtomodir)
+        execfilename = os.path.join( self.subtomodir, 'Reconstruction/reconstructSubtomograms.sh')
+        paramsSbatch = guiFunctions.createGenericDict(fname='subtomoReconstr', folder=self.subtomodir)
         paramsCmd = [mode+'particlelist', mode+'AlignedTiltDir', mode + 'BinFactorReconstruction',
                      mode+'SizeSubtomos', mode+'BinFactorSubtomos', mode+'OffsetX', mode+'OffsetY', mode+'OffsetZ',
                      self.subtomodir, mode+'WeightingFactor', mode+'MetaFile', '20', extractParticles]
@@ -374,14 +374,15 @@ class SubtomoAnalysis(GuiTabWidget):
                 offx = self.tab12_widgets['widget_{}_{}'.format(row, 7)].text()
                 offy = self.tab12_widgets['widget_{}_{}'.format(row, 8)].text()
                 offz = self.tab12_widgets['widget_{}_{}'.format(row, 9)].text()
-                outname = 'reconstruct_subtomograms_{:03d}.sh'.format(int(tomoindex))
+                outname = 'Reconstruction/reconstruct_subtomograms_{:03d}.sh'.format(int(tomoindex))
                 execfilename = os.path.join(self.subtomodir, outname)
 
                 paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
                              self.subtomodir, weight, metafile, '20']
 
                 txt = extractParticles.format(d=paramsCmd)
-                jobtxt = guiFunctions.gen_queue_header(folder=self.subtomodir, name=outname[:-3], num_jobs_per_node=20, time=12) + txt
+                jobtxt = guiFunctions.gen_queue_header(folder=self.subtomodir, name=os.path.basename(outname[:-3]),
+                                                       num_jobs_per_node=20, time=12) + txt
                 out = open(execfilename, 'w')
                 out.write(jobtxt)
                 out.close()
@@ -656,13 +657,16 @@ class SubtomoAnalysis(GuiTabWidget):
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
 
+
+        # Insert Parameter Widgets
         self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
                                     'Select the particle list.', mode='file', filetype='xml')
-        self.insert_label_line_push(parent, 'Focussed Mask', mode + 'filenameMask1', mode='file', filetype=['em', 'mrc'],
+        self.insert_label_line_push(parent, 'Classification Mask', mode + 'filenameClassificationMask', mode='file',
+                                    filetype=['em', 'mrc'], enabled=True,
                                     tooltip='This mask is used for constraining the calculation of the focused mask. (Optional)', cstep=1, rstep=0)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_mask,
                                params=[mode + 'filenameMask1'])
-        self.insert_label_line_push(parent, 'Alignment Mask', mode + 'filenameMask', mode='file', filetype=['em', 'mrc'],
+        self.insert_label_line_push(parent, 'Alignment Mask', mode + 'filenameAlignmentMask', mode='file', filetype=['em', 'mrc'], enabled=True,
                                     tooltip='This mask is only used for the alignment purpose. Only specify it if the particle list is not aligned.', cstep=1, rstep=0)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_mask,
                                params=[mode + 'filenameMask'])
@@ -684,22 +688,60 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_spinbox(parent, mode + 'stdDiffMap', 'STD Threshold Diff Map', rstep=1, cstep=0,
                                   wtype=QDoubleSpinBox, stepsize=.1, minimum=0, maximum=1, value=0.4,
                                   tooltip='STD threshold for the difference map (optional, by default 0.4). This value should be between 0 and 1. 1 means only the place with the peak value will be set to 1 in the difference map (too much discriminative ability). 0 means all the places with the value above the average of STD will be set to 1 (not enough discriminative ability).')
-        self.widgets[mode + 'outFolder'] = QLineEdit() 
+
+        # Connected Widgets
+        self.widgets[mode + 'filenameAlignmentMask'].textChanged.connect(
+            lambda d, m=mode: self.updateAlignmentMaskFlag(m))
+        self.widgets[mode + 'filenameClassificationMask'].textChanged.connect(
+            lambda d, m=mode: self.updateClassificationMaskFlag(m))
         self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.updateOutFolder(mode))
+
+        # Widgets Updated When Other Widgets Are Updated
+        self.widgets[mode + 'outFolder'] = QLineEdit()
+        self.widgets[mode + 'flagAlignmentMask'] = QLineEdit('')
+        self.widgets[mode + 'flagClassificationMask'] = QLineEdit('')
+
+        # Parameters for execution
         self.acpath = acpath = os.path.join(self.parent().subtomo_folder, 'Classification/AutoFocus')
-        exefilename = os.path.join(acpath, 'AC_Classification.sh')
-
+        exefilename = [mode + 'outFolder', 'AC_Classification.sh'] #os.path.join(acpath, 'AC_Classification.sh')
         paramsSbatch = guiFunctions.createGenericDict(fname='AutoFocus', folder=acpath)
-
-        paramsCmd = [mode + 'outFolder' , self.pytompath, mode + 'particleList', mode + 'filenameMask1', mode + 'filenameMask',
+        paramsCmd = [mode + 'outFolder' , self.pytompath, mode + 'particleList', mode + 'flagAlignmentMask',
+                     mode + 'flagClassificationMask',
                      mode + 'numClasses', mode + 'bwMax', mode + 'maxIterations', mode + 'peakOffset',
                      mode + 'noisePercentage', mode + 'partDensThresh', mode + 'stdDiffMap', templateAC]
 
+
+        # Generation of textboxes and pushbuttons related to submission
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
                                  paramsSbatch=paramsSbatch)
 
+        # Run Update With Data From Logfile
+        self.updateAlignmentMaskFlag(mode)
+        self.updateClassificationMaskFlag(mode)
+        self.updateOutFolder(mode)
+
         setattr(self, mode + 'gb_AC', groupbox)
         return groupbox
+
+    def updateClassificationMaskFlag(self, mode):
+        try:
+            mask = self.widgets[mode+'filenameClassificationMask'].text()
+            if mask:
+                self.widgets[mode + 'flagClassificationMask'].setText('\\\n-c {}'.format(mask) )
+            else:
+                self.widgets[mode + 'flagClassificationMask'].setText('')
+        except:
+            pass
+
+    def updateAlignmentMaskFlag(self, mode):
+        try:
+            mask = self.widgets[mode+'filenameAlignmentMask'].text()
+            if mask:
+                self.widgets[mode + 'flagAlignmentMask'].setText('-m {}'.format(mask) )
+            else:
+                self.widgets[mode + 'flagAlignmentMask'].setText('-a')
+        except:
+            pass
 
     def updateOutFolder(self,mode):
         pl = self.widgets[mode + 'particleList'].text()

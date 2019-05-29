@@ -1174,7 +1174,10 @@ class TomographReconstruct(GuiTabWidget):
                 metafile = glob.glob(os.path.join(values[row][0], 'sorted/*.meta'))
                 tomofolder = os.path.dirname(os.path.dirname(defocusFile))
 
-                cPrefix = os.path.join(self.tomogram_folder, folder.replace('alignment/','ctf/'), 'sorted_aligned_ctf_')
+                ctffolder = os.path.join( os.path.dirname(folder), 'ctf_'+os.path.basename(folder) )
+                
+
+                cPrefix = os.path.join(self.tomogram_folder, ctffolder.replace('alignment/','ctf/'), 'sorted_aligned_ctf_')
                 uPrefix = os.path.join(self.tomogram_folder, folder, 'sorted_aligned_')
 
                 if not os.path.exists(os.path.dirname(cPrefix)):

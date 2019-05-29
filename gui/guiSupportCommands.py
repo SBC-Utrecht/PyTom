@@ -149,8 +149,7 @@ templateAC        = '''cd {d[0]}
 
 mpirun -c 20 {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
 -p {d[2]} \\
--m {d[3]} \\
--c {d[4]} \\
+{d[3]} {d[4]} \\
 -k {d[5]} \\
 -f {d[6]} \\
 -i {d[7]} \\

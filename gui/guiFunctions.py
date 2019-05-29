@@ -500,6 +500,7 @@ def create_project_filestructure(projectdir='.'):
         },
         "05_Subtomogram_Analysis": {
             "Subtomograms": "",
+            "Reconstruction": "",
             "Alignment": {
                 "FRM": "",
                 "GLocal": ""

@@ -597,14 +597,14 @@ class CommonFunctions():
 
     def insert_label_line_push(self, parent, textlabel, wname, tooltip='', text='', cstep=-2, rstep=1, validator=None,
                                mode='folder', remote=False, pushtext='Browse', width=150, filetype='',action='',
-                               initdir=''):
+                               initdir='', enabled=False):
 
         if action == '':
             action = self.browse
 
 
         self.insert_label(parent, text=textlabel, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
-        self.insert_lineedit(parent, wname, cstep=1, logvar=True, text='',validator=validator,width=width,enabled=False)
+        self.insert_lineedit(parent, wname, cstep=1, logvar=True, text='',validator=validator,width=width,enabled=enabled)
 
         if initdir:
             params = [mode, self.widgets[wname], filetype, remote, initdir]
@@ -668,7 +668,7 @@ class CommonFunctions():
                 else:
                     tempfilename = params[2]
                 jobfile = open(tempfilename,'w')
-                print(tempfilename)
+
                 jobfile.write(self.widgets[params[3]].toPlainText())
                 jobfile.close()
 
@@ -678,7 +678,7 @@ class CommonFunctions():
             else:
                 exefilename = params[0]
             exefile = open(exefilename, 'w')
-            print(exefilename)
+
             exefile.write(self.widgets[params[1]].toPlainText())
             exefile.close()
 
