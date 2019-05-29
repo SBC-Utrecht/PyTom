@@ -342,7 +342,7 @@ class SubtomoAnalysis(GuiTabWidget):
                     refmarkindex = 1
                 #binning = os.popen('cat {} | grep "--referenceMarkerIndex" '.format(a)).read()[:-1]
                 #print(binning)
-                values.append( [os.path.basename(particleFile), True, choices, binning, 0, 128, 1, 0, 0, 0] )
+                values.append( [os.path.basename(particleFile), True, choices, binning, 1, 128, 1, 0, 0, 0] )
                 refmarkindices.append(refmarkindex)
 
         if values:
