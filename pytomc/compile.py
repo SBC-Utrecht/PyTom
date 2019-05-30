@@ -5,8 +5,8 @@ import platform
 from installFunctions import *
 
 if checkSwigVersion():
-    print('Your Swig Version is less than 1.3.40.')
-    print('Please install 1.3.40 or newer.')
+    print('Your Swig Version is less than 3.0.12.')
+    print('Please install 3.0.12 or newer.')
     print('Compilation of PyTom will fail otherwise!')
     sys.exit(1)
 

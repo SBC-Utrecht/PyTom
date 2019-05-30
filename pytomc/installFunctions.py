@@ -299,7 +299,7 @@ def _readStringFile(filename):
 
 def checkSwigVersion():
     """
-    checkSwigVersion: Returns true if swig version is below 1.3.40
+    checkSwigVersion: Returns true if swig version is below 3.0.12
     """
     from os import system
     
@@ -310,5 +310,5 @@ def checkSwigVersion():
     txts = txt.split(' ')
     versionString = txts[-1].split('\n')[0]
     
-    return versionString < '1.3.40'
+    return versionString < '3.0.12'
     
