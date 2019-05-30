@@ -2787,6 +2787,7 @@ class GeneralSettings(QMainWindow, CommonFunctions):
 
         self.show()
 
+
 class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
     def __init__(self,parent):
         super(PlotWindow, self).__init__(parent)

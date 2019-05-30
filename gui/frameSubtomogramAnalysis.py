@@ -599,10 +599,10 @@ class SubtomoAnalysis(GuiTabWidget):
                                     'Select the particle list.', mode='file', filetype='xml')
         self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
                                     tooltip='Select/Create an output folder.')
-        self.insert_label_line(parent, 'Output Filename', mode + 'outputFilename',
+        self.insert_label_line(parent, 'Filename Output particleList', mode + 'outputFilename',
                                tooltip='Filename for generated XML file that includes the assigned classes for each particle. No full path needed.')
         self.insert_label_line_push(parent, 'CCC File', mode + 'cccFile',
-                                    'Select the particle list.', mode='file', filetype='csv')
+                                    'Select the constrained correlation matrix file from the previous step.', mode='file', filetype='csv')
         self.insert_label_spinbox(parent, mode + 'numEig', text='Number of Eigenvectors',
                                   value=4, minimum=1, stepsize=1,
                                   tooltip='Sets the number of eigenvectors (corresponding to largest eigenvectors) used for clustering.')
@@ -684,11 +684,11 @@ class SubtomoAnalysis(GuiTabWidget):
                                     filetype=['em', 'mrc'], enabled=True,
                                     tooltip='This mask is used for constraining the calculation of the focused mask. (Optional)', cstep=1, rstep=0)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_mask,
-                               params=[mode + 'filenameMask1'])
+                               params=[mode + 'filenameClassificationMask'])
         self.insert_label_line_push(parent, 'Alignment Mask', mode + 'filenameAlignmentMask', mode='file', filetype=['em', 'mrc'], enabled=True,
                                     tooltip='This mask is only used for the alignment purpose. Only specify it if the particle list is not aligned.', cstep=1, rstep=0)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_mask,
-                               params=[mode + 'filenameMask'])
+                               params=[mode + 'filenameAlignmentMask'])
         self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
                                     tooltip='Select/Create an output folder.')
         self.insert_label_spinbox(parent, mode + 'numClasses', 'Number of Classes', stepsize=1, value=4, minimum=2,

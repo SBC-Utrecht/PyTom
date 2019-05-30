@@ -551,7 +551,7 @@ class Reference(PyTomClass):
             from pytom.basic.transformations import resize  # , scale as scaleVolume
             from pytom.basic.files import readSubvolumeFromFourierspaceFile
             
-            reference = resize(volume=referenceBig, factor=1./float(binning), interpolation='Fourier')
+            reference = resize(volume=referenceBig, factor=1./float(binning), interpolation='Fourier')[0]
             #reference = scaleVolume(referenceBig,1/float(binning))
             
             newWedgeSum = readSubvolumeFromFourierspaceFile(newWedgeSum,reference.sizeX(),reference.sizeY(),reference.sizeZ())
@@ -1645,7 +1645,7 @@ class Particle(PyTomClass):
             #volume = read(self._filename, 0,0,0,0,0,0,0,0,0, binning, binning, binning)
             volume = read(self._filename, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1)
             if binning != 1:
-                volume = resize(volume=volume, factor=1./binning, interpolation='Fourier')
+                volume, volumef = resize(volume=volume, factor=1./binning, interpolation='Fourier')
         except RuntimeError:
             raise RuntimeError('Error reading file ' + self._filename)
     

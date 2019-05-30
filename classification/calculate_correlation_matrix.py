@@ -99,7 +99,8 @@ class CMWorker():
             # run the job
             result = {}
             last_filename = None
-            binning = job["Binning"]
+            binning = int(job["Binning"])
+
             mask = read(job["Mask"], 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
             
             
