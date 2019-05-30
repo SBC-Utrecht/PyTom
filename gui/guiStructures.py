@@ -693,7 +693,6 @@ class CommonFunctions():
 
     def gen_action(self, params):
         mode = params[1][0][:-len('CommandText')]
-        print(params)
         for i in range(2):
             if params[i][0] in self.widgets.keys():
                 text = params[i][-1]
@@ -1234,7 +1233,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
 
         self.addTabs(headers=headers, offx=offx, offy=offy, dimx=dimx, dimy=dimy,soff=50)
 
-    def addTabs(self, headers, widget=QWidget, subheaders=[], offx=0,offy=0,dimx=900,dimy=721,soff=0):
+    def addTabs(self, headers, widget=QWidget, subheaders=[], offx=0,offy=0,dimx=900,dimy=721,soff=0, sizeX=900,sizeY=700):
         self.size_policies()
         self.scrollarea = QScrollArea(self)
         if soff: self.scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
@@ -1244,7 +1243,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
         self.scrollarea.setContentsMargins(0,0,0,0)
         #self.scrollarea.setGeometry(offx, offy, dimx, dimy)
 
-        self.scrollarea.setGeometry(0,0,900,700)
+        self.scrollarea.setGeometry(0,0,sizeX,sizeY)
 
         self.tabWidget = QtWidgets.QTabWidget(self.scrollarea)
         self.tabWidget.setContentsMargins(0,0,0,0)
@@ -2787,6 +2786,117 @@ class GeneralSettings(QMainWindow, CommonFunctions):
         self.setCentralWidget(self.cwidget)
 
         self.show()
+
+class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
+    def __init__(self,parent):
+        super(PlotWindow, self).__init__(parent)
+        self.stage='generalSettings_'
+        self.pytompath = self.parent().pytompath
+        self.projectname = self.parent().projectname
+
+        self.setGeometry(0,0,500,300)
+
+        headers = ['Template Matching Results', 'FSC Curve']
+        subheaders  = [[],]*len(headers)
+
+        self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders,sizeX=500,sizeY=300)
+
+        self.table_layouts = {}
+        self.tables = {}
+        self.pbs = {}
+        self.ends = {}
+        self.checkbox = {}
+        self.num_nodes = {}
+        self.widgets={}
+        self.subprocesses = 10
+
+        self.tabs = {'tab1': self.tab1,
+                     'tab2':  self.tab2,
+                     }
+
+        self.tab_actions = {'tab1':  self.tab1UI,
+                            'tab2':  self.tab2UI,
+                            }
+
+        for i in range(len(headers)):
+            t = 'tab{}'.format(i+1)
+            empty = 1*(len(subheaders[i]) == 0)
+            for j in range(len(subheaders[i])+empty):
+                tt = t+str(j+1)*(1-empty)
+                if tt in ('tab1', 'tab2'):
+                    self.table_layouts[tt] = QGridLayout()
+                else:
+                    self.table_layouts[tt] = QVBoxLayout()
+
+                if tt in ('tab1','tab2'):
+                    self.tab_actions[tt]()
+
+
+                tab = self.tabs[tt]
+                tab.setLayout(self.table_layouts[tt])
+
+    def tab1UI(self):
+
+        id = 'tab1'
+        self.row, self.column = 0, 0
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        parent = self.table_layouts[id]
+        mode = 'v00_PlotTM'
+        w = 150
+        last, reftilt = 10, 5
+        self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w)
+        self.insert_label_line_push(parent, 'particleList ', mode + 'particleListNormal', width=w,mode='file',
+                                    filetype='xml',enabled=True,
+                                    tooltip='Select a particleList which you want to plot.\n')
+        self.insert_label_line_push(parent, 'particleList Mirrored', mode + 'particleListMirrored', width=w,
+                                    mode='file',filetype='xml', enabled=True,
+                                    tooltip='Select a particleList which you want to plot.\n', cstep=-1)
+        self.insert_pushbutton(parent,'Plot',action=self.showTMPlot, params=mode,rstep=1,cstep=0)
+        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
+
+
+    def showTMPlot(self, mode):
+        from pytom.plotting.plottingFunctions import plotTMResults
+
+        normal = self.widgets[mode+'particleListNormal'].text()
+        mirrored = self.widgets[mode+'particleListMirrored'].text()
+
+        plotTMResults([normal, mirrored], labels=['Normal', 'Mirrored'])
+
+    def tab2UI(self):
+        id = 'tab2'
+        self.row, self.column = 0, 0
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        parent = self.table_layouts[id]
+        mode = 'v00_PlotFSC'
+        w=150
+        last, reftilt = 10, 5
+        self.insert_label(parent, rstep=1, cstep=0, sizepolicy=self.sizePolicyB, width=w)
+        self.insert_label_line_push(parent, 'FSC File (ascii)', mode + 'FSCFilename',mode='file',width=w, initdir=self.projectname,
+                                    filetype='dat', tooltip='Select a particleList which you want to plot.\n')
+        self.insert_label_spinbox(parent, mode+'BoxSize', text='Dimension of Image', tooltip='Box size of 3D object',
+                                  value=64,minimum=1,stepsize=1, width=w)
+        self.insert_label_spinbox(parent, mode +'PixelSize', text='Pixel Size', tooltip='Pixel size of a voxel in teh object.',
+                                  value=2.62, minimum=1, stepsize=1, wtype=QDoubleSpinBox, decimals=2, width=w)
+        self.insert_label_spinbox(parent, mode +'CutOff', text='Resolution Cutoff', value=0, minimum=0, stepsize=0.1,
+                                  wtype=QDoubleSpinBox, decimals=3, width=w,cstep=0,
+                                  tooltip='Cut-off used to determine the resolution of your object from the FSC curve. \nTypical values are 0.5 or 0.143')
+
+        self.insert_pushbutton(parent,'Plot!',action=self.showFSCPlot, params=mode, rstep=1,cstep=0)
+        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
+
+    def showFSCPlot(self, mode):
+        from pytom.bin.plotFSC import plot_FSC
+        filename = self.widgets[mode+'FSCFilename'].text()
+        pixel_size = self.widgets[mode+'PixelSize'].value()
+        box_size = self.widgets[mode+'BoxSize'].value()
+        cut_off = self.widgets[mode+'CutOff'].value()
+        show_image=True
+        outFname = 'temp.png'
+        if filename and outFname:
+            plot_FSC(filename, pixel_size, boxsize=box_size, show_image=show_image, c=cut_off )
 
 
 class PlotterSubPlots(QMainWindow,CommonFunctions):

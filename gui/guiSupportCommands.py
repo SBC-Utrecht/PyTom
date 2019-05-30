@@ -109,11 +109,9 @@ templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[
 '''
 
 templateFRMSlurm  = '''
-module unload python/2.7 pytom/dev/gui pytom/0.971
-
 cd {d[0]}
 
-mpiexec --tag-output -n 16 pytom {d[1]}/frm/FRMAlignment.py -j {d[2]} -v
+mpiexec --tag-output -n 20 pytom {d[1]}/frm/FRMAlignment.py -j {d[2]} -v
 
 '''
 
@@ -128,8 +126,8 @@ mpirun -n 20 {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
 --binning {d[9]} \\
 --destination {d[11]} \\
 --SphericalMask \\
---angleShells 3 \\
---angleIncrement 3 \\
+--angleShells {d[12]} \\
+--angleIncrement {d[13]} \\
 --jobName {d[10]} \\
 {d[4]}'''
 
@@ -137,12 +135,12 @@ templateCCC       = """module unload pytom/dev/gui_devel python3/3.7
 
 cd {d[0]}
 
-mpiexec --tag-output -n 16 {d[1]}/bin/pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]}
+mpiexec --tag-output -n 20 pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]}
 """
 
 templateCPCA      = """cd {d[0]}
 
-{d[1]}/bin/pytom {d[1]}/bin/classifyCPCA.py -p {d[2]} -o {d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[7]}
+classifyCPCA.py -p {d[2]} -o {d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[7]}
 """
 
 templateAC        = '''cd {d[0]}
