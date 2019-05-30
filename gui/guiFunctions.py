@@ -253,7 +253,7 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='',
     return queue_command
 
 def createGenericDict(fname='template',cmd='', folder='', partition='defq', num_jobs_per_node=20, time=12,
-                      modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/python3']):
+                      modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel']):
     genericSbatchDict = {'fname':fname,'cmd':cmd,'folder':folder, 'modules':modules, 'time':time, 'partition':partition,
                          'num_jobs_per_node': num_jobs_per_node}
     return genericSbatchDict

@@ -146,7 +146,7 @@ class menudemo(QMainWindow, CommonFunctions):
         save = QAction(QIcon("{}/gui/Icons/save_project4.png".format(self.pytompath)), "Save", self)
         tb.addAction(save)
 
-        plot = QAction(QIcon("{}/gui/Icons/plotIcon.png".format(self.pytompath)), "Plot", self)
+        plot = QAction(QIcon("{}/gui/Icons/PlotIcon.png".format(self.pytompath)), "Plot", self)
         tb.addAction(plot)
 
         settings = QAction(QIcon("{}/gui/Icons/cogwheel.png".format(self.pytompath)), "Settings", self)

@@ -146,10 +146,8 @@ class CMWorker():
     def get_job(self):
         from pytom.localization.parallel_extract_peaks import getMsgStr
         mpi_msgString = getMsgStr()
-        print(mpi_msgString)
         try:
             job = pickle.loads(mpi_msgString.encode('utf-8'))
-            print(job)
         except:
             return None
         

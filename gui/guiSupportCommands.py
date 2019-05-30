@@ -131,9 +131,7 @@ mpirun -n 20 {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
 --jobName {d[10]} \\
 {d[4]}'''
 
-templateCCC       = """module unload pytom/dev/gui_devel python3/3.7
-
-cd {d[0]}
+templateCCC       = """cd {d[0]}
 
 mpiexec --tag-output -n 20 pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]}
 """

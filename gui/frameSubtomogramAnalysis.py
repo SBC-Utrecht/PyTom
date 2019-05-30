@@ -37,6 +37,9 @@ class SubtomoAnalysis(GuiTabWidget):
         self.pickpartdir    = self.parent().particlepick_folder+'/Picked_Particles'
         self.tomogramfolder = os.path.join(self.parent().particlepick_folder, 'Tomograms')
         self.tomogram_folder = self.parent().tomogram_folder
+        self.acpath = os.path.join(self.parent().subtomo_folder, 'Classification/AutoFocus')
+
+
 
         headers = ["Reconstruct Subtomograms","Align Subtomograms","Classify Subtomograms"]
         subheaders = [['Single Reconstruction','Batch Reconstruction'],['FRM Alignment','GLocal'],['CPCA','Auto Focus']]
@@ -581,7 +584,10 @@ class SubtomoAnalysis(GuiTabWidget):
 
     def CPCA(self,mode=''):
         title = "Classify CPCA"
-        tooltip = 'The CCC is further used for classification. This script computes the eigenvectors of the CCC and projects the data on the first neig eigenvectors. Subsequently, these multidimensional vectors are clustered into nclass groups using a kmeans algorithm.'
+        tooltip = 'The CCC is further used for classification. This script computes \n'+\
+                  'the eigenvectors of the CCC and projects the data on the first \n'+\
+                  'neig eigenvectors. Subsequently, these multidimensional vectors \n'+\
+                  'are clustered into nclass groups using a kmeans algorithm.'
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
 
@@ -589,26 +595,30 @@ class SubtomoAnalysis(GuiTabWidget):
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
 
-        self.insert_label_line_push(parent, 'Particle List', mode + 'particlelist',
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
                                     'Select the particle list.', mode='file', filetype='xml')
+        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
+                                    tooltip='Select/Create an output folder.')
         self.insert_label_line(parent, 'Output Filename', mode + 'outputFilename',
                                tooltip='Filename for generated XML file that includes the assigned classes for each particle. No full path needed.')
         self.insert_label_line_push(parent, 'CCC File', mode + 'cccFile',
-                                    'Select the particle list.', mode='file', filetype='xml')
+                                    'Select the particle list.', mode='file', filetype='csv')
         self.insert_label_spinbox(parent, mode + 'numEig', text='Number of Eigenvectors',
                                   value=4, minimum=1, stepsize=1,
                                   tooltip='Sets the number of eigenvectors (corresponding to largest eigenvectors) used for clustering.')
         self.insert_label_spinbox(parent, mode + 'numClasses', 'Number of Classes',
                                   value=4, minimum=1,stepsize=1,
                                   tooltip='Number of classes used for kmeans classification.')
-
         self.insert_label_line(parent, 'Prefix', mode + 'prefix', rstep=1, cstep=0,
                                tooltip='Root for generated averages of the corresponding classes. The files will be called "Prefix"_iclass.em.')
 
+        self.widgets[mode + 'particleList'].textChanged.connect(
+            lambda d, m=mode, p=self.cpcadir: self.updateOutFolder(mode, p))
+        self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
 
-        exefilename = os.path.join(self.cpcadir, 'CPCA_Classification.sh')
+        exefilename = [mode + 'outFolder', 'CPCA_Classification.sh']
         paramsSbatch = guiFunctions.createGenericDict(fname='CPCA', folder=self.cpcadir)
-        paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'outputFilename',
+        paramsCmd = [mode+'outFolder', self.pytompath, mode + 'particleList', mode + 'outputFilename',
                      mode + 'cccFile', mode + 'numEig', mode+'numClasses', mode+'prefix',  templateCPCA]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
@@ -642,11 +652,11 @@ class SubtomoAnalysis(GuiTabWidget):
                                   minimum=1, stepsize=1, value=1,
                                   tooltip='Perform binning (downscale) of subvolumes by factor. Default=1.')
 
-        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.updateOutFolder(mode))
+        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.cpcadir: self.updateOutFolder(mode,p))
+        self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
 
-        self.cpcadir = os.path.join(self.parent().subtomo_folder, 'Classification/CPCA')
         exefilename = [mode + 'outFolder', 'CCC_Classification.sh']
-        paramsSbatch = guiFunctions.createGenericDict(fname='CCC_Class', folder=self.cpcadir,modules=['openmpi/2.1.1','python/2.7', 'lib64/append', 'pytom/0.971'])
+        paramsSbatch = guiFunctions.createGenericDict(fname='CCC_Class', folder=self.cpcadir)
         paramsCmd = [mode+ 'outFolder', self.pytompath, mode + 'particleList', mode + 'filenameMask',
                      mode + 'lowpass', mode + 'binning', templateCCC]
 
@@ -705,16 +715,16 @@ class SubtomoAnalysis(GuiTabWidget):
             lambda d, m=mode: self.updateAlignmentMaskFlag(m))
         self.widgets[mode + 'filenameClassificationMask'].textChanged.connect(
             lambda d, m=mode: self.updateClassificationMaskFlag(m))
-        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.updateOutFolder(mode))
+        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.acpath: self.updateOutFolder(mode, p))
+        self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
 
         # Widgets Updated When Other Widgets Are Updated
         self.widgets[mode + 'flagAlignmentMask'] = QLineEdit('')
         self.widgets[mode + 'flagClassificationMask'] = QLineEdit('')
 
         # Parameters for execution
-        self.acpath = acpath = os.path.join(self.parent().subtomo_folder, 'Classification/AutoFocus')
         exefilename = [mode + 'outFolder', 'AC_Classification.sh'] #os.path.join(acpath, 'AC_Classification.sh')
-        paramsSbatch = guiFunctions.createGenericDict(fname='AutoFocus', folder=acpath)
+        paramsSbatch = guiFunctions.createGenericDict(fname='AutoFocus', folder=self.acpath)
         paramsCmd = [mode + 'outFolder' , self.pytompath, mode + 'particleList', mode + 'flagAlignmentMask',
                      mode + 'flagClassificationMask',
                      mode + 'numClasses', mode + 'bwMax', mode + 'maxIterations', mode + 'peakOffset',
@@ -728,7 +738,7 @@ class SubtomoAnalysis(GuiTabWidget):
         # Run Update With Data From Logfile
         self.updateAlignmentMaskFlag(mode)
         self.updateClassificationMaskFlag(mode)
-        self.updateOutFolder(mode)
+        self.updateOutFolder(mode, self.acpath)
 
         setattr(self, mode + 'gb_AC', groupbox)
         return groupbox
@@ -753,12 +763,12 @@ class SubtomoAnalysis(GuiTabWidget):
         except:
             pass
 
-    def updateOutFolder(self,mode):
-        pl = self.widgets[mode + 'particleList'].text()
+    def updateOutFolder(self,mode, path, name='particleList'):
+        pl = self.widgets[mode + name].text()
         if not pl: return
 
         folder = os.path.basename(pl).replace('particleList_','')[:-4]
-        folder = os.path.join(self.acpath,folder)
+        folder = os.path.join(path,folder)
         if os.path.exists(folder):
             folder = folder
             if not folder: return
@@ -767,3 +777,9 @@ class SubtomoAnalysis(GuiTabWidget):
             os.mkdir(folder)
             os.system('ln -s {}/Subtomograms {}/Subtomograms'.format(self.subtomodir, folder ) )
         self.widgets[mode + 'outFolder'].setText(folder) 
+
+    def createOutFolder(self, mode):
+        folder = self.widgets[mode + 'outFolder'].text()
+        if not folder: return
+        if not os.path.exists(os.path.join(folder, 'Subtomograms')):
+            os.system('ln -s {}/Subtomograms {}/Subtomograms'.format(self.subtomodir, folder ) )

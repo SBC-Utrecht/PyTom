@@ -1175,7 +1175,7 @@ class TomographReconstruct(GuiTabWidget):
                 tomofolder = os.path.dirname(os.path.dirname(defocusFile))
 
                 ctffolder = os.path.join( os.path.dirname(folder), 'ctf_'+os.path.basename(folder) )
-                
+
 
                 cPrefix = os.path.join(self.tomogram_folder, ctffolder.replace('alignment/','ctf/'), 'sorted_aligned_ctf_')
                 uPrefix = os.path.join(self.tomogram_folder, folder, 'sorted_aligned_')
@@ -1197,7 +1197,7 @@ class TomographReconstruct(GuiTabWidget):
                     jobscript = templateCTFCorrection.format(d=jobParams)
                     
                     
-                    fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
+                    fname = 'CTF_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                     outDirectory = os.path.dirname(cPrefix) 
                     
                     job = guiFunctions.gen_queue_header(folder=outDirectory, name=fname, singleton=True) + jobscript

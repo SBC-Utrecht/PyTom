@@ -61,6 +61,7 @@ def nxcc(volume,template,mask=None, volumeIsNormalized=False):
         p = volume.numelem()
         result = v*t
     else:
+        from pytom_numpy import vol2npy
         from pytom.basic.normalise import normaliseUnderMask
         if not volumeIsNormalized:
             (v,p) = normaliseUnderMask(volume,mask)

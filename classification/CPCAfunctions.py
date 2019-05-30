@@ -111,7 +111,7 @@ def averageClasses(particleListFilename, avName):
 
     for cl in pls:
         className = cl[0].getClassName()
-	cl.average(avName + "_" + str(className) + '.em')
-	print(className, ' contains ' , len(cl) , ' particles') 
+        cl.average(avName + "_" + str(className) + '.em')
+        print(className, ' contains ' , len(cl) , ' particles')
 
 
