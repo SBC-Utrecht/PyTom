@@ -296,9 +296,10 @@ class SubtomoAnalysis(GuiTabWidget):
         tooltip = ['Names of the particleList files', 
                    'Check this box to run subtomogram reconstruction.',
                    'Aligned Images',
-                   'Binning factor used for the reconstruction (read from the .',
-                   'Angle between -90 and the lowest tilt angle.',
-                   'Filename of generate particle list file (xml)','','','','']
+                   'Binning factor used for the reconstruction.',
+                   'Weighting Type.\n0: No Weighting,\n1: Analytical Weighting.\n-1: Ramp Weighting',
+                   'Size Subtomograms','Binning factor for subtomograms (--projBinning)','Offset in X-dimension',
+                   'Offset in Y-dimension','Offset in Z-dimension']
 
         values = []
         refmarkindices = []
@@ -342,7 +343,7 @@ class SubtomoAnalysis(GuiTabWidget):
                     refmarkindex = 1
                 #binning = os.popen('cat {} | grep "--referenceMarkerIndex" '.format(a)).read()[:-1]
                 #print(binning)
-                values.append( [os.path.basename(particleFile), True, choices, binning, 1, 128, 1, 0, 0, 0] )
+                values.append( [os.path.basename(particleFile), True, choices, binning, -1, 128, 1, 0, 0, 0] )
                 refmarkindices.append(refmarkindex)
 
         if values:
@@ -416,12 +417,12 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_line_push(parent, 'Output Directory', mode + 'outputDir',
                                     'Folder in which the output will be written.')
         self.insert_label(parent,rstep=1,cstep=0)
-        self.insert_label_spinbox(parent, mode + 'bwMin', 'Min Order Zernike Polynomial',
+        self.insert_label_spinbox(parent, mode + 'bwMin', 'Min Order SH Polynomial',
                                   value=8,minimum=0,stepsize=1,
-                                  tooltip='The minimal order of the Zernike polynomial used for spherical harmonics alignment.')
-        self.insert_label_spinbox(parent, mode + 'bwMax', 'Max Order Zernike Polynomial',
+                                  tooltip='The minimal order of the polynomial used for spherical harmonics alignment.')
+        self.insert_label_spinbox(parent, mode + 'bwMax', 'Max Order SH Polynomial',
                                   value=64, minimum=0, stepsize=1,
-                                  tooltip='The maximal order of the Zernike polynomial used for spherical harmonics alignment.')
+                                  tooltip='The maximal order of the polynomial used for spherical harmonics alignment.')
         self.insert_label_spinbox(parent, mode + 'frequency', 'Frequency (px)',
                                   value=8, minimum=0, stepsize=1,
                                   tooltip='The minimal frequency used for reconstruction.')
@@ -524,7 +525,8 @@ class SubtomoAnalysis(GuiTabWidget):
 
         self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
                                     'Select the particle list.', mode='file', filetype='xml')
-        self.insert_label_line_push(parent, 'Initial reference model', mode + 'referenceModel', mode='file', filetype=['em','mrc'],
+        self.insert_label_line_push(parent, 'Initial reference model', mode + 'referenceModel', mode='file',
+                                    filetype=['em','mrc'], enabled=True,
                                     tooltip='Reference : the initial reference - if none provided average of particle list')
         self.widgets[mode + 'referenceModel'].textChanged.connect(lambda dummy,mode=mode: self.referenceUpdate(mode))
         self.widgets['referenceCommand'] = QLineEdit(self)
@@ -541,9 +543,16 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_spinbox(parent, mode + 'pixelSize', 'Pixel Size (A)',
                                   wtype=QDoubleSpinBox, minimum=0.1, value=1.75, stepsize=0.1,
                                   tooltip='Pixelsize in Angstrom ')
-        self.insert_label_spinbox(parent, mode+'particleDiameter', 'Particle Diameter (A)',
+        self.insert_label_spinbox(parent, mode + 'particleDiameter', 'Particle Diameter (A)',
                                   minimum=10, stepsize=1, value=300, maximum=10000,
                                   rstep=1, cstep=-1, tooltip='Particle diameter in Angstrom.')
+        self.insert_label_spinbox(parent, mode + 'angleShells', 'Number of angular shells',
+                                  tooltip='# Angle shells used for angular refinement.',
+                                  minimum=1, stepsize=1, value=3, maximum=100,
+                                  rstep=1, cstep=-1)
+        self.insert_label_spinbox(parent, mode + 'angleIncrement', 'Angular Increment (degrees)',
+                                  minimum=1, stepsize=1, value=3, maximum=359,
+                                  rstep=1, cstep=-1, tooltip='Angular increment for refinement.')
         self.insert_label_spinbox(parent, mode + 'binning', 'Binning Factor', rstep=1, cstep=0,
                                   stepsize=1,minimum=1,value=1,
                                   tooltip='Perform binning (downscale) of subvolumes by factor. Default=1.')
@@ -556,7 +565,8 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict(fname='GLocal', folder=glocalpath)
         paramsCmd = [self.subtomodir, self.pytompath, self.pytompath, mode+'particleList', 'referenceCommand',
                      mode+'filenameMask', mode+'numIterations', mode+'pixelSize', mode+'particleDiameter',
-                     mode+'binning', mode+'jobName', mode+'destination', templateGLocal]
+                     mode+'binning', mode+'jobName', mode+'destination', mode + 'angleShells',
+                     mode + 'angleIncrement', templateGLocal]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
                                  paramsSbatch=paramsSbatch)
@@ -623,22 +633,21 @@ class SubtomoAnalysis(GuiTabWidget):
                                     tooltip='Select the mask file.', cstep=1, rstep=0)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_mask,
                                params=[mode + 'filenameMask'])
-        self.insert_label_spinbox(parent, mode + 'lowpass', 'Lowpass (px)',
-                                  minimum=0, maximum=1024, stepsize=1, value=0,
-                                  tooltip='Frequency of lowpass filter. The lowpass filter is applied to all subtomograms after binning.')
-        self.insert_label_spinbox(parent, mode + 'maxIterations', 'Number Of Iterations',
-                                  value=10, minimum=1, stepsize=1,
-                                  tooltip='Sets the maximal number of iterations of alignmment.')
-
+        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
+                                    tooltip='Select/Create an output folder.')
+        self.insert_label_spinbox(parent, mode + 'lowpass', 'Lowpass filter (px)',
+                                  minimum=0, maximum=1024, stepsize=1, value=20,
+                                  tooltip='The lowpass filter is applied to all subtomograms after binning.')
         self.insert_label_spinbox(parent, mode + 'binning', 'Binning Factor', rstep=1, cstep=0,
                                   minimum=1, stepsize=1, value=1,
                                   tooltip='Perform binning (downscale) of subvolumes by factor. Default=1.')
 
+        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.updateOutFolder(mode))
 
         self.cpcadir = os.path.join(self.parent().subtomo_folder, 'Classification/CPCA')
-        exefilename = os.path.join(self.cpcadir, 'CCC_Classification.sh')
+        exefilename = [mode + 'outFolder', 'CCC_Classification.sh']
         paramsSbatch = guiFunctions.createGenericDict(fname='CCC_Class', folder=self.cpcadir,modules=['openmpi/2.1.1','python/2.7', 'lib64/append', 'pytom/0.971'])
-        paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'filenameMask',
+        paramsCmd = [mode+ 'outFolder', self.pytompath, mode + 'particleList', mode + 'filenameMask',
                      mode + 'lowpass', mode + 'binning', templateCCC]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
@@ -670,6 +679,8 @@ class SubtomoAnalysis(GuiTabWidget):
                                     tooltip='This mask is only used for the alignment purpose. Only specify it if the particle list is not aligned.', cstep=1, rstep=0)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_mask,
                                params=[mode + 'filenameMask'])
+        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
+                                    tooltip='Select/Create an output folder.')
         self.insert_label_spinbox(parent, mode + 'numClasses', 'Number of Classes', stepsize=1, value=4, minimum=2,
                                   tooltip='Number of classes used for kmeans classification.')
         self.insert_label_spinbox(parent, mode + 'maxIterations', 'Number Of Iterations',stepsize=1,value=10, minimum=1,
@@ -697,7 +708,6 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.updateOutFolder(mode))
 
         # Widgets Updated When Other Widgets Are Updated
-        self.widgets[mode + 'outFolder'] = QLineEdit()
         self.widgets[mode + 'flagAlignmentMask'] = QLineEdit('')
         self.widgets[mode + 'flagClassificationMask'] = QLineEdit('')
 

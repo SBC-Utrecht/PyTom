@@ -100,8 +100,6 @@ class NewProject(QMainWindow, CommonFunctions):
             self.close()
 
 
-
-
 class menudemo(QMainWindow, CommonFunctions):
     resized=pyqtSignal()
     def __init__(self, parent=None):
@@ -147,6 +145,9 @@ class menudemo(QMainWindow, CommonFunctions):
 
         save = QAction(QIcon("{}/gui/Icons/save_project4.png".format(self.pytompath)), "Save", self)
         tb.addAction(save)
+
+        plot = QAction(QIcon("{}/gui/Icons/plotIcon.png".format(self.pytompath)), "Plot", self)
+        tb.addAction(plot)
 
         settings = QAction(QIcon("{}/gui/Icons/cogwheel.png".format(self.pytompath)), "Settings", self)
         tb.insertSeparator(settings)
@@ -222,19 +223,24 @@ class menudemo(QMainWindow, CommonFunctions):
 
     def processtrigger(self,q):
 
-        if q.text() == 'New': self.new_project()
+        if q.text() == 'New':        self.new_project()
         elif q.text() == 'Open':     self.open_project()
-        elif q.text() == 'Quit':             sys.exit()
-        elif q.text() == 'Settings':    self.open_settings()
+        elif q.text() == 'Quit':     sys.exit()
+        elif q.text() == 'Settings': self.open_settings()
         elif q.text() == 'Save':     self.save_logfile()
+        elif q.text() == 'Plot':     self.plot_results()
         else:
             for n, subname in enumerate(self.drs[1]):
                 if q.text() == subname and len(self.stage_buttons) > n+1:
                     self.stage_buttons[n+1].setEnabled(True)
                     self.logbook['00_framebutton_{}'.format(self.targets[n+1][0])] = True
 
-    def new_project(self):
 
+    def plot_results(self):
+        self.plotWindow = PlotWindow(self)
+        self.plotWindow.show()
+
+    def new_project(self):
         self.projectname = ''
         self.label = QLineEdit(self)
         self.label.textChanged.connect(lambda ignore: self.go_you())

@@ -15,12 +15,17 @@ def plot_FSC(FSCFile, pixelsize, boxsize=0, outname='',show_image=True, c=0.143)
 
     fig, ax = subplots(1,1,figsize=(5,3))
 
-    ax.plot( x, data,color='#1989ac',lw=2)
+    ax.plot( x, data,color='#1989ac',lw=2, label=os.path.basename(FSCFile))
+
     ax.set_xticks([0,x[dim//4],x[dim//2],x[3*dim//4],x[-1]])
     ax.set_xticklabels(['',1/x[dim//4]//1,1/x[dim//2]//1,1/x[3*dim//4]//1,1/x[-1]//1])
     ax.set_ylabel('Correlation Coefficient' )
     ax.set_xlabel(r'resolution ($\AA$)') 
-    if c: ax.hlines(c,0,x[-1],lw=1,colors='#54d777')
+    if c:
+        ax.hlines(c,0,x[-1],lw=1,colors='#54d777', label='Cut off')
+    ax.legend()
+    ax.set_yticks([ 0, 0.25, 0.5, 0.75, 1])
+    ax.set_yticklabels([0,0.25,0.5,0.75,1])
     fig.tight_layout()
     if outname: 
         savefig(outname)
@@ -38,7 +43,7 @@ if __name__ == '__main__':
                ScriptOption(['-p','--pixelSize'],'Pixel size of voxels in model.',True, False),
                ScriptOption(['-o','--outputName'],'Save figure under this name.',True, True),
                ScriptOption(['-s','--show'],'Show figure.',False, True),
-               ScriptOption(['-c','--FSCCutoff'],'Cutoff of FSC.', True, False),
+               ScriptOption(['-c','--FSCCutoff'],'Cut-off used to determine the resolution of your object from the FSC curve. Typical values are 0.5 or 0.143.', True, False),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
 

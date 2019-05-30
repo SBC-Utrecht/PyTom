@@ -125,7 +125,7 @@ if __name__ == '__main__':
             x = (pickPosition.getX()*coordinateBinning+ recOffset[0])#/projBinning
             y = (pickPosition.getY()*coordinateBinning+ recOffset[1])#/projBinning
             z = (pickPosition.getZ()*coordinateBinning+ recOffset[2])#/projBinning
-            print(x,y,z)
+
             particle.setPickPosition( PickPosition(x=x, y=y, z=z))
          
         projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \

@@ -769,8 +769,6 @@ class ProjectionList(PyTomClass):
             numberParticleVolumes = 0
 
 
-        print('start toProjectionStack')
-
         # stacks for images, projections angles etc.
         resultProjstack =  self.toProjectionStack(binning=binning, applyWeighting=applyWeighting,showProgressBar=False,
                                                   verbose=False, num_procs=num_procs)
@@ -867,7 +865,6 @@ class ProjectionList(PyTomClass):
 
             # adjust coordinates of subvolumes to binned reconstruction
             for i in range(len(self)):
-                print(float(p.getPickPosition().getX()), float(p.getPickPosition().getY()),float(p.getPickPosition().getZ()))
                 reconstructionPosition( float(p.getPickPosition().getX()/binning), 0, i, 0)
                 reconstructionPosition( float(p.getPickPosition().getY()/binning), 1, i, 0)
                 reconstructionPosition( float(p.getPickPosition().getZ()/binning), 2, i, 0)
@@ -897,8 +894,6 @@ class ProjectionList(PyTomClass):
             print('Caught exception in worker thread (x = %d):' % pid)
             print()
             raise e
-
-
 
     def saveParticleProjections(self, particles, projectionSize,binning=1, 
             applyWeighting = False,showProgressBar = False,verbose=False,outputScale=1):
@@ -1143,7 +1138,6 @@ class ProjectionList(PyTomClass):
                     print(projection)
 
                 if int(applyWeighting) >= 1:
-                    print(self.tilt_angles, projection._tiltAngle, imgDim)
 
                     weightSlice = fourierFilterShift( exactFilter(self.tilt_angles, projection._tiltAngle,
                                                                   imgDim, imgDim, imgDim))
@@ -1283,8 +1277,7 @@ class ProjectionList(PyTomClass):
                 magnification = alignXML.xpath(query)
                 projection.setAlignmentMagnification(float(magnification[0].text))
             
-    
-            
+
 class Reconstruction(PyTomClass):            
 
                 
@@ -1314,7 +1307,8 @@ class Reconstruction(PyTomClass):
         """
         
         raise RuntimeError('You must run this function on a child of Reconstruction')
-        
+
+
 class WeightedBackprojection(PyTomClass):
     """
     WeightedBackprojection: A class that can do everything related to WB
