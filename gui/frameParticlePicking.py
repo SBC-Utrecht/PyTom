@@ -621,7 +621,7 @@ class ParticlePick(GuiTabWidget):
         try: self.particleLists.text()
         except: self.particleLists = QLineEdit()
 
-        self.b = SelectFiles(self, initdir=self.projectname, search='file', filter=['.txt'],
+        self.b = SelectFiles(self, initdir=self.projectname, search='file', filter=['txt', 'xml'],
                              outputline=self.particleLists, run_upon_complete=self.populate_batch_create)
 
     def populate_batch_create(self):
@@ -685,9 +685,15 @@ class ParticlePick(GuiTabWidget):
         randomize = False
         AL = False
         conf = [[],[],[],[],[]]
+
+        fnamesPL = []
+
         for row in range(self.tables[pid].table.rowCount()):
             if 1:
                 c = values[row][0]
+                if c.endswith('.xml'):
+                    fnamesPL.append(c)
+                    continue
                 p = self.tab32_widgets['widget_{}_{}'.format(row, 1)].text()
                 w1 = float(self.tab32_widgets['widget_{}_{}'.format(row,2)].text() )
                 w2 = float(self.tab32_widgets['widget_{}_{}'.format(row,3)].text() )
@@ -734,5 +740,7 @@ class ParticlePick(GuiTabWidget):
 
         convertCoords2PL(conf[0], fname, subtomoPrefix=conf[2], wedgeAngles=conf[3], angleList=AL)
 
+        fnamesPL = fnamesPL + [fname]
 
+        if len(fnamesPL) > 1: os.system('combineParticleLists.py -f {} -o {}'.format(",".join(fnamesPL), fname))
 
