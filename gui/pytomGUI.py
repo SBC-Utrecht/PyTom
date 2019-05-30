@@ -422,9 +422,10 @@ def main():
 if __name__ == '__main__':
 
 
-    for module in ('lib64/append', 'python3/3.7', 'openmpi/2.1.1', 'pytom/dev/python3','imod/4.10.25'):
-        try:
-            os.system('module load {}'.format(module))
-        except:
-            print('Failed loading {}'.format(module))
+    for fname,module in [( 'motioncor2','motioncor2/1.2.1' ),('header','imod/4.10.25')]:
+        if 1:
+            result = os.popen('which {}'.format(fname)).read()[:-1]
+            if not result:
+                #print('not found')
+                raise Exception('Please load the {} module'.format(module))
     main()
