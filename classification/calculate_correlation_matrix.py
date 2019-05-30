@@ -100,7 +100,9 @@ class CMWorker():
             result = {}
             last_filename = None
             binning = job["Binning"]
-            mask = read(job["Mask"], 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+            mask = read(job["Mask"], 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
+            
+            
             for pair in pairs:
                 if verbose:
                     prog.update(i)
@@ -124,7 +126,7 @@ class CMWorker():
 
                     last_filename = g.getFilename()
 
-                score = nxcc(wg.apply(vf, wg_rotation), wf.apply(vg, wf_rotation), mask)
+                score = nxcc( wg.apply(vf, wg_rotation), wf.apply(vg, wf_rotation), mask)
                 # overlapped_wedge_vol = wf_vol * wg_vol
                 # scaling = float(overlapped_wedge_vol.numelem())/sum(overlapped_wedge_vol)
                 # score *= scaling
@@ -138,26 +140,29 @@ class CMWorker():
 
     
     def send_job(self, job, dest):
-        pickled = pickle.dumps(job, protocol=0, fix_imports=True).decode('utf-8').replace('V',"S")
+        pickled = pickle.dumps(job, protocol=0, fix_imports=True).decode('utf-8')
         pytom_mpi.send(pickled, dest)
     
     def get_job(self):
         from pytom.localization.parallel_extract_peaks import getMsgStr
         mpi_msgString = getMsgStr()
+        print(mpi_msgString)
         try:
-            job = pickle.loads(mpi_msgString)
+            job = pickle.loads(mpi_msgString.encode('utf-8'))
+            print(job)
         except:
             return None
         
         return job
     
     def send_result(self, result):
-        pytom_mpi.send(pickle.dumps(result), 0)
+        pickled = pickle.dumps(result, protocol=0, fix_imports=True).decode('utf-8')
+        pytom_mpi.send(pickled, 0)
     
     def get_result(self):
         from pytom.localization.parallel_extract_peaks import getMsgStr
         mpi_msgString = getMsgStr()
-        result = pickle.loads(mpi_msgString)
+        result = pickle.loads(mpi_msgString.encode('utf-8'))
         
         return result
     
