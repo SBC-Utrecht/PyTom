@@ -52,9 +52,9 @@ class TiltSeries(PyTomClass):
         prefix = os.path.basename(tiltSeriesName)
         files = [line for line in os.listdir(folder) if line.endswith(tiltSeriesFormat) and line.startswith(prefix)]
         self._projIndices = [line.split('_')[-1].split('.')[0] for line in files ]
- 
         self._projIndices.sort(key=int)
- 
+        self._lenPI = len(self._projIndices)
+
         self._projIndices = numpy.array(self._projIndices)
         self._tiltSeriesFormat = tiltSeriesFormat
         self._TiltAlignmentParas = TiltAlignmentParas
@@ -65,11 +65,16 @@ class TiltSeries(PyTomClass):
         self.mf = vol2npy(read(markerFileName))
         #print self.mf[0,:,0]
         # set Projection List
+        self._firstIndex, self._lastIndex = -1, len(self._projIndices)
         projs = []
+
         if tiltSeriesName:
             if tiltSeriesFormat != 'st':
                 for cnt, ii in enumerate(self._projIndices):
 
+                    if int(ii) < self._firstProj or int(ii) > self._lastProj: continue
+                    if self._firstIndex < 0: self._firstIndex = cnt
+                    self._lastIndex = cnt+1
                     fname = tiltSeriesName + "_" + str( ii ) + "." + tiltSeriesFormat
 
                     if alignedTiltSeriesName:
@@ -100,6 +105,10 @@ class TiltSeries(PyTomClass):
                     fname = tiltSeriesName
 
                 for cnt, ii in enumerate(self._projIndices):
+                    if int(ii) < self._firstProj or int(ii) > self._lastProj: continue
+                    if self._firstIndex < 0: self.firstIndex = cnt
+                    self._lastIndex = cnt+1
+
                     if alignedTiltSeriesName:
                         proj = Projection(filename=fname,
                                           alignedFilename=alignedTiltSeriesName + "_" + str(ii) + tiltSeriesFormat,
@@ -123,7 +132,9 @@ class TiltSeries(PyTomClass):
             self._imdim = projs[0].getDimensions()[0]
         # read markerFile if set
         self._markerFileName = markerFileName
+        self._projIndices = self._projIndices[self._firstIndex:self._lastIndex]
         self._Markers = []
+        print(self._firstIndex, self._lastIndex)
         if markerFileName:
             if self.verbose:
                 print(("reading marker file: " + str(markerFileName)))
@@ -230,6 +241,9 @@ class TiltSeries(PyTomClass):
 
         markerFileVol = read(markerFileName)
         nproj = markerFileVol.sizeY()
+        nproj -= self._firstIndex
+        nproj -= self._lenPI-self._lastIndex
+        print(len(self._projIndices)-self._lastIndex, self._lastIndex, self._firstIndex)
         # make sure that nproj matches number of Projections in self._ProjectionList
         if (nproj != len(self._ProjectionList._list)):
             print("Number of projections specified in TiltSeries and MarkerFileName do not match!")
@@ -238,6 +252,8 @@ class TiltSeries(PyTomClass):
             print("Please fix!")
         nmark = markerFileVol.sizeZ()
         markerFile = vol2npy(markerFileVol)
+        markerFile = markerFile[:,self._firstIndex:self._lastIndex, :]
+
         # check that tilt angles in marker file and projections are the same
         for (iproj, proj) in enumerate(self._ProjectionList._list):
             tiltAngle = markerFile[0, iproj, 0]
@@ -257,6 +273,7 @@ class TiltSeries(PyTomClass):
             y = markerFile[2, 0:nproj, imark]
             self._Markers[imark].set_xProjs(x)
             self._Markers[imark].set_yProjs(y)
+        print(len(self._Markers))
         return self._Markers
 
     def readIMODwimp(self, markerFileName, prexgfile=None, tltfile=None, preBin=1, verbose=False):

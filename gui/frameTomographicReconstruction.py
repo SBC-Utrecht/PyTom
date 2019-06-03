@@ -327,14 +327,16 @@ class TomographReconstruct(GuiTabWidget):
         parent = self.table_layouts[id]
         h = mode = 'v02_Align_'
 
-        last, reftilt = 10, 5
+        last, reftilt = -60, 60
         self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB,width=400 )
         self.insert_label_line_push(parent,'Folder Sorted Tilt Images', 'v02_Align_FolderSorted',
                                     'Select the folder where the sorted tiltimages are located.\n')
-        self.insert_label_spinbox(parent, mode+'FirstIndex', text='First Index', tooltip='Index of first image.',
-                                  value=1,minimum=1,stepsize=1)
-        self.insert_label_spinbox(parent, mode +'LastIndex', text='Last Index', tooltip='Index of last image.',
-                                  value=last, minimum=2,stepsize=1)
+        self.insert_label_spinbox(parent, mode+'FirstAngle', text='First Angle',
+                                  tooltip='Lowest tilt angle of tilt images used for alignment.',
+                                  value=-60,minimum=-90,maximum=90, stepsize=1)
+        self.insert_label_spinbox(parent, mode +'LastAngle', text='Last Angle',
+                                  tooltip='Highest tilt angle of tilt images used in alignment.',
+                                  value=60, minimum=-90, maximum=90, stepsize=1)
         self.insert_label_spinbox(parent, mode +'RefTiltIndex', text='Reference Tilt Image', value=reftilt,minimum=1,
                                   tooltip='Index of reference tilt image. Typically zeros degree image.')
         self.insert_label_spinbox(parent, mode +'RefMarkerIndex', text='Reference Marker', value=1,
@@ -348,9 +350,15 @@ class TomographReconstruct(GuiTabWidget):
         #self.insert_label(parent,'Orientation tilt axis', rstep=1, cstep=1,
         #                  tooltip='Orientation of the tiltaxis with respect to the orientation of the camera.'+
         #                 'The point of the arrow indicates the rotation direction, following the left hand rule.')
-        self.widgets[mode + 'tomofolder'] = QLineEdit()
-        self.widgets[mode + 'tomogramNR'] = QLineEdit()
+        #self.widgets[mode + 'tomofolder'] = QLineEdit()
+        #self.widgets[mode + 'tomogramNR'] = QLineEdit()
+        for name in ('tomofolder', 'tomogramNR','FirstIndex', 'LastIndex', 'Reduced'):
+            self.widgets[mode + name] = QLineEdit()
+
         self.widgets[mode + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
+        self.widgets[mode + 'FirstAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
+        self.widgets[mode + 'LastAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
+
         self.updateTomoFolder(mode)
 
         execfilename = [mode + 'tomofolder', 'alignment/alignment.sh']
@@ -359,7 +367,7 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict(fname='Alignment',folder=execfilename)
         paramsCmd    = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex', mode + 'LastIndex',
                         mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', mode+'RotationTiltAxis',
-                        templateAlignment]
+                        mode + 'Reduced', templateAlignment]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch = paramsSbatch,
                                  paramsCmd=paramsCmd, action=self.convert_em, paramsAction=[mode,'alignment','sorted'])
@@ -442,29 +450,45 @@ class TomographReconstruct(GuiTabWidget):
         tomofolder_file = open(file_tomoname, 'w')
         number_tomonames = 0
         num_procs_per_proc = 0
-        expected = values[0][6]
-        print(expected)
+        firstindices, lastindices, expectedangles = [], [], []
+        expected =  widgets['widget_{}_{}'.format(0,6)].text()#values[0][6]
+        mode = 'v02_ba_'
+        for name in ('FirstAngle', 'LastAngle','FirstIndex', 'LastIndex', 'Reduced'):
+            self.widgets[mode + name] = QLineEdit()
         for row in range(table.rowCount()):
             wname = 'widget_{}_{}'.format(row, 1)
 
             # Align
             if wname in widgets.keys() and widgets[wname].isChecked():
                 tomofoldername = values[row][0]
-                refindex = values[row][4]
-                markindex =  widgets['widget_{}_{}'.format(row,5)].currentText()
+                firstindex = widgets['widget_{}_{}'.format(row,2)].text()
+                lastindex  = widgets['widget_{}_{}'.format(row,3)].text()
+                refindex   = widgets['widget_{}_{}'.format(row,4)].text() #values[row][4]
+                markindex  = widgets['widget_{}_{}'.format(row,5)].currentText()
+                expected   = widgets['widget_{}_{}'.format(row, 6)].text()
                 tomofolder_file.write('{} {} {}\n'.format(tomofoldername,refindex, markindex))
                 num_procs_per_proc = max(num_procs_per_proc, len(values[row][5]) - 1)
                 number_tomonames += 1
                 folder = os.path.join(self.tomogram_folder, tomofoldername)
                 os.system('cp {}/sorted/markerfile.em {}/alignment'.format(folder,folder))
 
+                self.widgets[mode + 'FirstAngle'].setText(firstindex)
+                self.widgets[mode + 'LastAngle'].setText(lastindex)
+                self.updateIndex(mode)
+                fi, li = self.widgets[mode + 'FirstIndex'].text(), self.widgets[mode + 'LastIndex'].text()
+                firstindices.append(fi)
+                lastindices.append(li)
+                expectedangles.append(expected)
         tomofolder_file.close()
+
+
 
         guiFunctions.batch_tilt_alignment( number_tomonames, fnames_tomograms=file_tomoname, num_procs=20, deploy=True,
                                            projectfolder=self.tomogram_folder, num_procs_per_proc=num_procs_per_proc,
                                            tiltseriesname='sorted/sorted', markerfile='alignment/markerfile.em',
                                            targets='alignment', weightingtype=0, queue=self.checkbox[id].isChecked(),
-                                           expectedRotationAngle=expected)
+                                           expectedRotationAngles=expectedangles,
+                                           firstindices=firstindices, lastindices=lastindices)
 
     def tab51UI(self):
         id = 'tab51'
@@ -480,10 +504,10 @@ class TomographReconstruct(GuiTabWidget):
         self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB,width=400 )
         self.insert_label_line_push(parent,'Folder Sorted Tilt Images', mode+'FolderSorted',
                                     'Select the folder where the sorted tiltimages are located.\n')
-        self.insert_label_spinbox(parent, mode+'FirstIndex', text='First Index', tooltip='Index of first image.',
-                                  value=1,minimum=1,stepsize=1)
-        self.insert_label_spinbox(parent, mode +'LastIndex', text='Last Index', tooltip='Index of last image.',
-                                  value=last, minimum=2,stepsize=1)
+        self.insert_label_spinbox(parent, mode+'FirstAngle', text='First Index', tooltip='Index of first image.',
+                                  value=-60,minimum=-90, maximum=90, stepsize=1)
+        self.insert_label_spinbox(parent, mode +'LastAngle', text='Last Index', tooltip='Index of last image.',
+                                  value=60, minimum=-90, maximum= 90, stepsize=1)
         self.insert_label_spinbox(parent, mode +'RefTiltIndex', text='Reference Tilt Image', value=reftilt,minimum=1,
                                   tooltip='Index of reference tilt image. Typically zeros degree image.')
         self.insert_label_spinbox(parent, mode +'RefMarkerIndex', text='Reference Marker', value=1,
@@ -499,10 +523,13 @@ class TomographReconstruct(GuiTabWidget):
         #                  tooltip='Orientation of the tiltaxis with respect to the orientation of the camera.'+
         #                 'The point of the arrow indicates the rotation direction, following the left hand rule.')
 
-        self.widgets[mode + 'tomofolder'] = QLineEdit()
-        self.widgets[mode + 'tomogramNR'] = QLineEdit()
+        for name in ('tomofolder', 'tomogramNR','FirstIndex', 'LastIndex', 'Reduced'):
+            self.widgets[mode + name] = QLineEdit()
+
         self.widgets[mode + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
         self.updateTomoFolder(mode)
+        self.widgets[mode + 'FirstAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
+        self.widgets[mode + 'LastAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
 
         execfilename = [mode+'tomofolder','reconstruction/INFR/INFR_reconstruction.sh']
         paramsSbatch = guiFunctions.createGenericDict()
@@ -537,7 +564,7 @@ class TomographReconstruct(GuiTabWidget):
 
         files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')]
         lastIndex = len(files)
-        self.widgets[mode+'LastIndex'].setValue(lastIndex)
+        #oself.widgets[mode+'LastIndex'].setText(lastIndex)
         metafiles = [line for line in os.listdir(folderSorted) if line.endswith('.meta')]
 
         if len(metafiles) ==1:
@@ -548,14 +575,20 @@ class TomographReconstruct(GuiTabWidget):
             except:
                 metadata = numpy.loadtxt(os.path.join(folderSorted,metafile),dtype=guiFunctions.datatype0)
 
-            angles = metadata['TiltAngle']
+            angles = metadata['TiltAngle'].copy()
             self.widgets['RotationTiltAxis'] = metadata
             for i in range(len(files)):
                 if not 'sorted_{:02d}.mrc'.format(i) in files:
                     angles[i]+=10000
 
-            refIndex = 1 + abs(angles).argmin()
+            refIndex = abs(angles).argmin()
             self.widgets[mode+'RefTiltIndex'].setValue(refIndex)
+
+            fi,li = angles.argmin(), angles[angles < 1000].argmax()
+            self.widgets[mode+'FirstIndex'].setText(str(fi))
+            self.widgets[mode + 'LastIndex'].setText(str(li))
+
+            self.updateIndex(mode)
 
         if 'WBP' in mode: self.updateVoldims(mode)
 
@@ -576,10 +609,10 @@ class TomographReconstruct(GuiTabWidget):
         self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB,width=400 )
         self.insert_label_line_push(parent,'Folder Sorted Tilt Images', h+'FolderSorted',
                                     'Select the folder where the sorted tiltimages are located.\n')
-        self.insert_label_spinbox(parent, mode+'FirstIndex', text='First Index', tooltip='Index of first image.',
-                                  value=1,minimum=1,stepsize=1)
-        self.insert_label_spinbox(parent, mode +'LastIndex', text='Last Index', tooltip='Index of last image.',
-                                  value=last, minimum=2,stepsize=1)
+        self.insert_label_spinbox(parent, mode+'FirstAngle', text='First Index', tooltip='Index of first image.',
+                                  value=-60,minimum=-90,maximum=90, stepsize=1)
+        self.insert_label_spinbox(parent, mode +'LastAngle', text='Last Index', tooltip='Index of last image.',
+                                  value=60, minimum=-90, maximum=90, stepsize=1)
         self.insert_label_spinbox(parent, mode +'RefTiltIndex', text='Reference Tilt Image', value=reftilt,minimum=1,
                                   tooltip='Index of reference tilt image. Typically zeros degree image.')
         self.insert_label_spinbox(parent, mode +'RefMarkerIndex', text='Reference Marker', value=1,
@@ -596,13 +629,19 @@ class TomographReconstruct(GuiTabWidget):
         self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=8, minimum=1, cstep=0,
                                   tooltip='Binning factor used for reconstruction')
 
-        self.widgets[h + 'tomofolder'] = QLineEdit()
-        self.widgets[h + 'tomogramNR'] = QLineEdit()
+        for name in ('tomofolder', 'tomogramNR','FirstIndex', 'LastIndex', 'Reduced'):
+            self.widgets[mode + name] = QLineEdit()
+
         self.widgets[h + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
         self.updateTomoFolder(mode)
 
         self.widgets[h + 'BinningFactor'].valueChanged.connect(lambda dummy, m=mode: self.updateVoldims(m))
         self.updateVoldims(mode)
+
+        self.widgets[mode + 'FirstAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
+        self.widgets[mode + 'LastAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
+
+
         execfilename = [mode + 'tomofolder', 'reconstruction/WBP/WBP_reconstruction.sh']
 
         paramsSbatch = guiFunctions.createGenericDict()
@@ -633,19 +672,53 @@ class TomographReconstruct(GuiTabWidget):
         imdim = read_mrc(os.path.join(folderSorted, files)).shape[0]
         self.widgets[mode+'Voldims'].setText(str(int(float(imdim)/float(self.widgets[mode+'BinningFactor'].text())+.5)))
 
+    def updateIndex(self, mode):
+        if 'INFR' in mode: INFR=1
+        else: INFR=0
+        sorted_folder = self.widgets[mode + 'FolderSorted'].text()
+        metafile = [os.path.join(sorted_folder, meta) for meta in os.listdir(sorted_folder) if meta.endswith('meta')][0]
+
+        if metafile:
+            metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
+            print(metadata['TiltAngle'].astype(int))
+            try:
+                firstAngle = self.widgets[mode + 'FirstAngle'].value()
+                lastAngle = self.widgets[mode + 'LastAngle'].value()
+            except:
+                firstAngle = float(self.widgets[mode + 'FirstAngle'].text())
+                lastAngle = float(self.widgets[mode + 'LastAngle'].text())
+            files = sorted([f for f in os.listdir(sorted_folder) if f.startswith('sorted') and f.endswith('mrc')])
+            first,last = 0, len(files)-1
+            self.widgets[mode + 'FirstIndex'].setText( str(0))
+            self.widgets[mode + 'LastIndex'].setText( str( len(files)-1) )
+            for n, tiltAngle in enumerate( metadata['TiltAngle']):
+                mrcfile = 'sorted_{:02d}.mrc'.format(n)
+                if tiltAngle - firstAngle < -0.1 and mrcfile in files:
+                    self.widgets[mode + 'FirstIndex'].setText(str(n+1+INFR))
+
+                if tiltAngle - lastAngle < 0.1 and mrcfile in files:
+                    self.widgets[mode + 'LastIndex'].setText(str(n+INFR))
+
+            fi, li = int(self.widgets[mode+'FirstIndex'].text()), int(self.widgets[mode+'LastIndex'].text())
+            print(len(files), fi, li)
+            if fi > 0 or li-INFR < len(files)-1:
+                self.widgets[mode + 'Reduced'].setText('_reduced')
+            else:
+                self.widgets[mode + 'Reduced'].setText('')
+
     def convert_em(self,params):
         mode = params[0]
         directory = self.widgets[mode+'tomofolder'].text()
         output_folder = '{}/{}'.format(directory, params[1])
         prefix = params[2]
         sorted_folder = self.widgets[mode+'FolderSorted'].text()
+        alignmentType = os.path.basename(params[1])
+
+        if not os.path.exists(f'{output_folder}/temp_files_unweighted') and alignmentType in ('INFR', 'WBP'):
+            os.mkdir(f'{output_folder}/temp_files_unweighted')
 
 
-
-        if not os.path.exists(f'{output_folder}/temp_files_unweighted'): os.mkdir(f'{output_folder}/temp_files_unweighted')
-
-
-        if os.path.basename(params[1]) == 'INFR':
+        if alignmentType == 'INFR':
             if len([line for line in os.listdir(output_folder) if line.startswith(prefix.split('/')[-1])]):
                 os.system('rm {}/sorted*.em'.format(output_folder))
             guiFunctions.conv_mrc2em(self.widgets[mode+'FolderSorted'].text(), output_folder)
@@ -679,16 +752,16 @@ class TomographReconstruct(GuiTabWidget):
 
     def tab53UI(self):
         id='tab53'
-        headers = ["name tomogram", "INFR", 'WBP', 'First Index', "Last Index", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle',
+        headers = ["name tomogram", "INFR", 'WBP', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle',
                    'Bin Factor']
         types = ['txt', 'checkbox', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit']
-        sizes = [0, 80, 80, 0, 0, 0, 0, 0, 0]
+        sizes = [0, 80, 80, 0, 0, 0, 0, 0, 0,0]
 
         tooltip = ['Names of existing tomogram folders.',
                    'Do INFR Reconstruction.',
                    'Do WBP Reconstruction.',
-                   'First index of tiltimages',
-                   'Last index of tiltimages',
+                   'First angle of tiltimages',
+                   'Last angle of tiltimages',
                    'Reference Image number.',
                    'Reference Marker number.',
                    'Expected in-plane Rotation Angle',
@@ -704,15 +777,22 @@ class TomographReconstruct(GuiTabWidget):
             metafile = glob.glob( qmarkerfile )[0]
 
             metadata=numpy.loadtxt(metafile, dtype=guiFunctions.datatype)
-            tilt_angles = metadata['TiltAngle']
-            index_zero_angle = numpy.argmin(numpy.abs(tilt_angles)) + 1
+            tilt_angles = metadata['TiltAngle'].copy()
+            files = [f for f in os.listdir(os.path.dirname(markerfile)) if f.startswith('sorted') and f.endswith('mrc')]
+            for ntilt, t in enumerate(tilt_angles):
+                if not 'sorted_{:02d}.mrc'.format(ntilt) in files:
+                    tilt_angles[ntilt] = 100000.
+
+            index_zero_angle = numpy.argmin(numpy.abs(tilt_angles))
             files =  os.listdir( os.path.dirname(markerfile) )
             fnames = sorted([fname for fname in files if fname.startswith('sorted') and fname.endswith('mrc') ])
 
             print(tilt_angles, fnames)
             rot = int(float(metadata['InPlaneRotation'][0]))
 
-            values.append( [markerfile.split('/')[-3], True, True, 1, len(fnames), index_zero_angle, 1, rot, 8] )
+            values.append( [markerfile.split('/')[-3], True, True,
+                            numpy.floor(tilt_angles.min()), numpy.ceil(tilt_angles.max()),
+                            index_zero_angle, 1, rot, 8] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_reconstruction(pid, v))
@@ -726,13 +806,25 @@ class TomographReconstruct(GuiTabWidget):
         mode = 'batch_recon_'
         dd = {1:'reconstruction/INFR',2:'reconstruction/WBP'}
 
+        for name in ('FirstAngle', 'LastAngle','FirstIndex', 'LastIndex', 'Reduced'):
+            self.widgets[mode + name] = QLineEdit()
+
         for row in range(table.rowCount()):
             tomofolder = os.path.join(self.tomogram_folder, values[row][0])
             metafile = glob.glob(os.path.join(tomofolder,'sorted/*.meta'))
+
+            firstAngle       = widgets['widget_{}_{}'.format(row, 3)].text()
+            lastAngle        = widgets['widget_{}_{}'.format(row, 4)].text()
+            refTiltImage     = widgets['widget_{}_{}'.format(row, 5)].text()
+            refmarkindex     = widgets['widget_{}_{}'.format(row, 6)].text()
             expectedRotation = int(float(widgets['widget_{}_{}'.format(row,7)].text()))
+            binningFactor    = widgets['widget_{}_{}'.format(row, 8)].text()
+
             try:
                 metadata = numpy.loadtxt(metafile[-1], dtype=guiFunctions.datatype)
             except:
+                self.popup_messagebox('Warning', 'Failed submission reconstruction',
+                                      'Cannot load {}.'.format(os.path.basename(metafile)))
                 continue
             sortedFolder = os.path.join(tomofolder, 'sorted')
             self.widgets[mode + 'tomofolder'] = QLineEdit(text=tomofolder)
@@ -742,11 +834,16 @@ class TomographReconstruct(GuiTabWidget):
             for i in (1,2):
                 widget = 'widget_{}_{}'.format(row, i)
                 if widgets[widget].isChecked():
-                    refmarkindex = widgets['widget_{}_{}'.format(row, 6)].text()
-                    a = widgets['widget_{}_{}'.format(row, 3)].text()
-                    b = widgets['widget_{}_{}'.format(row, 4)].text()
-                    c = widgets['widget_{}_{}'.format(row, 5)].text()
-                    d = widgets['widget_{}_{}'.format(row, 8)].text()
+
+
+                    for name in ('FirstAngle', 'LastAngle', 'FirstIndex', 'LastIndex', 'Reduced'):
+                        self.widgets[mode + name] = QLineEdit()
+
+
+                    self.widgets[mode+'FirstAngle'].setText(firstAngle)
+                    self.widgets[mode+'LastAngle'].setText(lastAngle)
+                    self.updateIndex(mode)
+                    firstAngle, lastAngle = self.widgets[mode+'FirstIndex'].text(), self.widgets[mode+'LastIndex'].text()
 
                     params = [mode,dd[i],'sorted']
                     print(params)
@@ -757,13 +854,14 @@ class TomographReconstruct(GuiTabWidget):
                     paramsSbatch['folder'] = os.path.dirname(execfilename)
 
                     if i == 1:
-                        paramsCmd = [tomofolder, self.pytompath, a, b,
-                                     c, refmarkindex, d,
+                        paramsCmd = [tomofolder, self.pytompath, firstAngle, lastAngle,
+                                     refTiltImage, refmarkindex, binningFactor,
                                      self.pytompath, os.path.basename(tomofolder),
                                      expectedRotation]
                         commandText = templateINFR.format(d=paramsCmd)
                     elif i==2:
-                        paramsCmd = [tomofolder, self.pytompath, a, b, c, refmarkindex, d, os.path.basename(tomofolder),
+                        paramsCmd = [tomofolder, self.pytompath, firstAngle, lastAngle, refTiltImage, refmarkindex,
+                                     binningFactor, os.path.basename(tomofolder),
                                      'mrc', '464', '1', expectedRotation]
                         commandText= templateWBP.format(d=paramsCmd)
                     else:

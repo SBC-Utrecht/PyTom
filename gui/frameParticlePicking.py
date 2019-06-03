@@ -633,7 +633,7 @@ class ParticlePick(GuiTabWidget):
 
         headers = ["Filename Coordinate List", "Prefix Subtomograms", 'Wedge Angle 1', 'Wedge Angle 2', "Filename Particle List", 'Randomize Angles']
         types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'checkbox']
-        sizes = [0, 80, 80, 0, 0, 0]
+        sizes = [0, 420, 80, 0, 420, 0]
 
 
         tooltip = ['Name of coordinate files',
@@ -659,8 +659,12 @@ class ParticlePick(GuiTabWidget):
             ff = os.path.join(self.subtomofolder,os.path.dirname(prefix))
             if not os.path.exists(ff): os.mkdir(ff)
             fname_plist = 'particleList_{}.xml'.format(os.path.basename(coordinateFile[:-4]))
-
-            values.append( [coordinateFile, prefix, 30, 30, fname_plist, True] )
+            active = True
+            if coordinateFile.endswith('.xml'):
+                prefix = 'UNCHANGED'
+                fname_plist = 'UNCHANGED'
+                active=False
+            values.append( [coordinateFile, prefix, 30, 30, fname_plist, active] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
 
@@ -687,13 +691,17 @@ class ParticlePick(GuiTabWidget):
         conf = [[],[],[],[],[]]
 
         fnamesPL = []
-
+        wedges = ''
         for row in range(self.tables[pid].table.rowCount()):
             if 1:
                 c = values[row][0]
                 if c.endswith('.xml'):
                     fnamesPL.append(c)
+                    w1 = self.tab32_widgets['widget_{}_{}'.format(row,2)].text()
+                    w2 = self.tab32_widgets['widget_{}_{}'.format(row,3)].text()
+                    wedges += '{},{},'.format(w1,w2)
                     continue
+
                 p = self.tab32_widgets['widget_{}_{}'.format(row, 1)].text()
                 w1 = float(self.tab32_widgets['widget_{}_{}'.format(row,2)].text() )
                 w2 = float(self.tab32_widgets['widget_{}_{}'.format(row,3)].text() )
@@ -742,5 +750,8 @@ class ParticlePick(GuiTabWidget):
 
         fnamesPL = fnamesPL + [fname]
 
-        if len(fnamesPL) > 1: os.system('combineParticleLists.py -f {} -o {}'.format(",".join(fnamesPL), fname))
+        if wedges: wedges = wedges[:-1]
+
+        if len(fnamesPL) > 1:
+            os.system('combineParticleLists.py -f {} -o {} -w {}'.format(",".join(fnamesPL), fname, wedges))
 

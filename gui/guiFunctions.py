@@ -388,15 +388,16 @@ def write_text2file(text,fname,mode='a'):
 
 
 def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='.', num_procs=20, num_procs_per_proc=1, tiltseriesname='sorted/sorted',
-                         markerfile='sorted/markerfile.em',targets='alignment', firstindex=1, lastindex=21, refindex=11,
-                          weightingtype=0, deploy=False, queue=False, expectedRotationAngle=0):
+                         markerfile='sorted/markerfile.em',targets='alignment', firstindices=[], lastindices=[], refindex=11,
+                          weightingtype=0, deploy=False, queue=False, expectedRotationAngles=0):
     '''BATCHMODE: tilt alignment. Submits a number of sbatch jobs to slurm queueing system. Each job calculates the tilt aligment for each marker in a markerfile.  It divides the number or jobs with respect to the num_procs.'''
 
     pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
     pytompath = '/data/gijsvds/pytom-develop/pytom_python3/pytom'
 
     for n in range(number_tomonames):
-
+        firstindex,lastindex = firstindices[n], lastindices[n]
+        expectedRotationAngle = expectedRotationAngles[n]
         if not n % num_procs == 0:
             continue
 
@@ -465,9 +466,7 @@ def create_project_filestructure(projectdir='.'):
                     "excluded": ""
                 },
                 "sorted_binned": "",
-                "alignment": {
-                    "unweighted_unbinned": ""
-                },
+                "alignment": "",
                 "reconstruction": {
                     "INFR": {
                         "temp_files_unweighted": "",

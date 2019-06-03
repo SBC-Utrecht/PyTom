@@ -427,5 +427,5 @@ if __name__ == '__main__':
             result = os.popen('which {}'.format(fname)).read()[:-1]
             if not result:
                 #print('not found')
-                raise Exception('Please load the {} module'.format(module))
+                print('Please load the {} module'.format(module))
     main()

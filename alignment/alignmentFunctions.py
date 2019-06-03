@@ -143,7 +143,6 @@ def applySymmetryOnParticleList(particleList,symmetry):
         
     return newList + particleList
 
-
 def applySymmetryToVolume(volume,symmetryObject,wedgeInfo):
     """
     applySymmetryToVolume
@@ -190,7 +189,6 @@ def applySymmetryToVolume(volume,symmetryObject,wedgeInfo):
 
     result.shiftscale(0.0,1/float(angleList.numberRotations()))
     return result
-        
 
 def _disrtibuteAverageMPI(particleList,averageName,showProgressBar = False,verbose=False,
                           createInfoVolumes = False,setParticleNodesRatio = 3,sendEndMessage = False):
@@ -478,7 +476,6 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
     
     return newReference
 
-
 def average2(particleList, weighting=False, norm=False, determine_resolution=False,
              mask=None, binning=1, verbose=False):
     """
@@ -630,9 +627,7 @@ def averageWeighteBackProjection(projectionLists,particleList,averageName,showPr
     @param showProgressBar:
     @param verbose:
     """
-    
-    
-    
+
 def alignTwoVolumes(particle,reference,angleObject,mask,score,preprocessing,progressBar=False):
     """
     alignTwoVolumes: align two volumes with respect to each other
@@ -662,7 +657,6 @@ def alignTwoVolumes(particle,reference,angleObject,mask,score,preprocessing,prog
     
     return GrowingAverageInterimResult(particle,reference,Rotation(peak.getRotation()),Shift(peak.getShift()),score)
 
-
 def _rotateWedgeReference(reference,rotation,wedgeInfo,mask,rotationCenter):
     """
     _rotateShiftWedgeParticle: Wrapper for Rotation, Shift and WedgeWeighting of Reference
@@ -685,8 +679,7 @@ def _rotateWedgeReference(reference,rotation,wedgeInfo,mask,rotationCenter):
         return wedgeInfo.apply(rotatedVolume) * mask
     else:
         return wedgeInfo.apply(rotatedVolume)
-    
-     
+
 def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
          scoreObject=0, mask=None, preprocessing=None, progressBar=False, binning=1,
          bestPeak=None, verbose=False):
@@ -871,7 +864,6 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     rotations.reset()
     scoreObject._peakPrior.reset_weight()
     return bestPeak
-    
 
 def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,shift,
          scoreObject=0,mask=None,preprocessing=[],binning=1,verbose=False):
@@ -960,7 +952,6 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
     
     return scoringResult 
 
-
 def alignmentProgressToHTML(filename,iterationNumber,score,resolution,angularIncrement,angleDistance,shiftDistance):
     """
     alignmentProgressToHTML
@@ -985,7 +976,6 @@ def alignmentProgressToHTML(filename,iterationNumber,score,resolution,angularInc
     file = open(filename, "w")
     file.write(html)
     file.close()
-
 
 def FRMAlignmentWrapper(particle,wedgeParticle, reference, wedgeReference,bandwidth, highestFrequency, mask = None , peakPrior = None):
     """

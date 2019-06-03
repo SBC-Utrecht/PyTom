@@ -357,9 +357,6 @@ class ExMaxJob(PyTomClass):
         if not checkDirExists(self._destination):
             raise ValueError('Result destination path not found! ' + self._destination)
         
-        
-    
-  
 
 class ExMaxWorker(object):        
     """

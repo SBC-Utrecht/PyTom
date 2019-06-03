@@ -1087,6 +1087,9 @@ class SimpleTable(QMainWindow):
                     self.widgets['widget_{}_{}'.format(v,i)] = le
                     widget.setStyleSheet('background: white;')
 
+                    if values[v][i] == 'UNCHANGED':
+                        widget.setEnabled(False)
+
                 elif types[i] == 'spinbox':
                     widget = QSpinBox()
                     widget.setValue(values[v][i])
@@ -1182,6 +1185,7 @@ class SimpleTable(QMainWindow):
                 layoutCheckBox.setContentsMargins(0, 0, 0, 0)
                 self.table2.setCellWidget(0, n, widget)
                 self.general_widgets.append(le)
+
                 le.textChanged.connect(lambda dummy, rowIndex=n, c=t: self.on_changeItem(rowIndex, c))
             else:
                 widget = QWidget()

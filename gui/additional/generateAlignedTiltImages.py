@@ -220,7 +220,16 @@ if __name__ == '__main__':
             procs = [proc for proc in procs if proc.is_alive()]
 
         print('Spawned job for Marker_{}'.format(irefmark))
-        falignedTiltSeriesName= '{}/unweighted_unbinned_marker_{}/sorted_aligned'.format(alignedTiltSeriesName, irefmark)
+
+        reduced = '_reduced'
+        start,end, path = os.path.basename(tiltSeriesName), 'mrc', os.path.dirname(tiltSeriesName)
+        files = [f.split('_')[-1].split('.')[-2] for f in os.listdir(path) if f.startswith(start) and f.endswith(end)]
+        files = sorted(files,key=int)
+        if files[0] == firstProj and files[-1] == lastProj:
+            reduced = ''
+
+        stringFAligned = '{}/unweighted_unbinned_marker_{}{}/sorted_aligned'
+        falignedTiltSeriesName= stringFAligned.format(alignedTiltSeriesName, irefmark, reduced)
         outdir = os.path.dirname(falignedTiltSeriesName) 
         if not os.path.exists(outdir): os.mkdir( outdir )
 

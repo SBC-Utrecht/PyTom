@@ -12,6 +12,7 @@ if __name__ == '__main__':
     from pytom.tools.parse_script_options import parse_script_options
     from pytom.gui.additional.reconstructionFunctions import alignWeightReconstruct
     import numpy
+    import os
 
     options=[ScriptOption(['--tiltSeriesName'], 'Name tilt series - either prefix of sequential tilt series files \
              expected as "tiltSeriesName_index.em/mrc" or full name of stack "tiltSeriesName.st"',
@@ -124,6 +125,8 @@ if __name__ == '__main__':
     if projectionTargets:
         # weighted and aligned projections are stored as alignedTiltSeriesName_index.em
         alignedTiltSeriesName = projectionTargets
+        if not os.path.exists(os.path.dirname(projectionTargets)):
+            os.mkdir(os.path.dirname(projectionTargets))
     else:
         alignedTiltSeriesName = 'align/myTilt'
     if projBinning:

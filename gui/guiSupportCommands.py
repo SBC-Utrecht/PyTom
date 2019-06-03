@@ -40,7 +40,7 @@ templateAlignment = '''cd {d[0]}
     --markerFile alignment/markerfile.em \\
     --referenceMarkerIndex {d[5]} \\
     --expectedRotationAngle {d[7]} \\
-    --projectionTargets alignment/unweighted_unbinned/sorted_aligned \\
+    --projectionTargets alignment/unweighted_unbinned_marker_{d[5]}{d[8]}/sorted_aligned \\
     --projectionBinning {d[6]} \\
     --lowpassFilter 0.9 \\
     --tiltSeriesFormat mrc \\
