@@ -24,6 +24,7 @@ from pytom.gui.guiSupportCommands import *
 from pytom.basic.structures import ParticleList, Rotation
 from pytom.basic.files import read
 from pytom.bin.coords2PL import convertCoords2PL
+from pytom.bin.updateParticleList import updatePL
 from copy import deepcopy
 from pytom_numpy import vol2npy
 import random
@@ -660,10 +661,10 @@ class ParticlePick(GuiTabWidget):
             if not os.path.exists(ff): os.mkdir(ff)
             fname_plist = 'particleList_{}.xml'.format(os.path.basename(coordinateFile[:-4]))
             active = True
-            if coordinateFile.endswith('.xml'):
-                prefix = 'UNCHANGED'
-                fname_plist = 'UNCHANGED'
-                active=False
+            #if coordinateFile.endswith('.xml'):
+                #prefix = 'UNCHANGED'
+                #fname_plist = 'UNCHANGED'
+                #active=False
             values.append( [coordinateFile, prefix, 30, 30, fname_plist, active] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
@@ -696,10 +697,13 @@ class ParticlePick(GuiTabWidget):
             if 1:
                 c = values[row][0]
                 if c.endswith('.xml'):
-                    fnamesPL.append(c)
-                    w1 = self.tab32_widgets['widget_{}_{}'.format(row,2)].text()
-                    w2 = self.tab32_widgets['widget_{}_{}'.format(row,3)].text()
-                    wedges += '{},{},'.format(w1,w2)
+                    prefix  = self.tab32_widgets['widget_{}_{}'.format(row, 1)].text()
+                    w1      = self.tab32_widgets['widget_{}_{}'.format(row, 2)].text()
+                    w2      = self.tab32_widgets['widget_{}_{}'.format(row, 3)].text()
+                    outname = self.tab32_widgets['widget_{}_{}'.format(row, 4)].text()
+                    wedges = '{},{},'.format(w1,w2)
+                    updatePL(c, outname, wedges=wedges, directory=prefix)
+                    fnamesPL.append(outname)
                     continue
 
                 p = self.tab32_widgets['widget_{}_{}'.format(row, 1)].text()
@@ -753,5 +757,5 @@ class ParticlePick(GuiTabWidget):
         if wedges: wedges = wedges[:-1]
 
         if len(fnamesPL) > 1:
-            os.system('combineParticleLists.py -f {} -o {} -w {}'.format(",".join(fnamesPL), fname, wedges))
+            os.system('combineParticleLists.py -f {} -o {} '.format(",".join(fnamesPL), fname))
 

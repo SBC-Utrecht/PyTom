@@ -377,25 +377,20 @@ class TomographReconstruct(GuiTabWidget):
 
     def tab32UI(self):
         id='tab32'
-        headers = ["name tomogram", "align", 'First Index',"Last Index", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle']
+        headers = ["name tomogram", "align", 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle']
         types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox','lineedit']
         sizes = [0, 80, 0, 0, 0, 0, 0, 0]
 
         tooltip = ['Names of existing tomogram folders.',
                    'Do alignment.',
-                   'First index of tiltimages',
-                   'Last index of tiltimages',
+                   'First angle of tiltimages.',
+                   'Last angle of tiltimages.',
                    'Reference image number.',
                    'Redo the creation of a tomogram file.',
                    'Select items to delete tomogram folders.',
                    'Expected Rotation Angle']
 
-        tomodir = 'Juliette/03_Tomographic_Reconstruction'
-
         markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
-        print('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder))
-
-
         values = []
 
         for markerfile in markerfiles:
@@ -414,31 +409,18 @@ class TomographReconstruct(GuiTabWidget):
                 index_s = int(sortedfile.split('_')[-1].split('.')[0])
                 if abs(tangs[index_s]) < mm:
                     mm = abs(tangs[index_s])
-                    index_zero_angle = n+1
+                    index_zero_angle = n
 
             d = read(markerfile)
             data = copy.deepcopy( vol2npy(d) )
             if len(data.shape) < 3: continue
             options_reference = list(map(str, range( data.shape[2] ))) + ['all']
             expect = int(float(metadata['InPlaneRotation'][0]))
-            values.append( [markerfile.split('/')[-3], True, 1, last_frame, index_zero_angle, options_reference, expect] )
+            values.append( [markerfile.split('/')[-3], True, numpy.floor(tangs.min()), numpy.ceil(tangs.max()),
+                            index_zero_angle, options_reference, expect] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
-
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_align(pid, v))
-
-        '''
-        self.W= QWidget()
-        checkButton = QCheckBox('sbatch')
-        layout=QVBoxLayout(self.W)
-        layout.addWidget(checkButton)
-        layout.setAlignment(Qt.AlignLeft)
-
-        #self.checkButton.setA.AlignLeft)
-        #self.checkButton.setStyleSheet('QChecbox::indicator{background-color: red;}')
-        #self.checkButton.setPalette(QtGui.QPalette(QtGui.QColor(255, 0, 0)))
-        self.table_layouts[id].addWidget(self.W,3,1)
-        '''
 
     def run_multi_align(self,id,values):
         print('multi_align', id)
@@ -480,8 +462,6 @@ class TomographReconstruct(GuiTabWidget):
                 lastindices.append(li)
                 expectedangles.append(expected)
         tomofolder_file.close()
-
-
 
         guiFunctions.batch_tilt_alignment( number_tomonames, fnames_tomograms=file_tomoname, num_procs=20, deploy=True,
                                            projectfolder=self.tomogram_folder, num_procs_per_proc=num_procs_per_proc,
@@ -680,7 +660,7 @@ class TomographReconstruct(GuiTabWidget):
 
         if metafile:
             metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
-            print(metadata['TiltAngle'].astype(int))
+
             try:
                 firstAngle = self.widgets[mode + 'FirstAngle'].value()
                 lastAngle = self.widgets[mode + 'LastAngle'].value()
@@ -700,9 +680,9 @@ class TomographReconstruct(GuiTabWidget):
                     self.widgets[mode + 'LastIndex'].setText(str(n+INFR))
 
             fi, li = int(self.widgets[mode+'FirstIndex'].text()), int(self.widgets[mode+'LastIndex'].text())
-            print(len(files), fi, li)
+            
             if fi > 0 or li-INFR < len(files)-1:
-                self.widgets[mode + 'Reduced'].setText('_reduced')
+                self.widgets[mode + 'Reduced'].setText('_reduced_{}_{}'.format(firstAngle, lastAngle))
             else:
                 self.widgets[mode + 'Reduced'].setText('')
 
@@ -787,7 +767,7 @@ class TomographReconstruct(GuiTabWidget):
             files =  os.listdir( os.path.dirname(markerfile) )
             fnames = sorted([fname for fname in files if fname.startswith('sorted') and fname.endswith('mrc') ])
 
-            print(tilt_angles, fnames)
+
             rot = int(float(metadata['InPlaneRotation'][0]))
 
             values.append( [markerfile.split('/')[-3], True, True,
@@ -1007,13 +987,13 @@ class TomographReconstruct(GuiTabWidget):
         if not folder:
             print('No Folder Selected.')
             return
-        if 1:
+        try:
             tomogramID = folder.split('tomogram_')[-1][:3]
             sortedFolder = '{}/tomogram_{}/sorted/'.format(self.tomogram_folder, tomogramID)
             tomoname = '{}/tomogram_{}'.format(self.tomogram_folder, tomogramID)
 
             outstack = '{}/tomogram_{}_{}.st'.format(folder,tomogramID, os.path.basename(folder))
-        else:
+        except:
             print('update CTF Plotter failed.')
             return
         files = [line for line  in os.listdir(folder) if line.endswith('.mrc') and line.startswith('sorted_')]
