@@ -680,7 +680,7 @@ class TomographReconstruct(GuiTabWidget):
                     self.widgets[mode + 'LastIndex'].setText(str(n+INFR))
 
             fi, li = int(self.widgets[mode+'FirstIndex'].text()), int(self.widgets[mode+'LastIndex'].text())
-            
+
             if fi > 0 or li-INFR < len(files)-1:
                 self.widgets[mode + 'Reduced'].setText('_reduced_{}_{}'.format(firstAngle, lastAngle))
             else:
