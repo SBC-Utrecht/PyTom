@@ -130,11 +130,9 @@ def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binni
         focus_mask = None
 
     (dmap1, dmap2) = calculate_difference_map(v1, band1, v2, band2, mask, focus_mask, True, sigma, threshold)
-    fname1 = 'iter'+str(iteration)+'_dmap_'+str(r1.getClass())+'_'+str(r2.getClass())+'.em'
-    fname1 = os.path.join(outdir, fname1)
+    fname1 = os.path.join(outdir, 'iter'+str(iteration)+'_dmap_'+str(r1.getClass())+'_'+str(r2.getClass())+'.em')
     dmap1.write(fname1)
-    fname2 = 'iter'+str(iteration)+'_dmap_'+str(r2.getClass())+'_'+str(r1.getClass())+'.em'
-    fname2 = os.path.join(outdir, fname1)
+    fname2 = os.path.join(outdir, 'iter'+str(iteration)+'_dmap_'+str(r2.getClass())+'_'+str(r1.getClass())+'.em')
     dmap2.write(fname2)
 
     dp1 = Particle(fname1)
@@ -158,7 +156,7 @@ def focus_score(p, ref, freq, diff_mask, binning):
     return s
 
 
-def paverage(particleList, norm, binning, verbose):
+def paverage(particleList, norm, binning, verbose, outdir='./'):
     from pytom_volume import read,vol
     from pytom_volume import transformSpline as transform
     from pytom.basic.structures import Particle
@@ -224,15 +222,19 @@ def paverage(particleList, norm, binning, verbose):
 
 
     # write to the disk
-    result.write('avg_'+str(mpi.rank)+'.em')
-    result = Particle('avg_'+str(mpi.rank)+'.em')
-    wedgeSum.write('wedge_'+str(mpi.rank)+'.em')
-    wedgeSum = Particle('wedge_'+str(mpi.rank)+'.em')
+
+    fname_result = os.path.join(outdir, 'avg_{}.em'.format(mpi.rank))
+    fname_wedge = os.path.join(outdir, 'wedge_{}.em'.format(mpi.rank))
+
+    result.write(fname_result)
+    result = Particle(fname_result)
+    wedgeSum.write(fname_wedge)
+    wedgeSum = Particle(fname_wedge)
     
     return (result, wedgeSum)
 
 
-def calculate_averages(pl, binning, mask):
+def calculate_averages(pl, binning, mask, outdir='./'):
     import os
     from pytom_volume import complexDiv
     from pytom.basic.fourier import fft,ifft
@@ -261,7 +263,7 @@ def calculate_averages(pl, binning, mask):
                 spp = [None] * 2
                 spp[0] = pp[:len(pp)//2]
                 spp[1] = pp[len(pp)//2:]
-            args = list(zip(spp, [True]*len(spp), [binning]*len(spp), [False]*len(spp)))
+            args = list(zip(spp, [True]*len(spp), [binning]*len(spp), [False]*len(spp), [outdir]*len(spp)))
             avgs = mpi.parfor(paverage, args)
 
             even_a, even_w, odd_a, odd_w = None, None, None, None
@@ -588,11 +590,11 @@ def initialize(pl, settings):
     pp = pl[:kn]
     # avg, fsc = average2(pp, norm=True, verbose=False)
     pp.setClassAllParticles('0')
-    res, tmp, tmp2 = calculate_averages(pp, settings["binning"], None)
+    res, tmp, tmp2 = calculate_averages(pp, settings["binning"], None, outdir=settings["output_directory"])
     avg = res['0']
     avg = lowpassFilter(avg, freq, freq/10.)[0]
-    avg.write('initial_0.em')
-    p = Particle('initial_0.em')
+    avg.write(os.path.join(settings['output_directory'], 'initial_0.em') )
+    p = Particle(os.path.join(settings['output_directory'], 'initial_0.em'))
     p.setClass('0')
     references['0'] = p
     frequencies['0'] = freq
@@ -614,11 +616,12 @@ def initialize(pl, settings):
             pp.append(pl[int(i)])
         # avg, fsc = average2(pp, norm=True, verbose=False)
         pp.setClassAllParticles('0')
-        res, tmp, tmp2 = calculate_averages(pp, settings["binning"], None)
+        res, tmp, tmp2 = calculate_averages(pp, settings["binning"], None, outdir=settings["output_directory"])
         avg = res['0']
         avg = lowpassFilter(avg, freq, freq/10.)[0]
-        avg.write('initial_'+str(k)+'.em')
-        p = Particle('initial_'+str(k)+'.em')
+        kname = os.path.join(settings['output_directory'], 'initial_{}.em'.format(k))
+        avg.write(kname)
+        p = Particle(kname)
         p.setClass(str(k))
         references[str(k)] = p
         frequencies[str(k)] = freq
@@ -638,6 +641,7 @@ def classify(pl, settings):
     binning = settings["binning"]
     mask = settings["mask"]
     sfrequency = settings["frequency"] # starting frequency
+    outdir = settings["output_directory"]
 
     references = {}
     frequencies = {}
@@ -659,10 +663,10 @@ def classify(pl, settings):
             ncluster = settings["ncluster"]
             references, frequencies = initialize(pl, settings)
         else:
-            avgs, tmp, tmp2 = calculate_averages(pl, binning, mask)
+            avgs, tmp, tmp2 = calculate_averages(pl, binning, mask, outdir=outdir)
 
             for class_label, r in avgs.items():
-                fname = 'initial_class'+str(class_label)+'.em'
+                fname = os.path.join(outdir, 'initial_class'+str(class_label)+'.em')
                 rr = lowpassFilter(r, sfrequency, sfrequency/10.)[0]
                 rr.write(fname)
                 p = Particle(fname)
@@ -686,7 +690,7 @@ def classify(pl, settings):
         for pair in combinations(list(references.keys()), 2):
             args.append((references[pair[0]], frequencies[pair[0]], references[pair[1]], frequencies[pair[1]], mask,
                          settings["fmask"], binning, i, settings["sigma"], settings["threshold"],
-                         settings['output_directory']))
+                         outdir))
 
         dmaps = {}
         res = mpi.parfor(calculate_difference_map_proxy, args)
@@ -726,7 +730,7 @@ def classify(pl, settings):
         
         # update the references
         print("Calculate averages ...")
-        avgs, freqs, wedgeSum = calculate_averages(pl, binning, mask)
+        avgs, freqs, wedgeSum = calculate_averages(pl, binning, mask, outdir=outdir)
         ncluster = 0
         references = {}
         for class_label, r in avgs.items():
@@ -737,20 +741,20 @@ def classify(pl, settings):
             frequencies[str(class_label)] = int(freq)
             print('Resolution of class %s: %d' % (str(class_label), freq))
 
-            fname = 'iter'+str(i)+'_class'+str(class_label)+'.em'
+            fname = os.path.join(outdir, 'iter'+str(i)+'_class'+str(class_label)+'.em')
             rr = lowpassFilter(r, freq, freq/10.)[0]
-            rr.write(os.path.join(settings['output_directory'], fname))
+            rr.write(fname)
             p = Particle(fname)
             p.setClass(str(class_label))
             references[str(class_label)] = p
             ncluster += 1
 
             w = wedgeSum[str(class_label)]
-            fname = 'iter'+str(i)+'_class'+str(class_label)+'_wedge.em'
-            w.write(os.path.join(settings['output_directory'], fname))
+            fname = os.path.join(outdir, 'iter'+str(i)+'_class'+str(class_label)+'_wedge.em')
+            w.write(fname)
 
         # write the result to the disk
-        pl.toXMLFile(os.path.join(settings['output_directory'], 'classified_pl_iter'+str(i)+'.xml'))
+        pl.toXMLFile(os.path.join(outdir, 'classified_pl_iter'+str(i)+'.xml'))
         
         # check the stopping criterion
         if compare_pl(old_pl, pl):

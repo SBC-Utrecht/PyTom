@@ -6,6 +6,7 @@ Created on May 7, 2012
 
 import pytom_mpi
 import pickle
+import os
 
 class CMWorker():
     def __init__(self):
@@ -20,6 +21,7 @@ class CMWorker():
             raise RuntimeError("Not enough nodes to parallelize the job!")
         
     def start(self, job, outdir='./', verbose=False):
+        outdir = job["outdir"]
         if self.mpi_id == 0:
             import numpy as np
             pl_filename = job["ParticleList"]
@@ -247,7 +249,7 @@ if __name__ == '__main__':
     job["Mask"] = mask_filename
     job["Frequency"] = freq
     job["Binning"] = binning
-
+    job["outdir"] = outdir if outdir else './'
     worker = CMWorker()
     worker.start(job, verbose)
     
