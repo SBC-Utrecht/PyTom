@@ -123,6 +123,7 @@ class MPI:
     def parfor(self, func, data, verbose=False):
         """For master only.
         """
+        #self.begin()
         if not self._begun:
             raise Exception("MPI is not begun!")
 
