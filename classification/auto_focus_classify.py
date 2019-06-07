@@ -2,7 +2,7 @@
 import numpy as np
 from tompy.mpi import MPI
 from pytom.basic.structures import ParticleList
-
+import os
 assert np.__version__ >= '1.7.0'
 
 mpi = MPI()
@@ -113,9 +113,11 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
     return (std_map1, std_map2)
 
 
-def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binning, iteration, sigma, threshold):
+def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binning, iteration, sigma, threshold, outdir='./'):
     from pytom_volume import read
     from pytom.basic.structures import Particle
+    import os
+
     v1 = r1.getVolume()
     v2 = r2.getVolume()
     if mask:
@@ -129,8 +131,10 @@ def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binni
 
     (dmap1, dmap2) = calculate_difference_map(v1, band1, v2, band2, mask, focus_mask, True, sigma, threshold)
     fname1 = 'iter'+str(iteration)+'_dmap_'+str(r1.getClass())+'_'+str(r2.getClass())+'.em'
+    fname1 = os.path.join(outdir, fname1)
     dmap1.write(fname1)
     fname2 = 'iter'+str(iteration)+'_dmap_'+str(r2.getClass())+'_'+str(r1.getClass())+'.em'
+    fname2 = os.path.join(outdir, fname1)
     dmap2.write(fname2)
 
     dp1 = Particle(fname1)
@@ -680,7 +684,9 @@ def classify(pl, settings):
         print("Calculate difference maps ...")
         args = []
         for pair in combinations(list(references.keys()), 2):
-            args.append((references[pair[0]], frequencies[pair[0]], references[pair[1]], frequencies[pair[1]], mask, settings["fmask"], binning, i, settings["sigma"], settings["threshold"]))
+            args.append((references[pair[0]], frequencies[pair[0]], references[pair[1]], frequencies[pair[1]], mask,
+                         settings["fmask"], binning, i, settings["sigma"], settings["threshold"],
+                         settings['output_directory']))
 
         dmaps = {}
         res = mpi.parfor(calculate_difference_map_proxy, args)
@@ -733,7 +739,7 @@ def classify(pl, settings):
 
             fname = 'iter'+str(i)+'_class'+str(class_label)+'.em'
             rr = lowpassFilter(r, freq, freq/10.)[0]
-            rr.write(fname)
+            rr.write(os.path.join(settings['output_directory'], fname))
             p = Particle(fname)
             p.setClass(str(class_label))
             references[str(class_label)] = p
@@ -741,10 +747,10 @@ def classify(pl, settings):
 
             w = wedgeSum[str(class_label)]
             fname = 'iter'+str(i)+'_class'+str(class_label)+'_wedge.em'
-            w.write(fname)
+            w.write(os.path.join(settings['output_directory'], fname))
 
         # write the result to the disk
-        pl.toXMLFile('classified_pl_iter'+str(i)+'.xml')
+        pl.toXMLFile(os.path.join(settings['output_directory'], 'classified_pl_iter'+str(i)+'.xml'))
         
         # check the stopping criterion
         if compare_pl(old_pl, pl):
@@ -762,6 +768,8 @@ if __name__ == '__main__':
                       help="Number of classes")
     parser.add_option("-f", dest="frequency",
                       help="Maximal frequency (in pixel) involved in score calculation")
+    parser.add_option("-o", dest="output_directory",
+                      help="Output directory (optional)")
     parser.add_option("-s", dest="offset",
                       help="Potential offset of the particle (optional)")
     parser.add_option("-b", dest="binning",
@@ -809,6 +817,7 @@ if __name__ == '__main__':
     settings["threshold"] = float(options.threshold) if options.threshold else 0.4
     settings["noise"] = float(options.noise) if options.noise else None
     settings["noalign"] = options.noalign
+    settings['output_directory'] = options.output_directory if options.output_directory else './'
     if settings["noise"]:
         assert settings["noise"] > 0 and settings["noise"] < 1
 

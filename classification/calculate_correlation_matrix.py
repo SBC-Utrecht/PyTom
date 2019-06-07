@@ -19,7 +19,7 @@ class CMWorker():
         if self.num_workers < 1:
             raise RuntimeError("Not enough nodes to parallelize the job!")
         
-    def start(self, job, verbose=False):
+    def start(self, job, outdir='./', verbose=False):
         if self.mpi_id == 0:
             import numpy as np
             pl_filename = job["ParticleList"]
@@ -45,7 +45,7 @@ class CMWorker():
                     correlation_matrix[pair[1]][pair[0]] = result[pair]
             
             # write the correlation matrix to the disk
-            np.savetxt('correlation_matrix.csv', correlation_matrix, delimiter=',')
+            np.savetxt(os.path.join(outdir, 'correlation_matrix.csv'), correlation_matrix, delimiter=',')
 
             # send end signal to other nodes and terminate itself
             self.end(verbose)
@@ -214,6 +214,7 @@ if __name__ == '__main__':
                                     ScriptOption(['-f'], 'Frequency (after binning).', True, False),
                                     ScriptOption(['-b'], 'Binning factor.', True, True),
                                     ScriptOption(['-v'], 'Verbose mode.', False, True),
+                                    ScriptOption(['-o'], 'Output directory.', True, True),
                                     ScriptOption(['--help'], 'Help info.', False, True)])
     
     if len(sys.argv) == 1:
@@ -221,12 +222,12 @@ if __name__ == '__main__':
         sys.exit()
     
     try:
-        pl_filename, mask_filename, freq, binning, verbose, bHelp = parse_script_options(sys.argv[1:], helper)     
-    except:
-        raise
+        pl_filename, mask_filename, freq, binning, verbose, outdir, help = parse_script_options(sys.argv[1:], helper)
+    except Exception as e:
+        print(e)
         sys.exit()
     
-    if bHelp is True:
+    if help is True:
         print(helper)
         sys.exit()
     
