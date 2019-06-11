@@ -250,17 +250,17 @@ class SubtomoAnalysis(GuiTabWidget):
                                   'Has the tomogram been cropped in the x-dimension?\n'+
                                   'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping'+
                                   ' in the x-dimension.', cstep=-1, rstep=1,
-                                  value=0, stepsize=1,minimum=0, maximum=1000)
+                                  value=0, stepsize=1,minimum=-4000, maximum=4000)
         self.insert_label_spinbox(parent, mode + 'OffsetY', 'Offset in y-dimension',
                                   'Has the tomogram been cropped in the y-dimension?\n'+
                                   'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping'+
                                   ' in the y-dimension.', cstep=-1,rstep=1,
-                                  value=0, stepsize=1,minimum=0, maximum=1000)
+                                  value=0, stepsize=1,minimum=-4000, maximum=4000)
         self.insert_label_spinbox(parent, mode + 'OffsetZ', 'Offset in z-dimension',
                                   'Has the tomogram been cropped in the z-dimension?\n'+
                                   'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping'+
                                   ' in the z-dimension.', cstep=0, rstep=1,
-                                  value=0, stepsize=1, minimum=0, maximum=1000)
+                                  value=0, stepsize=1, minimum=-4000, maximum=4000)
 
         self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateMeta(m))
 

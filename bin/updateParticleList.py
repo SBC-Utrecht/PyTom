@@ -4,6 +4,7 @@
 import os
 import sys
 import glob
+from pytom.basic.structures import ParticleList
 
 
 def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='zxz'):
@@ -29,7 +30,7 @@ def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='
     print(z2, x, z1, rotation_angle)
     return z1 - rotation_angle, x, z2
 
-def updatePL(fnames, outname, directory='', wedgeangles=[]):
+def updatePL(fnames, outnames, directory='', wedgeangles=[]):
     try: wedgelen = len(wedgeangles)
     except: wedgelen = 0
 
@@ -48,7 +49,7 @@ def updatePL(fnames, outname, directory='', wedgeangles=[]):
             w.setWedgeAngles(wedgeangles[n*2:n*2+2])
 
 
-        tempPL.toXMLFile(outname)
+        tempPL.toXMLFile(outnames[n])
 
 
 if __name__ == '__main__':

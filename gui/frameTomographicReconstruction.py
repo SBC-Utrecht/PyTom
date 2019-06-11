@@ -438,6 +438,7 @@ class TomographReconstruct(GuiTabWidget):
         number_tomonames = 0
         num_procs_per_proc = 0
         firstindices, lastindices, expectedangles = [], [], []
+        firstangles, lastangles = [], []
         expected =  widgets['widget_{}_{}'.format(0,6)].text()#values[0][6]
         mode = 'v02_ba_'
         for name in ('FirstAngle', 'LastAngle','FirstIndex', 'LastIndex', 'Reduced', 'FolderSorted'):
@@ -464,9 +465,13 @@ class TomographReconstruct(GuiTabWidget):
                 self.widgets[mode + 'LastAngle'].setText(lastindex)
                 self.updateIndex(mode)
                 fi, li = self.widgets[mode + 'FirstIndex'].text(), self.widgets[mode + 'LastIndex'].text()
+                fa, la = self.widgets[mode + 'FirstAngle'].text(), self.widgets[mode + 'LastAngle'].text()
                 firstindices.append(fi)
                 lastindices.append(li)
+                firstangles.append(fa)
+                lastangles.append(la)
                 expectedangles.append(expected)
+
         tomofolder_file.close()
 
         guiFunctions.batch_tilt_alignment( number_tomonames, fnames_tomograms=file_tomoname, num_procs=20, deploy=True,
