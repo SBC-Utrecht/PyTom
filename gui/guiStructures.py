@@ -2875,7 +2875,10 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
             pass
 
     def updateQType(self, mode):
-        qtype, qcommand = self.widgets[mode + 'qType'].currentText().lower(), self.qcommanddict[self.parent().qtype]
+
+        qtype = self.widgets[mode + 'qType'].currentText().lower()
+        qcommand =  self.qcommanddict[qtype]
+
         self.parent().qtype = qtype
         self.parent().qcommand = qcommand
         active = (qtype != 'none')

@@ -8,7 +8,7 @@ pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
 
 
 def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, lastIndex, refIndex, markerFileName,
-                              targets, weightingType, tomogramFolder,fnames, projIndices=True, expectedRotationAngle=0):
+                              targets, weightingType, tomogramFolder, fnames, projIndices=True, expectedRotationAngle=0):
     '''Aligns tilt images, looping over markers in markerfile as reference. OPTIONAL: procs defines the number of processes running parallel.'''
 
 
@@ -28,7 +28,7 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 	--firstIndex {} \
 	--lastIndex {} \
 	--referenceIndex {} \
-	--referenceMarkerIndex {}\
+	--referenceMarkerIndex {} \
 	--markerFile {} \
 	--projectionTargets {} \
 	--projectionBinning 1 \
