@@ -59,7 +59,8 @@ if __name__ == '__main__':
 
     pl = ParticleList()
 
-    wedgelen = len(wedgeangles)
+    if wedgeangles: wedgelen = len(wedgeangles)
+    else: wedgelen = 0
 
     for n, xmlfile in enumerate(fnames):
         tempPL = ParticleList()

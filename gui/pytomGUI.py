@@ -255,12 +255,12 @@ class menudemo(QMainWindow, CommonFunctions):
         widget = NewProject(self,self.label)
         widget.show()
 
-    def open_settings(self):
+    def open_settings(self,show_menu=True):
         try:
             self.generalSettings.show()
         except:
             self.generalSettings = GeneralSettings(self)
-            self.generalSettings.show()
+            if show_menu: self.generalSettings.show()
 
     def go_you(self):
         self.projectname = os.path.join(os.getcwd(), self.label.text())
@@ -361,6 +361,7 @@ class menudemo(QMainWindow, CommonFunctions):
 
                           #('Segmentation',         "Segmentation") )
 
+        self.open_settings(show_menu=False)
 
         self.iconnames = [os.path.join(self.pytompath, 'gui/Icons/td.png'),
                           os.path.join(self.pytompath, 'gui/Icons/recon.png'),

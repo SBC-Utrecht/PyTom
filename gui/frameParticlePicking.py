@@ -614,8 +614,8 @@ class ParticlePick(GuiTabWidget):
                 #active=False
             values.append( [coordinateFile, prefix, 30, 30, fname_plist, active, ''] )
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
-
+        if values: self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+        else: return
         self.tab32_widgets = tw = self.tables[id].widgets
 
         for row in range(self.tables[id].table.rowCount()):
@@ -625,7 +625,7 @@ class ParticlePick(GuiTabWidget):
             widget1.textChanged.connect(lambda d, w1=widget1, w2=widget2: self.update_change_tab32_table(w1, w2))
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_convert_txt2xml(pid, v))
-        pass
+
 
     def update_change_tab32_table(self,widget1, widget2):
         widget2.setText('particleList_{}.xml'.format(widget1.text().replace('/particle_','')))
@@ -649,7 +649,7 @@ class ParticlePick(GuiTabWidget):
                     w2      = self.tab32_widgets['widget_{}_{}'.format(row, 3)].text()
                     outname = self.tab32_widgets['widget_{}_{}'.format(row, 4)].text()
                     wedges = '{},{},'.format(w1,w2)
-                    updatePL(c, outname, wedges=wedges, directory=prefix)
+                    updatePL([c], [outname], wedgeangles=[w1,w2], directory=prefix)
                     fnamesPL.append(outname)
                     continue
 
