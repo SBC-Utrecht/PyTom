@@ -29,6 +29,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.stage          = 'v04_'
         self.pytompath      = self.parent().pytompath
         self.projectname    = self.parent().projectname
+        self.logfolder      = self.parent().logfolder
         self.subtomodir     = self.parent().subtomo_folder
         self.frmdir         = os.path.join(self.subtomodir,'Alignment/FRM')
         self.glocaldir      = os.path.join(self.subtomodir, 'GLocal/FRM')
@@ -38,8 +39,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.tomogramfolder = os.path.join(self.parent().particlepick_folder, 'Tomograms')
         self.tomogram_folder = self.parent().tomogram_folder
         self.acpath = os.path.join(self.parent().subtomo_folder, 'Classification/AutoFocus')
-
-
+        self.qtype = self.parent().qtype
+        self.qcommand = self.parent().qcommand
 
         headers = ["Reconstruct Subtomograms","Align Subtomograms","Classify Subtomograms"]
         subheaders = [['Single Reconstruction','Batch Reconstruction'],['FRM Alignment','GLocal'],['CPCA','Auto Focus']]
@@ -265,7 +266,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
 
         execfilename = os.path.join( self.subtomodir, 'Reconstruction/reconstructSubtomograms.sh')
-        paramsSbatch = guiFunctions.createGenericDict(fname='subtomoReconstr', folder=self.subtomodir)
+        paramsSbatch = guiFunctions.createGenericDict(fname='subtomoReconstr', folder=self.logfolder)
         paramsCmd = [mode+'particlelist', mode+'AlignedTiltDir', mode + 'BinFactorReconstruction',
                      mode+'SizeSubtomos', mode+'BinFactorSubtomos', mode+'OffsetX', mode+'OffsetY', mode+'OffsetZ',
                      self.subtomodir, mode+'WeightingFactor', mode+'MetaFile', '20', extractParticles]
@@ -291,8 +292,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.mass_extract.close()
         particleFiles = sorted( self.extractLists.text().split('\n') )
         id='tab12'
-        headers = ["Filename particleList", "Run", "Tilt Images", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Y"]
-        types = ['txt', 'checkbox', 'combobox', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit']
+        headers = ["Filename particleList", "Run", "Tilt Images", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Y", '']
+        types = ['txt', 'checkbox', 'combobox', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit','txt']
         a=40
         sizes = [0, 0, 80, 80, a, a, a, a, a, a, a]
 
@@ -346,7 +347,7 @@ class SubtomoAnalysis(GuiTabWidget):
                     refmarkindex = 1
                 #binning = os.popen('cat {} | grep "--referenceMarkerIndex" '.format(a)).read()[:-1]
                 #print(binning)
-                values.append( [os.path.basename(particleFile), True, choices, binning, -1, 128, 1, 0, 0, 0] )
+                values.append([os.path.basename(particleFile), True, choices, binning, -1, 128, 1, 0, 0, 0, ''])
                 refmarkindices.append(refmarkindex)
 
         if values:
@@ -385,7 +386,7 @@ class SubtomoAnalysis(GuiTabWidget):
                              self.subtomodir, weight, metafile, '20']
 
                 txt = extractParticles.format(d=paramsCmd)
-                jobtxt = guiFunctions.gen_queue_header(folder=self.subtomodir, name=os.path.basename(outname[:-3]),
+                jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, name=os.path.basename(outname[:-3]),
                                                        num_jobs_per_node=20, time=12) + txt
                 out = open(execfilename, 'w')
                 out.write(jobtxt)
@@ -454,22 +455,18 @@ class SubtomoAnalysis(GuiTabWidget):
         jobfilename = [mode + 'outputDir', 'job_description.xml']#os.path.join(self.frmdir, 'job_description.xml')
         exefilename = [mode + 'outputDir', 'frmAlignment.sh'] #os.path.join(self.frmdir, 'frmAlignment.sh')
 
-        paramsSbatch = guiFunctions.createGenericDict(fname='FRMAlign', folder=self.frmdir) #, modules=['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/dev/gui'])
+        paramsSbatch = guiFunctions.createGenericDict(fname='FRMAlign', folder=self.logfolder) #, modules=['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/dev/gui'])
         paramsJob = [mode+'bwMin',mode+'bwMax',mode+'frequency',mode+'maxIterations', mode+'peakOffset',
                      rscore, weightedAv, mode+'filenameAverage', weighting, mode+'filenameMask', binning_mask, sphere,
                      mode+'pixelSize', mode+'particleDiameter', mode+'particleList', mode+'outputDir']
-        paramsCmd = [ mode+'outputDir', self.pytompath, jobfilename, templateFRMSlurm]
+        paramsCmd = [self.subtomodir, self.pytompath, jobfilename, templateFRMSlurm]
 
         self.insert_gen_text_exe(parent, self.stage, xmlfilename=jobfilename, jobfield=True, exefilename=exefilename,
                                  paramsXML=paramsJob + [templateFRMJob], paramsCmd=paramsCmd,
-                                 paramsSbatch=paramsSbatch, action=self.gen_subtomo_symlink, paramsAction=[mode+'outputDir'])
+                                 paramsSbatch=paramsSbatch)
 
         setattr(self, mode + 'gb_inputFiles', groupbox)
         return groupbox
-
-    def gen_subtomo_symlink(self,params):
-        f = os.path.join(self.subtomodir,'Subtomograms')
-        os.system('ln -s {} {}/Subtomograms'.format(f, self.widgets[params[0]].text() ))
 
     def updateFRM(self,mode):
         item = self.widgets[mode + 'particleList'].text()
@@ -565,7 +562,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.update_jobname(mode)
         glocalpath = os.path.join(self.subtomodir, 'Alignment/GLocal')
         exefilename = os.path.join(glocalpath, 'GLocal_Alignment.sh')
-        paramsSbatch = guiFunctions.createGenericDict(fname='GLocal', folder=glocalpath)
+        paramsSbatch = guiFunctions.createGenericDict(fname='GLocal', folder=self.logfolder)
         paramsCmd = [self.subtomodir, self.pytompath, self.pytompath, mode+'particleList', 'referenceCommand',
                      mode+'filenameMask', mode+'numIterations', mode+'pixelSize', mode+'particleDiameter',
                      mode+'binning', mode+'jobName', mode+'destination', mode + 'angleShells',
@@ -617,7 +614,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
 
         exefilename = [mode + 'outFolder', 'CPCA_Classification.sh']
-        paramsSbatch = guiFunctions.createGenericDict(fname='CPCA', folder=self.cpcadir)
+        paramsSbatch = guiFunctions.createGenericDict(fname='CPCA', folder=self.logfolder)
         paramsCmd = [mode+'outFolder', self.pytompath, mode + 'particleList', mode + 'outputFilename',
                      mode + 'cccFile', mode + 'numEig', mode+'numClasses', mode+'prefix',  templateCPCA]
 
@@ -656,9 +653,9 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
 
         exefilename = [mode + 'outFolder', 'CCC_Classification.sh']
-        paramsSbatch = guiFunctions.createGenericDict(fname='CCC_Class', folder=self.cpcadir)
-        paramsCmd = [mode+ 'outFolder', self.pytompath, mode + 'particleList', mode + 'filenameMask',
-                     mode + 'lowpass', mode + 'binning', templateCCC]
+        paramsSbatch = guiFunctions.createGenericDict(fname='CCC_Class', folder=self.logfolder)
+        paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'filenameMask',
+                     mode + 'lowpass', mode + 'binning', mode + 'outFolder', templateCCC]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
                                  paramsSbatch=paramsSbatch)
@@ -724,11 +721,11 @@ class SubtomoAnalysis(GuiTabWidget):
 
         # Parameters for execution
         exefilename = [mode + 'outFolder', 'AC_Classification.sh'] #os.path.join(acpath, 'AC_Classification.sh')
-        paramsSbatch = guiFunctions.createGenericDict(fname='AutoFocus', folder=self.acpath)
-        paramsCmd = [mode + 'outFolder' , self.pytompath, mode + 'particleList', mode + 'flagAlignmentMask',
-                     mode + 'flagClassificationMask',
-                     mode + 'numClasses', mode + 'bwMax', mode + 'maxIterations', mode + 'peakOffset',
-                     mode + 'noisePercentage', mode + 'partDensThresh', mode + 'stdDiffMap', templateAC]
+        paramsSbatch = guiFunctions.createGenericDict(fname='AutoFocus', folder=self.logfolder)
+        paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'flagAlignmentMask',
+                     mode + 'flagClassificationMask', mode + 'numClasses', mode + 'bwMax', mode + 'maxIterations',
+                     mode + 'peakOffset', mode + 'noisePercentage', mode + 'partDensThresh', mode + 'stdDiffMap',
+                     mode + 'outFolder', templateAC]
 
 
         # Generation of textboxes and pushbuttons related to submission
@@ -775,7 +772,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         if not os.path.exists(folder): 
             os.mkdir(folder)
-            os.system('ln -s {}/Subtomograms {}/Subtomograms'.format(self.subtomodir, folder ) )
+            #os.system('ln -s {}/Subtomograms {}/Subtomograms'.format(self.subtomodir, folder ) )
         self.widgets[mode + 'outFolder'].setText(folder) 
 
     def createOutFolder(self, mode):

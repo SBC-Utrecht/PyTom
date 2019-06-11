@@ -401,7 +401,7 @@ class CommonFunctions():
                                                self.update_logbook(name=name, text=text))
 
         if tooltip: widget.setToolTip(tooltip)
-        widget.setStyleSheet("QLineEdit{background:white; selection-background-color: #1989ac;}")
+        widget.setStyleSheet("QComboBox{background:white; selection-background-color: #1989ac;}")
         widget.setFixedWidth(width)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
         sizePolicy.setHorizontalStretch(1)
@@ -579,6 +579,15 @@ class CommonFunctions():
         widget.setObjectName(wname)
 
 
+        if logvar:
+            try:
+                widget.setPlainText(self.logbook[wname])
+            except:
+                self.logbook[wname] = ''
+
+            widget.setObjectName(wname)
+            #widget.textChanged.connect(lambda ignore, name=wname, text='textfield':
+            #                           self.update_logbook(name=name, text=text))
 
         parent.addWidget(widget, self.row, self.column, rowspan, columnspan)
         self.widgets[wname] = widget
@@ -646,12 +655,12 @@ class CommonFunctions():
                                                ])
 
 
-        self.insert_checkbox(parent,mode + 'queue',text='sbatch',cstep=-3,rstep=1,logvar=True,alignment=Qt.AlignLeft)
+        self.insert_checkbox(parent,mode + 'queue',text='queue',cstep=-3,rstep=1,logvar=True,alignment=Qt.AlignLeft)
 
         if jobfield:
-            self.insert_textfield(parent, mode + 'XMLText', columnspan=3, rstep=1, cstep=2, width=600,logvar=True)
+            self.insert_textfield(parent, mode + 'XMLText', columnspan=3, rstep=1, cstep=2, width=600,logvar=False)
             self.insert_label(parent, alignment=Qt.AlignRight, rstep=1, cstep=-2, sizepolicy=self.sizePolicyB)
-        self.insert_textfield(parent, mode + 'CommandText', columnspan=3, rstep=1, cstep=2, width=600, logvar=True)
+        self.insert_textfield(parent, mode + 'CommandText', columnspan=3, rstep=1, cstep=2, width=600, logvar=False)
         self.insert_label_action_label(parent, 'Execute command', rstep=1, action=self.exe_action,
                                        params=[exefilename, mode+'CommandText', xmlfilename, mode+'XMLText', action,
                                                paramsAction])
@@ -683,7 +692,7 @@ class CommonFunctions():
             exefile.close()
 
             if len(self.widgets[params[1]].toPlainText().split('SBATCH') ) > 2:
-                os.system('sbatch {}'.format(exefilename))
+                os.system('{} {}'.format(self.qcommand, exefilename))
             else:
                 proc = Worker(fn=os.system, args=['sh {}'.format(exefilename)], sig=False)
                 proc.start()
@@ -720,15 +729,28 @@ class CommonFunctions():
             num_jobs_per_node = d['num_jobs_per_node']
             time = d['time' ]
             partition = d['partition']
-
+            suffix = d['suffix']
+            num_nodes = d['num_nodes']
             if type(folder) == type([]):
-                folder = os.path.dirname( os.path.join(self.widgets[mode + 'tomofolder'].text(),
-                                                       self.widgets[folder[0]].text(), folder[1]) )
 
+                outfolder = ''
 
-            text = guiFunctions.gen_queue_header(d['fname'], folder, d['cmd'], d['modules'],
-                                                 partition=partition, time=time,
-                                                 num_jobs_per_node=num_jobs_per_node) + text
+                for extra in folder:
+                    print(extra)
+                    try:
+                        extra = self.widgets[extra].text()
+                    except:
+                        pass
+
+                    outfolder = os.path.join( outfolder, extra)
+                folder = outfolder
+
+            if self.custom:
+                text = self.genSettingsWidgets['v00_QParams_CustomHeaderTextField'].toPlainText() + '\n\n' + text
+            else:
+                text = guiFunctions.gen_queue_header(name=d['fname'], folder=folder, cmd=d['cmd'], modules=d['modules'],
+                                                     qtype=self.qtype, partition=partition, time=time,suffix=suffix,
+                                                     num_jobs_per_node=num_jobs_per_node, num_nodes=num_nodes) + text
 
         self.widgets[params[i][0]].setPlainText(text)
 
@@ -803,6 +825,8 @@ class CommonFunctions():
                 self.logbook[name] = self.widgets[name].currentText()
             elif text == 'spinbox':
                 self.logbook[name] = self.widgets[name].value()
+            elif text == 'textfield':
+                self.logbook[name] = self.widgets[name].toPlainText()
 
     def create_expandable_group(self, action, sizeP, text, mode=''):
         a = QCheckBox(text=text)
@@ -2762,34 +2786,154 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.slice += update
 
 
-class GeneralSettings(QMainWindow, CommonFunctions):
+class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
     def __init__(self,parent):
         super(GeneralSettings, self).__init__(parent)
         self.stage='generalSettings_'
         self.pytompath = self.parent().pytompath
+        self.projectname = self.parent().projectname
+        self.logbook = self.parent().logbook
+        self.setGeometry(0, 0, 600, 500)
+        self.qcommanddict = {'slurm': 'sbatch', 'sge': 'qsub', 'torque': 'qsub', 'none': 'none'}\
 
+        headers = ['Queuing Parameters', 'Settings']
+        subheaders = [[], ] * len(headers)
 
-        #headers = ['Data Transfer', 'Tomographic Reconstruction', 'Particle Picking', 'Subtomogram Analysis', "Job Submission"]
-        #subheaders  = [[],]*len(headers)
-        #self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders)
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, sizeX=600, sizeY=500)
 
         self.table_layouts = {}
         self.tables = {}
         self.pbs = {}
         self.ends = {}
-        self.setGeometry(50, 50, 300, 100)
+        self.checkbox = {}
+        self.num_nodes = {}
+        self.widgets = {}
+        self.subprocesses = 10
 
-        self.cwidget = QWidget()
-        self.gridLayout = QGridLayout()
-        self.setWindowModality(Qt.ApplicationModal)
+        self.tabs = {'tab1': self.tab1,
+                     'tab2': self.tab2,
+                     }
 
-        # self.gridLayout.setContentrsMargins(10, 10, 10, 10)
+        self.tab_actions = {'tab1': self.tab1UI,
+                            'tab2': self.tab2UI,
+                            }
 
-        self.setStyleSheet('background: #{};'.format(self.parent().mainc))
-        self.cwidget.setLayout(self.gridLayout)
-        self.setCentralWidget(self.cwidget)
+        for i in range(len(headers)):
+            t = 'tab{}'.format(i + 1)
+            empty = 1 * (len(subheaders[i]) == 0)
+            for j in range(len(subheaders[i]) + empty):
+                tt = t + str(j + 1) * (1 - empty)
+                if tt in ('tab1', 'tab2'):
+                    self.table_layouts[tt] = QGridLayout()
+                else:
+                    self.table_layouts[tt] = QVBoxLayout()
 
-        self.show()
+                if tt in ('tab1', 'tab2'):
+                    self.tab_actions[tt]()
+
+                tab = self.tabs[tt]
+                tab.setLayout(self.table_layouts[tt])
+
+
+    def tab1UI(self):
+
+        id = 'tab1'
+        self.row, self.column = 0, 0
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        parent = self.table_layouts[id]
+        mode = 'v00_QParams_'
+
+        w = 150
+        last, reftilt = 10, 5
+        self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
+        self.insert_label_combobox(parent, 'Queuing System ', mode + 'qType', ['Slurm','Torque','SGE', 'None'],
+                                    tooltip='Select a particleList which you want to plot.\n', logvar=True)
+        self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
+        self.insert_checkbox(parent, mode + 'CustomHeader', 'use custom header for queue', cstep=0, rstep=1,
+                            alignment=Qt.AlignLeft, logvar=True, columnspan=2)
+        self.insert_textfield(parent,mode+'CustomHeaderTextField', columnspan=5,rstep=1,cstep=0, logvar=True)
+        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
+        self.widgets[mode + 'qType'].currentTextChanged.connect(lambda d, m=mode: self.updateQType(mode))
+        self.widgets[mode + 'CustomHeader'].stateChanged.connect(lambda d, m=mode: self.updateCustomHeader(mode))
+
+        self.updateCustomHeader(mode)
+
+        for n, value in enumerate(self.qcommanddict.values()):
+            if value != 'none':
+                if os.path.exists( os.popen('which {}'.format(value)).read()[:-1] ):
+                    self.widgets[mode + 'qType'].setCurrentIndex(n)
+                    break
+            else: self.widgets[mode + 'qType'].setCurrentIndex(n)
+
+    def updateCustomHeader(self, mode):
+        try:
+            for tab in (self.parent().CD, self.parent().TR, self.parent().PP, self.parent().SA):
+                tab.custom = self.widgets[mode + 'CustomHeader'].isChecked()
+                tab.genSettingsWidgets = self.widgets
+        except:
+            pass
+
+    def updateQType(self, mode):
+        qtype, qcommand = self.widgets[mode + 'qType'].currentText().lower(), self.qcommanddict[self.parent().qtype]
+        self.parent().qtype = qtype
+        self.parent().qcommand = qcommand
+        active = (qtype != 'none')
+        try:
+            for tab in (self.parent().CD, self.parent().TR, self.parent().PP, self.parent().SA):
+                tab.qtype = qtype
+                tab.qcommand = qcommand
+                for key in tab.widgets.keys():
+                    if key.endswith('queue'):
+                        if not active:
+                            tab.widgets[key].setChecked(False)
+                        tab.widgets[key].setEnabled(active)
+
+        except:
+            pass
+    def showTMPlot(self, mode):
+        from pytom.plotting.plottingFunctions import plotTMResults
+
+        normal = self.widgets[mode + 'particleListNormal'].text()
+        mirrored = self.widgets[mode + 'particleListMirrored'].text()
+
+        plotTMResults([normal, mirrored], labels=['Normal', 'Mirrored'])
+
+    def tab2UI(self):
+        id = 'tab2'
+        self.row, self.column = 0, 0
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        parent = self.table_layouts[id]
+        mode = 'v00_PlotFSC'
+        w = 150
+        last, reftilt = 10, 5
+        self.insert_label(parent, rstep=1, cstep=0, sizepolicy=self.sizePolicyB, width=w)
+        self.insert_label_line_push(parent, 'FSC File (ascii)', mode + 'FSCFilename', mode='file', width=w,
+                                    initdir=self.projectname,
+                                    filetype='dat', tooltip='Select a particleList which you want to plot.\n')
+        self.insert_label_spinbox(parent, mode + 'BoxSize', text='Dimension of Image', tooltip='Box size of 3D object',
+                                  value=64, minimum=1, stepsize=1, width=w)
+        self.insert_label_spinbox(parent, mode + 'PixelSize', text='Pixel Size',
+                                  tooltip='Pixel size of a voxel in teh object.',
+                                  value=2.62, minimum=1, stepsize=1, wtype=QDoubleSpinBox, decimals=2, width=w)
+        self.insert_label_spinbox(parent, mode + 'CutOff', text='Resolution Cutoff', value=0, minimum=0, stepsize=0.1,
+                                  wtype=QDoubleSpinBox, decimals=3, width=w, cstep=0,
+                                  tooltip='Cut-off used to determine the resolution of your object from the FSC curve. \nTypical values are 0.5 or 0.143')
+
+        self.insert_pushbutton(parent, 'Plot!', action=self.showFSCPlot, params=mode, rstep=1, cstep=0)
+        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
+
+    def showFSCPlot(self, mode):
+        from pytom.bin.plotFSC import plot_FSC
+        filename = self.widgets[mode + 'FSCFilename'].text()
+        pixel_size = self.widgets[mode + 'PixelSize'].value()
+        box_size = self.widgets[mode + 'BoxSize'].value()
+        cut_off = self.widgets[mode + 'CutOff'].value()
+        show_image = True
+        outFname = 'temp.png'
+        if filename and outFname:
+            plot_FSC(filename, pixel_size, boxsize=box_size, show_image=show_image, c=cut_off)
 
 
 class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):

@@ -38,11 +38,13 @@ class ParticlePick(GuiTabWidget):
         self.stage='v03_'
         self.pytompath = self.parent().pytompath
         self.projectname = self.parent().projectname
+        self.logfolder = self.parent().logfolder
         self.templatematchfolder = os.path.join( self.projectname, '04_Particle_Picking/Template_Matching' )
         self.pickpartfolder = os.path.join(self.projectname, '04_Particle_Picking/Picked_Particles')
         self.subtomofolder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
         self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
-
+        self.qtype = self.parent().qtype
+        self.qcommand = self.parent().qcommand
         headers = ["Manual Picking","Template Matching", "Create Particle List"]
         subheaders  = [[],['Single', 'Batch'], ['Single','Batch']]
         self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders)
@@ -195,7 +197,7 @@ class ParticlePick(GuiTabWidget):
 
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'TemplateMatching'
-        paramsSbatch[ 'folder' ] = self.ccfolder
+        paramsSbatch[ 'folder' ] = self.logfolder #[mode + 'outfolderTM']
 
         self.updateTM(mode)
 
@@ -297,7 +299,7 @@ class ParticlePick(GuiTabWidget):
         execfilename = os.path.join( self.templatematchfolder, 'extractCandidates.sh')
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'ExtractCandidates'
-        paramsSbatch[ 'folder' ] = self.templatematchfolder
+        paramsSbatch[ 'folder' ] = self.logfolder #self.templatematchfolder
         paramsSbatch['partition'] = 'fastq'
         paramsSbatch['time'] = 1
         paramsSbatch['num_jobs_per_node'] = 1
@@ -385,8 +387,8 @@ class ParticlePick(GuiTabWidget):
 
         id = 'tab22'
         headers = ["Filename Tomogram", "Run", "Optional Templates", 'Optional Masks', 'Wedge Angle 1',
-                   "Wedge Angle 2", 'Angle List']
-        types = ['txt', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox']
+                   "Wedge Angle 2", 'Angle List', '']
+        types = ['txt', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox','txt']
         sizes = [0, 0, 80, 80, 0, 0, 0]
 
         tooltip = ['Name of tomogram files.',
@@ -402,7 +404,7 @@ class ParticlePick(GuiTabWidget):
         angleLists = os.listdir(os.path.join(self.pytompath, 'gui/angleLists'))
         for n, tomogramFile in enumerate(tomogramFiles):
             print(templateFiles, maskFiles, angleLists)
-            values.append([tomogramFile, 1, templateFiles, maskFiles, 30, 30, angleLists])
+            values.append([tomogramFile, 1, templateFiles, maskFiles, 30, 30, angleLists, ''])
             print(values[-1])
 
         try:
@@ -447,7 +449,8 @@ class ParticlePick(GuiTabWidget):
             fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
             folder = outDirectory
             cmd = templateTM.format(d=[outDirectory, self.pytompath, 'job.xml'])
-            job = guiFunctions.gen_queue_header(folder=folder,name=fname, singleton=True) + cmd
+            suffix = "_" + os.path.basename(outDirectory)
+            job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True) + cmd
             outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
             outjob2.write(job)
             outjob2.close()
@@ -474,62 +477,6 @@ class ParticlePick(GuiTabWidget):
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n+1, 0, Qt.AlignRight)
-
-    def createSubtomograms(self, mode=''):
-        title = "Create Subtomograms"
-        tooltip = 'Tick this box to extract subtomgorams from a particlelist file.'
-        sizepol = self.sizePolicyB
-        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
-
-        self.row, self.column = 0, 0
-        rows, columns = 20, 20
-        self.items = [['', ] * columns, ] * rows
-
-
-
-        self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB)
-        self.insert_label_line_push(parent, 'Particle List', mode + 'particlelist',
-                                    'Select the particle list.', mode='file', filetype='xml')
-        self.insert_label_line_push(parent, 'Folder with aligned tilt images', mode + 'AlignedTiltDir',
-                                    'Select the folder with the aligned tilt images.')
-
-        self.insert_label_line(parent, 'Binning factor used in the reconstruction.', mode + 'BinFactorReconstruction',
-                               'Defines the binning factor used in the reconstruction of the tomogram from which'+
-                               'the particles are selected.', validator=QIntValidator(),value=8)
-
-        self.insert_label_line(parent, 'Apply Weighting (0/1)', mode + 'WeightingFactor',
-                               'Sets the weighting scheme applied to the tilt images.\n'+
-                               '0: no weighting.\n1: ramp filter.', validator=QIntValidator(),value=0)
-
-        self.insert_label_line(parent, 'Size subtomograms.', mode+'SizeSubtomos', 'Sets the size of the subtomograms.',
-                               validator=QIntValidator(),value=128)
-
-        self.insert_label_line(parent, 'Binning Factor Subtomograms.', mode+'BinFactorSubtomos',
-                               'Sets the binning factor of the subtomograms.',validator=QIntValidator(),rstep=1,
-                               value=1)
-
-        self.insert_label_line(parent, 'Offset in x-dimension', mode + 'OffsetX',
-                               'Has the tomogram been cropped in the x-dimension?\n'+
-                               'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping'+
-                               ' in the x-dimension.', cstep=-1, value='0',validator=QIntValidator(), rstep=1)
-        self.insert_label_line(parent, 'Offset in y-dimension', mode + 'OffsetY',
-                               'Has the tomogram been cropped in the y-dimension?\n'+
-                               'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping'+
-                               ' in the y-dimension.', cstep=-1, value='0',validator=QIntValidator(),rstep=1)
-        self.insert_label_line(parent, 'Offset in z-dimension', mode + 'OffsetZ',
-                               'Has the tomogram been cropped in the z-dimension?\n'+
-                               'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping'+
-                               ' in the z-dimension.', cstep=0, value='0',validator=QIntValidator(),rstep=1)
-
-
-        self.insert_gen_text_exe(parent, mode, paramsCmd=[mode+'particlelist', mode+'AlignedTiltDir',
-                                                          mode + 'BinFactorReconstruction',
-                                                          mode+'SizeSubtomos', mode+'BinFactorSubtomos',
-                                                          mode+'OffsetX', mode+'OffsetY', mode+'OffsetZ',
-                                                          extractParticles])
-
-        setattr(self, mode + 'gb_create_subtomos', groupbox)
-        return groupbox
 
     def createParticleList(self, mode=''):
         title = "Create Particle List"
@@ -572,7 +519,7 @@ class ParticlePick(GuiTabWidget):
         execfilename = os.path.join( self.pickpartfolder, 'createParticleList.sh')
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'createPrtclLst'
-        paramsSbatch[ 'folder' ] = self.pickpartfolder
+        paramsSbatch['folder'] = self.logfolder #self.pickpartfolder
 
         paramsCmd=[mode+'CoordinateFile', mode+'PrefixSubtomo', mode+'Wedge1', mode+'Wedge2', mode+'FnameParticleList',
                    mode+'flagRandomize', createParticleList]
@@ -632,8 +579,8 @@ class ParticlePick(GuiTabWidget):
 
         id='tab32'
 
-        headers = ["Filename Coordinate List", "Prefix Subtomograms", 'Wedge Angle 1', 'Wedge Angle 2', "Filename Particle List", 'Randomize Angles']
-        types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'checkbox']
+        headers = ["Filename Coordinate List", "Prefix Subtomograms", 'Wedge Angle 1', 'Wedge Angle 2', "Filename Particle List", 'Randomize Angles', '']
+        types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'checkbox', 'txt']
         sizes = [0, 420, 80, 0, 420, 0]
 
 
@@ -665,7 +612,7 @@ class ParticlePick(GuiTabWidget):
                 #prefix = 'UNCHANGED'
                 #fname_plist = 'UNCHANGED'
                 #active=False
-            values.append( [coordinateFile, prefix, 30, 30, fname_plist, active] )
+            values.append( [coordinateFile, prefix, 30, 30, fname_plist, active, ''] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
 

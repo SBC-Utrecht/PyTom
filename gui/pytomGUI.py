@@ -111,6 +111,7 @@ class menudemo(QMainWindow, CommonFunctions):
         self.pytompath=pytompath
         self.projectname = None
         self.stage_buttons = []
+
         y,b,g,w = 'f9ce00', '343434', 'cacaca','fcfaf1'
         ly = 'f4e8c1'
         green = 'a0c1b8'
@@ -125,6 +126,12 @@ class menudemo(QMainWindow, CommonFunctions):
         self.bars = bl
         self.mainc = w
         self.middlec = lg
+
+        self.qtype = 'slurm'
+        self.qcommand = 'sbatch'
+        self.logbook = {}
+        dropdown = []
+
         #oImage = QImage("background11.jpg")
         #sImage = oImage.scaled(QSize(1920,1080))  # resize Image to widgets size
         #palette = QPalette()
@@ -155,8 +162,6 @@ class menudemo(QMainWindow, CommonFunctions):
 
         tb.actionTriggered[QAction].connect(self.processtrigger)
 
-        self.logbook = {}
-        dropdown = []
 
         self.targets =  ( (  'CollectPreprocess',  "Data Transfer" ),
                           ('TomographReconstruct', "Tomographic Reconstruction"),
@@ -237,8 +242,11 @@ class menudemo(QMainWindow, CommonFunctions):
 
 
     def plot_results(self):
-        self.plotWindow = PlotWindow(self)
-        self.plotWindow.show()
+        try:
+            self.plotWindow.show()
+        except:
+            self.plotWindow = PlotWindow(self)
+            self.plotWindow.show()
 
     def new_project(self):
         self.projectname = ''
@@ -248,8 +256,11 @@ class menudemo(QMainWindow, CommonFunctions):
         widget.show()
 
     def open_settings(self):
-        self.generalSettings = GeneralSettings(self)
-        self.generalSettings.show()
+        try:
+            self.generalSettings.show()
+        except:
+            self.generalSettings = GeneralSettings(self)
+            self.generalSettings.show()
 
     def go_you(self):
         self.projectname = os.path.join(os.getcwd(), self.label.text())
@@ -296,6 +307,7 @@ class menudemo(QMainWindow, CommonFunctions):
     def run_project(self):
 
         self.rawnanographs_folder = os.path.join(self.projectname, '01_Raw_Nanographs')
+        self.logfolder = os.path.join(self.projectname, 'LogFiles')
         self.motioncor_folder = os.path.join(self.projectname, '02_Preprocessed_Nanographs/Motion_corrected')
         self.ctf_folder = os.path.join(self.projectname, '02_Preprocessed_Nanographs/CTF_corrected')
         self.tomogram_folder = os.path.join(self.projectname, '03_Tomographic_Reconstruction')

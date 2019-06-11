@@ -29,6 +29,8 @@ class BrowseWindowRemote(QMainWindow):
         self.pathdisplay = QLineEdit()
         self.pathdisplay.setEnabled(False)
         splitter0 = QSplitter(Qt.Vertical)
+        self.qtype = self.parent().qtype
+        self.qcommand = self.parent().qcommand
         self.topleft = QListWidget()
         self.topleft.itemDoubleClicked.connect(self.repopulate_folder_list)
         self.topright = QListWidget()

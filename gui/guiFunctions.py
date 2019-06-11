@@ -59,7 +59,6 @@ def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, fi
     else:
         return sphere
 
-
 def read_markerfile(filename,tiltangles):
     if filename[-4:] == '.mrc':
         mark_frames = mrc2markerfile(filename, tiltangles)
@@ -193,7 +192,8 @@ def mrc2em(filename,destination):
     except:
         pass
 
-def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['python3/3.7', 'lib64/append', 'openmpi/2.1.1', 'pytom/dev/gui_devel']):
+def slurm_command(name='TemplateMatch',folder='./', cmd='', num_nodes=1,
+                  modules = ['python3/3.7', 'lib64/append', 'openmpi/2.1.1', 'pytom/dev/gui_devel']):
 
     module_load = ''
     if modules:
@@ -213,10 +213,11 @@ def slurm_command(name='TemplateMatch',folder='./', cmd='', modules = ['python3/
 {}'''.format(name,folder,module_load,cmd)
     return slurm_generic_command
 
-def gen_queue_header(name='TemplateMatch', folder='./', cmd='',
-                     modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel'],
+def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, emailaddress='',
+                     modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel'], suffix= '',
                      qtype='slurm', num_jobs_per_node=20, time=12, partition='defq', singleton=False):
     module_load = ''
+    queue_command = ''
     if modules:
         module_load = 'module load '
     for module in modules:
@@ -234,28 +235,40 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='',
     if qtype == 'slurm':
         queue_command = '''#!/usr/bin/bash
 #SBATCH --time        {}:00:00
-#SBATCH -N 1
+#SBATCH -N {}
 #SBATCH --partition {}
 #SBATCH --ntasks-per-node {}
 #SBATCH --job-name    {}                                                                       
-#SBATCH --output      {}/%x-%j.out 
+#SBATCH --output      {}/%j-%x{}.out 
 {}
 {}
 
 {}
 
-{}'''.format(time, partition, num_jobs_per_node, name, folder, oversubscribe, singletoncommand, module_load, cmd)
+{}'''.format(time, num_nodes, partition, num_jobs_per_node, name, folder, suffix, oversubscribe, singletoncommand, module_load, cmd)
 
-    if qtype == 'qsub':
+    elif qtype == 'qsub':
         print ('qsub has not been defined.')
         return ''
 
+    elif qtype == 'torque':
+        if emailaddress:
+            emailaddress = '#PBS -M {}\n        #PBS -m abe'.format(emailaddress)
+        queue_command = '''#!/usr/bin/bash
+#PBS -k o 
+#PBS -l nodes={}:ppn={},walltime={}:00:00 
+{}
+#PBS -N {} 
+#PBS -j oe
+#PBS -q {}
+'''.format(num_nodes, num_jobs_per_node, time, emailaddress, name, partition)
+
     return queue_command
 
-def createGenericDict(fname='template',cmd='', folder='', partition='defq', num_jobs_per_node=20, time=12,
-                      modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel']):
+def createGenericDict(fname='template',cmd='', folder='', partition='defq', num_jobs_per_node=20, time=12, suffix='',
+                      num_nodes=1, modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel']):
     genericSbatchDict = {'fname':fname,'cmd':cmd,'folder':folder, 'modules':modules, 'time':time, 'partition':partition,
-                         'num_jobs_per_node': num_jobs_per_node}
+                         'num_jobs_per_node': num_jobs_per_node, 'suffix': suffix, 'num_nodes': num_nodes}
     return genericSbatchDict
 
 def sort( obj, nrcol ):
@@ -386,7 +399,6 @@ def write_text2file(text,fname,mode='a'):
     out.write(text)
     out.close()
 
-
 def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='.', num_procs=20, num_procs_per_proc=1, tiltseriesname='sorted/sorted',
                          markerfile='sorted/markerfile.em',targets='alignment', firstindices=[], lastindices=[], refindex=11,
                           weightingtype=0, deploy=False, queue=False, expectedRotationAngles=0):
@@ -514,7 +526,8 @@ def create_project_filestructure(projectdir='.'):
         "06_Segmentation": {
             "copy_files": [""],
             "run_scripts": [""]
-        }
+        },
+        "LogFiles": ""
     }
 
     if not os.path.exists(projectdir):

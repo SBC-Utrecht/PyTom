@@ -133,7 +133,7 @@ mpirun -n 20 {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
 
 templateCCC       = """cd {d[0]}
 
-mpiexec --tag-output -n 20 pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]}
+mpiexec --tag-output -n 20 pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]} -o {d[6]}
 """
 
 templateCPCA      = """cd {d[0]}
@@ -150,6 +150,7 @@ mpirun -c 20 {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
 -f {d[6]} \\
 -i {d[7]} \\
 -s {d[8]} \\
+-o {d[12]} \\
 -n {d[9]} -g {d[10]} -t {d[11]}'''
 
 templateTM        = '''cd {d[0]}
