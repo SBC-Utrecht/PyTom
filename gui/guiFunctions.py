@@ -405,7 +405,7 @@ def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='
     '''BATCHMODE: tilt alignment. Submits a number of sbatch jobs to slurm queueing system. Each job calculates the tilt aligment for each marker in a markerfile.  It divides the number or jobs with respect to the num_procs.'''
 
     pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
-    pytompath = '/data/gijsvds/pytom-develop/pytom_python3/pytom'
+    
 
     for n in range(number_tomonames):
         firstindex,lastindex = firstindices[n], lastindices[n]
