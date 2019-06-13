@@ -12,6 +12,8 @@ def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='
 
     assert os.path.exists(chimeraOutputFile)
 
+
+
     try:
         vec = os.popen(
             "cat " + chimeraOutputFile + " | grep rotation_axis | head -1 | awk '{print $5, $4, $3}'").read()[:-1]
@@ -31,6 +33,11 @@ def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='
     return z1 - rotation_angle, x, z2
 
 def updatePL(fnames, outnames, directory='', wedgeangles=[]):
+    if type(fnames) == str:
+        fnames = [fnames]
+    if type(outnames) == str:
+        outnames = [outnames]
+
     try: wedgelen = len(wedgeangles)
     except: wedgelen = 0
 
@@ -107,7 +114,7 @@ if __name__ == '__main__':
         fnames = XMLfnames.split(',' )
 
     try:
-        if os.path.exists(rotate):
+        if rotate and os.path.exists(rotate):
             chimeraFName = rotate
             par
         elif rotate != None:
@@ -116,7 +123,7 @@ if __name__ == '__main__':
             z1,x,z2 = 0,0,0
     except Exception as e:
         print('rotateError: ', e)
-        sys.exit()
+        #sys.exit()
 
     try:
         binningFactorRecon = float(shiftBin)
@@ -128,4 +135,4 @@ if __name__ == '__main__':
 
     updatePL(fnames, outname, directory=directory, wedgeangles=wedgeangles)
 
-
+    print('Success: Particle List updated!')
