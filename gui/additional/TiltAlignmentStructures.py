@@ -698,7 +698,6 @@ class TiltAlignment:
             self._cTilt[kk] = cos(the / 180. * pi)
         return self._tiltAngles
 
-
     def getTiltAnglesFromIMODfile(self, tltfile):
         """
         get tiltangles from IMOD file
@@ -1100,7 +1099,6 @@ class TiltAlignment:
         self.setMagnificationsInTiltSeries(self.TiltSeries_)
         return sqrt(score)
 
-
     def alignmentResidualGradient(self, TiltSeries_):
         """
         """
@@ -1175,7 +1173,6 @@ class TiltAlignment:
         for Proj in TiltSeries_.Projections:
             Proj.rotInPlane = self.rotInPlane[kk]
             kk = kk + 1
-
 
     def refineMarkerPositions(self, TiltSeries_, dimBox=32,
                               finealigfile=None, verbose=False):

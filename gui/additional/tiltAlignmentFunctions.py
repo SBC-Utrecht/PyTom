@@ -188,9 +188,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     from math import atan, tan, pi, sqrt
 
     if writeResults:
-        from pytom.gui.guiFunctions import headerMarkerResults
-        outfile=open(writeResults, 'w')
-        outfile.write(headerMarkerResults)
+        results = []
 
     ntilt = len(cTilt)
     nmark = len(Markers_)
@@ -359,9 +357,9 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
             z[imark] = numpy.linalg.det(P_t)/dt
 
             if writeResults:
-                result = '{:4d} {:7.1f} {:7.1f} {:7.1f} {:7.1f} {:7.1f} {:7.1f}\n'
-                result = result.format(imark, x[imark], y[imark], z[imark], x[imark]+r[0], y[imark]+r[1], z[imark]+r[2])
-                outfile.write(result)
+                result = [imark, x[imark], y[imark], z[imark], x[imark]+r[0], y[imark]+r[1], z[imark] + r[2]]
+                results.append(result)
+
 
             if not mute:
                 print(('     %3d - %3d :.............. = %7.1f, %7.1f, %7.1f'
@@ -434,7 +432,11 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
             shiftVarX[itilt]=None
             shiftVarY[itilt]=None
 
-    if writeResults: outfile.close()
+    if writeResults:
+        from pytom.gui.guiFunctions import fmtMR, headerMarkerResults
+        print(headerMarkerResults)
+
+        numpy.savetxt(writeResults, numpy.array(results), fmt=fmtMR, header=headerMarkerResults)
 
     return(psiindeg, shiftX, shiftY, x, y, z, distLine, diffX, diffY, 
            shiftVarX, shiftVarY)
