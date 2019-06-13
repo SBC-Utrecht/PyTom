@@ -77,7 +77,7 @@ if __name__ == '__main__':
     helper = ScriptHelper(sys.argv[0].split('/')[-1],
                           description='Align and weight projections, save them and reconstruct tomogram (optional). \n\
                                       See http://pytom.org/doc/pytom/reconstructTomograms.html for documentation.',
-                          authors='Friedrich Foerster',
+                          authors='Gijs van der Schot',
                           options = options)
 
     if len(sys.argv) == 1:
@@ -228,8 +228,13 @@ if __name__ == '__main__':
         if files[0] == firstProj and files[-1] == lastProj:
             reduced = ''
 
-        stringFAligned = '{}/unweighted_unbinned_marker_{}{}/sorted_aligned'
-        falignedTiltSeriesName= stringFAligned.format(alignedTiltSeriesName, irefmark, reduced)
+        print(alignedTiltSeriesName)
+        falignedTiltSeriesName = alignedTiltSeriesName.replace('____', '_{}_'.format(irefmark))
+        if not reduced:
+            falignedTiltSeriesName = falignedTiltSeriesName.split('_reduced_')[0]
+
+        #stringFAligned = '{}/unweighted_unbinned_marker_{}{}/sorted_aligned'
+        falignedTiltSeriesName= os.path.join(falignedTiltSeriesName, 'sorted_aligned')
         outdir = os.path.dirname(falignedTiltSeriesName) 
         if not os.path.exists(outdir): os.mkdir( outdir )
 

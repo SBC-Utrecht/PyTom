@@ -16,6 +16,8 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
     print(tomogram_names)
     refIndices = [line.split()[1] for line in open(fnames).readlines()]
     refMarkIndices = [line.split()[2] for line in open(fnames).readlines()]
+    firstAngles = [line.split()[3] for line in open(fnames).readlines()]
+    lastAngles = [line.split()[4] for line in open(fnames).readlines()]
 
     for t in tomogram_names:
         if not os.path.exists(os.path.join(t,'alignment')):
@@ -23,6 +25,9 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 
 
     for index in range(start,end):
+        string = '{}/unweighted_unbinned_marker_{}_reduced_{}_{}'
+        outdir = string.format(targets, '__', firstAngles[index], lastAngles[index])
+
         cmd = '''cd {}; pytom {}/gui/additional/generateAlignedTiltImages.py \
         --tiltSeriesName {}  \
 	--firstIndex {} \
@@ -37,8 +42,9 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 	--expectedRotationAngle {} \
     {}    --numberProcesses {} > alignment/logfile.alignment.txt'''
         cmd = cmd.format(tomogram_names[index], pytompath, tiltSeriesName, firstIndex, 
-                         lastIndex, refIndices[index], refMarkIndices[index], markerFileName, targets, weightingType,
+                         lastIndex, refIndices[index], refMarkIndices[index], markerFileName, outdir, weightingType,
                          expectedRotationAngle, '--projIndices '*projIndices, procs)
+
 
         p = Process(target=os.system,args=([cmd]))
         p.start()
