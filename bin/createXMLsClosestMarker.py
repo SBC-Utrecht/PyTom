@@ -41,7 +41,7 @@ def determine_closest_marker(x,y,z,markers):
 
     return markerIndex
 
-def extractParticlesOfCLassFromXML(xmlfile, markerfile, directory='./'):
+def extractParticleListsClosestToRefMarker(xmlfile, markerfile, directory='./'):
     from pytom.basic.structures import PickPosition, ParticleList
     pL = ParticleList()
     pL.fromXMLFile(xmlfile)
@@ -101,17 +101,21 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        plName, help = parse_script_options(sys.argv[1:], helper)
+        plName, logfile, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
+
     if help is True:
         print(helper)
         sys.exit()
 
-    if not os.path.exists(plName):
+    if not plName or not os.path.exists(plName):
+        print('particleList does not exist. Exit. ')
+        sys.exit()
+    if not logfile or not os.path.exists(logfile):
+        print('logfile does not exist. Exit.')
         sys.exit()
 
-
-    extractParticlesOfCLassFromXML(plName)
+    extractParticleListsClosestToRefMarker(plName, logfile)
 
