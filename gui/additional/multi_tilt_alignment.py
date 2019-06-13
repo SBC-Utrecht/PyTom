@@ -5,7 +5,7 @@ import sys
 global pytompath
 pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
 #pytompath = '/data/gijsvds/pytom-develop/pytom_python3/pytom'
-
+import time
 
 def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, lastIndex, refIndex, markerFileName,
                               targets, weightingType, tomogramFolder, fnames, projIndices=True, expectedRotationAngle=0):
@@ -15,21 +15,33 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
     tomogram_names = [line.split()[0] for line in open(fnames).readlines()]
     print(tomogram_names)
     refIndices = [line.split()[1] for line in open(fnames).readlines()]
-    refMarkIndices = [line.split()[2] for line in open(fnames).readlines()]
-    firstAngles = [line.split()[3] for line in open(fnames).readlines()]
-    lastAngles = [line.split()[4] for line in open(fnames).readlines()]
+    referenceMarkerIndex = [line.split()[3] for line in open(fnames).readlines()]
+    numMarkers = [line.split()[2] for line in open(fnames).readlines()]
+    firstAngles = [line.split()[4] for line in open(fnames).readlines()]
+    lastAngles = [line.split()[5] for line in open(fnames).readlines()]
+    firstIndices = [line.split()[6] for line in open(fnames).readlines()]
+    lastIndices = [line.split()[7] for line in open(fnames).readlines()]
+    weightingTypes = [line.split()[6] for line in open(fnames).readlines()]
+    expectedRotationAngles = [line.split()[7] for line in open(fnames).readlines()]
 
     for t in tomogram_names:
         if not os.path.exists(os.path.join(t,'alignment')):
             os.mkdir(os.path.join(t,'alignment'))
 
 
+    procs = []
     for index in range(start,end):
         string = '{}/unweighted_unbinned_marker_{}_reduced_{}_{}'
         outdir = string.format(targets, '__', firstAngles[index], lastAngles[index])
-
-        cmd = '''cd {}; pytom {}/gui/additional/generateAlignedTiltImages.py \
-        --tiltSeriesName {}  \
+        print(numMarkers[index])
+        if referenceMarkerIndex[index] == 'all':
+            refmarks = range(int(numMarkers[index]))
+        else:
+            refmarks = [int(referenceMarkerIndex)]
+        print(refmarks)
+        for refmarkindex in refmarks:
+            cmd = '''cd {}; pytom {}/gui/additional/generateAlignedTiltImages.py \
+    --tiltSeriesName {}  \
 	--firstIndex {} \
 	--lastIndex {} \
 	--referenceIndex {} \
@@ -41,14 +53,17 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 	--weightingType {} \
 	--expectedRotationAngle {} \
     {}    --numberProcesses {} > alignment/logfile.alignment.txt'''
-        cmd = cmd.format(tomogram_names[index], pytompath, tiltSeriesName, firstIndex, 
-                         lastIndex, refIndices[index], refMarkIndices[index], markerFileName, outdir, weightingType,
-                         expectedRotationAngle, '--projIndices '*projIndices, procs)
-
-
-        p = Process(target=os.system,args=([cmd]))
-        p.start()
-
+            cmd = cmd.format(tomogram_names[index], pytompath, tiltSeriesName, firstIndices[index],
+                             lastIndices[index], refIndices[index], refmarkindex, markerFileName, outdir,
+                             weightingTypes[index], expectedRotationAngles[index], '--projIndices '*projIndices, 1)
+            while len(procs) > 19.1:
+                time.sleep(1)
+                procs = [proc for proc in procs if proc.is_alive()]
+            print(cmd)
+            p = Process(target=os.system,args=([cmd]))
+            procs.append(p)
+            p.start()
+            print('job for {} with refMarkIndex {} started.'.format(tomogram_names[index], refmarkindex))
 
 def extract_subtomograms(start,end,fnames,folders,binning_tomogram=1,binning_subtomograms=1,offset='0,0,0',size=80,weighting_type=0):
     for i in range(start,end):

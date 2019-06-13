@@ -36,6 +36,8 @@ def extractParticlesOfCLassFromXML(xmlfile):
         for n , particle in enumerate( tree.xpath("Particle") ):
             remove = True
             origin = particle.xpath('PickPosition')[0].get('Origin')
+            if not origin:
+                origin = particle.xpath('InfoTomogram')[0].get('TomoName')
 
             if not tomogram and not origin in excludeList: 
                 tomogram = origin

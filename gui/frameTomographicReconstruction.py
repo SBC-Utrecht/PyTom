@@ -410,11 +410,13 @@ class TomographReconstruct(GuiTabWidget):
             last_frame = len(sortedfiles)
             index_zero_angle = 0
             mm = 9999
+
             for n, sortedfile in enumerate(sortedfiles):
                 index_s = int(sortedfile.split('_')[-1].split('.')[0])
                 if abs(tangs[index_s]) < mm:
                     mm = abs(tangs[index_s])
-                    index_zero_angle = n
+                    index_zero_angle = index_s
+
 
             d = read(markerfile)
             data = copy.deepcopy( vol2npy(d) )
@@ -434,7 +436,8 @@ class TomographReconstruct(GuiTabWidget):
         table = self.tables[id].table
         widgets = self.tables[id].widgets
         file_tomoname = os.path.join(self.tomogram_folder, '.multi_alignment.txt')
-        tomofolder_file = open(file_tomoname, 'w')
+        tomofolder_info = []
+        total_number_markers = 0
         number_tomonames = 0
         num_procs_per_proc = 0
         firstindices, lastindices, expectedangles = [], [], []
@@ -471,10 +474,46 @@ class TomographReconstruct(GuiTabWidget):
                 firstangles.append(fa)
                 lastangles.append(la)
                 expectedangles.append(expected)
-                tomofolder_file.write('{} {} {} {} {}\n'.format(tomofoldername, refindex, markindex, fa, la))
+
+                markerfile = read(os.path.join(self.tomogram_folder, tomofoldername, 'sorted/markerfile.em'))
+                markerdata = vol2npy(markerfile).copy()
+
+                if markindex == 'all':
+                    numMark = markerdata.shape[2]
+                else:
+                    numMark = 1
+
+                total_number_markers += numMark
+                ll = '{} {} {} {} {} {} {} {} {} {}\n'
+                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0, expected)
+                tomofolder_info.append([ numMark, ll])
+
+        new_list = sorted(tomofolder_info, key=lambda l:l[0], reverse=True)
+
+        new_info = []
+        lprocs = [0]
+        taken = [0,]*number_tomonames
+        while number_tomonames - sum(taken):
+            take = []
+            partial_sum = 0
+            for n in range(len(new_list)):
+                if taken[n]: continue
+                if not partial_sum or (partial_sum + new_list[n][0]) < 21:
+                    partial_sum += new_list[n][0] % 20
+                    if not partial_sum: partial_sum += 20
+                    take.append(n)
+            for t in take:
+                taken[t] = 1
+                new_info.append(new_list[t])
+            lprocs.append(sum(taken))
+        print(lprocs)
+        lprocs.append(number_tomonames)
+        tomofolder_file = open(file_tomoname, 'w')
+        for x,y in new_info:
+            tomofolder_file.write(y)
         tomofolder_file.close()
 
-        guiFunctions.batch_tilt_alignment( number_tomonames, fnames_tomograms=file_tomoname, num_procs=20, deploy=True,
+        guiFunctions.batch_tilt_alignment( number_tomonames, fnames_tomograms=file_tomoname, num_procs=lprocs, deploy=True,
                                            projectfolder=self.tomogram_folder, num_procs_per_proc=num_procs_per_proc,
                                            tiltseriesname='sorted/sorted', markerfile='alignment/markerfile.em',
                                            targets='alignment', weightingtype=0, queue=self.checkbox[id].isChecked(),

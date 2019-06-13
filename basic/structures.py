@@ -1631,6 +1631,9 @@ class Particle(PyTomClass):
     def getScore(self):
         return self._score
     
+    def getSourceInfo(self):
+        return self._sourceInfo
+
     def getVolume(self, binning=1):
         """
         read Volume from disk. If specified volume will be resized in Fourier space

@@ -2,7 +2,7 @@
 """
 Created on Jul 20, 2013
 
-@author: FF
+@author: GS
 """
 
 if __name__ == '__main__':
@@ -225,11 +225,11 @@ if __name__ == '__main__':
         start,end, path = os.path.basename(tiltSeriesName), 'mrc', os.path.dirname(tiltSeriesName)
         files = [f.split('_')[-1].split('.')[-2] for f in os.listdir(path) if f.startswith(start) and f.endswith(end)]
         files = sorted(files,key=int)
-        if files[0] == firstProj and files[-1] == lastProj:
+        if int(files[0]) == firstProj and int(files[-1]) == lastProj:
             reduced = ''
 
         print(alignedTiltSeriesName)
-        falignedTiltSeriesName = alignedTiltSeriesName.replace('____', '_{}_'.format(irefmark))
+        falignedTiltSeriesName = alignedTiltSeriesName.replace('____', '_{:04d}_'.format(irefmark))
         if not reduced:
             falignedTiltSeriesName = falignedTiltSeriesName.split('_reduced_')[0]
 

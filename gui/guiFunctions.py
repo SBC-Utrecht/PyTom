@@ -399,7 +399,7 @@ def write_text2file(text,fname,mode='a'):
     out.write(text)
     out.close()
 
-def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='.', num_procs=20, num_procs_per_proc=1, tiltseriesname='sorted/sorted',
+def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='.', num_procs=[], num_procs_per_proc=1, tiltseriesname='sorted/sorted',
                          markerfile='sorted/markerfile.em',targets='alignment', firstindices=[], lastindices=[], refindex=11,
                           weightingtype=0, deploy=False, queue=False, expectedRotationAngles=0):
     '''BATCHMODE: tilt alignment. Submits a number of sbatch jobs to slurm queueing system. Each job calculates the tilt aligment for each marker in a markerfile.  It divides the number or jobs with respect to the num_procs.'''
@@ -407,15 +407,11 @@ def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='
     pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
     
 
-    for n in range(number_tomonames):
-        firstindex,lastindex = firstindices[n], lastindices[n]
-        expectedRotationAngle = expectedRotationAngles[n]
-        if not n % num_procs == 0:
-            continue
+    for n in range(len(num_procs)-1):
 
-        cmd = multiple_alignment.format( d=(projectfolder, pytompath, n, min(number_tomonames,num_procs+n),
-                                          num_procs_per_proc, tiltseriesname, markerfile, targets, projectfolder,
-                                          firstindex, lastindex, refindex, weightingtype, fnames_tomograms, expectedRotationAngle) )
+        cmd = multiple_alignment.format( d=(projectfolder, pytompath, num_procs[n], num_procs[n+1],
+                                            num_procs_per_proc, tiltseriesname, markerfile, targets, projectfolder,
+                                            0, 0, 0, 0, fnames_tomograms, 0) )
 
         if queue:
             cmd = gen_queue_header(name='Alignment', folder=projectfolder, cmd=cmd )

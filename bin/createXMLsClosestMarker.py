@@ -14,16 +14,31 @@ from pytom_numpy import vol2npy
 import os
 import lxml.etree as et
 
+def correct_header_markerfile(markerfile):
+    a = open(markerfile, 'r')
+    txt = a.read()
+    a.close()
 
-def remove_element(el):
-    parent = el.getparent()
-    if el.tail.strip():
-        prev = el.getprevious()
-        if prev:
-            prev.tail = (prev.tail or '') + el.tail
-        else:
-            parent.text = (parent.text or '') + el.tail
-    parent.remove(el)
+    nothashed = '''MarkerIndex 
+OffsetX (px)
+OffsetY (px)
+OffsetZ (px)
+PositionX (px)
+PositionY (px)
+PositionZ (px)'''
+
+    hashed = '''# MarkerIndex 
+# OffsetX (px)
+# OffsetY (px)
+# OffsetZ (px)
+# PositionX (px)
+# PositionY (px)
+# PositionZ (px)
+# '''
+
+    b = open(markerfile, 'w')
+    b.write(txt.replace(nothashed, hashed))
+    b.close()
 
 
 def determine_closest_marker(x,y,z,markers):
@@ -35,13 +50,15 @@ def determine_closest_marker(x,y,z,markers):
     markerIndex = 0
     dist = 10000
     for n, (rx, ry, rz) in enumerate(refmarkers):
+        print(rx, ry, rz, x, y, z)
         tempdist = numpy.sqrt((rx-x)**2+(ry-y)**2+(rz-z)**2)
         if tempdist < dist:
             markerIndex = n
+            dist = tempdist
 
     return markerIndex
 
-def extractParticleListsClosestToRefMarker(xmlfile, markerfile, directory='./'):
+def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8, directory='./'):
     from pytom.basic.structures import PickPosition, ParticleList
     pL = ParticleList()
     pL.fromXMLFile(xmlfile)
@@ -49,14 +66,19 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, directory='./'):
     dict_particle_lists = {}
 
     for particle in pL:
-        fname = particle.getFilename()
-        tomogram = 'tomogram_' + fname.split('tomogram_')[1][:3]
+        tomogram = particle.getPickPosition().getOriginFilename().split('/')[-1].split('.')[0]
+        if not tomogram:
+            tomogram = particle.getSourceInfo().getTomoName().split('.')[0]
         if not tomogram	in dict_particle_lists.keys():
             dict_particle_lists[tomogram] = ParticleList()
         dict_particle_lists[tomogram].append(particle)
 
 
-    markers = numpy.loadtxt(markerfile, dtype=datatypeMR)
+    try: 
+        markers = numpy.loadtxt(markerfile, dtype=datatypeMR)
+    except:
+        correct_header_markerfile(markerfile)
+        markers = numpy.loadtxt(markerfile, dtype=datatypeMR)
 
     xmlsCM = []
 
@@ -64,6 +86,10 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, directory='./'):
         outLists = {}
         for particle in dict_particle_lists[pl_key]:
             x, y, z = particle.getPickPosition().toVector()
+            x *= binning_factor
+            y *= binning_factor
+            z *= binning_factor
+
             closestMarkerIndex = determine_closest_marker(x,y,z, markers)
 
 
@@ -73,12 +99,12 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, directory='./'):
             ox = markers['OffsetX'][closestMarkerIndex]
             oy = markers['OffsetY'][closestMarkerIndex]
             oz = markers['OffsetZ'][closestMarkerIndex]
-            originFname = particle.getOriginFilename()
+            originFname = particle.getPickPosition().getOriginFilename()
             particle.setPickPosition(PickPosition(x=x+ox,y=y+oy,z=z+oz,originFilename=originFname))
             outLists[closestMarkerIndex].append(particle)
         for markerIndex in outLists.keys():
             outfname = '.tempCM_particleList_{}_refMarkerIndex_{}.xml'.format(pl_key, markerIndex)
-            outLists[markerIndex].write(os.path.join(directory, outfname), pretty_print=True)
+            outLists[markerIndex].toXMLFile(os.path.join(directory, outfname))
             xmlsCM.append(outfname)
 
     return xmlsCM
@@ -90,6 +116,7 @@ if __name__ == '__main__':
 
     options = [ScriptOption(['-p','--particleList'], 'Particle List', True, False),
                ScriptOption(['-l','--logfileReconstruction'], 'Particle List', True, False),
+               ScriptOption(['-b','--binningFactor'], 'Binning Factor for reconstruction.', True, False),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
 
@@ -101,7 +128,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        plName, logfile, help = parse_script_options(sys.argv[1:], helper)
+        plName, logfile, binningFactor, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -110,6 +137,15 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
 
+    if not binningFactor:
+        binningFactor = 8
+    else:
+        try:
+            binningFactor = int(binningFactor)
+        except:
+            print('Invalid binningFactor. Exit.')
+            sys.exit()
+
     if not plName or not os.path.exists(plName):
         print('particleList does not exist. Exit. ')
         sys.exit()
@@ -117,5 +153,6 @@ if __name__ == '__main__':
         print('logfile does not exist. Exit.')
         sys.exit()
 
-    extractParticleListsClosestToRefMarker(plName, logfile)
+    fnames = extractParticleListsClosestToRefMarker(plName, logfile)
 
+    
