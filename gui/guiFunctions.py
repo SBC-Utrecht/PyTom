@@ -303,6 +303,7 @@ def avail_gpu(cutoff_busy=.25, cutoff_space = 0.5):
 
 def delete( path):
     '''the function moves a file or folder to the .trash folder in the folder below. if .trash does not exists it will be create'''
+    import shutil
     if path.endswith('/'):
         path = path[:-1]
     if len(path) == 0 or len(path.strip('/'))== 0:
@@ -353,41 +354,6 @@ def detect_shift(arr0,arr1,image=[]):
     cross = abs(fftshift( ifft2(fftshift(fftshift(fft2(arr0))*conj(fftshift(fft2(arr1)))))))**2
     locx,locy =  (abs((cross))**2).flatten().argmax()%y, (abs((cross))**2).flatten().argmax()/y
     return cross, locx-y/2, locy-x/2, cross[int(locy)][int(locx)]
-
-def browse_for_entry( entry_box, dialog_type, remote=1, initialdir='.',dir=True,pattern='*',function=None,p='',mod=0):
-    """Browse for a file and put that filename in an entry box.
-
-    @param entry_box: The entry box to put the filename in.
-    @type entry_box: tkinter.Entry
-    @param dialog_type: The type of dialog to display. Should be 'dir' or 'file'.
-    @type dialog_type: str
-    @param remote: Search a remote folder for file/folder.
-    @type remote: int
-    @initialdir: starting folder for the search.
-    @type initialdir: '.'.
-    @param dir: search for folder.
-    @type dir: Boolean.
-    @param pattern: search string for files in folders.
-    @type: str
-    @param function: command executed at end of browse entry.
-    @type: function
-    @param p: parameters passed to function.
-    @type p: str
-    @param mod: parameter passed to function, describing the mode.
-    @type mod: int
-    """
-    dialog_type = dialog_type.lower()
-
-    if dialog_type == 'file': name = askopenfilename( initialdir=initialdir,remote=remote,pattern=pattern)
-    elif dialog_type == 'dir':  name = askdirectory(initialdir=initialdir,remote=remote,pattern=pattern)
-    else: raise ValueError('%s not a valid dialog type.' % dialog_type)
-    
-    if not function:
-        entry_box.delete(0, tk.END)
-        entry_box.insert(0, str(name))
-        entry_box.xview("end")
-    else:
-        function(name, p, mod)
     
 def create_folder(foldername):
     '''Checks if foldername exists, if not it will create it.'''
@@ -807,17 +773,29 @@ def update_metadata_from_defocusfile(metafile, defocusfile):
     resultsNames = resultsNames[:columns]
     print(resultsNames, len(defocusResults[0]))
     for n, line in enumerate(defocusResults):
+        angleN = line[2]
+        print(angleN)
+        NN = 999
+        for index, j in enumerate( metadata['TiltAngle']):
+            if abs(j-angleN) < 0.1:
+                NN = index
+        if NN > 900:
+            angleN = (line[2] + line[3] ) /2.
+            for index, j in enumerate(metadata['TiltAngle']):
+                if abs(j - angleN) < 0.1:
+                    NN = index
+        if NN > 900:
+            raise Exception('Angles from Defocus File does not correspond to angles in metafile.')
+
         for query in ('DefocusU', 'DefocusV', 'DefocusAngle', 'PhaseShift'):
             for nn, ii in enumerate(resultsNames):
                 if query == ii:
-                    metadata[query][n] = line[nn]
+                    metadata[query][NN] = line[nn]
                     if query in ('DefocusU', 'DefocusV'):
-                        metadata[query][n] /= 1000.
+                        metadata[query][NN] /= 1000.
                     break
         if 'Empty' in resultsNames:
-            metadata['DefocusV'][n] = metadata['DefocusU'][n]
-            metadata['DefocusAngle'][n] = 0.
-
-
+            metadata['DefocusV'][NN] = metadata['DefocusU'][NN]
+            metadata['DefocusAngle'][NN] = 0.
 
     numpy.savetxt(metafile, metadata, fmt=fmt, header=headerText)

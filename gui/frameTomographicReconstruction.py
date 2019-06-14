@@ -402,8 +402,6 @@ class TomographReconstruct(GuiTabWidget):
             qmarkerfile = markerfile.replace('markerfile.em','*.meta')
             qsortedfiles = markerfile.replace('markerfile.em','sorted_*.mrc')
             metafile = glob.glob( qmarkerfile )[0]
-            #tangs = numpy.abs(numpy.array(sorted([float(line.split()[-1]) for line in
-            #                            os.popen('cat {} | grep TiltAngle '.format(metafile)).readlines()])) )
             metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
             tangs = metadata['TiltAngle']
             sortedfiles = sorted(glob.glob(qsortedfiles))
@@ -1144,7 +1142,7 @@ class TomographReconstruct(GuiTabWidget):
 
         self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB, width=400)
 
-        self.insert_label_line_push(parent, 'Folder Sorted & Aligned Tilt Images', mode + 'FolderSortedAligned',
+        self.insert_label_line_push(parent, 'Folder Sorted (& Aligned Tilt Images)', mode + 'FolderSortedAligned',
                                     'Select the folder where the sorted tiltimages are located.\n',
                                     initdir=self.tomogram_folder, mode='folder')
         self.insert_label_line_push(parent, 'Defocus File', mode + 'DefocusFile', mode='file', filetype='defocus',
@@ -1271,7 +1269,7 @@ class TomographReconstruct(GuiTabWidget):
             folders = [folder for folder in glob.glob(query) if os.path.isdir(folder)]
             folders = sorted( [folder for folder in folders if len(os.listdir(folder)) > 1] )
             if not folders: continue
-            referenceMarkerOptions = folders + ['all']
+            referenceMarkerOptions = [os.path.dirname(markerfile)] + folders + ['all']
             defocusFile = glob.glob( os.path.join(tomogramName, 'ctf/*.defocus') )
             if not defocusFile: continue
             values.append( [tomogramName, True, referenceMarkerOptions, defocusFile, 0, 16, 256, 1, ''] )
@@ -1297,9 +1295,8 @@ class TomographReconstruct(GuiTabWidget):
             widget = 'widget_{}_1'.format(row)
             if self.tab43_widgets[widget].isChecked():
                 folder = values[row][2][self.tab43_widgets['widget_{}_{}'.format(row, 2)].currentIndex()]
-                #self.tab43_widgets['widget_{}_{}'.format(row, 2)].currentText()
                 if folder == 'all':
-                    folders = values[row][2]
+                    folders = values[row][2][:-1]
                 else:
                     folders = [folder]
 
@@ -1311,7 +1308,7 @@ class TomographReconstruct(GuiTabWidget):
                 metafile = glob.glob(os.path.join(values[row][0], 'sorted/*.meta'))
                 tomofolder = os.path.dirname(os.path.dirname(defocusFile))
 
-                ctffolder = os.path.join( os.path.dirname(folder), 'ctf_'+os.path.basename(folder) )
+                ctffolder = os.path.join( os.path.dirname(folder), '{}_ctf'.format(os.path.basename(folder)))
 
 
                 cPrefix = os.path.join(self.tomogram_folder, ctffolder.replace('alignment/','ctf/'), 'sorted_aligned_ctf_')
@@ -1328,7 +1325,7 @@ class TomographReconstruct(GuiTabWidget):
                     guiFunctions.update_metadata_from_defocusfile(metafile, defocusFile)
                 except:
                     print('submission {} failed due to error in either the metafile or the defocus file.'.format(tomofolder))
-                    #continue
+                    continue
                 for folder in folders:
                     jobParams = [tomofolder, self.pytompath, uPrefix, cPrefix, metafile, rotationangle, gridspacing, fieldsize, binning]
                     jobscript = templateCTFCorrection.format(d=jobParams)
