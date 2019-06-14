@@ -198,11 +198,10 @@ if __name__ == '__main__':
 
 
     if projIndices:
-        folder = os.path.basename(tiltSeriesName)
-        prefix = os.path.dirname(tiltSeriesName)
+        folder = os.path.dirname(tiltSeriesName)
+        prefix = os.path.basename(tiltSeriesName)
         projIndices = [int(line.split('.')[-2].split('_')[-1]) for line in os.listdir(folder) if line.startswith(prefix) and line.endswith('.mrc')]
         projIndices = sorted(projIndices)
-    print(projIndices)
 
     markerfile = read(markerFileName)
     markerdata = vol2npy(markerfile).copy()
@@ -228,13 +227,13 @@ if __name__ == '__main__':
         if int(files[0]) == firstProj and int(files[-1]) == lastProj:
             reduced = ''
 
-        print(alignedTiltSeriesName)
         falignedTiltSeriesName = alignedTiltSeriesName.replace('____', '_{:04d}_'.format(irefmark))
         if not reduced:
             falignedTiltSeriesName = falignedTiltSeriesName.split('_reduced_')[0]
 
+        outputSuffix = '{}_aligned'.format(os.path.basename(tiltSeriesName))
         #stringFAligned = '{}/unweighted_unbinned_marker_{}{}/sorted_aligned'
-        falignedTiltSeriesName= os.path.join(falignedTiltSeriesName, 'sorted_aligned')
+        falignedTiltSeriesName= os.path.join(falignedTiltSeriesName, outputSuffix)
         outdir = os.path.dirname(falignedTiltSeriesName) 
         if not os.path.exists(outdir): os.mkdir( outdir )
 

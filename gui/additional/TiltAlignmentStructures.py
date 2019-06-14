@@ -54,7 +54,7 @@ class TiltSeries(PyTomClass):
         self._projIndices = [line.split('_')[-1].split('.')[0] for line in files ]
         self._projIndices.sort(key=int)
         self._lenPI = len(self._projIndices)
-
+        print(self._projIndices, firstProj, lastProj)
         self._projIndices = numpy.array(self._projIndices)
         self._tiltSeriesFormat = tiltSeriesFormat
         self._TiltAlignmentParas = TiltAlignmentParas

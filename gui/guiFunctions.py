@@ -744,7 +744,6 @@ def update_metadata_from_defocusfile(metafile, defocusfile):
     skiprows = 0
 
     for h in header[2:-1]:
-        print(abs(h))
         if abs(h) < 0.001:
             skiprows=1
 
@@ -771,10 +770,10 @@ def update_metadata_from_defocusfile(metafile, defocusfile):
         resultsNames[6] = 'Empty'
         columns+=2
     resultsNames = resultsNames[:columns]
-    print(resultsNames, len(defocusResults[0]))
+
     for n, line in enumerate(defocusResults):
         angleN = line[2]
-        print(angleN)
+
         NN = 999
         for index, j in enumerate( metadata['TiltAngle']):
             if abs(j-angleN) < 0.1:

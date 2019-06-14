@@ -21,8 +21,8 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
     lastAngles = [line.split()[5] for line in open(fnames).readlines()]
     firstIndices = [line.split()[6] for line in open(fnames).readlines()]
     lastIndices = [line.split()[7] for line in open(fnames).readlines()]
-    weightingTypes = [line.split()[6] for line in open(fnames).readlines()]
-    expectedRotationAngles = [line.split()[7] for line in open(fnames).readlines()]
+    weightingTypes = [line.split()[8] for line in open(fnames).readlines()]
+    expectedRotationAngles = [line.split()[9] for line in open(fnames).readlines()]
 
     for t in tomogram_names:
         if not os.path.exists(os.path.join(t,'alignment')):
@@ -37,7 +37,7 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
         if referenceMarkerIndex[index] == 'all':
             refmarks = range(int(numMarkers[index]))
         else:
-            refmarks = [int(referenceMarkerIndex)]
+            refmarks = [int(referenceMarkerIndex[index])]
         print(refmarks)
         for refmarkindex in refmarks:
             cmd = '''cd {}; pytom {}/gui/additional/generateAlignedTiltImages.py \
@@ -52,10 +52,11 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 	--lowpassFilter 0.9 \
 	--weightingType {} \
 	--expectedRotationAngle {} \
-    {}    --numberProcesses {} > alignment/logfile.alignment.txt'''
+    {}    --numberProcesses {} > alignment/{}/logfile.alignment.txt'''
             cmd = cmd.format(tomogram_names[index], pytompath, tiltSeriesName, firstIndices[index],
                              lastIndices[index], refIndices[index], refmarkindex, markerFileName, outdir,
-                             weightingTypes[index], expectedRotationAngles[index], '--projIndices '*projIndices, 1)
+                             weightingTypes[index], expectedRotationAngles[index], '--projIndices '*projIndices, 1,
+                             outdir.replace('''____''', '_{:04d}_'.format(int(refmarkindex))))
             while len(procs) > 19.1:
                 time.sleep(1)
                 procs = [proc for proc in procs if proc.is_alive()]

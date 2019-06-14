@@ -115,6 +115,7 @@ def AlignProjectionINV(proj,alpha,tx,ty,sfx,sfy,SmoothFlag=1):
     OUTPUT
     projt - transformed projection
     """
+
     if SmoothFlag:
         proj = SmoothEdges(proj,int(np.round(proj.shape[0]/16.)),int(np.round(proj.shape[0]/16.)),np.mean(proj))
 
@@ -181,10 +182,10 @@ def SmoothEdges(image2,border=None,sigma=None,imdev=None):
 
 def imtransform(proj, T):
     from scipy import mgrid
-    cx = proj.shape[0] / 2
-    cy = proj.shape[1] / 2
+    cx = proj.shape[0] // 2
+    cy = proj.shape[1] // 2
     grid = mgrid[-float(cx):proj.shape[0]-cx, -float(cy):proj.shape[1]-cy]
-    temp = grid.reshape((2, grid.size / 2))
+    temp = grid.reshape((2, grid.size // 2))
 
     x, y = temp
     # temp2 = np.array([y, x, np.ones(x.shape)])

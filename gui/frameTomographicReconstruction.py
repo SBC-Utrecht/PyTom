@@ -382,8 +382,8 @@ class TomographReconstruct(GuiTabWidget):
 
     def tab32UI(self):
         id='tab32'
-        headers = ["name tomogram", "align", 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle','']
-        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox','lineedit','txt']
+        headers = ["name tomogram", "align", 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Input Folder', '']
+        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox', 'lineedit', 'combobox', 'txt']
         sizes = [0, 80, 0, 0, 0, 0, 0, 0]
 
         tooltip = ['Names of existing tomogram folders.',
@@ -393,7 +393,8 @@ class TomographReconstruct(GuiTabWidget):
                    'Reference image number.',
                    'Redo the creation of a tomogram file.',
                    'Select items to delete tomogram folders.',
-                   'Expected Rotation Angle']
+                   'Expected Rotation Angle',
+                   'Input Folder for tilt images used in alignment.']
 
         markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
         values = []
@@ -421,8 +422,9 @@ class TomographReconstruct(GuiTabWidget):
             if len(data.shape) < 3: continue
             options_reference = list(map(str, range( data.shape[2] ))) + ['all']
             expect = int(float(metadata['InPlaneRotation'][0]))
+            input_folders = ['sorted', 'ctf/sorted_ctf']
             values.append( [markerfile.split('/')[-3], True, numpy.floor(tangs.min()), numpy.ceil(tangs.max()),
-                            index_zero_angle, options_reference, expect, ''] )
+                            index_zero_angle, options_reference, expect, input_folders, ''] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_align(pid, v))
@@ -450,11 +452,12 @@ class TomographReconstruct(GuiTabWidget):
             # Align
             if wname in widgets.keys() and widgets[wname].isChecked():
                 tomofoldername = values[row][0]
-                firstindex = widgets['widget_{}_{}'.format(row,2)].text()
-                lastindex  = widgets['widget_{}_{}'.format(row,3)].text()
-                refindex   = widgets['widget_{}_{}'.format(row,4)].text() #values[row][4]
-                markindex  = widgets['widget_{}_{}'.format(row,5)].currentText()
+                firstindex = widgets['widget_{}_{}'.format(row, 2)].text()
+                lastindex  = widgets['widget_{}_{}'.format(row, 3)].text()
+                refindex   = widgets['widget_{}_{}'.format(row, 4)].text() #values[row][4]
+                markindex  = widgets['widget_{}_{}'.format(row, 5)].currentText()
                 expected   = widgets['widget_{}_{}'.format(row, 6)].text()
+                inputfolder= values[row][7][widgets['widget_{}_{}'.format(row, 7)].currentIndex()]
 
                 self.widgets[mode + 'FolderSorted'].setText(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
                 num_procs_per_proc = max(num_procs_per_proc, len(values[row][5]) - 1)
@@ -510,10 +513,11 @@ class TomographReconstruct(GuiTabWidget):
         for x,y in new_info:
             tomofolder_file.write(y)
         tomofolder_file.close()
+        tiltseriesname = os.path.join(inputfolder, os.path.basename(inputfolder))
 
         guiFunctions.batch_tilt_alignment( number_tomonames, fnames_tomograms=file_tomoname, num_procs=lprocs, deploy=True,
                                            projectfolder=self.tomogram_folder, num_procs_per_proc=num_procs_per_proc,
-                                           tiltseriesname='sorted/sorted', markerfile='alignment/markerfile.em',
+                                           tiltseriesname=tiltseriesname, markerfile='alignment/markerfile.em',
                                            targets='alignment', weightingtype=0, queue=self.checkbox[id].isChecked(),
                                            expectedRotationAngles=expectedangles,
                                            firstindices=firstindices, lastindices=lastindices)
@@ -1270,7 +1274,7 @@ class TomographReconstruct(GuiTabWidget):
             folders = sorted( [folder for folder in folders if len(os.listdir(folder)) > 1] )
             if not folders: continue
             referenceMarkerOptions = [os.path.dirname(markerfile)] + folders + ['all']
-            defocusFile = glob.glob( os.path.join(tomogramName, 'ctf/*.defocus') )
+            defocusFile = list(reversed(sorted(glob.glob( os.path.join(tomogramName, 'ctf/*.defocus') ))))
             if not defocusFile: continue
             values.append( [tomogramName, True, referenceMarkerOptions, defocusFile, 0, 16, 256, 1, ''] )
 
@@ -1284,7 +1288,7 @@ class TomographReconstruct(GuiTabWidget):
             self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_ctf_correction(pid, v))
 
     def run_multi_ctf_correction(self, id, values):
-        print('multi_reconstructions', id)
+        print('multi_ctf_corrections', id)
         num_nodes = self.tables[id].table.rowCount()
         num_submitted_jobs = 0
         try:
@@ -1308,11 +1312,16 @@ class TomographReconstruct(GuiTabWidget):
                 metafile = glob.glob(os.path.join(values[row][0], 'sorted/*.meta'))
                 tomofolder = os.path.dirname(os.path.dirname(defocusFile))
 
-                ctffolder = os.path.join( os.path.dirname(folder), '{}_ctf'.format(os.path.basename(folder)))
 
 
-                cPrefix = os.path.join(self.tomogram_folder, ctffolder.replace('alignment/','ctf/'), 'sorted_aligned_ctf_')
-                uPrefix = os.path.join(self.tomogram_folder, folder, 'sorted_aligned_')
+                if os.path.basename(folder) == 'sorted':
+                    ctffolder = os.path.join(folder, '{}_ctf'.format(os.path.basename(folder)))
+                    cPrefix = os.path.join(self.tomogram_folder, ctffolder.replace('/sorted/', '/ctf/'), 'sorted_ctf_')
+                    uPrefix = os.path.join(self.tomogram_folder, folder, 'sorted_')
+                else:
+                    ctffolder = os.path.join(os.path.dirname(folder), '{}_ctf'.format(os.path.basename(folder)))
+                    cPrefix = os.path.join(self.tomogram_folder, ctffolder.replace('alignment/','ctf/'), 'sorted_aligned_ctf_')
+                    uPrefix = os.path.join(self.tomogram_folder, folder, 'sorted_aligned_')
 
                 if not os.path.exists(os.path.dirname(cPrefix)):
                     os.mkdir(os.path.dirname(cPrefix))
@@ -1320,7 +1329,7 @@ class TomographReconstruct(GuiTabWidget):
                 if not metafile: continue
                 else: metafile = metafile[-1]
 
-                print(defocusFile, metafile)
+
                 try:
                     guiFunctions.update_metadata_from_defocusfile(metafile, defocusFile)
                 except:
@@ -1333,7 +1342,7 @@ class TomographReconstruct(GuiTabWidget):
                     
                     fname = 'CTF_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                     outDirectory = os.path.dirname(cPrefix) 
-                    suffix = "_" + "_".join([os.path.basename(tomofolder)]+folder.split('/')[-2:])
+                    suffix = "_" + "_".join([os.path.basename(tomofolder)]+folder.split('/')[-1:])
                     job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, singleton=True) + jobscript
                     outjob = open(os.path.join(outDirectory, 'ctfCorrectionBatch.sh'), 'w')
                     outjob.write(job)
