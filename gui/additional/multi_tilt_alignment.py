@@ -24,7 +24,7 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
     weightingTypes = [line.split()[8] for line in open(fnames).readlines()]
     expectedRotationAngles = [line.split()[9] for line in open(fnames).readlines()]
 
-    for t in tomogram_names:
+    for t in        tomogram_names:
         if not os.path.exists(os.path.join(t,'alignment')):
             os.mkdir(os.path.join(t,'alignment'))
 
@@ -40,6 +40,12 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
             refmarks = [int(referenceMarkerIndex[index])]
         print(refmarks)
         for refmarkindex in refmarks:
+            logfile = '{}/logfile.alignment.{}.txt'.format(outdir.replace('____', '_{:04d}_'.format(int(refmarkindex))),
+                                                           os.path.basename(tiltSeriesName))
+
+            if not os.path.exists(os.path.dirname(os.path.join(tomogram_names[index], logfile))):
+                os.mkdir(os.path.dirname(os.path.join(tomogram_names[index], logfile)))
+
             cmd = '''cd {}; pytom {}/gui/additional/generateAlignedTiltImages.py \
     --tiltSeriesName {}  \
 	--firstIndex {} \
@@ -52,15 +58,16 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 	--lowpassFilter 0.9 \
 	--weightingType {} \
 	--expectedRotationAngle {} \
-    {}    --numberProcesses {} > alignment/{}/logfile.alignment.txt'''
+    --numberProcesses {} > {}'''
+
             cmd = cmd.format(tomogram_names[index], pytompath, tiltSeriesName, firstIndices[index],
-                             lastIndices[index], refIndices[index], refmarkindex, markerFileName, outdir,
-                             weightingTypes[index], expectedRotationAngles[index], '--projIndices '*projIndices, 1,
-                             outdir.replace('''____''', '_{:04d}_'.format(int(refmarkindex))))
+                  lastIndices[index], refIndices[index], refmarkindex, markerFileName, outdir,
+                  weightingTypes[index], expectedRotationAngles[index], 1, logfile)
+
             while len(procs) > 19.1:
                 time.sleep(1)
                 procs = [proc for proc in procs if proc.is_alive()]
-            print(cmd)
+            
             p = Process(target=os.system,args=([cmd]))
             procs.append(p)
             p.start()

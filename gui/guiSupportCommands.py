@@ -182,14 +182,8 @@ multiple_alignment = '''cd {d[0]}
 --tiltSeriesName {d[5]} \\
 --markerFile {d[6]} \\
 --projectionTargets {d[7]} \\
---tomogramFolder {d[8]} \\
---firstIndex {d[9]} \\
---lastIndex {d[10]} \\
---referenceIndex {d[11]} \\
---weightingType {d[12]} \\
---projIndices \\
---fnames {d[13]} \\
---expectedRotationAngle {d[14]}'''
+--tomogramFolder {d[0]} \\
+--fnames {d[8]}'''
 
 templateExtractCandidates = '''cd {d[0]}
 

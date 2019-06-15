@@ -515,12 +515,11 @@ class TomographReconstruct(GuiTabWidget):
         tomofolder_file.close()
         tiltseriesname = os.path.join(inputfolder, os.path.basename(inputfolder))
 
-        guiFunctions.batch_tilt_alignment( number_tomonames, fnames_tomograms=file_tomoname, num_procs=lprocs, deploy=True,
+        guiFunctions.batch_tilt_alignment( fnames_tomograms=file_tomoname, num_procs=lprocs, deploy=True,
                                            projectfolder=self.tomogram_folder, num_procs_per_proc=num_procs_per_proc,
                                            tiltseriesname=tiltseriesname, markerfile='alignment/markerfile.em',
-                                           targets='alignment', weightingtype=0, queue=self.checkbox[id].isChecked(),
-                                           expectedRotationAngles=expectedangles,
-                                           firstindices=firstindices, lastindices=lastindices)
+                                           targets='alignment', queue=self.checkbox[id].isChecked(),
+                                           qcommand=self.qcommand)
 
     def tab51UI(self):
         id = 'tab51'
@@ -926,7 +925,7 @@ class TomographReconstruct(GuiTabWidget):
             exefile.close()
 
             if len(params[1].split('SBATCH')) > 2:
-                os.system('sbatch {}'.format(params[0]))
+                os.system('{} {}'.format(self.qcommand, params[0]))
             else:
                 os.system('sh {}'.format(params[0]))
         except:
@@ -1347,5 +1346,5 @@ class TomographReconstruct(GuiTabWidget):
                     outjob = open(os.path.join(outDirectory, 'ctfCorrectionBatch.sh'), 'w')
                     outjob.write(job)
                     outjob.close()
-                    os.system('sbatch {}/{}'.format(outDirectory, 'ctfCorrectionBatch.sh'))
+                    os.system('{} {}/{}'.format(self.qcommand, outDirectory, 'ctfCorrectionBatch.sh'))
                     num_submitted_jobs += 1

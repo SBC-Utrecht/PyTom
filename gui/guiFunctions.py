@@ -365,28 +365,27 @@ def write_text2file(text,fname,mode='a'):
     out.write(text)
     out.close()
 
-def batch_tilt_alignment( number_tomonames, fnames_tomograms='', projectfolder='.', num_procs=[], num_procs_per_proc=1, tiltseriesname='sorted/sorted',
-                         markerfile='sorted/markerfile.em',targets='alignment', firstindices=[], lastindices=[], refindex=11,
-                          weightingtype=0, deploy=False, queue=False, expectedRotationAngles=0):
-    '''BATCHMODE: tilt alignment. Submits a number of sbatch jobs to slurm queueing system. Each job calculates the tilt aligment for each marker in a markerfile.  It divides the number or jobs with respect to the num_procs.'''
+def batch_tilt_alignment( fnames_tomograms='', projectfolder='.', num_procs=[], num_procs_per_proc=1, deploy=False,
+                          queue=False, tiltseriesname='sorted/sorted', markerfile='sorted/markerfile.em',
+                          targets='alignment', qcommand='sbatch'):
+    '''BATCHMODE: tilt alignment. Submits a number of sbatch jobs to slurm queueing system.
+    Each job calculates the tilt aligment for each marker in a markerfile.
+    It divides the number or jobs with respect to the num_procs.'''
 
     pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
-    
 
     for n in range(len(num_procs)-1):
-
-        cmd = multiple_alignment.format( d=(projectfolder, pytompath, num_procs[n], num_procs[n+1],
-                                            num_procs_per_proc, tiltseriesname, markerfile, targets, projectfolder,
-                                            0, 0, 0, 0, fnames_tomograms, 0) )
+        cmd = multiple_alignment.format( d=(projectfolder, pytompath, num_procs[n], num_procs[n+1], num_procs_per_proc,
+                                            tiltseriesname, markerfile, targets, fnames_tomograms) )
 
         if queue:
             cmd = gen_queue_header(name='Alignment', folder=projectfolder, cmd=cmd )
 
-        write_text2file(cmd,'{}/jobscripts/alignment_{:03d}.job'.format(projectfolder, n), 'w' )
+        write_text2file(cmd, '{}/jobscripts/alignment_{:03d}.job'.format(projectfolder, n), 'w')
 
         if deploy:
             if queue:
-                os.system('sbatch {}/jobscripts/alignment_{:03d}.job'.format(projectfolder, n))
+                os.system('{} {}/jobscripts/alignment_{:03d}.job'.format(qcommand, projectfolder, n))
             else:
                 os.system('bash {}/jobscripts/alignment_{:03d}.job'.format(projectfolder, n))
 
