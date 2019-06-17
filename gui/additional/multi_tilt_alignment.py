@@ -13,7 +13,6 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 
 
     tomogram_names = [line.split()[0] for line in open(fnames).readlines()]
-    print(tomogram_names)
     refIndices = [line.split()[1] for line in open(fnames).readlines()]
     referenceMarkerIndex = [line.split()[3] for line in open(fnames).readlines()]
     numMarkers = [line.split()[2] for line in open(fnames).readlines()]
@@ -23,22 +22,24 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
     lastIndices = [line.split()[7] for line in open(fnames).readlines()]
     weightingTypes = [line.split()[8] for line in open(fnames).readlines()]
     expectedRotationAngles = [line.split()[9] for line in open(fnames).readlines()]
-
-    for t in        tomogram_names:
+    tiltSeriesNames = [line.split()[10] for line in open(fnames).readlines()]
+    for t in tomogram_names:
         if not os.path.exists(os.path.join(t,'alignment')):
             os.mkdir(os.path.join(t,'alignment'))
 
 
     procs = []
+
     for index in range(start,end):
+
         string = '{}/unweighted_unbinned_marker_{}_reduced_{}_{}'
         outdir = string.format(targets, '__', firstAngles[index], lastAngles[index])
-        print(numMarkers[index])
+        tiltSeriesName = tiltSeriesNames[index]
         if referenceMarkerIndex[index] == 'all':
             refmarks = range(int(numMarkers[index]))
         else:
             refmarks = [int(referenceMarkerIndex[index])]
-        print(refmarks)
+
         for refmarkindex in refmarks:
             logfile = '{}/logfile.alignment.{}.txt'.format(outdir.replace('____', '_{:04d}_'.format(int(refmarkindex))),
                                                            os.path.basename(tiltSeriesName))
@@ -67,7 +68,7 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
             while len(procs) > 19.1:
                 time.sleep(1)
                 procs = [proc for proc in procs if proc.is_alive()]
-            
+
             p = Process(target=os.system,args=([cmd]))
             procs.append(p)
             p.start()
@@ -122,18 +123,17 @@ if __name__=='__main__':
             sys.exit()
         try:
             start, end, procs, tiltSeriesName, firstProj, lastProj, referenceIndex, markerFileName, projectionTargets, \
-            weightingType,tomogramfolder,fnames, projIndices, expectedRotationAngle, help = parse_script_options(sys.argv[1:], helper)
+            weightingType,tomogramfolder,fnames, projIndices, expectedRotationAngle, help = input = \
+                parse_script_options(sys.argv[1:], helper)
         except:# Exception as e:
-            print(sys.version_info)
-
             sys.exit()
 
 
         start = int(start)
         end = int(end)
-    
-        tiltalignment_all_markers(start,end,procs,tiltSeriesName,firstProj,lastProj,referenceIndex,markerFileName,
-                                  projectionTargets,weightingType,tomogramfolder,fnames, projIndices=projIndices,
+
+        tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstProj, lastProj, referenceIndex,markerFileName,
+                                  projectionTargets, weightingType, tomogramfolder, fnames, projIndices=projIndices,
                                   expectedRotationAngle=expectedRotationAngle)
 
 

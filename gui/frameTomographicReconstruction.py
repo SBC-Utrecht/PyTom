@@ -182,14 +182,6 @@ class TomographReconstruct(GuiTabWidget):
         else:
             self.popup_messagebox('Warning','No meta files found', 'No meta files found. Have you downloaded your mdoc files, or are file names sufficient to determine the tiltangles?')
             return
-        #for row in range(self.tables[id].table.rowCount()):
-
-        #   if self.tables[id].table.item(row,2):
-        #        for d in dir(self.tables[id].table.item(row,2) ):
-        #            for d in dir(self.tables[id].table): print d
-        #            print self.tables[id].table.item(row,2).property('isChecked')
-        #            break
-        #self.tables[id].table.cellChanged.connect(lambda d, ID=id: self.update_create_tomoname(ID))
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.create_tomogram_folders(pid, v))
 
@@ -459,6 +451,7 @@ class TomographReconstruct(GuiTabWidget):
                 expected   = widgets['widget_{}_{}'.format(row, 6)].text()
                 inputfolder= values[row][7][widgets['widget_{}_{}'.format(row, 7)].currentIndex()]
 
+                tiltseriesname = os.path.join(inputfolder, os.path.basename(inputfolder))
                 self.widgets[mode + 'FolderSorted'].setText(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
                 num_procs_per_proc = max(num_procs_per_proc, len(values[row][5]) - 1)
                 number_tomonames += 1
@@ -485,9 +478,12 @@ class TomographReconstruct(GuiTabWidget):
                     numMark = 1
 
                 total_number_markers += numMark
-                ll = '{} {} {} {} {} {} {} {} {} {}\n'
-                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0, expected)
+                ll = '{} {} {} {} {} {} {} {} {} {} {}\n'
+                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0, expected,tiltseriesname)
                 tomofolder_info.append([ numMark, ll])
+
+        if not tomofolder_info:
+            return
 
         new_list = sorted(tomofolder_info, key=lambda l:l[0], reverse=True)
 
@@ -507,19 +503,39 @@ class TomographReconstruct(GuiTabWidget):
                 taken[t] = 1
                 new_info.append(new_list[t])
             lprocs.append(sum(taken))
-        print(lprocs)
-        lprocs.append(number_tomonames)
+
+
         tomofolder_file = open(file_tomoname, 'w')
         for x,y in new_info:
             tomofolder_file.write(y)
         tomofolder_file.close()
-        tiltseriesname = os.path.join(inputfolder, os.path.basename(inputfolder))
 
-        guiFunctions.batch_tilt_alignment( fnames_tomograms=file_tomoname, num_procs=lprocs, deploy=True,
-                                           projectfolder=self.tomogram_folder, num_procs_per_proc=num_procs_per_proc,
-                                           tiltseriesname=tiltseriesname, markerfile='alignment/markerfile.em',
-                                           targets='alignment', queue=self.checkbox[id].isChecked(),
-                                           qcommand=self.qcommand)
+        num_submitted_jobs = 0
+        for n in range(len(lprocs) - 1):
+
+            input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1], num_procs_per_proc, 'D1',
+                            'alignment/markerfile.em', 'alignment', file_tomoname)
+
+            cmd = multiple_alignment.format( d=input_params )
+
+            if self.checkbox[id].isChecked():
+                jobname = 'Alignment_BatchMode_Job_{:03d}'.format(num_submitted_jobs)
+                cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, cmd=cmd)
+
+            guiFunctions.write_text2file(cmd, '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n), 'w')
+
+            if self.checkbox[id].isChecked():
+                os.system('{} {}/jobscripts/alignment_{:03d}.job'.format(self.qcommand, self.tomogram_folder, n))
+                num_submitted_jobs += 1
+            else:
+                os.system('bash {}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n))
+                num_submitted_jobs += 1
+
+        #guiFunctions.batch_tilt_alignment( fnames_tomograms=file_tomoname, num_procs=lprocs, deploy=True,
+        #                                   projectfolder=self.tomogram_folder, num_procs_per_proc=num_procs_per_proc,
+        #                                   tiltseriesname=tiltseriesname, markerfile='alignment/markerfile.em',
+        #                                   targets='alignment', queue=self.checkbox[id].isChecked(),
+        #                                   qcommand=self.qcommand, logfolder=self.logfolder)
 
     def tab51UI(self):
         id = 'tab51'
@@ -832,7 +848,7 @@ class TomographReconstruct(GuiTabWidget):
             rot = int(float(metadata['InPlaneRotation'][0]))
 
             values.append( [markerfile.split('/')[-3], True, True,
-                            numpy.floor(tilt_angles.min()), numpy.ceil(tilt_angles.max()),
+                            numpy.floor(tilt_angles.min()), numpy.ceil(tilt_angles[tilt_angles < 200].max()),
                             index_zero_angle, 1, rot, 8, ''] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)

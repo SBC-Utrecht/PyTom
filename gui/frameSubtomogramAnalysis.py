@@ -292,13 +292,14 @@ class SubtomoAnalysis(GuiTabWidget):
         self.mass_extract.close()
         particleFiles = sorted( self.extractLists.text().split('\n') )
         id='tab12'
-        headers = ["Filename particleList", "Run", "Tilt Images", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Y", '']
-        types = ['txt', 'checkbox', 'combobox', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit','txt']
+        headers = ["Filename particleList", "Run", "Origin", "Tilt Images", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Y", '']
+        types = ['txt', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit','txt']
         a=40
         sizes = [0, 0, 80, 80, a, a, a, a, a, a, a]
 
         tooltip = ['Names of the particleList files', 
                    'Check this box to run subtomogram reconstruction.',
+                   'Which folder contains the tilt-images you want to use for subtomo reconstruction?',
                    'Aligned Images',
                    'Binning factor used for the reconstruction.',
                    'Weighting Type.\n0: No Weighting,\n1: Analytical Weighting.\n-1: Ramp Weighting',
@@ -331,7 +332,6 @@ class SubtomoAnalysis(GuiTabWidget):
                 al  = os.path.join(os.path.dirname(os.path.dirname(folder) ),'alignment')
                 ctf = os.path.join(os.path.dirname(os.path.dirname(folder) ),'ctf')
                 choices = [al+'/'+f for f in os.listdir(al) if 'unweighted_unbinned' in f and os.path.isdir(al+'/'+f)]
-                choices += [ctf+'/'+f for f in os.listdir(ctf) if 'unweighted_unbinned' in f and os.path.isdir(ctf+'/'+f)]
                 #choices = list(map(str,range(markerdata.sizeZ()))) # + ['closest']
                 #a = sorted(glob.glob('{}/Reconstruction*-*.out'.format(folder)))[-1]
 
@@ -347,38 +347,86 @@ class SubtomoAnalysis(GuiTabWidget):
                     refmarkindex = 1
                 #binning = os.popen('cat {} | grep "--referenceMarkerIndex" '.format(a)).read()[:-1]
                 #print(binning)
-                values.append([os.path.basename(particleFile), True, choices, binning, -1, 128, 1, 0, 0, 0, ''])
+                origin = ['alignment', 'ctf', 'sorted']
+                values.append([os.path.basename(particleFile), True, origin, choices, binning, -1, 128, 1, 0, 0, 0, ''])
                 refmarkindices.append(refmarkindex)
 
         if values:
+            self.valuesBatchSubtomoReconstruction = values
             self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
             self.tab12_widgets = self.tables[id].widgets
             for n, index in enumerate(refmarkindices):
-                self.tab12_widgets['widget_{}_2'.format(n)].setCurrentIndex(index)
+                self.tab12_widgets['widget_{}_3'.format(n)].setCurrentIndex(index)
+
+            for row in range(len(values)):
+                w = self.tab12_widgets['widget_{}_2'.format(row)]
+                w.currentIndexChanged.connect(lambda d, r=row, v=values: self.update_choices(r, v))
+
             self.particleFilesBatchExtract = particleFiles
             self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_extract_particles(pid, v))
         else:
-            print
+            return
+
+    def update_choices(self, rowID, values):
+        try:
+            values = self.valuesBatchSubtomoReconstruction
+            self.tab12_widgets['widget_{}_3'.format(rowID)].clear()
+
+            current_index = self.tab12_widgets['widget_{}_2'.format(rowID)].currentIndex()
+
+            origin = values[rowID][2][current_index]
+            particleFile = values[rowID][0]
+            a = 'tomogram_' + particleFile.split('tomogram_')[1][:3]
+
+            folder = os.path.join(self.tomogram_folder, a, origin)
+            choices = [folder + '/' + f for f in os.listdir(folder) if
+                        'unweighted_unbinned' in f and os.path.isdir(folder + '/' + f)]
+
+            closest_choices = {}
+
+            for choice in choices:
+                a = choice[len('unweighted_unbinned_marker_'):]
+                if 'reduced' in a:
+                    angle = '{:4.1f}'.format( float(a.split('_')[2]) )
+                    if 'ctf' in a: ctf = '_ctf'
+                    else: ctf = ''
+                    closest_choices['unweighted_unbinned_marker_CLOSEST_reduced_{}_{}{}'.format(angle, angle, ctf)] = 1
+                elif 'unweighted_unbinned_marker_' in a:
+                    closest_choices['unweighted_unbinned_marker_CLOSEST'] = 1
+                elif 'sorted' in a:
+                    closest_choices
+
+            choices  = list(closest_choices.keys()) + choices
+
+            self.valuesBatchSubtomoReconstruction[rowID][3] = choices
+
+            for item in choices:
+                self.tab12_widgets['widget_{}_3'.format(rowID)].addItem(os.path.basename(item))
+
+        except Exception as e:
+            print('Update choices has failed.')
+            print(e)
+            return
 
     def mass_extract_particles(self,pid, values):
-
+        values = self.valuesBatchSubtomoReconstruction
         for row in range(self.tables[pid].table.rowCount()):
             if self.tab12_widgets['widget_{}_1'.format(row)].isChecked():
                 particleXML = self.particleFilesBatchExtract[row] #[row][0]
                 tomoindex = particleXML.split('tomogram_')[-1][:3]
-                folder_aligned = values[row][2][self.tab12_widgets['widget_{}_{}'.format(row,2)].currentIndex()]
+                folder_aligned = values[row][3][self.tab12_widgets['widget_{}_{}'.format(row,3)].currentIndex()]
                 metafile = glob.glob('{}/03_Tomographic_Reconstruction/tomogram_{}/sorted/*.meta'.format(self.projectname,tomoindex))
                 if not metafile: continue
                 metafile = metafile[0]
                 q = '{}/03_Tomographic_Reconstruction/tomogram_{}/alignment/unweighted_unbinned_marker_{}'
                 #folder_aligned = q.format(self.projectname,tomoindex,ref_marker)
-                bin_read = self.tab12_widgets['widget_{}_{}'.format(row,3)].text()
-                weight = self.tab12_widgets['widget_{}_{}'.format(row, 4)].text()
-                size = self.tab12_widgets['widget_{}_{}'.format(row, 5)].text()
-                bin_subtomo = self.tab12_widgets['widget_{}_{}'.format(row,6)].text()
-                offx = self.tab12_widgets['widget_{}_{}'.format(row, 7)].text()
-                offy = self.tab12_widgets['widget_{}_{}'.format(row, 8)].text()
-                offz = self.tab12_widgets['widget_{}_{}'.format(row, 9)].text()
+                bin_read = self.tab12_widgets['widget_{}_{}'.format(row,4)].text()
+                weight = self.tab12_widgets['widget_{}_{}'.format(row, 5)].text()
+                size = self.tab12_widgets['widget_{}_{}'.format(row, 6)].text()
+                bin_subtomo = self.tab12_widgets['widget_{}_{}'.format(row,7)].text()
+                offx = self.tab12_widgets['widget_{}_{}'.format(row, 8)].text()
+                offy = self.tab12_widgets['widget_{}_{}'.format(row, 9)].text()
+                offz = self.tab12_widgets['widget_{}_{}'.format(row, 10)].text()
                 outname = 'Reconstruction/reconstruct_subtomograms_{:03d}.sh'.format(int(tomoindex))
                 execfilename = os.path.join(self.subtomodir, outname)
 
@@ -398,9 +446,6 @@ class SubtomoAnalysis(GuiTabWidget):
         tooltip = ''
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
-        #groupbox.setEnabled(True)
-        #groupbox.setVisible(True)
-        #groupbox.setCheckable(False)
 
         self.row, self.column = 0, 0
         rows, columns = 40, 20

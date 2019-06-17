@@ -367,27 +367,30 @@ def write_text2file(text,fname,mode='a'):
 
 def batch_tilt_alignment( fnames_tomograms='', projectfolder='.', num_procs=[], num_procs_per_proc=1, deploy=False,
                           queue=False, tiltseriesname='sorted/sorted', markerfile='sorted/markerfile.em',
-                          targets='alignment', qcommand='sbatch'):
+                          targets='alignment', qcommand='sbatch', logfolder = './'):
     '''BATCHMODE: tilt alignment. Submits a number of sbatch jobs to slurm queueing system.
     Each job calculates the tilt aligment for each marker in a markerfile.
     It divides the number or jobs with respect to the num_procs.'''
 
     pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
-
+    num_submitted_jobs = 0
     for n in range(len(num_procs)-1):
         cmd = multiple_alignment.format( d=(projectfolder, pytompath, num_procs[n], num_procs[n+1], num_procs_per_proc,
                                             tiltseriesname, markerfile, targets, fnames_tomograms) )
 
         if queue:
-            cmd = gen_queue_header(name='Alignment', folder=projectfolder, cmd=cmd )
+            jobname = 'Alignment_BatchMode_Job_{:03d}'.format(num_submitted_jobs)
+            cmd = gen_queue_header(name=jobname, folder=logfolder, cmd=cmd )
 
         write_text2file(cmd, '{}/jobscripts/alignment_{:03d}.job'.format(projectfolder, n), 'w')
 
         if deploy:
             if queue:
                 os.system('{} {}/jobscripts/alignment_{:03d}.job'.format(qcommand, projectfolder, n))
+                num_submitted_jobs += 1
             else:
                 os.system('bash {}/jobscripts/alignment_{:03d}.job'.format(projectfolder, n))
+                num_submitted_jobs += 1
 
 def create_folderstructure(folderstructure, enter, projectdir='.'):
     for mainfolder in sorted(folderstructure):
