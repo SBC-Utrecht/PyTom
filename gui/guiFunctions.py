@@ -760,8 +760,8 @@ def update_metadata_from_defocusfile(metafile, defocusfile):
             continue
         break
 
-    if not len(defocusResults) == len(metadata):
-        raise Exception('Defocus file and meta file are not of equal length')
+    if len(defocusResults) > len(metadata):
+        raise Exception('Defocus file is larger than meta file thus cannot uniquely determine all angles.')
 
     tiltImages, columns = defocusResults.shape
 

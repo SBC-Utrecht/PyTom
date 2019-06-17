@@ -61,7 +61,7 @@ def determine_closest_marker(x,y,z,markers):
 def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8, directory='./'):
     from pytom.basic.structures import PickPosition, ParticleList
     pL = ParticleList()
-    pL.fromXMLFile(xmlfile)
+    pL.fromXMLFile(os.path.join(directory, xmlfile))
 
     dict_particle_lists = {}
 
@@ -104,8 +104,9 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             outLists[closestMarkerIndex].append(particle)
         for markerIndex in outLists.keys():
             outfname = '.tempCM_particleList_{}_refMarkerIndex_{}.xml'.format(pl_key, markerIndex)
-            outLists[markerIndex].toXMLFile(os.path.join(directory, outfname))
-            xmlsCM.append(outfname)
+            outfname = os.path.join(directory, outfname)
+            outLists[markerIndex].toXMLFile(outfname)
+            xmlsCM.append([markerIndex, outfname])
 
     return xmlsCM
 

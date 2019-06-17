@@ -173,6 +173,20 @@ reconstructWB.py --particleList {d[0]} \\
 --metafile {d[10]} \\
 --numProcesses {d[11]}'''
 
+extractParticlesClosestMarker = '''cd {d[8]}
+
+reconstructWBClosestMarker.py --particleList {d[0]} \\
+--projectionDirectory {d[1]} \\
+--coordinateBinning {d[2]} \\
+--size {d[3]} \\
+--applyWeighting {d[9]} \\
+--projBinning {d[4]} \\
+--recOffset {d[5]},{d[6]},{d[7]} \\
+--metafile {d[10]} \\
+--logfileReconstruction {d[11]} \\
+--numProcesses {d[12]}
+'''
+
 multiple_alignment = '''cd {d[0]}
 
 {d[1]}/bin/pytom {d[1]}/gui/additional/multi_tilt_alignment.py \\

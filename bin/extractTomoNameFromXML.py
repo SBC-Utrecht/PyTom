@@ -8,8 +8,8 @@ from pytom.basic.structures import ParticleList, Rotation
 from copy import deepcopy
 import random
 import numpy
-from pytom_volume import read
-from pytom_numpy import vol2npy
+#from pytom_volume import read
+#from pytom_numpy import vol2npy
 import os
 import lxml.etree as et
 
@@ -24,11 +24,11 @@ def remove_element(el):
             parent.text = (parent.text or '') + el.tail
     parent.remove(el)
 
-def extractParticlesOfCLassFromXML(xmlfile):
+def extractParticleListsByTomoNameFromXML(xmlfile, directory='./'):
     
     #classIDS = list(map(int,classIDS))
     excludeList = []
-    tomogram = ''
+    outfiles = []
     pL = [1]
     while len(pL):
         tree = et.parse(xmlfile)
@@ -47,14 +47,21 @@ def extractParticlesOfCLassFromXML(xmlfile):
 
         excludeList.append(tomogram)
         
-        try:
-            tree.write("particleList_{}.xml".format(os.path.basename(tomogram)), pretty_print=True)
-        except:
-            print('writing {} failed.'.format(fname))
+        if 1:
+            outfile = "particleList_{}_{}.xml".format(os.path.basename(xmlfile)[:-4],
+                                                      os.path.basename(tomogram).replace('.mrc','').replace('.em',''))
+            outfile = os.path.join(directory, outfile)
+            print(outfile)
+            tree.write(outfile, pretty_print=True)
+            outfiles.append(outfile)
+        else:
+            print('writing {} failed.'.format(xmlfile))
             print('No file written.')
 
         pL = tree.xpath('Particle')
-        print(os.path.basename(tomogram), len(pL))
+        #print(os.path.basename(tomogram), len(pL))
+
+    return outfiles
 
 if __name__ == '__main__':
     import sys
@@ -85,4 +92,4 @@ if __name__ == '__main__':
         sys.exit()
 
     
-    extractParticlesOfCLassFromXML(plName)
+    extractParticleListsByTomoNameFromXML(plName)

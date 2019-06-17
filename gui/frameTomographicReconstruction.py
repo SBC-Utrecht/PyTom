@@ -193,6 +193,11 @@ class TomographReconstruct(GuiTabWidget):
             wname = 'widget_{}_{}'.format(row,1)
             if wname in widgets.keys() and widgets[wname]:
                 if widgets[wname].isChecked():
+                    for index in range(1000):
+                        tt = 'tomogram_{:03d}'.format(n)
+                        if not os.path.exists(os.path.join(self.tomogram_folder, tt)):
+                            break
+                        n += 1
                     widgets['widget_{}_{}'.format(row, 2)].setText('tomogram_{:03d}'.format(n))
                     n+=1
                 else:
@@ -247,7 +252,7 @@ class TomographReconstruct(GuiTabWidget):
         procs = []
         for target, args in jobs:
             procs = [proc for proc in procs if not proc.is_alive()]
-            while len(procs) >= self.subprocesses:
+            while len(procs) >= 5:
                 time.sleep(0.5)
             proc = Process(target=target, args=args)
             procs.append(proc)
@@ -257,7 +262,7 @@ class TomographReconstruct(GuiTabWidget):
 
     def create_tomodir_instance(self, tomofoldername, metafile, folder):
         src = os.path.join(self.tomogram_folder, '.tomoname')
-        num_subprocesses = 10
+        num_subprocesses = 5
         dst = os.path.join(self.tomogram_folder, tomofoldername)
         if os.path.exists(dst):
             print('{} exists: QUIT'.format(dst))
@@ -266,11 +271,12 @@ class TomographReconstruct(GuiTabWidget):
         meta_dst = os.path.join(dst, 'sorted', os.path.basename(metafile))
         os.system('cp {} {}'.format(metafile, meta_dst) )
 
-        metafile = numpy.loadtxt(metafile, dtype=guiFunctions.datatype)
-        tif_files  = metafile['FileName']
-        tiltangles = metafile['TiltAngle']
-
-        if len(tif_files) == 0: return
+        metadata = numpy.loadtxt(metafile, dtype=guiFunctions.datatype)
+        print(metadata)
+        tif_files  = metadata['FileName']
+        tiltangles = metadata['TiltAngle']
+        print(tif_files)
+        if len(list(tif_files)) == 0: return
 
         for n in range(len(tif_files)):
             tif_files[n] = [line.replace('.tif', '.mrc') for line in repr(tif_files[n]).split('\\') if '.' in line][-1]
@@ -292,12 +298,12 @@ class TomographReconstruct(GuiTabWidget):
             if os.path.exists(src_mcor):
                 # print('test', src_mcor)
                 num_copied += 1
-                os.system('cp {} {}'.format(src_mcor, dst_mcor))
+                os.system('ln -s {} {}'.format(src_mcor, dst_mcor))
                 #proc = Process(target=square_mrc, args=([dst_mcor]))
                 #procs.append(proc)
                 #proc.start()
                 out = square_mrc(dst_mcor)
-        if num_copied < 5:
+        if num_copied < 1:
             shutil.rmtree(dst)
 
     def tab2UI(self):
@@ -1347,7 +1353,8 @@ class TomographReconstruct(GuiTabWidget):
 
                 try:
                     guiFunctions.update_metadata_from_defocusfile(metafile, defocusFile)
-                except:
+                except Exception as e:
+                    print(e)
                     print('submission {} failed due to error in either the metafile or the defocus file.'.format(tomofolder))
                     continue
                 for folder in folders:

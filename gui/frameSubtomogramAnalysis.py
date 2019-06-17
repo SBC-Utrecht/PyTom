@@ -21,6 +21,8 @@ from pytom.gui.guiStructures import *
 from pytom.gui.fiducialAssignment import FiducialAssignment
 from pytom.gui.guiFunctions import avail_gpu
 import pytom.gui.guiFunctions as guiFunctions
+from pytom.bin.extractTomoNameFromXML import *
+
 
 class SubtomoAnalysis(GuiTabWidget):
     '''Collect Preprocess Widget'''
@@ -290,7 +292,21 @@ class SubtomoAnalysis(GuiTabWidget):
 
     def populate_batch_create(self):
         self.mass_extract.close()
-        particleFiles = sorted( self.extractLists.text().split('\n') )
+        particleFilesStart = sorted( self.extractLists.text().split('\n') )
+        particleFiles = []
+        print('Selected ParticleLists', particleFilesStart)
+        for particleFile in particleFilesStart:
+            print(particleFile)
+            if 'tomogram_' in particleFile:
+                particleFiles.append(particleFile)
+            else:
+                pLs = extractParticleListsByTomoNameFromXML(particleFile, directory=os.path.dirname(particleFile))
+                for pl in pLs:
+                    particleFiles.append(pl)
+
+
+        particleFiles = sorted(particleFiles)
+
         id='tab12'
         headers = ["Filename particleList", "Run", "Origin", "Tilt Images", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Y", '']
         types = ['txt', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit','txt']
@@ -348,7 +364,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 #binning = os.popen('cat {} | grep "--referenceMarkerIndex" '.format(a)).read()[:-1]
                 #print(binning)
                 origin = ['alignment', 'ctf', 'sorted']
-                values.append([os.path.basename(particleFile), True, origin, choices, binning, -1, 128, 1, 0, 0, 0, ''])
+                values.append([particleFile, True, origin, choices, binning, -1, 128, 1, 0, 0, 0, ''])
                 refmarkindices.append(refmarkindex)
 
         if values:
@@ -367,8 +383,11 @@ class SubtomoAnalysis(GuiTabWidget):
         else:
             return
 
+        for i in range(len(values)):
+            self.update_choices(i, values)
+
     def update_choices(self, rowID, values):
-        try:
+        if 1:
             values = self.valuesBatchSubtomoReconstruction
             self.tab12_widgets['widget_{}_3'.format(rowID)].clear()
 
@@ -379,22 +398,38 @@ class SubtomoAnalysis(GuiTabWidget):
             a = 'tomogram_' + particleFile.split('tomogram_')[1][:3]
 
             folder = os.path.join(self.tomogram_folder, a, origin)
+            print(folder)
             choices = [folder + '/' + f for f in os.listdir(folder) if
                         'unweighted_unbinned' in f and os.path.isdir(folder + '/' + f)]
 
             closest_choices = {}
 
             for choice in choices:
-                a = choice[len('unweighted_unbinned_marker_'):]
+                f = os.path.dirname(choice)
+                try: a = choice.split('unweighted_unbinned_marker_')[1]
+                except: continue
                 if 'reduced' in a:
-                    angle = '{:4.1f}'.format( float(a.split('_')[2]) )
-                    if 'ctf' in a: ctf = '_ctf'
-                    else: ctf = ''
-                    closest_choices['unweighted_unbinned_marker_CLOSEST_reduced_{}_{}{}'.format(angle, angle, ctf)] = 1
+                    print(a)
+                    try:
+                        angleS = '{:4.1f}'.format( float(a.split('_')[2]) )
+                        angleE = '{:4.1f}'.format( float(a.split('_')[3]) )
+
+                        if 'ctf' in a: ctf = '_ctf'
+                        else: ctf = ''
+
+
+                        key = '{}/unweighted_unbinned_marker_CLOSEST_reduced_{}_{}{}'.format(f, angleS, angleE, ctf)
+
+
+
+                        closest_choices[key] = 1
+                    except:
+                        pass
+
                 elif 'unweighted_unbinned_marker_' in a:
-                    closest_choices['unweighted_unbinned_marker_CLOSEST'] = 1
+                    closest_choices['{}/unweighted_unbinned_marker_CLOSEST'.format(f)] = 1
                 elif 'sorted' in a:
-                    closest_choices
+                    closest_choices[choice] = 1
 
             choices  = list(closest_choices.keys()) + choices
 
@@ -403,7 +438,7 @@ class SubtomoAnalysis(GuiTabWidget):
             for item in choices:
                 self.tab12_widgets['widget_{}_3'.format(rowID)].addItem(os.path.basename(item))
 
-        except Exception as e:
+        else:#except Exception as e:
             print('Update choices has failed.')
             print(e)
             return
@@ -412,13 +447,14 @@ class SubtomoAnalysis(GuiTabWidget):
         values = self.valuesBatchSubtomoReconstruction
         for row in range(self.tables[pid].table.rowCount()):
             if self.tab12_widgets['widget_{}_1'.format(row)].isChecked():
-                particleXML = self.particleFilesBatchExtract[row] #[row][0]
+                particleXML = values[row][0] #[row][0]
                 tomoindex = particleXML.split('tomogram_')[-1][:3]
+                origin = values[row][2][self.tab12_widgets['widget_{}_{}'.format(row,2)].currentIndex()]
                 folder_aligned = values[row][3][self.tab12_widgets['widget_{}_{}'.format(row,3)].currentIndex()]
                 metafile = glob.glob('{}/03_Tomographic_Reconstruction/tomogram_{}/sorted/*.meta'.format(self.projectname,tomoindex))
                 if not metafile: continue
                 metafile = metafile[0]
-                q = '{}/03_Tomographic_Reconstruction/tomogram_{}/alignment/unweighted_unbinned_marker_{}'
+                #q = '{}/03_Tomographic_Reconstruction/tomogram_{}/alignment/unweighted_unbinned_marker_{}'
                 #folder_aligned = q.format(self.projectname,tomoindex,ref_marker)
                 bin_read = self.tab12_widgets['widget_{}_{}'.format(row,4)].text()
                 weight = self.tab12_widgets['widget_{}_{}'.format(row, 5)].text()
@@ -427,19 +463,56 @@ class SubtomoAnalysis(GuiTabWidget):
                 offx = self.tab12_widgets['widget_{}_{}'.format(row, 8)].text()
                 offy = self.tab12_widgets['widget_{}_{}'.format(row, 9)].text()
                 offz = self.tab12_widgets['widget_{}_{}'.format(row, 10)].text()
-                outname = 'Reconstruction/reconstruct_subtomograms_{:03d}.sh'.format(int(tomoindex))
-                execfilename = os.path.join(self.subtomodir, outname)
 
-                paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
-                             self.subtomodir, weight, metafile, '20']
 
-                txt = extractParticles.format(d=paramsCmd)
-                jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, name=os.path.basename(outname[:-3]),
-                                                       num_jobs_per_node=20, time=12) + txt
+                refid = folder_aligned.split('unweighted_unbinned_marker_')[1].split('_')[0]
+
+                if refid.lower() != 'closest':
+
+                    outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'.format(int(tomoindex),refid)
+                    execfilename = os.path.join(self.subtomodir, outname)
+
+                    paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
+                                 self.subtomodir, weight, metafile, '20']
+
+                    txt = extractParticles.format(d=paramsCmd)
+                    jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, name=os.path.basename(outname[:-3]),
+                                                           num_jobs_per_node=20, time=12) + txt
+
+                else:
+                    outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'
+                    outname = outname.format(int(tomoindex), refid)
+                    execfilename = os.path.join(self.subtomodir, outname)
+
+                    tomodir = os.path.dirname(os.path.dirname(metafile))
+
+                    reconAlg = None
+                    for alg in ('WBP', 'INFR'):
+                        if alg in particleXML:
+                            reconAlg = alg
+
+                    if not reconAlg:
+                        print('FAIL: subtomogram reconstruction for {} failed. No INFr or WBP in xml path to particle.')
+                        continue
+
+                    end = 'reconstruction/{}/marker_locations_tomogram_{}_{}_irefmark_*.txt'
+                    end = end.format(reconAlg, tomoindex, reconAlg)
+
+                    logfilequery = os.path.join(tomodir, end)
+                    logfile = sorted(glob.glob(logfilequery))[0]
+
+                    paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
+                                 self.subtomodir, weight, metafile, logfile, '20']
+
+                    txt = extractParticlesClosestMarker.format(d=paramsCmd)
+                    jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
+                                                           name=os.path.basename(outname[:-3]),
+                                                           num_jobs_per_node=20, time=12) + txt
                 out = open(execfilename, 'w')
                 out.write(jobtxt)
                 out.close()
-                os.system('sbatch {}'.format(execfilename) )
+                os.system('sbatch {}'.format(execfilename))
+
 
     def inputFiles(self, mode=None):
         title = "FRM Alignment"

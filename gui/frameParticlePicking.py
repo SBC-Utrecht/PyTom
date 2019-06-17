@@ -649,7 +649,7 @@ class ParticlePick(GuiTabWidget):
                     w2      = self.tab32_widgets['widget_{}_{}'.format(row, 3)].text()
                     outname = self.tab32_widgets['widget_{}_{}'.format(row, 4)].text()
                     wedges = '{},{},'.format(w1,w2)
-                    updatePL([c], [outname], wedgeangles=[w1,w2], directory=os.path.dirname(prefix))
+                    updatePL([c], [outname], wedgeangles=[w1,w2])
                     fnamesPL.append(outname)
                     continue
 
