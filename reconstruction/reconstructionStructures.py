@@ -613,6 +613,10 @@ class ProjectionList(PyTomClass):
             else:
                 vol_bp.write(p.getFilename())
 
+            del results
+            for a in [vol_img, vol_phi, vol_the, vol_offsetProjections]:
+                del a
+
         except Exception as e:
             print('Caught exception in worker thread (x = %d):' % pid)
             print()
