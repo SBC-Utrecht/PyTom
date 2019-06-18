@@ -903,7 +903,8 @@ class Wedge(PyTomClass):
 
     def setWedgeAngles(self, wedgeangles):
         self._wedgeObject.setWedgeAngles(wedgeangles)
-    
+
+
 class SingleTiltWedge(PyTomClass):
     """
     SingleTiltWedge : Saves all Wedge info such as wedge angle, and wedge \
@@ -1190,6 +1191,7 @@ class SingleTiltWedge(PyTomClass):
         if len(wedgeangles) == 1:
             wedgeangles = [wedgeangles[0],wedgeangles[1]]
         self._wedgeAngle1, self._wedgeAngle2 = wedgeangles
+
 
 class WedgeInfo(SingleTiltWedge):        
     """

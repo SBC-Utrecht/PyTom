@@ -50,8 +50,6 @@ class Projection(PyTomClass):
 #            print "TiltAngle = "+str(self._tiltAngle)+" deg"
         else:
             self._tiltAngle = tiltAngle
-        
-        
 
         self.setIndex( index)
         
@@ -71,7 +69,7 @@ class Projection(PyTomClass):
             self._alignmentTransX = 0.
             
         if alignmentTransY:
-            self._lignmentTransY = alignmentTransY
+            self._alignmentTransY = alignmentTransY
         else:
             self._alignmentTransY = 0.
         
@@ -87,7 +85,6 @@ class Projection(PyTomClass):
         tline = tline + ("Filename: %20s" %self._filename)
         tline = tline + (", TiltAngle= %6.2f" %self._tiltAngle)
         return tline
-            
         
     def _loadTiltAngle(self):
         """
@@ -104,8 +101,6 @@ class Projection(PyTomClass):
             from pytom.gui.mrcOperations import read_mrc_header
             fh = read_mrc_header(self._filename)
             self._tiltAngle = fh['user'][0]/1000.
-            
-
 
     def getDimensions(self):
         """
@@ -121,7 +116,6 @@ class Projection(PyTomClass):
         proj = read(self._filename)
         return proj.sizeX(), proj.sizeY(), proj.sizeZ()
 
-    
     def getFilename(self):
         return self._filename
         
@@ -153,7 +147,6 @@ class Projection(PyTomClass):
         @rtype: string
         """
         return self._alignedFilename
-
 
     def setIndex(self, index):
         """
@@ -329,8 +322,6 @@ class ProjectionList(PyTomClass):
     """
     ProjectionList: List of projections
     """
-    #use ParticleList as template class
-    
     def __init__(self, list = None):
         self._list = list or []
 
@@ -340,7 +331,6 @@ class ProjectionList(PyTomClass):
             tline = tline + str(projection) + "\n"
         return tline
 
-        
     def loadDirectory(self, directory, tiltAngles=[]):
         """
         loadDirectory: Will take all projections in a directory, determine their respective tilt angle from the header and populate this list object.
@@ -720,8 +710,7 @@ class ProjectionList(PyTomClass):
             self.append(newProjection)
         
         self._list = sorted(self._list, key=lambda Projection: Projection._tiltAngle)
-            
-               
+
     def toProjectionStack(self,binning=1,applyWeighting=False,showProgressBar=False,verbose=False):
         """
         toProjectionStack:
@@ -797,19 +786,14 @@ class ProjectionList(PyTomClass):
                 progressBar.update(i)
 
         return [stack,phiStack,thetaStack,offsetStack]
-        
 
-                
-    
-    
     def saveAsProjectionStack(self,filename,scale=1,applyWeighting=False,showProgressBar=False,verbose=False):
         """
         saveAsProjectionStack: Saves this projection list as a stack of projections
         """
         stack = self.toProjectionStack(scale,applyWeighting,showProgressBar,verbose)
         stack.write(filename)
-        
-    
+
     def setAlignmentParameters(self,alignmentXMLFile,verbose=False):
         """
         setAlignmentParameters:
@@ -867,7 +851,6 @@ class ProjectionList(PyTomClass):
                     print(query)
                 magnification = alignXML.xpath(query)
                 projection.setAlignmentMagnification(float(magnification[0].text))
-            
     
             
 class Reconstruction(PyTomClass):            
@@ -899,7 +882,8 @@ class Reconstruction(PyTomClass):
         """
         
         raise RuntimeError('You must run this function on a child of Reconstruction')
-        
+
+
 class WeightedBackprojection(PyTomClass):
     """
     WeightedBackprojection: A class that can do everything related to WB

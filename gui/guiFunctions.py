@@ -567,6 +567,22 @@ fmtMR='%3d %7.1f %7.1f %7.1f %7.1f %7.1f %7.1f'
 for n, h in enumerate(datatypeMR):
     headerMarkerResults += '{} {}\n'.format(h[0], '({})'.format(unitsMR[n])*(unitsMR[n]!=''))
 
+
+datatypeAR = [('AlignmentTransX', 'f4'),
+              ('AlignmentTransY', 'f4'),
+              ('TiltAngle',       'f4'),
+              ('InPlaneRotation', 'f4'),
+              ('Magnification',   'f4'),
+              ('FileName', 'U1000')]
+
+headerAlignmentResults = ''
+unitsAR = ['px', 'px', 'degrees', 'degrees', '', '']
+fmtAR='%7.2f %7.2f %7.2f %7.2f %7.5f %s'
+for n, h in enumerate(datatypeAR):
+    headerAlignmentResults += '{} {}\n'.format(h[0], '({})'.format(unitsAR[n])*(unitsAR[n]!=''))
+
+
+
 def update_metafile(filename, columnID, values ):
     metadata= numpy.loadtxt(filename,dtype=datatype)
     metadata[columnID] = values
