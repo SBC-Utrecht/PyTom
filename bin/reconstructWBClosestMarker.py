@@ -100,7 +100,7 @@ if __name__ == '__main__':
     xmlsBasedOnClosestMarker = extractParticleListsClosestToRefMarker(particleListXMLPath, logfile,
                                                                       binning_factor=coordinateBinning)
 
-    projections = ProjectionList()
+
 
     if tomogram:
         vol = projections.reconstructVolume( dims=size, reconstructionPosition=recOffset,
@@ -110,6 +110,7 @@ if __name__ == '__main__':
     else:
 
         for markerIndex, particleListXMLPath in xmlsBasedOnClosestMarker:
+            projections = ProjectionList()
             projectionDirectory = projectionDirectory.replace('_CLOSEST_', '_{:04d}_'.format(int(markerIndex)))
             if checkFileExists(projectionList):
                 projections.fromXMLFile(projectionList)
@@ -151,5 +152,5 @@ if __name__ == '__main__':
 
 
 
-
+            del projections
 
