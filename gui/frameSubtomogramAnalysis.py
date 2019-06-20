@@ -280,7 +280,7 @@ class SubtomoAnalysis(GuiTabWidget):
     def updateMeta(self,mode):
         pl = self.widgets[mode + 'particlelist'].text()
         try: 
-            tomoID = int(pl.split('tomogram_')[-1][:3])
+            tomoID = int(pl.split('_tomogram_')[-1][:3])
             tomo = os.path.join(self.tomogram_folder, 'tomogram_{:03d}/sorted/'.format(tomoID))
             print(tomo)
             a = glob.glob(tomo+'*.meta')
@@ -297,7 +297,7 @@ class SubtomoAnalysis(GuiTabWidget):
         print('Selected ParticleLists', particleFilesStart)
         for particleFile in particleFilesStart:
             print(particleFile)
-            if 'tomogram_' in particleFile:
+            if '_tomogram_' in particleFile:
                 particleFiles.append(particleFile)
             else:
                 pLs = extractParticleListsByTomoNameFromXML(particleFile, directory=os.path.dirname(particleFile))
@@ -448,7 +448,7 @@ class SubtomoAnalysis(GuiTabWidget):
         for row in range(self.tables[pid].table.rowCount()):
             if self.tab12_widgets['widget_{}_1'.format(row)].isChecked():
                 particleXML = values[row][0] #[row][0]
-                tomoindex = particleXML.split('tomogram_')[-1][:3]
+                tomoindex = particleXML.split('_tomogram_')[-1][:3]
                 origin = values[row][2][self.tab12_widgets['widget_{}_{}'.format(row,2)].currentIndex()]
                 folder_aligned = values[row][3][self.tab12_widgets['widget_{}_{}'.format(row,3)].currentIndex()]
                 metafile = glob.glob('{}/03_Tomographic_Reconstruction/tomogram_{}/sorted/*.meta'.format(self.projectname,tomoindex))
@@ -502,7 +502,7 @@ class SubtomoAnalysis(GuiTabWidget):
                     logfile = sorted(glob.glob(logfilequery))[0]
 
                     paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
-                                 self.subtomodir, weight, metafile, logfile, '20']
+                                 self.subtomodir, weight, metafile, logfile, '20', 'sorted_ctf_aligned']
 
                     txt = extractParticlesClosestMarker.format(d=paramsCmd)
                     jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,

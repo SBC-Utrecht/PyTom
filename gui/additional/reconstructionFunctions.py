@@ -176,14 +176,19 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
         tiltSeries._markerFileName = outMarkerFileName
     tiltAlignment.resetAlignmentCenter()  # overrule cent in Paras
 
-
     try:
         import os
-        base, ext = os.path.splitext(os.path.basename(volumeName))
-        name = os.path.dirname(os.path.dirname(alignedTiltSeriesName))
-        outfile = "{}/marker_locations_{}_irefmark_{}.txt".format(name, base, irefmark)
+        if volumeName:
+            base, ext = os.path.splitext(os.path.basename(volumeName))
+            base = "_" + base
+        else:
+            base = ''
+        name = os.path.dirname(alignedTiltSeriesName)
+        if '/temp' in name: name = os.path.dirname(name)
+        outfile = "{}/marker_locations{}_irefmark_{}.txt".format(name, base, irefmark)
     except:
         outfile = ''
+
     tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute, outfile=outfile)
     tiltAlignment.alignFromFiducials(mute=mute)
     # creating dir for aligned tilt series if default filename

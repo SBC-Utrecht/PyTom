@@ -50,7 +50,7 @@ def determine_closest_marker(x,y,z,markers):
     markerIndex = 0
     dist = 10000
     for n, (rx, ry, rz) in enumerate(refmarkers):
-        print(rx, ry, rz, x, y, z)
+        #print(rx, ry, rz, x, y, z)
         tempdist = numpy.sqrt((rx-x)**2+(ry-y)**2+(rz-z)**2)
         if tempdist < dist:
             markerIndex = n
@@ -58,7 +58,7 @@ def determine_closest_marker(x,y,z,markers):
 
     return markerIndex
 
-def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8, directory='./'):
+def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8, directory='./', projDirTemplate=''):
     from pytom.basic.structures import PickPosition, ParticleList
     pL = ParticleList()
     pL.fromXMLFile(os.path.join(directory, xmlfile))
@@ -91,22 +91,35 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             z *= binning_factor
 
             closestMarkerIndex = determine_closest_marker(x,y,z, markers)
+            projectionDirectory = projDirTemplate.replace('_CLOSEST_', '_{:04d}_'.format(closestMarkerIndex))
+            markerPositionFile = f'{projectionDirectory}/marker_positions_irefmark_{closestMarkerIndex}.txt'
 
+            realignmarkers = numpy.loadtxt(markerPositionFile, dtype=datatypeMR)
 
             if not closestMarkerIndex in outLists.keys():
                 outLists[closestMarkerIndex] = ParticleList()
+
+            ox,oy = determineXYOffset(markers, realignmarkers)
 
             ox = markers['OffsetX'][closestMarkerIndex]
             oy = markers['OffsetY'][closestMarkerIndex]
             oz = markers['OffsetZ'][closestMarkerIndex]
             originFname = particle.getPickPosition().getOriginFilename()
-            particle.setPickPosition(PickPosition(x=x+ox,y=y+oy,z=z+oz,originFilename=originFname))
+
+            #s = particle.getShift()
+            #znew = s.getZ() - oz
+            #s.setZ(znew)
+            #particle.setShift(s)
+            pp = PickPosition(x=x/binning_factor,y=y/binning_factor,z=((z-oz)/binning_factor), originFilename=originFname)
+            particle.setPickPosition(pp)
             outLists[closestMarkerIndex].append(particle)
+
         for markerIndex in outLists.keys():
             outfname = '.tempCM_particleList_{}_refMarkerIndex_{}.xml'.format(pl_key, markerIndex)
             outfname = os.path.join(directory, outfname)
             outLists[markerIndex].toXMLFile(outfname)
             xmlsCM.append([markerIndex, outfname])
+
 
     return xmlsCM
 

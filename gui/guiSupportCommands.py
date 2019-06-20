@@ -184,7 +184,8 @@ reconstructWBClosestMarker.py --particleList {d[0]} \\
 --recOffset {d[5]},{d[6]},{d[7]} \\
 --metafile {d[10]} \\
 --logfileReconstruction {d[11]} \\
---numProcesses {d[12]}
+--numProcesses {d[12]} \\
+--prefixFileName {d[13]} \\
 '''
 
 multiple_alignment = '''cd {d[0]}
