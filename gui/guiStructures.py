@@ -362,7 +362,7 @@ class CommonFunctions():
         self.column += cstep
 
     def insert_label(self, parent, text='', rowspan=1, columnspan=1, rstep=0, cstep=0,transparent=True,
-                     tooltip='', alignment=Qt.AlignLeft, value=None,width=0,sizepolicy=''):
+                     tooltip='', alignment=Qt.AlignLeft, value=None, width=0, sizepolicy=''):
         widget = QtWidgets.QLabel(self)
 
         if transparent:
@@ -380,6 +380,7 @@ class CommonFunctions():
         if sizepolicy:widget.setSizePolicy(sizepolicy)
         if width: widget.setFixedWidth(width)
         parent.addWidget(widget, self.row, self.column, rowspan, columnspan, alignment)
+        if alignment: widget.setAlignment(alignment)
 
         self.items[self.row][self.column] = widget
         self.row += rstep
@@ -634,6 +635,29 @@ class CommonFunctions():
         self.insert_label(parent, text=textlabel, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
         self.insert_checkbox(parent, wname, logvar=logvar, cstep=cstep, rstep=rstep,alignment=Qt.AlignLeft)
 
+    def insert_checkbox_label(self, parent, wname, textlabel, tooltip='', cstep=-1, rstep=1, logvar=True, width=200):
+        self.insert_checkbox(parent, wname, logvar=logvar, alignment=Qt.AlignLeft, cstep=1)
+        self.insert_label(parent, text=textlabel, cstep=cstep, rstep=rstep, alignment=Qt.AlignRight, tooltip=tooltip,
+                          width=width)
+
+    def insert_checkbox_label_line(self, parent, wname, textlabel, wname2, tooltip='', cstep=-2, rstep=1, logvar=True,
+                                   width=150, labelwidth=200, validator=None, value='', enabled=False, sizepolicy=None,
+                                   alignment=None):
+        self.insert_checkbox(parent, wname, logvar=logvar, alignment=Qt.AlignLeft, cstep=1)
+        self.insert_label(parent, text=textlabel, cstep=1, tooltip=tooltip, width=labelwidth,
+                          sizepolicy=sizepolicy, alignment=Qt.AlignRight)
+        self.insert_lineedit(parent, wname2, cstep=cstep, rstep=rstep, value=value, logvar=logvar, validator=validator,
+                             width=width, enabled=enabled)
+
+    def insert_checkbox_label_spinbox(self, parent, wname, textlabel, wname2, tooltip='', cstep=-2, rstep=1, logvar=True,
+                                      width=150, validator=None, enabled=True, maximum=100, minimum=1, decimals=0,
+                                      wtype=None, value=1, stepsize=1):
+        self.insert_checkbox(parent, wname, logvar=logvar, alignment=Qt.AlignLeft, cstep=1)
+        self.insert_label(parent, text=textlabel, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
+        self.insert_spinbox(parent, wname2, validator=validator, width=width, enabled=enabled,
+                            maximum=maximum, minimum=minimum, cstep=cstep, rstep=rstep, value=value,
+                            widgetType=wtype, stepsize=stepsize, logvar=logvar, decimals=decimals)
+
     def insert_label_combobox(self, parent, textlabel, wname, labels, rowspan=1, columnspan=1, rstep=1, cstep=-1,
                         width=150, tooltip='', logvar=False ):
         self.insert_label(parent, text=textlabel, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
@@ -834,7 +858,12 @@ class CommonFunctions():
     def create_expandable_group(self, action, sizeP, text, mode=''):
         a = QCheckBox(text=text)
         a.setSizePolicy(sizeP)
-        b = action(mode=mode)
+
+        try:
+            b = action(mode=mode, title=text)
+        except:
+            b = action(mode=mode)
+
         a.clicked.connect(lambda ignore,  w=a, w2=b: self.toggle_groupbox_visible(w, w2))
         b.clicked.connect(lambda ignore, w2=a,  w=b: self.toggle_groupbox_visible(w, w2))
         return a, b

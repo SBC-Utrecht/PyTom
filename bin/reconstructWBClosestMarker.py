@@ -30,9 +30,8 @@ if __name__ == '__main__':
 
                       options= [ScriptOption(['-t','--tomogram'], 'Reconstruct a tomogram. Specify name of tomogam here. You do not need a particle list for that!', arg=True, optional=False),
                                 ScriptOption(['-p','--particleList'], 'XML particle list.', arg=True, optional=False),
-                                ScriptOption(['-l', '--logfileReconstruction'], 'Log files reconstruction, containing '+
-                                                                                'the positions of the markers.',
-                                             arg=True, optional=False),
+                                ScriptOption(['-r','--prefixFileName'], 'Prefix of files that are selected.', arg=True, optional=True),
+                                ScriptOption(['-l', '--logfileReconstruction'], 'Log files reconstruction, containing the positions of the markers.', arg=True, optional=False),
                                 ScriptOption(['--projectionList'], 'XML projection list.', arg=True, optional=False),
                                 ScriptOption(['--projectionDirectory'], 'Directory containing the projections.', arg=True, optional=False),
                                 ScriptOption(['-w','--applyWeighting'], 'If projections are not weighted, apply weighting before. If omited, no weighting.', arg=True, optional=True),
@@ -41,9 +40,7 @@ if __name__ == '__main__':
                                 ScriptOption(['-o','--recOffset'], 'Cropping offset of the binned tomogram.', arg=True, optional=False),
                                 ScriptOption(['--projBinning'], 'Bin projections BEFORE reconstruction. 1 is no binning, 2 will merge two voxels to one, 3 -> 1, 4 ->1 ...', arg=True, optional=True),
                                 ScriptOption(['-m', '--metafile'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
-                                ScriptOption(['-n', '--numProcesses'], 'Supply a metafile to get tiltangles.', arg=True,
-                                             optional=True),
-
+                                ScriptOption(['-n', '--numProcesses'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
                                 ScriptOption(['--help'], 'Print this help.', arg=False, optional=False)])
     
     if len(sys.argv) == 1:
@@ -55,7 +52,7 @@ if __name__ == '__main__':
     aw = False
     
     try:
-        tomogram, particleListXMLPath, logfile, projectionList, projectionDirectory, aw, size, coordinateBinning, \
+        tomogram, particleListXMLPath, prefix, logfile, projectionList, projectionDirectoryTemplate, aw, size, coordinateBinning, \
         recOffset, projBinning, metafile, numProcesses, help= parse_script_options(sys.argv[1:], helper)
     
     except Exception as e:
@@ -98,8 +95,11 @@ if __name__ == '__main__':
 
     print(particleListXMLPath)
     xmlsBasedOnClosestMarker = extractParticleListsClosestToRefMarker(particleListXMLPath, logfile,
-                                                                      binning_factor=coordinateBinning)
+                                                                      binning_factor=coordinateBinning,
+                                                                      projDirTemplate=projectionDirectoryTemplate)
 
+    if not prefix:
+        prefix = 'sorted_ctf_aligned'
 
 
     if tomogram:
@@ -110,12 +110,14 @@ if __name__ == '__main__':
     else:
 
         for markerIndex, particleListXMLPath in xmlsBasedOnClosestMarker:
+            markerIndex = int(markerIndex)
             projections = ProjectionList()
-            projectionDirectory = projectionDirectory.replace('_CLOSEST_', '_{:04d}_'.format(int(markerIndex)))
+            projectionDirectory = projectionDirectoryTemplate.replace('_CLOSEST_', '_{:04d}_'.format(markerIndex))
+            print(projectionDirectory)
             if checkFileExists(projectionList):
                 projections.fromXMLFile(projectionList)
             elif checkDirExists(projectionDirectory):
-                projections.loadDirectory(projectionDirectory, metafile=metafile)
+                projections.loadDirectory(projectionDirectory, metafile=metafile, prefix=prefix)
             else:
                 raise RuntimeError('Neither projectionList existed nor the projectionDirectory you specified! Abort')
 
@@ -123,9 +125,10 @@ if __name__ == '__main__':
             tmp = projections[0]
             sx = tmp.getXSize() # here should be the size of original projection!
             sy = tmp.getYSize()
-            recOffset[0] = -sx/2 + recOffset[0]*coordinateBinning
-            recOffset[1] = -sy/2 + recOffset[1]*coordinateBinning
-            recOffset[2] = -sx/2 + recOffset[2]*coordinateBinning
+            recOffset2 = [0,0,0]
+            recOffset2[0] = -sx/2 + recOffset[0]*coordinateBinning
+            recOffset2[1] = -sy/2 + recOffset[1]*coordinateBinning
+            recOffset2[2] = -sx/2 + recOffset[2]*coordinateBinning
 
             # set particle list in order to reconstruct subtomograms
             particleList = ParticleList()
@@ -139,9 +142,9 @@ if __name__ == '__main__':
             from pytom.basic.structures import PickPosition
             for particle in particleList:
                 pickPosition = particle.getPickPosition()
-                x = (pickPosition.getX() * coordinateBinning + recOffset[0])
-                y = (pickPosition.getY() * coordinateBinning + recOffset[1])
-                z = (pickPosition.getZ() * coordinateBinning + recOffset[2])
+                x = (pickPosition.getX() * coordinateBinning + recOffset2[0])
+                y = (pickPosition.getY() * coordinateBinning + recOffset2[1])
+                z = (pickPosition.getZ() * coordinateBinning + recOffset2[2])
 
                 particle.setPickPosition( PickPosition(x=x, y=y, z=z))
 

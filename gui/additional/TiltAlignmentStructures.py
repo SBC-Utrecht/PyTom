@@ -243,6 +243,7 @@ class TiltSeries(PyTomClass):
         nproj = markerFileVol.sizeY()
         nproj -= self._firstIndex
         nproj -= self._lenPI-self._lastIndex
+
         # make sure that nproj matches number of Projections in self._ProjectionList
         if (nproj != len(self._ProjectionList._list)):
             print("Number of projections specified in TiltSeries and MarkerFileName do not match!")
@@ -270,6 +271,7 @@ class TiltSeries(PyTomClass):
             self._Markers.append(Marker(self._projIndices))
             x = markerFile[1, 0:nproj, imark]
             y = markerFile[2, 0:nproj, imark]
+            print(imark, x, y)
             self._Markers[imark].set_xProjs(x)
             self._Markers[imark].set_yProjs(y)
         return self._Markers

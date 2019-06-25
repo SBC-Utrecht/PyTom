@@ -934,12 +934,15 @@ class TomographReconstruct(GuiTabWidget):
                                      refmarkindex, binningFactor, self.pytompath, os.path.basename(tomofolder),
                                      expectedRotation]
                         commandText = templateINFR.format(d=paramsCmd)
+                        paramsSbatch['fname'] = 'Reconstruction_{}_INFR.sh'.format(os.path.basename(tomofolder))
                     elif i==2:
                         paramsCmd = [tomofolder, self.pytompath, firstIndex, lastIndex, refTiltImage, refmarkindex,
                                      binningFactor, os.path.basename(tomofolder), 'mrc', '464', '1', expectedRotation]
                         commandText= templateWBP.format(d=paramsCmd)
+                        paramsSbatch['fname'] = 'Reconstruction_{}_WBP.sh'.format(os.path.basename(tomofolder))
                     else:
                         print( 'No Batch Submission' )
+                        continue
 
                     if self.checkbox[id].isChecked():
                         header = guiFunctions.gen_queue_header(name=paramsSbatch['fname'], folder=paramsSbatch['folder'],

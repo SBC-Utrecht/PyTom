@@ -3,7 +3,7 @@ from pytom.basic.structures import PyTomClass
 from pytom.basic.structures import ParticleList
 from pytom.angles.localSampling import LocalSampling
 from tompy.mpi import MPI
-
+import os
 import sys
 analytWedge=False
 
@@ -72,14 +72,15 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             weighting = False
             print("Warning: all scores have been zero - weighting not applied")
 
-    
+
     for particleObject in particleList:
-        
+
         if verbose:
             print(particleObject)
 
     
-        if not os.path.exists(particleObject.getFilename()): continue
+        if not os.path.exists(particleObject.getFilename()):
+            continue
         particle = read(particleObject.getFilename())
         if norm: # normalize the particle
             mean0std1(particle) # happen inplace
@@ -87,12 +88,12 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
         wedgeInfo = particleObject.getWedge()
         # apply its wedge to itself
         particle = wedgeInfo.apply(particle)
-        
-        if result == []:
+
+        if not result:
             sizeX = particle.sizeX() 
             sizeY = particle.sizeY()
             sizeZ = particle.sizeZ()
-            
+            print(sizeX, sizeY, sizeZ)
             newParticle = vol(sizeX,sizeY,sizeZ)
             
             centerX = sizeX/2 
@@ -101,6 +102,7 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             
             result = vol(sizeX,sizeY,sizeZ)
             result.setAll(0.0)
+
             if analytWedge:
                 wedgeSum = wedgeInfo.returnWedgeVolume(wedgeSizeX=sizeX, wedgeSizeY=sizeY, wedgeSizeZ=sizeZ)
             else:
@@ -155,6 +157,7 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             progressBar.update(numberAlignedParticles)
 
     ###apply spectral weighting to sum
+
     result = lowpassFilter(result, sizeX/2-1, 0.)[0]
     #if createInfoVolumes:
     result.write(averageName[:len(averageName)-3]+'-PreWedge.em')
@@ -272,6 +275,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     from pytom.alignment.alignmentFunctions import invert_WedgeSum
 
     import os
+    print(particleList, setParticleNodesRatio, cores)
     splitLists = splitParticleList(particleList, setParticleNodesRatio=setParticleNodesRatio, numberOfNodes=cores)
     splitFactor = len(splitLists)
 
@@ -379,7 +383,7 @@ if __name__=='__main__':
         print(helper)
         sys.exit()
     try:
-        plName, outname, cores, weighting, verbose, showProgressBar, createInfoVol, norm, help = parse_script_options(sys.argv[1:], helper)
+        plName, outname, cores, weighting, verbose, showProgressBar, createInfoVol, norm, help = dd = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -390,11 +394,14 @@ if __name__=='__main__':
 
     try: cores = int(cores)
     except: cores = 1
-    
-    print(weighting)
+
+    if not os.path.exists(plName):
+        print('Please provide an existing particle list')
+        sys.exit()
 
     even = ParticleList()
     even.fromXMLFile(plName)
+
     averageParallel(particleList=even,
                     averageName=outname,
                     showProgressBar=showProgressBar, verbose=verbose, createInfoVolumes=createInfoVol,

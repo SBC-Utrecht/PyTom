@@ -336,7 +336,7 @@ class ProjectionList(PyTomClass):
         return tline
 
         
-    def loadDirectory(self, directory, metafile=''):
+    def loadDirectory(self, directory, metafile='', prefix=''):
         """
         loadDirectory: Will take all projections in a directory, determine their respective tilt angle from the header and populate this list object.
         @param directory: directory where files are located
@@ -358,7 +358,7 @@ class ProjectionList(PyTomClass):
             directory += os.sep
         
         
-        files = [line for line in os.listdir(directory) if not 'raw_aligned' in line]
+        files = [line for line in os.listdir(directory) if prefix in line]
         self.tilt_angles = []
 
         for n, file in enumerate(files):

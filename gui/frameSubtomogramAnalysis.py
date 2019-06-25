@@ -54,6 +54,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.tables = {}
         self.pbs = {}
         self.ends = {}
+        self.num_nodes = {}
 
         self.tabs = {'tab11': self.tab11, 'tab12': self.tab12,
                      'tab21': self.tab21, 'tab22': self.tab22,
@@ -281,7 +282,7 @@ class SubtomoAnalysis(GuiTabWidget):
     def updateMeta(self,mode):
         pl = self.widgets[mode + 'particlelist'].text()
         try: 
-            tomoID = int(pl.split('tomogram_')[-1][:3])
+            tomoID = int(pl.split('_tomogram_')[-1][:3])
             tomo = os.path.join(self.tomogram_folder, 'tomogram_{:03d}/sorted/'.format(tomoID))
             print(tomo)
             a = glob.glob(tomo+'*.meta')
@@ -298,7 +299,7 @@ class SubtomoAnalysis(GuiTabWidget):
         print('Selected ParticleLists', particleFilesStart)
         for particleFile in particleFilesStart:
             print(particleFile)
-            if 'tomogram_' in particleFile:
+            if '_tomogram_' in particleFile:
                 particleFiles.append(particleFile)
             else:
                 pLs = extractParticleListsByTomoNameFromXML(particleFile, directory=os.path.dirname(particleFile))
@@ -368,9 +369,14 @@ class SubtomoAnalysis(GuiTabWidget):
                 values.append([particleFile, True, origin, choices, binning, -1, 128, 1, 0, 0, 0, ''])
                 refmarkindices.append(refmarkindex)
 
+        try:
+            self.num_nodes[id].setParent(None)
+        except:
+            pass
+
         if values:
             self.valuesBatchSubtomoReconstruction = values
-            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True)
             self.tab12_widgets = self.tables[id].widgets
             for n, index in enumerate(refmarkindices):
                 self.tab12_widgets['widget_{}_3'.format(n)].setCurrentIndex(index)
@@ -445,11 +451,13 @@ class SubtomoAnalysis(GuiTabWidget):
             return
 
     def mass_extract_particles(self,pid, values):
+        num_nodes = int(self.num_nodes[pid].value())
+        num_submitted_jobs = nsj = 0
         values = self.valuesBatchSubtomoReconstruction
         for row in range(self.tables[pid].table.rowCount()):
             if self.tab12_widgets['widget_{}_1'.format(row)].isChecked():
                 particleXML = values[row][0] #[row][0]
-                tomoindex = particleXML.split('tomogram_')[-1][:3]
+                tomoindex = particleXML.split('_tomogram_')[-1][:3]
                 origin = values[row][2][self.tab12_widgets['widget_{}_{}'.format(row,2)].currentIndex()]
                 folder_aligned = values[row][3][self.tab12_widgets['widget_{}_{}'.format(row,3)].currentIndex()]
                 metafile = glob.glob('{}/03_Tomographic_Reconstruction/tomogram_{}/sorted/*.meta'.format(self.projectname,tomoindex))
@@ -493,7 +501,7 @@ class SubtomoAnalysis(GuiTabWidget):
                             reconAlg = alg
 
                     if not reconAlg:
-                        print('FAIL: subtomogram reconstruction for {} failed. No INFr or WBP in xml path to particle.')
+                        print('FAIL: subtomogram reconstruction for {} failed. No INFR or WBP in xml path to particle.')
                         continue
 
                     end = 'reconstruction/{}/marker_locations_tomogram_{}_{}_irefmark_*.txt'
@@ -504,17 +512,19 @@ class SubtomoAnalysis(GuiTabWidget):
                     qname, num_nodes, cores, time = self.qparams['BatchSubtomoReconstruct'].values()
 
                     paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
-                                 self.subtomodir, weight, metafile, logfile, str(num_nodes)]
+                                 self.subtomodir, weight, metafile, logfile, str(num_nodes), 'sorted_ctf_aligned']
+
 
                     txt = extractParticlesClosestMarker.format(d=paramsCmd)
 
                     jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
-                                                           name=os.path.basename(outname[:-3]),
+                                                           name='SubtomoRecon_{}'.format(nsj % num_nodes),
                                                            num_jobs_per_node=20, time=12) + txt
                 out = open(execfilename, 'w')
                 out.write(jobtxt)
                 out.close()
-                os.system('sbatch {}'.format(execfilename))
+                os.system('{} {}'.format(self.qcommand, execfilename))
+                nsj += 1
 
 
     def inputFiles(self, mode=None):
