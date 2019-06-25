@@ -40,6 +40,10 @@ PositionZ (px)'''
     b.write(txt.replace(nothashed, hashed))
     b.close()
 
+def determineShiftXY(marker1, marker2):
+    print([marker1[name].mean()-marker2[name].mean() for name in ('PositionX', 'PositionY')])
+    print([marker1[name].std()-marker2[name].std() for name in ('PositionX', 'PositionY')])
+    return [marker1[name].mean()-marker2[name].mean() for name in ('PositionX', 'PositionY')]
 
 def determine_closest_marker(x,y,z,markers):
     ''' Determines the closest markerpoint to particle at position x, y, z.
@@ -92,17 +96,15 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
 
             closestMarkerIndex = determine_closest_marker(x,y,z, markers)
             projectionDirectory = projDirTemplate.replace('_CLOSEST_', '_{:04d}_'.format(closestMarkerIndex))
-            markerPositionFile = f'{projectionDirectory}/marker_positions_irefmark_{closestMarkerIndex}.txt'
+            markerPositionFile = f'{projectionDirectory}/marker_locations_irefmark_{closestMarkerIndex}.txt'
 
             realignmarkers = numpy.loadtxt(markerPositionFile, dtype=datatypeMR)
 
             if not closestMarkerIndex in outLists.keys():
                 outLists[closestMarkerIndex] = ParticleList()
 
-            ox,oy = determineXYOffset(markers, realignmarkers)
+            ox,oy = determineShiftXY(markers, realignmarkers)
 
-            ox = markers['OffsetX'][closestMarkerIndex]
-            oy = markers['OffsetY'][closestMarkerIndex]
             oz = markers['OffsetZ'][closestMarkerIndex]
             originFname = particle.getPickPosition().getOriginFilename()
 
@@ -110,7 +112,7 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             #znew = s.getZ() - oz
             #s.setZ(znew)
             #particle.setShift(s)
-            pp = PickPosition(x=x/binning_factor,y=y/binning_factor,z=((z-oz)/binning_factor), originFilename=originFname)
+            pp = PickPosition(x=(x+ox)/binning_factor,y=(y+oy)/binning_factor,z=((z-oz)/binning_factor), originFilename=originFname)
             particle.setPickPosition(pp)
             outLists[closestMarkerIndex].append(particle)
 

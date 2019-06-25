@@ -45,8 +45,9 @@ class ParticlePick(GuiTabWidget):
         self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
         self.qtype = self.parent().qtype
         self.qcommand = self.parent().qcommand
-        headers = ["Manual Picking","Template Matching", "Create Particle List"]
-        subheaders  = [[],['Single', 'Batch'], ['Single','Batch']]
+
+        headers = ["Manual Picking","Template Matching", "Create Particle List", "Alter Particle List"]
+        subheaders  = [[],['Single', 'Batch'], ['Single','Batch'], []]
         self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders)
 
         self.table_layouts = {}
@@ -57,18 +58,20 @@ class ParticlePick(GuiTabWidget):
 
         self.tabs = {'tab1': self.tab1,
                      'tab21': self.tab21, 'tab22': self.tab22,
-                     'tab31': self.tab31, 'tab32': self.tab32}
+                     'tab31': self.tab31, 'tab32': self.tab32,
+                     'tab4': self.tab4}
 
         self.tab_actions = {'tab1': self.tab1UI,
                             'tab21': self.tab21UI, 'tab22': self.tab22UI,
-                            'tab31': self.tab31UI, 'tab32': self.tab32UI}
+                            'tab31': self.tab31UI, 'tab32': self.tab32UI,
+                            'tab4': self.tab4UI}
 
         for i in range(len(headers)):
             t = 'tab{}'.format(i + 1)
             empty = 1 * (len(subheaders[i]) == 0)
             for j in range(len(subheaders[i]) + empty):
                 tt = t + str(j + 1) * (1 - empty)
-                if tt in ('tab1', 'tab21', 'tab31'):
+                if tt in ('tab1', 'tab21', 'tab31', 'tab4'):
                     self.table_layouts[tt] = QGridLayout()
                 else:
                     self.table_layouts[tt] = QVBoxLayout()
@@ -626,7 +629,6 @@ class ParticlePick(GuiTabWidget):
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_convert_txt2xml(pid, v))
 
-
     def update_change_tab32_table(self,widget1, widget2):
         widget2.setText('particleList_{}.xml'.format(widget1.text().replace('/particle_','')))
 
@@ -706,3 +708,110 @@ class ParticlePick(GuiTabWidget):
         if len(fnamesPL) > 1:
             os.system('combineParticleLists.py -f {} -o {} '.format(",".join(fnamesPL), fname))
 
+    def tab4UI(self):
+        key = 'tab4'
+
+        grid = self.table_layouts[key]
+        grid.setAlignment(self, Qt.AlignTop)
+
+        items = []
+
+        items += list( self.create_expandable_group(self.changeXMLParameters, self.sizePolicyB, 'Change Parameters',
+                                                    mode=self.stage+'changeParams_') )
+        items[-1].setVisible(False)
+
+        items += list( self.create_expandable_group(self.extractParticles, self.sizePolicyB, 'Extract Particles from XML',
+                                                    mode=self.stage+'extractParticlesFromXML_') )
+        items[-1].setVisible(False)
+
+        items += list( self.create_expandable_group(self.actions, self.sizePolicyB, 'Actions',
+                                                    mode=self.stage+'actions_') )
+        items[-1].setVisible(False)
+
+        for n, item in enumerate(items):
+            grid.addWidget(item, n, 0)
+
+        label = QLabel()
+        label.setSizePolicy(self.sizePolicyA)
+        grid.addWidget(label, n + 1, 0 )
+
+    def changeXMLParameters(self, mode='', title=''):
+        tooltip = 'Tick this box to update specific fields in an particle list (XML format).'
+        sizepol = self.sizePolicyB
+        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
+
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        self.insert_label_line_push(parent, 'Particle List', 'particleList0', 'Select your particleList (XML) file.',
+                                    initdir=self.projectname, mode='file', cstep=-3, filetype=['xml'])
+        self.insert_checkbox_label_line(parent, mode+'adjustSuffix', 'Suffix', mode+'suffix', width=0, enabled=True)
+        self.insert_checkbox_label_line(parent, mode + 'adjustDir', 'Change Directory', mode + 'directory',enabled=True)
+        self.insert_checkbox_label_spinbox(parent, mode + 'adjustWedgeAngles', 'Adjust Wedge Angle 1', mode + 'wedgeAngle1',
+                                           cstep=-1, rstep=1, value=30, stepsize=1, wtype=QSpinBox)
+        self.insert_label_spinbox(parent, mode + 'wedgeAngle2', 'Wedge Angle 2', cstep=-2, value=30, wtype=QSpinBox)
+        self.insert_checkbox_label_spinbox(parent, mode + 'adjustBinning', 'Binning Factor', mode + 'binning',
+                                           value=1, stepsize=1, minimum=1, maximum=32, wtype=QSpinBox)
+        self.insert_checkbox_label_spinbox(parent, mode + 'adjustReferenceFrame', 'Reference Frame',
+                                           mode + 'referenceFrame', value=1, stepsize=1, wtype=QSpinBox, rstep=0, cstep=4)
+        self.insert_label(parent,'', sizepolicy=self.sizePolicyA)
+
+
+        self.widgets['particleList0'].textChanged.connect(lambda d, pl='particleList0': self.updatePLs(pl))
+        setattr(self, mode + 'gb_changeXMLparameters', groupbox)
+        return groupbox
+
+    def extractParticles(self, mode='', title=''):
+        tooltip = 'Tick this box to create a particle list including only specific particles.'
+        sizepol = self.sizePolicyB
+        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
+
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        self.insert_label_line_push(parent, 'Particle List', 'particleList1', 'Select your particleList (XML) file.',
+                                    initdir=self.projectname, mode='file', cstep=-3, filetype=['xml'])
+        self.insert_checkbox_label_line(parent, mode + 'extractByTomoName', 'By Tomogram Name', mode + 'tomoname',
+                                        value='all', width=0, enabled=True)
+        self.insert_checkbox_label_line(parent, mode + 'extractByClass', 'By Class', mode + 'classes', cstep=4, rstep=0,
+                                        enabled=True, value='all')
+        self.insert_label(parent, '', sizepolicy=self.sizePolicyA)
+
+        self.widgets['particleList1'].textChanged.connect(lambda d, pl='particleList1': self.updatePLs(pl))
+        setattr(self, mode + 'gb_extractParticles', groupbox)
+        return groupbox
+
+    def actions(self, mode='', title=''):
+        tooltip = 'Tick this box to update specific fields in an particle list using actions such as rotation.'
+        sizepol = self.sizePolicyB
+        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
+
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        self.insert_label_line_push(parent, 'Particle List', 'particleList2', 'Select your particleList (XML) file.',
+                                    initdir=self.projectname, mode='file', cstep=-3, filetype=['xml'])
+        self.insert_checkbox_label(parent, mode + 'mirrorCoordinates', 'Mirror Coordinates', width=200, rstep=1)
+        self.insert_checkbox_label(parent, mode + 'randomizeAngles', 'Randomize Angles', width=200, rstep=1)
+        self.insert_checkbox_label(parent, mode + 'moveShiftToPickPos', 'Shift To Pick Position', width=200,
+                                   rstep=1, cstep=4)
+        self.insert_label(parent, '', sizepolicy=self.sizePolicyA, cstep=-5, rstep=1)
+
+        self.insert_checkbox_label(parent, mode + 'recenterParticle', 'Recenter Subtomogram', cstep=1, rstep=0, width=200)
+        self.insert_label_spinbox(parent, mode + 'centerX', 'X (px)', value=0, wtype=QSpinBox, rstep=1, width=100)
+        self.insert_label_spinbox(parent, mode + 'centerY', 'Y (px)', value=0, wtype=QSpinBox, rstep=1, width=100)
+        self.insert_label_spinbox(parent, mode + 'centerZ', 'Z (px)', value=0, wtype=QSpinBox, cstep=-3, rstep=1, width=100)
+        self.insert_label(parent,'', rstep=1)
+        self.insert_checkbox_label(parent, mode + 'reorientParticle', 'Reorient Subtomogram', cstep=1, rstep=0, width=200)
+        self.insert_label_spinbox(parent, mode + 'Z1', 'Z (deg)', value=0, wtype=QDoubleSpinBox, decimals=2,rstep=1,width=100)
+        self.insert_label_spinbox(parent, mode + 'X',  'X (deg)', value=0, wtype=QDoubleSpinBox, decimals=2,rstep=1,width=100)
+        self.insert_label_spinbox(parent, mode + 'Z2', 'Z (deg)', value=0, wtype=QDoubleSpinBox, decimals=2,rstep=1,width=100,
+                                  cstep=-2)
+
+        self.widgets['particleList2'].textChanged.connect(lambda d, pl='particleList2': self.updatePLs(pl))
+        setattr(self, mode + 'gb_actions', groupbox)
+        return groupbox
+
+    def updatePLs(self, name):
+        for key in ('particleList0', 'particleList1', 'particleList2'):
+            if not key == name: self.widgets[key].setText(self.widgets[name].text())

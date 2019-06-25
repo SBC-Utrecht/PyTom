@@ -54,6 +54,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.tables = {}
         self.pbs = {}
         self.ends = {}
+        self.num_nodes = {}
 
         self.tabs = {'tab11': self.tab11, 'tab12': self.tab12,
                      'tab21': self.tab21, 'tab22': self.tab22,
@@ -367,9 +368,14 @@ class SubtomoAnalysis(GuiTabWidget):
                 values.append([particleFile, True, origin, choices, binning, -1, 128, 1, 0, 0, 0, ''])
                 refmarkindices.append(refmarkindex)
 
+        try:
+            self.num_nodes[id].setParent(None)
+        except:
+            pass
+
         if values:
             self.valuesBatchSubtomoReconstruction = values
-            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True)
             self.tab12_widgets = self.tables[id].widgets
             for n, index in enumerate(refmarkindices):
                 self.tab12_widgets['widget_{}_3'.format(n)].setCurrentIndex(index)
@@ -444,6 +450,8 @@ class SubtomoAnalysis(GuiTabWidget):
             return
 
     def mass_extract_particles(self,pid, values):
+        num_nodes = int(self.num_nodes[pid].value())
+        num_submitted_jobs = nsj = 0
         values = self.valuesBatchSubtomoReconstruction
         for row in range(self.tables[pid].table.rowCount()):
             if self.tab12_widgets['widget_{}_1'.format(row)].isChecked():
@@ -492,7 +500,7 @@ class SubtomoAnalysis(GuiTabWidget):
                             reconAlg = alg
 
                     if not reconAlg:
-                        print('FAIL: subtomogram reconstruction for {} failed. No INFr or WBP in xml path to particle.')
+                        print('FAIL: subtomogram reconstruction for {} failed. No INFR or WBP in xml path to particle.')
                         continue
 
                     end = 'reconstruction/{}/marker_locations_tomogram_{}_{}_irefmark_*.txt'
@@ -506,12 +514,13 @@ class SubtomoAnalysis(GuiTabWidget):
 
                     txt = extractParticlesClosestMarker.format(d=paramsCmd)
                     jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
-                                                           name=os.path.basename(outname[:-3]),
+                                                           name='SubtomoRecon_{}'.format(nsj % num_nodes),
                                                            num_jobs_per_node=20, time=12) + txt
                 out = open(execfilename, 'w')
                 out.write(jobtxt)
                 out.close()
-                os.system('sbatch {}'.format(execfilename))
+                os.system('{} {}'.format(self.qcommand, execfilename))
+                nsj += 1
 
 
     def inputFiles(self, mode=None):
