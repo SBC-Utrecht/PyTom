@@ -296,9 +296,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.mass_extract.close()
         particleFilesStart = sorted( self.extractLists.text().split('\n') )
         particleFiles = []
-        print('Selected ParticleLists', particleFilesStart)
+
         for particleFile in particleFilesStart:
-            print(particleFile)
             if '_tomogram_' in particleFile:
                 particleFiles.append(particleFile)
             else:
@@ -329,7 +328,7 @@ class SubtomoAnalysis(GuiTabWidget):
         for n, particleFile in enumerate( particleFiles ):
             if not particleFile: continue
             base, ext = os.path.splitext(os.path.basename(particleFile).replace('particleList_', '').replace('coords_','').replace('_flipped',''))
-            if 'tomogram_' in base: base = 'tomogram_' + base.split('tomogram_')[1]
+            if '_tomogram_' in base: base = 'tomogram_' + base.split('_tomogram_')[1]
 
             for t in ('WBP', 'INFR'):
                 if t in base: base = base.split(t)[0]+t
@@ -402,7 +401,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
             origin = values[rowID][2][current_index]
             particleFile = values[rowID][0]
-            a = 'tomogram_' + particleFile.split('tomogram_')[1][:3]
+            a = 'tomogram_' + particleFile.split('_tomogram_')[1][:3]
 
             folder = os.path.join(self.tomogram_folder, a, origin)
             print(folder)
@@ -418,18 +417,19 @@ class SubtomoAnalysis(GuiTabWidget):
                 if 'reduced' in a:
                     print(a)
                     try:
-                        angleS = '{:4.1f}'.format( float(a.split('_')[2]) )
-                        angleE = '{:4.1f}'.format( float(a.split('_')[3]) )
+                        aS, aE = a.split('_')[2:4]
+                        angleS = '{:4.1f}'.format( float(aS) )
+                        angleE = '{:4.1f}'.format( float(aE) )
 
                         if 'ctf' in a: ctf = '_ctf'
                         else: ctf = ''
 
 
                         key = '{}/unweighted_unbinned_marker_CLOSEST_reduced_{}_{}{}'.format(f, angleS, angleE, ctf)
+                        value = '{}/unweighted_unbinned_marker_CLOSEST_reduced_{}_{}{}'.format(f, aS, aE, ctf)
 
 
-
-                        closest_choices[key] = 1
+                        closest_choices[key] = value
                     except:
                         pass
 
@@ -438,7 +438,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 elif 'sorted' in a:
                     closest_choices[choice] = 1
 
-            choices  = list(closest_choices.keys()) + choices
+            choices  = list(closest_choices.values()) + choices
 
             self.valuesBatchSubtomoReconstruction[rowID][3] = choices
 
@@ -525,7 +525,6 @@ class SubtomoAnalysis(GuiTabWidget):
                 out.close()
                 os.system('{} {}'.format(self.qcommand, execfilename))
                 nsj += 1
-
 
     def inputFiles(self, mode=None):
         title = "FRM Alignment"

@@ -244,6 +244,7 @@ class menudemo(QMainWindow, CommonFunctions):
 
     def plot_results(self):
         try:
+            self.plotWindow.close()
             self.plotWindow.show()
         except:
             self.plotWindow = PlotWindow(self)
@@ -258,6 +259,7 @@ class menudemo(QMainWindow, CommonFunctions):
 
     def open_settings(self,show_menu=True):
         try:
+            self.generalSettings.close()
             self.generalSettings.show()
         except:
             self.generalSettings = GeneralSettings(self)
