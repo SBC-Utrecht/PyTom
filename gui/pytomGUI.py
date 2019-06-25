@@ -111,6 +111,7 @@ class menudemo(QMainWindow, CommonFunctions):
         self.pytompath=pytompath
         self.projectname = None
         self.stage_buttons = []
+        self.qparams = {}
 
         y,b,g,w = 'f9ce00', '343434', 'cacaca','fcfaf1'
         ly = 'f4e8c1'

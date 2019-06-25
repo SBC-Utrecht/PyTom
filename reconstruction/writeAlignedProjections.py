@@ -3,7 +3,7 @@ import copy
 from numpy import abs, float32
 
 def writeAlignedProjections(TiltSeries_, weighting=None,
-                            lowpassFilter=None, binning=None,verbose=False, write_images=False):
+                            lowpassFilter=None, binning=None,verbose=False, write_images=True):
     """write weighted and aligned projections to disk
 
        @param TiltSeries_: Tilt Series
@@ -36,6 +36,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     else:
         imdim = TiltSeries_._imdim
     print('imdim', imdim)
+
     sliceWidth = imdim
 
     # pre-determine analytical weighting function and lowpass for speedup
@@ -58,7 +59,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     for projection in TiltSeries_._ProjectionList:
         tilt_angles.append( projection._tiltAngle )
     tilt_angles = sorted(tilt_angles)
-
+    print(tilt_angles)
     #q = numpy.matrix(abs(numpy.arange(-imdim//2, imdim//2)))
 
     alignmentResults = numpy.zeros((len(TiltSeries_._ProjectionList)),dtype=datatypeAR)
@@ -74,7 +75,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
 
         alignmentResults['AlignmentTransX'][ii] = transX
         alignmentResults['AlignmentTransY'][ii] = transY
-        alignmentResults['InPlaneRotation'][ii] = rot % 360
+        alignmentResults['InPlaneRotation'][ii] = rot
         alignmentResults['Magnification'][ii] = mag
 
         if write_images:
@@ -92,7 +93,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             else:
                 # read projection files
                 from pytom.basic.files import EMHeader, read, read_em_header
-
+                print(projection._filename)
                 image = read(projection._filename)
                 image = resize(volume=image, factor=1 / float(binning))[0]
 

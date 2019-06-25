@@ -213,7 +213,7 @@ def slurm_command(name='TemplateMatch',folder='./', cmd='', num_nodes=1,
 {}'''.format(name,folder,module_load,cmd)
     return slurm_generic_command
 
-def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, emailaddress='',
+def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, emailaddress='',id='',
                      modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel'], suffix= '',
                      qtype='slurm', num_jobs_per_node=20, time=12, partition='defq', singleton=False):
     module_load = ''
@@ -266,9 +266,10 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
     return queue_command
 
 def createGenericDict(fname='template',cmd='', folder='', partition='defq', num_jobs_per_node=20, time=12, suffix='',
-                      num_nodes=1, modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel']):
+                      num_nodes=1, modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel'],
+                      id=''):
     genericSbatchDict = {'fname':fname,'cmd':cmd,'folder':folder, 'modules':modules, 'time':time, 'partition':partition,
-                         'num_jobs_per_node': num_jobs_per_node, 'suffix': suffix, 'num_nodes': num_nodes}
+                         'num_jobs_per_node': num_jobs_per_node, 'suffix': suffix, 'num_nodes': num_nodes, 'id': id}
     return genericSbatchDict
 
 def sort( obj, nrcol ):
@@ -577,7 +578,7 @@ datatypeAR = [('AlignmentTransX', 'f4'),
 
 headerAlignmentResults = ''
 unitsAR = ['px', 'px', 'degrees', 'degrees', '', '']
-fmtAR='%7.2f %7.2f %7.2f %7.2f %7.5f %s'
+fmtAR='%15.10f %15.10f %15.10f %15.10f %15.10f %s'
 for n, h in enumerate(datatypeAR):
     headerAlignmentResults += '{} {}\n'.format(h[0], '({})'.format(unitsAR[n])*(unitsAR[n]!=''))
 

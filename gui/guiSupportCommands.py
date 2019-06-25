@@ -143,7 +143,7 @@ classifyCPCA.py -p {d[2]} -o {d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[7]}
 
 templateAC        = '''cd {d[0]}
 
-mpirun -c 20 {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
+mpiexec --tag-output -n 20 {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
 -p {d[2]} \\
 {d[3]} {d[4]} \\
 -k {d[5]} \\
