@@ -252,7 +252,7 @@ class TiltSeries(PyTomClass):
             print("Please fix!")
         nmark = markerFileVol.sizeZ()
         markerFile = vol2npy(markerFileVol)
-        markerFile = markerFile[:,self._firstIndex:self._lastIndex, :]
+        markerFile = markerFile[:, self._firstIndex:self._lastIndex, :]
 
         # check that tilt angles in marker file and projections are the same
         for (iproj, proj) in enumerate(self._ProjectionList._list):
@@ -274,7 +274,6 @@ class TiltSeries(PyTomClass):
             print(imark, x, y)
             self._Markers[imark].set_xProjs(x)
             self._Markers[imark].set_yProjs(y)
-        print(len(self._Markers))
         return self._Markers
 
     def readIMODwimp(self, markerFileName, prexgfile=None, tltfile=None, preBin=1, verbose=False):

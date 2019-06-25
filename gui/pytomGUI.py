@@ -111,6 +111,7 @@ class menudemo(QMainWindow, CommonFunctions):
         self.pytompath=pytompath
         self.projectname = None
         self.stage_buttons = []
+        self.qparams = {}
 
         y,b,g,w = 'f9ce00', '343434', 'cacaca','fcfaf1'
         ly = 'f4e8c1'
@@ -243,6 +244,7 @@ class menudemo(QMainWindow, CommonFunctions):
 
     def plot_results(self):
         try:
+            self.plotWindow.close()
             self.plotWindow.show()
         except:
             self.plotWindow = PlotWindow(self)
@@ -257,6 +259,7 @@ class menudemo(QMainWindow, CommonFunctions):
 
     def open_settings(self,show_menu=True):
         try:
+            self.generalSettings.close()
             self.generalSettings.show()
         except:
             self.generalSettings = GeneralSettings(self)
