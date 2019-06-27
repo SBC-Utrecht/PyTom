@@ -645,6 +645,9 @@ class ParticlePick(GuiTabWidget):
 
         fnamesPL = []
         wedges = ''
+        angleListDefault = os.path.join(self.pytompath, 'angles/angleLists/angles_18_3040.em')
+        vol = read(angleListDefault)
+        angleListDefaultData = deepcopy(vol2npy(vol)).T.astype(numpy.float32)
         for row in range(self.tables[pid].table.rowCount()):
             if 1:
                 c = values[row][0]
@@ -653,8 +656,12 @@ class ParticlePick(GuiTabWidget):
                     w1      = self.tab32_widgets['widget_{}_{}'.format(row, 2)].text()
                     w2      = self.tab32_widgets['widget_{}_{}'.format(row, 3)].text()
                     outname = self.tab32_widgets['widget_{}_{}'.format(row, 4)].text()
+                    r       = self.tab32_widgets['widget_{}_{}'.format(row, 5)].isChecked()
+
+                    outname = os.path.join(os.path.dirname(c), outname)
                     wedges = '{},{},'.format(w1,w2)
-                    updatePL([c], [outname], wedgeangles=[w1,w2])
+                    angleListData = angleListDefaultData if r else None
+                    updatePL([c], [outname], wedgeangles=[w1,w2], anglelist=angleListData)
                     fnamesPL.append(outname)
                     continue
 
@@ -672,7 +679,7 @@ class ParticlePick(GuiTabWidget):
                 pFolder = os.path.join(self.subtomofolder, os.path.basename(p))
                 if not os.path.exists(pFolder): os.mkdir(pFolder)
 
-                angleList = os.path.join(self.pytompath, 'angles/angleLists/angles_18_3040.em')*r
+                angleList = angleListDefault*r
 
 
                 if angleList:
@@ -717,26 +724,27 @@ class ParticlePick(GuiTabWidget):
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
+        self.modes = [self.stage+'changeParams_', self.stage+'extractParticlesFromXML_', self.stage+'actions_']
+
         items = []
 
         items += list( self.create_expandable_group(self.changeXMLParameters, self.sizePolicyB, 'Change Parameters',
-                                                    mode=self.stage+'changeParams_') )
-        items[-1].setVisible(False)
-
-        items += list( self.create_expandable_group(self.extractParticles, self.sizePolicyB, 'Extract Particles from XML',
-                                                    mode=self.stage+'extractParticlesFromXML_') )
-        items[-1].setVisible(False)
-
-        items += list( self.create_expandable_group(self.actions, self.sizePolicyB, 'Actions',
-                                                    mode=self.stage+'actions_') )
-        items[-1].setVisible(False)
+                                                    mode=self.modes[0], setVisible=False))
+        items += list( self.create_expandable_group(self.extractParticles,self.sizePolicyB,'Extract Particles from XML',
+                                                    mode=self.modes[1]))
+        items += list( self.create_expandable_group(self.actions, self.sizePolicyB, 'Actions', mode=self.modes[2]))
 
         for n, item in enumerate(items):
             grid.addWidget(item, n, 0)
-
+        self.adjust_items = items
+        pushbutton = QPushButton('Adjust!')
+        pushbutton.setSizePolicy(self.sizePolicyB)
+        pushbutton.setFixedWidth(100)
+        pushbutton.clicked.connect(self.adjustParticleList)
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
-        grid.addWidget(label, n + 1, 0 )
+        grid.addWidget(pushbutton, n + 1, 0 )
+        grid.addWidget(label, n + 2, 0)
 
     def changeXMLParameters(self, mode='', title=''):
         tooltip = 'Tick this box to update specific fields in an particle list (XML format).'
@@ -755,9 +763,10 @@ class ParticlePick(GuiTabWidget):
         self.insert_label_spinbox(parent, mode + 'wedgeAngle2', 'Wedge Angle 2', cstep=-2, value=30, wtype=QSpinBox)
         self.insert_checkbox_label_spinbox(parent, mode + 'adjustBinning', 'Binning Factor', mode + 'binning',
                                            value=1, stepsize=1, minimum=1, maximum=32, wtype=QSpinBox)
-        self.insert_checkbox_label_spinbox(parent, mode + 'adjustReferenceFrame', 'Reference Frame',
-                                           mode + 'referenceFrame', value=1, stepsize=1, wtype=QSpinBox, rstep=0, cstep=4)
-        self.insert_label(parent,'', sizepolicy=self.sizePolicyA)
+        self.insert_checkbox_label_spinbox(parent, mode + 'multiplyShifts', 'Multiply Shifts',
+                                           mode + 'factorMultiplyShifts', value=1, stepsize=1, wtype=QSpinBox,
+                                           minimum=1, rstep=0, cstep=4)
+        self.insert_label(parent,'', sizepolicy=self.sizePolicyA, cstep=-6,rstep=1)
 
 
         self.widgets['particleList0'].textChanged.connect(lambda d, pl='particleList0': self.updatePLs(pl))
@@ -777,7 +786,7 @@ class ParticlePick(GuiTabWidget):
         self.insert_checkbox_label_line(parent, mode + 'extractByTomoName', 'By Tomogram Name', mode + 'tomoname',
                                         value='all', width=0, enabled=True)
         self.insert_checkbox_label_line(parent, mode + 'extractByClass', 'By Class', mode + 'classes', cstep=4, rstep=0,
-                                        enabled=True, value='all')
+                                        enabled=True, value='')
         self.insert_label(parent, '', sizepolicy=self.sizePolicyA)
 
         self.widgets['particleList1'].textChanged.connect(lambda d, pl='particleList1': self.updatePLs(pl))
@@ -794,21 +803,21 @@ class ParticlePick(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
         self.insert_label_line_push(parent, 'Particle List', 'particleList2', 'Select your particleList (XML) file.',
                                     initdir=self.projectname, mode='file', cstep=-3, filetype=['xml'])
-        self.insert_checkbox_label(parent, mode + 'mirrorCoordinates', 'Mirror Coordinates', width=200, rstep=1)
+        self.insert_checkbox_label(parent, mode + 'mirrorCoordinates', 'Mirror Pick Positions', width=200, rstep=1)
         self.insert_checkbox_label(parent, mode + 'randomizeAngles', 'Randomize Angles', width=200, rstep=1)
         self.insert_checkbox_label(parent, mode + 'moveShiftToPickPos', 'Shift To Pick Position', width=200,
-                                   rstep=1, cstep=4)
-        self.insert_label(parent, '', sizepolicy=self.sizePolicyA, cstep=-5, rstep=1)
+                                   rstep=1, cstep=5)
+        self.insert_label(parent, '', sizepolicy=self.sizePolicyA, cstep=-6, rstep=1)
 
-        self.insert_checkbox_label(parent, mode + 'recenterParticle', 'Recenter Subtomogram', cstep=1, rstep=0, width=200)
-        self.insert_label_spinbox(parent, mode + 'centerX', 'X (px)', value=0, wtype=QSpinBox, rstep=1, width=100)
-        self.insert_label_spinbox(parent, mode + 'centerY', 'Y (px)', value=0, wtype=QSpinBox, rstep=1, width=100)
-        self.insert_label_spinbox(parent, mode + 'centerZ', 'Z (px)', value=0, wtype=QSpinBox, cstep=-3, rstep=1, width=100)
-        self.insert_label(parent,'', rstep=1)
-        self.insert_checkbox_label(parent, mode + 'reorientParticle', 'Reorient Subtomogram', cstep=1, rstep=0, width=200)
-        self.insert_label_spinbox(parent, mode + 'Z1', 'Z (deg)', value=0, wtype=QDoubleSpinBox, decimals=2,rstep=1,width=100)
-        self.insert_label_spinbox(parent, mode + 'X',  'X (deg)', value=0, wtype=QDoubleSpinBox, decimals=2,rstep=1,width=100)
-        self.insert_label_spinbox(parent, mode + 'Z2', 'Z (deg)', value=0, wtype=QDoubleSpinBox, decimals=2,rstep=1,width=100,
+        self.insert_checkbox_label_spinbox(parent, mode + 'recenterParticles', 'Recenter Subtomogram -- X (px)',
+                                           mode + 'cX', value=0, wtype=QSpinBox, rstep=1, cstep=-1, minimum=0)
+        self.insert_label_spinbox(parent, mode + 'cY', 'Y (px)', value=0, wtype=QSpinBox, rstep=1)
+        self.insert_label_spinbox(parent, mode + 'cZ', 'Z (px)', value=0, wtype=QSpinBox, cstep=-3, rstep=1)
+        self.insert_label(parent,'', rstep=1, cstep=1)
+        self.insert_checkbox_label_spinbox(parent, mode + 'reorientParticles', 'Reorient Subtomogram -- Z (deg)',
+                                           mode + 'Z1', value=0, wtype=QDoubleSpinBox, decimals=2, rstep=1,cstep=-1)
+        self.insert_label_spinbox(parent, mode + 'X',  'X (deg)', value=0, wtype=QDoubleSpinBox, decimals=2,rstep=1)
+        self.insert_label_spinbox(parent, mode + 'Z2', 'Z (deg)', value=0, wtype=QDoubleSpinBox, decimals=2,rstep=1,
                                   cstep=-2)
 
         self.widgets['particleList2'].textChanged.connect(lambda d, pl='particleList2': self.updatePLs(pl))
@@ -818,3 +827,78 @@ class ParticlePick(GuiTabWidget):
     def updatePLs(self, name):
         for key in ('particleList0', 'particleList1', 'particleList2'):
             if not key == name: self.widgets[key].setText(self.widgets[name].text())
+
+    def requestOutputName(self, ext='xml', folder='', title='Save particle list.'):
+        fname = str(QFileDialog.getSaveFileName(self, title, folder, filter='*.'+ext)[0])
+        if not fname: return
+        ext = '.'+ext
+        if not fname.endswith(ext): fname += ext
+        return fname
+
+    def requestOutputDirectory(self, folder='', title='Output Folder'):
+        return QFileDialog.getExistingDirectory(self, title, folder)
+
+    def adjustParticleList(self):
+        from pytom.bin.extractClassesFromParticleList import extractClassesFromPL
+        from pytom.bin.extractTomoNameFromXML import extractParticleListsByTomoNameFromXML
+        mode0, mode1, mode2 = self.modes
+        particleList = self.widgets['particleList0'].text()
+        if not particleList:
+            self.popup_messagebox('Warning', 'No particle list selectected.', 'Please select a particle list.')
+            return
+
+        if self.adjust_items[0].isChecked():
+            mode = mode0
+            suffix = self.widgets[mode + 'suffix'].text()
+            dir = self.widgets[mode + 'directory'].text()
+            w = [self.widgets[mode+'wedgeAngle1'].text(), self.widgets[mode+'wedgeAngle2'].text()]
+            bin = self.widgets[mode + 'binning'].text()
+            fmShifts = self.widgets[mode + 'factorMultiplyShifts'].text()
+            outputName = self.requestOutputName(folder=self.pickpartfolder)
+
+            values = [suffix, dir, w, bin, fmShifts]
+
+            for n, adj in enumerate( ('adjustSuffix','adjustDir','adjustWedgeAngles','adjustBinning','multiplyShifts')):
+                if not self.widgets[mode + adj].isChecked():
+                    values[n] *= 0
+            suffix, dir, w, bin, fm = values
+
+            if outputName:
+                print('Update {}. Output saved as {}.'.format(os.path.basename(particleList), outputName) )
+                updatePL(particleList, outputName, directory=dir, wedgeangles=w, suffix=suffix, multiplyshift=fm)
+
+        if self.adjust_items[2].isChecked():
+            mode=self.modes[1]
+            tomoname = self.widgets[mode + 'tomoname'].text()
+            classes  = self.widgets[mode + 'classes'].text()
+            if self.widgets[mode + 'extractByTomoName'].isChecked():
+                directory = self.requestOutputDirectory(self.pickpartfolder)
+                if directory: extractParticleListsByTomoNameFromXML(particleList, directory=directory, query=tomoname)
+            if self.widgets[mode + 'extractByClass'].isChecked() and classes:
+                outputName = self.requestOutputName(folder=self.pickpartfolder)
+                if outputName: extractClassesFromPL(particleList, classes, outputName)
+
+        if self.adjust_items[4].isChecked():
+            mode = self.modes[2]
+            values =[]
+            for name in ('mirrorCoordinates', 'randomizeAngles', 'moveShiftToPickPos', 'recenterParticles',
+                         'reorientParticles'):
+                values.append(self.widgets[mode + name].isChecked())
+            mirror, randomize, moveShift, recenter, reorient = values
+
+            values, new_center, rotation = [], [], []
+            for name in ('cX', 'cY', 'cZ', 'Z1', 'X', 'Z2'):
+                values.append(self.widgets[mode + name].value())
+            cx, cy, cz, z1, x, z2 = map(float, values)
+            print(cx, cy, cz, z1, x, z2)
+            if recenter:
+                new_center = [cx, cy, cz]
+            if reorient:
+                rotation = [z1, x, z2]
+            if mirror:
+                pass
+            if randomize:
+                pass
+            if moveShift:
+                pass
+

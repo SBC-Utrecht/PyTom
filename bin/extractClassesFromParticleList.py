@@ -6,6 +6,25 @@ Created on Feb 6, 2014
 @author: yuxiangchen
 '''
 
+
+def extractClassesFromPL(pl_name, class_names, output):
+    from pytom.basic.structures import ParticleList
+
+    pl = ParticleList()
+    pl.fromXMLFile(pl_name)
+
+    pls = pl.splitByClass()
+    class_labels = class_names.split(',')
+
+    res = ParticleList()
+    for pp in pls:
+        if pp[0].getClass() in class_labels:
+            res += pp
+
+    if output: res.toXMLFile(output)
+
+    return res
+
 if __name__ == '__main__':
     # parse command line arguments
     import sys
@@ -33,17 +52,5 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     
-    from pytom.basic.structures import ParticleList
-    pl = ParticleList()
-    pl.fromXMLFile(pl_name)
-    
-    pls = pl.splitByClass()
-    class_labels = class_names.split(',')
-    
-    res = ParticleList()
-    for pp in pls:
-        if pp[0].getClass() in class_labels:
-            res += pp
-    
-    res.toXMLFile(output)
+    extractClassesFromPL(pl_name, class_names, output)
     

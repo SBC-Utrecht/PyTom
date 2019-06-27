@@ -26,7 +26,11 @@ def remove_element(el):
 
 def extractParticlesOfCLassFromXML(xmlfile, classIDS, fname=''):
     tree = et.parse(xmlfile)
-    classIDS = list(map(int,classIDS))
+    try:
+        classIDS = list(map(int,classIDS))
+    except:
+        print('converting class IDs to int failed. Please submit a valid class ID string.')
+        return
     for particle in tree.xpath("Particle"):
         remove = True
 

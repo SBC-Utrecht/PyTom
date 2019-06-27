@@ -650,7 +650,7 @@ class CommonFunctions():
                              width=width, enabled=enabled)
 
     def insert_checkbox_label_spinbox(self, parent, wname, textlabel, wname2, tooltip='', cstep=-2, rstep=1, logvar=True,
-                                      width=150, validator=None, enabled=True, maximum=100, minimum=1, decimals=0,
+                                      width=150, validator=None, enabled=True, maximum=100, minimum=0, decimals=0,
                                       wtype=None, value=1, stepsize=1):
         self.insert_checkbox(parent, wname, logvar=logvar, alignment=Qt.AlignLeft, cstep=1)
         self.insert_label(parent, text=textlabel, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
@@ -855,7 +855,7 @@ class CommonFunctions():
             elif text == 'textfield':
                 self.logbook[name] = self.widgets[name].toPlainText()
 
-    def create_expandable_group(self, action, sizeP, text, mode=''):
+    def create_expandable_group(self, action, sizeP, text, mode='', setVisible=False):
         a = QCheckBox(text=text)
         a.setSizePolicy(sizeP)
 
@@ -866,6 +866,7 @@ class CommonFunctions():
 
         a.clicked.connect(lambda ignore,  w=a, w2=b: self.toggle_groupbox_visible(w, w2))
         b.clicked.connect(lambda ignore, w2=a,  w=b: self.toggle_groupbox_visible(w, w2))
+        b.setVisible(setVisible)
         return a, b
 
     def toggle_groupbox_visible(self,widget,widget2):
@@ -2817,6 +2818,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.add_points(self.pos, cx, cy, cz, cs, radius,add=add)
         self.slice += update
 
+
 class QParams():
     def __init__(self, time=12, queue='defq', nodes=1, cores=20):
         self.time = time
@@ -2841,6 +2843,7 @@ class QParams():
 
     def values(self):
         return [self.queue, self.nodes, self.cores, self.time]
+
 
 class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
     def __init__(self,parent):
