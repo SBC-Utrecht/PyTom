@@ -439,7 +439,7 @@ class TomographReconstruct(GuiTabWidget):
         widgets = self.tables[id].widgets
 
         for i in range(10000):
-            file_tomoname = os.path.join(self.tomogram_folder, '.multi_alignment_{:04d}.txt')
+            file_tomoname = os.path.join(self.tomogram_folder, '.multi_alignment_{:04d}.txt'.format(i))
             if not os.path.exists(file_tomoname):
                 break
 
@@ -525,7 +525,7 @@ class TomographReconstruct(GuiTabWidget):
         tomofolder_file.close()
 
         num_submitted_jobs = 0
-        qname, num_nodes, cores, time = self.qparams['BatchAlignment']
+        qname, num_nodes, cores, time = self.qparams['BatchAlignment'].values()
         for n in range(len(lprocs) - 1):
 
             input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1], num_procs_per_proc, 'D1',
