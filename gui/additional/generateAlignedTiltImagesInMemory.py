@@ -43,7 +43,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
     alignmentResults = numpy.loadtxt(alignmentResultsFile, dtype=datatypeAR)
     imageList = alignmentResults['FileName']
     tilt_angles = alignmentResults['TiltAngle']
-
+    print(tilt_angles)
     a = mrcfile.open(imageList[0],permissive=True)
     imdim = a.data.T.shape[0]
 
@@ -69,6 +69,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
                                       lowpassFilter / 5. * imdim)
         # lpf = bandpassFilter(volume=vol(imdim, imdim,1),lowestFrequency=0,highestFrequency=int(lowpassFilter*imdim/2),
         #                     bpf=None,smooth=lowpassFilter/5.*imdim,fourierOnly=False)[1]
+        print(lpf)
 
     projectionList = ProjectionList()
     for n, image in enumerate(imageList):
@@ -125,7 +126,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
         # transform projection according to tilt alignment
         transX = projection._alignmentTransX / binning
         transY = projection._alignmentTransY / binning
-        rot = float((projection._alignmentRotation ))*-1
+        rot = float(projection._alignmentRotation)
         mag = float(projection._alignmentMagnification)
 
         print(transX,transY,rot,mag)
@@ -136,8 +137,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
 
         # analytical weighting
         if (weighting != None) and (weighting < 0):
-            image = (ifft(complexRealMult(fft(image), w_func)) /
-                     (image.sizeX() * image.sizeY() * image.sizeZ()))
+            image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
 
         elif (weighting != None) and (weighting > 0):
             w_func = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
@@ -148,6 +148,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
         offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
         paste(image, stack, 0, 0, ii)
         fname = '/Users/gijs/Documents/PostDocUtrecht/Data/Juliette/sorted_aligned_novel_{:02d}.mrc'.format(ii)
+        write_em(fname.replace('mrc','em'), image)
         mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
 
     return [stack, phiStack, thetaStack, offsetStack]

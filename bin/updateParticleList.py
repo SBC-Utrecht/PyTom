@@ -1,10 +1,13 @@
 #!/usr/bin/env pytom
 
-
+import numpy
+import random
 import os
 import sys
 import glob
-from pytom.basic.structures import ParticleList
+from pytom.basic.structures import ParticleList, Rotation
+from pytom.basic.files import read
+
 
 
 def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='zxz'):
@@ -32,7 +35,8 @@ def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='
     print(z2, x, z1, rotation_angle)
     return z1 - rotation_angle, x, z2
 
-def updatePL(fnames, outnames, directory='', wedgeangles=[], suffix=''):
+def updatePL(fnames, outnames, directory='', wedgeangles=[], suffix='', multiplyshift=0, new_center = [], rotation=[],
+             anglelist=''):
     if type(fnames) == str:
         fnames = [fnames]
     if type(outnames) == str:
@@ -46,6 +50,7 @@ def updatePL(fnames, outnames, directory='', wedgeangles=[], suffix=''):
         tempPL.fromXMLFile(xmlfile)
 
         for particle in tempPL:
+
             if directory:
                 filename = os.path.join(directory, os.path.basename(particle.getFilename()))
                 particle.setFilename(filename)
@@ -53,11 +58,22 @@ def updatePL(fnames, outnames, directory='', wedgeangles=[], suffix=''):
                 filename = particle.getFilename()
                 filename = os.path.join( os.path.dirname(filename) + suffix, os.path.basename(filename))
                 particle.setFilename(filename)
-            if not wedgelen >  n + 1:
-                continue
-            w = particle.getWedge()
-            w.setWedgeAngles(wedgeangles[n*2:n*2+2])
-
+            if wedgelen >  n + 1:
+                w = particle.getWedge()
+                w.setWedgeAngles(wedgeangles[n*2:n*2+2])
+            if new_center:
+                pass
+            if rotation:
+                pass
+            if multiplyshift:
+                shift = particle.getShift()
+                shiftVector = shift.toVector()
+                for nn, value in enumerate(shiftVector):
+                    shift[nn] = value*float(multiplyshift)
+            if type(anglelist) == type(numpy.array([])):
+                cc = 180. / numpy.pi
+                z1, z2, x = random.choice(anglelist)
+                particle.setRotation(rotation=Rotation(z1=z1 * cc, z2=z2 * cc, x=x * cc, paradigm='ZXZ'))
 
         tempPL.toXMLFile(outnames[n])
 

@@ -24,9 +24,13 @@ def remove_element(el):
             parent.text = (parent.text or '') + el.tail
     parent.remove(el)
 
-def extractParticleListsByTomoNameFromXML(xmlfile, directory='./'):
-    
-    #classIDS = list(map(int,classIDS))
+def extractParticleListsByTomoNameFromXML(xmlfile, directory='./', query='all'):
+
+    if not query:
+        query_list = []
+    else:
+        query_list = query.split(',')
+
     excludeList = []
     outfiles = []
     pL = [1]
@@ -47,14 +51,17 @@ def extractParticleListsByTomoNameFromXML(xmlfile, directory='./'):
 
         excludeList.append(tomogram)
         
-        if 1:
-            outfile = "particleList_{}_{}.xml".format(os.path.basename(xmlfile)[:-4],
-                                                      os.path.basename(tomogram).replace('.mrc','').replace('.em',''))
+        try:
+            tomoname = os.path.basename(tomogram).replace('.mrc','').replace('.em','')
+            outfile = "particleList_{}_{}.xml".format(os.path.basename(xmlfile)[:-4], tomoname)
             outfile = os.path.join(directory, outfile)
-            print(outfile)
-            tree.write(outfile, pretty_print=True)
-            outfiles.append(outfile)
-        else:
+            if False == (tomoname in query_list or 'all' in query_list or not query_list):
+                tomoname=''
+            if tomoname:
+                tree.write(outfile, pretty_print=True)
+                outfiles.append(outfile)
+                print(outfile)
+        except:
             print('writing {} failed.'.format(xmlfile))
             print('No file written.')
 
