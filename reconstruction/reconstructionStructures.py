@@ -451,7 +451,8 @@ class ProjectionList(PyTomClass):
         return vol_bp
 
     def reconstructVolumes(self, particles, cubeSize, binning=1, applyWeighting=False,
-            showProgressBar=False, verbose=False, preScale=1, postScale=1, num_procs=5):
+                           showProgressBar=False, verbose=False, preScale=1, postScale=1, num_procs=5,
+                           alignResultFile=''):
         """
         reconstructVolumes: reconstruct a subtomogram given a particle object.
 
@@ -493,8 +494,12 @@ class ProjectionList(PyTomClass):
 
 
         # stacks for images, projections angles etc.
-        resultProjstack =  self.toProjectionStack(binning=binning, applyWeighting=applyWeighting,showProgressBar=False,
-                                                  verbose=False, num_procs=num_procs)
+        if not alignResultFile:
+            resultProjstack =  self.toProjectionStack(binning=binning, applyWeighting=applyWeighting,showProgressBar=False,
+                                                      verbose=False, num_procs=num_procs)
+        else:
+            from pytom.gui.additional.generateAlignedTiltImagesInMemory import toProjectionStackFromAlignmentResultsFile
+            resultProjstack = toProjectionStackFromAlignmentResultsFile( alignResultFile, weighting=applyWeighting, num_procs=num_procs)
         #if verbose: return
         
         procs = []

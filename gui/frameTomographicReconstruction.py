@@ -792,7 +792,7 @@ class TomographReconstruct(GuiTabWidget):
         if not os.path.exists(f'{output_folder}/temp_files_unweighted') and alignmentType in ('INFR', 'WBP'):
             os.mkdir(f'{output_folder}/temp_files_unweighted')
 
-
+        print(alignmentType)
         if alignmentType == 'INFR':
             if len([line for line in os.listdir(output_folder) if line.startswith(prefix.split('/')[-1])]):
                 os.system('rm {}/sorted*.em'.format(output_folder))

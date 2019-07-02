@@ -113,6 +113,8 @@ if __name__ == '__main__':
             markerIndex = int(markerIndex)
             projections = ProjectionList()
             projectionDirectory = projectionDirectoryTemplate.replace('_CLOSEST_', '_{:04d}_'.format(markerIndex))
+            alignResultFile = os.path.join(projectionDirectory, 'alignmentResults.txt')
+            if not os.path.exists(alignResultFile): alignResultFile = ''  
             print(projectionDirectory)
             if checkFileExists(projectionList):
                 projections.fromXMLFile(projectionList)
@@ -151,7 +153,7 @@ if __name__ == '__main__':
             projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \
                                            binning=projBinning, applyWeighting = aw, \
                                            showProgressBar = True,verbose=False, \
-                                           preScale=projBinning,postScale=1, num_procs=numProcesses)
+                                           preScale=projBinning,postScale=1, num_procs=numProcesses, alignResultFile=alignResultFile)
 
 
 

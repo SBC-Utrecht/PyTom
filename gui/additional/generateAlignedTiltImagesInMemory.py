@@ -12,7 +12,7 @@ def determine_tiltangles(image_list, metafile):
     tilt_angles = metadata['TiltAngle'][positions]
     return tilt_angles
 
-def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=None, lowpassFilter=0.9, binning=None):
+def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=None, lowpassFilter=0.9, binning=None, num_procs=1):
     """read image and create aligned projection stack, based on the results described in the alignmentResultFile.
 
        @param alignmentResultsFile: result file generate by the alignment script.
