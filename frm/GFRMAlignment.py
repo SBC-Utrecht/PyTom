@@ -6,6 +6,7 @@ Created on Sep 3, 2012
 
 from pytom.basic.structures import PyTomClass
 import pytom_mpi
+import os
 
 class FRMJob(PyTomClass): # i need to rename the class, but for now it works
     def __init__(self, pl=None, ref=None, mask=None, peak_offset=0, sample_info=None, bw_range=None, freq=None, dest='.', max_iter=10, r_score=False, weighting=False, bfactor=None, symmetries=None, adaptive_res=0.1, fsc_criterion=0.5):
@@ -216,7 +217,8 @@ class FRMWorker():
                 for i in range(n):
                     p = job.particleList[i]
                     p.setClass(labels[i])
-            
+
+            self.destination = job.destination
             new_reference = job.reference
             old_freq = job.freq
             new_freq = job.freq
@@ -300,8 +302,8 @@ class FRMWorker():
                 resNyquist, resolutionBand, numberBands = self.determine_resolution(even, odd, job.fsc_criterion, None, job.mask, verbose)
                 
                 # write the half set to the disk
-                even.write('fsc_'+str(i)+'_even.em')
-                odd.write('fsc_'+str(i)+'_odd.em')
+                even.write(os.path.join(self.destination, 'fsc_'+str(i)+'_even.em'))
+                odd.write(os.path.join(self.destination, 'fsc_'+str(i)+'_odd.em'))
                 
                 current_resolution = bandToAngstrom(resolutionBand, job.sampleInformation.getPixelSize(), numberBands, 1)
                 if verbose:
@@ -316,15 +318,16 @@ class FRMWorker():
                 average = job.symmetries.applyToParticle(average)
                 
                 # filter average to resolution 
-                average_name = 'average_iter'+str(i)+'.em'
+                average_name = os.path.join(self.destination, 'average_iter'+str(i)+'.em')
                 average.write(average_name)
                 
                 # update the references
-                new_reference = [Reference('fsc_'+str(i)+'_even.em'), Reference('fsc_'+str(i)+'_odd.em')]
+                new_reference = [Reference(os.path.join(self.destination, 'fsc_'+str(i)+'_even.em')),
+                                 Reference(os.path.join(self.destination, 'fsc_'+str(i)+'_odd.em'))]
                 
                 # low pass filter the reference and write it to the disk
                 filtered = lowpassFilter(average, ceil(resolutionBand), ceil(resolutionBand)/10)
-                filtered_ref_name = 'average_iter'+str(i)+'_res'+str(current_resolution)+'.em'
+                filtered_ref_name = os.path.join(self.destination, 'average_iter'+str(i)+'_res'+str(current_resolution)+'.em')
                 filtered[0].write(filtered_ref_name)
                 
                 # if the position/orientation is not improved, break it
@@ -403,7 +406,7 @@ class FRMWorker():
                 p.setScore(FRMScore(score))
                 
             # average the particle list
-            name_prefix = self.node_name+'_'+str(job.max_iter)
+            name_prefix = os.path.join(self.destination, self.node_name+'_'+str(job.max_iter))
             self.average_sub_pl(job.particleList, name_prefix, job.weighting)
             
             # send back the result

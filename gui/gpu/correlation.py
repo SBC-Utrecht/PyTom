@@ -27,59 +27,70 @@ cross_correlatiob_mod = driver.SourceModule("""
         }
           
     }
+    __global__ void insert_volume(float32 *padded_volume, float32 *template, int sizePad, int sizeTem)
+    {
+        int idx = threadIdx.x + threadIdx.y * threadDimx.x + blockSize.x*threadDim.x*blockIdx.x
+        int pad_idx = (1 + 2 * idx) * sizePad
+        padded_volume[pad_idx] = template[idx]
 """)
 
 
 update_scores_angles = cross_correlatiob_mod.get_function('update_scores_angles')
 
 
-def cross_correlation(volume, template, angle_list=[], return_cpu=False, normalize=True):
-    # todo: support for float64/complex128
-    # todo: check sizes
-    # todo: pad the template
-    # todo: add support for gpuarray and numpy
+class TemplateMatchingPlan():
+    def __init__(self, volume, template, gpu):
+        self.gpu = gpu
+        volume_gpu = gu.to_gpu(volume)
+        self.fwd_plan = Plan(volume.shape, volume.dtype, np.complex64)
+        self.volume_fft = gu.zeros_like(volume_gpu, dtype=np.complex64)
+        fft(volume_gpu, self.volume_fft, self.fwd_plan)
+        self.template_fft = gu.zeros_like(volume_gpu, dtype=np.complex64)
+        self.ccc_map = gu.zeros_like(volume_gpu, dtype=np.float32)
+        self.norm_volume = gu.prod(volume_gpu.shape)
+        self.scores = gu.zeros_like(volume_gpu, dtype=np.float32)
+        self.angles = gu.zeros_like(volume_gpu, dtype=np.float32)
+        self.padded_volume = gu.zeros_like(volume_gpu, dtype=np.float32)
+        del volume_gpu
+        self.inv_plan = Plan(volume.shape, np.complex64, volume.dtype)
+        self.template = Volume(template)
 
-    plan = Plan(volume.shape, volume.dtype, np.complex64)
-    inv_plan = Plan(volume.shape, np.complex64, volume.dtype)
-    volume_fft = gu.zeros_like(volume.d_data, dtype=np.complex64)
-    template_fft = gu.zeros_like(template.d_data, dtype=np.complex64)
-    ccc_map = gu.zeros_like(volume.d_data, dtype=np.float32)
-    norm_volume = gu.prod(volume.d_data.shape)
 
-    multiple = 1
-    if type(angle_list) == tuple and len(angle_list) == 3:
-        angle_list = [angle_list]
-        multiple = 0
-    if multiple:
-        scores = gu.zeros_like(volume.d_data, dtype=np.float32)
-        angles = gu.zeros_like(volume.d_data, dtype=np.int)
+def prepare_template_matching(volume, template, gpu=True):
+    plan = TemplateMatchingPlan(volume, template, gpu=gpu)
+    return plan
 
-    cnt = 0
-    for angs in angle_list:
-        rotate(template, rotation=angs, rotation_order='szxz', return_cpu=False)
-        norm_template = np.sum(template.d_data)
-        fft(volume.d_data, volume_fft, plan)
-        fft(template.d_data, template_fft, plan)
-        conj(template_fft, overwrite = True)
-        fft_ccmap = volume_fft * template_fft
-        ifft(fft_ccmap, ccc_map, inv_plan)
-        if normalize:
-            ccc_map = ccc_map / norm_volume / norm_template
-        if multiple:
-            update_scores_angles(scores, angles, ccc_map, cnt, block=(10,10,10))
-        cnt += 1
+def pad_volume(plan):
+    dx,dy,dz = plan.template.d_data.shape
+    px,py,pz = plan.padded_volume.shape
+
+    plan.padded_volume = 0.
+
+
+def cross_correlate(plan, normalize=True):#volume, template, volume_fft, plan, inv_plan, template_fft, ccc_map, norm_volume, normalize=True,):
+    norm_template = np.sum(plan.template.d_data)
+    fft(plan.template.d_data, plan.template_fft, plan.fwd_plan)
+    conj(plan.template_fft, overwrite=True)
+    volume_fft = plan.volume_fft * plan.template_fft
+    ifft(volume_fft, plan.ccc_map, plan.inv_plan)
+    if normalize:
+        plan.ccc_map = plan.ccc_map / plan.norm_volume / norm_template
+
+def template_matching_gpu(volume: np.ndarray, template: np.ndarray, angle_list: Union[tuple, list],
+                          return_cpu: bool, normalize: bool) -> Union[np.ndarray, gu.ndarray]:
+
+    plan = prepare_template_matching(volume, template, gpu=True)
+
+    for n, angs in enumerate(angle_list):
+        rotate(plan.template, rotation=angs, rotation_order='szxz', return_cpu=False)
+        pad_volume(plan, size=volume.shape[0])
+        cross_correlate(plan)
+        update_scores_angles(plan.scores, plan.angles, ccc_map, np.float32(n), block=(10,10,10))
 
     if return_cpu:
-        if multiple:
-            return scores.get(), angles.get()
-        else:
-            return ccc_map.get()
-
+        return plan.scores.get(), plan.angles.get()
     else:
-        if multiple:
-            return scores, angles
-        else:
-            return ccc_map
+        return plan.scores, plan.angles
 
 def cpu_correlation(vol1: np.ndarray, vol2: np.ndarray) -> float:
     Xm = np.mean(vol1)
@@ -112,22 +123,15 @@ if __name__ == '__main__':
     from transforms import *
 
     np.random.seed(1)
-    template = np.zeros((128, 128, 128), dtype=np.float32)
-    template[32:64, 32:64, 32:64] = 100
-    # template[64, 64, 64] = 100
-
-
+    template = np.zeros((32, 32, 32), dtype=np.float32)
+    template[15:, 15:, 15:] = 100
     volume = np.random.rand(128, 128, 128)
-    # volume = np.random.rand(128, 128, 128)
     volume = volume.astype(np.float32)
-    # volume[64, 64, 64] = 0
 
-    vol = Volume(volume)
-    tem = Volume(template)
 
-    ccc_map = cross_correlation(vol, tem, (0, 0, 0), return_cpu=True)
+    ccc_map = template_matching_gpu(volume, template, (0, 0, 0), return_cpu=True)
 
-    print('max', ccc_map.max())# / template.sum())
+    print('max', ccc_map.max())
     print('min', ccc_map.min())
 
     norm_ccc_map = ccc_map / np.prod(template.shape) / template.sum()
