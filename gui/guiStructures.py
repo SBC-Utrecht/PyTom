@@ -1126,11 +1126,15 @@ class SimpleTable(QMainWindow):
                     layoutCheckBox = QHBoxLayout(widget)
                     layoutCheckBox.addWidget(cb)
                     layoutCheckBox.setAlignment(Qt.AlignCenter)
+                    if values[v][i] ==16:
+                        cb.setChecked(True)
+                        cb.setEnabled(False)
                     if i+1==len(headers): layoutCheckBox.setAlignment(Qt.AlignLeft)
                     layoutCheckBox.setContentsMargins(10, 0, 10, 0)
                     table.setCellWidget(v,i,widget)
                     self.widgets['widget_{}_{}'.format(v,i)] = cb
                     widget.setStyleSheet('background: white;')
+
                 elif types[i] == 'lineedit':
                     widget = QWidget()
                     layoutCheckBox = QHBoxLayout(widget)
@@ -2844,6 +2848,188 @@ class QParams():
     def values(self):
         return [self.queue, self.nodes, self.cores, self.time]
 
+
+class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
+    def __init__(self, parent):
+        super(ExecutedJobs, self).__init__(parent)
+        self.stage = 'generalSettings_'
+        self.pytompath = self.parent().pytompath
+        self.projectname = self.parent().projectname
+        self.logbook = self.parent().logbook
+        self.logfolder = os.path.join(self.projectname, 'LogFiles')
+        self.qcommand = self.parent().qcommand
+        self.setGeometry(0, 0, 600, 550)
+        self.size_policies()
+
+        headers = ['Local Jobs', 'Queued Jobs']
+        subheaders = [[], ] * len(headers)
+
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, sizeX=600, sizeY=550)
+
+        self.table_layouts = {}
+        self.tables = {}
+        self.pbs = {}
+        self.ends = {}
+        self.checkbox = {}
+        self.num_nodes = {}
+        self.widgets = {}
+        self.subprocesses = 10
+
+        self.tabs = {'tab1': self.tab1,
+                     'tab2': self.tab2,
+                     }
+
+        self.tab_actions = {'tab1': self.tab1UI,
+                            'tab2': self.tab2UI,
+                            }
+
+        for i in range(len(headers)):
+            t = 'tab{}'.format(i + 1)
+            empty = 1 * (len(subheaders[i]) == 0)
+            for j in range(len(subheaders[i]) + empty):
+                tt = t + str(j + 1) * (1 - empty)
+                if tt in ('tab1', 'tab2'):
+                    self.table_layouts[tt] = QVBoxLayout()
+
+                button = QPushButton('Refresh Tab')
+                button.setSizePolicy(self.sizePolicyC)
+                button.clicked.connect(self.tab_actions[tt])
+
+                self.tables[tt] = QWidget()
+                self.pbs[tt] = QWidget()
+                self.ends[tt] = QWidget()
+                self.ends[tt].setSizePolicy(self.sizePolicyA)
+
+                if tt in ('tab1', 'tab2'):
+                    self.table_layouts[tt].addWidget(button)
+                    self.table_layouts[tt].addWidget(self.ends[tt])
+
+
+                tab = self.tabs[tt]
+                tab.setLayout(self.table_layouts[tt])
+
+    def tab1UI(self):
+        jobfiles = [line for line in sorted(os.listdir(self.logfolder)) if line.endswith('.txt')]
+        self.jobFilesLocal = [os.path.join(self.logfolder, job) for job in jobfiles if job.startswith('local_')]
+        self.jobFilesQueue = [os.path.join(self.logfolder, job) for job in jobfiles if not job.startswith('local_')]
+        self.populate_local()
+        self.populate_queue()
+
+    def populate_local(self):
+
+        if len(self.jobFilesLocal) == 0:
+            return
+
+        id = 'tab1'
+        headers = ["Filename Logfile Single", "Open", "Running", 'Terminate', '']
+        types = ['txt', 'checkbox', 'checkbox', 'checkbox', 'txt']
+        sizes = [0, 0, 0, 0, 0, 0]
+
+        tooltip = []
+        values = []
+
+        for n, jobfile in enumerate(self.jobFilesLocal):
+            values.append([jobfile, 1, 0, 0,''])
+
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+
+        self.tab1_widgets = self.tables[id].widgets
+
+        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.do_something(pid, v))
+
+    def tab2UI(self):
+        self.tab1UI()
+
+    def populate_queue(self):
+        if len(self.jobFilesQueue) == 0:
+            return
+
+        id = 'tab2'
+        headers = ["Filename Logfile Queue", "QueueId", "Open", "Running", 'Terminate', '']
+        types = ['txt', 'txt', 'checkbox', 'checkbox', 'checkbox', 'txt']
+        sizes = [0, 0, 0, 0, 0, 0]
+
+        tooltip = []
+        values = []
+        import getpass
+        whoami = getpass.getuser()
+        qjobs = [line.split()[0] for line in os.popen(f'{self.qcommand} -u {whoami}').readlines()]
+        added_jobs = []
+        for n, jobfile in enumerate(self.jobFilesQueue):
+            queueId = jobfile.split('-')[0]
+
+            running = 1*(queueId in qjobs)
+            values.append([jobfile, queueId, 1, 16*running, running, ''])
+
+        qjobs = range(100)
+        for running in reversed(qjobs):
+            if not running in added_jobs:
+                values.append( ['', str(running), 0, 16, 1, ''] )
+
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+
+        self.tab2_widgets = self.tables[id].widgets
+
+        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.do_something(pid, v))
+
+    def do_something(self, pid, values):
+        if pid == 'tab1':
+            for row in range(self.tables[pid].table.rowCount()):
+                logfile = values[row][0]
+
+                if self.tab1_widgets[f'widget_{row}_1'].isChecked():
+                    self.open_resultfile(logfile)
+
+        if pid == 'tab2':
+            for row in range(self.tables[pid].table.rowCount()):
+                logfile = values[row][0]
+                qId = self.tab2_widgets[f'widget_{row}_1'].text()
+
+                try:
+                    if self.tab2_widgets[f'widget_{row}_2'].isChecked():
+                        self.open_resultfile(logfile)
+                except:
+                    pass
+
+                try:
+                    if self.tab2_widgets[f'widget_{row}_4'].isChecked():
+                        try:
+                            os.system('scancel {}'.format(qId))
+                            self.tab2_widgets[f'widget_{row}_4'].setChecked(False)
+                            self.tab2_widgets[f'widget_{row}_3'].setChecked(False)
+                        except:
+                            print('Failed to cancel job {}'.format(qId))
+                except:
+                    pass
+
+    def open_resultfile(self, logfile):
+        with open(logfile, 'r') as f:
+            txt = f.read()
+            try:
+                self.d.close()
+                self.d.setText(txt, os.path.basename(logfile))
+                self.d.show()
+            except:
+                self.d = DisplayText(self)
+                self.d.setText(txt, os.path.basename(logfile))
+                self.d.show()
+
+class DisplayText(QMainWindow):
+    def __init__(self, parent):
+        super(DisplayText, self).__init__(parent)
+        self.setGeometry(100,100,400,200)
+        self.widget = QPlainTextEdit()
+        self.widget.setEnabled(False)
+        layout = QVBoxLayout()
+        layout.addWidget(self.widget)
+        self.setLayout(layout)
+        self.setCentralWidget(self.widget)
+
+
+    def setText(self, text, title=''):
+        self.setWindowTitle(title)
+        self.widget.clear()
+        self.widget.insertPlainText(text)
 
 class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
     def __init__(self,parent):

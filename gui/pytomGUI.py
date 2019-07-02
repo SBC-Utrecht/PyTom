@@ -157,6 +157,9 @@ class menudemo(QMainWindow, CommonFunctions):
         plot = QAction(QIcon("{}/gui/Icons/PlotIcon.png".format(self.pytompath)), "Plot", self)
         tb.addAction(plot)
 
+        log = QAction(QIcon("{}/gui/Icons/LogFileBox.png".format(self.pytompath)), "Queue", self)
+        tb.addAction(log)
+
         settings = QAction(QIcon("{}/gui/Icons/cogwheel.png".format(self.pytompath)), "Settings", self)
         tb.insertSeparator(settings)
         tb.addAction(settings)
@@ -235,6 +238,7 @@ class menudemo(QMainWindow, CommonFunctions):
         elif q.text() == 'Settings': self.open_settings()
         elif q.text() == 'Save':     self.save_logfile()
         elif q.text() == 'Plot':     self.plot_results()
+        elif q.text() == 'Queue':      self.show_logfiles()
         else:
             for n, subname in enumerate(self.drs[1]):
                 if q.text() == subname and len(self.stage_buttons) > n+1:
@@ -264,6 +268,14 @@ class menudemo(QMainWindow, CommonFunctions):
         except:
             self.generalSettings = GeneralSettings(self)
             if show_menu: self.generalSettings.show()
+
+    def show_logfiles(self,show_menu=True):
+        try:
+            self.executedJobs.close()
+            self.executedJobs.show()
+        except:
+            self.executedJobs = ExecutedJobs(self)
+            if show_menu: self.executedJobs.show()
 
     def go_you(self):
         self.projectname = os.path.join(os.getcwd(), self.label.text())

@@ -24,7 +24,7 @@ from pytom.gui.guiSupportCommands import *
 from pytom.basic.structures import ParticleList, Rotation
 from pytom.basic.files import read
 from pytom.bin.coords2PL import convertCoords2PL
-from pytom.bin.updateParticleList import updatePL
+from pytom.bin.updateParticleList import updatePL, mirrorParticleList
 from copy import deepcopy
 from pytom_numpy import vol2npy
 import random
@@ -649,7 +649,7 @@ class ParticlePick(GuiTabWidget):
         vol = read(angleListDefault)
         angleListDefaultData = deepcopy(vol2npy(vol)).T.astype(numpy.float32)
         for row in range(self.tables[pid].table.rowCount()):
-            if 1:
+            try:
                 c = values[row][0]
                 if c.endswith('.xml'):
                     prefix  = self.tab32_widgets['widget_{}_{}'.format(row, 1)].text()
@@ -704,7 +704,7 @@ class ParticlePick(GuiTabWidget):
                 convertCoords2PL([c], pl, subtomoPrefix=[p], wedgeAngles=wedge, angleList=angleList)
                 #os.system(createParticleList.format(d=[c, p, wedge, pl]))
 
-            else:
+            except:
                 print('Writing {} failed.'.format(os.path.basename(fname)))
                 return
 
@@ -803,22 +803,31 @@ class ParticlePick(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
         self.insert_label_line_push(parent, 'Particle List', 'particleList2', 'Select your particleList (XML) file.',
                                     initdir=self.projectname, mode='file', cstep=-3, filetype=['xml'])
-        self.insert_checkbox_label(parent, mode + 'mirrorCoordinates', 'Mirror Pick Positions', width=200, rstep=1)
-        self.insert_checkbox_label(parent, mode + 'randomizeAngles', 'Randomize Angles', width=200, rstep=1)
+        self.insert_label(parent,'', rstep=1)
         self.insert_checkbox_label(parent, mode + 'moveShiftToPickPos', 'Shift To Pick Position', width=200,
-                                   rstep=1, cstep=5)
-        self.insert_label(parent, '', sizepolicy=self.sizePolicyA, cstep=-6, rstep=1)
+                                   rstep=0, cstep=5)
+        self.insert_label(parent, '', sizepolicy=self.sizePolicyA, cstep=-5, rstep=1)
+
+        self.insert_label_spinbox(parent, mode + 'binFactorRecon', 'Binning Factor Reconstruction', value=8, minimum=1)
+        self.insert_label_spinbox(parent, mode + 'binFactorSubtomo', 'Binning Factor Subtomogram', value=3, minimum=1, cstep=-2)
+        self.insert_label(parent, '', rstep=1)
 
         self.insert_checkbox_label_spinbox(parent, mode + 'recenterParticles', 'Recenter Subtomogram -- X (px)',
                                            mode + 'cX', value=0, wtype=QSpinBox, rstep=1, cstep=-1, minimum=0)
         self.insert_label_spinbox(parent, mode + 'cY', 'Y (px)', value=0, wtype=QSpinBox, rstep=1)
-        self.insert_label_spinbox(parent, mode + 'cZ', 'Z (px)', value=0, wtype=QSpinBox, cstep=-3, rstep=1)
+        self.insert_label_spinbox(parent, mode + 'cZ', 'Z (px)', value=0, wtype=QSpinBox, rstep=1)
+        self.insert_label_spinbox(parent, mode + 'sizeSubtomo', 'Size subtomograms (px)', value=128, wtype=QSpinBox,
+                                  minimum=1, maximum=1000, stepsize=10, cstep=-3, rstep=1)
+
         self.insert_label(parent,'', rstep=1, cstep=1)
         self.insert_checkbox_label_spinbox(parent, mode + 'reorientParticles', 'Reorient Subtomogram -- Z (deg)',
                                            mode + 'Z1', value=0, wtype=QDoubleSpinBox, decimals=2, rstep=1,cstep=-1)
         self.insert_label_spinbox(parent, mode + 'X',  'X (deg)', value=0, wtype=QDoubleSpinBox, decimals=2,rstep=1)
         self.insert_label_spinbox(parent, mode + 'Z2', 'Z (deg)', value=0, wtype=QDoubleSpinBox, decimals=2,rstep=1,
                                   cstep=-2)
+        self.insert_label(parent,'',rstep=1)
+        self.insert_checkbox_label(parent, mode + 'randomizeAngles', 'Randomize Angles', width=200, rstep=1)
+        self.insert_checkbox_label(parent, mode + 'mirrorCoordinates', 'Mirror Pick Positions', width=200, rstep=1)
 
         self.widgets['particleList2'].textChanged.connect(lambda d, pl='particleList2': self.updatePLs(pl))
         setattr(self, mode + 'gb_actions', groupbox)
@@ -841,6 +850,7 @@ class ParticlePick(GuiTabWidget):
     def adjustParticleList(self):
         from pytom.bin.extractClassesFromParticleList import extractClassesFromPL
         from pytom.bin.extractTomoNameFromXML import extractParticleListsByTomoNameFromXML
+
         mode0, mode1, mode2 = self.modes
         particleList = self.widgets['particleList0'].text()
         if not particleList:
@@ -866,6 +876,8 @@ class ParticlePick(GuiTabWidget):
             if outputName:
                 print('Update {}. Output saved as {}.'.format(os.path.basename(particleList), outputName) )
                 updatePL(particleList, outputName, directory=dir, wedgeangles=w, suffix=suffix, multiplyshift=fm)
+            else:
+                self.popup_messagebox('Warning', '', 'No valid output filename provided. No file saved.')
 
         if self.adjust_items[2].isChecked():
             mode=self.modes[1]
@@ -874,9 +886,12 @@ class ParticlePick(GuiTabWidget):
             if self.widgets[mode + 'extractByTomoName'].isChecked():
                 directory = self.requestOutputDirectory(self.pickpartfolder)
                 if directory: extractParticleListsByTomoNameFromXML(particleList, directory=directory, query=tomoname)
+                else: self.popup_messagebox('Warning', '', 'No valid output filename provided. No file saved.')
+
             if self.widgets[mode + 'extractByClass'].isChecked() and classes:
                 outputName = self.requestOutputName(folder=self.pickpartfolder)
                 if outputName: extractClassesFromPL(particleList, classes, outputName)
+                else: self.popup_messagebox('Warning', '', 'No valid output filename provided. No file saved.')
 
         if self.adjust_items[4].isChecked():
             mode = self.modes[2]
@@ -886,19 +901,30 @@ class ParticlePick(GuiTabWidget):
                 values.append(self.widgets[mode + name].isChecked())
             mirror, randomize, moveShift, recenter, reorient = values
 
-            values, new_center, rotation = [], [], []
-            for name in ('cX', 'cY', 'cZ', 'Z1', 'X', 'Z2'):
+            values, new_center, rotation, angleListDefaultData = [], [], [], False
+            for name in ('cX', 'cY', 'cZ', 'Z1', 'X', 'Z2', 'sizeSubtomo', 'binFactorRecon', 'binFactorSubtomo'):
                 values.append(self.widgets[mode + name].value())
-            cx, cy, cz, z1, x, z2 = map(float, values)
-            print(cx, cy, cz, z1, x, z2)
+            cx, cy, cz, z1, x, z2, sizeSubtomo, binRecon, binSubtomo = map(float, values)
+
             if recenter:
                 new_center = [cx, cy, cz]
+
             if reorient:
                 rotation = [z1, x, z2]
-            if mirror:
-                pass
+
             if randomize:
-                pass
-            if moveShift:
-                pass
+                angleListDefault = os.path.join(self.pytompath, 'angles/angleLists/angles_18_3040.em')
+                vol = read(angleListDefault)
+                angleListDefaultData = deepcopy(vol2npy(vol)).T.astype(numpy.float32)
+
+            if recenter or reorient or mirror or randomize or moveShift:
+                outputName = self.requestOutputName(folder=self.pickpartfolder)
+                if outputName:
+                    updatePL(particleList, outputName, new_center=new_center, rotation=rotation, mirror=mirror,
+                             anglelist=angleListDefaultData, move_shift=moveShift, tomogram_dir=self.tomogramfolder,
+                             binSubtomo=binSubtomo, binRecon=binRecon, sizeSubtomo=sizeSubtomo)
+                else:
+                    self.popup_messagebox('Warning', 'No valid output name provided', 'No valid output filename provided. No file saved.')
+
+
 

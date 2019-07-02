@@ -7,8 +7,37 @@ import sys
 import glob
 from pytom.basic.structures import ParticleList, Rotation
 from pytom.basic.files import read
+from pytom_numpy import vol2npy
+from pylab import *
+from scipy.spatial.transform import Rotation as R
 
+def get_size(particleList, directory):
+    tempPL = ParticleList()
+    tempPL.fromXMLFile(particleList)
 
+    tomoName = tempPL[0].getPickPosition().getOriginFilename() if tempPL[0].getPickPosition().getOriginFilename() else tempPL[0].getSourceInfo().getTomoName()
+
+    if not os.path.exists(tomoName):
+        tomoName = os.path.join(directory, tomoName)
+        if not os.path.exists(tomoName):
+            return
+
+    dimx,dimy,dimz = vol2npy( read(tomoName) ).copy().shape
+    return dimx,dimy,dimz
+
+def mirrorParticleList(particleList, outname, directory='./'):
+    dimx,dimy,dimz = get_size(particleList, directory)
+
+    tempPL = ParticleList()
+    tempPL.fromXMLFile(particleList)
+    for particle in tempPL:
+        pp = particle.getPickPosition()
+        pp.setX(dimx - pp.getX())
+        pp.setY(dimy - pp.getY())
+        pp.setZ(dimz - pp.getZ())
+        shift = particle.getShift()
+        shift.invert()
+    tempPL.toXMLFile(outname)
 
 def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='zxz'):
     import os
@@ -35,8 +64,9 @@ def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='
     print(z2, x, z1, rotation_angle)
     return z1 - rotation_angle, x, z2
 
-def updatePL(fnames, outnames, directory='', wedgeangles=[], suffix='', multiplyshift=0, new_center = [], rotation=[],
-             anglelist=''):
+def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiplyshift=0,
+             new_center=[], sizeSubtomo=64, move_shift=False, binSubtomo=1, binRecon=1, rotation=[],
+             anglelist='', mirror=False,  tomogram_dir='./', convention='zxz'):
     if type(fnames) == str:
         fnames = [fnames]
     if type(outnames) == str:
@@ -51,32 +81,63 @@ def updatePL(fnames, outnames, directory='', wedgeangles=[], suffix='', multiply
 
         for particle in tempPL:
 
+            # Update directory to particle
             if directory:
                 filename = os.path.join(directory, os.path.basename(particle.getFilename()))
                 particle.setFilename(filename)
+
+            # Add suffix to directory name in which particle is stored
+            # e.g. suffix = _bin3
+            #  --> Subtomograms/tomogram_000/particle_1.em will become Subtomograms/tomogram_000_bin3/particle_1.em
             if suffix:
                 filename = particle.getFilename()
                 filename = os.path.join( os.path.dirname(filename) + suffix, os.path.basename(filename))
                 particle.setFilename(filename)
+
+            # Update wedge angles of angle1 and angle2
             if wedgelen >  n + 1:
                 w = particle.getWedge()
                 w.setWedgeAngles(wedgeangles[n*2:n*2+2])
-            if new_center:
-                pass
-            if rotation:
-                pass
+
+            # Shift is multiply by the respective binning factor.
             if multiplyshift:
                 shift = particle.getShift()
-                shiftVector = shift.toVector()
-                for nn, value in enumerate(shiftVector):
-                    shift[nn] = value*float(multiplyshift)
+                shift.scale(multiplyshift)
+
+
+            # Randomize the angles of all particles in particle list.
             if type(anglelist) == type(numpy.array([])):
                 cc = 180. / numpy.pi
                 z1, z2, x = random.choice(anglelist)
                 particle.setRotation(rotation=Rotation(z1=z1 * cc, z2=z2 * cc, x=x * cc, paradigm='ZXZ'))
 
-        tempPL.toXMLFile(outnames[n])
+            shift = particle.getShift()
+            angles = particle.getRotation().toVector(convention=convention)
+            rot_particleList = R.from_euler(convention, angles, degrees=True)
 
+            if new_center:
+                new_center_vector = numpy.array(new_center) - sizeSubtomo//2
+                print(new_center_vector)
+                new_center_vector_rotated = rot_particleList.apply(new_center_vector)
+                print(new_center_vector_rotated)
+                shift.addVector( new_center_vector_rotated)
+                print(shift)
+            if move_shift == True:
+                pp = particle.getPickPosition()
+                shift.scale( binSubtomo / binRecon)
+                pp + shift.toVector()
+                shift.scale(0.)
+
+            # Combine rotations from particleList and rotation
+            if rotation:
+                rot_rotation = R.from_euler(convention, rotation, degrees=True)
+                combined_rotation = rot_particleList * rot_rotation
+                z1, x, z2 = combined_rotation.as_euler(convention, degrees=True)
+                particle.setRotation(rotation=Rotation(z1=z1, z2=z2, x=x, paradigm='ZXZ'))
+
+
+        tempPL.toXMLFile(outnames[n])
+        if mirror: mirrorParticleList(outnames[n], outnames[n], directory=tomogram_dir)
 
 if __name__ == '__main__':
     import sys

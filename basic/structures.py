@@ -3353,12 +3353,21 @@ class Rotation(PyTomClass):
         """
         return [self._z1,self._z2,self._x]
     
-    def toVector(self):
+    def toVector(self, convention='zzx'):
         """
         toVector: 
         @return: List [z1,z2,x]
         """
-        return [self._z1,self._z2,self._x]
+
+        dictAngles = {'z1': self._z1, 'z2': self._z2, 'x1': self._x}
+        num_repeat = {'z': 1, 'x': 1, 'y':1}
+        outname = []
+        for angle in convention:
+            q = angle+str(num_repeat[angle])
+            num_repeat[angle] += 1
+            outname.append(dictAngles[q])
+            print(q)
+        return outname
     
     def toQuaternion(self):
         """
@@ -3655,6 +3664,12 @@ class Shift(PyTomClass):
         """
         return Shift(-self.getX(),-self.getY(),-self.getZ())
 
+    def addVector(self, vector):
+        if len(vector) == 3:
+            self._x += vector[0]
+            self._y += vector[1]
+            self._z += vector[2]
+
     def rotate(self, rot):
         """
         rotate shift by rotation
@@ -3699,13 +3714,13 @@ class Shift(PyTomClass):
         @type otherShift: Shift
         @return: A new Shift object with the current result  
         """
-        
-        if not otherShift.__class__ == self.__class__ and not otherShift.__class__ in [int,float]:
+        print(otherShift.__class__)
+        if not otherShift.__class__ == self.__class__ and not otherShift.__class__ in [int, float]:
             raise NotImplementedError("Shift add: Add partner must be another Shift or int,float!")
         
         if otherShift.__class__ in [int,float]:
             return Shift(self[0]+otherShift,self[1]+otherShift,self[2]+otherShift)
-        
+
         return Shift(self[0] + otherShift[0],self[1] + otherShift[1],self[2] + otherShift[2])
     
     def __radd__(self, otherShift):
@@ -3758,7 +3773,17 @@ class PickPosition(PyTomClass):
         
     def setZ(self,z):
         self._z = z
-        
+
+    def scale(self,scalefactor):
+        """
+        Scale the shift by a factor
+        @param scalefactor: 'stretch' of shift
+        @type scalefactor: L{float}
+        """
+        self._x = self._x * float(scalefactor)
+        self._y = self._y * float(scalefactor)
+        self._z = self._z * float(scalefactor)
+
     def getOriginFilename(self):
         return self._originFilename
     
@@ -3810,6 +3835,7 @@ class PickPosition(PyTomClass):
         from pytom.tools.maths import scale
         
         self.__add__(scale(vector,-1))
+
 
 
 class Symmetry(PyTomClass):
