@@ -378,7 +378,7 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     arrCrowther = matrix(abs(arange(-crowtherFreq, min(sX//2, crowtherFreq+1))))
 
     # Calculate weights
-    wfuncCrowther = 1. / (clip(1 - array(matrix(abs(sin(diffAngles))).T * arrCrowther), 0, 2)).sum(axis=0)
+    wfuncCrowther = 1. / (clip(1 - array(matrix(abs(sin(diffAngles))).T * arrCrowther)**2, 0, 2)).sum(axis=0)
 
     # Create full with weightFunc
     wfunc = ones((sX, sY, 1), dtype=float32)

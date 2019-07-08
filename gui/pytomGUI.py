@@ -111,7 +111,7 @@ class menudemo(QMainWindow, CommonFunctions):
         self.projectname = None
         self.stage_buttons = []
         self.qparams = {}
-
+        self.projectname = './'
         y,b,g,w = 'f9ce00', '343434', 'cacaca','fcfaf1'
         ly = 'f4e8c1'
         green = 'a0c1b8'
@@ -156,7 +156,7 @@ class menudemo(QMainWindow, CommonFunctions):
         plot = QAction(QIcon("{}/gui/Icons/PlotIcon.png".format(self.pytompath)), "Plot", self)
         tb.addAction(plot)
 
-        log = QAction(QIcon("{}/gui/Icons/LogFileBox.png".format(self.pytompath)), "Queue", self)
+        log = QAction(QIcon("{}/gui/Icons/LogFileTray.png".format(self.pytompath)), "Queue", self)
         tb.addAction(log)
 
         settings = QAction(QIcon("{}/gui/Icons/cogwheel.png".format(self.pytompath)), "Settings", self)
@@ -171,18 +171,17 @@ class menudemo(QMainWindow, CommonFunctions):
                           ('ParticlePick',         "Particle Picking" ),
                           ('SubtomoAnalysis',      "Subtomogram Analysis"))
 
-        self.drf = ("File",('New','Open','Save','Quit'))
-        self.drs = ("Enable Stage",("Tomographic Reconstruction", "Particle Picking", "Subtomogram Analysis") )
-        for name,actionlist in (self.drf,self.drs): 
+        dropdown_menu_project = ("Project",('New','Open','Save','Quit'), self.processtrigger)
+        dropdown_menu_file = ("File", ('Open', 'Save', 'Close'), self.filetrigger)
+        dropdown_menu_stage = ("Enable Stage",("Tomographic Reconstruction","Particle Picking","Subtomogram Analysis"),
+                               self.processtrigger)
 
+        for name, actionlist, trigger in (dropdown_menu_project, dropdown_menu_file, dropdown_menu_stage):
             dropdown.append(bar.addMenu(name))
             for subname in actionlist:
-                
                 action=QAction(subname,self)
-
                 dropdown[-1].addAction(action)
-
-            dropdown[-1].triggered[QAction].connect(self.processtrigger)
+            dropdown[-1].triggered[QAction].connect(trigger)
 
         self.sbar = QStatusBar(self)
         self.sbar.setStyleSheet('background: #{}'.format(self.bars))
@@ -229,15 +228,27 @@ class menudemo(QMainWindow, CommonFunctions):
 
         return False
 
+    def filetrigger(self, q):
+        try:
+            self.filewindow.close()
+        except:
+            self.filewindow = DisplayText(self, type='edit')
+
+        if q.text() == 'Open':    self.filewindow.readText(self.projectname)
+        elif q.text() == 'Save' and self.filewindow.widget.toPlainText():  self.filewindow.saveText(self.projectname)
+        elif q.text() == 'Close': self.filewindow.close()
+
     def processtrigger(self,q):
 
-        if q.text() == 'New':        self.new_project()
-        elif q.text() == 'Open':     self.open_project()
-        elif q.text() == 'Quit':     sys.exit()
-        elif q.text() == 'Settings': self.open_settings()
-        elif q.text() == 'Save':     self.save_logfile()
-        elif q.text() == 'Plot':     self.plot_results()
-        elif q.text() == 'Queue':      self.show_logfiles()
+        if   q.text() == 'New':          self.new_project()
+        elif q.text() == 'Open':         self.open_project()
+        elif q.text() == 'Open Project': self.open_project()
+        elif q.text() == 'Open File':    self.open_file()
+        elif q.text() == 'Quit':         sys.exit()
+        elif q.text() == 'Settings':     self.open_settings()
+        elif q.text() == 'Save':         self.save_logfile()
+        elif q.text() == 'Plot':         self.plot_results()
+        elif q.text() == 'Queue':        self.show_logfiles()
         else:
             for n, subname in enumerate(self.drs[1]):
                 if q.text() == subname and len(self.stage_buttons) > n+1:
