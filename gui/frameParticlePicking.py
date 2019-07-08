@@ -454,9 +454,9 @@ class ParticlePick(GuiTabWidget):
             folder = outDirectory
             cmd = templateTM.format(d=[outDirectory, self.pytompath, 'job.xml'])
             suffix = "_" + os.path.basename(outDirectory)
-            qname, num_nodes, cores, time = self.qparams['BatchTemplateMatch'].values()
+            qname, n_nodes, cores, time = self.qparams['BatchTemplateMatch'].values()
             job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
-                                                time=time, num_nodes=num_nodes, partition=qname) + cmd
+                                                time=time, num_nodes=n_nodes, partition=qname) + cmd
             outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
             outjob2.write(job)
             outjob2.close()

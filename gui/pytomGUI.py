@@ -107,7 +107,6 @@ class menudemo(QMainWindow, CommonFunctions):
         self.size_policies()
         self.setGeometry(0,0, 300, 100)
         self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-        print(pytompath)
         self.pytompath=pytompath
         self.projectname = None
         self.stage_buttons = []
@@ -244,7 +243,6 @@ class menudemo(QMainWindow, CommonFunctions):
                 if q.text() == subname and len(self.stage_buttons) > n+1:
                     self.stage_buttons[n+1].setEnabled(True)
                     self.logbook['00_framebutton_{}'.format(self.targets[n+1][0])] = True
-
 
     def plot_results(self):
         try:

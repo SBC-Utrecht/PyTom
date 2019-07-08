@@ -188,7 +188,7 @@ class TomographReconstruct(GuiTabWidget):
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.create_tomogram_folders(pid, v))
 
-    def update_create_tomoname(self, id):
+    def update_create_tomoname(self, id, columnId=0, rowId=0):
         n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables['tab1'].table
         widgets = self.tables['tab1'].widgets
@@ -525,7 +525,7 @@ class TomographReconstruct(GuiTabWidget):
         tomofolder_file.close()
 
         num_submitted_jobs = 0
-        qname, num_nodes, cores, time = self.qparams['BatchAlignment'].values()
+        qname, n_nodes, cores, time = self.qparams['BatchAlignment'].values()
         for n in range(len(lprocs) - 1):
 
             input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1], num_procs_per_proc, 'D1',
@@ -537,7 +537,7 @@ class TomographReconstruct(GuiTabWidget):
                 jobname = 'Alignment_BatchMode_Job_{:03d}'.format(num_submitted_jobs)
 
                 cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname, time=time,
-                                                    num_nodes=num_nodes, cmd=cmd)
+                                                    num_nodes=n_nodes, cmd=cmd)
 
             guiFunctions.write_text2file(cmd, '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n), 'w')
 
@@ -1381,9 +1381,9 @@ class TomographReconstruct(GuiTabWidget):
                     fname = 'CTF_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                     outDirectory = os.path.dirname(cPrefix) 
                     suffix = "_" + "_".join([os.path.basename(tomofolder)]+folder.split('/')[-1:])
-                    qname,num_nodes,cores,time = self.qparams['BatchCTFCorrection'].values()
+                    qname,n_nodes,cores,time = self.qparams['BatchCTFCorrection'].values()
                     job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, time=time,
-                                                        partition=qname, num_nodes=num_nodes, singleton=True) + jobscript
+                                                        partition=qname, num_nodes=n_nodes, singleton=True) + jobscript
                     outjob = open(os.path.join(outDirectory, 'ctfCorrectionBatch.sh'), 'w')
                     outjob.write(job)
                     outjob.close()

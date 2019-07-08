@@ -254,7 +254,7 @@ class FRMWorker():
                         all_odd_wedge = odd_wedge
                 
                 # write the new particle list to the disk
-                pl.toXMLFile('aligned_pl_iter'+str(i)+'.xml')
+                pl.toXMLFile(os.path.join(job.destination, 'aligned_pl_iter'+str(i)+'.xml'))
                 
                 # create half sets
                 even = self.create_average(all_even_pre, all_even_wedge)
@@ -380,7 +380,7 @@ class FRMWorker():
                 p.setScore(FRMScore(score))
                 
             # average the particle list
-            name_prefix = os.path.join(self.destination, self.node_name+'_'+str(job.max_iter))
+            name_prefix = os.path.join(job.destination, self.node_name+'_'+str(job.max_iter))
             self.average_sub_pl(job.particleList, name_prefix, job.weighting)
             
             # send back the result

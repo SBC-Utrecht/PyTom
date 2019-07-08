@@ -40,7 +40,7 @@ if __name__ == '__main__':
                                 ScriptOption(['-o','--recOffset'], 'Cropping offset of the binned tomogram.', arg=True, optional=False),
                                 ScriptOption(['--projBinning'], 'Bin projections BEFORE reconstruction. 1 is no binning, 2 will merge two voxels to one, 3 -> 1, 4 ->1 ...', arg=True, optional=True),
                                 ScriptOption(['-m', '--metafile'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
-                                ScriptOption(['-n', '--numProcesses'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
+                                ScriptOption(['-n', '--numProcesses'], 'number of parallel processes.', arg=True, optional=True),
                                 ScriptOption(['--help'], 'Print this help.', arg=False, optional=False)])
     
     if len(sys.argv) == 1:
@@ -113,7 +113,7 @@ if __name__ == '__main__':
             markerIndex = int(markerIndex)
             projections = ProjectionList()
             projectionDirectory = projectionDirectoryTemplate.replace('_CLOSEST_', '_{:04d}_'.format(markerIndex))
-            alignResultFile = os.path.join(projectionDirectory, 'alignmentResults.txt')
+            alignResultFile = ''#os.path.join(projectionDirectory, 'alignmentResults.txt')
             if not os.path.exists(alignResultFile): alignResultFile = ''  
             print(projectionDirectory)
             if checkFileExists(projectionList):

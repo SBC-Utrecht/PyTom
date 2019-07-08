@@ -56,7 +56,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
     sliceWidth = imdim
 
     # pre-determine analytical weighting function and lowpass for speedup
-    if (weighting != None) and (weighting < -0.001):
+    if (weighting != None) and (float(weighting) < -0.001):
         w_func = fourierFilterShift(rampFilter(imdim, imdim))
 
     # design lowpass filter
