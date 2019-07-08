@@ -56,6 +56,7 @@ from pytom.gui.mrcOperations import downsample
 from multiprocessing import Process, Event, Manager, Pool, cpu_count
 
 from pytom.gui.guiStructures import *
+from pytom.gui.guiFunctions import *
 
 def sort_str( obj, nrcol ):
     obj.sort(key=lambda i: str(i[nrcol]))
@@ -1059,12 +1060,17 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
     def load(self):
 
-        markfilename = QFileDialog.getOpenFileName(self, 'Open file', self.projectname, "Image files (*.*)")
+        markfilename = QFileDialog.getOpenFileName(self, 'Open file', self.projectname, "Marker files (*.*)")
         markfilename = markfilename[0]
 
         if not markfilename or not os.path.exists(markfilename): return
 
         mark_frames = read_markerfile(markfilename,self.tiltangles)
+        if markfilename.endswith('.wimp'):
+            imodShiftFile = QFileDialog.getOpenFileName(self, 'Open file', self.projectname, "Imod transf file (*.xf)")[0]
+            if not imodShiftFile: return
+            shifts = parseImodShiftFile(imodShiftFile)
+            mark_frames, shift = addShiftToMarkFrames(mark_frames, shifts, self.metadata, self.excluded)
 
         self.deleteAllMarkers()
 
@@ -1087,7 +1093,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                 self.tiltimages[imnr].add_fiducial(CX - self.xmin, CY - self.ymin, CX, CY, check=False, draw=False)
 
         self.widgets['detectButton'].setEnabled(True)
-        self.detect_frameshift()
+        #self.detect_frameshift()
         if not markfilename.endswith('.npy'): self.index_fid()
 
 

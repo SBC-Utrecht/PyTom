@@ -817,3 +817,21 @@ def update_metadata_from_defocusfile(metafile, defocusfile):
             metadata['DefocusAngle'][NN] = 0.
 
     numpy.savetxt(metafile, metadata, fmt=fmt, header=headerText)
+
+def parseImodShiftFile(imodShiftFile):
+    print(imodShiftFile)
+    data = numpy.loadtxt(imodShiftFile)
+    return data[:, -2:]
+
+def addShiftToMarkFrames(mark_frames, shifts, metadata, excluded):
+    tiltAngles = metadata['TiltAngle'][excluded]
+    zeroIndex = abs(tiltAngles).argmin()
+    zerox, zeroy = shifts[zeroIndex]*0
+
+    for i in range(len(mark_frames)):
+        mark_frames[i, :, 0] -= shifts[i][1] - zeroy
+        mark_frames[i, :, 1] -= shifts[i][0] - zerox
+
+
+
+    return mark_frames, shifts

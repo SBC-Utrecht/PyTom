@@ -48,8 +48,8 @@ class TemplateMatchingPlan():
         self.template_fft = gu.zeros_like(volume_gpu, dtype=np.complex64)
         self.ccc_map = gu.zeros_like(volume_gpu, dtype=np.float32)
         self.norm_volume = gu.prod(volume_gpu.shape)
-        self.scores = gu.zeros_like(volume_gpu, dtype=np.float32)
-        self.angles = gu.zeros_like(volume_gpu, dtype=np.float32)
+        #self.scores = gu.zeros_like(volume_gpu, dtype=np.float32)
+        #self.angles = gu.zeros_like(volume_gpu, dtype=np.float32)
         self.padded_volume = gu.zeros_like(volume_gpu, dtype=np.float32)
         del volume_gpu
         self.inv_plan = Plan(volume.shape, np.complex64, volume.dtype)

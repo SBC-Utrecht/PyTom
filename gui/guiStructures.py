@@ -693,7 +693,7 @@ class CommonFunctions():
 
         if params[4]: params[4](params[5])
 
-        if 1:
+        try:
             # Check if one needs to write pytom related XML file.
             if params[2]:
                 if len(params[2][0]) > 1:
@@ -721,7 +721,7 @@ class CommonFunctions():
                 proc = Worker(fn=os.system, args=['sh {}'.format(exefilename)], sig=False)
                 proc.start()
 #                os.system('sh {}'.format(params[0]))
-        else:
+        except:
             print ('Please check your input parameters. They might be incomplete.')
 
     def gen_action(self, params):
@@ -3014,22 +3014,49 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
                 self.d.setText(txt, os.path.basename(logfile))
                 self.d.show()
 
+
 class DisplayText(QMainWindow):
-    def __init__(self, parent):
+    def __init__(self, parent, type='read'):
         super(DisplayText, self).__init__(parent)
-        self.setGeometry(100,100,400,200)
+        self.setGeometry(100,100,700,400)
         self.widget = QPlainTextEdit()
-        self.widget.setEnabled(False)
+        self.widget.setEnabled(True)
+        self.widget.setStyleSheet("QPlainTextEdit{background:white;}")
+        self.widget.setEnabled(True)
         layout = QVBoxLayout()
         layout.addWidget(self.widget)
         self.setLayout(layout)
         self.setCentralWidget(self.widget)
+        self.projectname = self.parent().projectname
 
+        if type == 'edit':
+
+            button = QPushButton('Save')
+            button.clicked.connect(self.saveText)
+            layout.addWidget(button)
 
     def setText(self, text, title=''):
         self.setWindowTitle(title)
         self.widget.clear()
         self.widget.insertPlainText(text)
+
+    def saveText(self, folder='./'):
+        filename = str(QFileDialog.getSaveFileName(self, 'Save particle list.', folder)[0])
+        if filename:
+            txt = self.widget.toPlainText()
+            outfile = open(filename, 'w')
+            outfile.write(txt)
+            outfile.close()
+
+    def readText(self, folder='./'):
+        filename = QFileDialog.getOpenFileName(self, 'Open file', folder, "Marker files (*.*)")[0]
+        if filename:
+            outfile = open(filename, 'r')
+            text = outfile.read()
+            outfile.close()
+            self.setText(text, title=os.path.basename(filename))
+            self.show()
+
 
 class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
     def __init__(self,parent):

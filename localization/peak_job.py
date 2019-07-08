@@ -218,7 +218,6 @@ class PeakJob(PyTomClass):
     
         pytom_mpi.send(str(msg), destination)
 
-        
 
 class PeakResult(PyTomClass):
     """
@@ -312,7 +311,8 @@ class PeakResult(PyTomClass):
         
         import pytom_mpi
         pytom_mpi.send(str(msg), destination)
-        
+
+
 class JobInfo():
     """
     JobInfo: Class for storing the job information
@@ -327,7 +327,8 @@ class JobInfo():
         self.jobID = jobID
         self.originalJobID = originalJobID
         self.splitType = splitType
-        
+
+
 if __name__ == '__main__':
     from pytom.basic.structures import Mask, Reference, WedgeInfo
     from pytom.localization.structures import Volume
