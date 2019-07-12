@@ -107,7 +107,6 @@ class menudemo(QMainWindow, CommonFunctions):
         self.size_policies()
         self.setGeometry(0,0, 300, 100)
         self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-        print(pytompath)
         self.pytompath=pytompath
         self.projectname = None
         self.stage_buttons = []

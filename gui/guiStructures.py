@@ -885,7 +885,8 @@ class CommonFunctions():
         print ( 'update: ', value.text() )
         pb.setValue( int(value.text()) )
 
-    def fill_tab(self, id, headers, types, values, sizes, tooltip=[],wname='v02_batch_aligntable_', connect=0, nn=False):
+    def fill_tab(self, id, headers, types, values, sizes, tooltip=[],wname='v02_batch_aligntable_', connect=0, nn=False,
+                 sorting=False):
         try:
             self.tables[id].setParent(None)
             self.pbs[id].setParent(None)
@@ -894,7 +895,7 @@ class CommonFunctions():
 
             pass
 
-        self.tables[id] = SimpleTable(headers, types, values, sizes, tooltip=tooltip,connect=connect)
+        self.tables[id] = SimpleTable(headers, types, values, sizes, tooltip=tooltip,connect=connect, id=id)
         self.widgets['{}{}'.format(wname,id)] = self.tables[id]
 
         if nn:
@@ -1065,9 +1066,7 @@ def circle(pos, size = 2, label='',color=Qt.blue):
 
 class SimpleTable(QMainWindow):
 
-    def __init__(self, headers, types, values, sizes=[], tooltip=[] , connect=0):
-
-
+    def __init__(self, headers, types, values, sizes=[], tooltip=[] , connect=0, sorting=False, id=''):
         super(SimpleTable, self).__init__()
         central_widget = QWidget(self)
         #self.setGeometry(10, 10, 700, 300)  # Create a central widget
@@ -1083,11 +1082,11 @@ class SimpleTable(QMainWindow):
         table.setHorizontalHeaderLabels(headers)
         table.setVerticalHeaderLabels(['', ] * len(values))
         table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        #table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        # Set the tooltips to headings
+
         self.headers = headers
         hh = table.horizontalHeader()
         table.verticalHeader().hide()
+
         # Set the alignment to the headers
         for i in range(len(headers)):
 
@@ -1106,6 +1105,7 @@ class SimpleTable(QMainWindow):
             if len(tooltip) > i: table.horizontalHeaderItem(i).setToolTip(tooltip[i])
 
             for v in range(len(values)):
+                print(v,i, len(values), len(values[0]))
                 # Fill the first line
                 if types[i] == 'txt':
                     widget = QWidget()
@@ -1119,10 +1119,20 @@ class SimpleTable(QMainWindow):
                     self.widgets['widget_{}_{}'.format(v, i)] = cb
                     widget.setStyleSheet('background: white;')
 
+                elif types[i] == 'sort_txt':
+                    table.setSortingEnabled(True)
+                    item = QTableWidgetItem()
+                    item.setTextAlignment(Qt.AlignCenter)
+                    item.setData(Qt.EditRole, values[v][i])
+                    table.setItem(v, i, item)
+                    self.widgets['widget_{}_{}'.format(v, i)] = item
+
+
                 elif types[i] == 'checkbox' and values[v][i]:
                     widget = QWidget()
                     cb = QCheckBox()
-                    if connect: cb.stateChanged.connect(lambda d, ID=id: connect(ID))
+                    if connect:
+                        cb.stateChanged.connect(lambda d, ID=id, rowID=v, columnID=i: connect(ID, rowID, columnID))
                     layoutCheckBox = QHBoxLayout(widget)
                     layoutCheckBox.addWidget(cb)
                     layoutCheckBox.setAlignment(Qt.AlignCenter)
@@ -2850,6 +2860,7 @@ class QParams():
 
 
 class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
+    resized = pyqtSignal()
     def __init__(self, parent):
         super(ExecutedJobs, self).__init__(parent)
         self.stage = 'generalSettings_'
@@ -2857,15 +2868,15 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         self.projectname = self.parent().projectname
         self.logbook = self.parent().logbook
         self.logfolder = os.path.join(self.projectname, 'LogFiles')
+        
         self.qcommand = self.parent().qcommand
-        self.setGeometry(0, 0, 600, 550)
+        self.setGeometry(0, 0, 900, 550)
         self.size_policies()
 
         headers = ['Local Jobs', 'Queued Jobs']
         subheaders = [[], ] * len(headers)
 
-        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, sizeX=600, sizeY=550)
-
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, sizeX=900, sizeY=550)
         self.table_layouts = {}
         self.tables = {}
         self.pbs = {}
@@ -2908,8 +2919,22 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
                 tab = self.tabs[tt]
                 tab.setLayout(self.table_layouts[tt])
 
+        self.resized.connect(self.sizetest)
+        self.sizetest()
+
+    def resizeEvent(self, event):
+        self.resized.emit()
+        return super(ExecutedJobs, self).resizeEvent(event)
+
+    def sizetest(self):
+        w = self.frameGeometry().width()
+        h  = self.frameGeometry().height()
+
+        for scrollarea in self.scrollareas:
+            scrollarea.resize(w,h)
+
     def tab1UI(self):
-        jobfiles = [line for line in sorted(os.listdir(self.logfolder)) if line.endswith('.txt')]
+        jobfiles = [line for line in sorted(os.listdir(self.logfolder)) if line.endswith('.out')]
         self.jobFilesLocal = [os.path.join(self.logfolder, job) for job in jobfiles if job.startswith('local_')]
         self.jobFilesQueue = [os.path.join(self.logfolder, job) for job in jobfiles if not job.startswith('local_')]
         self.populate_local()
@@ -2937,36 +2962,53 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.do_something(pid, v))
 
+    def checkboxUpdate(self, id, rowID=0, columnID=2):
+
+        if not columnID == 2: return
+        status = self.tab2_widgets[f'widget_{rowID}_2'].isChecked()
+        if not status: return
+        for i in range(self.tables[id].table.rowCount()):
+            if i != rowID:
+                try: self.tab2_widgets[f'widget_{i}_2'].setChecked(False)
+                except: pass
+        #self.tab2_widgets[f'widget_{i}_2'].setChecked(status)
+
+
     def tab2UI(self):
         self.tab1UI()
+
+    def nthElem(self, elem, n=1):
+        return elem[n]
 
     def populate_queue(self):
         if len(self.jobFilesQueue) == 0:
             return
 
         id = 'tab2'
-        headers = ["Filename Logfile Queue", "QueueId", "Open", "Running", 'Terminate', '']
-        types = ['txt', 'txt', 'checkbox', 'checkbox', 'checkbox', 'txt']
+        headers = ["Type", "QueueId", "Open", "Running", 'Terminate', "Filename Logfile Queue", '']
+        types = ['sort_txt', 'sort_txt', 'checkbox', 'checkbox', 'checkbox', 'txt', 'txt']
         sizes = [0, 0, 0, 0, 0, 0]
 
         tooltip = []
         values = []
+        
         import getpass
         whoami = getpass.getuser()
-        qjobs = [line.split()[0] for line in os.popen(f'{self.qcommand} -u {whoami}').readlines()]
+        qjobs = [int(line.split()[0]) for line in os.popen(f'squeue -u {whoami} | grep -v JOBID').readlines()]
         added_jobs = []
         for n, jobfile in enumerate(self.jobFilesQueue):
-            queueId = jobfile.split('-')[0]
-
+            queueId = int(os.path.basename(jobfile.split('-')[0]))
+            added_jobs.append(queueId)
             running = 1*(queueId in qjobs)
-            values.append([jobfile, queueId, 1, 16*running, running, ''])
+            values.append([jobfile.split('-')[1].split('.')[0], queueId, 1, 16*running, running, jobfile, ''])
 
-        qjobs = range(100)
         for running in reversed(qjobs):
             if not running in added_jobs:
-                values.append( ['', str(running), 0, 16, 1, ''] )
+                values.append( ['', int(running), 0, 16, 1, '', ''] )
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+        values = sorted(values, key=self.nthElem, reverse=True)
+
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, sorting=True, connect=self.checkboxUpdate)
 
         self.tab2_widgets = self.tables[id].widgets
 
@@ -2982,7 +3024,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
 
         if pid == 'tab2':
             for row in range(self.tables[pid].table.rowCount()):
-                logfile = values[row][0]
+                logfile = values[row][5]
                 qId = self.tab2_widgets[f'widget_{row}_1'].text()
 
                 try:
@@ -3020,9 +3062,9 @@ class DisplayText(QMainWindow):
         super(DisplayText, self).__init__(parent)
         self.setGeometry(100,100,700,400)
         self.widget = QPlainTextEdit()
-        self.widget.setEnabled(True)
         self.widget.setStyleSheet("QPlainTextEdit{background:white;}")
-        self.widget.setEnabled(True)
+        #self.widget.setEnabled(False)
+
         layout = QVBoxLayout()
         layout.addWidget(self.widget)
         self.setLayout(layout)
@@ -3056,6 +3098,7 @@ class DisplayText(QMainWindow):
             outfile.close()
             self.setText(text, title=os.path.basename(filename))
             self.show()
+
 
 
 class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
@@ -3245,7 +3288,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                                     initdir=self.projectname,
                                     filetype='dat', tooltip='Select a particleList which you want to plot.\n')
         self.insert_label_spinbox(parent, mode + 'BoxSize', text='Dimension of Image', tooltip='Box size of 3D object',
-                                  value=64, minimum=1, stepsize=1, width=w)
+                                  value=64, minimum=1, maximum=4000, stepsize=1, width=w)
         self.insert_label_spinbox(parent, mode + 'PixelSize', text='Pixel Size',
                                   tooltip='Pixel size of a voxel in teh object.',
                                   value=2.62, minimum=1, stepsize=1, wtype=QDoubleSpinBox, decimals=2, width=w)
@@ -3357,8 +3400,8 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.insert_label(parent, rstep=1, cstep=0, sizepolicy=self.sizePolicyB, width=w)
         self.insert_label_line_push(parent, 'FSC File (ascii)', mode + 'FSCFilename',mode='file',width=w, initdir=self.projectname,
                                     filetype='dat', tooltip='Select a particleList which you want to plot.\n')
-        self.insert_label_spinbox(parent, mode+'BoxSize', text='Dimension of Image', tooltip='Box size of 3D object',
-                                  value=64,minimum=1,stepsize=1, width=w)
+        self.insert_label_spinbox(parent, mode+'BoxSize', text='Dimension of Subtomogram', tooltip='Box size of 3D object',
+                                  value=64,minimum=1, maximum=4000, stepsize=1, width=w)
         self.insert_label_spinbox(parent, mode +'PixelSize', text='Pixel Size', tooltip='Pixel size of a voxel in teh object.',
                                   value=2.62, minimum=1, stepsize=1, wtype=QDoubleSpinBox, decimals=2, width=w)
         self.insert_label_spinbox(parent, mode +'CutOff', text='Resolution Cutoff', value=0, minimum=0, stepsize=0.1,
