@@ -904,14 +904,14 @@ class TomographReconstruct(GuiTabWidget):
             sortedFolder = os.path.join(tomofolder, 'sorted')
             self.widgets[mode + 'tomofolder'] = QLineEdit(text=tomofolder)
             self.widgets[mode + 'FolderSorted'] = QLineEdit(text=sortedFolder)
-
+            self.widgets[mode + 'BinningFactor'] = QLineEdit(text=binningFactor)
 
             for i in (1,2):
                 widget = 'widget_{}_{}'.format(row, i)
                 if widgets[widget].isChecked():
 
 
-                    for name in ('FirstAngle', 'LastAngle', 'FirstIndex', 'LastIndex', 'Reduced'):
+                    for name in ('FirstAngle', 'LastAngle', 'FirstIndex', 'LastIndex', 'Reduced', 'Voldims'):
                         self.widgets[mode + name] = QLineEdit()
 
 
@@ -936,8 +936,10 @@ class TomographReconstruct(GuiTabWidget):
                         commandText = templateINFR.format(d=paramsCmd)
                         paramsSbatch['fname'] = 'Reconstruction_{}_INFR.sh'.format(os.path.basename(tomofolder))
                     elif i==2:
+                        self.updateVoldims(mode)
+                        voldims = self.widgets[mode + 'Voldims'].text()
                         paramsCmd = [tomofolder, self.pytompath, firstIndex, lastIndex, refTiltImage, refmarkindex,
-                                     binningFactor, os.path.basename(tomofolder), 'mrc', '464', '1', expectedRotation]
+                                     binningFactor, os.path.basename(tomofolder), 'mrc', voldims, '1', expectedRotation]
                         commandText= templateWBP.format(d=paramsCmd)
                         paramsSbatch['fname'] = 'Reconstruction_{}_WBP.sh'.format(os.path.basename(tomofolder))
                     else:
