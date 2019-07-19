@@ -1,0 +1,92 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Localize Macromolecules</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+<p class="Header">PyTom: Localize Macromolecules interactively
+</p>
+<h2 id="General">Overview</h2>
+<p align="justify">
+In many applications you may have no idea of the actual structure of your
+molecule of interest or you may want to deliberately not use any information
+that might be available. On these cases you will localize putatively 
+identical particles interactively using an appropriate graphical tool,
+store the respective coordinates, and reconstruct the respective subvolumes.
+</p>
+<p align="justify">
+Instead of reconstructing subvolumes using the coordinates you might also
+box them out from the tomogram used for particle picking directly - however,
+in PyTom we typically work with volumes of reduced resolution (binned) for
+all overview purposes and avoid reconstructing the un-binned tomogram
+because that would unnnecessarily block disk space. Moreover, CTF correction
+requires seperate reconstruction of subtomograms anyway and hence we strongly
+encourage following this route.
+</p>
+<p align="justify">
+The EMAN2 package provides a rather neat interface for interactive particle
+picking or 'boxing'. Hence, we support importing coordinates of subtomograms
+localized in EMAN2 rather than programming our own solution. This coordinate
+list is then transferred to the native PyTom format for dealing with subtomograms
+(particle list).
+</p>
+
+<h2 id="practical">Particle boxing using EMAN2's <code>e2spt_boxer.py</code> </h2>
+<p align="justify">
+EMAN2 provides support for boxing of subtomograms. For a detailed tutorial
+on the usage we refer to: 
+<a href="http://blake.bcm.edu/emanwiki/SPT/Spt?action=AttachFile&do=get&target=e2spt_users_guide_06_2012.pdf"
+EMAN tutorial>EMAN2 single particle tomography tutorial</a>.
+<div class="codeFragment">
+  <code>
+    e2spt_boxer.py "MyTomogram.em" -­-­inmemory
+  </code>
+</div>
+There is also a argument <code>--yshort</code>, which you must <em>not</em> use 
+(this option applies to somewhat weird coordinate systems like the one from
+IMOD).
+</p>
+
+<p align="justify">
+In the <code>e2spt_boxer.py</code> you can conveniently mark the centers of 
+the particles of your interest. Before leaving the GUI you save the coordinates
+in a file, which is then converted for usage in PyTom, e.g., for reference-free
+subtomogram alignment and averaging.
+</p>
+<h2 id="practical2">Convert particle coordinates to particle list using <code>
+bin/coords2PL.py</code></h2>
+
+The script <code>bin/coords2PL.py</code> conveniently converts the coordinates
+stored in the EMAN2 boxer tool into a PyTom particle list (XML file). In this
+script you can also specify the future names of the to-be-generated subtomograms
+as well as the respective missing wedges.
+<div class="codeFragment">
+  <code>
+    pytom "MyPyTomPath"/bin/coords2PL.py -p "particleList" -c "CoordinateFile" -s "MySubtomogramNames" -w "MyWedge"
+  </code>
+</div>
+In detail, the parameters are:
+<ul>
+  <li>
+    <strong>particleList</strong>: file-name for the XML file that is generated.
+  </li>
+  <li>
+    <strong>CoordinateFile</strong>: name of the ascii file containing the 
+    coordinates (i.e., the EMAN2 file).
+  </li>
+  <li>
+    <strong>MySubtomogramNames</strong>: Root for subtomogram files. Could be something like
+    <em>My/Subtomo/Directory/particle_</em> which would result in files named
+    <code>particle_1</code>, <code>particle_2</code>, ... in the directory 
+    <code>My/Subtomo/Directory/</code>.
+  </li>
+  <li>
+    <strong>MyWedge</strong>: Missing wedge. Can be specified by one angle (symmetrical
+    missing wedge) or by two numbers seperated by a comma, e.g. <code>30</code> or
+    <code>30,35.3<code>.
+  </li>
+</ul>
+
+</body>

@@ -1,0 +1,230 @@
+/***************************************************************************/
+/***************************************************************************/
+/*
+/*		Spherical Harmonic Transform Kit
+/*
+/* Sean Moore, Dennis Healy, Dan Rockmore, Peter Kostelec
+/* smoore@bbn.com, {healy,rockmore,geelong}@cs.dartmouth.edu
+/*
+/* Contact: Peter Kostelec
+/*          geelong@cs.dartmouth.edu
+/*
+/*
+/* Copyright 1997 Sean Moore, Dennis Healy, Dan Rockmore, Peter Kostelec
+/*
+/*
+/*   This program is free software; you can redistribute it and/or modify
+/*   it under the terms of the GNU General Public License as published by
+/*   the Free Software Foundation; either version 2 of the License, or
+/*   (at your option) any later version.
+/*
+/*   This program is distributed in the hope that it will be useful,
+/*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+/*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/*   GNU General Public License for more details.
+/*
+/*   You should have received a copy of the GNU General Public License
+/*   along with this program; if not, write to the Free Software
+/*   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*
+/*
+/* Commercial use is absolutely prohibited.
+/*
+/* See the accompanying LICENSE file for details.
+/*
+/*************************************************************************/
+/*************************************************************************/
+
+
+April, 1997
+
+This document attempts to catalog and provide a description 
+for the files and source code in this directory.
+
+The source is C code that implements a discrete Legendre transform
+via the semi-naive algorithm (see below), along with a full spherical
+harmonic transform, and semi-naive based convolution on
+the 2-sphere. A naive-algorithm implementation of the Legendre
+transform is also provided.  Unless otherwise stated, the
+programs provided here work through bandwidths bw = 1024.
+
+
+In the future, there will be made available code to perform
+spherical harmonic transforms based on the Driscoll-Healy
+algorithm (see below). Some of the files included in this distribution
+(in particular newFCT.c ) will be required for the Driscoll-
+Healy algorithms. So be warned if you modify this source
+code!
+
+
+Caveat emptor - this is research code only and has not been
+hardened.  All the code works quite well on DEC Alpha workstations
+using OSF1 Version 3.2. Some code has also been tested and successfully
+run on DEC Alpha workstations using OSF1 Version 4.0, SGI workstations
+using IRIX 5.3, and Sun workstations using SunOS 4.1.2 1.
+
+
+All of the code here is based on code originally written by
+Sean Moore, who currently works at BBN Systems and Technologies.
+
+	Sean Moore
+	BBN Systems and Technologies
+	70 Fawcett Street
+	Cambridge, MA  02138
+	smoore@bbn.com
+	(617) 873-2858
+
+
+General Comments
+------------------
+
+It is assumed that the user is familiar with the related
+work on these algorithms done by Dennis Healy, Jim Driscoll, 
+Sean Moore, and Dan Rockmore, all affiliated with Dartmouth
+College to one extent or another.  To obtain related papers,
+contact Peter Kostelec, Dennis Healy or Dan Rockmore.
+
+The naive algorithm is just the projection of the function
+onto the Legendre functions, sampled at the Chebyshev
+nodes (zeroes of T_2n).
+
+The seminaive algorithm is an O(N^2) algorithm that performs
+projections in frequency space rather than time space, i.e.,
+it projects the function to be transformed onto cosine series 
+representations of the associated Legendre functions.  This is
+a fast algorithm in practice, provided that the cosine series
+representations of the Legendre functions have been precomputed.
+
+Note: the total size of the cosine series representations grows
+rather quickly as the bandwidth of the problem increases:
+
+	bw = 64   -> about 44 kilobytes of precomputed data
+	bw = 128  -> about 353 kilobytes of precomputed data
+	bw = 256  -> about 2.8 megabytes of precomputed data
+	bw = 512  -> about 22.4 megabytes of precomputed data
+	bw = 1024 -> about 179.2 megabytes of precomputed data
+
+Depending on memory available and disk storage capabilities,
+you may want to compute the cosine series as needed (``on the fly").
+
+
+All algorithms expect the number of samples and coefficients to be a
+power of 2, and that sampling is done at the Chebyshev nodes.  Check
+the source code  documentation for details.
+
+
+Makefile
+----------
+
+The Makefile provides an easy way to compile the code.  If you are
+not familiar with Makefiles, either read the man pages on make, or
+get a copy of "The UNIX Programming Environment" by Kernighan and Pike,
+or talk to your local UNIX guru.
+
+Fast cosine transforms
+- ----------------------
+
+Many of the algorithms use fast cosine transform algorithms.  As such,
+there is a collection of files for implementing them.
+
+newFCT.c - Source code for implementing fast cosine transforms (FCTs).  Algorithm 
+based on Steidl and Tasche description using a polynomial division model.
+Power of 2 only.
+
+OURperms.c - FCTs permute data.  The permutation used is the OUR permutation
+described by Moore and Wisniewski (contact wisnie@cs.dartmouth.edu or
+log into Len's home page at http://www.cs.dartmouth.edu/~wisnie and get
+PCS-TR95-266).  These are the permutations for various powers of 2.
+
+OURmods.c - This is the encoding of the supermoduli in the polynomial
+division tree for the FCTs.
+
+
+Naive algorithm
+- ---------------
+
+naive_synthesis.c - Source code to synthesize functions using a naive method
+   based on recurrence.  This is slow but does not require any
+   precomputed functions, and is also stable. 
+
+test_naive.c - sample main for naive transform. For bandwidths through 1024.
+
+test_stability_naive.c - sample main for computing error data
+for the Legendre transform using the naive algorithm. For bandwidths
+through 1024.
+
+
+Semi-naive transform code
+- -------------------------
+
+The seminaive algorithms use FCT code and some additional functions.
+
+cospmls.c - source code for generating cosine transforms of P(m,l) and
+G(m,l) functions.
+
+seminaive.c - source for functions implementing seminaive and inverse
+seminaive trasnforms.
+
+semi.c - sample main for computing Legendre transform using the
+seminaive algorithm
+
+test_stability_semi.c - sample main for computing error data
+for the Legendre transform using the seminaive algorithm. For
+bandwidths through 1024.
+
+test_semi_roundtrip.c - sample main which reads in Legendre
+coefficients, does inverse transform, does forward transform.
+Result should be same as input up to numerical errors. For
+bandwidths through 1024.
+
+
+
+CONVOLUTIONS
+- ------------
+
+MathFace.c - code to interface with Mathematica-generated tables.
+
+Fast Fourier Transform (FFT) code
+- ---------------------------------
+
+To quote Sean Moore:
+``I have written some special-purpose FFT code as a module in the
+computation of spherical harmonic transforms.  You may want to
+use your own FFT code if you have some souped-up versions, but
+mine is pretty good."
+
+FFTcode.c - as advertised.
+
+permroots.c - contains the 4096 4096th roots of unity in 
+bit-reversed order.
+
+indextables.c - tables containing bit-reverse permutation indices.
+
+
+Fast Spherical Harmonic Transforms
+- ----------------------------------
+
+FST_seminaive.c - routines to perform convolutions on the
+2-sphere using a semi-naive algorithm. 
+
+FST_seminaivex.c - routines to perform convolutions on the
+2-sphere using a semi-naive algorithm. COMPUTES ASSOCIATED
+LEGENDRE FUNCTIONS ON THE FLY!!!
+
+CONV_SEMI.c - Source code to convolve two functions defined on the 2-sphere
+using seminaive algorithms. For bandwidths through 512.
+
+CONV_SEMIx.c - Source code to convolve two functions defined on the 2-sphere
+using seminaive algorithms. COMPUTES ASSOCIATED LEGENDRE FUNCTIONS ON THE FLY!!!
+For bandwidths through 1024.
+
+test_FST_seminaive_timing.c - Source code to gather timing data of
+spherical harmonic transform using the seminaive algorithms.
+For bandwidths through 512.
+
+test_FST_seminaive_timingx.c - Source code to gather timing data of
+spherical harmonic transform using the seminaive algorithms.
+COMPUTES ASSOCIATED LEGENDRE FUNCTIONS ON THE FLY!!! For bandwidths
+through 1024.
+
+

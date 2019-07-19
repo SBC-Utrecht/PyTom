@@ -1,0 +1,283 @@
+<!DOCTYPE doctype PUBLIC "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+        
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=iso-8859-1">
+        
+  <meta name="GENERATOR"
+ content="Mozilla/4.77C-SGI [en] (X11; U; IRIX64 6.5 IP30) [Netscape]">
+  <title>Situs Program Package - User Guide</title>
+</head>
+  <body text="#000000" bgcolor="#ffffff" link="#0000ee" vlink="#551a8b"
+ alink="#ff0000">
+    
+<dl>
+&nbsp;
+  <script language="JavaScript" src="psinclude.js"></script><br>
+&nbsp;
+  <table width="750" height="1" bgcolor="#afcfbf" nosave="">
+  <tbody>
+       <tr nosave="">
+  <td nosave="">          
+        <table border="1" cellpadding="8" cols="1" width="100%"
+ bgcolor="#f0f9ff" nosave="">
+  <tbody>
+             <tr nosave="">
+  <td nosave="">                
+              <center><font face="Helvetica, Futura, Arial"><font
+ size="+2">FRM User Guide</font></font></center>
+  </td>
+  </tr>
+   <tr>
+  <td><font face="Helvetica, Futura, Arial">There are 3 tools in the FRM
+set: frmr, frmv, and frm6. The first two perform a rotational matching between
+a density map and an atomic structure (single molecule docking), whereas
+the third does a full rigid body docking (fitting of an atomic structure
+inside an EM map).</font></td>
+  </tr>
+   <tr>
+    </tr>
+   <tr>
+  <td valign="top"><a name="colores"></a><font
+ face="Helvetica, Futura, Arial"><font size="+1">frmr &nbsp;and&nbsp; frmv
+-&nbsp; FFT-accelerated 3D exhaustive rotational search</font></font>   
+            
+              <p><font face="Helvetica, Futura, Arial"><font
+ color="#cc0000">Purpose:</font></font> </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif">These utilities
+offer robust, accurate and fast rigid-body rotational search tools. The first
+one, <b>frmr</b>, radializes the maps to be fitted, and thus is faster than
+              <b>frmv</b>, which uses the full volumetric data. Both achieve
+times of a few seconds, and it could be less than a second for <b>frmr</b>
+if the maps are not too large.</font> </p>
+               
+              <p><font face="Helvetica, Futura, Arial"><font
+ color="#cc0000">Usage (at shell prompt) (same for frmv):</font></font> <br>
+ &nbsp; </p>
+               
+              <center>               
+              <table cols="1" width="90%" bgcolor="#eeddff">
+  <tbody>
+                   <tr>
+  <td><tt>./frmr &lt;Situs density map&gt; &lt;PDB structure&gt; -res &lt;number&gt;
+ -cutoff &lt;number&gt; -explor &lt;number&gt;</tt></td>
+  </tr>
+                   
+                </tbody>               
+              </table>
+               </center>
+                  
+              <p><font face="Helvetica, Arial, sans-serif">The input parameters
+are:</font> </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>&lt;Situs density map&gt;</b> Low resolution map in Situs 
+format.&nbsp;</font></font> </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>&lt;PDB structure&gt;</b> Atomic structure in PDB format.</font></font>
+               </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>-res&nbsp;</b> Estimated resolution of your density map
+in &Aring;.&nbsp;<b> [default -res 15.0]</b></font></font> </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>-cutoff</b>&nbsp; Density map cutoff value. All density
+levels below this value are set to zero. </font></font><font
+ face="Helvetica, Arial, sans-serif"><font color="#000000"><b>[default -cutoff
+0.0]</b></font></font> </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b></b></font></font></p>
+              <font face="Helvetica, Futura, Arial"><font
+ color="#cc0000"></font></font>
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>-explor</b>&nbsp; Controls the number of the best fits
+to be output.<b> [default -explor 5]</b></font></font>                </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b><font size="+0"></font></b></font></font>&nbsp; </p>
+               
+              <p><font face="Helvetica, Futura, Arial"><font
+ color="#cc0000">Input at program prompt:</font></font> <br>
+               <font face="Helvetica, Futura, Arial"><font
+ color="#000000">None.</font></font> <br>
+ &nbsp; </p>
+               
+              <p><font face="Helvetica, Futura, Arial"><font
+ color="#cc0000">Output:</font></font> </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif">The programs generate
+a PDB file for each peak found. The files are named as follows:</font></p>
+              <p><font face="Helvetica, Arial, sans-serif">frmr_best*.pdb
+or frmv_best*.pdb,</font></p>
+              <p><font face="Helvetica, Arial, sans-serif">where * signifies
+numbers from 1 to the number of peaks found or the -explor option, whichever
+is smaller.</font><br>
+              <font face="Helvetica, Futura, Arial"></font></p>
+              <p><font face="Helvetica, Futura, Arial"><font
+ color="#cc0000"></font></font></p>
+              <ul>
+               
+              </ul>
+  </td>
+  </tr>
+   <tr>
+  <td><font face="Helvetica, Futura, Arial"><font size="+1">frm6 -&nbsp;
+FFT-accelerated 6D exhaustive search</font></font>                
+              <p><font face="Helvetica, Futura, Arial"><font
+ color="#cc0000">Purpose:</font></font> </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif">This is a rigid-body
+rotational and translational search tool. It performs the fitting by recasting
+the problem into a search of 5 angular and 1 linear parameters.</font> </p>
+               
+              <p><font face="Helvetica, Futura, Arial"><font
+ color="#cc0000">Usage (at shell prompt):</font></font><br>
+ &nbsp; </p>
+               
+              <center>               
+              <table cols="1" width="90%" bgcolor="#eeddff">
+  <tbody>
+                   <tr>
+  <td><tt>./frm6 &lt;Situs density map&gt; &lt;PDB structure&gt; &lt;options&gt;</tt></td>
+  </tr>
+                   
+                </tbody>               
+              </table>
+               </center>
+                  
+              <p><font face="Helvetica, Arial, sans-serif">The input parameters
+are:</font> </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>&lt;Situs density map&gt;</b> Low resolution map in Situs 
+format.&nbsp;</font></font> </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>&lt;PDB structure&gt;</b> Atomic structure in PDB format.<br>
+              </font></font></p>
+               
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000">The &lt;options&gt; are:<br>
+              <b><br>
+-res </b>&lt;value&gt; &nbsp;Estimated resolution of your density map in
+&Aring;.&nbsp;<b> [default -res 15.0]</b></font></font> </p>
+                
+              <p><font face="Helvetica,Arial, sans-serif">
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>-ani </b>&lt;value&gt;<b><font size="+0">&nbsp;&nbsp;</font></b> 
+Defines the resolution anisotropy factor (z direction vs. x,y plane)&nbsp;<b> 
+[default: -ani 1.0]. </b></font></font><font
+ face="Helvetica, Futura, Arial">Allows one to set a different resolution
+in the z direction vs. the x,y plane. E.g. "-ani 1.5 -res 20" specifies a
+30 A resolution in the z direction, and a 20 A resolution in x,y.</font> </p>
+              </font><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>-cutoff</b> &lt;value&gt; &nbsp;Density map cutoff value. 
+All density levels below this value are set to zero. </font></font><font
+ face="Helvetica, Arial, sans-serif"><font color="#000000"><b>[default -cutoff
+0.0]</b></font></font> </p>
+                
+              <p><font face="Helvetica,Arial, sans-serif">
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b><font size="+0">-corr </font></b>&lt;number&gt;&nbsp;
+This option controls whether the maps are pre-filtered with a Laplacian kernel.</font></font><br>
+              <font face="Helvetica, Arial, sans-serif"><font
+ color="#000000">Two values can be given here:</font></font> </p>
+              <ul>
+                <ul>
+                  <font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>-corr 0</b> Standard linear cross-correlation.&nbsp;
+The scalar product between the density maps of the low resolution map and
+the low-pass filtered atomic structure. For resolutions &gt; 10&Aring; this
+criterion is less discriminative.</font></font>
+                  <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>-corr 1 [default]</b> A Laplacian filter is first applied
+to maximize the fitting contrast. This is the default and is the recommended
+docking criterion for low resolution docking (up to 25&Aring; resolution).
+                  </font></font><font face="Helvetica, Futura, Arial">To provide
+for a more robust algorithm when dealing with cropped experimental data we
+implemented a mask that filters out hard artificial surfaces. This is done
+transparently for the user.</font></p>
+                </ul>
+              </ul>
+  </font><font face="Helvetica,Arial, sans-serif">  </font><font
+ face="Helvetica,Arial, sans-serif">
+              <ul>
+                <ul>
+                  <p><font face="Helvetica,Arial, sans-serif">
+                  <p></p>
+                  </font></p>
+                </ul>
+              </ul>
+              </font></p>
+              <font face="Helvetica,Arial, sans-serif">
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b><font size="+0">-mode </font></b>&lt;number&gt;&nbsp;
+This option controls the scanning of the linear parameter (rho)</font></font>.<br>
+              <font face="Helvetica, Arial, sans-serif"><font
+ color="#000000">Three values can be given for this option:&nbsp;</font></font> 
+              </p>
+              <ul>
+                <ul>
+                  <font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>-mode 0 [default]</b> &nbsp;Automatically select rho
+scanning mode 1 or 2. This is done according to the relative sizes and shapes
+of the molecules.</font></font>
+                  <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>-mode 1</b> &nbsp;Determine an initial value of rho and
+start the search </font></font>from there.<br>
+ </p>
+                  <p><font face="Helvetica,Arial, sans-serif">
+                  <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>-mode 2</b> &nbsp;Scan the whole range of</font></font>
+rho.</p>
+                  </font></p>
+                </ul>
+              </ul>
+              </font>
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b>-explor</b> &lt;number&gt; &nbsp;Controls the number
+of the best fits to be output.<b> [default -explor 5]</b></font></font>  
+             </p>
+               
+              <p><font face="Helvetica,Arial, sans-serif">
+              <p><font face="Helvetica, Arial, sans-serif"><font
+ color="#000000"><b><font size="+0"></font></b></font></font></p>
+              </font> </p>
+               
+              <p><font face="Helvetica, Futura, Arial"><font
+ color="#cc0000">Input at program prompt:</font></font> <br>
+               <font face="Helvetica, Futura, Arial"><font
+ color="#000000">None.</font></font> <br>
+ &nbsp; </p>
+               
+              <p><font face="Helvetica, Futura, Arial"><font
+ color="#cc0000">Output:</font></font> </p>
+               
+              <p><font face="Helvetica, Arial, sans-serif">This program generates
+a PDB file for each peak found. The files are named as follows:</font></p>
+ 
+              <p><font face="Helvetica, Arial, sans-serif">frm6_vol_best*.pdb
+&nbsp;or&nbsp; frm6_lap_best*.pdb,<br>
+              </font></p>
+              <p><font face="Helvetica, Arial, sans-serif">according to whether
+the <b>-corr</b> option is 0 or 1, and where * signifies numbers from 1 to
+number of peaks found or the -explor option, whichever is smaller.</font><br>
+                                                                        
+                </p>
+ </td>
+            </tr>
+          </tbody>
+        </table>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</dl>
+    
+</body>
+</html>

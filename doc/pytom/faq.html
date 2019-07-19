@@ -1,0 +1,298 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Tutorial</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+<p class="Header">PyTom: FAQ</p>
+<p align="justify">
+Here you will find a collection of frequently asked questions. More up to date comments on potential pitfalls are documented in the 
+<a href="https://lists.sourceforge.net/lists/listinfo/pytom-mail">mailling list</a>.
+</p>
+<p align="justify">
+Directly navigate to question types:
+<ul>
+  <li>
+    <a href="#Installation">Installation Questions</a>
+  </li>
+  <li>
+    <a href=#"MPI">MPI and parallel processing questions</a>
+  </li>
+  <li>
+    <a href="#PyTom">PyTom Questions</a>
+  </li>
+</ul>
+</p>
+<h2 id="Installation">Installation Questions</h2>
+<b>Question</b><br/>
+I get following error message during compilation
+<br/><br/>
+<div class="codeFragment">
+<code>
+function pytom_volume_wrap.cpp:<br/>
+swigCpp/pytom_volume_wrap.cpp:2051: error: invalid conversion from ‘const<br/>
+char*’ to ‘char*’<br/>
+swigCpp/pytom_volume_wrap.cpp:2774: error: cannot convert ‘int*’ to<br/>
+‘Py_ssize_t*’ for argument ‘3’ to ‘int PyString_AsStringAndSize(PyObject*,char**, Py_ssize_t*)’<br/>
+swigCpp/pytom_volume_wrap.cpp:11661: error: invalid conversion from ‘const char*’ to ‘char*’ <br/>
+</code>
+</div>
+<br/><br/>
+<b>Answer</b><br/>
+This is due to a old swig version (< 1.3.40). <br/>
+Please install a newer version and rerun the PyTom installation.<br/>
+
+<p>------------------------------------------------------------------------ </p>
+
+<b>Question</b><br/>
+On OSX, compile fails with errors like: 
+<div class="codeFragment">
+<code>
+error: use of undeclared identifier 'is_reduced'
+</code>
+</div>
+
+<p><b>Answer</b><br/>
+  This is because Apple decided to skip G++ compilers as a default compiler and replaced it with CLANG.
+  Hence the errors.<br/>
+  Replace the c++ call in the with <code>g++-mp-4.5</code> or similar that you installed from MacPorts.
+  The best is to specify the compiler in the Makefiles and nail compilation to these.<br/>
+  Edit :<br/><br/>
+  <div class="codeFragment">
+  <code>
+    pytomc/Makefile <br/>
+    pytomc/libs/libtomc/Makefile.params  
+  </code>
+</div>
+  <br/><br/>
+  Specify CC in <code>pytomc/Makefile</code> to <code>CC = /opt/local/bin/g++-mp-4.5</code> and 
+  CXX in <code>pytomc/libs/libtomc/Makefile.params</code> to <code>CXX = /opt/local/bin/g++-mp-4.5</code> in the first line.<br/>
+  Re-run compilation. Worked for OSX 10.8.1 / 10.8.2 , XCode 4.4.1 / 4.5 and Macports 2.0.4
+</p>
+<p>------------------------------------------------------------------------ </p>
+<p><b>Question</b><br/>
+  I have XCode 4.3 running and compiling with macports fails with:
+  
+</p>
+<div class="codeFragment">
+<code>
+Error: Target org.macports.configure returned: configure failure: shell command failed (see log for details)<br/>
+Error: Failed to install fftw-3<br/>
+Log for fftw-3 is at: /opt/local/var/macports/logs/_opt_local_var_macports_sources_rsync.macports.org_release_tarballs_ports_math_fftw-3/fftw-3/main.log<br/>
+main.log:<br/>
+:info:configure configure: error: C compiler cannot create executables
+</code>
+</div>
+
+<b>Answer</b><br/>
+After installing Xcode you have to install the command line developer tools manually.
+Run Xcode and install command line tools through 
+<div class="codeFragment">
+<code>
+ Xcode --> Open Developer Tool --> Command Line Tools for Xcode.dmg
+</code>
+</div>
+<p>Follow this link <a href="
+https://developer.apple.com/library/ios/#documentation/DeveloperTools/Conceptual/WhatsNewXcode/Articles/xcode_4_3.html">
+  XCode tutorial</a>
+</p>
+<p>------------------------------------------------------------------------ </p>
+<p><b>Question</b><br/>
+  I have downloaded and compiled PyTom but I get this error message during runtime:
+</p>
+<div class="codeFragment">
+<code>
+openmpi/mca_paffinity_linux.so: undefined symbol: mca_base_param_reg_int 
+</code>
+or something like:
+<code>
+[localhost.localdomain:29329] mca: base: component_find: unable to open /usr/lib64/openmpi/lib/openmpi/mca_shmem_sysv: perhaps a missing symbol, or compiled for a different version of Open MPI? (ignored)
+--------------------------------------------------------------------------
+It looks like opal_init failed for some reason; your parallel process is
+likely to abort.  There are many reasons that a parallel process can
+fail during opal_init; some of which are due to configuration or
+environment problems.  This failure appears to be an internal failure;
+here's some additional information (which may only be relevant to an
+Open MPI developer):
+
+  opal_shmem_base_select failed
+  --> Returned value -1 instead of OPAL_SUCCESS
+--------------------------------------------------------------------------
+--------------------------------------------------------------------------
+It looks like orte_init failed for some reason; your parallel process is
+likely to abort.  There are many reasons that a parallel process can
+fail during orte_init; some of which are due to configuration or
+environment problems.  This failure appears to be an internal failure;
+here's some additional information (which may only be relevant to an
+Open MPI developer):
+
+  opal_init failed
+  --> Returned value Error (-1) instead of ORTE_SUCCESS
+--------------------------------------------------------------------------
+--------------------------------------------------------------------------
+It looks like MPI_INIT failed for some reason; your parallel process is
+likely to abort.  There are many reasons that a parallel process can
+fail during MPI_INIT; some of which are due to configuration or environment
+problems.  This failure appears to be an internal failure; here's some
+additional information (which may only be relevant to an Open MPI
+developer):
+
+  ompi_mpi_init: ompi_rte_init failed
+  --> Returned "Error" (-1) instead of "Success" (0)
+--------------------------------------------------------------------------
+*** An error occurred in MPI_Init
+*** on a NULL communicator
+*** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,
+***    and potentially your MPI job)
+[localhost.localdomain:29329] Local abort before MPI_INIT completed successfully; not able to aggregate error messages, and not able to guarantee that all other processes were killed!
+
+</code>
+</div>
+<b>Answer</b><br/>
+This is a known issue in openmpi when you dynamically link against the openmpi libraries as it is done in PyTom. Here is a link to another software that has this problem and how it is solved: <a hraf="https://github.com/mspiegel/PiebaldMPI/wiki">link</a>
+Thus, you must include the 
+<div class="codeFragment">
+<code>
+BASH:<br/>
+export LD_PRELOAD='/usr/local/openmpi/lib/libmpi.so'<br/>
+CSH:<br/>
+setenv LD_PRELOAD '/usr/local/openmpi/lib/libmpi.so'<br/>
+</code>
+</div>
+<p>to 'preload' the library. Of course, you must adjust the path to your local installation of openmpi.</p>
+<p> ------------------------------------------------------------------------ </p>
+
+<p><b>Question</b><br/>
+  I have downloaded and compiled PyTom but I get this error message during runtime:
+</p>
+<div class="codeFragment">
+<code>
+ImportError: No module named pytom
+</code>
+</div>
+<b>Answer</b><br/>
+<p>Your pytom directory must be called <code>pytom</code>. 
+Any other directory name will cause errors because the directory name will be used as the default module search path at runtime. 
+
+<p> ------------------------------------------------------------------------ </p>
+
+<p><b>Question</b><br/>
+  I am on OSX trying to compile openmpi from Macports for PyTom. I get a memory leak during compilation!?
+</p>
+<p><b>Answer</b><br/>
+  After the release of OSX 10.7.2 and XCode 4.2, a memory leak during compilation of openmpi occurs.
+  <a href="https://trac.macports.org/ticket/31604"  target="_blank">MacPorts ticket</a>
+  This can be fixed, however, by using another C++ compiler rather than XCode delivered <i>llvm - clang</i> for compiling gcc44 which openmpi depends on.
+</p>
+<div class="codeFragment">
+<code> 
+sudo port install apple-gcc42
+sudo port install gcc44 configure.compiler=apple-gcc-4.2
+sudo port install openmpi
+</code>
+</div>
+<p>That worked as a fix for now
+</p>
+<p>------------------------------------------------------------------------</p>
+<br/><br/>
+<h2 id="MPI">MPI and parallel processing questions</h2>
+<b>Question</b><br/>
+How do I start a parallel PyTom job?<br/><br/>
+<b>Answer</b><br/>
+That actually depends on your system setup. So far, we have tested OpenMPI successfully on Linux clusters and Mac computers.<br/>
+For user interactive parallel processing deployed directly from the terminal you have to first create a <em>hostfile</em>.<br/>
+<br/>
+<div class="codeFragment">
+<code>
+computerHostname slots=NumberCPUsYouWantToUse <br/>
+secondComputerHostname slots=NumberCPUsYouWantToUse <br/>
+#...
+</code>
+</div>
+<br/>
+<br/>
+
+In order to run your parallel job, you have to type <br/><br/>
+<div class="codeFragment">
+<code>
+mpirun --hostfile youHostFile -c numberOfCPUsUsed pytom yourScript.py<br/>
+</code>
+</div>
+<br/><br/>
+
+Please note, a queueing system on a large compute cluster may have system specific submission scripts that can not be covered here.
+Please consult this <a href="http://www.open-mpi.org/">website</a> for OpenMPI related questions and tutorials.
+
+<br/><br/>
+<b>Question</b><br/>
+How can I test my MPI environment using PyTom?
+<p><b>Answer</b><br/>
+In order to determine if MPI and PyTom are properly installed you should first run the <code>pytomc/check.py</script> in the PyTom installation directory to see that all libraries are found at runtime.
+Next, you can run a short script that prints all MPI node ids (ranks) a PyTom job would be running on. Save it as <code>mpiCheck.py</code>.  
+<br/>
+<div class="codeFragment">
+<code>
+import pytom_mpi<br/><br/>
+
+pytom_mpi.init()<br/>
+print pytom_mpi.rank()<br/>
+pytom_mpi.finalise()
+</code>
+</div>
+<br/>
+Start the script using
+<div class="codeFragment"> 
+	<code>
+	mpirun -c 4 /Your/Path/To/pytom/bin/pytom mpiCheck.py
+	</code>
+</div> and you shold see the numbers 0 - 3 printed in an arbitrary order depending on the response time of each cpu / machine.
+You can and should specify the hostfile if you plan on running a PyTom job on multiple machines with the <code>--hostfile</code> parameter (see above).  
+<br/>
+</p>
+<p>------------------------------------------------------------------------</p>
+<br/><br/>
+<h2 id="PyTom">PyTom Questions</h2>
+<b>Question</b><br/>
+What is the <i>libtomc notation</i> always refered to for <i>binning</i>?<br/><br/>
+<p> <b>Answer</b><br/>
+  Contrary to the binning notation used in TOM, PyTom and libtomc use a different notation for the binning parameter:<br/>
+  
+  the parameter determines the kernel size used for binning<br/>
+  -> 1 means the kernel size is 1 voxel => no binning (downscaling) happens<br/>
+  -> 2 "      "  kernel size is 2 voxel => equal to tom binning == 1<br/>
+  -> 3 "      "  kernel size is 3 voxel => unsupported in tom<br/>
+  -> 4 "      "  kernel size is 4 voxel => equal to tom binning == 2<br/>
+  .
+  . 
+  . 
+  
+  
+</p>
+<p>------------------------------------------------------------------------ </p>
+<p align="justify">
+<strong>Question</strong><br/>
+While writing code using the swig interfaced functions, I get the following error:<br/><br/>
+<div class="codeFragment">
+<code>
+unsupported operand type(s) for *: 'SwigPyObject' and 'vol'<br/>
+<Swig Object of type 'swigTom::swigVolume< float,float > *' at 0x26e6cc0><br/>
+</code>
+</div>
+<br/>
+Or similar.
+<br/><br/>
+<strong>Answer</strong><br/>
+If you get this error, python for some reason does not know the class type and keeps working with a pointer object to the class.
+You can resolve this by importing the class before running some code.<br/><br/>
+<div class="codeFragment">
+<code>
+from pytom_volume import vol
+</code>
+</div><br/><br/>
+The code above  imports <code>vol</code> before the line error occurs and resolves this bug.
+</p>
+<p>------------------------------------------------------------------------ </p>
+</body>
+</html>

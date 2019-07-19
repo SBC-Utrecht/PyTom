@@ -1,0 +1,255 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<script type="text/javascript"
+	src="http://latex.codecogs.com/latexit.js"></script>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<title>PyTom: Align subtomograms in real space</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"/>
+
+</head>
+<body>
+	<p class="Header">PyTom: Align subtomograms</p>
+	<h2 id="General">Overview</h2>
+	<p align="justify">
+		To obtain a coherent average from a set of subtomograms you have to
+		iteratively determine the orientations and translations of all subtomograms
+		('alignment'). The alignment process can become time-consuming,
+		depending on the number of subtomograms, their size, and the power of
+		your computer setup (number of CPUs). Hence, subtomogram alignment is
+		parallelized and typically performed on a CPU cluster.</p>
+	<h2>
+		Subtomogram Alignment using <code>./bin/GLocalJob.py</code>
+	</h2>
+	<p align="justify">
+		The script <code>bin/GLocalJob.py</code>
+		performs iterative quasi-expectation maximization alignment using
+		constrained correlation. The rotational sampling is performed in real
+		space (in contrast to FRM alignment!). A function call looks like this:
+	</p>
+	<div class="codeFragment">
+		<code> mpirun -n "numberOfCPUs"
+			PathToPytom/bin/pytom PathToPytom/bin/GLocalJob.py -p MyParticleList.xml 
+                        -r MyReference.em -m MyMask.em --SphericalMask --angleShells 3
+                        --angleIncrement 3. --symmetry MyNSym --symmetryAngleZ -d ./
+                        -n 10 -b 2 --pixelSize 2.7 --particleDiameter 250 </code>
+	</div>
+
+	<p align="justify">
+            If you call the script without any arguments the following help will appear:
+	    <div class="codeFragment">
+	        <code>
+	            <pre>
+NAME
+    GLocalJob.py
+DESCRIPTION
+    Create an GLocalSampling job. Documentation is available at
+                          http://www.pytom.org/doc/pytom/alignment.html
+OPTIONS
+    -p, --particleList    Particle list : xml file storing information to all subvolumes (Is optional: No; Requires arguments: Yes)
+    -r, --reference    Reference : the initial reference - if none provided average of particle list (Is optional: Yes; Requires arguments: Yes)
+    -m, --mask    Mask : a mask  (Is optional: No; Requires arguments: Yes)
+    --SphericalMask    Mask is spherical / speed up! (Is optional: Yes; Requires arguments: No)
+    --angleShells    # angle shells used for angular refinement. Default= 3 (Is optional: Yes; Requires arguments: Yes)
+    --angleIncrement    Angular increment for refinement. Default = 3 (Is optional: Yes; Requires arguments: Yes)
+    --symmetry    PointSymmetry : specify n-fold symmetry (n) (Is optional: Yes; Requires arguments: Yes)
+    --symmetryAngleZ    PointSymmetry axis tilt around Z axis (Is optional: Yes; Requires arguments: Yes)
+    --symmetryAngleX    PointSymmetry axis tilt around X axis (Is optional: Yes; Requires arguments: Yes)
+    -d, --destination    Destination : destination directory (Is optional: No; Requires arguments: Yes)
+    -n, --numberIterations    Number of iterations (Is optional: No; Requires arguments: Yes)
+    -b, --binning    Perform binning (downscale) of subvolumes by factor. Default=1. (Is optional: Yes; Requires arguments: Yes)
+    --pixelSize    Pixelsize in Angstrom (Is optional: No; Requires arguments: Yes)
+    --particleDiameter    Particle diameter in Angstrom (Is optional: No; Requires arguments: Yes)
+    -w, --weighting    Weight particles by exp of CC (Is optional: Yes; Requires arguments: No)
+    -c, --compound    Use compound weighting in Fourier space (Is optional: Yes; Requires arguments: No)
+    -j, --jobName    Specify job.xml output filename (Is optional: No; Requires arguments: Yes)
+    -h, --help    Help. (Is optional: Yes; Requires arguments: No)
+AUTHORS
+    Friedrich Foerster
+	            </pre>
+	        </code>
+	    </div>
+        </p>
+	<p align="justify">
+            In more detail the options are the following:
+	    <ul>
+		<li><strong>--particleList / -p.</strong> A particle list in <code>XML</code>
+			format that points to all subtomograms. It contains the names of 
+                        the subtomograms and other meta information, including their previously
+                        assigned orientations. In PyTom functions also
+                        exist to generate a particleList from 
+			a directory containing <code>EM</code>, <code>MRC</code> or <code>CCP4</code>
+			files that contains all subtomograms.</li>
+		<li><strong>--reference / -r.</strong> An initial reference. The reference may be
+			an <code>EM</code>, <code>MRC</code> or <code>CCP4</code> file. The
+			reference can be the preleminary average from the roughly-aligned
+			particles, an existing density or a density generated from a a <code>PDB</code>
+			file. (For <code>PDB</code> files, you can use the <code>pytom.basic.files.pdb2em</code>
+			function to obtain densities).<br>
+                        The reference can also be omitted. The script will then use the average from
+                        the subtomograms using the translations and rotations specified in the 
+                        particleList file.</li>
+		<li><strong>--mask / -m.</strong> A mask. The mask may be spherical or
+			non-symmetrical. Default masks are spherical in PyTom. However, to
+			focus alignment on a particular region, you may use a mask of
+			aribtrary shape that will be rotated during alignment. A mask can be
+			generated using PyTom following <a href="genMask.html">these
+			instructions</a>. Same formats as reference</li>
+                <li><strong>--SphericalMask.</strong> Switch for spherical masks. If set the alignment
+                        process is accelerated significantly.
+                </li>
+                <li><strong>--angleShells.</strong> Number of angle shells used for angular refinement. 
+                        Fig. 1 explains the angular sampling used for the orientation grid search.
+                        Default value is 3.
+                </li>
+		<li><strong>--angleIncrement.</strong> Angular increment for refinement. 
+			of accuracy. For explanation of the sampling we refer to Fig. 1. 
+                        Default value is 3. <br />
+                        Note that the specified angleIncrement will be overruled by the
+			increment determined by the adaptive sampling if this option is
+			chosen. If you are not sure what increment to use for the alignment,
+			you can estimate the increment with the <code>angleFromResolution
+                        </code> function. Type:
+			<div class="codeFragment">
+			    <code>
+				$ipytom<br/>
+				from pytom.basic.resolution import angleFromResolution<br/>
+				print 0.1*angleFromResolution(30,250)<br/>
+			    </code>
+			</div>
+			Here, 30 is a hypothetical resolution in Angstrom and 250 is a 
+                        particle diameter in Angstrom.
+		</li>
+                <li><strong>--pixelSize.</strong> Pixelsize in Angstrom. If specified
+                        it will be used for resolution-dependent rotational sampling
+                        (see above for <code>--angleIncrement</code>.
+                </li>
+                <li><strong>--particleDiameter.</strong> Particle diameter in Angstrom. 
+                        If specified
+                        it will be used for resolution-dependent rotational sampling
+                        (see above for <code>--angleIncrement</code>.
+                </li>
+                <li><strong>--destination / -d.</strong> Destination directory.</li>
+                <li><strong>, --numberIterations /  -n.</strong> Number of iterations for 
+                        alignment cycle.
+                </li>
+		<li><strong>--symmetry.</strong> PointSymmetry. If specified n-fold rotational 
+                symmetry will be imposed on the average during the iterative alignment cycle.
+		</li>
+		<li><strong>--symmetryAngleZ.</strong> PointSymmetry axis tilt around Z axis.
+                If <code>--symmetry</code> is specified it will be applied along the Z-axis.
+		</li>
+		<li><strong>--symmetryAngleX.</strong> PointSymmetry axis tilt around X axis.
+                If <code>--symmetry</code> is specified it will be applied along the X-axis.
+		</li>
+                <li><strong>--binning / -b.</strong> Perform binning (downscale) of 
+                    subvolumes by factor. Binning > 1 greatly accelerates alignment, of course
+                    on the expense of accuracy. Default=1.
+                </li>
+                <li><strong>--weighting / -w.</strong> Weight particles by exp of CC. </li>
+                <li><strong>--compound / -c.</strong> Use compound weighting in Fourier space. 
+                Makes most sense when parts of Fourier space are not sampled (non-isotropic
+                particle distribution).
+                </li>
+                </li><strong>--jobName / -j.</strong> Specify job.xml output filename.</li>
+                <!--
+		<li><strong>Peak Prior.</strong> In some cases impose a prior for
+			the translations: The correlation function is multiplied with a
+			Gaussian mask with the chosen parameters.</li>
+                        -->
+	    </ul>
+	    <center>
+		<img src="../images/local_sampling.png" align="center"
+			alt="Local Sampling" name="Local Sampling">
+	    </center>
+	    <strong>Fig. 1.</strong> Angular scanning. The angles Psi (Z1) and
+	    Theta (X1) scanned around the old
+	    <span lang="latex">\Psi</span> and
+	    <span lang="latex">\Theta</span>, whereby the old values act as a
+	    ‘pole’. Here the Angular Increment
+	    <span lang="latex">\Delta\Theta</span> is 3 degrees and the Number of
+	    Shells
+	    <span lang="latex">N_{shell}</span> is 2. That means the vector (
+	    <span lang="latex">\Psi, \Theta</span>) is rotated by
+	    <span lang="latex">\Delta\Theta=3</span> two times (the visible rings).
+	    The increment along
+	    <span lang="latex">\Psi</span> is chosen as
+	    <span lang="latex">\Delta\Psi=\frac{N_{shell}}{sin(\Delta\theta*i_{shell})}</span>,
+	    which accounts for the higher density of angles near the pole. The
+	    third Euler angle
+	    <span lang="latex">\Phi</span> (Z2) is scanned with a constant
+	    increment
+	    <span lang="latex">\Delta \Phi=\Delta \Theta</span> from
+	    <span lang="latex">\Phi_{min}=\Phi_{old}-N_{shell}*\Delta\Theta</span>
+	    to
+	    <span lang="latex">\Phi_{max}=\Phi_{old}+N_{shell}*\Delta\Theta</span>.
+
+        </p>
+	
+	<h3>Results of alignment</h3>
+	<p align="justify">
+        At this point the script is pretty talkative and writes out quite a lot for 
+        each iteration <code>Iter</code>:
+	<ul>
+		<li><strong><code>Iter-ParticleList.xml</code></strong>: Particle List
+                    containing the current translations and rotations, as well as the
+                    alignment score.
+                </li>
+		<li><strong><code>Iter-ParticleListOdd.xml</code></strong>: Same for 
+                    particles with odd indices.
+                </li>
+		<li><strong><code>Iter-ParticleListEven.xml</code></strong>: Same for  
+                    particles with even indices.
+                </li>
+		<li><strong><code>Iter-FSC.dat</code></strong>: Fourier Shell Correlation
+                    between even and odd particles. 
+                </li>
+		<li><strong><code>Iter-Filter.dat</code></strong>: Radial filter derived
+                    from FSC.
+                </li>
+		<li><strong><code>Iter-All.em</code></strong>: Current average from all
+                    particles.
+                </li>
+		<li><strong><code>Iter-AllFiltered_XXX.em</code></strong>: Current average 
+                    from all particles filtered with corresponding filter to <code>XXX</code> 
+                    A resolution.
+                </li>
+		<li><strong><code>Iter-Even.em</code></strong>: Average from even particles.
+                </li>
+		<li><strong><code>Iter-EvenFiltered.em</code></strong>: Filtered average from
+                    even particles.
+                </li>
+		<li><strong><code>Iter-EvenFiltered-PreWedge.em</code></strong>:  Average 
+                    from even particles before weighting according to Fourier sampling.
+                </li>
+		<li><strong><code>Iter-EvenFiltered-WedgeSumUnscaled.em</code></strong>: Filter
+                    used for weighting even particles average.
+                </li>
+		<li><strong><code>Iter-Odd.em</code></strong>: Average from odd particles.
+                </li>
+		<li><strong><code>Iter-OddFiltered.em</code></strong>: Filtered average from
+                    odd particles.
+                </li>
+		<li><strong><code>Iter-OddFiltered-PreWedge.em</code></strong>: Filtered average from
+                    odd particles.
+                </li>
+		<li><strong><code>Iter-OddFiltered-WedgeSumUnscaled.em</code></strong>: Filter
+                    used for weighting odd particles average.
+                </li>
+		<li><strong><code>Iter-GLocalAlignmentJob.xml</code></strong>: XML file for current
+                    alignment iteration
+                </li>
+	</ul>
+	
+	<h2>Alignment of the tutorial data</h2>
+	Alignment of the previously localized and roughly classified particles is shown in the 
+        <code>alignment</code> directory. Here, you will find:
+	<ul>
+		<li>the list of all particles <code>allParticles.xml</code> with their rough orientations determined by localization</li>
+		<li><code>reference.em</code> and <code>mask.em</code> are respective calls to the alignment reference and alignment mask</li>
+		<li>Alignment results will be written into the <code>results</code> directory (Please make sure it exists.)</li>
+	</ul>
+
+
+</body>
+</html>

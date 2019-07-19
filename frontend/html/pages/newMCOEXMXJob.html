@@ -1,0 +1,199 @@
+<div id="ParticleBox" class="box" style="left:30px;top:45px;width:200px;height:310px;">
+	<center>
+	<div class="topBar"><font class="topBarHeader">Particle List</font></div>
+
+	<table>
+	<td width=50 align="center">
+	<text class="parameter">from <br/>Dir</text>
+	<div id="LoadParticleListXML" class="smallButton" 
+	onMouseOver="document.getElementById('Help').innerHTML='<b>Load dir</b> Load a directory full of subtomograms.';" onMouseOut="document.getElementById('Help').innerHTML='';"
+	onclick="innerHTMLFromFileInputOverlay(document.getElementById('overlayBox'),'loadParticleList.py','DIR','Particles','Select <b>directory with subtomograms</b> <br/> Provide full path','pytom_mcoEXMX_particleListDIR')">
+		load
+	</div></td>
+	<td width=50 align="center">
+	<text class="parameter">from <br/>XML</text>
+	<div id="LoadParticleListXML" class="smallButton" 
+	onMouseOver="document.getElementById('Help').innerHTML='<b>from XML</b> Load an existing XML File.';" onMouseOut="document.getElementById('Help').innerHTML='';"
+	onclick="innerHTMLFromFileInputOverlay(document.getElementById('overlayBox'),'loadParticleList.py','XML','Particles','Select <b>particle list xml</b> file<br/> Provide full path','pytom_mcoEXMX_particleListXML')">
+		load
+	</div>
+	</td>
+	<td width=50 align="center">
+	<text class="parameter">from <br/>Alig</text>
+	<div id="LoadParticleListXML" class="smallButton" 
+	onMouseOver="document.getElementById('Help').innerHTML='<b>Load Alig</b> Load an existing Alignment List<br/> <i>A list generated during preceeding alignment rounds</i>.';" onMouseOut="document.getElementById('Help').innerHTML='';"
+	onclick="alert('Not supported here yet...');">
+		load
+	</div>
+	</td>
+	</table>
+	<br/>
+	<div id="Particles" class="particles">
+	
+	</div>
+	</center>
+</div>
+
+<div id="MaskBox" class="box" style="left:255px;top:45px;width:180px;height:150px;">
+	<center>
+	<div class="topBar"><font class="topBarHeader">Mask</font></div>
+	<div id="LoadMask" class="smallButton" 
+	onMouseOver="document.getElementById('Help').innerHTML='<b>Load</b> Load a mask.';" onMouseOut="document.getElementById('Help').innerHTML='';"
+	onclick="imageFromFileInputOverlay(document.getElementById('overlayBox'),'imageSlice.py','File','MaskIMG','Set path to <b>mask</b> file<br/> Provide full path','pytom_mcoEXMX_maskFile');">
+		load
+	</div>
+	<div id="Mask">
+	
+		<img id="MaskIMG" src="" width="100" height="100" border="0"/>
+	</div>
+	</center>
+</div>
+
+<div id="ScoreBox" class="box" style="left:255px;top:205px;width:180px;height:60px;">
+	<center>
+	<div class="topBar"><font class="topBarHeader">Score</font></div>
+	
+	<select id="ScoreList" name="ScoreList" onMouseOver="document.getElementById('Help').innerHTML='Select a score function.';" onMouseOut="document.getElementById('Help').innerHTML='';">
+    	<!--<option value="xcf" >XCF</option>
+    	<option value="nxcf" >NXCF</option>-->
+    	<option value="flcf" >FLCF</option>
+    	<!--<option value="wcf" >WCF</option>
+    	<option value="mcf" >MCF</option>-->
+    </select>
+
+	</center>
+</div>
+
+<div id="wedgeInfoBox" class="box" style="left:255px;top:275px;width:180px;height:80px;">
+	<center>
+	<div class="topBar"><font class="topBarHeader">Wedge Info</font></div>
+	<table border="0">
+		<td>
+			<text class="parameter">Angle 1</text><br/>
+	    	<input type="text" id="Wedge1" value="0" size='5' maxlength='10'
+	    	onMouseOver="document.getElementById('Help').innerHTML='<b>Angle1</b>: Specify first tilt angle (for a tilt to 60 you would specify [90-60=30] ).';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+		</td><td>
+	    	<text class="parameter">Angle 2</text><br/>
+	    	<input type="text" id="Wedge2" value="0" size='5' maxlength='10'
+	    	onMouseOver="document.getElementById('Help').innerHTML='<b>Angle2</b>: Specify second tilt angle (for a tilt to 60 you would specify [90-60=30] ).';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+		</td>
+	</table>
+	</center>
+</div>
+
+<div id="IterationBox" class="box" style="left:460px;top:45px;width:380px;height:150px;">
+	<center>
+	<div class="topBar"><font class="topBarHeader">Iterations</font></div>
+	
+	<table border="0">
+	<tr>
+	<td>
+		<text class="parameter">Destination Directory</text>
+	</td>
+	<td>
+    	<div id="SetResDir" class="smallButton" onclick="setCookieFromOverlay(document.getElementById('overlayBox'),'Select directory for classification results','pytom_mcoEXMX_destination')" 
+    										    onMouseOver="document.getElementById('Help').innerHTML='Destination where result data will be written.';" onMouseOut="document.getElementById('Help').innerHTML='';">
+			set
+		</div>
+	</td>
+	</tr>
+	<tr>
+	<td>
+		<text class="parameter">Number Iterations</text>
+	</td><td>
+		<input type="text" id="numberIterations" value="" size='3' maxlength='1000'
+    	onMouseOver="document.getElementById('Help').innerHTML='Total number of classification iterations';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+	</td>
+	</tr>
+	<tr>
+	<td>
+		<text class="parameter">Number classes</text>
+	</td><td>
+		<input type="text" id="numberClasses" value="2" size='3' maxlength='1000'
+    	onMouseOver="document.getElementById('Help').innerHTML='Select number of classes. Default is 2.';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+	</td>
+	</tr>
+	<tr>
+	<td>
+		<text class="parameter">Convergence criterion</text>
+	</td><td>
+		<input type="text" id="convergence" value="0" size='3' maxlength='1000'
+    	onMouseOver="document.getElementById('Help').innerHTML='Select convergence criterion. If less than x (in percent) particles swapped their class, the classification will have converged. Default is 0 (all particles remained in the same class)';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+	</td>
+	</tr>
+	<tr>
+	<td>
+		<text class="parameter">Binning</text>
+	</td><td>
+		<input type="text" id="binning" value="1" size='3' maxlength='1000'
+    	onMouseOver="document.getElementById('Help').innerHTML='Bin subtomograms during processing.1 is default, it will combine 1 pixel to 1 pixel (identity -> no operation).<br/>2 will bin 2 pixels to 1, subtomograms will be half size during processing. <br/>3 : 3 -> 1 , 4: 4 -> 1, ...<br/> Average will be calculated on original sized cubes!';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+	</td>
+	</tr>
+	</table>
+	
+	</center>
+	
+</div>
+
+<div id="BandpassBox" class="box" style="left:460px;top:205px;width:380px;height:60px;">
+	
+	<center>
+	<div class="topBar"><font class="topBarHeader">Bandpass</font></div>
+	<table border="0">
+	<td>
+	<center>
+		<text class="parameter">Lowest Frequency</text><br/>
+    	<input type="text" id="LowestFrequency" value="0" size='10' maxlength='500'
+    	onMouseOver="document.getElementById('Help').innerHTML='Lowest frequency of bandpass. <br/> Value in pixels! (between 0 - size of cube/2 (Determines bandpass by pixel)).';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+    </center>
+    </td><td>
+    <center>
+    	<text class="parameter">Highest Frequency</text><br/>
+    	<input type="text" id="HighestFrequency" value="1" size='10' maxlength='500'
+    	onMouseOver="document.getElementById('Help').innerHTML='Highest frequency of bandpass. <br/> Value in pixels! (between 0 - size of cube/2 (Determines bandpass by pixel value)).';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+    </center>
+    </td><td>
+    <center>
+    	<text class="parameter">Smoothing</text><br/>
+    	<input type="text" id="FilterSmooth" value="0" size='10' maxlength='500'
+    	onMouseOver="document.getElementById('Help').innerHTML='Smoothing at the edges of filter.<br/> Can be 0 (off) or a pixel value.';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+    	</text>
+    </center>
+    </td>
+    </table>
+   	</center>
+</div>
+
+<div id="SampleInfo" class="box" style="left:460px;top:275px;width:200px;height:80px;">
+
+	<center>
+		<div class="topBar"><font class="topBarHeader">Sample Information</font></div>
+		<table border="0">
+		<td>
+		<center>
+		<text class="parameter">Pixel Size</text><br/>
+		<input type="text" id="pixelSize" value="" size='10' maxlength='10' onMouseOver="document.getElementById('Help').innerHTML='Specify pixelsize in Angstrom';" onMouseOut="document.getElementById('Help').innerHTML='';"/>
+		</center>
+		</td>
+		<td>
+		<center>
+		<text class="parameter">Particle Diameter</text><br/>
+		<input type="text" id="particleDiameter" value="" size='10' maxlength='10' onMouseOver="document.getElementById('Help').innerHTML='Specify particle diameter in Angstrom';" onMouseOut="document.getElementById('Help').innerHTML='';"/><br/>
+		</center>
+		</td>
+		</table>
+	</center>
+</div>
+
+
+<div id="CheckParamtersButton" class="bigButton" style="position:absolute;top:275;left:740;" onClick="updateMCOEXMXCookiesFromPage(document);checkMCOEXMXParameters(document.getElementById('overlayBox'))" onMouseOver="document.getElementById('Help').innerHTML='Check your current setup.';" onMouseOut="document.getElementById('Help').innerHTML='';">
+	<div style="position:relative;top:33%;">
+		Check Setup
+	</div>
+</div>
+
+<div id="Submit" class="bigButton" style="position:absolute;top:335;left:740;background-color:#00FF00;" onClick="updateMCOEXMXCookiesFromPage(document);creatMCOEXMXJobFromParameters(document);" onMouseOver="document.getElementById('Help').innerHTML='Create job.<br/>Works only when button is green.';" onMouseOut="document.getElementById('Help').innerHTML='';">
+	<div style="position:relative;top:33%;">
+		Create Job
+	</div>
+</div>

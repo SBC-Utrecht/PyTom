@@ -1,0 +1,448 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Classify aligned particles</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+<p class="Header" >PyTom: Classify aligned particles</p>
+<h2 id="General">Overview</h2>
+<p align="justify">
+The aim of classification is to group structurally different particles
+that are part of a particle list into different bins. You may want to use classification 
+directly after localization to discard obvious false positives or 'bad' particles or you 
+may want to classify subtomograms after alignment to get some insights into possible 
+conformational hetergeneity of your molecules of interest. 
+</p>
+<p align="justify">
+In PyTom, there are currently two different methods for subtomogram classification
+implemented: (<em>i</em>) Constrained Principal Component Analysis (CPCA) in conjunction
+with k-means clustering and (<em>ii</em>) multiple correlation optimization (MCO).
+Both methods and their usage are explained in the following.
+</p>
+<h2>CPCA-based classification using <code>calculate_correlation_matrix.py</code> and 
+<code>classifyCPCA.py</code></h2>
+<p align="justify">
+CPCA is explained in detail in the original publication 
+<a href="http://dx.doi.org/10.1016/j.jsb.2007.07.006">Foerster et. al. 2008</a>.
+Classification by CPCA consists of three major steps. Firstly, the constrained 
+correlation matrix of all subtomograms is computed. This matrix contains all
+pairwise constrained correlation coefficients (CCCs) of the subtomograms.
+Computation of the CCC is by far the computationally most demanding step. Hence,
+we have parallelized this step. Secondly, the principal components of this 
+matrix are computed. In this step, the data is compressed using a specified 
+number of eigenvectors. Thirdly, the reduced data are clustered using a kmeans
+method.
+</p>
+<p align="justify">
+The CCC matrix is computed using the script 
+  <div class="codeFragment">
+     <code>
+      mpirun --hostfile "pathToYourHostfile" -c "numberOfCPUs" pytom 
+      PathToPytom/classification/calculate_correlation_matrix.py -p "ParticleList"
+      -m "MaskFile" -f "Lowpass" -b "Binning"
+     </code>
+  </div>
+The arguments are:
+<ul>
+  <li>
+     <em>ParticleList</em>: XML file containing the aligned subtomograms.
+  </li>
+  <li>
+     <em>Mask</em>: File containing mask for 
+     focus of classification. Typically EM format, but MRC or CCP4 also
+     possible. Make sure dimensions are identical to subtomograms.
+  </li>
+  <li>
+     <em>Lowpass</em>: Frequency of lowpass filter. The lowpass filter
+     is applied to all subtomograms after binning.
+  </li>
+  <li>
+     <em>Binning</em>: Binning Factor for subtomograms. Binning greatly
+     increases computational speed, but you must make sure that the classifier
+     of interest is still appropriately resolved in the subtomograms. For
+     many applications the effective pixelsize should not be below ~2 nm
+     (corresponding to Nyquist of 4 nm). Binning factor of 2 makes 1 voxel
+     out of 2x2x2 voxels.
+  </li>
+  <li>
+     <em>Verbose</em>: More output.
+  </li>
+</ul>
+The script will generate a file called 'correlation_matrix.csv'. It contains 
+the CCC in an ascii format. 
+</p>
+<p align="justify">
+The CCC is further used for classification using the script 
+<code>classifyCPCA.py</code>. This script computes the eigenvectors of
+the CCC and projects the data on the first <em>neig</em> eigenvectors.
+Subsequently, these multidimensional vectors are clustered into 
+<em>nclass</em> groups using a kmeans algorithm. The usage is:
+  <div class="codeFragment">
+     <code>
+      pytom PathToPytom/bin/classifyCPCA.py -p "ParticleList"
+      -o "OutputParticleList" -c "CCC" -e "neig" -n "nclass"
+      -a "Average"
+     </code>
+  </div>
+In detail the parameters of the script are:
+<ul>
+   <li>
+     <em>ParticleList</em>: XML file containing the aligned subtomograms.
+   </li>
+   <li>
+      <em>OutputParticleList</em>: Filename for generated XML file that
+      includes the assigned classes for each particle.
+   </li>
+   <li>
+      <em>CCC</em>: Filename of constrained correlation matrix. It will 
+      typically be <em>correlation_matrix.csv</em>. 
+   </li>
+   <li>
+      <em>neig</em>: Number of eigenvectors (corresponding to largest 
+      eigenvectors) used for clustering.
+   </li>
+   <li>
+      <em>nclass</em>: Number of classes used for kmeans classification.
+   </li>
+   <li>
+      <em>Average</em>: Root for generated averages of the corresponding
+      classes. The files will be called <em>'Average'_iclass.em</em>.
+   </li>
+</ul>
+The output of the method are the ParticleList with assigned classes as well
+as the different class averages.
+</p>
+
+<h2>Multiple correlation optimization using <code>mcoEXMX.py</code> 
+or <code>mcoAC.py</code></h2>
+<p align="justify">
+Another option is to use a classification 
+algorithm based on correlation to different class averages (multiple 
+correlation optimization, MCO). 
+The goal is to find a distribution of particles that optimises the correlation 
+to a set of different references.
+</p>
+<p align="justify">
+MCO comes in two different flavors: the simple version is a optimization by 
+a local, gradient optimization (expectation maximization) akin to k-means classification
+(<code>MCO-EXMX</code>). Alternatively, stochastic elements (simulated annealing) can be 
+incorporated into the classification procedure (<code>MCO-AC</code>) 
+(<a href="http://dx.doi.org/10.1016/j.jsb.2011.12.003">Hrabe et. al. 2012</a>).
+</p>
+<p align="justify">
+In short, the idea is to group the subtomograms such that they match best to
+a class average. In an iterative procedure the assignment of particles is
+changed such that the (constrained) correlation of the class average to its respective 
+class members get optimized (usage of the constrained correlation makes sure 
+that the missing wedge is considered in the similarity measure).
+The simplest optimization algorithm is expectation maximization (EXMX), which
+is also the basis for subtomogram alignment. This algorithm converges rapidly,
+but it can end up in local minima. Therefore, we designed an 'outer loop'
+for performing EXMX multiple times in the AC algorithm. At the start of  each iteration the class
+assignments are perturbed and then optimized using EXMX. The new assignments 
+are accepted or rejected according to the so-called Metropolis criterion, 
+which depends on a pseudo-temperature. Thus, <code>MCO-AC</code> is a (computationally
+much more demanding) extension of <code>MC-EXMX</code>.
+</p>
+<p align="justify">
+The method are called using the scripts <code>mcoEXMX.py</code> 
+or <code>mcoAC.py</code> like this:
+<div class="codeFragment">
+   <code>
+      mpirun --hostfile "pathToYourHostfile" -c "numberOfCPUs" pytom 
+      PathToPytom/bin/mcoAC.py -j class.xml
+   </code>
+</div>
+The job file 'class.xml' can be created using the PyTom user 
+interface (see below). Make sure that all particles in the particle 
+list have either the same class label (e.g., <code>&lt;Class Name=&quot;0&quot;/&gt;</code> )
+or no class property at all. The program will take more than one class as 
+<em>a priori</em> distribution and continue from there.
+</p>
+
+<h3>Parameters for <code>MCO-EXMX</code> and <code>MCO-AC</code></h3>
+<p align="justify">
+Required parameters for classification jobs are:
+<ul>
+  <li>
+    <strong>Particle List.</strong> A particle list in <code>XML</code> format that points to all 
+    subtomograms. 
+  </li>
+  <li>
+    <strong>Mask.</strong> The mask may be spherical or non-symmetrical. To focus 
+    alignment on a particular region, you may use a mask of aribtrary shape.
+    Spherical masks Can be generated using PyTom following <a 
+    href="genMask.html">these instructions</a>.
+  </li>
+  <li>
+     <strong>Number of local refinment rounds</strong>: (<code>MCO-EXMX</code>)
+  </li>
+  <li>
+     <strong>Number of classes</strong>: The initial number of classes used for 
+     classification. The final number of classes can be different because 
+     classes can be depopulated.
+  </li>
+  <li>
+     <strong>Convergence criterion</strong>: If the numer of class changes drops 
+     below this value (0 &le; value &le; 1) , classification will terminate
+  </li>
+  <li>
+     <strong>Temperature type</strong> (<code>MCO-AC</code> only): A little explanation.
+  </li>
+  <li>
+     <strong>Classification criterion</strong> (<code>MCO-AC</code> only): Can 
+     either be Metropolis criterion (), or Threshold Acceptance ()
+  </li>
+  <li>
+     <strong>Initial temperature</strong> (<code>MCO-AC</code> only): A little 
+     explanation.
+  </li>
+  <li>
+     <strong>Annealing step</strong> (<code>MCO-AC</code> only): (decrease) during 
+     iterations
+  </li>
+</ul>
+  
+<h3>Output of <code>MCO-EXMX</code> and <code>MCO-AC</code></h3>
+<p align="justify">
+We start with the simpler Output of <code>MCO-EXMX</code>. 
+Inside the destination directory, you will find:
+<ul>
+  <li>
+    <strong><code>RandomisedParticleList.xml</code></strong>: 
+    this is the initial random 
+    class distribution determined prior to starting the classification 
+  </li>
+  <li>
+    <strong>directories <code>0,1,2, ... N</code></strong>: these are the directories 
+    for each EXMX iteration. Inside each of these directories you will find:
+    <ul>
+      <li>directories <code>class0</code>, <code>class1</code>, ..., 
+      <code>classC</code>: 
+      these C (=number of classes) directories contain class averages determined according to 
+      the current class distribution.
+      </li>
+      <li>
+        <code>AlignmentList-1.xml</code>, <code>AlignmentList-2.xml</code>, ... 
+	<code>AlignmentList-N.xml</code>: AlignmentLists after each iteration. These
+	AlignmentLists contain the class assignments.
+      </li>
+      <li>
+	Scores determined for each subtomogram with the respective class average
+      </li>
+      <li>
+        <code>classifiedParticles.xml</code>: Particle list with class labels 
+	determined in the current EXMX iteration. Class averages will be created at the start
+	of the next iteration.
+      </li>
+    </ul>
+</ul>
+
+Output of <code>MCO-AC</code> in the destination directory:
+<ul>
+  <li>
+    <strong>directories <code>0,1,2, ..., N_anneal </code></strong>: These are the 
+    directories for each annealing round.<br/>
+    Inside of each directory there is the content of an <code>MCO-EXMX</code> 
+    run (see above).
+  </li>
+  <li>
+    <strong><code>swapList.xml</code></strong>: List of class swaps induced
+    by annealing.
+  </li>
+  <li>
+    <strong><code>currentBestParticleList.xml</code></strong>: The best scoring
+    particle assignment is stored. During the annealing iterations it may get 
+    worse.
+  </li>
+</ul>
+
+
+<h3>MCO classification on the tutorial data</h3>
+The tutorial shows how to apply both types of classification to the tutorial data. Particles are classified directly after localization in the <code>postLocalizationClassification</code> with <code>MCO-EXMX</code> and classification after alignment with <code>MCO-AC</code>. Please note that the order was chosen based on our standard workflow but can be swapped for individual adjustment.
+<ul>
+  <li>
+    <strong><code>MCO-EXMX</code></strong><br/>
+    The <code>postLocalizationClassification</code> folder contains all scripts and files required to run a coarse classification on the tutorial particles. As specified in <code>job.xml</code>, it will classify all particles based on their orientations determined during localization. Furthermore, it will split the whole data-set into 5 (<code>NumberClasses</code>) classes and run through 10 iterations (<code>NumberIterations</code>). It will stop before the 10th iteration if less than 0.05 (<code>EndThreshold</code>) : 5% of all particles have changed their class assignment.<br/>
+    Please note that the initial cluster assignments are distributed randomly so that results are not necessarily reproduceable. If you want to reproduce results, you must start with the <code>RandomisedParticleList.xml</code> in the <code>results</code> directory. Classification progress is deterministic from then on.<br/>
+    The <code>mergeClasses.sh</code> script demonstrates how to merge multiple classes  back into one. Running all commands in this script will ultimately display a similarity tree where you can determine which classes to merge and should be used for further resolution refinement. Please also follow the scripts at the bottom of this page. 
+  </li>
+  <li>
+    <strong><code>MCO-AC</code></strong><br/>
+    The <code>mcoAClassification</code> folder contains classification scripts and results after the previously <code>MCO-EXMX</code> classified particles were aligned. As mentioned above and in <a href="http://dx.doi.org/10.1016/j.jsb.2011.12.003">Hrabe et. al. 2012</a>, <code>MCO-AC</code> is essentially an extended version of <code>MCO-EXMX</code>. Classification is adjusted to 3 (<code>NumberIterations</code>) annealing iterations, meaning that each of three rounds of <code>MCO-EXMX</code> will be followed by an annealing step where particles randomly change class labels. This stochastic process is adjusted (on the bottom of <code>job.xml</code>) to <code>AnnealingTemperature</code> where the particle temperature and step is specified. The most important feature of <code>AnnealingCriterion</code> is <code>AllowClassCollapse</code>. Random assignment may cause extinction where no particles will be assigned to one class. If you set <code>AllowClassCollapse</code> to <code>True</code>, you allow for this to happen. If it is set to <code>False</code>, the algorithm will repeat random assignment up to 10x in case one class goes missing. If this happens over 10 tries, the algorithm will continue with less one class. While <code>MCO-AC</code> is running, you will see result folders come and go. These folders store <code>MCO-EXMX</code> results and will be deleted after each iteration. The real <code>MCO-AC</code> is <code>currentBestParticleList.xml</code> with the best class assignment found thus far.
+  </li>
+</ul>
+
+<h2>Merging classes</h2>
+<p align="justify">
+It is a common problem of classification algorithms that they tend to ignore
+small classes. A solution to this problem is to oversample the class number 
+in the classification: e.g., if ~4 classes are expected to be present in the
+dataset one may initially group the dataset into ~20 classes, which increases
+the chances that a sparse class will be distinguished and not fused into 
+a more populated class. Thus, of the ~20 classes, many classes will be essentially
+identical, which can subsequently be merged again.
+</p>
+<p align="justify">
+In order to merge classes by hirarchical clustering, you have to run the following commands.
+<ol>
+  <li>
+    <strong>Average</strong>: Generate class averages with this script:
+    <div class="codeFragment">
+      <code>
+        $ ipytom <br/>
+        from pytom.basic.structures import ParticleList<br/>
+        pl = ParticleList()<br/>
+        pl.fromXMLFile('bestAfter31Its.xml')<br/>
+        pls.sortByClassLabel()<br/>
+        pls = pl.splitByClass()<br/>
+        for i in xrange(len(pls)):<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;c = pls[i]<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;print i, ' == classlabel : ', c[0].getClassName(), '    Class size: ' , len(c)	<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;c.average('classAverages/class' + str(i) + '.em') 	<br/><br/>
+        classAveragesList = ParticleList('classAverages')	<br/>
+        classAveragesList.loadDirectory()<br/>
+        classAveragesList.toXMLFile('classAverageList.xml')<br/>
+      </code>
+    </div>
+  </li>
+  <li>
+    <strong>CCC</strong>: Determine a correlation matrix between all class averages, which can 
+    then be used for hierarchical clustering.
+    Copy the below into a script and run either in parallel or sequential. 
+    <div class="codeFragment">
+      <code>
+        $ ipytom <br/>
+        from pytom.cluster.correlationMatrixStructures import CorrelationMatrixJob<br/>
+        from pytom.basic.structures import ParticleList,Mask,Particle<br/>
+        from pytom.cluster.correlationMatrix import distributedCorrelationMatrix<br/>
+        import os<br/>
+        pl = ParticleList()<br/>
+        pl.fromXMLFile(''classAverageList.xml')<br/>
+        <br/>
+        mask=Mask('./mask.em')<br/>
+        job = CorrelationMatrixJob(particleList=pl, mask=mask, <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;resultMatrixName = 'correlationMatrix.em',applyWedge=False, <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;binningFactor=2, lowestFrequency=0, highestFrequency=17)<br/>
+        distributedCorrelationMatrix(job,False)<br/>
+      </code>
+    </div>
+  </li>
+  <li>
+    <strong>CCC to ascii</strong>: Convert matrix from EM format to text file that 
+    allows import to <code>R</code>:
+    <div class="codeFragment">
+      <code>
+        $ ipytom <br/>
+        from pytom_volume import read<br/>
+        from pytom.tools.files import writeMatrix2RMatrix<br/>
+        m = read('correlationMatrix.em')<br/>
+        writeMatrix2RMatrix(m,'correlationMatrix-R.txt')<br/>
+      </code>
+    </div>
+  </li>
+  <li>
+    <strong>Clustering</strong>: Code for hierarchical classification using the following commands in <code>scipy</code>:
+    <div class="codeFragment">
+      <code>
+        $ ipytom <br/>
+        from pytom.basic.files import read<br/>
+        from pytom_volume import abs<br/>
+        from pytom_numpy import vol2npy<br/>
+        from scipy.cluster.hierarchy import linkage,dendrogram<br/>
+        from matplotlib.pyplot import show<br/><br/>
+        matrix = abs(read('correlationMatrix.em')-1)<br/>
+
+        classification= linkage(vol2npy(matrix))<br/>
+        print classification<br/>
+        dendrogram(classification)<br/>
+        show()<br/>
+      </code>
+    </div>
+    You should see a hierarchical tree that suggests which classes should be merged.
+  </li>
+  <li>
+    <strong>Merge classes</strong>:
+    Using the below script you first split the particle list according the previously defined 
+    (too fine) classes and subsequently merge selected classes (in this example class 0, 2, and 3
+    into one class, classes 1 and 4 into another, and 5 and 6 into a third new class).
+    <div class="codeFragment">
+      <code>
+        $ipytom<br/>
+        from pytom.basic.structures import ParticleList<br/>
+        pl = ParticleList()
+        pl.fromXMLFile(''classAverageList.xml')<br/>
+        pls.sortByClassLabel()<br/>
+        pls = pl.splitByClass()<br/><br/>
+        
+        proteinState1 = pls[0] + pls[2] + pls[3]<br/>
+        proteinState1.average('proteinInState1')<br/><br/>
+        
+        proteinState2 = pls[1] + pls[4]<br/>
+        proteinState2.average('proteinInState2') <br/> <br/>
+        
+        outliers = pls[5] + pls[6]<br/>
+        outliers.average('outliers') <br/>
+      </code>
+    </div>
+  </li>
+</ol>
+
+<h2>Setting up a classification job using the web server</h2>
+Setting up a classification job is essentially identical to 
+setting up of an alignment job. Differences are the parameters specifying the 
+number of classes and so forth. 
+<center>
+<p><iframe width="420" height="315" src="http://www.youtube.com/embed/b0a5qPbbqgY" 
+frameborder="0" allowfullscreen></iframe></p>
+</center>
+
+<h2>
+		Create an classification job in the terminal with
+		<code>mcoEXMXJob.py</code> and <code>mcoACJob.py</code>
+</h2>
+Please note that we provide the <code>mcoEXMXJob.py</code> and <code>mcoACJob.py</code> scripts to set up classification jobs through the terminal. 
+Check the terminal parameters in <code>mcoEXMXJob.py --help</code> and <code>mcoACJob.py --help</code> for details.
+
+<h2>Example</h2>
+<h3>Coarse classification after localization</h3>
+<p align="justify">
+You can perform classification directly after localization in order to 
+get rid of obvious false positives such as gold beads. In order to do so, 
+we recomend to set up an MCO-EXMX classification job (without annealing).<br/>
+Hence, you can directly classify your reconstructed subtomograms 
+using the coarse alignment determined during localization. Please read below how 
+to set up an MCO-EXMX job, which is essentially identical to setting up a coarse MCO-AC 
+job. You will have to use the particle list you obtained after localization.<br/><br/>
+After MCO-EXMX, you want to select the good subtomograms. You can do so by 
+running the following script:<br/>
+<div class="codeFragment">
+  <code>
+    $ipytom<br/>
+    from pytom.basic.structures import ParticleList<br/>
+    <br/>
+    pl = ParticleList()<br/>
+    #6 is the iteration number<br />
+    #classifiedParticles.xml is the result <br />
+    pl.fromXMLFile('./6/classifiedParticles.xml')<br/>
+    pl.sortByClassLabel()<br/>
+    pls = pl.splitByClass()<br/>
+    <br/>
+    for cl in pls:<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;className = cl[0].getClassName()<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;cl.average('class' + str(className) + '.em')<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;print className, ' contains ' , len(cl) , ' particles' <br/>
+    <br/>
+    #choose the corresponding result class you want to use for further processing, e.g., classes 1,2,3,4<br/>
+    #the decision on which particles to take you will make based on the averages written out above<br/>
+    ribos = pls[1] + pls[2] + pls[3] + pls[4]<br/>
+    <br/>
+    ribos.toXMLFile('filtered_pl.xml')<br/>
+    ribos.average('./filteredIniRef.em')<br/>
+  </code>
+</div>
+
+</body>
+</html>

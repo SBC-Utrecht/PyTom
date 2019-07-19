@@ -1,0 +1,342 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Localize Macromolecules</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+<script type="text/javascript"
+	src="http://latex.codecogs.com/latexit.js"></script>
+</head>
+<body>
+	<p class="Header">PyTom: Localize Macromolecules by template
+		matching</p>
+	<h2 id="General">
+		Overview
+	</h2>
+	<p align="justify">Features in a tomogram that resemble a
+		structural 'template' can be localized in an automated fashion using
+		'template matching'. In this approach a 3D template is correlated
+		with a given tomogram. In this procedure the different possible
+		rotations and translations are sampled exhaustively using the
+		algorithm described in <i>F&ouml;rster et al, Meth. Enzymol. 483:215-43 (2010)</i>.
+</p>
+
+<h2 id="General">
+		Tutorial files
+</h2>
+	<p align="justify">
+    	You will find sample localization scripts in the tutorial repository in the <code>RibosFromLysate/localization</code> directory. 
+    	It contains symbolic file-links to the <code>tomogram</code>, <code>reference</code> and <code>mask</code> + a <code>submit</code> example. 
+    	The referenced tomogram must be <a href='reconstructTomograms.html'>reconstructed<a/> first because it is too big for download!
+    	Please note that the submit file starting the localization is specifically designed for our cluster. 
+    	You will find a more generic <code>openmpi</code> command in the following paragraphs. 
+    	Scripts for determining potential macromolecules (<code>extract.sh</code>) and to fit a Gaussian 
+    	into the score histogram get an estimate of the number of macromolecules (<code>plotFit.sh</code>) are available,too. 
+    	Do not hesitate to modify the scripts after you processed them at least once. 
+    	You can always fall back to the original script by typing 
+	<div class="codeFragment">
+		<code>
+        git checkout -- TheFileYouChanged
+        </code>
+    </div>
+    </p>
+
+	<h2 id="practical">
+		Detect putative particles using
+		<code>localization.py</code>
+	</h2>
+	<p align="justify">
+		The script
+		<code>bin/localization.py</code>
+		allows computing the constrained local correlation of a tomogram and
+		a reference in a local area described by a mask. The script supports
+		MPI, which allows running the script on large computer clusters.
+		Here is a call of the script:
+	</p>
+	<div class="codeFragment">
+		<code>
+			mpirun --hostfile "pathToYourHostfile" -c "numberOfCPUs" pytom localization.py job.xml 2 2 2
+		</code>
+	</div>
+	<p align="justify">
+		The last 2 2 2 specify that the tomogram will be split into
+		<code>2</code>
+		parts along
+		<code>x,y,z</code>
+		dimension. =>
+		<code>8</code>
+		subcubes are distributed during localization and merged when
+		finished.This splitting of the volume does not change the
+		results. However, please keep in mind that splitting a tomogram along either one dimension resulting in a volume size smaller than the reference size will fail! All parameters that influence the result are specified in the XML file
+		<code>job.xml</code>
+		. In detail, the XML file specifies:
+	</p>
+
+	<ul>
+		<li><strong>Volume</strong>: Tomogram in <code>EM</code>, <code>MRC</code>
+			or <code>CCP4</code> format (<code>tomogram.em</code>)</li>
+		<li><strong>Reference</strong>: A reference (<code>EM</code>, <code>MRC</code>
+			or <code>CCP4</code> format) (<code>reference.em</code>). The
+			reference is general of much smaller dimension than the tomogram.
+			We only support cubic volumes.</li>
+
+		<li><strong>Mask</strong>: A mask for the reference (<code>EM</code>,
+			<code>MRC</code> or <code>CCP4</code> format) (<code>mask.em</code>).
+			The mask cube size must match the reference cube size. The mask
+			will typically be binary, but it does not have to. Follow <a
+			href="genMask.html">these instructions</a> to generate a spherical
+			mask with PyTom. However, mask do not need to be spherical - any
+			geometry is fine. Make sure that the mask does not "touch" the
+			edges of the volume but is fully contained in the cube. You will
+			then detect wrong objects such as gold-markers as your first hits.<br />
+			<center>
+				<img src="../images/goodMask.png" border=3 bordercolor=#AAAAAA />A
+				good mask. <img src="../images/badMask.png" border=3
+					bordercolor=#AAAAAA /> A bad mask.
+			</center>
+		</li>
+
+		<li><strong>WedgeInfo</strong>: Information about the tilt
+			geometry (tilt range). In PyTom the missing wedge is specified by
+			the angle counter and clock-wise. Thus, a tilt range of -65-60
+			degrees would correspond to angles of 25 and 30 degrees. The wedge
+			can also be rotated in 3D space if y does not correspond to the
+			tilt axis.
+		</li>
+
+		<li><strong>Angles</strong>: A list of angles that specifies
+			the rotational sampling of the reference (and mask if
+			non-spherical).
+		</li>
+
+		<li><strong>Destination</strong>: directory where result files
+			are stored (correlation volume and corresponding orientations).
+		</li>
+
+		<li><strong>Score</strong>: The scoring function for template
+			matching is always the fast local correlation function (FLCFScore).
+		</li>
+
+	</ul>
+
+	This is a sample XML file specifying the localization job:
+	<div class="codeFragment">
+		<code>
+			<p>
+				&lt;JobDescription Destination=&quot;./results/&quot;&gt;<br />
+				&lt;Volume Filename=&quot;./tomogram.em&quot;/&gt;<br>
+				&lt;Reference Weighting=&quot;&quot;
+				File=&quot;./reference.em&quot;/&gt;<br> &lt;Mask
+				Filename=&quot;./mask.em&quot; Binning=&quot;1&quot;
+				isSphere=&quot;True&quot;/&gt;<br> &lt;WedgeInfo
+				Angle1=&quot;30&quot; Angle2=&quot;30&quot;
+				CutoffRadius=&quot;0.0&quot; TiltAxis=&quot;custom&quot;&gt;<br>
+				&lt;Rotation Z1=&quot;0.0&quot; Z2=&quot;0.0&quot;
+				X=&quot;0.0&quot;/&gt;<br> &lt;/WedgeInfo&gt;<br>
+				&lt;Angles Type=&quot;FromEMFile&quot;
+				File=&quot;angles_12.85_7112.em&quot;&gt;<br>
+				&lt;RefinementParameters Shells=&quot;6.0&quot;
+				Increment=&quot;10.0&quot;/&gt;<br> &lt;OldRotations/&gt;<br>
+				&lt;/Angles&gt;<br> &lt;Score Type=&quot;FLCFScore&quot;
+				Value=&quot;-100000000&quot;&gt;<br> &lt;DistanceFunction
+				Deviation=&quot;0.0&quot; Mean=&quot;0.0&quot;
+				Filename=&quot;&quot;/&gt;<br> &lt;/Score&gt;<br>
+				&lt;/JobDescription&gt;
+			</p>
+		</code>
+	</div>
+
+	<h2 id="General">
+		Localization job with the UI
+	</h2>
+	
+	<center>
+		<iframe width="420" height="315" src="http://www.youtube.com/embed/MJolP7XLwPg" frameborder="0" allowfullscreen></iframe>
+		<p>&nbsp;</p>
+	</center>
+	
+	<h2>
+		Create a Localization job in the terminal with
+		<code>localizationJob.py</code>
+	</h2>
+	The
+		<code>localizationJob.py</code>
+		script allows you to set up localization through the terminal
+		instead using the web-browser.<br />
+	<br />
+
+
+
+	<div class="codeFragment">
+		<code>
+			<pre>
+NAME
+    localizationJob.py
+DESCRIPTION
+    Create a localization job.
+OPTIONS
+    -v, --volume		Volume : the big volume (Is optional: No; Requires arguments: Yes)
+    -r, --reference		Reference : the molecule searched (Is optional: No; Requires arguments: Yes)
+    -m, --mask			Mask : a mask  (Is optional: No; Requires arguments: Yes)
+    --wedge1    		Wedge : first tilt angle. Must be 90-tilt! (Is optional: No; Requires arguments: Yes)
+    --wedge2    		Wedge : second tilt angle.  Must be 90-tilt! (Is optional: No; Requires arguments: Yes)
+    -a, --angles		Angles : name of angle list. Either : 
+                                    angles_50_100.em
+                                    angles_38.53_256.em
+                                    angles_35.76_320.em
+                                    angles_25.25_980.em
+                                    angles_19.95_1944.em
+                                    angles_18_3040.em    
+                                    angles_12.85_7112.em    
+                                    angles_11_15192.em    
+                                    angles_07_45123.em
+                                    angles_3_553680.em
+                                     (Is optional: No; Requires arguments: Yes)
+    -d, --destination	Destination : destination directory (Is optional: No; Requires arguments: Yes)
+    -b, --band    		Lowpass filter : band - in pixels (Is optional: No; Requires arguments: Yes)
+    --splitX    		Into how many parts do you want to split volume (X dimension) (Is optional: No; Requires arguments: Yes)
+    --splitY    		Into how many parts do you want to split volume (Y dimension) (Is optional: No; Requires arguments: Yes)
+    --splitZ    		Into how many parts do you want to split volume (Z dimension) (Is optional: No; Requires arguments: Yes)
+    -j, --jobName		Specify job.xml filename (Is optional: No; Requires arguments: Yes)
+    -h, --help    		Help. (Is optional: Yes; Requires arguments: No)
+  			</pre>
+		</code>
+	</div>
+
+	<br /> The result of this script will be a
+	<code>job.xml</code>
+	and a
+	<code>job.sh</code>
+	file
+	
+
+	<h2>
+		Extracting positions and oriantations of candidates using
+		<code>extractCandidates.py</code>
+	</h2>
+	<p align="justify">
+		The correlation volume and corresponding orientations generated
+		above need to be interpreted. The script
+		<code>bin/extractCandidates.py</code>
+		simply determines the peaks of the correlation volume and the
+		corresponding orientations that are all stored in a particle list
+		(xml file).
+	</p>
+	<div class="codeFragment">
+		<code> pytom
+			&quot;PathToPyTom&quot;/bin/extractCandidates.py -j job.xml -n
+			100 -s 6 -r scores.em -o angles.em -p pl.xml -m -t
+			pathToNewParticles </code>
+	</div>
+	<p align="justify">
+		For usage, you need to specify the correlation (score) volume
+		where peaks are located
+		<code>-r score.em </code>
+		and volume with best angle indexes
+		<code>-o angles.em</code>
+		. That will generate a particle list
+		<code>-p pl.xml</code>
+		(and a MOTL
+		<code>pl.xml_MOTL.em</code>
+		if -m is specified) in the current directory. The particle list
+		will contain
+		<code>-n 100</code>
+		particles. The cut out radius around each peak is
+		<code>-s 6</code>
+		. In the resulting particle list All particles will have a prefix
+		determined by the
+		<code>-t</code>
+		option. Please note that you can include the complete (absolute) 
+		path to the particles, here, too.
+		<code>-g</code>
+		indicates the minimum distance from the edges, which will not be
+		concidered as potential candidates.
+	</p>
+	<h2 id="Estimate">
+		Estimate the number of particles in tomogram
+	</h2>
+	<p align="justify">
+		In order to estimate the approximate number of molecules in the tomogram statistically, run <code> plotGaussianFit.py</code>.
+		A Gaussian will be fitted into the histogram of the score-values. Everything lower than 1 sigma from the fitted mean should be regarded as not significant hits.
+	</p>	
+	<div class="codeFragment">
+		<code>
+			<pre>
+NAME
+plotGaussianFit.py
+DESCRIPTION
+    Do the Gaussian fitting on the found particle list.
+OPTIONS
+    -f, --file    Particle list after extracting candidates. (Is optional: No; Requires arguments: Yes)
+    -n, --numberBins    Number of bins of histogram. Default is 10. (Is optional: Yes; Requires arguments: Yes)
+    -p, --gaussianPeak    The correspondent index of the Gaussian peak. (Is optional: No; Requires arguments: Yes)
+    -c, --nuberParticles    Number of particles up to CCC value. (Is optional: No; Requires arguments: Yes)
+    -h, --help    Help. (Is optional: Yes; Requires arguments: No)
+AUTHORS
+    Yuxiang Chen 
+    		</pre>
+    	</code>
+    </div>
+    <br/>	
+    <center>
+    	<figure>
+    		<img src='./estimationCurve.png' height='50%' width='50%'/></center><br/>
+    		<figcaption>
+    			The above plot showcases a fitted Gaussian (dashed green line) in the histogram (solid red line) of all scores determined during localization.
+    		</figcaption>
+    	</figure>
+    </center>
+    <br/>	 
+	To adjust your particle list to the determined score value, simply erase all particles with a value lower than the estimate.
+	You can achieve that by either manually deleting all particles with a score lower than the estimate from the XML file using an text editor, 
+	or in the <code>ipytom</code> terminal with the following commands:
+	<br/><br/>
+	<div class="codeFragment">
+		<code>
+		from pytom.basic.structures import ParticleList<br/>
+		pl = ParticleList()<br/>
+		newPl = pl[0:252]<br/>
+		newPL.toXMLFile('pl_first252.xml')<br/>
+		</code>
+	</div>
+	
+	
+	
+	<!--old documentation
+	<h2 id="GUI">
+		A typical workflow using a web browser
+	</h2>
+	<ul>
+		<li><strong>(i)</strong> make sure you have all required
+			files and info (see above).</li>
+		<li><strong>(ii)</strong> Start the PyTom UI Webserver,
+			browse to the New Localization Job Page.</li>
+		<li><strong>(iii)</strong> Fill out all forms and generate a
+			new job.xml file</li>
+		<li><strong>(iv)</strong> Log in on a remote cluster
+			machine, change into the directory of the new job.xml</li>
+		<li><strong>(v)</strong> Start the parallel job</li>
+		<li><strong>(vi)</strong> Check results after processing in
+			your result folder.</li>
+		<li><strong>(vii)</strong> Create a particle list from the
+			template matching results using <code>extractCandidates.py</code>.
+		</li>
+		<li><strong>(viii)</strong> <a
+			href="./reconstructSubtomograms.html">Reconstruct</a> the
+			subtomograms corresponding to the particles using the generated
+			particle list.
+		</li>
+		<li><strong>(ix)</strong> Generate a preliminary <a
+			href="./average.html">average</a> from the particle list.
+		</li>
+		<li><strong>(x)</strong> Refinement of subtomogram average (<a
+			href="./alignment.html">alignment</a>) using the reconstructed
+			subtomograms.
+		</li>
+
+	</ul>
+-->
+
+
+</body>
+</html>

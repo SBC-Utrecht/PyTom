@@ -1,0 +1,48 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<script type="text/javascript"
+    src="http://latex.codecogs.com/latexit.js"></script>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Classify subtomograms</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+
+</head>
+<body>
+    <p class="Header">PyTom: Classify subtomograms using AC3D</p>
+    <h2 id="General">Overview</h2>
+    <p align="justify">Other than <a href="classification.html">CPCA and MCO</a>, we also have a new classification method: Autofocused Classification for 3D subtomograms (AC3D). AC3D is a clustering algorithm (unsupervised) and its basic idea is to automatically focus the classification on the most variable parts of 3D structures. This new type of similarity score (focused score) enables better discriminative ability.</p>
+    <p>Please refer to the paper for more details: <a href="http://www.sciencedirect.com/science/article/pii/S0969212614002524">Autofocused 3D Classification of Cryoelectron Subtomograms, Y. Chen et al., Structure 2014.</a></p>
+
+    <h2>Script description</h2>
+    <p align="justify">Here we assume you already have the subtomograms aligned, either by template matching or <a href="frm.html">subtomogram alignment</a>.</p>
+
+    <h2>Subtomogram classification using <code>auto_focus_classify.py</code></h2>
+    <p>This script should be run in parallel:</p>
+    <div class="codeFragment">
+        <code> mpirun -np "numberOfCPUs" pytom PathToPytom/classification/auto_focus_classify.py</code>
+    </div>
+    <p>The parameters are explained below:
+	<ul>
+	    <li><strong>-p:</strong> Aligned particle list.</li>
+	    <li><strong>-k:</strong> Number of expected classes.</li>
+	    <li><strong>-f:</strong> Maximal frequency involved during the calculation (in band unit).</li>
+	    <li><strong>-i:</strong> Number of iterations to run (by default 10).</li>
+	    <li><strong>-a:</strong> Run the classification WITHOUT alignment (if the particle list is already aligned).</li>
+	    <li><strong>-s:</strong> Potential translational offset of the particle from the center (radius, in pixel unit, only specify if the particle list is not aligned).</li>
+	    <li><strong>-m:</strong> Alignment mask. This mask is only used for the alignment purpose. Only specify it if the particle list is not aligned.</li>
+	    <li><strong>-c:</strong> Focused mask. This mask is used for constraining the calculation of the focused mask. (Optional)</li>
+	    <li><strong>-r:</strong> Use external references as the starting point (optional). By default, AC3D use K-means++ to generate the starting class centers. If you wish to provide your own starting class centers, specify them here (filenames seperated by comma).</li>
+	    <li><strong>-n:</strong> Noise percentage (between 0 and 1). If you estimate your dataset contains certain amount of noise outliers, specify it here.</li>
+    </ul>
+    </p>
+    <p>And two parameters for controlling the calculation of difference mask.
+    <ul>
+	    <li><strong>-g:</strong> Particle density threshold for calculating the difference map (optional, by default 0). Two other most common choise are -2 and 2. -2 means all the values of the subtomogram below the -2 sigma will be used for calculating the difference mask (negative values count). 2 means all the values of the subtomogram above the 2 sigma will be used for calculating the difference mask (positive values count). Finally, 0 means all the values are used for the calculation.</li>
+	    <li><strong>-t:</strong> STD threshold for the difference map (optional, by default 0.4). This value should be between 0 and 1. 1 means only the place with the peak value will be set to 1 in the difference map (too much discriminative ability). 0 means all the places with the value above the average of STD will be set to 1 (not enough discriminative ability).</li>
+    </ul>
+    </p>
+    
+    <p>If you have further questions, please email to: chenyxkk@googlemail.com.</p>
+</body>
+</html>

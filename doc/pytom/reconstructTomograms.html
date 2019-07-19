@@ -1,0 +1,388 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Align Projections and reconstruct tomograms</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+<p class="Header">PyTom: Align projections and reconstruct a tomogram</p>
+<h2 id="General">Overview</h2>
+Pytom currently supports the alignment of projections by fiducials
+and reconstruction by weighted backprojection. Both, alignment by
+gold beads and reonstruction by weighted backprojection are still
+the most common approaches in the field. Nevertheless, we are working on the 
+implementation of further alignment and reconstruction methods.
+<h2 id="Background">Theoretical Background</h2>
+<h3 id="Alignment">Alignment of tilt series</h3>
+<p align="justify">
+Prior to a 3D reconstruction projections must be aligned to 
+a common coordinate system because despite the best efforts to keep the feature 
+of interest in the center during acquisition movement is inevitable. Moreover,
+the electron optical lense system causes image rotations and even subtle
+focus-dependent magnification changes, which need to be compensated for.</p>
+<p align="justify">
+Currently, PyTom only supports alignment by fiducials (gold beads). The positions
+of markers in the projection images need to be provided in an EM-file. This
+file can be obtained by interactive marker localization in the <code>TOM/AV3</code> 
+or <code>EM</code> packages. There is also a function in AV3 to convert IMOD 
+marker files to an EM file (av3_wimp2em.m).</p>
+<p align="justify">
+The PyTom alignment function simply minimizes the residual error of the 
+coordinates projected from a 3D model and the oberserved coordinates in the
+projections. In more detail, 3D coordinates of the marker model, the projection 
+shifts, and the image rotation is first computed using an analytical approach,
+in which a constant rotation (=tilt axis) and magnification is assumed 
+(<code>TiltAlignment.computeCoarseAlignment</code>). This
+function determines a tilt axis (to x-axis) between 0 and 180 degrees; by definition
+for a tilt axis x there is a second solution, x+180 deg, that would satisfy the 
+marker equations equally well. You need prior knowledge to decide, which tilt
+axis is correct - assuming the wrong tilt axis will yield reconstructions
+with the inverted handedness. In the alignment it can be specified if the solution
+180&lt;x&lt;360 deg is supposed to be correct rather than the default solution 
+0&lt;x&lt;180 (handflip=True).</p>
+<p align="justify">
+To determine the 3D coordinate system of the markers the coordinates of one 
+marker point need to be defined. Thus, a reference marker needs to be chosen 
+(<code>irefmark</code>). To this marker reference coordinates (<code>r</code>) 
+can be assigned or default values can be chosen. The default value is 
+<code>r=(x_iref-center,y_iref-center,0)</code>. <code>x_iref</code> and 
+<code>y_iref</code> are the coordinates of the marker in a reference projection
+<code>iref</code>. 
+</p>
+<p align="justify">
+After approximate determination of the image rotations, translations, and 3D
+coordinates of the markers an optimization algorithm 
+(<code>TiltAlignment.alignFromFiducials</code>) determines the tilt-angle specific image 
+rotation, tilt-angle specific magnification, and again translations and 3D coordinates. 
+For the reference projection <code>iref</code> the magnification is defined as 1.
+</p>
+<p align="justify">
+The projections are aligned by inverse application of the determined translations, 
+rotations, and magnifications to each projection. The transformation is carried
+out as a single interpolation in real space (default interpolation method: 
+3rd order spline).
+</p>
+<h3 id="weighting">Weighting of projections</h3>
+<p align="justify">
+If a tomogram were reconstructed from the unprocessed projections the low-frequency
+information would be artificially enhanced as illustrated in Fig.1. To obtain
+a truthful 3D image the information below the so-called Crowther frequency
+need to be attenuated. This is accomplished by weighting the projections in 
+Fourier space proportional to its frequency perpendicular to the tilt axis.
+This can be approximated as a 'ramp' function (analytical weighting). A more 
+accurate weighting scheme would be to explicitly compute the overlapping information
+in Fourier space (exact weighting, not yet implemented in PyTom).
+In many cases it makes sense to furthermore apply a low-pass filter
+to the data to eliminate noise, which is dominant in the higher frequencies.
+</p>
+<center>
+<img src="../images/crowther.jpg" align="center" alt="Crowther" 
+   name="Crowther" width="512">
+</center>
+<p align="justify">
+<strong>Fig. 1.</strong>Sampling of Fourier space by projections in 2D. The
+Fourier transform of each projection samples a slice of Fourier space
+(black lines); its normal is determined by the tilt angle. The signal
+‘leak’ of each sample point into the neighboring area is reciprocally
+proportional to the diameter D of the object. For reconstruction, the
+Fourier coefficients on the 3D grid (intersected lines) need to be
+approximated from the sampling points of the projections by an
+appropriate algorithm. In principle, the 3D signal can be
+reconstructed without any gaps to a resolution k_C if the entire tilt
+range of +/-90 deg was accessible. Restricting the tilting to +/-90 deg 
+gives rise to a ‘missing wedge’.
+</p>
+<h3 id="rec3d">3D Reconstruction of tomogram</h3>
+<p align="justify">
+In PyTom reconstructions are performed using backprojection. The algorithm can
+use different interpolation kernels. By default we use a 3rd order spline.
+</p>
+
+<h2 id="practical">Reconstruct a tomogram using <code>reconstructTomogram.py</code> </h2>
+<p align="justify">
+In our <a href="tutorial.html">tutorial data-set</a> you will find a 
+directory <code>reconstructTomo</code> where you can perform reconstruction 
+of a full tomogram by weighted backprojection.
+Projections will be aligned and weighted during this step so that the 
+data you start with are unaligned and unweighted projections. 
+Essentially raw projections only sorted according to the tilt angle.
+Running this script will generate a full <code>tomogram.em</code> file, 
+either 2x binned (4x downscaled) (<code>512,512,128</code>) or in 
+original size (<code>2048,2048,512</code>). The alignment will be 
+determined based on the coordinates of fiducials clicked in the Matlab
+TOM toolbox. Alternatively, you can use coordinates from <a href="#imod">
+IMOD</a>.
+</p>
+The <code>reconstructTomo.sh</code> is essentially the only script you 
+have to run to obtain the aligned, weighted projections and the 2x binned tomogram. 
+<div class="codeFragment">
+<code>
+<pre>
+reconstructTomogram.py	--tiltSeriesName ../projections/tomo01_sorted \
+					 	--firstIndex 1 \
+					 	--lastIndex 41 \
+					 	--referenceIndex 21 \
+					 	--markerFile ../projections/markfile_temp.mark \
+					 	--referenceMarkerIndex 1 \
+					 	--projectionTargets ./alignedProjections/tomo01 \
+					 	--projectionBinning 4 \
+					 	--lowpassFilter 0.5 \
+					 	--tomogramFile tomogram.em \
+					 	--fileType em \
+					 	--tomogramSizeX 512 \
+					 	--tomogramSizeY 512 \
+					 	--tomogramSizeZ 128 \
+					 	--reconstructionCenterX 0 \
+					 	--reconstructionCenterY 0 \
+					 	--reconstructionCenterZ 0 
+</pre>					 	
+</code>
+
+</div> 
+In order to get acquainted with the parameters of <code>reconstructTomogram.py</code>, simply run
+<div class="codeFragment">
+<code>
+reconstructTomogram.py	--help
+</code>
+</div> 
+In detail the provided parameters for reconstruction are:
+<ul>
+  <li><strong>tiltSeriesName</strong>: Name tilt series - either prefix of sequential tilt series files expected as
+      "tiltSeriesName_index.em/mrc" (<code>EM</code> or <code>MRC</code> file) or full name of stack "tiltSeriesName.st"
+      (<code>MRC</code> file)
+  </li>
+  <li><strong>tiltSeriesFormat</strong>: Format of tilt series (series of <code>em</code> or <code>mrc</code> images or
+      <code>st</code>code> stack in <code>MRC</code> format)
+  </li>
+  <li><strong>firstIndex</strong>: Index of first projection
+  </li>
+  <li><strong>lastIndex</strong>: Index of last projection
+  </li>
+    <li><strong>tltFile</strong>: tltFile containing tilt angles (from IMOD) - only required if tilt angles NOT stored
+        in header of tilt series.
+    </li>
+    <li><strong>prexgFile</strong>: prexgFile containing pre-shifts from IMOD.
+    </li>
+    <li><strong>preBin</strong>: pre-Binning in IMOD prior to marker determination.
+    </li>
+  <li><strong>referenceIndex</strong>: Index of reference projection used for alignment
+  </li>
+  <li><strong>markerFile</strong>: name of <code>EM</code>code> markerfile (e.g., generated using TOM) or
+      <code>IMOD</code>code> <a href="#wimp">wimp</a> File containing marker coordinates,
+  </li>
+  <li><strong>referenceMarkerIndex</strong>: Index of reference marker to set up coordinate system
+  </li>
+  <li><strong>handflip</strong>: Is your tilt series outside of 0-180deg?
+  </li>
+  <li><strong>projectionTargets</strong>: Relative or absolute name of the aligned projections that will be generated
+      - will be called projectionTargets_index.em.
+  </li>
+  <li><strong>fineAlignFile</strong>: Relative or absolute path to the file with fineAlign parameters (type should be
+      *.dat).
+  </li>
+  <li><strong>projectionBinning</strong>: Binning of projections during read
+  </li>
+  <li><strong>lowpassFilter</strong>: Lowpass filter in Nyquist after binning
+  </li>
+  <li><strong>tomogramFile</strong>: Relative or absolute path to final tomogram (no tomogram, only aligned projections
+      written if not specified)
+  </li>
+  <li><strong>fileType</strong>: File type of tomogram (can be <code>EM</code> or <code>MRC</code> - no tomogram written if not specified)
+  </li>
+  <li><strong>tomogramSizeX</strong>: Size of tomogram in x (no tomogram written if not specified)
+  </li>
+  <li><strong>tomogramSizeY</strong>: Size of tomogram in y (no tomogram written if not specified)
+  </li>
+  <li><strong>tomogramSizeZ</strong>: Size of tomogram in z (no tomogram written if not specified)
+  </li>
+  <li><strong>reconstructionCenterX</strong>: Center where tomogram will be reconstructed (no tomogram written if not specified)
+  </li>
+  <li><strong>reconstructionCenterY</strong>: Center where tomogram will be reconstructed (no tomogram written if not specified)
+  </li>
+  <li><strong>reconstructionCenterZ</strong>: Center where tomogram will be reconstructed (no tomogram written if not specified)
+  </li>
+  <li><strong>weightingType</strong>: type of weighting. -1: r-weighting (default), 0: no weighting.
+  </li>
+  <li><strong>verbose</strong>: verbose mode
+  </li>
+</ul>
+
+All further steps shown in the tutorial are based on particles detected within this tomogram.
+
+
+
+<a id="imod"><h2>Reconstruct using Marker coordinates from <em>IMOD</em></h2></a>
+<p align="justify">
+<a href="http://bio3d.colorado.edu/imod/" target="_blank">IMOD</a> is a common
+program for reconstruction of electron tomograms. In particular, it has handy
+functionality for tracking fiducial markers and features. The coordinates of
+these features can be used for alignment in pytom, as described in the
+following. From the files automatically generated during alignment with
+<em>etomo</em> the marker coordinates for later use in PyTom can be obtained.
+</p>
+<h3><a id="wimp">Creating a <em>WIMP</em> file containing the marker coordinates</a></h3>
+<p align="justify">
+You will need one file from IMOD for reconstruction containing the coordinates
+of the markers in the un-transformed tiltseries: the <em>WIMP</em> file. IMOD
+itself by default makes use of a pre-transformed tiltseries according to
+a crude pre-alignment of the tiltseries (see also: <a
+href="http://bio3d.colorado.edu/imod/doc/man/tiltalign.html#TOP" target="_blank">
+tiltalign documentation</a>). Thus, in order to get the raw
+marker coordimates you need to transform them back, either in PyTom or the built-in
+IMOD functions. IMOD will internally store the marker coordinates in a
+<code>.fid</code> file and the pre-transformation in a
+<code>.prexg</code> file. Moreover, the marker coordinates are stored in a coordinate
+    system that is pre-shifted compared to the original files. The pre-shift binning value is
+    somewhat hidden in the advanced options of the preprocessing tab in IMOD.
+</p>
+<p align="justify">
+    If you transform the marker coordinates in PyTom everything is straightforward. You obtain the WIMP files using
+    3dmod:
+    <ol>
+        <li>Start 3dmod by typing <code>3dmod</code> in the command line.
+        </li>
+        <li>Select the model file (<code>myTiltSeries.fid</code>), which is generated by the <code>etomo</code>
+            workflow.
+        </li>
+        <li>Press 'OK'.
+        </li>
+        <li>A viewer for the tilt series and the small 3dmod window opens.
+        </li>
+        <li>Save WIMP file in the 3dmod window using menu: File -> Write Model As -> Wimp.
+        </li>
+    </ol>
+</p>
+<p align="justify">
+Alternatively you can convert the coordinates using imod tools, which is mentioned for the sake of completeness here:
+    To convert the pre-transformed marker coordinates
+back to their original values the following IMOD programs can be
+used from the command line (see also: <a
+href="http://bio3d.colorado.edu/imod/doc/man/xfmodel.html#TOP"
+target="_blank">xfmodel</a>):
+<div class="codeFragment">
+  <code>
+xfmodel -back -prealign myTiltSeries.prexg -input myTiltSeries.fid -o myTiltSeries_raw.fid
+  </code>
+</div>
+For tiltseries <code>myTiltSeries</code>, this command will generate a
+<code>.fid</code> file with back-transformed marker coordinates (=
+<code>myTiltSeries_raw.fid</code>). In case you worked with binned
+images in the IMOD alignment you will also need to revert the binning. For
+example, the command would be the following for selection scale=1/8
+(1/binimod):
+<div class="codeFragment">
+  <code>
+xfmodel -back -scale 0.1250 -prealign myTiltSeries.prexg -input myTiltSeries.fid -o myTiltSeries_raw.fid
+  </code>
+</div>
+The <code>_raw.fid</code> file can now be converted into an <em>WIMP</em> file in
+<code>3dmod</code> from the IMOD package:
+<ol>
+  <li>Start 3dmod by typing <code>3dmod</code> in the command line.
+  </li>
+  <li>Select the raw model file (the <code>myTiltSeries_raw.fid</code>, which was just generated). If you need to
+      revert binning make sure you select model and also tilt series- otherwise the magnification is somehow not
+      taken into account - weird ...
+  </li>
+  <li>Press 'OK'.
+  </li>
+  <li>A viewer for the tilt series and the small 3dmod window opens.
+  </li>
+  <li>Save WIMP file in the 3dmod window using menu: File -> Write Model As -> Wimp.
+  </li>
+</ol>
+</p>
+
+<a id="recwimp"><h3>Tomogram Alignment from WIMP file</h3></a>
+<p align="justify">
+    The <a href="#rec3d">reconstruction script</a> now supports alignment from WIMP files. Just specify the WIMP file
+    as the markerfile instead of an EM markerfile and there you go. Additionally, you may often need to specify the
+    tilt angles in the form of a tlt file because they are typically not stored anywhere in the header.
+</p>
+
+<h2>Reconstruct a tomogram using <em>INFR</em> algorithm</h2>
+<p align="justify">
+Now PyTom also includes the support of a new reconstruction algorithm called 
+Iterative Nonuniform fast Fourier transform based Reconstruction method 
+(<em>INFR</em>). For more details about this algorithm, please check: 
+<a href="http://www.sciencedirect.com/science/article/pii/S104784771300316X">
+Iterative reconstruction of cryo-electron tomograms using nonuniform fast 
+Fourier transforms, Y. Chen et al., JSB 2014.</a>
+</p>
+<p>
+The way to use it is simple:
+<div class="codeFragment">
+    <code>pytom PathToPytom/reconstruction/reconstruct_INFR.py</code>
+</div>
+It requires the following parameters:
+<ul>
+  <li><strong>-d</strong>: The directory name, in which all the aligned and 
+  unweighted projections are stored. Note that the projections should be EM 
+  format and the tilt angle information must be specified in the headers!
+  </li>
+  <li><strong>-i</strong>: Optional, the number of iterations to run. 10 by 
+  default.
+  </li>
+  <li><strong>-o</strong>: Output filename.</li>
+</ul>
+Note that INFR requires a lot of memory. Currently it is limited to 
+<em>1k x 1k</em> projections on most computers (i.e., depending on the amount
+of memory you have). 
+</p>
+To create the aligned projections you can also use PyTom. Simply use the <a href="#rec3d">script</a>
+for WBP reconstruction, but omit weighting and reconstruction
+(<em>--weightingType 0</em>):
+<div class="codeFragment">
+    <code>
+    <pre>
+    pytom PathToPytom/bin/reconstructTomogram.py --tiltSeriesPath MyTiltSeriesDir \
+        --tiltSeriesPrefix NameOfTiltSeriesFiles --firstIndex 1 --lastIndex MyLastIndex \
+        --referenceIndex MyReferenceProjectionIndex --markerFile MyMarkerFile \
+        --referenceMarkerIndex MyReferenceMarkerIndex --projectionTargets \
+        MyFileNameOfAlignedProjections --projectionBinning MyBinning --weightingType 0
+    </pre>
+    </code>
+</div>
+
+
+<h2>Basic interactive manipulation of volumes</h2>
+<p align="justify">
+Sometimes you might want to do simple things on your reconstructed tomogram like
+reducing its size or low-pass filtering it without reconstructing it again.
+Here is an example how to reduce the size in <em>z</em>:
+</p>
+<p align="justify">
+<div class="codeFragment">
+<code>
+$ipytom<br/>
+from pytom_volume import read, subvolume<br/>
+v = read('tomogram.em')<br/>
+#this function will cut out a subvolume the size 512,512,256 out of the original volume starting at position 0,0,128<br/>
+s = subvolume(v,0,0,128,512,512,256) <br/>
+s.write('subVolume.em')</code>
+</div>
+</p>
+<p align="justify">
+Make sure you store the position at which the subvolume was cut. This will coordinate is 
+required for reconstructing subtomograms at full resolution (see <a 
+href="reconstructSubtomograms.html">Reconstruct Subtomograms Tutorial</a>).
+</p>
+<p align="justify">
+If you want to lowpass filter the tomogram / subvolume to a specified resolution you can do that 
+interactively as well:
+</p>
+<p align="justify">
+<div class="codeFragment">
+  <code>
+  $ipytom
+  volume = read('subvolume.em')<br/>
+  from pytom.basic.filter import lowpassFilter<br/>
+  filteredVolume = lowpassFilter(volume,100,10)[0] #filter the volume to the 100th 
+  pixel in Fourier space with 10 pixel smoothing<br/>
+  filteredVolume.write('filteredVolume.em')
+  </code>
+</div>
+</p>
+</body>
+</html>
