@@ -89,18 +89,10 @@ if __name__ == '__main__':
         print(e)
         sys.exit()
 
-    print(tiltSeriesName, tiltSeriesFormat, firstProj, lastProj, projIndices,\
-        tltFile, prexgFile, preBin, referenceIndex, markerFileName, referenceMarkerIndex, expectedRotationAngle, \
-        projectionTargets, fineAlignFile, projBinning, lowpassFilter, \
-        volumeName, filetype, \
-        tomogramSizeX, tomogramSizeY, tomogramSizeZ, \
-        reconstructionCenterX, reconstructionCenterY, reconstructionCenterZ, \
-        weightingType, verbose, help)
-
-
     if help is True:
         print(helper)
         sys.exit()
+
     # input parameters
     #tiltSeriesName = tiltSeriesPath + tiltSeriesPrefix  # "../projections/tomo01_sorted" # ending is supposed to be tiltSeriesName_index.em (or mrc)
     if not tiltSeriesFormat:
@@ -109,6 +101,7 @@ if __name__ == '__main__':
         firstProj = int(firstProj)  # 1 # index of first projection
     else:
         firstProj = 1
+
     lastProj = int(lastProj)  # 41 # index of last projection
     ireftilt = int(referenceIndex)  # 21 # reference projection (used for alignment)
     if referenceMarkerIndex:
@@ -177,6 +170,12 @@ if __name__ == '__main__':
         preBin=int(preBin)
 
     outMarkerFileName = 'MyMarkerFile.em'
+
+    alignResultFile = ''
+
+    if 'alignmentResults.txt' in os.listdir(os.path.dirname(tiltSeriesName)):
+        alignResultFile = os.path.join(os.path.dirname(tiltSeriesName), 'alignmentResults.txt')
+
     if verbose:
         print("Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj))
         print("Index of Reference Projection: "+str(referenceIndex))
@@ -200,7 +199,7 @@ if __name__ == '__main__':
                            tiltSeriesFormat=tiltSeriesFormat, firstProj=firstProj, irefmark=irefmark, ireftilt=ireftilt,
                            handflip=expectedRotationAngle*numpy.pi/180,
                            alignedTiltSeriesName=alignedTiltSeriesName,
-                           weightingType=weightingType,
+                           weightingType=weightingType, alignResultFile=alignResultFile,
                            lowpassFilter=lowpassFilter, projBinning=projBinning,
                            outMarkerFileName=outMarkerFileName, verbose=True)
 

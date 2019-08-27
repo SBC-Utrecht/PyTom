@@ -84,7 +84,7 @@ def positionsInProjections(location3D,tiltStart,tiltIncrement,tiltEnd,tiltAxis='
 
 
 def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=None, prexgfile=None, preBin=None,
-                           volumeName=None, volumeFileType='em',
+                           volumeName=None, volumeFileType='em',alignResultFile='',
                            voldims=None, recCent=[0,0,0], tiltSeriesFormat='st', firstProj=1, irefmark=1, ireftilt=1,
                            handflip=False, alignedTiltSeriesName='align/myTilt', weightingType=-1,
                            lowpassFilter=1., projBinning=1, outMarkerFileName=None, verbose=False, projIndices=None):
@@ -137,74 +137,70 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
 
     @author: FF
     """
-    if verbose:
-        print("Function alignWeightReconstruct started")
-        mute = False
-    else:
-        mute = True
     from pytom.gui.additional.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
-    tiltParas = TiltAlignmentParameters(dmag=True, drot=True, dbeam=False, finealig=True,
-                                        finealigfile='xxx.txt', grad=False,
-                                        irefmark=irefmark, ireftilt=ireftilt, r=None, cent=[2049, 2049],
-                                        handflip=handflip, optimizer='leastsq', maxIter=1000)
-    markerFileType = markerFileName.split('.')[-1]
-    # align with wimpfile
-    if not preBin:
-        preBin=1
-    if markerFileType == 'wimp':
-        if verbose:
-            print(" WIMP file used for alignment")
-        tiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName, TiltAlignmentParas=tiltParas,
-                                alignedTiltSeriesName=alignedTiltSeriesName,
-                                markerFileName=None, firstProj=firstProj, lastProj=lastProj,
-                                tiltSeriesFormat=tiltSeriesFormat)
-        tiltSeries.readIMODwimp(markerFileName=markerFileName, prexgfile=prexgfile, tltfile=tltfile, preBin=preBin,
-                                verbose=False)
-    else:
-        if verbose:
-            print(" EM markerfile file used for alignment")
-        tiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName, TiltAlignmentParas=tiltParas,
-                                alignedTiltSeriesName=alignedTiltSeriesName, projIndices=projIndices,
-                                markerFileName=markerFileName, firstProj=firstProj, lastProj=lastProj,
-                                tiltSeriesFormat=tiltSeriesFormat)
-        if tltfile:
-            tiltSeries.getTiltAnglesFromIMODfile(tltfile=tltfile)
-    tiltAlignment = TiltAlignment(TiltSeries_=tiltSeries)
-    #print('dimensions: ', tiltSeries._imdim)
-    if outMarkerFileName:
-        tiltSeries.writeMarkerFile(markerFileName=outMarkerFileName)
-        tiltSeries._markerFileName = outMarkerFileName
-    tiltAlignment.resetAlignmentCenter()  # overrule cent in Paras
 
-    try:
-        import os
-        if volumeName:
-            base, ext = os.path.splitext(os.path.basename(volumeName))
-            base = "_" + base
+    print('de: ', alignResultFile, not alignResultFile)
+    if not alignResultFile:
+        if verbose:
+            print("Function alignWeightReconstruct started")
+            mute = False
         else:
-            base = ''
-        name = os.path.dirname(alignedTiltSeriesName)
-        if '/temp' in name: name = os.path.dirname(name)
-        outfile = "{}/marker_locations{}_irefmark_{}.txt".format(name, base, irefmark)
-    except:
-        outfile = ''
+            mute = True
+        from pytom.gui.additional.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
+        tiltParas = TiltAlignmentParameters(dmag=True, drot=True, dbeam=False, finealig=True,
+                                            finealigfile='xxx.txt', grad=False,
+                                            irefmark=irefmark, ireftilt=ireftilt, r=None, cent=[2049, 2049],
+                                            handflip=handflip, optimizer='leastsq', maxIter=1000)
+        markerFileType = markerFileName.split('.')[-1]
+        # align with wimpfile
+        if not preBin:
+            preBin=1
+        if markerFileType == 'wimp':
+            if verbose:
+                print(" WIMP file used for alignment")
+            tiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName, TiltAlignmentParas=tiltParas,
+                                    alignedTiltSeriesName=alignedTiltSeriesName,
+                                    markerFileName=None, firstProj=firstProj, lastProj=lastProj,
+                                    tiltSeriesFormat=tiltSeriesFormat)
+            tiltSeries.readIMODwimp(markerFileName=markerFileName, prexgfile=prexgfile, tltfile=tltfile, preBin=preBin,
+                                    verbose=False)
+        else:
+            if verbose:
+                print(" EM markerfile file used for alignment")
+            tiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName, TiltAlignmentParas=tiltParas,
+                                    alignedTiltSeriesName=alignedTiltSeriesName,
+                                    markerFileName=markerFileName, firstProj=firstProj, lastProj=lastProj,
+                                    tiltSeriesFormat=tiltSeriesFormat)
+            if tltfile:
+                tiltSeries.getTiltAnglesFromIMODfile(tltfile=tltfile)
+        tiltAlignment = TiltAlignment(TiltSeries_=tiltSeries)
+        if outMarkerFileName:
+            tiltSeries.writeMarkerFile(markerFileName=outMarkerFileName)
+            tiltSeries._markerFileName = outMarkerFileName
+        tiltAlignment.resetAlignmentCenter()  # overrule cent in Paras
+        tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute)
+        tiltAlignment.alignFromFiducials(mute=mute)
+        # creating dir for aligned tilt series if default filename
+        if alignedTiltSeriesName == 'align/myTilt':
+            from os import mkdir
+            try:
+                mkdir('align')
+            except OSError:
+                print(" dir 'align' already exists - writing aligned files into existing dir")
 
-    tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute, outfile=outfile)
-    tiltAlignment.alignFromFiducials(mute=mute)
-    # creating dir for aligned tilt series if default filename
-    if alignedTiltSeriesName == 'align/myTilt':
-        from os import mkdir
-        try:
-            mkdir('align')
-        except OSError:
-            print(" dir 'align' already exists - writing aligned files into existing dir")
+        tiltSeries.write_aligned_projs(weighting=weightingType, lowpassFilter=lowpassFilter, binning=projBinning,
+                                       verbose=verbose)
+        if voldims:
+            # overrule tiltSeriesFormat - aligned tiltseries is always a series of em files
+            #tiltSeries._tiltSeriesFormat = 'em'
+            vol_bp = tiltSeries.reconstructVolume(dims=voldims, reconstructionPosition=recCent, binning=1)
 
-    tiltSeries.write_aligned_projs(weighting=weightingType, lowpassFilter=lowpassFilter, binning=projBinning,
-                                   verbose=verbose)
-    if voldims and voldims[0] != 0:
-        # overrule tiltSeriesFormat - aligned tiltseries is always a series of em files
-        #tiltSeries._tiltSeriesFormat = 'em'
-        
-        vol_bp = tiltSeries.reconstructVolume(dims=voldims, reconstructionPosition=recCent, binning=1)
-        vol_bp.write(volumeName, volumeFileType)
+    else:
+        print('new code')
+        tiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName)
+        vol_bp = tiltSeries.reconstructVolume(dims=voldims, reconstructionPosition=recCent, binning=projBinning,
+                                              alignResultFile=alignResultFile)
+
+    vol_bp.write(volumeName, volumeFileType)
+
 

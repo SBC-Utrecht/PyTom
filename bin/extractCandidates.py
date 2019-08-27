@@ -63,7 +63,7 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
         ref = job.reference.getVolume()
         sizeParticle = [ref.sizeX(),ref.sizeY(),ref.sizeZ()]
     
-    particleList = res.findParticles(sizeParticle,maxNumParticle,minScore,write2disk,margin)
+    particleList = res.findParticles(sizeParticle,maxNumParticle,minScore,write2disk,margin, offset=job.subregion[:3])
     
     return particleList
 
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     else:
         scale = 1.0
 
-    print(jobFilename,resultFilename,orientFilename,int(sizeParticle),int(maxNumParticle),minScore,int(write2disk),margin)
+
     res=extractCandidates(jobFilename,resultFilename,orientFilename,int(sizeParticle),int(maxNumParticle),minScore,int(write2disk),margin, mask = maskFile)
     if not plFilename and not motlFilename:
         raise RuntimeError('You must specify at least a particle list or a motl file as result of this script!')

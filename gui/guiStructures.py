@@ -831,8 +831,9 @@ class CommonFunctions():
                 line.setText(QFileDialog.getExistingDirectory(self, 'Open file', initdir))
             if mode == 'file':
 
-                filename = QFileDialog.getOpenFileName(self, 'Open file', initdir, filters)
-                if str(filename[0]): line.setText(str(filename[0]))
+                filename, dummy = QFileDialog.getOpenFileName(self, 'Open file', initdir, filters)
+                line.setText(str(filename))
+
         if remote:
             credentials = [self.servername, self.username, self.password]
             if not initdir: initdir = '/'

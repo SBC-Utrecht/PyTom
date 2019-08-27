@@ -398,9 +398,9 @@ class ParticlePick(GuiTabWidget):
         tooltip = ['Name of tomogram files.',
                    'Check this box if you want to do template matching using the optional settings.',
                    'Optional templates.',
-                   'Optional masks.'
+                   'Optional masks.',
                    'Angle between 90 and the highest tilt angle.',
-                   'Angle between -90 and the lowest tilt angle.',
+                   'Angle between the lowest tilt angle and -90.',
                    'Optional angle lists.']
 
         values = []
@@ -813,9 +813,9 @@ class ParticlePick(GuiTabWidget):
         self.insert_label(parent, '', rstep=1)
 
         self.insert_checkbox_label_spinbox(parent, mode + 'recenterParticles', 'Recenter Subtomogram -- X (px)',
-                                           mode + 'cX', value=0, wtype=QSpinBox, rstep=1, cstep=-1, minimum=0)
-        self.insert_label_spinbox(parent, mode + 'cY', 'Y (px)', value=0, wtype=QSpinBox, rstep=1)
-        self.insert_label_spinbox(parent, mode + 'cZ', 'Z (px)', value=0, wtype=QSpinBox, rstep=1)
+                                           mode + 'cX', value=0, wtype=QSpinBox, rstep=1, cstep=-1, minimum=-100)
+        self.insert_label_spinbox(parent, mode + 'cY', 'Y (px)', value=0, wtype=QSpinBox, rstep=1, minimum=-100)
+        self.insert_label_spinbox(parent, mode + 'cZ', 'Z (px)', value=0, wtype=QSpinBox, rstep=1, minimum=-100)
         self.insert_label_spinbox(parent, mode + 'sizeSubtomo', 'Size subtomograms (px)', value=128, wtype=QSpinBox,
                                   minimum=1, maximum=1000, stepsize=10, cstep=-3, rstep=1)
 

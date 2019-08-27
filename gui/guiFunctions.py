@@ -30,7 +30,7 @@ def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, fi
     if x < 1 or y < 1 or z < 1 or radius < 1:
         return 0
 
-    X, Y, Z = numpy.meshgrid(numpy.arange(x), numpy.arange(y), numpy.arange(z))
+    Y, X, Z = numpy.meshgrid(numpy.arange(y), numpy.arange(x), numpy.arange(z))
     X = X.astype('float32')
     Y = Y.astype('float32')
     Z = Z.astype('float32')
