@@ -1,5 +1,5 @@
 templateXML       = '''<JobDescription Destination="{d[6]}">
-  <Volume Filename="{d[0]}"/>
+  <Volume Filename="{d[0]}" Subregion="0,0,0,0,0,0"/>
   <Reference Weighting="" File="{d[1]}"/>
   <Mask Filename="{d[2]}" Binning="1" isSphere="True"/>
   <WedgeInfo Angle1="{d[3]}" Angle2="{d[4]}" CutoffRadius="0.0" TiltAxis="custom">

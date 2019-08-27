@@ -2,7 +2,7 @@
 """
 Created on Jul 20, 2013
 
-@author: GS
+@author: FF
 """
 
 if __name__ == '__main__':
@@ -10,12 +10,7 @@ if __name__ == '__main__':
     #from pytom.reconstruction.TiltAlignmentStructures import TiltAlignmentParameters, TiltSeries, TiltAlignment
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
-    from pytom.gui.additional.reconstructionFunctions import alignWeightReconstruct
-    from pytom_volume import read
-    from pytom_numpy import vol2npy
-    import os
-    from multiprocessing import Process
-    import time
+    from pytom.reconstruction.reconstructionFunctions import alignWeightReconstruct
 
     options=[ScriptOption(['--tiltSeriesName'], 'Name tilt series - either prefix of sequential tilt series files \
              expected as "tiltSeriesName_index.em/mrc" or full name of stack "tiltSeriesName.st"',
@@ -33,7 +28,6 @@ if __name__ == '__main__':
                           arg=True, optional=False),
              ScriptOption(['--referenceMarkerIndex'], 'Index of reference marker to set up coordinate system.',
                           arg=True, optional=False),
-             ScriptOption(['--expectedRotationAngle'], 'Expected In-Plane Rotation Angle', arg=True, optional=False),
              ScriptOption(['--handflip'], 'Is your tilt series outside of 0-180deg (Specify if yes).', arg=False,
                           optional=True),
              ScriptOption(['--projectionTargets'],
@@ -65,19 +59,15 @@ if __name__ == '__main__':
              ScriptOption(['--reconstructionCenterZ'],
                           'Center where tomogram will be reconstructed (no tomogram written if not specified).',
                           arg=True, optional=True),
-             ScriptOption(['--numberProcesses'],
-                          'Center where tomogram will be reconstructed (no tomogram written if not specified).',
-                          arg=True, optional=True),
              ScriptOption(['--weightingType'], 'Type of weighting (-1 default r-weighting, 0 no weighting)', arg=True,
                           optional=True),
-             ScriptOption(['--projIndices'], 'Supply Indices', arg=False, optional=True),
              ScriptOption(['--verbose'], 'Enable verbose mode', arg=False, optional=True),
              ScriptOption(['-h', '--help'], 'Help.', False, True)]
     
     helper = ScriptHelper(sys.argv[0].split('/')[-1],
                           description='Align and weight projections, save them and reconstruct tomogram (optional). \n\
                                       See http://pytom.org/doc/pytom/reconstructTomograms.html for documentation.',
-                          authors='Gijs van der Schot',
+                          authors='Friedrich Foerster',
                           options = options)
 
     if len(sys.argv) == 1:
@@ -85,12 +75,12 @@ if __name__ == '__main__':
         sys.exit()
     try:
         tiltSeriesName, tiltSeriesFormat, firstProj, lastProj, \
-        tltFile, prexgFile, preBin, referenceIndex, markerFileName, referenceMarkerIndex, expectedRotationAngle, handflip, \
+        tltFile, prexgFile, preBin, referenceIndex, markerFileName, referenceMarkerIndex, handflip, \
         projectionTargets, fineAlignFile, projBinning, lowpassFilter, \
         volumeName, filetype, \
         tomogramSizeX, tomogramSizeY, tomogramSizeZ, \
         reconstructionCenterX, reconstructionCenterY, reconstructionCenterZ, \
-        numberProcesses, weightingType, projIndices, verbose, help = parse_script_options(sys.argv[1:], helper)
+        weightingType, verbose, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(sys.version_info)
         print(e)
@@ -110,9 +100,7 @@ if __name__ == '__main__':
     lastProj = int(lastProj)  # 41 # index of last projection
     ireftilt = int(referenceIndex)  # 21 # reference projection (used for alignment)
     if referenceMarkerIndex:
-        try:
-            irefmark = int(referenceMarkerIndex)
-        except: pass # reference marker (defines 3D coordinate system)
+        irefmark = int(referenceMarkerIndex)  # reference marker (defines 3D coordinate system)
     else:
         irefmark = 1
 
@@ -169,92 +157,32 @@ if __name__ == '__main__':
     if preBin:
         preBin=int(preBin)
 
-    if numberProcesses: 
-        numberProcesses = int(numberProcesses)
-    else: 
-        numberProcesses = 1
-
-    try:
-        expectedRotationAngle = int(float(expectedRotationAngle))
-    except:
-        expectedRotationAngle = 0
-
     outMarkerFileName = 'MyMarkerFile.em'
     if verbose:
-        print("Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj) )
-        print("Index of Reference Projection: "+str(referenceIndex) )
-        print("Marker Filename: "+str(markerFileName) )
-        print("TltFile: "+str(tltFile) )
-        print("prexgFile: "+str(prexgFile) )
-        print("Index of Reference Marker: "+str(referenceMarkerIndex) )
-        print("Handflip: "+str(expectedRotationAngle) )
-        print("Projection Targets: "+str(projectionTargets) )
-        print("FineAlignmentFile: "+str(fineAlignFile) )
-        print("Binning Factor of Projections: "+str(projBinning)+", lowpass filter (in Ny): "+str(lowpassFilter) )
-        print("Name of Reconstruction Volume: "+str(volumeName)+" of Filetype: "+str(filetype) )
-        print("Reconstruction size: "+str(voldims) )
-        print("Reconstruction center: "+str(reconstructionPosition) )
-        print("write only aligned projections out: "+str(onlyWeightedProjections) )
+        print("Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj))
+        print("Index of Reference Projection: "+str(referenceIndex))
+        print("Marker Filename: "+str(markerFileName))
+        print("TltFile: "+str(tltFile))
+        print("prexgFile: "+str(prexgFile))
+        print("Index of Reference Marker: "+str(referenceMarkerIndex))
+        print("Handflip: "+str(handflip))
+        print("Projection Targets: "+str(projectionTargets))
+        print("FineAlignmentFile: "+str(fineAlignFile))
+        print("Binning Factor of Projections: "+str(projBinning)+", lowpass filter (in Ny): "+str(lowpassFilter))
+        print("Name of Reconstruction Volume: "+str(volumeName)+" of Filetype: "+str(filetype))
+        print("Reconstruction size: "+str(voldims))
+        print("Reconstruction center: "+str(reconstructionPosition))
+        print("write only aligned projections out: "+str(onlyWeightedProjections))
+
+    weightReconstruct(tiltSeriesName=tiltSeriesName, markerFileName=markerFileName, lastProj=lastProj,
+                           tltfile=tltFile, prexgfile=prexgFile, preBin=preBin,
+                           volumeName=volumeName, volumeFileType=filetype,
+                           voldims=voldims, recCent=reconstructionPosition,
+                           tiltSeriesFormat=tiltSeriesFormat, firstProj=firstProj, irefmark=irefmark, ireftilt=ireftilt,
+                           handflip=handflip,
+                           alignedTiltSeriesName=alignedTiltSeriesName,
+                           weightingType=weightingType,
+                           lowpassFilter=lowpassFilter, projBinning=projBinning,
+                           outMarkerFileName=outMarkerFileName, verbose=True)
 
 
-    if projIndices:
-        folder = os.path.dirname(tiltSeriesName)
-        prefix = os.path.basename(tiltSeriesName)
-        projIndices = [int(line.split('.')[-2].split('_')[-1]) for line in os.listdir(folder) if line.startswith(prefix) and line.endswith('.mrc')]
-        projIndices = sorted(projIndices)
-
-    markerfile = read(markerFileName)
-    markerdata = vol2npy(markerfile).copy()
-    if referenceMarkerIndex == 'all':
-        refmarks = range(markerdata.shape[2])
-    else:
-        refmarks = [int(referenceMarkerIndex)]
-
-    procs = []
-
-    for irefmark in refmarks:
-        procs = [proc for proc in procs if proc.is_alive()]
-        while len(procs) >= numberProcesses:
-            time.sleep(2)
-            procs = [proc for proc in procs if proc.is_alive()]
-
-        print('Spawned job for Marker_{}'.format(irefmark))
-
-        reduced = '_reduced'
-        start,end, path = os.path.basename(tiltSeriesName), 'mrc', os.path.dirname(tiltSeriesName)
-        files = [f.split('_')[-1].split('.')[-2] for f in os.listdir(path) if f.startswith(start) and f.endswith(end)]
-        files = sorted(files,key=int)
-        #if int(files[0]) == firstProj and int(files[-1]) == lastProj:
-        #    reduced = ''
-
-        falignedTiltSeriesName = alignedTiltSeriesName.replace('____', '_{:04d}_'.format(irefmark))
-        if not reduced:
-            falignedTiltSeriesName = falignedTiltSeriesName.split('_reduced_')[0]
-
-        outputSuffix = '{}_aligned'.format(os.path.basename(tiltSeriesName))
-        #stringFAligned = '{}/unweighted_unbinned_marker_{}{}/sorted_aligned'
-        falignedTiltSeriesName= os.path.join(falignedTiltSeriesName, outputSuffix)
-        outdir = os.path.dirname(falignedTiltSeriesName) 
-        if not os.path.exists(outdir): os.mkdir( outdir )
-
-
-        kwargs={'tiltSeriesName': tiltSeriesName, 
-                'markerFileName': markerFileName, 
-                'lastProj': lastProj,
-                'tltfile': tltFile, 
-                'prexgfile': prexgFile, 
-                'preBin': preBin,
-                'volumeName': volumeName, 
-                'volumeFileType': 'mrc',
-                'voldims': voldims, "recCent":reconstructionPosition,
-                'tiltSeriesFormat': 'mrc', "firstProj":firstProj, "irefmark":irefmark, "ireftilt":ireftilt,
-                'handflip': expectedRotationAngle, "alignedTiltSeriesName":falignedTiltSeriesName,
-                'weightingType': weightingType, "lowpassFilter":lowpassFilter, "projBinning":projBinning,
-                'outMarkerFileName': outMarkerFileName, 'verbose':True,'projIndices':projIndices}
-
-        if numberProcesses == 1:
-            alignWeightReconstruct(**kwargs)
-        else:
-            p = Process( target=alignWeightReconstruct, kwargs=kwargs)
-            procs.append(p)
-            p.start()

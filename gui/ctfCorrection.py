@@ -75,7 +75,7 @@ dzm --- central line of defocus plane parallel to the x-axis /in mu m
 
     dzp = dz0 + (1./1000) * np.arange(-Imdim, Imdim)*Objectpixelsize * np.tan( Tiltangle * np.pi / 180)
     dzp = np.transpose(np.tile(dzp, [2*Imdim,1]))
-    print(type(Tiltaxis), Tiltaxis==True)
+    print(type(Tiltaxis), Tiltaxis==True, Tiltaxis)
     # Inverse transformation
     if Tiltaxis:
         print('inv transform')
@@ -227,7 +227,7 @@ def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_facto
 
     if Imdim == 0: Imdim = 3710
 
-    Objectpixelsize = metadata['PixelSpacing'][p] * 10. * metadata['Magnification'][p] * binning_factor
+    Objectpixelsize = metadata['PixelSpacing'][p] * 0.1 * metadata['Magnification'][p] * binning_factor
                     
     from tompy.io import read, write
 
@@ -288,6 +288,7 @@ def CorrectProjection(proj, dzp1, dzp2, alphap, gs, fs, Objectpixelsize, Voltage
     # Initialize corrected projection
     projc = np.copy(proj)
 
+    print(proj.shape, gs//2-1, gs//2, gs)
     # Prepare coordinate list
     x = np.arange(gs//2-1, proj.shape[0]-gs//2, gs)
     ind = ~np.logical_or(x<fs//2-1, x>proj.shape[0]-fs//2-1)
@@ -295,19 +296,20 @@ def CorrectProjection(proj, dzp1, dzp2, alphap, gs, fs, Objectpixelsize, Voltage
     y = np.arange(gs//2-1, proj.shape[1]-gs//2, gs)
     ind = ~np.logical_or(y<fs//2-1, y>proj.shape[1]-fs//2-1)
     y = y[ind]
-
+    print('done')
     for xx in range(len(x)):
         for yy in range(len(y)):
             # Model CTF
             ctf = ModelCTF(dzp1[x[xx],y[yy]],dzp2[x[xx],y[yy]],alphap[x[xx],y[yy]],A,Objectpixelsize,Voltage,Cs,fs)
-            
+            print('finished modelling ctf')
             # Extract correction patch
             # smooth edges
             # and do the phase flipping
             tmp = np.array(proj[x[xx]-fs//2+1:x[xx]+fs//2+1,y[yy]-fs//2+1:y[yy]+fs//2+1], copy=True)
             tmp2 = SmoothEdges(tmp)
+            print('smoothened')
             cpatch = PhaseDeconv(tmp2,ctf)
-            
+            print(PhaseDeconv)
             # Cut correction patch
             cpatchc = cpatch[fs//2-gs//2:fs//2+gs//2,fs//2-gs//2:fs//2+gs//2]
             
@@ -333,6 +335,7 @@ def ModelCTF(Dz1,Dz2,alpha0,A,Objectpixelsize,Voltage,Cs,Imdim):
     lmbd = np.sqrt(150.4/((Voltage*(1+Voltage/1022000.))))*10**(-10)
 
     # Interpolation field
+    print(Objectpixelsize)
     f = 1/(2.*Objectpixelsize)
     x, y = np.meshgrid(np.arange(-f, f, 2.*f/Imdim), np.arange(-f, f, 2.*f/Imdim))
 

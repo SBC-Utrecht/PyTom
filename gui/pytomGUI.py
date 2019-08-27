@@ -173,7 +173,7 @@ class menudemo(QMainWindow, CommonFunctions):
 
         dropdown_menu_project = ("Project",('New','Open','Save','Quit'), self.processtrigger)
         dropdown_menu_file = ("File", ('Open', 'Save', 'Close'), self.filetrigger)
-        dropdown_menu_stage = ("Enable Stage",("Tomographic Reconstruction","Particle Picking","Subtomogram Analysis"),
+        self.drs = dropdown_menu_stage = ("Enable Stage",("Tomographic Reconstruction","Particle Picking","Subtomogram Analysis"),
                                self.processtrigger)
 
         for name, actionlist, trigger in (dropdown_menu_project, dropdown_menu_file, dropdown_menu_stage):

@@ -32,7 +32,7 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 
     for index in range(start,end):
 
-        string = '{}/unweighted_unbinned_marker_{}_reduced_{}_{}'
+        string = '{}/marker_{}_{},{}'
         outdir = string.format(targets, '__', firstAngles[index], lastAngles[index])
         tiltSeriesName = tiltSeriesNames[index]
         if referenceMarkerIndex[index] == 'all':

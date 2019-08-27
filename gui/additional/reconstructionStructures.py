@@ -58,7 +58,7 @@ class Projection(PyTomClass):
         else:
             self._offsetX = offsetX    
         
-        if offsetX == None:    
+        if offsetY == None:
             self._offsetY = 0
         else:
             self._offsetY = offsetY
@@ -410,7 +410,7 @@ class ProjectionList(PyTomClass):
 	        showProgressBar ,verbose,preScale,postScale)
 
     def reconstructVolume(self, dims=[512,512,128], reconstructionPosition=[0,0,0], 
-            binning=1, applyWeighting=False):
+            binning=1, applyWeighting=False, alignResultFile=''):
         """
         reconstruct a single 3D volume from weighted and aligned projections
 
@@ -432,9 +432,13 @@ class ProjectionList(PyTomClass):
         vol_bp.setAll(0.0)
 
         # stacks for images, projections angles etc.
-        [vol_img, vol_phi, vol_the, vol_offsetProjections] =  self.toProjectionStack(
-                binning=binning, applyWeighting=applyWeighting, showProgressBar=False,
-                verbose=False)
+        if not alignResultFile:
+            [vol_img, vol_phi, vol_the, vol_offsetProjections] =  self.toProjectionStack(
+                    binning=binning, applyWeighting=applyWeighting, showProgressBar=False, verbose=False)
+        else:
+            from pytom.gui.additional.generateAlignedTiltImagesInMemory import toProjectionStackFromAlignmentResultsFile
+            [vol_img, vol_phi, vol_the, vol_offsetProjections] = toProjectionStackFromAlignmentResultsFile(
+                alignResultFile, binning=binning, weighting=binning)
 
         # volume storing reconstruction offset from center (x,y,z)   
         recPosVol = vol(3,vol_img.sizeZ(),1)

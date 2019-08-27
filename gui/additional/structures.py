@@ -4,12 +4,21 @@ Created on Mar 23, 2010
 @author: hrabe
 '''
 analytWedge=False
+
+def keyFunctionForParticleSortingByScore(particle):
+    return particle.getScore()
+
+def keyFunctionForParticleSortingByClassLabel(particle):
+    return str(particle.getClass())
+
+
 class PyTomClassError(Exception):
        
     def __init__(self,value):
         self._value = value
     def __str__(self):
         print(self._value)
+
 
 class PyTomClass(object):
     """
@@ -174,7 +183,8 @@ class PyTomClass(object):
         file.write(htmlString)
     
         file.close()   
-        
+
+
 class Mask(PyTomClass):
     """
     Mask: A mask object. Used to control whether mask is spherical or not. 
@@ -300,7 +310,8 @@ class Mask(PyTomClass):
         
         if not checkFileExists(self._filename):
             raise IOError('Could not find mask file: ' + str(self._filename))
-        
+
+
 class Reference(PyTomClass):
     """
     Reference: Stores information about the current reference.
@@ -651,6 +662,7 @@ class Reference(PyTomClass):
         
         if not checkFileExists(self._referenceFile):
             raise IOError('Could not find reference file: ' + str(self._referenceFile))
+
 
 class ReferenceList(PyTomClass):
     """
@@ -1179,11 +1191,13 @@ class SingleTiltWedge(PyTomClass):
         
         return wedgeElement
 
+
 class WedgeInfo(SingleTiltWedge):        
     """
     WedgeInfo:
     @deprecated: Used for backward compatibility only..
     """
+
 
 class DoubleTiltWedge(SingleTiltWedge):
     """
@@ -1882,11 +1896,6 @@ class Particle(PyTomClass):
      
         return cmp(self.getScore(),otherParticle.getScore())
 
-def keyFunctionForParticleSortingByScore(particle):
-    return particle.getScore()
-
-def keyFunctionForParticleSortingByClassLabel(particle):
-    return str(particle.getClass())
     
 class ParticleList(PyTomClass):
     """
@@ -3702,6 +3711,7 @@ class PickPosition(PyTomClass):
         
         self.__add__(scale(vector,-1))
 
+
 class Symmetry(PyTomClass):
     
 #     def __init__(self,nfold=1,z2=0,x=0, search_ang=0, search_axis_z2=0, search_axis_x=0):
@@ -3787,7 +3797,8 @@ class Symmetry(PyTomClass):
 
     def getX(self):
         return self._x
-     
+
+
 class PointSymmetry(Symmetry):
     """
     PointSymmetry: Stores all neccessary information about the symmetry of an object 
@@ -4021,6 +4032,7 @@ class PointSymmetry(Symmetry):
         
         return symVolume
 
+
 class MultiSymmetries(PyTomClass):
     """Multiple symmetries support.
     """
@@ -4066,6 +4078,7 @@ class MultiSymmetries(PyTomClass):
             symVolume = sym.applyToParticle(symVolume)
         
         return symVolume
+
 
 class HelicalSymmetry(Symmetry):
     
@@ -4183,7 +4196,8 @@ class HelicalSymmetry(Symmetry):
         self._z2 = float(symmetry_element.get('Z2'))
         self._x = float(symmetry_element.get('X'))
         self._isRightSymmetry = symmetry_element.get('IsRightSymmetry') == 'True'
-        
+
+
 class SampleInformation(PyTomClass):
     """
     SampleInformation: Contains aquisition details of image data such as pixelsize, diameter of the imaged complex.
@@ -4248,7 +4262,8 @@ class SampleInformation(PyTomClass):
         
         self._pixelSize = float(symmetry_element.get('PixelSize'))       
         self._particleDiameter = float(symmetry_element.get('ParticleDiameter'))
-        
+
+
 class Resolution(PyTomClass):
     """
     Resolution: Stores current resolution information. Stores sample specific parameters

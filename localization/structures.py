@@ -99,10 +99,12 @@ class Volume(PyTomClass):
         if s != None and s!= 'None':
             s = s[1:-1]
             self.subregion = [int(float(i)) for i in s.split(',')]
+
         s = e.get('Sampling')
         if s != None and s!= 'None':
             s = s[1:-1]        
             self.sampling = [int(i) for i in s.split(',')]
+
         s = e.get('Binning')
         if s != None and s!= 'None':
             s = s[1:-1]

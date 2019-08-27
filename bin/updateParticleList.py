@@ -20,13 +20,19 @@ def get_size(particleList, directory):
     if not os.path.exists(tomoName):
         tomoName = os.path.join(directory, tomoName)
         if not os.path.exists(tomoName):
-            return
+            return 'Failed'
 
-    dimx,dimy,dimz = vol2npy( read(tomoName) ).copy().shape
+    try: dimx,dimy,dimz = vol2npy( read(tomoName) ).copy().shape
+    except: return 'Failed'
+
     return dimx,dimy,dimz
 
 def mirrorParticleList(particleList, outname, directory='./'):
-    dimx,dimy,dimz = get_size(particleList, directory)
+    sizes = get_size(particleList, directory)
+    if sizes == 'Failed':
+        print('Mirroring particle coordinates did not succeed. Please ensure the paths to the origin tomogram are correct')
+        return
+    dimx,dimy,dimz = sizes
 
     tempPL = ParticleList()
     tempPL.fromXMLFile(particleList)
@@ -108,6 +114,7 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
             # Randomize the angles of all particles in particle list.
             if type(anglelist) == type(numpy.array([])):
                 cc = 180. / numpy.pi
+                import random
                 z1, z2, x = random.choice(anglelist)
                 particle.setRotation(rotation=Rotation(z1=z1 * cc, z2=z2 * cc, x=x * cc, paradigm='ZXZ'))
 

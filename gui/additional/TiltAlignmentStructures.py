@@ -18,9 +18,9 @@ class TiltSeries(PyTomClass):
     @author: FF
     """
 
-    def __init__(self, tiltSeriesName, TiltAlignmentParas, alignedTiltSeriesName,
-                 markerFileName, firstProj=1, lastProj=None, projIndices=None,
-                 tiltSeriesFormat='em', verbose=False):
+    def __init__(self, tiltSeriesName='', TiltAlignmentParas='', alignedTiltSeriesName='',
+                 markerFileName='', firstProj=1, lastProj=None, projIndices=None,
+                 tiltSeriesFormat='em', verbose=False, alignmentResultFile=''):
         """
         initialize TiltSeries 
 
@@ -45,30 +45,38 @@ class TiltSeries(PyTomClass):
         @author: FF
         """
         self._tiltSeriesName = tiltSeriesName
-        self._firstProj = firstProj
-        self._lastProj = lastProj
-
-        folder = os.path.dirname(tiltSeriesName)
-        prefix = os.path.basename(tiltSeriesName)
-        files = [line for line in os.listdir(folder) if line.endswith(tiltSeriesFormat) and line.startswith(prefix)]
-        self._projIndices = [line.split('_')[-1].split('.')[0] for line in files ]
-        self._projIndices.sort(key=int)
-        self._lenPI = len(self._projIndices)
-        print(self._projIndices, firstProj, lastProj)
-        self._projIndices = numpy.array(self._projIndices)
-        self._tiltSeriesFormat = tiltSeriesFormat
-        self._TiltAlignmentParas = TiltAlignmentParas
-        self._alignedTiltSeriesName = alignedTiltSeriesName
         self.verbose = verbose
+        print(TiltAlignmentParas)
+        if TiltAlignmentParas:
+            self.init_vars_markerbased_alignment(tiltSeriesName, TiltAlignmentParas, alignedTiltSeriesName,
+                                                 markerFileName, firstProj=firstProj, lastProj=lastProj,
+                                                 tiltSeriesFormat=tiltSeriesFormat, verbose=False)
 
-
-        self.mf = vol2npy(read(markerFileName))
-        #print self.mf[0,:,0]
-        # set Projection List
-        self._firstIndex, self._lastIndex = -1, len(self._projIndices)
-        projs = []
-
+    def init_vars_markerbased_alignment(self, tiltSeriesName, TiltAlignmentParas, alignedTiltSeriesName, markerFileName,
+                                        firstProj=1, lastProj=None, tiltSeriesFormat='em', verbose=False):
         if tiltSeriesName:
+            self._firstProj = firstProj
+            self._lastProj = lastProj
+
+            folder = os.path.dirname(tiltSeriesName)
+            prefix = os.path.basename(tiltSeriesName)
+            files = [line for line in os.listdir(folder) if line.endswith(tiltSeriesFormat) and line.startswith(prefix)]
+            self._projIndices = [line.split('_')[-1].split('.')[0] for line in files ]
+            self._projIndices.sort(key=int)
+            self._lenPI = len(self._projIndices)
+
+            self._projIndices = numpy.array(self._projIndices)
+            self._tiltSeriesFormat = tiltSeriesFormat
+            self._TiltAlignmentParas = TiltAlignmentParas
+            self._alignedTiltSeriesName = alignedTiltSeriesName
+
+            self.mf = vol2npy(read(markerFileName))
+            #print self.mf[0,:,0]
+            # set Projection List
+            self._firstIndex, self._lastIndex = -1, len(self._projIndices)
+            projs = []
+
+
             if tiltSeriesFormat != 'st':
                 for cnt, ii in enumerate(self._projIndices):
 
@@ -130,11 +138,13 @@ class TiltSeries(PyTomClass):
                         print(("Projection " + fname + " appended ..."))
             self._ProjectionList = ProjectionList(projs)
             self._imdim = projs[0].getDimensions()[0]
-        # read markerFile if set
-        self._markerFileName = markerFileName
-        self._projIndices = self._projIndices[self._firstIndex:self._lastIndex]
+
+            # read markerFile if set
+            self._markerFileName = markerFileName
+            self._projIndices = self._projIndices[self._firstIndex:self._lastIndex]
+
         self._Markers = []
-        print(self._firstIndex, self._lastIndex)
+
         if markerFileName:
             if self.verbose:
                 print(("reading marker file: " + str(markerFileName)))
@@ -376,7 +386,7 @@ class TiltSeries(PyTomClass):
         @author: FF
         """
         from pytom.reconstruction.writeAlignedProjections import writeAlignedProjections
-        print('todo')
+
         writeAlignedProjections(self, weighting=weighting, lowpassFilter=lowpassFilter, binning=binning,
                                 verbose=verbose)
 
@@ -439,8 +449,7 @@ class TiltSeries(PyTomClass):
             newFilename = (filename + "_" + str(projection.getIndex()) + '.em')
             write_em(filename=newFilename, data=image, header=header)
 
-
-    def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0], binning=1):
+    def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0], binning=1, alignResultFile=''):
         """
         reconstruct a single 3D volume from weighted and aligned projections
 
@@ -455,19 +464,21 @@ class TiltSeries(PyTomClass):
         """
         # set alignedProjectionList
         projs = []
-        for (kk, ii) in enumerate(self._projIndices):
-            tiltAngle = self._ProjectionList[kk]._tiltAngle
-            proj = Projection(filename=self._alignedTiltSeriesName + "_" + str(ii) + "." + self._tiltSeriesFormat,
-                              alignedFilename=self._alignedTiltSeriesName + "_" + str(
-                                  ii) + "." + self._tiltSeriesFormat,
-                              index=ii, tiltAngle=tiltAngle,
-                              offsetX=0., offsetY=0.,
-                              alignmentTransX=0., alignmentTransY=0.,
-                              alignmentRotation=0., alignmentMagnification=1.)
-            projs.append(proj)
+        if not alignResultFile:
+            for (kk, ii) in enumerate(self._projIndices):
+                tiltAngle = self._ProjectionList[kk]._tiltAngle
+                proj = Projection(filename=self._alignedTiltSeriesName + "_" + str(ii) + "." + self._tiltSeriesFormat,
+                                  alignedFilename=self._alignedTiltSeriesName + "_" + str(
+                                      ii) + "." + self._tiltSeriesFormat,
+                                  index=ii, tiltAngle=tiltAngle,
+                                  offsetX=0., offsetY=0.,
+                                  alignmentTransX=0., alignmentTransY=0.,
+                                  alignmentRotation=0., alignmentMagnification=1.)
+                projs.append(proj)
+
         self._alignedProjectionList = ProjectionList(projs)
         # reconstruct tomogram
-        vol_bp = self._alignedProjectionList.reconstructVolume(dims=dims,
+        vol_bp = self._alignedProjectionList.reconstructVolume(dims=dims, alignResultFile=alignResultFile,
                                                                reconstructionPosition=reconstructionPosition,
                                                                binning=binning)
         return vol_bp

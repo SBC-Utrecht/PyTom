@@ -163,7 +163,7 @@ class ExPeakResult:
         putSubVolume(subV, mask, startX, startY, startZ)
         
     
-    def findParticles(self, sizeParticle, maxNumParticle=0, minScore=-1, write2disk=0, margin=None):
+    def findParticles(self, sizeParticle, maxNumParticle=0, minScore=-1, write2disk=0, margin=None, offset=[0,0,0]):
         """
         findParticles: Find particles in target volume according to the result volume.
         @param sizeParticle: size or radius of searched particle
@@ -220,6 +220,9 @@ class ExPeakResult:
             
             try:
                 posV = peak(self.result, mask)
+                if offset[0]: posV.setX(posV.getX()+offset[0])
+                if offset[1]: posV.setY(posV.getY()+offset[1])
+                if offset[2]: posV.setZ(posV.getZ()+offset[2])
             except:
                 break # the mask is all zero
             

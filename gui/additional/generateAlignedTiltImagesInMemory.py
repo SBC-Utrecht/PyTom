@@ -35,7 +35,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
     from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift
     from pytom_volume import complexRealMult, vol, paste
     import pytom_freqweight
-    from pytom.basic.transformations import resize
+    from pytom.basic.transformations import resize, rotate
     from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR
     from pytom.gui.additional.reconstructionStructures import Projection, ProjectionList
     from pytom_numpy import vol2npy
@@ -43,7 +43,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
     alignmentResults = numpy.loadtxt(alignmentResultsFile, dtype=datatypeAR)
     imageList = alignmentResults['FileName']
     tilt_angles = alignmentResults['TiltAngle']
-    print(tilt_angles)
+
     a = mrcfile.open(imageList[0],permissive=True)
     imdim = a.data.T.shape[0]
 
@@ -52,7 +52,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
     else:
         imdim = imdim
 
-    print('imdim', imdim)
+
     sliceWidth = imdim
 
     # pre-determine analytical weighting function and lowpass for speedup
@@ -69,7 +69,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
                                       lowpassFilter / 5. * imdim)
         # lpf = bandpassFilter(volume=vol(imdim, imdim,1),lowestFrequency=0,highestFrequency=int(lowpassFilter*imdim/2),
         #                     bpf=None,smooth=lowpassFilter/5.*imdim,fourierOnly=False)[1]
-        print(lpf)
+
 
     projectionList = ProjectionList()
     for n, image in enumerate(imageList):
@@ -77,7 +77,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
         aty = alignmentResults['AlignmentTransY'][n]
         rot = alignmentResults['InPlaneRotation'][n]
         mag = alignmentResults['Magnification'][n]
-
+        print(imageList[n], tilt_angles[n], atx, aty, rot, mag)
         projection = Projection(imageList[n], tiltAngle=tilt_angles[n], alignmentTransX=atx,alignmentTransY=aty,
                                 alignmentRotation=rot,alignmentMagnification=mag)
         projectionList.append(projection)
@@ -106,8 +106,8 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
         else:
             # read projection files
             from pytom.basic.files import EMHeader, read, read_em_header
-            print(type(str(projection._filename)))
             image = read(str(projection._filename))
+            #image = rotate(image,180.,0.,0.)
             image = resize(volume=image, factor=1 / float(binning))[0]
 
         if lowpassFilter:
@@ -126,10 +126,10 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
         # transform projection according to tilt alignment
         transX = projection._alignmentTransX / binning
         transY = projection._alignmentTransY / binning
-        rot = float(projection._alignmentRotation)
+        rot = float(projection._alignmentRotation)-180.
         mag = float(projection._alignmentMagnification)
 
-        print(transX,transY,rot,mag)
+
         image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=[2, 1, 0], crop=True)
 
         # smoothen once more to avoid edges
@@ -147,7 +147,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
         offsetStack(int(round(projection.getOffsetX())), 0, 0, ii)
         offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
         paste(image, stack, 0, 0, ii)
-        fname = '/Users/gijs/Documents/PostDocUtrecht/Data/Juliette/sorted_aligned_novel_{:02d}.mrc'.format(ii)
+        fname = 'sorted_aligned_novel_{:02d}.mrc'.format(ii)
         write_em(fname.replace('mrc','em'), image)
         mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
 

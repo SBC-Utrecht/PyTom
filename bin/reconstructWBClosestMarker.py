@@ -99,7 +99,7 @@ if __name__ == '__main__':
                                                                       projDirTemplate=projectionDirectoryTemplate)
 
     if not prefix:
-        prefix = 'sorted_ctf_aligned'
+        prefix = 'sorted_aligned'
 
 
     if tomogram:
@@ -115,7 +115,7 @@ if __name__ == '__main__':
             projectionDirectory = projectionDirectoryTemplate.replace('_CLOSEST_', '_{:04d}_'.format(markerIndex))
             alignResultFile = ''#os.path.join(projectionDirectory, 'alignmentResults.txt')
             if not os.path.exists(alignResultFile): alignResultFile = ''  
-            print(projectionDirectory)
+
             if checkFileExists(projectionList):
                 projections.fromXMLFile(projectionList)
             elif checkDirExists(projectionDirectory):
@@ -124,6 +124,10 @@ if __name__ == '__main__':
                 raise RuntimeError('Neither projectionList existed nor the projectionDirectory you specified! Abort')
 
             # transform the cropping offset
+            if len(projections) == 0:
+                print(markerIndex, projectionDirectory, metafile, prefix)
+                continue
+
             tmp = projections[0]
             sx = tmp.getXSize() # here should be the size of original projection!
             sy = tmp.getYSize()

@@ -412,7 +412,7 @@ class ProjectionList(PyTomClass):
 	        showProgressBar ,verbose,preScale,postScale)
 
     def reconstructVolume(self, dims=[512,512,128], reconstructionPosition=[0,0,0], 
-            binning=1, applyWeighting=False):
+            binning=1, applyWeighting=False, alignResultFile=''):
         """
         reconstruct a single 3D volume from weighted and aligned projections
 
@@ -434,9 +434,14 @@ class ProjectionList(PyTomClass):
         vol_bp.setAll(0.0)
 
         # stacks for images, projections angles etc.
-        [vol_img, vol_phi, vol_the, vol_offsetProjections] =  self.toProjectionStack(
-                binning=binning, applyWeighting=applyWeighting, showProgressBar=False,
-                verbose=False)
+        if not alignResultFile:
+            [vol_img, vol_phi, vol_the, vol_offsetProjections] =  self.toProjectionStack(
+                    binning=binning, applyWeighting=applyWeighting, showProgressBar=False,
+                    verbose=False)
+        else:
+            from pytom.gui.additional.generateAlignedTiltImagesInMemory import toProjectionStackFromAlignmentResultsFile
+            [vol_img, vol_phi, vol_the, vol_offsetProjections] = self.toProjectionStackFromAlignmentResultFile(
+                alignResultFile, binning=binning, applyWeighting=applyWeighting, showProgressBar=False, verbose=False)
 
         # volume storing reconstruction offset from center (x,y,z)   
         recPosVol = vol(3,vol_img.sizeZ(),1)
@@ -629,8 +634,6 @@ class ProjectionList(PyTomClass):
             print()
             raise e
 
-        
-
     def saveParticleProjections(self, particles, projectionSize,binning=1, 
             applyWeighting = False,showProgressBar = False,verbose=False,outputScale=1):
         """
@@ -811,8 +814,7 @@ class ProjectionList(PyTomClass):
             self.append(newProjection)
         
         self._list = sorted(self._list, key=lambda Projection: Projection._tiltAngle)
-            
-               
+
     def toProjectionStack(self,binning=1, applyWeighting=False, tiltAngle=None, showProgressBar=False,verbose=False, num_procs=1):
         """
         toProjectionStack:
@@ -942,11 +944,6 @@ class ProjectionList(PyTomClass):
             self.temp_offsetStack(projection.getOffsetX(), 0, 0, i*num_procs + pid)
             self.temp_offsetStack(projection.getOffsetY(), 0, 1, i*num_procs + pid)
             paste(image, self.temp_stack, 0, 0, i*num_procs + pid)
-
-
-
-                
-    
     
     def saveAsProjectionStack(self,filename,scale=1,applyWeighting=False,showProgressBar=False,verbose=False):
         """
@@ -954,7 +951,6 @@ class ProjectionList(PyTomClass):
         """
         stack = self.toProjectionStack(scale,applyWeighting,showProgressBar,verbose)
         stack.write(filename)
-        
     
     def setAlignmentParameters(self,alignmentXMLFile,verbose=False):
         """

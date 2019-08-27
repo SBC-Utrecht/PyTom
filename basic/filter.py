@@ -397,8 +397,6 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
         
     return weightFunc
 
-
-
 def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, returnReducedComplex=False, binarize=False):
     """
     rotateWeighting: Rotates a frequency weighting volume around the center. If the volume provided is reduced complex, it will be rescaled to full size, ftshifted, rotated, iftshifted and scaled back to reduced size.
@@ -456,9 +454,6 @@ def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, retu
         limit(returnVolume,0.5,0,0.5,1,True,True)
     
     return returnVolume
-
-
-    
     
 def wedgeFilter(volume,angle,radius=0,angleIsHalf=True,fourierOnly=False):
     """
@@ -482,8 +477,7 @@ def wedgeFilter(volume,angle,radius=0,angleIsHalf=True,fourierOnly=False):
     
     
     return filter(volume,wf,fourierOnly)
-    
-    
+
 def bandpassFilter(volume, lowestFrequency, highestFrequency, bpf=None,
                    smooth=0,fourierOnly=False):
     """
@@ -514,7 +508,6 @@ def bandpassFilter(volume, lowestFrequency, highestFrequency, bpf=None,
                                       fvolume.sizeX(),fvolume.sizeY(),fvolume.sizeZ(),smooth)    
 
     return filter(fvolume,bpf,fourierOnly)      
-
 
 def lowpassFilter(volume,band,smooth=0,fourierOnly=False):
     """
@@ -592,7 +585,6 @@ def filter(volume,filterObject,fourierOnly=False):
         return [result,filterObject,fvolume]   
     else:
         return [fvolume,filterObject]
-
 
 def gaussian_filter(vol, sigma):
 #    # construct the Gaussian kernel

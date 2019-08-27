@@ -548,12 +548,6 @@ class TomographReconstruct(GuiTabWidget):
                 os.system('bash {}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n))
                 num_submitted_jobs += 1
 
-        #guiFunctions.batch_tilt_alignment( fnames_tomograms=file_tomoname, num_procs=lprocs, deploy=True,
-        #                                   projectfolder=self.tomogram_folder, num_procs_per_proc=num_procs_per_proc,
-        #                                   tiltseriesname=tiltseriesname, markerfile='alignment/markerfile.em',
-        #                                   targets='alignment', queue=self.checkbox[id].isChecked(),
-        #                                   qcommand=self.qcommand, logfolder=self.logfolder)
-
     def tab51UI(self):
         id = 'tab51'
         alg = 'INFR'
@@ -568,9 +562,9 @@ class TomographReconstruct(GuiTabWidget):
         self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB,width=400 )
         self.insert_label_line_push(parent,'Folder Sorted Tilt Images', mode+'FolderSorted',
                                     'Select the folder where the sorted tiltimages are located.\n')
-        self.insert_label_spinbox(parent, mode+'FirstAngle', text='First Index', tooltip='Index of first image.',
+        self.insert_label_spinbox(parent, mode+'FirstAngle', text='First Angle', tooltip='Tilt angle of first image (deg).',
                                   value=-60,minimum=-90, maximum=90, stepsize=1)
-        self.insert_label_spinbox(parent, mode +'LastAngle', text='Last Index', tooltip='Index of last image.',
+        self.insert_label_spinbox(parent, mode +'LastAngle', text='Last Angle', tooltip='Tilt angle of last image (deg).',
                                   value=60, minimum=-90, maximum= 90, stepsize=1)
         self.insert_label_spinbox(parent, mode +'RefTiltIndex', text='Reference Tilt Image', value=reftilt,minimum=1,
                                   tooltip='Index of reference tilt image. Typically zeros degree image.')
@@ -623,6 +617,7 @@ class TomographReconstruct(GuiTabWidget):
         print(folderSorted)
         if not folderSorted: return
         t = folderSorted.replace('/sorted','')
+        t = t.split('/alignment')[0]
         self.widgets[mode+'tomofolder'].setText(t)
         self.widgets[mode+ 'tomogramNR'].setText( os.path.basename(t) )
 
@@ -674,9 +669,9 @@ class TomographReconstruct(GuiTabWidget):
         self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB,width=400 )
         self.insert_label_line_push(parent,'Folder Sorted Tilt Images', h+'FolderSorted',
                                     'Select the folder where the sorted tiltimages are located.\n')
-        self.insert_label_spinbox(parent, mode+'FirstAngle', text='First Index', tooltip='Index of first image.',
+        self.insert_label_spinbox(parent, mode+'FirstAngle', text='First Angle', tooltip='Tilt angle of first image (deg).',
                                   value=-60,minimum=-90,maximum=90, stepsize=1)
-        self.insert_label_spinbox(parent, mode +'LastAngle', text='Last Index', tooltip='Index of last image.',
+        self.insert_label_spinbox(parent, mode +'LastAngle', text='Last Angle', tooltip='Tilt Angle of last image (deg).',
                                   value=60, minimum=-90, maximum=90, stepsize=1)
         self.insert_label_spinbox(parent, mode +'RefTiltIndex', text='Reference Tilt Image', value=reftilt,minimum=1,
                                   tooltip='Index of reference tilt image. Typically zeros degree image.')

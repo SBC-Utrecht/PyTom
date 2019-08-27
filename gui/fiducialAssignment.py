@@ -187,7 +187,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.insert_pushbutton(parent,text='Find Fiducials',rstep=1,tooltip='Automatically detect fiducials.',
                                action=self.find_fid,params=0, wname='findButton', state=False)
 
-        self.insert_pushbutton(parent,text='Detect Frame Shifts',rstep=1, wname='detectButton',state=False,
+        self.insert_pushbutton(parent,text='Detect Frame Shifts',rstep=1, wname='detectButton',state=True,
                                tooltip='Detect global x-y shifts between tilt images.',
                                action=self.detect_frameshift,params=0)
         self.insert_pushbutton(parent,text='Index Fiducials',rstep=1,tooltip='Group Fiducials into marker sets.',
@@ -478,7 +478,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
     def load_images(self,folder='', bin_read=8, bin_alg=12):
         self.selected_marker = -1
-        for name in ('findButton','detectButton','indexButton'):
+        for name in ('findButton','indexButton'):
             self.widgets[name].setEnabled(False)
         pg.QtGui.QApplication.processEvents()
 
@@ -745,7 +745,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             average_marker = self.create_average_markers(ref_frame - 5, ref_frame + 6)
         print('average marker time: ', time.time()-s)
         for proc_id in range(num_procs):
-            print(proc_id)
+
             if self.algorithm == 'cross_correlation':
                 if len(self.mark_frames[ref_frame]) > 2:
                     level = self.find_potential_fiducials_crosscorr
@@ -1046,6 +1046,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             for (imark, Marker) in enumerate(markIndices):
                 for (itilt, TiltIndex) in enumerate(projIndices):
                     if self.coordinates[TiltIndex][Marker][1] < 1 and self.coordinates[TiltIndex][Marker][0] < 1:
+                        markerFileVol.setV(int(round(self.tiltangles[TiltIndex])), 0, itilt, imark)
                         continue
 
                     markerFileVol.setV(int(round(self.tiltangles[TiltIndex])), 0, itilt, imark)
@@ -1364,7 +1365,9 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
 
     def delete_marker(self, params=None):
         #self.MRMmodel.removeRows()
-        for d in dir(self.dataView.selectionModel()): print(d)
+        #for d in dir(self.dataView.selectionModel()): print(d)
+        pass
+        '''
         idsx = self.dataView.selectionModel().selectedIndexes()
         ids = [id.row() for id in idsx[::2]]
 
@@ -1373,7 +1376,7 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
         if len(ids):
             print(markernames)
             self.parent().deleteSelectedMarkers(ids, markernames)
-
+        '''
 
     def select_marker(self, params=None):
         try:
