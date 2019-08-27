@@ -63,8 +63,6 @@ class NewProject(QMainWindow, CommonFunctions):
         self.gridLayout = QGridLayout()
         self.setWindowModality(Qt.ApplicationModal)
 
-
-
         #self.gridLayout.setContentrsMargins(10, 10, 10, 10)
         self.label = label
         self.setStyleSheet('background: #{};'.format(self.parent().middlec) )
@@ -100,7 +98,7 @@ class NewProject(QMainWindow, CommonFunctions):
             self.close()
 
 
-class menudemo(QMainWindow, CommonFunctions):
+class PyTomGui(QMainWindow, CommonFunctions):
     resized=pyqtSignal()
     def __init__(self, parent=None):
         super(menudemo, self).__init__(parent)
@@ -173,7 +171,7 @@ class menudemo(QMainWindow, CommonFunctions):
 
         dropdown_menu_project = ("Project",('New','Open','Save','Quit'), self.processtrigger)
         dropdown_menu_file = ("File", ('Open', 'Save', 'Close'), self.filetrigger)
-        dropdown_menu_stage = ("Enable Stage",("Tomographic Reconstruction","Particle Picking","Subtomogram Analysis"),
+        self.drs = dropdown_menu_stage = ("Enable Stage",("Tomographic Reconstruction","Particle Picking","Subtomogram Analysis"),
                                self.processtrigger)
 
         for name, actionlist, trigger in (dropdown_menu_project, dropdown_menu_file, dropdown_menu_stage):
@@ -218,7 +216,6 @@ class menudemo(QMainWindow, CommonFunctions):
 
     def is_pytomgui_project(self, projectname):
         if os.path.exists(os.path.join(projectname, 'logfile.js')):
-
             self.load_logfile(os.path.join(projectname, 'logfile.js'))
             return True
         if os.path.exists(os.path.join(projectname, 'logfile.pickle'))  :
@@ -452,8 +449,8 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     app.setWindowIcon(QIcon('/Users/gijs/Documents/PostDocUtrecht/GUI/pp.jpg'))
-    ex = menudemo()
-    ex.show()
+    gui = PyTomGui()
+    gui.show()
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
