@@ -176,7 +176,16 @@ if __name__ == '__main__':
     if 'alignmentResults.txt' in os.listdir(os.path.dirname(tiltSeriesName)):
         alignResultFile = os.path.join(os.path.dirname(tiltSeriesName), 'alignmentResults.txt')
 
-    if verbose:
+    outfile = ''
+    outfolder = os.path.dirname(projectionTargets)
+
+    if 'reconstruction/WBP' in projectionTargets or 'reconstruction/INFR' in projectionTargets:
+        outfolder = os.path.dirname(outfolder)
+    reconstructionAlgorithm = os.path.basename(outfolder)
+    tomogramID = os.path.basename(os.getcwd())
+    outfile = os.path.join(outfolder, 'markerLocations_{}_irefmark_{}.txt'.format(tomogramID, referenceMarkerIndex))
+
+    if 1:
         print("Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj))
         print("Index of Reference Projection: "+str(referenceIndex))
         print("Marker Filename: "+str(markerFileName))
@@ -201,6 +210,6 @@ if __name__ == '__main__':
                            alignedTiltSeriesName=alignedTiltSeriesName,
                            weightingType=weightingType, alignResultFile=alignResultFile,
                            lowpassFilter=lowpassFilter, projBinning=projBinning,
-                           outMarkerFileName=outMarkerFileName, verbose=True)
+                           outMarkerFileName=outMarkerFileName, outfile=outfile, verbose=True)
 
 

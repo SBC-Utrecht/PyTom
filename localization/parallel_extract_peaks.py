@@ -179,11 +179,12 @@ class PeakManager():
     '''
     PeakManager: Manager to manage the workers
     '''
-    def __init__(self):
+    def __init__(self, suffix=''):
         self.name = 'node_0'
         self.numWorkers = 0
         self.jobInfo = {} # store the information of distributed jobs
-        
+        self.suffix = suffix
+
     def sequentialStart(self, job):
         '''
         sequentialStart: Start the worker to sequentially finish the job
@@ -542,8 +543,8 @@ class PeakManager():
                     os.remove(name)
             
             # rename the result files name
-            os.rename('node_0_res.em', 'scores.em')
-            os.rename('node_0_orient.em', 'angles.em')
+            os.rename('node_0_res.em', 'scores{}.em'.format(suffix))
+            os.rename('node_0_orient.em', 'angles{}.em'.format(suffix))
             
             # finishing, stop all workers
             self.parallelEnd(verbose)
@@ -589,12 +590,12 @@ class PeakLeader(PeakWorker):
     """
     PeakLeader: Class for parallel running of jobs (new architecture)
     """
-    def __init__(self):
+    def __init__(self,suffix=''):
         import pytom_mpi
         
         if not pytom_mpi.isInitialised():
             pytom_mpi.init()
-            
+        self.suffix=suffix
         self.mpi_id = pytom_mpi.rank()
         self.name = 'node_' + str(self.mpi_id)
         self.clean()
@@ -851,6 +852,7 @@ class PeakLeader(PeakWorker):
             info.whole_start = whole_start
             info.originalSize = [vsizeX, vsizeY, vsizeZ]
             info.splitSize = [sizeX, sizeY, sizeZ]
+            info.origin = origin
             self.jobInfoPool[subJobID] = info
             
             if targetID == self.mpi_id:
@@ -976,9 +978,11 @@ class PeakLeader(PeakWorker):
                 return
         elif self.jobInfoPool[jobID].splitType == "Vol":
             self.jobInfoPool["numDoneJobsV"] = self.jobInfoPool["numDoneJobsV"] + 1
+            [originX, originY, originZ] = self.jobInfoPool[jobID].origin
             if self.resVol==None or self.resOrient==None:
                 from pytom_volume import vol
                 [vsizeX, vsizeY, vsizeZ] = self.jobInfoPool[jobID].originalSize
+
                 self.resVol = vol(vsizeX, vsizeY, vsizeZ)
                 self.resVol.setAll(0)
                 self.resOrient = vol(vsizeX, vsizeY, vsizeZ)
@@ -992,14 +996,13 @@ class PeakLeader(PeakWorker):
             stepSizeX = min(vsizeX-sub_start[0], sizeX)
             stepSizeY = min(vsizeY-sub_start[1], sizeY)
             stepSizeZ = min(vsizeZ-sub_start[2], sizeZ)
-            print(sub_start[0],sub_start[1],sub_start[2], stepSizeX, stepSizeY, stepSizeZ, vsizeX, vsizeY, vsizeZ)
-            print(resV.sizeX(), resV.sizeY(), resV.sizeZ())
+
             from pytom_volume import subvolume, putSubVolume
             sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
             sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
-            
-            putSubVolume(sub_resV, self.resVol, start[0],start[1],start[2])
-            putSubVolume(sub_resO, self.resOrient, start[0],start[1],start[2])
+
+            putSubVolume(sub_resV, self.resVol, start[0]-originX,start[1]-originY,start[2]-originZ)
+            putSubVolume(sub_resO, self.resOrient, start[0]-originX,start[1]-originY,start[2]-originZ)
         else:
             raise RuntimeError("Unclear split type!")
         
@@ -1094,8 +1097,8 @@ class PeakLeader(PeakWorker):
                     os.remove(self.dstDir+'/'+name)
             
             # rename the result files name
-            os.rename(self.dstDir+'/'+'node_0_res.em', self.dstDir+'/'+'scores.em')
-            os.rename(self.dstDir+'/'+'node_0_orient.em', self.dstDir+'/'+'angles.em')
+            os.rename(self.dstDir+'/'+'node_0_res.em', self.dstDir+'/'+'scores_{}.em'.format(self.suffix))
+            os.rename(self.dstDir+'/'+'node_0_orient.em', self.dstDir+'/'+'angles_{}.em'.format(self.suffix))
         
         self.clean() # clean itself
         pytom_mpi.finalise()

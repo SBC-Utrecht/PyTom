@@ -57,7 +57,7 @@ if __name__ == '__main__':
         fileList = os.listdir(directory)
         for file in fileList:
             if file[len(file)-3:len(file)] == '.em':
-                print(directory + os.sep + file , target)
+                #print(directory + os.sep + file , target)
                 em2mrc(directory + os.sep + file,target)
 				
 						

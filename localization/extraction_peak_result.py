@@ -220,9 +220,6 @@ class ExPeakResult:
             
             try:
                 posV = peak(self.result, mask)
-                if offset[0]: posV.setX(posV.getX()+offset[0])
-                if offset[1]: posV.setY(posV.getY()+offset[1])
-                if offset[2]: posV.setZ(posV.getZ()+offset[2])
             except:
                 break # the mask is all zero
             
@@ -240,6 +237,7 @@ class ExPeakResult:
                 score.setValue(scoreV)
                 from pytom.basic.structures import PickPosition, Rotation
                 pos = PickPosition(posV, originFilename=self.volFilename)
+                pos + offset
                 orientation = Rotation(orientV)
                 p = FoundParticle(pos, orientation, score, particleFilename)
                 

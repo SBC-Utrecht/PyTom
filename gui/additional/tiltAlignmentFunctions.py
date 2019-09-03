@@ -283,6 +283,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
                 (Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt] -meany[imark])*spsi)
                 sumxx = distLine[imark,itilt]**2 +sumxx
     sigma = sqrt(sumxx/(ndif - nmark ))
+    print('sigma= {}'.format(sigma))
     #   deviation as angle in deg
     if not mute:
         print(('Number of tilts:.............. = %3d' %ntilt))
@@ -302,7 +303,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
         print(('Coordinates of reference marker: %7.1f, %7.1f, %7.1f'%(r[0], r[1], r[2])))
         print('Difference vectors of marker points:')
     for (imark,Marker) in enumerate(Markers_):
-        sumxx=0.; sumyy=0.; sumxy=0.; sumyx=0.; salpsq = 0.; scalph = 0.
+        sumxx=0.; sumyy=0.; sumxy=0.; sumyx=0.; salpsq = float('0.'); scalph = 0.
         P = numpy.array(3*[3*[0.]])
         P_t = numpy.array(3*[3*[0.]])
         temp = numpy.array(3*[0.])
@@ -314,6 +315,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
             if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark].xProj[itilt] > -1.)): #allow overlapping MPs
                 norm[imark]= norm[imark]+1
                 salpsq = salpsq + sTilt[itilt]**2 #sum sin^2
+
                 scalph = scalph + cTilt[itilt]*sTilt[itilt] #sum cos*sin
                 #sum delta x * cos
                 sumxx = sumxx+ (Marker.xProj[itilt] - Markers_[irefmark].xProj[itilt])* cTilt[itilt]
@@ -334,6 +336,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
         P[2,2] = salpsq
 
         dt = numpy.linalg.det(P)
+        print(norm[imark], salpsq, spsi, sTilt[itilt], sTilt[itilt]**2)
         temp[0] = ( (sumxx*spsi-sumyy*cpsi)*spsi + (cpsi*meanx[imark]+
                       spsi*meany[imark])*cpsi*norm[imark] )
         temp[1] = ( -(sumxx*spsi-sumyy*cpsi)*cpsi + (cpsi*meanx[imark]+
@@ -434,8 +437,6 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
 
     if writeResults:
         from pytom.gui.guiFunctions import fmtMR, headerMarkerResults
-        print(headerMarkerResults)
-
         numpy.savetxt(writeResults, numpy.array(results), fmt=fmtMR, header=headerMarkerResults)
 
     return(psiindeg, shiftX, shiftY, x, y, z, distLine, diffX, diffY, 

@@ -49,12 +49,6 @@ class Volume(PyTomClass):
         
         if not checkFileExists(self._filename):
             raise Exception('File ' + self._filename + ' does not exist!')
-
-        print(self._filename, subregion[0], subregion[1], subregion[2],
-                    subregion[3], subregion[4], subregion[5],
-                    sampling[0], sampling[1], sampling[2],
-                    binning[0], binning[1], binning[2])
-
         
         return read(self._filename, subregion[0], subregion[1], subregion[2],
                     subregion[3], subregion[4], subregion[5],
@@ -98,6 +92,7 @@ class Volume(PyTomClass):
         s = e.get('Subregion')
         if s != None and s!= 'None':
             s = s[1:-1]
+            print(s)
             self.subregion = [int(float(i)) for i in s.split(',')]
 
         s = e.get('Sampling')

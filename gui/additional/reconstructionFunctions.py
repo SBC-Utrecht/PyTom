@@ -84,10 +84,10 @@ def positionsInProjections(location3D,tiltStart,tiltIncrement,tiltEnd,tiltAxis='
 
 
 def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=None, prexgfile=None, preBin=None,
-                           volumeName=None, volumeFileType='em',alignResultFile='',
+                           volumeName=None, volumeFileType='em', alignResultFile='',
                            voldims=None, recCent=[0,0,0], tiltSeriesFormat='st', firstProj=1, irefmark=1, ireftilt=1,
                            handflip=False, alignedTiltSeriesName='align/myTilt', weightingType=-1,
-                           lowpassFilter=1., projBinning=1, outMarkerFileName=None, verbose=False, projIndices=None):
+                           lowpassFilter=1., projBinning=1, outMarkerFileName=None, verbose=False, outfile=''):
     """
     @param tiltSeriesName: Name of tilt series (set of image files in .em or .mrc format) or stack file (ending '.st').\
     Note: the actual file ending should NOT be provided.
@@ -139,7 +139,6 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
     """
     from pytom.gui.additional.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
 
-    print('de: ', alignResultFile, not alignResultFile)
     if not alignResultFile:
         if verbose:
             print("Function alignWeightReconstruct started")
@@ -178,7 +177,8 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
             tiltSeries.writeMarkerFile(markerFileName=outMarkerFileName)
             tiltSeries._markerFileName = outMarkerFileName
         tiltAlignment.resetAlignmentCenter()  # overrule cent in Paras
-        tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute)
+
+        tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute, outfile=outfile)
         tiltAlignment.alignFromFiducials(mute=mute)
         # creating dir for aligned tilt series if default filename
         if alignedTiltSeriesName == 'align/myTilt':
@@ -195,12 +195,14 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
             #tiltSeries._tiltSeriesFormat = 'em'
             vol_bp = tiltSeries.reconstructVolume(dims=voldims, reconstructionPosition=recCent, binning=1)
 
+            vol_bp.write(volumeName, volumeFileType)
+
     else:
         print('new code')
         tiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName)
         vol_bp = tiltSeries.reconstructVolume(dims=voldims, reconstructionPosition=recCent, binning=projBinning,
                                               alignResultFile=alignResultFile)
 
-    vol_bp.write(volumeName, volumeFileType)
+        vol_bp.write(volumeName, volumeFileType)
 
 

@@ -6,18 +6,20 @@ def startLocalizationJob(filename, splitX=0, splitY=0, splitZ=0, doSplitAngles=F
     """
     verbose=True
     from pytom.localization.peak_job import PeakJob
+    import os
     job = PeakJob()
     job.fromXMLFile(filename)
     job.check()
-
+    suffix = os.path.basename(job.reference.getFilename()).split('.')[0]
+    print(f'suffix: {suffix}')
     if doSplitAngles:
         print('Ignore split volume parameters ...')
         from pytom.localization.parallel_extract_peaks import PeakManager
-        manager = PeakManager()
+        manager = PeakManager(suffix=suffix)
         manager.parallelStart_splitAng(job, verbose)
     else:
         from pytom.localization.parallel_extract_peaks import PeakLeader
-        leader = PeakLeader()
+        leader = PeakLeader(suffix=suffix)
         leader.parallelRun(job, splitX, splitY, splitZ, verbose)
 
 if __name__ == '__main__':

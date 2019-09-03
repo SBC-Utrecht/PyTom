@@ -70,7 +70,9 @@ class TiltSeries(PyTomClass):
             self._TiltAlignmentParas = TiltAlignmentParas
             self._alignedTiltSeriesName = alignedTiltSeriesName
 
-            self.mf = vol2npy(read(markerFileName))
+            if markerFileName.endswith('.em'): self.mf = vol2npy(read(markerFileName))
+            if markerFileName.endswith('.txt'): self.mf = self.txt2markerfile(markerFileName, self._lenPI)
+            print(self.mf[0,:,0])
             #print self.mf[0,:,0]
             # set Projection List
             self._firstIndex, self._lastIndex = -1, len(self._projIndices)
@@ -238,6 +240,14 @@ class TiltSeries(PyTomClass):
         if self.verbose:
             print(("Projection " + str(iremove) + " removed from TiltSeries"))
 
+    def txt2markerfile(self, filename, num_tilt_images):
+        data = numpy.loadtxt(filename)
+        datalen = data.shape[0]
+        x, y = datalen // num_tilt_images, num_tilt_images
+        markerfile = data.reshape(x, y, 4)[:, :, 1:].transpose(2, 1, 0)
+        #markerfile[1:,:,:] = markerfile[1:,:,:][::-1,:]
+        return  markerfile
+
     def readMarkerFile(self, markerFileName):
         """
         read MarkerFile and update self._Markers
@@ -249,10 +259,22 @@ class TiltSeries(PyTomClass):
         """
         from math import pi
 
-        markerFileVol = read(markerFileName)
-        nproj = markerFileVol.sizeY()
-        nproj -= self._firstIndex
-        nproj -= self._lenPI-self._lastIndex
+        if markerFileName.endswith('.em') or markerFileName.endswith('.mrc'):
+            markerFileVol = read(markerFileName)
+            nproj = markerFileVol.sizeY()
+            nproj -= self._firstIndex
+            nproj -= self._lenPI - self._lastIndex
+            nmark = markerFileVol.sizeZ()
+            markerFile = vol2npy(markerFileVol)
+            markerFile = markerFile[:, self._firstIndex:self._lastIndex, :]
+
+        else:
+            markerFile = self.txt2markerfile(markerFileName, len(self._ProjectionList._list) )
+            nproj = markerFile.shape[1]
+            nproj -= self._firstIndex
+            nproj -= self._lenPI - self._lastIndex
+            nmark = markerFile.shape[2]
+            markerFile = markerFile[:, self._firstIndex:self._lastIndex, :]
 
         # make sure that nproj matches number of Projections in self._ProjectionList
         if (nproj != len(self._ProjectionList._list)):
@@ -260,9 +282,6 @@ class TiltSeries(PyTomClass):
             print(("  Markerfile: " + str(nproj)))
             print(("  TiltSeries: " + str(len(self._ProjectionList._list))))
             print("Please fix!")
-        nmark = markerFileVol.sizeZ()
-        markerFile = vol2npy(markerFileVol)
-        markerFile = markerFile[:, self._firstIndex:self._lastIndex, :]
 
         # check that tilt angles in marker file and projections are the same
         for (iproj, proj) in enumerate(self._ProjectionList._list):

@@ -998,7 +998,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                 tiltImageIndex += 1
         self.replot2()
 
-    def save(self, markerFileName='markerfile.em', ask_recent=1, selected_markers=True):
+    def save(self, markerFileName='markerfile.txt', ask_recent=1, selected_markers=True):
 
         output_type = markerFileName.split('.')[-1]
         markerFileName = os.path.join(os.path.dirname(self.fnames[0]).replace('/excluded', ''), markerFileName)
@@ -1043,6 +1043,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             
             markerFileVol = vol(12, len(projIndices), num_markers)
             markerFileVol.setAll(-1)
+
             for (imark, Marker) in enumerate(markIndices):
                 for (itilt, TiltIndex) in enumerate(projIndices):
                     if self.coordinates[TiltIndex][Marker][1] < 1 and self.coordinates[TiltIndex][Marker][0] < 1:
@@ -1057,6 +1058,20 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
             write_em(markerFileName, markerFileVol)
 
+        elif output_type == 'txt':
+            from pytom.basic.datatypes import HEADER_MARKERFILE, fmtMarkerfile
+            markerFile = numpy.zeros((num_markers,len(projIndices),4))
+            for iMark in range(num_markers):
+                markerFile[iMark,:,0] = iMark
+                markerFile[iMark,:,1] = self.tiltangles[:]
+                markerFile[iMark,:,2:] = self.coordinates[:,iMark][:,::-1] * self.bin_alg
+
+            with open(markerFileName, 'w') as outfile:
+                np.savetxt(outfile,[],header=HEADER_MARKERFILE)
+
+                for data_slice in markerFile:
+                    np.savetxt(outfile, data_slice, fmt=fmtMarkerfile)
+
         print ('output_type: ', output_type, markerFileName)
 
     def load(self):
@@ -1067,6 +1082,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         if not markfilename or not os.path.exists(markfilename): return
 
         mark_frames = read_markerfile(markfilename,self.tiltangles)
+
         if markfilename.endswith('.wimp'):
             imodShiftFile = QFileDialog.getOpenFileName(self, 'Open file', self.projectname, "Imod transf file (*.xf)")[0]
             if not imodShiftFile: return
@@ -1074,6 +1090,10 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             mark_frames, shift = addShiftToMarkFrames(mark_frames, shifts, self.metadata, self.excluded)
 
         self.deleteAllMarkers()
+
+        if type(mark_frames) in (int, float):
+            print('loading file failed')
+            return
 
         self.mark_frames = mark_frames / float(self.bin_read)
         self.coordinates = copy.deepcopy(self.mark_frames)

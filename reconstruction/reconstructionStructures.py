@@ -358,7 +358,7 @@ class ProjectionList(PyTomClass):
             directory += os.sep
         
         
-        files = [line for line in os.listdir(directory) if prefix in line]
+        files = [line for line in sorted(os.listdir(directory)) if prefix in line]
         self.tilt_angles = []
 
         for n, file in enumerate(files):

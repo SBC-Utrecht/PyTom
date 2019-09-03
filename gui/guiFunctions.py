@@ -68,9 +68,19 @@ def read_markerfile(filename,tiltangles):
         mark_frames = wimp2markerfile(filename, tiltangles)
     elif filename[-4:] == '.npy':
         mark_frames = npy2markerfile(filename, tiltangles)
+    elif filename[-4:] == '.txt':
+        mark_frames = txt2markerfile(filename,tiltangles)
     else:
         return 0
 
+    return mark_frames
+
+def txt2markerfile(filename,tiltangles):
+    data = numpy.loadtxt(filename)
+    datalen = data.shape[0]
+    x, y = datalen // len(tiltangles), len(tiltangles)
+    mark_frames = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
+    print(mark_frames.shape)
     return mark_frames
 
 def npy2markerfile(filename,tiltangles):
