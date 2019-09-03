@@ -1,5 +1,5 @@
 templateXML       = '''<JobDescription Destination="{d[6]}">
-  <Volume Filename="{d[0]}" Subregion="0,0,0,0,0,0"/>
+  <Volume Filename="{d[0]}" Subregion=" 0,0,{d[7]},{d[8]},{d[9]},{d[10]} "/>
   <Reference Weighting="" File="{d[1]}"/>
   <Mask Filename="{d[2]}" Binning="1" isSphere="True"/>
   <WedgeInfo Angle1="{d[3]}" Angle2="{d[4]}" CutoffRadius="0.0" TiltAxis="custom">
@@ -53,7 +53,7 @@ templateWBP       = '''cd {d[0]}
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\
     --referenceIndex {d[4]} \\
-    --markerFile reconstruction/WBP/markerfile.em \\
+    --markerFile reconstruction/WBP/markerfile.txt \\
     --referenceMarkerIndex {d[5]} \\
     --expectedRotationAngle {d[11]} \\
     --projectionTargets reconstruction/WBP/temp_files_unweighted/sorted_aligned \\
@@ -83,7 +83,7 @@ templateINFR      = '''cd {d[0]}
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\
     --referenceIndex {d[4]} \\
-    --markerFile reconstruction/INFR/markerfile.em \\
+    --markerFile reconstruction/INFR/markerfile.txt \\
     --referenceMarkerIndex {d[5]} \\
     --expectedRotationAngle {d[9]} \\
     --projectionTargets reconstruction/INFR/temp_files_unweighted/sorted_aligned \\

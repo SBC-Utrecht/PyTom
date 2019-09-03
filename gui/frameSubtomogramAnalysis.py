@@ -348,7 +348,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                 al  = os.path.join(os.path.dirname(os.path.dirname(folder) ),'alignment')
                 ctf = os.path.join(os.path.dirname(os.path.dirname(folder) ),'ctf')
-                choices = [al+'/'+f for f in os.listdir(al) if 'unweighted_unbinned' in f and os.path.isdir(al+'/'+f)]
+                choices = [al+'/'+f for f in os.listdir(al) if 'marker_' in f and os.path.isdir(al+'/'+f)]
                 #choices = list(map(str,range(markerdata.sizeZ()))) # + ['closest']
                 #a = sorted(glob.glob('{}/Reconstruction*-*.out'.format(folder)))[-1]
 
@@ -406,7 +406,7 @@ class SubtomoAnalysis(GuiTabWidget):
             folder = os.path.join(self.tomogram_folder, a, origin)
             print(folder)
             choices = [folder + '/' + f for f in os.listdir(folder) if
-                        'unweighted_unbinned' in f and os.path.isdir(folder + '/' + f)]
+                        'marker_' in f and os.path.isdir(folder + '/' + f)]
 
             closest_choices = {}
 
@@ -474,7 +474,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 offz = self.tab12_widgets['widget_{}_{}'.format(row, 10)].text()
 
 
-                refid = folder_aligned.split('unweighted_unbinned_marker_')[1].split('_')[0]
+                refid = folder_aligned.split('marker_')[1].split('_')[0]
 
                 if refid.lower() != 'closest':
 
@@ -512,7 +512,7 @@ class SubtomoAnalysis(GuiTabWidget):
                     qname, n_nodes, cores, time = self.qparams['BatchSubtomoReconstruct'].values()
 
                     paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
-                                 self.subtomodir, weight, metafile, logfile, str(cores), 'sorted_ctf_aligned']
+                                 self.subtomodir, weight, metafile, logfile, str(cores), 'sorted_aligned']
 
 
                     txt = extractParticlesClosestMarker.format(d=paramsCmd)

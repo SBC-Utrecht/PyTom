@@ -238,7 +238,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
     #resolution hokus pokus -> estimate fsc for all particles
     for (ii, fscel) in enumerate(fsc):
         fsc[ii] = 2.*fscel/(1.+fscel)
-    write_fsc2Ascii(fsc=fsc, filename='FSC-Final.dat')
+    write_fsc2Ascii(fsc=fsc, filename=alignmentJob.destination+"/FSC-Final.dat")
     resolutionBand = getResolutionBandFromFSC(fsc, criterion=0.143)
     resolutionAngstrom = bandToAngstrom(band=resolutionBand,
                                         pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),

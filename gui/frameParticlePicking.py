@@ -179,6 +179,12 @@ class ParticlePick(GuiTabWidget):
                                     filetype=['em', 'mrc'], mode='file',cstep=1,rstep=0)
         #self.insert_label(parent,'Create Mask',cstep=2, alignment=Qt.AlignRight)
         self.insert_pushbutton(parent,'Create',action=self.create_maskfile,params=[mode+'maskFname'],cstep=-3,rstep=1)
+        self.insert_label_spinbox(parent, mode + 'startZ', 'Start index of object in Z-dimension', width=w,
+                                  value=0, stepsize=1, minimum=0, maximum=1000,
+                                  tooltip='The tomogram might consist of empty space. Please determine the z-index where the object starts.')
+        self.insert_label_spinbox(parent, mode + 'endZ', 'End index of object in Z-dimension', width=w,
+                                  value=0, stepsize=1, minimum=0, maximum=1000,
+                                  tooltip='The tomogram might consist of empty space. Please determine the z-index where the object ends.')
 
         self.insert_label_spinbox(parent, mode + 'Wedge1', 'Wedge Angle1 (degrees)',width=w,
                                   value=30, stepsize=1,minimum=0, maximum=90,
@@ -191,7 +197,12 @@ class ParticlePick(GuiTabWidget):
                                    tooltip='Select the file that describes the angular sampling of the template model',
                                    width=w,cstep=0)
 
+        self.widgets[mode + 'widthZ'] = QLineEdit('464')
+        self.widgets[mode + 'jobName'] = QLineEdit()
         self.widgets[mode + 'tomoFname'].textChanged.connect(lambda d, m=mode: self.updateTM(m))
+        self.widgets[mode + 'startZ'].valueChanged.connect(lambda d, m=mode: self.updateZWidth(m))
+        self.widgets[mode + 'endZ'].valueChanged.connect(lambda d, m=mode: self.updateZWidth(m))
+        self.widgets[mode + 'templateFname'].textChanged.connect(lambda d, m=mode: self.updateJobName(m))
 
         self.execfilenameTM = os.path.join( self.templatematchfolder, 'templateMatch.sh')
         self.xmlfilename  = os.path.join( self.templatematchfolder, 'job.xml')
@@ -207,14 +218,20 @@ class ParticlePick(GuiTabWidget):
 
         self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=[mode+'outfolderTM','templateMatch.sh'], paramsSbatch=paramsSbatch,
                                  paramsXML=[mode+'tomoFname', mode + 'templateFname', mode+'maskFname', mode + 'Wedge1',
-                                            mode + 'Wedge2',mode+'angleFname', mode + 'outfolderTM', templateXML],
-                                 paramsCmd=[mode+'outfolderTM', self.pytompath, 'job.xml' ,templateTM],
-                                 xmlfilename=[mode+'outfolderTM','job.xml'])
+                                            mode + 'Wedge2',mode+'angleFname', mode + 'outfolderTM', mode + 'startZ',
+                                            '464', '464', mode + 'widthZ', templateXML],
+                                 paramsCmd=[mode+'outfolderTM', self.pytompath, mode + 'jobName' ,templateTM],
+                                 xmlfilename=[mode+'outfolderTM', mode + 'jobName'])
 
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
 
         setattr(self, mode + 'gb_TMatch', groupbox)
         return groupbox
+
+
+    def updateJobName(self, mode):
+        template = os.path.basename(self.widgets[mode+'templateFname'].text()).split('.')[0]
+        self.widgets[mode + 'jobName'].setText('job_{}.xml'.format(template))
 
     def updateTM(self,mode):
         tomoname = os.path.basename(self.widgets[mode + 'tomoFname'].text())
@@ -226,6 +243,14 @@ class ParticlePick(GuiTabWidget):
         self.xmlfilename = os.path.join(self.templatematchfolder, 'cross_correlation', filename, 'job.xml')
         self.widgets[mode + 'outfolderTM'].setText(os.path.dirname(self.xmlfilename))
         print(os.path.dirname(self.xmlfilename))
+
+    def updateZWidth(self, mode):
+        start, end = self.widgets[mode + 'startZ'].value(), self.widgets[mode + 'endZ'].value()
+        width = end-start
+        if end < start:
+            width=0
+            self.widgets[mode + 'endZ'].setValue(start)
+        self.widgets[mode + 'widthZ'].setText(str(int(round(width))))
 
     def createTemplateMask(self, mode):
         title = "Create Mask for Template Matching"
@@ -390,13 +415,14 @@ class ParticlePick(GuiTabWidget):
             return
 
         id = 'tab22'
-        headers = ["Filename Tomogram", "Run", "Optional Templates", 'Optional Masks', 'Wedge Angle 1',
-                   "Wedge Angle 2", 'Angle List', '']
-        types = ['txt', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox','txt']
-        sizes = [0, 0, 80, 80, 0, 0, 0]
+        headers = ["Filename Tomogram", "Run", "Mirrored", "Optional Templates", 'Optional Masks', 'Wedge Angle 1',
+                   "Wedge Angle 2", 'Angle List', 'Start Z', 'End Z', '']
+        types = ['txt', 'checkbox', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox','lineedit', 'lineedit', 'txt']
+        sizes = [0, 0, 0, 80, 80, 0, 0, 0, 0 ,0]
 
         tooltip = ['Name of tomogram files.',
                    'Check this box if you want to do template matching using the optional settings.',
+                   'Check this box if you want to do template matching using a mirrored version of the template. If both run and mirrored are checked template matching will be deployed twice for that tomogram.',
                    'Optional templates.',
                    'Optional masks.',
                    'Angle between 90 and the highest tilt angle.',
@@ -408,7 +434,7 @@ class ParticlePick(GuiTabWidget):
         angleLists = os.listdir(os.path.join(self.pytompath, 'gui/angleLists'))
         for n, tomogramFile in enumerate(tomogramFiles):
             print(templateFiles, maskFiles, angleLists)
-            values.append([tomogramFile, 1, templateFiles, maskFiles, 30, 30, angleLists, ''])
+            values.append([tomogramFile, 1, 1, templateFiles, maskFiles, 30, 30, angleLists, 0, 0, ''])
             print(values[-1])
 
         try:
@@ -429,39 +455,90 @@ class ParticlePick(GuiTabWidget):
         num_submitted_jobs = 0
 
         for row in range(self.tables[pid].table.rowCount()):
-            if not self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked():
+            normal = self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked()
+            mirrored = self.tab22_widgets['widget_{}_{}'.format(row, 2)].isChecked()
+            if not normal and not mirrored:
                 continue
 
             tomogramFile = values[row][0]
-            templateFile = values[row][2][self.tab22_widgets['widget_{}_{}'.format(row, 2)].currentIndex()]
-            maskFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
-            w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 4)].text())
-            w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
-            angleList = self.tab22_widgets['widget_{}_{}'.format(row, 6)].currentText()
+            templateFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
+            maskFile = values[row][4][self.tab22_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
+            w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
+            w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 6)].text())
+            angleList = self.tab22_widgets['widget_{}_{}'.format(row, 7)].currentText()
+            start = self.tab22_widgets['widget_{}_{}'.format(row, 8)].text()
+            end = self.tab22_widgets['widget_{}_{}'.format(row, 9)].text()
+            widthX, widthY, widthZ = 0, 0 ,0
+            try:
+                start, end = int(start), int(end)
+                widthZ = end-start
+                if widthZ < 1:
+                    widthZ = 0
+                    start = 0
+                if widthZ:
+                    from pytom_volume import read
+                    v = read(tomogramFile)
+                    widthX = v.sizeX()
+                    widthY = v.sizeY()
+                    del v
 
+            except:
+                continue
 
             tomofile, ext = os.path.splitext(tomogramFile)
-            outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
-            if not os.path.exists(outDirectory): os.mkdir(outDirectory)
+            suffices = []
+            if normal:
+                suffices.append('')
+            if mirrored:
+                suffices.append('_Mirrored')
+                outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
+                if not os.path.exists(outDirectory): os.mkdir(outDirectory)
 
-            jobxml = templateXML.format(d=[tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory])
-            outjob = open(os.path.join(outDirectory, 'job.xml'), 'w')
-            outjob.write(jobxml)
-            outjob.close()
+                from pytom_volume import read, vol, mirrorVolume
+                for n, input_filename in enumerate([templateFile, maskFile]):
+                    v = read(input_filename)
+                    res = vol(v)
+                    mirrorVolume(v, res)
+
+                    i = os.path.basename(input_filename)
+                    base,ext = os.path.splitext(i)
+                    i = base+'_Mirrored'+ext
+                    output_filename = os.path.join(outDirectory, i)
+                    if n == 0: templateFileMirrored = output_filename
+                    if n == 1: maskFileMirrored = output_filename
+
+                    res.write(output_filename)
+
+            for n, suffix in enumerate(suffices):
+                outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
+                if not os.path.exists(outDirectory): os.mkdir(outDirectory)
+                if 'Mirror' in suffix:
+                    templateFile = templateFileMirrored
+                    maskFile = maskFileMirrored
+
+                XMLParams = [tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory,
+                             start, widthX, widthY, widthZ]
+
+                jobxml = templateXML.format(d=XMLParams)
+                template = os.path.basename(templateFile).split('.')[0]
+                jobname = 'job_{}.xml'.format(template)
+                outjob = open(os.path.join(outDirectory, jobname), 'w')
+                outjob.write(jobxml)
+                outjob.close()
 
 
-            fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
-            folder = outDirectory
-            cmd = templateTM.format(d=[outDirectory, self.pytompath, 'job.xml'])
-            suffix = "_" + os.path.basename(outDirectory)
-            qname, n_nodes, cores, time = self.qparams['BatchTemplateMatch'].values()
-            job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
-                                                time=time, num_nodes=n_nodes, partition=qname) + cmd
-            outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
-            outjob2.write(job)
-            outjob2.close()
-            os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
-            num_submitted_jobs += 1
+                fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
+                folder = outDirectory
+                cmd = templateTM.format(d=[outDirectory, self.pytompath, jobname])
+                suffix = "_" + os.path.basename(outDirectory)
+                qname, n_nodes, cores, time = self.qparams['BatchTemplateMatch'].values()
+                job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
+                                                    time=time, num_nodes=n_nodes, partition=qname) + cmd
+                outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
+                outjob2.write(job)
+                outjob2.close()
+                os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
+                num_submitted_jobs += 1
 
     def tab31UI(self):
         key = 'tab31'

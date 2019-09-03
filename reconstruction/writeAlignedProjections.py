@@ -49,7 +49,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             lowpassFilter = 1.
             print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
         # weighting filter: arguments: (angle, cutoff radius, dimx, dimy,
-        lpf = pytom_freqweight.weight(0.0,lowpassFilter*imdim//2, imdim, imdim//2+1,1, lowpassFilter/5.*imdim)
+        lpf = pytom_freqweight.weight(0.0,lowpassFilter*imdim/2, imdim, imdim//2+1,1, lowpassFilter/5.*imdim)
         #lpf = bandpassFilter(volume=vol(imdim, imdim,1),lowestFrequency=0,highestFrequency=int(lowpassFilter*imdim/2),
         #                     bpf=None,smooth=lowpassFilter/5.*imdim,fourierOnly=False)[1]
 
@@ -106,16 +106,13 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             if lowpassFilter:
                 filtered = filterFunction( volume=image, filterObject=lpf, fourierOnly=False)
                 image = filtered[0]
-
             tiltAngle = projection._tiltAngle
             header.set_tiltangle(tiltAngle)
             # normalize to contrast - subtract mean and norm to mean
             immean = vol2npy(image).mean()
             image = (image - immean)/immean
-
             # smoothen borders to prevent high contrast oscillations
             image = taper_edges(image, imdim//30)[0]
-
             # transform projection according to tilt alignment
 
 
@@ -133,11 +130,11 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
                 tline = tline + (", mag=%5.4f" %mag)
                 print(tline)
 
+
             image = general_transform2d(v=image, rot=rot, shift=[transX,transY], scale=mag, order=[2, 1, 0], crop=True)
 
             # smoothen once more to avoid edges
             image = taper_edges(image, imdim//30)[0]
-
 
             # analytical weighting
             if (weighting != None) and (weighting < 0):
@@ -148,7 +145,6 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
                 w_func = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
                 image = (ifft( complexRealMult( fft( image), w_func) )/
                       (image.sizeX()*image.sizeY()*image.sizeZ()) )
-
             header.set_tiltangle(tilt_angles[ii])
 
             if newFilename.endswith ('.mrc'):

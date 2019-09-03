@@ -697,7 +697,10 @@ class CommonFunctions():
             # Check if one needs to write pytom related XML file.
             if params[2]:
                 if len(params[2][0]) > 1:
-                    tempfilename = os.path.join(self.widgets[params[2][0]].text(), params[2][1])
+                    try:
+                        tempfilename = os.path.join(self.widgets[params[2][0]].text(),self.widgets[params[2][1]].text())
+                    except:
+                        tempfilename = os.path.join(self.widgets[params[2][0]].text(), params[2][1])
                 else:
                     tempfilename = params[2]
                 jobfile = open(tempfilename,'w')
@@ -1065,11 +1068,18 @@ def circle(pos, size = 2, label='',color=Qt.blue):
     return MyCircleOverlay(pos=pos, pen=QtGui.QPen(color, pensize), size=size, movable=False, label=label)
 
 
-class SimpleTable(QMainWindow):
+class SimpleTable(QMainWindow, CommonFunctions):
 
     def __init__(self, headers, types, values, sizes=[], tooltip=[] , connect=0, sorting=False, id=''):
         super(SimpleTable, self).__init__()
+        self.size_policies()
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+
+        #self.scrollarea.setGeometry(0, 0, 700, 1000)
         central_widget = QWidget(self)
+
+        #self.scrollarea.setWidget(central_widget)
+
         #self.setGeometry(10, 10, 700, 300)  # Create a central widget
         grid_layout = QGridLayout(self)
         grid_layout.setContentsMargins(0,0,0,0) # Create QGridLayout
@@ -1208,7 +1218,8 @@ class SimpleTable(QMainWindow):
         self.table2.horizontalHeader().hide()
         self.table2.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.table2.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-
+        #table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        #table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         applyOptionSum = 0
 
         for n, t in enumerate(types):
@@ -1285,7 +1296,17 @@ class SimpleTable(QMainWindow):
 
         for i in range(self.table.columnCount()):
             self.table2.setColumnWidth(i, self.table.columnWidth(i))
+
         self.setCentralWidget(central_widget)
+
+        self.sliderBar1 = self.table2.horizontalScrollBar()
+        self.sliderBar2 = self.table.horizontalScrollBar()
+
+        self.sliderBar2.valueChanged.connect(lambda d, s1=self.sliderBar2, s2=self.sliderBar1: self.SyncScroll(s1,s2))
+
+    def SyncScroll(self,slider1, slider2):
+        sliderValue = slider1.value()
+        slider2.setValue(sliderValue)
 
     def on_changeItem(self, rowIndex,widgetType):
         for i in range(self.table.rowCount()):
@@ -1300,6 +1321,7 @@ class SimpleTable(QMainWindow):
 
         for i in range(self.table.columnCount()):
             self.table2.setColumnWidth(i, self.table.columnWidth(i))
+
 
 
 class GuiTabWidget(QWidget, CommonFunctions):
@@ -1320,6 +1342,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
         #self.scrollarea.setGeometry(offx, offy, dimx, dimy)
 
         self.scrollarea.setGeometry(0,0,sizeX,sizeY)
+        self.scrollarea.setFrameShape(QFrame.NoFrame)
 
         self.tabWidget = QtWidgets.QTabWidget(self.scrollarea)
         self.tabWidget.setContentsMargins(0,0,0,0)
@@ -3099,7 +3122,6 @@ class DisplayText(QMainWindow):
             outfile.close()
             self.setText(text, title=os.path.basename(filename))
             self.show()
-
 
 
 class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):

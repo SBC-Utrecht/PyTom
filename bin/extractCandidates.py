@@ -62,8 +62,8 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
     if sizeParticle==None:
         ref = job.reference.getVolume()
         sizeParticle = [ref.sizeX(),ref.sizeY(),ref.sizeZ()]
-    
-    particleList = res.findParticles(sizeParticle,maxNumParticle,minScore,write2disk,margin, offset=job.subregion[:3])
+    print(job.volume.subregion[:3])
+    particleList = res.findParticles(sizeParticle,maxNumParticle,minScore,write2disk,margin, offset=job.volume.subregion[:3])
     
     return particleList
 

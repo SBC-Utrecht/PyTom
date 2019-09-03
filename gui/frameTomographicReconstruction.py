@@ -817,7 +817,7 @@ class TomographReconstruct(GuiTabWidget):
         else:
             pass
 
-        try: os.system(f'cp {directory}/sorted/markerfile.em {output_folder}/markerfile.em')
+        try: os.system(f'cp {directory}/sorted/markerfile.txt {output_folder}/markerfile.txt')
         except: pass
 
     def tab53UI(self):
@@ -837,13 +837,13 @@ class TomographReconstruct(GuiTabWidget):
                    'Expected in-plane Rotation Angle',
                    'Binning factor applied to images.']
 
-        markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
+        markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.txt'.format(self.tomogram_folder)))
 
         values = []
 
         for markerfile in markerfiles:
-            qmarkerfile = markerfile.replace('markerfile.em','*.meta')
-            qsortedfiles = markerfile.replace('markerfile.em','sorted_*.mrc')
+            qmarkerfile = markerfile.replace('markerfile.txt','*.meta')
+            qsortedfiles = markerfile.replace('markerfile.txt','sorted_*.mrc')
             metafile = glob.glob( qmarkerfile )[0]
 
             metadata=numpy.loadtxt(metafile, dtype=guiFunctions.datatype)
@@ -931,8 +931,16 @@ class TomographReconstruct(GuiTabWidget):
                         commandText = templateINFR.format(d=paramsCmd)
                         paramsSbatch['fname'] = 'Reconstruction_{}_INFR.sh'.format(os.path.basename(tomofolder))
                     elif i==2:
+                        folderSorted = os.path.join(tomofolder, 'sorted')
+                        files = [line for line in os.listdir(folderSorted) if
+                                 line.startswith('sorted') and line.endswith('.mrc')]
+                        if not files: continue
+                        files = files[0]
+                        imdim = read_mrc(os.path.join(folderSorted, files)).shape[0]
+                        recon_dim = str(int(float(imdim) / float(binningFactor) + .5))
+
                         paramsCmd = [tomofolder, self.pytompath, firstIndex, lastIndex, refTiltImage, refmarkindex,
-                                     binningFactor, os.path.basename(tomofolder), 'mrc', '464', '1', expectedRotation]
+                                     binningFactor, os.path.basename(tomofolder), 'mrc', recon_dim, '1', expectedRotation]
                         commandText= templateWBP.format(d=paramsCmd)
                         paramsSbatch['fname'] = 'Reconstruction_{}_WBP.sh'.format(os.path.basename(tomofolder))
                     else:
