@@ -22,6 +22,7 @@ from pytom.gui.fiducialAssignment import FiducialAssignment
 from pytom.gui.guiFunctions import avail_gpu
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.bin.extractTomoNameFromXML import *
+from pytom.gui.guiFunctions import readMarkerfile
 
 
 class SubtomoAnalysis(GuiTabWidget):
@@ -343,8 +344,8 @@ class SubtomoAnalysis(GuiTabWidget):
                 if not folder: continue
                 folder = os.path.dirname(folder.split()[-1])
 
-                markerfile  = os.path.join(folder, 'markerfile.em')
-                markerdata = read(markerfile,binning=[1,1,1])
+                #markerfile  = os.path.join(folder, 'markerfile.txt')
+                #markerdata = readMarkerfile(markerfile,61)
 
                 al  = os.path.join(os.path.dirname(os.path.dirname(folder) ),'alignment')
                 ctf = os.path.join(os.path.dirname(os.path.dirname(folder) ),'ctf')

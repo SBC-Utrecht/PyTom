@@ -2609,8 +2609,9 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 x,y,z = map(float, (p.xpath('PickPosition')[0].get('X'), p.xpath('PickPosition')[0].get('Y'), p.xpath('PickPosition')[0].get('Z')))
                 dx,dy,dz = self.vol.shape
 
-                if self.mask[int(x),int(y),int(z)] or not self.widgets['apply_mask'].isChecked(): include =True
-                else: include = False
+                include = True
+                #if self.mask[int(x),int(y),int(z)] or not self.widgets['apply_mask'].isChecked(): include =True
+                #else: include = False
                 if not include: continue
 
                 if abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 :

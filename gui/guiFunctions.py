@@ -75,6 +75,23 @@ def read_markerfile(filename,tiltangles):
 
     return mark_frames
 
+
+def readMarkerfile(filename, num_tilt_images):
+    if filename.endswith('.em'):
+        from pytom.basic.files import read
+        from pytom_volume import vol2npy
+        markerfile = read(markerFileName)
+        markerdata = vol2npy(markerfile).copy()
+        return markerdata
+
+    elif filename.endswith('.txt'):
+        import numpy
+        data = numpy.loadtxt(filename)
+        datalen = data.shape[0]
+        x, y = datalen // num_tilt_images, num_tilt_images
+        markerdata = data.reshape(x, y, 4)[:, :, 1:].transpose(2, 1, 0)
+        return markerdata
+
 def txt2markerfile(filename,tiltangles):
     data = numpy.loadtxt(filename)
     datalen = data.shape[0]

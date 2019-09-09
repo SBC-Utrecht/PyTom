@@ -398,12 +398,12 @@ class TomographReconstruct(GuiTabWidget):
                    'Expected Rotation Angle',
                    'Input Folder for tilt images used in alignment.']
 
-        markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
+        markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.txt'.format(self.tomogram_folder)))
         values = []
 
         for markerfile in markerfiles:
-            qmarkerfile = markerfile.replace('markerfile.em','*.meta')
-            qsortedfiles = markerfile.replace('markerfile.em','sorted_*.mrc')
+            qmarkerfile = markerfile.replace('markerfile.txt','*.meta')
+            qsortedfiles = markerfile.replace('markerfile.txt','sorted_*.mrc')
             metafile = glob.glob( qmarkerfile )[0]
             metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
             tangs = metadata['TiltAngle']
@@ -419,8 +419,8 @@ class TomographReconstruct(GuiTabWidget):
                     index_zero_angle = index_s
 
 
-            d = read(markerfile)
-            data = copy.deepcopy( vol2npy(d) )
+            data = guiFunctions.readMarkerfile(markerfile, len(sortedfiles))
+
             if len(data.shape) < 3: continue
             options_reference = list(map(str, range( data.shape[2] ))) + ['all']
             expect = int(float(metadata['InPlaneRotation'][0]))
@@ -483,8 +483,8 @@ class TomographReconstruct(GuiTabWidget):
                 lastangles.append(la)
                 expectedangles.append(expected)
 
-                markerfile = read(os.path.join(self.tomogram_folder, tomofoldername, 'sorted/markerfile.em'))
-                markerdata = vol2npy(markerfile).copy()
+
+                markerdata = guiFunctions.readMarkerfile(markerfile, 61)
 
                 if markindex == 'all':
                     numMark = markerdata.shape[2]
@@ -529,7 +529,7 @@ class TomographReconstruct(GuiTabWidget):
         for n in range(len(lprocs) - 1):
 
             input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1], num_procs_per_proc, 'D1',
-                            'alignment/markerfile.em', 'alignment', file_tomoname)
+                            'alignment/markerfile.txt', 'alignment', file_tomoname)
 
             cmd = multiple_alignment.format( d=input_params )
 
@@ -1305,7 +1305,7 @@ class TomographReconstruct(GuiTabWidget):
 
         for markerfile in markerfiles:
             tomogramName = os.path.dirname( os.path.dirname(markerfile) )
-            query = '{}/alignment/unweighted*'.format(tomogramName)
+            query = '{}/alignment/*marker*'.format(tomogramName)
             folders = [folder for folder in glob.glob(query) if os.path.isdir(folder)]
             folders = sorted( [folder for folder in folders if len(os.listdir(folder)) > 1] )
             if not folders: continue
