@@ -3621,20 +3621,8 @@ class SelectModules(QWidget):
 
         q = "module avail --long 2>&1 | awk 'NR >2 {print $1}'"
         avail = [line for line in os.popen(q).readlines() if not line.startswith('/') and not line.startswith('shared') and not 'intel' in line]
-        print(avail)
         self.grouped = [mod.strip("\n") for mod in avail if 'python' in mod or 'lib64' in mod or 'motioncor' in mod or 'imod' in mod or 'pytom' in mod or 'openmpi' in mod]
-
-        '''
-        self.grouped = ['chimera/1.10.2-chooser', 'chimera/1.12', 'coot/0.8.9', 'ctffind/3.5', 'ctffind/4.1.10',
-                        'dynamo/1.1.333_matlab', 'dynamo/1.1.333_standalone', 'em2em/10.6.15', 'eman2/2.21',
-                        'eman2/2.3', 'frealign/9.11', 'gautomatch/0.53', 'gautomatch/0.56', 'gctf/1.06', 'gctf/1.18',
-                        'imod/4.10.11-nb', 'imod/4.10.18', 'imod/4.10.25', 'imod/4.10.29', 'imod/4.9.5', 'imod/4.9.6',
-                        'lib64/append', 'lib64/prepend', 'matlab/R2014a', 'matlab/R2017b', 'matlab/R2018a',
-                        'motioncor2/1.0.5', 'motioncor2/1.2.0', 'motioncor2/1.2.1', 'novactf/13.8.18', 'openmpi/2.1.1',
-                        'openmpi/gcc/64/1.10.3', 'python/2.7', 'python3/3.7', 'pytom/0.971', 'pytom/dev/amudha',
-                        'pytom/dev/dschulte', 'pytom/dev/friedrich', 'pytom/dev/gijsvds', 'pytom/dev/gui_beta',
-                        'pytom/dev/gui_devel']
-        '''
+        self.update = True
         for i, name in enumerate(self.grouped):
             action = self.toolmenu.addAction(name)
             action.setCheckable(True)
@@ -3647,18 +3635,19 @@ class SelectModules(QWidget):
         self.activateModules(modules)
 
     def updateModules(self, index, update=False):
-        if update == False: return
+        if self.update == False: return
         name = self.actions[index].text()
         origin = name.split('/')[0]
 
+        self.update = False
         for action in self.actions:
             tempName = action.text()
-            if name == tempName or action.isChecked() == False:
+            if name == tempName:
                 continue
             tempOrigin = tempName.split('/')[0]
-
             if origin == tempOrigin and action.isChecked() == True:
                 action.setChecked(False)
+        self.update = True
 
         self.modules = []
         for action in self.actions:
