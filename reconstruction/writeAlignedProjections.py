@@ -23,7 +23,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     from pytom.basic.transformations import general_transform2d
     from pytom.basic.fourier import ifft, fft
     from pytom.basic.filter import filter as filterFunction, bandpassFilter
-    from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift
+    from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, rotateFilter
     from pytom_volume import complexRealMult, vol
     import pytom_freqweight
     from pytom.basic.transformations import resize
@@ -142,7 +142,11 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
                       (image.sizeX()*image.sizeY()*image.sizeZ()) )
 
             elif (weighting != None) and (weighting > 0):
-                w_func = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
+                if abs(weighting -2 ) < 0.001:
+                    w_func = fourierFilterShift(rotateFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
+                else:
+                    w_func = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
+
                 image = (ifft( complexRealMult( fft( image), w_func) )/
                       (image.sizeX()*image.sizeY()*image.sizeZ()) )
             header.set_tiltangle(tilt_angles[ii])

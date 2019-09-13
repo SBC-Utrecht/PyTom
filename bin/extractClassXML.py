@@ -55,8 +55,8 @@ if __name__ == '__main__':
     from pytom.tools.parse_script_options import parse_script_options
 
     options = [ScriptOption(['-p','--particleList'], 'Particle List', True, False),
-               ScriptOption(['-o','--outputFileName'], 'Coordinate List (ascii file from EMAN2)', True, False),
-               ScriptOption(['-c','--classes'],'path and filename for subtomogram files (e.g., MyPath/particle_)',
+               ScriptOption(['-o','--outputFileName'], 'Filename of output Particle List ', True, False),
+               ScriptOption(['-c','--classes'],'Index of class: if more than one class separate by comma',
                             True, False),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 

@@ -510,7 +510,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                     logfilequery = os.path.join(tomodir, end)
                     logfile = sorted(glob.glob(logfilequery))[0]
-                    qname, n_nodes, cores, time = self.qparams['BatchSubtomoReconstruct'].values()
+                    qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
 
                     paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
                                  self.subtomodir, weight, metafile, logfile, str(cores), 'sorted_aligned']
@@ -520,7 +520,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                     jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,singleton=True, num_nodes=n_nodes,
                                                            name='SubtomoRecon_{}'.format(nsj % num_nodes),
-                                                           num_jobs_per_node=20, time=time) + txt
+                                                           num_jobs_per_node=20, time=time, modules=modules) + txt
                 out = open(execfilename, 'w')
                 out.write(jobtxt)
                 out.close()

@@ -470,7 +470,7 @@ class TomographReconstruct(GuiTabWidget):
                 num_procs_per_proc = max(num_procs_per_proc, len(values[row][5]) - 1)
                 number_tomonames += 1
                 folder = os.path.join(self.tomogram_folder, tomofoldername)
-                os.system('cp {}/sorted/markerfile.em {}/alignment'.format(folder,folder))
+                os.system('cp {}/sorted/markerfile.txt {}/alignment/'.format(folder,folder))
 
                 self.widgets[mode + 'FirstAngle'].setText(firstindex)
                 self.widgets[mode + 'LastAngle'].setText(lastindex)
@@ -483,7 +483,7 @@ class TomographReconstruct(GuiTabWidget):
                 lastangles.append(la)
                 expectedangles.append(expected)
 
-
+                markerfile = '{}/alignment/markerfile.txt'.format(folder)
                 markerdata = guiFunctions.readMarkerfile(markerfile, 61)
 
                 if markindex == 'all':
@@ -525,7 +525,7 @@ class TomographReconstruct(GuiTabWidget):
         tomofolder_file.close()
 
         num_submitted_jobs = 0
-        qname, n_nodes, cores, time = self.qparams['BatchAlignment'].values()
+        qname, n_nodes, cores, time, modules = self.qparams['BatchAlignment'].values()
         for n in range(len(lprocs) - 1):
 
             input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1], num_procs_per_proc, 'D1',
@@ -537,7 +537,7 @@ class TomographReconstruct(GuiTabWidget):
                 jobname = 'Alignment_BatchMode_Job_{:03d}'.format(num_submitted_jobs)
 
                 cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname, time=time,
-                                                    num_nodes=n_nodes, cmd=cmd)
+                                                    num_nodes=n_nodes, cmd=cmd, modules=modules)
 
             guiFunctions.write_text2file(cmd, '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n), 'w')
 
@@ -1380,9 +1380,9 @@ class TomographReconstruct(GuiTabWidget):
                     fname = 'CTF_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                     outDirectory = os.path.dirname(cPrefix) 
                     suffix = "_" + "_".join([os.path.basename(tomofolder)]+folder.split('/')[-1:])
-                    qname,n_nodes,cores,time = self.qparams['BatchCTFCorrection'].values()
+                    qname,n_nodes,cores,time, modules = self.qparams['BatchCTFCorrection'].values()
                     job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, time=time,
-                                                        partition=qname, num_nodes=n_nodes, singleton=True) + jobscript
+                                                        partition=qname, num_nodes=n_nodes, singleton=True, modules=modules) + jobscript
                     outjob = open(os.path.join(outDirectory, 'ctfCorrectionBatch.sh'), 'w')
                     outjob.write(job)
                     outjob.close()
