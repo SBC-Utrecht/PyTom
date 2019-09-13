@@ -545,7 +545,7 @@ class CommonFunctions():
                           tooltip='', width=0, params=['file', '', '', False], iconpath='', wname='', state=True):
         widget = QtWidgets.QPushButton(self)
         if wname:
-            print (wname)
+            print(wname)
             self.widgets[wname] = widget
         widget.setEnabled(state)
         if tooltip: widget.setToolTip(tooltip)
@@ -664,16 +664,16 @@ class CommonFunctions():
         self.insert_combobox(parent, wname, labels, rowspan=rowspan, columnspan=columnspan, rstep=rstep, cstep=cstep,
                              width=width, logvar=logvar)
 
-    def insert_label_action_label(self, parent, actiontext, action='', cstep=0, rstep=1, sizepolicy='', params=''):
+    def insert_label_action_label(self, parent, actiontext, action='', cstep=0, rstep=1, sizepolicy='', params='', wname=''):
         self.insert_label(parent,alignment=Qt.AlignRight,sizepolicy=sizepolicy,rstep=1)
-        self.insert_pushbutton(parent, text=actiontext, rstep=rstep, cstep=cstep, action=action, params=params)
+        self.insert_pushbutton(parent, text=actiontext, rstep=rstep, cstep=cstep, action=action, params=params, wname=wname)
         self.insert_label(parent,sizepolicy=sizepolicy,rstep=1)
 
     def insert_gen_text_exe(self, parent, mode, gen_action='', action='', paramsAction=[], paramsXML=[], paramsCmd=[],
                             paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, id=''):
 
         self.insert_label_action_label(parent, 'Generate command', cstep=1, rstep=-1, sizepolicy=self.sizePolicyB,
-                                       action=self.gen_action,
+                                       action=self.gen_action, wname=mode + 'GeneratePushButton',
                                        params=[[mode + 'XMLText']+paramsXML,
                                                [mode+'CommandText'] + paramsCmd,
                                                paramsSbatch])

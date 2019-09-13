@@ -101,7 +101,7 @@ class NewProject(QMainWindow, CommonFunctions):
 class PyTomGui(QMainWindow, CommonFunctions):
     resized=pyqtSignal()
     def __init__(self, parent=None):
-        super(menudemo, self).__init__(parent)
+        super(PyTomGui, self).__init__(parent)
         self.size_policies()
         self.setGeometry(0,0, 300, 100)
         self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
@@ -189,7 +189,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
     def resizeEvent(self, event):
         self.resized.emit()
-        return super(menudemo, self).resizeEvent(event)
+        return super(PyTomGui, self).resizeEvent(event)
 
     def sizetest(self):
         w = self.splitter.frameGeometry().width()

@@ -212,7 +212,6 @@ class TomographReconstruct(GuiTabWidget):
         n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables['tab1'].table
         widgets = self.tables['tab1'].widgets
-        procs = []
 
         jobs = []
 
@@ -225,7 +224,7 @@ class TomographReconstruct(GuiTabWidget):
                 metafile = values[row][0]
                 folder = self.filepath_tomodata[widgets['widget_{}_{}'.format(row, 3)].currentText()]
 
-                jobs.append([self.create_tomodir_instance, (tomofoldername,metafile,folder)])
+                jobs.append([self.create_tomodir_instance, (tomofoldername, metafile,folder)])
 
                 #self.create_tomodir_instance(tomofoldername,metafile,folder)
 
@@ -235,35 +234,110 @@ class TomographReconstruct(GuiTabWidget):
                 tomofoldername = widgets['widget_{}_{}'.format(row, 4)].text()
                 metafile = os.path.basename(values[row][0])
                 folder = self.filepath_tomodata[widgets['widget_{}_{}'.format(row, 3)].currentText()]
-                metafile = os.path.join( self.filepath_tomodata[folder], metafile )
-                shutil.rmtree( os.path.join(self.tomogram_folder, tomofoldername) )
-                jobs.append( [self.create_tomodir_instance, (tomofoldername,metafile,folder)])
+                metafile = os.path.join(self.rawnanographs_folder, metafile)
+
+                sfolder = os.listdir(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
+                sfolder = [os.path.join(self.tomogram_folder, tomofoldername, 'sorted', f) for f in sfolder]
+                [os.system('unlink {}'.format(f)) for f in sfolder if f.endswith('.mrc') and f.startswith('sorted_')]
+                if os.path.exists(os.path.join(self.tomogram_folder, tomofoldername)):
+                    shutil.rmtree(os.path.join(self.tomogram_folder, tomofoldername))
+
+                jobs.append( [self.create_tomodir_instance, (tomofoldername, metafile, folder)])
 
             # Delete
             wname = 'widget_{}_{}'.format(row, 6)
             if wname in widgets.keys() and widgets[wname].isChecked():
                 tomofoldername = widgets['widget_{}_{}'.format(row, 4)].text()
-                shutil.rmtree( os.path.join(self.tomogram_folder, tomofoldername) )
+                sfolder = os.listdir(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
+                sfolder = [os.path.join(self.tomogram_folder, tomofoldername, 'sorted', f) for f in sfolder]
+                [os.system('unlink {}'.format(f)) for f in sfolder if f.endswith('.mrc') and f.startswith('sorted_')]
+                if os.path.exists(os.path.join(self.tomogram_folder, tomofoldername)):
+                    shutil.rmtree( os.path.join(self.tomogram_folder, tomofoldername) )
+
                 # self.create_tomodir_instance(tomofoldername,mdocfile,folder)
 
         events = []
         self.jobs_nr_create_tomofolders = len(jobs)
 
-        self.run_jobs(jobs)
+        if len(jobs):
+            self.divide_jobs(jobs, id)
 
-    def run_jobs(self, jobs):
+        else:
+            self.tab1UI()
+
+    def divide_jobs(self, jobs, id):
+        self.num_parallel_procs = 5
+
+        try:
+            del self.counters
+        except:
+            pass
+
+        counters = [0,]*len(jobs)
+
+        manager = Manager()
+
+        self.counters = manager.list(counters)
+
+        self.generate_statusbar(len(jobs))
+
         procs = []
-        for target, args in jobs:
-            procs = [proc for proc in procs if not proc.is_alive()]
-            while len(procs) >= 5:
-                time.sleep(0.5)
-            proc = Process(target=target, args=args)
+        self.completion = [0,]*self.num_parallel_procs
+        for i in range(min(len(jobs), self.num_parallel_procs)):
+            proc = Process(target=self.run_jobs, args=(jobs[i::self.num_parallel_procs], i, self.counters) )
             procs.append(proc)
             proc.start()
+            time.sleep(1)
+        proc = Worker(fn=self.check_run, args=(len(jobs), id))
 
-        self.update_create_tomoname(id)
+        proc.signals.result1.connect(self.update_progress_generate_tomogramdir)
+        proc.signals.finished_mcor.connect(self.delete_progressbar_tomogramdir)
 
-    def create_tomodir_instance(self, tomofoldername, metafile, folder):
+        proc.start()
+
+    def check_run(self, a, id, signals):
+        import time
+        num = 0
+        while sum(self.counters) < a and num < 1000:
+            total = sum(self.counters)
+            signals.result1.emit(total)
+            time.sleep(1)
+            num += 1
+
+        signals.finished_mcor.emit()
+        self.popup_messagebox("Info", "Completion", 'Successfully generated tomogram directories.')
+
+    def update_progress_generate_tomogramdir(self, total):
+        self.progressBar.setValue(total)
+
+    def delete_progressbar_tomogramdir(self):
+        self.statusBar.removeWidget(self.progressBar)
+        self.tab1UI()
+
+    def run_jobs(self, jobs, procid, counters):
+
+        for n, (target, args) in enumerate(jobs):
+            tomofoldername, metafile, folder = args
+            target(tomofoldername, metafile, folder, procid, counters)
+
+
+    def generate_statusbar(self, nrJobs):
+        widget = QWidget(self)
+        layout = QHBoxLayout()
+        widget.setLayout(layout)
+
+        self.progressBar = QProgressBar()
+
+        self.progressBar.setSizePolicy(self.sizePolicyA)
+        self.progressBar.setStyleSheet(DEFAULT_STYLE_PROGRESSBAR)
+        self.progressBar.setFormat('Prepare Tomograms: %v/%m')
+        self.progressBar.setSizePolicy(self.sizePolicyB)
+        self.progressBar.setMaximum(nrJobs)
+        layout.addWidget(self.progressBar)
+        self.statusBar.addPermanentWidget(self.progressBar, stretch=1)
+
+
+    def create_tomodir_instance(self, tomofoldername, metafile, folder, procid=0, counters=[]):
         src = os.path.join(self.tomogram_folder, '.tomoname')
         num_subprocesses = 5
         dst = os.path.join(self.tomogram_folder, tomofoldername)
@@ -275,11 +349,12 @@ class TomographReconstruct(GuiTabWidget):
         os.system('cp {} {}'.format(metafile, meta_dst) )
 
         metadata = numpy.loadtxt(metafile, dtype=guiFunctions.datatype)
-        print(metadata)
+
         tif_files  = metadata['FileName']
         tiltangles = metadata['TiltAngle']
-        print(tif_files)
-        if len(list(tif_files)) == 0: return
+
+        if len(list(tif_files)) == 0:
+            return
 
         for n in range(len(tif_files)):
             tif_files[n] = [line.replace('.tif', '.mrc') for line in repr(tif_files[n]).split('\\') if '.' in line][-1]
@@ -308,6 +383,8 @@ class TomographReconstruct(GuiTabWidget):
                 out = square_mrc(dst_mcor)
         if num_copied < 1:
             shutil.rmtree(dst)
+
+        counters[procid] += 1
 
     def tab2UI(self):
         id = 'tab2'
