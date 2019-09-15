@@ -744,6 +744,18 @@ class CommonFunctions():
 
     def gen_action(self, params):
         mode = params[1][0][:-len('CommandText')]
+
+
+        id = params[2]['id']
+        if id:
+            partition, num_nodes, cores, time, modules = self.qparams[id].values()
+            print(id, num_nodes, cores)
+
+        for key in params[1][1:-1]:
+            print(key)
+            if 'numberMpiCores' in key and params[2]['id']:
+                self.widgets[key].setText(str(num_nodes*cores))
+
         for i in range(2):
             if params[i][0] in self.widgets.keys():
                 text = params[i][-1]
@@ -761,7 +773,7 @@ class CommonFunctions():
                         elif type(str(a)) == type(''):
                             d.append(a)
                         else: print(a)
-
+                    print(d)
                     text = text.format( d=d )
                 if i==0: self.widgets[params[i][0]].setPlainText(text)
         # Check if user wants to submit to queue. If so, add queue header.
@@ -777,7 +789,7 @@ class CommonFunctions():
             modules = d['modules']
 
             if id:
-                partition, num_nodes, cores, time, modules = self.qparams[id].values()
+                partition, num_nodes, num_jobs_per_node, time, modules = self.qparams[id].values()
 
             if type(folder) == type([]):
 
@@ -2891,14 +2903,14 @@ class QParams():
         if mode+'modules' in parent.widgets.keys(): self.modules = parent.widgets[mode + 'modules'].getModules()
         else: self.modules = parent.parent().modules
 
-        with open(os.path.join(parent.projectname, 'qparams.pickle'), 'wb') as handle:
+        with open(os.path.join(parent.projectname, '.qparams.pickle'), 'wb') as handle:
             pickle.dump(parent.qparams, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         parent.parent().qparams = parent.qparams
 
         for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
             tab.qparams = parent.qparams
-
+            print(parent.qparams['FRMAlignment'].cores)
 
     def values(self):
         return [self.queue, self.nodes, self.cores, self.time, self.modules]
@@ -3145,214 +3157,6 @@ class DisplayText(QMainWindow):
             self.show()
 
 
-class GeneralSettings2(QMainWindow, GuiTabWidget, CommonFunctions):
-    def __init__(self,parent):
-        super(GeneralSettings, self).__init__(parent)
-        self.stage='generalSettings_'
-        self.pytompath = self.parent().pytompath
-        self.projectname = self.parent().projectname
-        self.logbook = self.parent().logbook
-        self.setGeometry(0, 0, 600, 500)
-        self.qcommanddict = {'slurm': 'sbatch', 'sge': 'qsub', 'torque': 'qsub', 'none': 'none'}\
-
-        headers = ['Queuing Parameters', 'Extra']
-        subheaders = [[], ] * len(headers)
-
-        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, sizeX=600, sizeY=500)
-
-        self.table_layouts = {}
-        self.tables = {}
-        self.pbs = {}
-        self.ends = {}
-        self.checkbox = {}
-        self.num_nodes = {}
-        self.widgets = {}
-        self.subprocesses = 10
-
-        self.tabs = {'tab1': self.tab1,
-                     'tab2': self.tab2,
-                     }
-
-        self.tab_actions = {'tab1': self.tab1UI,
-                            'tab2': self.tab2UI,
-                            }
-
-        for i in range(len(headers)):
-            t = 'tab{}'.format(i + 1)
-            empty = 1 * (len(subheaders[i]) == 0)
-            for j in range(len(subheaders[i]) + empty):
-                tt = t + str(j + 1) * (1 - empty)
-                if tt in ('tab1', 'tab2'):
-                    self.table_layouts[tt] = QGridLayout()
-                else:
-                    self.table_layouts[tt] = QVBoxLayout()
-
-                if tt in ('tab1', 'tab2'):
-                    self.tab_actions[tt]()
-
-                tab = self.tabs[tt]
-                tab.setLayout(self.table_layouts[tt])
-
-    def setQNames(self):
-        self.qnames = ['defq', 'fastq']
-
-    def updateJobName(self, mode='v00_QParams_'):
-        jobname = self.widgets[mode + 'jobName'].currentText()
-        self.currentJobName = jobname
-        self.widgets[mode + 'queueName'].setText(self.qparams[self.currentJobName].queue)
-        self.widgets[mode + 'maxTime'].setValue(self.qparams[self.currentJobName].time)
-        self.widgets[mode + 'numberOfNodes'].setValue(self.qparams[self.currentJobName].nodes)
-        self.widgets[mode + 'numberOfCores'].setValue(self.qparams[self.currentJobName].cores)
-
-    def tab1UI(self):
-        self.jobnames = ['SingleAlignment', 'BatchAlignment',
-                         'ReconstructWBP', 'ReconstructINFR', 'BatchReconstruct',
-                         'CTFDetermination', 'SingleCTFCorrection', 'BatchCTFCorrection',
-                         'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch',
-                         'SingleSubtomoReconstruct', 'BatchSubtomoReconstruct',
-                         'FRMAlignment','GLocalAlignment',
-                         'PairwiseCrossCorrelation', 'CPCA', 'AutoFocusClassification']
-        self.setQNames()
-        self.currentJobName = self.jobnames[0]
-
-        if os.path.exists(os.path.join(self.projectname, 'qparams.pickle')):
-            with open(os.path.join(self.projectname, 'qparams.pickle'), 'rb') as handle:
-                self.qparams = pickle.load(handle)
-        else:
-            self.qparams = {}
-
-        for jobname in self.jobnames:
-            if not jobname in self.qparams.keys():
-                try:
-                    self.qparams[jobname] = QParams(queue=self.qnames[0])
-                except:
-                    self.qparams[jobname] = QParams()
-
-        id = 'tab1'
-        self.row, self.column = 0, 1
-        rows, columns = 20, 20
-        self.items = [['', ] * columns, ] * rows
-        parent = self.table_layouts[id]
-        mode = 'v00_QParams_'
-
-        w = 150
-        last, reftilt = 10, 5
-        self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
-        self.insert_label_combobox(parent, 'Queuing System ', mode + 'qType', ['Slurm','Torque','SGE', 'None'],
-                                    tooltip='Select a particleList which you want to plot.\n', logvar=True)
-        self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
-        self.insert_label_combobox(parent, 'Job Submission Parameters', mode + 'jobName', self.jobnames, logvar=True,
-                                   tooltip='Select the jon for which you want to adjust the queuing parameters.\n')
-        self.insert_label_line(parent, 'Submit to: ', mode+'queueName', value=self.qparams[self.currentJobName].queue)
-        self.insert_label_spinbox(parent,mode+'numberOfNodes', 'Number of Nodes',
-                                  value=self.qparams[self.currentJobName].nodes, minimum=1, stepsize=1,
-                                  wtype=QSpinBox)
-        self.insert_label_spinbox(parent,mode+'numberOfCores', 'Number of Cores',
-                                  value=self.qparams[self.currentJobName].cores, minimum=1, maximum=10000,
-                                  stepsize=1, wtype=QSpinBox)
-        self.insert_label_spinbox(parent,mode+'maxTime', 'Maximum Time (hours)',
-                                  value=self.qparams[self.currentJobName].time, minimum=1, stepsize=1,
-                                  wtype=QSpinBox)
-        self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
-        self.insert_checkbox(parent, mode + 'CustomHeader', 'use custom header for queue', cstep=0, rstep=1,
-                            alignment=Qt.AlignLeft, logvar=True, columnspan=2)
-        self.insert_textfield(parent,mode+'CustomHeaderTextField', columnspan=5,rstep=1,cstep=0, logvar=True)
-        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
-
-        self.widgets[mode + 'qType'].currentTextChanged.connect(lambda d, m=mode: self.updateQType(m))
-        self.widgets[mode + 'CustomHeader'].stateChanged.connect(lambda d, m=mode: self.updateCustomHeader(m))
-        self.widgets[mode + 'jobName'].currentTextChanged.connect(lambda d, m=mode: self.updateJobName(m))
-        self.widgets[mode + 'queueName'].textChanged.connect(lambda d, m=mode:
-                                                             self.qparams[self.currentJobName].update(mode,self))
-        self.widgets[mode + 'numberOfNodes'].valueChanged.connect(lambda d, m=mode:
-                                                                  self.qparams[self.currentJobName].update(m,self))
-        self.widgets[mode + 'numberOfCores'].valueChanged.connect(lambda d, m=mode:
-                                                                  self.qparams[self.currentJobName].update(m,self))
-        self.widgets[mode + 'maxTime'].valueChanged.connect(lambda d, m=mode:
-                                                            self.qparams[self.currentJobName].update(m,self))
-
-        self.updateCustomHeader(mode)
-        self.qparams[self.currentJobName].update(mode, self)
-
-        for n, value in enumerate(self.qcommanddict.values()):
-            if value != 'none':
-                if os.path.exists( os.popen('which {}'.format(value)).read()[:-1] ):
-                    self.widgets[mode + 'qType'].setCurrentIndex(n)
-                    break
-            else: self.widgets[mode + 'qType'].setCurrentIndex(n)
-
-    def updateCustomHeader(self, mode):
-        try:
-            for tab in (self.parent().CD, self.parent().TR, self.parent().PP, self.parent().SA):
-                tab.custom = self.widgets[mode + 'CustomHeader'].isChecked()
-                tab.genSettingsWidgets = self.widgets
-        except:
-            pass
-
-    def updateQType(self, mode):
-
-        qtype = self.widgets[mode + 'qType'].currentText().lower()
-        qcommand =  self.qcommanddict[qtype]
-
-        self.parent().qtype = qtype
-        self.parent().qcommand = qcommand
-        active = (qtype != 'none')
-        try:
-            for tab in (self.parent().CD, self.parent().TR, self.parent().PP, self.parent().SA):
-                tab.qtype = qtype
-                tab.qcommand = qcommand
-                for key in tab.widgets.keys():
-                    if key.endswith('queue'):
-                        if not active:
-                            tab.widgets[key].setChecked(False)
-                        tab.widgets[key].setEnabled(active)
-
-        except:
-            pass
-
-    def showTMPlot(self, mode):
-        from pytom.plotting.plottingFunctions import plotTMResults
-
-        normal = self.widgets[mode + 'particleListNormal'].text()
-        mirrored = self.widgets[mode + 'particleListMirrored'].text()
-
-        plotTMResults([normal, mirrored], labels=['Normal', 'Mirrored'])
-
-    def tab2UI(self):
-        id = 'tab2'
-        self.row, self.column = 0, 0
-        rows, columns = 20, 20
-        self.items = [['', ] * columns, ] * rows
-        parent = self.table_layouts[id]
-        mode = 'v00_PlotFSC'
-        w = 150
-        last, reftilt = 10, 5
-        self.insert_label(parent, rstep=1, cstep=0, sizepolicy=self.sizePolicyB, width=w)
-        self.insert_label_line_push(parent, 'FSC File (ascii)', mode + 'FSCFilename', mode='file', width=w,
-                                    initdir=self.projectname,
-                                    filetype='dat', tooltip='Select a particleList which you want to plot.\n')
-        self.insert_label_spinbox(parent, mode + 'BoxSize', text='Dimension of Image', tooltip='Box size of 3D object',
-                                  value=64, minimum=1, maximum=4000, stepsize=1, width=w)
-        self.insert_label_spinbox(parent, mode + 'PixelSize', text='Pixel Size',
-                                  tooltip='Pixel size of a voxel in teh object.',
-                                  value=2.62, minimum=1, stepsize=1, wtype=QDoubleSpinBox, decimals=2, width=w)
-        self.insert_label_spinbox(parent, mode + 'CutOff', text='Resolution Cutoff', value=0, minimum=0, stepsize=0.1,
-                                  wtype=QDoubleSpinBox, decimals=3, width=w, cstep=0,
-                                  tooltip='Cut-off used to determine the resolution of your object from the FSC curve. \nTypical values are 0.5 or 0.143')
-
-        self.insert_pushbutton(parent, 'Plot!', action=self.showFSCPlot, params=mode, rstep=1, cstep=0)
-        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
-
-    def showFSCPlot(self, mode):
-        from pytom.bin.plotFSC import plot_FSC
-        filename = self.widgets[mode + 'FSCFilename'].text()
-        pixel_size = self.widgets[mode + 'PixelSize'].value()
-        box_size = self.widgets[mode + 'BoxSize'].value()
-        cut_off = self.widgets[mode + 'CutOff'].value()
-        show_image = True
-        outFname = 'temp.png'
-        if filename and outFname:
-            plot_FSC(filename, pixel_size, boxsize=box_size, show_image=show_image, c=cut_off)
 class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
     resized = pyqtSignal()
     def __init__(self,parent):
@@ -3434,6 +3238,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.widgets[mode + 'numberOfNodes'].setValue(self.qparams[self.currentJobName].nodes)
         self.widgets[mode + 'numberOfCores'].setValue(self.qparams[self.currentJobName].cores)
         self.widgets[mode + 'modules'].activateModules(self.qparams[self.currentJobName].modules)
+
     def tab1UI(self):
         self.jobnames = ['SingleAlignment', 'BatchAlignment',
                          'ReconstructWBP', 'ReconstructINFR', 'BatchReconstruct',
@@ -3445,8 +3250,8 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.setQNames()
         self.currentJobName = self.jobnames[0]
 
-        if os.path.exists(os.path.join(self.projectname, 'qparams.pickle')):
-            with open(os.path.join(self.projectname, 'qparams.pickle'), 'rb') as handle:
+        if os.path.exists(os.path.join(self.projectname, '.qparams.pickle')):
+            with open(os.path.join(self.projectname, '.qparams.pickle'), 'rb') as handle:
                 self.qparams = pickle.load(handle)
         else:
             self.qparams = {}
@@ -3556,14 +3361,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         pass
 
     def tabxx(self):
-        id = 'tab2'
-        self.row, self.column = 0, 0
-        rows, columns = 20, 20
-        self.items = [['', ] * columns, ] * rows
-        parent = self.table_layouts[id]
-        mode = 'v00_PlotFSC'
-        w = 150
-        last, reftilt = 10, 5
+
         self.insert_label(parent, rstep=1, cstep=0, sizepolicy=self.sizePolicyB, width=w)
         self.insert_label_line_push(parent, 'FSC File (ascii)', mode + 'FSCFilename', mode='file', width=w,
                                     initdir=self.projectname,
@@ -3592,13 +3390,31 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
             plot_FSC(filename, pixel_size, boxsize=box_size, show_image=show_image, c=cut_off)
 
     def tab3UI(self):
-        pass
+        id = 'tab3'
+        self.row, self.column = 0, 0
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        parent = self.table_layouts[id]
+        mode = 'v00_DT'
+        w = 150
+        
+        self.insert_label_spinbox(parent, mode+'numberOfCores', text='Number of cores',
+                                  tooltip='Number of cores used for creation of tomogram directories.',
+                                  minimum=1, value=5, maximum=20, width=w)
+
+        self.widgets[mode + 'numberOfCores'].valueChanged.connect(lambda d, m=mode: self.updateNumberOfCores(mode))
+        self.updateNumberOfCores(mode)
+
+    def updateNumberOfCores(self, mode):
+        self.parent().TR.num_parallel_procs = int(self.widgets[mode+'numberOfCores'].value())
+
 
     def tab4UI(self):
         pass
 
     def tab5UI(self):
         pass
+
 
 class SelectModules(QWidget):
     def __init__(self,parent=None, modules=[], mode=''):
@@ -3621,8 +3437,10 @@ class SelectModules(QWidget):
         self.p = parent
 
         q = "module avail --long 2>&1 | awk 'NR >2 {print $1}'"
-        avail = [line for line in os.popen(q).readlines() if not line.startswith('/') and not line.startswith('shared') and not 'intel' in line]
-        self.grouped = [mod.strip("\n") for mod in avail if 'python' in mod or 'lib64' in mod or 'motioncor' in mod or 'imod' in mod or 'pytom' in mod or 'openmpi' in mod]
+        avail = [line for line in os.popen(q).readlines() if not line.startswith('/')
+                 and not line.startswith('shared') and not 'intel' in line]
+        self.grouped = [mod.strip("\n") for mod in avail if 'python' in mod or 'lib64' in mod or 'motioncor' in mod
+                        or 'imod' in mod or 'pytom' in mod or 'openmpi' in mod]
         self.update = True
         for i, name in enumerate(self.grouped):
             action = self.toolmenu.addAction(name)
@@ -3666,6 +3484,7 @@ class SelectModules(QWidget):
 
     def getModules(self):
         return self.modules
+
 
 class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
     def __init__(self,parent):

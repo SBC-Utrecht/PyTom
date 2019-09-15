@@ -60,8 +60,6 @@ class TomographReconstruct(GuiTabWidget):
         self.checkbox = {}
         self.num_nodes = {}
 
-        self.subprocesses = 10
-
         self.tabs = {'tab1': self.tab1,
                      'tab2':  self.tab2,
                      'tab31': self.tab31, 'tab32': self.tab32,
@@ -266,7 +264,7 @@ class TomographReconstruct(GuiTabWidget):
             self.tab1UI()
 
     def divide_jobs(self, jobs, id):
-        self.num_parallel_procs = 5
+
 
         try:
             del self.counters
@@ -614,7 +612,7 @@ class TomographReconstruct(GuiTabWidget):
                 jobname = 'Alignment_BatchMode_Job_{:03d}'.format(num_submitted_jobs)
 
                 cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname, time=time,
-                                                    num_nodes=n_nodes, cmd=cmd, modules=modules)
+                                                    num_nodes=n_nodes, cmd=cmd, modules=modules, num_jobs_per_node=cores)
 
             guiFunctions.write_text2file(cmd, '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n), 'w')
 
@@ -1281,6 +1279,12 @@ class TomographReconstruct(GuiTabWidget):
         self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',
                                   value=1, stepsize=1, minimum=1, maximum=16, rstep=1, cstep=0)
 
+        self.widgets[mode + 'tomofolder'] = QLineEdit()
+        self.widgets[mode + 'uPrefix'] = QLineEdit()
+        self.widgets[mode + 'cPrefix'] = QLineEdit()
+        self.widgets[mode + 'MetaFile'] = QLineEdit()
+        self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
+
         exefilename = [mode + 'tomofolder', 'ctf/CTFCorrection.sh']
 
         paramsSbatch = guiFunctions.createGenericDict()
@@ -1288,7 +1292,8 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch['folder'] = self.logfolder #[mode + 'tomofolder', 'ctf']
         paramsSbatch['id'] = 'SingleCTFCorrection'
         paramsCmd = [mode + 'tomofolder', self.pytompath, mode + 'uPrefix', mode + 'cPrefix', mode + 'MetaFile',
-                     mode + 'rotationAngle', mode + 'GridSpacing', mode + 'FieldSize', mode + 'BinningFactor', templateCTFCorrection]
+                     mode + 'rotationAngle', mode + 'GridSpacing', mode + 'FieldSize', mode + 'BinningFactor',
+                     mode + 'numberMpiCores', templateCTFCorrection]
 
         self.insert_gen_text_exe(parent, mode, exefilename=exefilename, paramsSbatch=paramsSbatch,
                                  paramsCmd=paramsCmd, action=self.updateMetaFile, paramsAction=[mode])
@@ -1297,13 +1302,7 @@ class TomographReconstruct(GuiTabWidget):
         label.setSizePolicy(self.sizePolicyA)
         parent.addWidget(label)
 
-        self.widgets[mode + 'tomofolder'] = QLineEdit()
-        self.widgets[mode + 'uPrefix'] = QLineEdit()
-        self.widgets[mode + 'cPrefix'] = QLineEdit()
-        self.widgets[mode + 'MetaFile'] = QLineEdit()
-
-        self.widgets[mode + 'FolderSortedAligned'].textChanged.connect(
-            lambda dummy, m=mode: self.updateCTFCorrection(m))
+        self.widgets[mode + 'FolderSortedAligned'].textChanged.connect( lambda dummy, m=mode: self.updateCTFCorrection(m))
         self.widgets[mode + 'GridSpacing'].valueChanged.connect(lambda dummy, m=mode: self.updateGridAndFieldSize(m))
 
         self.updateCTFCorrection(mode)
@@ -1343,9 +1342,9 @@ class TomographReconstruct(GuiTabWidget):
     def updateGridAndFieldSize(self, mode):
         gridSpacing = float(self.widgets[mode + 'GridSpacing'].value())
         fieldSize = float(self.widgets[mode + 'FieldSize'].value())
-        if gridSpacing < fieldSize:
-            self.widgets[mode + 'FieldSize'].setValue(gridSpacing)
-        self.widgets[mode + 'FieldSize'].setMaximum(gridSpacing)
+        if gridSpacing > fieldSize:
+            self.widgets[mode + 'GridSpacing'].setValue(fieldSize)
+        self.widgets[mode + 'GridSpacing'].setMaximum(fieldSize)
 
     def updateMetaFile(self, params):
         mode = params[0]
@@ -1459,7 +1458,8 @@ class TomographReconstruct(GuiTabWidget):
                     suffix = "_" + "_".join([os.path.basename(tomofolder)]+folder.split('/')[-1:])
                     qname,n_nodes,cores,time, modules = self.qparams['BatchCTFCorrection'].values()
                     job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, time=time,
-                                                        partition=qname, num_nodes=n_nodes, singleton=True, modules=modules) + jobscript
+                                                        partition=qname, num_nodes=n_nodes, singleton=True,
+                                                        num_jobs_per_node = cores, modules=modules) + jobscript
                     outjob = open(os.path.join(outDirectory, 'ctfCorrectionBatch.sh'), 'w')
                     outjob.write(job)
                     outjob.close()

@@ -295,8 +295,10 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
 def createGenericDict(fname='template',cmd='', folder='', partition='defq', num_jobs_per_node=20, time=12, suffix='',
                       num_nodes=1, modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel'],
                       id=''):
+
     genericSbatchDict = {'fname':fname,'cmd':cmd,'folder':folder, 'modules':modules, 'time':time, 'partition':partition,
                          'num_jobs_per_node': num_jobs_per_node, 'suffix': suffix, 'num_nodes': num_nodes, 'id': id}
+
     return genericSbatchDict
 
 def sort( obj, nrcol ):

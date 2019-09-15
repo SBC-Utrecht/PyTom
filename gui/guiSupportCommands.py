@@ -111,13 +111,13 @@ templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[
 templateFRMSlurm  = '''
 cd {d[0]}
 
-mpiexec --tag-output -n 20 pytom {d[1]}/frm/FRMAlignment.py -j {d[2]} -v
+mpiexec -n {d[3]} pytom {d[1]}/frm/FRMAlignment.py -j {d[2]} -v
 
 '''
 
 templateGLocal    = '''cd {d[0]}
 
-mpirun -n 20 {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
+mpiexec -n {d[14]} {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
 --particleList {d[3]} \\
 --mask {d[5]} \\
 --numberIterations {d[6]} \\
@@ -133,7 +133,7 @@ mpirun -n 20 {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
 
 templateCCC       = """cd {d[0]}
 
-mpiexec --tag-output -n 20 pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]} -o {d[6]}
+mpiexec --tag-output -n {d[7]} pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]} -o {d[6]}
 """
 
 templateCPCA      = """cd {d[0]}
@@ -143,7 +143,7 @@ classifyCPCA.py -p {d[2]} -o {d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[7]}
 
 templateAC        = '''cd {d[0]}
 
-mpiexec --tag-output -n 20 {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
+mpiexec --tag-output -n {d[12]} {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
 -p {d[2]} \\
 {d[3]} {d[4]} \\
 -k {d[5]} \\
@@ -239,7 +239,7 @@ ctfplotter -pa {d[1]}'''
 
 templateCTFCorrection = '''cd {d[0]}
 
-mpiexec --tag-output -n 20  {d[1]}/bin/pytom {d[1]}/gui/ctfCorrection.py \\
+mpiexec --tag-output -n {d[9]}  {d[1]}/bin/pytom {d[1]}/gui/ctfCorrection.py \\
 -u {d[2]} \\
 -c {d[3]} \\
 --metafile {d[4]} \\

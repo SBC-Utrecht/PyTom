@@ -56,7 +56,6 @@ class SubtomoAnalysis(GuiTabWidget):
         self.pbs = {}
         self.ends = {}
         self.num_nodes = {}
-
         self.tabs = {'tab11': self.tab11, 'tab12': self.tab12,
                      'tab21': self.tab21, 'tab22': self.tab22,
                      'tab31': self.tab31, 'tab32': self.tab32,}
@@ -513,14 +512,14 @@ class SubtomoAnalysis(GuiTabWidget):
                     qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
 
                     paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
-                                 self.subtomodir, weight, metafile, logfile, str(cores), 'sorted_aligned']
+                                 self.subtomodir, weight, metafile, logfile, str(cores*n_nodes), 'sorted_aligned']
 
 
                     txt = extractParticlesClosestMarker.format(d=paramsCmd)
 
                     jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,singleton=True, num_nodes=n_nodes,
                                                            name='SubtomoRecon_{}'.format(nsj % num_nodes),
-                                                           num_jobs_per_node=20, time=time, modules=modules) + txt
+                                                           num_jobs_per_node=16, time=time, modules=modules) + txt
                 out = open(execfilename, 'w')
                 out.write(jobtxt)
                 out.close()
@@ -573,6 +572,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_spinbox(parent,mode+ 'particleDiameter','Particle Diameter (A)',rstep=1,cstep=0,
                                   minimum=10, stepsize=1, value=300, maximum=10000, width=150)
 
+        self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
         self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.updateFRM(m))
 
         rscore = 'False'
@@ -590,7 +590,7 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsJob = [mode+'bwMin',mode+'bwMax',mode+'frequency',mode+'maxIterations', mode+'peakOffset',
                      rscore, weightedAv, mode+'filenameAverage', weighting, mode+'filenameMask', binning_mask, sphere,
                      mode+'pixelSize', mode+'particleDiameter', mode+'particleList', mode+'outputDir']
-        paramsCmd = [self.subtomodir, self.pytompath, jobfilename, templateFRMSlurm]
+        paramsCmd = [self.subtomodir, self.pytompath, jobfilename, mode+'numberMpiCores', templateFRMSlurm]
 
         self.insert_gen_text_exe(parent, self.stage, xmlfilename=jobfilename, jobfield=True, exefilename=exefilename,
                                  paramsXML=paramsJob + [templateFRMJob], paramsCmd=paramsCmd,
@@ -689,7 +689,10 @@ class SubtomoAnalysis(GuiTabWidget):
                                   tooltip='Perform binning (downscale) of subvolumes by factor. Default=1.')
 
         self.widgets[mode+'jobName'] = QLineEdit()
+        self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
+
         self.widgets[mode + 'destination'].textChanged.connect(lambda d, m=mode: self.update_jobname(m))
+
         self.update_jobname(mode)
         glocalpath = os.path.join(self.subtomodir, 'Alignment/GLocal')
         exefilename = os.path.join(glocalpath, 'GLocal_Alignment.sh')
@@ -697,7 +700,7 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsCmd = [self.subtomodir, self.pytompath, self.pytompath, mode+'particleList', 'referenceCommand',
                      mode+'filenameMask', mode+'numIterations', mode+'pixelSize', mode+'particleDiameter',
                      mode+'binning', mode+'jobName', mode+'destination', mode + 'angleShells',
-                     mode + 'angleIncrement', templateGLocal]
+                     mode + 'angleIncrement', mode + 'numberMpiCores',  templateGLocal]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
                                  paramsSbatch=paramsSbatch)
@@ -780,6 +783,8 @@ class SubtomoAnalysis(GuiTabWidget):
                                   minimum=1, stepsize=1, value=1,
                                   tooltip='Perform binning (downscale) of subvolumes by factor. Default=1.')
 
+        self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
+
         self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.cpcadir: self.updateOutFolder(mode,p))
         self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
 
@@ -787,7 +792,7 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict(fname='CCC_Class', folder=self.logfolder,
                                                       id='PairwiseCrossCorrelation')
         paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'filenameMask',
-                     mode + 'lowpass', mode + 'binning', mode + 'outFolder', templateCCC]
+                     mode + 'lowpass', mode + 'binning', mode + 'outFolder', mode + 'numberMpiCores', templateCCC]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
                                  paramsSbatch=paramsSbatch)
@@ -850,6 +855,7 @@ class SubtomoAnalysis(GuiTabWidget):
         # Widgets Updated When Other Widgets Are Updated
         self.widgets[mode + 'flagAlignmentMask'] = QLineEdit('')
         self.widgets[mode + 'flagClassificationMask'] = QLineEdit('')
+        self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
 
         # Parameters for execution
         exefilename = [mode + 'outFolder', 'AC_Classification.sh'] #os.path.join(acpath, 'AC_Classification.sh')
@@ -858,7 +864,7 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'flagAlignmentMask',
                      mode + 'flagClassificationMask', mode + 'numClasses', mode + 'bwMax', mode + 'maxIterations',
                      mode + 'peakOffset', mode + 'noisePercentage', mode + 'partDensThresh', mode + 'stdDiffMap',
-                     mode + 'outFolder', templateAC]
+                     mode + 'outFolder', mode + 'numberMpiCores', templateAC]
 
 
         # Generation of textboxes and pushbuttons related to submission

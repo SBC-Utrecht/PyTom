@@ -547,7 +547,8 @@ class ParticlePick(GuiTabWidget):
                 suffix = "_" + os.path.basename(outDirectory)
                 qname, n_nodes, cores, time, modules = self.qparams['BatchTemplateMatch'].values()
                 job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
-                                                    time=time, num_nodes=n_nodes, partition=qname, modules=modules) + cmd
+                                                    time=time, num_nodes=n_nodes, partition=qname, modules=modules,
+                                                    num_jobs_per_node=cores) + cmd
                 outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
                 outjob2.write(job)
                 outjob2.close()
