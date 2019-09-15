@@ -397,6 +397,51 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
         
     return weightFunc
 
+def rotateFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
+    from numpy import zeros_like, ones, column_stack, sin, abs, zeros, pi, ceil, floor, float32
+    from scipy.ndimage import rotate
+    from pytom_volume import vol
+    from pytom.basic.files import read
+    from pytom_numpy import npy2vol
+
+    smallest = abs(tilt_angles - tiltAngle)
+    smallest[smallest.argmin()] = 1000
+    smallest = smallest.min()
+
+    wFunc = ones((sX))
+    size = min(sX, int(2 / sin(smallest * pi / 180.)))
+
+    a = zeros((size, size))
+
+    sY = sY // 2 + 1
+
+    dame = zeros_like(a)
+    dame[size // 2, :] = 1.
+
+    out = zeros_like(a)
+
+    for angle in (tilt_angles - tiltAngle):
+
+        if abs(angle) > 0.0001:
+            dame2 = rotate(dame, angle, axes=(0, 1), reshape=False)
+        else:
+            dame2 = dame.copy()
+        out += dame2
+
+    wFunc[sX // 2 - int(floor(size // 2)):sX // 2 + int(ceil(size / 2))] = 1 / out[size // 2, :]
+
+    wfunc = column_stack( ([(wFunc), ] * (sY)) ).astype(float32)
+
+    weightFunc = vol(sX, sY, 1)
+    weightFunc.setAll(0.0)
+
+    for ix in range(0, sX):
+        for iy in range(0, sY):
+            # print(ix,iy)
+            weightFunc.setV(float(wfunc[ix][iy]), ix, iy, 0)
+
+    return weightFunc
+
 def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, returnReducedComplex=False, binarize=False):
     """
     rotateWeighting: Rotates a frequency weighting volume around the center. If the volume provided is reduced complex, it will be rescaled to full size, ftshifted, rotated, iftshifted and scaled back to reduced size.

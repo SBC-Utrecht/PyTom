@@ -1060,11 +1060,15 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         elif output_type == 'txt':
             from pytom.basic.datatypes import HEADER_MARKERFILE, fmtMarkerfile
-            markerFile = numpy.zeros((num_markers,len(projIndices),4))
-            for iMark in range(num_markers):
+            markerFile = numpy.ones((num_markers,len(projIndices),4))*-1
+            for iMark, Marker in enumerate(markIndices):
                 markerFile[iMark,:,0] = iMark
-                markerFile[iMark,:,1] = self.tiltangles[:]
-                markerFile[iMark,:,2:] = self.coordinates[:,iMark][:,::-1] * self.bin_alg
+
+                for (itilt, TiltIndex) in enumerate(projIndices):
+                    markerFile[iMark, itilt, 1] = self.tiltangles[TiltIndex]
+                    if self.coordinates[TiltIndex][Marker][1] < 1 and self.coordinates[TiltIndex][Marker][0] < 1:
+                        continue
+                    markerFile[iMark, itilt, 2:] = self.coordinates[TiltIndex][Marker][::-1] * self.bin_alg
 
             with open(markerFileName, 'w') as outfile:
                 np.savetxt(outfile,[],header=HEADER_MARKERFILE)
@@ -1138,6 +1142,18 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         self.insert_label_combobox(self.grid, 'Tomogram Name', 'tomogram_name', self.parent().tomogram_names, rstep=1, cstep=-1,
                                    tooltip='Algorithm used for automatic fiducial detection.')
 
+        self.insert_label_spinbox(self.grid,'bin_read', text='Binning Factor Reading', rstep=1, minimum=1, maximum=16,
+                                  stepsize=2,tooltip='Binning factor for reading.',value=2,wtype=QSpinBox,cstep=-1)
+
+        self.insert_label_spinbox(self.grid,'bin_alg', text='Binning Factor Finding Fiducials',rstep=1,
+                                  minimum=1,maximum=16,stepsize=2,value=8,wtype=QSpinBox,cstep=0,
+                                  tooltip='Binning factor for finding fiducials, used to improve contrast.')
+
+        self.insert_pushbutton(self.grid, text='Load Tilt Images', rstep=1, action=self.parent().load_images,params='',
+                               tooltip='Load tilt images of tomogram set in settings.', cstep=-1)
+
+        self.insert_label(self.grid,rstep=1)
+
         self.insert_label_spinbox(self.grid, 'tilt_axis', text='Angle Tilt Axis (degrees)', rstep=1,
                                value=270, maximum=359, stepsize=5,
                                tooltip='Specifies how much the tilt axis deviates from vertical (Y axis), clockwise.')
@@ -1158,16 +1174,6 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
 
         self.insert_label(self.grid,rstep=1)
 
-
-        self.insert_label_spinbox(self.grid,'bin_read', text='Binning Factor Reading', rstep=1, minimum=1, maximum=16,
-                                  stepsize=2,tooltip='Binning factor for reading.',value=2,wtype=QSpinBox,cstep=-1)
-
-        self.insert_label_spinbox(self.grid,'bin_alg', text='Binning Factor Finding Fiducials',rstep=1,
-                                  minimum=1,maximum=16,stepsize=2,value=8,wtype=QSpinBox,cstep=-1,
-                                  tooltip='Binning factor for finding fiducials, used to improve contrast.')
-
-        self.insert_label(self.grid,rstep=1)
-
         self.insert_label_combobox(self.grid, 'Accuracy level', 'algorithm', ['normal', 'sensitive'], rstep=1,cstep=-1,
                                    tooltip='Algorithm used for automatic fiducial detection.')
 
@@ -1176,8 +1182,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
                                   tooltip='Threshold detecting a peak in cross correlation map.')
         self.insert_label(self.grid,rstep=1, cstep=1)
 
-        self.insert_pushbutton(self.grid, text='Load Tilt Images', rstep=1, action=self.parent().load_images,params='',
-                               tooltip='Load tilt images of tomogram set in settings.')
+
 
         self.setCentralWidget(self.settings)
 

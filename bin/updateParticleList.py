@@ -15,6 +15,8 @@ def get_size(particleList, directory):
     tempPL = ParticleList()
     tempPL.fromXMLFile(particleList)
 
+
+
     tomoName = tempPL[0].getPickPosition().getOriginFilename() if tempPL[0].getPickPosition().getOriginFilename() else tempPL[0].getSourceInfo().getTomoName()
 
     if not os.path.exists(tomoName):
@@ -22,13 +24,21 @@ def get_size(particleList, directory):
         if not os.path.exists(tomoName):
             return 'Failed'
 
-    try: dimx,dimy,dimz = vol2npy( read(tomoName) ).copy().shape
-    except: return 'Failed'
+    try:
+        print(tomoName)
+        vol = read(tomoName)
+        data = vol2npy(vol).copy()
+        dimx, dimy, dimz =  data.shape
+    except:
+        print('Failed')
+        return 'Failed'
 
-    return dimx,dimy,dimz
+    return [dimx,dimy,dimz]
 
 def mirrorParticleList(particleList, outname, directory='./'):
+    print(particleList, outname, directory)
     sizes = get_size(particleList, directory)
+    print(sizes)
     if sizes == 'Failed':
         print('Mirroring particle coordinates did not succeed. Please ensure the paths to the origin tomogram are correct')
         return
@@ -43,6 +53,7 @@ def mirrorParticleList(particleList, outname, directory='./'):
         pp.setZ(dimz - pp.getZ())
         shift = particle.getShift()
         shift.invert()
+    print('write')
     tempPL.toXMLFile(outname)
 
 def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='zxz'):
@@ -144,7 +155,7 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
 
 
         tempPL.toXMLFile(outnames[n])
-        if mirror: mirrorParticleList(outnames[n], outnames[n], directory=tomogram_dir)
+        if mirror: mirrorParticleList(xmlfile, outnames[n], directory=tomogram_dir)
 
 if __name__ == '__main__':
     import sys

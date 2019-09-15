@@ -114,7 +114,7 @@ class MPI:
             except Exception as e:
                 print(e)
                 self.comm.Abort()
-
+                break
         # get end msg, terminate
         import sys
         sys.exit()

@@ -22,6 +22,7 @@ from pytom.gui.fiducialAssignment import FiducialAssignment
 from pytom.gui.guiFunctions import avail_gpu
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.bin.extractTomoNameFromXML import *
+from pytom.gui.guiFunctions import readMarkerfile
 
 
 class SubtomoAnalysis(GuiTabWidget):
@@ -343,8 +344,8 @@ class SubtomoAnalysis(GuiTabWidget):
                 if not folder: continue
                 folder = os.path.dirname(folder.split()[-1])
 
-                markerfile  = os.path.join(folder, 'markerfile.em')
-                markerdata = read(markerfile,binning=[1,1,1])
+                #markerfile  = os.path.join(folder, 'markerfile.txt')
+                #markerdata = readMarkerfile(markerfile,61)
 
                 al  = os.path.join(os.path.dirname(os.path.dirname(folder) ),'alignment')
                 ctf = os.path.join(os.path.dirname(os.path.dirname(folder) ),'ctf')
@@ -509,7 +510,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                     logfilequery = os.path.join(tomodir, end)
                     logfile = sorted(glob.glob(logfilequery))[0]
-                    qname, n_nodes, cores, time = self.qparams['BatchSubtomoReconstruct'].values()
+                    qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
 
                     paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
                                  self.subtomodir, weight, metafile, logfile, str(cores), 'sorted_aligned']
@@ -519,7 +520,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                     jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,singleton=True, num_nodes=n_nodes,
                                                            name='SubtomoRecon_{}'.format(nsj % num_nodes),
-                                                           num_jobs_per_node=20, time=time) + txt
+                                                           num_jobs_per_node=20, time=time, modules=modules) + txt
                 out = open(execfilename, 'w')
                 out.write(jobtxt)
                 out.close()

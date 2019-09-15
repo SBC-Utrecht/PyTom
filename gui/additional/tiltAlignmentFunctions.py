@@ -283,7 +283,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
                 (Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt] -meany[imark])*spsi)
                 sumxx = distLine[imark,itilt]**2 +sumxx
     sigma = sqrt(sumxx/(ndif - nmark ))
-    print('sigma= {}'.format(sigma))
+
     #   deviation as angle in deg
     if not mute:
         print(('Number of tilts:.............. = %3d' %ntilt))

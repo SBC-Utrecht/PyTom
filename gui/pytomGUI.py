@@ -129,12 +129,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.qcommand = 'sbatch'
         self.logbook = {}
         dropdown = []
-
-        #oImage = QImage("background11.jpg")
-        #sImage = oImage.scaled(QSize(1920,1080))  # resize Image to widgets size
-        #palette = QPalette()
-        #palette.setBrush(10, QBrush(sImage))  # 10 = Windowrole
-        #self.setPalette(palette)
+        self.modules = ['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel']
 
         self.setStyleSheet('background: #{};'.format(self.mainc))
         bar=self.menuBar()

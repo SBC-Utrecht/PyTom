@@ -16,6 +16,7 @@ if __name__ == '__main__':
     import os
     from multiprocessing import Process
     import time
+    from pytom.gui.guiFunctions import readMarkerfile
 
     options=[ScriptOption(['--tiltSeriesName'], 'Name tilt series - either prefix of sequential tilt series files \
              expected as "tiltSeriesName_index.em/mrc" or full name of stack "tiltSeriesName.st"',
@@ -203,8 +204,10 @@ if __name__ == '__main__':
         projIndices = [int(line.split('.')[-2].split('_')[-1]) for line in os.listdir(folder) if line.startswith(prefix) and line.endswith('.mrc')]
         projIndices = sorted(projIndices)
 
-    markerfile = read(markerFileName)
-    markerdata = vol2npy(markerfile).copy()
+    folder = os.path.dirname(tiltSeriesName)
+    prefix = os.path.basename(tiltSeriesName)
+    num_files = len([line for line in os.listdir(folder) if line.startswith(prefix) and line.endswith('.mrc')])
+    markerdata = readMarkerfile(markerFileName,num_files)
     if referenceMarkerIndex == 'all':
         refmarks = range(markerdata.shape[2])
     else:
@@ -246,11 +249,11 @@ if __name__ == '__main__':
                 'preBin': preBin,
                 'volumeName': volumeName, 
                 'volumeFileType': 'mrc',
-                'voldims': voldims, "recCent":reconstructionPosition,
+                'recCent':reconstructionPosition,
                 'tiltSeriesFormat': 'mrc', "firstProj":firstProj, "irefmark":irefmark, "ireftilt":ireftilt,
                 'handflip': expectedRotationAngle, "alignedTiltSeriesName":falignedTiltSeriesName,
                 'weightingType': weightingType, "lowpassFilter":lowpassFilter, "projBinning":projBinning,
-                'outMarkerFileName': outMarkerFileName, 'verbose':True,'projIndices':projIndices}
+                'outMarkerFileName': outMarkerFileName, 'verbose':True}
 
         if numberProcesses == 1:
             alignWeightReconstruct(**kwargs)

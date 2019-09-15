@@ -80,7 +80,7 @@ class BrowseWindowRemote(QMainWindow):
 
         #self.servername,self.username,self.password = 'emsquare1.science.uu.nl','emuser','#99@3584cg'
 
-        print(self.servername,self.username,self.password)
+        #print(self.servername,self.username,self.password)
 
         try:
             self.connect_ftp_server(self.servername, self.username, self.password)
@@ -419,6 +419,18 @@ class CommonFunctions():
         self.row += rstep
         self.column += cstep
 
+    def insert_module(self, parent, wname='', cstep=0, rstep=1, rowspan=1, columnspan=1, options=[], mode=''):
+        widget = SelectModules(self, modules=options, mode=mode)
+        print(f'wname: {wname}')
+        if wname: self.widgets[wname] = widget
+        parent.addWidget(widget, self.row, self.column, rowspan, columnspan)
+        self.items[self.row][self.column] = widget
+        self.row += rstep
+        self.column += cstep
+
+    def insert_label_modules(self, parent, wname, text='', rstep=1, cstep=-1, width=0, tooltip='', height=0, logvar=False, options=[], mode=''):
+        self.insert_label(parent, text=text, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
+        self.insert_module(parent, wname=wname, cstep=cstep, rstep=rstep, options=options, mode=mode)
 
     def insert_pgSpinbox(self, parent, wname, text='',rowspan=1, columnspan=1, rstep=0, cstep=0, decimals=0,width=0,
                          height=0, tooltip='', logvar=False, value=None, maximum=None, minimum=0, stepsize=1,suffix=''):
@@ -544,8 +556,8 @@ class CommonFunctions():
     def insert_pushbutton(self, parent, text='', rowspan=1, columnspan=1, rstep=0, cstep=0, action=None,
                           tooltip='', width=0, params=['file', '', '', False], iconpath='', wname='', state=True):
         widget = QtWidgets.QPushButton(self)
+
         if wname:
-            print(wname)
             self.widgets[wname] = widget
         widget.setEnabled(state)
         if tooltip: widget.setToolTip(tooltip)
@@ -719,7 +731,10 @@ class CommonFunctions():
             exefile.close()
 
             if len(self.widgets[params[1]].toPlainText().split('SBATCH') ) > 2:
-                os.system('{} {}'.format(self.qcommand, exefilename))
+                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
+                print('Submitted')
+                text = dd.read()[:-1]
+                self.popup_messagebox('Info','Submitted job to the queue', text)
             else:
                 proc = Worker(fn=os.system, args=['sh {}'.format(exefilename)], sig=False)
                 proc.start()
@@ -759,9 +774,10 @@ class CommonFunctions():
             suffix = d['suffix']
             num_nodes = d['num_nodes']
             id = d['id']
-            print(self.qparams.keys())
+            modules = d['modules']
+
             if id:
-                partition, num_nodes, cores, time = self.qparams[id].values()
+                partition, num_nodes, cores, time, modules = self.qparams[id].values()
 
             if type(folder) == type([]):
 
@@ -778,7 +794,7 @@ class CommonFunctions():
             if self.custom:
                 text = self.genSettingsWidgets['v00_QParams_CustomHeaderTextField'].toPlainText() + '\n\n' + text
             else:
-                text = guiFunctions.gen_queue_header(name=d['fname'], folder=folder, cmd=d['cmd'], modules=d['modules'],
+                text = guiFunctions.gen_queue_header(name=d['fname'], folder=folder, cmd=d['cmd'], modules=modules,
                                                      qtype=self.qtype, partition=partition, time=time,suffix=suffix,
                                                      num_jobs_per_node=num_jobs_per_node, num_nodes=num_nodes) + text
 
@@ -879,7 +895,11 @@ class CommonFunctions():
         widget2.setVisible(True)
 
     def popup_messagebox(self, messagetype, title, message):
-        if messagetype == 'Error':
+        print(messagetype, title, message)
+        if messagetype == 'Info':
+            QMessageBox().information(self, title, message, QMessageBox.Ok)
+
+        elif messagetype == 'Error':
             QMessageBox().critical(self, title, message, QMessageBox.Ok)
 
         elif messagetype == 'Warning':
@@ -1116,7 +1136,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
             if len(tooltip) > i: table.horizontalHeaderItem(i).setToolTip(tooltip[i])
 
             for v in range(len(values)):
-                print(v,i, len(values), len(values[0]))
+
                 # Fill the first line
                 if types[i] == 'txt':
                     widget = QWidget()
@@ -1177,7 +1197,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                     widget.setValue(values[v][i])
 
                 elif types[i] == 'combobox':
-                    print(values[v][i])
+
                     widget = QWidget()
                     cb = QComboBox()
                     l = QVBoxLayout(widget)
@@ -1321,7 +1341,6 @@ class SimpleTable(QMainWindow, CommonFunctions):
 
         for i in range(self.table.columnCount()):
             self.table2.setColumnWidth(i, self.table.columnWidth(i))
-
 
 
 class GuiTabWidget(QWidget, CommonFunctions):
@@ -1733,7 +1752,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
                 break
 
     def add_points(self, pos, cx, cy, cz, cs, radius, add=False, score=0.):
-        print(cx,cy,cz,score)
+
         self.particleList.append([int(round(cx)), int(round(cy)), int(round(cz)), score])
         if radius < 1: return
         pos.setX( cx-radius)
@@ -2194,10 +2213,10 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
                 break
 
     def add_points(self, pos, cx, cy, cz, cs, radius, add=False, score=0., new=True):
-        print(cx, cy, cz, cs, radius)
+
         if new:
             self.particleList.append([int(round(cx)), int(round(cy)), int(round(cz)), score])
-            print(cx, cy, cz, score)
+
 
         if radius < 1: return
 
@@ -2304,8 +2323,6 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
 
             add = False
             self.add_points(self.pos, cx, cy, cz, cs, radius, add=add, score=cs, new=False)
-
-        print(len(self.circles_bottom), len(self.circles_cent), len(self.circles_left), len(self.particleList))
 
 
 class ParticlePicker(QMainWindow, CommonFunctions):
@@ -2514,7 +2531,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             headerInfo = []
             for i in ('referenceMarkerIndex', 'projectionBinning'):
                 if 1:
-                    print(inputJobName.format(folder,key, i, "awk '{print $2}'"))
+
                     d = os.popen(inputJobName.format(folder,key, i, "awk '{print $2}'")).read()[:-1]
                 else:
                     d = 1
@@ -2561,7 +2578,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
     def remove_deselected_particles_from_XML(self):
         tree = et.parse(self.xmlfile)
 
-        print(self.max_score, self.min_score)
+
         for particle in tree.xpath("Particle"):
             remove = True
 
@@ -2572,7 +2589,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
             score = float(particle.xpath('Score')[0].get('Value'))
             x, y, z = position
-            print(x, y, z, score)
+
             for cx, cy, cz, s in self.particleList:
                 if abs(x - cx) < 1 and abs(y - cy) < 1 and abs(z - cz) < 1 and score <= self.max_score and score >= self.min_score:
                     remove = False
@@ -2609,8 +2626,9 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 x,y,z = map(float, (p.xpath('PickPosition')[0].get('X'), p.xpath('PickPosition')[0].get('Y'), p.xpath('PickPosition')[0].get('Z')))
                 dx,dy,dz = self.vol.shape
 
-                if self.mask[int(x),int(y),int(z)] or not self.widgets['apply_mask'].isChecked(): include =True
-                else: include = False
+                include = True
+                #if self.mask[int(x),int(y),int(z)] or not self.widgets['apply_mask'].isChecked(): include =True
+                #else: include = False
                 if not include: continue
 
                 if abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 :
@@ -2735,7 +2753,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         step = pos.y() - self.slice
         self.update_circles(step)
         self.replot()
-        print('bottom: ', pos.x(), pos.y())
+
 
     def mouseHasMovedLeft(self, evt):
         pos = self.leftimage.mapSceneToView( evt.scenePos() )
@@ -2744,7 +2762,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         step = pos.x()-self.slice
         self.update_circles(step)
         self.replot()
-        print('left: ', pos.x(), pos.y())
+
 
     def remove_from_coords(self,coords):
         cx,cy,cz = coords[:3]
@@ -2858,29 +2876,32 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
 
 class QParams():
-    def __init__(self, time=12, queue='defq', nodes=1, cores=20):
+    def __init__(self, time=12, queue='defq', nodes=1, cores=20, modules=[]):
         self.time = time
         self.queue = queue
         self.nodes = nodes
         self.cores = cores
+        self.modules = modules
 
     def update(self, mode, parent):
-        self.queue = parent.widgets[mode + 'queueName'].text()
-        self.time  = parent.widgets[mode + 'maxTime'].value()
-        self.nodes = parent.widgets[mode + 'numberOfNodes'].value()
-        self.cores = parent.widgets[mode + 'numberOfCores'].value()
+        self.queue   = parent.widgets[mode + 'queueName'].text()
+        self.time    = parent.widgets[mode + 'maxTime'].value()
+        self.nodes   = parent.widgets[mode + 'numberOfNodes'].value()
+        self.cores   = parent.widgets[mode + 'numberOfCores'].value()
+        if mode+'modules' in parent.widgets.keys(): self.modules = parent.widgets[mode + 'modules'].getModules()
+        else: self.modules = parent.parent().modules
+
         with open(os.path.join(parent.projectname, 'qparams.pickle'), 'wb') as handle:
             pickle.dump(parent.qparams, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         parent.parent().qparams = parent.qparams
-        if 1:
-            for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
-                tab.qparams = parent.qparams
-        else:
-            pass
+
+        for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
+            tab.qparams = parent.qparams
+
 
     def values(self):
-        return [self.queue, self.nodes, self.cores, self.time]
+        return [self.queue, self.nodes, self.cores, self.time, self.modules]
 
 
 class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
@@ -3124,7 +3145,7 @@ class DisplayText(QMainWindow):
             self.show()
 
 
-class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
+class GeneralSettings2(QMainWindow, GuiTabWidget, CommonFunctions):
     def __init__(self,parent):
         super(GeneralSettings, self).__init__(parent)
         self.stage='generalSettings_'
@@ -3332,7 +3353,319 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         outFname = 'temp.png'
         if filename and outFname:
             plot_FSC(filename, pixel_size, boxsize=box_size, show_image=show_image, c=cut_off)
+class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
+    resized = pyqtSignal()
+    def __init__(self,parent):
+        super(GeneralSettings, self).__init__(parent)
+        self.stage='generalSettings_'
+        self.pytompath = self.parent().pytompath
+        self.projectname = self.parent().projectname
+        self.logbook = self.parent().logbook
+        self.setGeometry(0, 0, 800, 500)
+        self.qcommanddict = {'slurm': 'sbatch', 'sge': 'qsub', 'torque': 'qsub', 'none': 'none'}\
 
+        headers = ['Queuing Parameters', 'Data Transfer', 'Tomographic Reconstruction', 'Particle Picking', 'Subtomogram Analysis']
+        subheaders = [[], ] * len(headers)
+
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, sizeX=800, sizeY=500)
+
+        self.table_layouts = {}
+        self.tables = {}
+        self.pbs = {}
+        self.ends = {}
+        self.checkbox = {}
+        self.num_nodes = {}
+        self.widgets = {}
+        self.subprocesses = 10
+        self.modules = {}
+
+        self.tabs = {'tab1': self.tab1,
+                     'tab2': self.tab2,
+                     'tab3': self.tab3,
+                     'tab4': self.tab4,
+                     'tab5': self.tab5,
+                     }
+
+        self.tab_actions = {'tab1': self.tab1UI,
+                            'tab2': self.tab2UI,
+                            'tab3': self.tab3UI,
+                            'tab4': self.tab4UI,
+                            'tab5': self.tab5UI,
+
+                            }
+
+        for i in range(len(headers)):
+            t = 'tab{}'.format(i + 1)
+            empty = 1 * (len(subheaders[i]) == 0)
+            for j in range(len(subheaders[i]) + empty):
+                tt = t + str(j + 1) * (1 - empty)
+                if tt in ('tab1', 'tab2', 'tab3', 'tab4', 'tab5'):
+                    self.table_layouts[tt] = QGridLayout()
+                else:
+                    self.table_layouts[tt] = QVBoxLayout()
+
+                if tt in ('tab1', 'tab2', 'tab3', 'tab4', 'tab5'):
+                    self.tab_actions[tt]()
+
+                tab = self.tabs[tt]
+                tab.setLayout(self.table_layouts[tt])
+        self.resized.connect(self.sizetest)
+        self.sizetest()
+
+    def resizeEvent(self, event):
+        self.resized.emit()
+        return super(GeneralSettings, self).resizeEvent(event)
+
+    def sizetest(self):
+        w = self.frameGeometry().width()
+        h  = self.frameGeometry().height()
+
+        for scrollarea in self.scrollareas:
+            scrollarea.resize(w,h)
+
+    def setQNames(self):
+        self.qnames = ['defq', 'fastq']
+
+    def updateJobName(self, mode='v00_QParams_'):
+        jobname = self.widgets[mode + 'jobName'].currentText()
+        self.currentJobName = jobname
+        self.widgets[mode + 'queueName'].setText(self.qparams[self.currentJobName].queue)
+        self.widgets[mode + 'maxTime'].setValue(self.qparams[self.currentJobName].time)
+        self.widgets[mode + 'numberOfNodes'].setValue(self.qparams[self.currentJobName].nodes)
+        self.widgets[mode + 'numberOfCores'].setValue(self.qparams[self.currentJobName].cores)
+        self.widgets[mode + 'modules'].activateModules(self.qparams[self.currentJobName].modules)
+    def tab1UI(self):
+        self.jobnames = ['SingleAlignment', 'BatchAlignment',
+                         'ReconstructWBP', 'ReconstructINFR', 'BatchReconstruct',
+                         'CTFDetermination', 'SingleCTFCorrection', 'BatchCTFCorrection',
+                         'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch',
+                         'SingleSubtomoReconstruct', 'BatchSubtomoReconstruct',
+                         'FRMAlignment','GLocalAlignment',
+                         'PairwiseCrossCorrelation', 'CPCA', 'AutoFocusClassification']
+        self.setQNames()
+        self.currentJobName = self.jobnames[0]
+
+        if os.path.exists(os.path.join(self.projectname, 'qparams.pickle')):
+            with open(os.path.join(self.projectname, 'qparams.pickle'), 'rb') as handle:
+                self.qparams = pickle.load(handle)
+        else:
+            self.qparams = {}
+
+        for jobname in self.jobnames:
+            if not jobname in self.qparams.keys():
+                try:
+                    self.qparams[jobname] = QParams(queue=self.qnames[0], modules=self.parent().modules)
+                except:
+                    self.qparams[jobname] = QParams(modules=self.parent().modules)
+
+        id = 'tab1'
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        parent = self.table_layouts[id]
+        mode = 'v00_QParams_'
+
+        w = 150
+        last, reftilt = 10, 5
+        self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
+        self.insert_label_combobox(parent, 'Queuing System ', mode + 'qType', ['Slurm','Torque','SGE', 'None'],
+                                    tooltip='Select a particleList which you want to plot.\n', logvar=True)
+        self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
+        self.insert_label_combobox(parent, 'Job Submission Parameters', mode + 'jobName', self.jobnames, logvar=True,
+                                   tooltip='Select the jon for which you want to adjust the queuing parameters.\n')
+        self.insert_label_line(parent, 'Submit to: ', mode+'queueName', value=self.qparams[self.currentJobName].queue)
+        self.insert_label_spinbox(parent,mode+'numberOfNodes', 'Number of Nodes',
+                                  value=self.qparams[self.currentJobName].nodes, minimum=1, stepsize=1,
+                                  wtype=QSpinBox)
+        self.insert_label_spinbox(parent,mode+'numberOfCores', 'Number of Cores',
+                                  value=self.qparams[self.currentJobName].cores, minimum=1, maximum=10000,
+                                  stepsize=1, wtype=QSpinBox)
+        self.insert_label_spinbox(parent,mode+'maxTime', 'Maximum Time (hours)',
+                                  value=self.qparams[self.currentJobName].time, minimum=1, stepsize=1,
+                                  wtype=QSpinBox)
+
+        self.insert_label_modules(parent, mode + 'modules', text='Select Modules', options=self.parent().modules, rstep=0, cstep=1, mode=mode)
+        self.insert_label(parent, cstep=-2, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
+
+
+        self.insert_checkbox(parent, mode + 'CustomHeader', 'use custom header for queue', cstep=0, rstep=1,
+                            alignment=Qt.AlignLeft, logvar=True, columnspan=2)
+        self.insert_textfield(parent,mode+'CustomHeaderTextField', columnspan=5,rstep=1,cstep=0, logvar=True)
+        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
+
+        self.widgets[mode + 'qType'].currentTextChanged.connect(lambda d, m=mode: self.updateQType(m))
+        self.widgets[mode + 'CustomHeader'].stateChanged.connect(lambda d, m=mode: self.updateCustomHeader(m))
+        self.widgets[mode + 'jobName'].currentTextChanged.connect(lambda d, m=mode: self.updateJobName(m))
+        self.widgets[mode + 'queueName'].textChanged.connect(lambda d, m=mode:
+                                                             self.qparams[self.currentJobName].update(mode,self))
+        self.widgets[mode + 'numberOfNodes'].valueChanged.connect(lambda d, m=mode:
+                                                                  self.qparams[self.currentJobName].update(m,self))
+        self.widgets[mode + 'numberOfCores'].valueChanged.connect(lambda d, m=mode:
+                                                                  self.qparams[self.currentJobName].update(m,self))
+        self.widgets[mode + 'maxTime'].valueChanged.connect(lambda d, m=mode:
+                                                            self.qparams[self.currentJobName].update(m,self))
+
+        self.updateCustomHeader(mode)
+        self.qparams[self.currentJobName].update(mode, self)
+
+        for n, value in enumerate(self.qcommanddict.values()):
+            if value != 'none':
+                if os.path.exists( os.popen('which {}'.format(value)).read()[:-1] ):
+                    self.widgets[mode + 'qType'].setCurrentIndex(n)
+                    break
+            else: self.widgets[mode + 'qType'].setCurrentIndex(n)
+
+    def updateCustomHeader(self, mode):
+        try:
+            for tab in (self.parent().CD, self.parent().TR, self.parent().PP, self.parent().SA):
+                tab.custom = self.widgets[mode + 'CustomHeader'].isChecked()
+                tab.genSettingsWidgets = self.widgets
+        except:
+            pass
+
+    def updateQType(self, mode):
+
+        qtype = self.widgets[mode + 'qType'].currentText().lower()
+        qcommand =  self.qcommanddict[qtype]
+
+        self.parent().qtype = qtype
+        self.parent().qcommand = qcommand
+        active = (qtype != 'none')
+        try:
+            for tab in (self.parent().CD, self.parent().TR, self.parent().PP, self.parent().SA):
+                tab.qtype = qtype
+                tab.qcommand = qcommand
+                for key in tab.widgets.keys():
+                    if key.endswith('queue'):
+                        if not active:
+                            tab.widgets[key].setChecked(False)
+                        tab.widgets[key].setEnabled(active)
+
+        except:
+            pass
+
+    def showTMPlot(self, mode):
+        from pytom.plotting.plottingFunctions import plotTMResults
+
+        normal = self.widgets[mode + 'particleListNormal'].text()
+        mirrored = self.widgets[mode + 'particleListMirrored'].text()
+
+        plotTMResults([normal, mirrored], labels=['Normal', 'Mirrored'])
+
+    def tab2UI(self):
+        pass
+
+    def tabxx(self):
+        id = 'tab2'
+        self.row, self.column = 0, 0
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        parent = self.table_layouts[id]
+        mode = 'v00_PlotFSC'
+        w = 150
+        last, reftilt = 10, 5
+        self.insert_label(parent, rstep=1, cstep=0, sizepolicy=self.sizePolicyB, width=w)
+        self.insert_label_line_push(parent, 'FSC File (ascii)', mode + 'FSCFilename', mode='file', width=w,
+                                    initdir=self.projectname,
+                                    filetype='dat', tooltip='Select a particleList which you want to plot.\n')
+        self.insert_label_spinbox(parent, mode + 'BoxSize', text='Dimension of Image', tooltip='Box size of 3D object',
+                                  value=64, minimum=1, maximum=4000, stepsize=1, width=w)
+        self.insert_label_spinbox(parent, mode + 'PixelSize', text='Pixel Size',
+                                  tooltip='Pixel size of a voxel in teh object.',
+                                  value=2.62, minimum=1, stepsize=1, wtype=QDoubleSpinBox, decimals=2, width=w)
+        self.insert_label_spinbox(parent, mode + 'CutOff', text='Resolution Cutoff', value=0, minimum=0, stepsize=0.1,
+                                  wtype=QDoubleSpinBox, decimals=3, width=w, cstep=0,
+                                  tooltip='Cut-off used to determine the resolution of your object from the FSC curve. \nTypical values are 0.5 or 0.143')
+
+        self.insert_pushbutton(parent, 'Plot!', action=self.showFSCPlot, params=mode, rstep=1, cstep=0)
+        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
+
+    def showFSCPlot(self, mode):
+        from pytom.bin.plotFSC import plot_FSC
+        filename = self.widgets[mode + 'FSCFilename'].text()
+        pixel_size = self.widgets[mode + 'PixelSize'].value()
+        box_size = self.widgets[mode + 'BoxSize'].value()
+        cut_off = self.widgets[mode + 'CutOff'].value()
+        show_image = True
+        outFname = 'temp.png'
+        if filename and outFname:
+            plot_FSC(filename, pixel_size, boxsize=box_size, show_image=show_image, c=cut_off)
+
+    def tab3UI(self):
+        pass
+
+    def tab4UI(self):
+        pass
+
+    def tab5UI(self):
+        pass
+
+class SelectModules(QWidget):
+    def __init__(self,parent=None, modules=[], mode=''):
+        super(SelectModules, self).__init__(parent)
+
+        myBoxLayout = QVBoxLayout()
+        self.setLayout(myBoxLayout)
+        #self.setCentralWidget(myQWidget)
+
+        self.toolbutton = QToolButton(self)
+        self.toolbutton.setText('Select Modules')
+        self.toolmenu = QMenu(self)
+        self.toolmenu.setStyleSheet("selection-background-color: #1989ac;")
+        self.toolbutton.setMinimumWidth(150)
+        myBoxLayout.setContentsMargins(0, 0, 0, 0)
+        self.setContentsMargins(0, 0, 0, 0)
+        self.actions = []
+        self.modules = []
+        self.mode = mode
+        self.p = parent
+
+        q = "module avail --long 2>&1 | awk 'NR >2 {print $1}'"
+        avail = [line for line in os.popen(q).readlines() if not line.startswith('/') and not line.startswith('shared') and not 'intel' in line]
+        self.grouped = [mod.strip("\n") for mod in avail if 'python' in mod or 'lib64' in mod or 'motioncor' in mod or 'imod' in mod or 'pytom' in mod or 'openmpi' in mod]
+        self.update = True
+        for i, name in enumerate(self.grouped):
+            action = self.toolmenu.addAction(name)
+            action.setCheckable(True)
+            self.actions.append(action)
+            action.toggled.connect(lambda d, m=i, update=True: self.updateModules(m,update=update))
+            self.toolbutton.setMenu(self.toolmenu)
+
+        self.toolbutton.setPopupMode(QToolButton.InstantPopup)
+        myBoxLayout.addWidget(self.toolbutton)
+        self.activateModules(modules)
+
+    def updateModules(self, index, update=False):
+        if self.update == False: return
+        name = self.actions[index].text()
+        origin = name.split('/')[0]
+
+        self.update = False
+        for action in self.actions:
+            tempName = action.text()
+            if name == tempName:
+                continue
+            tempOrigin = tempName.split('/')[0]
+            if origin == tempOrigin and action.isChecked() == True:
+                action.setChecked(False)
+        self.update = True
+
+        self.modules = []
+        for action in self.actions:
+            if action.isChecked(): self.modules.append(action.text())
+
+        text = self.p.widgets[self.mode + 'jobName'].currentText()
+        self.p.qparams[text].update(self.mode, self.p)
+
+    def activateModules(self, modules):
+        for action in self.actions:
+            if action.text() in modules:
+                action.setChecked(True)
+            else:
+                action.setChecked(False)
+
+    def getModules(self):
+        return self.modules
 
 class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
     def __init__(self,parent):
@@ -3571,7 +3904,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
             self.parent().remove_from_coords(self.coordinates[ID])
 
         elif self.coordinates[ID][2] > -1:
-            print(self.coordinates[ID])
+
 
             #self.parent().pos.setX(self.coordinates[ID][0] - self.parent().radius)
             #self.parent().pos.setY(self.coordinates[ID][1] - self.parent().radius)

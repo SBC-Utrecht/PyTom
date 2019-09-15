@@ -197,7 +197,10 @@ class ParticlePick(GuiTabWidget):
                                    tooltip='Select the file that describes the angular sampling of the template model',
                                    width=w,cstep=0)
 
-        self.widgets[mode + 'widthZ'] = QLineEdit('464')
+        self.widgets[mode + 'widthZ'] = QLineEdit('0')
+        self.widgets[mode + 'widthX'] = QLineEdit('0')
+        self.widgets[mode + 'widthY'] = QLineEdit('0')
+
         self.widgets[mode + 'jobName'] = QLineEdit()
         self.widgets[mode + 'tomoFname'].textChanged.connect(lambda d, m=mode: self.updateTM(m))
         self.widgets[mode + 'startZ'].valueChanged.connect(lambda d, m=mode: self.updateZWidth(m))
@@ -219,7 +222,7 @@ class ParticlePick(GuiTabWidget):
         self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=[mode+'outfolderTM','templateMatch.sh'], paramsSbatch=paramsSbatch,
                                  paramsXML=[mode+'tomoFname', mode + 'templateFname', mode+'maskFname', mode + 'Wedge1',
                                             mode + 'Wedge2',mode+'angleFname', mode + 'outfolderTM', mode + 'startZ',
-                                            '464', '464', mode + 'widthZ', templateXML],
+                                            mode + 'widthX', mode + 'widthY', mode + 'widthZ', templateXML],
                                  paramsCmd=[mode+'outfolderTM', self.pytompath, mode + 'jobName' ,templateTM],
                                  xmlfilename=[mode+'outfolderTM', mode + 'jobName'])
 
@@ -242,7 +245,7 @@ class ParticlePick(GuiTabWidget):
         self.execfilenameTM = os.path.join( self.templatematchfolder, 'cross_correlation', filename, 'templateMatch.sh')
         self.xmlfilename = os.path.join(self.templatematchfolder, 'cross_correlation', filename, 'job.xml')
         self.widgets[mode + 'outfolderTM'].setText(os.path.dirname(self.xmlfilename))
-        print(os.path.dirname(self.xmlfilename))
+        self.updateZWidth(mode)
 
     def updateZWidth(self, mode):
         start, end = self.widgets[mode + 'startZ'].value(), self.widgets[mode + 'endZ'].value()
@@ -251,6 +254,17 @@ class ParticlePick(GuiTabWidget):
             width=0
             self.widgets[mode + 'endZ'].setValue(start)
         self.widgets[mode + 'widthZ'].setText(str(int(round(width))))
+
+        from pytom.basic.files import read
+        tomogramFile = self.widgets[mode + 'tomoFname'].text()
+        if os.path.exists(tomogramFile):
+            v = read(tomogramFile)
+            widthX = v.sizeX()
+            widthY = v.sizeY()
+        else:
+            widthX = widthY = width
+        self.widgets[mode + 'widthX'].setText(str(int(round(widthX))))
+        self.widgets[mode + 'widthY'].setText(str(int(round(widthY))))
 
     def createTemplateMask(self, mode):
         title = "Create Mask for Template Matching"
@@ -531,9 +545,9 @@ class ParticlePick(GuiTabWidget):
                 folder = outDirectory
                 cmd = templateTM.format(d=[outDirectory, self.pytompath, jobname])
                 suffix = "_" + os.path.basename(outDirectory)
-                qname, n_nodes, cores, time = self.qparams['BatchTemplateMatch'].values()
+                qname, n_nodes, cores, time, modules = self.qparams['BatchTemplateMatch'].values()
                 job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
-                                                    time=time, num_nodes=n_nodes, partition=qname) + cmd
+                                                    time=time, num_nodes=n_nodes, partition=qname, modules=modules) + cmd
                 outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
                 outjob2.write(job)
                 outjob2.close()
