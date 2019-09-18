@@ -603,8 +603,8 @@ class TomographReconstruct(GuiTabWidget):
         qname, n_nodes, cores, time, modules = self.qparams['BatchAlignment'].values()
         for n in range(len(lprocs) - 1):
 
-            input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1], num_procs_per_proc, 'D1',
-                            'alignment/markerfile.txt', 'alignment', file_tomoname)
+            input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1], num_procs_per_proc,
+                            tiltseriesname, 'alignment/markerfile.txt', 'alignment', file_tomoname)
 
             cmd = multiple_alignment.format( d=input_params )
 

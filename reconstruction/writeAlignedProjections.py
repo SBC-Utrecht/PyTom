@@ -3,7 +3,7 @@ import copy
 from numpy import abs, float32
 
 def writeAlignedProjections(TiltSeries_, weighting=None,
-                            lowpassFilter=None, binning=None,verbose=False, write_images=True):
+                            lowpassFilter=None, binning=None,verbose=False, write_images=False):
     """write weighted and aligned projections to disk
 
        @param TiltSeries_: Tilt Series

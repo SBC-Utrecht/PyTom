@@ -200,7 +200,7 @@ if __name__ == '__main__':
         print("Reconstruction size: "+str(voldims))
         print("Reconstruction center: "+str(reconstructionPosition))
         print("write only aligned projections out: "+str(onlyWeightedProjections))
-
+        print(f"Marker locationas are written to: {outfile}")
     alignWeightReconstruct(tiltSeriesName=tiltSeriesName, markerFileName=markerFileName, lastProj=lastProj,
                            tltfile=tltFile, prexgfile=prexgFile, preBin=preBin,
                            volumeName=volumeName, volumeFileType=filetype,

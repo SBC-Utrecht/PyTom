@@ -412,12 +412,12 @@ class SubtomoAnalysis(GuiTabWidget):
 
             for choice in choices:
                 f = os.path.dirname(choice)
-                try: a = choice.split('unweighted_unbinned_marker_')[1]
+                try: a = choice.split('marker_')[1]
                 except: continue
-                if 'reduced' in a:
+                if ',' in a:
                     print(a)
                     try:
-                        aS, aE = a.split('_')[2:4]
+                        aS, aE = a.split('_')[1].split(',')
                         angleS = '{:4.1f}'.format( float(aS) )
                         angleE = '{:4.1f}'.format( float(aE) )
 
@@ -425,16 +425,16 @@ class SubtomoAnalysis(GuiTabWidget):
                         else: ctf = ''
 
 
-                        key = '{}/unweighted_unbinned_marker_CLOSEST_reduced_{}_{}{}'.format(f, angleS, angleE, ctf)
-                        value = '{}/unweighted_unbinned_marker_CLOSEST_reduced_{}_{}{}'.format(f, aS, aE, ctf)
+                        key = '{}/marker_CLOSEST_{},{}{}'.format(f, angleS, angleE, ctf)
+                        value = '{}/marker_CLOSEST_{},{}{}'.format(f, aS, aE, ctf)
 
 
                         closest_choices[key] = value
                     except:
                         pass
 
-                elif 'unweighted_unbinned_marker_' in a:
-                    closest_choices['{}/unweighted_unbinned_marker_CLOSEST'.format(f)] = 1
+                elif 'marker_' in a:
+                    closest_choices['{}/marker_CLOSEST'.format(f)] = 1
                 elif 'sorted' in a:
                     closest_choices[choice] = 1
 
@@ -480,13 +480,15 @@ class SubtomoAnalysis(GuiTabWidget):
 
                     outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'.format(int(tomoindex),refid)
                     execfilename = os.path.join(self.subtomodir, outname)
-
+                    name, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
+                    print(qname, n_nodes, cores, time, modules)
                     paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
-                                 self.subtomodir, weight, metafile, '20']
+                                 self.subtomodir, weight, metafile,  str(cores*n_nodes)]
 
                     txt = extractParticles.format(d=paramsCmd)
                     jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, name=os.path.basename(outname[:-3]),
-                                                           num_jobs_per_node=20, time=12) + txt
+                                                           num_jobs_per_node=cores, time=time, partition=qname,
+                                                           modules=modules, num_nodes=n_nodes) + txt
 
                 else:
                     outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'
@@ -504,12 +506,11 @@ class SubtomoAnalysis(GuiTabWidget):
                         print('FAIL: subtomogram reconstruction for {} failed. No INFR or WBP in xml path to particle.')
                         continue
 
-                    end = 'reconstruction/{}/marker_locations_tomogram_{}_{}_irefmark_*.txt'
+                    end = 'reconstruction/{}/markerLocations_tomogram_{}_irefmark_*.txt'
                     end = end.format(reconAlg, tomoindex, reconAlg)
 
                     logfilequery = os.path.join(tomodir, end)
                     logfile = sorted(glob.glob(logfilequery))[0]
-                    qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
 
                     paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
                                  self.subtomodir, weight, metafile, logfile, str(cores*n_nodes), 'sorted_aligned']
@@ -518,8 +519,8 @@ class SubtomoAnalysis(GuiTabWidget):
                     txt = extractParticlesClosestMarker.format(d=paramsCmd)
 
                     jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,singleton=True, num_nodes=n_nodes,
-                                                           name='SubtomoRecon_{}'.format(nsj % num_nodes),
-                                                           num_jobs_per_node=16, time=time, modules=modules) + txt
+                                                           name='SubtomoRecon_{}'.format(nsj % num_nodes), partition=qname,
+                                                           num_jobs_per_node=cores, time=time, modules=modules) + txt
                 out = open(execfilename, 'w')
                 out.write(jobtxt)
                 out.close()

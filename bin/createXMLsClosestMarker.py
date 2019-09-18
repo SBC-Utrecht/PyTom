@@ -96,7 +96,7 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
 
             closestMarkerIndex = determine_closest_marker(x,y,z, markers)
             projectionDirectory = projDirTemplate.replace('_CLOSEST_', '_{:04d}_'.format(closestMarkerIndex))
-            markerPositionFile = f'{projectionDirectory}/marker_locations_irefmark_{closestMarkerIndex}.txt'
+            markerPositionFile = f'{projectionDirectory}/markerLocations_irefmark_{closestMarkerIndex}.txt'
 
             realignmarkers = numpy.loadtxt(markerPositionFile, dtype=datatypeMR)
 
@@ -108,7 +108,7 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             oz = markers['OffsetZ'][closestMarkerIndex]
             originFname = particle.getPickPosition().getOriginFilename()
 
-
+            print(x,y,z, ox,oy, oz)
             pp = PickPosition(x=(x-ox)/binning_factor,y=(y-oy)/binning_factor,z=((z-oz)/binning_factor), originFilename=originFname)
             particle.setPickPosition(pp)
             outLists[closestMarkerIndex].append(particle)

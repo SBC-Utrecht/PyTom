@@ -749,10 +749,8 @@ class CommonFunctions():
         id = params[2]['id']
         if id:
             partition, num_nodes, cores, time, modules = self.qparams[id].values()
-            print(id, num_nodes, cores)
 
         for key in params[1][1:-1]:
-            print(key)
             if 'numberMpiCores' in key and params[2]['id']:
                 self.widgets[key].setText(str(num_nodes*cores))
 
@@ -2910,7 +2908,7 @@ class QParams():
 
         for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
             tab.qparams = parent.qparams
-            print(parent.qparams['FRMAlignment'].cores)
+            print(parent.qparams['BatchSubtomoReconstruct'].values())
 
     def values(self):
         return [self.queue, self.nodes, self.cores, self.time, self.modules]

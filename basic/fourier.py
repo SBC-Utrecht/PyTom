@@ -155,7 +155,7 @@ def fft(data):
         
         return returnValue
 
-def ifft(Fdata):
+def ifft(Fdata,scaling=False):
     """
     ifft: Performs inverse Fourier Transformation on input. The result is NOT scaled in any way (1/N , 1/sqrt(n),...)
     @param Fdata: The source volume (must be complex). If FData does not have shape information of the real volume, PyTom will assume that x==y==z (See line 198)   
@@ -169,7 +169,8 @@ def ifft(Fdata):
     if not Fdata.__class__ == pytom_volume.vol_comp:
         raise TypeError('Data must be of type pytom_volume.vol_comp')
     
-    
+    if scaling: Fdata = Fdata/Fdata.getFtSizeX()/Fdata.getFtSizeY()/Fdata.getFtSizeZ()
+
     ftSingleton = FtSingleton()
     
     theTuple = ftSingleton.findIniFt(Fdata)
