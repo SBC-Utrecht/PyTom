@@ -910,7 +910,7 @@ class SubtomoAnalysis(GuiTabWidget):
             folder = folder
             if not folder: return
 
-        if not os.path.exists(folder): 
+        if not os.path.exists(folder):
             os.mkdir(folder)
             #os.system('ln -s {}/Subtomograms {}/Subtomograms'.format(self.subtomodir, folder ) )
         self.widgets[mode + 'outFolder'].setText(folder) 
@@ -918,5 +918,7 @@ class SubtomoAnalysis(GuiTabWidget):
     def createOutFolder(self, mode):
         folder = self.widgets[mode + 'outFolder'].text()
         if not folder: return
-        if not os.path.exists(os.path.join(folder, 'Subtomograms')):
-            os.system('ln -s {}/Subtomograms {}/Subtomograms'.format(self.subtomodir, folder ) )
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        #if not os.path.exists(os.path.join(folder, 'Subtomograms')):
+        #    os.system('ln -s {}/Subtomograms {}/Subtomograms'.format(self.subtomodir, folder ) )
