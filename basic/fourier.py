@@ -94,7 +94,7 @@ class FtSingleton(object):
         
         return t
 
-def fft(data):
+def fft(data, scaling=''):
     """
     fft: Performs Fourier Transformation on input. The result is NOT scaled in any way (1/N , 1/sqrt(n),...)  
     @param data: The source volume.  
@@ -125,7 +125,15 @@ def fft(data):
         returnValue.setFtSizeX(data.sizeX())
         returnValue.setFtSizeY(data.sizeY())
         returnValue.setFtSizeZ(data.sizeZ())
-        
+
+
+        if scaling=='sqrtN':
+            from numpy import sqrt
+            returnValue = returnValue / sqrt(data.sizeX()*data.sizeY()*data.sizeZ())
+        if scaling == 'N':
+            from numpy import sqrt
+            returnValue = returnValue / (data.sizeX() * data.sizeY() * data.sizeZ())
+
         return returnValue
     
     else:  
@@ -152,10 +160,17 @@ def fft(data):
         theTuple = FourierTuple(plan,real,complexVolume)
         
         ftSingleton.addFt(theTuple)
-        
+
+        if scaling=='sqrtN':
+            from numpy import sqrt
+            returnValue = returnValue / sqrt(data.sizeX()*data.sizeY()*data.sizeZ())
+        elif scaling == 'N':
+            from numpy import sqrt
+            returnValue = returnValue / (data.sizeX() * data.sizeY() * data.sizeZ())
+
         return returnValue
 
-def ifft(Fdata):
+def ifft(Fdata, scaling=''):
     """
     ifft: Performs inverse Fourier Transformation on input. The result is NOT scaled in any way (1/N , 1/sqrt(n),...)
     @param Fdata: The source volume (must be complex). If FData does not have shape information of the real volume, PyTom will assume that x==y==z (See line 198)   
@@ -182,7 +197,13 @@ def ifft(Fdata):
         
         returnValue = pytom_volume.vol(theTuple.real.sizeX(),theTuple.real.sizeY(),theTuple.real.sizeZ())
         returnValue.copyVolume(theTuple.real)
-        
+        if scaling=='sqrtN':
+            from numpy import sqrt
+            returnValue = returnValue / sqrt(Fdata.sizeX()*Fdata.sizeY()*Fdata.sizeZ())
+        if scaling == 'N':
+            from numpy import sqrt
+            returnValue = returnValue / (Fdata.sizeX() * Fdata.sizeY() * Fdata.sizeZ())
+
         return returnValue
     
     else:  
@@ -217,7 +238,13 @@ def ifft(Fdata):
         theTuple = FourierTuple(plan,real,complexVolume)
         
         ftSingleton.addiFt(theTuple)
-        
+        if scaling=='sqrtN':
+            from numpy import sqrt
+            returnValue = returnValue / sqrt(Fdata.sizeX()*Fdata.sizeY()*Fdata.sizeZ())
+        if scaling == 'N':
+            from numpy import sqrt
+            returnValue = returnValue / (Fdata.sizeX() * Fdata.sizeY() * Fdata.sizeZ())
+
         return returnValue
     
 def ftshift(data, inplace = True):
