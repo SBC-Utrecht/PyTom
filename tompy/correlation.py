@@ -704,9 +704,9 @@ def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
     from pytom.basic.correlation import bandCC
     from pytom.tools.macros import volumesSameSize
     from pytom.basic.structures import Mask
-    import pytom_volume
+    import pytom.tompy.io import read
     
-    if not volumesSameSize(volume1, volume2):
+    if not volume1.shape == volume2.shape:
         raise RuntimeError('Volumes must have the same size!')
     
     if mask:
