@@ -920,5 +920,3 @@ class SubtomoAnalysis(GuiTabWidget):
         if not folder: return
         if not os.path.exists(folder):
             os.mkdir(folder)
-        #if not os.path.exists(os.path.join(folder, 'Subtomograms')):
-        #    os.system('ln -s {}/Subtomograms {}/Subtomograms'.format(self.subtomodir, folder ) )
