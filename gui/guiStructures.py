@@ -749,10 +749,9 @@ class CommonFunctions():
         id = params[2]['id']
         if id:
             partition, num_nodes, cores, time, modules = self.qparams[id].values()
-            print(id, num_nodes, cores)
 
+        print(params[1][1:-1], params[2]['id'])
         for key in params[1][1:-1]:
-            print(key)
             if 'numberMpiCores' in key and params[2]['id']:
                 self.widgets[key].setText(str(num_nodes*cores))
 
@@ -2910,7 +2909,7 @@ class QParams():
 
         for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
             tab.qparams = parent.qparams
-            print(parent.qparams['FRMAlignment'].cores)
+            print(parent.qparams['BatchSubtomoReconstruct'].values())
 
     def values(self):
         return [self.queue, self.nodes, self.cores, self.time, self.modules]
@@ -2941,6 +2940,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         self.checkbox = {}
         self.num_nodes = {}
         self.widgets = {}
+        self.buttons = {}
         self.subprocesses = 10
 
         self.tabs = {'tab1': self.tab1,
@@ -2971,7 +2971,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
                 if tt in ('tab1', 'tab2'):
                     self.table_layouts[tt].addWidget(button)
                     self.table_layouts[tt].addWidget(self.ends[tt])
-
+                    self.buttons[tt] = button
 
                 tab = self.tabs[tt]
                 tab.setLayout(self.table_layouts[tt])
@@ -2991,11 +2991,17 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
             scrollarea.resize(w,h)
 
     def tab1UI(self):
+        self.buttons['tab1'].setEnabled(False)
+        self.buttons['tab2'].setEnabled(False)
+
         jobfiles = [line for line in sorted(os.listdir(self.logfolder)) if line.endswith('.out')]
         self.jobFilesLocal = [os.path.join(self.logfolder, job) for job in jobfiles if job.startswith('local_')]
         self.jobFilesQueue = [os.path.join(self.logfolder, job) for job in jobfiles if not job.startswith('local_')]
         self.populate_local()
         self.populate_queue()
+
+        self.buttons['tab1'].setEnabled(True)
+        self.buttons['tab2'].setEnabled(True)
 
     def populate_local(self):
 

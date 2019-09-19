@@ -143,15 +143,15 @@ classifyCPCA.py -p {d[2]} -o {d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[7]}
 
 templateAC        = '''cd {d[0]}
 
-mpiexec --tag-output -n {d[12]} {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
+mpiexec --tag-output -n {d[13]} {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
 -p {d[2]} \\
 {d[3]} {d[4]} \\
 -k {d[5]} \\
 -f {d[6]} \\
 -i {d[7]} \\
 -s {d[8]} \\
--o {d[12]} \\
--n {d[9]} -g {d[10]} -t {d[11]}'''
+-n {d[9]} -g {d[10]} -t {d[11]} \\
+-o {d[12]}'''
 
 templateTM        = '''cd {d[0]}
 

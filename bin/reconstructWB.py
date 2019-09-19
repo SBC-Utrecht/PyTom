@@ -27,19 +27,18 @@ if __name__ == '__main__':
                           http://www.pytom.org/doc/pytom/resonstructSubtomograms.html',
                       authors='Thomas Hrabe, FF',
 
-                      options= [ScriptOption(['-t','--tomogram'], 'Reconstruct a tomogram. Specify name of tomogam here. You do not need a particle list for that!', arg=True, optional=False),
-                                ScriptOption(['-p','--particleList'], 'XML particle list.', arg=True, optional=False),
-                                ScriptOption(['--projectionList'], 'XML projection list.', arg=True, optional=False),
-                                ScriptOption(['--projectionDirectory'], 'Directory containing the projections.', arg=True, optional=False),
+                      options= [ScriptOption(['-t','--tomogram'], 'Reconstruct a tomogram. Specify name of tomogam here. You do not need a particle list for that!', arg=True, optional=True),
+                                ScriptOption(['-p','--particleList'], 'XML particle list.', arg=True, optional=True),
+                                ScriptOption(['--projectionList'], 'XML projection list.', arg=True, optional=True),
+                                ScriptOption(['--projectionDirectory'], 'Directory containing the projections.', arg=True, optional=True),
                                 ScriptOption(['-w','--applyWeighting'], 'If projections are not weighted, apply weighting before. If omited, no weighting.', arg=True, optional=True),
                                 ScriptOption(['-s','--size'], 'Size of particle cube / tomogram.', arg=True, optional=False),
                                 ScriptOption(['-b','--coordinateBinning'], 'Binning factor of coordinates. If particle coordinates are determined in binned volume (with respect to projections) this binning factor needs to be specified.', arg=True, optional=True),
-                                ScriptOption(['-o','--recOffset'], 'Cropping offset of the binned tomogram.', arg=True, optional=False),
+                                ScriptOption(['-o','--recOffset'], 'Cropping offset of the binned tomogram.', arg=True, optional=True),
                                 ScriptOption(['--projBinning'], 'Bin projections BEFORE reconstruction. 1 is no binning, 2 will merge two voxels to one, 3 -> 1, 4 ->1 ...', arg=True, optional=True),
                                 ScriptOption(['-m', '--metafile'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
-                                ScriptOption(['-n', '--numProcesses'], 'Supply a metafile to get tiltangles.', arg=True,
-                                             optional=True),
-                                ScriptOption(['--help'], 'Print this help.', arg=False, optional=False)])
+                                ScriptOption(['-n', '--numProcesses'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
+                                ScriptOption(['--help'], 'Print this help.', arg=False, optional=True)])
     
     if len(sys.argv) == 1:
         print(helper)

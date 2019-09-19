@@ -830,6 +830,7 @@ class ProjectionList(PyTomClass):
 
         @return: Will return a stack of projections - [Imagestack,phiStack,thetaStack,offsetStack]
         """
+        from pytom_numpy import vol2npy
         from pytom_volume import vol,paste,complexRealMult
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
@@ -886,7 +887,7 @@ class ProjectionList(PyTomClass):
                 image = read(projection.getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1)
 
                 if int(applyWeighting):
-                    image = ifft( complexRealMult( complexRealMult( fft(image), weightSlice), circleSlice) )
+                    image = ifft( complexRealMult( complexRealMult( fft(image), weightSlice), circleSlice), scaling=True )
 
 
                 thetaStack(int(round(projection.getTiltAngle())), 0, 0, i)

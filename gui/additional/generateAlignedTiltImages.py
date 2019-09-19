@@ -17,6 +17,7 @@ if __name__ == '__main__':
     from multiprocessing import Process
     import time
     from pytom.gui.guiFunctions import readMarkerfile
+    import numpy
 
     options=[ScriptOption(['--tiltSeriesName'], 'Name tilt series - either prefix of sequential tilt series files \
              expected as "tiltSeriesName_index.em/mrc" or full name of stack "tiltSeriesName.st"',
@@ -176,7 +177,7 @@ if __name__ == '__main__':
         numberProcesses = 1
 
     try:
-        expectedRotationAngle = int(float(expectedRotationAngle))
+        expectedRotationAngle = float(expectedRotationAngle)*numpy.pi/180.
     except:
         expectedRotationAngle = 0
 
@@ -216,6 +217,7 @@ if __name__ == '__main__':
     procs = []
 
     for irefmark in refmarks:
+
         procs = [proc for proc in procs if proc.is_alive()]
         while len(procs) >= numberProcesses:
             time.sleep(2)
@@ -237,11 +239,12 @@ if __name__ == '__main__':
         outputSuffix = '{}_aligned'.format(os.path.basename(tiltSeriesName))
         #stringFAligned = '{}/unweighted_unbinned_marker_{}{}/sorted_aligned'
         falignedTiltSeriesName= os.path.join(falignedTiltSeriesName, outputSuffix)
-        outdir = os.path.dirname(falignedTiltSeriesName) 
+        outdir = os.path.dirname(falignedTiltSeriesName)
+        query_outfile = '{}/markerLocations_irefmark_{}.txt'
+        outfile = query_outfile.format(os.path.dirname(falignedTiltSeriesName), irefmark)
         if not os.path.exists(outdir): os.mkdir( outdir )
 
-
-        kwargs={'tiltSeriesName': tiltSeriesName, 
+        kwargs={'tiltSeriesName': tiltSeriesName,
                 'markerFileName': markerFileName, 
                 'lastProj': lastProj,
                 'tltfile': tltFile, 
@@ -253,7 +256,9 @@ if __name__ == '__main__':
                 'tiltSeriesFormat': 'mrc', "firstProj":firstProj, "irefmark":irefmark, "ireftilt":ireftilt,
                 'handflip': expectedRotationAngle, "alignedTiltSeriesName":falignedTiltSeriesName,
                 'weightingType': weightingType, "lowpassFilter":lowpassFilter, "projBinning":projBinning,
-                'outMarkerFileName': outMarkerFileName, 'verbose':True}
+                'outMarkerFileName': outMarkerFileName, 'verbose':True, 'outfile':outfile}
+
+        print(kwargs)
 
         if numberProcesses == 1:
             alignWeightReconstruct(**kwargs)

@@ -829,6 +829,9 @@ class ParticlePick(GuiTabWidget):
         for n, item in enumerate(items):
             grid.addWidget(item, n, 0)
         self.adjust_items = items
+        for i in range(3):
+            self.adjust_items[i*2].stateChanged.connect(lambda d, m=self.modes[i], num=i: self.unsetCheckBoxes(m, num))
+
         pushbutton = QPushButton('Adjust!')
         pushbutton.setSizePolicy(self.sizePolicyB)
         pushbutton.setFixedWidth(100)
@@ -861,9 +864,18 @@ class ParticlePick(GuiTabWidget):
         self.insert_label(parent,'', sizepolicy=self.sizePolicyA, cstep=-6,rstep=1)
 
 
+
+
         self.widgets['particleList0'].textChanged.connect(lambda d, pl='particleList0': self.updatePLs(pl))
         setattr(self, mode + 'gb_changeXMLparameters', groupbox)
         return groupbox
+
+    def unsetCheckBoxes(self, mode, num):
+        if self.adjust_items[num*2].isChecked():
+            for n, m in enumerate(self.modes):
+                if m != mode and self.adjust_items[n*2].isChecked():
+                    self.toggle_groupbox_visible(self.adjust_items[n*2+1], self.adjust_items[n*2])
+                    self.adjust_items[n * 2].setChecked(False)
 
     def extractParticles(self, mode='', title=''):
         tooltip = 'Tick this box to create a particle list including only specific particles.'
@@ -880,6 +892,7 @@ class ParticlePick(GuiTabWidget):
         self.insert_checkbox_label_line(parent, mode + 'extractByClass', 'By Class', mode + 'classes', cstep=4, rstep=0,
                                         enabled=True, value='')
         self.insert_label(parent, '', sizepolicy=self.sizePolicyA)
+
 
         self.widgets['particleList1'].textChanged.connect(lambda d, pl='particleList1': self.updatePLs(pl))
         setattr(self, mode + 'gb_extractParticles', groupbox)
@@ -922,6 +935,8 @@ class ParticlePick(GuiTabWidget):
         self.insert_checkbox_label(parent, mode + 'mirrorCoordinates', 'Mirror Pick Positions', width=200, rstep=1)
 
         self.widgets['particleList2'].textChanged.connect(lambda d, pl='particleList2': self.updatePLs(pl))
+
+
         setattr(self, mode + 'gb_actions', groupbox)
         return groupbox
 

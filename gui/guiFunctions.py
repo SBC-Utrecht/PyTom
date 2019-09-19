@@ -75,7 +75,6 @@ def read_markerfile(filename,tiltangles):
 
     return mark_frames
 
-
 def readMarkerfile(filename, num_tilt_images):
     if filename.endswith('.em'):
         from pytom.basic.files import read

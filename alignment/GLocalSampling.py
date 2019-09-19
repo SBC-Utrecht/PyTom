@@ -552,6 +552,8 @@ class SamplingParameters(PyTomClass):
 
 
 from pytom.score.score import FLCFScore
+
+
 class ScoringParameters(PyTomClass):
     """
     class to store parameters for subtomo alignment score
