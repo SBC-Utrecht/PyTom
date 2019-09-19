@@ -22,14 +22,14 @@ if __name__ == '__main__':
              ScriptOption(['--tltFile'], 'tltFile containing tilt angles.', arg=True, optional=True),
              ScriptOption(['--prexgFile'], 'prexgFile containing pre-shifts from IMOD.', arg=True, optional=True),
              ScriptOption(['--preBin'], 'pre-Binning in IMOD prior to marker determination.', arg=True, optional=True),
-             ScriptOption(['--referenceIndex'], 'Index of reference projection used for alignment.', arg=True,
-                          optional=False),
+             ScriptOption(['--referenceIndex'], 'Index of reference projection used for alignment.',
+                          arg=True, optional=False),
              ScriptOption(['--markerFile'], 'Name of EM markerfile or IMOD wimp File containing marker coordinates.',
                           arg=True, optional=False),
              ScriptOption(['--referenceMarkerIndex'], 'Index of reference marker to set up coordinate system.',
                           arg=True, optional=False),
-             ScriptOption(['--handflip'], 'Is your tilt series outside of 0-180deg (Specify if yes).', arg=False,
-                          optional=True),
+             ScriptOption(['--handflip'], 'Is your tilt series outside of 0-180deg (Specify if yes).',
+                          arg=False, optional=True),
              ScriptOption(['--projectionTargets'],
                           'Relative or absolute path to the aligned projections that will be generated + file prefix.\
                           default: "align/myTilt"', arg=True, optional=True),
@@ -38,7 +38,7 @@ if __name__ == '__main__':
                           arg=True, optional=True),
              ScriptOption(['--projectionBinning'], 'Binning of projections during read - default: 1.', arg=True,
                           optional=True),
-             ScriptOption(['--lowpassFilter'], 'Lowpass filter in Nyquist after binning.', arg=True, optional=False),
+             ScriptOption(['--lowpassFilter'], 'Lowpass filter in Nyquist after binning.', arg=True, optional=True),
              ScriptOption(['--tomogramFile'],
                           'Relative or absolute path to final tomogram (no tomogram written if not specified).',
                           arg=True, optional=True),
@@ -62,7 +62,7 @@ if __name__ == '__main__':
              ScriptOption(['--weightingType'], 'Type of weighting (-1 default r-weighting, 0 no weighting)', arg=True,
                           optional=True),
              ScriptOption(['--verbose'], 'Enable verbose mode', arg=False, optional=True),
-             ScriptOption(['-h', '--help'], 'Help.', False, True)]
+             ScriptOption(['-h', '--help'], 'Help.', arg=False, optional=True)]
     
     helper = ScriptHelper(sys.argv[0].split('/')[-1],
                           description='Align and weight projections, save them and reconstruct tomogram (optional). \n\

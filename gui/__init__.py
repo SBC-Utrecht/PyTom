@@ -1,2 +1,2 @@
-__all__ = ["additional", "ctfFitting","fiducialAssignment","fiducialPicking","frameDataTransfer","frameParticlePicking","frameSubtomogramAnalysis",'frameTomographicReconstruction','guiFunctions','guiStructures','guiSupportCommands', 'mrcOperations','pytomGUI'];
+__all__ = ["additional", "ctfFitting","fiducialAssignment","fiducialPicking","frameDataTransfer","frameParticlePicking","frameSubtomogramAnalysis",'frameTomographicReconstruction', 'gpu', 'guiFunctions','guiStructures','guiSupportCommands', 'mrcOperations','pytomGUI'];
 
