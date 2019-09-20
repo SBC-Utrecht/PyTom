@@ -99,10 +99,7 @@ def downsample(img, factor):
 def crop_pix(img,factor):
     ydim,xdim = img.shape
     offsetx,offsety = xdim%factor,ydim%factor
-    #if ydim > xdim:
-    #    offsety += ydim-xdim
-    #if ydim < xdim:
-    #    offsetx += xdim-ydim
+
     return offsetx, offsety
 
 

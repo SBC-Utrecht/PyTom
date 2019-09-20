@@ -2,5 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/external/src/mpi4py" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tompy" vcs="Git" />
   </component>
 </project>
