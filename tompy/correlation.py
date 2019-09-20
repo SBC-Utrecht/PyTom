@@ -12,12 +12,10 @@ def meanUnderMask(volume, mask=None, p=None, gpu=False):
     @rtype: single
     @change: support None as mask, FF 08.07.2014
     """
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
-    
-    if mask:
+
+    return (volume*mask).sum() / mask.sum()
+
+    if not (mask is None):
         if not p:
             p = mask.sum()
         resV = volume*mask
@@ -41,20 +39,15 @@ def stdUnderMask(volume, mask, meanValue, p=None, gpu=False):
     @rtype: L{float}
     @change: support None as mask, FF 08.07.2014
     """
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
+    return (meanUnderMask(volume**2, mask, mask.sum(), gpu=gpu) - meanValue**2)**0.5
 
-    if mask:
+    if not (mask is None):
         if not p:
             p = mask.sum()
     else:
         p = volume.size
-    
-    squareM = meanValue**2
-    
-    res = meanValueUnderMask(volume**2, mask, p, gpu=gpu) - squareM
+
+
     try:
         res = res**0.5
     except ValueError:
@@ -64,7 +57,7 @@ def stdUnderMask(volume, mask, meanValue, p=None, gpu=False):
     
     return res
 
-def meanVolUnderMask(volume, mask, p, gpu=False):
+def meanVolUnderMask(volume, mask, gpu=False):
     """
     meanUnderMask: calculate the mean volume under the given mask (Both should have the same size)
     @param volume: input volume
@@ -84,14 +77,18 @@ def meanVolUnderMask(volume, mask, p, gpu=False):
     else:
         import numpy as xp
 
-    # for some reason, this has to be conjugated. (Otherwise the asym mask won't work)
-    fMask = xp.fft.fft(mask)
-    cfMask = xp.conj(fMask)
-    result = xp.abs(xp.fft.ifftn(cfMask * xp.fft.fftn(volume)))/(volume.size*p)
+    p = xp.sum(mask)
 
-    return result
+    # do the (circular) convolution
 
-def stdVolUnderMask(volume, mask, p, meanV, gpu=False):
+    size = volume.shape
+    # somehow this should be conjugated
+    res = xp.fft.fftshift(xp.fft.irfftn(xp.fft.rfftn(volume) * xp.conj(xp.fft.rfftn(mask)))) / p
+
+    return res.real
+
+
+def stdVolUnderMask(volume, mask, meanV, gpu=False):
     """
     stdUnderMask: calculate the std volume under the given mask
     @param volume: input volume
@@ -111,9 +108,9 @@ def stdVolUnderMask(volume, mask, p, meanV, gpu=False):
     else:
         import numpy as xp
 
-    result = meanUnderMask(volume**2, mask, p, gpu=gpu) - meanV**2
-    outofrange = result < 1e-09
-    result[outofrange] = 1
+    result = meanUnderMask(volume**2, mask, gpu=gpu) - meanV**2
+    #outofrange = result < 1e-09
+    #result[outofrange] = 1
     result = result**0.5
 
     return result
@@ -137,48 +134,10 @@ def FLCF(volume, template, mask=None, stdV=None, gpu=False):
 
     from pytom.tompy.tools import paste_in_center, create_sphere
 
-    if volume.shape[0] < template.shape[0] or volume.shape[1] < template.shape[1] or volume.shape[2] < template.shape[2]:
-        raise Exception('Template size is bigger than the target volume!')
+    meanT = meanUnderMask(template, mask, gpu=gpu)
+    temp = ((template - meanT ) / stdUnderMask(template, mask, meanT,gpu=gpu)) * mask
 
-    # generate the mask
-    if mask is None:
-        mask = create_sphere(template.shape)
-    else:
-        if template.shape[0] != mask.shape[0] and template.shape[1] != mask.shape[1] and template.shape[2] != \
-                mask.shape[2]:
-            raise Exception('Template and mask sizes are not the same!')
-
-    # normalize the template under mask
-    meanT = meanUnderMask(template, mask,gpu=gpu)
-    stdT = stdUnderMask(template, mask, meanT,gpu=gpu)
-
-    temp = (template - meanT) / stdT
-    temp = temp * mask
-
-    # construct both the template and the mask which has the same size as target volume
-
-    tempV = temp
-    if volume.shape[0] != temp.shape[0] or volume.shape[1] != temp.shape[1] or volume.shape[2] != temp.shape[2]:
-        tempV = xp.zeros(volume.shape)
-        tempV = paste_in_center(temp, tempV,gpu=gpu)
-
-    maskV = mask
-    if volume.shape[0] != mask.shape[0] or volume.shape[1] != mask.shape[1] or volume.shape[2] != mask.shape[2]:
-        maskV = xp.zeros(volume.shape)
-        maskV = paste_in_center(mask, maskV, gpu=gpu)
-
-    # calculate the mean and std of volume
-    meanV = meanVolUnderMask(volume, maskV,gpu=gpu)
-    stdV = stdVolUnderMask(volume, maskV, meanV,gpu=gpu)
-
-    size = volume.shape
-    fT = xp.fft.rfft(tempV)
-    fT = xp.conjugate(fT)
-    result = xp.fft.fftshift(xp.fft.irfft(fT * xp.fft.rfft(volume), size)) / stdV
-
-    return result / xp.sum(mask)
-
-#TODO
+    return xp.fft.fftshift(xp.fft.irfftn(xp.conj(xp.fft.rfftn(temp)) * xp.fft.rfftn(volume))).real / stdV / mask.sum()
 
 
 
@@ -615,7 +574,7 @@ def weightedXCF(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
         import numpy as xp
 
     from pytom.tompy.correlation import bandCF
-    import pytom.tompy.transforms import fourier_reduced2full
+    from pytom.tompy.transforms import fourier_reduced2full
     from math import sqrt
     import pytom_freqweight
     
@@ -699,7 +658,7 @@ def FSC(volume1, volume2, numberBands, mask=None, verbose=False, filename=None, 
 
     from pytom.tompy.correlation import bandCC
     from pytom.basic.structures import Mask
-    import pytom.tompy.io import read
+    from pytom.tompy.io import read
 
 
     if not volume1.shape == volume2.shape:

@@ -4,11 +4,11 @@
 import numpy as np
 import scipy
 
-from filter import gaussian3d
+from pytom.tompy.filter import gaussian3d
 from numpy.random import standard_normal
 
 
-def create_sphere(size, radius=-1, sigma=0, center=None):
+def create_sphere(size, radius=-1, sigma=0, center=None, gpu=False):
     """Create a 3D sphere volume.
 
     @param size: size of the resulting volume.
@@ -18,6 +18,8 @@ def create_sphere(size, radius=-1, sigma=0, center=None):
 
     @return: sphere inside a volume.
     """
+
+
     if len(size) == 1:
         size = (size, size, size)
     assert len(size) == 3
@@ -36,6 +38,7 @@ def create_sphere(size, radius=-1, sigma=0, center=None):
         ind = np.logical_and(r>radius, r<radius+2*sigma)
         sphere[ind] = np.exp(-((r[ind] - radius)/sigma)**2/2)
 
+
     return sphere
 
 
@@ -49,7 +52,7 @@ def prepare_mask(v, threshold, smooth):
 
     @return: mask.
     """
-    from filter import gaussian3d
+    from pytom.tompy.filter import gaussian3d
     ind = np.where(v>threshold)
     mask = np.zeros(v.shape)
     mask[ind] = 1
@@ -75,8 +78,8 @@ def add_noise(data, snr=0.1, m=0):
 
 
 def paste_in_center(volume, volume2, gpu=False):
-    if gpu:
-        raise Exception('pasteCenter not defined for gpu yet.')
+    if 0:
+        pass#raise Exception('pasteCenter not defined for gpu yet.')
     else:
         l,l2 = len(volume.shape), len(volume.shape)
         assert l == l2
