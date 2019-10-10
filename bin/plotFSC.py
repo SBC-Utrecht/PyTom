@@ -4,9 +4,10 @@ matplotlib.use('Qt5Agg')
 import numpy
 from pylab import *
 import os
+from pytom.gui.guiFunctions import loadstar
 
 def plot_FSC(FSCFile, pixelsize, boxsize=0, outname='',show_image=True, c=0.143):
-    data = numpy.array(list(map(float, loadtxt(FSCFile))))
+    data = numpy.array(list(map(float, loadstar(FSCFile))))
     dim  = len(data)
     if not boxsize: 
         boxsize = dim

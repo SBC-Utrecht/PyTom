@@ -7,7 +7,7 @@ Created on Jun 6, 2013
 '''
 import numpy
 import os
-from pytom.gui.guiFunctions import datatype
+from pytom.gui.guiFunctions import datatype, loadstar
 
 
 if __name__ == '__main__':
@@ -42,7 +42,7 @@ if __name__ == '__main__':
         iter = int(iter)
 
     if metafile and os.path.exists(metafile):
-        metadata = numpy.loadtxt(metafile, dtype=datatype)
+        metadata = loadstar(metafile, dtype=datatype)
         tiltAngles = metadata['TiltAngle']
     else:
         tiltAngles = []

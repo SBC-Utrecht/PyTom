@@ -20,7 +20,6 @@ import mrcfile
 import copy
 from pytom.basic.files import write_em
 
-
 def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, filename='', cutoff_SD=3):
     from scipy.ndimage import gaussian_filter
     if cent_x < 0 or cent_x > x: cent_x = x // 2
@@ -84,15 +83,15 @@ def readMarkerfile(filename, num_tilt_images):
         return markerdata
 
     elif filename.endswith('.txt'):
-        import numpy
-        data = numpy.loadtxt(filename)
+        
+        data = loadstar(filename)
         datalen = data.shape[0]
         x, y = datalen // num_tilt_images, num_tilt_images
         markerdata = data.reshape(x, y, 4)[:, :, 1:].transpose(2, 1, 0)
         return markerdata
 
 def txt2markerfile(filename,tiltangles):
-    data = numpy.loadtxt(filename)
+    data = loadstar(filename)
     datalen = data.shape[0]
     x, y = datalen // len(tiltangles), len(tiltangles)
     mark_frames = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
@@ -546,7 +545,7 @@ datatype0 = [('DefocusU', 'f4'),
             ('Intensity', 'f4'),
             ('FileName', 'U1000')]
 
-headerText0 = ''
+headerText0 = 'data_\nloop_\n'
 units0 = ['um', 'um', 'deg', 'kV', 'mm', '', 'deg', 'A', 'A', 'deg', 'deg', 'deg', 'px', 'px', 'px', '', '', '' ]
 fmt0='%11.6f %11.6f %6.2f %4d %6.2f %4.2f %11.6f %11.6f %4d %7.3f %7.3f %7.3f %6.2f %6.2f %6.2f %5.3f %5.3f %s'
 
@@ -572,15 +571,15 @@ datatype = [('DefocusU', 'f4'),
             ('AcquisitionOrder', 'i4'),
             ('FileName', 'U1000')]
 
-headerText = ''
+headerText = 'data_\nloop_\n'
 units = ['um', 'um', 'deg', 'kV', 'mm', '', 'deg', 'A', 'A', 'deg', 'deg', 'deg', 'px', 'px', 'px', '', '','px', '', '' ]
 fmt='%11.6f %11.6f %6.2f %4d %6.2f %4.2f %11.6f %11.6f %4d %7.3f %7.3f %7.3f %6.2f %6.2f %6.2f %5.3f %5.3f %4d %3d %s'
 
 for n, h in enumerate(datatype):
-    headerText += '{} {}\n'.format(h[0], '({})'.format(units[n])*(units[n]!=''))
+    headerText += '_{} {}\n'.format(h[0], '({})'.format(units[n])*(units[n]!=''))
 
 for n, h in enumerate(datatype):
-    headerText0 += '{} {}\n'.format(h[0], '({})'.format(units[n])*(units[n]!=''))
+    headerText0 += '_{} {}\n'.format(h[0], '({})'.format(units[n])*(units[n]!=''))
 
 datatypeMR = [('MarkerIndex', 'i4'),
               ('OffsetX',     'f4'),
@@ -590,11 +589,11 @@ datatypeMR = [('MarkerIndex', 'i4'),
               ('PositionY',   'f4'),
               ('PositionZ',   'f4')]
 
-headerMarkerResults = ''
+headerMarkerResults = 'data_\nloop_\n'
 unitsMR = ['', 'px', 'px', 'px', 'px', 'px', 'px']
 fmtMR='%3d %7.1f %7.1f %7.1f %7.1f %7.1f %7.1f'
 for n, h in enumerate(datatypeMR):
-    headerMarkerResults += '{} {}\n'.format(h[0], '({})'.format(unitsMR[n])*(unitsMR[n]!=''))
+    headerMarkerResults += '_{} {}\n'.format(h[0], '({})'.format(unitsMR[n])*(unitsMR[n]!=''))
 
 
 datatypeAR = [('AlignmentTransX', 'f4'),
@@ -604,18 +603,36 @@ datatypeAR = [('AlignmentTransX', 'f4'),
               ('Magnification',   'f4'),
               ('FileName', 'U1000')]
 
-headerAlignmentResults = ''
+headerAlignmentResults = 'data_\nloop_\n'
 unitsAR = ['px', 'px', 'degrees', 'degrees', '', '']
 fmtAR='%15.10f %15.10f %15.10f %15.10f %15.10f %s'
 for n, h in enumerate(datatypeAR):
-    headerAlignmentResults += '{} {}\n'.format(h[0], '({})'.format(unitsAR[n])*(unitsAR[n]!=''))
+    headerAlignmentResults += '_{} {}\n'.format(h[0], '({})'.format(unitsAR[n])*(unitsAR[n]!=''))
 
 
+def headerline(line):
+
+    if line.startswith('data_') or line.startswith('loop_') or line.startswith('_') or line.startswith('#'):
+        return False
+    else:
+
+        return True
+
+def loadstar(filename, dtype='float32'):
+    print(filename)
+    with open(filename, 'r') as f:
+        lines = [line for line in f if headerline(line)]
+
+        arr = numpy.genfromtxt(lines, dtype=dtype)
+    return arr
+
+def savestar(filename, arr, header='', fmt='', comments='#'):
+    numpy.savetxt(filename, arr, comments=comments, header=header,fmt=fmt)
 
 def update_metafile(filename, columnID, values ):
-    metadata= numpy.loadtxt(filename,dtype=datatype)
+    metadata= loadstar(filename,dtype=datatype)
     metadata[columnID] = values
-    numpy.savetxt(filename,metadata,fmt=fmt,header=headerText)
+    savestar(filename,metadata,fmt=fmt,header=headerText)
 
 def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=False):
 
@@ -691,7 +708,7 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
         outname = mdocfilepath.replace('mdoc','meta')
         if target: outname = os.path.join(target, mdocfile.replace('mdoc','meta'))
-        numpy.savetxt(outname, a, fmt=fmt, header=headerText)
+        savestar(outname, a, fmt=fmt, header=headerText)
 
     if mdoc_only: return
 
@@ -781,10 +798,10 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
         a = numpy.sort(a, order='TiltAngle')
 
         outname = '{}/{}.meta'.format(nanographfolder, v[0][0][0])
-        numpy.savetxt(outname, a, fmt=fmt, header=headerText)
+        savestar(outname, a, fmt=fmt, header=headerText)
 
 def update_metadata_from_defocusfile(metafile, defocusfile):
-    metadata = numpy.loadtxt(metafile, dtype=datatype)
+    metadata = loadstar(metafile, dtype=datatype)
 
     data = open(defocusfile,'r')
     header = list(map(float, data.readlines()[0].split()))
@@ -800,7 +817,7 @@ def update_metadata_from_defocusfile(metafile, defocusfile):
 
     for dd in (10,9,8,7,6,5):
         try:
-            defocusResults = numpy.loadtxt(defocusfile,skiprows=skiprows, usecols=range(0,dd))
+            defocusResults = loadstar(defocusfile,skiprows=skiprows, usecols=range(0,dd))
         except:
             continue
         break
@@ -844,11 +861,11 @@ def update_metadata_from_defocusfile(metafile, defocusfile):
             metadata['DefocusV'][NN] = metadata['DefocusU'][NN]
             metadata['DefocusAngle'][NN] = 0.
 
-    numpy.savetxt(metafile, metadata, fmt=fmt, header=headerText)
+    savestar(metafile, metadata, fmt=fmt, header=headerText)
 
 def parseImodShiftFile(imodShiftFile):
-    print(imodShiftFile)
-    data = numpy.loadtxt(imodShiftFile)
+   
+    data = loadstar(imodShiftFile)
     return data[:, -2:]
 
 def addShiftToMarkFrames(mark_frames, shifts, metadata, excluded):

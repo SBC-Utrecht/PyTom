@@ -13,6 +13,7 @@ from pytom_volume import read
 from pytom_numpy import vol2npy
 import os
 import lxml.etree as et
+from pytom.gui.guiFunctions import loadstar
 
 def correct_header_markerfile(markerfile):
     a = open(markerfile, 'r')
@@ -79,10 +80,10 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
 
 
     try: 
-        markers = numpy.loadtxt(markerfile, dtype=datatypeMR)
+        markers = loadstar(markerfile, dtype=datatypeMR)
     except:
         correct_header_markerfile(markerfile)
-        markers = numpy.loadtxt(markerfile, dtype=datatypeMR)
+        markers = loadstar(markerfile, dtype=datatypeMR)
 
     xmlsCM = []
 
@@ -98,7 +99,7 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             projectionDirectory = projDirTemplate.replace('_CLOSEST_', '_{:04d}_'.format(closestMarkerIndex))
             markerPositionFile = f'{projectionDirectory}/markerLocations_irefmark_{closestMarkerIndex}.txt'
 
-            realignmarkers = numpy.loadtxt(markerPositionFile, dtype=datatypeMR)
+            realignmarkers = loadstar(markerPositionFile, dtype=datatypeMR)
 
             if not closestMarkerIndex in outLists.keys():
                 outLists[closestMarkerIndex] = ParticleList()

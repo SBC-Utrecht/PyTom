@@ -343,10 +343,10 @@ class ProjectionList(PyTomClass):
         @type directory: L{str}
         """    
         from pytom.tools.files import checkDirExists
-        from pytom.gui.guiFunctions import datatype
+        from pytom.gui.guiFunctions import datatype, loadstar
         import numpy
-
-        metadata = numpy.loadtxt(metafile,dtype=datatype)
+        
+        metadata = loadstar(metafile,dtype=datatype)
         tiltAngles = metadata['TiltAngle']
         if not checkDirExists(directory):
             raise RuntimeError('Directory ' + directory +' does not exist!')

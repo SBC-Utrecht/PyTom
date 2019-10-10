@@ -18,6 +18,7 @@ from pyqtgraph import ImageItem
 
 from scipy.ndimage.filters import gaussian_filter
 from pytom.gui.fiducialPicking import *
+from pytom.gui.guiFunctions import loadstar, savestar
 
 global mf_write
 
@@ -490,9 +491,9 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         self.metafile = [os.path.join(folder, line) for line in os.listdir(folder) if line.endswith('.meta')][0]
         try:
-            self.metadata = numpy.loadtxt(self.metafile,dtype=datatype)
+            self.metadata = loadstar(self.metafile,dtype=datatype)
         except:
-            metadata_old = numpy.loadtxt(self.metafile,dtype=datatype0)
+            metadata_old = loadstar(self.metafile,dtype=datatype0)
             self.metadata = numpy.rec.array([(0.,)*len(datatype),]*len(fnames), dtype=datatype)
 
             for key, value in datatype0:
@@ -1202,7 +1203,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         if metafile:
             metadata = self.parent().metadata
             metadata['InPlaneRotation'] = tilt_axis
-            numpy.savetxt(metafile, metadata, fmt=fmt, header=headerText)
+            savestar(metafile, metadata, fmt=fmt, header=headerText)
 
     def update_radius(self):
         w = self.widgets
@@ -1217,7 +1218,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
             metadata = self.parent().metadata
             metadata['PixelSpacing'] = pixel_size
             metadata['MarkerDiameter'] = fiducial_size
-            numpy.savetxt(metafile, metadata, fmt=fmt, header=headerText)
+            savestar(metafile, metadata, fmt=fmt, header=headerText)
 
         if self.parent().loaded_data: self.parent().replot2()
 

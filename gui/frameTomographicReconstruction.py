@@ -26,6 +26,8 @@ from pytom_numpy import vol2npy
 from pytom.gui.mrcOperations import read_mrc
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.mrcOperations import square_mrc
+from pytom.tompy.io import read_size
+from pytom.gui.guiFunctions import loadstar
 
 class TomographReconstruct(GuiTabWidget):
     '''Collect Preprocess Widget'''
@@ -346,7 +348,7 @@ class TomographReconstruct(GuiTabWidget):
         meta_dst = os.path.join(dst, 'sorted', os.path.basename(metafile))
         os.system('cp {} {}'.format(metafile, meta_dst) )
 
-        metadata = numpy.loadtxt(metafile, dtype=guiFunctions.datatype)
+        metadata = loadstar(metafile, dtype=guiFunctions.datatype)
 
         tif_files  = metadata['FileName']
         tiltangles = metadata['TiltAngle']
@@ -480,7 +482,7 @@ class TomographReconstruct(GuiTabWidget):
             qmarkerfile = markerfile.replace('markerfile.txt','*.meta')
             qsortedfiles = markerfile.replace('markerfile.txt','sorted_*.mrc')
             metafile = glob.glob( qmarkerfile )[0]
-            metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
+            metadata = loadstar(metafile,dtype=guiFunctions.datatype)
             tangs = metadata['TiltAngle']
             sortedfiles = sorted(glob.glob(qsortedfiles))
             last_frame = len(sortedfiles)
@@ -705,9 +707,9 @@ class TomographReconstruct(GuiTabWidget):
             metafile = metafiles[0]
 
             try:
-                metadata = numpy.loadtxt(os.path.join(folderSorted, metafile), dtype=guiFunctions.datatype)
+                metadata = loadstar(os.path.join(folderSorted, metafile), dtype=guiFunctions.datatype)
             except:
-                metadata = numpy.loadtxt(os.path.join(folderSorted,metafile),dtype=guiFunctions.datatype0)
+                metadata = loadstar(os.path.join(folderSorted,metafile),dtype=guiFunctions.datatype0)
 
             angles = metadata['TiltAngle'].copy()
             self.widgets['RotationTiltAxis'] = metadata
@@ -805,7 +807,7 @@ class TomographReconstruct(GuiTabWidget):
         files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')]
         if not files: return
         files = files[0]
-        imdim = read_mrc(os.path.join(folderSorted, files)).shape[0]
+        imdim = read_size(os.path.join(folderSorted, files))[0]
         self.widgets[mode+'Voldims'].setText(str(int(float(imdim)/float(self.widgets[mode+'BinningFactor'].text())+.5)))
 
     def updateIndex(self, mode):
@@ -815,7 +817,7 @@ class TomographReconstruct(GuiTabWidget):
         metafile = [os.path.join(sorted_folder, meta) for meta in os.listdir(sorted_folder) if meta.endswith('meta')][0]
 
         if metafile:
-            metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
+            metadata = loadstar(metafile,dtype=guiFunctions.datatype)
 
             try:
                 firstAngle = self.widgets[mode + 'FirstAngle'].value()
@@ -921,7 +923,7 @@ class TomographReconstruct(GuiTabWidget):
             qsortedfiles = markerfile.replace('markerfile.txt','sorted_*.mrc')
             metafile = glob.glob( qmarkerfile )[0]
 
-            metadata=numpy.loadtxt(metafile, dtype=guiFunctions.datatype)
+            metadata = loadstar(metafile, dtype=guiFunctions.datatype)
             tilt_angles = metadata['TiltAngle'].copy()
             files = [f for f in os.listdir(os.path.dirname(markerfile)) if f.startswith('sorted') and f.endswith('mrc')]
             for ntilt, t in enumerate(tilt_angles):
@@ -966,7 +968,7 @@ class TomographReconstruct(GuiTabWidget):
             binningFactor    = widgets['widget_{}_{}'.format(row, 8)].text()
 
             try:
-                metadata = numpy.loadtxt(metafile[-1], dtype=guiFunctions.datatype)
+                metadata = loadstar(metafile[-1], dtype=guiFunctions.datatype)
             except:
                 self.popup_messagebox('Warning', 'Failed submission reconstruction',
                                       'Cannot load {}.'.format(os.path.basename(metafile)))
@@ -1190,7 +1192,7 @@ class TomographReconstruct(GuiTabWidget):
             os.system(cmd)
 
         metafile = [os.path.join(sortedFolder, line) for line in os.listdir(sortedFolder) if line.endswith('.meta')][0]
-        metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
+        metadata = loadstar(metafile,dtype=guiFunctions.datatype)
         outAngle   = outstack.replace('.st','.tlt')
         out = open(outAngle,'w')
         for id in ids: out.write('{}\n'.format(metadata['TiltAngle'][id]))
@@ -1220,7 +1222,7 @@ class TomographReconstruct(GuiTabWidget):
 
         folder = self.widgets[mode +'FolderSortedAligned'].text()
         metafile = [line for line in os.listdir('{}/../../sorted/'.format(folder)) if line.endswith('.meta')][0]
-        metadata = numpy.loadtxt(metafile,dtype=guiFunctions.datatype)
+        metadata = loadstar(metafile,dtype=guiFunctions.datatype)
 
         files = [os.path.join(folder,line) for line in os.listdir(folder) if line.endswith('.mrc') and line.startswith('sorted_aligned')]
 

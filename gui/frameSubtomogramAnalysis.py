@@ -309,7 +309,7 @@ class SubtomoAnalysis(GuiTabWidget):
         particleFiles = sorted(particleFiles)
 
         id='tab12'
-        headers = ["Filename particleList", "Run", "Origin", "Tilt Images", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Y", '']
+        headers = ["Filename particleList", "Run", "Origin", "Tilt Images", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Z", '']
         types = ['txt', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit','txt']
         a=40
         sizes = [0, 0, 80, 80, a, a, a, a, a, a, a]
@@ -480,8 +480,8 @@ class SubtomoAnalysis(GuiTabWidget):
 
                     outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'.format(int(tomoindex),refid)
                     execfilename = os.path.join(self.subtomodir, outname)
-                    name, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
-                    print(qname, n_nodes, cores, time, modules)
+                    qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
+
                     paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
                                  self.subtomodir, weight, metafile,  str(cores*n_nodes)]
 
@@ -511,6 +511,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                     logfilequery = os.path.join(tomodir, end)
                     logfile = sorted(glob.glob(logfilequery))[0]
+                    qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
 
                     paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
                                  self.subtomodir, weight, metafile, logfile, str(cores*n_nodes), 'sorted_aligned']
@@ -526,6 +527,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 out.close()
                 os.system('{} {}'.format(self.qcommand, execfilename))
                 nsj += 1
+        self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
 
     def inputFiles(self, mode=None):
         title = "FRM Alignment"
@@ -683,7 +685,7 @@ class SubtomoAnalysis(GuiTabWidget):
                                   minimum=1, stepsize=1, value=3, maximum=100,
                                   rstep=1, cstep=-1)
         self.insert_label_spinbox(parent, mode + 'angleIncrement', 'Angular Increment (degrees)',
-                                  minimum=1, stepsize=1, value=3, maximum=359,
+                                  minimum=1, stepsize=1, value=3, maximum=359, wtype=QDoubleSpinBox,
                                   rstep=1, cstep=-1, tooltip='Angular increment for refinement.')
         self.insert_label_spinbox(parent, mode + 'binning', 'Binning Factor', rstep=1, cstep=0,
                                   stepsize=1,minimum=1,value=1,

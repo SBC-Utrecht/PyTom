@@ -8,8 +8,11 @@ import glob
 from pytom.basic.structures import ParticleList, Rotation
 from pytom.basic.files import read
 from pytom_numpy import vol2npy
+import matplotlib
+matplotlib.use('Qt5Agg')
 from pylab import *
 from scipy.spatial.transform import Rotation as R
+from pytom.tompy.io import read_size
 
 def get_size(particleList, directory):
     tempPL = ParticleList()
@@ -26,9 +29,7 @@ def get_size(particleList, directory):
 
     try:
         print(tomoName)
-        vol = read(tomoName)
-        data = vol2npy(vol).copy()
-        dimx, dimy, dimz =  data.shape
+        dimx, dimy, dimz = read_size(tomoName)
     except:
         print('Failed')
         return 'Failed'
@@ -165,11 +166,11 @@ if __name__ == '__main__':
 
     options = [ScriptOption(['-o', '--outputName'], 'Output name of xml', True, False),
                ScriptOption(['-f', '--fileName'], 'particleList filesname.', True, False),
-               ScriptOption(['-s', '--suffix'], 'Suffix placed behind last dirname before particle_??.em.', True, False),
+               ScriptOption(['-s', '--suffix'], 'Suffix placed behind last dirname before particle_??.em.', True, True),
                ScriptOption(['-d', '--subtomoDirectory'], 'Update directory of subtomogram reconstructions. If "particle_" is included in name, only dirname before prefix is considered', True, True),
                ScriptOption(['-w', '--wedgeAngles'],'Wedge angles for all particles. if one angle is given, both angles are updated with this angle.', True, True),
                ScriptOption(['-a', '--rotatePL'], 'Rotate the particle list according to either chimera output file or three euler angles (separated by ,).', True,True),
-               ScriptOption(['-i', '--shiftToPickPos'], 'move the shift to pick position. The parameter sypplied is the binning factor to go from shift to pick position.'),
+               ScriptOption(['-i', '--shiftToPickPos'], 'move the shift to pick position. The parameter sypplied is the binning factor to go from shift to pick position.', True, True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
     helper = ScriptHelper(sys.argv[0].split('/')[-1], # script name

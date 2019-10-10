@@ -371,8 +371,10 @@ class ParticlePick(GuiTabWidget):
         if not jobXML: return
         folder = os.path.basename(os.path.dirname(jobXML))
 
-        scores = os.path.join( os.path.dirname(jobXML), 'scores.em')
-        angles = os.path.join( os.path.dirname(jobXML), 'angles.em')
+        suffix = os.path.basename(jobXML)[3:-4]
+
+        scores = os.path.join( os.path.dirname(jobXML), f'scores{suffix}.em')
+        angles = os.path.join( os.path.dirname(jobXML), f'angles{suffix}.em')
 
         particleList = os.path.join(self.pickpartfolder, 'particleList_TM_{}.xml'.format(folder))
         if not os.path.exists(os.path.dirname(particleList)): os.mkdir(os.path.dirname(particleList))

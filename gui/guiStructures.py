@@ -2353,7 +2353,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.operationbox.setLayout(self.layout_operationbox)
         self.add_toolbar(self.open_load)
         self.logbook = {}
-        self.radius = 7
+        self.radius = 8
         self.jump = 1
         self.current_width = 0.
         self.pos = QPoint(0,0)
@@ -2407,7 +2407,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         self.add_controls(self.layout_operationbox)
 
-        self.subtomo_plots = PlotterSubPlots(self)
+        self.subtomo_plots = PlotterSubPlots(self, size_subtomo=self.radius)
         self.subtomo_plots.show()
         pg.QtGui.QApplication.processEvents()
 
@@ -2464,10 +2464,10 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.widgets['apply_gaussian_filter'].stateChanged.connect(self.stateGaussianChanged)
 
         self.insert_label_line(prnt,'Number Particles','numSelected',validator=vInt,width=100)
-        self.insert_label_spinbox(prnt,'minScore','Minimal Score', value=0.,wtype=QDoubleSpinBox, minimum=0, maximum=1,
+        self.insert_label_spinbox(prnt,'minScore','Minimal Score', value=0.01,wtype=QDoubleSpinBox, minimum=0, maximum=1,
                                   stepsize=0.05, width=100, decimals=4)
         self.insert_label_spinbox(prnt, 'maxScore', 'Maximal Score', value=1., wtype=QDoubleSpinBox, minimum=0,
-                                  maximum=1., stepsize=0.05, width=100, decimals=4, cstep=-2)
+                                  maximum=10., stepsize=0.05, width=100, decimals=4, cstep=-2)
 
         self.widgets['minScore'].valueChanged.connect(self.stateScoreChanged)
         self.widgets['maxScore'].valueChanged.connect(self.stateScoreChanged)

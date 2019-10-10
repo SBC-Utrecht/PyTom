@@ -53,7 +53,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         moreInfo = False
     
     from pytom.basic.correlation import FLCF
-    from pytom.basic.structures import WedgeInfo
+    from pytom.basic.structures import WedgeInfo, Wedge
     from pytom_volume import vol, pasteCenter
     from pytom_volume import rotateSpline as rotate # for more accuracy
     from pytom_volume import updateResFromIdx
@@ -104,7 +104,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         rotate(reference, ref, currentRotation[0], currentRotation[1], currentRotation[2])
         
         # apply wedge
-        if wedgeInfo.__class__ == WedgeInfo:
+        if wedgeInfo.__class__ == WedgeInfo or wedgeInfo.__class__ == Wedge:
             ref = wedgeInfo.apply(ref)
         
         # rotate the mask if it is asymmetric

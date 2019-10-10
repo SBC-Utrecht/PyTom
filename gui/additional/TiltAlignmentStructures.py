@@ -10,6 +10,7 @@ from pytom.gui.additional.tiltAlignmentFunctions import markerResidual, alignmen
 from pytom.basic.structures import PyTomClass
 from pytom_volume import vol
 from pytom_numpy import vol2npy
+from pytom.gui.guiFunctions import loadstar
 
 class TiltSeries(PyTomClass):
     """
@@ -241,7 +242,7 @@ class TiltSeries(PyTomClass):
             print(("Projection " + str(iremove) + " removed from TiltSeries"))
 
     def txt2markerfile(self, filename, num_tilt_images):
-        data = numpy.loadtxt(filename)
+        data = loadstar(filename)
         datalen = data.shape[0]
         num_tilt_images = 61
         start = 0

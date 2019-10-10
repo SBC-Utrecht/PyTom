@@ -32,6 +32,7 @@ cross_correlatiob_mod = driver.SourceModule("""
         int idx = threadIdx.x + threadIdx.y * threadDimx.x + blockSize.x*threadDim.x*blockIdx.x
         int pad_idx = (1 + 2 * idx) * sizePad
         padded_volume[pad_idx] = template[idx]
+    }
 """)
 
 

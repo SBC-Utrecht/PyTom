@@ -211,7 +211,9 @@ def stdValueUnderMask(volume, mask, meanValue, p=None):
     squareV.copyVolume(volume)
     power(squareV, 2)
     
-    res = meanValueUnderMask(squareV, mask, p) - squareM
+    res = meanValueUnderMask(squareV, mask, p)
+
+    res -= squareM
     try:
         res = res**0.5
     except ValueError:
@@ -273,10 +275,10 @@ def stdUnderMask(volume, mask, p, meanV):
     power(copyMean, 2)
 
     result = meanUnderMask(copyV, mask, p) - copyMean
-    
+
 #    from pytom_volume import abs
 #    abs(result)
-    limit(result, 1e-09, 1, 0,0, True, False) # this step is needed to set all those value (close to 0) to 1
+    limit(result, 1e-09, 1, 0, 0, True, False) # this step is needed to set all those value (close to 0) to 1
     power(result, 0.5)
 
     return result
@@ -328,7 +330,8 @@ def FLCF(volume, template, mask=None, stdV=None):
     # normalize the template under mask
     meanT = meanValueUnderMask(template, mask, p)
     stdT = stdValueUnderMask(template, mask, meanT, p)
-    
+
+
     temp = (template - meanT)/stdT
     temp = temp * mask
 
@@ -349,7 +352,7 @@ def FLCF(volume, template, mask=None, stdV=None):
     if stdV.__class__ != vol:
         meanV = meanUnderMask(volume, maskV, p)
         stdV = stdUnderMask(volume, maskV, p, meanV)
-    
+
     size = volume.numelem()
     fT = fft(tempV)
     conjugate(fT)

@@ -209,8 +209,9 @@ def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_facto
     print('Correct projection:', fname)
 
     # load the metadata
-    from numpy import loadtxt
-    metadata = loadtxt(metafile, dtype=datatype)
+    #from numpy import loadtxt
+    from pytom.gui.guiFunctions import loadstar
+    metadata = loadstar(metafile, dtype=datatype)
     
     # Alignment parameter
     Tiltangles = metadata['TiltAngle']

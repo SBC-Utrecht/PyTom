@@ -74,8 +74,8 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
 
 
     for particleObject in particleList:
-
-        if verbose:
+        print('go', result, not result)
+        if 0 and verbose:
             print(particleObject)
 
     
@@ -93,7 +93,7 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             sizeX = particle.sizeX() 
             sizeY = particle.sizeY()
             sizeZ = particle.sizeZ()
-            print(sizeX, sizeY, sizeZ)
+
             newParticle = vol(sizeX,sizeY,sizeZ)
             
             centerX = sizeX/2 
@@ -155,7 +155,7 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
         if showProgressBar:
             numberAlignedParticles = numberAlignedParticles + 1
             progressBar.update(numberAlignedParticles)
-
+        print(sizeX)
     ###apply spectral weighting to sum
 
     result = lowpassFilter(result, sizeX/2-1, 0.)[0]
@@ -275,7 +275,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     from pytom.alignment.alignmentFunctions import invert_WedgeSum
 
     import os
-    print(particleList, setParticleNodesRatio, cores)
+
     splitLists = splitParticleList(particleList, setParticleNodesRatio=setParticleNodesRatio, numberOfNodes=cores)
     splitFactor = len(splitLists)
 
@@ -291,7 +291,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     #reference = average(particleList=plist, averageName=xxx, showProgressBar=True, verbose=False,
     # createInfoVolumes=False, weighting=weighting, norm=False)
     from multiprocessing import Process
-    print(splitFactor)
+
     procs = []
     for i in range(splitFactor):
         proc = Process(target=average,args=(splitLists[i],avgNameList[i], showProgressBar,verbose,createInfoVolumes, weighting, norm) )
@@ -371,7 +371,7 @@ if __name__=='__main__':
                ScriptOption(['-v','--verbose'],'Print particle information. False by default.', False, True),
                ScriptOption(['-s','--showProgressBar'],'Show progress bar. False by default.', False, True),
                ScriptOption(['-i','--createInfoVolumes'],'Create Info data (wedge sum, inverted density) too? False by default.', False, True),
-               ScriptOption(['-n','--normalize'],'Normalize average. False by default.', True, False),
+               ScriptOption(['-n','--normalize'],'Normalize average. False by default.', False, True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
 

@@ -3,12 +3,14 @@ import glob
 import mrcfile
 import os
 import numpy
+from pytom.gui.guiFunctions import loadstar
+
 
 def determine_tiltangles(image_list, metafile):
     basename_images = [os.path.basename(image) for image in image_list]
     identifier = [f.split('.')[-2].split('_')[-1] for f in basename_images]
     positions = map(int, identifier)
-    metadata = numpy.loadtxt(metafile, dtype=datatype)
+    metadata = loadstar(metafile, dtype=datatype)
     tilt_angles = metadata['TiltAngle'][positions]
     return tilt_angles
 
@@ -36,11 +38,11 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
     from pytom_volume import complexRealMult, vol, paste
     import pytom_freqweight
     from pytom.basic.transformations import resize, rotate
-    from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR
+    from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
     from pytom.gui.additional.reconstructionStructures import Projection, ProjectionList
     from pytom_numpy import vol2npy
 
-    alignmentResults = numpy.loadtxt(alignmentResultsFile, dtype=datatypeAR)
+    alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
     imageList = alignmentResults['FileName']
     tilt_angles = alignmentResults['TiltAngle']
 
