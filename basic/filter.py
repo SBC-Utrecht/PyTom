@@ -94,7 +94,6 @@ def filter_volume_by_profile( volume, profile):
     outvol = convolute(v=volume, k=kernel, kernel_in_fourier=True)
     return outvol
 
-
 def gridCTF(x_array, y_array, z_array):
     """
     function similar to ndgrid in matlab
@@ -137,7 +136,6 @@ def gridCTF(x_array, y_array, z_array):
                 z.setV(z_array[i], k, j, i)
     
     return r, y, z
-
 
 def volCTF(defocus, x_dim, y_dim, z_dim, pixel_size=None, voltage=None, Cs=None, sigma=None):
     """

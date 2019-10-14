@@ -1,3 +1,5 @@
+import cupy as xp
+from pytom.tompy.tools import paste_in_center, create_sphere
 
 def meanUnderMask(volume, mask=None, p=None, gpu=False):
     """
@@ -15,15 +17,6 @@ def meanUnderMask(volume, mask=None, p=None, gpu=False):
 
     return (volume*mask).sum() / mask.sum()
 
-    if not (mask is None):
-        if not p:
-            p = mask.sum()
-        resV = volume*mask
-        res = resV.sum()/p
-    else:
-        res = volume.sum()/volume.size
-    
-    return res
 
 def stdUnderMask(volume, mask, meanValue, p=None, gpu=False):
     """
@@ -41,23 +34,8 @@ def stdUnderMask(volume, mask, meanValue, p=None, gpu=False):
     """
     return (meanUnderMask(volume**2, mask, mask.sum(), gpu=gpu) - meanValue**2)**0.5
 
-    if not (mask is None):
-        if not p:
-            p = mask.sum()
-    else:
-        p = volume.size
 
-
-    try:
-        res = res**0.5
-    except ValueError:
-        print("Res = %.6f < 0 => standard deviation determination fails :(")
-        print("   something went terribly wrong and program has to stop")
-        raise ValueError('Program stopped in stdValueUnderMask')
-    
-    return res
-
-def meanVolUnderMask(volume, mask, gpu=False):
+def meanVolUnderMask(volume, mask, gpu=False, xp=None):
     """
     meanUnderMask: calculate the mean volume under the given mask (Both should have the same size)
     @param volume: input volume
@@ -72,19 +50,8 @@ def meanVolUnderMask(volume, mask, gpu=False):
     @rtype:  L{numpy.ndarray} L{cupy.ndarray}
     @author: Gijs van der Schot
     """
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
-
-    p = xp.sum(mask)
-
-    # do the (circular) convolution
-
-    size = volume.shape
-    # somehow this should be conjugated
-    res = xp.fft.fftshift(xp.fft.irfftn(xp.fft.rfftn(volume) * xp.conj(xp.fft.rfftn(mask)))) / p
-
+    import numpy as xp
+    res = xp.fft.fftshift(xp.fft.irfftn(xp.fft.rfftn(volume) * xp.conj(xp.fft.rfftn(mask)))) / mask.sum()
     return res.real
 
 
@@ -103,20 +70,17 @@ def stdVolUnderMask(volume, mask, meanV, gpu=False):
     @rtype:  L{numpy.ndarray} L{cupy.ndarray}
     @author: GvdS
     """
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
 
-    result = meanUnderMask(volume**2, mask, gpu=gpu) - meanV**2
-    #outofrange = result < 1e-09
-    #result[outofrange] = 1
-    result = result**0.5
+    meanV2 = meanV * meanV
+    vol2 = volume * volume
+    var = meanUnderMask(vol2, mask, gpu=gpu) - meanV2
+    var[var<1E-09] = 1
 
-    return result
+    return var**0.5
 
 
-def FLCF(volume, template, mask=None, stdV=None, gpu=False):
+
+def FLCF(volume, template, mask=None, stdV=None, gpu=False, mempool=None, pinned_mempool=None):
     '''Fast local correlation function
 
     @param volume: target volume
@@ -127,19 +91,14 @@ def FLCF(volume, template, mask=None, stdV=None, gpu=False):
     @return: the local correlation function
     '''
 
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
-
-    from pytom.tompy.tools import paste_in_center, create_sphere
-
     meanT = meanUnderMask(template, mask, gpu=gpu)
     temp = ((template - meanT ) / stdUnderMask(template, mask, meanT,gpu=gpu)) * mask
 
-    return xp.fft.fftshift(xp.fft.irfftn(xp.conj(xp.fft.rfftn(temp)) * xp.fft.rfftn(volume))).real / stdV / mask.sum()
-
-
+    res =  xp.fft.fftshift(xp.fft.ifftn(xp.conj(xp.fft.fftn(temp)) * xp.fft.fftn(volume))).real / stdV / mask.sum()
+    meanT = None
+    temp=None
+    mempool.free_all_blocks()
+    pinned_mempool.free_all_blocks()
 
 
 def xcc(volume, template, mask=None, volumeIsNormalized=False, gpu=False):

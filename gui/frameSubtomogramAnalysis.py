@@ -34,6 +34,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.projectname    = self.parent().projectname
         self.logfolder      = self.parent().logfolder
         self.subtomodir     = self.parent().subtomo_folder
+        self.tomoanalysis  = self.parent().tomogram_folder
         self.frmdir         = os.path.join(self.subtomodir,'Alignment/FRM')
         self.glocaldir      = os.path.join(self.subtomodir, 'GLocal/FRM')
         self.cpcadir        = os.path.join(self.subtomodir, 'Classification/CPCA')
@@ -693,7 +694,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         self.widgets[mode+'jobName'] = QLineEdit()
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
-
+        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.update_pixel_size(m))
         self.widgets[mode + 'destination'].textChanged.connect(lambda d, m=mode: self.update_jobname(m))
 
         self.update_jobname(mode)
@@ -710,6 +711,18 @@ class SubtomoAnalysis(GuiTabWidget):
 
         setattr(self, mode + 'gb_GLocal', groupbox)
         return groupbox
+
+    def update_pixel_size(self, mode):
+        from pytom.basic.structures import ParticleList
+        particleList = self.widgets[mode + 'particleList'].text()
+        pl = ParticleList()
+        pl.fromXMLFile(particleList)
+        tomid = pl[0].getPickPosition().getOriginFilename().split('/tomogram_')[1].split('_')[0]
+        metaquery = os.path.join( self.tomoanalysis, f'tomogram_{tomid}/sorted/*.meta')
+        a = glob.glob(metaquery)
+        if len(a):
+            pixelsize = guiFunctions.loadstar(a[0], dtype=guiFunctions.datatype)['PixelSpacing'][0]
+            self.widgets[mode + 'pixelSize'].setValue(pixelsize)
 
     def update_jobname(self, mode):
         dest = self.widgets[mode+'destination'].text()

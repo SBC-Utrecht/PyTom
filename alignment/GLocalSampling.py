@@ -47,6 +47,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
     print("sampleInfo      = "+str(alignmentJob.samplingParameters.sampleInformation))
     print("weighting       = "+str(alignmentJob.scoringParameters.weighting))
     print("compound Wedge  = "+str(alignmentJob.scoringParameters.compoundWedge))
+    print("Calculate on GPU= "+str(alignmentJob.gpu))
 
     for particle in alignmentJob.particleList:
         particle.setScoreValue(-1000.)
@@ -159,102 +160,124 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         evenSplitList = splitParticleList(particleList=even, setParticleNodesRatio=1)
         oddSplitList = splitParticleList(particleList=odd, setParticleNodesRatio=1)
         print(">>>>>>>>> Aligning Even ....")
-        bestPeaksEvenSplit = mpi.parfor( alignParticleList,
-                                list(zip(evenSplitList, [currentReferenceEven]*len(evenSplitList),
-                                    [evenCompoundWedgeFile]*len(evenSplitList),
-                                    [alignmentJob.destination+"/"+'CurrentRotations.xml']*len(evenSplitList),
-                                    [alignmentJob.destination+"/"+'CurrentScore.xml']*len(evenSplitList),
-                                    [alignmentJob.destination+"/"+'CurrentMask.xml']*len(evenSplitList),
-                                    [alignmentJob.scoringParameters.preprocessing]*len(evenSplitList),
-                                    [progressBar]*neven, [alignmentJob.samplingParameters.binning]*len(evenSplitList),
-                                    [verbose]*len(evenSplitList))))
-        print(">>>>>>>>> Aligning Odd  ....")
-        bestPeaksOddSplit = mpi.parfor( alignParticleList,
-                                list(zip(oddSplitList, [currentReferenceOdd]*len(oddSplitList),
-                                    [oddCompoundWedgeFile]*len(oddSplitList),
-                                    [alignmentJob.destination+"/"+'CurrentRotations.xml']*len(oddSplitList),
-                                    [alignmentJob.destination+"/"+'CurrentScore.xml']*len(oddSplitList),
-                                    [alignmentJob.destination+"/"+'CurrentMask.xml']*len(oddSplitList),
-                                    [alignmentJob.scoringParameters.preprocessing]*len(oddSplitList),
-                                    [progressBar]*nodd, [alignmentJob.samplingParameters.binning]*len(oddSplitList),
-                                    [verbose]*len(oddSplitList))))
-        # merge peak lists
-        bestPeaksEven = mergeLists(bestPeaksEvenSplit)
-        bestPeaksOdd = mergeLists(bestPeaksOddSplit)
-        # set orientations, translations, and cc values of particles # better update in alignOneParticle???
-        even.updateFromPeaks(peaks=bestPeaksEven)
-        odd.updateFromPeaks(peaks=bestPeaksOdd)
-        print(">>>>>>>>> Average scores: even %2.3f; odd %2.3f" % (even.averageScore(), odd.averageScore()))
-        alignmentJob.particleList.updateFromOddEven(odd, even)
 
-        # reset initial bandpass to zero and pre-process ONLY reference with bandpass in further iterations,
-        # not particles
-        alignmentJob.scoringParameters.preprocessing = Preprocessing()
+        if gpu==False:
+            bestPeaksEvenSplit = mpi.parfor( alignParticleList,
+                                    list(zip(evenSplitList, [currentReferenceEven]*len(evenSplitList),
+                                        [evenCompoundWedgeFile]*len(evenSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentRotations.xml']*len(evenSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentScore.xml']*len(evenSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentMask.xml']*len(evenSplitList),
+                                        [alignmentJob.scoringParameters.preprocessing]*len(evenSplitList),
+                                        [progressBar]*neven, [alignmentJob.samplingParameters.binning]*len(evenSplitList),
+                                        [verbose]*len(evenSplitList))))
+            print(">>>>>>>>> Aligning Odd  ....")
+            bestPeaksOddSplit = mpi.parfor( alignParticleList,
+                                    list(zip(oddSplitList, [currentReferenceOdd]*len(oddSplitList),
+                                        [oddCompoundWedgeFile]*len(oddSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentRotations.xml']*len(oddSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentScore.xml']*len(oddSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentMask.xml']*len(oddSplitList),
+                                        [alignmentJob.scoringParameters.preprocessing]*len(oddSplitList),
+                                        [progressBar]*nodd, [alignmentJob.samplingParameters.binning]*len(oddSplitList),
+                                        [verbose]*len(oddSplitList))))
+            # merge peak lists
+            bestPeaksEven = mergeLists(bestPeaksEvenSplit)
+            bestPeaksOdd = mergeLists(bestPeaksOddSplit)
+            # set orientations, translations, and cc values of particles # better update in alignOneParticle???
+            even.updateFromPeaks(peaks=bestPeaksEven)
+            odd.updateFromPeaks(peaks=bestPeaksOdd)
+            print(">>>>>>>>> Average scores: even %2.3f; odd %2.3f" % (even.averageScore(), odd.averageScore()))
+            alignmentJob.particleList.updateFromOddEven(odd, even)
 
-        alignmentJob.toXMLFile(filename=alignmentJob.destination+"/"+str(ii)+'-GLocalAlignmentJob.xml')
-        alignmentJob.particleList.toXMLFile(filename=alignmentJob.destination+"/"+str(ii)+"-ParticleList.xml")
-        even.toXMLFile(filename=alignmentJob.destination+"/"+str(ii)+'-ParticleListEven.xml')
-        odd.toXMLFile(filename=alignmentJob.destination+"/"+str(ii)+'-ParticleListOdd.xml')
+            # reset initial bandpass to zero and pre-process ONLY reference with bandpass in further iterations,
+            # not particles
+            alignmentJob.scoringParameters.preprocessing = Preprocessing()
 
-    ## finally average ALL particles in ONE average and determine FSC
-    evenAverage = averageParallel(particleList=even,
-                                  averageName=alignmentJob.destination+"/average-Final-Even.em",
-                                  showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                  weighting=alignmentJob.scoringParameters.weighting, norm=False,
-                                  setParticleNodesRatio=3)
-    oddAverage = averageParallel(particleList=odd,
-                                 averageName=alignmentJob.destination+"/average-Final-Odd.em",
-                                 showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                 weighting=alignmentJob.scoringParameters.weighting, norm=False,
-                                 setParticleNodesRatio=3)
-    # filter both volumes by sqrt(FSC)
-    (averageEven, averageOdd, fsc, fil, optiRot, optiTrans) = \
-        alignVolumesAndFilterByFSC(vol1=evenAverage.getVolume(), vol2=oddAverage.getVolume(),
-                                   mask=alignmentJob.scoringParameters.mask.getVolume(),
-                                   nband=evenAverage.getVolume().sizeX()/2,
-                                   interpolation='linear',
-                                   fsc_criterion=alignmentJob.scoringParameters.fsc_criterion,
-                                   verbose=False)
-    # apply rotations also to odd particle list
-    if (differenceAngleOfTwoRotations(rotation1=optiRot, rotation2=Rotation(0, 0, 0)) >
-            alignmentJob.samplingParameters.rotations.getIncrement()):
-        odd.addRotation(rot=optiRot.invert())
-        odd.addShift(translation=optiTrans.invert())
-        alignmentJob.particleList.updateFromOddEven(odd, even)
-        print("rotation between averages > increment .... applying rotation and shift to odd particles")
-        oddAverage = averageParallel(particleList=odd,
-                                     averageName=alignmentJob.destination+"/average-Final-Odd.em",
-                                     showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                     weighting=alignmentJob.scoringParameters.weighting, norm=False,
-                                     setParticleNodesRatio=3)
-    final_average = averageParallel(particleList=alignmentJob.particleList,
-                                    averageName=alignmentJob.destination+"/average-Final.em",
-                                    showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                    weighting=alignmentJob.scoringParameters.weighting, norm=False,
-                                    setParticleNodesRatio=3)
-    from pytom.basic.correlation import FSC
-    fsc = FSC(volume1=evenAverage.getVolume(), volume2=oddAverage.getVolume(),
-              numberBands=int(evenAverage.getVolume().sizeX()/2))
-    #resolution hokus pokus -> estimate fsc for all particles
-    for (ii, fscel) in enumerate(fsc):
-        fsc[ii] = 2.*fscel/(1.+fscel)
-    write_fsc2Ascii(fsc=fsc, filename=alignmentJob.destination+"/FSC-Final.dat")
-    resolutionBand = getResolutionBandFromFSC(fsc, criterion=0.143)
-    resolutionAngstrom = bandToAngstrom(band=resolutionBand,
-                                        pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),
-                                        numberOfBands=len(fsc), upscale=1)
-    print(">>>>>>>>>> Final Resolution = %3.2f A." % resolutionAngstrom)
+            alignmentJob.toXMLFile(filename=alignmentJob.destination+"/"+str(ii)+'-GLocalAlignmentJob.xml')
+            alignmentJob.particleList.toXMLFile(filename=alignmentJob.destination+"/"+str(ii)+"-ParticleList.xml")
+            even.toXMLFile(filename=alignmentJob.destination+"/"+str(ii)+'-ParticleListEven.xml')
+            odd.toXMLFile(filename=alignmentJob.destination+"/"+str(ii)+'-ParticleListOdd.xml')
 
-    # filter final average according to resolution
-    from pytom.basic.filter import lowpassFilter
-    filtered_final = lowpassFilter(volume=final_average.getVolume(), band=resolutionBand, smooth=resolutionBand/10,
-                                   fourierOnly=False)[0]
-    filtered_final.write(alignmentJob.destination+"/average-FinalFiltered_"+str(resolutionAngstrom)+".em")
-    # clean up temporary files
-    from os import remove
-    remove(alignmentJob.destination+"/"+'CurrentRotations.xml')
-    remove(alignmentJob.destination+"/"+'CurrentScore.xml')
-    remove(alignmentJob.destination+"/"+'CurrentMask.xml')
+            ## finally average ALL particles in ONE average and determine FSC
+            evenAverage = averageParallel(particleList=even,
+                                          averageName=alignmentJob.destination+"/average-Final-Even.em",
+                                          showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
+                                          weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                          setParticleNodesRatio=3)
+            oddAverage = averageParallel(particleList=odd,
+                                         averageName=alignmentJob.destination+"/average-Final-Odd.em",
+                                         showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
+                                         weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                         setParticleNodesRatio=3)
+            # filter both volumes by sqrt(FSC)
+            (averageEven, averageOdd, fsc, fil, optiRot, optiTrans) = \
+            alignVolumesAndFilterByFSC(vol1=evenAverage.getVolume(), vol2=oddAverage.getVolume(),
+                                       mask=alignmentJob.scoringParameters.mask.getVolume(),
+                                       nband=evenAverage.getVolume().sizeX()/2,
+                                       interpolation='linear',
+                                       fsc_criterion=alignmentJob.scoringParameters.fsc_criterion,
+                                       verbose=False)
+            # apply rotations also to odd particle list
+            if (differenceAngleOfTwoRotations(rotation1=optiRot, rotation2=Rotation(0, 0, 0)) >
+                    alignmentJob.samplingParameters.rotations.getIncrement()):
+                odd.addRotation(rot=optiRot.invert())
+                odd.addShift(translation=optiTrans.invert())
+                alignmentJob.particleList.updateFromOddEven(odd, even)
+                print("rotation between averages > increment .... applying rotation and shift to odd particles")
+                oddAverage = averageParallel(particleList=odd,
+                                             averageName=alignmentJob.destination+"/average-Final-Odd.em",
+                                             showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
+                                             weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                             setParticleNodesRatio=3)
+            final_average = averageParallel(particleList=alignmentJob.particleList,
+                                            averageName=alignmentJob.destination+"/average-Final.em",
+                                            showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
+                                            weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                            setParticleNodesRatio=3)
+            from pytom.basic.correlation import FSC
+            fsc = FSC(volume1=evenAverage.getVolume(), volume2=oddAverage.getVolume(),
+                      numberBands=int(evenAverage.getVolume().sizeX()/2))
+            #resolution hokus pokus -> estimate fsc for all particles
+            for (ii, fscel) in enumerate(fsc):
+                fsc[ii] = 2.*fscel/(1.+fscel)
+            write_fsc2Ascii(fsc=fsc, filename=alignmentJob.destination+"/FSC-Final.dat")
+            resolutionBand = getResolutionBandFromFSC(fsc, criterion=0.143)
+            resolutionAngstrom = bandToAngstrom(band=resolutionBand,
+                                                pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),
+                                                numberOfBands=len(fsc), upscale=1)
+            print(">>>>>>>>>> Final Resolution = %3.2f A." % resolutionAngstrom)
+
+            # filter final average according to resolution
+            from pytom.basic.filter import lowpassFilter
+            filtered_final = lowpassFilter(volume=final_average.getVolume(), band=resolutionBand, smooth=resolutionBand/10,
+                                           fourierOnly=False)[0]
+            filtered_final.write(alignmentJob.destination+"/average-FinalFiltered_"+str(resolutionAngstrom)+".em")
+            # clean up temporary files
+            from os import remove
+            remove(alignmentJob.destination+"/"+'CurrentRotations.xml')
+            remove(alignmentJob.destination+"/"+'CurrentScore.xml')
+            remove(alignmentJob.destination+"/"+'CurrentMask.xml')
+
+        else:
+            alignParticleListGPU(list(zip(oddSplitList, [currentReferenceOdd]*len(oddSplitList),
+                                        [oddCompoundWedgeFile]*len(oddSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentRotations.xml']*len(oddSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentScore.xml']*len(oddSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentMask.xml']*len(oddSplitList),
+                                        [alignmentJob.scoringParameters.preprocessing]*len(oddSplitList),
+                                        [progressBar]*nodd, [alignmentJob.samplingParameters.binning]*len(oddSplitList),
+                                        [verbose]*len(oddSplitList))))
+            alignParticleListGPU(list(zip(evenSplitList, [currentReferenceEven]*len(evenSplitList),
+                                        [evenCompoundWedgeFile]*len(evenSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentRotations.xml']*len(evenSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentScore.xml']*len(evenSplitList),
+                                        [alignmentJob.destination+"/"+'CurrentMask.xml']*len(evenSplitList),
+                                        [alignmentJob.scoringParameters.preprocessing]*len(evenSplitList),
+                                        [progressBar]*neven, [alignmentJob.samplingParameters.binning]*len(evenSplitList),
+                                        [verbose]*len(evenSplitList))))
+
+
     mpi.end()
 
 def alignParticleListWrapper(plFilename, reference, referenceWeighting, rotationsFilename,
@@ -328,6 +351,69 @@ def alignParticleList(pl, reference, referenceWeightingFile, rotationsFilename,
 
     return bestPeaks
 
+def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilename,
+                      scoreXMLFilename, maskFilename, preprocessing,
+                      progressBar=True, binning=1, verbose=False):
+    """
+    align a ParticleList
+
+    @param pl: particle list
+    @type pl: L{pytom.basic.structures.ParticleList}
+    #@param particleFilename:
+    @param reference: reference volume
+    @type reference: L{pytom_volume.vol}
+    @param referenceWeightingFile: File for Fourier weighting of the reference (sum of wedges for instance) = CompoundWedge
+    @type referenceWeightingFile: str
+    @param rotationsFilename: name of rotations xml file
+    @type rotationsFilename: L{str}
+    @param maskFilename: name of real-space mask xml file for correlation function
+    @type maskFilename: L{str}
+    @param scoreXMLFilename: name of XML File of score object
+    @type scoreXMLFilename: L{str}  #  L{lxml.etree._Element}
+    @param preprocessing: Class storing preprocessing of particle and reference such as bandpass
+    @type preprocessing: L{pytom.alignment.preprocessing.Preprocessing}
+    @param progressBar: Display progress bar of alignment. False by default.
+    @param binning: Is binning applied (currently not properly functioning)
+    @param verbose: Print out infos. Writes CC volume to disk!!! Default is False
+
+    @return: Returns the peak list for particle list.
+    @author: FF
+    """
+    from pytom.score.score import fromXMLFile
+    from pytom.angles.angle import AngleObject
+    from pytom.basic.structures import Mask, ParticleList
+
+    assert type(pl) == ParticleList
+
+    scoreObject = fromXMLFile(filename=scoreXMLFilename)
+
+    rot = AngleObject()
+    rotations = rot.fromXMLFile(filename=rotationsFilename)
+
+    mask = Mask()
+    mask.fromXMLFile(filename=maskFilename)
+
+    if referenceWeightingFile:
+        from pytom_volume import read
+        referenceWeighting = read(referenceWeightingFile)
+    else:
+        referenceWeighting = None
+
+    if verbose:
+        print("alignParticleList: rank "+str(mpi.rank))
+        print("alignParticleList: angleObject: "+str(rotations))
+        print("alignParticleList: scoreObject: "+str(scoreObject))
+        print("alignParticleList: mask:        "+str(mask))
+
+    bestPeaks = []
+    for particle in pl:
+        bestPeak = alignOneParticleGPU( particle=particle, reference=reference, referenceWeighting=referenceWeighting,
+                                        rotations=rotations, scoreObject=scoreObject, mask=mask,
+                                        preprocessing=preprocessing, progressBar=progressBar, binning=binning,
+                                        verbose=verbose)
+        bestPeaks.append(bestPeak)
+
+    return bestPeaks
 
 def alignOneParticleWrapper(particle, reference, referenceWeighting=None, rotationsFilename='',
                             scoreXMLFilename='', maskFilename='', preprocessing=None,
@@ -447,14 +533,14 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
     rotations.setStartRotation(oldRot)
     if not referenceWeighting:
         bestPeak = bestAlignment(particle=partVol, reference=refVol,
-                             referenceWeighting='False', wedgeInfo=wedge, rotations=rotations,
-                             scoreObject=scoreObject, mask=mask, preprocessing=None,
-                             progressBar=progressBar, binning=binning, bestPeak=None, verbose=verbose)
+                                 referenceWeighting='False', wedgeInfo=wedge, rotations=rotations,
+                                 scoreObject=scoreObject, mask=mask, preprocessing=None,
+                                 progressBar=progressBar, binning=binning, bestPeak=None, verbose=verbose)
     else:
         bestPeak = bestAlignment(particle=partVol, reference=refVol,
-                             referenceWeighting=referenceWeighting, wedgeInfo=wedge, rotations=rotations,
-                             scoreObject=scoreObject, mask=mask, preprocessing=None,
-                             progressBar=progressBar, binning=binning, bestPeak=None, verbose=verbose)
+                                 referenceWeighting=referenceWeighting, wedgeInfo=wedge, rotations=rotations,
+                                 scoreObject=scoreObject, mask=mask, preprocessing=None,
+                                 progressBar=progressBar, binning=binning, bestPeak=None, verbose=verbose)
     angDiff = differenceAngleOfTwoRotations(rotation1=bestPeak.getRotation(), rotation2=oldRot)
     t2 = time()
     print(fname+": Angular Difference before and after alignment: %2.2f ... took %3.1f seconds ..." % (angDiff, t2-t1))

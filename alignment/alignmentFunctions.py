@@ -865,6 +865,96 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     scoreObject._peakPrior.reset_weight()
     return bestPeak
 
+
+def bestAlignmentGPU(particleList, rotations, plan, isSphere=True):
+    """
+    bestAlignment: Determines best alignment of particle relative to the reference
+    @param particle: A particle
+    @type particle: L{pytom_volume.vol}
+    @param reference: A reference
+    @type reference: L{pytom_volume.vol}
+    @param referenceWeighting: Fourier weighting of the reference (sum of wedges for instance)
+    @type referenceWeighting: L{pytom.basic.structures.vol}
+    @param wedgeInfo: What does the wedge look alike?
+    @type wedgeInfo: L{pytom.basic.structures.Wedge}
+    @param rotations: All rotations to be scanned
+    @type rotations: L{pytom.angles.AngleObject}
+    @param scoreObject:
+    @type scoreObject: L{pytom.score.score.Score}
+    @param mask: real-space mask for correlation function
+    @type mask: L{pytom.basic.structures.Particle}
+    @param preprocessing: Class storing preprocessing of particle and reference such as bandpass
+    @type preprocessing: L{pytom.alignment.preprocessing.Preprocessing}
+    @param progressBar: Display progress bar of alignment. False by default.
+    @param binning: binning factor - e.g. binning=2 reduces size by FACTOR of 2
+    @type binning: int or float
+    @param bestPeak: Initialise best peak with old values.
+    @param verbose: Print out infos. Writes CC volume to disk!!! Default is False
+    @return: Returns the best rotation for particle and the corresponding scoring result.
+    @author: Thomas Hrabe
+    """
+    from pytom.gpu.tools import add_particle_to_sum
+    from pytom.gpu.prepare_plans import prepare_glocal_plan
+    from pytom.gpu.correlation import subPixelPeak, find_coords_max_ccmap
+    from pytom.gpu.filter import filter, applyWedge
+    from pytom.gpu.preprocessing import applyPreprocessing
+    from pytom.gpu.transformations import resize, resizeFourier, rotate
+    import numpy as np
+
+    binningType = 'Fourier'  # or 'Fourier'
+
+    bestPeakList = []
+
+    for pid, particle in particleList:
+
+        centerCoordinates = np.array([size//2 for size in plan.shape], dtype=np.int32)
+
+        # create buffer volume for transformed particle
+        applyWedge(particle)  # apply wedge to itself
+        applyPreprocessing(particle, taper=np.float32(shape[0] / 10.) )  # filter particle to some resolution
+
+        bestPeak = [-1000, [0,0,0], [0,0,0]]
+
+        for n, currentRotation in enumerate(rotations):
+            if not isSphere:
+                meanUnderMask(particle, plan.mask, plan.p)
+                stdUnderMask(particle, plan.mask, plan.p, plan.meanV)
+
+            rotateWedge(plan.reference, currentRotation, plan.wedge, plan.mask, centerCoordinates)
+            applyPreprocessing(plan.simulatedVol, bypassFlag=True)
+
+            # weight particle
+
+            rotateWeight(plan.reference, plan.referenceWeighting, currentRotation)
+            filterParticle(particle, weight(weightingRotated), plan.particleCopy)
+
+            cross_correlation(plan.particleCopy, plan.simulatedVol, plan.ccc_map)
+
+            peakCoordinates = find_coords_max_ccmap(plan.ccc_map)
+
+            # with subPixelPeak
+            [peakValue, peakPosition] = subPixelPeak(plan.ccc_map, coordinates=peakCoordinates, cropsize=10)
+
+            # determine shift relative to center
+            shiftX = (peakPosition[0] - centerX)
+            shiftY = (peakPosition[1] - centerY)
+            shiftZ = (peakPosition[2] - centerZ)
+
+            newPeak = (peakValue, currentRotation, (shiftX, shiftY, shiftZ))
+
+            if bestPeak[0] < newPeak[0]:
+                bestPeak = newPeak
+
+        if pid % 2 == 0:
+            add_particle_to_sum(particle, bestPeak[1][::-1]*-1, plan.evenSum)
+        else:
+            add_particle_to_sum(particle, bestPeak[1][::-1]*-1, plan.oddSum)
+
+        bestPeakList.append(bestPeak)
+
+    return bestPeakList, plan
+
+
 def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,shift,
          scoreObject=0,mask=None,preprocessing=[],binning=1,verbose=False):
     """
@@ -952,6 +1042,7 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
     
     return scoringResult 
 
+
 def alignmentProgressToHTML(filename,iterationNumber,score,resolution,angularIncrement,angleDistance,shiftDistance):
     """
     alignmentProgressToHTML
@@ -976,6 +1067,7 @@ def alignmentProgressToHTML(filename,iterationNumber,score,resolution,angularInc
     file = open(filename, "w")
     file.write(html)
     file.close()
+
 
 def FRMAlignmentWrapper(particle,wedgeParticle, reference, wedgeReference,bandwidth, highestFrequency, mask = None , peakPrior = None):
     """

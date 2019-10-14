@@ -561,8 +561,8 @@ class ProjectionList(PyTomClass):
                 folder = os.path.dirname(p.getFilename())
 
                 [vol_img, vol_phi, vol_the, vol_offsetProjections] = resultProjstack
-
-                backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition,vol_offsetProjections)
+                print(vol2npy(reconstructionPosition))
+                backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition, vol_offsetProjections)
 
                 if postScale > 1:
                     volumeRescaled = vol(cubeSize/postScale,cubeSize/postScale,cubeSize/postScale)
@@ -585,6 +585,7 @@ class ProjectionList(PyTomClass):
         import os
         from pytom.basic.files import read
         from pytom_volume import vol, backProject, rescaleSpline
+        from pytom_numpy import vol2npy
 
         try:
             if verbose:
@@ -623,7 +624,7 @@ class ProjectionList(PyTomClass):
             else:
                 vol_bp.write(p.getFilename())
 
-
+            print(vol2npy(reconstructionPosition))
 
             for a in [vol_img, vol_phi, vol_the, vol_offsetProjections]: del a
             del results
@@ -877,7 +878,7 @@ class ProjectionList(PyTomClass):
                 if verbose:
                     print(projection)
 
-                if int(applyWeighting) >= 1:
+                if int((applyWeighting)) >= 1:
 
                     weightSlice = fourierFilterShift( exactFilter(self.tilt_angles, projection._tiltAngle,
                                                                   imgDim, imgDim, imgDim))
