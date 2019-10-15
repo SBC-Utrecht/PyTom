@@ -836,7 +836,7 @@ class ProjectionList(PyTomClass):
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import fft,ifft
-        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
+        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, rotateFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
         from multiprocessing import Process
         import time
 
@@ -880,9 +880,13 @@ class ProjectionList(PyTomClass):
 
                 if int((applyWeighting)) >= 1:
 
-                    weightSlice = fourierFilterShift( exactFilter(self.tilt_angles, projection._tiltAngle,
+                    if int(applyWeighting) != 2:
+                        weightSlice = fourierFilterShift( exactFilter(self.tilt_angles, projection._tiltAngle,
                                                                   imgDim, imgDim, imgDim))
 
+                    else:
+                        weightSlice = fourierFilterShift( rotateFilter(self.tilt_angles, projection._tiltAngle,
+                                                                  imgDim, imgDim, imgDim))
 
 
                 image = read(projection.getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1)

@@ -396,11 +396,13 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     return weightFunc
 
 def rotateFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
-    from numpy import zeros_like, ones, column_stack, sin, abs, zeros, pi, ceil, floor, float32
+    from numpy import zeros_like, ones, column_stack, sin, abs, zeros, pi, ceil, floor, float32, array
     from scipy.ndimage import rotate
     from pytom_volume import vol
     from pytom.basic.files import read
     from pytom_numpy import npy2vol
+
+    tilt_angles = array(tilt_angles)
 
     smallest = abs(tilt_angles - tiltAngle)
     smallest[smallest.argmin()] = 1000
