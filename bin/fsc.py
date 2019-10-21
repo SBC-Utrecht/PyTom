@@ -13,8 +13,8 @@ if __name__ == '__main__':
     import sys
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
-    from pytom.basic.correlation import FSC,determineResolution
-    from pytom_volume import read
+    from pytom.tompy.correlation import FSC,determineResolution
+    from pytom.tompy.io import read
     
     helper = ScriptHelper(sys.argv[0].split('/')[-1], # script name
                           description='Determine resolution by FSC.',
@@ -72,12 +72,18 @@ if __name__ == '__main__':
         v2  = read(v2Filename)
         
         if not numberBands:
-            numberBands = int(v1.sizeX()/2)
+            numberBands = int(v1.shape[0]//2)
         
         f = FSC(v1,v2,numberBands,mask,verbose)
         print('FSC:\n', f)
-        
-        r = determineResolution(f,fscCriterion,verbose)
+
+        randomizationFrequency = np.floor(determineResolution(f, 0.8, verbose)[1])
+        oddVolumeRandomizedPhase = randomizePhaseBeyondFreq(v1, randomizationFrequency)
+        evenVolumeRandomizedPhase = randomizePhaseBeyondFreq(v2, randomizationFrequency)
+        fsc2 = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
+
+        r = determineResolution(f,fscCriterion,verbose,randomizedFSC=fsc2)
+
     elif particleList:
         from pytom.basic.structures import ParticleList
         

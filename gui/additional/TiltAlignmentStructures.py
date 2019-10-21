@@ -71,6 +71,7 @@ class TiltSeries(PyTomClass):
             self._TiltAlignmentParas = TiltAlignmentParas
             self._alignedTiltSeriesName = alignedTiltSeriesName
 
+            print(markerFileName, len(files))
             if markerFileName.endswith('.em'): self.mf = vol2npy(read(markerFileName))
             if markerFileName.endswith('.txt'): self.mf = self.txt2markerfile(markerFileName, len(files))
             #print(self.mf[0,:,0])
@@ -244,7 +245,7 @@ class TiltSeries(PyTomClass):
     def txt2markerfile(self, filename, num_tilt_images):
         data = loadstar(filename)
         datalen = data.shape[0]
-        num_tilt_images = 61
+
         start = 0
         for i in range(len(data)):
             if data[i][0] == 0:

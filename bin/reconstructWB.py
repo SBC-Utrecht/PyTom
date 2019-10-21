@@ -38,6 +38,8 @@ if __name__ == '__main__':
                                 ScriptOption(['--projBinning'], 'Bin projections BEFORE reconstruction. 1 is no binning, 2 will merge two voxels to one, 3 -> 1, 4 ->1 ...', arg=True, optional=True),
                                 ScriptOption(['-m', '--metafile'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
                                 ScriptOption(['-n', '--numProcesses'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
+                                ScriptOption(['-a', '--alignResultFile'], 'Supply a metafile to get tiltangles.', arg=True,
+                                             optional=True),
                                 ScriptOption(['--help'], 'Print this help.', arg=False, optional=True)])
     
     if len(sys.argv) == 1:
@@ -49,7 +51,7 @@ if __name__ == '__main__':
     aw = False
     
     try:
-        tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, recOffset, projBinning, metafile, numProcesses, help= parse_script_options(sys.argv[1:], helper)
+        tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, recOffset, projBinning, metafile, numProcesses, alignResultFile, help= parse_script_options(sys.argv[1:], helper)
     
     except Exception as e:
         print(e)
@@ -74,8 +76,11 @@ if __name__ == '__main__':
         coordinateBinning = float(coordinateBinning)
     else:
         coordinateBinning = 1
+
     if not aw:
-        aw = False
+        aw = 0
+    else:
+        aw = float(aw)
 
     if recOffset:
         recOffset = [int(i) for i in recOffset.split(",")]
@@ -95,6 +100,14 @@ if __name__ == '__main__':
     else:
         raise RuntimeError('Neither projectionList existed nor the projectionDirectory you specified! Abort')
 
+    import os
+
+    if os.path.exists(os.path.join(projectionDirectory, 'alignmentResults.txt')):
+        alignResultFile = os.path.join(projectionDirectory, 'alignmentResults.txt')
+
+    if alignResultFile is None:
+        alignResultFile = ''
+
     if tomogram:
         vol = projections.reconstructVolume( dims=size, reconstructionPosition=recOffset,
             binning=projBinning, applyWeighting=aw)
@@ -102,9 +115,10 @@ if __name__ == '__main__':
         
     else:
         # transform the cropping offset
-        tmp = projections[0]
-        sx = tmp.getXSize() # here should be the size of original projection!
-        sy = tmp.getYSize()
+        #tmp = projections[0]
+        #sx = tmp.getXSize() # here should be the size of original projection!
+        #sy = tmp.getYSize()
+        sx, sy = 3710, 3710
         recOffset[0] = -sx/2 + recOffset[0]*coordinateBinning
         recOffset[1] = -sy/2 + recOffset[1]*coordinateBinning
         recOffset[2] = -sx/2 + recOffset[2]*coordinateBinning
@@ -130,7 +144,8 @@ if __name__ == '__main__':
         projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \
                                        binning=projBinning, applyWeighting = aw, \
                                        showProgressBar = True,verbose=False, \
-                                       preScale=projBinning,postScale=1, num_procs=numProcesses)
+                                       preScale=projBinning,postScale=1, num_procs=numProcesses,
+                                       alignResultFile=alignResultFile)
 
             
 

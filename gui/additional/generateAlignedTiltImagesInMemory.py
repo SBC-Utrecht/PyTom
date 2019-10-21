@@ -14,7 +14,7 @@ def determine_tiltangles(image_list, metafile):
     tilt_angles = metadata['TiltAngle'][positions]
     return tilt_angles
 
-def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=None, lowpassFilter=0.9, binning=None, num_procs=1):
+def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=None, lowpassFilter=0.9, binning=1, num_procs=1):
     """read image and create aligned projection stack, based on the results described in the alignmentResultFile.
 
        @param alignmentResultsFile: result file generate by the alignment script.
@@ -49,7 +49,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
     a = mrcfile.open(imageList[0],permissive=True)
     imdim = a.data.T.shape[0]
 
-    if binning:
+    if binning > 1:
         imdim = int(float(imdim) / float(binning) + .5)
     else:
         imdim = imdim

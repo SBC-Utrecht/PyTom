@@ -23,6 +23,8 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
     weightingTypes = [line.split()[8] for line in open(fnames).readlines()]
     expectedRotationAngles = [line.split()[9] for line in open(fnames).readlines()]
     tiltSeriesNames = [line.split()[10] for line in open(fnames).readlines()]
+    markerFileNames = [line.split()[11] for line in open(fnames).readlines()]
+
     for t in tomogram_names:
         if not os.path.exists(os.path.join(t,'alignment')):
             os.mkdir(os.path.join(t,'alignment'))
@@ -62,13 +64,13 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
     --numberProcesses {} > {}'''
 
             cmd = cmd.format(tomogram_names[index], pytompath, tiltSeriesName, firstIndices[index],
-                  lastIndices[index], refIndices[index], refmarkindex, markerFileName, outdir,
+                  lastIndices[index], refIndices[index], refmarkindex, markerFileNames[index], outdir,
                   weightingTypes[index], expectedRotationAngles[index], 1, logfile)
 
             while len(procs) > 19.1:
                 time.sleep(1)
                 procs = [proc for proc in procs if proc.is_alive()]
-
+            print(cmd)
             p = Process(target=os.system,args=([cmd]))
             procs.append(p)
             p.start()
@@ -95,7 +97,7 @@ if __name__=='__main__':
     from multiprocessing import Process
     import time
 
-    try:
+    if 1:
         options=[ScriptOption(['--start'],'Starting Index tomogram folder', arg=True,optional=False),
                  ScriptOption(['--end'],'Ending index tomogram folder', arg=True,optional=False),
                  ScriptOption(['--numberProcesses'],'Number of processes spawned by each process', arg=True,optional=False),
@@ -105,7 +107,7 @@ if __name__=='__main__':
                  ScriptOption(['--referenceIndex'], 'Index of reference projection used for alignment.', arg=True, optional=True),
                  ScriptOption(['--markerFile'], 'Name of EM markerfile or IMOD wimp File containing marker coordinates.', arg=True, optional=False),
                  ScriptOption(['--projectionTargets'], 'Relative or absolute path to the aligned projections that will be generated + file prefix. default: "align/myTilt"', arg=True, optional=False),
-                 ScriptOption(['--weightingType'], 'Type of weighting (-1 default r-weighting, 0 no weighting)', arg=True,optional=False),
+                 ScriptOption(['--weightingType'], 'Type of weighting (-1 default r-weighting, 0 no weighting)', arg=True,optional=True),
                  ScriptOption(['--tomogramFolder'], 'Folder in which tomogram_XXX is located', arg=True,optional=False),
                  ScriptOption(['--fnames'], 'File with tomogram names.', arg=True,optional=False),
                  ScriptOption(['--projIndices'], 'Use projection indices.', arg=False, optional=True),
@@ -121,22 +123,23 @@ if __name__=='__main__':
         if len(sys.argv) == 1:
             print(helper)
             sys.exit()
-        try:
+        if 1:
             start, end, procs, tiltSeriesName, firstProj, lastProj, referenceIndex, markerFileName, projectionTargets, \
             weightingType,tomogramfolder,fnames, projIndices, expectedRotationAngle, help = input = \
                 parse_script_options(sys.argv[1:], helper)
-        except:# Exception as e:
+        else:# Exception as e:
             sys.exit()
 
 
         start = int(start)
         end = int(end)
-
+        print(start, end)
         tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstProj, lastProj, referenceIndex,markerFileName,
                                   projectionTargets, weightingType, tomogramfolder, fnames, projIndices=projIndices,
                                   expectedRotationAngle=expectedRotationAngle)
 
 
+    '''
     except:
         options=[ScriptOption(['--start'],'Starting Index tomogram folder', arg=True,optional=False),
                  ScriptOption(['--end'],'Ending index tomogram folder', arg=True,optional=False),
@@ -190,3 +193,4 @@ if __name__=='__main__':
             weighting_type = 0
 
         extract_subtomograms(start,end,fnames,folders,binning_tomogram,binning_subtomograms,offset,size,weighting_type)
+    '''

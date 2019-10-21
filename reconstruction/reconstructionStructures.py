@@ -482,9 +482,7 @@ class ProjectionList(PyTomClass):
         from pytom.basic.files import write_em
         from multiprocessing import Process
         print('start')
-        if len(self) == 0:
-            print(RuntimeWarning('This ProjectionList contains no projections!Abort!'))
-            return 
+
         
         if len(particles) == 0:
             raise RuntimeError('ParticleList is empty!')
@@ -588,17 +586,26 @@ class ProjectionList(PyTomClass):
         from pytom_numpy import vol2npy
 
         try:
+            folder = os.path.dirname(p.getFilename())
+
+            results = []
+            for index in range(4):
+                results.append(read('{}/.temp_{}.em'.format(folder, index)))
+
+            [vol_img, vol_phi, vol_the, vol_offsetProjections] = results
+            num_projections = vol_img.sizeZ()
+
             if verbose:
                 print(p)
 
             vol_bp = vol(cubeSize, cubeSize, cubeSize)
             vol_bp.setAll(0.0)
 
-            reconstructionPosition = vol(3, len(self), 1)
+            reconstructionPosition = vol(3, num_projections, 1)
             reconstructionPosition.setAll(0.0)
 
             # adjust coordinates of subvolumes to binned reconstruction
-            for i in range(len(self)):
+            for i in range(num_projections):
                 reconstructionPosition( float(p.getPickPosition().getX()/binning), 0, i, 0)
                 reconstructionPosition( float(p.getPickPosition().getY()/binning), 1, i, 0)
                 reconstructionPosition( float(p.getPickPosition().getZ()/binning), 2, i, 0)
@@ -607,13 +614,8 @@ class ProjectionList(PyTomClass):
                 print((p.getPickPosition().getX()/binning,p.getPickPosition().getY()/binning,
             p.getPickPosition().getZ()/binning))
 
-            folder = os.path.dirname(p.getFilename())
 
-            results = []
-            for index in range(4):
-                results.append( read('{}/.temp_{}.em'.format(folder,index)) )
 
-            [vol_img, vol_phi, vol_the, vol_offsetProjections] = results
 
             backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition,vol_offsetProjections)
 

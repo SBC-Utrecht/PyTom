@@ -3,6 +3,7 @@ import os
 import glob
 import numpy as np
 import copy
+import atexit
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -18,7 +19,7 @@ from pyqtgraph import ImageItem
 
 from scipy.ndimage.filters import gaussian_filter
 from pytom.gui.fiducialPicking import *
-from pytom.gui.guiFunctions import loadstar, savestar
+from pytom.gui.guiFunctions import loadstar, savestar, kill_proc
 
 global mf_write
 
@@ -633,6 +634,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                            args=(fnames[proc_id::nr_procs], proc_id, nr_procs, f, ff, True))
             procs.append(proc)
             proc.start()
+            atexit.register(kill_proc, proc)
 
         while len(procs):
             procs = [proc for proc in procs if proc.is_alive()]
@@ -767,6 +769,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                                                 num_procs, average_marker, threshold ))
             procs.append(proc)
             proc.start()
+            atexit.register(kill_proc, proc)
 
         time.sleep(0.1)
         while len(procs):

@@ -507,7 +507,8 @@ class SubtomoAnalysis(GuiTabWidget):
                         print('FAIL: subtomogram reconstruction for {} failed. No INFR or WBP in xml path to particle.')
                         continue
 
-                    end = 'reconstruction/{}/markerLocations_tomogram_{}_irefmark_*.txt'
+                    end = 'reconstruction/{}/marker*_irefmark_*.txt'
+                    print(tomodir, end)
                     end = end.format(reconAlg, tomoindex, reconAlg)
 
                     logfilequery = os.path.join(tomodir, end)

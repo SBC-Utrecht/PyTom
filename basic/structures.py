@@ -2680,7 +2680,7 @@ class ParticleList(PyTomClass):
             raise RuntimeError('ParticleList must have at least 2 elements to determine resolution!')
     
         from pytom_volume import read
-        from pytom.basic.correlation import FSC,determineResolution
+        from pytom.tompy.correlation import FSC, determineResolution
         import pytom_mpi
         
         import os 
@@ -2724,9 +2724,17 @@ class ParticleList(PyTomClass):
         
         if verbose:
             print('Using ', numberBands ,' shells for FSC')
-        
-        fsc = FSC(oddVolume,evenVolume,numberBands,mask,verbose)
-        
+
+        oddVolume = vol2npy(oddVolume).copy()
+        evenVolume = vol2npy(evenVolume).copy()
+
+        fsc = FSC(oddVolume, evenVolume, numberBands, mask, verbose)
+
+        randomizationFrequency = np.floor(determineResolution(fsc, 0.8, verbose)[1])
+
+        oddVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
+        evenVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
+        fsc2 = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
         if verbose:
             print('FSC list:')
             print(fsc)
@@ -2738,7 +2746,7 @@ class ParticleList(PyTomClass):
             except:
                 pass
         
-        return determineResolution(fsc,criterion,verbose)
+        return determineResolution(fsc, criterion, verbose, randomizedFSC=fsc2)
         
     def particleGallery(self, destinationFolder, transform=True, applyClassColorLabeling=False, highest_frequency=None):
         """
@@ -3835,7 +3843,6 @@ class PickPosition(PyTomClass):
         from pytom.tools.maths import scale
         
         self.__add__(scale(vector,-1))
-
 
 
 class Symmetry(PyTomClass):

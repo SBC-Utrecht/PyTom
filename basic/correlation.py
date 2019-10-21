@@ -680,8 +680,6 @@ def weightedXCF(volume,reference,numberOfBands,wedgeAngle=-1):
     
     return result
 
-
-
 def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
     """
     FSC - Calculates the Fourier Shell Correlation for two volumes
@@ -754,8 +752,7 @@ def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
         f.close()
 
     return fscResult
-        
-    
+
 def determineResolution(fsc,resolutionCriterion,verbose=False):
     """
     determineResolution: Determines frequency and band where correlation drops below the resolutionCriterion. Uses linear interpolation between two positions

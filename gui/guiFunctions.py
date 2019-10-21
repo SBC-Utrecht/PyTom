@@ -20,6 +20,9 @@ import mrcfile
 import copy
 from pytom.basic.files import write_em
 
+def kill_proc(runner):
+    runner.terminate()
+
 def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, filename='', cutoff_SD=3):
     from scipy.ndimage import gaussian_filter
     if cent_x < 0 or cent_x > x: cent_x = x // 2
@@ -77,8 +80,8 @@ def read_markerfile(filename,tiltangles):
 def readMarkerfile(filename, num_tilt_images):
     if filename.endswith('.em'):
         from pytom.basic.files import read
-        from pytom_volume import vol2npy
-        markerfile = read(markerFileName)
+        from pytom_numpy import vol2npy
+        markerfile = read(filename)
         markerdata = vol2npy(markerfile).copy()
         return markerdata
 

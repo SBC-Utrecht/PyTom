@@ -4,6 +4,7 @@ import random
 import glob
 import numpy
 import time
+import atexit
 
 from os.path import dirname, basename
 from multiprocessing import Manager, Event, Process
@@ -756,6 +757,7 @@ class CollectPreprocess(GuiTabWidget):
                                      self.local_data_folder, e, 1))
                 procs.append(proc)
                 proc.start()
+                atexit.register(guiFunctions.kill_proc, proc)
             self.flist = flist + mdoc_list
             #self.progressBar_Collect.setRange(0, len(self.flist))
 
@@ -800,6 +802,7 @@ class CollectPreprocess(GuiTabWidget):
                                                                      finish_motioncor))
                     procs.append(proc)
                     proc.start()
+                    atexit.register(guiFunctions.kill_proc, proc)
 
         if self.c or self.m:
             self.widgets['CandP'].setEnabled(False)
