@@ -673,7 +673,7 @@ def FSC(volume1, volume2, numberBands, mask=None, verbose=False, filename=None, 
 
     return fscResult
 
-def determineResolution(fsc,resolutionCriterion,verbose=False):
+def determineResolution(fsc,resolutionCriterion,verbose=False, randomizedFSC=[]):
     """
     determineResolution: Determines frequency and band where correlation drops below the resolutionCriterion. Uses linear interpolation between two positions
     @param fsc: The fsc list determined by L{pytom.basic.correlation.FSC}
@@ -692,8 +692,11 @@ def determineResolution(fsc,resolutionCriterion,verbose=False):
     
     band = numberBands
 
+    if not randomizedFSC:
+        randomizedFSC = xp.ones_like(fsc)*(fsc.min()-0.1)
+
     for i in range(numberBands):
-        if fsc[i] < resolutionCriterion:     
+        if fsc[i] < resolutionCriterion and fsc[i] > randomizedFSC[i]:
             band = i-1  #select the band that is still larger than criterion
             break
     
@@ -706,9 +709,16 @@ def determineResolution(fsc,resolutionCriterion,verbose=False):
     elif band < numberBands:
         fsc1 = fsc[band]
         fsc2 = fsc[band+1]
-        
+
+        rfsc1 = randomizedFSC[band]
+        rfsc2 = randomizedFSC[band+1]
+
         try:
-            interpolatedBand = (resolutionCriterion-fsc1)/(fsc2-fsc1)+band            
+            if fsc2 < rfsc2:
+                interpolatedBand = (fsc1-rfsc1)/(rfsc2-rfsc1+fsc1-fsc2)
+                pass
+            else:
+                interpolatedBand = (resolutionCriterion-fsc1)/(fsc2-fsc1)+band
         
         except ZeroDivisionError:
             interpolatedBand = band

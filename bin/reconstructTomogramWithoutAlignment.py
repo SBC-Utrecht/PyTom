@@ -2,7 +2,7 @@
 """
 Created on Jul 20, 2013
 
-@author: FF
+@author: GS
 """
 
 if __name__ == '__main__':

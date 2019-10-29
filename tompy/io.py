@@ -361,8 +361,10 @@ def n2v(data):
             v = npy2vol(vv, 3)
     elif len(data.shape) == 2:
         if np.isfortran(data):
+            data = data.reshape(data.shape[0], data.shape[1], 1)
             v = npy2vol(data, 2)
         else:
+            data = data.reshape(data.shape[0], data.shape[1], 1)
             vv = np.asfortranarray(data)
             v = npy2vol(vv, 2)
     else:

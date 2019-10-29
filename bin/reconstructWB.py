@@ -140,7 +140,7 @@ if __name__ == '__main__':
             z = (pickPosition.getZ()*coordinateBinning+ recOffset[2])#/projBinning
 
             particle.setPickPosition( PickPosition(x=x, y=y, z=z))
-         
+        print(alignResultFile)
         projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \
                                        binning=projBinning, applyWeighting = aw, \
                                        showProgressBar = True,verbose=False, \

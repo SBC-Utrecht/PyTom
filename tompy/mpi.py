@@ -16,6 +16,15 @@ class MPI:
 
         self._begun = False
 
+        #User termination on Ctrl-C will be caught and send to workers.
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        #signal.signal(signal.SIGKILL, self.signal_handler)
+
+    def signal_handler(self, sig, frame):
+        self.comm.Abort()
+        print('Sent abort signal to comm_world')
+        sys.exit(0)
 
     def is_master(self):
         return self.rank == 0
@@ -108,7 +117,7 @@ class MPI:
                 # send back the result
                 self.comm.gather(res, root=0)
 
-            except Exception, e:
+            except Exception as e:
                 print e
                 self.comm.Abort()
 
@@ -121,7 +130,7 @@ class MPI:
         """For master only.
         """
         if not self._begun:
-            raise Exception("MPI is not begun!")
+            raise Exception("MPI has not been initialized!")
 
         if not self.is_master():
             return

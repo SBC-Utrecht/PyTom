@@ -610,7 +610,7 @@ class ProjectionList(PyTomClass):
                 reconstructionPosition( float(p.getPickPosition().getY()/binning), 1, i, 0)
                 reconstructionPosition( float(p.getPickPosition().getZ()/binning), 2, i, 0)
 
-            if verbose:
+            if 1:
                 print((p.getPickPosition().getX()/binning,p.getPickPosition().getY()/binning,
             p.getPickPosition().getZ()/binning))
 
@@ -841,6 +841,10 @@ class ProjectionList(PyTomClass):
         from pytom.basic.filter import circleFilter, rampFilter, exactFilter, rotateFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
         from multiprocessing import Process
         import time
+
+        print(int(applyWeighting))
+
+        applyWeighting = -1
 
         # determine image dimensions according to first image in projection list
         imgDim = read(self._list[0].getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1).sizeX()        

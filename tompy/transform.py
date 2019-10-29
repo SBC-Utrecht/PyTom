@@ -196,8 +196,13 @@ def cut_from_projection(proj, center, size):
     """
     from scipy import mgrid
     from scipy.ndimage import map_coordinates
-    grid = mgrid[center[0]-size[0]/2:center[0]+size[0]-size[0]/2-1:size[0]*1j, center[1]-size[1]/2:center[1]+size[1]-size[1]/2-1:size[1]*1j, 0:1:1]
-    v = map_coordinates(proj, grid, order=2)
+
+    if len(proj.shape) > 2 and proj.shape[2] > 1:
+        raise Exception('We assume that projections come from a 3D object, thus your projection cannot be a 3D object itself')
+
+
+    grid = mgrid[center[0]-size[0]/2:center[0]+size[0]-size[0]/2-1:size[0]*1j, center[1]-size[1]/2:center[1]+size[1]-size[1]/2-1:size[1]*1j]
+    v = map_coordinates(proj.squeeze(), grid, order=2)
     return v
 
 

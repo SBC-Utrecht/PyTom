@@ -42,6 +42,8 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
     from pytom.gui.additional.reconstructionStructures import Projection, ProjectionList
     from pytom_numpy import vol2npy
 
+    print("Create aligned images from alignResults.txt")
+
     alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
     imageList = alignmentResults['FileName']
     tilt_angles = alignmentResults['TiltAngle']
@@ -77,7 +79,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
     for n, image in enumerate(imageList):
         atx = alignmentResults['AlignmentTransX'][n]
         aty = alignmentResults['AlignmentTransY'][n]
-        rot = alignmentResults['InPlaneRotation'][n]
+        rot = alignmentResults['InPlaneRotation'][n] + 180
         mag = alignmentResults['Magnification'][n]
         print(imageList[n], tilt_angles[n], atx, aty, rot, mag)
         projection = Projection(imageList[n], tiltAngle=tilt_angles[n], alignmentTransX=atx,alignmentTransY=aty,
@@ -149,9 +151,9 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
         offsetStack(int(round(projection.getOffsetX())), 0, 0, ii)
         offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
         paste(image, stack, 0, 0, ii)
-        fname = 'sorted_aligned_novel_{:02d}.mrc'.format(ii)
-        write_em(fname.replace('mrc','em'), image)
-        mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
+        #fname = 'sorted_aligned_novel_{:02d}.mrc'.format(ii)
+        #write_em(fname.replace('mrc','em'), image)
+        #mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
 
     return [stack, phiStack, thetaStack, offsetStack]
 

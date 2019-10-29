@@ -82,7 +82,7 @@ def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='
     print(z2, x, z1, rotation_angle)
     return z1 - rotation_angle, x, z2
 
-def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiplyshift=0,
+def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiplypickpos=1, multiplyshift=0,
              new_center=[], sizeSubtomo=64, move_shift=False, binSubtomo=1, binRecon=1, rotation=[],
              anglelist='', mirror=False,  tomogram_dir='./', convention='zxz'):
     if type(fnames) == str:
@@ -98,6 +98,8 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
         tempPL.fromXMLFile(xmlfile)
 
         for particle in tempPL:
+
+
 
             # Update directory to particle
             if directory:
@@ -116,6 +118,11 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
             if wedgelen >  n + 1:
                 w = particle.getWedge()
                 w.setWedgeAngles(wedgeangles[n*2:n*2+2])
+
+            # Multiply pick position
+            if abs(multiplypickpos - 1) > 1E-3:
+                pp = particle.getPickPosition()
+                pp.scale(multiplypickpos)
 
             # Shift is multiply by the respective binning factor.
             if multiplyshift:

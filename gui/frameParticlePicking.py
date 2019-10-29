@@ -858,8 +858,8 @@ class ParticlePick(GuiTabWidget):
         self.insert_checkbox_label_spinbox(parent, mode + 'adjustWedgeAngles', 'Adjust Wedge Angle 1', mode + 'wedgeAngle1',
                                            cstep=-1, rstep=1, value=30, stepsize=1, wtype=QSpinBox)
         self.insert_label_spinbox(parent, mode + 'wedgeAngle2', 'Wedge Angle 2', cstep=-2, value=30, wtype=QSpinBox)
-        self.insert_checkbox_label_spinbox(parent, mode + 'adjustBinning', 'Binning Factor', mode + 'binning',
-                                           value=1, stepsize=1, minimum=1, maximum=32, wtype=QSpinBox)
+        self.insert_checkbox_label_spinbox(parent, mode + 'adjustBinning', 'Multiply Pick Positions', mode + 'binning',
+                                           value=1, stepsize=1, minimum=0, maximum=32, wtype=QDoubleSpinBox)
         self.insert_checkbox_label_spinbox(parent, mode + 'multiplyShifts', 'Multiply Shifts',
                                            mode + 'factorMultiplyShifts', value=1, stepsize=1, wtype=QSpinBox,
                                            minimum=1, rstep=0, cstep=4)
@@ -984,7 +984,7 @@ class ParticlePick(GuiTabWidget):
 
             if outputName:
                 print('Update {}. Output saved as {}.'.format(os.path.basename(particleList), outputName) )
-                updatePL(particleList, outputName, directory=dir, wedgeangles=w, suffix=suffix, multiplyshift=fm)
+                updatePL(particleList, outputName, directory=dir, wedgeangles=w, suffix=suffix, multiplypickpos=float(bin), multiplyshift=fm)
             else:
                 self.popup_messagebox('Warning', '', 'No valid output filename provided. No file saved.')
 

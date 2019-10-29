@@ -326,6 +326,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         values = []
         refmarkindices = []
+        print(particleFiles)
         for n, particleFile in enumerate( particleFiles ):
             if not particleFile: continue
             base, ext = os.path.splitext(os.path.basename(particleFile).replace('particleList_', '').replace('coords_','').replace('_flipped',''))
@@ -333,7 +334,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
             for t in ('WBP', 'INFR'):
                 if t in base: base = base.split(t)[0]+t
-
+            print(base, self.tomogramfolder)
             if base+'.mrc' in os.listdir(self.tomogramfolder) or base+'.em' in os.listdir(self.tomogramfolder):
                 if os.path.exists(os.path.join(self.tomogramfolder, base+'.mrc')):
                     folder = os.popen('ls -alrt {}.mrc'.format(os.path.join(self.tomogramfolder, base))).read()[:-1]
@@ -373,7 +374,7 @@ class SubtomoAnalysis(GuiTabWidget):
             self.num_nodes[id].setParent(None)
         except:
             pass
-
+        print(values)
         if values:
             self.valuesBatchSubtomoReconstruction = values
             self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True)
