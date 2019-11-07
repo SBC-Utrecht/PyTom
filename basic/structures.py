@@ -2680,9 +2680,10 @@ class ParticleList(PyTomClass):
             raise RuntimeError('ParticleList must have at least 2 elements to determine resolution!')
     
         from pytom_volume import read
-        from pytom.tompy.correlation import FSC, determineResolution
+        from pytom.basic.correlation import FSC, determineResolution
         import pytom_mpi
-        
+        from pytom_numpy import vol2npy
+
         import os 
         
         even = ParticleList('/')
@@ -2730,11 +2731,11 @@ class ParticleList(PyTomClass):
 
         fsc = FSC(oddVolume, evenVolume, numberBands, mask, verbose)
 
-        randomizationFrequency = np.floor(determineResolution(fsc, 0.8, verbose)[1])
+        #randomizationFrequency = np.floor(determineResolution(fsc, 0.8, verbose)[1])
 
-        oddVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
-        evenVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
-        fsc2 = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
+        #oddVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
+        #evenVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
+        #fsc2 = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
         if verbose:
             print('FSC list:')
             print(fsc)

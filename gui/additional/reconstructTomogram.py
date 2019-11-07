@@ -64,6 +64,7 @@ if __name__ == '__main__':
                           arg=True, optional=True),
              ScriptOption(['--weightingType'], 'Type of weighting (-1 default r-weighting, 0 no weighting)', arg=True,
                           optional=True),
+             ScriptOption(['--noOutputImages'], 'When specified, not output images are saved.', arg=False, optional=True),
              ScriptOption(['--verbose'], 'Enable verbose mode', arg=False, optional=True),
              ScriptOption(['-h', '--help'], 'Help.', False, True)]
     
@@ -83,7 +84,7 @@ if __name__ == '__main__':
         volumeName, filetype, \
         tomogramSizeX, tomogramSizeY, tomogramSizeZ, \
         reconstructionCenterX, reconstructionCenterY, reconstructionCenterZ, \
-        weightingType, verbose, help = parse_script_options(sys.argv[1:], helper)
+        weightingType, noOutputImages, verbose, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(sys.version_info)
         print(e)
@@ -169,6 +170,11 @@ if __name__ == '__main__':
     if preBin:
         preBin=int(preBin)
 
+    if noOutputImages is None:
+        write_images = True
+    else:
+        write_images = False
+
     outMarkerFileName = 'MyMarkerFile.em'
 
     alignResultFile = ''
@@ -210,6 +216,6 @@ if __name__ == '__main__':
                            alignedTiltSeriesName=alignedTiltSeriesName,
                            weightingType=weightingType, alignResultFile=alignResultFile,
                            lowpassFilter=lowpassFilter, projBinning=projBinning,
-                           outMarkerFileName=outMarkerFileName, outfile=outfile, verbose=True)
+                           outMarkerFileName=outMarkerFileName, outfile=outfile, verbose=True, write_images=write_images)
 
 

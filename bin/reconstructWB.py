@@ -38,8 +38,11 @@ if __name__ == '__main__':
                                 ScriptOption(['--projBinning'], 'Bin projections BEFORE reconstruction. 1 is no binning, 2 will merge two voxels to one, 3 -> 1, 4 ->1 ...', arg=True, optional=True),
                                 ScriptOption(['-m', '--metafile'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
                                 ScriptOption(['-n', '--numProcesses'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
-                                ScriptOption(['-a', '--alignResultFile'], 'Supply a metafile to get tiltangles.', arg=True,
+                                ScriptOption(['-a', '--alignResultFile'], 'Supply an alignResultFile.', arg=True,
                                              optional=True),
+                                ScriptOption(['--particlePolishResultFile'], 'Supply a particle polish result file.',
+                                             arg=True, optional=True),
+
                                 ScriptOption(['--help'], 'Print this help.', arg=False, optional=True)])
     
     if len(sys.argv) == 1:
@@ -51,7 +54,9 @@ if __name__ == '__main__':
     aw = False
     
     try:
-        tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, recOffset, projBinning, metafile, numProcesses, alignResultFile, help= parse_script_options(sys.argv[1:], helper)
+        tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, \
+        recOffset, projBinning, metafile, numProcesses, alignResultFile, particlePolishResultFile, help = \
+            parse_script_options(sys.argv[1:], helper)
     
     except Exception as e:
         print(e)
@@ -108,6 +113,13 @@ if __name__ == '__main__':
     if alignResultFile is None:
         alignResultFile = ''
 
+    if particlePolishResultFile is None:
+        particlePolishResultFile = ''
+    else:
+        if not checkFileExists(particlePolishResultFile):
+            raise RuntimeError('particlePolishResultFile does not exist! Abort')
+
+
     if tomogram:
         vol = projections.reconstructVolume( dims=size, reconstructionPosition=recOffset,
             binning=projBinning, applyWeighting=aw)
@@ -140,12 +152,12 @@ if __name__ == '__main__':
             z = (pickPosition.getZ()*coordinateBinning+ recOffset[2])#/projBinning
 
             particle.setPickPosition( PickPosition(x=x, y=y, z=z))
-        print(alignResultFile)
+
         projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \
                                        binning=projBinning, applyWeighting = aw, \
                                        showProgressBar = True,verbose=False, \
                                        preScale=projBinning,postScale=1, num_procs=numProcesses,
-                                       alignResultFile=alignResultFile)
+                                       alignResultFile='')
 
             
 

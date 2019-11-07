@@ -1361,7 +1361,8 @@ class GuiTabWidget(QWidget, CommonFunctions):
 
         self.addTabs(headers=headers, offx=offx, offy=offy, dimx=dimx, dimy=dimy,soff=50)
 
-    def addTabs(self, headers, widget=QWidget, subheaders=[], offx=0,offy=0,dimx=900,dimy=721,soff=0, sizeX=900,sizeY=700):
+    def addTabs(self, headers, widget=QWidget, subheaders=[], offx=0,offy=0,dimx=900,dimy=721,soff=0, sizeX=900,sizeY=700, tabUIs=None, tabs=None, tab_actions=None):
+
         self.size_policies()
         self.scrollarea = QScrollArea(self)
         if soff: self.scrollarea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
@@ -1411,11 +1412,20 @@ class GuiTabWidget(QWidget, CommonFunctions):
                 for m, subheader in enumerate(subheaders[n]):
                     setattr(self, 'tab{}{}'.format(n + 1, m + 1), subtab.tabs[m])
 
+                    tabs[f'tab{n+1}{m+1}'] = getattr(self,f'tab{n+1}{m+1}')
+                    if tabUIs[n][m]:
+                        tab_actions[f'tab{n+1}{m+1}'] = tabUIs[n][m]
+
             else:
                 tab = QWidget()
             self.tabs.append(tab)
             tab.setObjectName(header)
             setattr(self,'tab{}'.format(n+1),tab)
+            try:
+                tabs[f'tab{n+1}'] = getattr(self,f'tab{n+1}')
+                if tabUIs[n]:
+                    tab_actions[f'tab{n+1}'] = tabUIs[n]
+            except:pass
             self.tabWidget.addTab(tab, header)
 
 

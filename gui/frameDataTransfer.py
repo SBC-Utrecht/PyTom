@@ -164,11 +164,14 @@ class CollectPreprocess(GuiTabWidget):
     def __init__(self, parent=None):
         super(CollectPreprocess, self).__init__(parent)
         headers = ["Individual Assessment", "Batch"]
+        tabUIs = [self.tab1UI, self.tab2UI]
         offx, offy, dimx, dimy=0, 0, 900, 721
         self.tomogram_folder = self.parent().tomogram_folder
         self.rawnanographs_folder = self.parent().rawnanographs_folder
         self.motioncor_folder = self.parent().motioncor_folder
-        self.addTabs(headers)
+
+        self.tabs_dict, self.tab_actions = {},{}
+        self.addTabs(headers,tabUIs=tabUIs, tabs=self.tabs_dict, tab_actions=self.tab_actions)
         #self.tab1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         #self.tab2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 

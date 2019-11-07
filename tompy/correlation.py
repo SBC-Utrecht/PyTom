@@ -281,15 +281,15 @@ def bandCC(volume,reference,band,verbose = False, gpu=False):
         import numpy as xp
 
 
-    from pytom.tompy.filter import bandpassFilter
+    from pytom.tompy.filter import bandpass
     from pytom.tompy.correlation import xcf
-    from pytom.tompy.filter import vol_comp
+    #from pytom.tompy.filter import vol_comp
     
     if verbose:
         print('lowest freq : ', band[0],' highest freq' , band[1])
         
-    vf = bandpassFilter(volume,band[0],band[1],fourierOnly=True, gpu=False)
-    rf = bandpassFilter(reference,band[0],band[1],vf[1],fourierOnly=True, gpu=False)
+    vf = bandpass(volume,band[0],band[1],fourierOnly=True, gpu=False)
+    rf = bandpass(reference,band[0],band[1],vf[1],fourierOnly=True, gpu=False)
     
     ccVolume = vol_comp(rf[0].shape[0],rf[0].shape[1],rf[0].shape[2])
     ccVolume.copyVolume(rf[0])
@@ -622,9 +622,9 @@ def FSC(volume1, volume2, numberBands, mask=None, verbose=False, filename=None, 
 
     if not volume1.shape == volume2.shape:
         raise RuntimeError('Volumes must have the same size!')
-    
-    if mask:
-        if mask.__class__ == xp.array:
+    print(mask.__class__, xp.array([]).__class__)
+    if not mask is None:
+        if mask.__class__ == xp.array([]).__class__:
             volume1 = volume1 * mask
             volume2 = volume2 * mask
           

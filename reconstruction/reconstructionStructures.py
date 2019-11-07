@@ -457,7 +457,7 @@ class ProjectionList(PyTomClass):
 
     def reconstructVolumes(self, particles, cubeSize, binning=1, applyWeighting=False,
                            showProgressBar=False, verbose=False, preScale=1, postScale=1, num_procs=5,
-                           alignResultFile=''):
+                           alignResultFile='', filename_ppr=''):
         """
         reconstructVolumes: reconstruct a subtomogram given a particle object.
 
@@ -502,7 +502,8 @@ class ProjectionList(PyTomClass):
                                                       verbose=False, num_procs=num_procs)
         else:
             from pytom.gui.additional.generateAlignedTiltImagesInMemory import toProjectionStackFromAlignmentResultsFile
-            resultProjstack = toProjectionStackFromAlignmentResultsFile( alignResultFile, weighting=applyWeighting, num_procs=num_procs)
+            resultProjstack = toProjectionStackFromAlignmentResultsFile( alignResultFile, weighting=applyWeighting,
+                                                                         num_procs=num_procs, binning=binning)
         #if verbose: return
         
         procs = []
@@ -522,7 +523,7 @@ class ProjectionList(PyTomClass):
                     procs =[proc for proc in procs if proc.is_alive() ]
                     num_finished += num_started - num_finished - len(procs)
                 proc = Process(target=self.extract_single_particle, args=(p, particleIndex, verbose, binning, postScale,
-                                                                          cubeSize, submitted%num_procs,))
+                                                                          cubeSize, submitted%num_procs,filename_ppr))
                 procs.append(proc)
                 proc.start()
                 submitted += 1
@@ -579,7 +580,7 @@ class ProjectionList(PyTomClass):
         progressBar.update(len(particles))
         print('\n Subtomogram reconstructions have finished.\n\n')
 
-    def extract_single_particle(self, p, pid, verbose, binning, postScale, cubeSize, ID=0):
+    def extract_single_particle(self, p, pid, verbose, binning, postScale, cubeSize, ID=0, filename_ppr=''):
         import os
         from pytom.basic.files import read
         from pytom_volume import vol, backProject, rescaleSpline
@@ -605,10 +606,37 @@ class ProjectionList(PyTomClass):
             reconstructionPosition.setAll(0.0)
 
             # adjust coordinates of subvolumes to binned reconstruction
-            for i in range(num_projections):
-                reconstructionPosition( float(p.getPickPosition().getX()/binning), 0, i, 0)
-                reconstructionPosition( float(p.getPickPosition().getY()/binning), 1, i, 0)
-                reconstructionPosition( float(p.getPickPosition().getZ()/binning), 2, i, 0)
+            if not filename_ppr:
+                for i in range(num_projections):
+                    reconstructionPosition( float(p.getPickPosition().getX()/binning), 0, i, 0)
+                    reconstructionPosition( float(p.getPickPosition().getY()/binning), 1, i, 0)
+                    reconstructionPosition( float(p.getPickPosition().getZ()/binning), 2, i, 0)
+            else:
+                for i in range(len(self)):
+                    from pytom.gui.guiFunctions import LOCAL_ALIGNMENT_RESULTS, loadstar
+                    import pytom.basic.combine_transformations as ct
+
+                    particle_polish_file = loadstar(filename_ppr, dtype=LOCAL_ALIGNMENT_RESULTS)
+
+                    offsetX = float(particle_polish_file['AlignmentTransX'][start_index + i])
+                    offsetY = float(particle_polish_file['AlignmentTransY'][start_index + i])
+
+                    pick_position = np.matrix([x,y,z]).T
+                    rotation = ct.matrix_rotate_3d_y(self._list[i].getTiltAngle())
+
+                    shift = np.matrix([offsetX, offsetY, 0]).T
+                    translate_center = np.matrix([3710/2, 3710/2, 3710/2]).T
+                    new_position = rotation * (pick_position - translate_center)
+                    print("NEW", new_position)
+                    new_position_shifted = new_position + shift
+                    reposition = np.linalg.inv(rotation) * new_position_shifted
+                    reposition = np.array( (reposition + translate_center).T )[0]
+                    print(reposition)
+                    print(self._list[i].getTiltAngle(), "New Position", reposition[0], reposition[1], reposition[2], "Old Position", x, y, z, offsetX, offsetY)
+
+                    reconstructionPosition(float(reposition[0] / binning), 0, i, 0)
+                    reconstructionPosition(float(reposition[1] / binning), 1, i, 0)
+                    reconstructionPosition(float(reposition[2] / binning), 2, i, 0)
 
             if 1:
                 print((p.getPickPosition().getX()/binning,p.getPickPosition().getY()/binning,
@@ -842,9 +870,7 @@ class ProjectionList(PyTomClass):
         from multiprocessing import Process
         import time
 
-        print(int(applyWeighting))
 
-        applyWeighting = -1
 
         # determine image dimensions according to first image in projection list
         imgDim = read(self._list[0].getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1).sizeX()        
@@ -900,7 +926,7 @@ class ProjectionList(PyTomClass):
                 if int(applyWeighting):
                     image = ifft( complexRealMult( complexRealMult( fft(image), weightSlice), circleSlice), scaling=True )
 
-
+                print(projection.getTiltAngle(), projection.getOffsetX(), projection.getOffsetY())
                 thetaStack(int(round(projection.getTiltAngle())), 0, 0, i)
                 offsetStack(projection.getOffsetX(),0,0,i)
                 offsetStack(projection.getOffsetY(),0,1,i)

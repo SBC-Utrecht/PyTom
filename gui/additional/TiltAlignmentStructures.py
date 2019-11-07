@@ -396,7 +396,7 @@ class TiltSeries(PyTomClass):
                     markerFileVol.setV(int(round(proj._tiltAngle)), 0, int(itilt), int(imark))
         markerFileVol.write(markerFileName)
 
-    def write_aligned_projs(self, weighting=None, lowpassFilter=None, binning=1, verbose=False):
+    def write_aligned_projs(self, weighting=None, lowpassFilter=None, binning=1, verbose=False, write_images=False):
         """
         write aligned (and weighted) projections
 
@@ -416,7 +416,7 @@ class TiltSeries(PyTomClass):
         from pytom.reconstruction.writeAlignedProjections import writeAlignedProjections
 
         writeAlignedProjections(self, weighting=weighting, lowpassFilter=lowpassFilter, binning=binning,
-                                verbose=verbose)
+                                verbose=verbose, write_images=write_images)
 
     def write_projections(self, filename, binning=1, lowpassFilter=None, verbose=False):
         """
