@@ -51,8 +51,11 @@ class SubtomoAnalysis(GuiTabWidget):
 
         headers = ["Reconstruct Subtomograms", "Particle Polishing", "Align Subtomograms","Classify Subtomograms"]
         subheaders = [['Single Reconstruction','Batch Reconstruction'],['Single', 'Batch'], ['FRM Alignment','GLocal'],['CPCA','Auto Focus']]
-        tabUIs = [[self.tab11UI, self.tab12UI], [self.PolishSingleUI, self.PolishBatchUI], [self.tab21UI,self.tab22UI],[self.tab31UI,self.tab32UI]]
-        static_tabs = [[True, False], [True, True], [True, True], [True, True]]
+        tabUIs = [[self.SubtomoReconstrSingleUI, self.SubtomoReconstrBatchUI],
+                  [self.PolishSingleUI, self.PolishBatchUI],
+                  [self.FRMUI,self.GLocalUI],
+                  [self.CPCAUI,self.AC3DUI]]
+        static_tabs = [[True, False], [True, False], [True, True], [True, True]]
 
         self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders,tabUIs=tabUIs,tabs=self.tabs_dict, tab_actions=self.tab_actions)
 
@@ -90,9 +93,9 @@ class SubtomoAnalysis(GuiTabWidget):
                 tab = self.tabs_dict[tt]
                 tab.setLayout(self.table_layouts[tt])
 
+    # General UI functions TODO: make key passing dynamic for non-static UIs (currently require static key/id).
 
-
-    def tab11UI(self, key):
+    def SubtomoReconstrSingleUI(self, key=''):
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -111,23 +114,22 @@ class SubtomoAnalysis(GuiTabWidget):
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
-    def tab12UI(self):
+    def SubtomoReconstrBatchUI(self, key='tab12'):
         try: self.extractLists.text()
         except: self.extractLists = QLineEdit()
 
         self.mass_extract = SelectFiles(self, initdir=self.pickpartdir, search='file', filter=['.xml'],
-                                        outputline=self.extractLists, run_upon_complete=self.populate_batch_create,
+                                        outputline=self.extractLists,
+                                        run_upon_complete= lambda d, id=key: self.populate_batch_create(id),
                                         title='Select particlLists')
+
+    def PolishSingleUI(self, key=''):
         pass
 
-    def PolishSingleUI(self, key):
+    def PolishBatchUI(self,  key='tab22'):
         pass
 
-    def PolishBatchUI(self, key):
-        pass
-
-
-    def tab21UI(self, key):
+    def FRMUI(self, key=''):
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -147,7 +149,7 @@ class SubtomoAnalysis(GuiTabWidget):
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
-    def tab22UI(self,key):
+    def GLocalUI(self, key=''):
 
 
         grid = self.table_layouts[key]
@@ -169,8 +171,8 @@ class SubtomoAnalysis(GuiTabWidget):
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
-    def tab31UI(self, key):
-        print(key)
+    def CPCAUI(self, key=''):
+
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -196,7 +198,7 @@ class SubtomoAnalysis(GuiTabWidget):
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
-    def tab32UI(self, key):
+    def AC3DUI(self, key=''):
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -214,6 +216,8 @@ class SubtomoAnalysis(GuiTabWidget):
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
+
+    # Helper functions
 
     def createSubtomograms(self, mode=''):
 
@@ -296,7 +300,7 @@ class SubtomoAnalysis(GuiTabWidget):
         except:
             pass
 
-    def populate_batch_create(self):
+    def populate_batch_create(self, id=''):
         self.mass_extract.close()
         particleFilesStart = sorted( self.extractLists.text().split('\n') )
         particleFiles = []
@@ -312,7 +316,6 @@ class SubtomoAnalysis(GuiTabWidget):
 
         particleFiles = sorted(particleFiles)
 
-        id='tab12'
         headers = ["Filename particleList", "Run", "Origin", "Tilt Images", 'Bin factor recon', 'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Z", '']
         types = ['txt', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit','txt']
         a=40
@@ -735,7 +738,6 @@ class SubtomoAnalysis(GuiTabWidget):
             self.widgets[mode + 'gpuString'].setText(f'--gpu {id}')
         else:
             self.widgets[mode + 'gpuString'].setText('')
-
 
     def update_pixel_size(self, mode):
         from pytom.basic.structures import ParticleList
