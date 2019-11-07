@@ -46,10 +46,15 @@ class SubtomoAnalysis(GuiTabWidget):
         self.qtype = self.parent().qtype
         self.qcommand = self.parent().qcommand
 
-        headers = ["Reconstruct Subtomograms","Align Subtomograms","Classify Subtomograms"]
-        subheaders = [['Single Reconstruction','Batch Reconstruction'],['FRM Alignment','GLocal'],['CPCA','Auto Focus']]
+        self.tabs_dict = {}
+        self.tab_actions = {}
 
-        self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders)
+        headers = ["Reconstruct Subtomograms", "Particle Polishing", "Align Subtomograms","Classify Subtomograms"]
+        subheaders = [['Single Reconstruction','Batch Reconstruction'],['Single', 'Batch'], ['FRM Alignment','GLocal'],['CPCA','Auto Focus']]
+        tabUIs = [[self.tab11UI, self.tab12UI], [self.PolishSingleUI, self.PolishBatchUI], [self.tab21UI,self.tab22UI],[self.tab31UI,self.tab32UI]]
+        static_tabs = [[True, False], [True, True], [True, True], [True, True]]
+
+        self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders,tabUIs=tabUIs,tabs=self.tabs_dict, tab_actions=self.tab_actions)
 
         self.widgets = {}
         self.table_layouts = {}
@@ -57,44 +62,37 @@ class SubtomoAnalysis(GuiTabWidget):
         self.pbs = {}
         self.ends = {}
         self.num_nodes = {}
-        self.tabs = {'tab11': self.tab11, 'tab12': self.tab12,
-                     'tab21': self.tab21, 'tab22': self.tab22,
-                     'tab31': self.tab31, 'tab32': self.tab32,}
-
-        self.tab_actions = {'tab11': self.tab11UI, 'tab12': self.tab12UI,
-                            'tab21': self.tab21UI, 'tab22': self.tab22UI,
-                            'tab31': self.tab31UI, 'tab32': self.tab32UI}
 
         for i in range(len(headers)):
             t = 'tab{}'.format(i + 1)
             empty = 1 * (len(subheaders[i]) == 0)
             for j in range(len(subheaders[i]) + empty):
                 tt = t + str(j + 1) * (1 - empty)
-                if tt in ('tab11', 'tab21', 'tab22', 'tab31', 'tab32'):
+                if static_tabs[i][j]:# tt in ('tab11', 'tab31', 'tab32', 'tab41', 'tab42'):
                     self.table_layouts[tt] = QGridLayout()
                 else:
                     self.table_layouts[tt] = QVBoxLayout()
-                button = QPushButton('Refresh Tab')
-                button.setSizePolicy(self.sizePolicyC)
-                button.clicked.connect(self.tab_actions[tt])
-
                 self.tables[tt] = QWidget()
                 self.pbs[tt] = QWidget()
                 self.ends[tt] = QWidget()
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
 
-                if tt in ('tab12'):
+                if not static_tabs[i][j]:#tt in ('tab12'):
+                    button = QPushButton('Refresh Tab')
+                    button.setSizePolicy(self.sizePolicyC)
+                    button.clicked.connect(self.tab_actions[tt])
+
                     self.table_layouts[tt].addWidget(button)
                     self.table_layouts[tt].addWidget(self.ends[tt])
+                else:#if not tt in ('tab12'):
+                    self.tab_actions[tt](tt)
 
-                if not tt in ('tab12'):
-                    self.tab_actions[tt]()
-
-                tab = self.tabs[tt]
+                tab = self.tabs_dict[tt]
                 tab.setLayout(self.table_layouts[tt])
 
-    def tab11UI(self):
-        key = 'tab11'
+
+
+    def tab11UI(self, key):
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -122,8 +120,14 @@ class SubtomoAnalysis(GuiTabWidget):
                                         title='Select particlLists')
         pass
 
-    def tab21UI(self):
-        key = 'tab21'
+    def PolishSingleUI(self, key):
+        pass
+
+    def PolishBatchUI(self, key):
+        pass
+
+
+    def tab21UI(self, key):
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -143,8 +147,8 @@ class SubtomoAnalysis(GuiTabWidget):
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
-    def tab22UI(self):
-        key = 'tab22'
+    def tab22UI(self,key):
+
 
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
@@ -165,8 +169,8 @@ class SubtomoAnalysis(GuiTabWidget):
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
-    def tab31UI(self):
-        key = 'tab31'
+    def tab31UI(self, key):
+        print(key)
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -192,8 +196,7 @@ class SubtomoAnalysis(GuiTabWidget):
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
-    def tab32UI(self):
-        key = 'tab32'
+    def tab32UI(self, key):
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 

@@ -510,6 +510,7 @@ def create_project_filestructure(projectdir='.'):
         "05_Subtomogram_Analysis": {
             "Subtomograms": "",
             "Reconstruction": "",
+            "ParticlePolishing": "",
             "Alignment": {
                 "FRM": "",
                 "GLocal": ""
@@ -614,6 +615,21 @@ unitsAR = ['px', 'px', 'degrees', 'degrees', '', '']
 fmtAR='%15.10f %15.10f %15.10f %15.10f %15.10f %s'
 for n, h in enumerate(datatypeAR):
     headerAlignmentResults += '_{} {}\n'.format(h[0], '({})'.format(unitsAR[n])*(unitsAR[n]!=''))
+
+
+LOCAL_ALIGNMENT_RESULTS = [('ParticleIndex', 'i4'),
+                           ('AlignmentTransX', 'f4'),
+                           ('AlignmentTransY', 'f4'),
+                           ('TiltAngle', 'f4'),
+                           ('InPlaneRotation', 'f4'),
+                           ('Magnification', 'f4'),
+                           ('FileName', 'U1000')]
+
+headerLocalAlignmentResults = ''
+unitsLAR = ['', 'px', 'px', 'degrees', 'degrees', '', '']
+fmtLAR = '%7d %15.10f %15.10f %15.10f %15.10f %15.10f %s'
+for n, h in enumerate(LOCAL_ALIGNMENT_RESULTS):
+    headerLocalAlignmentResults += '{} {}\n'.format(h[0], '({})'.format(unitsLAR[n]) * (unitsLAR[n] != ''))
 
 
 def headerline(line):

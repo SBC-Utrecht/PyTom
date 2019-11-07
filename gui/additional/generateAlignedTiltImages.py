@@ -256,7 +256,7 @@ if __name__ == '__main__':
                 'tiltSeriesFormat': 'mrc', "firstProj":firstProj, "irefmark":irefmark, "ireftilt":ireftilt,
                 'handflip': expectedRotationAngle, "alignedTiltSeriesName":falignedTiltSeriesName,
                 'weightingType': weightingType, "lowpassFilter":lowpassFilter, "projBinning":projBinning,
-                'outMarkerFileName': outMarkerFileName, 'verbose':True, 'outfile':outfile}
+                'outMarkerFileName': outMarkerFileName, 'verbose':True, 'outfile':outfile, 'write_images':False}
 
         print(kwargs)
 

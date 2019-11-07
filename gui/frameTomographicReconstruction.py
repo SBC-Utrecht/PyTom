@@ -50,11 +50,17 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets['pytomPath'].setText(self.parent().pytompath)
 
         self.pytompath = self.parent().pytompath
+        self.tabs_dict, self.tab_actions = {}, {}
         headers = ["Select Tomograms", "Create Markerfile", "Alignment", 'CTF Correction', 'Reconstruction']
         subheaders = [[], [], ['Individual Alignment', 'Batch Alignment'],
                       ['CTF Determination', 'CTF Correction', 'Batch Correction'],
                       ['INFR', 'WBP', 'Batch Reconstruction']]
-        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders)
+        tabUIs = [self.tab1UI,
+                  self.tab2UI,
+                  [self.tab31UI,self.tab32UI],
+                  [self.tab41UI,self.tab42UI,self.tab43UI],
+                  [self.tab51UI, self.tab52UI,self.tab53UI]]
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict, tab_actions=self.tab_actions)
 
         self.table_layouts = {}
         self.tables = {}
@@ -63,7 +69,7 @@ class TomographReconstruct(GuiTabWidget):
         self.checkbox = {}
         self.num_nodes = {}
 
-        self.tabs = {'tab1': self.tab1,
+        self.tabs2 = {'tab1': self.tab1,
                      'tab2':  self.tab2,
                      'tab31': self.tab31, 'tab32': self.tab32,
                      'tab41': self.tab41, 'tab42': self.tab42, 'tab43': self.tab43,
@@ -71,7 +77,7 @@ class TomographReconstruct(GuiTabWidget):
 
         self.queue_job_names = []
 
-        self.tab_actions = {'tab1':  self.tab1UI,
+        self.tab_actions2 = {'tab1':  self.tab1UI,
                             'tab2':  self.tab2UI,
                             'tab31': self.tab31UI, 'tab32': self.tab32UI,
                             'tab41': self.tab41UI, 'tab42': self.tab42UI, 'tab43': self.tab43UI,
@@ -104,7 +110,7 @@ class TomographReconstruct(GuiTabWidget):
                     self.tab_actions[tt]()
 
 
-                tab = self.tabs[tt]
+                tab = self.tabs_dict[tt]
                 tab.setLayout(self.table_layouts[tt])
                 #self.tab_actions[tt]()
 
@@ -640,7 +646,9 @@ class TomographReconstruct(GuiTabWidget):
                 num_submitted_jobs += 1
             else:
                 os.system('bash {}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n))
-                num_submitted_jobs += 1
+
+        if num_submitted_jobs > 0:
+            self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
 
     def tab51UI(self):
         id = 'tab51'
@@ -973,6 +981,8 @@ class TomographReconstruct(GuiTabWidget):
         for name in ('FirstAngle', 'LastAngle','FirstIndex', 'LastIndex', 'Reduced'):
             self.widgets[mode + name] = QLineEdit()
 
+
+        num_submitted_jobs = 0
         for row in range(table.rowCount()):
             tomofolder = os.path.join(self.tomogram_folder, values[row][0])
             metafile = glob.glob(os.path.join(tomofolder,'sorted/*.meta'))
@@ -1045,6 +1055,10 @@ class TomographReconstruct(GuiTabWidget):
 
                     params = [execfilename, commandText]
                     self.submit_multi_recon_job(params)
+                    num_submitted_jobs += 1
+
+        if num_submitted_jobs > 0:
+            self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
 
     def submit_multi_recon_job(self, params):
         print(params[1])
@@ -1484,3 +1498,6 @@ class TomographReconstruct(GuiTabWidget):
                     outjob.close()
                     os.system('{} {}/{}'.format(self.qcommand, outDirectory, 'ctfCorrectionBatch.sh'))
                     num_submitted_jobs += 1
+
+        if num_submitted_jobs > 0:
+            self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')

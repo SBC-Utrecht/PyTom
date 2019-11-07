@@ -87,7 +87,8 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
                            volumeName=None, volumeFileType='em', alignResultFile='',
                            voldims=None, recCent=[0,0,0], tiltSeriesFormat='st', firstProj=1, irefmark=1, ireftilt=1,
                            handflip=False, alignedTiltSeriesName='align/myTilt', weightingType=-1,
-                           lowpassFilter=1., projBinning=1, outMarkerFileName=None, verbose=False, outfile=''):
+                           lowpassFilter=1., projBinning=1, outMarkerFileName=None, verbose=False, outfile='',
+                           write_images=True):
     """
     @param tiltSeriesName: Name of tilt series (set of image files in .em or .mrc format) or stack file (ending '.st').\
     Note: the actual file ending should NOT be provided.
@@ -189,7 +190,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
                 print(" dir 'align' already exists - writing aligned files into existing dir")
 
         tiltSeries.write_aligned_projs(weighting=weightingType, lowpassFilter=lowpassFilter, binning=projBinning,
-                                       verbose=verbose)
+                                       verbose=verbose, write_images=write_images)
         if voldims:
             # overrule tiltSeriesFormat - aligned tiltseries is always a series of em files
             #tiltSeries._tiltSeriesFormat = 'em'

@@ -19,7 +19,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
 
        @param alignmentResultsFile: result file generate by the alignment script.
        @type datatypeAR: gui.guiFunction.datatypeAR
-       @param weighting: weighting (<0: analytical weighting, >1 exact weighting (value corresponds to object diameter in pixel AFTER binning)
+       @param weighting: weighting (<0: analytical weighting, >1: exact weighting, 0/None: no weighting )
        @type weighting: float
        @param lowpassFilter: lowpass filter (in Nyquist)
        @type lowpassFilter: float
@@ -27,6 +27,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
 
        @author: GS
     """
+    print('weighting: ', weighting)
     import numpy
     from pytom_numpy import vol2npy
     from pytom.basic.files import read_em, write_em
@@ -79,7 +80,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
     for n, image in enumerate(imageList):
         atx = alignmentResults['AlignmentTransX'][n]
         aty = alignmentResults['AlignmentTransY'][n]
-        rot = alignmentResults['InPlaneRotation'][n] + 180
+        rot = alignmentResults['InPlaneRotation'][n]
         mag = alignmentResults['Magnification'][n]
         print(imageList[n], tilt_angles[n], atx, aty, rot, mag)
         projection = Projection(imageList[n], tiltAngle=tilt_angles[n], alignmentTransX=atx,alignmentTransY=aty,
@@ -130,7 +131,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
         # transform projection according to tilt alignment
         transX = projection._alignmentTransX / binning
         transY = projection._alignmentTransY / binning
-        rot = float(projection._alignmentRotation)-180.
+        rot = float(projection._alignmentRotation)
         mag = float(projection._alignmentMagnification)
 
 
@@ -143,17 +144,20 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
         if (weighting != None) and (weighting < 0):
             image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
 
+
+
         elif (weighting != None) and (weighting > 0):
             w_func = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
             image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
 
+        print(projection.getTiltAngle(), projection.getOffsetX(), projection.getOffsetY())
         thetaStack(int(round(projection.getTiltAngle())), 0, 0, ii)
         offsetStack(int(round(projection.getOffsetX())), 0, 0, ii)
         offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
         paste(image, stack, 0, 0, ii)
-        #fname = 'sorted_aligned_novel_{:02d}.mrc'.format(ii)
-        #write_em(fname.replace('mrc','em'), image)
-        #mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
+        fname = 'sorted_aligned_novel_{:02d}.mrc'.format(ii)
+        write_em(fname.replace('mrc','em'), image)
+        mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
 
     return [stack, phiStack, thetaStack, offsetStack]
 

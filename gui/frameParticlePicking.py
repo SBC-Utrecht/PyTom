@@ -46,9 +46,11 @@ class ParticlePick(GuiTabWidget):
         self.qtype = self.parent().qtype
         self.qcommand = self.parent().qcommand
 
+        self.tabs_dict, self.tab_actions = {}, {}
         headers = ["Manual Picking","Template Matching", "Create Particle List", "Alter Particle List"]
         subheaders  = [[],['Single', 'Batch'], ['Single','Batch'], []]
-        self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders)
+        tabUIs = [self.tab1UI,[self.tab21UI,self.tab22UI],[self.tab31UI,self.tab32UI],self.tab4UI]
+        self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs,tabs=self.tabs_dict, tab_actions=self.tab_actions)
 
         self.table_layouts = {}
         self.tables = {}
@@ -56,12 +58,12 @@ class ParticlePick(GuiTabWidget):
         self.ends = {}
         self.num_nodes = {}
 
-        self.tabs = {'tab1': self.tab1,
+        self.tabs2 = {'tab1': self.tab1,
                      'tab21': self.tab21, 'tab22': self.tab22,
                      'tab31': self.tab31, 'tab32': self.tab32,
                      'tab4': self.tab4}
 
-        self.tab_actions = {'tab1': self.tab1UI,
+        self.tab_actions2 = {'tab1': self.tab1UI,
                             'tab21': self.tab21UI, 'tab22': self.tab22UI,
                             'tab31': self.tab31UI, 'tab32': self.tab32UI,
                             'tab4': self.tab4UI}
@@ -92,7 +94,7 @@ class ParticlePick(GuiTabWidget):
                 if not tt in ('tab22', 'tab32'):
                     self.tab_actions[tt]()
 
-                tab = self.tabs[tt]
+                tab = self.tabs_dict[tt]
                 tab.setLayout(self.table_layouts[tt])
 
     def tab1UI(self):
@@ -883,7 +885,7 @@ class ParticlePick(GuiTabWidget):
                                            value=1, stepsize=1, minimum=0, maximum=32, wtype=QDoubleSpinBox)
         self.insert_checkbox_label_spinbox(parent, mode + 'multiplyShifts', 'Multiply Shifts',
                                            mode + 'factorMultiplyShifts', value=1, stepsize=1, wtype=QSpinBox,
-                                           minimum=1, rstep=0, cstep=4)
+                                           minimum=0, rstep=0, cstep=4)
         self.insert_label(parent,'', sizepolicy=self.sizePolicyA, cstep=-6,rstep=1)
 
 
@@ -991,6 +993,7 @@ class ParticlePick(GuiTabWidget):
             mode = mode0
             suffix = self.widgets[mode + 'suffix'].text()
             dir = self.widgets[mode + 'directory'].text()
+            fg
             w = [self.widgets[mode+'wedgeAngle1'].text(), self.widgets[mode+'wedgeAngle2'].text()]
             bin = self.widgets[mode + 'binning'].text()
             fmShifts = self.widgets[mode + 'factorMultiplyShifts'].text()

@@ -585,8 +585,8 @@ def generate_model(outputFolder, modelID, listpdbs, waterdensity=1, numberOfPart
 
     mask = numpy.zeros_like(cell)
 
-    if addStructNoise:
-        cell = addStructuralNoise(cell)
+    #if addStructNoise:
+    #    cell = addStructuralNoise(cell)
     volumes = []
     for i in range(len(models)):
         vol = read('{}_model_binned.mrc'.format(listpdbs[i]))
@@ -653,7 +653,6 @@ def generate_model(outputFolder, modelID, listpdbs, waterdensity=1, numberOfPart
 
     return grandcell
 
-
 def generate_projections(outputFolder, modelID, SIZE, angles, grandcell):
     from voltools.volume import Volume
 
@@ -684,17 +683,16 @@ def generate_projections(outputFolder, modelID, SIZE, angles, grandcell):
     del d_vol
     return noisefree_projections
 
-
 def add_effects_microscope(outputFolder, modelID, grandcell, noisefree_projections):
     iter = 20
 
     for n in range(len(noisefree_projections)):
         noisefree_projections[n] = rot90(noisefree_projections[n], 3)
 
-    noisefree_projections = noisefree_projections[1:-1, :, :]
+    
     diff = (grandcell.shape[-1] - noisefree_projections.shape[-1])
     simtomo = simutomo(grandcell[:, diff // 2:-diff // 2, diff // 2:-diff // 2], defocus, pixelSize,
-                       [angles[0] + angleIncrement, angles[1] - angleIncrement], angleIncrement, SNR, 
+                       [angles[0], angles[1]], angleIncrement, SNR, 
                        0, 0, 0, outputFolder=outputFolder,modelID=modelID)
     if simtomo:
         convert_numpy_array3d_mrc(simtomo, f"{outputFolder}/simutomo_{modelID}.mrc")
@@ -707,8 +705,12 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, volsize, angles, ou
         p = Projection(prefix+str(i)+suffix,tiltAngle=angles[i-1])
         projections.append(p)
 
+    outputname = os.path.join(outputFolder, f'tomogram_model_{modelID}.em') 
+
     vol = projections.reconstructVolume( dims=vol_size, reconstructionPosition=[0,0,0], binning=1, applyWeighting=weighting)
-    vol.write(os.path.join(outputFolder, f'tomogram_model_{modelID}.em') )
+    vol.write(outputname)
+    os.system('em2mrc.py -f {} -t {}'.format(outputname, os.path.dirname(outputname)) ) 
+    os.system(f'rm {outputname}')
 
 if __name__ == '__main__':
 
@@ -721,19 +723,23 @@ if __name__ == '__main__':
                ScriptOption(['--addEffectsMicroscope'], 'Simulate effects of microscope on top of projections', False,
                             True),
                ScriptOption(['--reconstructTomogram'], 'Reconstruct a tomogram from projections', False, True),
+
                ScriptOption(['-s', '--size'], 'Size of the model. Default 1024', True, True),
+               ScriptOption(['--sizeRecon'],'Size of the reconstruction. Default 512', True,True),
                ScriptOption(['-m', '--models'], 'PDBIDs, seperated by a comma', True, True),
                ScriptOption(['-w', '--waterdensity'], 'Water density. 1 by default.', True, True),
                ScriptOption(['-m', '--modelID'], 'Model ID.', True, True),
-               ScriptOption(['-g', '--grandmodelFile'], 'name of grand model', True, True),
-               ScriptOption(['-g', '--projectionsFile'], 'Stack of projections', True, True),
+               ScriptOption(['-g', '--grandmodelFile'], 'Path to grand model', True, True),
+               ScriptOption(['--projectionsFile'], 'Stack of projections', True, True),
                ScriptOption(['-n', '--numberOfParticles'], 'Number of particles. 10.000 by default', True, True),
                ScriptOption(['-o', '--outputFolder'], 'Output folder, Current by default.', True, True),
                ScriptOption(['-a', '--angles'], 'Output folder, "-60,60" by default.', True, True),
                ScriptOption(['-i', '--angleIncrement'], 'Output folder, "3" by default.', True, True),
-               ScriptOption(['--SNR'], 'Signal to Noise Ratio, 0.2 by default.', True, True),
+               ScriptOption(['--SNR'], 'Signal to Noise Ratio, 0.02 by default.', True, True),
                ScriptOption(['-d', '--defocus'], 'Defocus (um), "-2" by default.', True, True),
                ScriptOption(['-p', '--pixelSize'], 'Size of a detector pixel (A), "10" by default.', True, True),
+               ScriptOption(['--start'], 'Start index of projections used for reconstruction, "2" by default.', True, True),
+               ScriptOption(['--end'], 'End index of projections used for reconstruction, "40" by default.', True, True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
     helper = ScriptHelper(sys.argv[0].split('/')[-1],  # script name
@@ -745,8 +751,8 @@ if __name__ == '__main__':
         sys.exit()
     try:
         generateModel, generateProjections, addEffectsMicroscope, reconstructTomogram, \
-        SIZE, models, waterdensity, modelID, grandmodelFile, \
-        projectionsFile, numberOfParticles, outputFolder, angles, angleIncrement, SNR, defocus, pixelSize, help = \
+        SIZE, sizeRecon, models, waterdensity, modelID, grandmodelFile, \
+        projectionsFile, numberOfParticles, outputFolder, angles, angleIncrement, SNR, defocus, pixelSize, start, end, help = \
             parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
@@ -761,6 +767,11 @@ if __name__ == '__main__':
         SIZE = 1024
     else:
         SIZE = int(SIZE)
+
+    if sizeRecon is None:
+        sizeRecon = 512
+    else:
+        sizeRecon = int(sizeRecon)
 
     if waterdensity is None:
         waterdensity = 1.
@@ -805,6 +816,17 @@ if __name__ == '__main__':
     if outputFolder is None:
         outputFolder = './'
 
+    if start is None: 
+        start  =2
+    else:
+        start = int(start)
+
+    if end is None:
+        end = 40
+    else:
+        end = int(start)
+
+
     if not os.path.exists(outputFolder):
         raise Exception('Please make sure the output directory exists.')
 
@@ -832,8 +854,8 @@ if __name__ == '__main__':
         add_effects_microscope(outputFolder, modelID, grandcell, noisefree_projections)
 
     if reconstructTomogram:
-        prefix  = f'model_{modelID}/noisyProjections/simulated_proj_model{modelID}_'
+        prefix  = os.path.join(outputFolder, f'model_{modelID}/noisyProjections/simulated_proj_model{modelID}_')
         suffix  = '.mrc'
-        vol_size = [512,512,512]
-        angles  = range(-57,58,3)
-        reconstruct_tomogram(prefix, suffix, 2, 39, vol_size, angles, outputFolder, modelID, weighting=True)
+        vol_size = [sizeRecon,sizeRecon,sizeRecon]
+        angles  = range(angles[0],angles[1]+1,angleIncrement)
+        reconstruct_tomogram(prefix, suffix, start, end, vol_size, angles, outputFolder, modelID, weighting=True)
