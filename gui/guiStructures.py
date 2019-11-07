@@ -682,7 +682,7 @@ class CommonFunctions():
         self.insert_label(parent,sizepolicy=sizepolicy,rstep=1)
 
     def insert_gen_text_exe(self, parent, mode, gen_action='', action='', paramsAction=[], paramsXML=[], paramsCmd=[],
-                            paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, id=''):
+                            paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, id='', gpu=True):
 
         self.insert_label_action_label(parent, 'Generate command', cstep=1, rstep=-1, sizepolicy=self.sizePolicyB,
                                        action=self.gen_action, wname=mode + 'GeneratePushButton',
@@ -694,7 +694,8 @@ class CommonFunctions():
         self.insert_checkbox(parent,mode + 'queue',text='queue',cstep=-3,rstep=1,logvar=True,alignment=Qt.AlignLeft)
 
         if jobfield:
-            self.insert_textfield(parent, mode + 'XMLText', columnspan=3, rstep=1, cstep=2, width=600,logvar=False)
+            self.insert_textfield(parent, mode + 'XMLText', columnspan=3, rstep=0, cstep=3, width=600,logvar=False)
+            if gpu: self.insert_checkbox(parent,mode + 'gpuRun',text='gpu',cstep=-1,rstep=1,logvar=True, alignment=Qt.AlignTop | Qt.AlignLeft)
             self.insert_label(parent, alignment=Qt.AlignRight, rstep=1, cstep=-2, sizepolicy=self.sizePolicyB)
         self.insert_textfield(parent, mode + 'CommandText', columnspan=3, rstep=1, cstep=2, width=600, logvar=False)
         self.insert_label_action_label(parent, 'Execute command', rstep=1, action=self.exe_action,
@@ -786,6 +787,10 @@ class CommonFunctions():
             num_nodes = d['num_nodes']
             id = d['id']
             modules = d['modules']
+            try:
+                gpus = self.widgets[mode+'gpuID'].text()
+            except:
+                gpus=''
 
             if id:
                 partition, num_nodes, num_jobs_per_node, time, modules = self.qparams[id].values()
@@ -807,7 +812,7 @@ class CommonFunctions():
             else:
                 text = guiFunctions.gen_queue_header(name=d['fname'], folder=folder, cmd=d['cmd'], modules=modules,
                                                      qtype=self.qtype, partition=partition, time=time,suffix=suffix,
-                                                     num_jobs_per_node=num_jobs_per_node, num_nodes=num_nodes) + text
+                                                     num_jobs_per_node=num_jobs_per_node, num_nodes=num_nodes, gpus=gpus) + text
 
         self.widgets[params[i][0]].setPlainText(text)
 

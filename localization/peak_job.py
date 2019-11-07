@@ -196,8 +196,7 @@ class PeakJob(PyTomClass):
             raise IOError('Directory: ' + str(self.dstDir) + ' not found!')
         
         return returnValue
-        
-    
+
     def send(self, source, destination):
         """
         send: Send the job-relevant message from source to destination

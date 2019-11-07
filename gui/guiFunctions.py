@@ -243,7 +243,7 @@ def slurm_command(name='TemplateMatch',folder='./', cmd='', num_nodes=1,
 
 def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, emailaddress='',id='',
                      modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel'], suffix= '',
-                     qtype='slurm', num_jobs_per_node=20, time=12, partition='defq', singleton=False):
+                     qtype='slurm', num_jobs_per_node=20, time=12, partition='defq', singleton=False, gpus=''):
     module_load = ''
     queue_command = ''
     if modules:
@@ -252,13 +252,18 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
         module_load += module + ' '
 
     if singleton:
-        singletoncommand = '#SBATCH --dependency=singleton'
+        singletoncommand = '\n#SBATCH --dependency=singleton'
     else:
         singletoncommand = ''
 
     if partition == 'fastq':
-        oversubscribe = '#SBATCH --oversubscribe'
+        oversubscribe = '\n#SBATCH --oversubscribe'
     else: oversubscribe = ''
+
+
+    if gpus:
+        numgpus = len(gpus.split(','))
+        gpus = f'\n#SBATCH --gres=gpu:{numgpus}\n\nexport CUDA_VISIBLE_DEVICES={gpus}'
 
     if qtype == 'slurm':
         queue_command = '''#!/usr/bin/bash
@@ -267,13 +272,11 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
 #SBATCH --partition {}
 #SBATCH --ntasks-per-node {}
 #SBATCH --job-name    {}                                                                       
-#SBATCH --output      {}/%j-%x{}.out 
-{}
-{}
+#SBATCH --output      {}/%j-%x{}.out {}{}{}
 
 {}
 
-{}'''.format(time, num_nodes, partition, num_jobs_per_node, name, folder, suffix, oversubscribe, singletoncommand, module_load, cmd)
+{}'''.format(time, num_nodes, partition, num_jobs_per_node, name, folder, suffix, oversubscribe, singletoncommand, gpus, module_load, cmd)
 
     elif qtype == 'qsub':
         print ('qsub has not been defined.')

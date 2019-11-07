@@ -7,7 +7,7 @@ Created on Jul 21, 2011
 '''
 
 
-def ccp42mrc(filename,target):
+def ccp42mrc(filename, target):
     from pytom_volume import read
     from pytom.tools.files import checkFileExists,checkDirExists
     import os

@@ -159,3 +159,6 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
 #    time = t.end(); print 'The overall execution time: %f' % time
 
     return [result, orientation, sumV, sqrV]
+
+def extractPeaksGPU(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, **kwargs):
+    pass

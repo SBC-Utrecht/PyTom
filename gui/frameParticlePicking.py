@@ -23,7 +23,7 @@ import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.guiSupportCommands import *
 from pytom.basic.structures import ParticleList, Rotation
 from pytom.basic.files import read
-from pytom.bin.coords2PL import convertCoords2PL
+from pytom.convert.coords2PL import convertCoords2PL
 from pytom.bin.updateParticleList import updatePL, mirrorParticleList
 from copy import deepcopy
 from pytom_numpy import vol2npy
@@ -193,19 +193,23 @@ class ParticlePick(GuiTabWidget):
                                   value=30, stepsize=1, minimum=0, maximum=90,
                                   tooltip='Angle between -90 and the lowest tilt angle.')
         self.insert_label_combobox(parent,'Angular Sampling Filename',mode+'angleFname',
-                                   labels=os.listdir(os.path.join( self.parent().pytompath, 'gui/angleLists') ),
+                                   labels=os.listdir(os.path.join( self.parent().pytompath, 'angles/angleLists') ),
                                    tooltip='Select the file that describes the angular sampling of the template model',
-                                   width=w,cstep=0)
+                                   width=w,cstep=-1)
+        self.insert_label_line(parent, "GPU's", mode + 'gpuID', width=w, cstep=0,
+                                  tooltip="Which GPU's do you want to reserve. If you want to use multiple GPUs separate them using a comma, e.g. 0,1,2 ")
 
         self.widgets[mode + 'widthZ'] = QLineEdit('0')
         self.widgets[mode + 'widthX'] = QLineEdit('0')
         self.widgets[mode + 'widthY'] = QLineEdit('0')
+        self.widgets[mode + 'gpuString'] = QLineEdit('')
 
         self.widgets[mode + 'jobName'] = QLineEdit()
         self.widgets[mode + 'tomoFname'].textChanged.connect(lambda d, m=mode: self.updateTM(m))
         self.widgets[mode + 'startZ'].valueChanged.connect(lambda d, m=mode: self.updateZWidth(m))
         self.widgets[mode + 'endZ'].valueChanged.connect(lambda d, m=mode: self.updateZWidth(m))
         self.widgets[mode + 'templateFname'].textChanged.connect(lambda d, m=mode: self.updateJobName(m))
+        self.widgets[mode + 'gpuID'].textChanged.connect(lambda d, m=mode: self.updateGpuString(m))
 
         self.execfilenameTM = os.path.join( self.templatematchfolder, 'templateMatch.sh')
         self.xmlfilename  = os.path.join( self.templatematchfolder, 'job.xml')
@@ -223,14 +227,31 @@ class ParticlePick(GuiTabWidget):
                                  paramsXML=[mode+'tomoFname', mode + 'templateFname', mode+'maskFname', mode + 'Wedge1',
                                             mode + 'Wedge2',mode+'angleFname', mode + 'outfolderTM', mode + 'startZ',
                                             mode + 'widthX', mode + 'widthY', mode + 'widthZ', templateXML],
-                                 paramsCmd=[mode+'outfolderTM', self.pytompath, mode + 'jobName' ,templateTM],
-                                 xmlfilename=[mode+'outfolderTM', mode + 'jobName'])
+                                 paramsCmd=[mode+'outfolderTM', self.pytompath, mode + 'jobName' , mode + 'gpuString',
+                                            templateTM],
+                                 xmlfilename=[mode+'outfolderTM', mode + 'jobName'],
+                                 gpu=True)
 
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
 
         setattr(self, mode + 'gb_TMatch', groupbox)
         return groupbox
 
+
+    def updateGpuString(self, mode):
+        id = self.widgets[mode + 'gpuID'].text()
+        try:
+            a = map(int,[el for el in id.split(',') if el != ''])
+            print(list(a))
+        except:
+            self.widgets[mode + 'gpuID'].setText('')
+            self.popup_messagebox('Warning', 'Invalid value in field', 'Impossible to parse gpu IDs, field has been cleared.')
+            return
+
+        if len(id) > 0:
+            self.widgets[mode + 'gpuString'].setText(f'--gpu {id}')
+        else:
+            self.widgets[mode + 'gpuString'].setText('')
 
     def updateJobName(self, mode):
         template = os.path.basename(self.widgets[mode+'templateFname'].text()).split('.')[0]

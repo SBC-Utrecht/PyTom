@@ -10,6 +10,9 @@ if sys.version_info[0] < 3:
 
 global pytompath
 pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
+
+print(pytompath)
+
 if not pytompath: pytompath = '/Users/gijs/Documents/pytom_private'
 
 if not pytompath:

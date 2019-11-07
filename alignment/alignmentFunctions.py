@@ -4,6 +4,7 @@ Created on Jan 27, 2010
 @author: Thomas Hrabe, FF
 '''
 analytWedge=False
+
 def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
     """
     invert wedge sum - avoid division by zero and boost of high frequencies
@@ -414,7 +415,7 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
 
         ### create spectral wedge weighting
         rotation = particleObject.getRotation()
-        rotinvert =  rotation.invert()
+        rotinvert = rotation.invert()
         if analytWedge:
             # > analytical buggy version
             wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False, rotinvert)
@@ -952,7 +953,7 @@ def bestAlignmentGPU(particleList, rotations, plan, isSphere=True):
 
         bestPeakList.append(bestPeak)
 
-    return bestPeakList, plan
+    return bestPeakList
 
 
 def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,shift,

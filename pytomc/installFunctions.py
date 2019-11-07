@@ -215,7 +215,7 @@ def generateIPyTomScript(pytomDirectory):
     os.system('chmod 755 ' + pytomDirectory + os.sep + 'bin' + os.sep + 'ipytom')
     
     
-def generatePathsFile(pytomDirectory,libPaths,binPaths,pyPaths):
+def generatePathsFile(pytomDirectory,libPaths, binPaths, pyPaths):
         os.chdir(pytomDirectory + os.sep + '..')
         oneAbove = os.getcwd()
         os.chdir(pytomDirectory)
@@ -251,9 +251,9 @@ def generatePathsFile(pytomDirectory,libPaths,binPaths,pyPaths):
             binString = binString[0:-1]
              
             cshCommands += 'if ($?PATH>0) then\n'
-            cshCommands += "setenv PATH '" + binString + "':$PATH\n"
+            cshCommands += "setenv PATH '" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + "':$PATH\n"
             cshCommands += "else\n"
-            cshCommands += "setenv PATH '" + binString + "'\n"
+            cshCommands += "setenv PATH '" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + "'\n"
             cshCommands += "endif\n\n"
             
         cshCommands += "if ($?PYTHONPATH>0) then\n"

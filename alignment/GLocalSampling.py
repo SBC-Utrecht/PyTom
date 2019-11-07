@@ -260,7 +260,8 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             remove(alignmentJob.destination+"/"+'CurrentMask.xml')
 
         else:
-            alignParticleListGPU(list(zip(oddSplitList, [currentReferenceOdd]*len(oddSplitList),
+            bestPeaksOdd, plansOdd = alignParticleListGPU(list(zip(oddSplitList,
+                                        [currentReferenceOdd]*len(oddSplitList),
                                         [oddCompoundWedgeFile]*len(oddSplitList),
                                         [alignmentJob.destination+"/"+'CurrentRotations.xml']*len(oddSplitList),
                                         [alignmentJob.destination+"/"+'CurrentScore.xml']*len(oddSplitList),
@@ -268,7 +269,8 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                         [alignmentJob.scoringParameters.preprocessing]*len(oddSplitList),
                                         [progressBar]*nodd, [alignmentJob.samplingParameters.binning]*len(oddSplitList),
                                         [verbose]*len(oddSplitList))))
-            alignParticleListGPU(list(zip(evenSplitList, [currentReferenceEven]*len(evenSplitList),
+            bestPeaksEven, plansEven = alignParticleListGPU(list(zip(evenSplitList,
+                                        [currentReferenceEven]*len(evenSplitList),
                                         [evenCompoundWedgeFile]*len(evenSplitList),
                                         [alignmentJob.destination+"/"+'CurrentRotations.xml']*len(evenSplitList),
                                         [alignmentJob.destination+"/"+'CurrentScore.xml']*len(evenSplitList),
@@ -382,23 +384,22 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     from pytom.score.score import fromXMLFile
     from pytom.angles.angle import AngleObject
     from pytom.basic.structures import Mask, ParticleList
-
+    from pytom.gpu.plans import prepare_glocal_plan
+    
     assert type(pl) == ParticleList
-
-    scoreObject = fromXMLFile(filename=scoreXMLFilename)
 
     rot = AngleObject()
     rotations = rot.fromXMLFile(filename=rotationsFilename)
+    print(np.array(list(rotations)))
 
-    mask = Mask()
-    mask.fromXMLFile(filename=maskFilename)
 
-    if referenceWeightingFile:
-        from pytom_volume import read
-        referenceWeighting = read(referenceWeightingFile)
-    else:
-        referenceWeighting = None
+    particle = np.zeros(read_size(pl[0].getFilename()))
+    reference = vol2npy(reference).astype(no.float32)
+    mask = read(maskFilename).astype(np.float32)
+    wedge = np.ones_like(particle,dtype=np.float32)
 
+    plan = prepare_glocal_plan(particle, reference, mask, wedge)
+    
     if verbose:
         print("alignParticleList: rank "+str(mpi.rank))
         print("alignParticleList: angleObject: "+str(rotations))
@@ -407,13 +408,14 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
 
     bestPeaks = []
     for particle in pl:
-        bestPeak = alignOneParticleGPU( particle=particle, reference=reference, referenceWeighting=referenceWeighting,
-                                        rotations=rotations, scoreObject=scoreObject, mask=mask,
-                                        preprocessing=preprocessing, progressBar=progressBar, binning=binning,
-                                        verbose=verbose)
-        bestPeaks.append(bestPeak)
-
-    return bestPeaks
+        plan.particle = ga.to_gpu(read(particle.getFilename()))
+        removeCurrent(plan.particle, plan.reference, plan.currentRef)
+        oldRot = particle.getRotation()
+        setStartRotation(plan.currentRef, oldRot)
+        bestPeakList = alignOneParticleGPU([particle], rotations=rotations, binning=binning)
+        bestPeaks += bestPeakList
+        
+    return bestPeaks, plan
 
 def alignOneParticleWrapper(particle, reference, referenceWeighting=None, rotationsFilename='',
                             scoreXMLFilename='', maskFilename='', preprocessing=None,

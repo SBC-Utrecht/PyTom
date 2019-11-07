@@ -690,12 +690,16 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_spinbox(parent, mode + 'angleIncrement', 'Angular Increment (degrees)',
                                   minimum=1, stepsize=1, value=3, maximum=359, wtype=QDoubleSpinBox,
                                   rstep=1, cstep=-1, tooltip='Angular increment for refinement.')
-        self.insert_label_spinbox(parent, mode + 'binning', 'Binning Factor', rstep=1, cstep=0,
+        self.insert_label_spinbox(parent, mode + 'binning', 'Binning Factor', rstep=1, cstep=-1,
                                   stepsize=1,minimum=1,value=1,
                                   tooltip='Perform binning (downscale) of subvolumes by factor. Default=1.')
+        self.insert_label_line(parent, "GPU's", mode + 'gpuID', width=w, cstep=0,
+                               tooltip="Which GPU's do you want to reserve. If you want to use multiple GPUs separate them using a comma, e.g. 0,1,2 ")
 
         self.widgets[mode+'jobName'] = QLineEdit()
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
+        self.widgets[mode + 'gpuString'] = QLineEdit('')
+
         self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.update_pixel_size(m))
         self.widgets[mode + 'destination'].textChanged.connect(lambda d, m=mode: self.update_jobname(m))
 
@@ -713,6 +717,22 @@ class SubtomoAnalysis(GuiTabWidget):
 
         setattr(self, mode + 'gb_GLocal', groupbox)
         return groupbox
+
+    def updateGpuString(self, mode):
+        id = self.widgets[mode + 'gpuID'].text()
+        try:
+            a = map(int,[el for el in id.split(',') if el != ''])
+            print(list(a))
+        except:
+            self.widgets[mode + 'gpuID'].setText('')
+            self.popup_messagebox('Warning', 'Invalid value in field', 'Impossible to parse gpu IDs, field has been cleared.')
+            return
+
+        if len(id) > 0:
+            self.widgets[mode + 'gpuString'].setText(f'--gpu {id}')
+        else:
+            self.widgets[mode + 'gpuString'].setText('')
+
 
     def update_pixel_size(self, mode):
         from pytom.basic.structures import ParticleList

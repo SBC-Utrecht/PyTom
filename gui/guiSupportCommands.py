@@ -155,7 +155,7 @@ mpiexec --tag-output -n {d[13]} {d[1]}/bin/pytom {d[1]}/classification/auto_focu
 
 templateTM        = '''cd {d[0]}
 
-mpiexec --tag-output -n 16 {d[1]}/bin/pytom {d[1]}/bin/localization.py {d[2]} 4 4 1 
+mpiexec --tag-output -n 16 {d[1]}/bin/pytom {d[1]}/bin/localization.py -j {d[2]} -x 4 -y 4 -z 1 {d[3]}
 '''
 
 

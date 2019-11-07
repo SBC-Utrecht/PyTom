@@ -69,7 +69,7 @@ class PeakWorker(object):
             self.backTo = int(msg.getSender())
 
     
-    def run(self, verbose=True, moreInfo=False):
+    def run(self, verbose=True, moreInfo=False, gpuID=-1):
         """
         run: Run the worker and return the result
         @param verbose: verbose mode
@@ -100,10 +100,15 @@ class PeakWorker(object):
             ref = self.bandpass.filter(ref)
         
         # calculate the result volume
-        from pytom.localization.extractPeaks import extractPeaks
+        if gpuID == -1:
+            from pytom.localization.extractPeaks import extractPeaks
+        else:
+            from pytom.localization.extractPeaks import extractPeaksGPU as extractPeaks
+
         if verbose==True:
             print(self.name + ': starting to calculate %d rotations' % rot.numberRotations())
-        [resV, orientV, sumV, sqrV] = extractPeaks(v, ref, rot, scoreFnc, m, mIsSphere, wedg, nodeName=self.name, verboseMode=verbose, moreInfo=moreInfo)
+        [resV, orientV, sumV, sqrV] = extractPeaks(v, ref, rot, scoreFnc, m, mIsSphere, wedg, nodeName=self.name,
+                                                   verboseMode=verbose, moreInfo=moreInfo, gpuID=gpuID)
         
         self.runtimes = self.runtimes + 1
         
@@ -1023,7 +1028,7 @@ class PeakLeader(PeakWorker):
                 self.parallelEnd(verbose)
                 
     
-    def parallelRun(self, job, splitX=0, splitY=0, splitZ=0, verbose=True):
+    def parallelRun(self, job, splitX=0, splitY=0, splitZ=0, verbose=True, gpuID=-1):
         """
         parallelRun: Parallel run the job on the computer cluster.
         @param job: job
@@ -1060,7 +1065,7 @@ class PeakLeader(PeakWorker):
                 else:
                     self.distributeJobs(job)
                 
-                result = self.run(verbose)
+                result = self.run(verbose, gpuID=gpuID)
                 self.summarize(result, self.jobID)
                 
             elif msgType == 1: # Result msg
