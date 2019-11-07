@@ -49,10 +49,16 @@ class SubtomoAnalysis(GuiTabWidget):
         self.tabs_dict = {}
         self.tab_actions = {}
 
+
+        # CHANGE THE NEXT FOUR LINES WHEN ADDING OR REMOVING TABS
+
         headers = ["Reconstruct Subtomograms", "Particle Polishing", "Align Subtomograms","Classify Subtomograms"]
         subheaders = [['Single Reconstruction','Batch Reconstruction'],['Single', 'Batch'], ['FRM Alignment','GLocal'],['CPCA','Auto Focus']]
         tabUIs = [[self.tab11UI, self.tab12UI], [self.PolishSingleUI, self.PolishBatchUI], [self.tab21UI,self.tab22UI],[self.tab31UI,self.tab32UI]]
         static_tabs = [[True, False], [True, True], [True, True], [True, True]]
+
+
+
 
         self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders,tabUIs=tabUIs,tabs=self.tabs_dict, tab_actions=self.tab_actions)
 
@@ -121,7 +127,23 @@ class SubtomoAnalysis(GuiTabWidget):
         pass
 
     def PolishSingleUI(self, key):
-        pass
+        grid = self.table_layouts[key]
+        grid.setAlignment(self, Qt.AlignTop)
+
+        items = []
+
+        t0 = self.stage + 'SingleParticlePolish_'
+
+        items += list(self.create_expandable_group(self.particlePolish, self.sizePolicyB, 'Single Reconstruction',
+                                                   mode=t0))
+        items[-1].setVisible(False)
+
+        for n, item in enumerate(items):
+            grid.addWidget(item, n, 0, 1, 3)
+
+        label = QLabel()
+        label.setSizePolicy(self.sizePolicyA)
+        grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
     def PolishBatchUI(self, key):
         pass
@@ -214,6 +236,65 @@ class SubtomoAnalysis(GuiTabWidget):
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
+
+    def particlePolish(self, mode=''):
+        title = "Particle Polish (Single)"
+        tooltip = ''
+        sizepol = self.sizePolicyB
+        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
+
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        w = 170
+
+        self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB)
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particlelist',
+                                    'Select the particle list.', mode='file', filetype='xml')
+        self.insert_label_line_push(parent, 'Folder with aligned tilt images', mode + 'AlignedTiltDir',
+                                    'Select the folder with the aligned tilt images.')
+        self.insert_label_line_push(parent, 'Template File', mode + 'Template',mode='file',filetype=['em', 'mrc'],
+                                    tooltip='Select a template file.')
+        self.insert_label_spinbox(parent,mode+'dimZ', 'Size tomogram in Z-dimension.',
+                                  'Sets the size of z-dimension of the origin tomogram.',
+                                  minimum=10,maximum=4000,stepsize=1,value=200)
+        self.insert_label_spinbox(parent, mode + 'BinFactorReconstruction', 'Binning factor used in the reconstruction.',
+                                  'Defines the binning factor used in the reconstruction of the tomogram from which'+
+                                  'the particles are selected.',
+                                  minimum=1,stepsize=1,value=8)
+        self.insert_label_spinbox(parent, mode+'stdParticleShift', 'SD of particle shift.',
+                                  'Sets the stdev of the particle shift.',rstep=1,
+                                  value=5, stepsize=1, minimum=1)
+        self.insert_label_spinbox(parent,  mode + 'OffsetX', 'Offset in x-dimension',
+                                  'Has the tomogram been cropped in the x-dimension?\n'+
+                                  'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping'+
+                                  ' in the x-dimension.', cstep=-1, rstep=1,
+                                  value=0, stepsize=1,minimum=-4000, maximum=4000)
+        self.insert_label_spinbox(parent, mode + 'OffsetY', 'Offset in y-dimension',
+                                  'Has the tomogram been cropped in the y-dimension?\n'+
+                                  'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping'+
+                                  ' in the y-dimension.', cstep=-1,rstep=1,
+                                  value=0, stepsize=1,minimum=-4000, maximum=4000)
+        self.insert_label_spinbox(parent, mode + 'OffsetZ', 'Offset in z-dimension',
+                                  'Has the tomogram been cropped in the z-dimension?\n'+
+                                  'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping'+
+                                  ' in the z-dimension.', cstep=0, rstep=1,
+                                  value=0, stepsize=1, minimum=-4000, maximum=4000)
+
+        self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateDimZ(m))
+
+        execfilename = os.path.join(self.subtomodir, 'ParticlePolishing/reconstructSubtomograms.sh')
+        paramsSbatch = guiFunctions.createGenericDict(fname='particlePolishSingle', folder=self.logfolder,
+                                                      id='SingleSubtomoReconstruct')
+        paramsCmd = [mode + 'particlelist', mode + 'AlignedTiltDir', mode + 'Template',
+                     mode + 'dimZ', mode + 'BinFactorReconstruction', mode + 'stdParticleShift',
+                     mode + 'OffsetX', mode + 'OffsetY', mode + 'OffsetZ', polishParticles]
+
+        self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename, paramsSbatch=paramsSbatch)
+        setattr(self, mode + 'gb_inputFiles', groupbox)
+        return groupbox
+
+
 
     def createSubtomograms(self, mode=''):
 

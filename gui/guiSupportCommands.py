@@ -173,6 +173,17 @@ reconstructWB.py --particleList {d[0]} \\
 --metafile {d[10]} \\
 --numProcesses {d[11]}'''
 
+polishParticles = '''cd {d[8]}
+
+reconstructWB.py --particleList {d[0]} \\
+--projectionDirectory {d[1]} \\
+--template {d[2]} \\
+--dimZ {d[3]} \\
+--coordinateBinning {d[4]} \\
+--stdParticlePolish {d[5]} \\
+--recOffset {d[6]},{d[7]},{d[8]} \\
+'''
+
 extractParticlesClosestMarker = '''cd {d[8]}
 
 reconstructWBClosestMarker.py --particleList {d[0]} \\
