@@ -2,7 +2,7 @@ PyTom v0.971
 
 This license affects the software package PyTom and all the herein distributed source / data files.
 Authors: 
-Gijs van der Schot
+2Gijs van der Schot
 Thomas Hrabe
 Yuxiang Chen
 Friedrich Foerster

@@ -457,7 +457,7 @@ class ProjectionList(PyTomClass):
 
     def reconstructVolumes(self, particles, cubeSize, binning=1, applyWeighting=False,
                            showProgressBar=False, verbose=False, preScale=1, postScale=1, num_procs=5,
-                           alignResultFile='', filename_ppr=''):
+                           alignResultFile='', polishResultFile=''):
         """
         reconstructVolumes: reconstruct a subtomogram given a particle object.
 
@@ -523,7 +523,7 @@ class ProjectionList(PyTomClass):
                     procs =[proc for proc in procs if proc.is_alive() ]
                     num_finished += num_started - num_finished - len(procs)
                 proc = Process(target=self.extract_single_particle, args=(p, particleIndex, verbose, binning, postScale,
-                                                                          cubeSize, submitted%num_procs,filename_ppr))
+                                                                          cubeSize, polishResultFile))
                 procs.append(proc)
                 proc.start()
                 submitted += 1
@@ -580,7 +580,7 @@ class ProjectionList(PyTomClass):
         progressBar.update(len(particles))
         print('\n Subtomogram reconstructions have finished.\n\n')
 
-    def extract_single_particle(self, p, pid, verbose, binning, postScale, cubeSize, ID=0, filename_ppr=''):
+    def extract_single_particle(self, p, pid, verbose, binning, postScale, cubeSize, filename_ppr=''):
         import os
         from pytom.basic.files import read
         from pytom_volume import vol, backProject, rescaleSpline

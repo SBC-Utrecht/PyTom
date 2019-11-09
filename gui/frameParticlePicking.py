@@ -47,9 +47,13 @@ class ParticlePick(GuiTabWidget):
         self.qcommand = self.parent().qcommand
 
         self.tabs_dict, self.tab_actions = {}, {}
+
+
         headers = ["Manual Picking","Template Matching", "Create Particle List", "Alter Particle List"]
         subheaders  = [[],['Single', 'Batch'], ['Single','Batch'], []]
         tabUIs = [self.tab1UI,[self.tab21UI,self.tab22UI],[self.tab31UI,self.tab32UI],self.tab4UI]
+        static_tabs = [[True],[True,False],[True, False],[True]]
+
         self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs,tabs=self.tabs_dict, tab_actions=self.tab_actions)
 
         self.table_layouts = {}
@@ -73,32 +77,30 @@ class ParticlePick(GuiTabWidget):
             empty = 1 * (len(subheaders[i]) == 0)
             for j in range(len(subheaders[i]) + empty):
                 tt = t + str(j + 1) * (1 - empty)
-                if tt in ('tab1', 'tab21', 'tab31', 'tab4'):
+                if static_tabs[i][j]:      #tt in ('tab1', 'tab21', 'tab31', 'tab4'):
                     self.table_layouts[tt] = QGridLayout()
                 else:
                     self.table_layouts[tt] = QVBoxLayout()
-
-                button = QPushButton('Refresh Tab')
-                button.setSizePolicy(self.sizePolicyC)
-                button.clicked.connect(self.tab_actions[tt])
 
                 self.tables[tt] = QWidget()
                 self.pbs[tt] = QWidget()
                 self.ends[tt] = QWidget()
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
 
-                if tt in ('tab22', 'tab32'):
+                if not static_tabs[i][j]:
+                    print(tt)#tt in ('tab22', 'tab32'):
+                    button = QPushButton('Refresh Tab')
+                    button.setSizePolicy(self.sizePolicyC)
+                    button.clicked.connect(lambda d, k=tt, a=self.tab_actions[tt]: a(key=k))
                     self.table_layouts[tt].addWidget(button)
                     self.table_layouts[tt].addWidget(self.ends[tt])
-
-                if not tt in ('tab22', 'tab32'):
-                    self.tab_actions[tt]()
+                else:
+                    self.tab_actions[tt](tt)
 
                 tab = self.tabs_dict[tt]
                 tab.setLayout(self.table_layouts[tt])
 
-    def tab1UI(self):
-        key = 'tab1'
+    def tab1UI(self,  key=''):
         self.no_image = False
         parent = self.table_layouts[key]
         parent.setAlignment(self, Qt.AlignTop)
@@ -117,17 +119,9 @@ class ParticlePick(GuiTabWidget):
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyB,width=200)
 
-    def insert_image(self,params):
-        if self.no_image == False:
-            #self.partpick = CreateMaskTM(self)
-            self.partpick = ParticlePicker(self)
-            self.partpick.show()
-            #params[0].addWidget(self.partpick,self.row+1,0,4,4)
+    def tab21UI(self, key=''):
 
-    def tab21UI(self):
-        key = 'tab21'
-
-        mode, mode2, mode3 = self.stage + 'TemplateMatch_', self.stage+ 'ExtractCandidates_', self.stage+ 'CreateMask_'
+        mode, mode2, mode3 = self.stage + 'TemplateMatch_', self.stage + 'ExtractCandidates_', self.stage + 'CreateMask_'
 
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
@@ -142,11 +136,10 @@ class ParticlePick(GuiTabWidget):
                                                    mode=mode2))
         items[-1].setVisible(False)
 
-        #items += list(self.create_expandable_group(self.createTemplateMask, self.sizePolicyB, 'Create Mask Template',
+        # items += list(self.create_expandable_group(self.createTemplateMask, self.sizePolicyB, 'Create Mask Template',
         #                                           mode=mode2))
 
-        #items[-1].setVisible(False)
-
+        # items[-1].setVisible(False)
 
         for n, item in enumerate(items):
             grid.addWidget(item, n, 0, 1, 3)
@@ -154,6 +147,86 @@ class ParticlePick(GuiTabWidget):
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
+
+    def tab22UI(self, key=''):
+
+        try:
+            self.jobFiles.text()
+        except:
+            self.jobFiles = QLineEdit()
+
+        self.batchTM = SelectFiles(self, initdir=self.tomogramfolder, search='file', filter=['em', 'mrc'],
+                                   outputline=self.jobFiles, run_upon_complete=self.getTemplateFiles, id=key,
+                                   title='Select Tomograms.')
+
+    def tab31UI(self, key=''):
+        grid = self.table_layouts[key]
+        grid.setAlignment(self, Qt.AlignTop)
+
+        items = []
+
+        items += list( self.create_expandable_group(self.createParticleList, self.sizePolicyB, 'Create Particle List',
+                                                    mode=self.stage+'partlist_') )
+        items[-1].setVisible(False)
+        #items += list( self.create_expandable_group(self.createSubtomograms, self.sizePolicyB, 'Extract Subtomograms',
+        #                                            mode=self.stage+'extract_') )
+        #items[-1].setVisible(False)
+
+        for n, item in enumerate(items):
+            grid.addWidget(item, n, 0)
+
+        label = QLabel()
+        label.setSizePolicy(self.sizePolicyA)
+        grid.addWidget(label, n+1, 0, Qt.AlignRight)
+
+    def tab32UI(self, key=''):
+
+        try:
+            self.particleLists.text()
+        except:
+            self.particleLists = QLineEdit()
+
+        self.b = SelectFiles(self, initdir=self.projectname, search='file', filter=['txt', 'xml'], id=key,
+                             outputline=self.particleLists, run_upon_complete=self.populate_batch_create)
+
+    def tab4UI(self,  key=''):
+
+        grid = self.table_layouts[key]
+        grid.setAlignment(self, Qt.AlignTop)
+
+        self.modes = [self.stage + 'changeParams_', self.stage + 'extractParticlesFromXML_', self.stage + 'actions_']
+
+        items = []
+
+        items += list(self.create_expandable_group(self.changeXMLParameters, self.sizePolicyB, 'Change Parameters',
+                                                   mode=self.modes[0], setVisible=False))
+        items += list(
+            self.create_expandable_group(self.extractParticles, self.sizePolicyB, 'Extract Particles from XML',
+                                         mode=self.modes[1]))
+        items += list(self.create_expandable_group(self.actions, self.sizePolicyB, 'Actions', mode=self.modes[2]))
+
+        for n, item in enumerate(items):
+            grid.addWidget(item, n, 0)
+        self.adjust_items = items
+        for i in range(3):
+            self.adjust_items[i * 2].stateChanged.connect(
+                lambda d, m=self.modes[i], num=i: self.unsetCheckBoxes(m, num))
+
+        pushbutton = QPushButton('Adjust!')
+        pushbutton.setSizePolicy(self.sizePolicyB)
+        pushbutton.setFixedWidth(100)
+        pushbutton.clicked.connect(self.adjustParticleList)
+        label = QLabel()
+        label.setSizePolicy(self.sizePolicyA)
+        grid.addWidget(pushbutton, n + 1, 0)
+        grid.addWidget(label, n + 2, 0)
+
+    def insert_image(self,params):
+        if self.no_image == False:
+            #self.partpick = CreateMaskTM(self)
+            self.partpick = ParticlePicker(self)
+            self.partpick.show()
+            #params[0].addWidget(self.partpick,self.row+1,0,4,4)
 
     def templateMatch(self, mode):
         title = "Template Matching"
@@ -238,7 +311,6 @@ class ParticlePick(GuiTabWidget):
 
         setattr(self, mode + 'gb_TMatch', groupbox)
         return groupbox
-
 
     def updateGpuString(self, mode):
         id = self.widgets[mode + 'gpuID'].text()
@@ -418,31 +490,26 @@ class ParticlePick(GuiTabWidget):
         print(params)
         ConvertEM2PDB(self, emfname=params[0],folder=self.widgets[params[1]+'outfolderTM'].text())
 
-    def tab22UI(self):
-        try: self.jobFiles.text()
-        except: self.jobFiles = QLineEdit()
-
-        self.batchTM = SelectFiles(self, initdir=self.tomogramfolder, search='file', filter=['em','mrc'],
-                                   outputline=self.jobFiles, run_upon_complete=self.getTemplateFiles,
-                                   title='Select Tomograms.')
-
-    def getTemplateFiles(self):
+    def getTemplateFiles(self, key=''):
+        print(key)
         try: self.templateFiles.text()
         except: self.templateFiles = QLineEdit()
         self.batchTM.close()
-        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
+        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'], id=key,
                                    outputline=self.templateFiles, run_upon_complete=self.getMaskFiles,
                                    title='Select Template')
 
-    def getMaskFiles(self):
+    def getMaskFiles(self, key=''):
+        print(key)
         try: self.maskFiles.text()
         except: self.maskFiles = QLineEdit()
         self.batchTM.close()
-        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'],
+        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'], id=key,
                                    outputline=self.maskFiles, run_upon_complete=self.populate_batch_templatematch,
                                    title='Select Masks.')
 
-    def populate_batch_templatematch(self):
+    def populate_batch_templatematch(self, id='tab22'):
+        print(id)
         print('multiple template matching job-submissions')
         self.batchTM.close()
         tomogramFiles = sorted(self.jobFiles.text().split('\n'))
@@ -453,7 +520,6 @@ class ParticlePick(GuiTabWidget):
             print('\n\nPlease select at least one tomogram, template and mask file.\n\n')
             return
 
-        id = 'tab22'
         headers = ["Filename Tomogram", "Run", "Mirrored", "Optional Templates", 'Optional Masks', 'Wedge Angle 1',
                    "Wedge Angle 2", 'Angle List', 'Start Z', 'End Z', '']
         types = ['txt', 'checkbox', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox','lineedit', 'lineedit', 'txt']
@@ -470,7 +536,7 @@ class ParticlePick(GuiTabWidget):
 
         values = []
 
-        angleLists = os.listdir(os.path.join(self.pytompath, 'gui/angleLists'))
+        angleLists = os.listdir(os.path.join(self.pytompath, 'angles/angleLists'))
         for n, tomogramFile in enumerate(tomogramFiles):
             print(templateFiles, maskFiles, angleLists)
             values.append([tomogramFile, 1, 1, templateFiles, maskFiles, 30, 30, angleLists, 0, 0, ''])
@@ -580,27 +646,6 @@ class ParticlePick(GuiTabWidget):
                 os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
                 num_submitted_jobs += 1
 
-    def tab31UI(self):
-        key = 'tab31'
-        grid = self.table_layouts[key]
-        grid.setAlignment(self, Qt.AlignTop)
-
-        items = []
-
-        items += list( self.create_expandable_group(self.createParticleList, self.sizePolicyB, 'Create Particle List',
-                                                    mode=self.stage+'partlist_') )
-        items[-1].setVisible(False)
-        #items += list( self.create_expandable_group(self.createSubtomograms, self.sizePolicyB, 'Extract Subtomograms',
-        #                                            mode=self.stage+'extract_') )
-        #items[-1].setVisible(False)
-
-        for n, item in enumerate(items):
-            grid.addWidget(item, n, 0)
-
-        label = QLabel()
-        label.setSizePolicy(self.sizePolicyA)
-        grid.addWidget(label, n+1, 0, Qt.AlignRight)
-
     def createParticleList(self, mode=''):
         title = "Create Particle List"
         tooltip = 'Tick this box to create a particle list from the selected coordinate file.'
@@ -687,20 +732,9 @@ class ParticlePick(GuiTabWidget):
             if particleListFname.endswith('.xml'): params[1].setText(particleListFname)
             else: params[1].setText('')
 
-    def tab32UI(self):
-
-        try: self.particleLists.text()
-        except: self.particleLists = QLineEdit()
-
-        self.b = SelectFiles(self, initdir=self.projectname, search='file', filter=['txt', 'xml'],
-                             outputline=self.particleLists, run_upon_complete=self.populate_batch_create)
-
-    def populate_batch_create(self):
+    def populate_batch_create(self, id='tab32'):
         self.b.close()
         coordinateFiles = sorted( self.particleLists.text().split('\n') )
-
-
-        id='tab32'
 
         headers = ["Filename Coordinate List", "Prefix Subtomograms", 'Wedge Angle 1', 'Wedge Angle 2', "Filename Particle List", 'Randomize Angles', '']
         types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'checkbox', 'txt']
@@ -834,37 +868,6 @@ class ParticlePick(GuiTabWidget):
 
         if len(fnamesPL) > 1:
             os.system('combineParticleLists.py -f {} -o {} '.format(",".join(fnamesPL), fname))
-
-    def tab4UI(self):
-        key = 'tab4'
-
-        grid = self.table_layouts[key]
-        grid.setAlignment(self, Qt.AlignTop)
-
-        self.modes = [self.stage+'changeParams_', self.stage+'extractParticlesFromXML_', self.stage+'actions_']
-
-        items = []
-
-        items += list( self.create_expandable_group(self.changeXMLParameters, self.sizePolicyB, 'Change Parameters',
-                                                    mode=self.modes[0], setVisible=False))
-        items += list( self.create_expandable_group(self.extractParticles,self.sizePolicyB,'Extract Particles from XML',
-                                                    mode=self.modes[1]))
-        items += list( self.create_expandable_group(self.actions, self.sizePolicyB, 'Actions', mode=self.modes[2]))
-
-        for n, item in enumerate(items):
-            grid.addWidget(item, n, 0)
-        self.adjust_items = items
-        for i in range(3):
-            self.adjust_items[i*2].stateChanged.connect(lambda d, m=self.modes[i], num=i: self.unsetCheckBoxes(m, num))
-
-        pushbutton = QPushButton('Adjust!')
-        pushbutton.setSizePolicy(self.sizePolicyB)
-        pushbutton.setFixedWidth(100)
-        pushbutton.clicked.connect(self.adjustParticleList)
-        label = QLabel()
-        label.setSizePolicy(self.sizePolicyA)
-        grid.addWidget(pushbutton, n + 1, 0 )
-        grid.addWidget(label, n + 2, 0)
 
     def changeXMLParameters(self, mode='', title=''):
         tooltip = 'Tick this box to update specific fields in an particle list (XML format).'

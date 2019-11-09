@@ -93,3 +93,17 @@ unitsMarkerfile = ['', 'degrees', 'px', 'px']
 fmtMarkerfile ='%3d %8.3f %8.2f %8.2f'
 for n, h in enumerate(DATATYPE_MARKERFILE):
     HEADER_MARKERFILE += '{} {}\n'.format(h[0], '({})'.format(unitsMarkerfile[n])*(unitsMarkerfile[n]!=''))
+
+LOCAL_ALIGNMENT_RESULTS = [('ParticleIndex', 'i4'),
+                           ('AlignmentTransX', 'f4'),
+                           ('AlignmentTransY', 'f4'),
+                           ('TiltAngle', 'f4'),
+                           ('InPlaneRotation', 'f4'),
+                           ('Magnification', 'f4'),
+                           ('FileName', 'U1000')]
+
+headerLocalAlignmentResults = ''
+unitsLAR = ['', 'px', 'px', 'degrees', 'degrees', '', '']
+fmtLAR = '%7d %15.10f %15.10f %15.10f %15.10f %15.10f %s'
+for n, h in enumerate(LOCAL_ALIGNMENT_RESULTS):
+    headerLocalAlignmentResults += '{} {}\n'.format(h[0], '({})'.format(unitsLAR[n]) * (unitsLAR[n] != ''))

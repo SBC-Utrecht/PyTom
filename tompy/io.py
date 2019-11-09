@@ -226,7 +226,7 @@ def write_em(filename, data, tilt_angle=0):
     finally:
         f.close()
 
-def read_size(filename):
+def read_size(filename, dim=''):
     emfile = filename.endswith('.em')*1
     f = open(filename, 'r')
     try:
@@ -240,7 +240,14 @@ def read_size(filename):
 
     f.close()
 
-    return [x,y,z]
+    if dim=='x':
+        return x
+    elif dim=='y':
+        return y
+    elif dim=='z':
+        return z
+    else:
+        return [x,y,z]
 
 def read_header(filename):
     emfile = filename.endswith('.em') * 1

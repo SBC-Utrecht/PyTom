@@ -171,17 +171,20 @@ reconstructWB.py --particleList {d[0]} \\
 --projBinning {d[4]} \\
 --recOffset {d[5]},{d[6]},{d[7]} \\
 --metafile {d[10]} \\
---numProcesses {d[11]}'''
+--numProcesses {d[11]} \\
+{d[12]}'''
 
-polishParticles = '''cd {d[8]}
+polishParticles = '''cd {d[0]}
 
-reconstructWB.py --particleList {d[0]} \\
---projectionDirectory {d[1]} \\
---template {d[2]} \\
---dimZ {d[3]} \\
---coordinateBinning {d[4]} \\
---stdParticlePolish {d[5]} \\
---recOffset {d[6]},{d[7]},{d[8]} \\
+mpiexec -n {d[1]} {d[2]}/bin/pytom {d[2]}/polishing/particlePolishing.py \\
+--particleList {d[3]} \\
+--projectionDirectory {d[4]} \\
+--template {d[5]} \\
+--outputDirectory {d[6]} \\
+--coordinateBinning {d[7]} \\
+--maxParticleShift {d[8]} \\
+--recOffset {d[9]},{d[10]},{d[11]} \\
+{d[12]}
 '''
 
 extractParticlesClosestMarker = '''cd {d[8]}

@@ -169,13 +169,14 @@ class BrowseWindowRemote(QMainWindow):
 
 class SelectFiles(BrowseWindowRemote):
     def __init__(self,parent=None, initdir='/',filter=[''],search='file',credentials=['','',''],outputline='',
-                 validate=False, run_upon_complete=print, title=''):
+                 validate=False, run_upon_complete=print, title='', id=''):
         self.finished = False
         super(SelectFiles,self).__init__(parent,initdir=initdir,filter=[''],search='file',credentials=['','',''],
                                          outputline=outputline, validate=validate)
         self.setWindowTitle(title)
         self.run_upon_complete = run_upon_complete
         self.filters = filter
+        self.id = id
         self.matchingfiles = []
         self.selectedfiles = []
         if self.outputline.text(): self.selectedfiles += [ll for ll in self.outputline.text().split('\n')]
@@ -186,7 +187,7 @@ class SelectFiles(BrowseWindowRemote):
     def select_item(self):
         self.outputline.setText('\n'.join(self.selectedfiles))
         self.finished = True
-        self.run_upon_complete()
+        self.run_upon_complete(self.id)
 
     def select_file(self):
         item = self.topright.currentItem().text()
@@ -1212,7 +1213,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                     widget = QSpinBox()
                     widget.setValue(values[v][i])
 
-                elif types[i] == 'combobox':
+                elif types[i] in ('combobox', 'comboboxF'):
 
                     widget = QWidget()
                     cb = QComboBox()
@@ -1220,8 +1221,16 @@ class SimpleTable(QMainWindow, CommonFunctions):
                     l.addWidget(cb)
                     cb.setContentsMargins(0, 0, 0, 0)
                     l.setContentsMargins(0, 0, 0, 0)
-                    for t in values[v][i]:
-                        cb.addItem(t.split('/')[-1])
+                    for value in values[v][i]:
+                        if types[i].endswith('F'):
+                            try:
+                                val = "/".join(value.split('/')[-2:])
+                            except:
+                                val = value
+                        else:
+                            val = value.split('/')[-1]
+                        print( types[i], val)
+                        cb.addItem(val)
 
                     table.setCellWidget(v, i, widget)
                     self.widgets['widget_{}_{}'.format(v,i)] = cb
@@ -1276,7 +1285,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                 self.table2.setCellWidget(0, n, widget)
                 cb.stateChanged.connect(lambda dummy, rowIndex=n, c=t: self.on_changeItem(rowIndex,c))
                 applyOptionSum +=1
-            elif t == 'combobox':
+            elif t in ( 'combobox', 'comboboxF'):
                 widget = QWidget()
                 cb = QComboBox()
                 l = QVBoxLayout(widget)
@@ -1286,12 +1295,19 @@ class SimpleTable(QMainWindow, CommonFunctions):
                 l.setContentsMargins(0, 0, 0, 0)
                 cb.setFixedWidth(table.columnWidth(n))
                 for value in values[0][n]:
-                    cb.addItem(value.split('/')[-1])
+                    if t.endswith('F'):
+                        try : v = "/".join(value.split('/')[-2:])
+                        except: v =value
+                    else:
+                        v = value.split('/')[-1]
+                    print(n, t, v)
+                    cb.addItem(v)
+
                 #glayout.addWidget(cb)
                 widget.setStyleSheet('selection-background-color: #1989ac;')
                 self.general_widgets.append(cb)
                 self.table2.setCellWidget(0, n, widget)
-                cb.currentTextChanged.connect(lambda dummy, rowIndex=n, c=t: self.on_changeItem(rowIndex, c))
+                cb.currentTextChanged.connect(lambda dummy, rowIndex=n, c=t.replace('F', ''): self.on_changeItem(rowIndex, c))
                 applyOptionSum +=1
 
             elif t == 'lineedit':
@@ -1344,7 +1360,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
         sliderValue = slider1.value()
         slider2.setValue(sliderValue)
 
-    def on_changeItem(self, rowIndex,widgetType):
+    def on_changeItem(self, rowIndex, widgetType):
         for i in range(self.table.rowCount()):
             if 'widget_{}_{}'.format(i,rowIndex) in self.widgets.keys() and widgetType=='combobox':
                 self.widgets['widget_{}_{}'.format(i,rowIndex)].setCurrentText(self.general_widgets[rowIndex].currentText())
@@ -3266,6 +3282,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                          'CTFDetermination', 'SingleCTFCorrection', 'BatchCTFCorrection',
                          'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch',
                          'SingleSubtomoReconstruct', 'BatchSubtomoReconstruct',
+                         'SingleParticlePolish', 'BatchParticlePolish',
                          'FRMAlignment','GLocalAlignment',
                          'PairwiseCrossCorrelation', 'CPCA', 'AutoFocusClassification']
         self.setQNames()
@@ -3283,7 +3300,6 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                     self.qparams[jobname] = QParams(queue=self.qnames[0], modules=self.parent().modules)
                 except:
                     self.qparams[jobname] = QParams(modules=self.parent().modules)
-
         id = 'tab1'
         self.row, self.column = 0, 1
         rows, columns = 20, 20
