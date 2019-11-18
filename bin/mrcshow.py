@@ -21,10 +21,15 @@ print( 'max: {} min: {} mean: {} std: {}'.format( data.max(), data.min(), data.m
 print(data.shape)
 from scipy.ndimage import gaussian_filter
 
+print(data.shape)
+if len(sys.argv) > 2: data = data[int(sys.argv[2]),:,:]
 dd = downsample(data,4)
 dd[dd>dd.mean()+5*dd.std()] = dd.mean()
 
 fig,ax = subplots(1,1,figsize=(10,10))
 ax.imshow( dd, cmap='gray')
+ax.set_yticks([])
+ax.set_xticks([])
+fig.tight_layout()
 show()
 #data.close()

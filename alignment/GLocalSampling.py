@@ -161,7 +161,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         oddSplitList = splitParticleList(particleList=odd, setParticleNodesRatio=1)
         print(">>>>>>>>> Aligning Even ....")
 
-        if gpu==False:
+        if alignmentJob.gpu is None:
             bestPeaksEvenSplit = mpi.parfor( alignParticleList,
                                     list(zip(evenSplitList, [currentReferenceEven]*len(evenSplitList),
                                         [evenCompoundWedgeFile]*len(evenSplitList),
@@ -779,7 +779,7 @@ class GLocalSamplingJob(PyTomClass):
     """
     def __init__(self, pl=None, ref=None, mask=None, sample_info=None, rotations=None,
                  preprocessing=None, dest='.', max_iter=10, score=FLCFScore(), weighting=False, compoundWedge=False,
-                 binning=1, symmetries=None, adaptive_res=0.1, fsc_criterion=0.143):
+                 binning=1, symmetries=None, adaptive_res=0.1, fsc_criterion=0.143, gpuIDs=None):
         """
         @param pl: particle list
         @type pl: L{pytom.basic.structures.ParticleList}
@@ -852,7 +852,8 @@ class GLocalSamplingJob(PyTomClass):
         self.samplingParameters = SamplingParameters(rotations=rotations,
                  binning=binning, adaptive_res=adaptive_res, sample_info=sample_info)
 
-    
+        self.gpu = gpuIDs
+
     def fromXML(self, xmlObj):
         """
         @param xmlObj: xml object

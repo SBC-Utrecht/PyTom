@@ -1,6 +1,6 @@
 #!/usr/bin/env pytom
 
-def startLocalizationJob(filename, splitX=0, splitY=0, splitZ=0, doSplitAngles=False, gpuID=-1):
+def startLocalizationJob(filename, splitX=0, splitY=0, splitZ=0, doSplitAngles=False, gpuID=None):
     """
     @author: chen
     """
@@ -44,7 +44,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     
-    try:
+    if 1:
         jobName, splitX, splitY, splitZ, gpuID, b_help = parse_script_options(sys.argv[1:], helper)
         
         if b_help is True:
@@ -68,11 +68,11 @@ if __name__ == '__main__':
             raise RuntimeError()
 
         if gpuID is None:
-            gpuID = -1
+            gpuID = None
         else:
-            gpuID = []
+            gpuID = gpuID.split(',')
 
-    except: # backward compatibility
+    else: # backward compatibility
         if len(sys.argv) == 2 or len(sys.argv) == 5:
             pass
         else:

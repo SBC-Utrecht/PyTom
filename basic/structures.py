@@ -1003,8 +1003,8 @@ class SingleTiltWedge(PyTomClass):
         else:
             cut = self._cutoffRadius
         
-        weightObject = weight(self._wedgeAngle1,self._wedgeAngle2,cut,wedgeSizeX,wedgeSizeY,wedgeSizeZ,self._smooth)
-        
+        weightObject = weight(self._wedgeAngle1,self._wedgeAngle2, cut, wedgeSizeX, wedgeSizeY, wedgeSizeZ, self._smooth)
+
         if not rotation.__class__ == Rotation:
             rotation = Rotation()
         
@@ -1077,7 +1077,7 @@ class SingleTiltWedge(PyTomClass):
             
             wedgeFilter = self.returnWedgeFilter(volume.sizeX(), volume.sizeY(), volume.sizeZ(), rotation)
             
-            result = list(filter(volume,wedgeFilter))
+            result = list(filter(volume, wedgeFilter))
             result = result[0]
             
             return result
@@ -2726,8 +2726,8 @@ class ParticleList(PyTomClass):
         if verbose:
             print('Using ', numberBands ,' shells for FSC')
 
-        oddVolume = vol2npy(oddVolume).copy()
-        evenVolume = vol2npy(evenVolume).copy()
+        #oddVolume = vol2npy(oddVolume).copy()
+        #evenVolume = vol2npy(evenVolume).copy()
 
         fsc = FSC(oddVolume, evenVolume, numberBands, mask, verbose)
 
@@ -3364,7 +3364,9 @@ class Rotation(PyTomClass):
     
     def toVector(self, convention='zzx'):
         """
-        toVector: 
+        toVector:
+        @param convention: how do you want your angles returned. default zzx
+        @type z2: string
         @return: List [z1,z2,x]
         """
 

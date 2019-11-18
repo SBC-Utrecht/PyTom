@@ -97,10 +97,11 @@ class PeakWorker(object):
         
         # apply the bandpass
         if hasattr(self, 'bandpass') and self.bandpass:
+            if verbose: print('Bandpass added!')
             ref = self.bandpass.filter(ref)
         
         # calculate the result volume
-        if gpuID == -1:
+        if gpuID is None:
             from pytom.localization.extractPeaks import extractPeaks
         else:
             from pytom.localization.extractPeaks import extractPeaksGPU as extractPeaks
