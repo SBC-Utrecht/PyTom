@@ -377,9 +377,9 @@ class SubtomoAnalysis(GuiTabWidget):
                 if t in base: base = base.split(t)[0] + t
 
             tomoindex = base.split('tomogram_')[1].split('_')[0]
-
-            polishfiles = glob.glob(f'{self.polishfolder}/resultsPolish*tomogram_{tomoindex}*.txt')
-            polishfiles += glob.glob(f'{self.polishfolder}/*/resultsPolish*tomogram_{tomoindex}*.txt')
+            print(self.polishfolder, )
+            polishfiles = glob.glob(f'{self.polishfolder}/polishResults*tomogram_{tomoindex}*.txt')
+            polishfiles += glob.glob(f'{self.polishfolder}/*/polishResults*tomogram_{tomoindex}*.txt')
             polishfiles += ['']
 
             print(polishfiles)

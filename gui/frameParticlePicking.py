@@ -340,6 +340,7 @@ class ParticlePick(GuiTabWidget):
         self.execfilenameTM = os.path.join( self.templatematchfolder, 'cross_correlation', filename, 'templateMatch.sh')
         self.xmlfilename = os.path.join(self.templatematchfolder, 'cross_correlation', filename, 'job.xml')
         self.widgets[mode + 'outfolderTM'].setText(os.path.dirname(self.xmlfilename))
+        self.widgets[mode + 'jobName'].setText(self.xmlfilename)
         self.updateZWidth(mode)
 
     def updateZWidth(self, mode):
@@ -354,8 +355,8 @@ class ParticlePick(GuiTabWidget):
         tomogramFile = self.widgets[mode + 'tomoFname'].text()
         if os.path.exists(tomogramFile):
             v = read(tomogramFile)
-            widthX = v.sizeX()
-            widthY = v.sizeY()
+            widthX = v.sizeX() if width else 0
+            widthY = v.sizeY() if width else 0
         else:
             widthX = widthY = width
         self.widgets[mode + 'widthX'].setText(str(int(round(widthX))))
@@ -634,7 +635,7 @@ class ParticlePick(GuiTabWidget):
 
                 fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                 folder = outDirectory
-                cmd = templateTM.format(d=[outDirectory, self.pytompath, jobname])
+                cmd = templateTM.format(d=[outDirectory, self.pytompath, jobname, ''])
                 suffix = "_" + os.path.basename(outDirectory)
                 qname, n_nodes, cores, time, modules = self.qparams['BatchTemplateMatch'].values()
                 job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
@@ -645,6 +646,7 @@ class ParticlePick(GuiTabWidget):
                 outjob2.close()
                 os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
                 num_submitted_jobs += 1
+        self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
 
     def createParticleList(self, mode=''):
         title = "Create Particle List"
@@ -996,7 +998,7 @@ class ParticlePick(GuiTabWidget):
             mode = mode0
             suffix = self.widgets[mode + 'suffix'].text()
             dir = self.widgets[mode + 'directory'].text()
-            fg
+
             w = [self.widgets[mode+'wedgeAngle1'].text(), self.widgets[mode+'wedgeAngle2'].text()]
             bin = self.widgets[mode + 'binning'].text()
             fmShifts = self.widgets[mode + 'factorMultiplyShifts'].text()
@@ -1008,6 +1010,11 @@ class ParticlePick(GuiTabWidget):
                 if not self.widgets[mode + adj].isChecked():
                     values[n] *= 0
             suffix, dir, w, bin, fm = values
+
+            if bin == '': bin = 1
+            if fm == '': fm = -1
+            else: fm = int(fm)
+
 
             if outputName:
                 print('Update {}. Output saved as {}.'.format(os.path.basename(particleList), outputName) )

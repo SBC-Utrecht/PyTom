@@ -106,7 +106,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         # apply wedge
         if wedgeInfo.__class__ == WedgeInfo or wedgeInfo.__class__ == Wedge:
             ref = wedgeInfo.apply(ref)
-        
+
         # rotate the mask if it is asymmetric
         if scoreFnc == FLCF:
             if maskIsSphere == False: # if mask is not a sphere, then rotate it

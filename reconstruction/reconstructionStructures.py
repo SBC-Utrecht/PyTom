@@ -585,6 +585,7 @@ class ProjectionList(PyTomClass):
         from pytom.basic.files import read
         from pytom_volume import vol, backProject, rescaleSpline
         from pytom_numpy import vol2npy
+        import numpy as np
 
         try:
             folder = os.path.dirname(p.getFilename())
@@ -604,7 +605,7 @@ class ProjectionList(PyTomClass):
 
             reconstructionPosition = vol(3, num_projections, 1)
             reconstructionPosition.setAll(0.0)
-
+            start_index = pid * len(self)
             # adjust coordinates of subvolumes to binned reconstruction
             if not filename_ppr:
                 for i in range(num_projections):
@@ -612,6 +613,9 @@ class ProjectionList(PyTomClass):
                     reconstructionPosition( float(p.getPickPosition().getY()/binning), 1, i, 0)
                     reconstructionPosition( float(p.getPickPosition().getZ()/binning), 2, i, 0)
             else:
+
+                x,y,z = float(p.getPickPosition().getX()/binning), float(p.getPickPosition().getY()/binning), float(p.getPickPosition().getZ()/binning)
+
                 for i in range(len(self)):
                     from pytom.gui.guiFunctions import LOCAL_ALIGNMENT_RESULTS, loadstar
                     import pytom.basic.combine_transformations as ct
@@ -622,17 +626,16 @@ class ProjectionList(PyTomClass):
                     offsetY = float(particle_polish_file['AlignmentTransY'][start_index + i])
 
                     pick_position = np.matrix([x,y,z]).T
+
                     rotation = ct.matrix_rotate_3d_y(self._list[i].getTiltAngle())
 
                     shift = np.matrix([offsetX, offsetY, 0]).T
-                    translate_center = np.matrix([3710/2, 3710/2, 3710/2]).T
-                    new_position = rotation * (pick_position - translate_center)
-                    print("NEW", new_position)
+
+                    new_position = rotation * pick_position
+
                     new_position_shifted = new_position + shift
                     reposition = np.linalg.inv(rotation) * new_position_shifted
-                    reposition = np.array( (reposition + translate_center).T )[0]
-                    print(reposition)
-                    print(self._list[i].getTiltAngle(), "New Position", reposition[0], reposition[1], reposition[2], "Old Position", x, y, z, offsetX, offsetY)
+                    reposition = np.array( reposition.T )[0]
 
                     reconstructionPosition(float(reposition[0] / binning), 0, i, 0)
                     reconstructionPosition(float(reposition[1] / binning), 1, i, 0)
