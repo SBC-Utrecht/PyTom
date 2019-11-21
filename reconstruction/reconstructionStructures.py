@@ -5,9 +5,8 @@ started on Mar 10, 2011
 '''
 
 from pytom.basic.structures import PyTomClass
-from pytom_numpy import npy2vol
-from pytom_volume import vol
-from numpy import array
+import numpy as np
+
 
 class Projection(PyTomClass):
     """
@@ -86,7 +85,6 @@ class Projection(PyTomClass):
         tline = tline + ("Filename: %20s" %self._filename)
         tline = tline + (", TiltAngle= %6.2f" %self._tiltAngle)
         return tline
-            
         
     def _loadTiltAngle(self):
         """
@@ -94,14 +92,15 @@ class Projection(PyTomClass):
         """
         import struct
 
-        fh = open(self._filename,'rb')
-        
-        fh.seek(168)
-        
-        self._tiltAngle = float(struct.unpack('i',fh.read(4))[0])/1000
-        
-        fh.close()
-
+        if self._filename.split('.')[-1] == 'em':
+            fh = open(self._filename,'rb')
+            fh.seek(168)
+            self._tiltAngle = float(struct.unpack('i',fh.read(4))[0])/1000
+            fh.close()
+        else:
+            from pytom.gui.mrcOperations import read_mrc_header
+            fh = read_mrc_header(self._filename)
+            self._tiltAngle = fh['user'][0]/1000. #TODO find correct location of the tiltangle and autowrite it.
 
     def getDimensions(self):
         """
@@ -113,10 +112,10 @@ class Projection(PyTomClass):
             "Projection Filename not set :("
             return None
         from pytom.basic.files import readProxy as read
+        
         proj = read(self._filename)
         return proj.sizeX(), proj.sizeY(), proj.sizeZ()
 
-    
     def getFilename(self):
         return self._filename
         
@@ -148,7 +147,6 @@ class Projection(PyTomClass):
         @rtype: string
         """
         return self._alignedFilename
-
 
     def setIndex(self, index):
         """
@@ -324,7 +322,6 @@ class ProjectionList(PyTomClass):
     """
     ProjectionList: List of projections
     """
-
     def __init__(self, list = None):
         self._list = list or []
 
@@ -339,35 +336,34 @@ class ProjectionList(PyTomClass):
         loadDirectory: Will take all projections in a directory, determine their respective tilt angle from the header and populate this list object.
         @param directory: directory where files are located
         @type directory: L{str}
-        """    
+        """
         from pytom.tools.files import checkDirExists
         from pytom.gui.guiFunctions import datatype, loadstar
         import numpy
-        
-        metadata = loadstar(metafile,dtype=datatype)
+
+        metadata = loadstar(metafile, dtype=datatype)
         tiltAngles = metadata['TiltAngle']
         if not checkDirExists(directory):
-            raise RuntimeError('Directory ' + directory +' does not exist!')
-        
+            raise RuntimeError('Directory ' + directory + ' does not exist!')
+
         import os
-        
+
         if directory[-1] != os.sep:
-            #append / to dir
+            # append / to dir
             directory += os.sep
-        
-        
+
         files = [line for line in sorted(os.listdir(directory)) if prefix in line]
         self.tilt_angles = []
 
         for n, file in enumerate(files):
-            if file[len(file)-3:len(file)] == '.em' or file[-4:] == '.mrc':
+            if file[len(file) - 3:len(file)] == '.em' or file[-4:] == '.mrc':
                 projection = Projection(directory + file)
                 if metafile:
                     N = int(file.split('_')[-1].split('.')[0])
                     projection.setTiltAngle(int(round(tiltAngles[N])))
                 self.tilt_angles.append(projection._tiltAngle)
                 self.append(projection)
-    
+
     def sort(self):
         self._list.sort(key=lambda p: p.getTiltAngle())
         
@@ -409,8 +405,8 @@ class ProjectionList(PyTomClass):
         self.reconstructVolumes(particles, cubeSize, binning, applyWeighting,
 	        showProgressBar ,verbose,preScale,postScale)
 
-    def reconstructVolume(self, dims=[512,512,128], reconstructionPosition=[0,0,0], 
-            binning=1, applyWeighting=False, alignResultFile=''):
+    def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0],
+                          binning=1, applyWeighting=False, alignResultFile=''):
         """
         reconstruct a single 3D volume from weighted and aligned projections
 
@@ -426,28 +422,27 @@ class ProjectionList(PyTomClass):
         @author: FF
         last change: include binning in reconstructionPosition
         """
-        from pytom_volume import vol,backProject
+        from pytom_volume import vol, backProject
 
         vol_bp = vol(dims[0], dims[1], dims[2])
         vol_bp.setAll(0.0)
 
         # stacks for images, projections angles etc.
         if not alignResultFile:
-            [vol_img, vol_phi, vol_the, vol_offsetProjections] =  self.toProjectionStack(
-                    binning=binning, applyWeighting=applyWeighting, showProgressBar=False,
-                    verbose=False)
+            [vol_img, vol_phi, vol_the, vol_offsetProjections] = self.toProjectionStack(
+                binning=binning, applyWeighting=applyWeighting, showProgressBar=False,
+                verbose=False)
         else:
-            from pytom.gui.additional.generateAlignedTiltImagesInMemory import toProjectionStackFromAlignmentResultsFile
             [vol_img, vol_phi, vol_the, vol_offsetProjections] = self.toProjectionStackFromAlignmentResultFile(
                 alignResultFile, binning=binning, applyWeighting=applyWeighting, showProgressBar=False, verbose=False)
 
-        # volume storing reconstruction offset from center (x,y,z)   
-        recPosVol = vol(3,vol_img.sizeZ(),1)
+        # volume storing reconstruction offset from center (x,y,z)
+        recPosVol = vol(3, vol_img.sizeZ(), 1)
         recPosVol.setAll(0.0)
-        for iproj in range(0,vol_img.sizeZ()):
-            for ii in range(0,3):
-                recPosVol.setV(float(reconstructionPosition[ii]/binning),ii,iproj,0)
-        
+        for iproj in range(0, vol_img.sizeZ()):
+            for ii in range(0, 3):
+                recPosVol.setV(float(reconstructionPosition[ii] / binning), ii, iproj, 0)
+
         # finally backproject into volume
         backProject(vol_img, vol_bp, vol_phi, vol_the, recPosVol, vol_offsetProjections)
 
@@ -467,58 +462,58 @@ class ProjectionList(PyTomClass):
         @param showProgressBar: False by default
         @param verbose: False by default
         @param preScale: Scale (bin) the projections BEFORE reconstruction
-        @param postScale: Scale the tomogram AFTER reconstruction  
+        @param postScale: Scale the tomogram AFTER reconstruction
         """
 
         from pytom_volume import vol, paste, backProject, complexRealMult
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
-        from pytom.basic.fourier import fft,ifft
-        from pytom.basic.filter import circleFilter,rampFilter,fourierFilterShift
+        from pytom.basic.fourier import fft, ifft
+        from pytom.basic.filter import circleFilter, rampFilter, fourierFilterShift
         import time, os
         from pytom_numpy import vol2npy
         from pytom.basic.files import write_em
         from multiprocessing import Process
         print('start')
 
-        
         if len(particles) == 0:
             raise RuntimeError('ParticleList is empty!')
-        
+
         if cubeSize.__class__ != int:
             raise TypeError('reconstructVolumes: Parameter cubeSize must be of type int!')
-        
+
         if showProgressBar:
-            progressBar = FixedProgBar(0,len(particles),'Particle volumes generated ')
+            progressBar = FixedProgBar(0, len(particles), 'Particle volumes generated ')
             progressBar.update(0)
             numberParticleVolumes = 0
 
-
         # stacks for images, projections angles etc.
         if not alignResultFile:
-            resultProjstack =  self.toProjectionStack(binning=binning, applyWeighting=applyWeighting,showProgressBar=False,
-                                                      verbose=False, num_procs=num_procs)
+            resultProjstack = self.toProjectionStack(binning=binning, applyWeighting=applyWeighting,
+                                                     showProgressBar=False,
+                                                     verbose=False, num_procs=num_procs)
         else:
-            from pytom.gui.additional.generateAlignedTiltImagesInMemory import toProjectionStackFromAlignmentResultsFile
-            resultProjstack = toProjectionStackFromAlignmentResultsFile( alignResultFile, weighting=applyWeighting,
-                                                                         num_procs=num_procs, binning=binning)
-        #if verbose: return
-        
+            resultProjstack = self.toProjectionStackFromAlignmentResultsFile(alignResultFile, weighting=applyWeighting,
+                                                                             num_procs=num_procs, binning=binning,
+                                                                             circleFilter=True)
+        # if verbose: return
+
         procs = []
         num_finished, num_started = 0, 0
 
         submitted = 0
         if num_procs:
             for n, result in enumerate(resultProjstack):
-                if not os.path.exists(os.path.dirname(particles[0].getFilename())): os.mkdir(os.path.dirname(particles[0].getFilename()))
+                if not os.path.exists(os.path.dirname(particles[0].getFilename())): os.mkdir(
+                    os.path.dirname(particles[0].getFilename()))
                 write_em(os.path.dirname(particles[0].getFilename()) + '/.temp_{}.em'.format(n), result)
-            
+
             for particleIndex in range(len(particles)):
                 p = particles[particleIndex]
 
                 while len(procs) >= num_procs:
                     time.sleep(0.1)
-                    procs =[proc for proc in procs if proc.is_alive() ]
+                    procs = [proc for proc in procs if proc.is_alive()]
                     num_finished += num_started - num_finished - len(procs)
                 proc = Process(target=self.extract_single_particle, args=(p, particleIndex, verbose, binning, postScale,
                                                                           cubeSize, polishResultFile))
@@ -527,33 +522,33 @@ class ProjectionList(PyTomClass):
                 submitted += 1
                 num_started += 1
                 time.sleep(0.3)
-            #print('Subtomogram reconstruction for particle {} has started (batch mode).'.format(particleIndex))
+            # print('Subtomogram reconstruction for particle {} has started (batch mode).'.format(particleIndex))
         else:
             vol_bp = vol(cubeSize, cubeSize, cubeSize)
             for particleIndex in range(len(particles)):
                 p = particles[particleIndex]
-                #self.extract_single_particle(p, particleIndex, verbose, binning, postScale, cubeSize)
-                #print('Subtomogram reconstruction for particle {} has started.'.format(particleIndex))
+                # self.extract_single_particle(p, particleIndex, verbose, binning, postScale, cubeSize)
+                # print('Subtomogram reconstruction for particle {} has started.'.format(particleIndex))
                 if showProgressBar:
                     progressBar.update(particleIndex)
 
                 if verbose:
                     print(p)
 
-
                 vol_bp.setAll(0.0)
 
                 reconstructionPosition = vol(3, len(self), 1)
                 reconstructionPosition.setAll(0.0)
 
-                # adjust coordinates of subvolumes to binned reconstruction                                                                                                     
+                # adjust coordinates of subvolumes to binned reconstruction
                 for i in range(len(self)):
-                    reconstructionPosition( float(p.getPickPosition().getX()/binning), 0, i, 0)
-                    reconstructionPosition( float(p.getPickPosition().getY()/binning), 1, i, 0)
-                    reconstructionPosition( float(p.getPickPosition().getZ()/binning), 2, i, 0)
+                    reconstructionPosition(float(p.getPickPosition().getX() / binning), 0, i, 0)
+                    reconstructionPosition(float(p.getPickPosition().getY() / binning), 1, i, 0)
+                    reconstructionPosition(float(p.getPickPosition().getZ() / binning), 2, i, 0)
 
                 if verbose:
-                    print((p.getPickPosition().getX()/binning,p.getPickPosition().getY()/binning,p.getPickPosition().getZ()/binning))
+                    print((p.getPickPosition().getX() / binning, p.getPickPosition().getY() / binning,
+                           p.getPickPosition().getZ() / binning))
 
                 folder = os.path.dirname(p.getFilename())
 
@@ -562,19 +557,18 @@ class ProjectionList(PyTomClass):
                 backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition, vol_offsetProjections)
 
                 if postScale > 1:
-                    volumeRescaled = vol(cubeSize/postScale,cubeSize/postScale,cubeSize/postScale)
+                    volumeRescaled = vol(cubeSize / postScale, cubeSize / postScale, cubeSize / postScale)
                     rescaleSpline(vol_bp, volumeRescaled)
                     volumeRescaled.write(p.getFilename())
                 else:
                     vol_bp.write(p.getFilename())
 
-
         while len(procs):
             time.sleep(0.01)
             procs = [proc for proc in procs if proc.is_alive()]
-        #for n, result in enumerate(resultProjstack):
+        # for n, result in enumerate(resultProjstack):
 
-        os.system( 'rm -f {}'.format( os.path.dirname(particles[0].getFilename()) + '/.temp_*.em' ) )
+        os.system('rm -f {}'.format(os.path.dirname(particles[0].getFilename()) + '/.temp_*.em'))
         progressBar.update(len(particles))
         print('\n Subtomogram reconstructions have finished.\n\n')
 
@@ -607,12 +601,13 @@ class ProjectionList(PyTomClass):
             # adjust coordinates of subvolumes to binned reconstruction
             if not filename_ppr:
                 for i in range(num_projections):
-                    reconstructionPosition( float(p.getPickPosition().getX()/binning), 0, i, 0)
-                    reconstructionPosition( float(p.getPickPosition().getY()/binning), 1, i, 0)
-                    reconstructionPosition( float(p.getPickPosition().getZ()/binning), 2, i, 0)
+                    reconstructionPosition(float(p.getPickPosition().getX() / binning), 0, i, 0)
+                    reconstructionPosition(float(p.getPickPosition().getY() / binning), 1, i, 0)
+                    reconstructionPosition(float(p.getPickPosition().getZ() / binning), 2, i, 0)
             else:
 
-                x,y,z = float(p.getPickPosition().getX()/binning), float(p.getPickPosition().getY()/binning), float(p.getPickPosition().getZ()/binning)
+                x, y, z = float(p.getPickPosition().getX() / binning), float(
+                    p.getPickPosition().getY() / binning), float(p.getPickPosition().getZ() / binning)
 
                 for i in range(len(self)):
                     from pytom.gui.guiFunctions import LOCAL_ALIGNMENT_RESULTS, loadstar
@@ -623,7 +618,7 @@ class ProjectionList(PyTomClass):
                     offsetX = float(particle_polish_file['AlignmentTransX'][start_index + i])
                     offsetY = float(particle_polish_file['AlignmentTransY'][start_index + i])
 
-                    pick_position = np.matrix([x,y,z]).T
+                    pick_position = np.matrix([x, y, z]).T
 
                     rotation = ct.matrix_rotate_3d_y(self._list[i].getTiltAngle())
 
@@ -633,23 +628,20 @@ class ProjectionList(PyTomClass):
 
                     new_position_shifted = new_position + shift
                     reposition = np.linalg.inv(rotation) * new_position_shifted
-                    reposition = np.array( reposition.T )[0]
+                    reposition = np.array(reposition.T)[0]
 
                     reconstructionPosition(float(reposition[0] / binning), 0, i, 0)
                     reconstructionPosition(float(reposition[1] / binning), 1, i, 0)
                     reconstructionPosition(float(reposition[2] / binning), 2, i, 0)
 
             if 1:
-                print((p.getPickPosition().getX()/binning,p.getPickPosition().getY()/binning,
-            p.getPickPosition().getZ()/binning))
+                print((p.getPickPosition().getX() / binning, p.getPickPosition().getY() / binning,
+                       p.getPickPosition().getZ() / binning))
 
-
-
-
-            backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition,vol_offsetProjections)
+            backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition, vol_offsetProjections)
 
             if postScale > 1:
-                volumeRescaled = vol(cubeSize/postScale,cubeSize/postScale,cubeSize/postScale)
+                volumeRescaled = vol(cubeSize / postScale, cubeSize / postScale, cubeSize / postScale)
                 rescaleSpline(vol_bp, volumeRescaled)
                 volumeRescaled.write(p.getFilename())
             else:
@@ -666,188 +658,200 @@ class ProjectionList(PyTomClass):
             print()
             raise e
 
-    def saveParticleProjections(self, particles, projectionSize,binning=1, 
-            applyWeighting = False,showProgressBar = False,verbose=False,outputScale=1):
+    def saveParticleProjections(self, particles, projectionSize, binning=1,
+                                applyWeighting=False, showProgressBar=False, verbose=False, outputScale=1):
         """
         saveParticleProjections: Saves all small projections of particle.
 
-        @param particles: 
+        @param particles:
         @type particles: L{pytom.basic.structures.ParticleList}
-        @param projectionSize: x,y size of the resulting small projections 
+        @param projectionSize: x,y size of the resulting small projections
         @param binning: Necessary for positions in projections. Were L{pytom.basic.structures.PickLocation} determined in a binned volume and do you want to reconstruct a unbinned subtomogram? Use libtomc binning notation!
-        @param applyWeighting: Will apply weighting for weighted backprojection to projection. Default is off! 
+        @param applyWeighting: Will apply weighting for weighted backprojection to projection. Default is off!
         @param showProgressBar:
-        @param verbose:     
+        @param verbose:
         @param outputScale: Scale the output by a factor. 1 will leave as it is, 2 will scale by 2, 3 by 3, 4 by 4...
         """
-        from pytom_volume import vol,complexRealMult,rescaleSpline
+        from pytom_volume import vol, complexRealMult, rescaleSpline
         from pytom.basic.files import readProxy as read
         from pytom.reconstruction.reconstructionFunctions import positionInProjection
-        from pytom.tools.files import writeSpider,checkDirExists
+        from pytom.tools.files import writeSpider, checkDirExists
         from pytom.tools.ProgressBar import FixedProgBar
         from os import mkdir
-        from pytom.basic.fourier import fft,ifft
-        from pytom.basic.filter import circleFilter,rampFilter,fourierFilterShift
+        from pytom.basic.fourier import fft, ifft
+        from pytom.basic.filter import circleFilter, rampFilter, fourierFilterShift
         from pytom.tools.maths import ZRotationMatrix
         from pytom.basic.normalise import mean0std1
-        
+
         if showProgressBar:
-            progressBar = FixedProgBar(0,len(particles)*len(self._list),'Particle projections generated ')
+            progressBar = FixedProgBar(0, len(particles) * len(self._list), 'Particle projections generated ')
             progressBar.update(0)
             numberParticleProjections = 0
-            
+
         tmpImage = read(self._list[0].getFilename())
         imgSizeX = tmpImage.sizeX()
         imgSizeY = tmpImage.sizeY()
-        
+
         if applyWeighting:
-            weightSlice = fourierFilterShift(rampFilter(projectionSize,projectionSize))
-            circleFilterRadius = tmpImage.sizeX()/2
-            circleSlice = fourierFilterShift(circleFilter(projectionSize,projectionSize,circleFilterRadius))
-         
+            weightSlice = fourierFilterShift(rampFilter(projectionSize, projectionSize))
+            circleFilterRadius = tmpImage.sizeX() / 2
+            circleSlice = fourierFilterShift(circleFilter(projectionSize, projectionSize, circleFilterRadius))
+
         for p in particles:
-            
+
             particleName = p.getFilename()
-            directoryName = particleName[0:len(particleName)-3]+ '/'
-            
+            directoryName = particleName[0:len(particleName) - 3] + '/'
+
             if not checkDirExists(directoryName):
                 mkdir(directoryName)
-            
+
             particleProjectionList = ProjectionList([])
             particleProjectionListSpider = ProjectionList([])
-            
+
             if verbose:
-                print(p)    
-                        
-            vector = [p.getPickPosition().getX()*binning, p.getPickPosition().getY()*binning, p.getPickPosition().getZ()*binning]
-            
+                print(p)
+
+            vector = [p.getPickPosition().getX() * binning, p.getPickPosition().getY() * binning,
+                      p.getPickPosition().getZ() * binning]
+
             if verbose:
-                print('Original position: ' , vector)
-            
+                print('Original position: ', vector)
+
             for i in range(len(self._list)):
-                               
+
                 if verbose:
                     print(self._list[i])
-                
-                #position in aligned projection
-                #the angle MUST be negative because we want the inverse rotation! The matrix within the function is the forward rotation!
-                position2D = positionInProjection(vector,-self._list[i].getTiltAngle(),'Y')
+
+                # position in aligned projection
+                # the angle MUST be negative because we want the inverse rotation! The matrix within the function is the forward rotation!
+                position2D = positionInProjection(vector, -self._list[i].getTiltAngle(), 'Y')
                 if verbose:
-                    print('Position in projection: ' ,position2D)
-                
-                #position in unaligned projection
-                
-                vector2 = [position2D[0] * 1/self._list[i].getAlignmentMagnification() ,position2D[1] * 1/self._list[i].getAlignmentMagnification(),0.0]
+                    print('Position in projection: ', position2D)
+
+                # position in unaligned projection
+
+                vector2 = [position2D[0] * 1 / self._list[i].getAlignmentMagnification(),
+                           position2D[1] * 1 / self._list[i].getAlignmentMagnification(), 0.0]
                 if verbose:
                     print('Position after magnification: ', vector2)
-                
-                #position2D was extended to [x,y,0] -> 3D, can now be multiplied to a 3D rotation matrix. only the 2D part is used     
+
+                # position2D was extended to [x,y,0] -> 3D, can now be multiplied to a 3D rotation matrix. only the 2D part is used
                 rotationMatrix = ZRotationMatrix(-self._list[i].getAlignmentRotation())
-                
-                newPosition = rotationMatrix * vector2 
-                
+
+                newPosition = rotationMatrix * vector2
+
                 if verbose:
                     print('Position after inplane rotation: ', newPosition)
-                    
+
                 position2D[0] = newPosition[0] - self._list[i].getAlignmentTransX()
                 position2D[1] = newPosition[1] - self._list[i].getAlignmentTransY()
-                
+
                 if verbose:
                     print(position2D)
-                    
-                #catch io error (RuntimeError) exception when cut out piece is outside of big file. 
-                #in case of error, omit this projection, print warning
-                try:                    
-                    #changing origin, after that in upper left corner
-                    #x and y are integers!
-                    x = (int(position2D[0]) -(projectionSize/2) + imgSizeX/2)
-                    y = (int(position2D[1]) -(projectionSize/2) + imgSizeY/2)                    
-                    
+
+                # catch io error (RuntimeError) exception when cut out piece is outside of big file.
+                # in case of error, omit this projection, print warning
+                try:
+                    # changing origin, after that in upper left corner
+                    # x and y are integers!
+                    x = (int(position2D[0]) - (projectionSize / 2) + imgSizeX / 2)
+                    y = (int(position2D[1]) - (projectionSize / 2) + imgSizeY / 2)
+
                     if verbose:
-                        print('Final position in projection: ',x,y)
-                
-                    #determining error from pick center -> offset
+                        print('Final position in projection: ', x, y)
+
+                    # determining error from pick center -> offset
                     offsetX = position2D[0] - float(int(position2D[0]))
-                    offsetY = position2D[1] - float(int(position2D[1])) 
-                    
+                    offsetY = position2D[1] - float(int(position2D[1]))
+
                     if verbose:
-                        print('Position offset: ',offsetX,offsetY)
-                        
-                    projection = read(self._list[i].getFilename(), x, y, 0, projectionSize, projectionSize, 1, 0, 0, 0, 0, 0, 0)
-                    
-                    
+                        print('Position offset: ', offsetX, offsetY)
+
+                    projection = read(self._list[i].getFilename(), x, y, 0, projectionSize, projectionSize, 1, 0, 0, 0,
+                                      0, 0, 0)
+
                     if applyWeighting:
-                        projection = ifft( complexRealMult( complexRealMult( fft(projection), weightSlice), circleSlice) )
-                    
+                        projection = ifft(complexRealMult(complexRealMult(fft(projection), weightSlice), circleSlice))
+
                     try:
                         mean0std1(projection)
                     except ValueError as e:
                         print(str(e.message))
                         continue
-                     
+
                     if outputScale > 1:
-                        projectionRescaled = vol(projectionSize/outputScale,projectionSize/outputScale,1)
-                        rescaleSpline(projection,projectionRescaled)
+                        projectionRescaled = vol(projectionSize / outputScale, projectionSize / outputScale, 1)
+                        rescaleSpline(projection, projectionRescaled)
                         projection = projectionRescaled
-                       
+
                     projection.write(directoryName + 'projection_' + str(i) + '.em')
-                    writeSpider(projection,directoryName + 'projection_' + str(i) + '.spi')
-                    
-                    particleProjection = Projection(directoryName + 'projection_' + str(i) + '.em', self._list[i].getTiltAngle(),offsetX,offsetY,self._list[i].getAlignmentTransX(),self._list[i].getAlignmentTransY(),self._list[i].getAlignmentRotation(),self._list[i].getAlignmentMagnification())
-                    particleProjectionList.append(particleProjection)                    
-                    
-                    particleProjectionSpider = Projection(directoryName + 'projection_' + str(i) + '.spi', self._list[i].getTiltAngle(),offsetX,offsetY,self._list[i].getAlignmentTransX(),self._list[i].getAlignmentTransY(),self._list[i].getAlignmentRotation(),self._list[i].getAlignmentMagnification())
+                    writeSpider(projection, directoryName + 'projection_' + str(i) + '.spi')
+
+                    particleProjection = Projection(directoryName + 'projection_' + str(i) + '.em',
+                                                    self._list[i].getTiltAngle(), offsetX, offsetY,
+                                                    self._list[i].getAlignmentTransX(),
+                                                    self._list[i].getAlignmentTransY(),
+                                                    self._list[i].getAlignmentRotation(),
+                                                    self._list[i].getAlignmentMagnification())
+                    particleProjectionList.append(particleProjection)
+
+                    particleProjectionSpider = Projection(directoryName + 'projection_' + str(i) + '.spi',
+                                                          self._list[i].getTiltAngle(), offsetX, offsetY,
+                                                          self._list[i].getAlignmentTransX(),
+                                                          self._list[i].getAlignmentTransY(),
+                                                          self._list[i].getAlignmentRotation(),
+                                                          self._list[i].getAlignmentMagnification())
                     particleProjectionListSpider.append(particleProjectionSpider)
-                    
+
                 except RuntimeError:
-                    print('Warning : Particle out of bounds ('+ str(x) + ',' + str(y) + ') for projection!')
+                    print('Warning : Particle out of bounds (' + str(x) + ',' + str(y) + ') for projection!')
                     print(p)
                     print(self._list[i])
-                #assert False
-                
+                # assert False
+
                 if showProgressBar:
                     numberParticleProjections = numberParticleProjections + 1
                     progressBar.update(numberParticleProjections)
-                           
+
             particleProjectionList.toXMLFile(directoryName + 'projectionList.xml')
             particleProjectionListSpider.toXMLFile(directoryName + 'projectionListSpider.xml')
-    
+
     def toXML(self):
         """
         """
         from lxml import etree
-                
+
         projectionList_element = etree.Element('ProjectionList')
-        
+
         ##self._list = sorted(self._list, key=lambda Projection: Projection._tiltAngle)
-        
+
         for projection in self._list:
             projectionList_element.append(projection.toXML())
-        
-        return projectionList_element   
-        
-    def fromXML(self,xmlObj):
+
+        return projectionList_element
+
+    def fromXML(self, xmlObj):
         """
         """
         from lxml.etree import _Element
-        
-        if xmlObj.__class__ != _Element :
+
+        if xmlObj.__class__ != _Element:
             raise Exception('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
-      
+
         if xmlObj.tag == 'ProjectionList':
             projectionList_element = xmlObj
         else:
             Exception('Is not a ProjectionList! You must provide a valid ProjectionList object.')
-            
+
         for projection in projectionList_element:
-            
             newProjection = Projection()
             newProjection.fromXML(projection)
             self.append(newProjection)
-        
+
         self._list = sorted(self._list, key=lambda Projection: Projection._tiltAngle)
 
-    def toProjectionStack(self,binning=1, applyWeighting=False, tiltAngle=None, showProgressBar=False,verbose=False, num_procs=1):
+    def toProjectionStack(self, binning=1, applyWeighting=False, tiltAngle=None, showProgressBar=False, verbose=False,
+                          num_procs=1):
         """
         toProjectionStack:
 
@@ -863,39 +867,38 @@ class ProjectionList(PyTomClass):
         @return: Will return a stack of projections - [Imagestack,phiStack,thetaStack,offsetStack]
         """
         from pytom_numpy import vol2npy
-        from pytom_volume import vol,paste,complexRealMult
+        from pytom_volume import vol, paste, complexRealMult
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
-        from pytom.basic.fourier import fft,ifft
-        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, rotateFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
+        from pytom.basic.fourier import fft, ifft
+        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, rotateFilter, fourierFilterShift, \
+            fourierFilterShift_ReducedComplex
         from multiprocessing import Process
         import time
 
-
-
         # determine image dimensions according to first image in projection list
-        imgDim = read(self._list[0].getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1).sizeX()        
-        
+        imgDim = read(self._list[0].getFilename(), 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, 1).sizeX()
+
         stack = vol(imgDim, imgDim, len(self._list))
         stack.setAll(0.0)
-        
+
         phiStack = vol(1, 1, len(self._list))
         phiStack.setAll(0.0)
-        
+
         thetaStack = vol(1, 1, len(self._list))
         thetaStack.setAll(0.0)
 
         offsetStack = vol(1, 2, len(self._list))
         offsetStack.setAll(0.0)
-        
-        if int(applyWeighting):
-            weightSlice = fourierFilterShift(rampFilter(imgDim,imgDim))
 
-            circleFilterRadius = imgDim//2
+        if int(applyWeighting):
+            weightSlice = fourierFilterShift(rampFilter(imgDim, imgDim))
+
+            circleFilterRadius = imgDim // 2
             circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imgDim, imgDim, circleFilterRadius))
-        
+
         if showProgressBar:
-            progressBar = FixedProgBar(0,len(self._particleList),'Particle volumes generated ')
+            progressBar = FixedProgBar(0, len(self._particleList), 'Particle volumes generated ')
             progressBar.update(0)
 
         self.tilt_angles = []
@@ -914,23 +917,22 @@ class ProjectionList(PyTomClass):
                 if int((applyWeighting)) >= 1:
 
                     if int(applyWeighting) != 2:
-                        weightSlice = fourierFilterShift( exactFilter(self.tilt_angles, projection._tiltAngle,
-                                                                  imgDim, imgDim, imgDim))
+                        weightSlice = fourierFilterShift(exactFilter(self.tilt_angles, projection._tiltAngle,
+                                                                     imgDim, imgDim, imgDim))
 
                     else:
-                        weightSlice = fourierFilterShift( rotateFilter(self.tilt_angles, projection._tiltAngle,
-                                                                  imgDim, imgDim, imgDim))
+                        weightSlice = fourierFilterShift(rotateFilter(self.tilt_angles, projection._tiltAngle,
+                                                                      imgDim, imgDim, imgDim))
 
-
-                image = read(projection.getFilename(),0,0,0,0,0,0,0,0,0,binning,binning,1)
+                image = read(projection.getFilename(), 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, 1)
 
                 if int(applyWeighting):
-                    image = ifft( complexRealMult( complexRealMult( fft(image), weightSlice), circleSlice), scaling=True )
+                    image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
 
                 print(projection.getTiltAngle(), projection.getOffsetX(), projection.getOffsetY())
                 thetaStack(int(round(projection.getTiltAngle())), 0, 0, i)
-                offsetStack(projection.getOffsetX(),0,0,i)
-                offsetStack(projection.getOffsetY(),0,1,i)
+                offsetStack(projection.getOffsetX(), 0, 0, i)
+                offsetStack(projection.getOffsetY(), 0, 1, i)
                 paste(image, stack, 0, 0, i)
 
                 if showProgressBar:
@@ -945,7 +947,7 @@ class ProjectionList(PyTomClass):
             self.temp_offsetStack = offsetStack
 
             for pid in range(num_procs):
-                args=(pid, num_procs, imgDim, applyWeighting, verbose, binning)
+                args = (pid, num_procs, imgDim, applyWeighting, verbose, binning)
                 proc = Process(target=self.read_projections, args=args)
                 procs.append(proc)
                 proc.start()
@@ -953,11 +955,11 @@ class ProjectionList(PyTomClass):
             while len(procs):
                 time.sleep(0.4)
                 procs = [proc for proc in procs if proc.is_alive()]
-            stack,thetaStack,offsetStack = self.temp_stack,self.temp_thetaStack,self.temp_offsetStack
-        return [stack,phiStack,thetaStack,offsetStack]
+            stack, thetaStack, offsetStack = self.temp_stack, self.temp_thetaStack, self.temp_offsetStack
+        return [stack, phiStack, thetaStack, offsetStack]
 
     def toProjectionStackFromAlignmentResultsFile(self, alignmentResultsFile, weighting=None, lowpassFilter=0.9,
-                                                  binning=1, num_procs=1, circleFilter=False):
+                                                  binning=1, circleFilter=False, num_procs=1):
         """read image and create aligned projection stack, based on the results described in the alignmentResultFile.
 
            @param alignmentResultsFile: result file generate by the alignment script.
@@ -983,7 +985,7 @@ class ProjectionList(PyTomClass):
         import pytom_freqweight
         from pytom.basic.transformations import resize, rotate
         from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
-        from pytom.gui.additional.reconstructionStructures import Projection, ProjectionList
+        from pytom.gui.reconstruction.reconstructionStructures import Projection, ProjectionList
         from pytom_numpy import vol2npy
 
         print("Create aligned images from alignResults.txt")
@@ -1004,7 +1006,13 @@ class ProjectionList(PyTomClass):
 
         # pre-determine analytical weighting function and lowpass for speedup
         if (weighting != None) and (float(weighting) < -0.001):
-            w_func = fourierFilterShift(rampFilter(imdim, imdim))
+            weightSlice = fourierFilterShift(rampFilter(imdim, imdim))
+            if circleFilter:
+                circleFilterRadius = imgDim // 2
+                circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imgDim, imgDim, circleFilterRadius))
+            else:
+                circleSlice = vol(imdim, imdim // 2 + 1, 1)
+                circleSlice.setAll(1.0)
 
         # design lowpass filter
         if lowpassFilter:
@@ -1082,15 +1090,15 @@ class ProjectionList(PyTomClass):
 
             # analytical weighting
             if (weighting != None) and (weighting < 0):
-                image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
-
+                #image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
+                image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
 
 
             elif (weighting != None) and (weighting > 0):
-                w_func = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
-                image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
+                weightSlice = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
+                #image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
+                image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
 
-            print(projection.getTiltAngle(), projection.getOffsetX(), projection.getOffsetY())
             thetaStack(int(round(projection.getTiltAngle())), 0, 0, ii)
             offsetStack(int(round(projection.getOffsetX())), 0, 0, ii)
             offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
@@ -1102,40 +1110,41 @@ class ProjectionList(PyTomClass):
         return [stack, phiStack, thetaStack, offsetStack]
 
     def read_projections(self, pid, num_procs, imgDim, applyWeighting, verbose, binning):
-        from pytom_volume import vol,paste,complexRealMult
+        from pytom_volume import vol, paste, complexRealMult
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
-        from pytom.basic.fourier import fft,ifft
-        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
+        from pytom.basic.fourier import fft, ifft
+        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, \
+            fourierFilterShift_ReducedComplex
 
         reduced_list = self._list[pid::num_procs]
 
         for (i, projection) in enumerate(reduced_list):
-            print(i*num_procs+pid)
+            print(i * num_procs + pid)
 
             if int(applyWeighting) >= 1:
                 print(self.tilt_angles, projection._tiltAngle, imgDim)
 
                 self.temp_weightSlice = fourierFilterShift(exactFilter(self.tilt_angles, projection._tiltAngle,
-                                                             imgDim, imgDim, imgDim))
+                                                                       imgDim, imgDim, imgDim))
 
             image = read(projection.getFilename(), 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, 1)
 
             if int(applyWeighting):
                 image = ifft(complexRealMult(complexRealMult(fft(image), self.temp_weightSlice), self.temp_circleSlice))
 
-            self.temp_thetaStack(int(round(projection.getTiltAngle())), 0, 0, pid + num_procs*i )
-            self.temp_offsetStack(projection.getOffsetX(), 0, 0, i*num_procs + pid)
-            self.temp_offsetStack(projection.getOffsetY(), 0, 1, i*num_procs + pid)
-            paste(image, self.temp_stack, 0, 0, i*num_procs + pid)
-    
+            self.temp_thetaStack(int(round(projection.getTiltAngle())), 0, 0, pid + num_procs * i)
+            self.temp_offsetStack(projection.getOffsetX(), 0, 0, i * num_procs + pid)
+            self.temp_offsetStack(projection.getOffsetY(), 0, 1, i * num_procs + pid)
+            paste(image, self.temp_stack, 0, 0, i * num_procs + pid)
+
     def saveAsProjectionStack(self,filename,scale=1,applyWeighting=False,showProgressBar=False,verbose=False):
         """
         saveAsProjectionStack: Saves this projection list as a stack of projections
         """
         stack = self.toProjectionStack(scale,applyWeighting,showProgressBar,verbose)
         stack.write(filename)
-    
+
     def setAlignmentParameters(self,alignmentXMLFile,verbose=False):
         """
         setAlignmentParameters:
@@ -1193,8 +1202,8 @@ class ProjectionList(PyTomClass):
                     print(query)
                 magnification = alignXML.xpath(query)
                 projection.setAlignmentMagnification(float(magnification[0].text))
+    
             
-
 class Reconstruction(PyTomClass):            
 
                 

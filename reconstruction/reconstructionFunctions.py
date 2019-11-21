@@ -77,17 +77,18 @@ def positionsInProjections(location3D,tiltStart,tiltIncrement,tiltEnd,tiltAxis='
     """
     positionList = []
     
-    for angle in range(tiltStart,tiltEnd + tiltIncrement,tiltIncrement): 
+    for angle in xrange(tiltStart,tiltEnd + tiltIncrement,tiltIncrement): 
         positionList.append(positionInProjection(location3D,angle,tiltAxis))
         
     return positionList
 
 
 def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=None, prexgfile=None, preBin=None,
-                           volumeName=None, volumeFileType='em',alignResultFile='',
+                           volumeName=None, volumeFileType='em', alignResultFile='',
                            voldims=None, recCent=[0,0,0], tiltSeriesFormat='st', firstProj=1, irefmark=1, ireftilt=1,
                            handflip=False, alignedTiltSeriesName='align/myTilt', weightingType=-1,
-                           lowpassFilter=1., projBinning=1, outMarkerFileName=None, verbose=False):
+                           lowpassFilter=1., projBinning=1, outMarkerFileName=None, verbose=False, outfile='',
+                           write_images=True):
     """
     @param tiltSeriesName: Name of tilt series (set of image files in .em or .mrc format) or stack file (ending '.st').\
     Note: the actual file ending should NOT be provided.
@@ -137,6 +138,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
 
     @author: FF
     """
+    from pytom.gui.reconstruction.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
 
     if not alignResultFile:
         if verbose:
@@ -144,7 +146,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
             mute = False
         else:
             mute = True
-        from pytom.gui.additional.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
+        from pytom.gui.reconstruction.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
         tiltParas = TiltAlignmentParameters(dmag=True, drot=True, dbeam=False, finealig=True,
                                             finealigfile='xxx.txt', grad=False,
                                             irefmark=irefmark, ireftilt=ireftilt, r=None, cent=[2049, 2049],
@@ -176,7 +178,8 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
             tiltSeries.writeMarkerFile(markerFileName=outMarkerFileName)
             tiltSeries._markerFileName = outMarkerFileName
         tiltAlignment.resetAlignmentCenter()  # overrule cent in Paras
-        tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute)
+        print(outfile)
+        tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute, outfile=outfile)
         tiltAlignment.alignFromFiducials(mute=mute)
         # creating dir for aligned tilt series if default filename
         if alignedTiltSeriesName == 'align/myTilt':
@@ -187,15 +190,20 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
                 print(" dir 'align' already exists - writing aligned files into existing dir")
 
         tiltSeries.write_aligned_projs(weighting=weightingType, lowpassFilter=lowpassFilter, binning=projBinning,
-                                       verbose=verbose)
+                                       verbose=verbose, write_images=write_images)
         if voldims:
             # overrule tiltSeriesFormat - aligned tiltseries is always a series of em files
             #tiltSeries._tiltSeriesFormat = 'em'
             vol_bp = tiltSeries.reconstructVolume(dims=voldims, reconstructionPosition=recCent, binning=1)
 
+            vol_bp.write(volumeName, volumeFileType)
+
     else:
+        print('new code')
         tiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName)
         vol_bp = tiltSeries.reconstructVolume(dims=voldims, reconstructionPosition=recCent, binning=projBinning,
                                               alignResultFile=alignResultFile)
 
-    vol_bp.write(volumeName, volumeFileType)
+        vol_bp.write(volumeName, volumeFileType)
+
+
