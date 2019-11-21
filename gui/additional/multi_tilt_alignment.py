@@ -49,7 +49,7 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
             if not os.path.exists(os.path.dirname(os.path.join(tomogram_names[index], logfile))):
                 os.mkdir(os.path.dirname(os.path.join(tomogram_names[index], logfile)))
 
-            cmd = '''cd {}; pytom {}/gui/additional/generateAlignedTiltImages.py \
+            cmd = '''cd {}; pytom {}/gui/reconstruction/generateAlignedTiltImages.py \
     --tiltSeriesName {}  \
 	--firstIndex {} \
 	--lastIndex {} \
@@ -90,7 +90,7 @@ if __name__=='__main__':
     #from pytom.reconstruction.TiltAlignmentStructures import TiltAlignmentParameters, TiltSeries, TiltAlignment                                                                           
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
-    from pytom.gui.additional.reconstructionFunctions import alignWeightReconstruct
+    from pytom.gui.reconstruction.reconstructionFunctions import alignWeightReconstruct
     from pytom_volume import read
     from pytom_numpy import vol2npy
     import os

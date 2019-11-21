@@ -162,4 +162,19 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     return [result, orientation, sumV, sqrV]
 
 def extractPeaksGPU(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, **kwargs):
-    pass
+    from pytom_numpy import vol2npy
+    from pytom.gpu.gpuStructures import TemplateMatchingGPU
+
+    angles = rotations[:]
+    wedge = wedgeInfo.returnWedgeVolume(reference.sizeX(), reference.sizeY(), reference.sizeZ() )
+    volume, reference, mask, wedge = [vol2npy(vol) for vol in (volume, reference, mask, wedge)]
+    input = (volume, reference, mask, wedge, angles, volume.shape)
+
+    tm_process = TemplateMatchingGPU(proc_id, kwargs['gpuID'][0], input=input)
+    tm_process.start()
+    while tm_process.is_alive():
+        time.sleep(1)
+
+    if tm_process.completed:
+        print('Templated matching completed successfully')
+        return [tm_process.plan.scores, tm_process.plan.angles, None, None]

@@ -116,7 +116,7 @@ class PeakWorker(object):
 #        time = t.end(); print '%s calculated in: %f' % (self.name, time)
         return [resV, orientV, sumV, sqrV]
     
-    def parallelRun(self, verbose=True):
+    def parallelRun(self, verbose=True, **kwargs):
         '''
         parallelRun: Run the worker in parallel status and send the result message back
         @param verbose: verbose mode

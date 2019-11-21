@@ -96,7 +96,7 @@ def polish_particles(particle_list_filename, projection_directory, averaged_subt
         print(len(input_to_processes))
         print("{:s}> Created the input array".format(gettime()))
 
-    results_file = os.path.join(outputDirectory, f"resultsPolish{particle_list_name}.txt")
+    results_file = os.path.join(outputDirectory, f"resultsPolish {particle_list_name}.txt")
 
     if verbose: print("{:s}> Started on running the process".format(gettime()))
 

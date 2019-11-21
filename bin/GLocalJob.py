@@ -53,6 +53,7 @@ if __name__ == '__main__':
                                                 arg=False, optional=True),
                                    ScriptOption(['-j','--jobName'], 'Specify job.xml output filename', arg=True,
                                                 optional=False),
+
                                    ScriptOption(['-h', '--help'], 'Help.', arg=False, optional=True)])
     
     if len(sys.argv) <= 2:

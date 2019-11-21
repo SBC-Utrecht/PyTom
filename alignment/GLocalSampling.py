@@ -161,7 +161,9 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         oddSplitList = splitParticleList(particleList=odd, setParticleNodesRatio=1)
         print(">>>>>>>>> Aligning Even ....")
 
+
         if alignmentJob.gpu is None:
+
             bestPeaksEvenSplit = mpi.parfor( alignParticleList,
                                     list(zip(evenSplitList, [currentReferenceEven]*len(evenSplitList),
                                         [evenCompoundWedgeFile]*len(evenSplitList),
@@ -851,6 +853,7 @@ class GLocalSamplingJob(PyTomClass):
         assert type(adaptive_res) == float
         self.samplingParameters = SamplingParameters(rotations=rotations,
                  binning=binning, adaptive_res=adaptive_res, sample_info=sample_info)
+        self.gpu=gpuIDs
 
         self.gpu = gpuIDs
 
