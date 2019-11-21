@@ -57,7 +57,8 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     from pytom_volume import vol, pasteCenter
     from pytom_volume import rotateSpline as rotate # for more accuracy
     from pytom_volume import updateResFromIdx
-    
+    from pytom.basic.files import write_em
+
     if scoreFnc == None:
         scoreFnc = FLCF
     
@@ -102,7 +103,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         # rotate the reference
         ref = vol(reference.sizeX(),reference.sizeY(),reference.sizeZ())
         rotate(reference, ref, currentRotation[0], currentRotation[1], currentRotation[2])
-        
+
         # apply wedge
         if wedgeInfo.__class__ == WedgeInfo or wedgeInfo.__class__ == Wedge:
             ref = wedgeInfo.apply(ref)
