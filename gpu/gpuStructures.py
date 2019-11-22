@@ -1,6 +1,10 @@
+import threading
+import importlib
+from pytom.tompy.io import read, write
 
 class TemplateMatchingPlan():
     def __init__(self, volume, template, mask, wedge, cp, vt, calc_stdV, pad, get_fft_plan, deviceid):
+        print(deviceid)
         cp.cuda.Device(deviceid).use()
         import voltools
         importlib.reload(voltools)
@@ -37,6 +41,7 @@ class TemplateMatchingPlan():
         calc_stdV(self)
         cp.cuda.stream.get_current_stream().synchronize()
 
+
 class TemplateMatchingGPU(threading.Thread):
     def __init__(self, jobid, deviceid, input):
         threading.Thread.__init__(self)
@@ -53,6 +58,8 @@ class TemplateMatchingGPU(threading.Thread):
         from cupy.fft import fftshift, rfftn, irfftn, ifftn, fftn
         import voltools as vt
         from pytom.tompy.io import write
+        from cupyx.scipy.ndimage import map_coordinates
+
 
         if 1:
             from cupyx.scipy.fftpack.fft import get_fft_plan
@@ -63,6 +70,8 @@ class TemplateMatchingGPU(threading.Thread):
         else:
             get_fft_plan = None
 
+        self.cp = cp
+        self.map_coordinates = map_coordinates
         self.Device = cp.cuda.Device
         self.jobid = jobid
         self.deviceid = deviceid
@@ -110,14 +119,14 @@ class TemplateMatchingGPU(threading.Thread):
 
     def run(self):
         print("RUN")
-        try:
+        if 1:
             self.template_matching_gpu(self.input[4], self.input[5])
             self.completed = True
-        except:
+        else:
             self.completed = False
         self.active = False
 
-    def template_matching_gpu(self, angle_list, dims, isSphere=True, verbose=False):
+    def template_matching_gpu(self, angle_list, dims, isSphere=True, verbose=True):
 
         self.Device(self.deviceid).use()
 
@@ -132,11 +141,8 @@ class TemplateMatchingGPU(threading.Thread):
         for angleId, angles in enumerate(angle_list):
 
             # Rotate
-            if angles.sum():
-                self.plan.texture.transform(rotation=(angles[0], angles[2], angles[1]), rotation_order='rzxz',
-                                            output=self.plan.template)
-
-            write('rotated_template.mrc', self.plan.template.get()*self.plan.mask.get())
+            self.plan.template = self.rotate3d(self.plan.templateOrig, phi=phi,the=the,psi=psi)
+            #self.plan.texture.transform(rotation=(angles[0], angles[2], angles[1]), rotation_order='rzxz', output=self.plan.template)
 
             # Add wedge
             self.plan.template = self.irfftn(self.rfftn(self.plan.template) * self.plan.wedge)
@@ -154,6 +160,8 @@ class TemplateMatchingGPU(threading.Thread):
 
             # Update the scores and angles
             self.updateResFromIdx(self.plan.scores, self.plan.angles, self.plan.ccc_map, angleId, self.plan.scores, self.plan.angles)
+
+            #self.cp.cuda.stream.get_current_stream().synchronize()
 
     def is_alive(self):
         return self.active
@@ -208,6 +216,68 @@ class TemplateMatchingGPU(threading.Thread):
         out[SX // 2 - sx // 2:SX // 2 + sx // 2 + sx % 2, SY // 2 - sy // 2:SY // 2 + sy // 2 + sy % 2,
             SZ // 2 - sz // 2:SZ // 2 + sz // 2 + sz % 2] = volume
 
+    def rotate3d(self, data, phi=0, psi=0, the=0, center=None, order=1, output=None):
+        """Rotate a 3D data using ZXZ convention (phi: z1, the: x, psi: z2).
+
+        @param data: data to be rotated.
+        @param phi: 1st rotate around Z axis, in degree.
+        @param psi: 3rd rotate around Z axis, in degree.
+        @param the: 2nd rotate around X axis, in degree.
+        @param center: rotation center.
+
+        @return: the data after rotation.
+        """
+        # Figure out the rotation center
+        if center is None:
+            cx = data.shape[0] / 2
+            cy = data.shape[1] / 2
+            cz = data.shape[2] / 2
+        else:
+            assert len(center) == 3
+            (cx, cy, cz) = center
+
+        # Transfer the angle to Euclidean
+        phi = -float(phi) * self.cp.pi / 180.0
+        the = -float(the) * self.cp.pi / 180.0
+        psi = -float(psi) * self.cp.pi / 180.0
+        sin_alpha = self.cp.sin(phi)
+        cos_alpha = self.cp.cos(phi)
+        sin_beta = self.cp.sin(the)
+        cos_beta = self.cp.cos(the)
+        sin_gamma = self.cp.sin(psi)
+        cos_gamma = self.cp.cos(psi)
+
+
+
+        # Calculate inverse rotation matrix
+        Inv_R = self.cp.zeros((3, 3), dtype=self.cp.float32)
+
+        Inv_R[0][0] = cos_alpha * cos_gamma - cos_beta * sin_alpha * sin_gamma
+        Inv_R[0][1] = -cos_alpha * sin_gamma - cos_beta * sin_alpha * cos_gamma
+        Inv_R[0][2] = sin_beta * sin_alpha
+
+        Inv_R[1][0] = sin_alpha * cos_gamma + cos_beta * cos_alpha * sin_gamma
+        Inv_R[1][1] = -sin_alpha * sin_gamma + cos_beta * cos_alpha * cos_gamma
+        Inv_R[1][2] = -sin_beta * cos_alpha
+
+        Inv_R[2][0] = sin_beta * sin_gamma
+        Inv_R[2][1] = sin_beta * cos_gamma
+        Inv_R[2][2] = cos_beta
+
+
+
+        grid = self.cp.mgrid[-cx:data.shape[0]-cx, -cy:data.shape[1]-cy, -cz:data.shape[2]-cz]
+        temp = grid.reshape((3, grid.size // 3))
+        temp = self.cp.dot(Inv_R, temp)
+        grid = self.cp.reshape(temp, grid.shape)
+        grid[0] += cx
+        grid[1] += cy
+        grid[2] += cz
+
+        # Interpolation
+        #self.map_coordinates(data, grid, output=output)
+        return self.map_coordinates(data, grid.reshape(len(grid), -1), order=order).reshape(grid.shape[1:])
+
 
 class GLocalAlignmentPlan():
     def __init__(self, particle, reference, mask, wedge, maskIsSphere=True):
@@ -223,3 +293,72 @@ class GLocalAlignmentPlan():
         self.volume_fft = gu.zeros_like(self.particle, dtype=np.complex64)
         self.template_fft = gu.zeros_like(self.reference.d_data, dtype=np.complex64)
         self.ccc_map = gu.zeros_like(self.volume, dtype=np.float32)
+
+
+def rotate3d(data, phi=0, psi=0, the=0, center=None, order=1, output=None):
+    """Rotate a 3D data using ZXZ convention (phi: z1, the: x, psi: z2).
+
+    @param data: data to be rotated.
+    @param phi: 1st rotate around Z axis, in degree.
+    @param psi: 3rd rotate around Z axis, in degree.
+    @param the: 2nd rotate around X axis, in degree.
+    @param center: rotation center.
+
+    @return: the data after rotation.
+    """
+    from cupyx.scipy.ndimage import map_coordinates
+    import cupy as cp
+
+    # Figure out the rotation center
+    if center is None:
+        cx = data.shape[0] / 2
+        cy = data.shape[1] / 2
+        cz = data.shape[2] / 2
+    else:
+        assert len(center) == 3
+        (cx, cy, cz) = center
+
+    # Transfer the angle to Euclidean
+    phi = -float(phi) * cp.pi / 180.0
+    the = -float(the) * cp.pi / 180.0
+    psi = -float(psi) * cp.pi / 180.0
+    sin_alpha = cp.sin(phi)
+    cos_alpha = cp.cos(phi)
+    sin_beta = cp.sin(the)
+    cos_beta = cp.cos(the)
+    sin_gamma = cp.sin(psi)
+    cos_gamma = cp.cos(psi)
+
+
+
+    # Calculate inverse rotation matrix
+    Inv_R = cp.zeros((3, 3), dtype=cp.float32)
+
+    Inv_R[0][0] = cos_alpha * cos_gamma - cos_beta * sin_alpha * sin_gamma
+    Inv_R[0][1] = -cos_alpha * sin_gamma - cos_beta * sin_alpha * cos_gamma
+    Inv_R[0][2] = sin_beta * sin_alpha
+
+    Inv_R[1][0] = sin_alpha * cos_gamma + cos_beta * cos_alpha * sin_gamma
+    Inv_R[1][1] = -sin_alpha * sin_gamma + cos_beta * cos_alpha * cos_gamma
+    Inv_R[1][2] = -sin_beta * cos_alpha
+
+    Inv_R[2][0] = sin_beta * sin_gamma
+    Inv_R[2][1] = sin_beta * cos_gamma
+    Inv_R[2][2] = cos_beta
+
+
+
+    grid = cp.mgrid[-cx:data.shape[0]-cx, -cy:data.shape[1]-cy, -cz:data.shape[2]-cz]
+    temp = grid.reshape((3, grid.size // 3))
+    temp = cp.dot(Inv_R, temp)
+    grid = cp.reshape(temp, grid.shape)
+    grid[0] += cx
+    grid[1] += cy
+    grid[2] += cz
+    dataout = cp.zeros_like(data)
+
+    # Interpolation
+    print(data.shape, grid.shape,dataout.shape)
+    dataout = map_coordinates(data, grid.reshape(len(grid), -1), order=order).reshape(grid.shape[1:])
+
+    return dataout

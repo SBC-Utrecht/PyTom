@@ -214,8 +214,8 @@ class PeakJob(PyTomClass):
         msg.setJob(self)
         
         import pytom_mpi
-    
-        pytom_mpi.send(str(msg), destination)
+        print(f'destination: {destination}\ntype: {type(destination)}')
+        pytom_mpi.send(str(msg), int(destination))
 
 
 class PeakResult(PyTomClass):
@@ -309,7 +309,8 @@ class PeakResult(PyTomClass):
         msg.setResult(self)
         
         import pytom_mpi
-        pytom_mpi.send(str(msg), destination)
+        print(f'destination: {destination}\ntype: {source}')
+        pytom_mpi.send(str(msg), int(destination))
 
 
 class JobInfo():

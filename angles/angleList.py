@@ -108,7 +108,14 @@ class AngleList(AngleObject):
             start = key.start
             stop = key.stop
             step = key.step
-            
+            if not start:
+                start = 0
+
+            if not stop:
+                stop = self.numberRotations()
+
+            if not step:
+                step = 1
             if stop >= 922337203685477580:
                 stop = self.numberRotations()
                 

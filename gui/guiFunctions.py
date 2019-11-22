@@ -263,6 +263,7 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
 
     if gpus:
         numgpus = len(gpus.split(','))
+        numgpus = int(gpus)+1
         gpus = f'\n#SBATCH --gres=gpu:{numgpus}\n\nexport CUDA_VISIBLE_DEVICES={gpus}'
 
     if qtype == 'slurm':

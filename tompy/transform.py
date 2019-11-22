@@ -47,7 +47,7 @@ def rotate3d(data, phi=0, psi=0, the=0, center=None, order=2):
     else:
         assert len(center) == 3
         (cx, cy, cz) = center
-    print(phi, the, psi)
+
     # Transfer the angle to Euclidean
     phi = -float(phi) * np.pi / 180.0
     the = -float(the) * np.pi / 180.0
@@ -78,7 +78,7 @@ def rotate3d(data, phi=0, psi=0, the=0, center=None, order=2):
     Inv_R[2, 1] = sin_beta * cos_gamma
     Inv_R[2, 2] = cos_beta
 
-    print(Inv_R)
+
 
     from scipy import mgrid
     grid = mgrid[-cx:data.shape[0]-cx, -cy:data.shape[1]-cy, -cz:data.shape[2]-cz]

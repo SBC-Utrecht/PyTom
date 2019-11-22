@@ -70,7 +70,7 @@ if __name__ == '__main__':
         if gpuID is None:
             gpuID = None
         else:
-            gpuID = gpuID.split(',')
+            gpuID = list(map(int,gpuID.split(',')))
 
     else: # backward compatibility
         if len(sys.argv) == 2 or len(sys.argv) == 5:

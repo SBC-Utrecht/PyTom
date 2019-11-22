@@ -87,8 +87,10 @@ class TomographReconstruct(GuiTabWidget):
         for i in range(len(headers)):
             t = 'tab{}'.format(i+1)
             empty = 1*(len(subheaders[i]) == 0)
+            print(t, i, empty)
             for j in range(len(subheaders[i])+empty):
-                tt = t+str(j+1)*(1-empty)
+                tt = t + (str(j+1)*(1-empty))
+                print(i, j, t, empty, tt)
                 if static_tabs[i][j]:    #tt in ('tab2', 'tab31', 'tab41', 'tab42', 'tab51', 'tab52'):
                     self.table_layouts[tt] = QGridLayout()
                 else:
@@ -114,6 +116,7 @@ class TomographReconstruct(GuiTabWidget):
                 tab.setLayout(self.table_layouts[tt])
 
     def tab1UI(self,  id=''):
+        print(f'batch id: {id}')
         self.filepath_tomodata = {}
         self.filepath_tomodata['Motion Corrected'] = self.motioncor_folder
         self.filepath_tomodata['Raw Nanographs']  = self.rawnanographs_folder
@@ -663,11 +666,12 @@ class TomographReconstruct(GuiTabWidget):
         events = []
         self.jobs_nr_create_tomofolders = len(jobs)
 
+        print(id)
         if len(jobs):
             self.divide_jobs(jobs, id)
 
         else:
-            self.tab1UI()
+            self.tab1UI(id)
 
     def divide_jobs(self, jobs, id):
 
@@ -694,11 +698,12 @@ class TomographReconstruct(GuiTabWidget):
             atexit.register(guiFunctions.kill_proc, proc)
 
             time.sleep(1)
-        proc = Worker(fn=self.check_run, args=(len(jobs), id))
 
+
+        self.rerunid = id
+        proc = Worker(fn=self.check_run, args=(len(jobs), id))
         proc.signals.result1.connect(self.update_progress_generate_tomogramdir)
         proc.signals.finished_mcor.connect(self.delete_progressbar_tomogramdir)
-
         proc.start()
 
     def check_run(self, a, id, signals):
@@ -718,7 +723,7 @@ class TomographReconstruct(GuiTabWidget):
 
     def delete_progressbar_tomogramdir(self):
         self.statusBar.removeWidget(self.progressBar)
-        self.tab1UI()
+        self.tab1UI(self.rerunid)
 
     def run_jobs(self, jobs, procid, counters):
 

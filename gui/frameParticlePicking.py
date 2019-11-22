@@ -277,6 +277,11 @@ class ParticlePick(GuiTabWidget):
         self.widgets[mode + 'widthZ'] = QLineEdit('0')
         self.widgets[mode + 'widthX'] = QLineEdit('0')
         self.widgets[mode + 'widthY'] = QLineEdit('0')
+        self.widgets[mode + 'numZ'] = QLineEdit('1')
+        self.widgets[mode + 'numX'] = QLineEdit('4')
+        self.widgets[mode + 'numY'] = QLineEdit('4')
+        self.widgets[mode + 'numCores'] = QLineEdit('16')
+
         self.widgets[mode + 'gpuString'] = QLineEdit('')
 
         self.widgets[mode + 'jobName'] = QLineEdit()
@@ -288,7 +293,7 @@ class ParticlePick(GuiTabWidget):
 
         self.execfilenameTM = os.path.join( self.templatematchfolder, 'templateMatch.sh')
         self.xmlfilename  = os.path.join( self.templatematchfolder, 'job.xml')
-        self.widgets[mode+'outfolderTM'] = QLineEdit()
+        self.widgets[mode + 'outfolderTM'] = QLineEdit()
         self.widgets[mode + 'outfolderTM'].setText(self.ccfolder)
 
         paramsSbatch = guiFunctions.createGenericDict()
@@ -299,11 +304,12 @@ class ParticlePick(GuiTabWidget):
         self.updateTM(mode)
 
         self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=[mode+'outfolderTM','templateMatch.sh'], paramsSbatch=paramsSbatch,
-                                 paramsXML=[mode+'tomoFname', mode + 'templateFname', mode+'maskFname', mode + 'Wedge1',
-                                            mode + 'Wedge2',mode+'angleFname', mode + 'outfolderTM', mode + 'startZ',
+                                 paramsXML=[mode + 'tomoFname', mode + 'templateFname', mode+'maskFname', mode + 'Wedge1',
+                                            mode + 'Wedge2', mode+'angleFname', mode + 'outfolderTM', mode + 'startZ',
                                             mode + 'widthX', mode + 'widthY', mode + 'widthZ', templateXML],
-                                 paramsCmd=[mode+'outfolderTM', self.pytompath, mode + 'jobName' , mode + 'gpuString',
-                                            templateTM],
+                                 paramsCmd=[mode + 'outfolderTM', mode + 'numCores', self.pytompath, mode + 'jobName' ,
+                                            mode + 'numX', mode + 'numY', mode + 'numZ',
+                                            mode + 'gpuString', templateTM],
                                  xmlfilename=[mode+'outfolderTM', mode + 'jobName'],
                                  gpu=True)
 
@@ -323,9 +329,11 @@ class ParticlePick(GuiTabWidget):
             return
 
         if len(id) > 0:
-            self.widgets[mode + 'gpuString'].setText(f'--gpu {id}')
+            for key, value in zip(['numCores', 'numX', 'numY', 'numZ', 'gpuString'], [1, 1, 1, 1, f'--gpu {id}']):
+                self.widgets[mode + key].setText(str(value))
         else:
-            self.widgets[mode + 'gpuString'].setText('')
+            for key, value in zip(['numCores', 'numX', 'numY', 'numZ', 'gpuString'], [16, 4, 4, 1, '']):
+                self.widgets[mode + key].setText(str(value))
 
     def updateJobName(self, mode):
         template = os.path.basename(self.widgets[mode+'templateFname'].text()).split('.')[0]
@@ -635,7 +643,7 @@ class ParticlePick(GuiTabWidget):
 
                 fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                 folder = outDirectory
-                cmd = templateTM.format(d=[outDirectory, self.pytompath, jobname, ''])
+                cmd = templateTM.format(d=[outDirectory, 16, self.pytompath, jobname, 4, 4, 1, ''])
                 suffix = "_" + os.path.basename(outDirectory)
                 qname, n_nodes, cores, time, modules = self.qparams['BatchTemplateMatch'].values()
                 job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,

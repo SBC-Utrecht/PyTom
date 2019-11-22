@@ -923,15 +923,24 @@ class PeakLeader(PeakWorker):
         
         @rtype: L{pytom.localization.peak_job.PeakResult}
         """
+        from pytom.tompy.io import read, write
+
+
         if jobID != None:
             resFilename = self.dstDir + self.name + '_job' + str(jobID) + '_res.em'
             orientFilename = self.dstDir + self.name + '_job' + str(jobID) + '_orient.em'
         else:
             resFilename = self.dstDir + self.name + '_res.em'
             orientFilename = self.dstDir + self.name + '_orient.em'
-        resV.write(resFilename)
-        orientV.write(orientFilename)
-        
+
+        try:
+            resV.write(resFilename)
+            orientV.write(orientFilename)
+        except:
+            print(resFilename, orientFilename)
+            write(resFilename, resV)
+            write(orientFilename, orientV)
+
         from pytom.localization.structures import Volume, Orientation
         res = Volume(resFilename)
         orient = Orientation(orientFilename)
@@ -957,9 +966,14 @@ class PeakLeader(PeakWorker):
         if self.jobInfoPool == {}: # leaf node
             assert self.backTo != None
             
-            result = self.writeRes(resV, orientV, jobID)
-            
-            result.send(self.mpi_id, self.backTo)
+
+            #self.parallelEnd(verbose)
+            if not self.backTo is None:
+                self.writeRes(resV, orientV, jobID)
+                self.send(self.mpi_id, self.backTo)
+            else:
+                self.writeRes(resV,orientV,None)
+                self.parallelEnd(verbose)
             return
         
         # non leaf node, update the result

@@ -161,20 +161,43 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
 
     return [result, orientation, sumV, sqrV]
 
-def extractPeaksGPU(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, **kwargs):
+def extractPeaksGPU(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, padding=True, **kwargs):
     from pytom_numpy import vol2npy
     from pytom.gpu.gpuStructures import TemplateMatchingGPU
+    from pytom.tools.calcFactors import calc_fast_gpu_dimensions
+    import time
+    import numpy as np
+    from pytom_freqweight import weight
 
     angles = rotations[:]
-    wedge = wedgeInfo.returnWedgeVolume(reference.sizeX(), reference.sizeY(), reference.sizeZ() )
-    volume, reference, mask, wedge = [vol2npy(vol) for vol in (volume, reference, mask, wedge)]
-    input = (volume, reference, mask, wedge, angles, volume.shape)
+    volume, ref, mask = [vol2npy(vol) for vol in (volume, reference, mask)]
 
-    tm_process = TemplateMatchingGPU(proc_id, kwargs['gpuID'][0], input=input)
+    wedgeAngle = 30
+    wedgeFilter = weight(wedgeAngle, wedgeAngle, ref.shape[0] // 2, ref.shape[0], ref.shape[1], ref.shape[2], 0)
+    wedgeVolume = wedgeFilter.getWeightVolume(True)
+    wedge = vol2npy(wedgeVolume).copy()
+
+    if padding:
+        dimx, dimy, dimz = volume.shape
+
+        cx = calc_fast_gpu_dimensions(dimx - 2, 4000)[0]
+        cy = calc_fast_gpu_dimensions(dimy - 2, 4000)[0]
+        cz = calc_fast_gpu_dimensions(dimz - 2, 4000)[0]
+        voluNDAs = np.zeros([cx, cy, cz], dtype=np.float32)
+        voluNDAs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = volume[:min(cx, dimx), :min(cy, dimy),
+                                                                   :min(cz, dimz)]
+        volume = voluNDAs
+        print(f'dimensions of volume: {ref.shape}')
+
+    input = (volume, ref, mask, wedge, angles, volume.shape)
+
+    tm_process = TemplateMatchingGPU(0, kwargs['gpuID'][0], input=input)
     tm_process.start()
     while tm_process.is_alive():
         time.sleep(1)
 
     if tm_process.completed:
         print('Templated matching completed successfully')
-        return [tm_process.plan.scores, tm_process.plan.angles, None, None]
+        return [tm_process.plan.scores.get(), tm_process.plan.angles.get(), None, None]
+    else:
+        raise Exception('failed template matching')
