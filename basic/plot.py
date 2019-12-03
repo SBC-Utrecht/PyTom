@@ -42,7 +42,7 @@ def plotScoreDevelopment(particleLists):
     
     for particleList in particleLists:
         scores.append(particleList.sumOfScores())
-    print scores   
+    print(scores)   
     
     try:
         from pytom.libraries import CairoPlot
@@ -67,7 +67,7 @@ def plotScoreDevelopment(particleLists):
         import matplotlib.pyplot as pyplot
     
         pyplot.figure()    
-        pyplot.plot(range(len(scores)),scores,color='b')
+        pyplot.plot(list(range(len(scores))),scores,color='b')
         pyplot.show()
     
     
@@ -89,7 +89,7 @@ def plotClassSizes(particleList,plotFileName = None):
     
     sizes = []
     names = []
-    for i in xrange(len(classLists)):
+    for i in range(len(classLists)):
         sizes.append(len(classLists[i]))
         names.append(classLists[i][0].getClassName())
     
@@ -98,13 +98,13 @@ def plotClassSizes(particleList,plotFileName = None):
         
         data = {}
         
-        for i in xrange(len(sizes)):
+        for i in range(len(sizes)):
             data[names[i]] = sizes[i]
         
         CairoPlot.donut_plot(plotFileName, data, 500, 500, background = None, gradient = False, shadow = False, colors = None, inner_radius = 0.3)
     except Exception:
         
-        print 'CairoPlot failed!'
+        print('CairoPlot failed!')
          
     
     

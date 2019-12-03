@@ -64,7 +64,7 @@ def checkAngles(angleList, flag,verbose = False):
     @author: luiskuhn
     """ 
     if verbose:
-        print 'not really checking angles, yet'
+        print('not really checking angles, yet')
     
         
 
@@ -148,7 +148,7 @@ def setReference(tupleList):
         strTilt = "%10.15f" % tilt
         key = strRot + '_' + strTilt
                 
-        if refMap.has_key(key):
+        if key in refMap:
             
             tuple[1][7] = refMap[key]
         else:
@@ -219,7 +219,7 @@ def copyProjectionsForXMIPP(particleList, projectionLists, xmippProjectionDirect
         progressBar = FixedProgBar(0,len(projectionPropertiesList),'Projections modified ')
         progressBar.update(0)
     
-    for i in xrange(len(projectionPropertiesList)):
+    for i in range(len(projectionPropertiesList)):
         
         projectionName = projectionPropertiesList[i][0]
         
@@ -336,16 +336,16 @@ def xmippFourierReconstruction(resultEMFile, docFile = 'xmipp.doc', libFile = 'x
     os.system(cmd)
     
     cmd = 'xmipp_angular_class_average -i ' + docFile + ' -lib ' + libFile + ' -dont_write_selfiles -o ' + tempDir + '/classes/ProjMatchClasses/proj_match'
-    print cmd
+    print(cmd)
     os.system(cmd)
     
     cmd = 'ls ' + tempDir + '/classes/ProjMatchClasses/proj_match_class*.xmp | awk \'{print $1 \" 1\"}\' > ' + tempDir + '/classes/ProjMatchClasses/reconstruction.sel'
-    print cmd
+    print(cmd)
     os.system(cmd)
 
     cmd = 'xmipp_reconstruct_fourier -i ' + tempDir + '/classes/ProjMatchClasses/reconstruction.sel -o ' + tempDir + '/vols/out.spi -thr 1 -weight'
 #    cmd = 'xmipp_reconstruct_wbp -i ' + tempDir + '/classes/ProjMatchClasses/reconstruction.sel -o ' + tempDir + '/vols/out.spi  -weight'
-    print cmd
+    print(cmd)
     os.system(cmd)
     
     out = readSpider(tempDir + '/vols/out.spi')

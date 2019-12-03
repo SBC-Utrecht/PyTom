@@ -22,7 +22,7 @@ def initSphere(sizeX, sizeY, sizeZ, radius, smooth=0, maxradius=0, cent=None, fi
     @type cent: array (3-dim)
     @param filename: If specified by the user, the spherical mask will be written to disk.    
     """
-    from pytom_volume import initSphere,vol
+    from pytom_volume import initSphere, vol
     
         
     v = vol(sizeX,sizeY,sizeZ)
@@ -36,7 +36,6 @@ def initSphere(sizeX, sizeY, sizeZ, radius, smooth=0, maxradius=0, cent=None, fi
         v.write(filename)
     
     return v
-
 
 def taper_edges(image, width, taper_mask=None):
     """
@@ -67,7 +66,7 @@ def taper_edges(image, width, taper_mask=None):
 
     if taper_mask==None:
         # pre-compute scale factor at borders
-        fact = numpy.array(range(1,width+1),dtype='float32')
+        fact = numpy.array(list(range(1,width+1)),dtype='float32')
         for (ii,ifact) in enumerate(fact):
             fact[ii] = cos(ifact*pi/(2.*(width)))
         #2-dim
@@ -165,8 +164,6 @@ def limit_in_sphere( invol, r_max=None, lowlimit=None, lowval=0., hilimit=None, 
                         if v > hilimit:
                             invol.setV( hival, ix, iy, iz)
 
-
-
 def scale(volume,factor,interpolation='Spline'):
     """
     scale: Scale (enlarge/shrink) a volume by a factor (=change size) . 
@@ -177,7 +174,7 @@ def scale(volume,factor,interpolation='Spline'):
     @author: Thomas Hrabe  
     @deprecated: Use L{pytom.basic.transformations.scale} instead!
     """
-    print 'pytom.basic.functions.scale: This function is deprecated. Use pytom.basic.transformations.scale instead!'
+    print('pytom.basic.functions.scale: This function is deprecated. Use pytom.basic.transformations.scale instead!')
     if factor <=0:
         raise RuntimeError('Scaling factor must be > 0!')
     
@@ -204,8 +201,6 @@ def scale(volume,factor,interpolation='Spline'):
     
     return newVolume
 
-
-
 def mirror(volume,axis = 'x',copyFlag = True):
     """
     mirror: Mirrors a volume at defined axis (x,y,z)
@@ -216,7 +211,7 @@ def mirror(volume,axis = 'x',copyFlag = True):
     @author: Thomas Hrabe  
     @deprecated: Use L{pytom.basic.transformations.mirror} instead!
     """
-    print 'pytom.basic.functions.mirror: This function is deprecated. Use pytom.basic.transformations.mirror instead!'
+    print('pytom.basic.functions.mirror: This function is deprecated. Use pytom.basic.transformations.mirror instead!')
     if axis == 'x':
         transformation = [-1,1,1]
     elif axis == 'y':
@@ -232,9 +227,9 @@ def mirror(volume,axis = 'x',copyFlag = True):
         from pytom_volume import vol
         returnVolume = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
         
-        for x in xrange(volume.sizeX()):
-            for y in xrange(volume.sizeY()):
-                for z in xrange(volume.sizeZ()):
+        for x in range(volume.sizeX()):
+            for y in range(volume.sizeY()):
+                for z in range(volume.sizeZ()):
                     
                     xMirrored = (x-centerX) * transformation[0] + centerX
                     yMirrored = (y-centerY) * transformation[1] + centerY
@@ -244,9 +239,9 @@ def mirror(volume,axis = 'x',copyFlag = True):
         return returnVolume
         
     else:
-        for x in xrange(volume.sizeX()):
-            for y in xrange(volume.sizeY()):
-                for z in xrange(volume.sizeZ()):
+        for x in range(volume.sizeX()):
+            for y in range(volume.sizeY()):
+                for z in range(volume.sizeZ()):
                     
                     tmp = volume.getV(x,y,z)
                     xMirrored = (x-centerX) * transformation[0] + centerX

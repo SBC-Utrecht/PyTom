@@ -32,15 +32,6 @@ def matToZYZ(rotMatrix):
 def zxzToZYZ(z1,z2,x,isRad=False):
     """
     zxzToZYZ
-    @param z1: angle first rotation around z
-    @type z1: float or L{pytom.basic.structures.Rotation}
-    @param z2: angle second rotation around z
-    @type z2: float or L{pytom.basic.structures.Rotation}
-    @param x: angle rotation around x
-    @type x: float or L{pytom.basic.structures.Rotation}
-    @param isRad: is radians
-    @type isRad: bool
-    @return: (z,y,z)
     """
     
     rotMatrix = zxzToMat(z1, z2, x, isRad)
@@ -50,15 +41,6 @@ def zxzToZYZ(z1,z2,x,isRad=False):
 def zyzToMat(z1,z2,y,isRad = False):
     """
     zyzToMat
-    @param z1: angle first rotation around z
-    @type z1: float or L{pytom.basic.structures.Rotation}
-    @param z2: angle second rotation around z
-    @type z2: float or L{pytom.basic.structures.Rotation}
-    @param y: angle rotation around y
-    @type y: float or L{pytom.basic.structures.Rotation}
-    @param isRad: is radians
-    @type isRad: bool
-    @return: (z,x,z)
     """
     from pytom.tools.maths import YRotationMatrix,ZRotationMatrix
     
@@ -84,19 +66,19 @@ def angleFromResolutionDeprecated(band,cubeSize,pixelSize=-1,particleDiameter=-1
     from pytom.angles.angle import rad2deg
     
     if pixelSize == -1:
-        print 'Error pixelSize in angleFromResolution, returning default value'
+        print('Error pixelSize in angleFromResolution, returning default value')
         return cubeSize / 4
     
     if particleDiameter == -1:
-        print 'Error particleDiameter in angleFromResolution, returning default value'
+        print('Error particleDiameter in angleFromResolution, returning default value')
         return cubeSize / 4
     
     if not band or band == 0: 
-        print 'Error band in angleFromResolution, returning default value'
+        print('Error band in angleFromResolution, returning default value')
         return cubeSize / 4
     
     if not cubeSize or cubeSize == 0:
-        print 'Error cubeSize in angleFromResolution, returning default value'
+        print('Error cubeSize in angleFromResolution, returning default value')
         return cubeSize / 4
     
     if shrinkFactor <= 0:
@@ -143,7 +125,7 @@ def matToZXZ(rotMatrix,inRad=False):
     @author: Friedrich Forster
     """
     if not (rotMatrix.getSizeX() == 3 and rotMatrix.getSizeY() == 3):
-        raise RuntimeError, 'Input matrix must have a shape of (3x3).'
+        raise RuntimeError('Input matrix must have a shape of (3x3).')
 
     import math
     from pytom.basic.structures import Rotation
@@ -197,7 +179,7 @@ def matToZXZ(rotMatrix,inRad=False):
             z2 = math.acos(cosZ2)
         # x=0 deg
         if cosX > 0:
-            if rotMatrix[0,1] < 0.:
+            if rotMatrix[0,1] > 0.:
                 z2 = 2*math.pi - z2
         # x=180 deg
         else:
@@ -241,7 +223,7 @@ def arctan(sinX, cosX):
 def matToAxisAngle(matrix):
     """
     matToAxisAngle: Converts rotation matrix to axis/angle notation. Formula from (http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToAngle/index.htm)
-    @param matrix: 3x3 rotation matrix
+    @param matrix: 
     @type matrix: L{pytom.tools.maths.Matrix}
     @return: Returns list of angle and [x,y,z]. angle is in degrees!!! [x,y,z] represent a vector of length == 1 
     @rtype: [angle,[x,y,z]]  
@@ -317,11 +299,8 @@ def zxzToAxisAngle(z1,z2,x,isRad=False):
     """
     zxzToAxisAngle: Computes axis/angle notation from ZXZ eulerian angles. 
     @param z1: Phi 
-    @param z1: scalar or Rotation 
     @param z2: Psi
-    @param z2: scalar or Rotation 
     @param x: Theta
-    @param x: scalar or Rotation 
     @param isRad: Are angles in radians? Default = False. 
     @return: Returns [angle (in rad) , axis[x,y,z]]
     """
@@ -331,14 +310,9 @@ def zxzToAxisAngle(z1,z2,x,isRad=False):
 def axisAngleToMat(axis,angle,isRad=False):    
     """
     axisAngleToMat: Converts axis angle representation to a rotation matrix
-    @param axis: rotation axis
-    @type axis: 3-dim vector
-    @param angle: rotation angle
-    @type angle: C{float}
+    @param axis:
+    @param angle: 
     @param isRad: Angle in radians? False by default. 
-    @type isRad: C{bool}
-    @return: rotation matrix
-    @rtype: L{pytom.tools.math.Matrix}
     """
     from pytom.tools.maths import Matrix
     from math import sin,cos
@@ -373,20 +347,16 @@ def axisAngleToMat(axis,angle,isRad=False):
 def axisAngleToZXZ(axis,angle,isRad=False):
     """
     axisAngleToZXZ:
-    @param axis: rotation axis
-    @type axis: 3-dim vector
-    @param angle: rotation angle
-    @type angle: C{float}
-    @param isRad: Angle in radians? False by default. 
-    @type isRad: C{bool}
-    @return: rotation
+    @param axis:
+    @param angle: 
+    @param isRad: Angle in radians? False by default.
     @rtype: L{pytom.basic.structure.Rotation}
     @todo: UnitTest
     """
     m = axisAngleToMat(axis,angle,isRad)
     return matToZXZ(m)
 
-def angleToUnitSphereVector(longitude, latitude, isRadians=False):
+def angleToUnitSphereVector(longitude,latitude,isRadians = False):
     """
     angleToUnitSphereVector:
     @param longitude: ranges from 0 to 360 (set to phi)
@@ -466,7 +436,7 @@ def differenceAngleOfTwoRotations(rotation1, rotation2):
     @param rotation2: 2nd rotation
     @type rotation2: L{pytom.basic.structures.Rotation}
     @return: difference angle (in deg)
-    @rtype: C{float}
+    @rtype: L{float}
     @author: FF
     """
     from pytom.basic.structures import Rotation
@@ -501,22 +471,30 @@ def angleObjectCheckDistance(angleObject):
     rotation = angleObject.nextRotation()
     
     distances = []
+
     while not rotation == [-1,-1,-1]:
         q1 = Quaternion(oldRotation[0],oldRotation[1],oldRotation[2])
         q2 = Quaternion(rotation[0],rotation[1],rotation[2])
+
         distances.append(q1.distance(q2))
+        
         oldRotation = rotation
         rotation = angleObject.nextRotation()
     
     n = len(distances)
+    
     mean = 0
-    for i in xrange(n):
+    
+    for i in range(n):
+        
         mean = mean + float(distances[i] / n)
     
     std = 0
     from math import sqrt
-    for i in xrange(n):
+    for i in range(n):
+        
         std = std + float((distances[i] - mean) * (distances[i] - mean) / n)
+    
     std = sqrt(std)
     
     return [mean,std]
@@ -557,8 +535,6 @@ def pointRotateZXZ(vector,z1,z2=None,x=None,isDeg = True):
     @param z2: float or None
     @param x: float or None
     @param isDeg: True by default      
-    @return: res
-    @rtype: 3-dim vector
     """
     from pytom.basic.structures import Rotation
     from pytom.tools.maths import XRotationMatrix,ZRotationMatrix
@@ -570,6 +546,7 @@ def pointRotateZXZ(vector,z1,z2=None,x=None,isDeg = True):
         x  = z1.getX()
         z1 = z1.getZ1()
 
+    
     z1Matrix = ZRotationMatrix(z1, not isDeg)
     xMatrix  = XRotationMatrix(x,  not isDeg)
     z2Matrix = ZRotationMatrix(z2, not isDeg)
@@ -578,6 +555,7 @@ def pointRotateZXZ(vector,z1,z2=None,x=None,isDeg = True):
     rotationMatrix = z2Matrix * rotationMatrix
        
     res = rotationMatrix * vector
+    
     return res
     
     
@@ -587,15 +565,20 @@ def rotationDistancesFromAngleList(angleList):
     @param angleList: The current class number
     @type angleList: L{pytom.angles.angleList.AngleList}
     @return: distances[i][j] - distance of rotation i to rotation j
-    @rtype: 2-dim list (number rotations x number rotations)
     """
-    numberRotations = angleList.numberRotations()
-    listDistances = [[None] * numberRotations for _ in xrange(numberRotations)]
     
-    for i in xrange(numberRotations):
+    numberRotations = angleList.numberRotations()
+    
+    listDistances = [[None] * numberRotations for _ in range(numberRotations)]
+    
+    for i in range(numberRotations):
+        
         quat1 = angleList[i].toQuaternion()
-        for j in xrange(i+1,numberRotations):
+        
+        for j in range(i+1,numberRotations):
+            
             quat2 = angleList[j].toQuaternion()
+            
             listDistances[i][j] = quat1.distance(quat2) 
             
     return listDistances   
@@ -604,15 +587,14 @@ def meanAndStdRotationDistance(distances):
     """
     meanAndStdRotationDistance: Mean and standart deviation of rotations. Returns mean=0, std=0 if class is empty
     @param distances: as computed by rotationDistancesFromAngleList
-    @return: [mean,std]
     """
     from math import sqrt
     dists = []
     
     counter = 0
     
-    for i in xrange(len(distances)):
-        for j in xrange(len(distances[i])):
+    for i in range(len(distances)):
+        for j in range(len(distances[i])):
             
             if distances[i][j] and (not i == j):
                 dists.append(distances[i][j])
@@ -625,7 +607,7 @@ def meanAndStdRotationDistance(distances):
         #print 'Warning - no class member here!'
         
     std =0    
-    for i in xrange(len(dists)):
+    for i in range(len(dists)):
         std = std + sqrt((dists[i]-mean)*(dists[i]-mean))
     
     if counter > 0:
@@ -641,10 +623,6 @@ def vector2euler(vec, reference_vec=[0,0,1]):
     """Transform a vector to an Euler angle representation.
     Or: find the Euler angle to rotate the reference vector to the given vector.
     Note there are infinite possible ways to do this, since the inplane rotation is not specified.
-    @param vec:
-    @param reference_vec:
-    @return: rotation
-    @rtype: L{pytom.basic.structures.Rotation}
     """
     from pytom.tools.maths import euclidianDistance
     if(euclidianDistance(vec, [0,0,0]) == 0):

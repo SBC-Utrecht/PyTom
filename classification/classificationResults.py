@@ -35,15 +35,15 @@ def createClassificationResultDictionaries(classifiedParticleList,groundTruthPar
         gtClassNames[particle.getClassName()] = False
         
     if verbose:
-        print 'gtClassNames : ',gtClassNames
+        print('gtClassNames : ',gtClassNames)
     
     groundTruthParticleListXML = groundTruthParticleList.toXML()
     
     for newClass in classifiedParticleList.splitByClass():
         
         if verbose:
-            print ''
-            print 'newClass : ', newClass
+            print('')
+            print('newClass : ', newClass)
             
         particlesFromGroundTruth = ParticleList('/')
         
@@ -59,7 +59,7 @@ def createClassificationResultDictionaries(classifiedParticleList,groundTruthPar
             particlesFromGroundTruth.append(gtParticle)
     
         if verbose:
-            print 'len(particlesFromGroundTruth) : ',len(particlesFromGroundTruth) 
+            print('len(particlesFromGroundTruth) : ',len(particlesFromGroundTruth)) 
         
         #sort classes according to size to descending order
         sortedClasses = sorted(particlesFromGroundTruth.splitByClass(),key = lambda x: len(x), reverse=True)
@@ -68,20 +68,20 @@ def createClassificationResultDictionaries(classifiedParticleList,groundTruthPar
         classIndex = 0
         
         if verbose:
-            print 'len(sortedClasses) : ', len(sortedClasses)
+            print('len(sortedClasses) : ', len(sortedClasses))
             
         while not classWasAssigned and classIndex < len(sortedClasses):
             sortedClass = sortedClasses[classIndex]            
             className = sortedClass[0].getClassName()
             
             if verbose:
-                print 'className : ' + className
-                print 'len(sortedClass) : ' , len(sortedClass)
+                print('className : ' + className)
+                print('len(sortedClass) : ' , len(sortedClass))
                 
             classWasAssigned = not gtClassNames[className]
             
             if verbose:
-                print 'classWasAssigned : ', classWasAssigned
+                print('classWasAssigned : ', classWasAssigned)
 
             if not classWasAssigned:
                 classIndex = classIndex + 1
@@ -90,8 +90,8 @@ def createClassificationResultDictionaries(classifiedParticleList,groundTruthPar
                 newClassesToGroundTruthMap[newClass[0].getClassName()] = className
                 
                 if verbose:
-                    print 'gtClassNames : ', gtClassNames
-                    print 'newClassesToGroundTruthMap : ' , newClassesToGroundTruthMap
+                    print('gtClassNames : ', gtClassNames)
+                    print('newClassesToGroundTruthMap : ' , newClassesToGroundTruthMap)
 
     return newClassesToGroundTruthMap
 
@@ -127,7 +127,7 @@ def assessClassification(classifiedParticleList,groundTruthParticleList,verbose=
         
     
     if verbose:
-        print 'GT Classes ',gtClassNamesAssigned    
+        print('GT Classes ',gtClassNamesAssigned)    
         
     
     gtClassesPerClass = {}
@@ -137,7 +137,7 @@ def assessClassification(classifiedParticleList,groundTruthParticleList,verbose=
     numberClasses = len(newClasses)
     classSizes = []
     
-    for i in xrange(len(newClasses)):
+    for i in range(len(newClasses)):
         classSizes.append(len(newClasses[i]))
     
     for newClass in newClasses:
@@ -159,14 +159,14 @@ def assessClassification(classifiedParticleList,groundTruthParticleList,verbose=
         gtClassesPerClass[newClass[0].getClassName()] = [newClassParticleList,gtClassSizeDictionary]
     
     if verbose:
-        print 'Class distribution dictionary'
-        for k in gtClassesPerClass.keys():
-            print k,gtClassesPerClass[k]
+        print('Class distribution dictionary')
+        for k in list(gtClassesPerClass.keys()):
+            print(k,gtClassesPerClass[k])
      
     
     gtToClassDictionary = {}
     
-    for gtName in gtClassNamesAssigned.keys():
+    for gtName in list(gtClassNamesAssigned.keys()):
     
         newClassIndex = 0
         classSizeList = []
@@ -174,22 +174,22 @@ def assessClassification(classifiedParticleList,groundTruthParticleList,verbose=
         largestClass  = -1
         maxClassName = 'unknown'
         assigned = False
-        for newClassName in gtClassesPerClass.keys():
+        for newClassName in list(gtClassesPerClass.keys()):
         
             l = gtClassesPerClass[newClassName]
             gtClassSizeDictionary = l[1]
             if verbose:
-                print 'GT Name',gtName,' New Class Name',newClassName
-                print 'GT Name Size',gtClassSizeDictionary
+                print('GT Name',gtName,' New Class Name',newClassName)
+                print('GT Name Size',gtClassSizeDictionary)
             
             try:
                 if verbose:
-                    print gtClassSizeDictionary[gtName]
+                    print(gtClassSizeDictionary[gtName])
                 if largestClass < gtClassSizeDictionary[gtName] and not newClassNamesAssigned[newClassName]:
                     largestClass = gtClassSizeDictionary[gtName]
                     maxClassName = newClassName
                     if verbose:
-                        print 'SWAP'
+                        print('SWAP')
                 
             except KeyError:
                 pass
@@ -198,7 +198,7 @@ def assessClassification(classifiedParticleList,groundTruthParticleList,verbose=
         newClassNamesAssigned[maxClassName] = True
         gtClassNamesAssigned[gtName] = True            
         
-        for newClassName in gtClassesPerClass.keys():
+        for newClassName in list(gtClassesPerClass.keys()):
             try:
                 l = gtClassesPerClass[newClassName]
                 gtClassSizeDictionary = l[1]
@@ -210,8 +210,8 @@ def assessClassification(classifiedParticleList,groundTruthParticleList,verbose=
             except KeyError:
                 pass
     if verbose:            
-        print 'GT to New Dictionary'            
-        print gtToClassDictionary
+        print('GT to New Dictionary')            
+        print(gtToClassDictionary)
     
     
     trueHits = 0

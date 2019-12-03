@@ -20,13 +20,13 @@ def classifyParticleList(particleList,alignmentLists,verbose=False):
         alignmentList.sortByParticleList(particleList)
     
     
-    for particleIndex in xrange(len(particleList)):
+    for particleIndex in range(len(particleList)):
         
         particle = particleList[particleIndex]
         score = particle.getScore()
         
         if verbose:
-            print particle.getFilename()
+            print(particle.getFilename())
         
         if not score:
             bestScore= -999999999
@@ -36,7 +36,7 @@ def classifyParticleList(particleList,alignmentLists,verbose=False):
         bestResult = []
         bestCluster = []
         
-        for alignmentIterator in xrange(len(alignmentLists)):
+        for alignmentIterator in range(len(alignmentLists)):
             alignmentList = alignmentLists[alignmentIterator]
             
             result = alignmentList[particleIndex]
@@ -46,7 +46,7 @@ def classifyParticleList(particleList,alignmentLists,verbose=False):
             value = float(score.getValue());
 
             if verbose:
-                print value
+                print(value)
                 
             if value >= bestScore:
                 bestResult = result
@@ -60,7 +60,7 @@ def classifyParticleList(particleList,alignmentLists,verbose=False):
         classifiedParticle.setClass(bestCluster)
         
         if verbose:
-            print classifiedParticle
+            print(classifiedParticle)
             
         classifiedParticleList.append(classifiedParticle)
     
@@ -103,10 +103,10 @@ def distributeExpectation(particleLists,iterationDirectory,averagePrefix,verbose
     referenceList = ReferenceList()
     
     #distribute jobs to all nodes
-    for i in xrange(1,mpi_numberNodes):
+    for i in range(1,mpi_numberNodes):
         
         if verbose:
-                print 'Starting first job distribute step'
+                print('Starting first job distribute step')
                 
         if listIterator < len(particleLists):
             
@@ -130,7 +130,7 @@ def distributeExpectation(particleLists,iterationDirectory,averagePrefix,verbose
 
             pytom_mpi.send(str(jobMsg),i)
             if verbose:
-                print jobMsg
+                print(jobMsg)
             
             listIterator = listIterator + 1
             
@@ -146,7 +146,7 @@ def distributeExpectation(particleLists,iterationDirectory,averagePrefix,verbose
         mpi_msgString = pytom_mpi.receive() 
         
         if verbose:
-            print mpi_msgString
+            print(mpi_msgString)
 
         jobResultMsg = ExpectationResultMsg('','')   
         jobResultMsg.fromStr(mpi_msgString)
@@ -170,7 +170,7 @@ def distributeExpectation(particleLists,iterationDirectory,averagePrefix,verbose
             
             pytom_mpi.send(str(jobMsg),i)
             if verbose:
-                print jobMsg
+                print(jobMsg)
             
             listIterator = listIterator + 1
             
@@ -196,7 +196,7 @@ def mcoEXMX(mcoEMJob,doFinalize=True,verbose=False):
         from pytom.tools.files import checkDirExists
         from os import mkdir
         from pytom.basic.plot import plotClassSizes
-        from __builtin__ import min as minList
+        from builtins import min as minList
         
         particleList = mcoEMJob.getParticleList()
 
@@ -209,7 +209,7 @@ def mcoEXMX(mcoEMJob,doFinalize=True,verbose=False):
         exMaxJob = mcoEMJob.getExMaxJob()
         
         if verbose:
-            print mcoEMJob
+            print(mcoEMJob)
             
         if not checkDirExists(destinationDirectory):
             raise IOError('Destination directory ' + destinationDirectory + ' not found!')
@@ -224,7 +224,7 @@ def mcoEXMX(mcoEMJob,doFinalize=True,verbose=False):
             
             if numberClasses:
                 if verbose:
-                    print 'Randomising particle list'
+                    print('Randomising particle list')
                     
                 particleList = randomiseParticleListClasses(particleList,numberClasses)
                 particleList.toXMLFile(destinationDirectory + '/RandomisedParticleList.xml')
@@ -248,7 +248,7 @@ def mcoEXMX(mcoEMJob,doFinalize=True,verbose=False):
         while iteration < numberIterations and (not converged):
             
             if verbose:
-                print 'Running iteration ' + str(iteration) + ' of ' +str(numberIterations)
+                print('Running iteration ' + str(iteration) + ' of ' +str(numberIterations))
         
             iterationDirectory = destinationDirectory + '/' + str(iteration) + '/'
             
@@ -261,14 +261,14 @@ def mcoEXMX(mcoEMJob,doFinalize=True,verbose=False):
             #generate cluster centers
             referenceList = distributeExpectation(particleLists,iterationDirectory,'clusterCenter'+ str(iteration),verbose,exMaxJob.getSymmetry())
             
-            for classIterator in xrange(len(particleLists)):
+            for classIterator in range(len(particleLists)):
                 
                 classDirectory = iterationDirectory + 'class' + str(classIterator) + '/'
 
                 #determine distance for all particles 
                 refinementDirectory = classDirectory + 'refinement/'
                 if verbose:
-                    print refinementDirectory
+                    print(refinementDirectory)
                     
                 if not checkDirExists(refinementDirectory):
                     mkdir(refinementDirectory)
@@ -302,7 +302,7 @@ def mcoEXMX(mcoEMJob,doFinalize=True,verbose=False):
 
             #perform classification here    
             if verbose:
-                print 'Classifying after iteration ' + str(iteration)
+                print('Classifying after iteration ' + str(iteration))
                 
             particleList = classifyParticleList(initialParticleList,alignmentLists,verbose)
             particleList.toXMLFile(iterationDirectory + 'classifiedParticles.xml')
@@ -316,12 +316,12 @@ def mcoEXMX(mcoEMJob,doFinalize=True,verbose=False):
             if doAdaptiveResolution:
                 resolutionList = [-1] * len(particleLists)
                 
-                for classIterator in xrange(len(particleLists)):
+                for classIterator in range(len(particleLists)):
                     classList = particleLists[classIterator]
                     
                     if len(classList) == 1:
                         #if there is only one particle in that class, override resolution
-                        print 'Class ', classIterator , ' has only 1 particle! Will be assigned the lowest resolution determined.'
+                        print('Class ', classIterator , ' has only 1 particle! Will be assigned the lowest resolution determined.')
                         continue
                     
                     className = classList[0].getClass()
@@ -332,16 +332,16 @@ def mcoEXMX(mcoEMJob,doFinalize=True,verbose=False):
                     resolution = classList.determineResolution(criterion=0.5,numberBands = cubeSize / 2,mask=exMaxJob.getMask(),verbose=False,plot='',keepHalfsetAverages = False,halfsetPrefix='class' + str(className), parallel=True)
                     #resolution = [Resolution in Nyquist , resolution in band, numberBands]
                     resolutionList[classIterator] = resolution[1]
-                    print 'Resolution for class ', classIterator , ' determined to ', resolution[1], ' pixels. Class size is ', len(classList) , ' particles'
+                    print('Resolution for class ', classIterator , ' determined to ', resolution[1], ' pixels. Class size is ', len(classList) , ' particles')
             
                 #get lowest resolution determined for classes with more than 1 particle
                 min = 999999999999999
-                for classIterator in xrange(len(particleLists)):
+                for classIterator in range(len(particleLists)):
                     if min >= resolutionList[classIterator] and resolutionList[classIterator] >= 0:
                         min = resolutionList[classIterator]
                         
                 #set resolution for all classes with only 1 particle to lowest resolution    
-                for classIterator in xrange(len(particleLists)):
+                for classIterator in range(len(particleLists)):
                     if resolutionList[classIterator] < 0:
                         resolutionList[classIterator] = min
                     
@@ -409,12 +409,12 @@ def clusterKMeans(data, k, scale=True, plot=False):
         pylab.ion() # interactive mode on
         plt_centroids=[]
         plt_points=[]
-        for i in xrange(k):
+        for i in range(k):
             c = kmdata.clusters[i].centroid
             tmp, = pylab.plot(c[dim_x],c[dim_y], color=colors[i],marker='*',markersize=12)
             plt_centroids.append(tmp)
             
-        for i in xrange(kmdata.num):
+        for i in range(kmdata.num):
             d = kmdata.getData(i)
             tmp, = pylab.plot(d[dim_x],d[dim_y], color='k',marker='+',markersize=12)
             plt_points.append(tmp)
@@ -426,7 +426,7 @@ def clusterKMeans(data, k, scale=True, plot=False):
     stop = 1
     while(stop > 0.01):
         changedNum = 0.
-        for i in xrange(kmdata.num):
+        for i in range(kmdata.num):
             if kmdata.assignCluster(i, euclidianDistance):
                 changedNum = changedNum+1
         stop = changedNum/kmdata.num
@@ -448,14 +448,14 @@ def clusterKMeans(data, k, scale=True, plot=False):
         
         # plot
         if plot:
-            for i in xrange(k):
+            for i in range(k):
                 c = kmdata.clusters[i].centroid
                 plt_centroids[i].set_xdata(c[dim_x])
                 plt_centroids[i].set_ydata(c[dim_y])
             
-            for i in xrange(kmdata.num):
+            for i in range(kmdata.num):
                 c = 0
-                for j in xrange(k):
+                for j in range(k):
                     if(i in kmdata.clusters[j].members):
                         c = j
                         break
@@ -497,7 +497,7 @@ def readKMFile(datafile, clusterfile=None):
             if class_id == -1:
                 pass
             else:
-                if class_id in class_labels.keys():
+                if class_id in list(class_labels.keys()):
                     class_labels[class_id].members.append(i)
                 else:
                     c = Cluster(kmdata, None, name=str(class_id))
@@ -528,9 +528,9 @@ def writeKMResult(result, filename):
     @type filename: string
     """
     f = open(filename, 'w')
-    for i in xrange(result.num):
+    for i in range(result.num):
         c = None
-        for j in xrange(len(result.clusters)):
+        for j in range(len(result.clusters)):
             if i in result.clusters[j].members:
                 c = result.clusters[j]
                 c.name = str(j) # set the name of the cluster according to the index

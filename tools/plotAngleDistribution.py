@@ -20,15 +20,15 @@ if __name__ == '__main__':
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         pl_filename, axis_angles, cut_out_range, output, bHelp = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
     if bHelp is True:
-        print helper
+        print(helper)
         sys.exit()
 
     if cut_out_range is not None:
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     
     # cut out only the things in the range
     if cut_out_range is not None:
-        for i in xrange(len(dist)):
+        for i in range(len(dist)):
             if dist[i] >= cut_out_range[0] and dist[i] <= cut_out_range[1]:
                 dist[i] = 1
             else:

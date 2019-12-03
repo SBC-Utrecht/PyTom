@@ -55,9 +55,9 @@ def peakCoef(self,volume,reference,mask=None):
     else:
         resFunction = self.scoringFunction(volume,reference,mask)
     
-    centerX = resFunction.sizeX()/2 -1
-    centerY = resFunction.sizeY()/2 -1
-    centerZ = resFunction.sizeZ()/2 -1
+    centerX = resFunction.sizeX()//2 -1
+    centerY = resFunction.sizeY()//2 -1
+    centerZ = resFunction.sizeZ()//2 -1
     
     #c = resFunction.getV(centerX,centerY,centerZ)
     
@@ -220,14 +220,14 @@ class Score:
         """
         @deprecated: Use getPeakPrior instead!
         """
-        print 'Deprecated: Use getPeakPrior instead!'
+        print('Deprecated: Use getPeakPrior instead!')
         return self._peakPrior
     
     def setDistanceFunction(self,filename='',mean=0,deviation=-1):
         """
         @deprecated: Use setPeakPrior instead!
         """
-        print 'Deprecated: Use setPeakPrior instead!'
+        print('Deprecated: Use setPeakPrior instead!')
         self.setPeakPrior(filename,mean,deviation)   
          
     def getPeakPrior(self):
@@ -288,6 +288,8 @@ class Score:
 
         self._filename = filename
         versionString = '<!-- PyTom Version: ' + pytom.__version__ + ' -->\n'
+
+
         file = open(filename, "w")
         file.write(versionString + str(self))
         file.close()
@@ -314,9 +316,11 @@ class Score:
         from lxml.etree import tostring
         
         doc = self.toXML()
-        
-        return tostring(doc,pretty_print=True)
-    
+
+        xmlstring =  tostring(doc, pretty_print=True).decode('utf-8')
+
+        return xmlstring
+
     def getWorstValue(self):
         raise RuntimeError('This function must be overridden by child!')
         
@@ -356,7 +360,19 @@ class Score:
             return 0
         elif self.scoreValue > otherScore.getValue():
             return 1
-        
+    
+    def __lt__(self, otherScore):
+        self.__cmp__(otherScore)
+
+    def __gt__(self, otherScore):
+        if self.scoreValue > otherScore.getValue():
+            return -1
+        elif self.scoreValue == otherScore.getValue():
+            return 0
+        elif self.scoreValue < otherScore.getValue():
+            return 1
+
+    
     def copy(self):    
         selfAsXML = self.toXML()
         return fromXML(selfAsXML)
@@ -377,7 +393,7 @@ class xcfScore(Score):
         self.ctor(xcf,xcc,Vol_G_Val)
         self._type = 'xcfScore'
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):
-        if value and (value.__class__ == int or value.__class__ == long or value.__class__ == float):
+        if value and (value.__class__ == int or value.__class__ == int or value.__class__ == float):
             self.setValue(value)
         else:
             self.setValue(self.getWorstValue())
@@ -400,15 +416,14 @@ class nxcfScore(Score):
         self.ctor(nXcf,nxcc,Vol_G_Val)   
         self._type = 'nxcfScore'
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):
-        if value and (value.__class__ == int or value.__class__ == long or value.__class__ == float):
+        if value and (value.__class__ == int or value.__class__ == int or value.__class__ == float):
             self.setValue(value)
         else:
             self.setValue(self.getWorstValue())
             
     def getWorstValue(self):
         return -10000000000
-    
-        
+
 class FLCFScore(Score):    
     """
     FLCFScore: Uses the FLCF correlation function for scoring
@@ -425,7 +440,7 @@ class FLCFScore(Score):
         self._type = 'FLCFScore'
         
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):
-        if value and (value.__class__ == int or value.__class__ == long or value.__class__ == float):
+        if value and (value.__class__ == int or value.__class__ == int or value.__class__ == float):
             self.setValue(value)
         else:
             self.setValue(self.getWorstValue())
@@ -509,7 +524,7 @@ def FSCWrapper(self,volume,reference):
         
     if self.numberOfBands == 0:
         from pytom.basic.exceptions import ParameterError
-        raise ParameterError, 'Bands attribute is empty. Abort.'
+        raise ParameterError('Bands attribute is empty. Abort.')
         
     return FSCSum(volume,reference,self.bands,self.wedgeAngle)
 
@@ -518,7 +533,7 @@ def FSFWrapper(self,volume,reference):
         
     if self.numberOfBands == 0:
         from pytom.basic.exceptions import ParameterError
-        raise ParameterError, 'Bands attribute is empty. Abort.'
+        raise ParameterError('Bands attribute is empty. Abort.')
         
     return weightedXCF(volume,reference,self.bands,self.wedgeAngle)   
   
@@ -710,7 +725,7 @@ class PeakPrior(PyTomClass):
         
         tree = self.toXML()
         
-        return etree.tostring(tree,pretty_print=True)
+        return etree.tostring(tree,pretty_print=True).decode("utf-8")[:-1]
     
 class SOCScore(Score):    
     """

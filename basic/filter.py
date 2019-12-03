@@ -94,7 +94,6 @@ def filter_volume_by_profile( volume, profile):
     outvol = convolute(v=volume, k=kernel, kernel_in_fourier=True)
     return outvol
 
-
 def gridCTF(x_array, y_array, z_array):
     """
     function similar to ndgrid in matlab
@@ -137,7 +136,6 @@ def gridCTF(x_array, y_array, z_array):
                 z.setV(z_array[i], k, j, i)
     
     return r, y, z
-
 
 def volCTF(defocus, x_dim, y_dim, z_dim, pixel_size=None, voltage=None, Cs=None, sigma=None):
     """
@@ -237,12 +235,12 @@ def fourierFilterShift(filter):
     from pytom_volume import vol
     
     widthX = filter.sizeX()
-    centerX = filter.sizeX()/2
-    boxX = filter.sizeX()/2
+    centerX = filter.sizeX()//2
+    boxX = filter.sizeX()//2
     
     widthY = filter.sizeY()
-    centerY = filter.sizeY()/2
-    boxY = filter.sizeY()/2    
+    centerY = filter.sizeY()//2
+    boxY = filter.sizeY()//2
     
     shifted_filter = vol(widthX, widthY, 1)
     shifted_filter.setAll(0.0)
@@ -257,6 +255,33 @@ def fourierFilterShift(filter):
                 
     return shifted_filter
 
+def fourierFilterShift_ReducedComplex(filter):
+    """
+    fourierFilterShift: NEEDS Documentation
+    @param filter: NEEDS Documentation
+    """
+    from pytom_volume import vol
+
+    widthX = filter.sizeX()
+    centerX = filter.sizeX()//2
+    boxX = filter.sizeX()//2
+
+    widthY = filter.sizeY()
+    centerY = filter.sizeY()//2
+    boxY = filter.sizeY()//2
+
+    shifted_filter = vol(widthX, widthY, 1)
+    shifted_filter.setAll(0.0)
+
+    for i in range(widthX):
+        rx = (boxX-i)%widthX
+
+        for j in range(widthY):
+            ry = (boxY-j)%widthY
+
+            shifted_filter.setV(filter.getV(i, j, 0), rx, widthY-j-1, 0)
+
+    return shifted_filter
 
 def circleFilter(sizeX,sizeY, radiusCutoff):
     """
@@ -267,10 +292,10 @@ def circleFilter(sizeX,sizeY, radiusCutoff):
     """
     from pytom_volume import vol
     
-    centerX = sizeX/2
+    centerX = sizeX//2
         
-    centerY = sizeY/2
-    sizeY = (sizeY/2) +1
+    centerY = sizeY//2
+    sizeY = (sizeY//2) +1
         
     filter_vol = vol(sizeX, sizeY, 1)
     filter_vol.setAll(0.0)
@@ -298,13 +323,15 @@ def rampFilter( sizeX, sizeY):
     """
     from pytom_volume import vol
     from math import exp
+    import time
+
+    s = time.time()
+    centerX = sizeX//2
     
-    centerX = sizeX/2
+    centerY = sizeY//2
+    sizeY = (sizeY//2) +1
     
-    centerY = sizeY/2
-    sizeY = (sizeY/2) +1
-    
-    Ny = sizeX/2
+    Ny = sizeX//2
         
     filter_vol = vol(sizeX, sizeY, 1)
     filter_vol.setAll(0.0)
@@ -314,9 +341,106 @@ def rampFilter( sizeX, sizeY):
         ratio = distX/Ny
         for j in range(sizeY):            
             filter_vol.setV(ratio, i, j, 0)
-                
+    print('ramp filter takes: ', time.time()-s, sizeX, sizeY)
     return filter_vol
 
+
+def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
+    """
+    exactFilter: Generates the exact weighting function required for weighted backprojection - y-axis is tilt axis
+    Reference : Optik, Exact filters for general geometry three dimensional reconstuction, vol.73,146,1986.
+    @param tilt_angles: list of all the tilt angles in one tilt series
+    @param titlAngle: tilt angle for which the exact weighting function is calculated
+    @param sizeX: size of weighted image in X
+    @param sizeY: size of weighted image in Y
+
+    @return: filter volume
+
+    """
+    from pytom_volume import vol
+    from pytom.basic.files import read
+    from pytom_numpy import npy2vol
+    from numpy import array, matrix, sin, pi, arange, float32, column_stack, argmin, clip, ones, ceil
+
+    # Using Friedel Symmetry in Fourier space.
+    sY = sY//2+1
+
+    # Calculate the relative angles in radians.
+    diffAngles = (array(tilt_angles)-tiltAngle)*pi/180.
+
+
+    # Closest angle to tiltAngle (but not tiltAngle) sets the maximal frequency of overlap (Crowther's frequency).
+    # Weights only need to be calculated up to this frequency.
+    sampling =  min(abs(diffAngles)[abs(diffAngles)>0.001])
+    crowtherFreq = min(sX//2, int(ceil(1 / sin( sampling ))))
+    arrCrowther = matrix(abs(arange(-crowtherFreq, min(sX//2, crowtherFreq+1))))
+
+    # Calculate weights
+    wfuncCrowther = 1. / (clip(1 - array(matrix(abs(sin(diffAngles))).T * arrCrowther)**2, 0, 2)).sum(axis=0)
+
+    # Create full with weightFunc
+    wfunc = ones((sX, sY, 1), dtype=float32)
+    wfunc[sX//2-crowtherFreq:sX//2+min(sX//2,crowtherFreq+1),:, 0] = column_stack(([(wfuncCrowther), ] * (sY))).astype(float32)
+
+
+    weightFunc = vol(sX, sY, 1)
+    weightFunc.setAll(0.0)
+
+    for ix in range(0, sX):
+        for iy in range(0, sY):
+            #print(ix,iy)
+            weightFunc.setV(float(wfunc[ix][iy]), ix, iy, 0)
+    
+    #weightFunc = npy2vol(array(wfunc, dtype='float32', order='F'), 3)
+        
+    return weightFunc
+
+def rotateFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
+    from numpy import zeros_like, ones, column_stack, sin, abs, zeros, pi, ceil, floor, float32, array
+    from scipy.ndimage import rotate
+    from pytom_volume import vol
+    from pytom.basic.files import read
+    from pytom_numpy import npy2vol
+
+    tilt_angles = array(tilt_angles)
+
+    smallest = abs(tilt_angles - tiltAngle)
+    smallest[smallest.argmin()] = 1000
+    smallest = smallest.min()
+
+    wFunc = ones((sX))
+    size = min(sX, int(2 / sin(smallest * pi / 180.)))
+
+    a = zeros((size, size))
+
+    sY = sY // 2 + 1
+
+    dame = zeros_like(a)
+    dame[size // 2, :] = 1.
+
+    out = zeros_like(a)
+
+    for angle in (tilt_angles - tiltAngle):
+
+        if abs(angle) > 0.0001:
+            dame2 = rotate(dame, angle, axes=(0, 1), reshape=False)
+        else:
+            dame2 = dame.copy()
+        out += dame2
+
+    wFunc[sX // 2 - int(floor(size // 2)):sX // 2 + int(ceil(size / 2))] = 1 / out[size // 2, :]
+
+    wfunc = column_stack( ([(wFunc), ] * (sY)) ).astype(float32)
+
+    weightFunc = vol(sX, sY, 1)
+    weightFunc.setAll(0.0)
+
+    for ix in range(0, sX):
+        for iy in range(0, sY):
+            # print(ix,iy)
+            weightFunc.setV(float(wfunc[ix][iy]), ix, iy, 0)
+
+    return weightFunc
 
 def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, returnReducedComplex=False, binarize=False):
     """
@@ -375,9 +499,6 @@ def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, retu
         limit(returnVolume,0.5,0,0.5,1,True,True)
     
     return returnVolume
-
-
-    
     
 def wedgeFilter(volume,angle,radius=0,angleIsHalf=True,fourierOnly=False):
     """
@@ -401,8 +522,7 @@ def wedgeFilter(volume,angle,radius=0,angleIsHalf=True,fourierOnly=False):
     
     
     return filter(volume,wf,fourierOnly)
-    
-    
+
 def bandpassFilter(volume, lowestFrequency, highestFrequency, bpf=None,
                    smooth=0,fourierOnly=False):
     """
@@ -433,7 +553,6 @@ def bandpassFilter(volume, lowestFrequency, highestFrequency, bpf=None,
                                       fvolume.sizeX(),fvolume.sizeY(),fvolume.sizeZ(),smooth)    
 
     return filter(fvolume,bpf,fourierOnly)      
-
 
 def lowpassFilter(volume,band,smooth=0,fourierOnly=False):
     """
@@ -511,7 +630,6 @@ def filter(volume,filterObject,fourierOnly=False):
         return [result,filterObject,fvolume]   
     else:
         return [fvolume,filterObject]
-
 
 def gaussian_filter(vol, sigma):
 #    # construct the Gaussian kernel

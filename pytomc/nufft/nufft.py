@@ -55,8 +55,8 @@ def get_spherical_nodes(r, size, b):
     from math import pi, cos, sin
 
     res = []
-    for j in xrange(2*b):
-        for k in xrange(2*b):
+    for j in range(2*b):
+        for k in range(2*b):
             the = pi*(2*j+1)/(4*b) # (0,pi)
             phi = pi*k/b # [0,2*pi)
             res.append([r*cos(phi)*sin(the)/size, r*sin(phi)*sin(the)/size, r*cos(the)/size])

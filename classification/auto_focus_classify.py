@@ -2,7 +2,7 @@
 import numpy as np
 from tompy.mpi import MPI
 from pytom.basic.structures import ParticleList
-
+import os
 assert np.__version__ >= '1.7.0'
 
 mpi = MPI()
@@ -15,10 +15,10 @@ def combinations(iterable, r):
     n = len(pool)
     if r > n:
         return
-    indices = range(r)
+    indices = list(range(r))
     yield tuple(pool[i] for i in indices)
     while True:
-        for i in reversed(range(r)):
+        for i in reversed(list(range(r))):
             if indices[i] != i + n - r:
                 break
         else:
@@ -44,12 +44,12 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
     if align:
         from sh_alignment.frm import frm_align
         band = int(band1 if band1<band2 else band2)
-        pos, angle, score = frm_align(lv2, None, lv1, None, [4,64], band, lv1.sizeX()/4, mask)
-        shift = [pos[0]-v1.sizeX()/2, pos[1]-v1.sizeY()/2, pos[2]-v1.sizeZ()/2]
+        pos, angle, score = frm_align(lv2, None, lv1, None, [4,64], band, lv1.sizeX()//4, mask)
+        shift = [pos[0]-v1.sizeX()//2, pos[1]-v1.sizeY()//2, pos[2]-v1.sizeZ()//2]
 
         # transform v2
         lvv2 = vol(lv2)
-        transformSpline(lv2, lvv2, -angle[1],-angle[0],-angle[2],lv2.sizeX()/2,lv2.sizeY()/2,lv2.sizeZ()/2,-shift[0],-shift[1],-shift[2],0,0,0)
+        transformSpline(lv2, lvv2, -angle[1],-angle[0],-angle[2],lv2.sizeX()//2,lv2.sizeY()//2,lv2.sizeZ()//2,-shift[0],-shift[1],-shift[2],0,0,0)
     else:
         lvv2 = lv2
 
@@ -98,11 +98,11 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
     limit(std_map, threshold, 0, threshold, 1, True, True)
 
     # do a lowpass filtering
-    std_map1 = lowpassFilter(std_map, v1.sizeX()/4, v1.sizeX()/40.)[0]
+    std_map1 = lowpassFilter(std_map, v1.sizeX()//4, v1.sizeX()/40.)[0]
 
     if align:
         std_map2 = vol(std_map)
-        transformSpline(std_map1, std_map2, angle[0],angle[1],angle[2],v1.sizeX()/2,v1.sizeY()/2,v1.sizeZ()/2,0,0,0,shift[0],shift[1],shift[2])
+        transformSpline(std_map1, std_map2, angle[0],angle[1],angle[2],v1.sizeX()//2,v1.sizeY()//2,v1.sizeZ()//2,0,0,0,shift[0],shift[1],shift[2])
     else:
         std_map2 = std_map1
 
@@ -113,9 +113,11 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
     return (std_map1, std_map2)
 
 
-def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binning, iteration, sigma, threshold):
+def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binning, iteration, sigma, threshold, outdir='./'):
     from pytom_volume import read
     from pytom.basic.structures import Particle
+    import os
+
     v1 = r1.getVolume()
     v2 = r2.getVolume()
     if mask:
@@ -128,9 +130,9 @@ def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binni
         focus_mask = None
 
     (dmap1, dmap2) = calculate_difference_map(v1, band1, v2, band2, mask, focus_mask, True, sigma, threshold)
-    fname1 = 'iter'+str(iteration)+'_dmap_'+str(r1.getClass())+'_'+str(r2.getClass())+'.em'
+    fname1 = os.path.join(outdir, 'iter'+str(iteration)+'_dmap_'+str(r1.getClass())+'_'+str(r2.getClass())+'.em')
     dmap1.write(fname1)
-    fname2 = 'iter'+str(iteration)+'_dmap_'+str(r2.getClass())+'_'+str(r1.getClass())+'.em'
+    fname2 = os.path.join(outdir, 'iter'+str(iteration)+'_dmap_'+str(r2.getClass())+'_'+str(r1.getClass())+'.em')
     dmap2.write(fname2)
 
     dp1 = Particle(fname1)
@@ -154,7 +156,7 @@ def focus_score(p, ref, freq, diff_mask, binning):
     return s
 
 
-def paverage(particleList, norm, binning, verbose):
+def paverage(particleList, norm, binning, verbose, outdir='./'):
     from pytom_volume import read,vol
     from pytom_volume import transformSpline as transform
     from pytom.basic.structures import Particle
@@ -174,7 +176,7 @@ def paverage(particleList, norm, binning, verbose):
     newParticle = None
     
     for particleObject in particleList:
-        
+        #print(particleObject.getFilename())
         particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, binning,binning,binning)
         if norm:
             mean0std1(particle)
@@ -188,9 +190,9 @@ def paverage(particleList, norm, binning, verbose):
             
             newParticle = vol(sizeX,sizeY,sizeZ)
             
-            centerX = sizeX/2 
-            centerY = sizeY/2 
-            centerZ = sizeZ/2 
+            centerX = sizeX//2 
+            centerY = sizeY//2 
+            centerZ = sizeZ//2 
             
             result = vol(sizeX,sizeY,sizeZ)
             result.setAll(0.0)
@@ -209,8 +211,8 @@ def paverage(particleList, norm, binning, verbose):
         shiftV = particleObject.getShift()
         newParticle.setAll(0)
         transform(particle,newParticle,-rotation[1],-rotation[0],-rotation[2],
-            centerX,centerY,centerZ,-shiftV[0]/binning,
-        -shiftV[1]/binning,-shiftV[2]/binning,0,0,0)
+            centerX,centerY,centerZ,-shiftV[0]//binning,
+        -shiftV[1]//binning,-shiftV[2]//binning,0,0,0)
         
         result += newParticle
         
@@ -218,17 +220,21 @@ def paverage(particleList, norm, binning, verbose):
             numberAlignedParticles = numberAlignedParticles + 1
             progressBar.update(numberAlignedParticles)
 
-    
+
     # write to the disk
-    result.write('avg_'+str(mpi.rank)+'.em')
-    result = Particle('avg_'+str(mpi.rank)+'.em')
-    wedgeSum.write('wedge_'+str(mpi.rank)+'.em')
-    wedgeSum = Particle('wedge_'+str(mpi.rank)+'.em')
+
+    fname_result = os.path.join(outdir, 'avg_{}.em'.format(mpi.rank))
+    fname_wedge = os.path.join(outdir, 'wedge_{}.em'.format(mpi.rank))
+
+    result.write(fname_result)
+    result = Particle(fname_result)
+    wedgeSum.write(fname_wedge)
+    wedgeSum = Particle(fname_wedge)
     
     return (result, wedgeSum)
 
 
-def calculate_averages(pl, binning, mask):
+def calculate_averages(pl, binning, mask, outdir='./'):
     import os
     from pytom_volume import complexDiv
     from pytom.basic.fourier import fft,ifft
@@ -255,9 +261,9 @@ def calculate_averages(pl, binning, mask):
                 spp = mpi._split_seq(pp, mpi.size)
             else: # not enough particle to do averaging on one node
                 spp = [None] * 2
-                spp[0] = pp[:len(pp)/2]
-                spp[1] = pp[len(pp)/2:]
-            args = zip(spp, [True]*len(spp), [binning]*len(spp), [False]*len(spp))
+                spp[0] = pp[:len(pp)//2]
+                spp[1] = pp[len(pp)//2:]
+            args = list(zip(spp, [True]*len(spp), [binning]*len(spp), [False]*len(spp), [outdir]*len(spp)))
             avgs = mpi.parfor(paverage, args)
 
             even_a, even_w, odd_a, odd_w = None, None, None, None
@@ -285,7 +291,7 @@ def calculate_averages(pl, binning, mask):
                 os.remove(w.getFilename())
 
             # determine the resolution
-            fsc = FSC(even_a, odd_a, even_a.sizeX()/2, mask)
+            fsc = FSC(even_a, odd_a, even_a.sizeX()//2, mask)
             band = determineResolution(fsc, 0.5)[1]
 
             aa = even_a + odd_a
@@ -301,7 +307,7 @@ def calculate_averages(pl, binning, mask):
             ww2 = reducedToFull(ww)
             fftShift(ww2, True)
             wedgeSum[class_label] = ww2
-
+    print('done')
     return res, freqs, wedgeSum
 
 
@@ -314,7 +320,7 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
         mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
     pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
 
-    return (Shift([pos[0]-v.sizeX()/2, pos[1]-v.sizeY()/2, pos[2]-v.sizeZ()/2]), Rotation(angle), score, p.getFilename())
+    return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), Rotation(angle), score, p.getFilename())
 
 
 def score_noalign_proxy(p, ref, freq, offset, binning, mask):
@@ -333,9 +339,9 @@ def score_noalign_proxy(p, ref, freq, offset, binning, mask):
 
 def calculate_scores(pl, references, freqs, offset, binning, mask, noalign=False):
     res = {}
-    for c, ref in references.iteritems():
+    for c, ref in references.items():
         freq = int(freqs[c]) # get the corresponding frequency of this class
-        args = zip(pl, [ref]*len(pl), [freq]*len(pl), [offset]*len(pl), [binning]*len(pl), [mask]*len(pl))
+        args = list(zip(pl, [ref]*len(pl), [freq]*len(pl), [offset]*len(pl), [binning]*len(pl), [mask]*len(pl)))
         if noalign:
             scores = mpi.parfor(score_noalign_proxy, args)
         else:
@@ -365,12 +371,12 @@ def voting(p, i, scores, references, frequencies, dmaps, binning, noise):
         return new_label
 
     votes = defaultdict(lambda: 0)
-    class_labels = scores.keys()
+    class_labels = list(scores.keys())
     for c1, c2 in combinations(class_labels, 2):
-        if dmaps.has_key((c1, c2)):
+        if (c1, c2) in dmaps:
             dmap1 = dmaps[(c1, c2)][0]
             dmap2 = dmaps[(c1, c2)][1]
-        elif dmaps.has_key((c2, c1)):
+        elif (c2, c1) in dmaps:
             dmap2 = dmaps[(c2, c1)][0]
             dmap1 = dmaps[(c2, c1)][1]
         else:
@@ -391,7 +397,7 @@ def voting(p, i, scores, references, frequencies, dmaps, binning, noise):
 
     # count the votes and determine the class label
     peak = 0
-    for c, v in votes.iteritems():
+    for c, v in votes.items():
         if v > peak:
             peak = v
             new_label = c
@@ -403,7 +409,7 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
     # make sure the particle list and scores have the same order
     for i, p in enumerate(pl):
         fname1 = p.getFilename()
-        for label in scores.keys():
+        for label in list(scores.keys()):
             fname2 = scores[label][i][3]
             if fname1 != fname2:
                 raise Exception("Particle list and the scores do not have the same order!")
@@ -413,8 +419,8 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
 
     # track the class changes
     class_changes = {}
-    class_labels = scores.keys()
-    class_labels_with_noise = scores.keys()
+    class_labels = list(scores.keys())
+    class_labels_with_noise = list(scores.keys())
     if not '-1' in class_labels_with_noise: # append the noise class label
         class_labels_with_noise.append('-1')
     for c1 in class_labels_with_noise:
@@ -424,9 +430,9 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
     # calculate the probabilities of being noise class
     if noise_percentage:
         noise_prob_distribution = []
-        for i in xrange(len(pl)):
+        for i in range(len(pl)):
             prob = 1.
-            for label in scores.keys():
+            for label in list(scores.keys()):
                 prob *= calculate_prob(scores[label][i][2], scores[label])
             noise_prob_distribution.append(prob)
         prob_order = np.argsort(noise_prob_distribution)
@@ -435,7 +441,7 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
         noise = []
 
     # determine the class labels by voting
-    args = zip(pl, range(len(pl)), [scores]*len(pl), [references]*len(pl), [frequencies]*len(pl), [dmaps]*len(pl), [binning]*len(pl), [noise]*len(pl))
+    args = list(zip(pl, list(range(len(pl))), [scores]*len(pl), [references]*len(pl), [frequencies]*len(pl), [dmaps]*len(pl), [binning]*len(pl), [noise]*len(pl)))
     new_labels = mpi.parfor(voting, args)
     for i, p in enumerate(pl):
         old_label = p.getClass()
@@ -451,29 +457,37 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
             p.setScore(FRMScore(scores[new_label][i][2]))
 
         # track the changes
-        if class_changes.has_key((old_label, new_label)):
+        if (old_label, new_label) in class_changes:
             class_changes[(old_label, new_label)] += 1
 
 
     # print the changes
-    print "Class changes:"
-    print "   ",
+    print("Class changes:")
+    print("   ", end=' ')
     for c in class_labels_with_noise:
-        print "%3s" % str(c),
-    print
+        print("%3s" % str(c), end=' ')
+    print()
     for c1 in class_labels_with_noise:
-        print "%3s" % str(c1),
+        print("%3s" % str(c1), end=' ')
         for c2 in class_labels_with_noise:
-            print "%3d" % class_changes[(c1, c2)],
-        print
+            print("%3d" % class_changes[(c1, c2)], end=' ')
+        print()
 
     return pl
 
+def compare(l):
+    a,b = l
+
+    return cmp(len(a),len(b))
+
+def cmp(a,b):
+    return (a>b) - (a<b)
 
 def split_topn_classes(pls, n):
     # sort the particle list by the length
     assert len(pls) >= n
-    pls.sort(lambda x,y: -cmp(len(x), len(y)))
+
+    pls.sort(key=lambda a:len(a))
 
     # find the maximal running label
     max_label = -1
@@ -494,14 +508,14 @@ def split_topn_classes(pls, n):
         if i<n:
             pp.sortByScore()
             l = len(pp)
-            p1 = pp[:l/2]
-            p2 = pp[l/2:]
+            p1 = pp[:l//2]
+            p2 = pp[l//2:]
 
             p1.setClassAllParticles(str(max_label+1))
             p2.setClassAllParticles(str(max_label+2))
             new_pls.append(p1)
             new_pls.append(p2)
-            print "Split class %s to %s and %s" % (class_label, str(max_label+1), str(max_label+2))
+            print("Split class %s to %s and %s" % (class_label, str(max_label+1), str(max_label+2)))
             max_label += 2
 
             i += 1
@@ -545,7 +559,7 @@ def distance(p, ref, freq, mask, binning):
 
     if not mask:
         mask = vol(r)
-        initSphere(mask, r.sizeX()/2-3, 3, 0, r.sizeX()/2, r.sizeY()/2, r.sizeZ()/2)
+        initSphere(mask, r.sizeX()//2-3, 3, 0, r.sizeX()//2, r.sizeY()//2, r.sizeZ()//2)
     else:
         mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
 
@@ -560,7 +574,7 @@ def initialize(pl, settings):
     # from pytom.alignment.alignmentFunctions import average2
     from pytom.basic.filter import lowpassFilter
 
-    print "Initializing the class centroids ..."
+    print("Initializing the class centroids ...")
     pl = pl.copy()
     pl.sortByScore()
     if settings["noise"]:
@@ -568,7 +582,7 @@ def initialize(pl, settings):
 
     K = settings["ncluster"]
     freq = settings["frequency"]
-    kn = len(pl)/K
+    kn = len(pl)//K 
     references = {}
     frequencies = {}
 
@@ -576,21 +590,21 @@ def initialize(pl, settings):
     pp = pl[:kn]
     # avg, fsc = average2(pp, norm=True, verbose=False)
     pp.setClassAllParticles('0')
-    res, tmp, tmp2 = calculate_averages(pp, settings["binning"], None)
+    res, tmp, tmp2 = calculate_averages(pp, settings["binning"], None, outdir=settings["output_directory"])
     avg = res['0']
     avg = lowpassFilter(avg, freq, freq/10.)[0]
-    avg.write('initial_0.em')
-    p = Particle('initial_0.em')
+    avg.write(os.path.join(settings['output_directory'], 'initial_0.em') )
+    p = Particle(os.path.join(settings['output_directory'], 'initial_0.em'))
     p.setClass('0')
     references['0'] = p
     frequencies['0'] = freq
 
-    for k in xrange(1, K):
+    for k in range(1, K):
         distances = [4]*len(pl)
-        for c, ref in references.iteritems():
-            args = zip(pl, [ref]*len(pl), [freq]*len(pl), [settings["fmask"]]*len(pl), [settings["binning"]]*len(pl))
+        for c, ref in references.items():
+            args = list(zip(pl, [ref]*len(pl), [freq]*len(pl), [settings["fmask"]]*len(pl), [settings["binning"]]*len(pl)))
             dist = mpi.parfor(distance, args)
-            for i in xrange(len(pl)):
+            for i in range(len(pl)):
                 if distances[i] > dist[i]:
                     distances[i] = dist[i]
 
@@ -602,11 +616,12 @@ def initialize(pl, settings):
             pp.append(pl[int(i)])
         # avg, fsc = average2(pp, norm=True, verbose=False)
         pp.setClassAllParticles('0')
-        res, tmp, tmp2 = calculate_averages(pp, settings["binning"], None)
+        res, tmp, tmp2 = calculate_averages(pp, settings["binning"], None, outdir=settings["output_directory"])
         avg = res['0']
         avg = lowpassFilter(avg, freq, freq/10.)[0]
-        avg.write('initial_'+str(k)+'.em')
-        p = Particle('initial_'+str(k)+'.em')
+        kname = os.path.join(settings['output_directory'], 'initial_{}.em'.format(k))
+        avg.write(kname)
+        p = Particle(kname)
         p.setClass(str(k))
         references[str(k)] = p
         frequencies[str(k)] = freq
@@ -626,6 +641,7 @@ def classify(pl, settings):
     binning = settings["binning"]
     mask = settings["mask"]
     sfrequency = settings["frequency"] # starting frequency
+    outdir = settings["output_directory"]
 
     references = {}
     frequencies = {}
@@ -640,17 +656,17 @@ def classify(pl, settings):
     else:
         if not settings["resume"]:
             if not settings["ncluster"]:
-                print "Must specify the number of clusters!"
+                print("Must specify the number of clusters!")
                 return
 
             # k-means++ way to initialize
             ncluster = settings["ncluster"]
             references, frequencies = initialize(pl, settings)
         else:
-            avgs, tmp, tmp2 = calculate_averages(pl, binning, mask)
+            avgs, tmp, tmp2 = calculate_averages(pl, binning, mask, outdir=outdir)
 
-            for class_label, r in avgs.iteritems():
-                fname = 'initial_class'+str(class_label)+'.em'
+            for class_label, r in avgs.items():
+                fname = os.path.join(outdir, 'initial_class'+str(class_label)+'.em')
                 rr = lowpassFilter(r, sfrequency, sfrequency/10.)[0]
                 rr.write(fname)
                 p = Particle(fname)
@@ -660,19 +676,21 @@ def classify(pl, settings):
                 ncluster += 1
 
     # start the classification
-    for i in xrange(settings["niteration"]):
+    for i in range(settings["niteration"]):
         if ncluster < 2:
-            print 'Not enough number of clusters. Exit!'
+            print('Not enough number of clusters. Exit!')
             break
 
-        print "Starting iteration %d ..." % i
+        print("Starting iteration %d ..." % i)
         old_pl = pl.copy()
 
         # compute the difference maps
-        print "Calculate difference maps ..."
+        print("Calculate difference maps ...")
         args = []
-        for pair in combinations(references.keys(), 2):
-            args.append((references[pair[0]], frequencies[pair[0]], references[pair[1]], frequencies[pair[1]], mask, settings["fmask"], binning, i, settings["sigma"], settings["threshold"]))
+        for pair in combinations(list(references.keys()), 2):
+            args.append((references[pair[0]], frequencies[pair[0]], references[pair[1]], frequencies[pair[1]], mask,
+                         settings["fmask"], binning, i, settings["sigma"], settings["threshold"],
+                         outdir))
 
         dmaps = {}
         res = mpi.parfor(calculate_difference_map_proxy, args)
@@ -681,7 +699,7 @@ def classify(pl, settings):
 
 
         # start the alignments
-        print "Start alignments ..."
+        print("Start alignments ...")
         scores = calculate_scores(pl, references, frequencies, offset, binning, mask, settings["noalign"])
 
         # determine the class labels & track the class changes
@@ -692,38 +710,38 @@ def classify(pl, settings):
         nlabels = {}
         for pp in pls:
             nlabels[pp[0].getClass()] = len(pp)
-            print "Number of class " + str(pp[0].getClass()) + ": " + str(len(pp))
+            print("Number of class " + str(pp[0].getClass()) + ": " + str(len(pp)))
 
-        max_labels = np.max(nlabels.values())
+        max_labels = np.max(list(nlabels.values()))
         to_delete = []
         if settings["dispersion"]:
             min_labels = float(max_labels)/settings["dispersion"]
-            for key, value in nlabels.iteritems():
+            for key, value in nlabels.items():
                 if value <= min_labels:
                     to_delete.append(key)
 
         for pp in pls:
             if pp[0].getClass() in to_delete:
                 pp.setClassAllParticles('-1')
-                print "Set class " + str(pp[0].getClass()) + " to noise"
+                print("Set class " + str(pp[0].getClass()) + " to noise")
 
         # split the top n classes
         pl = split_topn_classes(pls, len(to_delete))
         
         # update the references
-        print "Calculate averages ..."
-        avgs, freqs, wedgeSum = calculate_averages(pl, binning, mask)
+        print("Calculate averages ...")
+        avgs, freqs, wedgeSum = calculate_averages(pl, binning, mask, outdir=outdir)
         ncluster = 0
         references = {}
-        for class_label, r in avgs.iteritems():
+        for class_label, r in avgs.items():
             if not settings["fixed_frequency"]:
                 freq = freqs[str(class_label)]
             else:
                 freq = sfrequency
             frequencies[str(class_label)] = int(freq)
-            print 'Resolution of class %s: %d' % (str(class_label), freq)
+            print('Resolution of class %s: %d' % (str(class_label), freq))
 
-            fname = 'iter'+str(i)+'_class'+str(class_label)+'.em'
+            fname = os.path.join(outdir, 'iter'+str(i)+'_class'+str(class_label)+'.em')
             rr = lowpassFilter(r, freq, freq/10.)[0]
             rr.write(fname)
             p = Particle(fname)
@@ -732,11 +750,11 @@ def classify(pl, settings):
             ncluster += 1
 
             w = wedgeSum[str(class_label)]
-            fname = 'iter'+str(i)+'_class'+str(class_label)+'_wedge.em'
+            fname = os.path.join(outdir, 'iter'+str(i)+'_class'+str(class_label)+'_wedge.em')
             w.write(fname)
 
         # write the result to the disk
-        pl.toXMLFile('classified_pl_iter'+str(i)+'.xml')
+        pl.toXMLFile(os.path.join(outdir, 'classified_pl_iter'+str(i)+'.xml'))
         
         # check the stopping criterion
         if compare_pl(old_pl, pl):
@@ -754,6 +772,8 @@ if __name__ == '__main__':
                       help="Number of classes")
     parser.add_option("-f", dest="frequency",
                       help="Maximal frequency (in pixel) involved in score calculation")
+    parser.add_option("-o", dest="output_directory",
+                      help="Output directory (optional)")
     parser.add_option("-s", dest="offset",
                       help="Potential offset of the particle (optional)")
     parser.add_option("-b", dest="binning",
@@ -801,6 +821,7 @@ if __name__ == '__main__':
     settings["threshold"] = float(options.threshold) if options.threshold else 0.4
     settings["noise"] = float(options.noise) if options.noise else None
     settings["noalign"] = options.noalign
+    settings['output_directory'] = options.output_directory if options.output_directory else './'
     if settings["noise"]:
         assert settings["noise"] > 0 and settings["noise"] < 1
 
@@ -813,8 +834,8 @@ if __name__ == '__main__':
         pl.fromXMLFile(options.filename)
 
         classify(pl, settings)
-    except Exception, e:
-        print e
+    except Exception as e:
+        print(e)
     finally:
         mpi.end()
 

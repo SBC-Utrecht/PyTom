@@ -197,7 +197,7 @@ class GlobalSampling(AngleObject):
         return len(self._angleList) 
     
     def __getitem__(self,key):
-        if isinstance(key, (int, long)):
+        if isinstance(key, int):
             
             if key < self.numberRotations():
                 return self._angleList[key];
@@ -205,17 +205,19 @@ class GlobalSampling(AngleObject):
                 raise IndexError('Index out of range.');
             
         elif key.__class__ == slice:
-            
+
             start = key.start
             stop = key.stop
             step = key.step
-            
-            if stop >= 922337203685477580:
-                stop = self.numberRotations()
+            print(key)
+            if start ==None: start= 0
+            if step == None: step = 1
+
+            if stop ==None or stop >= 922337203685477580:
+                stop = int(self.numberRotations())
                 
             rotations = []
-            
-            for r in self._angleList[start:stop:step]:
+            for r in self._angleList[int(start):int(stop):int(step)]:
                 rotations.append(r)
                 
             return rotations

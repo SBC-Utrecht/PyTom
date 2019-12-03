@@ -50,7 +50,7 @@ def calculateCorrelationVector(particle,particleList,mask,particleIndex,applyWed
     
     bandpassFilterObject = None
     
-    for particleIndex in xrange(len(particleList)):
+    for particleIndex in range(len(particleList)):
         
         otherParticle = particleList[particleIndex]
         
@@ -123,12 +123,12 @@ def calculateCorrelationVector(particle,particleList,mask,particleIndex,applyWed
                 bandpassFilterObject = r[1]
                 #print 'calculateCorrelationVector : Init bandpass'
             else:
-                r = filter(particleVolume,bandpassFilterObject)
+                r = list(filter(particleVolume,bandpassFilterObject))
                 particleVolume = r[0]
                 
                 #print 'calculateCorrelationVector : existing bandpass'
                 
-            r = filter(otherParticleVolume,bandpassFilterObject)
+            r = list(filter(otherParticleVolume,bandpassFilterObject))
             otherParticleVolume = r[0]
         
         #particleVolume.write('p.em')
@@ -139,8 +139,8 @@ def calculateCorrelationVector(particle,particleList,mask,particleIndex,applyWed
         value = sc.scoringCoefficient(otherParticleVolume,particleVolume,mask)
         
         if value != value:
-            print 'Error during calculation of correlationMatrix! Check files written to disk (error_part.em,error_otherPart.em). ABORTING!'
-            print particle.getFilename(),otherParticle.getFilename()
+            print('Error during calculation of correlationMatrix! Check files written to disk (error_part.em,error_otherPart.em). ABORTING!')
+            print(particle.getFilename(),otherParticle.getFilename())
             particleVolume.write('error_part.em')
             otherParticleVolume.write('error_otherPart.em')
             
@@ -207,7 +207,7 @@ class CMManager():
         
         self._correlationMatrix.setV(1,particleIndex,particleIndex,0)
         
-        for vectorIndex in xrange(len(vector)):
+        for vectorIndex in range(len(vector)):
             
             value = vector[vectorIndex]
             
@@ -236,7 +236,7 @@ class CMManager():
         
         
         #distribute on all nodes
-        for nodeIndex in xrange(1,mpi_numberNodes):
+        for nodeIndex in range(1,mpi_numberNodes):
             
             if particleIndex < len(self._particleList):
                 
@@ -250,7 +250,7 @@ class CMManager():
                 jobMsg.setJob(job)
                 
                 if verbose:
-                    print jobMsg
+                    print(jobMsg)
                 
                 pytom_mpi.send(str(jobMsg),nodeIndex)
                     
@@ -266,7 +266,7 @@ class CMManager():
             mpi_msgString = pytom_mpi.receive()
             
             if verbose:
-                print mpi_msgString
+                print(mpi_msgString)
             
             correlationVectorMsg = CorrelationVectorMessage()
             correlationVectorMsg.fromStr(mpi_msgString)
@@ -309,7 +309,7 @@ class CMManager():
         """
         from pytom.cluster.correlationMatrixStructures import CorrelationVectorJob
         
-        for particleIndex in xrange(len(self._particleList)-1):
+        for particleIndex in range(len(self._particleList)-1):
 
             particle = self._particleList[particleIndex]
             reducedParticleList = self._particleList[particleIndex+1:]
@@ -432,7 +432,7 @@ def distributedCorrelationMatrix(job,verbose=False):
                 mpi_msg = pytom_mpi.receive()
                 
                 if verbose:
-                    print mpi_msg
+                    print(mpi_msg)
                     
                 try:
                     msg = CorrelationVectorJobMessage()
@@ -446,7 +446,7 @@ def distributedCorrelationMatrix(job,verbose=False):
                     
                     #worker.dumpMsg2Log('node'+mpi_myid.__str__()+'.log', resultMessage.__str__())
                     if verbose and False:
-                        print resultMessage
+                        print(resultMessage)
                         
                     pytom_mpi.send(resultMessage.__str__(),0)
                     
@@ -455,9 +455,9 @@ def distributedCorrelationMatrix(job,verbose=False):
                     msg.fromStr(mpi_msg)
                     if msg.getStatus() == 'End':
                         end = True
-            print 'Node ' + mpi_myid.__str__() + ' finished'
+            print('Node ' + mpi_myid.__str__() + ' finished')
     else:
-        print 'Sequential Processing! Running on one machine only!'
+        print('Sequential Processing! Running on one machine only!')
         manager = CMManager(job)
         
         manager.calculateMatrix()
@@ -493,8 +493,8 @@ def decomposeMatrix(matrixFile):
     except ImportError:
         #numpy did not work. copy each entry into string and proceed, takes long time
         
-        for x in xrange(corrMatrix.sizeX()):
-            for y in xrange(corrMatrix.sizeY()):
+        for x in range(corrMatrix.sizeX()):
+            for y in range(corrMatrix.sizeY()):
                 matStr = matStr + ' ' + str(corrMatrix.getV(x,y,0))
             if x < (corrMatrix.sizeX() -1):      
                 matStr = matStr + ';'
@@ -513,7 +513,7 @@ def scaleEigenVectors(eigenValues,eigenVectors):
     """
     from numpy import sqrt
     
-    for i in xrange(len(eigenValues)):
+    for i in range(len(eigenValues)):
         eigenVectors[i] = sqrt(abs(eigenValues[i])) * eigenVectors[i]
     
     return eigenVectors
@@ -545,11 +545,11 @@ def clusterMatrix(matrix,clusterAlgorithm='Hierarchical',numberClusters = 5,numb
         
         distances = pdist(eigenVectors)
         if verbose:
-            print distances
+            print(distances)
     
         linkage = average(distances)
         if verbose:
-            print linkage
+            print(linkage)
         
         if verbose:
             dendrogram(linkage)
@@ -561,7 +561,7 @@ def clusterMatrix(matrix,clusterAlgorithm='Hierarchical',numberClusters = 5,numb
         from scipy.cluster.vq import kmeans2
         
         #reduce array size according to numberEigenVectors    
-        print eigenVectors[:,0:numberEigenVectors]
+        print(eigenVectors[:,0:numberEigenVectors])
         #perform kmeans
         [centroids,clusterLabels] = kmeans2(eigenVectors[:,0:numberEigenVectors],numberClusters,10,'random')
         

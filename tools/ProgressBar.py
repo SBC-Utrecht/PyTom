@@ -87,39 +87,39 @@ class FixedProgBar:
     def update(self, new):
         self.prog.update_amount(new)
         if self.oldstr != str(self.prog):
-            print self.prog, "\r",
+            print(self.prog, "\r", end=' ')
             sys.stdout.flush()
             self.oldstr=str(self.prog)
         if new == self.prog.max:
-            print '\n'
+            print('\n')
 
 def main():
-    print
+    print()
     limit = 1000000
  
-    print 'Example 1: Fixed Bar'
+    print('Example 1: Fixed Bar')
     prog = ProgressBar(0, limit, 77, mode='fixed')
     oldprog = str(prog)
-    for i in xrange(limit+1):
+    for i in range(limit+1):
         prog.update_amount(i)
         if oldprog != str(prog):
-            print prog, "\r",
+            print(prog, "\r", end=' ')
             sys.stdout.flush()
             oldprog=str(prog)
  
-    print '\n\n'
+    print('\n\n')
  
-    print 'Example 2: Dynamic Bar'
+    print('Example 2: Dynamic Bar')
     prog = ProgressBar(0, limit, 77, mode='dynamic', char='-')
     oldprog = str(prog)
-    for i in xrange(limit+1):
+    for i in range(limit+1):
         prog.increment_amount()
         if oldprog != str(prog):
-            print prog, "\r",
+            print(prog, "\r", end=' ')
             sys.stdout.flush()
             oldprog=str(prog)
  
-    print '\n\n'
+    print('\n\n')
  
  
 if __name__ == '__main__':

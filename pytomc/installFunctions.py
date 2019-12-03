@@ -1,25 +1,25 @@
 import os
 
 def help():
-    print 'PyTom compile script'
-    print ''
-    print 'OPTIONS'
-    print '--libDir             Specify multiple directories for dynamic library search'
-    print '--includeDir         Specify multiple directories for header file search'
-    print '--exeDir             Specify multiple directories for excecuteable search'
-    print '--pythonVersion      Specify a python version you want to link against if you have many (2.5, 2.6 ...)'
-    print '--target             Specify which build target you like'
-    print '                     all         : build everything'
-    print '                     swig        : build swig modules only (part of all)'
-    print '                     libtomc     : build C++ libraries only (part of all)'
-    print '                     np          : build numpy interface (part of all)'
-    print '                     smpi        : build mpi module (part of all)'
-    print '                     clean       : clean all files'
-    print '                     cleanswig   : clean all swig files'
-    print '                     cleanlibtomc: clean C++ libraries'
-    print '                     check       : check if compile was correct'
-    print ''
-    print 'Good luck!'
+    print('PyTom compile script')
+    print('')
+    print('OPTIONS')
+    print('--libDir             Specify multiple directories for dynamic library search')
+    print('--includeDir         Specify multiple directories for header file search')
+    print('--exeDir             Specify multiple directories for excecuteable search')
+    print('--pythonVersion      Specify a python version you want to link against if you have many (2.5, 2.6 ...)')
+    print('--target             Specify which build target you like')
+    print('                     all         : build everything')
+    print('                     swig        : build swig modules only (part of all)')
+    print('                     libtomc     : build C++ libraries only (part of all)')
+    print('                     np          : build numpy interface (part of all)')
+    print('                     smpi        : build mpi module (part of all)')
+    print('                     clean       : clean all files')
+    print('                     cleanswig   : clean all swig files')
+    print('                     cleanlibtomc: clean C++ libraries')
+    print('                     check       : check if compile was correct')
+    print('')
+    print('Good luck!')
     
 def parseArguments(args):
     libParameter        = '--libDir'
@@ -34,7 +34,7 @@ def parseArguments(args):
     pythonIndex = None
     targetIndex = None
     
-    for i in xrange(len(args)):
+    for i in range(len(args)):
         
         if libParameter in args[i]:    
             libIndex = i
@@ -52,7 +52,7 @@ def parseArguments(args):
     exePaths = []
 
     if libIndex != None:
-        for libIterator in xrange(libIndex+1,len(args)):
+        for libIterator in range(libIndex+1,len(args)):
             otherKeyword = incParameter in args[libIterator] or exeParameter in args[libIterator] or pythonVersion in args[libIterator] or target in args[libIterator]
             
             if not otherKeyword:
@@ -61,7 +61,7 @@ def parseArguments(args):
             else:
                 break
     if incIndex  != None:  
-        for incIterator in xrange(incIndex+1,len(args)):
+        for incIterator in range(incIndex+1,len(args)):
             otherKeyword = libParameter in args[incIterator] or exeParameter in args[incIterator] or pythonVersion in args[incIterator] or target in args[incIterator]
             
             if not otherKeyword:
@@ -70,7 +70,7 @@ def parseArguments(args):
             else:
                 break    
     if exeIndex  != None:            
-        for exeIterator in xrange(exeIndex+1,len(args)):
+        for exeIterator in range(exeIndex+1,len(args)):
             otherKeyword = incParameter in args[exeIterator] or libParameter in args[exeIterator] or pythonVersion in args[exeIterator] or target in args[exeIterator]
             
             if not otherKeyword:
@@ -97,7 +97,8 @@ def find_file(name, dir):
     for root, dirnames, filenames in os.walk(dir):
         if name in filenames:
             return root
-	return None
+
+    return None
 
 def find_dir(dirname, dir):
     """
@@ -109,7 +110,7 @@ def find_dir(dirname, dir):
             if dirname in directory:
                 return root + os.sep + directory
 
-	return None
+    return None
 
 def findDir(dirname,dirs):
     for directory in dirs:
@@ -148,10 +149,10 @@ def findObj(obj, searchDir):
     for dir in searchDir:
         parentDir = find_file(obj, dir)
         if parentDir:
-            print 'Searching : ' , obj, '\t\t Found : ', True
+            print('Searching : ' , obj, '\t\t Found : ', True)
             return parentDir
     else:
-        print 'Searching : ' , obj, '\t\t Found : ', False
+        print('Searching : ' , obj, '\t\t Found : ', False)
         return None
 
 def adjustLibraryVersions(library,versionList,flag,extension, search_dir):
@@ -173,23 +174,25 @@ def adjustLibraryVersions(library,versionList,flag,extension, search_dir):
     
     
     
-def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None):
+def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None,python_version=''):
     
     os.chdir('..')
     pytomDirectory = os.getcwd()
     os.chdir(pytomDirectory + os.sep + 'bin')
     os.chdir(pytomDirectory + os.sep + 'pytomc')
-    generatePyTomScript(pytomDirectory)
+    generatePyTomScript(pytomDirectory, python_version)
     generateIPyTomScript(pytomDirectory)
     generatePathsFile(pytomDirectory,libPaths,binPaths,pyPaths)
     
     
-def generatePyTomScript(pytomDirectory):
+
+def generatePyTomScript(pytomDirectory,python_version):
+
 
     pytomCommand = '#!/usr/bin/env csh\n'
     pytomCommand += 'cat ' + pytomDirectory + os.sep + 'LICENSE.txt\n'
     pytomCommand += 'source ' + pytomDirectory + os.sep + 'bin' + os.sep + 'paths.csh\n'
-    pytomCommand += 'python -O $*\n'
+    pytomCommand += 'python{} -O $*\n'.format(python_version)
     
     f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'pytom','w')
     f.write(pytomCommand)
@@ -212,7 +215,7 @@ def generateIPyTomScript(pytomDirectory):
     os.system('chmod 755 ' + pytomDirectory + os.sep + 'bin' + os.sep + 'ipytom')
     
     
-def generatePathsFile(pytomDirectory,libPaths,binPaths,pyPaths):
+def generatePathsFile(pytomDirectory,libPaths, binPaths, pyPaths):
         os.chdir(pytomDirectory + os.sep + '..')
         oneAbove = os.getcwd()
         os.chdir(pytomDirectory)
@@ -248,15 +251,15 @@ def generatePathsFile(pytomDirectory,libPaths,binPaths,pyPaths):
             binString = binString[0:-1]
              
             cshCommands += 'if ($?PATH>0) then\n'
-            cshCommands += "setenv PATH '" + binString + "':$PATH\n"
+            cshCommands += "setenv PATH '" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + "':$PATH\n"
             cshCommands += "else\n"
-            cshCommands += "setenv PATH '" + binString + "'\n"
+            cshCommands += "setenv PATH '" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + "'\n"
             cshCommands += "endif\n\n"
             
         cshCommands += "if ($?PYTHONPATH>0) then\n"
-        cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + "':'" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules':$PYTHONPATH\n"
+        cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules':$PYTHONPATH\n"
         cshCommands += "else\n"
-        cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + "':'" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules'\n"
+        cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules'\n"
         cshCommands += "endif\n\n"
  
         f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'paths.csh','w')
@@ -287,7 +290,7 @@ def _readStringFile(filename):
         for line in f:
             lines = lines + line
     except :
-        print 'Error reading ' + filename + '!'
+        print('Error reading ' + filename + '!')
         assert False
     finally:
         f.close()
@@ -296,7 +299,7 @@ def _readStringFile(filename):
 
 def checkSwigVersion():
     """
-    checkSwigVersion: Returns true if swig version is below 1.3.40
+    checkSwigVersion: Returns true if swig version is below 3.0.12
     """
     from os import system
     
@@ -307,5 +310,5 @@ def checkSwigVersion():
     txts = txt.split(' ')
     versionString = txts[-1].split('\n')[0]
     
-    return versionString < '1.3.40'
+    return versionString < '3.0.12'
     

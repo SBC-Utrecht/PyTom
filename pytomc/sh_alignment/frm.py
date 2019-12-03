@@ -6,7 +6,7 @@ Created on Sep 16, 2011
 
 import numpy as np
 import swig_frm # the path of this swig module should be set correctly in $PYTHONPATH
-from vol2sf import vol2sf
+from .vol2sf import vol2sf
 
 
 def enlarge2(corr):
@@ -60,8 +60,8 @@ def create_wedge_sf(start, end, b, valIn=1.0, valOut=0.0):
     res = []
     angle_range = [-end, -start]
     
-    for j in xrange(2*b):
-        for k in xrange(2*b):
+    for j in range(2*b):
+        for k in range(2*b):
             the = pi*(2*j+1)/(4*b) # (0,pi)
             phi = pi*k/b # [0,2*pi)
             
@@ -118,7 +118,7 @@ def frm_corr_peaks(f, g, npeaks=10, norm=False):
         raise RuntimeError('Something is wrong during FRM!')
     
     res = []
-    for i in xrange(npeaks):
+    for i in range(npeaks):
         if peaks[i*4] != 0: # reorder the result angles in pytom convention (phi, psi, the)
             psi = peaks[i*4+1]
             the = peaks[i*4+2]
@@ -326,7 +326,7 @@ def frm_vol(v1, v2, b, radius=None):
         radius = v1.sizeX()/2
     
     res = np.zeros((2*b, 2*b, 2*b))
-    for r in xrange(1, radius+1):
+    for r in range(1, radius+1):
         corr = frm_corr(vol2sf(v1, r, b), vol2sf(v2, r, b))
         res += corr*(r**2) # should multiply by r**2
     
@@ -364,7 +364,7 @@ def frm_constrained_vol(v1, m1, v2, m2, b, radius=None):
         radius = v1.sizeX()/2
     
     res = np.zeros((2*b, 2*b, 2*b))
-    for r in xrange(1, radius+1):
+    for r in range(1, radius+1):
         corr = frm_constrained_corr(vol2sf(v1, r, b), m1, vol2sf(v2, r, b), m2)
         res += corr*(r**2) # should multiply by r**2
     
@@ -670,7 +670,7 @@ def frm_find_topn_angles_interp(corr, n=5, dist=3.0):
     res = []
     sort = corr.argsort(axis=None)
     
-    for i in xrange(len(sort)-1, -1, -1):
+    for i in range(len(sort)-1, -1, -1):
         x,y,z = np_transfer_idx(sort[i], corr.shape)
         # ang = frm_idx2angle(b, x, y, z)
         pos, peak = find_subpixel_peak_position(corr, [x, y, z])
@@ -713,7 +713,7 @@ def frm_find_topn_angles_interp2(corr, n=5, dist_cut=3.0):
 
     nx, ny, nz = corr.shape
     corr = corr.reshape((nx*ny*nz,))
-    b = nx/2
+    b = nx//2
 
     peaks = np.zeros((n*4,), dtype='double')
     
@@ -864,7 +864,7 @@ def get_adaptive_bw(k, b=None):
     elif b.__class__ == tuple or b.__class__ == list:
         b_min = b[0]
         b_max = b[1]
-    elif isinstance(b, (int, long)): # fixed bandwidth
+    elif isinstance(b, int): # fixed bandwidth
         b_min = b
         b_max = b
     else:
@@ -924,11 +924,11 @@ def frm_correlate(vf, wf, vg, wg, b, max_freq, weights=None, ps=False, denominat
     If return_score is set to True, return the correlation function; otherwise return the intermediate result.
     """
     if not weights: # weights, not used yet
-        weights = [1 for i in xrange(max_freq)]
+        weights = [1 for i in range(max_freq)]
 
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
     from pytom_volume import vol, reducedToFull, abs, real, imag, rescale
-    from vol2sf import vol2sf
+    from .vol2sf import vol2sf
     from math import log, ceil, pow
 
     # IMPORTANT!!! Should firstly do the IFFTSHIFT on the volume data (NOT FFTSHIFT since for odd-sized data it matters!),
@@ -958,7 +958,7 @@ def frm_correlate(vf, wf, vg, wg, b, max_freq, weights=None, ps=False, denominat
     _last_bw = 0
     # might be a better idea to start from 2 due to the bad interpolation around 0 frequency!
     # this can be better solved by NFFT!
-    for r in xrange(1, max_freq+1):
+    for r in range(1, max_freq+1):
         # calculate the appropriate bw
         bw = get_adaptive_bw(r, b)
 
@@ -1085,7 +1085,7 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
     if peak_offset is None:
         peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(peak_offset, vf.sizeX()/4, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
-    elif isinstance(peak_offset, (int, long)):
+    elif isinstance(peak_offset, int):
         peak_radius = peak_offset
         peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
@@ -1130,13 +1130,13 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
     max_position = None
     max_orientation = None
     max_value = -1.0
-    for i in xrange(num_seeds):
+    for i in range(num_seeds):
         old_pos = [-1, -1, -1]
         lm_pos = [-1, -1, -1]
         lm_ang = None
         lm_value = -1.0
         orientation = res[i][0] # initial orientation
-        for j in xrange(max_iter):
+        for j in range(max_iter):
             rotateSpline(vg, vg2, orientation[0], orientation[1], orientation[2]) # first rotate
             rotateSpline(mask, mask2, orientation[0], orientation[1], orientation[2]) # rotate the mask as well
             vg2 = wf.apply(vg2) # then apply the wedge

@@ -23,7 +23,7 @@ class LocalSampling(AngleObject):
         """
         from pytom.basic.structures import Rotation
         self._shells = float(shells)
-            
+
         if increment == 0.0:
             raise ValueError('LocalSampling : Increment is 0!')
         else:
@@ -36,6 +36,7 @@ class LocalSampling(AngleObject):
         
         # initialize final rotation around z-axis of REFERENCE
         self.reset()
+
         
     def setStartRotation(self,startRotation):
         """
@@ -181,16 +182,25 @@ class LocalSampling(AngleObject):
         
     def toXML(self):
         from lxml import etree
-               
-        angles_element = etree.Element("Angles",Type = 'LocalSampling')
-       
-        angles_element.set("Increment", str(self._increment)) 
-        angles_element.set("Shells", str(self._shells))
-        angles_element.set("StartZ1", str(self._startZ1))
-        angles_element.set("StartZ2", str(self._startZ2))
-        angles_element.set("StartX", str(self._startX))
-        
-        return angles_element 
+
+        try:
+            angles_element = etree.Element("Angles",Type = 'AV3Sampling')
+            angles_element.set("Increment", str(self._increment))
+            angles_element.set("Shells", str(self._shells))
+            angles_element.set("Phi_old", str(self._startZ1))
+            angles_element.set("Psi_old", str(self._startZ2))
+            angles_element.set("Theta_old", str(self._startX))
+            angles_element.set("ShellsParameter", str(self._shellsParameter))
+            angles_element.set("IncrementParameter", str(self._incrementParameter))
+        except:
+            angles_element = etree.Element("Angles", Type='LocalSampling')
+            angles_element.set("Increment", str(self._increment))
+            angles_element.set("Shells", str(self._shells))
+            angles_element.set("StartZ1", str(self._startZ1))
+            angles_element.set("StartZ2", str(self._startZ2))
+            angles_element.set("StartX", str(self._startX))
+
+        return angles_element
         
     def fromXML(self,xmlObj=-1):
         """
@@ -206,7 +216,7 @@ class LocalSampling(AngleObject):
         
         if xmlObj.get('Type') == 'Equidistant':
             xmlObj = xmlObj.xpath('Parameters')[0]
-            
+
         try:    
             self._increment = float(xmlObj.get('Increment'))
         except TypeError:
@@ -219,20 +229,31 @@ class LocalSampling(AngleObject):
             
         try:
             self._startZ1    = float(xmlObj.get('StartZ1'))
+            self.av3 = False
         except:
             self._startZ1    = float(xmlObj.get('Phi_old'))
-            
+            self.av3 = True
         try:
             self._startZ2    = float(xmlObj.get('StartZ2'))
         except:
             self._startZ2    = float(xmlObj.get('Psi_old'))
-            
         try:
             self._startX    = float(xmlObj.get('StartX'))
         except:
             self._startX  = float(xmlObj.get('Theta_old'))
 
+        if self.av3:
+            try:
+                self._shellsParameter = int(xmlObj.get('ShellsParameter'))
+            except TypeError:
+                raise Exception('No ShellsParameter Defined')
+            try:
+                self._incrementParameter = int(xmlObj.get('IncrementParameter'))
+            except TypeError:
+                raise Exception('No IncrementParameter Defined')
+
         self.reset()
+
         self.setStartRotation(startRotation=Rotation(z1=self._startZ1, z2=self._startZ2, x=self._startX))
     
     def numberRotations(self):
@@ -251,7 +272,8 @@ class LocalSampling(AngleObject):
         self.reset()
         
         return counter
-            
+
+
     def reset(self):
         """
         reset: Resets the object that nextRotation would return the same sequence of results again
@@ -352,7 +374,7 @@ class ExtendedInplaneSampling(AngleList):
     
     def _initRotationList(self):
         
-        for currentShell in xrange(self._numberShells+1):
+        for currentShell in range(self._numberShells+1):
             
             if currentShell == 0.0:
                 self._rotationList = self._rotationList + self._doAllInplaneRotations(self._startZ2, self._startX)

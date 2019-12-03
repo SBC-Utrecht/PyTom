@@ -37,7 +37,7 @@ class ParallelWorker(PyTomClass):
         """
         run: Overwrite this function to define specific processing procedures of your jobs 
         """
-        print 'You forgot to overwrite run in your worker class'
+        print('You forgot to overwrite run in your worker class')
         assert False
     
     def getMsgObject(self, msgString):
@@ -45,14 +45,14 @@ class ParallelWorker(PyTomClass):
         getMsgObject: Parse message object from string. \
         Must overwrite this function and specify which message to listen to.
         """
-        print 'You forgot to overwrite getMsgObject in your worker class'
+        print('You forgot to overwrite getMsgObject in your worker class')
         assert False
     
     def setJob(self, jobMessage):
         """
         setJob:
         """
-        print 'You forgot to overwrite setJob in your worker class'
+        print('You forgot to overwrite setJob in your worker class')
         assert False
     
       
@@ -81,7 +81,7 @@ class ParallelWorker(PyTomClass):
             else: 
                 numberJobsToSend = numberJobs
             
-            for i in xrange(0, numberJobsToSend):
+            for i in range(0, numberJobsToSend):
                 #send out all first numberJobsToSend jobs
                 pytom_mpi.send(str(self._jobList[i]),i+1)
                 
@@ -107,11 +107,11 @@ class ParallelWorker(PyTomClass):
                 finished = numberSentJobs == numberJobs and numberFinishedJobs == numberJobs
                             
             if doFinalize:    
-                for i in xrange(0,self._numberWorkers):
+                for i in range(0,self._numberWorkers):
                     msg = StatusMessage('0',i+1)
                     msg.setStatus('End')
                     pytom_mpi.send(str(msg),i+1)
-                    print 'Sending end msg to:', i+1
+                    print('Sending end msg to:', i+1)
                 
         else:
             #if any other node id, be a worker node           
@@ -124,7 +124,7 @@ class ParallelWorker(PyTomClass):
                 mpi_msgString = pytom_mpi.receive()
                 
                 if verbose:
-                    print mpi_msgString
+                    print(mpi_msgString)
                     
                 try:
                     

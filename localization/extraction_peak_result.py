@@ -64,7 +64,6 @@ class ExPeakResult:
         """
         if self.result==None or self.orient==None or self.angleList==None:
             self.readAll()
-        
         score = self.result.getV(x, y, z)
         orientIdx = self.orient.getV(x, y, z)
         if int(orientIdx)<len(self.angleList):
@@ -164,7 +163,7 @@ class ExPeakResult:
         putSubVolume(subV, mask, startX, startY, startZ)
         
     
-    def findParticles(self, sizeParticle, maxNumParticle=0, minScore=-1, write2disk=0, margin=None):
+    def findParticles(self, sizeParticle, maxNumParticle=0, minScore=-1, write2disk=0, margin=None, offset=[0,0,0]):
         """
         findParticles: Find particles in target volume according to the result volume.
         @param sizeParticle: size or radius of searched particle
@@ -216,7 +215,7 @@ class ExPeakResult:
         
         # find the particles
         resList = []
-        for i in xrange(maxNumParticle):
+        for i in range(maxNumParticle):
             prog.update(i)
             
             try:
@@ -238,6 +237,7 @@ class ExPeakResult:
                 score.setValue(scoreV)
                 from pytom.basic.structures import PickPosition, Rotation
                 pos = PickPosition(posV, originFilename=self.volFilename)
+                pos + offset
                 orientation = Rotation(orientV)
                 p = FoundParticle(pos, orientation, score, particleFilename)
                 

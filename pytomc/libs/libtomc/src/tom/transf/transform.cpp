@@ -217,7 +217,14 @@ void tom::transf::transform(const tom::Volume<T> &src, tom::Volume<T> &dst, cons
             Pinv[12] = 0.;      Pinv[13] = 0.;      Pinv[14] = 0.;      Pinv[15] = 1.;
         }
     }
-
+    /*
+    for (int i=0; i<4; i++) {
+      for (int j=0; i<4; j++) {
+	    printf("%f ", Pinv[i*4+j]);
+      }
+      printf("\n");
+    }
+    */
     // Pointers to make a copy of the src or dst if the alignment does is not supported.
     std::auto_ptr<tom::Volume<T> > src_copy;
     const tom::Volume<T> *src_p = &src;

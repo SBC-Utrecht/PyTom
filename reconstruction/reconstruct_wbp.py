@@ -23,15 +23,15 @@ if __name__ == '__main__':
                                    ScriptOption('-o', 'Output filename.', True, False),
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         prefix, suffix, weighting, start_idx, end_idx, vol_size, output, b_help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
     if b_help is True:
-        print helper
+        print(helper)
         sys.exit()
     
     # parse the argument
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
     projections = ProjectionList()
-    for i in xrange(start_idx, end_idx+1):
+    for i in range(start_idx, end_idx+1):
         p = Projection(prefix+str(i)+suffix)
         projections.append(p)
     

@@ -1,0 +1,3 @@
+[submodule "external/src/mpi4py"]
+	path = external/src/mpi4py
+	url = git@bitbucket.org:mpi4py/mpi4py.git

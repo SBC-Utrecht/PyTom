@@ -9,20 +9,20 @@ Created on Sep 22, 2010
 from pytom.tools.maths import gaussian_fit
 
 def usage():
-    print './scriptname -c classified_result_file -t target_particle_name [-s expected_cover_rate_in_sigma (1,2 or 3)] [-m estimate_positive_class_mean_value]'
+    print('./scriptname -c classified_result_file -t target_particle_name [-s expected_cover_rate_in_sigma (1,2 or 3)] [-m estimate_positive_class_mean_value]')
 
 if __name__ == '__main__':
     import sys, getopt
     
     if len(sys.argv) ==1:
-        print "No argument is given!"
+        print("No argument is given!")
         usage()
         sys.exit()        
     
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hc:t:s:m:", ["help"])
     except getopt.GetoptError:
-        print 'Command not right. Exit!'
+        print('Command not right. Exit!')
         sys.exit()
     
     filename = ''
@@ -41,7 +41,7 @@ if __name__ == '__main__':
         if o in ("-s"):
             cover_rate = int(a)
             if cover_rate not in [1,2,3]:
-                print 'Please choose sigma between 1, 2 or 3'
+                print('Please choose sigma between 1, 2 or 3')
                 sys.exit()
         if o in ("-m"):
             mean_value = float(a)
@@ -57,8 +57,8 @@ if __name__ == '__main__':
         else:
             neg_score.append(p.getScore())
     
-    print 'Positive num: %d' % len(pos_score)
-    print 'Negative num: %d' % len(neg_score)
+    print('Positive num: %d' % len(pos_score))
+    print('Negative num: %d' % len(neg_score))
     
     if not mean_value:
         mean_value = pos_score[len(pos_score)/2]
@@ -71,14 +71,14 @@ if __name__ == '__main__':
     
     step = (max-min)/num
     x = []
-    for i in xrange(num):
+    for i in range(num):
         x.append(min+i*step)
     x.append(max)
     
     y_neg = []
     y_pos = []
     y_total = []
-    for i in xrange(num):
+    for i in range(num):
         lower = x[i]; upper = x[i+1]
         n1 = len([v for v in neg_score if lower<=v<=upper])
         y_neg.append(n1)
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     y_new_g = [a_new*exp(-(v-mu_new)**2/(2*sigma_new**2)) for v in xnew]
     
     lower_score = mu_new-cover_rate*sigma_new
-    print 'The estimated lower band of the score is: %.3f' % lower_score
+    print('The estimated lower band of the score is: %.3f' % lower_score)
     
     x_est=[]
     s = x[-1]
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     n_est_neg = [a_neg*exp(-(v-mu_neg)**2/(2*sigma_neg**2)) for v in x_est]
     from math import ceil
     n = ceil(sum(n_est_pos))+ceil(sum(n_est_neg))
-    print 'The estimated number of extracted peaks is: %d' % n
+    print('The estimated number of extracted peaks is: %d' % n)
     
     # plot
     from matplotlib import pyplot

@@ -55,8 +55,8 @@ def _display(volume,sliceNumber = 0,projectionAxis='z'):
         maxValue = 1
     volume.shiftscale(0,255.0/maxValue)
         
-    for i in xrange(size1):
-        for j in xrange(size2):
+    for i in range(size1):
+        for j in range(size2):
             if projectionAxis == 'x':
                 value = volume(0,i,j)
             elif projectionAxis == 'y':
@@ -111,7 +111,7 @@ def volumeSequenceToPNGs(volume,sequenceDirectory,sliceStep,projectionAxis='z'):
     else:
         raise ValueError('projectionAxis must either be x,y, or z!')
     
-    for i in xrange(0,size,sliceStep):
+    for i in range(0,size,sliceStep):
         volumeToPNG(volume,sequenceDirectory + str(i) + '.png',i,projectionAxis)
 
 
@@ -182,7 +182,7 @@ def _dspcub(volume,sigma=None,projectionAxis='z'):
         minValue = min(volume)
         maxValue = max(volume)
         
-    for sliceNumber in xrange(0,numberIterations, iterationSteps):
+    for sliceNumber in range(0,numberIterations, iterationSteps):
         
         if projectionAxis == 'x':
             png=Image.new('L', (sizeY, sizeZ))
@@ -203,8 +203,8 @@ def _dspcub(volume,sigma=None,projectionAxis='z'):
         vol.shiftscale(-minValue,1)
         vol.shiftscale(0,255/maxValue)
         
-        for i in xrange(sizeI):
-            for j in xrange(sizeJ):
+        for i in range(sizeI):
+            for j in range(sizeJ):
             
                 if projectionAxis == 'x':
                     value = vol(0,i,j)

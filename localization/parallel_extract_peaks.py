@@ -3,6 +3,7 @@ Created on May 20, 2010
 
 @author: chen
 '''
+import numpy
 
 def getMsgStr():
     '''
@@ -68,7 +69,7 @@ class PeakWorker(object):
             self.backTo = int(msg.getSender())
 
     
-    def run(self, verbose=True, moreInfo=False):
+    def run(self, verbose=True, moreInfo=False, gpuID=-1):
         """
         run: Run the worker and return the result
         @param verbose: verbose mode
@@ -80,6 +81,7 @@ class PeakWorker(object):
 #        t = timing(); t.start()
         
         # read the necessary files on the disk
+
         v = self.volume.getVolume(self.volume.subregion)
         ref = self.reference.getVolume()
         maskFilename = self.mask.getFilename()
@@ -95,20 +97,26 @@ class PeakWorker(object):
         
         # apply the bandpass
         if hasattr(self, 'bandpass') and self.bandpass:
+            if verbose: print('Bandpass added!')
             ref = self.bandpass.filter(ref)
         
         # calculate the result volume
-        from pytom.localization.extractPeaks import extractPeaks
+        if gpuID is None:
+            from pytom.localization.extractPeaks import extractPeaks
+        else:
+            from pytom.localization.extractPeaks import extractPeaksGPU as extractPeaks
+
         if verbose==True:
-            print self.name + ': starting to calculate %d rotations' % rot.numberRotations()
-        [resV, orientV, sumV, sqrV] = extractPeaks(v, ref, rot, scoreFnc, m, mIsSphere, wedg, nodeName=self.name, verboseMode=verbose, moreInfo=moreInfo)
+            print(self.name + ': starting to calculate %d rotations' % rot.numberRotations())
+        [resV, orientV, sumV, sqrV] = extractPeaks(v, ref, rot, scoreFnc, m, mIsSphere, wedg, nodeName=self.name,
+                                                   verboseMode=verbose, moreInfo=moreInfo, gpuID=gpuID)
         
         self.runtimes = self.runtimes + 1
         
 #        time = t.end(); print '%s calculated in: %f' % (self.name, time)
         return [resV, orientV, sumV, sqrV]
     
-    def parallelRun(self, verbose=True):
+    def parallelRun(self, verbose=True, **kwargs):
         '''
         parallelRun: Run the worker in parallel status and send the result message back
         @param verbose: verbose mode
@@ -131,7 +139,7 @@ class PeakWorker(object):
                 self.jobFromMsg(msg)
                 
                 if verbose==True:
-                    print self.name + ': running...'
+                    print(self.name + ': running...')
                 [resV, orientV, sumV, sqrV] = self.run(verbose, moreInfo=True)
                 
                 # write the result volume back to the disk
@@ -156,7 +164,7 @@ class PeakWorker(object):
                 
                 # sent the result back
                 if verbose==True:
-                    print self.name + ': sending back result'
+                    print(self.name + ': sending back result')
                 result.send(self.mpi_id, self.backTo)
                 
             except (MessageError,PyTomClassError,ParameterError):
@@ -167,9 +175,9 @@ class PeakWorker(object):
                     if msg.getStatus() == 'End':
                         end = True
                     if verbose==True:
-                        print self.name + ': ending...'
+                        print(self.name + ': ending...')
                 except (MessageError,PyTomClassError,ParameterError):
-                    print 'Error parsing message. Message either unknown or invalid.'
+                    print('Error parsing message. Message either unknown or invalid.')
                     assert False
             
         
@@ -177,11 +185,12 @@ class PeakManager():
     '''
     PeakManager: Manager to manage the workers
     '''
-    def __init__(self):
+    def __init__(self, suffix=''):
         self.name = 'node_0'
         self.numWorkers = 0
         self.jobInfo = {} # store the information of distributed jobs
-        
+        self.suffix = suffix
+
     def sequentialStart(self, job):
         '''
         sequentialStart: Start the worker to sequentially finish the job
@@ -270,14 +279,14 @@ class PeakManager():
             raise RuntimeError('This function can only be processed by mpi_id = 0! ID == ' + str(mpi_myid) +' Aborting!')
         
         # split the job into smaller ones 
-        rotationsPerWorker = job.rotations.numberRotations()/self.numWorkers
+        rotationsPerWorker = job.rotations.numberRotations()//self.numWorkers
         if rotationsPerWorker == 0:
             raise RuntimeError("Not enough angles to split!")
         
         if verbose==True:
-            print '\n\nManager: distribute number of %d rotations to %d workers' % (job.rotations.numberRotations(), self.numWorkers)
+            print('\n\nManager: distribute number of %d rotations to %d workers' % (job.rotations.numberRotations(), self.numWorkers))
         
-        for i in xrange(1, self.numWorkers+1):
+        for i in range(1, self.numWorkers+1):
             # split the rotations
             if i != self.numWorkers:
                 subRot = job.rotations[(i-1)*rotationsPerWorker : i*rotationsPerWorker]
@@ -324,7 +333,7 @@ class PeakManager():
                 resFromWorker = self.resFromMsg(msg)
                 
                 if verbose == True:
-                    print "Manager: processing result from worker " + msg.getSender()
+                    print("Manager: processing result from worker " + msg.getSender())
                     
                 resV = resFromWorker.result.getVolume()
                 resO = resFromWorker.orient.getVolume()
@@ -356,7 +365,7 @@ class PeakManager():
             orient.write(self.name + '_orient.em')
             
             # post processing the sum and sqr volume
-            print "Start post processing the sum and sqr volume ..."
+            print("Start post processing the sum and sqr volume ...")
             sumList = []
             sqrList = []
             filenames = os.listdir('.')
@@ -406,7 +415,7 @@ class PeakManager():
             self.parallelEnd(verbose)
             
             if verbose == True:
-                print "Manager: end"
+                print("Manager: end")
             
         else: # worker
             worker = PeakWorker()
@@ -420,9 +429,11 @@ class PeakManager():
         # check if the split is feasible
         v = job.volume.getVolume()
         r = job.reference.getVolume()
+
+        print(r.sizeX(), r.sizeY())
         
         vsizeX = v.sizeX(); vsizeY = v.sizeY(); vsizeZ = v.sizeZ()
-        sizeX = vsizeX/splitX; sizeY = vsizeY/splitY; sizeZ = vsizeZ/splitZ
+        sizeX = vsizeX//splitX; sizeY = vsizeY//splitY; sizeZ = vsizeZ//splitZ
         rsizeX = r.sizeX(); rsizeY = r.sizeY(); rsizeZ = r.sizeZ()
         if rsizeX>sizeX or rsizeY>sizeY or rsizeZ>sizeZ:
             raise RuntimeError("Not big enough volume to split!")
@@ -433,16 +444,16 @@ class PeakManager():
         # read the target volume, calculate the respective subregion
         from pytom.localization.peak_job import PeakJob
         from pytom.localization.structures import Volume
-        _start = [-rsizeX/2,-rsizeX/2,-rsizeZ/2]
+        _start = [-rsizeX//2,-rsizeY//2,-rsizeZ//2]
         _size = [sizeX+rsizeX, sizeY+rsizeY, sizeZ+rsizeZ]
         
-        for i in xrange(splitX*splitY*splitZ):
+        for i in range(splitX*splitY*splitZ):
             strideZ = splitX*splitY; strideY = splitX
-            incZ = i/strideZ; incY = (i%strideZ)/strideY; incX = i%strideY
-            _start = [-rsizeX/2+incX*sizeX,-rsizeX/2+incY*sizeY,-rsizeZ/2+incZ*sizeZ]
+            incZ = i//strideZ; incY = (i%strideZ)//strideY; incX = i%strideY
+            _start = [-rsizeX//2+incX*sizeX,-rsizeY//2+incY*sizeY,-rsizeZ//2+incZ*sizeZ]
             
             start = _start[:]
-            end = [start[j]+_size[j] for j in xrange(len(start))]
+            end = [start[j]+_size[j] for j in range(len(start))]
             
             if start[0] < 0:
                 start[0]=0
@@ -457,21 +468,21 @@ class PeakManager():
             if end[2] > vsizeZ:
                 end[2] = vsizeZ
             
-            size = [end[j]-start[j] for j in xrange(len(start))]
+            size = [end[j]-start[j] for j in range(len(start))]
 #            print start[0], start[1], start[2], size[0], size[1], size[2]
-            
+            print(size)
             # for reassembling the result
             whole_start = start[:]
             sub_start = [0, 0, 0]
             if start[0] != 0:
-                whole_start[0] = start[0]+rsizeX/2
-                sub_start[0] = rsizeX/2
+                whole_start[0] = start[0]+rsizeX//2
+                sub_start[0] = rsizeX//2
             if start[1] != 0:
-                whole_start[1] = start[1]+rsizeY/2
-                sub_start[1] = rsizeY/2
+                whole_start[1] = start[1]+rsizeY//2
+                sub_start[1] = rsizeY//2
             if start[2] != 0:
-                whole_start[2] = start[2]+rsizeZ/2
-                sub_start[2] = rsizeZ/2
+                whole_start[2] = start[2]+rsizeZ//2
+                sub_start[2] = rsizeZ//2
             self.jobInfo[i+1] = [sub_start, whole_start]
             
             subVol = Volume(job.volume.getFilename(),
@@ -507,7 +518,7 @@ class PeakManager():
                 resFromWorker = self.resFromMsg(msg)
                 
                 if verbose == True:
-                    print "Manager: processing result from worker " + msg.getSender()
+                    print("Manager: processing result from worker " + msg.getSender())
                     
                 resV = resFromWorker.result.getVolume()
                 resO = resFromWorker.orient.getVolume()
@@ -538,14 +549,14 @@ class PeakManager():
                     os.remove(name)
             
             # rename the result files name
-            os.rename('node_0_res.em', 'scores.em')
-            os.rename('node_0_orient.em', 'angles.em')
+            os.rename('node_0_res.em', 'scores{}.em'.format(suffix))
+            os.rename('node_0_orient.em', 'angles{}.em'.format(suffix))
             
             # finishing, stop all workers
             self.parallelEnd(verbose)
             
             if verbose == True:
-                print "Manager: end"
+                print("Manager: end")
             
         else: # worker
             worker = PeakWorker()
@@ -567,7 +578,7 @@ class PeakManager():
         """
         
         if verbose == True:
-            print 'Manager: sending end messages to workers'
+            print('Manager: sending end messages to workers')
         
         import pytom_mpi
         from pytom.parallel.messages import StatusMessage
@@ -585,12 +596,12 @@ class PeakLeader(PeakWorker):
     """
     PeakLeader: Class for parallel running of jobs (new architecture)
     """
-    def __init__(self):
+    def __init__(self,suffix=''):
         import pytom_mpi
         
         if not pytom_mpi.isInitialised():
             pytom_mpi.init()
-            
+        self.suffix=suffix
         self.mpi_id = pytom_mpi.rank()
         self.name = 'node_' + str(self.mpi_id)
         self.clean()
@@ -701,20 +712,21 @@ class PeakLeader(PeakWorker):
         originalJobID = job.jobID
         
         while self.members > 1 and totalNum > 1:
-            numEach = totalNum/self.members
-            subMem1 = self.members/2
-            subMem2 = self.members-self.members/2
+            numEach = totalNum//self.members
+            subMem1 = self.members//2
+            subMem2 = self.members-self.members//2
             
             from pytom.angles.angleList import AngleList
             subRot1 = AngleList(job.rotations[:numEach*subMem1])
             subRot2 = AngleList(job.rotations[numEach*subMem1:])
             
+
             # avoid the collision of the job id
             subJob1 = PeakJob(job.volume, job.reference, job.mask, job.wedge, subRot1, job.score, job.jobID*10+1, subMem1, self.dstDir, job.bandpass)
             subJob2 = PeakJob(job.volume, job.reference, job.mask, job.wedge, subRot2, job.score, job.jobID*10+2, subMem2, self.dstDir, job.bandpass)
             
             if verbose==True:
-                print self.name+': send number of %d rotations to node %d' % (subJob2.rotations.numberRotations(), self.mpi_id+subMem1)
+                print(self.name+': send number of %d rotations to node %d' % (subJob2.rotations.numberRotations(), self.mpi_id+subMem1))
             subJob2.send(self.mpi_id, self.mpi_id+subMem1)
             
 #            self.jobInfo["numJobs"] = self.jobInfo["numJobs"] + 1
@@ -762,7 +774,7 @@ class PeakLeader(PeakWorker):
             vsizeY = job.volume.subregion[4]
             vsizeZ = job.volume.subregion[5]
             
-        sizeX = vsizeX/splitX; sizeY = vsizeY/splitY; sizeZ = vsizeZ/splitZ
+        sizeX = vsizeX//splitX; sizeY = vsizeY//splitY; sizeZ = vsizeZ//splitZ
         r = job.reference.getVolume()
         rsizeX = r.sizeX(); rsizeY = r.sizeY(); rsizeZ = r.sizeZ()
         if rsizeX>sizeX or rsizeY>sizeY or rsizeZ>sizeZ:
@@ -781,21 +793,21 @@ class PeakLeader(PeakWorker):
         # read the target volume, calculate the respective subregion
         from pytom.localization.peak_job import PeakJob
         from pytom.localization.structures import Volume
-        _start = [-rsizeX/2+origin[0],-rsizeX/2+origin[1],-rsizeZ/2+origin[2]]
+        _start = [-rsizeX//2+origin[0],-rsizeY//2+origin[1],-rsizeZ//2+origin[2]]
         _size = [sizeX+rsizeX, sizeY+rsizeY, sizeZ+rsizeZ]
         
         numPieces = splitX*splitY*splitZ
         totalMem = self.members
-        numMemEach = totalMem/numPieces
+        numMemEach = totalMem//numPieces
         targetID = self.mpi_id
         
-        for i in xrange(numPieces):
+        for i in range(numPieces):
             strideZ = splitX*splitY; strideY = splitX
-            incZ = i/strideZ; incY = (i%strideZ)/strideY; incX = i%strideY
-            _start = [-rsizeX/2+origin[0]+incX*sizeX,-rsizeX/2+origin[1]+incY*sizeY,-rsizeZ/2+origin[2]+incZ*sizeZ]
+            incZ = i//strideZ; incY = (i%strideZ)//strideY; incX = i%strideY
+            _start = [-rsizeX//2+origin[0]+incX*sizeX,-rsizeY//2+origin[1]+incY*sizeY,-rsizeZ//2+origin[2]+incZ*sizeZ]
             
             start = _start[:]
-            end = [start[j]+_size[j] for j in xrange(len(start))]
+            end = [start[j]+_size[j] for j in range(len(start))]
             
             if start[0] < origin[0]:
                 start[0]=origin[0]
@@ -810,7 +822,7 @@ class PeakLeader(PeakWorker):
             if end[2] > vsizeZ+origin[2]:
                 end[2] = vsizeZ+origin[2]
             
-            size = [end[j]-start[j] for j in xrange(len(start))]
+            size = [end[j]-start[j] for j in range(len(start))]
             
 #            # make sure that the last dimension is not odd
 #            if size[2]%2 == 1:
@@ -821,14 +833,14 @@ class PeakLeader(PeakWorker):
             whole_start = start[:]
             sub_start = [0, 0, 0]
             if start[0] != origin[0]:
-                whole_start[0] = start[0]+rsizeX/2
-                sub_start[0] = rsizeX/2
+                whole_start[0] = start[0]+rsizeX//2
+                sub_start[0] = rsizeX//2
             if start[1] != origin[1]:
-                whole_start[1] = start[1]+rsizeY/2
-                sub_start[1] = rsizeY/2
+                whole_start[1] = start[1]+rsizeY//2
+                sub_start[1] = rsizeY//2
             if start[2] != origin[2]:
-                whole_start[2] = start[2]+rsizeZ/2
-                sub_start[2] = rsizeZ/2
+                whole_start[2] = start[2]+rsizeZ//2
+                sub_start[2] = rsizeZ//2
             
 #            self.jobInfo[subJobID] = [sub_start, whole_start]
             subJobID = job.jobID+i+1
@@ -846,6 +858,7 @@ class PeakLeader(PeakWorker):
             info.whole_start = whole_start
             info.originalSize = [vsizeX, vsizeY, vsizeZ]
             info.splitSize = [sizeX, sizeY, sizeZ]
+            info.origin = origin
             self.jobInfoPool[subJobID] = info
             
             if targetID == self.mpi_id:
@@ -854,7 +867,8 @@ class PeakLeader(PeakWorker):
                     self.splitAngles(subJob, verbose)
             else:
                 if verbose==True:
-                    print self.name + ' : send part of the volume to ' + str(targetID)
+                    print(self.name + ' : send part of the volume to ' + str(targetID))
+                print(targetID, type(targetID))
                 subJob.send(self.mpi_id, targetID)
             
             targetID = targetID + numMem
@@ -893,6 +907,7 @@ class PeakLeader(PeakWorker):
             if numPieces==0 or numPieces==1 or numPieces > self.members: # node num not enough for split vol
                 self.splitAngles(job)
             else:
+                print(type(splitX),type(splitY),type(splitZ))
                 self.splitVolumes(job, splitX, splitY, splitZ)
         
     
@@ -908,15 +923,24 @@ class PeakLeader(PeakWorker):
         
         @rtype: L{pytom.localization.peak_job.PeakResult}
         """
+        from pytom.tompy.io import read, write
+
+
         if jobID != None:
             resFilename = self.dstDir + self.name + '_job' + str(jobID) + '_res.em'
             orientFilename = self.dstDir + self.name + '_job' + str(jobID) + '_orient.em'
         else:
             resFilename = self.dstDir + self.name + '_res.em'
             orientFilename = self.dstDir + self.name + '_orient.em'
-        resV.write(resFilename)
-        orientV.write(orientFilename)
-        
+
+        try:
+            resV.write(resFilename)
+            orientV.write(orientFilename)
+        except:
+            print(resFilename, orientFilename)
+            write(resFilename, resV)
+            write(orientFilename, orientV)
+
         from pytom.localization.structures import Volume, Orientation
         res = Volume(resFilename)
         orient = Orientation(orientFilename)
@@ -942,9 +966,14 @@ class PeakLeader(PeakWorker):
         if self.jobInfoPool == {}: # leaf node
             assert self.backTo != None
             
-            result = self.writeRes(resV, orientV, jobID)
-            
-            result.send(self.mpi_id, self.backTo)
+
+            #self.parallelEnd(verbose)
+            if not self.backTo is None:
+                result =  self.writeRes(resV, orientV, jobID)
+                result.send(self.mpi_id, self.backTo)
+            else:
+                self.writeRes(resV,orientV,None)
+                self.parallelEnd(verbose)
             return
         
         # non leaf node, update the result
@@ -969,24 +998,31 @@ class PeakLeader(PeakWorker):
                 return
         elif self.jobInfoPool[jobID].splitType == "Vol":
             self.jobInfoPool["numDoneJobsV"] = self.jobInfoPool["numDoneJobsV"] + 1
+            [originX, originY, originZ] = self.jobInfoPool[jobID].origin
             if self.resVol==None or self.resOrient==None:
                 from pytom_volume import vol
                 [vsizeX, vsizeY, vsizeZ] = self.jobInfoPool[jobID].originalSize
+
                 self.resVol = vol(vsizeX, vsizeY, vsizeZ)
                 self.resVol.setAll(0)
                 self.resOrient = vol(vsizeX, vsizeY, vsizeZ)
                 self.resOrient.setAll(0)
             
+            [vsizeX, vsizeY, vsizeZ] = self.jobInfoPool[jobID].originalSize
             [sizeX ,sizeY, sizeZ] = self.jobInfoPool[jobID].splitSize
             sub_start = self.jobInfoPool[jobID].sub_start
             start = self.jobInfoPool[jobID].whole_start
 
+            stepSizeX = min(vsizeX-sub_start[0], sizeX)
+            stepSizeY = min(vsizeY-sub_start[1], sizeY)
+            stepSizeZ = min(vsizeZ-sub_start[2], sizeZ)
+
             from pytom_volume import subvolume, putSubVolume
-            sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], sizeX,sizeY,sizeZ)
-            sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], sizeX,sizeY,sizeZ)
-            
-            putSubVolume(sub_resV, self.resVol, start[0],start[1],start[2])
-            putSubVolume(sub_resO, self.resOrient, start[0],start[1],start[2])
+            sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
+            sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
+
+            putSubVolume(sub_resV, self.resVol, start[0]-originX,start[1]-originY,start[2]-originZ)
+            putSubVolume(sub_resO, self.resOrient, start[0]-originX,start[1]-originY,start[2]-originZ)
         else:
             raise RuntimeError("Unclear split type!")
         
@@ -999,7 +1035,7 @@ class PeakLeader(PeakWorker):
             if self.backTo != None:
                 result = self.writeRes(self.resVol, self.resOrient, self.jobInfoPool[jobID].originalJobID)
                 if verbose==True:
-                    print self.name + ': sending back result to ' + str(self.backTo)
+                    print(self.name + ': sending back result to ' + str(self.backTo))
                 result.send(self.mpi_id, self.backTo)
             else:
                 # write the final result to the disk
@@ -1007,7 +1043,7 @@ class PeakLeader(PeakWorker):
                 self.parallelEnd(verbose)
                 
     
-    def parallelRun(self, job, splitX=0, splitY=0, splitZ=0, verbose=True):
+    def parallelRun(self, job, splitX=0, splitY=0, splitZ=0, verbose=True, gpuID=-1):
         """
         parallelRun: Parallel run the job on the computer cluster.
         @param job: job
@@ -1024,8 +1060,9 @@ class PeakLeader(PeakWorker):
 #            if not pytom_mpi.isInitialised():
 #                pytom_mpi.init()
             job.members = pytom_mpi.size()
+            print('job members', job.members)
             job.send(0, 0)
-            print "\n"
+            print("\n")
         
         end = False
         while not end:
@@ -1043,7 +1080,7 @@ class PeakLeader(PeakWorker):
                 else:
                     self.distributeJobs(job)
                 
-                result = self.run(verbose)
+                result = self.run(verbose, gpuID=gpuID)
                 self.summarize(result, self.jobID)
                 
             elif msgType == 1: # Result msg
@@ -1051,7 +1088,7 @@ class PeakLeader(PeakWorker):
                 res = self.resFromMsg(msg)
                 
                 if verbose == True:
-                    print self.name + ": processing result from worker " + msg.getSender()
+                    print(self.name + ": processing result from worker " + msg.getSender())
                     
                 resV = res.result.getVolume()
                 resO = res.orient.getVolume()
@@ -1067,7 +1104,7 @@ class PeakLeader(PeakWorker):
                 if msg.getStatus() == 'End':
                     end = True
                     if verbose==True:
-                        print self.name + ': end'
+                        print(self.name + ': end')
             else: # Error
                 raise RuntimeError("False message type!")
         
@@ -1080,8 +1117,8 @@ class PeakLeader(PeakWorker):
                     os.remove(self.dstDir+'/'+name)
             
             # rename the result files name
-            os.rename(self.dstDir+'/'+'node_0_res.em', self.dstDir+'/'+'scores.em')
-            os.rename(self.dstDir+'/'+'node_0_orient.em', self.dstDir+'/'+'angles.em')
+            os.rename(self.dstDir+'/'+'node_0_res.em', self.dstDir+'/'+'scores_{}.em'.format(self.suffix))
+            os.rename(self.dstDir+'/'+'node_0_orient.em', self.dstDir+'/'+'angles_{}.em'.format(self.suffix))
         
         self.clean() # clean itself
         pytom_mpi.finalise()
@@ -1095,7 +1132,7 @@ class PeakLeader(PeakWorker):
         from pytom.parallel.messages import StatusMessage
         
         if verbose == True:
-            print self.name + ': sending end messages to all'
+            print(self.name + ': sending end messages to all')
         
         for i in range(pytom_mpi.size()):
             msg = StatusMessage(str(self.mpi_id), str(i))
@@ -1104,7 +1141,7 @@ class PeakLeader(PeakWorker):
             
             
     def parallelRunMultiJobs(self, jobs, splitX=0, splitY=0, splitZ=0, verbose=True):
-        for i in xrange(len(jobs)):
+        for i in range(len(jobs)):
             job = jobs[i]
             
             if self.mpi_id == 0:

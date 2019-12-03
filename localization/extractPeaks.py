@@ -53,11 +53,12 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         moreInfo = False
     
     from pytom.basic.correlation import FLCF
-    from pytom.basic.structures import WedgeInfo
+    from pytom.basic.structures import WedgeInfo, Wedge
     from pytom_volume import vol, pasteCenter
     from pytom_volume import rotateSpline as rotate # for more accuracy
     from pytom_volume import updateResFromIdx
-    
+    from pytom.basic.files import write_em
+
     if scoreFnc == None:
         scoreFnc = FLCF
     
@@ -102,11 +103,11 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         # rotate the reference
         ref = vol(reference.sizeX(),reference.sizeY(),reference.sizeZ())
         rotate(reference, ref, currentRotation[0], currentRotation[1], currentRotation[2])
-        
+
         # apply wedge
-        if wedgeInfo.__class__ == WedgeInfo:
+        if wedgeInfo.__class__ == WedgeInfo or wedgeInfo.__class__ == Wedge:
             ref = wedgeInfo.apply(ref)
-        
+
         # rotate the mask if it is asymmetric
         if scoreFnc == FLCF:
             if maskIsSphere == False: # if mask is not a sphere, then rotate it
@@ -159,3 +160,44 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
 #    time = t.end(); print 'The overall execution time: %f' % time
 
     return [result, orientation, sumV, sqrV]
+
+def extractPeaksGPU(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, padding=True, **kwargs):
+    from pytom_numpy import vol2npy
+    from pytom.gpu.gpuStructures import TemplateMatchingGPU
+    from pytom.tools.calcFactors import calc_fast_gpu_dimensions
+    import time
+    import numpy as np
+    from pytom_freqweight import weight
+
+    angles = rotations[:]
+    volume, ref, mask = [vol2npy(vol) for vol in (volume, reference, mask)]
+
+    wedgeAngle = 30
+    wedgeFilter = weight(wedgeAngle, wedgeAngle, ref.shape[0] // 2, ref.shape[0], ref.shape[1], ref.shape[2], 0)
+    wedgeVolume = wedgeFilter.getWeightVolume(True)
+    wedge = vol2npy(wedgeVolume).copy()
+
+    if padding:
+        dimx, dimy, dimz = volume.shape
+
+        cx = calc_fast_gpu_dimensions(dimx - 2, 4000)[0]
+        cy = calc_fast_gpu_dimensions(dimy - 2, 4000)[0]
+        cz = calc_fast_gpu_dimensions(dimz - 2, 4000)[0]
+        voluNDAs = np.zeros([cx, cy, cz], dtype=np.float32)
+        voluNDAs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = volume[:min(cx, dimx), :min(cy, dimy),
+                                                                   :min(cz, dimz)]
+        volume = voluNDAs
+        print(f'dimensions of volume: {ref.shape}')
+
+    input = (volume, ref, mask, wedge, angles, volume.shape)
+
+    tm_process = TemplateMatchingGPU(0, kwargs['gpuID'][0], input=input)
+    tm_process.start()
+    while tm_process.is_alive():
+        time.sleep(1)
+
+    if tm_process.completed:
+        print('Templated matching completed successfully')
+        return [tm_process.plan.scores.get(), tm_process.plan.angles.get(), None, None]
+    else:
+        raise Exception('failed template matching')

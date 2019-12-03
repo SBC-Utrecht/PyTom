@@ -196,8 +196,7 @@ class PeakJob(PyTomClass):
             raise IOError('Directory: ' + str(self.dstDir) + ' not found!')
         
         return returnValue
-        
-    
+
     def send(self, source, destination):
         """
         send: Send the job-relevant message from source to destination
@@ -215,9 +214,9 @@ class PeakJob(PyTomClass):
         msg.setJob(self)
         
         import pytom_mpi
-        pytom_mpi.send(str(msg), destination)
+        print(f'destination: {destination}\ntype: {type(destination)}')
+        pytom_mpi.send(str(msg), int(destination))
 
-        
 
 class PeakResult(PyTomClass):
     """
@@ -310,8 +309,10 @@ class PeakResult(PyTomClass):
         msg.setResult(self)
         
         import pytom_mpi
-        pytom_mpi.send(str(msg), destination)
-        
+        print(f'destination: {destination}\ntype: {source}')
+        pytom_mpi.send(str(msg), int(destination))
+
+
 class JobInfo():
     """
     JobInfo: Class for storing the job information
@@ -326,7 +327,8 @@ class JobInfo():
         self.jobID = jobID
         self.originalJobID = originalJobID
         self.splitType = splitType
-        
+
+
 if __name__ == '__main__':
     from pytom.basic.structures import Mask, Reference, WedgeInfo
     from pytom.localization.structures import Volume

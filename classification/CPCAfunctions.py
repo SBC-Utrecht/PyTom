@@ -24,23 +24,23 @@ def subTomoClust(particleListFilename, classifiedParticleListFilename,
     pl = ParticleList('.')
     pl.fromXMLFile(particleListFilename)
     if verbose:
-        print "Particle List read in"
+        print("Particle List read in")
     ccc = readCCC(cccName)
     if verbose:
-        print "CCC read in"
+        print("CCC read in")
     coeffs, eigvalues = SVD_analysis(ccc)
     if verbose:
-        print "Eigen analysis done"
+        print("Eigen analysis done")
     labels = kmeansCluster(coeff=coeffs, neig=neig, nclass=nclass)
     if verbose:
-        print "kmeans clustering done"
+        print("kmeans clustering done")
     for (ipart,part) in enumerate(pl):
         part.setClass(className=str(labels[ipart]))
     if verbose:
-        print "Class labels assigned"
+        print("Class labels assigned")
     pl.toXMLFile(classifiedParticleListFilename)
     if verbose:
-        print "File written"
+        print("File written")
 
 def readCCC(CCCName):
     """
@@ -111,7 +111,7 @@ def averageClasses(particleListFilename, avName):
 
     for cl in pls:
         className = cl[0].getClassName()
-	cl.average(avName + "_" + str(className) + '.em')
-	print className, ' contains ' , len(cl) , ' particles' 
+        cl.average(avName + "_" + str(className) + '.em')
+        print(className, ' contains ' , len(cl) , ' particles')
 
 

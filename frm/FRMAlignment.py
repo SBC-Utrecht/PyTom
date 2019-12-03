@@ -6,6 +6,7 @@ Created on Mar 5, 2012
 
 from pytom.basic.structures import PyTomClass
 import pytom_mpi
+import os
 
 class FRMJob(PyTomClass): # i need to rename the class, but for now it works
     def __init__(self, pl=None, ref=None, mask=None, peak_offset=0, sample_info=None, bw_range=None, freq=None, dest='.', max_iter=10, r_score=False, weighting=False, bfactor=None, symmetries=None, adaptive_res=0.1, fsc_criterion=0.5, constraint=None):
@@ -215,14 +216,14 @@ class FRMWorker():
             from pytom.basic.resolution import bandToAngstrom
             from pytom.basic.filter import lowpassFilter
             from math import ceil
-            
+            self.destination = job.destination
             new_reference = job.reference
             old_freq = job.freq
             new_freq = job.freq
             # main node
-            for i in xrange(job.max_iter):
+            for i in range(job.max_iter):
                 if verbose:
-                    print self.node_name + ': starting iteration %d ...' % i
+                    print(self.node_name + ': starting iteration %d ...' % i)
                 
                 # construct a new job by updating the reference and the frequency
                 new_job = FRMJob(job.particleList, new_reference, job.mask, job.peak_offset, job.sampleInformation, job.bw_range, new_freq, job.destination, job.max_iter-i, job.r_score, job.weighting, constraint=job.constraint)
@@ -236,7 +237,7 @@ class FRMWorker():
                 all_odd_pre = None
                 all_odd_wedge = None
                 pl = ParticleList()
-                for j in xrange(self.num_workers):
+                for j in range(self.num_workers):
                     result = self.get_result()
                     pl += result.pl
                     even_pre, even_wedge, odd_pre, odd_wedge = self.retrieve_res_vols(result.name)
@@ -253,7 +254,7 @@ class FRMWorker():
                         all_odd_wedge = odd_wedge
                 
                 # write the new particle list to the disk
-                pl.toXMLFile('aligned_pl_iter'+str(i)+'.xml')
+                pl.toXMLFile(os.path.join(job.destination, 'aligned_pl_iter'+str(i)+'.xml'))
                 
                 # create half sets
                 even = self.create_average(all_even_pre, all_even_wedge)
@@ -265,15 +266,15 @@ class FRMWorker():
                 resNyquist, resolutionBand, numberBands = self.determine_resolution(even, odd, job.fsc_criterion, None, job.mask, verbose)
                 
                 # write the half set to the disk
-                even.write('fsc_'+str(i)+'_even.em')
-                odd.write('fsc_'+str(i)+'_odd.em')
+                even.write(os.path.join(self.destination, 'fsc_'+str(i)+'_even.em'))
+                odd.write(os.path.join(self.destination, 'fsc_'+str(i)+'_odd.em'))
                 
                 # determine the resolution
                 if verbose:
-                    print self.node_name + ': determining the resolution ...'
+                    print(self.node_name + ': determining the resolution ...')
                 current_resolution = bandToAngstrom(resolutionBand, job.sampleInformation.getPixelSize(), numberBands, 1)
                 if verbose:
-                    print self.node_name + ': current resolution ' + str(current_resolution), resNyquist
+                    print(self.node_name + ': current resolution ' + str(current_resolution), resNyquist)
                 
                 # create new average
                 all_even_pre += all_odd_pre
@@ -284,14 +285,14 @@ class FRMWorker():
                 average = job.symmetries.applyToParticle(average)
                 
                 # filter average to resolution and update the new reference
-                average_name = 'average_iter'+str(i)+'.em'
+                average_name = os.path.join(self.destination, 'average_iter'+str(i)+'.em')
 #                pl.average(average_name, True)
                 average.write(average_name)
                 new_reference = Reference(average_name)
                 
                 # low pass filter the reference and write it to the disk
                 filtered = lowpassFilter(average, ceil(resolutionBand), ceil(resolutionBand)/10)
-                filtered_ref_name = 'average_iter'+str(i)+'_res'+str(current_resolution)+'.em'
+                filtered_ref_name = os.path.join(self.destination, 'average_iter'+str(i)+'_res'+str(current_resolution)+'.em')
                 filtered[0].write(filtered_ref_name)
                 
                 # if the position/orientation is not improved, break it
@@ -300,21 +301,21 @@ class FRMWorker():
                 new_freq = int(ceil(resolutionBand))+1
                 if new_freq <= old_freq:
                     if job.adaptive_res is not False: # two different strategies
-                        print self.node_name + ': Determined resolution gets worse. Include additional %f percent frequency to be aligned!' % job.adaptive_res
+                        print(self.node_name + ': Determined resolution gets worse. Include additional %f percent frequency to be aligned!' % job.adaptive_res)
                         new_freq = int((1+job.adaptive_res)*new_freq)
                         old_freq = new_freq
                     else: # always increase by 1
-                        print self.node_name + ': Determined resolution gets worse. Increase the frequency to be aligned by 1!'
+                        print(self.node_name + ': Determined resolution gets worse. Increase the frequency to be aligned by 1!')
                         new_freq = old_freq+1
                         old_freq = new_freq
                 else:
                     old_freq = new_freq
                 if new_freq >= numberBands:
-                    print self.node_name + ': New frequency too high. Terminate!'
+                    print(self.node_name + ': New frequency too high. Terminate!')
                     break
                 
                 if verbose:
-                    print self.node_name + ': change the frequency to ' + str(new_freq)
+                    print(self.node_name + ': change the frequency to ' + str(new_freq))
             
             # send end signal to other nodes and terminate itself
             self.end(verbose)
@@ -324,7 +325,7 @@ class FRMWorker():
     
     def end(self, verbose=False):
         if verbose == True:
-            print self.node_name + ': sending end messages to others'
+            print(self.node_name + ': sending end messages to others')
         
         from pytom.parallel.messages import StatusMessage
         
@@ -350,7 +351,7 @@ class FRMWorker():
                 job = self.get_job()
             except:
                 if verbose:
-                    print self.node_name + ': end'
+                    print(self.node_name + ': end')
                 break # get some non-job message, break it
             
             if verbose:
@@ -379,7 +380,7 @@ class FRMWorker():
                 p.setScore(FRMScore(score))
                 
             # average the particle list
-            name_prefix = self.node_name+'_'+str(job.max_iter)
+            name_prefix = os.path.join(job.destination, self.node_name+'_'+str(job.max_iter))
             self.average_sub_pl(job.particleList, name_prefix, job.weighting)
             
             # send back the result
@@ -394,7 +395,7 @@ class FRMWorker():
         even = ParticleList('.')
         odd = ParticleList('.')
         
-        for i in xrange(len(pl)):
+        for i in range(len(pl)):
             if i%2 == 0:
                 even.append(pl[i])
             else:
@@ -453,7 +454,7 @@ class FRMWorker():
         
         fsc = FSC(even, odd, numberBands, mask, verbose=False)
         if verbose:
-            print self.node_name + ': FSC: ' + str(fsc)
+            print(self.node_name + ': FSC: ' + str(fsc))
         
         return determineResolution(fsc, criterion, verbose=False)
     
@@ -484,7 +485,7 @@ class FRMWorker():
         particlesPerNode = int(n/self.num_workers)
         residual = n-particlesPerNode*self.num_workers
         start_idx = 0
-        for i in xrange(1, self.num_workers+1):
+        for i in range(1, self.num_workers+1):
             if i < residual+1: # since i starts from 1
                 l = particlesPerNode+1
             else:
@@ -500,7 +501,7 @@ class FRMWorker():
             self.send_job(subJob, i)
             
             if verbose:
-                print self.node_name + ': distributed %d particles to node %d' % (len(subPL), i)
+                print(self.node_name + ': distributed %d particles to node %d' % (len(subPL), i))
 
 if __name__ == '__main__':
     # parse command line arguments
@@ -516,7 +517,7 @@ if __name__ == '__main__':
                                     ScriptOption(['--help'], 'Help info.', False, False)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     
     try:
@@ -525,7 +526,7 @@ if __name__ == '__main__':
         sys.exit()
         
     if bHelp is True:
-        print helper
+        print(helper)
         sys.exit()
     
     # check the job
@@ -544,6 +545,6 @@ if __name__ == '__main__':
     worker.start(job, verbose)
     
     if verbose:
-        print 'Overall execution time: %f s.' % t.end()
+        print('Overall execution time: %f s.' % t.end())
         
         

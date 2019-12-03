@@ -29,13 +29,13 @@ if __name__ == '__main__':
                                     ScriptOption(['--help'], 'Print help.', False, False)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     
     try:
         particleListName, volumeName, result, numberSymmetries, z1 , x, z2, help = parse_script_options(sys.argv[1:], helper)        
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
         
     if particleListName:

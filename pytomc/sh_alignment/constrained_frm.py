@@ -1,4 +1,4 @@
-from frm import *
+from .frm import *
 from pytom.basic.structures import PyTomClass
 
 class AngularConstraint(PyTomClass):
@@ -35,7 +35,7 @@ class AngularConstraint(PyTomClass):
 
             c.fromXML(xml_obj)
             return c
-        except Exception, e:
+        except Exception as e:
             raise e
 
 
@@ -82,7 +82,7 @@ class FixedAngleConstraint(AngularConstraint):
             self.psi = float(xml_obj.get('Psi'))
             self.the = float(xml_obj.get('Theta'))
             self.nearby = float(xml_obj.get('Nearby'))
-        except Exception, e:
+        except Exception as e:
             raise e
 
 
@@ -104,9 +104,9 @@ class FixedAxisConstraint(AngularConstraint):
             cv = np.zeros((2*bw, 2*bw, 2*bw), dtype='double')
 
             if self.nearby > 0: # get an array of axes nearby
-                the = np.array(range(1, int(self.nearby*bw/90.)+1))*(90./bw)
+                the = np.array(list(range(1, int(self.nearby*bw/90.)+1)))*(90./bw)
                 the = np.append(the, self.nearby)
-                phi = range(0, 360, int(round(180./bw)))
+                phi = list(range(0, 360, int(round(180./bw))))
                 the, phi = np.meshgrid(the, phi)
                 the = the.reshape((the.size,))*np.pi/180
                 phi = phi.reshape((phi.size,))*np.pi/180
@@ -130,7 +130,7 @@ class FixedAxisConstraint(AngularConstraint):
             from pytom.angles.angleFnc import axisAngleToZXZ
             for axis in axes:
                 axis = [axis[0,0], axis[0,1], axis[0,2]]
-                for ang in xrange(*self.range):
+                for ang in range(*self.range):
                     euler_ang = axisAngleToZXZ(axis, ang)
                     i,j,k = frm_angle2idx(bw, euler_ang.getPhi(), euler_ang.getPsi(), euler_ang.getTheta())
                     # set the cv
@@ -156,7 +156,7 @@ class FixedAxisConstraint(AngularConstraint):
             self.nearby = float(xml_obj.get('Nearby'))
             from ast import literal_eval
             self.range = literal_eval(xml_obj.get('Range'))
-        except Exception, e:
+        except Exception as e:
             raise e
 
 
@@ -206,7 +206,7 @@ class AdaptiveAngleConstraint(AngularConstraint):
     def fromXML(self, xml_obj):
         try:
             self.nearby = float(xml_obj.get('Nearby'))
-        except Exception, e:
+        except Exception as e:
             raise e
 
 
@@ -223,7 +223,7 @@ def frm_find_topn_constrained_angles_interp(corr, n=5, dist=3.0, constraint=None
 
     # when the angular constraint conflicts the dist
     if ((constraint.__class__ == FixedAngleConstraint) or (constraint.__class__ == AdaptiveAngleConstraint)) and float(dist+1)/b*180 > constraint.nearby:
-        print 'Warning: angular distance cut is overwritten by angular constraint.'
+        print('Warning: angular distance cut is overwritten by angular constraint.')
         from math import floor
         dist = floor(constraint.nearby*b/180.)-1
         if dist < 0.:
@@ -303,7 +303,7 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
     if peak_offset is None:
         peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(peak_offset, vf.sizeX()/4, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
-    elif isinstance(peak_offset, (int, long)):
+    elif isinstance(peak_offset, int):
         peak_radius = peak_offset
         peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
         initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
@@ -346,13 +346,13 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
     max_position = None
     max_orientation = None
     max_value = -1.0
-    for i in xrange(num_seeds):
+    for i in range(num_seeds):
         old_pos = [-1, -1, -1]
         lm_pos = [-1, -1, -1]
         lm_ang = None
         lm_value = -1.0
         orientation = res[i][0] # initial orientation
-        for j in xrange(max_iter):
+        for j in range(max_iter):
             rotateSpline(vg, vg2, orientation[0], orientation[1], orientation[2]) # first rotate
             rotateSpline(mask, mask2, orientation[0], orientation[1], orientation[2]) # rotate the mask as well
             vg2 = wf.apply(vg2) # then apply the wedge

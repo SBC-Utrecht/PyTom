@@ -6,6 +6,7 @@ Created on May 21, 2010
 
 from pytom.basic.structures import PyTomClass
 
+
 class Volume(PyTomClass):
     """
     Volume: Class for target & result volume
@@ -91,11 +92,14 @@ class Volume(PyTomClass):
         s = e.get('Subregion')
         if s != None and s!= 'None':
             s = s[1:-1]
-            self.subregion = [int(long(i)) for i in s.split(',')]
+            print(s)
+            self.subregion = [int(float(i)) for i in s.split(',')]
+
         s = e.get('Sampling')
         if s != None and s!= 'None':
             s = s[1:-1]        
             self.sampling = [int(i) for i in s.split(',')]
+
         s = e.get('Binning')
         if s != None and s!= 'None':
             s = s[1:-1]
@@ -110,7 +114,8 @@ class Volume(PyTomClass):
         
         p.fromXML(pXML)
         return p
-    
+
+
 class Orientation(Volume):
     """
     Orientation: class for the result orientation
@@ -247,7 +252,8 @@ class FoundParticle(PyTomClass):
         self.orient = p.getRotation()
         self.pos = p.getPickPosition()
         self.score = p.getScore()
-    
+
+
 class ClassifiedParticle(PyTomClass):
     """
     ClassifiedParticle: Class for storing the info about classified result particle
@@ -342,6 +348,7 @@ class ClassifiedParticle(PyTomClass):
             self.particle = IdentifiedParticle()
             self.particle.fromXML(i_particle[0])
 
+
 class ParticleList(PyTomClass):
     """
     ParticleList: Class for storing all kinds of particles
@@ -407,7 +414,8 @@ class ParticleList(PyTomClass):
             particle = FoundParticle()
             particle.fromParticle(pp)
             self.pl.append(particle)
-    
+
+
 def readParticleFile(filename):
     """
     readParticleFile: Read the particle file from the disk

@@ -15,9 +15,9 @@ def checkerBoard(sizeX,sizeY,sizeZ):
     counterX = 0
     counterY = 0
     counterZ = 0
-    for x in xrange(sizeX):
-        for y in xrange(sizeY):
-            for z in xrange(sizeZ):
+    for x in range(sizeX):
+        for y in range(sizeY):
+            for z in range(sizeZ):
                 board.setV(counterX,x,y,z)
                 counterX = (counterX - 1) %2 
             

@@ -1,9 +1,10 @@
 '''
-Started on Jan 27, 2010
+Created on Jan 27, 2010
 
 @author: Thomas Hrabe, FF
 '''
 analytWedge=False
+
 def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
     """
     invert wedge sum - avoid division by zero and boost of high frequencies
@@ -77,11 +78,7 @@ def cloneMaximisationResult(maxResult,symmetry):
     """
     cloneMaximisationResult: Clones a Maximization Result according to particles nfold symmetry -> We get n-1 results that will contribute to the later average.
     @param maxResult:
-    @type maxResult: 
-    @param symmetry: 
-    @type symmetry: L{pytom.basic.structures.Symmetry}
-    @return: resultClones
-    @rtype: 
+    @param symmetry:   
     """
     
     resultClones = []
@@ -113,17 +110,15 @@ def applySymmetryOnParticleList(particleList,symmetry):
     """
     applySymmetryOnParticleList
     @deprecated: use L{pytom.basic.structures.Symmetry.apply} instead!
-    @return: particleList
-    @rtype: L{pytom.basic.structures.particleList}
     """
     
     if symmetry.isOneFold():
         return particleList
 
-    from pytom.basic.structures import ParticleList, Rotation
+    from pytom.basic.structures import ParticleList,Rotation
     newList = ParticleList(particleList.getDirectory())
 
-    for i in xrange(len(particleList)):
+    for i in range(len(particleList)):
         particle = particleList[i] 
         
         originalRotation = particle.getRotation()
@@ -148,7 +143,6 @@ def applySymmetryOnParticleList(particleList,symmetry):
             rotation = angleList.nextRotation()
         
     return newList + particleList
-
 
 def applySymmetryToVolume(volume,symmetryObject,wedgeInfo):
     """
@@ -196,18 +190,14 @@ def applySymmetryToVolume(volume,symmetryObject,wedgeInfo):
 
     result.shiftscale(0.0,1/float(angleList.numberRotations()))
     return result
-        
 
 def _disrtibuteAverageMPI(particleList,averageName,showProgressBar = False,verbose=False,
                           createInfoVolumes = False,setParticleNodesRatio = 3,sendEndMessage = False):
     """
     _distributeAverageMPI : Distributes averaging to multiple MPI nodes.
     @param particleList: The particles
-    @type: L{pytom.basic.structures.particleList}
     @param averageName: Filename of new average 
-    @type: str
     @param verbose: Prints particle information. Disabled by default. 
-    @type: bool
     @param createInfoVolumes: Create info data (wedge sum, inverted density) too? False by default. 
     @return: A new Reference object
     @rtype: L{pytom.basic.structures.Reference}
@@ -242,7 +232,7 @@ def _disrtibuteAverageMPI(particleList,averageName,showProgressBar = False,verbo
     preList = []
     wedgeList = []
     
-    for i in xrange(len(splitLists)):
+    for i in range(len(splitLists)):
         plist = splitLists[i]
         avgName = averageName + '_dist' +str(i) + '.em'
         avgNameList.append(avgName)
@@ -265,7 +255,7 @@ def _disrtibuteAverageMPI(particleList,averageName,showProgressBar = False,verbo
     result = read(preList[0])
     wedgeSum = read(wedgeList[0])
     
-    for i in xrange(1,len(preList)):
+    for i in range(1,len(preList)):
         r = read(preList[i])
         result += r
     
@@ -289,7 +279,7 @@ def _disrtibuteAverageMPI(particleList,averageName,showProgressBar = False,verbo
     result.write(averageName)
     
     # clean results
-    for i in xrange(0,len(preList)):
+    for i in range(0,len(preList)):
         os.system('rm ' + avgNameList[i])
         os.system('rm ' + preList[i])
         os.system('rm ' + wedgeList[i])
@@ -300,7 +290,6 @@ def distributeAverage(particleList,averageName,showProgressBar = False,verbose=F
     """
     distributeAverage : Distributes averaging to multiple nodes
     @param particleList: The particles
-    @type: L{pytom.basic.structures.particleList}
     @param averageName: Filename of new average 
     @param verbose: Prints particle information. Disabled by default. 
     @param createInfoVolumes: Create info data (wedge sum, inverted density) too? False by default. 
@@ -321,7 +310,7 @@ def distributeAverage(particleList,averageName,showProgressBar = False,verbose=F
                 mpiAvailable = True
             
         except:
-            print 'Could not initialize MPI properly! Running in sequential mode!'
+            print('Could not initialize MPI properly! Running in sequential mode!')
         
     if mpiAvailable:
         if pytom_mpi.rank() == 0:
@@ -332,7 +321,7 @@ def distributeAverage(particleList,averageName,showProgressBar = False,verbose=F
             worker.parallelRun(False)
             
     else:
-        print 'MPI not available'
+        print('MPI not available')
         return average(particleList,averageName,showProgressBar,verbose,createInfoVolumes)
 
 def average( particleList, averageName, showProgressBar=False, verbose=False,
@@ -340,7 +329,6 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
     """
     average : Creates new average from a particleList
     @param particleList: The particles
-    @type: L{pytom.basic.structures.particleList}
     @param averageName: Filename of new average 
     @param verbose: Prints particle information. Disabled by default. 
     @param createInfoVolumes: Create info data (wedge sum, inverted density) too? False by default.
@@ -359,7 +347,8 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
     from pytom.basic.normalise import mean0std1
     from pytom.tools.ProgressBar import FixedProgBar
     from math import exp
-    
+    import os
+
     if len(particleList) == 0:
         raise RuntimeError('The particle list is empty. Aborting!')
     
@@ -379,14 +368,16 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             wsum += particleObject.getScore().getValue()
         if wsum < 0.00001:
             weighting = False
-            print "Warning: all scores have been zero - weighting not applied"
+            print("Warning: all scores have been zero - weighting not applied")
 
     
     for particleObject in particleList:
         
         if verbose:
-            print particleObject
-        
+            print(particleObject)
+
+    
+        if not os.path.exists(particleObject.getFilename()): continue
         particle = read(particleObject.getFilename())
         if norm: # normalize the particle
             mean0std1(particle) # happen inplace
@@ -424,7 +415,7 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
 
         ### create spectral wedge weighting
         rotation = particleObject.getRotation()
-        rotinvert =  rotation.invert()
+        rotinvert = rotation.invert()
         if analytWedge:
             # > analytical buggy version
             wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False, rotinvert)
@@ -486,21 +477,11 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
     
     return newReference
 
-
 def average2(particleList, weighting=False, norm=False, determine_resolution=False,
              mask=None, binning=1, verbose=False):
     """
     2nd version of average function. Will not write the averages to the disk. Also support internal \
     resolution determination.
-
-    @param particleList: The particles
-    @type: L{pytom.basic.structures.particleList}
-    @param verbose: Prints particle information. Disabled by default. 
-    @type verbose: bool
-    @param weighting: apply weighting to each average according to its correlation score
-    @param norm: apply normalization for each particle
-    @return: (result, fsc)
-    @rtype: L{pytom.basic.structures.Reference}
     """
     from pytom_volume import read, vol, complexDiv, complexRealMult
     from pytom_volume import transformSpline as transform
@@ -554,6 +535,7 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
             wedgeSum_odd.setAll(0)
             wedgeSum_even = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
             wedgeSum_even.setAll(0)
+        
 
         # create spectral wedge weighting
         rotation = particleObject.getRotation()
@@ -646,14 +628,11 @@ def averageWeighteBackProjection(projectionLists,particleList,averageName,showPr
     @param showProgressBar:
     @param verbose:
     """
-    
-    
-    
+
 def alignTwoVolumes(particle,reference,angleObject,mask,score,preprocessing,progressBar=False):
     """
     alignTwoVolumes: align two volumes with respect to each other
     @param particle: volume to be aligned
-    @type: L{pytom.basic.structures.particle}
     @param reference: reference volume (not translated and rotated)
     @param angleObject: angular sampling
     @param mask: mask volume
@@ -662,11 +641,14 @@ def alignTwoVolumes(particle,reference,angleObject,mask,score,preprocessing,prog
     @param progressBar: show progress bar
     @type progressBar: bool
     """
+    
     from pytom.alignment.structures import GrowingAverageInterimResult
     from pytom.basic.structures import Rotation,Shift
     
     partVolume = particle.getVolume()
+    
     refVolume = reference.getVolume() 
+
     refWeight = reference.getWeighting()
 
     peak = bestAlignment(partVolume,refVolume,refWeight,particle.getWedge(),
@@ -675,7 +657,6 @@ def alignTwoVolumes(particle,reference,angleObject,mask,score,preprocessing,prog
     score.setValue(peak.getScoreValue())
     
     return GrowingAverageInterimResult(particle,reference,Rotation(peak.getRotation()),Shift(peak.getShift()),score)
-
 
 def _rotateWedgeReference(reference,rotation,wedgeInfo,mask,rotationCenter):
     """
@@ -690,7 +671,7 @@ def _rotateWedgeReference(reference,rotation,wedgeInfo,mask,rotationCenter):
     @return:
     @change: support mask == None, FF
     """
-    from pytom_volume import vol, transform as transform #developers: you can also import transformSpline for more accurate rotation!
+    from pytom_volume import vol, transform as transform #developers: your can also import transformSpline for more accurate rotation!
     
     rotatedVolume = vol(reference.sizeX(),reference.sizeY(),reference.sizeZ())
     transform(reference,rotatedVolume,rotation[0],rotation[1],rotation[2],rotationCenter[0],rotationCenter[1],rotationCenter[2],0,0,0,0,0,0)
@@ -699,8 +680,7 @@ def _rotateWedgeReference(reference,rotation,wedgeInfo,mask,rotationCenter):
         return wedgeInfo.apply(rotatedVolume) * mask
     else:
         return wedgeInfo.apply(rotatedVolume)
-    
-     
+
 def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
          scoreObject=0, mask=None, preprocessing=None, progressBar=False, binning=1,
          bestPeak=None, verbose=False):
@@ -728,7 +708,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     @param bestPeak: Initialise best peak with old values.   
     @param verbose: Print out infos. Writes CC volume to disk!!! Default is False  
     @return: Returns the best rotation for particle and the corresponding scoring result.
-    @author: Thomas Hrabe, FF
+    @author: Thomas Hrabe
     """
     from pytom.basic.correlation import subPixelPeak, subPixelPeakParabolic
     from pytom.alignment.structures import Peak
@@ -740,7 +720,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     from pytom.basic.transformations import resize, resizeFourier
     binningType = 'Fourier' # or 'Fourier'
 
-    assert isinstance(object=rotations, class_or_type_or_tuple=AngleObject), "bestAlignment: rotations must be " \
+    assert isinstance(rotations, AngleObject), "bestAlignment: rotations must be " \
                                                                              "AngleObject!"
     currentRotation = rotations.nextRotation()
     if currentRotation == [None,None,None]:
@@ -822,7 +802,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
                                                z2=currentRotation[1], x=currentRotation[2], isReducedComplex=True,
                                                returnReducedComplex=True, binarize=False)
             particleCopy.copyVolume(particle)
-            r = filter(particleCopy, weight(weightingRotated))
+            r = list(filter(particleCopy, weight(weightingRotated)))
             particleCopy = r[0]
         
         scoringResult = scoreObject.score(particleCopy, simulatedVol, m, stdV)
@@ -845,8 +825,8 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         newPeak = Peak(peakValue, Rotation(currentRotation), Shift(shiftX, shiftY, shiftZ))
         
         if verbose:
-            print 'Rotation: z1=%3.1f, z2=%3.1f, x=%3.1f; Dx=%2.2f, Dy=%2.2f, Dz=%2.2f, CC=%2.3f' % \
-                  (currentRotation[0], currentRotation[1], currentRotation[2], shiftX, shiftY, shiftZ, peakValue)
+            print('Rotation: z1=%3.1f, z2=%3.1f, x=%3.1f; Dx=%2.2f, Dy=%2.2f, Dz=%2.2f, CC=%2.3f' % \
+                  (currentRotation[0], currentRotation[1], currentRotation[2], shiftX, shiftY, shiftZ, peakValue))
 
         if bestPeak is None:
             bestPeak = newPeak
@@ -879,13 +859,102 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         shiftZ = (peakPosition[2] - centerZ)
         bestPeak = Peak(peakValue, bestPeak.getRotation(), Shift(shiftX, shiftY, shiftZ))
     if verbose:
-            print 'BestAlignment: z1=%3.1f, z2=%3.1f, x=%3.1f; Dx=%2.2f, Dy=%2.2f, Dz=%2.2f, CC=%2.3f' % \
+            print('BestAlignment: z1=%3.1f, z2=%3.1f, x=%3.1f; Dx=%2.2f, Dy=%2.2f, Dz=%2.2f, CC=%2.3f' % \
                   (bestPeak.getRotation()[0], bestPeak.getRotation()[1], bestPeak.getRotation()[2],
-                   bestPeak.getShift()[0], bestPeak.getShift()[1], bestPeak.getShift()[2], bestPeak.getScoreValue())
+                   bestPeak.getShift()[0], bestPeak.getShift()[1], bestPeak.getShift()[2], bestPeak.getScoreValue()))
     rotations.reset()
     scoreObject._peakPrior.reset_weight()
     return bestPeak
-    
+
+
+def bestAlignmentGPU(particleList, rotations, plan, isSphere=True):
+    """
+    bestAlignment: Determines best alignment of particle relative to the reference
+    @param particle: A particle
+    @type particle: L{pytom_volume.vol}
+    @param reference: A reference
+    @type reference: L{pytom_volume.vol}
+    @param referenceWeighting: Fourier weighting of the reference (sum of wedges for instance)
+    @type referenceWeighting: L{pytom.basic.structures.vol}
+    @param wedgeInfo: What does the wedge look alike?
+    @type wedgeInfo: L{pytom.basic.structures.Wedge}
+    @param rotations: All rotations to be scanned
+    @type rotations: L{pytom.angles.AngleObject}
+    @param scoreObject:
+    @type scoreObject: L{pytom.score.score.Score}
+    @param mask: real-space mask for correlation function
+    @type mask: L{pytom.basic.structures.Particle}
+    @param preprocessing: Class storing preprocessing of particle and reference such as bandpass
+    @type preprocessing: L{pytom.alignment.preprocessing.Preprocessing}
+    @param progressBar: Display progress bar of alignment. False by default.
+    @param binning: binning factor - e.g. binning=2 reduces size by FACTOR of 2
+    @type binning: int or float
+    @param bestPeak: Initialise best peak with old values.
+    @param verbose: Print out infos. Writes CC volume to disk!!! Default is False
+    @return: Returns the best rotation for particle and the corresponding scoring result.
+    @author: Thomas Hrabe
+    """
+    from pytom.gpu.tools import add_particle_to_sum
+    from pytom.gpu.prepare_plans import prepare_glocal_plan
+    from pytom.gpu.correlation import subPixelPeak, find_coords_max_ccmap
+    from pytom.gpu.filter import filter, applyWedge
+    from pytom.gpu.preprocessing import applyPreprocessing
+    from pytom.gpu.transformations import resize, resizeFourier, rotate
+    import numpy as np
+
+    binningType = 'Fourier'  # or 'Fourier'
+
+    bestPeakList = []
+
+    for pid, particle in particleList:
+
+        centerCoordinates = np.array([size//2 for size in plan.shape], dtype=np.int32)
+
+        # create buffer volume for transformed particle
+        applyWedge(particle)  # apply wedge to itself
+        applyPreprocessing(particle, taper=np.float32(shape[0] / 10.) )  # filter particle to some resolution
+
+        bestPeak = [-1000, [0,0,0], [0,0,0]]
+
+        for n, currentRotation in enumerate(rotations):
+            if not isSphere:
+                meanUnderMask(particle, plan.mask, plan.p)
+                stdUnderMask(particle, plan.mask, plan.p, plan.meanV)
+
+            rotateWedge(plan.reference, currentRotation, plan.wedge, plan.mask, centerCoordinates)
+            applyPreprocessing(plan.simulatedVol, bypassFlag=True)
+
+            # weight particle
+
+            rotateWeight(plan.reference, plan.referenceWeighting, currentRotation)
+            filterParticle(particle, weight(weightingRotated), plan.particleCopy)
+
+            cross_correlation(plan.particleCopy, plan.simulatedVol, plan.ccc_map)
+
+            peakCoordinates = find_coords_max_ccmap(plan.ccc_map)
+
+            # with subPixelPeak
+            [peakValue, peakPosition] = subPixelPeak(plan.ccc_map, coordinates=peakCoordinates, cropsize=10)
+
+            # determine shift relative to center
+            shiftX = (peakPosition[0] - centerX)
+            shiftY = (peakPosition[1] - centerY)
+            shiftZ = (peakPosition[2] - centerZ)
+
+            newPeak = (peakValue, currentRotation, (shiftX, shiftY, shiftZ))
+
+            if bestPeak[0] < newPeak[0]:
+                bestPeak = newPeak
+
+        if pid % 2 == 0:
+            add_particle_to_sum(particle, bestPeak[1][::-1]*-1, plan.evenSum)
+        else:
+            add_particle_to_sum(particle, bestPeak[1][::-1]*-1, plan.oddSum)
+
+        bestPeakList.append(bestPeak)
+
+    return bestPeakList
+
 
 def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,shift,
          scoreObject=0,mask=None,preprocessing=[],binning=1,verbose=False):
@@ -939,6 +1008,7 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
     centerY = sizeY/2.0 
     centerZ = sizeZ/2.0 
     
+    
     simulatedVol= vol(sizeX,sizeY,sizeZ)
 
     transformSpline(reference,simulatedVol,currentRotation[0],currentRotation[1],currentRotation[2],
@@ -960,7 +1030,7 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
             particleCopy.info('pc')
             weightingRotated.info('wr')
         
-        r = filter(particleCopy,weight(weightingRotated))            
+        r = list(filter(particleCopy,weight(weightingRotated)))            
         particleCopy = r[0]
         
     scoringResult = scoreObject.scoringCoefficient(particleCopy,simulatedVol,m)
@@ -977,13 +1047,6 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
 def alignmentProgressToHTML(filename,iterationNumber,score,resolution,angularIncrement,angleDistance,shiftDistance):
     """
     alignmentProgressToHTML
-    @param filename:
-    @param iterationNumber:
-    @param score:
-    @param resolution:
-    @param angularIncrement:
-    @param angleDistance:
-    @param shiftDistance:
     """
     from pytom.tools.files import getPytomPath,readStringFile  
 

@@ -27,8 +27,8 @@ class MPI:
         elif len(seq) > size:
             new_seq = [None] * size
             n, N = 0, len(seq)
-            for i in xrange(size):
-                l = N / size + (N % size > i)
+            for i in range(size):
+                l = N // size + (N % size > i)
                 new_seq[i] = seq[n:n+l]
                 n += l
             return new_seq
@@ -111,10 +111,10 @@ class MPI:
                 self.comm.gather(res, root=0)
                 self.comm.Barrier()
 
-            except Exception, e:
-                print e
+            except Exception as e:
+                print(e)
                 self.comm.Abort()
-
+                break
         # get end msg, terminate
         import sys
         sys.exit()
@@ -123,6 +123,7 @@ class MPI:
     def parfor(self, func, data, verbose=False):
         """For master only.
         """
+        #self.begin()
         if not self._begun:
             raise Exception("MPI is not begun!")
 
@@ -162,8 +163,8 @@ class MPI:
             self.comm.Barrier()
             all_res = self._merge_seq(all_res, len(data))
 
-        except Exception, e:
-            print e
+        except Exception as e:
+            print(e)
             self.comm.Abort()
 
         return all_res

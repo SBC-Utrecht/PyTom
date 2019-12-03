@@ -295,9 +295,9 @@ class MultiDefocusWorker(FRMWorker):
             old_freq = job.freq
             new_freq = job.freq
             # main node
-            for i in xrange(job.max_iter):
+            for i in range(job.max_iter):
                 if verbose:
-                    print self.node_name + ': starting iteration %d ...' % i
+                    print(self.node_name + ': starting iteration %d ...' % i)
                 
                 # construct a new job by updating the reference and the frequency
                 # here the job.particleList is actually ParticleListSet
@@ -320,10 +320,10 @@ class MultiDefocusWorker(FRMWorker):
                 all_odd_pre = None
                 all_odd_wedge = None
                 pls = []
-                for j in xrange(len(job.particleList.pairs)):
+                for j in range(len(job.particleList.pairs)):
                     pls.append(ParticleList())
                 
-                for j in xrange(self.num_workers):
+                for j in range(self.num_workers):
                     result = self.get_result()
                     
                     pair_id = self.assignment[result.worker_id]
@@ -345,7 +345,7 @@ class MultiDefocusWorker(FRMWorker):
                         all_odd_wedge = odd_wedge
                 
                 # write the new particle list to the disk
-                for j in xrange(len(job.particleList.pairs)):
+                for j in range(len(job.particleList.pairs)):
                     pls[j].toXMLFile('aligned_pl'+str(j)+'_iter'+str(i)+'.xml')
                 
                 # correct for the number of particles in wiener filter
@@ -365,7 +365,7 @@ class MultiDefocusWorker(FRMWorker):
                 
                 # determine the resolution
                 if verbose:
-                    print self.node_name + ': determining the resolution ...'
+                    print(self.node_name + ': determining the resolution ...')
                 even = self.create_average(all_even_pre, sum_ctf_squared, all_even_wedge) # assume that the CTF sum is the same for the even and odd
                 odd = self.create_average(all_odd_pre, sum_ctf_squared, all_odd_wedge)
                 
@@ -380,7 +380,7 @@ class MultiDefocusWorker(FRMWorker):
                 
                 current_resolution = bandToAngstrom(resolutionBand, job.sampleInformation.getPixelSize(), numberBands, 1)
                 if verbose:
-                    print self.node_name + ': current resolution ' + str(current_resolution), resNyquist
+                    print(self.node_name + ': current resolution ' + str(current_resolution), resNyquist)
                 
                 # create new average
                 all_even_pre += all_odd_pre
@@ -405,20 +405,20 @@ class MultiDefocusWorker(FRMWorker):
                 new_freq = int(ceil(resolutionBand))+1
                 if new_freq <= old_freq:
                     if job.adaptive_res is not False: # two different strategies
-                        print self.node_name + ': Determined resolution gets worse. Include additional %f percent frequency to be aligned!' % job.adaptive_res
+                        print(self.node_name + ': Determined resolution gets worse. Include additional %f percent frequency to be aligned!' % job.adaptive_res)
                         new_freq = int((1+job.adaptive_res)*old_freq)
                     else: # always increase by 1
-                        print self.node_name + ': Determined resolution gets worse. Increase the frequency to be aligned by 1!'
+                        print(self.node_name + ': Determined resolution gets worse. Increase the frequency to be aligned by 1!')
                         new_freq = old_freq+1
                         old_freq = new_freq
                 else:
                     old_freq = new_freq
                 if new_freq >= numberBands:
-                    print self.node_name + ': Determined frequency too high. Terminate!'
+                    print(self.node_name + ': Determined frequency too high. Terminate!')
                     break
                 
                 if verbose:
-                    print self.node_name + ': change the frequency to ' + str(new_freq)
+                    print(self.node_name + ': change the frequency to ' + str(new_freq))
             
             # send end signal to other nodes and terminate itself
             self.end(verbose)
@@ -439,7 +439,7 @@ class MultiDefocusWorker(FRMWorker):
                 job = self.get_job()
             except:
                 if verbose:
-                    print self.node_name + ': end'
+                    print(self.node_name + ': end')
                 break # get some non-job message, break it
             
             if verbose:
@@ -512,7 +512,7 @@ class MultiDefocusWorker(FRMWorker):
         even = ParticleList('.')
         odd = ParticleList('.')
         
-        for i in xrange(len(pl)):
+        for i in range(len(pl)):
             if i%2 == 0:
                 even.append(pl[i])
             else:
@@ -606,12 +606,12 @@ class MultiDefocusWorker(FRMWorker):
         # get the number of different particle list pairs
         num_pairs = len(job.particleList.pairs)
         num_all_particles = 0
-        for i in xrange(num_pairs):
+        for i in range(num_pairs):
             num_all_particles += len(job.particleList.pairs[i].get_phase_flip_pl())
         
         self.assignment = {} # dict for retrieving back the corresponding result
         start_worker_idx = 1
-        for i in xrange(num_pairs):
+        for i in range(num_pairs):
             # nodes available for this pair
             if i != num_pairs-1:
                 num_workers = int(float(len(job.particleList.pairs[i].get_phase_flip_pl()))/num_all_particles*self.num_workers)
@@ -619,7 +619,7 @@ class MultiDefocusWorker(FRMWorker):
                 num_workers = self.num_workers - start_worker_idx + 1
             
             if verbose:
-                print self.node_name + ': assign pair %d to workers from %d to %d' % (i, start_worker_idx, start_worker_idx+num_workers-1)
+                print(self.node_name + ': assign pair %d to workers from %d to %d' % (i, start_worker_idx, start_worker_idx+num_workers-1))
             
             sub_job = CTFCorrectionJob(job.particleList.pairs[i].get_phase_flip_pl(), job.particleList.pairs[i].ctf_conv_pl, job.reference, job.mask, job.peak_offset, job.sampleInformation, job.bw_range, job.freq, job.destination, job.max_iter, job.r_score, job.weighting, job.bfactor, job.particleList.pairs[i].ctf_sqr)
             self.distribute_pl(sub_job, i, num_workers, start_worker_idx, verbose)
@@ -635,7 +635,7 @@ class MultiDefocusWorker(FRMWorker):
         particlesPerNode = int(n/num_workers)
         residual = n-particlesPerNode*num_workers
         start_idx = 0
-        for i in xrange(start_worker_idx, num_workers+start_worker_idx):
+        for i in range(start_worker_idx, num_workers+start_worker_idx):
             if i < residual+start_worker_idx:
                 l = particlesPerNode+1
             else:
@@ -649,7 +649,7 @@ class MultiDefocusWorker(FRMWorker):
             
             self.assignment[i] = pair_id
             if verbose:
-                print self.node_name + ': distributed %d particles to node %d' % (len(subPL), i)
+                print(self.node_name + ': distributed %d particles to node %d' % (len(subPL), i))
         
 
 if __name__ == '__main__':
@@ -666,7 +666,7 @@ if __name__ == '__main__':
                                     ScriptOption(['--help'], 'Help info.', False, False)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     
     try:
@@ -675,7 +675,7 @@ if __name__ == '__main__':
         sys.exit()
         
     if bHelp is True:
-        print helper
+        print(helper)
         sys.exit()
     
     # check the job
@@ -694,4 +694,4 @@ if __name__ == '__main__':
     worker.start(job, verbose)
     
     if verbose:
-        print 'Overall execution time: %f s.' % t.end()
+        print('Overall execution time: %f s.' % t.end())

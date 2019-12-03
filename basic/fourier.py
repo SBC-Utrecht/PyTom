@@ -94,11 +94,13 @@ class FtSingleton(object):
         
         return t
 
-def fft(data):
+def fft(data, scaling=''):
     """
     fft: Performs Fourier Transformation on input. The result is NOT scaled in any way (1/N , 1/sqrt(n),...)  
     @param data: The source volume.  
     @type data: pytom_volume.vol
+    @param scaling: Describes the type of scaling is applied. 'N' 1/N, 'sqrtN' 1/sqrt(N). '' no scaling (default)
+    @type scaling: str
     @rtype: pytom_volume.vol_comp
     @return: The fourier transformed data 
     @author: Thomas Hrabe
@@ -125,7 +127,15 @@ def fft(data):
         returnValue.setFtSizeX(data.sizeX())
         returnValue.setFtSizeY(data.sizeY())
         returnValue.setFtSizeZ(data.sizeZ())
-        
+
+
+        if scaling=='sqrtN':
+            from numpy import sqrt
+            returnValue = returnValue / sqrt(data.sizeX()*data.sizeY()*data.sizeZ())
+        if scaling == 'N':
+            from numpy import sqrt
+            returnValue = returnValue / (data.sizeX() * data.sizeY() * data.sizeZ())
+
         return returnValue
     
     else:  
@@ -135,11 +145,11 @@ def fft(data):
         real.copyVolume(data)
         
         if(data.sizeZ() > 1):
-            complexVolume = pytom_volume.vol_comp(data.sizeX(),data.sizeY(),data.sizeZ()/2+1)
-            returnValue = pytom_volume.vol_comp(data.sizeX(),data.sizeY(),data.sizeZ()/2+1)
+            complexVolume = pytom_volume.vol_comp(data.sizeX(),data.sizeY(),data.sizeZ()//2+1)
+            returnValue = pytom_volume.vol_comp(data.sizeX(),data.sizeY(),data.sizeZ()//2+1)
         else:
-            complexVolume = pytom_volume.vol_comp(data.sizeX(),data.sizeY()/2+1,1)
-            returnValue = pytom_volume.vol_comp(data.sizeX(),data.sizeY()/2+1,1)
+            complexVolume = pytom_volume.vol_comp(data.sizeX(),data.sizeY()//2+1,1)
+            returnValue = pytom_volume.vol_comp(data.sizeX(),data.sizeY()//2+1,1)
             
         plan = pytom_fftplan.plan(real,complexVolume)
         plan.transform()
@@ -152,14 +162,24 @@ def fft(data):
         theTuple = FourierTuple(plan,real,complexVolume)
         
         ftSingleton.addFt(theTuple)
-        
+
+        if scaling=='sqrtN':
+            from numpy import sqrt
+            returnValue = returnValue / sqrt(data.sizeX()*data.sizeY()*data.sizeZ())
+        elif scaling == 'N':
+            from numpy import sqrt
+            returnValue = returnValue / (data.sizeX() * data.sizeY() * data.sizeZ())
+
         return returnValue
 
-def ifft(Fdata):
+def ifft(Fdata, scaling=''):
+
     """
     ifft: Performs inverse Fourier Transformation on input. The result is NOT scaled in any way (1/N , 1/sqrt(n),...)
     @param Fdata: The source volume (must be complex). If FData does not have shape information of the real volume, PyTom will assume that x==y==z (See line 198)   
     @type Fdata: pytom_volume.vol_comp
+    @param scaling: Describes the type of scaling is applied. 'N' 1/N, 'sqrtN' 1/sqrt(N). '' no scaling (default)
+    @type scaling: str
     @rtype: pytom_volume.vol
     @return: The inverse fourier transformed data
     @author: Thomas Hrabe
@@ -169,7 +189,8 @@ def ifft(Fdata):
     if not Fdata.__class__ == pytom_volume.vol_comp:
         raise TypeError('Data must be of type pytom_volume.vol_comp')
     
-    
+    if scaling: Fdata = Fdata/Fdata.getFtSizeX()/Fdata.getFtSizeY()/Fdata.getFtSizeZ()
+
     ftSingleton = FtSingleton()
     
     theTuple = ftSingleton.findIniFt(Fdata)
@@ -182,7 +203,13 @@ def ifft(Fdata):
         
         returnValue = pytom_volume.vol(theTuple.real.sizeX(),theTuple.real.sizeY(),theTuple.real.sizeZ())
         returnValue.copyVolume(theTuple.real)
-        
+        if scaling=='sqrtN':
+            from numpy import sqrt
+            returnValue = returnValue / sqrt(Fdata.sizeX()*Fdata.sizeY()*Fdata.sizeZ())
+        if scaling == 'N':
+            from numpy import sqrt
+            returnValue = returnValue / (Fdata.sizeX() * Fdata.sizeY() * Fdata.sizeZ())
+
         return returnValue
     
     else:  
@@ -204,8 +231,8 @@ def ifft(Fdata):
                 #if x == y and x is odd, then z will be one pixel off. 
                 #adjust accordingly that x == y == z
                 z = y 
-                print 'Warning: PyTom assumes that the shape of the real volume is :',x,y,z
-                print 'Warning: Check if that is consistent with your data!'
+                print('Warning: PyTom assumes that the shape of the real volume is :',x,y,z)
+                print('Warning: Check if that is consistent with your data!')
                 
         real = pytom_volume.vol(int(x),int(y),int(z))
         returnValue = pytom_volume.vol(int(x),int(y),int(z))
@@ -217,7 +244,13 @@ def ifft(Fdata):
         theTuple = FourierTuple(plan,real,complexVolume)
         
         ftSingleton.addiFt(theTuple)
-        
+        if scaling=='sqrtN':
+            from numpy import sqrt
+            returnValue = returnValue / sqrt(Fdata.sizeX()*Fdata.sizeY()*Fdata.sizeZ())
+        if scaling == 'N':
+            from numpy import sqrt
+            returnValue = returnValue / (Fdata.sizeX() * Fdata.sizeY() * Fdata.sizeZ())
+
         return returnValue
     
 def ftshift(data, inplace = True):
@@ -319,8 +352,8 @@ def fourierSizeOperation(sizeX=0,sizeY=0,sizeZ=0,reducedToFull = True):
             #if x == y and x is odd, then z will be one pixel off. 
             #adjust accordingly that x == y == z
             z = y
-            print 'Warning: PyTom assumes that the shape of the real volume is :',x,y,z
-            print 'Warning: Check if that is consistent with your data!'
+            print('Warning: PyTom assumes that the shape of the real volume is :',x,y,z)
+            print('Warning: Check if that is consistent with your data!')
             
     else:
         x = sizeX 

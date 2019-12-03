@@ -56,7 +56,7 @@ def printProcessStats():
     import os, pytom_mpi
     
     if pytom_mpi.isInitialised():
-        print 'Usage of MPI-ID (',pytom_mpi.rank(),')'
+        print('Usage of MPI-ID (',pytom_mpi.rank(),')')
         
     pid = os.getpid()
     

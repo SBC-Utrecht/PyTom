@@ -57,8 +57,9 @@ def normaliseUnderMask(volume, mask, p=None):
     from pytom_volume import sum
     if not p:
         p = sum(mask)
-        
+    
     meanT = meanValueUnderMask(volume, mask, p)
+    
     stdT = stdValueUnderMask(volume, mask, meanT, p)
     res = (volume - meanT)/stdT
     return (res,p)

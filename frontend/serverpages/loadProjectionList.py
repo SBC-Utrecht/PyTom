@@ -24,9 +24,9 @@ def run(parameters,verbose=False):
     
     if splitParameters.__class__ == list:
         if verbose:
-            print splitParameters
+            print(splitParameters)
         
-        for i in xrange(len(splitParameters)):
+        for i in range(len(splitParameters)):
             
             parameter = splitParameters[i]
             
@@ -36,16 +36,16 @@ def run(parameters,verbose=False):
             argument = split[1]
             
             if verbose:
-                print 'Keyword : ', keyword
-                print 'Arguments : ', argument
+                print('Keyword : ', keyword)
+                print('Arguments : ', argument)
                 
             if keyword == 'XML':
                 from pytom.tools.files import readStringFile,getPytomPath
-                import StringIO
+                import io
                 from lxml import etree
                 
                 if not checkFileExists(argument):
-                    print ErrorMessage('File / directory not found!')
+                    print(ErrorMessage('File / directory not found!'))
                     return str(ErrorMessage('File / directory not found!'))
                     
                 
@@ -53,18 +53,18 @@ def run(parameters,verbose=False):
                 pl.fromXMLFile(argument)
                 
                 xsltString = readStringFile(getPytomPath() + '/frontend/html/xslt/ProjectionList.xsl')
-                xsltTransform = StringIO.StringIO(xsltString)
+                xsltTransform = io.StringIO(xsltString)
                 
                 transformed = pl.xsltTransform(xsltTransform)
                 return etree.tostring(transformed,pretty_print=True)
                 
             elif keyword == 'DIR':
                 from pytom.tools.files import checkDirExists,getPytomPath,readStringFile
-                import StringIO
+                import io
                 from lxml import etree
                 
                 if not checkDirExists(argument):
-                    print ErrorMessage('File / directory not found!')
+                    print(ErrorMessage('File / directory not found!'))
                     return str(ErrorMessage('File / directory not found!'))
                     
                 
@@ -72,7 +72,7 @@ def run(parameters,verbose=False):
                 pl.loadDirectory(argument)
                 
                 xsltString = readStringFile(getPytomPath() + '/frontend/html/xslt/ProjectionList.xsl')
-                xsltTransform = StringIO.StringIO(xsltString)
+                xsltTransform = io.StringIO(xsltString)
                 
                 transformed = pl.xsltTransform(xsltTransform)
                 return etree.tostring(transformed,pretty_print=True)

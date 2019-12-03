@@ -5,7 +5,8 @@ Created on May 7, 2012
 '''
 
 import pytom_mpi
-import cPickle
+import pickle
+import os
 
 class CMWorker():
     def __init__(self):
@@ -19,7 +20,8 @@ class CMWorker():
         if self.num_workers < 1:
             raise RuntimeError("Not enough nodes to parallelize the job!")
         
-    def start(self, job, verbose=False):
+    def start(self, job, outdir='./', verbose=False):
+        outdir = job["outdir"]
         if self.mpi_id == 0:
             import numpy as np
             pl_filename = job["ParticleList"]
@@ -33,19 +35,19 @@ class CMWorker():
             self.distribute_job(job, verbose)
 
             # fill in the diagnal line
-            for i in xrange(n):
+            for i in range(n):
                 correlation_matrix[i][i] = 1
 
             # gather the results
-            for i in xrange(self.num_workers):
+            for i in range(self.num_workers):
                 result = self.get_result()
-                pairs = result.keys()
+                pairs = list(result.keys())
                 for pair in pairs:
                     correlation_matrix[pair[0]][pair[1]] = result[pair]
                     correlation_matrix[pair[1]][pair[0]] = result[pair]
             
             # write the correlation matrix to the disk
-            np.savetxt('correlation_matrix.csv', correlation_matrix, delimiter=',')
+            np.savetxt(os.path.join(outdir, 'correlation_matrix.csv'), correlation_matrix, delimiter=',')
 
             # send end signal to other nodes and terminate itself
             self.end(verbose)
@@ -55,7 +57,7 @@ class CMWorker():
     
     def end(self, verbose=False):
         if verbose == True:
-            print self.node_name + ': sending end messages to others'
+            print(self.node_name + ': sending end messages to others')
         
         from pytom.parallel.messages import StatusMessage
         
@@ -85,7 +87,7 @@ class CMWorker():
                 pl_filename = job["ParticleList"]
             except:
                 if verbose:
-                    print self.node_name + ': end'
+                    print(self.node_name + ': end')
                 break # get some non-job message, break it
 
             from pytom.basic.structures import ParticleList
@@ -99,8 +101,11 @@ class CMWorker():
             # run the job
             result = {}
             last_filename = None
-            binning = job["Binning"]
-            mask = read(job["Mask"], 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+            binning = int(job["Binning"])
+
+            mask = read(job["Mask"], 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
+            
+            
             for pair in pairs:
                 if verbose:
                     prog.update(i)
@@ -124,7 +129,7 @@ class CMWorker():
 
                     last_filename = g.getFilename()
 
-                score = nxcc(wg.apply(vf, wg_rotation), wf.apply(vg, wf_rotation), mask)
+                score = nxcc( wg.apply(vf, wg_rotation), wf.apply(vg, wf_rotation), mask)
                 # overlapped_wedge_vol = wf_vol * wg_vol
                 # scaling = float(overlapped_wedge_vol.numelem())/sum(overlapped_wedge_vol)
                 # score *= scaling
@@ -138,25 +143,27 @@ class CMWorker():
 
     
     def send_job(self, job, dest):
-        pytom_mpi.send(cPickle.dumps(job), dest)
+        pickled = pickle.dumps(job, protocol=0, fix_imports=True).decode('utf-8')
+        pytom_mpi.send(pickled, dest)
     
     def get_job(self):
         from pytom.localization.parallel_extract_peaks import getMsgStr
         mpi_msgString = getMsgStr()
         try:
-            job = cPickle.loads(mpi_msgString)
+            job = pickle.loads(mpi_msgString.encode('utf-8'))
         except:
             return None
         
         return job
     
     def send_result(self, result):
-        pytom_mpi.send(cPickle.dumps(result), 0)
+        pickled = pickle.dumps(result, protocol=0, fix_imports=True).decode('utf-8')
+        pytom_mpi.send(pickled, 0)
     
     def get_result(self):
         from pytom.localization.parallel_extract_peaks import getMsgStr
         mpi_msgString = getMsgStr()
-        result = cPickle.loads(mpi_msgString)
+        result = pickle.loads(mpi_msgString.encode('utf-8'))
         
         return result
     
@@ -167,14 +174,14 @@ class CMWorker():
         pl.fromXMLFile(pl_filename)
         nn = len(pl)
         all_pairs = []
-        for i in xrange(nn):
-            for j in xrange(i+1, nn):
+        for i in range(nn):
+            for j in range(i+1, nn):
                 all_pairs.append((i, j))
         n = len(all_pairs)
         particlesPerNode = int(n/self.num_workers)
         residual = n-particlesPerNode*self.num_workers
         start_idx = 0
-        for i in xrange(1, self.num_workers+1):
+        for i in range(1, self.num_workers+1):
             if i < residual+1: # since i starts from 1
                 l = particlesPerNode+1
             else:
@@ -193,7 +200,7 @@ class CMWorker():
             self.send_job(sub_job, i)
             
             if verbose:
-                print self.node_name + ': distributed %d particles to node %d' % (len(sub_pairs), i)
+                print(self.node_name + ': distributed %d particles to node %d' % (len(sub_pairs), i))
 
 if __name__ == '__main__':
     # parse command line arguments
@@ -209,20 +216,21 @@ if __name__ == '__main__':
                                     ScriptOption(['-f'], 'Frequency (after binning).', True, False),
                                     ScriptOption(['-b'], 'Binning factor.', True, True),
                                     ScriptOption(['-v'], 'Verbose mode.', False, True),
+                                    ScriptOption(['-o'], 'Output directory.', True, True),
                                     ScriptOption(['--help'], 'Help info.', False, True)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     
     try:
-        pl_filename, mask_filename, freq, binning, verbose, bHelp = parse_script_options(sys.argv[1:], helper)     
-    except:
-        raise
+        pl_filename, mask_filename, freq, binning, verbose, outdir, help = parse_script_options(sys.argv[1:], helper)
+    except Exception as e:
+        print(e)
         sys.exit()
     
-    if bHelp is True:
-        print helper
+    if help is True:
+        print(helper)
         sys.exit()
     
     if verbose:
@@ -241,9 +249,9 @@ if __name__ == '__main__':
     job["Mask"] = mask_filename
     job["Frequency"] = freq
     job["Binning"] = binning
-
+    job["outdir"] = outdir if outdir else './'
     worker = CMWorker()
     worker.start(job, verbose)
     
     if verbose:
-        print 'Overall execution time: %f s.' % t.end()
+        print('Overall execution time: %f s.' % t.end())

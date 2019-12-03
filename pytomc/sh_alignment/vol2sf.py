@@ -121,12 +121,12 @@ def vol2sf_mean(vol, b, max_radius=None, center=None):
     else:
         m_x = int(vol.sizeX()/2); m_y = int(vol.sizeY()/2); m_z = int(vol.sizeZ()/2)
     
-    for j in xrange(2*b):
-        for k in xrange(2*b):
+    for j in range(2*b):
+        for k in range(2*b):
             the = pi*(2*j+1)/(4*b) # (0,pi)
             phi = pi*k/b # [0,2*pi)
             sum = 0.
-            for r in xrange(max_radius):
+            for r in range(max_radius):
                 x = r*cos(phi)*sin(the)
                 y = r*sin(phi)*sin(the)
                 z = r*cos(the)
@@ -169,19 +169,19 @@ if __name__ == '__main__':
     usage = './scriptname -v volume -r radius -b bandwidth -c flag_for_convolution -o output_filename'
     
     if len(sys.argv) == 1:
-        print usage
+        print(usage)
         sys.exit()        
     
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hcv:r:b:o:", ["help"])
     except getopt.GetoptError:
-        print 'Command not right. Exit!'
+        print('Command not right. Exit!')
         sys.exit()
     
     conv = False
     for o,a in opts:
         if o in ("-h", "--help"):
-            print usage
+            print(usage)
             sys.exit()
         if o in ("-v"):
             vol_name = a

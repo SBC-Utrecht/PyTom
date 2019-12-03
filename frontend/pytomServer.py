@@ -6,7 +6,7 @@ Created on Jul 7, 2011
 '''
 
 
-import BaseHTTPServer
+import http.server
 from pytom.tools.files import getPytomPath
 
 pytomPath = getPytomPath()
@@ -25,7 +25,7 @@ def dispatchRequest(server,filename,parameters,verbose=False):
     """
     
     if verbose:
-        print "Dispatching serverpage request : ", filename, parameters
+        print("Dispatching serverpage request : ", filename, parameters)
     
     if filename == 'loadParticleList.py':
         from pytom.frontend.serverpages.loadParticleList import run
@@ -62,7 +62,7 @@ def parseQuery(query):
     @author: Thomas Hrabe
     """
     
-    from urlparse import urlsplit
+    from urllib.parse import urlsplit
     
     query = query.replace('%2F','/')
     query = query.replace('%7E','~')
@@ -93,7 +93,7 @@ def parsePythonRequest(server):
     splitURL = url.split('/')
     
     if verbose:
-        print parameters
+        print(parameters)
         
     fileObject = splitURL[len(splitURL)-1]
 
@@ -101,7 +101,7 @@ def parsePythonRequest(server):
 
     
     
-class PyTomHTTPServer(BaseHTTPServer.BaseHTTPRequestHandler):
+class PyTomHTTPServer(http.server.BaseHTTPRequestHandler):
     """
     PyTomHTTPServer:
     """
@@ -110,7 +110,7 @@ class PyTomHTTPServer(BaseHTTPServer.BaseHTTPRequestHandler):
         from pytom.tools.files import getPytomPath, checkFileExists
         pytomPath = getPytomPath()
         filePath = pytomPath + '/frontend/html/'
-        print filePath + fileTypePaths[extension] + path
+        print(filePath + fileTypePaths[extension] + path)
         if checkFileExists(path):
             return path
         elif checkFileExists(filePath + path):
@@ -170,12 +170,12 @@ class PyTomHTTPServer(BaseHTTPServer.BaseHTTPRequestHandler):
         """
         
         from pytom.tools.files import getPytomPath , checkFileExists
-        import urlparse
+        import urllib.parse
         if verbose:
-            print 'HTTP Request : ',self.path
+            print('HTTP Request : ',self.path)
 
         
-        parsedURL = urlparse.urlparse(self.path)
+        parsedURL = urllib.parse.urlparse(self.path)
         pathPartition = parsedURL.path.partition('.') 
         extension = pathPartition[2]
         
@@ -232,15 +232,15 @@ if __name__ == '__main__':
     defaultDisableBrowser = False
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         hostname, port, browser, disableBrowser, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
     
     if not hostname:
@@ -258,20 +258,20 @@ if __name__ == '__main__':
         disableBrowser = defaultDisableBrowser
     
     if not port or not hostname:
-        print helper
+        print(helper)
         sys.exit()
         
-    print '----------------------------------------------------------------------------------------'        
-    print 'Starting Pytom Webserver on hostname ' + hostname + ' and port ' + str(port)
-    print 'Paste the following line into your browser to start'
-    print 'http://' + hostname + ':' + str(port)
+    print('----------------------------------------------------------------------------------------')        
+    print('Starting Pytom Webserver on hostname ' + hostname + ' and port ' + str(port))
+    print('Paste the following line into your browser to start')
+    print('http://' + hostname + ':' + str(port))
     if not disableBrowser:
-        print 'Starting browser: ', browser
-    print ''
-    print '----------------------------------------------------------------------------------------'
+        print('Starting browser: ', browser)
+    print('')
+    print('----------------------------------------------------------------------------------------')
     
     
-    httpd = BaseHTTPServer.HTTPServer((hostname,port),PyTomHTTPServer)
+    httpd = http.server.HTTPServer((hostname,port),PyTomHTTPServer)
     
     
     if not disableBrowser:
@@ -280,10 +280,10 @@ if __name__ == '__main__':
         
         if pid == 0:
             try:
-                print browser + ' http://' + hostname + ":" + str(port) + '/index.html'
+                print(browser + ' http://' + hostname + ":" + str(port) + '/index.html')
                 os.system(browser + ' http://' + hostname + ":" + str(port) )
             except:
-                print 'Problems starting your browser. Please start browser manually.'
+                print('Problems starting your browser. Please start browser manually.')
                 pass
             sys.exit()
      

@@ -61,6 +61,7 @@ def nxcc(volume,template,mask=None, volumeIsNormalized=False):
         p = volume.numelem()
         result = v*t
     else:
+        from pytom_numpy import vol2npy
         from pytom.basic.normalise import normaliseUnderMask
         if not volumeIsNormalized:
             (v,p) = normaliseUnderMask(volume,mask)
@@ -210,7 +211,9 @@ def stdValueUnderMask(volume, mask, meanValue, p=None):
     squareV.copyVolume(volume)
     power(squareV, 2)
     
-    res = meanValueUnderMask(squareV, mask, p) - squareM
+    res = meanValueUnderMask(squareV, mask, p)
+
+    res -= squareM
     try:
         res = res**0.5
     except ValueError:
@@ -272,10 +275,10 @@ def stdUnderMask(volume, mask, p, meanV):
     power(copyMean, 2)
 
     result = meanUnderMask(copyV, mask, p) - copyMean
-    
+
 #    from pytom_volume import abs
 #    abs(result)
-    limit(result, 1e-09, 1, 0,0, True, False) # this step is needed to set all those value (close to 0) to 1
+    limit(result, 1e-09, 1, 0, 0, True, False) # this step is needed to set all those value (close to 0) to 1
     power(result, 0.5)
 
     return result
@@ -304,7 +307,8 @@ def FLCF(volume, template, mask=None, stdV=None):
     from pytom_volume import conjugate
     from pytom.basic.structures import Mask
     from pytom_volume import sum
-    
+    from pytom.basic.files import write_em
+
     if volume.__class__ != vol and template.__class__ != vol:
         raise RuntimeError('Wrong input type!')
     
@@ -327,7 +331,8 @@ def FLCF(volume, template, mask=None, stdV=None):
     # normalize the template under mask
     meanT = meanValueUnderMask(template, mask, p)
     stdT = stdValueUnderMask(template, mask, meanT, p)
-    
+
+
     temp = (template - meanT)/stdT
     temp = temp * mask
 
@@ -348,12 +353,14 @@ def FLCF(volume, template, mask=None, stdV=None):
     if stdV.__class__ != vol:
         meanV = meanUnderMask(volume, maskV, p)
         stdV = stdUnderMask(volume, maskV, p, meanV)
-    
+
+
+
     size = volume.numelem()
     fT = fft(tempV)
     conjugate(fT)
     result = iftshift(ifft(fT*fft(volume)))/stdV
-    
+
     result.shiftscale(0,1/(size*p))
     
     return result
@@ -378,7 +385,7 @@ def bandCC(volume,reference,band,verbose = False):
     from math import sqrt
     
     if verbose:
-        print 'lowest freq : ', band[0],' highest freq' , band[1]
+        print('lowest freq : ', band[0],' highest freq' , band[1])
         
     vf = bandpassFilter(volume,band[0],band[1],fourierOnly=True)
     rf = bandpassFilter(reference,band[0],band[1],vf[1],fourierOnly=True)
@@ -455,7 +462,7 @@ def weightedXCC(volume,reference,numberOfBands,wedgeAngle=-1):
         
         increment = int(volume.sizeX()/2 * 1/numberOfBands)
         band = [0,100]
-        for i in xrange(0,volume.sizeX()/2, increment):
+        for i in range(0,volume.sizeX()/2, increment):
         
             band[0] = i
             band[1] = i + increment
@@ -532,7 +539,7 @@ def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1):
     freference.shiftscale(0,1/float(numelem))
 
     #print '-----'
-    for i in xrange(numberOfBands):
+    for i in range(numberOfBands):
         #process bandCorrelation
         band = []
         band[0] = i*volume.sizeX()/numberOfBands 
@@ -676,8 +683,6 @@ def weightedXCF(volume,reference,numberOfBands,wedgeAngle=-1):
     
     return result
 
-
-
 def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
     """
     FSC - Calculates the Fourier Shell Correlation for two volumes
@@ -724,13 +729,13 @@ def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
     
     increment = int(volume1.sizeX()/2 * 1/numberBands)
     
-    for i in xrange(0,volume1.sizeX()/2, increment):
+    for i in range(0,volume1.sizeX()//2, increment):
         
         band[0] = i
         band[1] = i + increment
         
         if verbose:
-            print 'Band : ' ,band
+            print('Band : ' ,band)
             
         res = bandCC(volume1,volume2,band,verbose)
         
@@ -739,7 +744,7 @@ def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
             res[0] = 1
   
         if verbose:
-            print 'Correlation ' ,res[0]
+            print('Correlation ' ,res[0])
 
         fscResult.append(res[0])
 
@@ -750,8 +755,7 @@ def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
         f.close()
 
     return fscResult
-        
-    
+
 def determineResolution(fsc,resolutionCriterion,verbose=False):
     """
     determineResolution: Determines frequency and band where correlation drops below the resolutionCriterion. Uses linear interpolation between two positions
@@ -765,13 +769,13 @@ def determineResolution(fsc,resolutionCriterion,verbose=False):
     
     band = numberBands
 
-    for i in xrange(numberBands):
+    for i in range(numberBands):
         if fsc[i] < resolutionCriterion:     
             band = i-1  #select the band that is still larger than criterion
             break
     
     if verbose:
-        print 'Band detected at ', band
+        print('Band detected at ', band)
     
     if band == -1:
         raise RuntimeError("Please check your resolution criterion or you FSC!")
@@ -790,16 +794,16 @@ def determineResolution(fsc,resolutionCriterion,verbose=False):
         interpolatedBand = band
         
     if verbose:
-        print 'Band interpolated to ', interpolatedBand
+        print('Band interpolated to ', interpolatedBand)
         
     resolution = (interpolatedBand+1) / float(numberBands)
     
     if resolution < 0 :
         resolution = 1
         interpolatedBand = numberBands
-        print 'Warning: PyTom determined a resolution < 0 for your data. Please check "mass" in data is positive or negative for all cubes.'
-        print 'Warning: Setting resolution to 1 and ',interpolatedBand
-        print ''
+        print('Warning: PyTom determined a resolution < 0 for your data. Please check "mass" in data is positive or negative for all cubes.')
+        print('Warning: Setting resolution to 1 and ',interpolatedBand)
+        print('')
         
     return [resolution,interpolatedBand,numberBands]
 
@@ -835,7 +839,7 @@ def subPixelPeakParabolic(scoreVolume, coordinates, verbose=False):
                 coordinates[1] == 0 or coordinates[1] == scoreVolume.sizeY()-1 or
                 coordinates[2] == 0 or coordinates[2] == scoreVolume.sizeZ()-1 ):
         if verbose:
-            print "subPixelPeakParabolic: peak near borders - no interpolation done"
+            print("subPixelPeakParabolic: peak near borders - no interpolation done")
         return [scoreVolume.getV(coordinates[0], coordinates[1], coordinates[2]), coordinates]
     peakCoordinates = coordinates
     (x, p1, a1) = qint(ym1=scoreVolume.getV(coordinates[0]-1, coordinates[1], coordinates[2]), 
@@ -911,36 +915,29 @@ def subPixelPeak(scoreVolume, coordinates, cubeLength=8, interpolation='Spline',
     if scoreVolume.sizeZ() == 1:
         twoD = True
 
-    cubeStart = cubeLength/2
+    cubeStart = cubeLength//2
     sizeX = scoreVolume.sizeX()
     sizeY = scoreVolume.sizeY()
     sizeZ = scoreVolume.sizeZ()
     
     if twoD:
-        if (coordinates[0]-cubeStart < 1 \
-            or coordinates[1]-cubeStart < 1) or\
-            (coordinates[0]-cubeStart + cubeLength >= sizeX \
-            or coordinates[1]-cubeStart + cubeLength >= sizeY):
+        if (coordinates[0]-cubeStart < 1 or coordinates[1]-cubeStart < 1) or\
+            (coordinates[0]-cubeStart + cubeLength >= sizeX or coordinates[1]-cubeStart + cubeLength >= sizeY):
             if verbose:
                 print ("SubPixelPeak: position too close to border for sub-pixel")
             return [scoreVolume(coordinates[0],coordinates[1],coordinates[2]),coordinates]
 
-        subVolume = subvolume(scoreVolume,coordinates[0]-cubeStart,
-              coordinates[1]-cubeStart,0,
-              cubeLength,cubeLength,1)
+        subVolume = subvolume(scoreVolume,coordinates[0]-cubeStart,coordinates[1]-cubeStart,0,cubeLength,cubeLength,1)
     else:
-        if (coordinates[0]-cubeStart < 1 \
-            or coordinates[1]-cubeStart < 1 
-            or coordinates[2]-cubeStart < 1) or \
-            (coordinates[0]-cubeStart + cubeLength >= sizeX \
-            or coordinates[1]-cubeStart + cubeLength >= sizeY \
-            or coordinates[2]-cubeStart + cubeLength >= sizeZ):
+        if (coordinates[0]-cubeStart < 1 or coordinates[1]-cubeStart < 1 or coordinates[2]-cubeStart < 1) or \
+                (coordinates[0]-cubeStart + cubeLength >= sizeX or coordinates[1]-cubeStart + cubeLength >= sizeY or \
+                 coordinates[2]-cubeStart + cubeLength >= sizeZ):
             if verbose:
                 print ("SubPixelPeak: position too close to border for sub-pixel")
             return [scoreVolume(coordinates[0],coordinates[1],coordinates[2]),coordinates]
-        subVolume = subvolume(scoreVolume,coordinates[0]-cubeStart,
-	          coordinates[1]-cubeStart,coordinates[2]-cubeStart,
-	          cubeLength,cubeLength,cubeLength)
+
+        subVolume = subvolume(scoreVolume,coordinates[0]-cubeStart,coordinates[1]-cubeStart,coordinates[2]-cubeStart,
+                              cubeLength,cubeLength,cubeLength)
     
     #size of interpolated volume
     scaleSize = 10*cubeLength

@@ -18,7 +18,7 @@ def randomiseParticleListClasses(particleList, numberClasses):
     
     random.seed()
     
-    for i in xrange(len(particleList)):
+    for i in range(len(particleList)):
         
         particle = particleList[i]
     

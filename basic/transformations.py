@@ -172,9 +172,7 @@ def rotateFourierSpline(volume,z1,z2,x,twice=False):
 #    return res
     
     return transformFourierSpline(volume,z1,z2,x,0,0,0,twice)
-    
-    
-    
+
 def scale(volume,factor,interpolation='Spline'):
     """
     scale: Scale a volume by a factor in REAL SPACE - see also resize function for more accurate operation in Fourier \
@@ -216,7 +214,6 @@ def scale(volume,factor,interpolation='Spline'):
     
     return newVolume
 
-
 def resize(volume, factor, interpolation='Fourier'):
     """
     resize volume in real or Fourier space
@@ -243,7 +240,6 @@ def resize(volume, factor, interpolation='Fourier'):
 
         return newvol, newfvol
 
-
 def resizeFourier(fvol, factor):
     """
     resize Fourier transformed by factor
@@ -258,7 +254,7 @@ def resizeFourier(fvol, factor):
     """
     from pytom_volume import vol_comp
 
-    assert isinstance(object=fvol, class_or_type_or_tuple=vol_comp), "fvol must be reduced complex"
+    assert isinstance(fvol, vol_comp), "fvol must be reduced complex"
 
     oldFNx = fvol.sizeX()
     oldFNy = fvol.sizeY()
@@ -273,12 +269,12 @@ def resizeFourier(fvol, factor):
     # check 2D images
     if oldNz > 1:
         newNz = int(float(oldNz*factor)+0.5)
-        newFNz = newNz / 2 +1
+        newFNz = newNz // 2 +1
         newFNy = newNy
     else:
         newNz = 1
         newFNz = 1
-        newFNy = newNy /2 + 1
+        newFNy = newNy //2 + 1
 
     newfvol = vol_comp(newFNx, newFNy, newFNz)
     newfvol.setFtSizeX(newNx)
@@ -288,7 +284,7 @@ def resizeFourier(fvol, factor):
     # magnify image
     if factor >= 1.:
         newfvol.setAll(0.)
-        oldFNx_2 = oldFNx/2+1
+        oldFNx_2 = oldFNx//2+1
         if oldNz == 1:
             iz = 0
             for iy in range(oldFNy):
@@ -298,7 +294,7 @@ def resizeFourier(fvol, factor):
                     ixNew = ix + (newFNx - oldFNx)
                     newfvol.setV( fvol.getV(ix, iy, iz)*scf, ixNew, iy, iz)
         else:
-            oldFNy_2 = oldFNy/2+1
+            oldFNy_2 = oldFNy//2+1
             for iz in range(oldFNz):
                 for iy in range(oldFNy_2):
                     for ix in range(oldFNx_2):
@@ -315,7 +311,7 @@ def resizeFourier(fvol, factor):
                         newfvol.setV( fvol.getV(ix, iy, iz)*scf, ixNew, iyNew, iz)
     # de-magnify image
     else:
-        newFNx_2 = newFNx/2+1
+        newFNx_2 = newFNx//2+1
         if oldFNz == 1:
             iz = 0
             for iy in range(newFNy):
@@ -325,7 +321,7 @@ def resizeFourier(fvol, factor):
                     ixOld = ix + (oldFNx - newFNx)
                     newfvol.setV( fvol.getV(ixOld, iy, iz)*scf, ix, iy, iz)
         else:
-            newFNy_2 = newFNy/2+1
+            newFNy_2 = newFNy//2+1
             for iz in range(newFNz):
                 for iy in range(newFNy_2):
                     for ix in range(newFNx_2):
@@ -341,7 +337,6 @@ def resizeFourier(fvol, factor):
                         ixOld = ix + (oldFNx - newFNx)
                         newfvol.setV( fvol.getV(ixOld, iyOld, iz)*scf, ix, iy, iz)
     return newfvol
-
 
 def mirror(volume,axis = 'x',copyFlag = True):
     """
@@ -367,9 +362,9 @@ def mirror(volume,axis = 'x',copyFlag = True):
         from pytom_volume import vol
         returnVolume = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
         
-        for x in xrange(volume.sizeX()):
-            for y in xrange(volume.sizeY()):
-                for z in xrange(volume.sizeZ()):
+        for x in range(volume.sizeX()):
+            for y in range(volume.sizeY()):
+                for z in range(volume.sizeZ()):
                     
                     xMirrored = (x-centerX) * transformation[0] + centerX
                     yMirrored = (y-centerY) * transformation[1] + centerY
@@ -379,9 +374,9 @@ def mirror(volume,axis = 'x',copyFlag = True):
         return returnVolume
         
     else:
-        for x in xrange(volume.sizeX()):
-            for y in xrange(volume.sizeY()):
-                for z in xrange(volume.sizeZ()):
+        for x in range(volume.sizeX()):
+            for y in range(volume.sizeY()):
+                for z in range(volume.sizeZ()):
                     
                     tmp = volume.getV(x,y,z)
                     xMirrored = (x-centerX) * transformation[0] + centerX
@@ -391,7 +386,6 @@ def mirror(volume,axis = 'x',copyFlag = True):
                     volume.setV(volume.getV(xMirrored,yMirrored,zMirrored),x,y,z)
                     
                     volume.setV(tmp,xMirrored,yMirrored,zMirrored)
-
 
 def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2]):
     """
@@ -578,7 +572,6 @@ def general_transform2d(v, rot=None, shift=None, scale=None, order=[0, 1, 2], cr
         vv = general_transform(v, rot, shift, [scale, scale, 1], order)
     return vv
 
-
 def project(v, rot, verbose=False):
     """
     rotate and subsequently project volume along z
@@ -604,7 +597,7 @@ def project(v, rot, verbose=False):
     if not isinstance(rot, Rotation):
         raise TypeError('project: rot must be of type Rotation or float! Got ' + str(v.__class__) + ' instead!')
     if verbose:
-        print "project: Rotation for projection: "+str(rot)
+        print("project: Rotation for projection: "+str(rot))
     rotvol = general_transform_crop(v=v, rot=rot, shift=None, scale=None, order=[0, 1, 2])
     # slightly awkward: projection in numpy ...
     npvol = vol2npy(rotvol)

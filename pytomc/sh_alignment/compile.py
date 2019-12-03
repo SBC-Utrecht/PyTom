@@ -4,7 +4,7 @@ import os
 import sys
 import platform
 
-def compile(include_path=None, library_path=None):
+def compile(include_path=None, library_path=None,python_version='python3.7'):
     # search and set the relevant env variables
     # for the include files
     to_find_headers = {}
@@ -21,6 +21,7 @@ def compile(include_path=None, library_path=None):
         raise RuntimeError("Platform not supported!")
     to_find_libs = {}
     to_find_libs["libfftw3"+lib_suffix] = ""
+    to_find_libs['lib'+python_version+lib_suffix] = ""
 
     # get the HOME directory and try to deduce the Numpy position
     home_dir = os.path.expanduser("~")
@@ -31,7 +32,7 @@ def compile(include_path=None, library_path=None):
         pass
 
     # append some common dirs in the end to search
-    print "Search include files ..."
+    print("Search include files ...")
     if include_path is None:
         include_path = []
     include_path += ["/usr/include/", home_dir+"/include/", numpy_search_path]
@@ -57,7 +58,7 @@ def compile(include_path=None, library_path=None):
                 raise RuntimeError("File %s cannot be found!" % file)
     
     # get the parent directory for numpy header file
-    print to_find_headers["arrayobject.h"]
+    print(to_find_headers["arrayobject.h"])
     if to_find_headers["arrayobject.h"][-5:] == "numpy":
         to_find_headers["arrayobject.h"] = to_find_headers["arrayobject.h"][:-5]
     elif to_find_headers["arrayobject.h"][-6:] == "numpy/":
@@ -66,7 +67,7 @@ def compile(include_path=None, library_path=None):
         raise RuntimeError("Numpy header file arrayobject.h is in the wrong place!")
 
     # append some common dirs in the end to search
-    print "Search dynamic library files ..."
+    print("Search dynamic library files ...")
     if library_path is None:
         library_path = []
     library_path += ["/usr/lib/", "/usr/lib64/", home_dir+"/lib/", home_dir+"/lib64/"]
@@ -88,7 +89,7 @@ def compile(include_path=None, library_path=None):
                 raise RuntimeError("File %s cannot be found!" % file)
 
     # start compilation
-    print "Compile ..."
+    print("Compile ...")
 
     try:
         # set the flags
@@ -96,16 +97,18 @@ def compile(include_path=None, library_path=None):
         set_flags += ' && export NUMPY_INCLUDE_PATH="%s"' % to_find_headers["arrayobject.h"]
         set_flags += ' && export FFTW_INCLUDE_PATH="%s"' % to_find_headers["fftw3.h"]
         set_flags += ' && export FFTW_LIB_PATH="%s"' % to_find_libs["libfftw3"+lib_suffix]
+        set_flags += ' && export PYTHON_LIB_PATH="%s"' % to_find_libs['lib'+python_version+lib_suffix]
+        set_flags += ' && export PYTHON_VERSION="%s"' % python_version
         
         # compile
         command = set_flags+" && cd sh_alignment/SpharmonicKit27 && make all"
-        print command
+        print(command)
         os.system(command) # adapted to Pytom
         command = set_flags+" && cd sh_alignment/frm/src/ && make lib"
-        print command
+        print(command)
         os.system(command) # adapted to Pytom
         command = set_flags+" && cd sh_alignment/frm/swig/ && chmod +x mkswig.sh && ./mkswig.sh"
-        print command 
+        print(command) 
         os.system(command) # adapted to Pytom
 
         # done, get the paths for setting up
@@ -113,16 +116,16 @@ def compile(include_path=None, library_path=None):
         parent_path = os.path.split(current_path)[0]
         ld_library_path = to_find_libs["libfftw3"+lib_suffix]+':'+current_path+'/SpharmonicKit27/'+':'+current_path+'/frm/swig/'
         python_path = parent_path+':'+current_path+'/frm/swig/'
-        print
-        print "Finished!"
+        print()
+        print("Finished!")
         # adapted to Pytom
 #        print "In order to use this library, you might need to add the following settings into your enviroment:"
 #        print "LD_LIBRARY_PATH =", ld_library_path
 #        print "PYTHONPATH =", python_path
-        print
+        print()
         return ld_library_path, python_path
     except:
-        print "Failed!"
+        print("Failed!")
         return None, None
 
 def find_file(filename, dir):

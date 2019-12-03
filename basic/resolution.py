@@ -22,7 +22,7 @@ def saveForFSC(newReferenceName,particleList,verbose=False):
     even = ParticleList('/')
     odd = ParticleList('/')
     
-    for particleCounter in xrange(len(particleList)):
+    for particleCounter in range(len(particleList)):
         
         if particleCounter % 2 == 0:
             even.append(particleList[particleCounter])
@@ -30,10 +30,10 @@ def saveForFSC(newReferenceName,particleList,verbose=False):
             odd.append(particleList[particleCounter])
     
     if verbose:
-        print 'averaging even:'
+        print('averaging even:')
     average(even,newReferenceName + 'even.em',verbose)
     if verbose:
-        print 'averaging odd:'
+        print('averaging odd:')
         
     average(odd,newReferenceName + 'odd.em',verbose)
 

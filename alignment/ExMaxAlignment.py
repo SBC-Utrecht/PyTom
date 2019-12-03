@@ -357,9 +357,6 @@ class ExMaxJob(PyTomClass):
         if not checkDirExists(self._destination):
             raise ValueError('Result destination path not found! ' + self._destination)
         
-        
-    
-  
 
 class ExMaxWorker(object):        
     """
@@ -413,8 +410,8 @@ class ExMaxWorker(object):
             mpi_msgString = pytom_mpi.receive()
             
             if verbose:
-                print 'Worker received:'
-                print mpi_msgString
+                print('Worker received:')
+                print(mpi_msgString)
                 dumpMsg2Log(logFileName,mpi_msgString)
             
             #parse message
@@ -460,7 +457,7 @@ class ExMaxWorker(object):
                             end = True
                         
                     except :
-                        print mpi_msgString
+                        print(mpi_msgString)
                         raise RuntimeError('Error parsing message. Message either unknown or invalid.')
         if verbose:              
             os.system('rm ' + logFileName)
@@ -559,7 +556,7 @@ class ExMaxWorker(object):
                              progressBar=False, binning=self._binning, bestPeak=peak, verbose=False)
         
         if peak.__class__ != Peak:
-            print 'Alignment result for file ' , particleFile , ' was invalid. Using old alignment result for the next round.'
+            print('Alignment result for file ' , particleFile , ' was invalid. Using old alignment result for the next round.')
             s = pScore
             
             if not s:
@@ -674,14 +671,14 @@ class ExMaxManager(PyTomClass):
                                   rotations=customisedAngles,mask=self._mask, numberRefinementRounds=0,
                                   preprocessing=self._preprocessing, binning=self._binning)
             if verbose:
-                print job
+                print(job)
                 
             worker = ExMaxWorker()
             worker.fromJob(job)
             result = worker.run()
             
             if verbose:
-                print result
+                print(result)
           
             self._alignmentList.append(result)
             progressBar.update(len(self._alignmentList))
@@ -719,9 +716,9 @@ class ExMaxManager(PyTomClass):
         
         #distribute jobs to all nodes
         if verbose:
-            print 'Starting first job distribute step'
+            print('Starting first job distribute step')
             
-        for i in xrange(1,mpi_numberNodes):
+        for i in range(1,mpi_numberNodes):
                 
             if particleIterator < len(self._particleList):
                 particle = self._particleList[particleIterator]
@@ -741,14 +738,14 @@ class ExMaxManager(PyTomClass):
                 #send job to worker
                 pytom_mpi.send(str(jobMsg),i)
                 if verbose:
-                    print jobMsg
+                    print(jobMsg)
                 
                 particleIterator += 1
                 
         finished = False
         
         if verbose:
-            print 'Starting job distribute and collect result step'
+            print('Starting job distribute and collect result step')
 
         progressBar.update(0)
         
@@ -760,7 +757,7 @@ class ExMaxManager(PyTomClass):
             mpi_msgString = pytom_mpi.receive() 
             
             if verbose:
-                print mpi_msgString
+                print(mpi_msgString)
             
             jobResultMsg = MaximisationResultMsg('','')   
             jobResultMsg.fromStr(mpi_msgString)
@@ -787,7 +784,7 @@ class ExMaxManager(PyTomClass):
                 pytom_mpi.send(jobMsg.__str__(),int(jobResultMsg.getSender()))
                 
                 if verbose:
-                    print jobMsg
+                    print(jobMsg)
                     
                 particleIterator = particleIterator + 1
                 
@@ -905,7 +902,7 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
     
         if not pytom_mpi.isInitialised():
             if verbose:
-                print 'Initializing mpi'
+                print('Initializing mpi')
             pytom_mpi.init()
             
     except Exception:
@@ -946,13 +943,13 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
                                     'ExMaxJob-' + str(iteration) + '.html')
                 
                 manager = ExMaxManager(exMaxJob)
-                print 'Distribute jobs iteration ' + str(iteration)
+                print('Distribute jobs iteration ' + str(iteration))
                 manager.distributeAlignment(verbose)
                 
                 alignmentList = manager.getAlignmentList()
                 
                 #dump alignmentList and exMaxJob to file
-                print 'Save results iteration ' + str(iteration)                
+                print('Save results iteration ' + str(iteration))                
                 #alignmentList.toXMLFile(exMaxJob.getDestination() + 'AlignmentList-' + str(iteration) + '.xml')
                 
                 newAllParticleList = alignmentList.toParticleList()
@@ -970,15 +967,15 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
                 else:
                     newParticleList = newAllParticleList
                 
-                print ''
-                print 'Write average iteration ', iteration
+                print('')
+                print('Write average iteration ', iteration)
                 
                 if symmetry.getNFold() == 1:
                     newReference = _disrtibuteAverageMPI(newParticleList,
                                                          exMaxJob.getDestination() + str(iteration) + '.em',False,verbose)
                 else:
                     if verbose:
-                        print 'Applying ', symmetry.getNFold(), 'fold symmetry to particles'
+                        print('Applying ', symmetry.getNFold(), 'fold symmetry to particles')
                     
                     symmetrizedParticleList = symmetry.apply(newParticleList)
                     newReference = _disrtibuteAverageMPI(symmetrizedParticleList,
@@ -987,15 +984,15 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
                 #update reference
                 
                 exMaxJob.setReference(newReference)
-                print ''
-                print 'Determine new parameters iteration ' + str(iteration)
+                print('')
+                print('Determine new parameters iteration ' + str(iteration))
                 #set new refinement angles and update rotation strategy 
                 
                 sampleInfo = exMaxJob.getSampleInformation()
                 if exMaxJob.getAdaptiveResolution():
                     
                     if verbose:
-                        print 'Determine resolution.'
+                        print('Determine resolution.')
                     if symmetry.getNFold() == 1:
                         #here we get the current resolution in nyquist / the band  and returns the number of bands used
                         [resNyquist,resolutionBand,numberBands]  = newParticleList.determineResolution( 
@@ -1005,7 +1002,7 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
                                                                    verbose=verbose )
                     else:
                         if verbose:
-                            print 'Applying ', symmetry.getNFold(), 'fold symmetry to resolution'
+                            print('Applying ', symmetry.getNFold(), 'fold symmetry to resolution')
                         [resNyquist,resolutionBand,numberBands]  = symmetrizedParticleList.determineResolution(
                                                                    criterion=exMaxJob.getFSCCriterion(), numberBands = cubeSize / 2, 
                                                                    mask=exMaxJob.getMask(), keepHalfsetAverages = True, 
@@ -1018,7 +1015,7 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
 		        #sampleInfo.getPixelSize(),numberBands,exMaxJob.getBinning() )
 
                     if verbose:
-                        print 'Current resolution :' + str(resolutionAngstrom) + ' Angstrom'
+                        print('Current resolution :' + str(resolutionAngstrom) + ' Angstrom')
                         
                     #set new angular values
                     try:
@@ -1040,9 +1037,9 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
                         preprocessing.setHighestFrequency(newResolutionBand)
                         exMaxJob.setPreprocessing(preprocessing)
                     except RuntimeError:
-                        print 'Warning for adaptive angular sampling and adaptive bandpass'
-                        print 'Angle and filter will be unchanged due to error. Occurs when determined resolution is invalid due to too few particles.'
-                        print 'Current resolution :' + str(resolutionAngstrom) + ' Angstrom'
+                        print('Warning for adaptive angular sampling and adaptive bandpass')
+                        print('Angle and filter will be unchanged due to error. Occurs when determined resolution is invalid due to too few particles.')
+                        print('Current resolution :' + str(resolutionAngstrom) + ' Angstrom')
                         rotations = exMaxJob.getRotations()
                         refinementAngle = rotations.getIncrement() 
                         
@@ -1076,14 +1073,14 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
                 exMaxJob.toXMLFile(exMaxJob.getDestination() + 'ExMaxJob-' + str(iteration) + '.xml')
                 exMaxJob.toHTMLFile(exMaxJob.getDestination() + 'ExMaxJob-' + str(iteration) + '.html')
                 
-                print 'Iteration ' + str(iteration) + ' finished'
+                print('Iteration ' + str(iteration) + ' finished')
                 iteration = iteration +1
                 
-                print ''
-                print ''
+                print('')
+                print('')
                 
                 if (not ((iteration <= exMaxJob.getNumberIterations()) and (not resultsEqual))) and sendFinishMessage:
-                    print 'Send finish message to other nodes'
+                    print('Send finish message to other nodes')
                     manager.parallelEnd()
                     
         else:            
@@ -1132,7 +1129,7 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
         alignmentList = manager.getAlignmentList()
         
         #dump alignmentList and exMaxJob to file
-        print 'Save results iteration ' + str(iteration)
+        print('Save results iteration ' + str(iteration))
         newAllParticleList = alignmentList.toParticleList()
         newAllParticleList.sortByScore('descending')
         newAllParticleList.toXMLFile(exMaxJob.getDestination() + 'ParticleList-' + str(iteration) + '.xml')                
@@ -1149,29 +1146,29 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
         else:
             newParticleList = newAllParticleList
         
-        print ''
-        print 'Write average iteration ', iteration
+        print('')
+        print('Write average iteration ', iteration)
         
         if symmetry.getNFold() == 1:            
             newParticleList,exMaxJob.getDestination() + str(iteration) + '.em',False,verbose
             newReference = average(newParticleList,exMaxJob.getDestination() + str(iteration) + '.em',False,verbose)
         else:
             if verbose:
-                print 'Applying ', symmetry.getNFold(), 'fold symmetry to particles'
+                print('Applying ', symmetry.getNFold(), 'fold symmetry to particles')
             symmetrizedParticleList = symmetry.apply(newParticleList)
             newReference = average(symmetrizedParticleList,exMaxJob.getDestination() + str(iteration) + '.em',False,verbose)
             
         #update reference
         exMaxJob.setReference(newReference)
-        print ''
-        print 'Determine new parameters iteration ' + str(iteration)
+        print('')
+        print('Determine new parameters iteration ' + str(iteration))
         #set new refinement angles and update rotation strategy 
         
         sampleInfo = exMaxJob.getSampleInformation()
         if exMaxJob.getAdaptiveResolution():
             
             if verbose:
-                print 'Determine resolution.'
+                print('Determine resolution.')
             if symmetry.getNFold() == 1:
                 [resNyquist,resolutionBand,numberBands]  = newParticleList.determineResolution(
                     criterion=exMaxJob.getFSCCriterion(), numberBands=cubeSize/2, mask=exMaxJob.getMask(),
@@ -1179,7 +1176,7 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
                     verbose=verbose )
             else:
                 if verbose:
-                    print 'Applying ', symmetry.getNFold(), 'fold symmetry to resolution'
+                    print('Applying ', symmetry.getNFold(), 'fold symmetry to resolution')
                 [resNyquist,resolutionBand,numberBands]  = symmetrizedParticleList.determineResolution(
                     criterion=exMaxJob.getFSCCriterion(), numberBands =cubeSize/2, mask=exMaxJob.getMask(),
                     keepHalfsetAverages=True, halfsetPrefix=exMaxJob.getDestination() + 'fsc-'+str(iteration)+'-',
@@ -1189,7 +1186,7 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
             #resolutionAngstrom = bandToAngstrom( resolutionBand,sampleInfo.getPixelSize(),numberBands,exMaxJob.getBinning() )
 
             if verbose:
-                print 'Current resolution :' + str(resolutionAngstrom) + ' Angstrom'
+                print('Current resolution :' + str(resolutionAngstrom) + ' Angstrom')
                 
             #set new angular values
             try:
@@ -1209,9 +1206,9 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
                 preprocessing.setHighestFrequency(newResolutionBand)
                 exMaxJob.setPreprocessing(preprocessing)
             except RuntimeError:
-                print 'Warning for adaptive angular sampling and adaptive bandpass'
-                print 'Angle and filter will be unchanged due to error. Occurs when determined resolution is invalid due to too few particles.'
-                print 'Current resolution :' + str(resolutionAngstrom) + ' Angstrom'
+                print('Warning for adaptive angular sampling and adaptive bandpass')
+                print('Angle and filter will be unchanged due to error. Occurs when determined resolution is invalid due to too few particles.')
+                print('Current resolution :' + str(resolutionAngstrom) + ' Angstrom')
                 rotations = exMaxJob.getRotations()
                 refinementAngle = rotations.getIncrement() 
                 
@@ -1246,11 +1243,11 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
         exMaxJob.toXMLFile(exMaxJob.getDestination() + 'ExMaxJob-' + str(iteration) + '.xml')
         exMaxJob.toHTMLFile(exMaxJob.getDestination() + 'ExMaxJob-' + str(iteration) + '.html')
         
-        print 'Iteration ' + str(iteration) + ' finished'
+        print('Iteration ' + str(iteration) + ' finished')
         iteration = iteration +1
         
-        print ''
-        print ''
+        print('')
+        print('')
 
         
         
@@ -1272,5 +1269,5 @@ def resume(job,verbose=False):
         parallelStart(job,verbose)
         
     else:
-        print 'Could not resume job. Aborting!'
+        print('Could not resume job. Aborting!')
         

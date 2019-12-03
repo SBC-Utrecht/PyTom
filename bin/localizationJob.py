@@ -44,16 +44,16 @@ if __name__ == '__main__':
     
     
     if len(sys.argv) <= 2:
-        print helper
+        print(helper)
         sys.exit()
     try:
         volume, reference, mask, wedge1,wedge2,angles,destination,band,sx,sy,sz,jobName,help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
         
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
     
     if not checkFileExists(volume):

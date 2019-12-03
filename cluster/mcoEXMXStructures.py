@@ -449,15 +449,15 @@ class KMDataSet:
             self.min = []
             self.max = []
             
-            for i in xrange(self.dim):
+            for i in range(self.dim):
                 tmp = [d[i] for d in self.data]
                 self.min.append(min(tmp))
                 self.max.append(max(tmp))
             
             centroids = []
-            for i in xrange(k):
+            for i in range(k):
                 c = []
-                for j in xrange(self.dim):
+                for j in range(self.dim):
                     c.append(uniform(self.min[j], self.max[j]))
                 centroids.append(c)
         
@@ -527,7 +527,7 @@ class KMDataSet:
     
     def findEmptyClusters(self):
         res = []
-        for i in xrange(len(self.clusters)):
+        for i in range(len(self.clusters)):
             if self.clusters[i].isEmpty():
                 res.append(i)
         return res
@@ -573,7 +573,7 @@ class KMDataSet:
         return res
         
     def getAllDataIndexWithoutCluster(self):
-        res = range(self.num)
+        res = list(range(self.num))
         for c in self.clusters:
             for n in c.members:
                 res.remove(n)
@@ -644,10 +644,10 @@ class Cluster():
         if self.members == []:
             return
         dim = self.dataset.dim
-        sum = [0. for i in xrange(dim)]
+        sum = [0. for i in range(dim)]
         for n in self.members:
             d = self.dataset.getData(n)
-            sum = [sum[i]+d[i] for i in xrange(dim)]
+            sum = [sum[i]+d[i] for i in range(dim)]
         self.centroid = [i/len(self.members) for i in sum]
     
     def getSSE(self, proximity_fnc):

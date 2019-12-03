@@ -35,7 +35,7 @@ class Alignment:
         from pytom.tools.macros import volumesSameSize
         from pytom_volume import vol
         from pytom.basic.structures import Rotation, Shift
-        assert isinstance(object=interpolation, class_or_type_or_tuple=str), "interpolation must be of type str"
+        assert isinstance(interpolation, str), "interpolation must be of type str"
 
         self.verbose = verbose
         if not volumesSameSize(vol1,vol2):
@@ -51,7 +51,7 @@ class Alignment:
         self.vol2 = vol2
         self.rotvol2 = vol(self.vol1.sizeX(), self.vol2.sizeY(), self.vol2.sizeZ())
         self.mask = mask
-
+        
         if not iniRot:
             iniRot=Rotation()
         if not iniTrans:
@@ -60,9 +60,9 @@ class Alignment:
 
         self.score = score
         self.val = -100000.
-        self.centX = int(self.vol1.sizeX()/2)
-        self.centY = int(self.vol1.sizeY()/2)
-        self.centZ = int(self.vol1.sizeZ()/2)
+        self.centX = int(self.vol1.sizeX()//2)
+        self.centY = int(self.vol1.sizeY()//2)
+        self.centZ = int(self.vol1.sizeZ()//2)
         self.binning = 1
         self.interpolation = interpolation
 
@@ -224,7 +224,7 @@ class Alignment:
 
         if self.verbose:
             # alignment score before optimization
-            print "CC before optimization %1.3f" % (-1.*self.evalScore(self.rot_trans))
+            print("CC before optimization %1.3f" % (-1.*self.evalScore(self.rot_trans)))
     
         # optimize scoring function
         maxiter=20
@@ -251,9 +251,9 @@ class Alignment:
         finscore = self.evalScore(self.rot_trans)
         rot, trans = self.vector2transRot(rot_trans)
         if self.verbose:
-            print "CC after optimization %1.3f" % (-1.*finscore)
-            print "rot_trans = ", rot_trans
-            print rot, trans
+            print("CC after optimization %1.3f" % (-1.*finscore))
+            print("rot_trans = ", rot_trans)
+            print(rot, trans)
 
         return -1.*finscore, rot, trans
     
@@ -308,9 +308,9 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
         from pytom.angles.angleFnc import differenceAngleOfTwoRotations
         from pytom.basic.structures import Rotation
         diffAng = differenceAngleOfTwoRotations(rotation1=Rotation(0,0,0), rotation2=optiRot)
-        print "Alignment densities: Rotations: %2.3f, %2.3f, %2.3f; Translations: %2.3f, %2.3f, %2.3f " % (optiRot[0],
-                                    optiRot[1], optiRot[2], optiTrans[0], optiTrans[1], optiTrans[2])
-        print "Orientation difference: %2.3f deg" % diffAng
+        print("Alignment densities: Rotations: %2.3f, %2.3f, %2.3f; Translations: %2.3f, %2.3f, %2.3f " % (optiRot[0],
+                                    optiRot[1], optiRot[2], optiTrans[0], optiTrans[1], optiTrans[2]))
+        print("Orientation difference: %2.3f deg" % diffAng)
     vol2_alig = vol(vol2.sizeX(), vol2.sizeY(), vol2.sizeZ())
     transformSpline(vol2, vol2_alig, optiRot[0], optiRot[1], optiRot[2],
                     int(vol2.sizeX()/2),int(vol2.sizeY()/2),int(vol2.sizeY()/2),
