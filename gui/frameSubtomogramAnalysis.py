@@ -135,6 +135,7 @@ class SubtomoAnalysis(GuiTabWidget):
                                         title='Select particlLists')
 
     def PolishSingleUI(self, key=''):
+        return
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -154,7 +155,7 @@ class SubtomoAnalysis(GuiTabWidget):
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
     def PolishBatchUI(self, key=''):
-        print(key)
+        return
         try: self.polishLists.text()
         except: self.polishLists = QLineEdit()
 

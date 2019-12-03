@@ -289,7 +289,7 @@ def CorrectProjection(proj, dzp1, dzp2, alphap, gs, fs, Objectpixelsize, Voltage
     # Initialize corrected projection
     projc = np.copy(proj)
 
-    print(proj.shape, gs//2-1, gs//2, gs)
+    print(proj, dzp1, dzp2, alphap, gs, fs, Objectpixelsize, Voltage, Cs, A)
     # Prepare coordinate list
     x = np.arange(gs//2-1, proj.shape[0]-gs//2, gs)
     ind = ~np.logical_or(x<fs//2-1, x>proj.shape[0]-fs//2-1)
@@ -297,7 +297,7 @@ def CorrectProjection(proj, dzp1, dzp2, alphap, gs, fs, Objectpixelsize, Voltage
     y = np.arange(gs//2-1, proj.shape[1]-gs//2, gs)
     ind = ~np.logical_or(y<fs//2-1, y>proj.shape[1]-fs//2-1)
     y = y[ind]
-    print('done')
+    print('done', len(x), len(y))
     for xx in range(len(x)):
         for yy in range(len(y)):
             # Model CTF

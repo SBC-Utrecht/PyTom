@@ -307,7 +307,8 @@ def FLCF(volume, template, mask=None, stdV=None):
     from pytom_volume import conjugate
     from pytom.basic.structures import Mask
     from pytom_volume import sum
-    
+    from pytom.basic.files import write_em
+
     if volume.__class__ != vol and template.__class__ != vol:
         raise RuntimeError('Wrong input type!')
     
@@ -353,11 +354,13 @@ def FLCF(volume, template, mask=None, stdV=None):
         meanV = meanUnderMask(volume, maskV, p)
         stdV = stdUnderMask(volume, maskV, p, meanV)
 
+
+
     size = volume.numelem()
     fT = fft(tempV)
     conjugate(fT)
     result = iftshift(ifft(fT*fft(volume)))/stdV
-    
+
     result.shiftscale(0,1/(size*p))
     
     return result

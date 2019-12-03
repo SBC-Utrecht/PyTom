@@ -969,8 +969,8 @@ class PeakLeader(PeakWorker):
 
             #self.parallelEnd(verbose)
             if not self.backTo is None:
-                self.writeRes(resV, orientV, jobID)
-                self.send(self.mpi_id, self.backTo)
+                result =  self.writeRes(resV, orientV, jobID)
+                result.send(self.mpi_id, self.backTo)
             else:
                 self.writeRes(resV,orientV,None)
                 self.parallelEnd(verbose)
