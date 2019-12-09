@@ -52,24 +52,33 @@ def CorrectTiltseries(metafile, uprefix, cprefix, gs, fs, binning_factor,rotatio
 
 def CalculateDefocusModel(dz0, Objectpixelsize, Imdim, Tiltangle, Tiltaxis, tx=0,ty=0,sfx=1,sfy=1):
     """
-This program models a defocus plane.
-The defocus plane rely on the assumption that the defocus is constant parallel 
-to the y-axis.
+    This program models a defocus plane.
+    The defocus plane rely on the assumption that the defocus is constant parallel 
+    to the y-axis.
 
-INPUT
-dz0 - mean defocus of the plane /in mu m
-Objectpixelsize --- Objectpixelsize of the projection /in nm
-Imdim --- image dimension of the projection and of the defocus plane
-Tiltangle --- tiltangle of the projection /in deg
-Tiltaxis --- tiltaxis of the projection /in deg
-tx --- translation of the projection in x-direction /in pixel
-ty --- translation of the projection in y-direction /in pixel
-sfx --- scaling of the projection in x-direction
-sfy --- scaling of the projection in y-direction
+    INPUT
+    @param dz0: mean defocus of the plane in mu m
+    @type dz0: C{float}
+    @param Objectpixelsize: Objectpixelsize of the projection /in nm
+    @type Objectpixelsize: C{float}
+    @param Imdim: image dimension of the projection and of the defocus plane
+    @type Imdim: C{int}
+    @param Tiltangle: tiltangle of the projection /in deg
+    @type Tiltangle: C{float}
+    @param Tiltaxis: tiltaxis of the projection /in deg
+    @type Tiltaxis: C{float}
+    @param tx: translation of the projection in x-direction /in pixel
+    @type tx: C{float}
+    @param ty: translation of the projection in y-direction /in pixel
+    @type ty: C{float}
+    @param sfx: scaling of the projection in x-direction
+    @type sfx: C{float}
+    @param sfy: scaling of the projection in y-direction
+    @type sfy: C{float}
 
-OUTPUT
-dzp --- defocus plane /in mu m
-dzm --- central line of defocus plane parallel to the x-axis /in mu m
+    OUTPUT
+    @return dzp: defocus plane /in mu m
+    @rtype: C{list}
     """
     # Calculate defocus plane
 
@@ -103,14 +112,14 @@ def AlignProjectionINV(proj,alpha,tx,ty,sfx,sfy,SmoothFlag=1):
     Image areas without information are filled with the mean value of the projection.
 
     INPUT
-    proj - projection
-    alpha - in-plane rotation, tilt axis is rotated parallel to the y-axis
-    tx - translation in x-direction
-    ty - translation in y-direction
-    sfx - scaling in x-direction
-    sfy - scaling in y-direction
-    SmoothFlag - 1 smoothing is applied
-               - 0 no smoothing
+    @param proj: projection
+    @type proj: 
+    @param alpha: in-plane rotation, tilt axis is rotated parallel to the y-axis
+    @param tx: translation in x-direction
+    @param ty: translation in y-direction
+    @param sfx: scaling in x-direction
+    @param sfy: scaling in y-direction
+    @param SmoothFlag: 1 smoothing is applied - 0 no smoothing
 
     OUTPUT
     projt - transformed projection
@@ -146,6 +155,16 @@ def AlignProjectionINV(proj,alpha,tx,ty,sfx,sfy,SmoothFlag=1):
 
 def SmoothEdges(image2,border=None,sigma=None,imdev=None):
     """
+    @param image2: input image
+    @type image2: numpy array
+    @param border: border in pixel (default: 1/16 of image dimensions)
+    @type border: C{int}
+    @param sigma: smoothing decay at edge in pixel (default == border)
+    @type sigma C{int}
+    @param imdev: mean value at edge of image
+    @type imdev: C{float}
+    @return: image
+    @rtype image: numpy array
     """
     image = np.array(image2, copy=True)
     if border is None:
@@ -155,7 +174,7 @@ def SmoothEdges(image2,border=None,sigma=None,imdev=None):
         sigma = border
 
     ix_up, iy_up = image.shape
-
+    # calculate mean at border
     if imdev is None:
         imdev = (np.sum(image[0,:]) + np.sum(image[ix_up-1,:]) + np.sum(image[1:ix_up-1,0]) + np.sum(image[1:ix_up-1,iy_up-1]))/(2*(ix_up+iy_up)-2)
 
@@ -174,13 +193,20 @@ def SmoothEdges(image2,border=None,sigma=None,imdev=None):
             image[ix+1:ix_up,ix] = imdev + (image[ix+1:ix_up,ix]-imdev)*fact[border-ix-1]
             image[ix+1:ix_up,iy_up-1] = imdev + (image[ix+1:ix_up,iy_up-1]-imdev)*fact[border-ix-1]
             iy_up = iy_up-1
-
         ix_up = ix_up-1
-
 
     return image
 
 def imtransform(proj, T):
+    """
+    transform image 
+    @param proj: input image
+    @type proj: numpy array
+    @param T: transformation matrix (?)
+    @type T:
+    @return: transformed image
+    @rtype: numpy array
+    """
     from scipy import mgrid
     cx = proj.shape[0] // 2
     cy = proj.shape[1] // 2
@@ -205,6 +231,26 @@ def imtransform(proj, T):
 
 def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_factor, rotation_angle):
     """
+    @param fname: filename
+    @type fname: C{str}
+    @param new_fname:
+    @type new_fname: C{str}
+    @param p:
+    @param metafile: star-file with metadata (contains defoci (long-/short), astig agnle alpha, 
+                     voltage, Cs, Amplitude-contrast, Imdim, PixelSpacing, Magnification
+    @type metafile: C{str}
+    @param gs: grid spacing [2,4,6,...] is the size of the area which is
+               corrected with a constant ctf. The ctf value is taken
+               from the center of this area. This area builds up the
+               corrected projection.
+    @param fs: fieldsize [2,4,6,...] & (fs>=gs) is the size of the area which
+               is extracted from the projection and corrected with a
+               constant ctf. Fieldsize is also the size of the modelled ctf.
+    @param binning_factor: de-magnfication factor
+    @type binning_factor: C{float}
+    @param rotation_angle:
+    @return:
+
     """
     print('Correct projection:', fname)
 
@@ -263,28 +309,37 @@ def CorrectProjection(proj, dzp1, dzp2, alphap, gs, fs, Objectpixelsize, Voltage
     is cutted out from the patch and builds up the corrected projection.
 
     INPUT
-    proj    --- projection with defocus gradient
-    dz1p    --- defocus plane which describes the defocus gradient
-                in the direction of the first principal axis
-    dz2p    --- defocus plane which describes the defocus gradient
+    @param proj: projection with defocus gradient
+    @type proj: numpy array
+    @param dz1p: defocus plane which describes the defocus gradient
+                 in the direction of the first principal axis
+    @type dz1p: C{float}
+    @param dz2p: defocus plane which describes the defocus gradient
                 in the direction of the second principal axis,
                 if empty dzp2 equals dzp1
-    alpha   --- astigmatism angle plane,
-                if empty astigmatism angle is zero
-    gs      --- grid spacing [2,4,6,...] is the size of the area which is
-                corrected with a constant ctf. The ctf value is taken
-                from the center of this area. This area builds up the
-                corrected projection.
-    fs      --- fieldsize [2,4,6,...] & (fs>=gs) is the size of the area which
-                is extracted from the projection and corrected with a
-                constant ctf. Fieldsize is also the size of the modelled ctf.
-    Objectpixelsize --- /in nm
-    Voltage --- /in kV
-    Cs --- /in mm
-    A ---
+    @type dz2p: C{float}
+    @param alpha: astigmatism angle plane,
+                  if empty astigmatism angle is zero
+    @type alpha: C{float}
+    @param gs: grid spacing [2,4,6,...] is the size of the area which is
+               corrected with a constant ctf. The ctf value is taken
+               from the center of this area. This area builds up the
+               corrected projection.
+    @param fs: fieldsize [2,4,6,...] & (fs>=gs) is the size of the area which
+               is extracted from the projection and corrected with a
+               constant ctf. Fieldsize is also the size of the modelled ctf.
+    @param Objectpixelsize: pixel size /in nm
+    @type Objectpixelsize: C{float}
+    @param Voltage: /in kV
+    @type Voltage: C{float}
+    @param Cs: /in mm
+    @type Cs: C{float}
+    @param A: Amplitude contrast fraction (e.g., 0.1)
+    @type A: C{float}
 
     OUTPUT
-    projc --- corrected projection
+    @return: corrected projection
+    @rtype: numpy array
     """
     # Initialize corrected projection
     projc = np.copy(proj)
@@ -313,10 +368,8 @@ def CorrectProjection(proj, dzp1, dzp2, alphap, gs, fs, Objectpixelsize, Voltage
             print(PhaseDeconv)
             # Cut correction patch
             cpatchc = cpatch[fs//2-gs//2:fs//2+gs//2,fs//2-gs//2:fs//2+gs//2]
-            
             # Paste correction patch into corrected projection
             projc[x[xx]-gs//2+1:x[xx]+gs//2+1,y[yy]-gs//2+1:y[yy]+gs//2+1] = cpatchc
-
 
     return projc
 
@@ -351,7 +404,7 @@ def ModelCTF(Dz1,Dz2,alpha0,A,Objectpixelsize,Voltage,Cs,Imdim):
     chi = np.pi*lmbd*k**2*(deltaDz - 0.5*lmbd**2*k**2*Cs)
 
     # Contrast transfer function
-    ctf = -np.sqrt(1-A**2)*np.sin(chi)+A*np.cos(chi)
+    ctf = -np.sqrt(1.-A**2)*np.sin(chi)+A*np.cos(chi)
     
     # CHANGED sign for amplitude contrast to fix phase flip for low frequencies -- SP 7.9.16
     # originally: ctf = -np.sqrt(1-A**2)*np.sin(chi)-A*np.cos(chi)
@@ -360,6 +413,14 @@ def ModelCTF(Dz1,Dz2,alpha0,A,Objectpixelsize,Voltage,Cs,Imdim):
 
 def PhaseDeconv(proj,otf):
     """
+    Phase deconvolution of image
+    @param proj: input projection
+    @type proj: L{numpy.ndarray}
+    @param otf: object transfer function 
+    @type otf: L{numpy.ndarray}
+    @return: phase flipped image
+    @rtype: L{numpy.ndarray}
+
     """
     # FT
     projfft = np.fft.fftshift(np.fft.fft2(proj))
@@ -367,7 +428,7 @@ def PhaseDeconv(proj,otf):
     # Prepare OTF
     otf = np.sign(otf)
 
-    # Set sign of center pixel to (+)
+    # Set sign of center pixel to (+) - FF: should not be necessary if sign works properly
     otf[otf.shape[0]//2,otf.shape[1]//2] = 1
 
     # Phase deconvolution
