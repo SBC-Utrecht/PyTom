@@ -157,7 +157,7 @@ if __name__ == '__main__':
                                        binning=projBinning, applyWeighting = aw, \
                                        showProgressBar = True,verbose=False, \
                                        preScale=projBinning,postScale=1, num_procs=numProcesses,
-                                       alignResultFile='', polishResultFile=particlePolishResultFile)
+                                       alignResultFile=alignResultFile, polishResultFile=particlePolishResultFile)
 
             
 

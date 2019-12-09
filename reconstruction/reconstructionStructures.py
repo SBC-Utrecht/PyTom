@@ -6,7 +6,7 @@ started on Mar 10, 2011
 
 from pytom.basic.structures import PyTomClass
 import numpy as np
-
+import mrcfile
 
 class Projection(PyTomClass):
     """
@@ -980,12 +980,12 @@ class ProjectionList(PyTomClass):
         from pytom.basic.transformations import general_transform2d
         from pytom.basic.fourier import ifft, fft
         from pytom.basic.filter import filter as filterFunction, bandpassFilter
-        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift
+        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
         from pytom_volume import complexRealMult, vol, paste
         import pytom_freqweight
         from pytom.basic.transformations import resize, rotate
         from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
-        from pytom.gui.reconstruction.reconstructionStructures import Projection, ProjectionList
+        from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
         from pytom_numpy import vol2npy
 
         print("Create aligned images from alignResults.txt")
@@ -1007,12 +1007,13 @@ class ProjectionList(PyTomClass):
         # pre-determine analytical weighting function and lowpass for speedup
         if (weighting != None) and (float(weighting) < -0.001):
             weightSlice = fourierFilterShift(rampFilter(imdim, imdim))
-            if circleFilter:
-                circleFilterRadius = imgDim // 2
-                circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imgDim, imgDim, circleFilterRadius))
-            else:
-                circleSlice = vol(imdim, imdim // 2 + 1, 1)
-                circleSlice.setAll(1.0)
+
+        if circleFilter:
+            circleFilterRadius = imdim // 2
+            circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imdim, imdim, circleFilterRadius))
+        else:
+            circleSlice = vol(imdim, imdim // 2 + 1, 1)
+            circleSlice.setAll(1.0)
 
         # design lowpass filter
         if lowpassFilter:
@@ -1104,8 +1105,8 @@ class ProjectionList(PyTomClass):
             offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
             paste(image, stack, 0, 0, ii)
             fname = 'sorted_aligned_novel_{:02d}.mrc'.format(ii)
-            write_em(fname.replace('mrc', 'em'), image)
-            mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
+            #write_em(fname.replace('mrc', 'em'), image)
+            #mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
 
         return [stack, phiStack, thetaStack, offsetStack]
 
