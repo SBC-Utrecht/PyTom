@@ -228,7 +228,7 @@ def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_facto
 
     if Imdim == 0: Imdim = 3710
 
-    Objectpixelsize = metadata['PixelSpacing'][p] * 0.1 * metadata['Magnification'][p] * binning_factor
+    Objectpixelsize = metadata['PixelSpacing'][p] * 0.1 * binning_factor
                     
     from tompy.io import read, write
 
@@ -366,7 +366,7 @@ def PhaseDeconv(proj,otf):
 
     # Prepare OTF
     otf = np.sign(otf)
-
+    print(otf.sum(), np.prod(otf.shape))
     # Set sign of center pixel to (+)
     otf[otf.shape[0]//2,otf.shape[1]//2] = 1
 

@@ -641,12 +641,12 @@ def headerline(line):
 
         return True
 
-def loadstar(filename, dtype='float32'):
+def loadstar(filename, dtype='float32', usecols=None, skip_header=0):
     print(filename)
     with open(filename, 'r') as f:
         lines = [line for line in f if headerline(line)]
 
-        arr = numpy.genfromtxt(lines, dtype=dtype)
+        arr = numpy.genfromtxt(lines, dtype=dtype, usecols=usecols, skip_header=skip_header)
     return arr
 
 def savestar(filename, arr, header='', fmt='', comments='#'):
@@ -840,7 +840,7 @@ def update_metadata_from_defocusfile(metafile, defocusfile):
 
     for dd in (10,9,8,7,6,5):
         try:
-            defocusResults = loadstar(defocusfile,skiprows=skiprows, usecols=range(0,dd))
+            defocusResults = loadstar(defocusfile, skip_header=skiprows, usecols=range(0,dd))
         except:
             continue
         break

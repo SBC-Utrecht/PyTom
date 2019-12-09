@@ -48,7 +48,7 @@ templateAlignment = '''cd {d[0]}
 
 templateWBP       = '''cd {d[0]}
 
-{d[1]}/bin/pytom {d[1]}/gui/additional/reconstructTomogram.py \\
+{d[1]}/bin/pytom {d[1]}/bin/reconstructTomogram.py \\
     --tiltSeriesName sorted/sorted \\
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\

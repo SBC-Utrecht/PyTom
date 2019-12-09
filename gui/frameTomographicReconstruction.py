@@ -245,11 +245,11 @@ class TomographReconstruct(GuiTabWidget):
 
         markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.txt'.format(self.tomogram_folder)))
         markerfilesEM = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
-        print(markerfilesEM)
-        novel = [markerfile for markerfile in markerfilesEM if not markerfile[:-3]+'.txt' in markerfiles]
-        print(novel)
-        markerfiles += novel
 
+        novel = [markerfile for markerfile in markerfilesEM if not markerfile[:-3]+'.txt' in markerfiles]
+
+        markerfiles += novel
+        markerfiles = sorted(markerfiles)
         values = []
         self.mfiles = []
         for markerfile in markerfiles:
@@ -522,12 +522,18 @@ class TomographReconstruct(GuiTabWidget):
                    'Binning factor applied to images.']
 
         markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.txt'.format(self.tomogram_folder)))
+        markerfilesEM = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
 
+        novel = [markerfile for markerfile in markerfilesEM if not markerfile[:-3]+'.txt' in markerfiles]
+
+        markerfiles += novel
+        markerfiles = sorted(markerfiles)
         values = []
 
         for markerfile in markerfiles:
-            qmarkerfile = markerfile.replace('markerfile.txt','*.meta')
-            qsortedfiles = markerfile.replace('markerfile.txt','sorted_*.mrc')
+            print(markerfile)
+            qmarkerfile = os.path.join(os.path.dirname(markerfile), '*.meta')
+            qsortedfiles = os.path.join(os.path.dirname(markerfile), 'sorted_*.mrc')
             metafile = glob.glob( qmarkerfile )[0]
 
             metadata = loadstar(metafile, dtype=guiFunctions.datatype)
@@ -1485,14 +1491,16 @@ class TomographReconstruct(GuiTabWidget):
                     print('submission {} failed due to error in either the metafile or the defocus file.'.format(tomofolder))
                     continue
                 for folder in folders:
-                    jobParams = [tomofolder, self.pytompath, uPrefix, cPrefix, metafile, rotationangle, gridspacing, fieldsize, binning]
+                    qname, n_nodes, cores, time, modules = self.qparams['BatchCTFCorrection'].values()
+                    jobParams = [tomofolder, self.pytompath, uPrefix, cPrefix, metafile, rotationangle, gridspacing,
+                                 fieldsize, binning, str(n_nodes*cores)]
                     jobscript = templateCTFCorrection.format(d=jobParams)
                     
                     
                     fname = 'CTF_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                     outDirectory = os.path.dirname(cPrefix) 
                     suffix = "_" + "_".join([os.path.basename(tomofolder)]+folder.split('/')[-1:])
-                    qname,n_nodes,cores,time, modules = self.qparams['BatchCTFCorrection'].values()
+
                     job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, time=time,
                                                         partition=qname, num_nodes=n_nodes, singleton=True,
                                                         num_jobs_per_node = cores, modules=modules) + jobscript
