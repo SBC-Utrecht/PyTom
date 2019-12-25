@@ -144,6 +144,7 @@ def volCTF(defocus, x_dim, y_dim, z_dim, pixel_size=None, voltage=None, Cs=None,
     @param x_dim: dimension of volume in x
     @param y_dim: dimension of volume in y
     @param z_dim: dimension of volume in z
+    @return: 3-dim volumes with x, y, z values in x,y,z dimension, respectively
     """
     from pytom_volume import vol, power
     from pytom.tools.macros import frange
