@@ -71,8 +71,8 @@ class Particle(BaseClass):
 
 
     def getTransformedVolume(self):
-        from tompy.io import read
-        from tompy.transform import translate3d, rotate3d
+        from pytom.tompy.io import read
+        from pytom.tompy.transform import translate3d, rotate3d
 
         v = read(self.filename)
         v2 = translate3d(v, -self.shift_x, -self.shift_y, -self.shift_z)
@@ -144,7 +144,7 @@ class ParticleList(BaseClass):
 
         # weighting
         wedge_sum[wedge_sum < 1] = 0 # prevent boosting by division
-        from tompy.transform import rfft, irfft, ifftshift, fourier_full2reduced
+        from pytom.tompy.transform import rfft, irfft, ifftshift, fourier_full2reduced
         fv_sum = rfft(v_sum)
         wedge_sum = fourier_full2reduced(ifftshift(wedge_sum))
         res = fv_sum/wedge_sum

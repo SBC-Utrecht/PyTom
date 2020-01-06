@@ -102,6 +102,7 @@ def gridCTF(x_array, y_array, z_array):
     @type y_array: 1-dim array
     @type z_array: 1-dim array
     @return: 3-dim volumes with x, y, z values in x,y,z dimension, respectively
+    @rtype: L{pytom_volume.vol}
     """
     from pytom_volume import vol
     
@@ -144,6 +145,8 @@ def volCTF(defocus, x_dim, y_dim, z_dim, pixel_size=None, voltage=None, Cs=None,
     @param x_dim: dimension of volume in x
     @param y_dim: dimension of volume in y
     @param z_dim: dimension of volume in z
+    @return: 3-dim volumes with x, y, z values in x,y,z dimension, respectively
+    @rtype: L{pytom_volume.vol}
     """
     from pytom_volume import vol, power
     from pytom.tools.macros import frange
@@ -205,11 +208,16 @@ def volCTF(defocus, x_dim, y_dim, z_dim, pixel_size=None, voltage=None, Cs=None,
 def convolutionCTF(volume, defocus, pixelSize=None, voltage=None, Cs=None, sigma=None):
     """
     convolutionCTF:
+    @param volume: input volume to be convolved with CTF
+    @type volume: L{pytom_volume.vol}
     @param defocus: Negative value = underfocus (in microns)
     @param pixelSize: Size of pixels / voxels (in Anstroms)
     @param voltage: 
     @param Cs:
-    @param sigma:    
+    @param sigma: 
+    @return: CTF filtered volume
+    @rtype L{pytom_volume.vol}
+    @author: FF
     """
     from pytom_volume import subvolume, complexRealMult
     from pytom.basic.fourier import ftshift, fft, ifft
@@ -396,6 +404,11 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     return weightFunc
 
 def rotateFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
+    """
+    rotate filter function
+    @param tilt_angles: ...
+    @return: filter volume
+    """
     from numpy import zeros_like, ones, column_stack, sin, abs, zeros, pi, ceil, floor, float32, array
     from scipy.ndimage import rotate
     from pytom_volume import vol
@@ -504,8 +517,11 @@ def wedgeFilter(volume,angle,radius=0,angleIsHalf=True,fourierOnly=False):
     """
     wedgeFilter: performs a single wedge filtering of volume.
     @param volume: The volume filtered.
+    @type volume: L{pytom_volume.vol}
     @param angle: Opening angle of the wedge.
+    @type angle: C{float}
     @param radius: cutoff radius (means lowpass filter radius - 0 by default)
+    @type radius: C{Int}
     @param angleIsHalf: True if angle represents the whole wedge. (True by default)
     @return: The wedge filtered volume,the filter and the filtered volume in fourier space  
     @author: Thomas Hrabe
@@ -558,6 +574,7 @@ def lowpassFilter(volume,band,smooth=0,fourierOnly=False):
     """
     lowpassFilter: 
     @param volume: The volume filtered
+    @type volume: L{pytom_volume.vol}
     @param band: Upper end of band(in pixels)
     @param smooth: Adjusts the size of gaussian falloff around each band end.
     @return: The lowpass filtered volume,the filter and the filtered volume in fourier space
@@ -581,6 +598,7 @@ def highpassFilter(volume,band,smooth=0,fourierOnly=False):
     """
     highpassFilter:
     @param volume:  The volume filtered
+    @type volume: L{pytom_volume.vol}
     @param band: Lower end of band (in pixels)
     @param smooth: Adjusts the size of gaussian falloff around each band end.
     @return: The highpass filtered volume,the filter and the filtered volume in fourier space
@@ -603,11 +621,11 @@ def filter(volume,filterObject,fourierOnly=False):
     """
     filter: A generic filter method.
     @param volume: The volume to be filtered
+    @type volume: L{pytom_volume.vol}
     @param filterObject: A filter object (either wedgeFilter, bandpassFilter, ...)
     @return: The filtered volume,the filter and the filtered volume in fourier space
     @author: Thomas Hrabe
     """
-        
     from pytom.basic.fourier import fft, ifft
     import pytom_volume
     
@@ -632,6 +650,14 @@ def filter(volume,filterObject,fourierOnly=False):
         return [fvolume,filterObject]
 
 def gaussian_filter(vol, sigma):
+    """
+    @param vol: input volume
+    @type vol: L{pytom_volume.vol}
+    @param sigma: xxx
+    @type sigma: xxx
+    @return: resulting volume
+    @rtype: L{pytom_volume.vol}
+    """
 #    # construct the Gaussian kernel
 #    import numpy as np
 #    from scipy import mgrid, exp

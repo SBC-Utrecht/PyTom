@@ -2,7 +2,7 @@
 from pytom.basic.structures import PyTomClass
 from pytom.basic.structures import ParticleList
 from pytom.angles.localSampling import LocalSampling
-from tompy.mpi import MPI
+from pytom.tompy.mpi import MPI
 import os
 import sys
 analytWedge=False

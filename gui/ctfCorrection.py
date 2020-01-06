@@ -2,7 +2,7 @@
 from pytom.gui.guiFunctions import datatype
 import os
 import numpy as np
-from tompy.mpi import MPI
+from pytom.tompy.mpi import MPI
 import mrcfile
 
 
@@ -276,7 +276,7 @@ def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_facto
 
     Objectpixelsize = metadata['PixelSpacing'][p] * 0.1 * metadata['Magnification'][p] * binning_factor
                     
-    from tompy.io import read, write
+    from pytom.tompy.io import read, write
 
     # Load projection
     proj = read(fname)
