@@ -17,8 +17,8 @@ class MPI:
         self._begun = False
 
         #User termination on Ctrl-C will be caught and send to workers.
-        signal.signal(signal.SIGINT, self.signal_handler)
-        signal.signal(signal.SIGTERM, self.signal_handler)
+        #signal.signal(signal.SIGINT, self.signal_handler)
+        #signal.signal(signal.SIGTERM, self.signal_handler)
         #signal.signal(signal.SIGKILL, self.signal_handler)
 
     def signal_handler(self, sig, frame):
@@ -36,8 +36,8 @@ class MPI:
         elif len(seq) > size:
             new_seq = [None] * size
             n, N = 0, len(seq)
-            for i in xrange(size):
-                l = N / size + (N % size > i)
+            for i in range(size):
+                l = N // size + (N % size > i)
                 new_seq[i] = seq[n:n+l]
                 n += l
             return new_seq
@@ -118,7 +118,7 @@ class MPI:
                 self.comm.gather(res, root=0)
 
             except Exception as e:
-                print e
+                print(e)
                 self.comm.Abort()
 
         # get end msg, terminate
@@ -166,8 +166,8 @@ class MPI:
             all_res = self.comm.gather(res, root=0)
             all_res = self._merge_seq(all_res, len(data))
 
-        except Exception, e:
-            print e
+        except Exception as e:
+            print(e)
             self.comm.Abort()
 
         return all_res
