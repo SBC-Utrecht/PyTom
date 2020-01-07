@@ -4,7 +4,9 @@ def Vol_G_Val(volume,value):
     """
     Vol_GE_Val: returns True when peak in volume greater than value
     @param volume: A volume
-    @param value: A value  
+    @type volume: L{pytom_volume.vol}
+    @param value: A value
+    @type value: L{pytom_volume.vol}
     @return: True if peak in volume > value
     @rtype: boolean
     @author: Thomas Hrabe
@@ -24,15 +26,19 @@ def Vol_G_Val(volume,value):
 
 def weightedCoefficient(self,volume,reference,mask=None,stdV=None):
     """
-    weightedCoefficient: Determines the peak coefficient of the scoring function. The distance from the center contributes to the peak value. Must be activated by hand. 
+    weightedCoefficient: Determines the peak coefficient of the scoring function. 
+    The distance from the center contributes to the peak value. Must be activated by hand. 
     @param volume: A volume.
+    @type volume: L{pytom_volume.vol}
     @param reference: A reference.
+    @type reference: L{pytom_volume.vol}
     @param mask: A mask.
+    @type mask: L{pytom_volume.vol}
     @param stdV: Deviation volume of volume  
+    @type stdV: L{pytom_volume.vol}
     @return: The highest coefficient determined.
     @author: Thomas Hrabe
     """
-    
     resFunction = self.scoringFunction(volume,reference,mask,stdV)
     resFunction = self._peakPrior.apply(resFunction)
     
@@ -42,11 +48,13 @@ def peakCoef(self,volume,reference,mask=None):
     """
     peakCoef: Determines the coefficient of the scoring function.
     @param volume: A volume.
+    @type volume: L{pytom_volume.vol}
     @param reference: A reference.
+    @type reference: L{pytom_volume.vol}
     @return: The highest coefficient determined.
-    @author: Thomas Hrabe
+    @author: Thomas Hrabe, FF
     """
-    #from pytom_volume import vol,peak
+    from pytom_volume import peak
     from pytom.tools.maths import euclidianDistance
     from pytom.basic.correlation import subPixelPeak
     
@@ -54,14 +62,15 @@ def peakCoef(self,volume,reference,mask=None):
         resFunction = self.scoringFunction(volume,reference)
     else:
         resFunction = self.scoringFunction(volume,reference,mask)
+    # change FF: 07.01.2020
+    #centerX = resFunction.sizeX()//2 -1
+    #centerY = resFunction.sizeY()//2 -1
+    #centerZ = resFunction.sizeZ()//2 -1
     
-    centerX = resFunction.sizeX()//2 -1
-    centerY = resFunction.sizeY()//2 -1
-    centerZ = resFunction.sizeZ()//2 -1
+    pcoarse = peak(resFunction)
     
-    #c = resFunction.getV(centerX,centerY,centerZ)
-    
-    p = subPixelPeak(scoreVolume=resFunction, coordinates=[centerX,centerY,centerZ])
+    p = subPixelPeak(scoreVolume=resFunction, coordinates=pcoarse)
+    #p = subPixelPeak(scoreVolume=resFunction, coordinates=[centerX,centerY,centerZ])
     
     #if euclidianDistance([centerX,centerY,centerZ],p[1]) <= 1.4142135623730951:
     #    c = p[0]
@@ -190,6 +199,18 @@ class Score:
         self._type = 'undefined'
         
     def score(self,particle,reference,mask=None,stdV=None):
+        """
+        returns weighted Coefficient
+        @param volume: A volume.
+        @type volume: L{pytom_volume.vol}
+        @param reference: A reference.
+        @type reference: L{pytom_volume.vol}
+        @param mask: A mask.
+        @type mask: L{pytom_volume.vol}
+        @param stdV: Deviation volume of volume  
+        @type stdV: L{pytom_volume.vol}
+        @return: The highest coefficient determined.
+        """
         return self.weightedCoefficient(self,particle,reference,mask,stdV)
         
     def getScoreFunc(self):
