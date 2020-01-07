@@ -376,6 +376,28 @@ def CorrectProjection(proj, dzp1, dzp2, alphap, gs, fs, Objectpixelsize, Voltage
 def ModelCTF(Dz1,Dz2,alpha0,A,Objectpixelsize,Voltage,Cs,Imdim):
     """
     Models a CTF.
+    INPUT
+    @param Dz1: defocus plane which describes the defocus gradient
+                in the direction of the first principal axis
+    @type Dz1: C{float}
+    @param Dz2: defocus plane which describes the defocus gradient
+                in the direction of the second principal axis,
+                if empty dzp2 equals dzp1
+    @type Dz2: C{float}
+    @param alpha0: astigmatism angle plane
+    @type alpha0: C{float}
+    @param A: Amplitude contrast fraction (e.g., 0.1)
+    @type A: C{float}
+    @param Objectpixelsize: pixel size /in nm
+    @type Objectpixelsize: C{float}
+    @param Voltage: /in kV
+    @type Voltage: C{float}
+    @param Cs: /in mm
+    @type Cs: C{float}
+    @param Imdim: image dimension
+    @type Imdim: C{int}
+    @return: CTF in Fourier space
+    @rtype: L{numpy.ndarray}
     """
     # Units -> SI units
     Dz1 = Dz1*10**(-6)
@@ -448,7 +470,8 @@ if __name__ == '__main__':
                       help="Name prefix of uncorrected projections")
     parser.add_option("-c", dest="cprefix",
                       help="Name prefix of corrected projections")
-    parser.add_option('--rotationAngle', dest='rotationAngle', help='In-plane Rotation Angle of the tiltaxis. Please note that Alignment corrects for 180')
+    parser.add_option('--rotationAngle', dest='rotationAngle', 
+                      help='In-plane Rotation Angle of the tiltaxis. Please note that Alignment corrects for 180')
     parser.add_option('--gridSpacing', dest='gridSpacing', help='Grid Spacing')
     parser.add_option('--fieldSize', dest='fieldSize', help='Field Size')
     parser.add_option("--metafile", dest="metafile",
