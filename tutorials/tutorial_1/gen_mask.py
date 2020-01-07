@@ -1,5 +1,8 @@
+#!/usr/bin/env pytom
 from pytom.tompy.io import read, write
-import sys
+import sys, os
+import matplotlib
+matplotlib.use('Qt5Agg')
 from pylab import *
 from skimage.morphology import *
 from scipy.ndimage.morphology import binary_fill_holes
@@ -28,7 +31,7 @@ if __name__=='__main__':
         sys.exit()
 
     try:
-        filename, outdir, help = parse_script_options(sys.argv[1:], helper)
+        filename, outname, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
