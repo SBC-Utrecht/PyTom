@@ -123,6 +123,8 @@ def xcf(volume, template, mask=None, stdV=None):
     result = fourier.ifft(fresult)
     
     fourier.iftshift(result)
+    n = result.numelem()
+    result.shiftscale(0,1/float(n*n))
     
     return result
 
@@ -149,8 +151,8 @@ def nXcf(volume,template,mask=None, stdV=None):
         result = xcf(normaliseUnderMask(volume=volume, mask=mask, p=None)[0],normaliseUnderMask(volume=template, mask=mask, p=None)[0])
     else:
         result = xcf(mean0std1(volume,True),mean0std1(template,True))
-    n = result.numelem()
-    result.shiftscale(0,1/float(n*n))
+    #n = result.numelem()
+    #result.shiftscale(0,1/float(n*n))
     return result
 
 
@@ -817,7 +819,6 @@ def soc(volume,reference,mask=None, stdV=None):
     @type reference:  L{pytom_volume.vol}
     @author: Thomas Hrabe   
     """
-    
     referencePeak = FLCF(reference,reference,mask)
     peaks = FLCF(volume,reference,mask)
     
