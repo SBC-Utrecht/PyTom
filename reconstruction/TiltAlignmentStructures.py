@@ -73,7 +73,8 @@ class TiltSeries(PyTomClass):
 
             print(markerFileName, len(files))
             if markerFileName.endswith('.em'): self.mf = vol2npy(read(markerFileName))
-            if markerFileName.endswith('.txt'): self.mf = self.txt2markerfile(markerFileName, len(files))
+            elif markerFileName.endswith('.txt'): self.mf = self.txt2markerfile(markerFileName, len(files))
+            else: raise Exception('Unknown file type for markerfile.\n Please submit either a .txt file or a .em file')
             #print(self.mf[0,:,0])
             #print self.mf[0,:,0]
             # set Projection List
