@@ -5,8 +5,8 @@ from pytom_volume import vol, read, transform
 from pytom_numpy import vol2npy
 import numpy
 import os
-from pytom.gui.reconstruction.reconstructionStructures import Projection, ProjectionList
-from pytom.gui.reconstruction.tiltAlignmentFunctions import markerResidual, alignmentFixMagRot
+from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
+from pytom.reconstruction.tiltAlignmentFunctions import markerResidual, alignmentFixMagRot
 from pytom.basic.structures import PyTomClass
 from pytom_volume import vol
 from pytom_numpy import vol2npy
@@ -124,7 +124,7 @@ class TiltSeries(PyTomClass):
                     if alignedTiltSeriesName:
                         proj = Projection(filename=fname,
                                           alignedFilename=alignedTiltSeriesName + "_" + str(ii) + tiltSeriesFormat,
-                                          index=ii, tiltAngle=self.mf[0,cnt,0],
+                                          index=ii, tiltAngle=self.mf[0,ii,0],
                                           offsetX=0., offsetY=0.,
                                           alignmentTransX=0., alignmentTransY=0.,
                                           alignmentRotation=0., alignmentMagnification=1.)
@@ -133,7 +133,7 @@ class TiltSeries(PyTomClass):
                         
                         proj = Projection(filename=fname,
                                           alignedFilename=None,
-                                          index=ii, tiltAngle=self.mf[0,cnt,0],
+                                          index=ii, tiltAngle=self.mf[0,ii,0],
                                           offsetX=0., offsetY=0.,
                                           alignmentTransX=0., alignmentTransY=0.,
                                           alignmentRotation=0., alignmentMagnification=1.)
@@ -245,14 +245,17 @@ class TiltSeries(PyTomClass):
     def txt2markerfile(self, filename, num_tilt_images):
         data = loadstar(filename)
         datalen = data.shape[0]
-
+        id = data[-1][0]
+        if not id:
+            id = data[-2][0]
+        id = int(round(id)) +1
         start = 0
         for i in range(len(data)):
             if data[i][0] == 0:
                 start += 1
         print(start)
 
-        x, y = datalen // num_tilt_images, num_tilt_images
+        x, y = int(round(id)), datalen // id#, num_tilt_images
         markerfile = data.reshape(x, y, 4)[:, :, 1:].transpose(2, 1, 0)
         #markerfile[1:,:,:] = markerfile[1:,:,:][::-1,:]
         return  markerfile
@@ -663,7 +666,7 @@ class TiltAlignment:
         @author: FF
         """
         # initialize alignment in seperate array - easier for optimization
-        self._alignmentRotations = len(TiltSeries_._ProjectionList._list) * [0.]
+        self._alignmentRotations = numpy.array( len(TiltSeries_._ProjectionList._list) * [0.] )
         for (kk, proj) in enumerate(TiltSeries_._ProjectionList._list):
             self._alignmentRotations[kk] = proj.getAlignmentRotation()
         return self._alignmentRotations
@@ -805,7 +808,7 @@ class TiltAlignment:
         """
         calculate residual of a marker model given the marker coords
         """
-        from pytom.gui.reconstruction.tiltAlignmentFunctions import markerResidual
+        from pytom.reconstruction.tiltAlignmentFunctions import markerResidual
         if cut == -1 or cut +1 > len(self._Markers):
             start = 0
             end = len(self._Markers)
@@ -833,7 +836,7 @@ class TiltAlignment:
         from pytom.reconstruction.tiltAlignmentFunctions import markerResidual
         self.setOptimizableVariables(self.TiltSeries_._TiltAlignmentParas, optimizableVariables)
         if self.TiltSeries_._TiltAlignmentParas.leastsq == True:
-            score = markerResidual(TiltAlignmentParameters_=self.TiltSeries_._TiltAlignmentParas,
+            score = markerResidual(self.TiltSeries_._TiltAlignmentParas.cent,
                                    Markers_=self._Markers,
                                    cTilt=self._cTilt, sTilt=self._sTilt,
                                    transX=self._alignmentTransX, transY=self._alignmentTransY,
@@ -841,7 +844,7 @@ class TiltAlignment:
                                    isoMag=self._alignmentMagnifications, dBeam=self._alignmentBeamTilt,
                                    dMagnFocus=None, dRotFocus=None, equationSet=True)
         else:
-            score = markerResidual(TiltAlignmentParameters_=self.TiltSeries_._TiltAlignmentParas,
+            score = markerResidual(self.TiltSeries_._TiltAlignmentParas.cent,
                                    Markers_=self._Markers,
                                    cTilt=self._cTilt, sTilt=self._sTilt,
                                    transX=self._alignmentTransX, transY=self._alignmentTransY,
@@ -1088,14 +1091,14 @@ class TiltAlignment:
         optimizableVariables0 = self.getOptimizableVariables(self.TiltSeries_._TiltAlignmentParas)
 
         # alignment score before optimization
-        score = markerResidual(
-            TiltAlignmentParameters_=self.TiltSeries_._TiltAlignmentParas,
+        score = markerResidual(self.TiltSeries_._TiltAlignmentParas.cent,
             Markers_=self._Markers,
             cTilt=self._cTilt, sTilt=self._sTilt,
             transX=self._alignmentTransX, transY=self._alignmentTransY,
             rotInPlane=self._alignmentRotations,
             isoMag=self._alignmentMagnifications, dBeam=self._alignmentBeamTilt,
             dMagnFocus=None, dRotFocus=None, equationSet=False)
+
         if not mute:
             print(( "Alignment score before optimization (square root of residual): "
                    + str(sqrt(score)) ))
@@ -1118,8 +1121,7 @@ class TiltAlignment:
                                                       maxfev=self.TiltSeries_._TiltAlignmentParas.maxIter, epsfcn=0.0,
                                                       factor=10)
 
-        score = markerResidual(
-            TiltAlignmentParameters_=self.TiltSeries_._TiltAlignmentParas,
+        score = markerResidual(self.TiltSeries_._TiltAlignmentParas.cent,
             Markers_=self._Markers,
             cTilt=self._cTilt, sTilt=self._sTilt,
             transX=self._alignmentTransX, transY=self._alignmentTransY,

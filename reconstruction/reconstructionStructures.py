@@ -6,7 +6,8 @@ started on Mar 10, 2011
 
 from pytom.basic.structures import PyTomClass
 import numpy as np
-
+import mrcfile
+from pytom_numpy import vol2npy
 
 class Projection(PyTomClass):
     """
@@ -406,7 +407,7 @@ class ProjectionList(PyTomClass):
 	        showProgressBar ,verbose,preScale,postScale)
 
     def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0],
-                          binning=1, applyWeighting=False, alignResultFile=''):
+                          binning=1, applyWeighting=False, alignResultFile='', gpu=-1):
         """
         reconstruct a single 3D volume from weighted and aligned projections
 
@@ -418,7 +419,8 @@ class ProjectionList(PyTomClass):
         @type reconstructionPosition: 3-dim list
         @param applyWeighting: apply weighting
         @type applyWeighting: bool
-
+        @param gpu: run reconstruction on gpu
+        @type gpu: int
         @author: FF
         last change: include binning in reconstructionPosition
         """
@@ -444,7 +446,24 @@ class ProjectionList(PyTomClass):
                 recPosVol.setV(float(reconstructionPosition[ii] / binning), ii, iproj, 0)
 
         # finally backproject into volume
-        backProject(vol_img, vol_bp, vol_phi, vol_the, recPosVol, vol_offsetProjections)
+        import time
+        s = time.time()
+
+        if gpu > -1:
+            from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
+            import cupy as cp
+            import voltools
+
+            interpolation = voltools.Interpolations.FILT_BSPLINE
+            projections = vol2npy(vol_img)
+            projections = cp.array(projections)
+            proj_angles = vol2npy(vol_the)[0, 0, :]
+            vol_bp = cp.zeros((vol_bp.sizeX(), vol_bp.sizeY(), vol_bp.sizeZ()), dtype=cp.float32)
+            vol_bp = backProject(projections, vol_bp, vol_phi, proj_angles, recPosVol, vol_offsetProjections, interpolation).get()
+        else: 
+            from pytom_volume import backProject
+            backProject(vol_img, vol_bp, vol_phi, vol_the, recPosVol, vol_offsetProjections)
+        print(f'backproject time: {time.time()-s}')
 
         return vol_bp
 
@@ -980,12 +999,12 @@ class ProjectionList(PyTomClass):
         from pytom.basic.transformations import general_transform2d
         from pytom.basic.fourier import ifft, fft
         from pytom.basic.filter import filter as filterFunction, bandpassFilter
-        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift
+        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
         from pytom_volume import complexRealMult, vol, paste
         import pytom_freqweight
         from pytom.basic.transformations import resize, rotate
         from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
-        from pytom.gui.reconstruction.reconstructionStructures import Projection, ProjectionList
+        from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
         from pytom_numpy import vol2npy
 
         print("Create aligned images from alignResults.txt")
@@ -1007,12 +1026,13 @@ class ProjectionList(PyTomClass):
         # pre-determine analytical weighting function and lowpass for speedup
         if (weighting != None) and (float(weighting) < -0.001):
             weightSlice = fourierFilterShift(rampFilter(imdim, imdim))
-            if circleFilter:
-                circleFilterRadius = imgDim // 2
-                circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imgDim, imgDim, circleFilterRadius))
-            else:
-                circleSlice = vol(imdim, imdim // 2 + 1, 1)
-                circleSlice.setAll(1.0)
+
+        if circleFilter:
+            circleFilterRadius = imdim // 2
+            circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imdim, imdim, circleFilterRadius))
+        else:
+            circleSlice = vol(imdim, imdim // 2 + 1, 1)
+            circleSlice.setAll(1.0)
 
         # design lowpass filter
         if lowpassFilter:
@@ -1104,8 +1124,8 @@ class ProjectionList(PyTomClass):
             offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
             paste(image, stack, 0, 0, ii)
             fname = 'sorted_aligned_novel_{:02d}.mrc'.format(ii)
-            write_em(fname.replace('mrc', 'em'), image)
-            mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
+            #write_em(fname.replace('mrc', 'em'), image)
+            #mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
 
         return [stack, phiStack, thetaStack, offsetStack]
 
