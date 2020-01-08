@@ -138,7 +138,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
 
     @author: FF
     """
-    from pytom.gui.reconstruction.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
+    from pytom.reconstruction.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
 
     if not alignResultFile:
         if verbose:
@@ -146,7 +146,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
             mute = False
         else:
             mute = True
-        from pytom.gui.reconstruction.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
+        from pytom.reconstruction.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
         tiltParas = TiltAlignmentParameters(dmag=True, drot=True, dbeam=False, finealig=True,
                                             finealigfile='xxx.txt', grad=False,
                                             irefmark=irefmark, ireftilt=ireftilt, r=None, cent=[2049, 2049],

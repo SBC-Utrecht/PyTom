@@ -10,7 +10,7 @@ if __name__ == '__main__':
     #from pytom.reconstruction.TiltAlignmentStructures import TiltAlignmentParameters, TiltSeries, TiltAlignment
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
-    from pytom.gui.reconstruction.reconstructionFunctions import alignWeightReconstruct
+    from pytom.reconstruction.reconstructionFunctions import alignWeightReconstruct
     import numpy
     import os
 

@@ -49,7 +49,7 @@ if __name__ == '__main__':
     # start reconstruction
     from pytom.tompy.io import read, write
     from nufft.reconstruction import fourier_2d1d_iter_reconstruct
-    from pytom.gui.reconstruction.reconstructionStructures import ProjectionList
+    from pytom.reconstruction.reconstructionStructures import ProjectionList
     projections = ProjectionList()
     projections.loadDirectory(proj_dir, tiltAngles=tiltAngles)
     projections.sort()

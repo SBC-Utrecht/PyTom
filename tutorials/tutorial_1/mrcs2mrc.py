@@ -1,5 +1,6 @@
 #!/usr/bin/env pytom
 
+import mrcfile
 import sys, os
 from pytom.tompy.io import read, write
 
@@ -35,7 +36,8 @@ if __name__=='__main__':
 
 
     if os.path.exists(filename):
-        data = read(filename)
+        data = mrcfile.open(filename, permissive=True).data.copy()
+        print(data.shape)
     else:
         print(helper)
         sys.exit()
@@ -56,7 +58,8 @@ SubFramePath = X:\{}
     for sliceId in range(sliceNR):
         tiltangle = angles[sliceId]
         outname = os.path.join(outdir, os.path.basename(filename).replace('.mrc', '_sorted_{:02d}.mrc'.format(sliceId)))
-        write(outname, data[:,:,sliceId], tilt_angle=tiltangle)
+        #write(outname, data[:,:,sliceId], tilt_angle=tiltangle)
+        mrcfile.new(outname, data[sliceId, :,:].astype('float32'), overwrite=True)
         mdocfile.write(d.format(sliceId, tiltangle, os.path.basename(outname)))
 
     mdocfile.close()
