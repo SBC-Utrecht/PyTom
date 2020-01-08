@@ -58,9 +58,6 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
     from numpy import mean
     from pytom.tools.maths import rotate_vector2d
 
-
-    rotInPlane *=0.
-
     ntilt = len(transX)
     nmark = len(Markers_)
     if equationSet:
@@ -121,12 +118,11 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
                         x_proj = cTilt[iproj]*xmod - sTilt[iproj]*sdbeam*ymod - sTilt[iproj]*cdbeam*zmod
                         y_proj = sTilt[iproj]*sdbeam*xmod + ( cdbeam**2+sdbeam**2*cTilt[iproj]*ymod + 
                                                               cdbeam*sdbeam*(1-cTilt[iproj])*zmod )
-                except:
-                    x_proj = cTilt[iproj] * xmod - sTilt[iproj]*zmod
-                    y_proj = ymod
+                    else:
+                        x_proj = cTilt[iproj] * xmod - sTilt[iproj]*zmod
+                        y_proj = ymod
         
-                # x-dependent magnification of model
-                try:
+                    # x-dependent magnification of model
                     if dMagnFocus:
                         y_proj_dmag = y_proj
                         tmp         = dMagnFocus*x_proj
@@ -163,7 +159,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
     if equationSet:
         return Dev
     else:
-        return errors # residual
+        return residual
 
 
 def alignmentFixMagRot( Markers_, cTilt, sTilt,
