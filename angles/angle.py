@@ -422,7 +422,8 @@ class AngleObject(PyTomClass):
     
     def rotationDistanceMatrix(self):
         """
-        rotationDistanceMatrix: Generate a matrix of rotation distances. The distance is determined by L{pytom.angles.quaternions.Quaternion.distance}.
+        rotationDistanceMatrix: Generate a matrix of rotation distances. The 
+        distance is determined by L{pytom.angles.quaternions.Quaternion.distance}.
         @return: L{pytom_volume.vol} of rotation distances
         @author: Thomas Hrabe
         """
