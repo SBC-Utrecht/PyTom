@@ -23,7 +23,7 @@ class pytom_MPITest(unittest.TestCase):
         print(runMPI)
         self.testCommand = runMPI + ' -c 2 pytom testScript.py'
          
-        testScript  = 'from pytom_mpi import rank,init,isInitialized,finalise \n'
+        testScript  = 'from pytom_mpi import rank,init,isInitialised,finalise \n'
         testScript += 'import os\n'
         testScript += 'init()\n'
         testScript += 'os.system("echo " +str(rank())+ " > " +str(rank())+ ".rnkPyTom" )\n'
