@@ -1,4 +1,0 @@
-#!/usr/bin/env csh
-cat /Users/gijs/Documents/PyTomPrivate/LICENSE.txt
-source /Users/gijs/Documents/PyTomPrivate/bin/paths.csh
-ipython $* -i
