@@ -7,7 +7,6 @@
 *.so.*
 *.o
 *.btr
-external/src/nfft-3.1.3/
 external/lib
 external/include
 external/lib64
@@ -15,4 +14,4 @@ external/shared
 pytomc/swigModules/
 bin/pytom
 bin/paths.csh
-pytomc/sh_alignment/SpharmonicKit27/
+external/src/nfft-3.1.3
