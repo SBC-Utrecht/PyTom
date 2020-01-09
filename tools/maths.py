@@ -533,6 +533,7 @@ def rotation_distance(ang1, ang2):
     @type ang2: 3-dim list or L{pytom.basic.structures.Rotation}
     @return: distance in deg
     @rtype: float
+    @author: FF
     """
     from pytom.basic.structures import Rotation
     matrix1 = Rotation(ang1).toMatrix()
