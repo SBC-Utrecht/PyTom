@@ -92,7 +92,7 @@ class Volume(PyTomClass):
         s = e.get('Subregion')
         if s != None and s!= 'None':
             s = s[1:-1]
-            print(s)
+            #print(s)
             self.subregion = [int(float(i)) for i in s.split(',')]
 
         s = e.get('Sampling')
