@@ -30,7 +30,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatypeAR
     import os
 
-    print(weighting, lowpassFilter, binning)
+    print(weighting, lowpassFilter, binning, write_images)
     if binning:
         imdim = int(float(TiltSeries_._imdim)/float(binning)+.5)
     else:
@@ -119,6 +119,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             if projection._filename.split('.')[-1] == 'st':
                 newFilename = (TiltSeries_._alignedTiltSeriesName+"_"+str(projection.getIndex())+'.em')
             else:
+                TiltSeries_._tiltSeriesFormat = 'mrc'
                 newFilename = (TiltSeries_._alignedTiltSeriesName+"_"+str(projection.getIndex())
                                +'.'+TiltSeries_._tiltSeriesFormat)
             if verbose:

@@ -2,6 +2,9 @@
 @author: Yuxiang Chen
 '''
 
+import signal
+import sys
+
 class MPI:
     """docstring for MPI"""
     def __init__(self):
@@ -17,8 +20,8 @@ class MPI:
         self._begun = False
 
         #User termination on Ctrl-C will be caught and send to workers.
-        #signal.signal(signal.SIGINT, self.signal_handler)
-        #signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
         #signal.signal(signal.SIGKILL, self.signal_handler)
 
     def signal_handler(self, sig, frame):

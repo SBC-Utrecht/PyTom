@@ -948,7 +948,7 @@ class ProjectionList(PyTomClass):
                 if int(applyWeighting):
                     image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
 
-                print(projection.getTiltAngle(), projection.getOffsetX(), projection.getOffsetY())
+                
                 thetaStack(int(round(projection.getTiltAngle())), 0, 0, i)
                 offsetStack(projection.getOffsetX(), 0, 0, i)
                 offsetStack(projection.getOffsetY(), 0, 1, i)
