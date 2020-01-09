@@ -619,8 +619,6 @@ def weightedXCF(volume,reference,numberOfBands,wedgeAngle=-1):
     @author: Thomas Hrabe 
     @todo: does not work yet -> test is disabled
     """
-
-        
     from pytom.basic.correlation import bandCF
     import pytom_volume
     from math import sqrt
@@ -636,7 +634,7 @@ def weightedXCF(volume,reference,numberOfBands,wedgeAngle=-1):
         wedgeFilter = pytom_freqweight.weight(wedgeAngle,0,volume.sizeX(),volume.sizeY(),volume.sizeZ())
         wedgeVolume = wedgeFilter.getWeightVolume(True)
     else:
-        wedgeVolume = pytom_volume.vol(volume.sizeX(),volume.sizeY(),volume.sizeZ()/2+1)
+        wedgeVolume = pytom_volume.vol(volume.sizeX(), volume.sizeY(), int(volume.sizeZ()/2+1))
         wedgeVolume.setAll(1.0)
         
     w = sqrt(1/float(volume.sizeX()*volume.sizeY()*volume.sizeZ()))
