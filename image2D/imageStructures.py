@@ -17,17 +17,17 @@ class Image(PyTomClass):
                  index = 0, verbose=False):
         """
         @param filename:
-        @type filename: L{str}
+        @type filename: C{str}
         @param boxCoords: coordinates in file (lower bounds)
-        @type boxCoords: L{list} (2-dim or 3-dim)
+        @type boxCoords: C{list} (2-dim or 3-dim)
         @param dims: dimensions of subframe
         @type dims: 2-dim or 3-dim list
         @param shiftX: shift in X (if determined previously)
         @type shiftX: float
         @param shiftY: shift in Y (if determined previously)
-        @type shiftY: L{float}
+        @type shiftY: C{float}
         @param rotation: rotation in degrees (if determined previously)
-        @type rotation: L{float}
+        @type rotation: C{float}
         @param appliedShiftX: applied shift in X (if any shift applied to image)
         @type appliedShiftX: L{float}
         @param appliedShiftY: applied shift in Y (if any shift applied to image)
