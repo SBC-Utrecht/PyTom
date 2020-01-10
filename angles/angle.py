@@ -29,7 +29,9 @@ def fromXML(xmlObj):
 
 class AngleObject(PyTomClass):
     """
-    AngleObject: Template class for all angle objects. Methods defined here must be overloaded by others. The angles stored are in degrees ( pytom sublayer converts them to radiants autmatically). 
+    AngleObject: Template class for all angle objects. Methods defined here 
+    must be overloaded by others. The angles stored are in degrees 
+    ( pytom sublayer converts them to radians autmatically). 
     G{classtree}
     """    
     
@@ -39,9 +41,12 @@ class AngleObject(PyTomClass):
     def toXML(self):
         """
         overload toXML function, just for the sake of it
+        last change: Jan 10, 2020, FF - make clear that this is a template
         """
+        print("The AngleObject is a TEMPLATE and should not be called directly")
+        print("Thus: only use classes such as pytom.angles.localSampling.LocalSampling or so")
         raise Exception("AngleObject: Function toXML should not be called, instead overloaded")
-    
+
     def fromXML(self,xmlObj, verbose=False):
         """
         fromXML: Creates any AngleObject child depending xmlObj
