@@ -1,0 +1,36 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Create an Average</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+<p class="Header">PyTom: Cut particles from a volume
+</p>
+<p>Here, you will learn how to cut particles from a volume instead of reconstruction from the projections </p>
+<p><strong>Using the Pytom Script</strong></p>
+<p>If you have a volume and want simply cut some subvolumes out of it given the particle list containing the coordinates, you can achieve that by:</p>
+<div class="codeFragment">
+<code>
+<pre>
+NAME
+    cutParticlesFromVol.py
+DESCRIPTION
+    Extract candidate molecules from localization result.
+OPTIONS
+    -v, --volume    Localization job XML file. (Is optional: No; Requires arguments: Yes)
+    -p, --particleFile    . (Is optional: No; Requires arguments: Yes)
+    -c, --cubeSize    Cube size along each dimension. (Is optional: No; Requires arguments: Yes)
+    --help    Print this help. (Is optional: Yes; Requires arguments: No)
+AUTHORS
+    Yuxiang Chen
+</pre>
+</code>
+</div>
+<p>So what you have to prepare is the partile list file containing the center coordinates of your particles. Please refer to <a href="localization.html">automatic localization</a> or <a href="boxer.html">manual localization</a> if you do not know how to do this.</p>
+<p>As a result, all the partiles with the size dim^3 will be cut out and written to the disk specified by the filenames in the particle list. In case some particles are not cut out because they are too close to the volume boundary, a new particle list containing all cut out particles will be written into the current working directory. Please use this new particle list for further steps.
+</p>
+
+</body>
+</html>

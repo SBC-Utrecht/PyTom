@@ -1,0 +1,29 @@
+<JobDescription Destination="./results/">
+
+<Volume Filename="./tomogram.em"/>
+
+  <Reference Weighting="" File="./reference.em"/>
+
+  <Mask Filename="./mask.em" Binning="1" isSphere="True"/>
+
+  <WedgeInfo Angle1="30" Angle2="30" CutoffRadius="0.0" TiltAxis="custom">
+
+    <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+
+  </WedgeInfo>
+
+  <Angles Type="FromEMFile" File="angles_12.85_7112.em">
+
+    <RefinementParameters Shells="6.0" Increment="10.0"/>
+
+    <OldRotations/>
+
+  </Angles>
+
+  <Score Type="FLCFScore" Value="-100000000">
+
+    <DistanceFunction Deviation="0.0" Mean="0.0" Filename=""/>
+
+  </Score>
+
+</JobDescription> 

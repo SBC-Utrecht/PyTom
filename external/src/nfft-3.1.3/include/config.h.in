@@ -1,0 +1,627 @@
+/* include/config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Define to enable B-spline window function. */
+#undef B_SPLINE
+
+/* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
+   systems. This function is required for `alloca.c' support on those systems.
+   */
+#undef CRAY_STACKSEG_END
+
+/* Define to 1 if using `alloca.c'. */
+#undef C_ALLOCA
+
+/* Define to enable dirac delta window function. */
+#undef DIRAC_DELTA
+
+/* Define to enable Gaussian window function. */
+#undef GAUSSIAN
+
+/* Define to 1 if you have the `abort' function. */
+#undef HAVE_ABORT
+
+/* Define to 1 if you have the `acos' function. */
+#undef HAVE_ACOS
+
+/* Define to 1 if you have the `acosf' function. */
+#undef HAVE_ACOSF
+
+/* Define to 1 if you have the `acosl' function. */
+#undef HAVE_ACOSL
+
+/* Define to 1 if you have `alloca', as a function or macro. */
+#undef HAVE_ALLOCA
+
+/* Define to 1 if you have <alloca.h> and it should be used (not on Ultrix).
+   */
+#undef HAVE_ALLOCA_H
+
+/* Define to 1 if you have the `BSDgettimeofday' function. */
+#undef HAVE_BSDGETTIMEOFDAY
+
+/* Define to 1 if you have the `clock_gettime' function. */
+#undef HAVE_CLOCK_GETTIME
+
+/* Define to 1 if you have the `copysign' function. */
+#undef HAVE_COPYSIGN
+
+/* Define to 1 if you have the `copysignf' function. */
+#undef HAVE_COPYSIGNF
+
+/* Define to 1 if you have the `copysignl' function. */
+#undef HAVE_COPYSIGNL
+
+/* Define to 1 if you have the `cos' function. */
+#undef HAVE_COS
+
+/* Define to 1 if you have the `cosf' function. */
+#undef HAVE_COSF
+
+/* Define to 1 if you have the `cosl' function. */
+#undef HAVE_COSL
+
+/* Define to 1 if you have the <c_asm.h> header file. */
+#undef HAVE_C_ASM_H
+
+/* Define to 1 if you have the declaration of `acos', and to 0 if you don't.
+   */
+#undef HAVE_DECL_ACOS
+
+/* Define to 1 if you have the declaration of `acosf', and to 0 if you don't.
+   */
+#undef HAVE_DECL_ACOSF
+
+/* Define to 1 if you have the declaration of `acosl', and to 0 if you don't.
+   */
+#undef HAVE_DECL_ACOSL
+
+/* Define to 1 if you have the declaration of `copysign', and to 0 if you
+   don't. */
+#undef HAVE_DECL_COPYSIGN
+
+/* Define to 1 if you have the declaration of `copysignf', and to 0 if you
+   don't. */
+#undef HAVE_DECL_COPYSIGNF
+
+/* Define to 1 if you have the declaration of `copysignl', and to 0 if you
+   don't. */
+#undef HAVE_DECL_COPYSIGNL
+
+/* Define to 1 if you have the declaration of `cos', and to 0 if you don't. */
+#undef HAVE_DECL_COS
+
+/* Define to 1 if you have the declaration of `cosf', and to 0 if you don't.
+   */
+#undef HAVE_DECL_COSF
+
+/* Define to 1 if you have the declaration of `cosl', and to 0 if you don't.
+   */
+#undef HAVE_DECL_COSL
+
+/* Define to 1 if you have the declaration of `drand48', and to 0 if you
+   don't. */
+#undef HAVE_DECL_DRAND48
+
+/* Define to 1 if you have the declaration of `exp', and to 0 if you don't. */
+#undef HAVE_DECL_EXP
+
+/* Define to 1 if you have the declaration of `expf', and to 0 if you don't.
+   */
+#undef HAVE_DECL_EXPF
+
+/* Define to 1 if you have the declaration of `expl', and to 0 if you don't.
+   */
+#undef HAVE_DECL_EXPL
+
+/* Define to 1 if you have the declaration of `fmax', and to 0 if you don't.
+   */
+#undef HAVE_DECL_FMAX
+
+/* Define to 1 if you have the declaration of `fmaxf', and to 0 if you don't.
+   */
+#undef HAVE_DECL_FMAXF
+
+/* Define to 1 if you have the declaration of `fmaxl', and to 0 if you don't.
+   */
+#undef HAVE_DECL_FMAXL
+
+/* Define to 1 if you have the declaration of `lgamma', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LGAMMA
+
+/* Define to 1 if you have the declaration of `lgammaf', and to 0 if you
+   don't. */
+#undef HAVE_DECL_LGAMMAF
+
+/* Define to 1 if you have the declaration of `lgammal', and to 0 if you
+   don't. */
+#undef HAVE_DECL_LGAMMAL
+
+/* Define to 1 if you have the declaration of `log', and to 0 if you don't. */
+#undef HAVE_DECL_LOG
+
+/* Define to 1 if you have the declaration of `log10', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LOG10
+
+/* Define to 1 if you have the declaration of `log10f', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LOG10F
+
+/* Define to 1 if you have the declaration of `log10l', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LOG10L
+
+/* Define to 1 if you have the declaration of `log1p', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LOG1P
+
+/* Define to 1 if you have the declaration of `log1pf', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LOG1PF
+
+/* Define to 1 if you have the declaration of `log1pl', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LOG1PL
+
+/* Define to 1 if you have the declaration of `log2', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LOG2
+
+/* Define to 1 if you have the declaration of `log2f', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LOG2F
+
+/* Define to 1 if you have the declaration of `log2l', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LOG2L
+
+/* Define to 1 if you have the declaration of `logf', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LOGF
+
+/* Define to 1 if you have the declaration of `logl', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LOGL
+
+/* Define to 1 if you have the declaration of `lrint', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LRINT
+
+/* Define to 1 if you have the declaration of `lrintf', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LRINTF
+
+/* Define to 1 if you have the declaration of `lrintl', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LRINTL
+
+/* Define to 1 if you have the declaration of `memalign', and to 0 if you
+   don't. */
+#undef HAVE_DECL_MEMALIGN
+
+/* Define to 1 if you have the declaration of `nanosleep', and to 0 if you
+   don't. */
+#undef HAVE_DECL_NANOSLEEP
+
+/* Define to 1 if you have the declaration of `posix_memalign', and to 0 if
+   you don't. */
+#undef HAVE_DECL_POSIX_MEMALIGN
+
+/* Define to 1 if you have the declaration of `pow', and to 0 if you don't. */
+#undef HAVE_DECL_POW
+
+/* Define to 1 if you have the declaration of `powf', and to 0 if you don't.
+   */
+#undef HAVE_DECL_POWF
+
+/* Define to 1 if you have the declaration of `powl', and to 0 if you don't.
+   */
+#undef HAVE_DECL_POWL
+
+/* Define to 1 if you have the declaration of `sin', and to 0 if you don't. */
+#undef HAVE_DECL_SIN
+
+/* Define to 1 if you have the declaration of `sinf', and to 0 if you don't.
+   */
+#undef HAVE_DECL_SINF
+
+/* Define to 1 if you have the declaration of `sinl', and to 0 if you don't.
+   */
+#undef HAVE_DECL_SINL
+
+/* Define to 1 if you have the declaration of `sleep', and to 0 if you don't.
+   */
+#undef HAVE_DECL_SLEEP
+
+/* Define to 1 if you have the declaration of `sqrt', and to 0 if you don't.
+   */
+#undef HAVE_DECL_SQRT
+
+/* Define to 1 if you have the declaration of `sqrtf', and to 0 if you don't.
+   */
+#undef HAVE_DECL_SQRTF
+
+/* Define to 1 if you have the declaration of `sqrtl', and to 0 if you don't.
+   */
+#undef HAVE_DECL_SQRTL
+
+/* Define to 1 if you have the declaration of `srand48', and to 0 if you
+   don't. */
+#undef HAVE_DECL_SRAND48
+
+/* Define to 1 if you have the declaration of `tgamma', and to 0 if you don't.
+   */
+#undef HAVE_DECL_TGAMMA
+
+/* Define to 1 if you have the declaration of `tgammaf', and to 0 if you
+   don't. */
+#undef HAVE_DECL_TGAMMAF
+
+/* Define to 1 if you have the declaration of `tgammal', and to 0 if you
+   don't. */
+#undef HAVE_DECL_TGAMMAL
+
+/* Define to 1 if you have the <dispatch/dispatch.h> header file. */
+#undef HAVE_DISPATCH_DISPATCH_H
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
+#undef HAVE_DOPRNT
+
+/* Define to 1 if you have the `drand48' function. */
+#undef HAVE_DRAND48
+
+/* Define to 1 if you have the `exp' function. */
+#undef HAVE_EXP
+
+/* Define to 1 if you have the `expf' function. */
+#undef HAVE_EXPF
+
+/* Define to 1 if you have the `expl' function. */
+#undef HAVE_EXPL
+
+/* Define to 1 if you have the `fmax' function. */
+#undef HAVE_FMAX
+
+/* Define to 1 if you have the `fmaxf' function. */
+#undef HAVE_FMAXF
+
+/* Define to 1 if you have the `fmaxl' function. */
+#undef HAVE_FMAXL
+
+/* Define to 1 if you have the `gethrtime' function. */
+#undef HAVE_GETHRTIME
+
+/* Define to 1 if you have the `gettimeofday' function. */
+#undef HAVE_GETTIMEOFDAY
+
+/* Define to 1 if hrtime_t is defined in <sys/time.h> */
+#undef HAVE_HRTIME_T
+
+/* Define to 1 if you have the <intrinsics.h> header file. */
+#undef HAVE_INTRINSICS_H
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the `lgamma' function. */
+#undef HAVE_LGAMMA
+
+/* Define to 1 if you have the `lgammaf' function. */
+#undef HAVE_LGAMMAF
+
+/* Define to 1 if you have the `lgammal' function. */
+#undef HAVE_LGAMMAL
+
+/* Define to enable code that uses libdispatch. */
+#undef HAVE_LIBDISPATCH
+
+/* Define to 1 if you have the `fftw3' library (-lfftw3). */
+#undef HAVE_LIBFFTW3
+
+/* Define to 1 if you have the <libintl.h> header file. */
+#undef HAVE_LIBINTL_H
+
+/* Define to 1 if you have the `m' library (-lm). */
+#undef HAVE_LIBM
+
+/* Define to 1 if you have the <limits.h> header file. */
+#undef HAVE_LIMITS_H
+
+/* Define to 1 if you have the `log' function. */
+#undef HAVE_LOG
+
+/* Define to 1 if you have the `log10' function. */
+#undef HAVE_LOG10
+
+/* Define to 1 if you have the `log10f' function. */
+#undef HAVE_LOG10F
+
+/* Define to 1 if you have the `log10l' function. */
+#undef HAVE_LOG10L
+
+/* Define to 1 if you have the `log1p' function. */
+#undef HAVE_LOG1P
+
+/* Define to 1 if you have the `log1pf' function. */
+#undef HAVE_LOG1PF
+
+/* Define to 1 if you have the `log1pl' function. */
+#undef HAVE_LOG1PL
+
+/* Define to 1 if you have the `log2' function. */
+#undef HAVE_LOG2
+
+/* Define to 1 if you have the `log2f' function. */
+#undef HAVE_LOG2F
+
+/* Define to 1 if you have the `log2l' function. */
+#undef HAVE_LOG2L
+
+/* Define to 1 if you have the `logf' function. */
+#undef HAVE_LOGF
+
+/* Define to 1 if you have the `logl' function. */
+#undef HAVE_LOGL
+
+/* Define to 1 if the compiler supports `long double' */
+#undef HAVE_LONG_DOUBLE
+
+/* Define to 1 if you have the `lrint' function. */
+#undef HAVE_LRINT
+
+/* Define to 1 if you have the `lrintf' function. */
+#undef HAVE_LRINTF
+
+/* Define to 1 if you have the `lrintl' function. */
+#undef HAVE_LRINTL
+
+/* Define to 1 if you have the `mach_absolute_time' function. */
+#undef HAVE_MACH_ABSOLUTE_TIME
+
+/* Define to 1 if you have the <mach/mach_time.h> header file. */
+#undef HAVE_MACH_MACH_TIME_H
+
+/* Define to 1 if you have the <malloc.h> header file. */
+#undef HAVE_MALLOC_H
+
+/* Define to 1 if you have the `memalign' function. */
+#undef HAVE_MEMALIGN
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the `memset' function. */
+#undef HAVE_MEMSET
+
+/* Define to have the file mexversion.c */
+#undef HAVE_MEXVERSION_C
+
+/* Define to 1 if you have the `nanosleep' function. */
+#undef HAVE_NANOSLEEP
+
+/* Define to 1 if you have the `posix_memalign' function. */
+#undef HAVE_POSIX_MEMALIGN
+
+/* Define to 1 if you have the `pow' function. */
+#undef HAVE_POW
+
+/* Define to 1 if you have the `powf' function. */
+#undef HAVE_POWF
+
+/* Define to 1 if you have the `powl' function. */
+#undef HAVE_POWL
+
+/* Define to 1 if you have the `read_real_time' function. */
+#undef HAVE_READ_REAL_TIME
+
+/* Define to 1 if you have the `sin' function. */
+#undef HAVE_SIN
+
+/* Define to 1 if you have the `sinf' function. */
+#undef HAVE_SINF
+
+/* Define to 1 if you have the `sinl' function. */
+#undef HAVE_SINL
+
+/* Define to 1 if you have the `sleep' function. */
+#undef HAVE_SLEEP
+
+/* Define to 1 if you have the `snprintf' function. */
+#undef HAVE_SNPRINTF
+
+/* Define to 1 if you have the `sqrt' function. */
+#undef HAVE_SQRT
+
+/* Define to 1 if you have the `sqrtf' function. */
+#undef HAVE_SQRTF
+
+/* Define to 1 if you have the `sqrtl' function. */
+#undef HAVE_SQRTL
+
+/* Define to 1 if you have the `srand48' function. */
+#undef HAVE_SRAND48
+
+/* Define to 1 if you have the <stdbool.h> header file. */
+#undef HAVE_STDBOOL_H
+
+/* Define to 1 if you have the <stddef.h> header file. */
+#undef HAVE_STDDEF_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the `sysctl' function. */
+#undef HAVE_SYSCTL
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/sysctl> header file. */
+#undef HAVE_SYS_SYSCTL
+
+/* Define to 1 if you have the <sys/sysctl.h> header file. */
+#undef HAVE_SYS_SYSCTL_H
+
+/* Define to 1 if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the `tgamma' function. */
+#undef HAVE_TGAMMA
+
+/* Define to 1 if you have the `tgammaf' function. */
+#undef HAVE_TGAMMAF
+
+/* Define to 1 if you have the `tgammal' function. */
+#undef HAVE_TGAMMAL
+
+/* Define to 1 if you have the `time_base_to_time' function. */
+#undef HAVE_TIME_BASE_TO_TIME
+
+/* Define to 1 if the system has the type `uintptr_t'. */
+#undef HAVE_UINTPTR_T
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to 1 if you have the `vprintf' function. */
+#undef HAVE_VPRINTF
+
+/* Define to 1 if you have the `_mm_free' function. */
+#undef HAVE__MM_FREE
+
+/* Define to 1 if you have the `_mm_malloc' function. */
+#undef HAVE__MM_MALLOC
+
+/* Define to enable Kaiser-Bessel window function. */
+#undef KAISER_BESSEL
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
+/* Define to enable Matlab argument checks. */
+#undef MATLAB_ARGCHECKS
+
+/* Define to enable runtime time measurements. */
+#undef MEASURE_TIME
+
+/* Define to enable time measurements for FFTW transforms. */
+#undef MEASURE_TIME_FFTW
+
+/* Define to enable extra NFFT debugging code. */
+#undef NFFT_DEBUG
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define to enable sinc power window function. */
+#undef SINC_POWER
+
+/* The size of `double', as computed by sizeof. */
+#undef SIZEOF_DOUBLE
+
+/* The size of `float', as computed by sizeof. */
+#undef SIZEOF_FLOAT
+
+/* The size of `int', as computed by sizeof. */
+#undef SIZEOF_INT
+
+/* The size of `long', as computed by sizeof. */
+#undef SIZEOF_LONG
+
+/* The size of `long double', as computed by sizeof. */
+#undef SIZEOF_LONG_DOUBLE
+
+/* The size of `long long', as computed by sizeof. */
+#undef SIZEOF_LONG_LONG
+
+/* The size of `ptrdiff_t', as computed by sizeof. */
+#undef SIZEOF_PTRDIFF_T
+
+/* The size of `size_t', as computed by sizeof. */
+#undef SIZEOF_SIZE_T
+
+/* The size of `unsigned int', as computed by sizeof. */
+#undef SIZEOF_UNSIGNED_INT
+
+/* The size of `unsigned long', as computed by sizeof. */
+#undef SIZEOF_UNSIGNED_LONG
+
+/* The size of `unsigned long long', as computed by sizeof. */
+#undef SIZEOF_UNSIGNED_LONG_LONG
+
+/* The size of `void *', as computed by sizeof. */
+#undef SIZEOF_VOID_P
+
+/* If using the C implementation of alloca, define if you know the
+   direction of stack growth for your system; otherwise it will be
+   automatically deduced at runtime.
+	STACK_DIRECTION > 0 => grows toward higher addresses
+	STACK_DIRECTION < 0 => grows toward lower addresses
+	STACK_DIRECTION = 0 => direction of growth unknown */
+#undef STACK_DIRECTION
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+#undef TIME_WITH_SYS_TIME
+
+/* Version number of package */
+#undef VERSION
+
+/* Define to empty if `const' does not conform to ANSI C. */
+#undef const
+
+/* Define to `__inline__' or `__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
+#undef inline
+#endif
+
+/* Define to the equivalent of the C99 'restrict' keyword, or to
+   nothing if this is not supported.  Do not define if restrict is
+   supported directly.  */
+#undef restrict
+/* Work around a bug in Sun C++: it does not support _Restrict, even
+   though the corresponding Sun C compiler does, which causes
+   "#define restrict _Restrict" in the previous line.  Perhaps some future
+   version of Sun C++ will work with _Restrict; if so, it'll probably
+   define __RESTRICT, just as Sun C does.  */
+#if defined __SUNPRO_CC && !defined __RESTRICT
+# define _Restrict
+#endif
+
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#undef size_t

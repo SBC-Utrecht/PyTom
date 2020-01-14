@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Tutorial</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+<p class="Header">
+	PyTom: Files
+</p>
+<h2 id="General">Big data</h2>
+<p class="textBody">
+Big data such as raw projections from the microscope, tomograms and subtomograms is stored in binary on disk. PyTom currently supports three filetypes:
+  <ul>
+	  <li>
+	    <p>EM files (<a href="emFileType.html">specification</a>)</p>
+	  </li>
+	  <li>
+	    <p>MRC Files (<a href="http://ami.scripps.edu/software/mrctools/mrc_specification.php">specification</a>)</p>
+	  </li>
+	  <li>
+	    <p>CCP4 Files (<a href="http://www.ccp4.ac.uk/html/maplib.html#description">specification</a>)</p>
+	  </li>
+  </ul>     
+In general, all files stored in these filetypes can be read into memory by the <code>pytom.basic.files.read</code> function if you write your own code or use PyTom in the terminal. 
+If you however want to convert filetypes from <strong>EM</strong> to say <strong>MRC</strong>, you can use the conversion scipts in <code>pytom/bin</code> like
+<code>em2mrc.py</code>, <code>em2ccp4.py</code> to do this job. We provide all combinations.
+ 
+</p>
+
+<h2 id="General">PDB to electron density conversion</h2>
+<p class="textBody">
+
+You can use our <code>pdb2em.py</code> script to convert PDB files to electron densities.
+
+<div class="codeFragment">
+		<code>
+			<pre>
+NAME
+    pdb2em.py
+DESCRIPTION
+    Compile a electron density from PDB file
+                          http://pytom.org/doc/pytom/files.html
+OPTIONS
+    -p, --pdbFile    A PDB file (Is optional: No; Requires arguments: Yes)
+    -c, --chain    A Chain (Is optional: Yes; Requires arguments: Yes)
+    -s, --pixelSize    Pixel size of output volume (Is optional: Yes; Requires arguments: Yes)
+    -v, --volumeSize    Volume length (size) in all dimensions (Is optional: Yes; Requires arguments: Yes)
+    -o, --outputVolumePath    Path to output volume  (Is optional: No; Requires arguments: Yes)
+    -h, --help    Help. (Is optional: Yes; Requires arguments: No)
+			</pre>
+		</code>
+</div>
+
+</p>
+<h2 id="General">XML Files</h2>
+<p class="textBody">
+	We use PyTom XML files to store metadata of binaries files like projections and tomograms. Furthermore, XML is a good tool to store information about processing jobs as well.
+	Hence, XML files are used like a databank which remains open and, more importantly, readable to the user all time. It can be adjusted to the current requirements of the project 
+	using a standard text editor.  
+</p>
+</body>
+</html>

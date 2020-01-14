@@ -1,0 +1,15 @@
+Trying to add new property 'svn:ignore' with value '_pytom_fftplan.so
+_pytom_freqweight.so
+_pytom_mpi.so
+_pytom_volume.so
+pytom_fftplan.py
+pytom_freqweight.py
+pytom_mpi.py
+pytom_numpy.py
+pytom_volume.py
+',
+but property already exists with value 'pytom_fftplan.py
+pytom_freqweight.py
+pytom_mpi.py
+pytom_volume.py
+'.

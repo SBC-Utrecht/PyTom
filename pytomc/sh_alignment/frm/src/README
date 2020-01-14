@@ -1,0 +1,2 @@
+This a part of the Situs Library. Here I provide the Python interface. It is implemented in the swig dir.
+Besides, the SPHKIT dir is deleted here, because a newer version is available (scaling bug is fixed!).

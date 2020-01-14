@@ -1,0 +1,58 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Localize Macromolecules</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+<p class="Header">PyTom: General information</p>
+<p><strong>What PyTom does:  </strong></p>
+<p>PyTom (<strong>Py</strong>thon and <strong>Tom</strong>ography) 
+is a toolbox for processing of cryo 
+electron tomograms. (<a href="http://www.ncbi.nlm.nih.gov/pubmed/22193517">Hrabe et. al., J. Struct. Biol. <strong>178</strong>:177-88 
+(2012)</a>)</p>
+<p class="textBody">PyTom covers key functions for processing three-dimensional data, such as cryo electron tomograms.<br />
+It supports 3D-reconstruction (e.g., weighted 
+backprojection), algorithms for detection of macromolecules in 
+tomograms (e.g., template matching), and subtomogram analysis 
+(e.g., subtomogram averaging and classification).<br/>(<a href="http://onlinelibrary.wiley.com/doi/10.1002/9780470015902.a0023175/abstract">Hrabe and Foerster, 
+Encyclopedia of Life Sciences 2011</a>).  
+</p>
+<p>
+The software is tested on Linux and MacOS (it should be straighforward 
+to get it to run on Windows as well, but we do not support Windows due to our limited resources). PyTom supports
+parallel processing and Linux clusters are currently the most sensible environment for processing large amounts 
+of data using PyTom.</p>
+<p><strong>What PyTom does not: </strong></p>
+<p>The long-term goal of PyTom is to support all essential functions for processing of CET data. Processing 
+for other types of cryo-electron microscopy such as single particle analysis 
+(e.g., projection matching or random conical tilting) is not planned albeit subtomogram analysis bears 
+significant similarities.
+</p>
+<p><strong>PyTom Software Design:</strong></p>
+<p>PyTom uses an increasingly popular software-enginnering approach: Algorithms are implemented in the 
+programming language <a href="http://www.python.org">Python</a>. Python is a modern object-oriented 
+programming language that is easy to learn and python-code is generally straighforward to understand. Python
+does not need to be compiled and thus python code is platform-independent (all major platforms are supported). 
+In essence, python usage is similar to the popular (commercial) scripting language matlab with the advantage of 
+being object oriented and free of charge.<br />
+For selected applications we developed web interfaces. These interfaces can be used to generate xml input files 
+for these core applications (template matching, subtomogram averaging, subtomogram classification).<br />
+Core 'number-crunching' routines are implemented in C++. These routines are accessible via python and allow very 
+efficient processing.
+</p>
+<p><strong>How to use PyTom and this Tutorial</strong></p>
+<p>PyTom essentially provides three levels of user interaction.</p>
+<p>
+1. The user interface where you can quickly specify any kind of job.<br/>
+2. Custom python scripts interfacing PyTom components and XML files specifying processing jobs.<br/>
+3. The terminal for interactive mode.
+</p>
+<p>
+All tutorials here include a short video showing how to use the web-based user interface for setting up jobs.<br/>
+Writing your own scripts, however, requires a bit of programming and Python knowledge. 
+You will find documentation of respective methods in the <a href="../epydoc/index.html">API documentation</a>.
+</p>
+</body>
+</html>

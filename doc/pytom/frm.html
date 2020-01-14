@@ -1,0 +1,163 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<script type="text/javascript"
+    src="http://latex.codecogs.com/latexit.js"></script>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Align subtomograms</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+
+</head>
+<body>
+    <p class="Header">PyTom: Align subtomograms using spherical harmonic analysis</p>
+    <h2 id="General">Overview</h2>
+    <p align="justify">This approach achieves basically the same task as stated <a href="alignment.html">here</a>, but much faster and more accurate. Some other functionalities are also included, such as resolution determination according to gold-standard FSC and CTF correction using Wiener filter.</p>
+    <p>This is by no means a comprehensive document about the mathematical details. For that, please refer to the paper: <a href="http://www.sciencedirect.com/science/article/pii/S1047847713000737">Fast and accurate reference-free alignment of subtomograms, Y. Chen et al., JSB 2013.</a></p>
+    <p>If you are a advanced user and for some reason you want to integrate this fast algorithm into your own software, it is also possible and quite straight forward. Check out the underlying library <strong>SH Alignment</strong> <a href="http://bitbucket.org/kkhust/sh_alignment">here</a> (written in C and Python) and follow the instruction described <a href="#Library">below</a>.</p>
+
+    <h2>Script description</h2>
+    <p align="justify">Here we assume you already have the subtomograms to be aligned, either by template matching or any other means. What matters here is the subtomograms on disk and the corresponding particle list file describing all the relevant information (please check <a href="genParticleList.html">here</a> if you already have the subtomograms and want to generate the particle list).</p>
+    <p align="justify">Depending on the purpose, there are four scripts that could be used for the alignment, which are all contained in the module <code>pytom.frm</code>. They can be classified into two <a href="#Table">categories</a>: with-/without gold standard, with-/without Wiener filtering. You should choose one that fits to your problem. The ways to use all these scripts are similar and they are described below.</p>
+    <table border="1">
+        <tr>
+            <th></th>
+            <th>Non gold standard</th>
+            <th>Gold standard</th>
+        </tr>
+        <tr>
+            <th>Non Wiener filter</th>
+            <td>FRMAlignment.py</td>
+            <td>GFRMAlignment.py</td>
+        </tr>
+        <tr>
+            <th>Wiener filter</th>
+            <td>WienerFilterAlignment.py</td>
+            <td>GWienerFilterAlignment.py</td>
+        </tr>
+        <a name="Table"><caption>Script names and functionalities</caption></a>
+    </table>
+
+    <h2>Subtomogram alignment using <code>FRMAlignment.py</code></h2>
+    <p align="justify">This script is the most basic one, without gold standard FSC and CTF correction. If you just want to align the volumes and nothing more, this is the one you should use. The call of this script with MPI is:
+    <div class="codeFragment">
+        <code> mpirun --hostfile "pathToYourHostfile" -c "numberOfCPUs" pytom PathToPytom/frm/FRMAlignment.py -j job.xml -v </code>
+    </div>
+    It requires a job description file: job.xml, which can be generated interactively using the script <code>frm/createJob.py</code> or any text editor if you are very familar with the XML format. An example of the job file would be:
+    <div class="codeFragment">
+        <code>
+            &lt;FRMJob Destination='.' BandwidthRange='[4, 64]' Frequency='10' MaxIterations='10' PeakOffset='10' AdaptiveResolution='0.1' FSC='0.5'&gt;<br/><br/>
+
+            &lt;Reference PreWedge=&quot;&quot; File=&quot;YOUR_REFERENCE.em&quot; Weighting=&quot;&quot;&gt;<br/>
+            &lt;ParticleList Path=&quot;/&quot;/&gt;<br/>
+            &lt;/Reference&gt;<br/>
+            &lt;Mask Filename=&quot;YOUR_MASK.em&quot; Binning=&quot;1&quot; isSphere=&quot;True&quot;/&gt;<br/>
+            &lt;SampleInformation PixelSize=&quot;XX_ANGSTROM&quot; ParticleDiameter=&quot;XX_ANGSTROM&quot;/&gt;<br/><br/>
+
+            &lt;ParticleListLocation Path=&quot;PARTICLE_LIST1.xml&quot;/&gt;<br/>
+            &lt;ParticleListLocation Path=&quot;PARTICLE_LIST2.xml&quot;/&gt;<br/><br/>
+            &lt;/FRMJob&gt;
+        </code>
+    </div>
+    </p>
+    <p align="justify">Note not all the fields in this file need to be set. There are quite some parameters are unused and exist only for historical reasons or compatibility to other parts in Pytom. If <code>createJob.py</code> is used, you would be only required to enter the relevant ones.</p>
+    <p align="justify">Here all the fields can be or need to be set are explained here:
+    <ul>
+        <li><strong>Frequency:</strong> the starting frequency (in pixel) at which the alignment procedure would start.</li>
+        <li><strong>MaxIterations:</strong> the maximal iterations the alignment procedure would run.</li>
+        <li><strong>PeakOffset:</strong> the maximal spatial range (radius, in pixel) that the subtomogram would be shifted. This is necessary to prevent shifting the volume out-of-frame and reduce the search space.</li>
+        <li><strong>FSC:</strong> the Fourier shell correlation (FSC) criterion, typical choice would be: 0.5, 0.3 or 0.143 for gold standard approach.</li>
+        <li><strong>AdaptiveResolution:</strong> the additional resolution that would be considered in the next iteration. For example, if in iteration 5th the resolution (in band) determined is 10 according to the chosen FSC criterion, we then calculate the information within <code>10 ∗ (1 + 0.1) = 11</code> band in 6th iteration. This parameter is useful to alleviate the noise bias and still let the alignment &quot;see&quot; more information in each round so that the local minimum is avoided.</li>
+        <li><strong>Reference/File:</strong> the file name of the reference.</li>
+        <li><strong>Mask/Filename:</strong> the file name of the mask. This will be applied to the reference in real space.</li>
+        <li><strong>SampleInformation/PixelSize:</strong> pixel size in angstrom.</li>
+        <li><strong>ParticleListLocation/Path:</strong> the path(s) to the particle list(s) of subtomograms, can have mutiple entities.</li>
+    </ul>
+    Additionally, after version 0.97 it is possible to apply constraints in the rotational space. There are three types of angle constraints available now:
+    <ul>
+        <li><strong>Fixed Angle Constraint:</strong> constrain the angular search around a specific angle. To enable that, add the following line into your job xml file.
+            <div class="codeFragment">
+                <code>
+                    &lt;AngularConstraint Type=&quot;Fixed Angle&quot; Phi=&quot;0&quot; Psi=&quot;0&quot; Theta=&quot;0&quot; Nearby=&quot;10&quot; /&gt;
+                </code>
+            </div>
+        </li>
+        <li><strong>Fixed Axis Constraint:</strong> constrain the angular search around a specific axis. To enable that, add the following line into your job xml file.
+            <div class="codeFragment">
+                <code>
+                    &lt;AngularConstraint Type=&quot;Fixed Axis&quot; X=&quot;0.267261241912&quot; Y=&quot;0.534522483825&quot; Z=&quot;0.801783725737&quot; Nearby=&quot;10&quot; /&gt;
+                </code>
+            </div>
+        </li>
+        <li><strong>Adaptive Angle Constraint:</strong> constrain the angular search around the angle stored in each particle (local sampling). To enable that, add the following line into your job xml file.
+            <div class="codeFragment">
+                <code>
+                    &lt;AngularConstraint Type=&quot;Adaptive Angle&quot; Nearby=&quot;10&quot; /&gt;
+                </code>
+            </div>
+        </li>
+    </ul>
+    </p>
+   <p> 
+For 'reference-free' alignment, i.e., alignment without using a <bold>external</bold> reference, a random assignment of 
+angular assignments of the respective particles can be generated easily using <code>ParticleList.createDeNovoReference</code>. 
+This function generates an average from the particles using random orientations.
+   </p>
+    <h2>Subtomogram alignment using <code>GFRMAlignment.py</code></h2>
+    <p align="justify">This is the version with gold standard FSC, which means the dataset is randomly split into two half sets and aligned independantly. The resoluton is then determined by FSC between the averages from the two half sets. Although in the single particle field the suggested FSC criterion is 0.143, For alignment in electron tomography it would be better to set to 0.3 or 0.5, because this can prevent the determined frequency to jump too further at a time. In the end, you can still use 0.143 criterion to determine the final resolution.</p>
+    <p>As you can see, nothing much is different except to tell the program to run two independant alignments on one dataset. So is the job description file:
+    <div class="codeFragment">
+        <code>
+            &lt;FRMJob ...&gt;<br/>
+            ...<br/>
+
+            &lt;Reference PreWedge=&quot;&quot; File=&quot;YOUR_REFERENCE1.em&quot; Weighting=&quot;&quot;&gt;<br/>
+            &lt;Reference PreWedge=&quot;&quot; File=&quot;YOUR_REFERENCE2.em&quot; Weighting=&quot;&quot;&gt;<br/>
+
+            ...<br/>
+            &lt;/FRMJob&gt;
+        </code>
+    </div>
+    </p>
+    <p>You have to give two references in the job file instead of one. These two references could be the same, or not. The way to call this script is identical to the one above except for the script name:
+    <div class="codeFragment">
+        <code> mpirun --hostfile "pathToYourHostfile" -c "numberOfCPUs" pytom PathToPytom/frm/GFRMAlignment.py -j job.xml -v </code>
+    </div>
+    </p>
+
+    <h2>Subtomogram alignment using <code>WienerFilterAlignment.py</code></h2>
+    <p align="justify">This is the version with CTF correction using Wiener filter. For that you have to prepare two sets of particles: the phase flipped volumes and the CTF convoluted volumes. Currently PyTom does not have the functionality to prepare them for you. It has to be done yourself using whatever software you like. For the Wiener filter equation, please refer to the <a href="http://www.sciencedirect.com/science/article/pii/S1047847713000737">paper</a>.</p>
+    <p>The job description file is still similar and looks like this:
+    <div class="codeFragment">
+        <code>
+            &lt;FRMJob ...&gt;<br/>
+            ...<br/>
+
+            &lt;ParticleListSet&gt;<br/>
+            &lt;ParticleListPair PhaseFlippedParticleList='PARTICLE_LIST1.xml' CTFConvolutedParticleList='CONVOLUTED_DIR' CTFSquared='CTF_SQUARED_VOLUME.em' SNR='10'/&gt;<br/>
+            &lt;ParticleListPair PhaseFlippedParticleList='PARTICLE_LIST2.xml' CTFConvolutedParticleList='CONVOLUTED_DIR2' CTFSquared='CTF_SQUARED_VOLUME2.em' SNR='10'/&gt;<br/>
+            &lt;/ParticleListSet&gt;<br/>
+
+            ...<br/>
+            &lt;/FRMJob&gt;
+        </code>
+    </div>
+    </p>
+    <p>As you can see, the difference is in the particle list part:
+    <ul>
+        <li><strong>PhaseFlippedParticleList:</strong> the particle list with phase flipped volumes.</li>
+        <li><strong>CTFConvolutedParticleList:</strong> the particle directory containing the CTF convoluted volumes. Note the naming of the particles should correspond to the phase flipped particle list. The redundant information is avoided so the directory is the only field should be specified.</li>
+        <li><strong>CTFSquared:</strong> the volume containing the sum of the squared CTFs.</li>
+        <li><strong>SNR:</strong> the estimated SNR value in this specific particle list. Normally set it to 10, which corresponds to the Wiener constant 0.1.</li>
+    </ul>
+    </p>
+    <p>The call of this script is the same and omitted here.</p>
+
+    <h2>Subtomogram alignment using <code>GWienerFilterAlignment.py</code></h2>
+    <p align="justify">This is the version with gold standard FSC and CTF correction. Its job file can be set analogously to the above one but with one more reference field.</p>
+
+    <a name="Library"><h2>Low level library and advanced usage</h2></a>
+    <p align="justify">If you want to integrate this fast alignment algorithm into your own software, you can check out the low level library written in C and Python at <a href="http://bitbucket.org/kkhust/sh_alignment">this page</a>. But please do not forget to cite the <a href="http://www.sciencedirect.com/science/article/pii/S1047847713000737">paper</a>!</p>
+    <p>It contains some documentations and examples to use to help you understand. It should be quite straight forward to comprehend and adapt to your purpose. Most importantly, pay attention to the python function <code>frm_align</code> at <code>sh_alignment.frm</code> module, and the swig wrapper of C functions: <code>sh_alignment.swig_frm.frm_corr</code> or <code>sh_alignment.swig_frm.frm_fourier_corr</code>. The former is for finding the best translation and rotation between two volumes. And the latter is for computing the cross correlation of two spherical functions (real or complex).</p>
+    <p>If you have further questions, please email to: chenyxkk@googlemail.com.</p>
+</body>
+</html>

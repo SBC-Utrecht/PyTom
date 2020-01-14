@@ -1,0 +1,24 @@
+Note this is a replica of open source library SH Alignment originated from http://bitbucket.org/kkhust/sh_alignment/. (With small changes on the compile script.)
+It is now integrated into PyTom and will get compiled together with it. You do not have to compile this library yourself.
+The version included here is from commit be9d28da4d01d422f2dde8e2b5e827a629621e56, although not totally identical in the compilation part.
+It is quite stable and only minor changes will happen in the future. So this copy will hopefully remain unchanged.
+
+============
+
+SH Alignment
+
+This is a software library for alignment of two 3D volumes which is super fast and accurate. It is written in Python and C.
+For detail, please check paper "Fast and Accurate Reference-free Alignment of Subtomograms", Y. Chen, S. Pfeffer, T. Hrabe, J. Schuller. F. Foerster, Journal of Structural Biology, 2013.
+
+Except for Numpy and FFTW-2 (not 3!), the prerequisites of this software are two other libraries: "frm" from Situs (http://situs.biomachina.org/) and "SpharmonicKit" (http://www.cs.dartmouth.edu/~geelong/sphere/). Both of the source codes are slightly modified and already included here.
+It might also depend on one other library in the furture: "NFFT" (http://www-user.tu-chemnitz.de/~potts/nfft/), which helps to improve the accuracy of interpolation in the Fourier space. It is not mandatory, and thus the source code is not included.
+
+For general purpose of find the best alignment of two 3D volumes, this library suffices. Otherwise, if you want to use it for subtomogram alignment in cryoelectron tomography, Pytom library (http://sourceforge.net/projects/pytom/) is strongly recommanded. Although in this library there are still some left-overs from Pytom which need to be cleaned in the furture. But in principle it should not hinder the understanding of the code.
+
+COMPILE:
+1. run: python compile.py (followed by --help to see other possible arguments)
+2. if the compilation finishes successfully, set the LD_LIBRARY_PATH and PYTHONPATH printed at the end
+
+
+COPYRIGHT:
+Yuxiang Chen (chenyxkk@googlemail.com), 2012-2013

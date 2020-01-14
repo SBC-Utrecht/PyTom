@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Reconstruct subtomograms</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+
+<p class="Header">PyTom: 3D reconstruction of subtomograms from aligned 
+projections</p>
+<h2 id="General">Overview</h2>
+<p align="justify">
+This section deals with the reconstruction of subtomograms 
+according to the positions stored in a particle list, which can be the 
+result of template matching (see <a href="localization.html">Localization 
+Tutorial</a>) or of interactive localization using a tool like EMAN2.
+The reconstruction is performed by weighted backprojection with different
+reconstruction centers (= centers of particles).
+</p>
+<h2 id="recSubTomos">Things you should know to avoid desaster</h2>
+<p align="justify">
+Take care during the reconstruction process for three things: 
+<ul>
+<li>
+<strong>Coordinate system of projections</strong>: Projections are aligned based on a
+coordinate system that is assigned to the gold markers (or any
+other reference system). Thus, if the coordinate system that is used for 
+alignment of the weighted projections and that used for reconstructing
+the volume for picking the particles you will end up in a mess, i.e.,
+your subvolumes likely will not include particles. 
+</li>
+<li>
+<strong>Reconstruction center</strong>: During reconstruction of the picking
+volume you might have provided a reconstruction center of your tomogram that 
+deviates from the default value. Another possibility is that you might have 
+cropped your volume after reconstruction because part of it was simply devoid
+of any interesting stuff. Both, a specific reconstruction center and cropping of
+the volume lead to a shift of the coordinates in the particle list compared
+to the coordinates that would result from backprojection of the aligned projections.
+Thus, offset must be specified or you will end up in Nirvana.
+</li>
+<li>
+<strong>Binning factor of particle list and projections</strong>: Moreover, you must
+make sure that you interpret weighted projections and the particle list
+with the correct binning factor: typically, particles will be picked 
+in a downsampled volume and the subtomograms will be reconstructed 
+from full-sized projections to get the subtomogram at its maximum
+magnification. The correct binning factor interrelating the two must
+be provided, otherwise you might also end up in nowhere land.
+</li>
+<li>
+Make sure that your particle list is not a mix of particles stemming from multiple tomograms.
+You should be able to tell by checking the <code>Origin</code> attribute in the XML file.
+</li>
+</ul>
+</p>
+<h2 id="practical">Reconstruct tutorial subtomograms using <code>reconstructWB.py</code> </h2>
+
+<p align="justify">
+Using the <code>bin/reconstructWB.py</code> script, you can reconstruct 
+a set of subtomograms (or a single tomogram) from weighted and aligned projections by 
+backprojection. As explained above you
+need to specify the correct parameters to ensure that the coordinates 
+of your particle list and the projections correspond. 
+</p>
+<p align="justify">
+The script <code>reconstructWB.py</code> takes the following parameters:
+<ul>
+<li><strong>--projectionDirectory</strong>: Directory containing weighted projections
+</li>
+<li><strong>--particleList</strong>: XML particle list
+</li>
+<li><strong>--size</strong>: size of resulting tomogram. The volumes are always 
+cubic.
+</li>
+<li><strong>--coordinateBinning</strong>: optional: the particle list is typically obtained from
+a binned tomogram. For reconstruction of unbinned subtomograms the binning needs to
+be inverted - otherwise the reconstructions would be performed at the wrong 
+coordinates.
+</li>
+<li><strong>--applyWeighting</strong>: optional: apply weighting before reconstruction 
+(if projections are not weighted already)
+</li>
+<li><strong>--recOffset</strong>: Volume that is used for particle
+localization might have been reconstructed with a coordinate offset or it
+may be cropped (often in z) to remove 'empty' parts. Since the projection
+coordinate system is still un-altered the information about discarded volume in x,y,z must
+be provided to perform reconstructions at the correct coordinates.<br />
+</li>
+</ul>
+In our <a href="tutorial.html">tutorial data-set</a> you will find a directory <code>reconstructParticles</code> where you can perform reconstruction of individual particles.
+The respective function call can be found in the <code>reconstruct.sh</code> script:<br/><br/>
+<div class="codeFragment">
+<code>
+<pre>
+reconstructWB.py -p pl_first252.xml --projectionDirectory ../reconstructTomo/alignedProjections/ -s 25 -b 1 -o 0,0,192
+</pre>
+</code>
+</div>
+<br/>
+Here, we reconstruct the first 252 particles from the 1000 particles localized in the <a href="localization.html">previous step</a> (<code>-p pl_first252.xml</code>).
+All particles will be reconstructed into the <code>../particles</code> folder. Their cube size will be <code>25</code> pixels in each dimension.
+In the previous tomogram reconstruction <a href="reconstructTomograms.html">step</a>, the tomogram was reconstructed to a size of <code>512,512,128</code> pixels.  
+The projections stored in <code>../reconstructTomo/alignedProjections</code> have a size of <code>512,512</code>, hence the <code>coordinateBinning</code> parameter is set to <code>1</code>. 
+However, the only realy complicated parameter here is the reconstruction offset determined to <code>-o 0,0,192</code>.<br/><br/> 
+<h3>A preliminary average</h3>
+After successfull reconstruction of all particles, the <code>firstAverage.py</code> stores the commands required to generate a preliminary average from all particles. 
+The average should contain a ribosome. If not, please forward us a bug report through our <a href="https://lists.sourceforge.net/lists/listinfo/pytom-mail">mailing list</a>.
+<br/><br/>   
+<div class="codeFragment">
+<code>
+<pre>
+#!/usr/bin/env pytom
+
+from pytom.basic.structures import ParticleList
+
+pl = ParticleList()
+pl.fromXMLFile('pl_first252.xml')
+pl.average('preliminaryAverage.em',progressBar=True)
+</pre>
+</code>
+</div>
+<br/><br/>
+<h2 id="GUI">Setting up reconstruction using a web browser</h2>
+<p align="justify">
+The PyTom user interface
+supports setting up a job for reconstruction of subtomograms using the coordinates
+stored in a particle list. A single tomogram can also be reconstructed this way.
+The file generated by the interface, <code>job.sh</code> (or whichever name you choose 
+in the GUI) contains the call of the <code>reconstructWB.py</code> script with
+the specified parameters.
+  <center>
+<iframe width="420" height="315" src="http://www.youtube.com/embed/VLb0Ujo5Hy0" frameborder="0" allowfullscreen></iframe>
+</center>
+
+</body>
+</html>

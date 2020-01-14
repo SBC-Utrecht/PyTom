@@ -1,0 +1,28 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: get the tutorial files</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+
+<body>
+	<p class="Header">PyTom: get the tutorial files</p>
+	<p align="justify">
+		Download our tutorial files from a git repository on sourceforge. Open a terminal and change into a folder of your choice an run the following command:
+        <div class="codeFragment">
+			<code>
+        	git clone http://git.code.sf.net/p/pytom/tutorial pytom-tutorial
+        	</code>
+        </div>
+        This command will download all tutorial files into the pytom-tutorial folder. You can proceed step-by-step to process this data.
+	</p>
+
+<h3 id="General">
+		Structure of the tutorial repository
+	</h3>
+	<p align="justify">
+    	The tutorial repository essentially contains all processing steps implemented in PyTom. We furthermore ship projections of <b>one</b> tomogram of our <i>Ribosome lysate</i> data-set, one reference for tempalte-matching and one mask. Sripts demonstrating how to invoke PyTom procedures to process the data-set are shipped as well. Some processing results are provided at parts where we deemed them usefull. However, we do not provide intermediate results such as the reconstructed tomogram for that would significantly increase the repository size.  The complete pipeline is processed on 4x binned (scalled) data for demonstration purposes and resulting resolutions are fairly low. However, users who finished the tutorial are encouraged to process the data-set in unbinned mode to learn which parameters in the scripts provided need to be modified.
+    </p>
+</body>
+</html>

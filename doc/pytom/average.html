@@ -1,0 +1,65 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>PyTom: Create an Average</title>
+<link rel="stylesheet" type="text/css" href="./css/styles.css"></link>
+</head>
+<body>
+<p class="Header">PyTom: Create an average
+</p>
+<p>Here, you will learn how to create an average from a particle list with PyTom </p>
+<p><strong>Using the UI Server</strong></p>
+<p>Not supported yet...</p>
+<p><strong>Using a predefined program</strong> <strong>from pytom/bin</strong></p>
+<p>Particle lists are input for the <code>pytom/bin/average.py</code> command</p>
+<div class="codeFragment">
+	<code>
+		pytom PathToPyTom/bin/average.py -p yourParticleListXML -a pathOfAverage.em 
+	</code>
+</div>
+<p>This will generate an average of <code>yourParticleListXML</code> called <code>pathOfAverage.em</code>.</p>
+
+Print all parameters with additional options<br/>
+<div class="codeFragment">
+	<code>
+		pytom PathToPyTom/bin/average.py --help<br/>
+	</code>
+</div>
+<div class="codeFragment">
+	<code>
+		<pre>
+NAME
+    average.py
+DESCRIPTION
+    Averge a particle. Documentation is available at
+	http://www.pytom.org/doc/pytom/average.html
+OPTIONS
+    -p, --particleList    XML particle list to be averaged. (Is optional: No; Requires arguments: Yes)
+    -a, --average    Resulting average filename. (Is optional: No; Requires arguments: Yes)
+    --startIndex    Resulting average filename. (Is optional: Yes; Requires arguments: Yes)
+    --endIndex    Resulting average filename. (Is optional: Yes; Requires arguments: Yes)
+    --infoVolumes    Generate info volumes like wedge volume. (Is optional: Yes; Requires arguments: No)
+    --progressbarOff    Display a progressbar. On by default (Is optional: Yes; Requires arguments: No)
+    --fromAlignmentList    Average from alignment list XML instead from particleListXML. Optional, off by default. (Is optional: Yes; Requires arguments: Yes)
+    --help    Print this help. (Is optional: Yes; Requires arguments: No)
+AUTHORS
+    Thomas Hrabe
+    </pre>
+	</code>
+</div>
+Prints all parameters with additional options<br/>
+<p><strong>Using the PyTom terminal</strong></p>
+<p>Using the ipytom command, you can create an average in the terminal:</p>
+<div class="codeFragment">
+	<code>ipytom<br/>
+		from pytom.basic.structures import ParticleList<br/>
+		pl = ParticleList()<br/>
+		pl.fromXMLFile(yourParticleListXML)<br/>
+		pl.average('averagePath.em')<br/>
+	</code> 
+</div>
+Will generate an average from a particle list interactively. You can integrate this call into your own scripts.
+
+</body>
+</html>
