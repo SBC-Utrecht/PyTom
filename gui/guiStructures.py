@@ -3280,7 +3280,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.jobnames = ['SingleAlignment', 'BatchAlignment',
                          'ReconstructWBP', 'ReconstructINFR', 'BatchReconstruct',
                          'CTFDetermination', 'SingleCTFCorrection', 'BatchCTFCorrection',
-                         'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch',
+                         'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch', 'BatchExtractCandidates',
                          'SingleSubtomoReconstruct', 'BatchSubtomoReconstruct',
                          'SingleParticlePolish', 'BatchParticlePolish',
                          'FRMAlignment','GLocalAlignment',

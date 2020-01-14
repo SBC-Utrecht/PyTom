@@ -9,7 +9,7 @@ Routines for Local Sampling and Reference Filtering using Gold standard FSC.
 from pytom.basic.structures import PyTomClass
 
 from pytom.angles.localSampling import LocalSampling
-from tompy.mpi import MPI
+from pytom.tompy.mpi import MPI
 mpi = MPI()
 
 def mainAlignmentLoop(alignmentJob, verbose=False):

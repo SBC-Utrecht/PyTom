@@ -47,7 +47,7 @@ if __name__ == '__main__':
     else:
         tiltAngles = []
     # start reconstruction
-    from tompy.io import read, write
+    from pytom.tompy.io import read, write
     from nufft.reconstruction import fourier_2d1d_iter_reconstruct
     from pytom.reconstruction.reconstructionStructures import ProjectionList
     projections = ProjectionList()

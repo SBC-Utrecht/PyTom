@@ -297,7 +297,7 @@ def fourier_reduced2full(data, isodd=False):
 
 
 def fourier_full2reduced(data):
-    return data[:,:,0:data.shape[2]/2+1]
+    return data[:,:,0:data.shape[2]//2+1]
 
 
 def fourier_filter(data, fltr, human=True):

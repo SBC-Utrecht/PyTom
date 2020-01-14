@@ -288,13 +288,13 @@ def bandCC(volume,reference,band,verbose = False, gpu=False):
     if verbose:
         print('lowest freq : ', band[0],' highest freq' , band[1])
         
-    vf = bandpass(volume,band[0],band[1],fourierOnly=True, gpu=False)
-    rf = bandpass(reference,band[0],band[1],vf[1],fourierOnly=True, gpu=False)
+    vf = bandpass(volume,band[0],band[1])
+    rf = bandpass(reference,band[0],band[1])#,vf[1])
     
-    ccVolume = vol_comp(rf[0].shape[0],rf[0].shape[1],rf[0].shape[2])
-    ccVolume.copyVolume(rf[0])
+    #ccVolume = vol_comp(rf[0].shape[0],rf[0].shape[1],rf[0].shape[2])
+    #ccVolume.copyVolume(rf[0])
 
-    ccVolume = rf[0].astype('complex128')
+    ccVolume = rf.astype('complex128')
 
     ccVolume = ccVolume * xp.conj(vf[0])
     #pytom_volume.conj_mult(ccVolume,vf[0])
@@ -673,7 +673,7 @@ def FSC(volume1, volume2, numberBands, mask=None, verbose=False, filename=None, 
 
     return fscResult
 
-def determineResolution(fsc,resolutionCriterion,verbose=False, randomizedFSC=[]):
+def determineResolution(fsc,resolutionCriterion, verbose=False, randomizedFSC=None, gpu=False):
     """
     determineResolution: Determines frequency and band where correlation drops below the resolutionCriterion. Uses linear interpolation between two positions
     @param fsc: The fsc list determined by L{pytom.basic.correlation.FSC}
@@ -692,7 +692,7 @@ def determineResolution(fsc,resolutionCriterion,verbose=False, randomizedFSC=[])
     
     band = numberBands
 
-    if not randomizedFSC:
+    if randomizedFSC is None:
         randomizedFSC = xp.ones_like(fsc)*(fsc.min()-0.1)
 
     for i in range(numberBands):
@@ -738,7 +738,7 @@ def determineResolution(fsc,resolutionCriterion,verbose=False, randomizedFSC=[])
         print('Warning: Setting resolution to 1 and ',interpolatedBand)
         print('')
         
-    return [resolution,interpolatedBand,numberBands]
+    return [resolution, interpolatedBand, numberBands]
 
 def soc(volume,reference,mask=None, stdV=None, gpu=False):
     """
@@ -968,3 +968,122 @@ def dev(volume, template, mask=None, volumeIsNormalized=False):
 
     return deviat
 
+def generate_random_phases_3d(shape, reduced_complex=True):
+    '''this function generates a set of random phases (between -pi and pi), optionally centrosymmetric
+    @shape: shape of array
+    @type: tuple
+    @reduced_complex: is the shape in reduced complex format
+    @type: bool, default=True
+
+    @return: returns an array with values between -pi and pi
+    @rtype: ndarray
+    '''
+    from numpy.random import ranf
+    from numpy import pi, rot90
+    from numpy.fft import fftshift
+
+    if len(shape) == 3:
+        dx, dy, dz = shape
+    else:
+        dx, dy = shape
+        dz = max(dx, dy)
+
+    rnda = (ranf(shape) * pi * 2) - pi
+
+    cc = dx // 2
+    ccc = (dx - 1) // 2
+
+    loc = (dz // 2) * (reduced_complex == False)
+    centralslice = rnda[:, :, loc]
+
+    centralslice[cc, cc - ccc:cc] = centralslice[cc, -ccc:][::-1] * -1
+    centralslice[cc - ccc:cc, cc - ccc:] = rot90(centralslice[-ccc:, cc - ccc:], 2) * -1
+
+    rnda[:, :, loc] = fftshift(centralslice) if reduced_complex else centralslice
+
+    return rnda
+
+def randomizePhaseBeyondFreq(volume, frequency):
+    '''This function randomizes the phases beyond a given frequency, while preserving the Friedel symmetry.
+    @param volume: target volume
+    @type volume: 3d ndarray
+    @param frequency: frequency in pixel beyond which phases are randomized.
+    @type frequency: int
+
+    @return: 3d volume.
+    @rtype: 3d ndarray
+    @author: GvdS'''
+
+    from numpy.fft import ifftn, fftshift, fftn, rfftn, irfftn
+    from numpy import angle, abs, exp, meshgrid, arange, sqrt, pi, rot90
+
+
+
+    threeD = len(volume.shape) == 3
+    twoD = len(volume.shape) == 2
+
+    if not twoD and not threeD:
+        raise Exception('Invalid volume dimensions: either supply 3D or 2D ndarray')
+
+    if twoD:
+        dx, dy = volume.shape
+    else:
+        dx, dy, dz = volume.shape
+
+    ft = rfftn(volume)
+    phase = angle(ft)
+
+    amplitude = abs(ft)
+    rnda = generate_random_phases_3d(amplitude.shape, reduced_complex=True)  # (ranf((dx,dy,dz//2+1)) * pi * 2) - pi
+
+    if twoD:
+        X, Y = meshgrid(arange(-dx // 2, dx // 2 + dx % 2), arange(-dy // 2, dy // 2 + dy % 2))
+        RF = sqrt(X ** 2 + Y ** 2).astype(int)
+        R = fftshift(RF)[:, :dy // 2 + 1]
+    else:
+        X, Y, Z = meshgrid(arange(-dx // 2, dx // 2), arange(-dy // 2, dy // 2),
+                           arange(-dz // 2, dz // 2))
+        RF = sqrt(X ** 2 + Y ** 2 + Z ** 2)  # .astype(int)
+        R = fftshift(RF)[:, :, :dz // 2 + 1]
+        # centralslice = fftshift(rnda[:,:,0])
+        # cc = dx//2
+        # ccc= (dx-1)//2
+        # centralslice[cc, cc-ccc:cc] = centralslice[cc,-ccc:][::-1]*-1
+        # centralslice[cc-ccc:cc,cc-ccc:] = rot90(centralslice[-ccc:,cc-ccc:],2)*-1
+        # rnda[:,:,0] = fftshift(centralslice)
+
+    rnda[R <= frequency] = 0
+    phase[R > frequency] = 0
+    phase += rnda
+
+    image = irfftn((amplitude * exp(1j * phase)))
+
+    if abs(image.imag).sum() > 1E-8:
+        raise Exception('Imaginary part is non-zero. Failed to centro-summetrize the phases.')
+
+    return image.real
+
+def calc_FSC_true(FSC_t, FSC_n):
+    '''Calculates the true FSC as defined in Henderson
+    @param FSC_t: array with FSC values without randomized phases.
+    @type FSC_t: ndarray
+    @param FSC_n: array with FSC values without randomized phases.
+    @type FSC_n: ndarray
+
+    @return: return the FSC_true array
+    @rtype: ndarray
+    '''
+
+    from numpy import zeros_like
+
+    if len(FSC_t) != len(FSC_n):
+        raise Exception('FSC arrays are not of equal length.')
+    FSC_true = zeros_like(FSC_t)
+    for i in range(len(FSC_t)):
+
+        if abs(FSC_t[i] - FSC_n[i]) < 1e-1:
+            FSC_true[i] = FSC_t[i]
+        else:
+            FSC_true[i] = (FSC_t[i] - FSC_n[i]) / (1 - FSC_n[i])
+
+    return FSC_true

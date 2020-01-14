@@ -28,7 +28,7 @@ def bandpass(v, low=0, high=-1, sigma=0):
     @return: bandpass filtered volume.
     """
     assert low >= 0
-    from tools import create_sphere
+    from pytom.tompy.tools import create_sphere
     if high == -1:
         high = np.min(v.shape)/2
     assert low < high
@@ -40,7 +40,7 @@ def bandpass(v, low=0, high=-1, sigma=0):
         # the sigma
         mask = create_sphere(v.shape, high, sigma) - create_sphere(v.shape, low, sigma)
 
-    from transform import fourier_filter
+    from pytom.tompy.transform import fourier_filter
     res = fourier_filter(v, mask, True)
 
     return res

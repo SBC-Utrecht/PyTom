@@ -2662,7 +2662,7 @@ class ParticleList(PyTomClass):
                 iodd = iodd + 1
 
     def determineResolution(self, criterion=0.5, numberBands=None, mask=None, verbose=False, plot='',
-                            keepHalfsetAverages=False, halfsetPrefix='', parallel=True):
+                            keepHalfsetAverages=False, halfsetPrefix='', parallel=True, randomize=0.8):
         """
         determineResolution
         @param criterion: The resolution criterion
@@ -2673,6 +2673,8 @@ class ParticleList(PyTomClass):
         @param keepHalfsetAverages: Delete even / odd averages. Default is false -> averages will not be kept  
         @param halfsetPrefix: Prefix for half set files. Default is ''
         @param parallel: If True (default), this function will enable parallel averaging if possible.
+        @param randomize: if you want to correct your resolution using phases randomization set this variable to a value between 0 and 1.
+        @type randomize: float
         @return: [Resolution in Nyquist , resolution in band, numberBands]
         @todo: Change return type to L{pytom.basic.structures.resolution} to make it clearer. 
         """
@@ -2731,6 +2733,19 @@ class ParticleList(PyTomClass):
 
         fsc = FSC(oddVolume, evenVolume, numberBands, mask, verbose)
 
+        if randomize is None:
+            r = determineResolution(f, fscCriterion, verbose)
+        else:
+            randomizationFrequency    = np.floor(determineResolution(np.array(f), float(randomize), verbose)[1])
+            oddVolumeRandomizedPhase  = correlation.randomizePhaseBeyondFreq(vol2npy(v1), randomizationFrequency)
+            evenVolumeRandomizedPhase = correlation.randomizePhaseBeyondFreq(vol2npy(v2), randomizationFrequency)
+            write('randOdd.mrc', oddVolumeRandomizedPhase)
+            write('randEven.mrc', evenVolumeRandomizedPhase)
+            oddVolumeRandomizedPhase = read('randOdd.mrc')
+            evenVolumeRandomizedPhase = read('randEven.mrc')
+            fsc2 = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
+            fsc_true = list(correlation.calc_FSC_true(np.array(f), np.array(fsc2)))
+            r = determineResolution(fsc_true,fscCriterion, verbose)
         #randomizationFrequency = np.floor(determineResolution(fsc, 0.8, verbose)[1])
 
         #oddVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
@@ -2739,7 +2754,9 @@ class ParticleList(PyTomClass):
         if verbose:
             print('FSC list:')
             print(fsc)
-        
+            print('FSC_Random:\n', fsc2)
+            print('FSC_true:\n', fsc_true)
+
         if not plot == '':
             try:
                 from pytom.basic.plot import plotFSC
@@ -2747,7 +2764,7 @@ class ParticleList(PyTomClass):
             except:
                 pass
         
-        return determineResolution(fsc, criterion, verbose, randomizedFSC=fsc2)
+        return r
         
     def particleGallery(self, destinationFolder, transform=True, applyClassColorLabeling=False, highest_frequency=None):
         """

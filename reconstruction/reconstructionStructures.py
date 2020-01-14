@@ -7,6 +7,7 @@ started on Mar 10, 2011
 from pytom.basic.structures import PyTomClass
 import numpy as np
 import mrcfile
+from pytom_numpy import vol2npy
 
 class Projection(PyTomClass):
     """
@@ -406,7 +407,7 @@ class ProjectionList(PyTomClass):
 	        showProgressBar ,verbose,preScale,postScale)
 
     def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0],
-                          binning=1, applyWeighting=False, alignResultFile=''):
+                          binning=1, applyWeighting=False, alignResultFile='', gpu=-1):
         """
         reconstruct a single 3D volume from weighted and aligned projections
 
@@ -418,7 +419,8 @@ class ProjectionList(PyTomClass):
         @type reconstructionPosition: 3-dim list
         @param applyWeighting: apply weighting
         @type applyWeighting: bool
-
+        @param gpu: run reconstruction on gpu
+        @type gpu: int
         @author: FF
         last change: include binning in reconstructionPosition
         """
@@ -444,7 +446,24 @@ class ProjectionList(PyTomClass):
                 recPosVol.setV(float(reconstructionPosition[ii] / binning), ii, iproj, 0)
 
         # finally backproject into volume
-        backProject(vol_img, vol_bp, vol_phi, vol_the, recPosVol, vol_offsetProjections)
+        import time
+        s = time.time()
+
+        if gpu > -1:
+            from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
+            import cupy as cp
+            import voltools
+
+            interpolation = voltools.Interpolations.FILT_BSPLINE
+            projections = vol2npy(vol_img)
+            projections = cp.array(projections)
+            proj_angles = vol2npy(vol_the)[0, 0, :]
+            vol_bp = cp.zeros((vol_bp.sizeX(), vol_bp.sizeY(), vol_bp.sizeZ()), dtype=cp.float32)
+            vol_bp = backProject(projections, vol_bp, vol_phi, proj_angles, recPosVol, vol_offsetProjections, interpolation).get()
+        else: 
+            from pytom_volume import backProject
+            backProject(vol_img, vol_bp, vol_phi, vol_the, recPosVol, vol_offsetProjections)
+        print(f'backproject time: {time.time()-s}')
 
         return vol_bp
 

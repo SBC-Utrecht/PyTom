@@ -1,6 +1,6 @@
 
 import numpy as np
-from tompy.mpi import MPI
+from pytom.tompy.mpi import MPI
 from pytom.basic.structures import ParticleList
 import os
 assert np.__version__ >= '1.7.0'
