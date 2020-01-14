@@ -100,6 +100,7 @@ class LocalSampling(AngleObject):
         @change: Local Rotation had a bug causing too large rotations in Phi
         @date: 07/07/2014
         """
+
         if self._finished:
             return [None,None,None]
         

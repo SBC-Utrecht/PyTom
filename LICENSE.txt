@@ -21,5 +21,6 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 The complete license can be obtained from 
+
 http://www.gnu.org/licenses/gpl-2.0.html.
 

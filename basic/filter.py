@@ -622,6 +622,7 @@ def filter(volume,filterObject,fourierOnly=False):
     filter: A generic filter method.
     @param volume: The volume to be filtered
     @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom_volume.vol}
     @param filterObject: A filter object (either wedgeFilter, bandpassFilter, ...)
     @return: The filtered volume,the filter and the filtered volume in fourier space
     @author: Thomas Hrabe

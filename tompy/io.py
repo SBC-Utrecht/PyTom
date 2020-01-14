@@ -36,6 +36,9 @@ def read_mrc(filename):
         y = header[1]
         z = header[2]
 
+        if header[23]:
+            extended_header = np.fromfile(f, np.float32, header[23]//4)
+
         # read the data type
         dt = header[3]
         default_type = False

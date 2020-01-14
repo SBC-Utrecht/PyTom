@@ -50,9 +50,9 @@ class ParticlePick(GuiTabWidget):
 
 
         headers = ["Manual Picking","Template Matching", "Create Particle List", "Alter Particle List"]
-        subheaders  = [[],['Single', 'Batch'], ['Single','Batch'], []]
-        tabUIs = [self.tab1UI,[self.tab21UI,self.tab22UI],[self.tab31UI,self.tab32UI],self.tab4UI]
-        static_tabs = [[True],[True,False],[True, False],[True]]
+        subheaders  = [[],['Single', 'Batch Template Match', 'Batch Extract'], ['Single','Batch'], []]
+        tabUIs = [self.tab1UI,[self.tab21UI,self.tab22UI, self.tab23UI],[self.tab31UI,self.tab32UI],self.tab4UI]
+        static_tabs = [[True],[True,False, False],[True, False],[True]]
 
         self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs,tabs=self.tabs_dict, tab_actions=self.tab_actions)
 
@@ -158,6 +158,19 @@ class ParticlePick(GuiTabWidget):
         self.batchTM = SelectFiles(self, initdir=self.tomogramfolder, search='file', filter=['em', 'mrc'],
                                    outputline=self.jobFiles, run_upon_complete=self.getTemplateFiles, id=key,
                                    title='Select Tomograms.')
+
+
+    def tab23UI(self, key=''):
+
+        try:
+            self.jobFilesExtract.text()
+        except:
+            self.jobFilesExtract = QLineEdit()
+
+        self.batchEC = SelectFiles(self, initdir=self.tomogramfolder, search='file', filter=['xml'],
+                                   outputline=self.jobFilesExtract, run_upon_complete=self.populate_batch_extract_cand,
+                                   id=key, title='Select job files.')
+
 
     def tab31UI(self, key=''):
         grid = self.table_layouts[key]
@@ -518,7 +531,6 @@ class ParticlePick(GuiTabWidget):
                                    title='Select Masks.')
 
     def populate_batch_templatematch(self, id='tab22'):
-        print(id)
         print('multiple template matching job-submissions')
         self.batchTM.close()
         tomogramFiles = sorted(self.jobFiles.text().split('\n'))
@@ -547,9 +559,7 @@ class ParticlePick(GuiTabWidget):
 
         angleLists = os.listdir(os.path.join(self.pytompath, 'angles/angleLists'))
         for n, tomogramFile in enumerate(tomogramFiles):
-            print(templateFiles, maskFiles, angleLists)
             values.append([tomogramFile, 1, 1, templateFiles, maskFiles, 30, 30, angleLists, 0, 0, ''])
-            print(values[-1])
 
         try:
             self.num_nodes[id].setParent(None)
@@ -563,6 +573,80 @@ class ParticlePick(GuiTabWidget):
 
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_submitTM(pid, v))
+
+    def populate_batch_extract_cand(self,id='tab23'):
+        self.batchEC.close()
+        jobfiles = sorted(self.jobFilesExtract.text().split('\n'))
+        if len(jobfiles) == 0:
+            print('\n\nPlease select at least one job file template and mask file.\n\n')
+            return
+
+        headers = ["Job name", "File Name Particle List", "Prefix", "Particle Size (px)",
+                   "Number of Candidates", 'Minimum Score', '']
+        types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
+        sizes = [0, 80, 80, 0, 0, 0, 0]
+
+        tooltip = ['Name of job files.',
+                   'File name of particle list in which a number of candidates are written.',
+                   'Prefix indicating in which folder particles will be saved when subtomograms are extracted',
+                   'Particle Size in pixels',
+                   'Number of candidates extracted from tomogram.',
+                   'Minimum cross-correlation coefficient for a particle to be selected.']
+
+        values = []
+
+        for n, jobFile in enumerate(jobfiles):
+            folder = os.path.basename(os.path.dirname(jobFile))
+            particleList = os.path.join(self.pickpartfolder, 'particleList_TM_{}.xml'.format(folder))
+            if not os.path.exists(os.path.dirname(particleList)): os.mkdir(os.path.dirname(particleList))
+            p = os.path.basename(particleList)[:-4]
+            prefix = 'Subtomograms/{}'.format(p)
+            values.append([jobFile, particleList, prefix, 16, 1000, 0.001, ''])
+
+        try:
+            self.num_nodes[id].setParent(None)
+        except:
+            pass
+
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True)
+
+        self.tab23_widgets = self.tables[id].widgets
+
+        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_submitEC(pid, v))
+
+    def mass_submitEC(self, pid, value):
+        num_nodes = int(self.num_nodes[pid].value())
+        num_submitted_jobs = 0
+
+        for row in range(self.tables[pid].table.rowCount()):
+
+            jobFile = values[row][0]
+            suffix        = os.path.basename(jobFile)[3:-4]
+            scoresFile    = os.path.join(os.path.dirname(jobFile), f'scores{suffix}.em')
+            anglesFile    = os.path.join(os.path.dirname(jobFile), f'angles{suffix}.em')
+            particleList  = os.path.join(self.pickpartfolder, self.tab23_widgets['widget_{}_{}'.format(row, 1)].text())
+            particlePath  = self.tab23_widgets['widget_{}_{}'.format(row, 2)].text()
+            particleSize  = self.tab23_widgets['widget_{}_{}'.format(row, 3)].text()
+            numCandidates = self.tab23_widgets['widget_{}_{}'.format(row, 4)].text()
+            minCCScore    = self.tab23_widgets['widget_{}_{}'.format(row, 5)].text()
+
+            paramsCmd     = [self.templatematchfolder, self.pytompath, jobFile, scoresFile, anglesFile,
+                            particleList, particlePath, particleSize, numCandidates, minCCScore, '']
+
+            fname         = 'EC_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
+            cmd           = templateTM.format(d=paramsCmd)
+            qname, n_nodes, cores, time, modules = self.qparams['BatchExtractCandidates'].values()
+            job           = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, singleton=True, time=time,
+                                                          num_nodes=n_nodes, partition=qname, modules=modules,
+                                                          num_jobs_per_node=cores) + cmd
+
+            outjob = open(os.path.join(outDirectory, 'extractCandidatesBatch.sh'), 'w')
+            outjob.write(job)
+            outjob.close()
+            os.system('sbatch {}/{}'.format(outDirectory, 'extractCandidatesBatch.sh'))
+            num_submitted_jobs += 1
+
+        self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
 
     def mass_submitTM(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())

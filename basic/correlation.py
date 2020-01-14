@@ -123,6 +123,7 @@ def xcf(volume, template, mask=None, stdV=None):
     result = fourier.ifft(fresult)
     
     fourier.iftshift(result)
+
     n = result.numelem()
     result.shiftscale(0,1/float(n*n))
     
@@ -151,8 +152,10 @@ def nXcf(volume,template,mask=None, stdV=None):
         result = xcf(normaliseUnderMask(volume=volume, mask=mask, p=None)[0],normaliseUnderMask(volume=template, mask=mask, p=None)[0])
     else:
         result = xcf(mean0std1(volume,True),mean0std1(template,True))
+
     #n = result.numelem()
     #result.shiftscale(0,1/float(n*n))
+
     return result
 
 

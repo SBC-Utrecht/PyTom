@@ -39,6 +39,7 @@ def weightedCoefficient(self,volume,reference,mask=None,stdV=None):
     @return: The highest coefficient determined.
     @author: Thomas Hrabe
     """
+
     resFunction = self.scoringFunction(volume,reference,mask,stdV)
     resFunction = self._peakPrior.apply(resFunction)
     
@@ -62,6 +63,7 @@ def peakCoef(self,volume,reference,mask=None):
         resFunction = self.scoringFunction(volume,reference)
     else:
         resFunction = self.scoringFunction(volume,reference,mask)
+
     # change FF: 07.01.2020
     #centerX = resFunction.sizeX()//2 -1
     #centerY = resFunction.sizeY()//2 -1
