@@ -29,6 +29,7 @@ def fromXML(xmlObj):
 
 class AngleObject(PyTomClass):
     """
+
     AngleObject: Template class for all angle objects. Methods defined here 
     must be overloaded by others. The angles stored are in degrees 
     ( pytom sublayer converts them to radians autmatically). 
@@ -427,8 +428,10 @@ class AngleObject(PyTomClass):
     
     def rotationDistanceMatrix(self):
         """
+
         rotationDistanceMatrix: Generate a matrix of rotation distances. The 
         distance is determined by L{pytom.angles.quaternions.Quaternion.distance}.
+
         @return: L{pytom_volume.vol} of rotation distances
         @author: Thomas Hrabe
         """

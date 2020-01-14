@@ -1055,7 +1055,7 @@ def randomizePhaseBeyondFreq(volume, frequency):
     rnda[R <= frequency] = 0
     phase[R > frequency] = 0
     phase += rnda
-
+    
     image = irfftn((amplitude * exp(1j * phase)), s=volume.shape)
 
     if abs(image.imag).sum() > 1E-8:

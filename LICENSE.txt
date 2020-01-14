@@ -2,6 +2,7 @@ PyTom v0.971
 
 This license affects the software package PyTom and all the herein distributed source / data files.
 Authors: 
+
 Gijs van der Schot
 Thomas Hrabe
 Yuxiang Chen
@@ -21,5 +22,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 The complete license can be obtained from 
+
 http://www.gnu.org/licenses/gpl-2.0.html.
+
 

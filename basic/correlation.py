@@ -123,8 +123,10 @@ def xcf(volume, template, mask=None, stdV=None):
     result = fourier.ifft(fresult)
     
     fourier.iftshift(result)
+
     n = result.numelem()
     result.shiftscale(0,1/float(n*n))
+
     
     return result
 
@@ -151,8 +153,13 @@ def nXcf(volume,template,mask=None, stdV=None):
         result = xcf(normaliseUnderMask(volume=volume, mask=mask, p=None)[0],normaliseUnderMask(volume=template, mask=mask, p=None)[0])
     else:
         result = xcf(mean0std1(volume,True),mean0std1(template,True))
+<<<<<<< HEAD
     #n = result.numelem()
     #result.shiftscale(0,1/float(n*n))
+=======
+    n = result.numelem()
+    result.shiftscale(0,1/float(n*n))
+>>>>>>> gui_devel
     return result
 
 
@@ -619,6 +626,11 @@ def weightedXCF(volume,reference,numberOfBands,wedgeAngle=-1):
     @author: Thomas Hrabe 
     @todo: does not work yet -> test is disabled
     """
+<<<<<<< HEAD
+=======
+
+        
+>>>>>>> gui_devel
     from pytom.basic.correlation import bandCF
     import pytom_volume
     from math import sqrt
@@ -634,7 +646,11 @@ def weightedXCF(volume,reference,numberOfBands,wedgeAngle=-1):
         wedgeFilter = pytom_freqweight.weight(wedgeAngle,0,volume.sizeX(),volume.sizeY(),volume.sizeZ())
         wedgeVolume = wedgeFilter.getWeightVolume(True)
     else:
+<<<<<<< HEAD
         wedgeVolume = pytom_volume.vol(volume.sizeX(), volume.sizeY(), int(volume.sizeZ()/2+1))
+=======
+        wedgeVolume = pytom_volume.vol(volume.sizeX(),volume.sizeY(),volume.sizeZ()/2+1)
+>>>>>>> gui_devel
         wedgeVolume.setAll(1.0)
         
     w = sqrt(1/float(volume.sizeX()*volume.sizeY()*volume.sizeZ()))
@@ -817,6 +833,10 @@ def soc(volume,reference,mask=None, stdV=None):
     @type reference:  L{pytom_volume.vol}
     @author: Thomas Hrabe   
     """
+<<<<<<< HEAD
+=======
+    
+>>>>>>> gui_devel
     referencePeak = FLCF(reference,reference,mask)
     peaks = FLCF(volume,reference,mask)
     

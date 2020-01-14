@@ -17,6 +17,7 @@ class Image(PyTomClass):
                  index = 0, verbose=False):
         """
         @param filename:
+
         @type filename: C{str}
         @param boxCoords: coordinates in file (lower bounds)
         @type boxCoords: C{list} (2-dim or 3-dim)

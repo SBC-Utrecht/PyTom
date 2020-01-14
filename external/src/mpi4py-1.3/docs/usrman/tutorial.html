@@ -1,0 +1,392 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial &mdash; MPI for Python 1.3.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.3.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="MPI for Python 1.3.1 documentation" href="index.html" />
+    <link rel="next" title="Appendix" href="appendix.html" />
+    <link rel="prev" title="Installation" href="install.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="appendix.html" title="Appendix"
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="install.html" title="Installation"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">MPI for Python 1.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="tutorial">
+<span id="id1"></span><h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this headline">¶</a></h1>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Under construction. Contributions very welcome!</p>
+</div>
+<p><em>MPI for Python</em> supports convenient, <em>pickle</em>-based communication of
+generic Python object as well as fast, near C-speed, direct array data
+communication of buffer-provider objects (e.g., NumPy arrays).</p>
+<ul>
+<li><p class="first">Communication of generic Python objects</p>
+<p>You have to use <strong>all-lowercase</strong> methods (of the <tt class="xref py py-class docutils literal"><span class="pre">Comm</span></tt>
+class), like <tt class="xref py py-meth docutils literal"><span class="pre">send()</span></tt>, <tt class="xref py py-meth docutils literal"><span class="pre">recv()</span></tt>, <tt class="xref py py-meth docutils literal"><span class="pre">bcast()</span></tt>. Note
+that <tt class="xref py py-meth docutils literal"><span class="pre">isend()</span></tt> is available, but <tt class="xref py py-meth docutils literal"><span class="pre">irecv()</span></tt> is not.</p>
+<p>Collective calls like <tt class="xref py py-meth docutils literal"><span class="pre">scatter()</span></tt>, <tt class="xref py py-meth docutils literal"><span class="pre">gather()</span></tt>,
+<tt class="xref py py-meth docutils literal"><span class="pre">allgather()</span></tt>, <tt class="xref py py-meth docutils literal"><span class="pre">alltoall()</span></tt> expect/return a sequence of
+<tt class="xref py py-attr docutils literal"><span class="pre">Comm.size</span></tt> elements at the root or all process. They return a
+single value, a list of <tt class="xref py py-attr docutils literal"><span class="pre">Comm.size</span></tt> elements, or
+<tt class="xref py py-const docutils literal"><span class="pre">None</span></tt>.</p>
+<p>Global reduction operations <tt class="xref py py-meth docutils literal"><span class="pre">reduce()</span></tt> and <tt class="xref py py-meth docutils literal"><span class="pre">allreduce()</span></tt>
+are naively implemented, the reduction is actually done at the
+designated root process or all processes.</p>
+</li>
+<li><p class="first">Communication of buffer-provider objects</p>
+<p>You have to use method names starting with an <strong>upper-case</strong> letter
+(of the <tt class="xref py py-class docutils literal"><span class="pre">Comm</span></tt> class), like <tt class="xref py py-meth docutils literal"><span class="pre">Send()</span></tt>, <tt class="xref py py-meth docutils literal"><span class="pre">Recv()</span></tt>,
+<tt class="xref py py-meth docutils literal"><span class="pre">Bcast()</span></tt>.</p>
+<p>In general, buffer arguments to these calls must be explicitly
+specified by using a 2/3-list/tuple like <tt class="docutils literal"><span class="pre">[data,</span> <span class="pre">MPI.DOUBLE]</span></tt>, or
+<tt class="docutils literal"><span class="pre">[data,</span> <span class="pre">count,</span> <span class="pre">MPI.DOUBLE]</span></tt> (the former one uses the byte-size of
+<tt class="docutils literal"><span class="pre">data</span></tt> and the extent of the MPI datatype to define the
+<tt class="docutils literal"><span class="pre">count</span></tt>).</p>
+<p>Automatic MPI datatype discovery for NumPy arrays and PEP-3118
+buffers is supported, but limited to basic C types (all C/C99-native
+signed/unsigned integral types and single/double precision
+real/complex floating types) and availability of matching datatypes
+in the underlying MPI implementation. In this case, the
+buffer-provider object can be passed directly as a buffer argument,
+the count and MPI datatype will be inferred.</p>
+</li>
+</ul>
+<div class="section" id="point-to-point-communication">
+<h2>Point-to-Point Communication<a class="headerlink" href="#point-to-point-communication" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first">Python objects (<tt class="xref py py-mod docutils literal"><span class="pre">pickle</span></tt> under the hood):</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+
+<span class="n">comm</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">COMM_WORLD</span>
+<span class="n">rank</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+   <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;a&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span> <span class="s">&#39;b&#39;</span><span class="p">:</span> <span class="mf">3.14</span><span class="p">}</span>
+   <span class="n">comm</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+<span class="k">elif</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+   <span class="n">data</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">NumPy arrays (the fast way!):</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+
+<span class="n">comm</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">COMM_WORLD</span>
+<span class="n">rank</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+
+<span class="c"># pass explicit MPI datatypes</span>
+<span class="k">if</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+   <span class="n">data</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s">&#39;i&#39;</span><span class="p">)</span>
+   <span class="n">comm</span><span class="o">.</span><span class="n">Send</span><span class="p">([</span><span class="n">data</span><span class="p">,</span> <span class="n">MPI</span><span class="o">.</span><span class="n">INT</span><span class="p">],</span> <span class="n">dest</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="mi">77</span><span class="p">)</span>
+<span class="k">elif</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+   <span class="n">data</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s">&#39;i&#39;</span><span class="p">)</span>
+   <span class="n">comm</span><span class="o">.</span><span class="n">Recv</span><span class="p">([</span><span class="n">data</span><span class="p">,</span> <span class="n">MPI</span><span class="o">.</span><span class="n">INT</span><span class="p">],</span> <span class="n">source</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="mi">77</span><span class="p">)</span>
+
+<span class="c"># automatic MPI datatype discovery</span>
+<span class="k">if</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+   <span class="n">data</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+   <span class="n">comm</span><span class="o">.</span><span class="n">Send</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="mi">13</span><span class="p">)</span>
+<span class="k">elif</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+   <span class="n">data</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+   <span class="n">comm</span><span class="o">.</span><span class="n">Recv</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="mi">13</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div>
+<div class="section" id="collective-communication">
+<h2>Collective Communication<a class="headerlink" href="#collective-communication" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first">Broadcasting a Python dictionary:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+
+<span class="n">comm</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">COMM_WORLD</span>
+<span class="n">rank</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+   <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;key1&#39;</span> <span class="p">:</span> <span class="p">[</span><span class="mi">7</span><span class="p">,</span> <span class="mf">2.72</span><span class="p">,</span> <span class="mi">2</span><span class="o">+</span><span class="mi">3</span><span class="n">j</span><span class="p">],</span>
+           <span class="s">&#39;key2&#39;</span> <span class="p">:</span> <span class="p">(</span> <span class="s">&#39;abc&#39;</span><span class="p">,</span> <span class="s">&#39;xyz&#39;</span><span class="p">)}</span>
+<span class="k">else</span><span class="p">:</span>
+   <span class="n">data</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">bcast</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Scattering Python objects:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+
+<span class="n">comm</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">COMM_WORLD</span>
+<span class="n">size</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_size</span><span class="p">()</span>
+<span class="n">rank</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+   <span class="n">data</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">size</span><span class="p">)]</span>
+<span class="k">else</span><span class="p">:</span>
+   <span class="n">data</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">data</span> <span class="o">==</span> <span class="p">(</span><span class="n">rank</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Gathering Python objects:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+
+<span class="n">comm</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">COMM_WORLD</span>
+<span class="n">size</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_size</span><span class="p">()</span>
+<span class="n">rank</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">rank</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+   <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">size</span><span class="p">):</span>
+       <span class="k">assert</span> <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
+<span class="k">else</span><span class="p">:</span>
+   <span class="k">assert</span> <span class="n">data</span> <span class="ow">is</span> <span class="bp">None</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Parallel matrix-vector product:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+
+<span class="k">def</span> <span class="nf">matvec</span><span class="p">(</span><span class="n">comm</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="c"># local rows</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_size</span><span class="p">()</span>
+    <span class="n">xg</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">m</span><span class="o">*</span><span class="n">p</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s">&#39;d&#39;</span><span class="p">)</span>
+    <span class="n">comm</span><span class="o">.</span><span class="n">Allgather</span><span class="p">([</span><span class="n">x</span><span class="p">,</span>  <span class="n">MPI</span><span class="o">.</span><span class="n">DOUBLE</span><span class="p">],</span>
+                   <span class="p">[</span><span class="n">xg</span><span class="p">,</span> <span class="n">MPI</span><span class="o">.</span><span class="n">DOUBLE</span><span class="p">])</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">xg</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">y</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div>
+<div class="section" id="dynamic-process-management">
+<h2>Dynamic Process Management<a class="headerlink" href="#dynamic-process-management" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="compute-pi">
+<h3>Compute Pi<a class="headerlink" href="#compute-pi" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first">Master (or parent, or client) side:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
+<span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="n">comm</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">COMM_SELF</span><span class="o">.</span><span class="n">Spawn</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span>
+                           <span class="n">args</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;cpi.py&#39;</span><span class="p">],</span>
+                           <span class="n">maxprocs</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+
+<span class="n">N</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="s">&#39;i&#39;</span><span class="p">)</span>
+<span class="n">comm</span><span class="o">.</span><span class="n">Bcast</span><span class="p">([</span><span class="n">N</span><span class="p">,</span> <span class="n">MPI</span><span class="o">.</span><span class="n">INT</span><span class="p">],</span> <span class="n">root</span><span class="o">=</span><span class="n">MPI</span><span class="o">.</span><span class="n">ROOT</span><span class="p">)</span>
+<span class="n">PI</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="s">&#39;d&#39;</span><span class="p">)</span>
+<span class="n">comm</span><span class="o">.</span><span class="n">Reduce</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">[</span><span class="n">PI</span><span class="p">,</span> <span class="n">MPI</span><span class="o">.</span><span class="n">DOUBLE</span><span class="p">],</span>
+            <span class="n">op</span><span class="o">=</span><span class="n">MPI</span><span class="o">.</span><span class="n">SUM</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="n">MPI</span><span class="o">.</span><span class="n">ROOT</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">PI</span><span class="p">)</span>
+
+<span class="n">comm</span><span class="o">.</span><span class="n">Disconnect</span><span class="p">()</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Worker (or child, or server) side:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
+<span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+
+<span class="n">comm</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">Comm</span><span class="o">.</span><span class="n">Get_parent</span><span class="p">()</span>
+<span class="n">size</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_size</span><span class="p">()</span>
+<span class="n">rank</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+
+<span class="n">N</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s">&#39;i&#39;</span><span class="p">)</span>
+<span class="n">comm</span><span class="o">.</span><span class="n">Bcast</span><span class="p">([</span><span class="n">N</span><span class="p">,</span> <span class="n">MPI</span><span class="o">.</span><span class="n">INT</span><span class="p">],</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">h</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">N</span><span class="p">;</span> <span class="n">s</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">rank</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">h</span> <span class="o">*</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
+    <span class="n">s</span> <span class="o">+=</span> <span class="mf">4.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">PI</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">s</span> <span class="o">*</span> <span class="n">h</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s">&#39;d&#39;</span><span class="p">)</span>
+<span class="n">comm</span><span class="o">.</span><span class="n">Reduce</span><span class="p">([</span><span class="n">PI</span><span class="p">,</span> <span class="n">MPI</span><span class="o">.</span><span class="n">DOUBLE</span><span class="p">],</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="n">MPI</span><span class="o">.</span><span class="n">SUM</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="n">comm</span><span class="o">.</span><span class="n">Disconnect</span><span class="p">()</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="wrapping-with-swig">
+<h2>Wrapping with SWIG<a class="headerlink" href="#wrapping-with-swig" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first">C source:</p>
+<div class="highlight-c"><div class="highlight"><pre><span class="cm">/* file: helloworld.c */</span>
+<span class="kt">void</span> <span class="nf">sayhello</span><span class="p">(</span><span class="n">MPI_Comm</span> <span class="n">comm</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="kt">int</span> <span class="n">size</span><span class="p">,</span> <span class="n">rank</span><span class="p">;</span>
+  <span class="n">MPI_Comm_size</span><span class="p">(</span><span class="n">comm</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">size</span><span class="p">);</span>
+  <span class="n">MPI_Comm_rank</span><span class="p">(</span><span class="n">comm</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">rank</span><span class="p">);</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;Hello, World! &quot;</span>
+         <span class="s">&quot;I am process %d of %d.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
+         <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">SWIG interface file:</p>
+<div class="highlight-c"><div class="highlight"><pre><span class="c1">// file: helloworld.i</span>
+<span class="o">%</span><span class="n">module</span> <span class="n">helloworld</span>
+<span class="o">%</span><span class="p">{</span>
+<span class="cp">#include &lt;mpi.h&gt;</span>
+<span class="cp">#include &quot;helloworld.c&quot;</span>
+<span class="p">}</span><span class="o">%</span>
+
+<span class="o">%</span><span class="n">include</span> <span class="n">mpi4py</span><span class="o">/</span><span class="n">mpi4py</span><span class="p">.</span><span class="n">i</span>
+<span class="o">%</span><span class="n">mpi4py_typemap</span><span class="p">(</span><span class="n">Comm</span><span class="p">,</span> <span class="n">MPI_Comm</span><span class="p">);</span>
+<span class="kt">void</span> <span class="n">sayhello</span><span class="p">(</span><span class="n">MPI_Comm</span> <span class="n">comm</span><span class="p">);</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Try it in the Python prompt:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">helloworld</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">helloworld</span><span class="o">.</span><span class="n">sayhello</span><span class="p">(</span><span class="n">MPI</span><span class="o">.</span><span class="n">COMM_WORLD</span><span class="p">)</span>
+<span class="go">Hello, World! I am process 0 of 1.</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div>
+<div class="section" id="wrapping-with-f2py">
+<h2>Wrapping with F2Py<a class="headerlink" href="#wrapping-with-f2py" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first">Fortran 90 source:</p>
+<div class="highlight-fortran"><div class="highlight"><pre><span class="c">! file: helloworld.f90</span>
+<span class="k">subroutine </span><span class="nv">sayhello</span><span class="p">(</span><span class="nv">comm</span><span class="p">)</span>
+  <span class="k">use </span><span class="nv">mpi</span>
+  <span class="k">implicit none</span>
+<span class="k">  </span><span class="kt">integer</span> <span class="kd">::</span> <span class="nv">comm</span><span class="p">,</span> <span class="nv">rank</span><span class="p">,</span> <span class="nv">size</span><span class="p">,</span> <span class="nv">ierr</span>
+  <span class="k">call </span><span class="nv">MPI_Comm_size</span><span class="p">(</span><span class="nv">comm</span><span class="p">,</span> <span class="nv">size</span><span class="p">,</span> <span class="nv">ierr</span><span class="p">)</span>
+  <span class="k">call </span><span class="nv">MPI_Comm_rank</span><span class="p">(</span><span class="nv">comm</span><span class="p">,</span> <span class="nv">rank</span><span class="p">,</span> <span class="nv">ierr</span><span class="p">)</span>
+  <span class="k">print</span> <span class="o">*</span><span class="p">,</span> <span class="s1">&#39;Hello, World! I am process &#39;</span><span class="p">,</span><span class="nv">rank</span><span class="p">,</span><span class="s1">&#39; of &#39;</span><span class="p">,</span><span class="nv">size</span><span class="p">,</span><span class="s1">&#39;.&#39;</span>
+<span class="k">end subroutine </span><span class="nv">sayhello</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Try it in the Python prompt:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">helloworld</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fcomm</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">COMM_WORLD</span><span class="o">.</span><span class="n">py2f</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">helloworld</span><span class="o">.</span><span class="n">sayhello</span><span class="p">(</span><span class="n">fcomm</span><span class="p">)</span>
+<span class="go">Hello, World! I am process 0 of 1.</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Tutorial</a><ul>
+<li><a class="reference internal" href="#point-to-point-communication">Point-to-Point Communication</a></li>
+<li><a class="reference internal" href="#collective-communication">Collective Communication</a></li>
+<li><a class="reference internal" href="#dynamic-process-management">Dynamic Process Management</a><ul>
+<li><a class="reference internal" href="#compute-pi">Compute Pi</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#wrapping-with-swig">Wrapping with SWIG</a></li>
+<li><a class="reference internal" href="#wrapping-with-f2py">Wrapping with F2Py</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="install.html"
+                        title="previous chapter">Installation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="appendix.html"
+                        title="next chapter">Appendix</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/tutorial.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="appendix.html" title="Appendix"
+             >next</a></li>
+        <li class="right" >
+          <a href="install.html" title="Installation"
+             >previous</a> |</li>
+        <li><a href="index.html">MPI for Python 1.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Lisandro Dalcin.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

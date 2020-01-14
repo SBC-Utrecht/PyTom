@@ -31,6 +31,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     import os
 
     print(weighting, lowpassFilter, binning, write_images)
+
     if binning:
         imdim = int(float(TiltSeries_._imdim)/float(binning)+.5)
     else:

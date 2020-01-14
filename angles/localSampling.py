@@ -33,6 +33,7 @@ class LocalSampling(AngleObject):
             raise ValueError('LocalSampling : Shells is 0!')
         
         self.setStartRotation(Rotation(z1=z1Start, z2=z2Start, x=xStart))
+
         # initialize final rotation around z-axis of REFERENCE
         self.reset()
 
@@ -100,6 +101,7 @@ class LocalSampling(AngleObject):
         @change: Local Rotation had a bug causing too large rotations in Phi
         @date: 07/07/2014
         """
+
         if self._finished:
             return [None,None,None]
         
@@ -128,6 +130,7 @@ class LocalSampling(AngleObject):
             self._currentZ2 =0
             if self._currentX >= ceil(self._shells/2):
                 self._currentX = 0
+
                 if self._currentZ1 >= self._shells*self._increment:
                     self._finished = True
                     return [self._startZ1,self._startZ2,self._startX]
@@ -161,6 +164,7 @@ class LocalSampling(AngleObject):
     def distanceFunction(self,rotation):
         """
         distanceFunction: determines the distance of of given rotation to old rotation
+
         @param rotation: rotation
         @type rotation: L{pytom.basic.structures.Rotation}
         @return: proposed increment for next iteration

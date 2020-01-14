@@ -73,8 +73,10 @@ class TiltSeries(PyTomClass):
 
             print(markerFileName, len(files))
             if markerFileName.endswith('.em'): self.mf = vol2npy(read(markerFileName))
+
             elif markerFileName.endswith('.txt'): self.mf = self.txt2markerfile(markerFileName, len(files))
             else: raise Exception('Unknown file type for markerfile.\n Please submit either a .txt file or a .em file')
+
             #print(self.mf[0,:,0])
             #print self.mf[0,:,0]
             # set Projection List
@@ -400,7 +402,9 @@ class TiltSeries(PyTomClass):
                     markerFileVol.setV(int(round(proj._tiltAngle)), 0, int(itilt), int(imark))
         markerFileVol.write(markerFileName)
 
+
     def write_aligned_projs(self, weighting=None, lowpassFilter=None, binning=1, verbose=False, write_images=True):
+
         """
         write aligned (and weighted) projections
 

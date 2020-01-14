@@ -26,6 +26,7 @@ def Vol_G_Val(volume,value):
 
 def weightedCoefficient(self,volume,reference,mask=None,stdV=None):
     """
+
     weightedCoefficient: Determines the peak coefficient of the scoring function. 
     The distance from the center contributes to the peak value. Must be activated by hand. 
     @param volume: A volume.
@@ -39,6 +40,7 @@ def weightedCoefficient(self,volume,reference,mask=None,stdV=None):
     @return: The highest coefficient determined.
     @author: Thomas Hrabe
     """
+
     resFunction = self.scoringFunction(volume,reference,mask,stdV)
     resFunction = self._peakPrior.apply(resFunction)
     
@@ -62,6 +64,7 @@ def peakCoef(self,volume,reference,mask=None):
         resFunction = self.scoringFunction(volume,reference)
     else:
         resFunction = self.scoringFunction(volume,reference,mask)
+
     # change FF: 07.01.2020
     #centerX = resFunction.sizeX()//2 -1
     #centerY = resFunction.sizeY()//2 -1
@@ -199,6 +202,7 @@ class Score:
         self._type = 'undefined'
         
     def score(self,particle,reference,mask=None,stdV=None):
+<<<<<<< HEAD
         """
         returns weighted Coefficient
         @param volume: A volume.
@@ -211,6 +215,8 @@ class Score:
         @type stdV: L{pytom_volume.vol}
         @return: The highest coefficient determined.
         """
+=======
+>>>>>>> gui_devel
         return self.weightedCoefficient(self,particle,reference,mask,stdV)
         
     def getScoreFunc(self):
