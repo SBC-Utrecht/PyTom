@@ -33,7 +33,6 @@ class LocalSampling(AngleObject):
             raise ValueError('LocalSampling : Shells is 0!')
         
         self.setStartRotation(Rotation(z1=z1Start, z2=z2Start, x=xStart))
-        
         # initialize final rotation around z-axis of REFERENCE
         self.reset()
 
@@ -101,7 +100,6 @@ class LocalSampling(AngleObject):
         @change: Local Rotation had a bug causing too large rotations in Phi
         @date: 07/07/2014
         """
-        
         if self._finished:
             return [None,None,None]
         
@@ -130,7 +128,6 @@ class LocalSampling(AngleObject):
             self._currentZ2 =0
             if self._currentX >= ceil(self._shells/2):
                 self._currentX = 0
-
                 if self._currentZ1 >= self._shells*self._increment:
                     self._finished = True
                     return [self._startZ1,self._startZ2,self._startX]
@@ -164,19 +161,21 @@ class LocalSampling(AngleObject):
     def distanceFunction(self,rotation):
         """
         distanceFunction: determines the distance of of given rotation to old rotation
-        @param rotation:    
+        @param rotation: rotation
+        @type rotation: L{pytom.basic.structures.Rotation}
         @return: proposed increment for next iteration
-        @author: Thomas Hrabe 
-        @todo: check whether sqrt2 good choice, consistent old and new rotations?
+        @author: FF
         """
+        from pytom.tools.maths import rotation_distance
+        increment =  rotation_distance(ang1=self._startRotation, ang2=rotation)
         
-        from math import sqrt,ceil
-        sqrt2 = 1.4142135623730951
-        #must modulo 360 each value for avoiding negative values
-        deltaTheta  = (self._startX % 360) - (rotation[2] % 360)
-        deltaPhi    = (self._startZ1 % 360)   - (rotation[0] % 360)
-        
-        increment   = sqrt(pow(deltaTheta,2)+pow(deltaPhi,2)) / sqrt2
+        #from math import sqrt,ceil
+        #sqrt2 = 1.4142135623730951
+        ##must modulo 360 each value for avoiding negative values
+        #deltaTheta  = (self._startX % 360) - (rotation[2] % 360)
+        #deltaPhi    = (self._startZ1 % 360)   - (rotation[0] % 360)
+        #
+        #increment   = sqrt(pow(deltaTheta,2)+pow(deltaPhi,2)) / sqrt2
         
         return increment
         

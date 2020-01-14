@@ -3215,6 +3215,8 @@ class Rotation(PyTomClass):
     def __init__(self, z1=None, z2=None, x=None, paradigm='ZXZ'):
         
         if z1.__class__ == list or z1.__class__ == Rotation:
+            if z1.__class__ == Rotation:
+                paradigm = z1._paradigm
             self._z1 = float(z1[0])
             self._z2 = float(z1[1])
             self._x = float(z1[2])
@@ -3228,7 +3230,6 @@ class Rotation(PyTomClass):
             self._x = float(x)
 
         self._checkParadigm(paradigm)
-
         self._paradigm = paradigm
     
     def _checkParadigm(self, paradigm):

@@ -1,4 +1,5 @@
 '''
+functions underlying 3D reconstruction
 Created on Dec 7, 2010
 
 @lastchange: Nov 2015, FF
