@@ -1,4 +1,5 @@
 '''
+FRM alignment classes
 Created on Mar 5, 2012
 
 @author: yuxiangchen
@@ -9,7 +10,45 @@ import pytom_mpi
 import os
 
 class FRMJob(PyTomClass): # i need to rename the class, but for now it works
-    def __init__(self, pl=None, ref=None, mask=None, peak_offset=0, sample_info=None, bw_range=None, freq=None, dest='.', max_iter=10, r_score=False, weighting=False, bfactor=None, symmetries=None, adaptive_res=0.1, fsc_criterion=0.5, constraint=None):
+    def __init__(self, pl=None, ref=None, mask=None, peak_offset=0, sample_info=None, 
+            bw_range=None, freq=None, dest='.', max_iter=10, r_score=False, 
+            weighting=False, bfactor=None, symmetries=None, adaptive_res=0.1, 
+            fsc_criterion=0.5, constraint=None):
+        """
+        initiate FRM job
+        @param pl: particle list
+        @type ps: L{pytom.basic.structures.ParticleList}
+        @param ref: reference density
+        @type ref: L{pytom.basic.structures.Reference}
+        @param mask: mask 
+        @type ref: L{pytom.basic.structures.Mask}
+        @param peak_offset: peak offset in voxel
+        @type peak_offset: C{int}
+        @param sample_info: ?? (Default: None)
+        @type sample_info: ??
+        @param bw_range: bandwidth range in pixel (2-dim vector)
+        @type bw_range: C{list}
+        @param freq: frequency (default: None)
+        @type: C{int}
+        @param dest: distination directory (default: '.')
+        @type: C{str}
+        @param max_iter: maximum number of iterations
+        @type max_iter: C{int}
+        @param r_score: use r_score (??) (default: False)
+        @type r_score: C{bool}
+        @param weighting: weighting (default: False)
+        @type weighting: C{bool}
+        @param bfactor: B-factor (default: None)
+        @type bfactor: C{float}?
+        @param symmetries: symmetry (default: None)
+        @type L{pytom.basic.structures.Symmetries}
+        @param adaptive_res: adaptive resolution - add to resolution for filtering
+        @type adaptive_res: C{float}
+        @param fsc_criterion: FSC criterion (default: 0.5)
+        @type fsc_criterion: C{float}
+        @param constraint: Constraint on orientations (deafult: None)
+        @type constraint: ??
+        """
         self.particleList = pl
         self.reference = ref
         self.mask = mask
@@ -28,6 +67,11 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
         self.constraint = constraint
     
     def fromXML(self, xmlObj):
+        """
+        read from xml file
+        @param xmlObj: xml object
+        @type xmlObj: L{lxml.etree.Element}
+        """
         from lxml.etree import _Element
         
         if xmlObj.__class__ != _Element:
@@ -113,6 +157,11 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
 
     
     def toXML(self):
+        """
+        copy to xml structure
+        @return: xml object for job
+        @rtype L{lxml.etree.Element}
+        """
         from lxml import etree
 
         jobElement = etree.Element("FRMJob")
@@ -211,6 +260,13 @@ class FRMWorker():
             raise RuntimeError("Not enough nodes to parallelize the job!")
         
     def start(self, job, verbose=False):
+        """
+        start FRM job
+        @param job: FRM job
+        @type job: L{FRMJob}
+        @param verbose: print stuff (default: False)
+        @type verbose: C{bool}
+        """
         if self.mpi_id == 0:
             from pytom.basic.structures import ParticleList, Reference
             from pytom.basic.resolution import bandToAngstrom
@@ -226,7 +282,10 @@ class FRMWorker():
                     print(self.node_name + ': starting iteration %d ...' % i)
                 
                 # construct a new job by updating the reference and the frequency
-                new_job = FRMJob(job.particleList, new_reference, job.mask, job.peak_offset, job.sampleInformation, job.bw_range, new_freq, job.destination, job.max_iter-i, job.r_score, job.weighting, constraint=job.constraint)
+                new_job = FRMJob(job.particleList, new_reference, job.mask, 
+                                 job.peak_offset, job.sampleInformation, job.bw_range, 
+                                 new_freq, job.destination, job.max_iter-i, job.r_score, 
+                                 job.weighting, constraint=job.constraint)
                 
                 # distribute it
                 self.distribute_job(new_job, verbose)
@@ -390,6 +449,12 @@ class FRMWorker():
     
     def average_sub_pl(self, pl, name_prefix, weight_average):
         """For worker node, do two things, averaging & obtaining the even/odd partitions to save some time.
+           @param pl: particle list
+           @type ps: L{pytom.basic.structures.ParticleList}
+           @param name_prefix: name prefix output densities
+           @type name_prefix: C{str}
+           @param weight_average: weighted average
+           @type weight_average: C{str}
         """
         from pytom.basic.structures import ParticleList
         even = ParticleList('.')
@@ -406,6 +471,8 @@ class FRMWorker():
     
     def retrieve_res_vols(self, name_prefix):
         """For master node, retrieve the even/odd sub-averages and do the cleaning.
+           @param name_prefix: name prefix output densities
+           @type name_prefix: C{str}
         """
         from pytom_volume import read
         even_pre = read(name_prefix+'even'+'-PreWedge.em')
@@ -431,6 +498,12 @@ class FRMWorker():
     
     def create_average(self, pre, wedge):
         """For the master node, create the average according to the pre-wedge and wedge volumes.
+           @param pre: density prior to weighting
+           @type pre: L{pytom_volume.vol}
+           @param wedge: wedge 
+           @type wedge: L{pytom.basic.Wedge}
+           @return: wedge-weighted density
+           @rtype: L{pytom_volume.vol}
         """
         from pytom_volume import complexDiv, limit
         from pytom.basic.fourier import fft,ifft
@@ -446,6 +519,10 @@ class FRMWorker():
     
     def determine_resolution(self, even, odd, criterion, numberBands, mask, verbose=False):
         """For the master node, determine the resolution.
+           @param even: particle list even
+           @type even: L{pytom.basic.structures.ParticleList}
+           @param odd: particle list odd
+           @type odd: L{pytom.basic.structures.ParticleList}
         """
         from pytom.basic.correlation import FSC, determineResolution
         
@@ -459,9 +536,17 @@ class FRMWorker():
         return determineResolution(fsc, criterion, verbose=False)
     
     def send_job(self, job, dest):
+        """
+        @param job: FRM job
+        @type job: L{FRMJob}
+        """
         pytom_mpi.send(str(job), dest)
     
     def get_job(self):
+        """
+        @return: FRM job
+        @rtype: L{FRMJob}
+        """
         from pytom.localization.parallel_extract_peaks import getMsgStr
         mpi_msgString = getMsgStr()
         job = FRMJob()
@@ -473,6 +558,10 @@ class FRMWorker():
         pytom_mpi.send(str(result), 0)
     
     def get_result(self):
+        """
+        @return: FRM result
+        @rtype: L{FRMResult}
+        """
         from pytom.localization.parallel_extract_peaks import getMsgStr
         mpi_msgString = getMsgStr()
         result = FRMResult()
@@ -481,6 +570,10 @@ class FRMWorker():
         return result
     
     def distribute_job(self, job, verbose=False):
+        """
+        @param job: FRM job
+        @type job: L{FRMJob}
+        """
         n = len(job.particleList)
         particlesPerNode = int(n/self.num_workers)
         residual = n-particlesPerNode*self.num_workers
@@ -497,7 +590,10 @@ class FRMWorker():
             subPL = job.particleList[start_idx : start_idx+l]
             start_idx += l
             
-            subJob = FRMJob(subPL, job.reference, job.mask, job.peak_offset, job.sampleInformation, job.bw_range, job.freq, job.destination, job.max_iter, job.r_score, job.weighting, constraint=job.constraint)
+            subJob = FRMJob(subPL, job.reference, job.mask, job.peak_offset, 
+                            job.sampleInformation, job.bw_range, job.freq, 
+                            job.destination, job.max_iter, job.r_score, 
+                            job.weighting, constraint=job.constraint)
             self.send_job(subJob, i)
             
             if verbose:
