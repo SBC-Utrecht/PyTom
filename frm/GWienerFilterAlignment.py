@@ -1,4 +1,5 @@
 '''
+Gold standard Wiener Filter alignment
 Created on Nov 6, 2012
 
 @author: yuxiangchen
