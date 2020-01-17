@@ -1559,7 +1559,8 @@ class Particle(PyTomClass):
         else:
             raise TypeError('Unknown type for rotation parameter!')
         
-        if not shift:
+        #if not shift:
+        if shift == None:
             self._shift = Shift(0.0,0.0,0.0)
         elif shift.__class__ == list:
             self._shift = Shift(shift[0],shift[1],shift[2])
@@ -1934,9 +1935,9 @@ class ParticleList(PyTomClass):
         """
         __init__:
         @param directory: Source directory of particle files
-        @type directory: L{str}
+        @type directory: C{str}
         @param pl: A particle list.
-        @type pl: L{list}
+        @type pl: L{pytom.basic.structures.ParticleList}
         """
         if directory and directory.__class__ == str and len(directory)>0:
             if directory[len(directory) -1] == '/': 
@@ -2002,6 +2003,8 @@ class ParticleList(PyTomClass):
     def append(self,particle):
         """
         append: Appends particle to self.particleList
+        @param particle: particle
+        @type particle: L{pytom.basic.structures.Particle}
         """
         from pytom.basic.structures import Particle
         
@@ -2039,6 +2042,7 @@ class ParticleList(PyTomClass):
         """
         toHTMLFile: Overrides parent method and stores ParticleList to HMTL
         @param filename: HTML filename 
+        @type filename: C{str}
         """
         from pytom.tools.files import getPytomPath
 
@@ -2183,10 +2187,12 @@ class ParticleList(PyTomClass):
         """
         fromMOTL: Loads a MOTL.em into this ParticleList
         @param motlFile: Path to MOTL.em
+        @type motlFile: C{str}
         @param sourceDirectory: Directory where all particles are stored
         @param particlePrefix: Prefix of each particle in sourceDirectory (prefix == strings before the index, including _ )
         @param originVolume: Name / Path to volume where particles come from ('' by default)  
         @param particleStartOffset: Offset in particle indexing. Motls generated with MATLAB will most likely start with a 1 as first particle (not with 0 as in C or Python) 
+        @type particleStartOffset: C{int}
         """
         from pytom_volume import read
         from pytom.tools.files import checkFileExists
