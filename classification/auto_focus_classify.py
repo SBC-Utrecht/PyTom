@@ -176,13 +176,11 @@ def paverage(particleList, norm, binning, verbose, outdir='./'):
     newParticle = None
     
     for particleObject in particleList:
-        #print(particleObject.getFilename())
         particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, binning,binning,binning)
         if norm:
             mean0std1(particle)
 
         wedgeInfo = particleObject.getWedge()
-        
         if result is None: # initialization
             sizeX = particle.sizeX()
             sizeY = particle.sizeY()
@@ -196,11 +194,9 @@ def paverage(particleList, norm, binning, verbose, outdir='./'):
             
             result = vol(sizeX,sizeY,sizeZ)
             result.setAll(0.0)
-            
             wedgeSum = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
             wedgeSum.setAll(0)
         
-
         # create spectral wedge weighting
         rotation = particleObject.getRotation()
         wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False, rotation.invert())
@@ -235,6 +231,15 @@ def paverage(particleList, norm, binning, verbose, outdir='./'):
 
 
 def calculate_averages(pl, binning, mask, outdir='./'):
+    """
+    calcuate averages for particle lists
+    @param pl: particle list
+    @type pl: L{pytom.basic.structures.ParticleList}
+    @param binning: binning factor
+    @type binning: C{int}
+
+    last change: Jan 18 2020: error message for too few processes, FF
+    """
     import os
     from pytom_volume import complexDiv
     from pytom.basic.fourier import fft,ifft
@@ -263,6 +268,7 @@ def calculate_averages(pl, binning, mask, outdir='./'):
                 spp = [None] * 2
                 spp[0] = pp[:len(pp)//2]
                 spp[1] = pp[len(pp)//2:]
+            
             args = list(zip(spp, [True]*len(spp), [binning]*len(spp), [False]*len(spp), [outdir]*len(spp)))
             avgs = mpi.parfor(paverage, args)
 
@@ -291,7 +297,11 @@ def calculate_averages(pl, binning, mask, outdir='./'):
                 os.remove(w.getFilename())
 
             # determine the resolution
-            fsc = FSC(even_a, odd_a, even_a.sizeX()//2, mask)
+            # raise error message in case even_a == None - only one processor used
+            if even_a == None:
+                from pytom.basic.exceptions import ParameterError
+                raise ParameterError('cannot split odd / even. Likely you used only one processor - use: mpirun -np 2 (or higher!)?!')
+            fsc = FSC(even_a, odd_a, int(even_a.sizeX()//2), mask)
             band = determineResolution(fsc, 0.5)[1]
 
             aa = even_a + odd_a
@@ -320,7 +330,8 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
         mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
     pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
 
-    return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), Rotation(angle), score, p.getFilename())
+    return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), 
+            Rotation(angle), score, p.getFilename())
 
 
 def score_noalign_proxy(p, ref, freq, offset, binning, mask):
@@ -364,6 +375,18 @@ def calculate_prob(s, scores):
 
 
 def voting(p, i, scores, references, frequencies, dmaps, binning, noise):
+    """
+    voting step of classification
+    @param p: particle
+    @param i: ??
+    @param scores: scores
+    @param references: references
+    @param frequencies:
+    @param dmaps:
+    @param binning:
+    @param noise:
+    @return: new_label
+    """
     from collections import defaultdict
 
     if i in noise:
@@ -484,6 +507,14 @@ def cmp(a,b):
     return (a>b) - (a<b)
 
 def split_topn_classes(pls, n):
+    """
+    sort the particle list by the length
+    @param pls: particle list
+    @type pls: L{pytom.basic.structures.ParticleList}
+    @param n: number of top-n classes
+    @type n: C{int}
+    @return: new_pl
+    """
     # sort the particle list by the length
     assert len(pls) >= n
 
@@ -630,6 +661,13 @@ def initialize(pl, settings):
 
 
 def classify(pl, settings):
+    """
+    auto-focused classification
+    @param pl: particle list
+    @type pl: L{pytom.basic.structures.ParticleList}
+    @param settings: settings for autofocus classification
+    @type settings: C{dict}
+    """
     from pytom.basic.structures import Particle, Shift, Rotation
     from pytom.basic.filter import lowpassFilter
     
@@ -802,11 +840,14 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
 
-    assert options.filename
-    assert options.frequency
+    assert options.filename, "Filename is required"
+    assert options.frequency, "Frequency is required"
 
     settings = {}
     settings["ncluster"] = int(options.k) if options.k else None
+    if options.frequency == None:
+        print("Frequency must be specified")
+        raise RuntimeError("Frequency must be specified")
     settings["frequency"] = int(options.frequency)
     settings["fixed_frequency"] = True
     settings["offset"] = int(options.offset) if options.offset else None
@@ -823,8 +864,27 @@ if __name__ == '__main__':
     settings["noalign"] = options.noalign
     settings['output_directory'] = options.output_directory if options.output_directory else './'
     if settings["noise"]:
-        assert settings["noise"] > 0 and settings["noise"] < 1
+        assert (settings["noise"] > 0 and settings["noise"] < 1), "noise must be > 0 and < 1"
 
+    if mpi.is_master():
+        print('----------------------------------------------------')
+        print('-- Input parameters --------------------------------')
+        print('----------------------------------------------------')
+        print("Ncluster   = ",str(settings["ncluster"]))
+        print("frequency  = ",str(settings["frequency"]))
+        print("offset     = ",str(settings["offset"]))
+        print("binning    = ",str(settings["binning"]))
+        print("mask       = ",str(settings["mask"]))
+        print("fmask      = ",str(settings["fmask"]))
+        print("niteration = ",str(settings["niteration"]))
+        print("dispersion = ",str(settings["dispersion"]))
+        print("threshold  = ",str(settings["threshold"]))
+        print("noise      = ",str(settings["noise"]))
+        print("noalign    = ",str(settings["noalign"]))
+        print("outputdir  = ",str(settings["output_directory"]))
+        print("noise      = ",str(settings["noise"]))
+        print('----------------------------------------------------')
+        print()
 
     # start the clustering
     mpi.begin()
