@@ -1,4 +1,6 @@
 '''
+Main structures that are used by PyTom throughout
+
 Created on Mar 23, 2010
 
 @author: hrabe
@@ -1032,7 +1034,7 @@ class SingleTiltWedge(PyTomClass):
             from pytom_volume import vol
             
             if not humanUnderstandable:
-                wedgeVolume = vol(wedgeSizeX,wedgeSizeY,wedgeSizeZ/2+1)
+                wedgeVolume = vol(wedgeSizeX,wedgeSizeY,int(wedgeSizeZ/2)+1)
             else:
                 wedgeVolume = vol(wedgeSizeX,wedgeSizeY,wedgeSizeZ)
                 
@@ -1529,8 +1531,8 @@ class Particle(PyTomClass):
     Particle: Stores information about individual particle. 
     """
     
-    def __init__(self,filename='',rotation=None,shift=None,wedge=None,className = 0,pickPosition=None,score=None,
-                 sourceInfo=None):
+    def __init__(self,filename='',rotation=None,shift=None,wedge=None,className = 0,
+                 pickPosition=None,score=None, sourceInfo=None):
         """
         @param filename: name of particle volume file (.em or .mrc file)
         @type filename: L{str}
@@ -2198,7 +2200,8 @@ class ParticleList(PyTomClass):
         from pytom.tools.files import checkFileExists
         
         from pytom.basic.structures import Rotation,Shift,PickPosition,Particle
-        if not score:
+        #if not score:
+        if score == None:
             from pytom.score.score import xcfScore as score
         
         checkFileExists(motlFile)
@@ -3748,7 +3751,6 @@ class Shift(PyTomClass):
         @type otherShift: Shift
         @return: A new Shift object with the current result  
         """
-        print(otherShift.__class__)
         if not otherShift.__class__ == self.__class__ and not otherShift.__class__ in [int, float]:
             raise NotImplementedError("Shift add: Add partner must be another Shift or int,float!")
         
