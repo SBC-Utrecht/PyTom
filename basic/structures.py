@@ -1378,7 +1378,8 @@ be generated. If omitted / 0, filter is fixed to size/2.
         if not volume.__class__ == vol:
             raise TypeError('You must provide a pytom_volume.vol here!')
     
-        wedgeVolume = self.returnWedgeVolume(volume.sizeX(),volume.sizeY(),volume.sizeZ(),humanUnderstandable = False,rotation=rotation)
+        wedgeVolume = self.returnWedgeVolume(volume.sizeX(),volume.sizeY(),volume.sizeZ(),
+                           humanUnderstandable = False,rotation=rotation)
         fvolume     = fft(volume) 
         fresult     = complexRealMult(fvolume, wedgeVolume)
         
@@ -1887,6 +1888,8 @@ class Particle(PyTomClass):
     def getTransformedVolume(self, binning=1):
         """
         getTransformedVolume: Returns particle volume with applied inverse rotation and inverse shift
+        @param binning: binning factor
+        @type binning: C{int}
         @rtype: L{pytom_volume.vol}
         """
         from pytom.basic.structures import Shift,Rotation
@@ -1900,7 +1903,9 @@ class Particle(PyTomClass):
             
             volumeTransformed = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
         
-            transformSpline(volume,volumeTransformed,-rotation[1],-rotation[0],-rotation[2],volume.sizeX()/2,volume.sizeY()/2,volume.sizeZ()/2,-shift[0]/binning,-shift[1]/binning,-shift[2]/binning,0,0,0)
+            transformSpline(volume,volumeTransformed,-rotation[1],-rotation[0],-rotation[2],
+                            int(volume.sizeX()/2), int(volume.sizeY()/2), int(volume.sizeZ()/2),
+                            -shift[0]/binning,-shift[1]/binning,-shift[2]/binning,0,0,0)
             return volumeTransformed
         
         else:
