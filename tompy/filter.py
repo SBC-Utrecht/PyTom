@@ -1,11 +1,13 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-
+"""
+basic filters operating on numpy arrays
+"""
 import numpy as np
 import scipy
 
 def normalize(v):
-    """Normalize the data.
+    """Normalize the data according to standard deviation
 
     @param v: input volume.
 
@@ -27,13 +29,13 @@ def bandpass(v, low=0, high=-1, sigma=0):
 
     @return: bandpass filtered volume.
     """
-    assert low >= 0
+    assert low >= 0, "lower limit must be >= 0"
 
     from pytom.tompy.tools import create_sphere
 
     if high == -1:
         high = np.min(v.shape)/2
-    assert low < high
+    assert low < high, "upper bandpass must be > than lower limit"
 
     if low == 0:
         mask = create_sphere(v.shape, high, sigma)
@@ -54,10 +56,12 @@ def median3d(data, size=3):
 
     @param data: data to be filtered.
     @param size: size of the median filter.
+    @type size: C{int}
 
     @return: filtered image.
     """
     from scipy.ndimage.filters import median_filter
+    assert type(size) == int, "median3d: size must be integer"
     d = median_filter(data, size)
     return d
 
@@ -216,8 +220,14 @@ class SingleTiltWedge(Wedge):
 
     def returnWedgeVolume(self, size, rotation=None):
         """Return the wedge volume in full size and zero in the center
+        @param size: size of wedge
+        @type size: C{list}
+        @param rotation: rotation (3-dim vector if Euler angles)
+        @type rotation: C{list}
+        @return: wedge volume
+        @rtype: Numpy array
         """
-        assert len(size) == 3
+        assert len(size) == 3, "returnWedgeVolume: size must be 3-dim list"
         
         if self._volume is not None and np.array_equal(self._volume_shape, size):
             pass
@@ -235,15 +245,16 @@ class SingleTiltWedge(Wedge):
 
 
     def toSphericalFunc(self, bw, radius=None, threshold=0.5):
-        """Convert the wedge from k-space to a spherical function.
+        """Convert the wedge from k-space to a spherical function. \
+        currently some hard-coded parameters in - bw <=128, r=45 for max bw, default vol 100
         
-        @param bw: bandwidth of the spherical function.
+        @param bw: bandwidth of the spherical function (must be <=128).
         @param radius: radius in k-space. For general Wedge, not used for SingleTiltWedge.
         @param threshold: threshold, above which the value there would be set to 1.
 
-        @return: a spherical function in numpy.array
+        @return: a spherical function in numpy.array - default 100x100x100 if no self.vol defined
         """
-        assert(bw<=128)
+        assert(bw<=128), "toSphericalFunc: bw currently limited to <= 128"
 
         # if no missing wedge
         if self.start_ang == -90 and self.end_ang == 90:
@@ -267,8 +278,8 @@ class SingleTiltWedge(Wedge):
         from math import pi, sin, cos
         res = []
         
-        for j in xrange(2*bw):
-            for k in xrange(2*bw):
+        for j in range(2*bw):
+            for k in range(2*bw):
                 the = pi*(2*j+1)/(4*bw) # (0,pi)
                 phi = pi*k/bw # [0,2*pi)
                 
