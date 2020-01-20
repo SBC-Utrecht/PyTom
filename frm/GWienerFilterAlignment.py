@@ -412,10 +412,14 @@ class MultiDefocusWorker(FRMWorker):
                 odd_weight = weight(full_all_odd_wedge) # the funny part of pytom
                 transformed_odd = vol(odd.sizeX(), odd.sizeY(), odd.sizeZ())
                 
-                transformSpline(all_odd_pre,transformed_odd_pre,-angle[1],-angle[0],-angle[2],odd.sizeX()/2,odd.sizeY()/2,odd.sizeZ()/2,-(pos[0]-odd.sizeX()/2),-(pos[1]-odd.sizeY()/2),-(pos[2]-odd.sizeZ()/2),0,0,0)
+                transformSpline(all_odd_pre,transformed_odd_pre,-angle[1],-angle[0],-angle[2],
+                                int(odd.sizeX()/2), int(odd.sizeY()/2), int(odd.sizeZ()/2),
+                                -(pos[0]-odd.sizeX()/2),-(pos[1]-odd.sizeY()/2),-(pos[2]-odd.sizeZ()/2),0,0,0)
                 odd_weight.rotate(-angle[1],-angle[0],-angle[2])
                 transformed_odd_wedge = odd_weight.getWeightVolume(True)
-                transformSpline(odd,transformed_odd,-angle[1],-angle[0],-angle[2],odd.sizeX()/2,odd.sizeY()/2,odd.sizeZ()/2,-(pos[0]-odd.sizeX()/2),-(pos[1]-odd.sizeY()/2),-(pos[2]-odd.sizeZ()/2),0,0,0)
+                transformSpline(odd,transformed_odd,-angle[1],-angle[0],-angle[2],
+                                int(odd.sizeX()/2), int(odd.sizeY()/2), int(odd.sizeZ()/2),
+                                -(pos[0]-odd.sizeX()/2),-(pos[1]-odd.sizeY()/2),-(pos[2]-odd.sizeZ()/2),0,0,0)
                 
                 all_odd_pre = transformed_odd_pre
                 all_odd_wedge = transformed_odd_wedge
@@ -580,8 +584,8 @@ class MultiDefocusWorker(FRMWorker):
             else:
                 odd.append(p)
         
-        assert len(even) > 0
-        assert len(odd)  > 0
+        assert len(even) > 0, "average_sub_pl: length even particle list == 0 :("
+        assert len(odd)  > 0, "average_sub_pl: length odd particle list == 0 :("
         
         # in some rare cases this would fail
         # that is: this worker only get one class, in this case, one of the pl will be null
@@ -609,10 +613,10 @@ class MultiDefocusWorker(FRMWorker):
                 sizeZ = particle.sizeZ()
                 
                 newParticle = vol(sizeX,sizeY,sizeZ)
-                
-                centerX = sizeX/2 
-                centerY = sizeY/2 
-                centerZ = sizeZ/2 
+                # make consistent for python3
+                centerX = sizeX//2 
+                centerY = sizeY//2 
+                centerZ = sizeZ//2 
                 
                 result = vol(sizeX,sizeY,sizeZ)
                 result.setAll(0)
@@ -629,7 +633,8 @@ class MultiDefocusWorker(FRMWorker):
             # shift and rotate particle
             shift = p.getShift()
             newParticle.setAll(0)
-            transform(particle,newParticle,-rotation[1],-rotation[0],-rotation[2],centerX,centerY,centerZ,-shift[0],-shift[1],-shift[2],0,0,0)
+            transform(particle,newParticle,-rotation[1],-rotation[0],-rotation[2],
+                    centerX,centerY,centerZ,-shift[0],-shift[1],-shift[2],0,0,0)
             
             result = result + newParticle
         
