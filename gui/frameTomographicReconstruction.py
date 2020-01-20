@@ -1130,7 +1130,7 @@ class TomographReconstruct(GuiTabWidget):
                         self.updateVoldims(mode)
                         voldims = self.widgets[mode + 'Voldims'].text()
                         paramsCmd = [tomofolder, self.pytompath, firstIndex, lastIndex, refTiltImage, refmarkindex,
-                                     binningFactor, os.path.basename(tomofolder), 'mrc', voldims, '1', expectedRotation]
+                                     binningFactor, os.path.basename(tomofolder), 'mrc', voldims, '-1', expectedRotation]
 
                         commandText= templateWBP.format(d=paramsCmd)
                         paramsSbatch['fname'] = 'Reconstruction_{}_WBP.sh'.format(os.path.basename(tomofolder))
