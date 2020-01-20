@@ -1,3 +1,6 @@
+"""
+Gijs' tilt series simulation - used for Ilja's contest paper
+"""
 import numpy
 import sys
 # from chimera import runCommand
