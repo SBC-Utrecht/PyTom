@@ -217,7 +217,7 @@ class SelectFiles(BrowseWindowRemote):
             else:
                 selected = False
                 for file in self.selectedfiles:
-                    if filename == os.path.basename(file):
+                    if os.path.join(self.folderpath, filename) == file:
                         selected = True
                         break
                 if not selected: self.matchingfiles.append(filename)
@@ -1257,7 +1257,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
         self.types = types
         self.general_widgets = []
         self.table2 = QTableWidget()
-        self.table2.setColumnCount(len(headers))  # Set three columns
+        self.table2.setColumnCount(len(headers))
         self.table2.setRowCount(1)
         self.table2.verticalHeader().hide()
         self.table2.horizontalHeader().hide()
@@ -3280,7 +3280,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.jobnames = ['SingleAlignment', 'BatchAlignment',
                          'ReconstructWBP', 'ReconstructINFR', 'BatchReconstruct',
                          'CTFDetermination', 'SingleCTFCorrection', 'BatchCTFCorrection',
-                         'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch',
+                         'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch','BatchExtractCandidates',
                          'SingleSubtomoReconstruct', 'BatchSubtomoReconstruct',
                          'SingleParticlePolish', 'BatchParticlePolish',
                          'FRMAlignment','GLocalAlignment',
@@ -3416,7 +3416,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
 
     def showFSCPlot(self, mode):
-        from pytom.bin.plotFSC import plot_FSC
+        from pytom.plotting.plotFSC import plot_FSC
         filename = self.widgets[mode + 'FSCFilename'].text()
         pixel_size = self.widgets[mode + 'PixelSize'].value()
         box_size = self.widgets[mode + 'BoxSize'].value()
@@ -3624,7 +3624,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
 
     def showFSCPlot(self, mode):
-        from pytom.bin.plotFSC import plot_FSC
+        from pytom.plotting.plotFSC import plot_FSC
         filename = self.widgets[mode+'FSCFilename'].text()
         pixel_size = self.widgets[mode+'PixelSize'].value()
         box_size = self.widgets[mode+'BoxSize'].value()

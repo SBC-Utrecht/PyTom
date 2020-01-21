@@ -27,7 +27,7 @@ def plotTMResults(xmlfiles, show_image=True, outname='', labels=[]):
     fig,ax = subplots(1,1,figsize=(10,6))
     ax.set_xlabel('Particle ID')
     ax.set_ylabel('Correlation Coefficient')
-        
+    S = []
     for n, xmlfile in enumerate(xmlfiles):
         if not xmlfile: continue
         tree = et.parse(xmlfile)
@@ -39,6 +39,22 @@ def plotTMResults(xmlfiles, show_image=True, outname='', labels=[]):
             ax.plot(scores,label=labels[n])
         else:
             ax.plot(scores,label=os.path.basename(xmlfile))
+
+        S.append(scores)
+
+    try:
+        if numpy.array(S[0][:30]).sum() > numpy.array(S[1][:30]).sum():
+            comp = 0
+        else:
+            comp = 1
+
+        if len(S) == 2:
+            for n, sc in enumerate(S[comp]):
+                if sc-S[1-comp][n] < -0.0001:
+                    ax.vlines(n, 0, sc, label=f'cutoff: {numpy.around(sc,3)}')
+                    ax.hlines(sc, 0, n, label=f'num particles: {n+1}')
+                    break
+    except: pass
     ax.legend()
     fig.tight_layout()
     if outname: 
