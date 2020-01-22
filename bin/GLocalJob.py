@@ -31,6 +31,9 @@ if __name__ == '__main__':
                                                 arg=True, optional=True),
                                    ScriptOption(['--angleIncrement'], 'Angular increment for refinement. Default = 3',
                                                 arg=True, optional=True),
+                                   ScriptOption(['-s','--scoreObject'], 
+                                       'Score Object, i.e., the scoring function. Options: FLCF, NXCF. Default = FLCF',
+                                       arg=True, optional=True),
                                    ScriptOption(['--symmetry'], 'PointSymmetry : specify n-fold symmetry (n)',
                                                 arg=True, optional=True),
                                    ScriptOption(['--symmetryAngleZ'], 'PointSymmetry axis tilt around Z axis',
@@ -61,7 +64,8 @@ if __name__ == '__main__':
         sys.exit()
     try:
         results = parse_script_options(sys.argv[1:], helper)
-        particleList, reference, mask, isSphere, angShells, angleInc, symmetryN, symmetryAxisZ, symmetryAxisX,\
+        particleList, reference, mask, isSphere, angShells, angleInc, scoreObject, \
+        symmetryN, symmetryAxisZ, symmetryAxisX,\
         destination, numberIterations, binning,\
         pixelSize, diameter, weighting, compound, jobName, help = results
     except Exception as e:
@@ -74,8 +78,7 @@ if __name__ == '__main__':
 
     from pytom.alignment.GLocalSampling import GLocalSamplingJob, mainAlignmentLoop
     from pytom.basic.structures import ParticleList, Reference, Mask, SampleInformation, PointSymmetry
-    from pytom.score.score import FLCFScore
-    #from pytom.frontend.serverpages.createAlignmentJob import createRunscripts
+    from pytom.score.score import FLCFScore, nxcfScore
     from pytom.angles.localSampling import LocalSampling
     from pytom.alignment.preprocessing import Preprocessing
 
@@ -134,7 +137,12 @@ if __name__ == '__main__':
         compound = False
 
     ################# fixed parameters #################
-    score   = FLCFScore()
+    if (scoreObject == None or scoreObject.lower() == 'flcf'):
+        score   = FLCFScore()
+    elif scoreObject.lower() == 'nxcf':
+        score   = nxcfScore()
+    else:
+        score   = FLCFScore()
     score.setRemoveAutocorrelation(flag=False)
     #pre     = Preprocessing(lowestFrequency = float(lowestFrequency),highestFrequency = float(highestFrequency))
     pre     = Preprocessing()
