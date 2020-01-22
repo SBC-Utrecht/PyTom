@@ -13,8 +13,8 @@ class pytom_GLocalTest(unittest.TestCase):
         self.reffile = './testData/ribo.em'
         self.pl_filename = 'pl.xml'
         self.pdir = './testparticles' 
-        #self.pl = create_RandomParticleList( reffile=self.reffile, pl_filename=self.pl_filename, 
-        #          pdir=self.pdir, nparticles=10)
+        self.pl = create_RandomParticleList( reffile=self.reffile, pl_filename=self.pl_filename, 
+                  pdir=self.pdir, nparticles=10)
 
         # set parameters for GLocal
         self.settings = {}
