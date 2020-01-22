@@ -1,7 +1,6 @@
 '''
-Created July/Aug 2014
-
 Routines for Local Sampling and Reference Filtering using Gold standard FSC.
+Created July/Aug 2014
 
 @author: FF
 '''
@@ -40,6 +39,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
 
     print("mask            = "+str(alignmentJob.scoringParameters.mask.getFilename()))
     print("rotations       = "+str(alignmentJob.samplingParameters.rotations))
+    print("scoring function= "+str(alignmentJob.scoringParameters.score._type))
     print("symmetries      = "+str(alignmentJob.scoringParameters.symmetries))
     print("destination     = "+str(alignmentJob.destination))
     print("numberIterations= "+str(alignmentJob.max_iter))
@@ -53,6 +53,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         particle.setScoreValue(-1000.)
     (odd, even) = alignmentJob.particleList.splitOddEven(verbose=verbose)
     progressBar = True
+    setParticleNodesRatio = 2
     neven = len(even)
     nodd = len(odd)
     removeAutocorrelation = alignmentJob.scoringParameters.score.getRemoveAutocorrelation()
@@ -76,12 +77,12 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                           averageName=alignmentJob.destination+"/"+str(ii)+'-EvenFiltered.em',
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                           weighting=alignmentJob.scoringParameters.weighting, norm=False,
-                                          setParticleNodesRatio=3)
+                                          setParticleNodesRatio=setParticleNodesRatio)
             oddAverage = averageParallel(particleList=odd,
                                           averageName=alignmentJob.destination+"/"+str(ii)+'-OddFiltered.em',
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                           weighting=alignmentJob.scoringParameters.weighting, norm=False,
-                                          setParticleNodesRatio=3)
+                                          setParticleNodesRatio=setParticleNodesRatio)
             #write un-filtered averages for info
             evenAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+'-Even.em')
             oddAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+'-Odd.em')
@@ -157,8 +158,8 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         alignmentJob.samplingParameters.rotations.toXMLFile(filename=alignmentJob.destination+"/"+'CurrentRotations.xml')
         alignmentJob.scoringParameters.mask.toXMLFile(filename=alignmentJob.destination+"/"+'CurrentMask.xml')
         # split particle lists
-        evenSplitList = splitParticleList(particleList=even, setParticleNodesRatio=1)
-        oddSplitList = splitParticleList(particleList=odd, setParticleNodesRatio=1)
+        evenSplitList = splitParticleList(particleList=even, setParticleNodesRatio=setParticleNodesRatio)
+        oddSplitList = splitParticleList(particleList=odd, setParticleNodesRatio=setParticleNodesRatio)
         print(">>>>>>>>> Aligning Even ....")
 
 
@@ -206,12 +207,12 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                           averageName=alignmentJob.destination+"/average-Final-Even.em",
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                           weighting=alignmentJob.scoringParameters.weighting, norm=False,
-                                          setParticleNodesRatio=3)
+                                          setParticleNodesRatio=setParticleNodesRatio)
             oddAverage = averageParallel(particleList=odd,
                                          averageName=alignmentJob.destination+"/average-Final-Odd.em",
                                          showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                          weighting=alignmentJob.scoringParameters.weighting, norm=False,
-                                         setParticleNodesRatio=3)
+                                         setParticleNodesRatio=setParticleNodesRatio)
             # filter both volumes by sqrt(FSC)
             (averageEven, averageOdd, fsc, fil, optiRot, optiTrans) = \
             alignVolumesAndFilterByFSC(vol1=evenAverage.getVolume(), vol2=oddAverage.getVolume(),
@@ -231,12 +232,12 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                              averageName=alignmentJob.destination+"/average-Final-Odd.em",
                                              showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                              weighting=alignmentJob.scoringParameters.weighting, norm=False,
-                                             setParticleNodesRatio=3)
+                                             setParticleNodesRatio=setParticleNodesRatio)
             final_average = averageParallel(particleList=alignmentJob.particleList,
                                             averageName=alignmentJob.destination+"/average-Final.em",
                                             showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                             weighting=alignmentJob.scoringParameters.weighting, norm=False,
-                                            setParticleNodesRatio=3)
+                                            setParticleNodesRatio=setParticleNodesRatio)
             from pytom.basic.correlation import FSC
             fsc = FSC(volume1=evenAverage.getVolume(), volume2=oddAverage.getVolume(),
                       numberBands=int(evenAverage.getVolume().sizeX()/2))
@@ -323,7 +324,7 @@ def alignParticleList(pl, reference, referenceWeightingFile, rotationsFilename,
     from pytom.angles.angle import AngleObject
     from pytom.basic.structures import Mask, ParticleList
 
-    assert type(pl) == ParticleList
+    assert type(pl) == ParticleList, "pl is supposed to be a particleList"
 
     scoreObject = fromXMLFile(filename=scoreXMLFilename)
 
@@ -388,11 +389,11 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     from pytom.basic.structures import Mask, ParticleList
     from pytom.gpu.plans import prepare_glocal_plan
     
-    assert type(pl) == ParticleList
+    assert type(pl) == ParticleList, "pl must be particleList"
 
     rot = AngleObject()
     rotations = rot.fromXMLFile(filename=rotationsFilename)
-    print(np.array(list(rotations)))
+    #print(np.array(list(rotations)))
 
 
     particle = np.zeros(read_size(pl[0].getFilename()))
@@ -452,7 +453,7 @@ def alignOneParticleWrapper(particle, reference, referenceWeighting=None, rotati
     from pytom.angles.angle import AngleObject
     from pytom.basic.structures import Mask, Particle
 
-    assert type(particle) == Particle
+    assert type(particle) == Particle, "particle must be of type Particle"
 
     scoreObject = fromXMLFile(filename=scoreXMLFilename)
 
@@ -529,7 +530,7 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
     wedge = particle.getWedge()
     assert type(scoreObject) == Score, "alignOneParticle: score not of type Score"
     if mask:
-        assert type(mask) == Mask
+        assert type(mask) == Mask, "alignOneParticle: mask not of type Mask"
 
     assert type(rotations) == AngleList, "alignOneParticle: rotations not of type AngleList"
 
@@ -577,15 +578,15 @@ class SamplingParameters(PyTomClass):
 
         if rotations == None:
             rotations = LocalSampling(shells=3, increment=3., z1Start=0., z2Start=0., xStart=0.)
-        assert type(rotations) == AngleObject
+        assert type(rotations) == AngleObject, "SamplingParameters: rotations must be of type AngleObject"
         self.rotations = rotations
-        assert type(binning) == int
+        assert type(binning) == int, "SamplingParameters: binning must be of type int"
         self.binning = binning
         assert type(adaptive_res) == float, "SamplingParameters: adaptive_res must be of type float"
         self.adaptive_res = adaptive_res
         if sample_info == None:
             sample_info = SampleInformation()
-        assert type(sample_info) == SampleInformation
+        assert type(sample_info) == SampleInformation, "SamplingParameters: sample_info must be of type SampleInformation"
         self.sampleInformation = sample_info
 
     def toXML(self):
@@ -820,26 +821,30 @@ class GLocalSamplingJob(PyTomClass):
         from pytom.angles.angle import AngleObject
         from pytom.alignment.preprocessing import Preprocessing
 
-        assert (type(pl) == ParticleList) or (type(pl) == type(None)), "pl must be particleList or None"
+        assert (type(pl) == ParticleList) or (type(pl) == type(None)), \
+                "GLocalSamplingJob: pl must be particleList or None"
         self.particleList = pl
-        assert type(dest) == str, "dest must be a string!"
+        assert type(dest) == str, "GLocalSamplingJob: dest must be a string!"
         self.destination = dest
-        assert type(max_iter) == int, "max_iter must be an integer!"
+        assert type(max_iter) == int, "GLocalSamplingJob: max_iter must be an integer!"
         self.max_iter = max_iter
 
         # set scoring parameters
-        assert (type(ref) == Reference) or (type(ref) == type(None))
+        assert (type(ref) == Reference) or (type(ref) == type(None)), \
+                "GLocalSamplingJob: ref must be Reference or None"
         if score == None:
             score=FLCFScore()
-        assert type(score) == Score
-        assert (type(mask) == Mask) or (type(mask) == type(None))
+        assert type(score) == Score, "GLocalSamplingJob: score is of type Score"
+        assert (type(mask) == Mask) or (type(mask) == type(None)), \
+                "GLocalSamplingJob: mask is of type Mask"
         if preprocessing==None:
             self.preprocessing = Preprocessing()
         else:
             self.preprocessing = preprocessing
-        assert type(preprocessing) == Preprocessing
-        assert type(fsc_criterion) == float
-        assert type(weighting) == bool
+        assert type(preprocessing) == Preprocessing, \
+                "GLocalSamplingJob: preprocessing is of type Preprocessing"
+        assert type(fsc_criterion) == float, "GLocalSamplingJob: fsc_criterion is a float"
+        assert type(weighting) == bool, "GLocalSamplingJob: weighting is bool"
         assert (type(symmetries) == MultiSymmetries) or (type(symmetries) == type(None))
         self.scoringParameters = ScoringParameters(score=score, ref=ref, weighting=weighting,
                                                    compoundWedge=compoundWedge, mask=mask,
@@ -848,9 +853,9 @@ class GLocalSamplingJob(PyTomClass):
         if rotations == None:
             from pytom.angles.localSampling import LocalSampling
             rotations = LocalSampling(shells=3,increment=3., z1Start=0., z2Start=0., xStart=0.)
-        assert type(rotations) == AngleObject
-        assert type(binning) == int
-        assert type(adaptive_res) == float
+        assert type(rotations) == AngleObject, "GLocalSamplingJob: rotations is AngleObject"
+        assert type(binning) == int, "GLocalSamplingJob: binning is an int"
+        assert type(adaptive_res) == float, "GLocalSamplingJob: adaptive_res is of type float"
         self.samplingParameters = SamplingParameters(rotations=rotations,
                  binning=binning, adaptive_res=adaptive_res, sample_info=sample_info)
         self.gpu=gpuIDs
@@ -988,6 +993,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     import os
     splitLists = splitParticleList(particleList, setParticleNodesRatio=setParticleNodesRatio)
     splitFactor = len(splitLists)
+    assert splitFactor > 0, "splitFactor == 0, issue with parallelization"
 
     avgNameList = []
     preList = []
@@ -1052,7 +1058,9 @@ def splitParticleList(particleList, setParticleNodesRatio=3):
     #make sure each node gets at least setParticleNodesRatio particles.
     if particleNodesRatio < setParticleNodesRatio:
         splitFactor = len(particleList) / int(setParticleNodesRatio)
-    splitLists = particleList.splitNSublists(splitFactor-1)  # somehow ...
+    assert splitFactor > 0, \
+        "splitFactor == 0, too few particles for parallelization - decrease number of processors"
+    splitLists = particleList.splitNSublists(splitFactor-1)  # somehow better to not include master...
     return splitLists
 
 
