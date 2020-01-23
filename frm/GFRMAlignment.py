@@ -1,4 +1,5 @@
 '''
+Gold standard Fast Rotational Matching Alignment
 Created on Sep 3, 2012
 
 @author: yuxiangchen
@@ -10,6 +11,41 @@ import os
 
 class FRMJob(PyTomClass): # i need to rename the class, but for now it works
     def __init__(self, pl=None, ref=None, mask=None, peak_offset=0, sample_info=None, bw_range=None, freq=None, dest='.', max_iter=10, r_score=False, weighting=False, bfactor=None, symmetries=None, adaptive_res=0.1, fsc_criterion=0.5):
+        """
+        initiate FRM job
+        @param pl: particle list
+        @type ps: L{pytom.basic.structures.ParticleList}
+        @param ref: reference density
+        @type ref: L{pytom.basic.structures.Reference}
+        @param mask: mask 
+        @type ref: L{pytom.basic.structures.Mask}
+        @param peak_offset: peak offset in voxel
+        @type peak_offset: C{int}
+        @param sample_info: ?? (Default: None)
+        @type sample_info: ??
+        @param bw_range: bandwidth range in pixel (2-dim vector)
+        @type bw_range: C{list}
+        @param freq: frequency (default: None)
+        @type: C{int}
+        @param dest: distination directory (default: '.')
+        @type: C{str}
+        @param max_iter: maximum number of iterations
+        @type max_iter: C{int}
+        @param r_score: use r_score (??) (default: False)
+        @type r_score: C{bool}
+        @param weighting: weighting (default: False)
+        @type weighting: C{bool}
+        @param bfactor: B-factor (default: None)
+        @type bfactor: C{float}?
+        @param symmetries: symmetry (default: None)
+        @type L{pytom.basic.structures.Symmetries}
+        @param adaptive_res: adaptive resolution - add to resolution for filtering
+        @type adaptive_res: C{float}
+        @param fsc_criterion: FSC criterion (default: 0.5)
+        @type fsc_criterion: C{float}
+        @param constraint: Constraint on orientations (deafult: None)
+        @type constraint: ??
+        """
         self.particleList = pl
         if ref is None:
             self.reference = []
