@@ -137,7 +137,7 @@ class GeneralWedge(Wedge):
 
 class SingleTiltWedge(Wedge):
     """Missing wedge of single tilt geometry. Assume Y axis is the rotation axis."""
-    def __init__(self, start_ang=-90, end_ang=90):
+    def __init__(self, start_ang=30, end_ang=30, smooth=0):
         super(SingleTiltWedge, self).__init__()
         self.start_ang = start_ang
         self.end_ang = end_ang
@@ -146,43 +146,13 @@ class SingleTiltWedge(Wedge):
 
         self._bw = None # store the bandwidth of the spherical function
         self._sf = None # store the spherical function
-    
-    def _create_wedge_volume(self, size):
-        from transform import fftshift, fourier_full2reduced
-        # if no missing wedge
-        if self.start_ang == -90 and self.end_ang == 90:
-            filter_vol = np.ones(size)
-            self._volume = fourier_full2reduced(filter_vol)
-            self._volume_shape = size
-            return
 
-        filter_vol = np.ones(size)
-        x, z = scipy.mgrid[0.:size[0], 0.:size[2]]
-        x -= size[0]/2
-        ind = np.where(x) # find the non-zeros
-        z -= size[2]/2
+        self.smooth=smooth
 
-        angles = np.zeros(z.shape)
-        angles[ind] = np.arctan(z[ind]/x[ind]) * 180 / np.pi
+    def _create_wedge_volume(self, size, cutOffRadius=None):
+        if cutOffRadius is None: cutOffRadius = size[0]//2
 
-        angles = np.reshape(angles, (size[0],1,size[2]))
-        angles =  np.repeat(angles, size[1], axis=1)
-
-        filter_vol[angles > -self.start_ang] = 0
-        filter_vol[angles < -self.end_ang] = 0
-
-        filter_vol[size[0]/2, :, :] = 0
-        filter_vol[size[0]/2, :, size[2]/2] = 1
-
-        # create a sphere and multiple it with the wedge
-        from tools import create_sphere
-        mask = create_sphere(size)
-        filter_vol *= mask
-
-        # shift and cut in half
-        filter_vol = fftshift(filter_vol)
-        self._volume = fourier_full2reduced(filter_vol)
-
+        self._volume = create_wedge(self.start_ang, self.end_ang, cutOffRadius, size[0], size[1], size[2], self.smooth)
         self._volume_shape = size
 
     def apply(self, data, rotation=None):
@@ -200,7 +170,7 @@ class SingleTiltWedge(Wedge):
 
         if rotation is not None: # rotate the wedge first
             assert len(rotation) == 3
-            from transform import rotate3d, fourier_reduced2full, fourier_full2reduced, fftshift, ifftshift
+            from pytom.tompy.transform import rotate3d, fourier_reduced2full, fourier_full2reduced, fftshift, ifftshift
             isodd = self._volume_shape[2] % 2
             filter_vol = fftshift(fourier_reduced2full(self._volume, isodd))
             filter_vol = rotate3d(filter_vol, rotation[0], rotation[1], rotation[2], order=1) # linear interp!
@@ -208,11 +178,10 @@ class SingleTiltWedge(Wedge):
         else:
             filter_vol = self._volume
 
-        from transform import fourier_filter
+        from pytom.tompy.transform import fourier_filter
         res = fourier_filter(data, filter_vol, False)
 
         return res
-
 
     def returnWedgeVolume(self, size, rotation=None):
         """Return the wedge volume in full size and zero in the center
@@ -224,7 +193,7 @@ class SingleTiltWedge(Wedge):
         else:
             self._create_wedge_volume(size)
 
-        from transform import rotate3d, fourier_reduced2full, fftshift
+        from pytom.tompy.transform import rotate3d, fourier_reduced2full, fftshift
         isodd = self._volume_shape[2] % 2
         wedge_vol = fftshift(fourier_reduced2full(self._volume, isodd))
         if rotation is not None: # rotate the wedge first
@@ -232,7 +201,6 @@ class SingleTiltWedge(Wedge):
             wedge_vol = rotate3d(wedge_vol, rotation[0], rotation[1], rotation[2], order=1)
 
         return wedge_vol
-
 
     def toSphericalFunc(self, bw, radius=None, threshold=0.5):
         """Convert the wedge from k-space to a spherical function.
@@ -259,7 +227,7 @@ class SingleTiltWedge(Wedge):
         else:
             self._bw = bw
         
-        from transform import fourier_reduced2full, fftshift
+        from pytom.tompy.transform import fourier_reduced2full, fftshift
         isodd = self._volume_shape[2] % 2
         filter_vol = fftshift(fourier_reduced2full(self._volume, isodd))
 
@@ -289,3 +257,109 @@ class SingleTiltWedge(Wedge):
         return self._sf
 
 
+def create_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth=0):
+    '''This function returns a wedge object. For speed reasons it decides whether to generate a symmetric or assymetric wedge.
+    @param wedgeAngle1: angle of wedge1 in degrees
+    @type wedgeAngle1: int
+    @param wedgeAngle2: angle of wedge2 in degrees
+    @type wedgeAngle2: int
+    @param cutOffRadius: radius from center beyond which the wedge is set to zero.
+    @type cutOffRadius: int
+    @param sizeX: the size of the box in x-direction.
+    @type sizeX: int
+    @param sizeY: the size of the box in y-direction.
+    @type sizeY: int
+    @param sizeZ: the size of the box in z-direction.
+    @type sizeZ: int
+    @param smooth: smoothing parameter that defines the amount of smoothing  at the edge of the wedge.
+    @type smooth: float
+    @return: 3D array determining the wedge object.
+    @rtype: ndarray of np.float64'''
+    print(wedgeAngle1, wedgeAngle2)
+    if wedgeAngle1 == wedgeAngle2:
+        return create_symmetric_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth)
+    else:
+        return create_asymmetric_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth)
+
+def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, smooth):
+    '''This function returns a symmetric wedge object.
+    @param angle1: angle of wedge1 in degrees
+    @type angle1: int
+    @param angle2: angle of wedge2 in degrees
+    @type angle2: int
+    @param cutOffRadius: radius from center beyond which the wedge is set to zero.
+    @type cutOffRadius: int
+    @param sizeX: the size of the box in x-direction.
+    @type sizeX: int
+    @param sizeY: the size of the box in y-direction.
+    @type sizeY: int
+    @param sizeZ: the size of the box in z-direction.
+    @type sizeZ: int
+    @param smooth: smoothing parameter that defines the amount of smoothing  at the edge of the wedge.
+    @type smooth: float
+    @return: 3D array determining the wedge object.
+    @rtype: ndarray of np.float64'''
+
+    range_angle1Smooth = smooth / np.sin(angle1 * np.pi / 180.)
+    range_angle2Smooth = smooth / np.sin(angle2 * np.pi / 180.)
+    wedge = np.zeros((sizeX, sizeY, sizeZ // 2 + 1), dtype=np.float64)
+
+    z, y, x = np.meshgrid(np.abs(np.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2, 1.)),
+                          np.abs(np.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2, 1.)),
+                          np.arange(0, sizeZ // 2 + 1, 1.))
+    r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    with np.errstate(all='ignore'):
+        wedge[np.tan(angle1 * np.pi / 180) < y / x] = 1
+
+    wedge[sizeX // 2, :, 0] = 1
+
+    if smooth:
+        area = np.abs(x - (y / np.tan(angle1 * np.pi / 180))) <= range_angle1Smooth
+        strip = 1 - (np.abs(x - (y / np.tan(angle1 * np.pi / 180.))) * np.sin(angle1 * np.pi / 180.) / smooth)
+        wedge += (strip * area * (1 - wedge))
+
+    wedge[r > cutoffRadius] = 0
+    return np.fft.fftshift(wedge, axes=(0, 1))
+
+def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, smooth):
+    '''This function returns an asymmetric wedge object.
+    @param angle1: angle of wedge1 in degrees
+    @type angle1: int
+    @param angle2: angle of wedge2 in degrees
+    @type angle2: int
+    @param cutOffRadius: radius from center beyond which the wedge is set to zero.
+    @type cutOffRadius: int
+    @param sizeX: the size of the box in x-direction.
+    @type sizeX: int
+    @param sizeY: the size of the box in y-direction.
+    @type sizeY: int
+    @param sizeZ: the size of the box in z-direction.
+    @type sizeZ: int
+    @param smooth: smoothing parameter that defines the amount of smoothing  at the edge of the wedge.
+    @type smooth: float
+    @return: 3D array determining the wedge object.
+    @rtype: ndarray of np.float64'''
+
+    range_angle1Smooth = smooth / np.sin(angle1 * np.pi / 180.)
+    range_angle2Smooth = smooth / np.sin(angle2 * np.pi / 180.)
+    wedge = np.zeros((sizeX, sizeY, sizeZ // 2 + 1))
+
+    z, y, x = np.meshgrid(np.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2),
+                          np.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2), np.arange(0, sizeZ // 2 + 1))
+    r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+
+    wedge[np.tan(angle1 * np.pi / 180) < y / x] = 1
+    wedge[np.tan(-angle2 * np.pi / 180) > y / x] = 1
+    wedge[sizeX // 2, :, 0] = 1
+
+    if smooth:
+        area = np.abs(x - (y / np.tan(angle1 * np.pi / 180))) <= range_angle1Smooth
+        strip = 1 - (np.abs(x - (y / np.tan(angle1 * np.pi / 180.))) * np.sin(angle1 * np.pi / 180.) / smooth)
+        wedge += (strip * area * (1 - wedge) * (y > 0))
+
+        area2 = np.abs(x + (y / np.tan(angle2 * np.pi / 180))) <= range_angle2Smooth
+        strip2 = 1 - (np.abs(x + (y / np.tan(angle2 * np.pi / 180.))) * np.sin(angle2 * np.pi / 180.) / smooth)
+        wedge += (strip2 * area2 * (1 - wedge) * (y <= 0))
+
+    wedge[r > cutoffRadius] = 0
+    return wedge

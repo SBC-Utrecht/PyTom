@@ -116,7 +116,7 @@ def getResolutionBandFromFSC(fsc, criterion=0.143):
     fsc2 = fsc[resband-1]
     return resband - 1. + (fsc2-criterion)/(fsc2-fsc1)
 
-def write_fsc2Ascii(fsc, filename):
+def write_fsc2Ascii(fsc, filename, fsc_rand=None, fsc_corr=None):
     """
     write fsc array to ascii file
     @param fsc: Fourier shell correlation
@@ -125,8 +125,12 @@ def write_fsc2Ascii(fsc, filename):
     @type filename: L{str}
     """
     fh = open( filename, "w")
-    for fscval in fsc:
-        fh.write(str(fscval)+"\n")
+
+    fsc_rand = ['',]*len(fsc) if sc_rand is None else fsc_rand
+    fsc_corr = ['',]*len(fsc) if sc_rand is None else fsc_corr
+
+    for fscval, fscrandval, fsccorrval in zip(fsc, fsc_rand, fsc_corr):
+        fh.write(f'{fscval}\t{fscrandval}\t{fsccorrval}\n')
     fh.close()
 
 def read_fscFromAscii(filename):

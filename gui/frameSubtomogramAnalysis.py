@@ -449,7 +449,6 @@ class SubtomoAnalysis(GuiTabWidget):
         for i in range(len(values)):
             self.updateChoices(i, key)
 
-
     def addParticlePolishFields(self, mode=''):
         title = "Particle Polish (Single)"
         tooltip = ''
@@ -763,8 +762,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'destination'].textChanged.connect(lambda d, m=mode: self.updateJobname(m))
 
         self.updateJobname(mode)
-        glocalpath = os.path.join(self.subtomodir, 'Alignment/GLocal')
-        exefilename = os.path.join(glocalpath, 'GLocal_Alignment.sh')
+
+        exefilename = [mode+'desination', 'GLocal_Alignment.sh']
         paramsSbatch = guiFunctions.createGenericDict(fname='GLocal', folder=self.logfolder, id='GLocalAlignment')
         paramsCmd = [self.subtomodir, self.pytompath, self.pytompath, mode+'particleList', 'referenceCommand',
                      mode+'filenameMask', mode+'numIterations', mode+'pixelSize', mode+'particleDiameter',
@@ -990,7 +989,6 @@ class SubtomoAnalysis(GuiTabWidget):
 
         print(AllItemsGeneral)
         print(indPart)
-
 
     def updateChoices(self, rowID, table_id):
         print(f'Update Choices {rowID}')
