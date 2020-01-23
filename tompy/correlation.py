@@ -17,7 +17,6 @@ def meanUnderMask(volume, mask=None, p=None, gpu=False):
 
     return (volume*mask).sum() / mask.sum()
 
-
 def stdUnderMask(volume, mask, meanValue, p=None, gpu=False):
     """
     stdValueUnderMask: Determines the std value under a mask
@@ -33,7 +32,6 @@ def stdUnderMask(volume, mask, meanValue, p=None, gpu=False):
     @change: support None as mask, FF 08.07.2014
     """
     return (meanUnderMask(volume**2, mask, mask.sum(), gpu=gpu) - meanValue**2)**0.5
-
 
 def meanVolUnderMask(volume, mask, gpu=False, xp=None):
     """
@@ -53,7 +51,6 @@ def meanVolUnderMask(volume, mask, gpu=False, xp=None):
     import numpy as xp
     res = xp.fft.fftshift(xp.fft.irfftn(xp.fft.rfftn(volume) * xp.conj(xp.fft.rfftn(mask)))) / mask.sum()
     return res.real
-
 
 def stdVolUnderMask(volume, mask, meanV, gpu=False):
     """
@@ -78,8 +75,6 @@ def stdVolUnderMask(volume, mask, meanV, gpu=False):
 
     return var**0.5
 
-
-
 def FLCF(volume, template, mask=None, stdV=None, gpu=False, mempool=None, pinned_mempool=None):
     '''Fast local correlation function
 
@@ -99,7 +94,6 @@ def FLCF(volume, template, mask=None, stdV=None, gpu=False, mempool=None, pinned
     temp=None
     mempool.free_all_blocks()
     pinned_mempool.free_all_blocks()
-
 
 def xcc(volume, template, mask=None, volumeIsNormalized=False, gpu=False):
     """
