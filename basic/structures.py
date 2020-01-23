@@ -1001,7 +1001,7 @@ class SingleTiltWedge(PyTomClass):
         from pytom_freqweight import weight
         from pytom.basic.structures import Rotation
         if self._cutoffRadius  == 0.0:
-            cut = wedgeSizeX/2
+            cut = wedgeSizeX//2
         else:
             cut = self._cutoffRadius
         

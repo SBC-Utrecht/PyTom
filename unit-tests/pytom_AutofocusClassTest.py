@@ -2,8 +2,6 @@
 test auto-focused classification
 """
 import unittest
-from pytom.tompy.mpi import MPI
-
 
 class pytom_MyFunctionTest(unittest.TestCase):
 
@@ -44,9 +42,11 @@ class pytom_MyFunctionTest(unittest.TestCase):
         #self.cleanUp()
 
     def cleanUp(self):
+        """
+        check that files are written and remove them
+        """
         from helper_functions import cleanUp_RandomParticleList
 
-        #print('cleaning up AutoFocus files')
         for iclass in range(0, self.settings["ncluster"]):
             tline = 'initial_'+str(iclass)+'.em'
             self.remove_file( filename=tline)
@@ -59,17 +59,26 @@ class pytom_MyFunctionTest(unittest.TestCase):
                 tline=('iter'+str(ii)+'_class'+str(iclass)+'_wedge.em')
                 self.remove_file( filename=tline)
                 for jclass in range(iclass+1, self.settings["ncluster"]):
+                    tline=('iter'+str(ii)+'_dmap_'+str(jclass)+'_'+str(iclass)+'.em')
+                    self.remove_file( filename=tline)
                     tline=('iter'+str(ii)+'_dmap_'+str(iclass)+'_'+str(jclass)+'.em')
                     self.remove_file( filename=tline)
         cleanUp_RandomParticleList( pl_filename=self.pl_filename, pdir=self.pdir)
 
     def remove_file(self, filename):
+        """
+        assert that file exists end remove it
+        """
         from os import remove
-        try:
+        from os import path
+
+        filecheck = path.exists(filename)
+        self.assertTrue( filecheck, msg="file "+filename+" does not exist")
+        if filecheck:
             remove(filename)
-        except:
-            print('file ',filename,' already gone')
-                        
+        #else:
+        #    print('file ',filename,' already gone')
+
     def test_MissingParameters(self):
         """
         call AC without required parameters - check that error is raised
@@ -112,6 +121,4 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
         
 if __name__ == '__main__':
-    #mpi = MPI()
-    #mpi.begin()
     unittest.main()

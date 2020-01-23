@@ -769,8 +769,8 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     preprocessing.setTaper( taper=particle.sizeX()/10.)
     particle = preprocessing.apply(volume=particle, bypassFlag=True)  # filter particle to some resolution
     particleCopy.copyVolume(particle)
-    
-    if mask:
+    # compute standard veviation volume really only if needed
+    if mask and (scoreObject._type=='FLCFScore'):
         from pytom_volume import sum
         from pytom.basic.correlation import meanUnderMask, stdUnderMask
         p = sum(m)
@@ -786,7 +786,8 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
             if binning != 1:
                 m = resize(volume=m, factor=1./binning, interpolation='Spline')
             #update stdV if mask is not a sphere
-            if not mask.isSphere():
+            # compute standard deviation volume really only if needed
+            if not mask.isSphere() and (scoreObject._type=='FLCFScore'):
                 meanV   = meanUnderMask(particle, m, p)
                 stdV    = stdUnderMask(particle, m, p, meanV)
         else:
@@ -820,7 +821,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         shiftZ = (peakPosition[2] - centerZ) * binning
 
         #NANs would fail this test.
-        assert peakValue == peakValue
+        assert peakValue == peakValue, "peakValue seems to be NaN"
         
         newPeak = Peak(peakValue, Rotation(currentRotation), Shift(shiftX, shiftY, shiftZ))
         
@@ -846,9 +847,10 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         simulatedVol = _rotateWedgeReference(referenceUnbinned, bestPeak.getRotation(), wedgeInfo, m,
                                              [centerX, centerY, centerZ])
         simulatedVol = preprocessing.apply(volume=simulatedVol, bypassFlag=True)
-        p = sum(m)
-        meanV = meanUnderMask(volume=particleUnbinned, mask=m, p=p)
-        stdV  = stdUnderMask(volume=particleUnbinned, mask=m, p=p, meanV=meanV)
+        if mask and scoreObject._type=='FLCFScore':
+            p = sum(m)
+            meanV = meanUnderMask(volume=particleUnbinned, mask=m, p=p)
+            stdV  = stdUnderMask(volume=particleUnbinned, mask=m, p=p, meanV=meanV)
         scoreObject._peakPrior.reset_weight()
         scoringResult = scoreObject.score(particle=particleUnbinned, reference=simulatedVol, mask=m, stdV=stdV)
         pk = peak(scoringResult)
@@ -981,8 +983,8 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
     from pytom.basic.filter import filter,rotateWeighting
     from pytom.angles.angleList import OneAngleList
     
-    assert particle.__class__ == vol
-    assert reference.__class__ == vol
+    assert particle.__class__ == vol, "particle not of type vol"
+    assert reference.__class__ == vol, "reference not of type vol"
     assert referenceWeighting.__class__ == vol or referenceWeighting.__class__ == str
     assert rotations.__class__ == OneAngleList or len(rotations) == 1
     
@@ -1039,7 +1041,7 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
         scoringResult = scoringResult[0]
     
     
-    assert scoringResult == scoringResult
+    assert scoringResult == scoringResult, "scoringResult possibly NaN"
     
     return scoringResult 
 

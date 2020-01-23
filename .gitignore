@@ -37,3 +37,4 @@ pytomc/sh_alignment/SpharmonicKit27/test_flt_hybrid
 pytomc/sh_alignment/SpharmonicKit27/test_naive
 pytomc/sh_alignment/SpharmonicKit27/test_semi
 pytomc/sh_alignment/SpharmonicKit27/test_stability_naive
+doc/epydoc/
