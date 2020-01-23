@@ -1,0 +1,45 @@
+#! /usr/bin/env pytom
+if __name__=='__main__':
+    import sys
+    import numpy as np
+
+    filename = sys.argv[1]
+    f = open(filename, 'rb')
+    try:
+            header_data = []
+
+            header_data += list(np.fromfile(f, np.dtype('int32'), 10))
+            header_data += list(np.fromfile(f, np.dtype('float32'), 3))
+            header_data += list(np.fromfile(f, np.dtype('int32'), 6))
+            header_data += list(np.fromfile(f, np.dtype('float32'), 3))
+            header_data += list(np.fromfile(f, np.dtype('int32'), 2))
+            header_data += list(np.fromfile(f, np.dtype('float32'), 25))
+            header_data += list(np.fromfile(f, np.dtype('int32'), 5))
+            header_data += list(np.fromfile(f, np.dtype('float32'), 1))
+            header_data += list(np.fromfile(f, np.dtype('int32'), 201))
+
+    finally:
+        f.close()
+
+    if filename.endswith('.em'):
+        sx,sy,sz = header_data[1:4]
+    else:
+        sx,sy,sz = header_data[:3]
+
+    cx,cy,cz = np.array(header_data[10:13])/np.array((sx,sy,sz), np.float32)
+    dmin, dmax, dmean = header_data[19:22]
+    tiltangle, current = header_data[43], header_data[46]
+    inplane, mag = header_data[44:46]
+    rms = header_data[54]
+    out = '''
+ Number of columns, rows, sections .....   {:6d} {:10d} {:10d}
+ Pixel spacing (Angstroms)..............   {:10.4f} {:10.4f} {:10.4f}    
+ Minimum density .......................   {:10.4f}    
+ Maximum density .......................   {:10.4f}    
+ Mean density ..........................   {:10.4f}    
+ RMS density ...........................   {:10.4f}    
+ Tilt Angle (original,current) .........   {:10.4f} {:10.4f}
+ InPlaneRotation .......................   {:10.4f}    
+ Magnification .........................   {:10.4f}
+'''
+    print(out.format(sx,sy,sz,cx,cy,cz,dmin,dmax,dmean,rms,tiltangle,current,inplane,mag))
