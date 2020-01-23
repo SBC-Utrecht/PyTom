@@ -1,6 +1,5 @@
 #!/usr/bin/env pytom
 
-
 d = '''#!/usr/bin/bash
 #SBATCH --time        3:00:00
 #SBATCH -N 1
@@ -52,15 +51,19 @@ if __name__=='__main__':
 
     n = 0
 
+
+    outcommands = []
+
+
     for folder in todo:
-        print(folder)
+
         a = [[os.path.join(folder, '03_Tomographic_Reconstruction', f, 'ctf/'),f] for f in os.listdir(os.path.join(folder, '03_Tomographic_Reconstruction')) if f.startswith('tomogram') and os.path.exists(os.path.join(folder, '03_Tomographic_Reconstruction', f, 'ctf/resultsCTFPlotter.defocus'))]
 
         for n, (ff, tom) in enumerate(a):
-            print(ff)
+
             cmd = d.format(n%20, folder, tom, ff, tom, tom)
-            outname = os.path.join(ff, 'ctfCorrImod.sh')
-            out = open(outname, 'w')
-            out.write(cmd)
-            out.close()
-            os.system(f'sbatch {outname}')
+            fname = os.path.join(ff, 'ctfCorrected.st')
+            outfolder = os.path.join(ff, 'sorted_ctf')
+            origdir = os.path.join(os.path.dirname(os.path.dirname(ff)), 'sorted')
+            os.system(f'mpiexec -n 10 mrcs2mrc.py -f {fname} -t {outfolder} -p sorted_ctf -o {origdir}')
+

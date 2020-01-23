@@ -292,7 +292,7 @@ def fourier_reduced2full(data, isodd=False):
     ind = [np.mod(sx-x, sx), np.mod(sy-y, sy), szz-z]
 
     # do the complex conjugate of the second part
-    res[:, :, data.shape[2]:] = np.ma.conjugate(data[ind])
+    res[:, :, data.shape[2]:] = np.ma.conjugate(data[tuple(ind)])
 
     return res
 

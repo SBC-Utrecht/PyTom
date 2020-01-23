@@ -101,9 +101,12 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             averageAllVolume.write(alignmentJob.destination+"/"+str(ii)+'-All.em')
             t1 = time()
             print(">>>>>>>>> even and odd averages aligned ... took %3.2f seconds" % (t1-t2))
-            write_fsc2Ascii(fsc=fsc, filename=alignmentJob.destination+"/"+str(ii)+'-FSC.dat')
-            # default name of Filter files
-            write_fsc2Ascii(fsc=fil, filename=alignmentJob.destination+"/"+str(ii)+'-Filter.dat')
+            try:
+                write_fsc2Ascii(fsc=fsc, filename=alignmentJob.destination+"/"+str(ii)+'-FSC.dat')
+                # default name of Filter files
+                write_fsc2Ascii(fsc=fil, filename=alignmentJob.destination+"/"+str(ii)+'-Filter.dat')
+            except:
+                pass
             resolutionBand = getResolutionBandFromFSC(fsc, criterion=alignmentJob.scoringParameters.fsc_criterion)
             resolutionAngstrom = bandToAngstrom( band=resolutionBand,
                             pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),
@@ -244,7 +247,8 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             #resolution hokus pokus -> estimate fsc for all particles
             for (ii, fscel) in enumerate(fsc):
                 fsc[ii] = 2.*fscel/(1.+fscel)
-            write_fsc2Ascii(fsc=fsc, filename=alignmentJob.destination+"/FSC-Final.dat")
+            try:write_fsc2Ascii(fsc=fsc, filename=alignmentJob.destination+"/FSC-Final.dat")
+            except: pass
             resolutionBand = getResolutionBandFromFSC(fsc, criterion=0.143)
             resolutionAngstrom = bandToAngstrom(band=resolutionBand,
                                                 pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),

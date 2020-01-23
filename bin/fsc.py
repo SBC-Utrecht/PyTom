@@ -93,6 +93,8 @@ if __name__ == '__main__':
         import numpy as np
         from pytom.tompy.io import write
         if randomize is None:
+            for (ii, fscel) in enumerate(f):
+                f[ii] = 2.*fscel/(1.+fscel)
             r = determineResolution(f, fscCriterion, verbose)
         else:
             randomizationFrequency    = np.floor(determineResolution(np.array(f), randomize, verbose)[1])
@@ -108,6 +110,9 @@ if __name__ == '__main__':
             fsc_corr = list(correlation.calc_FSC_true(np.array(f),np.array(fsc_rand)))
             if verbose:
                 print('FSC_true:\n', fsc_corr)
+
+            for (ii, fscel) in enumerate(fsc_corr):
+                fsc_corr[ii] = 2.*fscel/(1.+fscel)
             r = determineResolution(fsc_corr,fscCriterion, verbose)
             #os.system('rm randOdd.em randEven.em')
 
@@ -156,14 +161,26 @@ if __name__ == '__main__':
 
     if plot and v1Filename and v2Filename:
         import matplotlib
+        import numpy
         matplotlib.use('Qt5Agg')
         from pylab import subplots, savefig, show
 
-        fig, ax = subplots(1, 1, figsize=(7, 7))
+
+        fig,ax = subplots(1,1,figsize=(10,5))
         ax.plot(f, label='FSC orig')
         if randomize:
             ax.plot(fsc_rand, label='FSC rand')
             ax.plot(fsc_corr, label='FSC corrected')
+        ax.set_xticks([0,20,40,60,80,100])
+        ax.set_xticklabels([200*pixelSize, 200*pixelSize/20, 200*pixelSize/40, numpy.around(200*pixelSize/60,2), 200*pixelSize/80, 200*pixelSize/100])
+
+        ax.hlines(0.17,0,100,label='cutoff = 0.17')
+
+        #fig, ax = subplots(1, 1, figsize=(7, 7))
+        #ax.plot(f, label='FSC orig')
+        #if randomize:
+        #    ax.plot(fsc_rand, label='FSC rand')
+        #    ax.plot(fsc_corr, label='FSC corrected')
         ax.legend()
         savefig('FSCOrig_FSCRand_FSCTrue.png')
         show()

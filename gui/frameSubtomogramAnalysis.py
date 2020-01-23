@@ -369,7 +369,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         values = []
         refmarkindices = []
-        print(particleFiles)
+
         for n, particleFile in enumerate(particleFiles):
             if not particleFile: continue
             base, ext = os.path.splitext(
@@ -439,7 +439,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
             for row in range(len(values)):
                 w = self.tab12_widgets['widget_{}_2'.format(row)]
-                w.currentIndexChanged.connect(lambda d, r=row, v=values: self.updateChoices(r, v))
+                w.currentIndexChanged.connect(lambda d, r=row, k=key: self.updateChoices(r, k))
 
             self.particleFilesBatchExtract = particleFiles
             self.pbs[key].clicked.connect(lambda dummy, pid=key, v=values: self.massExtractParticles(pid, v))
@@ -447,7 +447,7 @@ class SubtomoAnalysis(GuiTabWidget):
             return
 
         for i in range(len(values)):
-            self.updateChoices(i, values)
+            self.updateChoices(i, key)
 
     def addParticlePolishFields(self, mode=''):
         title = "Particle Polish (Single)"
@@ -762,8 +762,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'destination'].textChanged.connect(lambda d, m=mode: self.updateJobname(m))
 
         self.updateJobname(mode)
-        glocalpath = os.path.join(self.subtomodir, 'Alignment/GLocal')
-        exefilename = os.path.join(glocalpath, 'GLocal_Alignment.sh')
+
+        exefilename = [mode+'desination', 'GLocal_Alignment.sh']
         paramsSbatch = guiFunctions.createGenericDict(fname='GLocal', folder=self.logfolder, id='GLocalAlignment')
         paramsCmd = [self.subtomodir, self.pytompath, self.pytompath, mode+'particleList', 'referenceCommand',
                      mode+'filenameMask', mode+'numIterations', mode+'pixelSize', mode+'particleDiameter',
@@ -892,6 +892,8 @@ class SubtomoAnalysis(GuiTabWidget):
                                   tooltip='Number of classes used for kmeans classification.')
         self.insert_label_spinbox(parent, mode + 'maxIterations', 'Number Of Iterations',stepsize=1,value=10, minimum=1,
                                   tooltip='Sets the maximal number of iterations of alignmment.')
+        self.insert_label_spinbox(parent, mode + 'binningFactor', 'Binning Factor',stepsize=1,value=1, minimum=1,
+                                  tooltip='Sets the binning factor of the input data.')
         self.insert_label_spinbox(parent, mode + 'bwMax', 'Max Bandwidth Reconstruction (px)',
                                   minimum=1, maximum=1024, stepsize=1, value=20,
                                   tooltip='The maximal frequency used for reconstruction.')
@@ -902,7 +904,7 @@ class SubtomoAnalysis(GuiTabWidget):
                                   tooltip='Noise percentage (between 0 and 1). If you estimate your dataset contains certain amount of noise outliers, specify it here.')
         self.insert_label_spinbox(parent, mode + 'partDensThresh', 'Particle Density Threshold',
                                   wtype=QDoubleSpinBox, value=0., minimum=-6.0, maximum=6.0, stepsize=.1,
-                                  tooltip='Particle density threshold for calculating the difference map (optional, by default 0). Two other most common choise are -2 and 2. -2 means all the values of the subtomogram below the -2 sigma will be used for calculating the difference mask (negative values count). 2 means all the values of the subtomogram above the 2 sigma will be used for calculating the difference mask (positive values count). Finally, 0 means all the values are used for the calculation.')
+                                  tooltip='Particle density threshold for calculating the difference map (optional, by default 0). Two other most common choise are -2 and 2. -2 means all the values of the subtomogram below the -2 sigma will be used for calculating the difference mask (negative values count). 2 means all the values of the subtomogram above the 2 sigma will be used for calculating t he difference mask (positive values count). Finally, 0 means all the values are used for the calculation.')
         self.insert_label_spinbox(parent, mode + 'stdDiffMap', 'STD Threshold Diff Map', rstep=1, cstep=0,
                                   wtype=QDoubleSpinBox, stepsize=.1, minimum=0, maximum=1, value=0.4,
                                   tooltip='STD threshold for the difference map (optional, by default 0.4). This value should be between 0 and 1. 1 means only the place with the peak value will be set to 1 in the difference map (too much discriminative ability). 0 means all the places with the value above the average of STD will be set to 1 (not enough discriminative ability).')
@@ -927,7 +929,7 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'flagAlignmentMask',
                      mode + 'flagClassificationMask', mode + 'numClasses', mode + 'bwMax', mode + 'maxIterations',
                      mode + 'peakOffset', mode + 'noisePercentage', mode + 'partDensThresh', mode + 'stdDiffMap',
-                     mode + 'outFolder', mode + 'numberMpiCores', templateAC]
+                     mode + 'outFolder', mode + 'numberMpiCores', mode + 'binningFactor', templateAC]
 
 
         # Generation of textboxes and pushbuttons related to submission
@@ -975,8 +977,21 @@ class SubtomoAnalysis(GuiTabWidget):
         except:
             pass
 
-    def updateChoices(self, rowID, values):
+    def updateHeaderChoices(self, rowID, key):
+        print('Update Header', rowID, key)
+        header, row = self.tables[key].general_widgets[3], self.tab12_widgets['widget_{}_3'.format(rowID)]
+        AllItemsGeneral = [header.itemText(i) for i in range(header.count())]
+        indPart = [row.itemText(i) for i in range(row.count())]
+        header.clear()
 
+        header.addItems([item for item in indPart if not item in AllItemsGeneral and 'CLOSEST' in item])
+        header.addItems(AllItemsGeneral)
+
+        print(AllItemsGeneral)
+        print(indPart)
+
+    def updateChoices(self, rowID, table_id):
+        print(f'Update Choices {rowID}')
         values = self.valuesBatchSubtomoReconstruction
         self.tab12_widgets['widget_{}_3'.format(rowID)].clear()
 
@@ -1027,6 +1042,8 @@ class SubtomoAnalysis(GuiTabWidget):
 
         for item in choices:
             self.tab12_widgets['widget_{}_3'.format(rowID)].addItem(os.path.basename(item))
+
+        self.updateHeaderChoices(rowID, table_id)
 
     def updateChoicesPP(self, rowID, values):
         values = self.valuesBatchParticlePolishing
