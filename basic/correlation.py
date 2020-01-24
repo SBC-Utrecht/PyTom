@@ -30,7 +30,7 @@ def xcc(volume,template,mask=None, volumeIsNormalized=False):
     
     return cc 
     
-def nxcc(volume,template,mask=None, volumeIsNormalized=False):
+def nxcc(volume, template, mask=None, volumeIsNormalized=False):
     """
     nxcc: Calculates the normalized cross correlation coefficient in real space
     @param volume: A volume
@@ -64,19 +64,18 @@ def nxcc(volume,template,mask=None, volumeIsNormalized=False):
         from pytom_numpy import vol2npy
         from pytom.basic.normalise import normaliseUnderMask
         if not volumeIsNormalized:
-            (v,p) = normaliseUnderMask(volume,mask)
-            (t,p) = normaliseUnderMask(template,mask,p)
-            t = t*mask # multiply with the mask
-            result = v*t
+            (v,p) = normaliseUnderMask(volume, mask)
+            (t,p) = normaliseUnderMask(template, mask, p)
+            t = t * mask # multiply with the mask
+            result = v * t
         else:
             (t,p) = normaliseUnderMask(template,mask)
-            t = t*mask # multiply with the mask
-            result = volume*t
+            t = t * mask # multiply with the mask
+            result = volume * t
     
     ncc = sum(result)
-    
     ncc = ncc / float(p)
-    
+
     return ncc 
 
     
@@ -89,7 +88,8 @@ def xcf(volume, template, mask=None, stdV=None):
     @type volume: L{pytom_volume.vol}
     @param template : The template searched (this one will be used for conjugate complex multiplication)
     @type template: L{pytom_volume.vol}
-    @param mask: Will be unused, only for compatibility reasons with FLCF 
+    @param mask: changed: will be used if specified
+    @type mask: L{pytom_volume.vol}
     @param stdV: Will be unused, only for compatibility reasons with FLCF 
     @return: XCF volume
     @rtype: L{pytom_volume.vol}
@@ -98,9 +98,9 @@ def xcf(volume, template, mask=None, stdV=None):
     import pytom_volume
     from pytom.basic import fourier
 
-    #if mask:
-    #    volume = volume * mask
-    #	 template = template * mask
+    if mask != None:
+        volume = volume * mask
+        template = template * mask
 
     #determine fourier transforms of volumes
     if volume.__class__ == pytom_volume.vol:
@@ -125,7 +125,12 @@ def xcf(volume, template, mask=None, stdV=None):
     fourier.iftshift(result)
 
     n = result.numelem()
-    result.shiftscale(0,1/float(n*n))
+    if mask:
+        n1 = pytom_volume.sum(mask)
+        # real -> FFT requires n1, FFT -> real n
+        result.shiftscale(0,1/float(n1*n))
+    else:
+        result.shiftscale(0,1/float(n*n))
     
     return result
 
@@ -147,12 +152,13 @@ def nXcf(volume,template,mask=None, stdV=None):
     """
     from pytom.basic.normalise import mean0std1
 
-    if mask:
-        from pytom.basic.normalise import normaliseUnderMask
-        result = xcf(normaliseUnderMask(volume=volume, mask=mask, p=None)[0],normaliseUnderMask(volume=template, mask=mask, p=None)[0])
+    if mask == None:
+        result = xcf(mean0std1(volume,True),mean0std1(template,True), mask=None, stdV=None)
     else:
-        result = xcf(mean0std1(volume,True),mean0std1(template,True))
-
+        from pytom.basic.normalise import normaliseUnderMask
+        result = xcf(normaliseUnderMask(volume=volume, mask=mask, p=None)[0],
+                     normaliseUnderMask(volume=template, mask=mask, p=None)[0],
+                     mask=mask, stdV=None)
     #n = result.numelem()
     #result.shiftscale(0,1/float(n*n))
 
@@ -202,7 +208,7 @@ def stdValueUnderMask(volume, mask, meanValue, p=None):
     @change: support None as mask, FF 08.07.2014
     """
     from pytom_volume import sum
-    from pytom_volume import vol, power
+    from pytom_volume import vol, power, variance
     
     assert volume.__class__ == vol
     if mask:
@@ -218,14 +224,13 @@ def stdValueUnderMask(volume, mask, meanValue, p=None):
     
     res = meanValueUnderMask(squareV, mask, p)
 
-    res -= squareM
+    res = res - squareM
     try:
         res = res**0.5
     except ValueError:
         print("Res = %.6f < 0 => standard deviation determination fails :(")
         print("   something went terribly wrong and program has to stop")
         raise ValueError('Program stopped in stdValueUnderMask')
-    
     return res
 
 def meanUnderMask(volume, mask, p):

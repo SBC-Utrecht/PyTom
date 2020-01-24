@@ -114,20 +114,38 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
 
 
 def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binning, iteration, sigma, threshold, outdir='./'):
-    from pytom_volume import read
+    from pytom_volume import read, vol, pasteCenter
     from pytom.basic.structures import Particle
     import os
+    from pytom.basic.transformations import resize
 
     v1 = r1.getVolume()
     v2 = r2.getVolume()
     if mask:
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        maskBin = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        if v1.sizeX() != maskBin.sizeX() or v1.sizeY() != maskBin.sizeY() or v1.sizeZ() != maskBin.sizeZ():
+            mask = vol(v1.sizeX(), v1.sizeY(), v1.sizeZ())
+            mask.setAll(0)
+            pasteCenter(maskBin, mask)
+        else:
+            mask = maskBin
     else:
         mask = None
+
     if focus_mask:
-        focus_mask = read(focus_mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        focusBin = read(focus_mask, 0,0,0,0,0,0,0,0,0,binning,binning,binning)
+        if v1.sizeX() != focusBin.sizeX() or v1.sizeY() != focusBin.sizeY() or v1.sizeZ() != focusBin.sizeZ():
+            focus_mask = vol(v1.sizeX(), v1.sizeY(), v1.sizeZ())
+            focus_mask.setAll(0)
+            pasteCenter(focusBin, focus_mask)
+        else:
+            focus_mask = focusBin
     else:
         focus_mask = None
+
+    if not focus_mask is None and not mask is None:
+        if mask.sizeX() != focus_mask.sizeX():
+            raise Exception('Focussed mask and alignment mask do not have the same dimensions. This cannot be correct.')
 
     (dmap1, dmap2) = calculate_difference_map(v1, band1, v2, band2, mask, focus_mask, True, sigma, threshold)
     fname1 = os.path.join(outdir, 'iter'+str(iteration)+'_dmap_'+str(r1.getClass())+'_'+str(r2.getClass())+'.em')
@@ -157,12 +175,13 @@ def focus_score(p, ref, freq, diff_mask, binning):
 
 
 def paverage(particleList, norm, binning, verbose, outdir='./'):
-    from pytom_volume import read,vol
+    from pytom_volume import read, vol
     from pytom_volume import transformSpline as transform
     from pytom.basic.structures import Particle
     from pytom.basic.normalise import mean0std1
     from pytom.tools.ProgressBar import FixedProgBar
-    
+    from pytom.basic.transformations import resize
+
     if len(particleList) == 0:
         raise RuntimeError('The particlelist provided is empty. Aborting!')
     
@@ -176,13 +195,13 @@ def paverage(particleList, norm, binning, verbose, outdir='./'):
     newParticle = None
     
     for particleObject in particleList:
-        #print(particleObject.getFilename())
-        particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, 1,1,1)
+        if binning != 1:
+            particle, particlef = resize(volume=particle, factor=1. / binning, interpolation='Fourier')
         if norm:
             mean0std1(particle)
 
         wedgeInfo = particleObject.getWedge()
-        
         if result is None: # initialization
             sizeX = particle.sizeX()
             sizeY = particle.sizeY()
@@ -196,11 +215,9 @@ def paverage(particleList, norm, binning, verbose, outdir='./'):
             
             result = vol(sizeX,sizeY,sizeZ)
             result.setAll(0.0)
-            
             wedgeSum = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
             wedgeSum.setAll(0)
         
-
         # create spectral wedge weighting
         rotation = particleObject.getRotation()
         wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False, rotation.invert())
@@ -235,8 +252,17 @@ def paverage(particleList, norm, binning, verbose, outdir='./'):
 
 
 def calculate_averages(pl, binning, mask, outdir='./'):
+    """
+    calcuate averages for particle lists
+    @param pl: particle list
+    @type pl: L{pytom.basic.structures.ParticleList}
+    @param binning: binning factor
+    @type binning: C{int}
+
+    last change: Jan 18 2020: error message for too few processes, FF
+    """
     import os
-    from pytom_volume import complexDiv
+    from pytom_volume import complexDiv, vol, pasteCenter
     from pytom.basic.fourier import fft,ifft
     from pytom.basic.correlation import FSC, determineResolution
     from pytom_fftplan import fftShift
@@ -246,11 +272,6 @@ def calculate_averages(pl, binning, mask, outdir='./'):
     res = {}
     freqs = {}
     wedgeSum = {}
-    if mask:
-        from pytom_volume import read
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
-    else:
-        mask = None
 
     for pp in pls:
         # ignore the -1 class, which is used for storing the trash class
@@ -263,6 +284,7 @@ def calculate_averages(pl, binning, mask, outdir='./'):
                 spp = [None] * 2
                 spp[0] = pp[:len(pp)//2]
                 spp[1] = pp[len(pp)//2:]
+            
             args = list(zip(spp, [True]*len(spp), [binning]*len(spp), [False]*len(spp), [outdir]*len(spp)))
             avgs = mpi.parfor(paverage, args)
 
@@ -291,7 +313,23 @@ def calculate_averages(pl, binning, mask, outdir='./'):
                 os.remove(w.getFilename())
 
             # determine the resolution
-            fsc = FSC(even_a, odd_a, even_a.sizeX()//2, mask)
+            # raise error message in case even_a == None - only one processor used
+            if even_a == None:
+                from pytom.basic.exceptions import ParameterError
+                raise ParameterError('cannot split odd / even. Likely you used only one processor - use: mpirun -np 2 (or higher!)?!')
+
+            if mask and mask.__class__ == str:
+                from pytom_volume import read, pasteCenter, vol
+
+                maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
+                if even_a.sizeX() != maskBin.sizeX() or even_a.sizeY() != maskBin.sizeY() or even_a.sizeZ() != maskBin.sizeZ():
+                    mask = vol(even_a.sizeX(), even_a.sizeY(), even_a.sizeZ())
+                    mask.setAll(0)
+                    pasteCenter(maskBin, mask)
+                else:
+                    mask = maskBin
+
+            fsc = FSC(even_a, odd_a, int(even_a.sizeX()//2), mask)
             band = determineResolution(fsc, 0.5)[1]
 
             aa = even_a + odd_a
@@ -312,15 +350,24 @@ def calculate_averages(pl, binning, mask, outdir='./'):
 
 
 def frm_proxy(p, ref, freq, offset, binning, mask):
-    from pytom_volume import read
+    from pytom_volume import read, pasteCenter, vol
+    from pytom.basic.transformations import resize
     from pytom.basic.structures import Shift, Rotation
     from sh_alignment.frm import frm_align
     v = p.getVolume(binning)
     if mask:
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
+        if v.sizeX() != maskBin.sizeX() or v.sizeY() != maskBin.sizeY() or v.sizeZ() != maskBin.sizeZ():
+            mask = vol(v.sizeX(), v.sizeY(), v.sizeZ())
+            mask.setAll(0)
+            pasteCenter(maskBin, mask)
+        else:
+            mask = maskBin
+
     pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
 
-    return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), Rotation(angle), score, p.getFilename())
+    return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), 
+            Rotation(angle), score, p.getFilename())
 
 
 def score_noalign_proxy(p, ref, freq, offset, binning, mask):
@@ -364,6 +411,18 @@ def calculate_prob(s, scores):
 
 
 def voting(p, i, scores, references, frequencies, dmaps, binning, noise):
+    """
+    voting step of classification
+    @param p: particle
+    @param i: ??
+    @param scores: scores
+    @param references: references
+    @param frequencies:
+    @param dmaps:
+    @param binning:
+    @param noise:
+    @return: new_label
+    """
     from collections import defaultdict
 
     if i in noise:
@@ -484,6 +543,14 @@ def cmp(a,b):
     return (a>b) - (a<b)
 
 def split_topn_classes(pls, n):
+    """
+    sort the particle list by the length
+    @param pls: particle list
+    @type pls: L{pytom.basic.structures.ParticleList}
+    @param n: number of top-n classes
+    @type n: C{int}
+    @return: new_pl
+    """
     # sort the particle list by the length
     assert len(pls) >= n
 
@@ -548,9 +615,9 @@ def compare_pl(old_pl, new_pl):
 
 def distance(p, ref, freq, mask, binning):
     from pytom.basic.correlation import nxcc
-    from pytom_volume import vol, initSphere, read
+    from pytom_volume import vol, initSphere, read, pasteCenter
     from pytom.basic.filter import lowpassFilter
-
+    from pytom.basic.transformations import resize
     v = p.getTransformedVolume(binning)
     w = p.getWedge()
     r = ref.getVolume()
@@ -561,7 +628,14 @@ def distance(p, ref, freq, mask, binning):
         mask = vol(r)
         initSphere(mask, r.sizeX()//2-3, 3, 0, r.sizeX()//2, r.sizeY()//2, r.sizeZ()//2)
     else:
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
+        if a.sizeX() != maskBin.sizeX() or a.sizeY() != maskBin.sizeY() or a.sizeZ() != maskBin.sizeZ():
+            mask = vol(a.sizeX(), a.sizeY(), a.sizeZ())
+            mask.setAll(0)
+            pasteCenter(maskBin, mask)
+        else:
+            mask = maskBin
+
 
     s = nxcc(a, b, mask)
     d2 = 2*(1-s)
@@ -607,7 +681,7 @@ def initialize(pl, settings):
             for i in range(len(pl)):
                 if distances[i] > dist[i]:
                     distances[i] = dist[i]
-
+        
         distances = np.asarray(distances)
         distances = distances/np.sum(distances)
         idx = np.random.choice(len(pl), kn, replace=False, p=distances)
@@ -630,6 +704,13 @@ def initialize(pl, settings):
 
 
 def classify(pl, settings):
+    """
+    auto-focused classification
+    @param pl: particle list
+    @type pl: L{pytom.basic.structures.ParticleList}
+    @param settings: settings for autofocus classification
+    @type settings: C{dict}
+    """
     from pytom.basic.structures import Particle, Shift, Rotation
     from pytom.basic.filter import lowpassFilter
     
@@ -802,11 +883,14 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
 
-    assert options.filename
-    assert options.frequency
+    assert options.filename, "Filename is required"
+    assert options.frequency, "Frequency is required"
 
     settings = {}
     settings["ncluster"] = int(options.k) if options.k else None
+    if options.frequency == None:
+        print("Frequency must be specified")
+        raise RuntimeError("Frequency must be specified")
     settings["frequency"] = int(options.frequency)
     settings["fixed_frequency"] = True
     settings["offset"] = int(options.offset) if options.offset else None
@@ -823,8 +907,27 @@ if __name__ == '__main__':
     settings["noalign"] = options.noalign
     settings['output_directory'] = options.output_directory if options.output_directory else './'
     if settings["noise"]:
-        assert settings["noise"] > 0 and settings["noise"] < 1
+        assert (settings["noise"] > 0 and settings["noise"] < 1), "noise must be > 0 and < 1"
 
+    if mpi.is_master():
+        print('----------------------------------------------------')
+        print('-- Input parameters --------------------------------')
+        print('----------------------------------------------------')
+        print("Ncluster   = ",str(settings["ncluster"]))
+        print("frequency  = ",str(settings["frequency"]))
+        print("offset     = ",str(settings["offset"]))
+        print("binning    = ",str(settings["binning"]))
+        print("mask       = ",str(settings["mask"]))
+        print("fmask      = ",str(settings["fmask"]))
+        print("niteration = ",str(settings["niteration"]))
+        print("dispersion = ",str(settings["dispersion"]))
+        print("threshold  = ",str(settings["threshold"]))
+        print("noise      = ",str(settings["noise"]))
+        print("noalign    = ",str(settings["noalign"]))
+        print("outputdir  = ",str(settings["output_directory"]))
+        print("noise      = ",str(settings["noise"]))
+        print('----------------------------------------------------')
+        print()
 
     # start the clustering
     mpi.begin()

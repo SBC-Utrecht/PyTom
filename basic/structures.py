@@ -1,4 +1,6 @@
 '''
+Main structures that are used by PyTom throughout
+
 Created on Mar 23, 2010
 
 @author: hrabe
@@ -999,7 +1001,7 @@ class SingleTiltWedge(PyTomClass):
         from pytom_freqweight import weight
         from pytom.basic.structures import Rotation
         if self._cutoffRadius  == 0.0:
-            cut = wedgeSizeX/2
+            cut = wedgeSizeX//2
         else:
             cut = self._cutoffRadius
         
@@ -1032,7 +1034,7 @@ class SingleTiltWedge(PyTomClass):
             from pytom_volume import vol
             
             if not humanUnderstandable:
-                wedgeVolume = vol(wedgeSizeX,wedgeSizeY,wedgeSizeZ/2+1)
+                wedgeVolume = vol(wedgeSizeX,wedgeSizeY,int(wedgeSizeZ/2)+1)
             else:
                 wedgeVolume = vol(wedgeSizeX,wedgeSizeY,wedgeSizeZ)
                 
@@ -1376,7 +1378,8 @@ be generated. If omitted / 0, filter is fixed to size/2.
         if not volume.__class__ == vol:
             raise TypeError('You must provide a pytom_volume.vol here!')
     
-        wedgeVolume = self.returnWedgeVolume(volume.sizeX(),volume.sizeY(),volume.sizeZ(),humanUnderstandable = False,rotation=rotation)
+        wedgeVolume = self.returnWedgeVolume(volume.sizeX(),volume.sizeY(),volume.sizeZ(),
+                           humanUnderstandable = False,rotation=rotation)
         fvolume     = fft(volume) 
         fresult     = complexRealMult(fvolume, wedgeVolume)
         
@@ -1529,8 +1532,8 @@ class Particle(PyTomClass):
     Particle: Stores information about individual particle. 
     """
     
-    def __init__(self,filename='',rotation=None,shift=None,wedge=None,className = 0,pickPosition=None,score=None,
-                 sourceInfo=None):
+    def __init__(self,filename='',rotation=None,shift=None,wedge=None,className = 0,
+                 pickPosition=None,score=None, sourceInfo=None):
         """
         @param filename: name of particle volume file (.em or .mrc file)
         @type filename: L{str}
@@ -1559,7 +1562,8 @@ class Particle(PyTomClass):
         else:
             raise TypeError('Unknown type for rotation parameter!')
         
-        if not shift:
+        #if not shift:
+        if shift == None:
             self._shift = Shift(0.0,0.0,0.0)
         elif shift.__class__ == list:
             self._shift = Shift(shift[0],shift[1],shift[2])
@@ -1884,6 +1888,8 @@ class Particle(PyTomClass):
     def getTransformedVolume(self, binning=1):
         """
         getTransformedVolume: Returns particle volume with applied inverse rotation and inverse shift
+        @param binning: binning factor
+        @type binning: C{int}
         @rtype: L{pytom_volume.vol}
         """
         from pytom.basic.structures import Shift,Rotation
@@ -1897,7 +1903,9 @@ class Particle(PyTomClass):
             
             volumeTransformed = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
         
-            transformSpline(volume,volumeTransformed,-rotation[1],-rotation[0],-rotation[2],volume.sizeX()/2,volume.sizeY()/2,volume.sizeZ()/2,-shift[0]/binning,-shift[1]/binning,-shift[2]/binning,0,0,0)
+            transformSpline(volume,volumeTransformed,-rotation[1],-rotation[0],-rotation[2],
+                            int(volume.sizeX()/2), int(volume.sizeY()/2), int(volume.sizeZ()/2),
+                            -shift[0]/binning,-shift[1]/binning,-shift[2]/binning,0,0,0)
             return volumeTransformed
         
         else:
@@ -1934,9 +1942,9 @@ class ParticleList(PyTomClass):
         """
         __init__:
         @param directory: Source directory of particle files
-        @type directory: L{str}
+        @type directory: C{str}
         @param pl: A particle list.
-        @type pl: L{list}
+        @type pl: L{pytom.basic.structures.ParticleList}
         """
         if directory and directory.__class__ == str and len(directory)>0:
             if directory[len(directory) -1] == '/': 
@@ -2002,6 +2010,8 @@ class ParticleList(PyTomClass):
     def append(self,particle):
         """
         append: Appends particle to self.particleList
+        @param particle: particle
+        @type particle: L{pytom.basic.structures.Particle}
         """
         from pytom.basic.structures import Particle
         
@@ -2039,6 +2049,7 @@ class ParticleList(PyTomClass):
         """
         toHTMLFile: Overrides parent method and stores ParticleList to HMTL
         @param filename: HTML filename 
+        @type filename: C{str}
         """
         from pytom.tools.files import getPytomPath
 
@@ -2183,16 +2194,19 @@ class ParticleList(PyTomClass):
         """
         fromMOTL: Loads a MOTL.em into this ParticleList
         @param motlFile: Path to MOTL.em
+        @type motlFile: C{str}
         @param sourceDirectory: Directory where all particles are stored
         @param particlePrefix: Prefix of each particle in sourceDirectory (prefix == strings before the index, including _ )
         @param originVolume: Name / Path to volume where particles come from ('' by default)  
         @param particleStartOffset: Offset in particle indexing. Motls generated with MATLAB will most likely start with a 1 as first particle (not with 0 as in C or Python) 
+        @type particleStartOffset: C{int}
         """
         from pytom_volume import read
         from pytom.tools.files import checkFileExists
         
         from pytom.basic.structures import Rotation,Shift,PickPosition,Particle
-        if not score:
+        #if not score:
+        if score == None:
             from pytom.score.score import xcfScore as score
         
         checkFileExists(motlFile)
@@ -3746,7 +3760,6 @@ class Shift(PyTomClass):
         @type otherShift: Shift
         @return: A new Shift object with the current result  
         """
-        print(otherShift.__class__)
         if not otherShift.__class__ == self.__class__ and not otherShift.__class__ in [int, float]:
             raise NotImplementedError("Shift add: Add partner must be another Shift or int,float!")
         
