@@ -40,10 +40,10 @@ def shift(volume,shiftX,shiftY,shiftZ,imethod='fourier',twice=False):
             from pytom_volume import transformCubic as transform
         elif imethod == 'spline':
             from pytom_volume import transformSpline as transform
-            
-        centerX = volume.sizeX()/2
-        centerY = volume.sizeY()/2
-        centerZ = volume.sizeZ()/2
+        # now results should be consistent with python2
+        centerX = int(volume.sizeX()/2)
+        centerY = int(volume.sizeY()/2)
+        centerZ = int(volume.sizeZ()/2)
         
         res = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
         transform(volume,res,0,0,0,centerX,centerY,centerZ,shiftX,shiftY,shiftZ,0,0,0)

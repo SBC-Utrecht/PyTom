@@ -41,9 +41,9 @@ def rotate3d(data, phi=0, psi=0, the=0, center=None, order=2):
     """
     # Figure out the rotation center
     if center is None:
-        cx = data.shape[0] / 2
-        cy = data.shape[1] / 2
-        cz = data.shape[2] / 2
+        cx = data.shape[0] // 2
+        cy = data.shape[1] // 2
+        cz = data.shape[2] // 2
     else:
         assert len(center) == 3
         (cx, cy, cz) = center
@@ -158,7 +158,7 @@ def transform3d(data, m, order=2):
     """
     from scipy import mgrid
     grid = mgrid[0.:data.shape[0], 0.:data.shape[1], 0.:data.shape[2]]
-    temp = grid.reshape((3, grid.size / 3))
+    temp = grid.reshape((3, grid.size // 3))
     temp = np.dot(m, temp)
     grid = np.reshape(temp, grid.shape)
 
@@ -168,7 +168,7 @@ def transform3d(data, m, order=2):
 
 
 def resize(data, x, y, z):
-    """Resize the data.
+    """Resize the data in real space.
 
     @param data: input data.
     @param x: resized dimension x.
@@ -200,8 +200,9 @@ def cut_from_projection(proj, center, size):
     if len(proj.shape) > 2 and proj.shape[2] > 1:
         raise Exception('We assume that projections come from a 3D object, thus your projection cannot be a 3D object itself')
 
-
-    grid = mgrid[center[0]-size[0]/2:center[0]+size[0]-size[0]/2-1:size[0]*1j, center[1]-size[1]/2:center[1]+size[1]-size[1]/2-1:size[1]*1j]
+    # adjusted to python3
+    grid = mgrid[center[0]-size[0]//2:center[0]+size[0]-size[0]//2-1:size[0]*1j, 
+                 center[1]-size[1]//2:center[1]+size[1]-size[1]//2-1:size[1]*1j]
     v = map_coordinates(proj.squeeze(), grid, order=2)
     return v
 

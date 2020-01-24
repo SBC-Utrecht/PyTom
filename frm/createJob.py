@@ -1,4 +1,5 @@
 '''
+create jobs for Fast Rotational Matching (FRM) alignment interactively
 Created on Apr 2, 2013
 
 @author: yuxiangchen
@@ -7,6 +8,9 @@ Created on Apr 2, 2013
 from pytom.tools.files import checkFileExists
 
 def create_job_frm():
+    """
+    create job interactively - xml file will be written
+    """
     # Task 0
     # particle list
     print("1/9. Please enter the particle list(s) to be aligned. Multiple lists should be separated by a space.")

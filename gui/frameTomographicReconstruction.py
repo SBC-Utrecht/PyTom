@@ -505,9 +505,9 @@ class TomographReconstruct(GuiTabWidget):
 
     def tab53UI(self, id=''):
         headers = ["name tomogram", "INFR", 'WBP', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle',
-                   'Bin Factor', '']
-        types = ['txt', 'checkbox', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
-        sizes = [0, 80, 80, 0, 0, 0, 0, 0, 0, 0]
+                   'Bin Factor', 'Weighting Type', '']
+        types = ['txt', 'checkbox', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
+        sizes = [0, 80, 80, 0, 0, 0, 0, 0, 0, 0, 0]
 
         tooltip = ['Names of existing tomogram folders.',
                    'Do INFR Reconstruction.',
@@ -517,7 +517,7 @@ class TomographReconstruct(GuiTabWidget):
                    'Reference Image number.',
                    'Reference Marker number.',
                    'Expected in-plane Rotation Angle',
-                   'Binning factor applied to images.']
+                   'Binning factor applied to images.','Weighting type: -1 ramp weighting, 1 analytical weighting, 0 no weighting']
 
         markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.txt'.format(self.tomogram_folder)))
 
@@ -552,7 +552,7 @@ class TomographReconstruct(GuiTabWidget):
 
             values.append( [markerfile.split('/')[-3], True, True,
                             numpy.floor(tilt_angles.min()), numpy.ceil(tilt_angles[tilt_angles < 200].max()),
-                            index_zero_angle, 1, rot, 8, ''] )
+                            index_zero_angle, 1, rot, 8, -1, ''] )
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_reconstruction(pid, v))
@@ -1084,6 +1084,7 @@ class TomographReconstruct(GuiTabWidget):
             refmarkindex     = widgets['widget_{}_{}'.format(row, 6)].text()
             expectedRotation = int(float(widgets['widget_{}_{}'.format(row,7)].text()))
             binningFactor    = widgets['widget_{}_{}'.format(row, 8)].text()
+            weightingType    = widgets['widget_{}_{}'.format(row, 9)].text()
 
             try:
                 metadata = loadstar(metafile[-1], dtype=guiFunctions.datatype)
@@ -1130,7 +1131,8 @@ class TomographReconstruct(GuiTabWidget):
                         self.updateVoldims(mode)
                         voldims = self.widgets[mode + 'Voldims'].text()
                         paramsCmd = [tomofolder, self.pytompath, firstIndex, lastIndex, refTiltImage, refmarkindex,
-                                     binningFactor, os.path.basename(tomofolder), 'mrc', voldims, '1', expectedRotation]
+                                     binningFactor, os.path.basename(tomofolder), 'mrc', voldims, weightingType, expectedRotation]
+
 
                         commandText= templateWBP.format(d=paramsCmd)
                         paramsSbatch['fname'] = 'Reconstruction_{}_WBP.sh'.format(os.path.basename(tomofolder))

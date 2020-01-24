@@ -198,6 +198,7 @@ def paverage(particleList, norm, binning, verbose, outdir='./'):
         particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, 1,1,1)
         if binning != 1:
             particle, particlef = resize(volume=particle, factor=1. / binning, interpolation='Fourier')
+
         if norm:
             mean0std1(particle)
 
@@ -328,6 +329,7 @@ def calculate_averages(pl, binning, mask, outdir='./'):
                     pasteCenter(maskBin, mask)
                 else:
                     mask = maskBin
+
 
             fsc = FSC(even_a, odd_a, int(even_a.sizeX()//2), mask)
             band = determineResolution(fsc, 0.5)[1]
