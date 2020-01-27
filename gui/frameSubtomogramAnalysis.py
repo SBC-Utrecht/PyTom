@@ -35,6 +35,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.logfolder      = self.parent().logfolder
         self.subtomodir     = self.parent().subtomo_folder
         self.tomoanalysis   = self.parent().tomogram_folder
+        self.fscdir         = os.path.join(self.subtomodir, 'Validation')
         self.polishfolder   = os.path.join(self.subtomodir, 'ParticlePolishing')
         self.frmdir         = os.path.join(self.subtomodir,'Alignment/FRM')
         self.glocaldir      = os.path.join(self.subtomodir, 'GLocal/FRM')
@@ -56,13 +57,14 @@ class SubtomoAnalysis(GuiTabWidget):
         #           2) FUNCTION TO FILL DROP DOWN MENU / FILL THE TABLE
         #           3) HELPER FUNCTIONS TO AUTOFILL OR UPDATE FIELDS BASED ON USER INPUT
 
-        headers = ["Reconstruct Subtomograms", "Particle Polishing", "Align Subtomograms","Classify Subtomograms"]
-        subheaders = [['Single Reconstruction','Batch Reconstruction'],['Single', 'Batch'], ['FRM Alignment','GLocal'],['CPCA','Auto Focus']]
+        headers = ["Reconstruct Subtomograms", "Particle Polishing", "Align Subtomograms", "Classify Subtomograms", "Validation"]
+        subheaders = [['Single Reconstruction','Batch Reconstruction'],['Single', 'Batch'], ['FRM Alignment','GLocal'],['CPCA','Auto Focus'], [] ]
         tabUIs = [[self.SubtomoReconstrSingleUI, self.SubtomoReconstrBatchUI],
                   [self.PolishSingleUI, self.PolishBatchUI],
                   [self.FRMUI,self.GLocalUI],
-                  [self.CPCAUI,self.AC3DUI]]
-        static_tabs = [[True, False], [True, False], [True, True], [True, True]]
+                  [self.CPCAUI,self.AC3DUI],
+                  self.FSCUI]
+        static_tabs = [[True, False], [True, False], [True, True], [True, True], [True, True]]
 
 
 
@@ -105,6 +107,9 @@ class SubtomoAnalysis(GuiTabWidget):
 
 
     # General UI functions
+
+    def dd(self, key):
+        pass
 
     def SubtomoReconstrSingleUI(self, key=''):
         grid = self.table_layouts[key]
@@ -256,6 +261,25 @@ class SubtomoAnalysis(GuiTabWidget):
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
+    def FSCUI(self,key=''):
+        grid = self.table_layouts[key]
+        grid.setAlignment(self, Qt.AlignTop)
+
+        items = []
+
+        t0 = self.stage + 'FSC_'
+
+        items += list(self.create_expandable_group(self.addFSCFields, self.sizePolicyB, 'Fourier Shell Correlation',
+                                                   mode=t0))
+        items[-1].setVisible(False)
+
+        for n, item in enumerate(items):
+            grid.addWidget(item, n, 0, 1, 3)
+
+        label = QLabel()
+        label.setSizePolicy(self.sizePolicyA)
+        grid.addWidget(label, n + 1, 0, Qt.AlignRight)
+
 
     # Functions to fill tabs with input fields or an input table
 
@@ -382,12 +406,11 @@ class SubtomoAnalysis(GuiTabWidget):
                 if t in base: base = base.split(t)[0] + t
 
             tomoindex = base.split('tomogram_')[1].split('_')[0]
-            print(self.polishfolder, )
+
             polishfiles = glob.glob(f'{self.polishfolder}/polishResults*tomogram_{tomoindex}*.txt')
             polishfiles += glob.glob(f'{self.polishfolder}/*/polishResults*tomogram_{tomoindex}*.txt')
             polishfiles += ['']
 
-            print(polishfiles)
 
             if base + '.mrc' in os.listdir(self.tomogramfolder) or base + '.em' in os.listdir(self.tomogramfolder):
                 if os.path.exists(os.path.join(self.tomogramfolder, base + '.mrc')):
@@ -552,7 +575,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         values = []
         refmarkindices = []
-        print(particleFiles)
+
         for n, particleFile in enumerate(particleFiles):
             if not particleFile: continue
 
@@ -566,7 +589,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
             for t in ('WBP', 'INFR'):
                 if t in base: base = base.split(t)[0] + t
-            print(base, self.tomogramfolder)
+
             if base + '.mrc' in os.listdir(self.tomogramfolder) or base + '.em' in os.listdir(self.tomogramfolder):
                 if os.path.exists(os.path.join(self.tomogramfolder, base + '.mrc')):
                     folder = os.popen('ls -alrt {}.mrc'.format(os.path.join(self.tomogramfolder, base))).read()[:-1]
@@ -763,7 +786,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         self.updateJobname(mode)
 
-        exefilename = [mode+'desination', 'GLocal_Alignment.sh']
+        exefilename = [mode+'destination', 'GLocal_Alignment.sh']
         paramsSbatch = guiFunctions.createGenericDict(fname='GLocal', folder=self.logfolder, id='GLocalAlignment')
         paramsCmd = [self.subtomodir, self.pytompath, self.pytompath, mode+'particleList', 'referenceCommand',
                      mode+'filenameMask', mode+'numIterations', mode+'pixelSize', mode+'particleDiameter',
@@ -944,6 +967,94 @@ class SubtomoAnalysis(GuiTabWidget):
         setattr(self, mode + 'gb_AC', groupbox)
         return groupbox
 
+    def addFSCFields(self, mode):
+        title = "Fourier Shell Correlation"
+        tooltip = 'Run fourier shell correlation function.'
+        sizepol = self.sizePolicyB
+        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
+
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+
+
+        # Insert Parameter Widgets
+
+        self.insert_label_line_push(parent, 'Volume 1', mode + 'volume1', mode='file',
+                                    filetype=['em', 'mrc'], enabled=True,
+                                    tooltip='The first volume path. (Optional)')
+        self.insert_label_line_push(parent, 'Volume 2', mode + 'volume2', mode='file',
+                                    filetype=['em', 'mrc'], enabled=True,
+                                    tooltip='The second volume path. (Optional)')
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
+                                    'Select the particle list if v1 and v2 are not available.', mode='file',
+                                    filetype='xml')
+        self.insert_label_line_push(parent, 'Mask', mode + 'mask',
+                                    'Mask (optional, but recomended).', mode='file',
+                                    filetype=['em', 'mrc'],cstep=1,rstep=0)
+        self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_fsc_mask,
+                               params=[mode + 'mask'])
+        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
+                                    tooltip='Select/Create an output folder.')
+        self.insert_label_spinbox(parent, mode + 'fsc', 'FSC cutoff', stepsize=1, value=0.17, minimum=0, maximum=1.,
+                                  wtype=QDoubleSpinBox,
+                                  tooltip='The FSC criterion. Value between 0.0 and 1.0. Standard values are 0.5, 0.3. or 0.17')
+        self.insert_label_spinbox(parent, mode + 'pixelsize', 'Pixelsize (A)',stepsize=1,value=2.62, minimum=.1,
+                                  tooltip='Pixelsize in Angstrom', wtype=QDoubleSpinBox)
+        self.insert_label_spinbox(parent, mode + 'randomizePhases', 'randomizePhases', stepsize=1,value=0.8, minimum=0, maximum=1,
+                                  tooltip='Check validity of FSC using phases randomization beyond spatial frequency'
+                                          ' where the uncorrected FSC curve drops below set threshold. Values between '
+                                          '0, 1. No phase randomization check performed when value is set to 0.',
+                                  wtype=QDoubleSpinBox)
+        self.insert_label_checkbox(parent, mode + 'plot', 'Plot Results',
+                                   tooltip='Check this box to plot the results.', cstep=0, rstep=1)
+
+
+        # Connected Widgets
+        self.widgets[mode + 'volume1'].textChanged.connect(
+            lambda d, m=mode: self.updateFSCFlags(m, 1))
+        self.widgets[mode + 'volume2'].textChanged.connect(
+            lambda d, m=mode: self.updateFSCFlags(m, 2))
+        self.widgets[mode + 'particleList'].textChanged.connect(
+            lambda d, m=mode: self.updateFSCFlags(m, 0))
+        self.widgets[mode + 'mask'].textChanged.connect(
+            lambda d, m=mode: self.updateFSCFlags(m, 3))
+        self.widgets[mode + 'plot'].stateChanged.connect(
+            lambda d, m=mode: self.updateFSCPlotFlag(m))
+
+        # Widgets Updated When Other Widgets Are Updated
+        self.widgets[mode + 'flagVolume1'] = QLineEdit('')
+        self.widgets[mode + 'flagVolume2'] = QLineEdit('')
+        self.widgets[mode + 'flagParticleList'] = QLineEdit('')
+        self.widgets[mode + 'flagMask'] = QLineEdit('')
+        self.widgets[mode + 'flagPlot'] = QLineEdit('')
+
+        self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
+
+        # Parameters for execution
+
+        exefilename = [mode + 'outFolder', 'FSC_Validation.sh'] #os.path.join(acpath, 'AC_Classification.sh')
+        paramsSbatch = guiFunctions.createGenericDict(fname='FSC', folder=self.logfolder,
+                                                      id='FSCValidation')
+        paramsCmd = [self.fscdir, self.pytompath, mode + 'flagParticleList', mode + 'flagVolume1',
+                     mode + 'flagVolume2', mode + 'flagMask', mode + 'outFolder', mode + 'fsc',
+                     mode + 'pixelsize', mode + 'randomizePhases', mode + 'flagPlot', templateFSC]
+
+
+        # Generation of textboxes and pushbuttons related to submission
+        self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
+                                 paramsSbatch=paramsSbatch)
+
+        self.widgets[mode+'queue'].stateChanged.connect(lambda d, m=mode: self.updateLog(m))
+
+        # Run Update With Data From Logfile
+        self.updateFSCFlags(mode)
+        self.updateFSCPlotFlag(mode)
+        self.updateLog(mode)
+
+
+        setattr(self, mode + 'gb_FSC', groupbox)
+        return groupbox
 
     # Helper functions
 
@@ -969,7 +1080,6 @@ class SubtomoAnalysis(GuiTabWidget):
         try: 
             tomoID = int(pl.split('_tomogram_')[-1][:3])
             tomo = os.path.join(self.tomogram_folder, 'tomogram_{:03d}/sorted/'.format(tomoID))
-            print(tomo)
             a = glob.glob(tomo+'*.meta')
             if not a: print('No meta file found. auto update stopped.')
             a = a[-1]
@@ -987,9 +1097,6 @@ class SubtomoAnalysis(GuiTabWidget):
         header.addItems([item for item in indPart if not item in AllItemsGeneral and 'CLOSEST' in item])
         header.addItems(AllItemsGeneral)
 
-        print(AllItemsGeneral)
-        print(indPart)
-
     def updateChoices(self, rowID, table_id):
         print(f'Update Choices {rowID}')
         values = self.valuesBatchSubtomoReconstruction
@@ -1002,7 +1109,7 @@ class SubtomoAnalysis(GuiTabWidget):
         a = 'tomogram_' + particleFile.split('_tomogram_')[1][:3]
 
         folder = os.path.join(self.tomogram_folder, a, origin)
-        print(folder)
+
         choices = [folder + '/' + f for f in os.listdir(folder) if
                     'marker_' in f and os.path.isdir(folder + '/' + f)]
 
@@ -1013,7 +1120,7 @@ class SubtomoAnalysis(GuiTabWidget):
             try: a = choice.split('marker_')[1]
             except: continue
             if ',' in a:
-                print(a)
+
                 try:
                     aS, aE = a.split('_')[1].split(',')
                     angleS = '{:4.1f}'.format( float(aS) )
@@ -1056,7 +1163,7 @@ class SubtomoAnalysis(GuiTabWidget):
         a = 'tomogram_' + particleFile.split('_tomogram_')[1][:3]
 
         folder = os.path.join(self.tomogram_folder, a, origin)
-        print(folder)
+
         choices = [folder + '/' + f for f in os.listdir(folder) if
                     'marker_' in f and os.path.isdir(folder + '/' + f)]
 
@@ -1092,7 +1199,7 @@ class SubtomoAnalysis(GuiTabWidget):
         id = self.widgets[mode + 'gpuID'].text()
         try:
             a = map(int,[el for el in id.split(',') if el != ''])
-            print(list(a))
+
         except:
             self.widgets[mode + 'gpuID'].setText('')
             self.popup_messagebox('Warning', 'Invalid value in field', 'Impossible to parse gpu IDs, field has been cleared.')
@@ -1118,7 +1225,7 @@ class SubtomoAnalysis(GuiTabWidget):
     def updateJobname(self, mode):
         dest = self.widgets[mode+'destination'].text()
         if dest:
-            self.widgets[mode + 'jobName'].setText( os.path.join(dest, 'glocal_results_'+os.path.basename(dest)+'.xml'))
+            self.widgets[mode + 'jobName'].setText( os.path.join(dest, 'glocal_input_params_'+os.path.basename(dest)+'.xml'))
 
     def updateClassificationMaskFlag(self, mode):
         try:
@@ -1218,7 +1325,7 @@ class SubtomoAnalysis(GuiTabWidget):
                         continue
 
                     end = 'reconstruction/{}/marker*_irefmark_*.txt'
-                    print(tomodir, end)
+
                     end = end.format(reconAlg, tomoindex, reconAlg)
 
                     logfilequery = os.path.join(tomodir, end)
@@ -1292,7 +1399,6 @@ class SubtomoAnalysis(GuiTabWidget):
         self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
 
     def gen_average(self, params):
-        print(params)
         key_particleList, key_filename_average, key_outputDir = params
         particleList = self.widgets[key_particleList].text()
         if not particleList:
@@ -1331,3 +1437,29 @@ class SubtomoAnalysis(GuiTabWidget):
                                                  outputline=self.fscList, id=key,
                                                  run_upon_complete=self.populatePartPolishingBatchTable,
                                                  title='Select FSC File for filtering cross-correlation (optional)')
+
+    def updateFSCFlags(self, mode, id='all'):
+        for n, (name, flag) in enumerate((('particleList', '--pl'), ('volume1','--v1'), ('volume2', '--v2'), ('mask', '--mask'))):
+            if n != id and id != 'all': continue
+            t = self.widgets[mode + name].text()
+
+            if t: self.widgets[mode + 'flag' + name[:1].capitalize() + name[1:]].setText(f'{flag} {t}')
+            else: self.widgets[mode + 'flag' + name[:1].capitalize() + name[1:]].setText('')
+
+    def updateFSCPlotFlag(self, mode):
+        t = self.widgets[mode + 'plot'].isChecked()
+
+        if t:
+            self.widgets[mode + 'flagPlot'].setText('--plot')
+            self.widgets[mode + 'queue'].setChecked(False)
+        else:
+            self.widgets[mode + 'flagPlot'].setText('')
+
+    def gen_fsc_mask(self,params):
+        maskfilename = CreateFSCMaskFile(self, params[-1])
+        maskfilename.show()
+
+
+    def updateLog(self, mode):
+        if self.widgets[mode + 'queue'].isChecked():
+            self.widgets[mode + 'plot'].setChecked(False)

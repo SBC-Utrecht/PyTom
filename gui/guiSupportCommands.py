@@ -262,3 +262,15 @@ mpiexec --tag-output -n {d[9]}  {d[1]}/bin/pytom {d[1]}/gui/ctfCorrection.py \\
 --gridSpacing {d[6]} \\
 --fieldSize {d[7]} \\
 --binningFactor {d[8]}'''
+
+templateFSC = '''cd {d[0]}
+
+fsc.py {d[2]} \\
+{d[3]} \\
+{d[4]} \\
+{d[5]} \\
+--outputFolder {d[6]} \\
+--fsc {d[7]} \\
+--pixelsize {d[8]} \\
+--randomizePhases {d[9]} \\
+{d[10]}'''
