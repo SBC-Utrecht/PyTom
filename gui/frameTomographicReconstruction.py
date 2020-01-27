@@ -87,10 +87,10 @@ class TomographReconstruct(GuiTabWidget):
         for i in range(len(headers)):
             t = 'tab{}'.format(i+1)
             empty = 1*(len(subheaders[i]) == 0)
-            print(t, i, empty)
+
             for j in range(len(subheaders[i])+empty):
                 tt = t + (str(j+1)*(1-empty))
-                print(i, j, t, empty, tt)
+
                 if static_tabs[i][j]:    #tt in ('tab2', 'tab31', 'tab41', 'tab42', 'tab51', 'tab52'):
                     self.table_layouts[tt] = QGridLayout()
                 else:
@@ -530,7 +530,6 @@ class TomographReconstruct(GuiTabWidget):
         values = []
 
         for markerfile in markerfiles:
-            print(markerfile)
             qmarkerfile = os.path.join(os.path.dirname(markerfile), '*.meta')
             qsortedfiles = os.path.join(os.path.dirname(markerfile), 'sorted_*.mrc')
 
@@ -672,7 +671,7 @@ class TomographReconstruct(GuiTabWidget):
         events = []
         self.jobs_nr_create_tomofolders = len(jobs)
 
-        print(id)
+
         if len(jobs):
             self.divide_jobs(jobs, id)
 
@@ -893,7 +892,6 @@ class TomographReconstruct(GuiTabWidget):
 
         tomofolder_file = open(file_tomoname, 'w')
         for x,y in new_info:
-            print(y)
             tomofolder_file.write(y)
         tomofolder_file.close()
 
@@ -926,7 +924,6 @@ class TomographReconstruct(GuiTabWidget):
     def updateTomoFolder(self, mode):
 
         folderSorted = self.widgets[mode+'FolderSorted'].text()
-        print(folderSorted)
         if not folderSorted: return
         t = folderSorted.replace('/sorted','')
         t = t.split('/alignment')[0]
@@ -1027,7 +1024,6 @@ class TomographReconstruct(GuiTabWidget):
         if not os.path.exists(f'{output_folder}/temp_files_unweighted') and alignmentType in ('INFR', 'WBP'):
             os.mkdir(f'{output_folder}/temp_files_unweighted')
 
-        print(alignmentType)
         if alignmentType == 'INFR':
             if len([line for line in os.listdir(output_folder) if line.startswith(prefix.split('/')[-1])]):
                 os.system('rm {}/sorted*.em'.format(output_folder))
@@ -1112,7 +1108,6 @@ class TomographReconstruct(GuiTabWidget):
                     firstIndex, lastIndex = int(self.widgets[mode+'FirstIndex'].text()), int(self.widgets[mode+'LastIndex'].text())
 
                     params = [mode,dd[i],'sorted']
-                    print(params)
                     self.convert_em(params)
 
                     execfilename = os.path.join(tomofolder, '{}/{}_Reconstruction.sh'.format(dd[i], dd[i].split('/')[-1]))
@@ -1155,8 +1150,7 @@ class TomographReconstruct(GuiTabWidget):
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
 
     def submit_multi_recon_job(self, params):
-        print(params[1])
-        print(params[0])
+
         try:
 
             exefile = open(params[0], 'w')
@@ -1318,7 +1312,7 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[mode + 'SphericalAberration'].setValue(metadata['SphericalAberration'][0])
         self.widgets[mode + 'AmplitudeContrast'].setValue(metadata['AmplitudeContrast'][0])
 
-        print(self.widgets[mode + 'tomofolder'].text())
+
 
     def prep_value(self, params):
 
@@ -1412,7 +1406,6 @@ class TomographReconstruct(GuiTabWidget):
             cPrefix = os.path.join(cOut, 'sorted_aligned_ctf_')
             uPrefix = os.path.join(folder, 'sorted_aligned_')
             sortedFolder = os.path.join(tomoname, 'sorted')
-            print(sortedFolder)
             metafile = glob.glob(sortedFolder + '/*.meta')[0]
             # defocusfile = glob.glob( os.path.join( os.path.dirname(cOut), '*.defocus'))
         except:

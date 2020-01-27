@@ -630,6 +630,7 @@ def distance(p, ref, freq, mask, binning):
         mask = vol(r)
         initSphere(mask, r.sizeX()//2-3, 3, 0, r.sizeX()//2, r.sizeY()//2, r.sizeZ()//2)
     else:
+        #THE MASK is binning (sampled every n-points). This does lead to a reduction of the smoothing of the edges.
         maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
         if a.sizeX() != maskBin.sizeX() or a.sizeY() != maskBin.sizeY() or a.sizeZ() != maskBin.sizeZ():
             mask = vol(a.sizeX(), a.sizeY(), a.sizeZ())

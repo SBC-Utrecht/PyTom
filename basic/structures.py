@@ -3412,7 +3412,7 @@ class Rotation(PyTomClass):
             q = angle+str(num_repeat[angle])
             num_repeat[angle] += 1
             outname.append(dictAngles[q])
-            print(q)
+
         return outname
     
     def toQuaternion(self):

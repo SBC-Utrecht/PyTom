@@ -422,7 +422,6 @@ class CommonFunctions():
 
     def insert_module(self, parent, wname='', cstep=0, rstep=1, rowspan=1, columnspan=1, options=[], mode=''):
         widget = SelectModules(self, modules=options, mode=mode)
-        print(f'wname: {wname}')
         if wname: self.widgets[wname] = widget
         parent.addWidget(widget, self.row, self.column, rowspan, columnspan)
         self.items[self.row][self.column] = widget
@@ -717,8 +716,8 @@ class CommonFunctions():
                         tempfilename = os.path.join(self.widgets[params[2][0]].text(), params[2][1])
                 else:
                     tempfilename = params[2]
-                jobfile = open(tempfilename,'w')
 
+                jobfile = open(tempfilename,'w')
                 jobfile.write(self.widgets[params[3]].toPlainText())
                 jobfile.close()
 
@@ -752,7 +751,6 @@ class CommonFunctions():
         if id:
             partition, num_nodes, cores, time, modules = self.qparams[id].values()
 
-        print(params[1][1:-1], params[2]['id'])
         for key in params[1][1:-1]:
             if 'numberMpiCores' in key and params[2]['id']:
                 self.widgets[key].setText(str(num_nodes*cores))
@@ -770,11 +768,11 @@ class CommonFunctions():
                             if datatype in (QSpinBox, QDoubleSpinBox, QLineEdit): d.append(self.widgets[a].text())
                             elif datatype == QComboBox: d.append(self.widgets[a].currentText())
                             elif datatype == QCheckBox: d.append(str(int(self.widgets[a].isChecked())))
-                            else: print(a, datatype)
+                            else: pass
                         elif type(str(a)) == type(''):
                             d.append(a)
-                        else: print(a)
-                    print(d)
+                        else: pass
+
                     text = text.format( d=d )
                 if i==0: self.widgets[params[i][0]].setPlainText(text)
         # Check if user wants to submit to queue. If so, add queue header.
@@ -912,7 +910,7 @@ class CommonFunctions():
         widget2.setVisible(True)
 
     def popup_messagebox(self, messagetype, title, message):
-        print(messagetype, title, message)
+
         if messagetype == 'Info':
             QMessageBox().information(self, title, message, QMessageBox.Ok)
 
@@ -1080,6 +1078,64 @@ class ConvertEM2PDB(QMainWindow, CommonFunctions):
         self.close()
 
 
+class CreateFSCMaskFile(QMainWindow, CommonFunctions):
+    def __init__(self,parent, emfname='',folder='./'):
+        super(CreateFSCMaskFile, self).__init__(parent)
+        self.folder = folder
+        w = QWidget(self)
+        l = QGridLayout()
+        self.logbook = self.parent().logbook
+        w.setLayout(l)
+        self.widgets = {}
+        self.row, self.column = 0, 0
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        parent = l
+
+        self.insert_label_line_push(parent, 'Volume (Filtered)', 'volume', mode='file',
+                                    filetype=['em', 'mrc'], enabled=True,
+                                    tooltip='Volume path.')
+        self.insert_label_line_push(parent, 'Mask (Optional)', 'mask', mode='file',
+                                    filetype=['em', 'mrc'], enabled=True,
+                                    tooltip='The mask is used to only select a part of the model for resolution '
+                                            'determination.')
+        self.insert_label_spinbox(parent, 'numstd', text='Threshold: #std below mean', rstep=1, cstep=-1,
+                                  minimum=0, maximum=100, value=1, wtype=QDoubleSpinBox,
+                                  tooltip='This parameter sets the threshold value for what is a particle.\n '
+                                          'Threshold = mean signal - num_stds * std signal. ')
+        self.insert_label_spinbox(parent, 'smooth', rstep=1, cstep=-1, wtype=QDoubleSpinBox,
+                                  tooltip='std for the gaussian kernel used for smoothing of the edge of the mask.',
+                                  minimum=0, maximum=100, value=2,
+                                  text='Smoothing Edges')
+        self.insert_label_spinbox(parent, 'cycles', text='Number of Dilation Cycles', rstep=1, cstep=0,
+                                  stepsize=1,minimum=0,maximum=100,value=2,
+                                  tooltip='Number of dilation cycles. Creates a less structured mask')
+
+        self.insert_pushbutton(parent, 'Create', action=self.generate,
+                               params=['volume', 'mask', 'numstd', 'smooth', 'cycles', emfname])
+
+        self.setCentralWidget(w)
+        self.show()
+
+    def generate(self,params):
+        from pytom.bin.gen_mask import gen_mask_fsc
+        from pytom.tompy.io import read
+        out_fname = str(QFileDialog.getSaveFileName(self, 'Save model as.', self.folder, filter='*.mrc')[0])
+        if not out_fname: return
+        if not out_fname.endswith('.mrc'): out_fname += '.mrc'
+
+        data = read(self.widgets[params[0]].text())
+        if self.widgets[params[1]].text(): data *= read(self.widgets[params[1]].text())
+        numstd = float(self.widgets[params[2]].value())
+        smooth = float(self.widgets[params[3]].value())
+        cycles = int(self.widgets[params[4]].value())
+
+        gen_mask_fsc(data, cycles, out_fname, numstd, smooth)
+
+        self.parent().widgets[params[-1]].setText(out_fname)
+        self.close()
+
+
 class MyCircleOverlay(pg.EllipseROI):
     def __init__(self, pos, size, label='', **args):
         pg.ROI.__init__(self, pos, size, **args)
@@ -1229,7 +1285,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                                 val = value
                         else:
                             val = value.split('/')[-1]
-                        print( types[i], val)
+
                         cb.addItem(val)
 
                     table.setCellWidget(v, i, widget)
@@ -1300,7 +1356,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                         except: v =value
                     else:
                         v = value.split('/')[-1]
-                    print(n, t, v)
+
                     cb.addItem(v)
 
                 #glayout.addWidget(cb)
@@ -2940,7 +2996,7 @@ class QParams():
 
         for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
             tab.qparams = parent.qparams
-            print(parent.qparams['BatchSubtomoReconstruct'].values())
+
 
     def values(self):
         return [self.queue, self.nodes, self.cores, self.time, self.modules]
@@ -3284,7 +3340,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                          'SingleSubtomoReconstruct', 'BatchSubtomoReconstruct',
                          'SingleParticlePolish', 'BatchParticlePolish',
                          'FRMAlignment','GLocalAlignment',
-                         'PairwiseCrossCorrelation', 'CPCA', 'AutoFocusClassification']
+                         'PairwiseCrossCorrelation', 'CPCA', 'AutoFocusClassification', 'FSCValidation']
         self.setQNames()
         self.currentJobName = self.jobnames[0]
 

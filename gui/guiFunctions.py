@@ -520,6 +520,7 @@ def create_project_filestructure(projectdir='.'):
                 "CPCA": "",
                 "AutoFocus":""
             },
+            "Validation": "",
             "copy_files": [""],
             "run_scripts": [""]
         },
