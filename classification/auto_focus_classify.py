@@ -114,20 +114,38 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
 
 
 def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binning, iteration, sigma, threshold, outdir='./'):
-    from pytom_volume import read
+    from pytom_volume import read, vol, pasteCenter
     from pytom.basic.structures import Particle
     import os
+    from pytom.basic.transformations import resize
 
     v1 = r1.getVolume()
     v2 = r2.getVolume()
     if mask:
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        maskBin = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        if v1.sizeX() != maskBin.sizeX() or v1.sizeY() != maskBin.sizeY() or v1.sizeZ() != maskBin.sizeZ():
+            mask = vol(v1.sizeX(), v1.sizeY(), v1.sizeZ())
+            mask.setAll(0)
+            pasteCenter(maskBin, mask)
+        else:
+            mask = maskBin
     else:
         mask = None
+
     if focus_mask:
-        focus_mask = read(focus_mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        focusBin = read(focus_mask, 0,0,0,0,0,0,0,0,0,binning,binning,binning)
+        if v1.sizeX() != focusBin.sizeX() or v1.sizeY() != focusBin.sizeY() or v1.sizeZ() != focusBin.sizeZ():
+            focus_mask = vol(v1.sizeX(), v1.sizeY(), v1.sizeZ())
+            focus_mask.setAll(0)
+            pasteCenter(focusBin, focus_mask)
+        else:
+            focus_mask = focusBin
     else:
         focus_mask = None
+
+    if not focus_mask is None and not mask is None:
+        if mask.sizeX() != focus_mask.sizeX():
+            raise Exception('Focussed mask and alignment mask do not have the same dimensions. This cannot be correct.')
 
     (dmap1, dmap2) = calculate_difference_map(v1, band1, v2, band2, mask, focus_mask, True, sigma, threshold)
     fname1 = os.path.join(outdir, 'iter'+str(iteration)+'_dmap_'+str(r1.getClass())+'_'+str(r2.getClass())+'.em')
@@ -157,12 +175,13 @@ def focus_score(p, ref, freq, diff_mask, binning):
 
 
 def paverage(particleList, norm, binning, verbose, outdir='./'):
-    from pytom_volume import read,vol
+    from pytom_volume import read, vol
     from pytom_volume import transformSpline as transform
     from pytom.basic.structures import Particle
     from pytom.basic.normalise import mean0std1
     from pytom.tools.ProgressBar import FixedProgBar
-    
+    from pytom.basic.transformations import resize
+
     if len(particleList) == 0:
         raise RuntimeError('The particlelist provided is empty. Aborting!')
     
@@ -176,7 +195,10 @@ def paverage(particleList, norm, binning, verbose, outdir='./'):
     newParticle = None
     
     for particleObject in particleList:
-        particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, 1,1,1)
+        if binning != 1:
+            particle, particlef = resize(volume=particle, factor=1. / binning, interpolation='Fourier')
+
         if norm:
             mean0std1(particle)
 
@@ -241,7 +263,7 @@ def calculate_averages(pl, binning, mask, outdir='./'):
     last change: Jan 18 2020: error message for too few processes, FF
     """
     import os
-    from pytom_volume import complexDiv
+    from pytom_volume import complexDiv, vol, pasteCenter
     from pytom.basic.fourier import fft,ifft
     from pytom.basic.correlation import FSC, determineResolution
     from pytom_fftplan import fftShift
@@ -251,11 +273,6 @@ def calculate_averages(pl, binning, mask, outdir='./'):
     res = {}
     freqs = {}
     wedgeSum = {}
-    if mask:
-        from pytom_volume import read
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
-    else:
-        mask = None
 
     for pp in pls:
         # ignore the -1 class, which is used for storing the trash class
@@ -301,6 +318,19 @@ def calculate_averages(pl, binning, mask, outdir='./'):
             if even_a == None:
                 from pytom.basic.exceptions import ParameterError
                 raise ParameterError('cannot split odd / even. Likely you used only one processor - use: mpirun -np 2 (or higher!)?!')
+
+            if mask and mask.__class__ == str:
+                from pytom_volume import read, pasteCenter, vol
+
+                maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
+                if even_a.sizeX() != maskBin.sizeX() or even_a.sizeY() != maskBin.sizeY() or even_a.sizeZ() != maskBin.sizeZ():
+                    mask = vol(even_a.sizeX(), even_a.sizeY(), even_a.sizeZ())
+                    mask.setAll(0)
+                    pasteCenter(maskBin, mask)
+                else:
+                    mask = maskBin
+
+
             fsc = FSC(even_a, odd_a, int(even_a.sizeX()//2), mask)
             band = determineResolution(fsc, 0.5)[1]
 
@@ -322,12 +352,21 @@ def calculate_averages(pl, binning, mask, outdir='./'):
 
 
 def frm_proxy(p, ref, freq, offset, binning, mask):
-    from pytom_volume import read
+    from pytom_volume import read, pasteCenter, vol
+    from pytom.basic.transformations import resize
     from pytom.basic.structures import Shift, Rotation
     from sh_alignment.frm import frm_align
+    import time
+
     v = p.getVolume(binning)
-    if mask:
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+    if mask.__class__ == str:
+        maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
+        if v.sizeX() != maskBin.sizeX() or v.sizeY() != maskBin.sizeY() or v.sizeZ() != maskBin.sizeZ():
+            mask = vol(v.sizeX(), v.sizeY(), v.sizeZ())
+            mask.setAll(0)
+            pasteCenter(maskBin, mask)
+        else:
+            mask = maskBin
     pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
 
     return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), 
@@ -349,7 +388,12 @@ def score_noalign_proxy(p, ref, freq, offset, binning, mask):
         
 
 def calculate_scores(pl, references, freqs, offset, binning, mask, noalign=False):
+    from pytom_volume import read, pasteCenter, vol
+
     res = {}
+    import time
+
+    t = time.time()
     for c, ref in references.items():
         freq = int(freqs[c]) # get the corresponding frequency of this class
         args = list(zip(pl, [ref]*len(pl), [freq]*len(pl), [offset]*len(pl), [binning]*len(pl), [mask]*len(pl)))
@@ -359,7 +403,7 @@ def calculate_scores(pl, references, freqs, offset, binning, mask, noalign=False
             scores = mpi.parfor(frm_proxy, args)
         
         res[c] = scores
-
+    print(f'calculation time: {time.time()-t} sec')
     return res
 
 
@@ -579,9 +623,9 @@ def compare_pl(old_pl, new_pl):
 
 def distance(p, ref, freq, mask, binning):
     from pytom.basic.correlation import nxcc
-    from pytom_volume import vol, initSphere, read
+    from pytom_volume import vol, initSphere, read, pasteCenter
     from pytom.basic.filter import lowpassFilter
-
+    from pytom.basic.transformations import resize
     v = p.getTransformedVolume(binning)
     w = p.getWedge()
     r = ref.getVolume()
@@ -592,7 +636,15 @@ def distance(p, ref, freq, mask, binning):
         mask = vol(r)
         initSphere(mask, r.sizeX()//2-3, 3, 0, r.sizeX()//2, r.sizeY()//2, r.sizeZ()//2)
     else:
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        #THE MASK is binning (sampled every n-points). This does lead to a reduction of the smoothing of the edges.
+        maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
+        if a.sizeX() != maskBin.sizeX() or a.sizeY() != maskBin.sizeY() or a.sizeZ() != maskBin.sizeZ():
+            mask = vol(a.sizeX(), a.sizeY(), a.sizeZ())
+            mask.setAll(0)
+            pasteCenter(maskBin, mask)
+        else:
+            mask = maskBin
+
 
     s = nxcc(a, b, mask)
     d2 = 2*(1-s)
@@ -638,7 +690,7 @@ def initialize(pl, settings):
             for i in range(len(pl)):
                 if distances[i] > dist[i]:
                     distances[i] = dist[i]
-
+        
         distances = np.asarray(distances)
         distances = distances/np.sum(distances)
         idx = np.random.choice(len(pl), kn, replace=False, p=distances)
@@ -889,6 +941,9 @@ if __name__ == '__main__':
     # start the clustering
     mpi.begin()
 
+    import time
+    tt = time.time()
+
     try:
         pl = ParticleList()
         pl.fromXMLFile(options.filename)
@@ -899,4 +954,4 @@ if __name__ == '__main__':
     finally:
         mpi.end()
 
-
+    print(f'total time: {time.time()-tt} sec')

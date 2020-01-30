@@ -28,7 +28,6 @@ def get_size(particleList, directory):
             return 'Failed'
 
     try:
-        print(tomoName)
         dimx, dimy, dimz = read_size(tomoName)
     except:
         print('Failed')
@@ -37,9 +36,9 @@ def get_size(particleList, directory):
     return [dimx,dimy,dimz]
 
 def mirrorParticleList(particleList, outname, directory='./'):
-    print(particleList, outname, directory)
+
     sizes = get_size(particleList, directory)
-    print(sizes)
+
     if sizes == 'Failed':
         print('Mirroring particle coordinates did not succeed. Please ensure the paths to the origin tomogram are correct')
         return
@@ -54,7 +53,7 @@ def mirrorParticleList(particleList, outname, directory='./'):
         pp.setZ(dimz - pp.getZ())
         shift = particle.getShift()
         shift.invert()
-    print('write')
+
     tempPL.toXMLFile(outname)
 
 def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='zxz'):
@@ -79,7 +78,6 @@ def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='
     except:
         raise Exception('Parsing chimera file failed.')
 
-    print(z2, x, z1, rotation_angle)
     return z1 - rotation_angle, x, z2
 
 def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiplypickpos=1, multiplyshift=0,
@@ -143,11 +141,9 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
 
             if new_center:
                 new_center_vector = numpy.array(new_center) - sizeSubtomo//2
-                print(new_center_vector)
                 new_center_vector_rotated = rot_particleList.apply(new_center_vector)
-                print(new_center_vector_rotated)
                 shift.addVector( new_center_vector_rotated)
-                print(shift)
+
             if move_shift == True:
                 pp = particle.getPickPosition()
                 shift.scale( binSubtomo / binRecon)
@@ -222,7 +218,6 @@ if __name__ == '__main__':
     if prefix: directory = prefix.split('/particle_')[0]
     else: directory=''
     if XMLfnames:
-        print(XMLfnames)
         fnames = XMLfnames.split(',' )
 
     try:

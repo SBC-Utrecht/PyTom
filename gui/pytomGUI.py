@@ -216,7 +216,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         if os.path.exists(os.path.join(projectname, 'logfile.js')):
             self.load_logfile(os.path.join(projectname, 'logfile.js'))
             return True
-        if os.path.exists(os.path.join(projectname, 'logfile.pickle'))  :
+        else:#if os.path.exists(os.path.join(projectname, 'logfile.pickle'))  :
             for t, text in self.targets:
                 self.logbook['00_framebutton_{}'.format(t)] = (t == self.targets[0][0])
             return True

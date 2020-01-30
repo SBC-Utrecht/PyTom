@@ -608,17 +608,17 @@ if __name__ == '__main__':
     helper = ScriptHelper(sys.argv[0].split('/')[-1],
                           description='Subtomogram alignment by Fast Rotational Matching.',
                           authors='Yuxiang Chen',
-                          options= [ScriptOption(['-j'], 'Job xml file.', True, True),
-                                    ScriptOption(['-v'], 'Verbose mode.', False, False),
-                                    ScriptOption(['--help'], 'Help info.', False, False)])
+                          options= [ScriptOption(['-j'], 'Job xml file.', True, False),
+                                    ScriptOption(['-v'], 'Verbose mode.', False, True),
+                                    ScriptOption(['--help'], 'Help info.', False, True)])
     
     if len(sys.argv) == 1:
         print(helper)
         sys.exit()
     
-    try:
+    if 1:
         job_filename, verbose, bHelp = parse_script_options(sys.argv[1:], helper)     
-    except:
+    else:
         sys.exit()
         
     if bHelp is True:

@@ -19,12 +19,15 @@ class pytom_MyFunctionTest(unittest.TestCase):
         self.settings["ncluster"] = 2
         self.settings["frequency"] = 10
         self.settings["binning"] = 4
+
         self.settings["niteration"] = 2
         #self.settings["fixed_frequency"] = True
         #self.settings["offset"] = None
         #self.settings["mask"] = options.mask
-        #self.settings["fmask"] = options.fmask
-        #self.settings["mask"] = None
+
+        self.settings["fmask"] = './testData/focussed_classification_mask_ribo.mrc'
+        self.settings["mask"] = './testData/mask_ribo.mrc'
+
         #self.settings["fmask"] = None
         #self.settings["dispersion"] = None
         #self.settings["external"] = None
@@ -116,6 +119,33 @@ class pytom_MyFunctionTest(unittest.TestCase):
         #cmd = cmd + '-a ' 
 
         #self.assertAlmostEqual(first=myResult, second=1., places=3, 
+        #     msg='the result is not what it is supposed to be')
+        #self.assertTrue( result == something, 'wrong result')
+
+
+    def test_Masks(self):
+        """
+        test implementation of binning functionality
+        """
+        print('testing masks')
+        import os
+
+        cmd = 'mpirun -np 2 ../bin/pytom ../classification/auto_focus_classify.py'
+        cmd = cmd + ' -p ' + self.pl_filename
+        cmd = cmd + ' -k ' + str(self.settings["ncluster"])
+        cmd = cmd + ' -f ' + str(self.settings["frequency"])
+        cmd = cmd + ' -b ' + str(self.settings["binning"])
+        cmd = cmd + ' -i ' + str(self.settings["niteration"])
+        cmd = cmd + ' -m ' + str(self.settings["mask"])
+        cmd = cmd + ' -c ' + str(self.settings["fmask"])
+        print(cmd)
+        os.system(cmd)
+        self.cleanUp()
+
+        #cmd = cmd + '-o ' + self.settings["ncluster"]
+        #cmd = cmd + '-a '
+
+        #self.assertAlmostEqual(first=myResult, second=1., places=3,
         #     msg='the result is not what it is supposed to be')
         #self.assertTrue( result == something, 'wrong result')
 
