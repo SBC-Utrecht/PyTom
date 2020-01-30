@@ -23,9 +23,9 @@ def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2):
     @:type num_stds: float
     @:param smooth: 3d ndarray
     @:type smooth: float
-    @:return return mask if outname is None, otherwise no return
+    @:return return mask
     @:rtype ndarray of float32'''
-    
+
     mask = zeros_like(data, dtype=int)
     mask[data < data.mean() - num_stds * data.std()] = 1
     mask = remove_small_objects(mask.astype(bool))
@@ -33,8 +33,13 @@ def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2):
 
     l, n = label(mask)
 
-    dx, dy, dz = data.shape
-    mask = (l == l[dx // 2, dy // 2, dz // 2])
+    part, total = 0,0
+    for i in range(1, n):
+        if total < (l==i).sum():
+            part = i
+            total = (l==i).sum()
+            
+    mask = (l == part)
     mask = binary_dilation(mask)
     mask = median_filter(mask, 6)
 
@@ -49,7 +54,7 @@ def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2):
         return mask
     else:
         write(outname, mask.astype(float32))
-
+        return mask
 
 if __name__=='__main__':
 

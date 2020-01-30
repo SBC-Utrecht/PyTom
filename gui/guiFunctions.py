@@ -903,3 +903,23 @@ def addShiftToMarkFrames(mark_frames, shifts, metadata, excluded):
 
 
     return mark_frames, shifts
+
+def convert_markerfile(filename, outname):
+    from pytom.tompy.io import read
+    import numpy as np
+    from pytom.basic.datatypes import HEADER_MARKERFILE, fmtMarkerfile
+
+    a = read(filename)
+
+    point, num_images, num_markers = a.shape
+
+    markerFile = np.ones((num_markers,num_images,4))*-1
+    for i in range(num_markers):
+        markerFile[i,:,0] = i
+        markerFile[i,:,1:4] = a[0:3,:,i].T
+
+    with open(outname, 'w') as outfile:
+        np.savetxt(outfile,[],header=HEADER_MARKERFILE)
+
+        for data_slice in markerFile:
+            np.savetxt(outfile, data_slice, fmt=fmtMarkerfile)

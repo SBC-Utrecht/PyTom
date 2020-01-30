@@ -356,8 +356,10 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
     from pytom.basic.transformations import resize
     from pytom.basic.structures import Shift, Rotation
     from sh_alignment.frm import frm_align
+    import time
+
     v = p.getVolume(binning)
-    if mask:
+    if mask.__class__ == str:
         maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
         if v.sizeX() != maskBin.sizeX() or v.sizeY() != maskBin.sizeY() or v.sizeZ() != maskBin.sizeZ():
             mask = vol(v.sizeX(), v.sizeY(), v.sizeZ())
@@ -365,7 +367,6 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
             pasteCenter(maskBin, mask)
         else:
             mask = maskBin
-
     pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
 
     return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), 
@@ -387,7 +388,12 @@ def score_noalign_proxy(p, ref, freq, offset, binning, mask):
         
 
 def calculate_scores(pl, references, freqs, offset, binning, mask, noalign=False):
+    from pytom_volume import read, pasteCenter, vol
+
     res = {}
+    import time
+
+    t = time.time()
     for c, ref in references.items():
         freq = int(freqs[c]) # get the corresponding frequency of this class
         args = list(zip(pl, [ref]*len(pl), [freq]*len(pl), [offset]*len(pl), [binning]*len(pl), [mask]*len(pl)))
@@ -397,7 +403,7 @@ def calculate_scores(pl, references, freqs, offset, binning, mask, noalign=False
             scores = mpi.parfor(frm_proxy, args)
         
         res[c] = scores
-
+    print(f'calculation time: {time.time()-t} sec')
     return res
 
 
@@ -935,6 +941,9 @@ if __name__ == '__main__':
     # start the clustering
     mpi.begin()
 
+    import time
+    tt = time.time()
+
     try:
         pl = ParticleList()
         pl.fromXMLFile(options.filename)
@@ -945,4 +954,4 @@ if __name__ == '__main__':
     finally:
         mpi.end()
 
-
+    print(f'total time: {time.time()-tt} sec')

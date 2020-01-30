@@ -735,7 +735,11 @@ class CommonFunctions():
                 dd = os.popen('{} {}'.format(self.qcommand, exefilename))
                 print('Submitted')
                 text = dd.read()[:-1]
+                id = text.split()[-1]
                 self.popup_messagebox('Info','Submitted job to the queue', text)
+
+                logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
+                print(f'cp {exefilename} {logcopy}')
             else:
                 proc = Worker(fn=os.system, args=['sh {}'.format(exefilename)], sig=False)
                 proc.start()
@@ -925,7 +929,7 @@ class CommonFunctions():
         pb.setValue( int(value.text()) )
 
     def fill_tab(self, id, headers, types, values, sizes, tooltip=[],wname='v02_batch_aligntable_', connect=0, nn=False,
-                 sorting=False):
+                 sorting=False, runbutton=True, runtitle='Run'):
         try:
             self.tables[id].setParent(None)
             self.pbs[id].setParent(None)
@@ -949,9 +953,9 @@ class CommonFunctions():
         except:
             self.num_nodes ={}
             self.num_nodes[id] = 0
-
-        self.pbs[id] = QPushButton('Run')
-        self.pbs[id].setSizePolicy(self.sizePolicyC)
+        if runbutton:
+            self.pbs[id] = QPushButton(runtitle)
+            self.pbs[id].setSizePolicy(self.sizePolicyC)
         self.ends[id] = QWidget()
         self.ends[id].setSizePolicy(self.sizePolicyA)
 
@@ -1213,7 +1217,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                 # Fill the first line
                 if types[i] == 'txt':
                     widget = QWidget()
-                    data= "{}".format(values[v][i].split('/')[-1])
+                    data= "{}".format(values[v][i].split('/')[-1]) if '/' in values[v][i] else values[v][i]
                     cb = QLabel( data )
                     layoutCheckBox = QHBoxLayout(widget)
                     layoutCheckBox.addWidget(cb)
@@ -3123,7 +3127,6 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
                 except: pass
         #self.tab2_widgets[f'widget_{i}_2'].setChecked(status)
 
-
     def tab2UI(self):
         self.tab1UI()
 
@@ -3580,18 +3583,26 @@ class SelectModules(QWidget):
 
 
 class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
+    resized = pyqtSignal()
     def __init__(self,parent):
         super(PlotWindow, self).__init__(parent)
         self.stage='generalSettings_'
         self.pytompath = self.parent().pytompath
         self.projectname = self.parent().projectname
 
-        self.setGeometry(0,0,500,300)
+        self.setGeometry(0,0,700,300)
 
-        headers = ['Template Matching Results', 'FSC Curve']
-        subheaders  = [[],]*len(headers)
+        headers = ['Alignment Errors', 'Template Matching Results', 'FSC Curve']
+        subheaders  = [['Reconstruction', 'Alignment'], [], []]*len(headers)
+        static_tabs = [[False, False],[True], [True]]
 
-        self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders,sizeX=500,sizeY=300)
+        tabUIs = [[self.tab31UI, self.tab32UI],
+                  self.tab1UI,
+                  self.tab2UI]
+        self.tabs_dict, self.tab_actions = {}, {}
+
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict,
+                     tab_actions=self.tab_actions, sizeX=700, sizeY=300)
 
         self.table_layouts = {}
         self.tables = {}
@@ -3599,37 +3610,56 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.ends = {}
         self.checkbox = {}
         self.num_nodes = {}
-        self.widgets={}
-        self.subprocesses = 10
 
-        self.tabs = {'tab1': self.tab1,
-                     'tab2':  self.tab2,
-                     }
-
-        self.tab_actions = {'tab1':  self.tab1UI,
-                            'tab2':  self.tab2UI,
-                            }
+        self.queue_job_names = []
 
         for i in range(len(headers)):
-            t = 'tab{}'.format(i+1)
-            empty = 1*(len(subheaders[i]) == 0)
-            for j in range(len(subheaders[i])+empty):
-                tt = t+str(j+1)*(1-empty)
-                if tt in ('tab1', 'tab2'):
+            t = 'tab{}'.format(i + 1)
+            empty = 1 * (len(subheaders[i]) == 0)
+
+            for j in range(len(subheaders[i]) + empty):
+                tt = t + (str(j + 1) * (1 - empty))
+
+                if static_tabs[i][j]:  # tt in ('tab2', 'tab31', 'tab41', 'tab42', 'tab51', 'tab52'):
                     self.table_layouts[tt] = QGridLayout()
                 else:
                     self.table_layouts[tt] = QVBoxLayout()
 
-                if tt in ('tab1','tab2'):
-                    self.tab_actions[tt]()
+                self.tables[tt] = QWidget()
+                self.pbs[tt] = QWidget()
+                self.ends[tt] = QWidget()
+                self.ends[tt].setSizePolicy(self.sizePolicyA)
+                self.checkbox[tt] = QCheckBox('queue')
 
+                if not static_tabs[i][j]:  # tt in ('tab1','tab32', 'tab43', 'tab53'):
+                    button = QPushButton('Refresh Tab')
+                    button.setSizePolicy(self.sizePolicyC)
+                    button.clicked.connect(lambda d, k=tt, a=self.tab_actions[tt]: a(k))
+                    self.table_layouts[tt].addWidget(button)
+                    self.table_layouts[tt].addWidget(self.ends[tt])
 
-                tab = self.tabs[tt]
+                else:  # if tt in ('tab2','tab31','tab41', 'tab42', 'tab51', 'tab52'):
+                    self.tab_actions[tt](tt)
+
+                tab = self.tabs_dict[tt]
                 tab.setLayout(self.table_layouts[tt])
 
-    def tab1UI(self):
+        self.resized.connect(self.sizetest)
+        self.sizetest()
 
-        id = 'tab1'
+    def resizeEvent(self, event):
+        self.resized.emit()
+        return super(PlotWindow, self).resizeEvent(event)
+
+    def sizetest(self):
+        w = self.frameGeometry().width()
+        h  = self.frameGeometry().height()
+
+        for scrollarea in self.scrollareas:
+            scrollarea.resize(w,h)
+
+    def tab1UI(self, id=''):
+
         self.row, self.column = 0, 0
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
@@ -3647,7 +3677,6 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.insert_pushbutton(parent,'Plot',action=self.showTMPlot, params=mode,rstep=1,cstep=0)
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
 
-
     def showTMPlot(self, mode):
         from pytom.plotting.plottingFunctions import plotTMResults
 
@@ -3656,8 +3685,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
 
         plotTMResults([normal, mirrored], labels=['Normal', 'Mirrored'])
 
-    def tab2UI(self):
-        id = 'tab2'
+    def tab2UI(self, id=''):
         self.row, self.column = 0, 0
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
@@ -3689,6 +3717,146 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         outFname = 'temp.png'
         if filename and outFname:
             plot_FSC(filename, pixel_size, boxsize=box_size, show_image=show_image, c=cut_off )
+
+    def tab31UI(self, id=''):
+        import glob
+        headers = ["Name Tomogram", 'Score', 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Det. Rot. Angle', '']
+        types = ['txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt']
+        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
+
+        tooltip = ['Names of existing tomogram folders.',
+                   'Alignment Score.',
+                   'First angle of tiltimages.',
+                   'Last angle of tiltimages.',
+                   'Reference image number.',
+                   'Reference Marker',
+                   'Expected Rotation Angle',
+                   'Retrieved Rotation Angle']
+
+        logfiles = sorted(glob.glob('{}/LogFiles/*construction*.out'.format(self.projectname)))
+
+        values = []
+        tomograms = {}
+        for logfile in logfiles[::-1]:
+            #tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
+            dir = os.path.dirname(logfile)
+            ids = os.path.basename(logfile).split('-')[0]
+            infile = glob.glob(f"{dir}/{ids}_*.sh")
+            if not infile:
+                continue
+            logdata = open(logfile,'r').read()
+            indata = open(infile[0],'r').read()
+
+            tomogram = os.path.basename(indata.split('cd ')[1].split('\n')[0])
+            if tomogram in tomograms: continue
+            tomograms[tomogram] = 1
+            alignmentscore = str(numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
+            firstangle = logdata.split('tiltAngle=')[1].split(')')[0]
+            lastangle = logdata.split('tiltAngle=')[-1].split(')')[0]
+            refindex = indata.split('--referenceIndex ')[1].split(' ')[0]
+            refmarker = indata.split('--referenceMarkerIndex ')[1].split(' ')[0]
+            expected = indata.split('--expectedRotationAngle ')[1].split(' ')[0]
+            
+            angles = [float(i.split(',')[0]) for i in logdata.split('rot=')[1:]]
+            det_angle = str(int(round(sum(angles)/len(angles))) % 360)
+            values = [[tomogram, alignmentscore, firstangle, lastangle, refindex, refmarker, expected, det_angle, '']] + values
+        if not values:
+            return
+
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save')
+        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
+
+        for i in range(len(values)):
+            if float(values[i][1]) < 3:
+                color = 'green'
+            elif float(values[i][1]) < 4.5:
+                color = 'orange'
+            else:
+                color = 'red'
+            self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : "+color+"}")
+
+    def save2file(self, id, values):
+        outname = str(QFileDialog.getSaveFileName( self, 'Save alignment scores.', self.projectname, filter='*.txt')[0])
+        if outname and not outname.endswith('.txt'):
+            outname += '.txt'
+
+        if not outname:
+            return
+
+        outfile = open(outname, 'w')
+        for i in range(len(values)):
+            for j in range(1,4):
+                values[i][j] = float(values[i][j])
+            outfile.write('{} {:10.3f} {:10.1f} {:10.1f}    {:4s} {:4s} {:3s}   {:3s}\n'.format(*(values[i][:-1])))
+        outfile.close()
+
+    def tab32UI(self, id=''):
+        import glob, numpy
+        headers = ["name tomogram", 'Score', 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Det. Rot. Angle', '']
+        types = ['txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt']
+        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
+
+        tooltip = ['Names of existing tomogram folders.',
+                   'Alignment Score.',
+                   'First angle of tiltimages.',
+                   'Last angle of tiltimages.',
+                   'Reference image number.',
+                   'Reference Marker',
+                   'Expected Rotation Angle', 'Determined Rotation Angle']
+
+        tomofolders = sorted([f for f in os.listdir(f'{self.projectname}/03_Tomographic_Reconstruction/') if f.startswith('tomogram_')])
+
+        values = []
+        tomograms = {}
+        for tomofolder in tomofolders:
+            for logfile in sorted(glob.glob(f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/alignment/marker*/logfile*.txt')):
+                #tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
+                logdata = open(logfile,'r').read()
+                try:
+                    d = eval(logdata.split("Spawned job")[1].split('\n')[1])
+                    first, last = os.path.basename(os.path.dirname(logfile)).split('_')[-1].split(',')
+                    if not d: continue
+                    alignmentscore = str(numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
+                    firstangle = str(d['firstProj'])
+                    lastangle = str(d['lastProj'])
+                    refindex = str(d['ireftilt'])
+                    refmarker = str(d['irefmark'])
+                    expected = str(int(numpy.around(180 * float(d['handflip'] / numpy.pi))))
+                    logfal = logdata.split('Alignment successful. See ')[1].split(' ')[0]
+                    path = os.path.join(self.projectname, '03_Tomographic_Reconstruction', tomofolder, logfal)
+                    angles = guiFunctions.loadstar(path, dtype=guiFunctions.datatypeAR)['InPlaneRotation'].mean()
+                    det_angle = str(int(round(angles)) % 360)
+
+                    key = f'{tomofolder}_{firstangle}_{lastangle}_{refindex}_{expected}'
+
+                    if not (key in tomograms.keys()):
+                        tomograms[key] = [tomofolder, firstangle, lastangle, refindex, expected]
+                        values.append([tomofolder, alignmentscore, first, last, refindex, refmarker, expected, det_angle, ''])
+                    else:
+                        f, l, r, e = tomograms[key]
+                        if f == firstangle and l == lastangle and r == refindex and e == expected:
+                            continue
+                        else:
+                            tomograms[key] = [tomofolder, firstangle, lastangle, refindex, expected]
+                            values.append([tomofolder, alignmentscore, first, last, refindex, refmarker, expected, det_angle, ''])
+                except Exception as e:
+                    print(e)
+                    continue
+
+        if not values:
+            return
+
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save')
+        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
+
+        for i in range(len(values)):
+            if float(values[i][1]) < 3:
+                color = 'green'
+            elif float(values[i][1]) < 4.5:
+                color = 'orange'
+            else:
+                color = 'red'
+            self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : "+color+"}")
 
 
 class PlotterSubPlots(QMainWindow,CommonFunctions):

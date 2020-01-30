@@ -266,6 +266,7 @@ class TomographReconstruct(GuiTabWidget):
                 mm = 9999
 
                 for n, sortedfile in enumerate(sortedfiles):
+                    print(sortedfile)
                     index_s = int(sortedfile.split('_')[-1].split('.')[0])
                     if abs(tangs[index_s]) < mm:
                         mm = abs(tangs[index_s])
@@ -913,7 +914,14 @@ class TomographReconstruct(GuiTabWidget):
             guiFunctions.write_text2file(cmd, '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n), 'w')
 
             if self.checkbox[id].isChecked():
-                os.system('{} {}/jobscripts/alignment_{:03d}.job'.format(self.qcommand, self.tomogram_folder, n))
+                exefilename = '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n)
+                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
+                text = dd.read()[:-1]
+                id = text.split()[-1]
+                logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
+                os.system(f'cp {exefilename} {logcopy}')
+
+
                 num_submitted_jobs += 1
             else:
                 os.system('bash {}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n))
@@ -1053,8 +1061,11 @@ class TomographReconstruct(GuiTabWidget):
         else:
             pass
 
-        try: os.system(f'cp {directory}/sorted/markerfile.txt {output_folder}/markerfile.txt')
-        except: pass
+        if os.path.exists(f'{directory}/sorted/markerfile.txt'):
+            os.system(f'cp {directory}/sorted/markerfile.txt {output_folder}/markerfile.txt')
+        else:
+            guiFunctions.convert_markerfile(f'{directory}/sorted/markerfile.em', f'{directory}/sorted/markerfile.txt')
+            os.system(f'cp {directory}/sorted/markerfile.txt {output_folder}/markerfile.txt')
 
     def run_multi_reconstruction(self, id, values):
         print('multi_reconstructions', id)
@@ -1152,13 +1163,20 @@ class TomographReconstruct(GuiTabWidget):
     def submit_multi_recon_job(self, params):
 
         try:
-
-            exefile = open(params[0], 'w')
+            exefilename = params[0]
+            exefile = open(exefilename, 'w')
             exefile.write(params[1])
             exefile.close()
 
             if len(params[1].split('SBATCH')) > 2:
-                os.system('{} {}'.format(self.qcommand, params[0]))
+
+                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
+                text = dd.read()[:-1]
+                id = text.split()[-1]
+                logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
+                os.system(f'cp {exefilename} {logcopy}')
+
+
             else:
                 os.system('sh {}'.format(params[0]))
         except:
