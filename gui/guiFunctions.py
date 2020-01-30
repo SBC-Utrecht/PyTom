@@ -77,7 +77,7 @@ def read_markerfile(filename,tiltangles):
 
     return mark_frames
 
-def readMarkerfile(filename, num_tilt_images):
+def readMarkerfile(filename, num_tilt_images=0):
     if filename.endswith('.em'):
         from pytom.basic.files import read
         from pytom_numpy import vol2npy
@@ -86,9 +86,9 @@ def readMarkerfile(filename, num_tilt_images):
         return markerdata
 
     elif filename.endswith('.txt'):
-        
         data = loadstar(filename)
         datalen = data.shape[0]
+        num_tilt_images = (data[:,0] == data[0,0]).sum()
         x, y = datalen // num_tilt_images, num_tilt_images
         markerdata = data.reshape(x, y, 4)[:, :, 1:].transpose(2, 1, 0)
         return markerdata
@@ -147,7 +147,7 @@ def mrc2markerfile(filename, tiltangles):
 
     return markers
 
-def em2markerfile(filename,tiltangles):
+def em2markerfile(filename, tiltangles):
     vol = read(filename)
     mf = copy.deepcopy(vol2npy(vol))
 
@@ -641,7 +641,6 @@ def headerline(line):
     else:
 
         return True
-
 
 def loadstar(filename, dtype='float32', usecols=None, skip_header=0):
     with open(filename, 'r') as f:
