@@ -1,4 +1,4 @@
-import cupy as xp
+
 from pytom.tompy.tools import paste_in_center, create_sphere
 
 def meanUnderMask(volume, mask=None, p=None, gpu=False):

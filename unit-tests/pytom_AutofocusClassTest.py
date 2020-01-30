@@ -18,13 +18,17 @@ class pytom_MyFunctionTest(unittest.TestCase):
         self.settings = {}
         self.settings["ncluster"] = 2
         self.settings["frequency"] = 10
-        self.settings["binning"] = 3
+        self.settings["binning"] = 4
         self.settings["niteration"] = 2
         #self.settings["fixed_frequency"] = True
         #self.settings["offset"] = None
         #self.settings["mask"] = options.mask
+
         self.settings["fmask"] = './testData/focussed_classification_mask_ribo.mrc'
         self.settings["mask"] = './testData/mask_ribo.mrc'
+        self.settings["fmask"] = './testData/focussed_classification_mask_ribo.mrc'
+        self.settings["mask"] = './testData/mask_ribo.mrc'
+
         #self.settings["fmask"] = None
         #self.settings["dispersion"] = None
         #self.settings["external"] = None
@@ -143,6 +147,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         #self.assertAlmostEqual(first=myResult, second=1., places=3,
         #     msg='the result is not what it is supposed to be')
         #self.assertTrue( result == something, 'wrong result')
+
         
 if __name__ == '__main__':
     unittest.main()

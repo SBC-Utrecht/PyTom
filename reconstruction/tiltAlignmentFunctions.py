@@ -51,8 +51,6 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
 
 
     """
-    
-
     from math import sin, cos, pi
     from sys import exit
     from numpy import mean
@@ -104,7 +102,6 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
                 ymark = Markers_[imark].yProj[iproj] - cent[1]- transY[iproj]
                 
                 [x_meas, y_meas] = rotate_vector2d([xmark,ymark], cpsi[iproj], spsi[iproj])
-
                 # additional variable magnification
                 try:
                     if isoMag:
@@ -132,7 +129,6 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
                 except:
                     continue
                 # score
-
                 deltaX = x_meas-x_proj
                 deltaY = y_meas-y_proj
                 ## Warning for large differences
@@ -147,8 +143,6 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
                     Dev.append(deltaX)
                     Dev.append(deltaY)
                 ind_dif += 1
-                
-                
                 errors[-1] +=  numpy.sqrt(deltaX**2 + deltaY**2) 
         errors[-1] = errors[-1]/float(ind_dif)**2
     # normalize and prepare output
@@ -164,7 +158,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
 
 def alignmentFixMagRot( Markers_, cTilt, sTilt,
         ireftilt, irefmark=1, r=None, imdim=2048, handflip=0,
-    mute=True, writeResults=''):
+        mute=True, writeResults=''):
     """
     compute alignment analytically (constant mag. and tilt axis)
 
@@ -218,12 +212,11 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     sumxy=0.
     for (imark,Marker) in enumerate(Markers_):
         for itilt in range(0,ntilt):
-            
             if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark].xProj[itilt] > -1.)): #allow overlapping MPs
                 sumxx = (Marker.xProj[itilt] - Markers_[irefmark].xProj[itilt] -meanx[imark])**2 + sumxx
                 sumyy = (Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt] -meany[imark])**2 + sumyy
                 sumxy = ((Marker.xProj[itilt] - Markers_[irefmark].xProj[itilt] -meanx[imark]) *
-                 (Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt] -meany[imark]) + sumxy)
+                         (Marker.yProj[itilt] - Markers_[irefmark].yProj[itilt] -meany[imark]) + sumxy)
     
     #  calculate azimuth :
     #  minimize sum( (x(i)*sin(psi) + y(i)*cos(psi))^2) =: Min(F)  --- linear regression  
@@ -252,7 +245,6 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     if a < b:
         psi = (psi+pi)
     
-
     #print(handflip*180/pi, psi*180/pi)
     #if abs((pi+psi)%(pi)-handflip) < abs(psi%(pi) - handflip):
     #    psi = (psi + pi)%(2*pi)
@@ -305,7 +297,6 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
         temp = numpy.array(3*[0.])
         norm[imark]=0.
 
-
         for itilt in range(0,ntilt):
 
             if ( (Marker.xProj[itilt] > -1.) and (Markers_[irefmark].xProj[itilt] > -1.)): #allow overlapping MPs
@@ -332,7 +323,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
         P[2,2] = salpsq
 
         dt = numpy.linalg.det(P)
-        print(norm[imark], salpsq, spsi, sTilt[itilt], sTilt[itilt]**2)
+        #print(norm[imark], salpsq, spsi, sTilt[itilt], sTilt[itilt]**2)
         temp[0] = ( (sumxx*spsi-sumyy*cpsi)*spsi + (cpsi*meanx[imark]+
                       spsi*meany[imark])*cpsi*norm[imark] )
         temp[1] = ( -(sumxx*spsi-sumyy*cpsi)*cpsi + (cpsi*meanx[imark]+
@@ -358,7 +349,6 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
             if writeResults:
                 result = [imark, x[imark], y[imark], z[imark], x[imark]+r[0], y[imark]+r[1], z[imark] + r[2]]
                 results.append(result)
-
 
             if not mute:
                 print(('     %3d - %3d :.............. = %7.1f, %7.1f, %7.1f'
@@ -398,7 +388,6 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
             projY[itilt] = (x[imark]*spsi*cpsi*(1-cTilt[itilt]) +
                              y[imark]*(cpsi**2*cTilt[itilt]+spsi**2) -
                              z[imark]*cpsi*sTilt[itilt] + imdim/2. + 1.)
-            
             
             if ( (Marker.xProj[itilt] > -1.) and (x[imark]!=1000000) ):
                 ndif = ndif + 1
@@ -511,9 +500,9 @@ def simulate_markers(markCoords, tiltAngles, tiltAxis=-76.71, ireftilt=None,
     TiltSeries = TiltAlignmentStructures.TiltSeries( 
             tiltSeriesName=None,
             TiltAlignmentParas=TiltAlignmentParas, 
-        alignedTiltSeriesName=None,
+            alignedTiltSeriesName=None,
             markerFileName=None, firstProj=1, lastProj=ntilt, projIndices=None, 
-        tiltSeriesFormat='em')
+            tiltSeriesFormat='em')
     TiltSeries.createEmptyProjections()
 
     #compute 'alignment'
@@ -615,10 +604,10 @@ def refineMarkerPositions(tiltSeriesName, markerFileName, firstProj, lastProj, f
     #read data
     MyTiltAlignmentParas=TiltAlignmentParameters(
         dmag=False, drot=False, dbeam=False,
-    finealig=True, finealigfile=finealigfile,
-    grad=False,
-    irefmark=irefmark, ireftilt=ireftilt, r=None, cent=cent,
-    handflip=False, optimizer='leastsq', maxIter=0)
+        finealig=True, finealigfile=finealigfile,
+        grad=False,
+        irefmark=irefmark, ireftilt=ireftilt, r=None, cent=cent,
+        handflip=False, optimizer='leastsq', maxIter=0)
     MyTiltSeries= TiltSeries(tiltSeriesName=tiltSeriesName,
         TiltAlignmentParas=MyTiltAlignmentParas,
         alignedTiltSeriesName='dummy',
@@ -635,13 +624,13 @@ def readIMODmarkerfile(markerfile, binning=1):
     read Markers from WIMP file generated by IMOD, taking binning into account
 
     @param markerfile: wimp file
-    @type markerfile: L{str}
+    @type markerfile: C{str}
     @param binning: IMOD pre-binning (default: 1 = no binning). binning=2: 2x2 pixels -> 1 pixel, \
     binning=3: 3x3 pixels -> 1 pixel, etc. Pre-binning is applied on projections prior to marker tracking in IMOD.
-    @type binning: int or float
+    @type binning: C{int} or C{float}
 
     @return: Markers - list of markers
-    @rtype: list
+    @rtype: C{list}
     """
     from pytom.reconstruction.TiltAlignmentStructures import Marker
     if binning < 1:
@@ -725,11 +714,11 @@ def applyPreshiftsToMarkers( markers, shiftX, shiftY):
     """
     apply inverted IMOD preshifts to markers - in imod these are always unbinned
     @param markers: markers (list or Marker objects)
-    @type markers: list
+    @type markers: C{list}
     @param shiftX: shifts in X
-    @type shiftX: list
+    @type shiftX: C{list}
     @param shiftY: shifts in Y
-    @type shiftY: list
+    @type shiftY: C{list}
 
     @author: FF
     """
