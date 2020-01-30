@@ -117,15 +117,20 @@ def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binni
     from pytom_volume import read
     from pytom.basic.structures import Particle
     import os
+    from pytom.basic.transformations import resize
 
     v1 = r1.getVolume()
     v2 = r2.getVolume()
     if mask:
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        mask = read(mask, 0,0,0,0,0,0,0,0,0, 1,1,1)
+        if binning != 1:
+            mask, maskf = resize(volume=mask, factor=1. / binning, interpolation='Fourier')
     else:
         mask = None
     if focus_mask:
-        focus_mask = read(focus_mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        focus_mask = read(focus_mask, 0,0,0,0,0,0,0,0,0,1,1,1)
+        if binning != 1:
+            focus_mask, focus_maskf = resize(volume=focus_mask, factor=1. / binning, interpolation='Fourier')
     else:
         focus_mask = None
 
@@ -157,12 +162,13 @@ def focus_score(p, ref, freq, diff_mask, binning):
 
 
 def paverage(particleList, norm, binning, verbose, outdir='./'):
-    from pytom_volume import read,vol
+    from pytom_volume import read, vol
     from pytom_volume import transformSpline as transform
     from pytom.basic.structures import Particle
     from pytom.basic.normalise import mean0std1
     from pytom.tools.ProgressBar import FixedProgBar
-    
+    from pytom.basic.transformations import resize
+
     if len(particleList) == 0:
         raise RuntimeError('The particlelist provided is empty. Aborting!')
     
@@ -176,7 +182,9 @@ def paverage(particleList, norm, binning, verbose, outdir='./'):
     newParticle = None
     
     for particleObject in particleList:
-        particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, 1,1,1)
+        if binning != 1:
+            particle, particlef = resize(volume=particle, factor=1. / binning, interpolation='Fourier')
         if norm:
             mean0std1(particle)
 
@@ -253,7 +261,11 @@ def calculate_averages(pl, binning, mask, outdir='./'):
     wedgeSum = {}
     if mask:
         from pytom_volume import read
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        from pytom.basic.transformations import resize
+
+        mask = read(mask, 0,0,0,0,0,0,0,0,0,1,1,1)
+        if binning != 1:
+            mask, maskf = resize(volume=mask, factor=1. / binning, interpolation='Fourier')
     else:
         mask = None
 
@@ -323,11 +335,15 @@ def calculate_averages(pl, binning, mask, outdir='./'):
 
 def frm_proxy(p, ref, freq, offset, binning, mask):
     from pytom_volume import read
+    from pytom.basic.transformations import resize
     from pytom.basic.structures import Shift, Rotation
     from sh_alignment.frm import frm_align
     v = p.getVolume(binning)
     if mask:
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        mask = read(mask, 0,0,0,0,0,0,0,0,0, 1,1,1)
+        if binning != 1:
+            mask, maskf = resize(volume=mask, factor=1. / binning, interpolation='Fourier')
+
     pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
 
     return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), 
@@ -581,7 +597,7 @@ def distance(p, ref, freq, mask, binning):
     from pytom.basic.correlation import nxcc
     from pytom_volume import vol, initSphere, read
     from pytom.basic.filter import lowpassFilter
-
+    from pytom.basic.transformations import resize
     v = p.getTransformedVolume(binning)
     w = p.getWedge()
     r = ref.getVolume()
@@ -592,9 +608,10 @@ def distance(p, ref, freq, mask, binning):
         mask = vol(r)
         initSphere(mask, r.sizeX()//2-3, 3, 0, r.sizeX()//2, r.sizeY()//2, r.sizeZ()//2)
     else:
-        mask = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
-
-    s = nxcc(a, b, mask)
+        mask = read(mask, 0,0,0,0,0,0,0,0,0, 1,1,1)
+        if binning != 1:
+            mask, maskf = resize(volume=mask, factor=1. / binning, interpolation='Fourier')
+    s = nxcc(a, b, mask, w)
     d2 = 2*(1-s)
 
     return d2

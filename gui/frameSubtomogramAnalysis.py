@@ -763,7 +763,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         self.updateJobname(mode)
 
-        exefilename = [mode+'desination', 'GLocal_Alignment.sh']
+        exefilename = [mode+'destination', 'GLocal_Alignment.sh']
         paramsSbatch = guiFunctions.createGenericDict(fname='GLocal', folder=self.logfolder, id='GLocalAlignment')
         paramsCmd = [self.subtomodir, self.pytompath, self.pytompath, mode+'particleList', 'referenceCommand',
                      mode+'filenameMask', mode+'numIterations', mode+'pixelSize', mode+'particleDiameter',
