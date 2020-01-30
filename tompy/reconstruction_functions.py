@@ -1,6 +1,6 @@
-import cupy as cp
+from pytom.gpu.initialize import xp, gpu
 import voltools
-import numpy
+
 
 def backProjectGPU(projections, vol_bp, vol_phi, proj_angles, recPosVol=[0,0,0], vol_offsetProjections=[0,0,0], interpolation=None):
 
@@ -26,9 +26,9 @@ def back_projection(image, angle, interpolation=None):
     dimx, dimy = image.shape
     dims = [dimx, dimy, dimy]
 
-    out = cp.dstack([image] * (dims[2]*2))
+    out = xp.dstack([image] * (dims[2]*2))
     bp  = voltools.transform(out, rotation=(0, angle, 0), rotation_order='sxyz', interpolation=interpolation,
-                             center=numpy.array([dims[0] // 2, dims[1] // 2, dims[2]]))
+                             center=numpy.array([dims[0] // 2, dims[1] // 2, dims[2]]), gpu=gpu)
 
     return bp[:,:,dims[2]//2+dims[2]%2:-dims[2]//2+dims[2]%2].copy()
 

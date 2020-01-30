@@ -739,7 +739,10 @@ class CommonFunctions():
                 self.popup_messagebox('Info','Submitted job to the queue', text)
 
                 logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
-                print(f'cp {exefilename} {logcopy}')
+                try: os.system(f'cp {exefilename} {logcopy}')
+                except Exception as e:
+                    print(e)
+                    
             else:
                 proc = Worker(fn=os.system, args=['sh {}'.format(exefilename)], sig=False)
                 proc.start()
@@ -3150,7 +3153,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         qjobs = [int(line.split()[0]) for line in os.popen(f'squeue -u {whoami} | grep -v JOBID').readlines()]
         added_jobs = []
         for n, jobfile in enumerate(self.jobFilesQueue):
-            queueId = int(os.path.basename(jobfile.split('-')[0]))
+            queueId = int(os.path.basename(jobfile).split('-')[0])
             added_jobs.append(queueId)
             running = 1*(queueId in qjobs)
             values.append([jobfile.split('-')[1].split('.')[0], queueId, 1, 16*running, running, jobfile, ''])
