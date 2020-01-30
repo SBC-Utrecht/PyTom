@@ -197,14 +197,13 @@ def generatePyTomScript(pytomDirectory,python_version):
 
 def generatePyTomGuiScript(pytomDirectory, python_version):
     pytomguiCommand = '# !/bin/bash\n'
-    pytomguiCommand += f'{python_version} {pytomDirectory}/gui/pytomGUI.py $1\n'
+    pytomguiCommand += f'python{python_version} {pytomDirectory}/gui/pytomGUI.py $1\n'
 
     f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'pytomGUI.py', 'w')
-    f.write(pytomCommand)
+    f.write(pytomguiCommand)
     f.close()
 
     os.system('chmod 755 ' + pytomDirectory + os.sep + 'bin' + os.sep + 'pytomGUI.py')
-
 
 def generateIPyTomScript(pytomDirectory):
 
