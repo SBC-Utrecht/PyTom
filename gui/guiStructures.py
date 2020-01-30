@@ -739,7 +739,10 @@ class CommonFunctions():
                 self.popup_messagebox('Info','Submitted job to the queue', text)
 
                 logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
-                print(f'cp {exefilename} {logcopy}')
+                try: os.system(f'cp {exefilename} {logcopy}')
+                except Exception as e:
+                    print(e)
+                    
             else:
                 proc = Worker(fn=os.system, args=['sh {}'.format(exefilename)], sig=False)
                 proc.start()

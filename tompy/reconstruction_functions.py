@@ -1,10 +1,4 @@
-import os
-if 'PyTomGpu' in os.environ.keys() and os.environ['PyTomGpu']:
-    import cupy as xp
-else:
-    os.environ['PyTomGpu'] = False
-    import numpy as xp
-
+from pytom.gpu.initialize import xp, gpu
 import voltools
 
 
@@ -34,7 +28,7 @@ def back_projection(image, angle, interpolation=None):
 
     out = xp.dstack([image] * (dims[2]*2))
     bp  = voltools.transform(out, rotation=(0, angle, 0), rotation_order='sxyz', interpolation=interpolation,
-                             center=numpy.array([dims[0] // 2, dims[1] // 2, dims[2]]), cpu=not os.environ['PyTomGpu'])
+                             center=numpy.array([dims[0] // 2, dims[1] // 2, dims[2]]), gpu=gpu)
 
     return bp[:,:,dims[2]//2+dims[2]%2:-dims[2]//2+dims[2]%2].copy()
 
