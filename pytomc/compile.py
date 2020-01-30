@@ -196,6 +196,8 @@ print('')
 nosh = False # you can choose not to compile the SH Alignment library
 nompi4py = False # you can choose not to compile the mpi4py library
 nonfft = False # you can choose not to compile the NFFT library
+novoltools = False
+
 
 if phony_target == "swig":
     os.system(setenv_line+" && "+setflags_line+" && "+"make swig")
@@ -271,6 +273,29 @@ if nompi4py is False:
     except Exception as e:
         print(e)
         print("Compilation of mpi4py failed! Disable this functionality.")
+
+if novoltools is False:
+    try:
+        print()
+        print("############ Start to compile voltools Library ############")
+        print()
+
+        os.system("cd ../external/src/voltools/ && python"+str(pythonVersion)+" setup.py install --prefix=../../")
+        print()
+        
+        # add into the path                                                                                                                                                                 
+        path1 = os.path.abspath(os.path.join(os.getcwd(), os.pardir)) + '/external/lib/'
+        path2 = os.path.abspath(os.path.join(os.getcwd(), os.pardir)) + '/external/lib/python'+str(pythonVersion)+'/site-packages/'
+        if sh_python_paths is None:
+            sh_python_paths = [path1, path2]
+        elif sh_python_paths.__class__ == list:
+            if not path1 in sh_python_paths:
+                sh_python_paths.append(path1)
+            if not path2 in sh_python_paths:
+                sh_python_paths.append(path2)
+        else:
+            raise Exception()
+
 
 # NFFT
 if nonfft is False:
