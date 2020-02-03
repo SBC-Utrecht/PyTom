@@ -296,6 +296,10 @@ if novoltools is False:
         else:
             raise Exception()
 
+    except Exception as e:
+        print(e)
+        print("Compilation of mpi4py failed! Disable this functionality.")
+
 
 # NFFT
 if nonfft is False:
