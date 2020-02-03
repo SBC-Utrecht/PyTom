@@ -64,3 +64,16 @@ def cleanUp_RandomParticleList( pl_filename='pl.xml', pdir='./testparticles'):
     rmdir(pdir)
     remove(pl_filename)
 
+def create_TiltSeries(data, tiltAngles, outputfolder='./'):
+    from pytom.tompy.io import read, write
+    from pytom.tompy.transform import rotate_axis
+    import os
+
+    if data.__class__ == str:
+        data = read(data)
+
+    if not os.path.exists(outputfolder): os.mkdir(outputfolder)
+
+    for n, tiltAngle in enumerate(tiltAngles):
+        outname = os.path.join(outputfolder, 'sorted_{:03d}.mrc'.format(n))
+        write(outname, rotate_axis(data, tiltAngle, axis='y').sum(axis=2),tilt_angle=tiltAngle)

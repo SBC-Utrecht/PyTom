@@ -557,10 +557,6 @@ class TomographReconstruct(GuiTabWidget):
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_reconstruction(pid, v))
 
-
-
-
-
     def startFidAssignment(self,parent=None):
         self.fidass = FiducialAssignment(self)
         self.fidass.show()
@@ -1329,8 +1325,6 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[mode + 'Voltage'].setValue(metadata['Voltage'][0])
         self.widgets[mode + 'SphericalAberration'].setValue(metadata['SphericalAberration'][0])
         self.widgets[mode + 'AmplitudeContrast'].setValue(metadata['AmplitudeContrast'][0])
-
-
 
     def prep_value(self, params):
 

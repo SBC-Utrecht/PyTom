@@ -681,26 +681,51 @@ class CommonFunctions():
         self.insert_pushbutton(parent, text=actiontext, rstep=rstep, cstep=cstep, action=action, params=params, wname=wname)
         self.insert_label(parent,sizepolicy=sizepolicy,rstep=1)
 
+    def insert_label_action(self, parent, actiontext, action='', cstep=0, rstep=1, sizepolicy='', params='', wname='',
+                            width=150):
+        self.insert_label(parent,alignment=Qt.AlignRight,sizepolicy=sizepolicy,rstep=1)
+        self.insert_pushbutton(parent, text=actiontext, rstep=1, cstep=cstep, action=action, params=params, wname=wname,
+                               width=width)
+
     def insert_gen_text_exe(self, parent, mode, gen_action='', action='', paramsAction=[], paramsXML=[], paramsCmd=[],
-                            paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, id='', gpu=True):
+                            paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, id='', gpu=True,
+                            queue=True, cs=3):
 
-        self.insert_label_action_label(parent, 'Generate command', cstep=1, rstep=-1, sizepolicy=self.sizePolicyB,
-                                       action=self.gen_action, wname=mode + 'GeneratePushButton',
-                                       params=[[mode + 'XMLText']+paramsXML,
-                                               [mode+'CommandText'] + paramsCmd,
-                                               paramsSbatch])
+        if not queue:
+            self.insert_label_action(parent, 'Generate command', cstep=1, rstep=-1, sizepolicy=self.sizePolicyB,
+                                           action=self.gen_action, wname=mode + 'GeneratePushButton',
+                                           params=[[mode + 'XMLText'] + paramsXML,
+                                                   [mode + 'CommandText'] + paramsCmd,
+                                                   paramsSbatch])
+            self.widgets[mode+'queue'] = QCheckBox()
 
 
-        self.insert_checkbox(parent,mode + 'queue',text='queue',cstep=-3,rstep=1,logvar=True,alignment=Qt.AlignLeft)
+        if queue:
+            self.insert_label_action_label(parent, 'Generate command', cstep=1, rstep=-1, sizepolicy=self.sizePolicyB,
+                                           action=self.gen_action, wname=mode + 'GeneratePushButton',
+                                           params=[[mode + 'XMLText'] + paramsXML,
+                                                   [mode + 'CommandText'] + paramsCmd,
+                                                   paramsSbatch])
+            self.insert_checkbox(parent,mode + 'queue',text='queue',cstep=-cs,rstep=1,logvar=True,alignment=Qt.AlignLeft)
+        else:
+            self.column -= cs
+            self.row += 1
 
         if jobfield:
-            self.insert_textfield(parent, mode + 'XMLText', columnspan=3, rstep=0, cstep=3, width=600,logvar=False)
+            self.insert_textfield(parent, mode + 'XMLText', columnspan=cs, rstep=0, cstep=3, width=600,logvar=False)
             if gpu: self.insert_checkbox(parent,mode + 'gpuRun',text='gpu',cstep=-1,rstep=1,logvar=True, alignment=Qt.AlignTop | Qt.AlignLeft)
             self.insert_label(parent, alignment=Qt.AlignRight, rstep=1, cstep=-2, sizepolicy=self.sizePolicyB)
-        self.insert_textfield(parent, mode + 'CommandText', columnspan=3, rstep=1, cstep=2, width=600, logvar=False)
-        self.insert_label_action_label(parent, 'Execute command', rstep=1, action=self.exe_action,
+        self.insert_textfield(parent, mode + 'CommandText', columnspan=cs, rstep=1, cstep=cs-1, width=600, logvar=False)
+
+        if queue:
+            self.insert_label_action_label(parent, 'Execute command', rstep=1, action=self.exe_action,
                                        params=[exefilename, mode+'CommandText', xmlfilename, mode+'XMLText', action,
                                                paramsAction])
+        else:
+            self.insert_label_action(parent, 'Execute command', rstep=1, action=self.exe_action,
+                                           params=[exefilename, mode + 'CommandText', xmlfilename, mode + 'XMLText',
+                                                   action,
+                                                   paramsAction])
 
     def exe_action(self, params):
 
@@ -3336,10 +3361,15 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.widgets[mode + 'maxTime'].setValue(self.qparams[self.currentJobName].time)
         self.widgets[mode + 'numberOfNodes'].setValue(self.qparams[self.currentJobName].nodes)
         self.widgets[mode + 'numberOfCores'].setValue(self.qparams[self.currentJobName].cores)
-        self.widgets[mode + 'modules'].activateModules(self.qparams[self.currentJobName].modules)
+        self.widgets[mode + 'modules'].activateModules(self.qparams[self.currentJobName].modules,block=(jobname=='All'))
+
+
+
 
     def tab1UI(self):
-        self.jobnames = ['SingleAlignment', 'BatchAlignment',
+        self.jobnames = ['All',
+                         'CollectData', 'MotionCorrection',
+                         'SingleAlignment', 'BatchAlignment',
                          'ReconstructWBP', 'ReconstructINFR', 'BatchReconstruct',
                          'CTFDetermination', 'SingleCTFCorrection', 'BatchCTFCorrection',
                          'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch','BatchExtractCandidates',
@@ -3522,7 +3552,7 @@ class SelectModules(QWidget):
         myBoxLayout = QVBoxLayout()
         self.setLayout(myBoxLayout)
         #self.setCentralWidget(myQWidget)
-
+        self.generalize = True
         self.toolbutton = QToolButton(self)
         self.toolbutton.setText('Select Modules')
         self.toolmenu = QMenu(self)
@@ -3538,6 +3568,7 @@ class SelectModules(QWidget):
         q = "module avail --long 2>&1 | awk 'NR >2 {print $1}'"
         avail = [line for line in os.popen(q).readlines() if not line.startswith('/')
                  and not line.startswith('shared') and not 'intel' in line]
+        avail += ['python3/3.7', 'imod/4.10.25', 'imod/4.10.28']
         self.grouped = [mod.strip("\n") for mod in avail if 'python' in mod or 'lib64' in mod or 'motioncor' in mod
                         or 'imod' in mod or 'pytom' in mod or 'openmpi' in mod]
         self.update = True
@@ -3567,22 +3598,42 @@ class SelectModules(QWidget):
                 action.setChecked(False)
         self.update = True
 
-        self.modules = []
-        for action in self.actions:
-            if action.isChecked(): self.modules.append(action.text())
+        self.modules = self.getActivatedModules()
 
         text = self.p.widgets[self.mode + 'jobName'].currentText()
         self.p.qparams[text].update(self.mode, self.p)
+        removed = not name in self.modules
+        if text == 'All':
+            for jobname in self.p.jobnames:
+                if jobname != 'All':
+                    if removed:
+                        print(jobname, name, self.p.qparams[jobname].modules, [mod for mod in self.p.qparams[jobname].modules if mod != name])
+                        self.p.qparams[jobname].modules = [mod for mod in self.p.qparams[jobname].modules if mod != name]
+                    else:
+                        self.p.qparams[jobname].modules  += [name]
+                    self.p.qparams[jobname].update(self.mode, self.p)
 
-    def activateModules(self, modules):
+
+    def activateModules(self, modules, block=False):
+        if block:
+            for action in self.actions:
+                action.blockSignals(True)
+
         for action in self.actions:
             if action.text() in modules:
                 action.setChecked(True)
             else:
                 action.setChecked(False)
 
+        for action in self.actions:
+            action.blockSignals(False)
+
     def getModules(self):
         return self.modules
+
+    def getActivatedModules(self):
+        return [action.text() for action in self.actions if action.isChecked()]
+
 
 
 class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):

@@ -274,3 +274,13 @@ fsc.py {d[2]} \\
 --pixelsize {d[8]} \\
 --randomizePhases {d[9]} \\
 {d[10]}'''
+
+templateMotionCorrection = '''cd {d[0]}
+
+motioncor2 -In{d[1]} {d[2]} \\
+-OutMrc {d[3]} \\
+-Serial 1 \\
+{d[7]} \\
+{d[4]} \\
+{d[5]} {d[6]}
+'''
