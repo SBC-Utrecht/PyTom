@@ -97,6 +97,113 @@ class NewProject(QMainWindow, CommonFunctions):
             self.label.setText(path)
             self.close()
 
+class View3d(QMainWindow, CommonFunctions):
+    def __init__(self, parent):
+        super(View3d, self).__init__(parent)
+        self.setGeometry(50, 50, 200, 100)
+        self.size_policies()
+        self.cwidget = QWidget()
+        self.pytompath=self.parent().pytompath
+        self.projectname = self.parent().projectname
+        self.logfolder = self.parent().logfolder
+        self.templatematchfolder = os.path.join(self.projectname, '04_Particle_Picking/Template_Matching')
+        self.pickpartfolder = os.path.join(self.projectname, '04_Particle_Picking/Picked_Particles')
+        self.subtomofolder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
+        self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
+        self.qtype = self.parent().qtype
+        self.qcommand = self.parent().qcommand
+
+        initdir = self.parent().projectname
+        self.logbook = self.parent().logbook
+        parent = QGridLayout()
+        parent.setAlignment(self, Qt.AlignTop)
+        mode = 'Viewer3D_'
+        self.widgets= {}
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+
+        self.insert_label(parent,cstep=0, rstep=1)
+        self.insert_label_line_push(parent, '3D object', mode + 'tomogramFname', initdir=initdir,
+                                    tooltip='Select the particle list.', mode='file', filetype=['mrc', 'em'], rstep=1)
+        self.insert_label_combobox(parent, '3D object', mode + 'sliceDirection', ['x', 'y', 'z'], cstep=0, rstep=1)
+
+        self.insert_pushbutton(parent, 'View!', tooltip='Select 3D mrc or em file.',
+                               rstep=1, cstep=2, action=self.insert_image, params=[parent])
+
+        self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA, rstep=1)
+        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyB, width=10)
+
+        self.cwidget.setLayout(parent)
+        self.setWindowTitle('Select a file describing a 3D model')
+        self.setCentralWidget(self.cwidget)
+
+
+    def insert_image(self, will=''):
+        self.view3d = Viewer3D(self)
+        if not self.view3d.failed:
+            self.view3d.show()
+
+class View2d(QMainWindow, CommonFunctions):
+    def __init__(self, parent):
+        super(View2d, self).__init__(parent)
+        self.setGeometry(50, 50, 200, 200)
+        self.size_policies()
+        self.cwidget = QWidget()
+        self.pytompath = self.parent().pytompath
+        self.projectname = self.parent().projectname
+        self.logfolder = self.parent().logfolder
+        self.templatematchfolder = os.path.join(self.projectname, '04_Particle_Picking/Template_Matching')
+        self.pickpartfolder = os.path.join(self.projectname, '04_Particle_Picking/Picked_Particles')
+        self.subtomofolder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
+        self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
+        self.qtype = self.parent().qtype
+        self.qcommand = self.parent().qcommand
+
+        initdir = self.parent().projectname
+        self.logbook = self.parent().logbook
+        parent = QGridLayout()
+        parent.setAlignment(self, Qt.AlignTop)
+        mode = 'Viewer2D_'
+        self.widgets = {}
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+
+        self.insert_label(parent, cstep=0, rstep=1)
+        self.insert_label_line_push(parent, '2D Image', mode + 'Filename', initdir=initdir, filetype=['mrc', 'em'],
+                                    tooltip='Select the particle list.', mode='file', cstep=-2, rstep=1)
+        self.insert_label_line_push(parent, 'Folder with 2d Images', mode + 'Foldername', initdir=initdir,
+                                    tooltip='Select the particle list.', mode='folder', cstep=-2, rstep=1)
+        self.insert_label(parent, cstep=0, rstep=1)
+        self.insert_label_spinbox(parent, mode + 'binningFactor', 'Binning Factor', value=1, stepsize=1, minimum=1, maximum=10)
+        self.insert_label_line(parent, 'Prefix', mode + 'prefix', value='sorted_')
+        self.insert_label_combobox(parent, 'File Type', mode + 'filetype', ['mrc', 'em'], cstep=0)
+
+        self.widgets[mode + 'Filename'].textChanged.connect(lambda d, m=mode, f='Filename': self.clearChoice(m, f))
+        self.widgets[mode + 'Foldername'].textChanged.connect(lambda d, m=mode, f='Foldername': self.clearChoice(m, f))
+        self.insert_pushbutton(parent, 'View!', tooltip='Select 3D mrc or em file.',
+                               rstep=1, cstep=2, action=self.insert_image, params=[parent])
+
+        self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA, rstep=1)
+        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyB, width=10)
+
+        self.cwidget.setLayout(parent)
+        self.setWindowTitle('Select either a file, or a folder with 2D images.')
+        self.setCentralWidget(self.cwidget)
+
+    def insert_image(self, will):
+        self.viewer = Viewer2D(self)
+        if not self.viewer.failed:
+            self.viewer.show()
+
+    def clearChoice(self, mode, choice):
+        txt = self.widgets[mode + choice].text()
+        if choice == 'Filename':
+            self.widgets[mode + 'Foldername'].setText('')
+        if choice == 'Foldername':
+            self.widgets[mode + 'Filename'].setText('')
+        self.widgets[mode + choice].setText(txt)
 
 class PyTomGui(QMainWindow, CommonFunctions):
     resized=pyqtSignal()
@@ -143,7 +250,10 @@ class PyTomGui(QMainWindow, CommonFunctions):
         # ADD ICONS FOR PLOT AND QUEUE -- ALSO ACCESSIBLE THROUGH DROPDOWN MENU FOR TOOLS
         plot = QAction(QIcon("{}/gui/Icons/PlotIcon.png".format(self.pytompath)), "Plot", self)
         log = QAction(QIcon("{}/gui/Icons/LogFileTray.png".format(self.pytompath)), "Queue", self)
-        for action in (plot, log):
+        view2d = QAction(QIcon("{}/gui/Icons/2d-viewing.png".format(self.pytompath)), "View2D", self)
+        view3d = QAction(QIcon("{}/gui/Icons/3d-viewing.png".format(self.pytompath)), "View3D", self)
+
+        for action in (plot, log, view2d, view3d):
             tb.addAction(action)
 
         # ADD SEPARATOR
@@ -178,11 +288,14 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.sbar.setSizeGripEnabled(False)
 
         try:
+            print(sys.argv[-1])
             if os.path.isdir(sys.argv[-1]):
-                self.projectname = sys.argv[-1]
+
+                self.projectname =  os.path.join(os.getcwd(), sys.argv[-1])
+                if self.projectname.endswith('/'): self.projectname = self.projectname[:-1]
                 if self.is_pytomgui_project(self.projectname):
                     # self.destroy(error_dialog)
-                    self.setWindowTitle('PyTom -- ' + basename(self.projectname))
+                    self.setWindowTitle('PyTom -- ' + os.path.basename(self.projectname))
                     guiFunctions.create_project_filestructure(projectdir=self.projectname)
                     self.run_project()
         except Exception as e:
@@ -207,6 +320,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
                 scrollarea.resize(w-280-frame.scrolloffset[n]/2,h-80-frame.scrolloffset[n])
 
     def save_logfile(self):
+        print('save  logfile')
         if not self.projectname: return
         with open(os.path.join(self.projectname, 'logfile.js'),'w') as f:
                 json.dump(self.logbook, f, indent=4, sort_keys=True)
@@ -246,6 +360,8 @@ class PyTomGui(QMainWindow, CommonFunctions):
         elif q.text() == 'Save':         self.save_logfile()
         elif q.text() == 'Plot':         self.plot_results()
         elif q.text() == 'Queue':        self.show_logfiles()
+        elif q.text() == 'View3D':       self.open3DImage()
+        elif q.text() == 'View2D':       self.open2DImage()
         else:
             for n, subname in enumerate(self.drs[1]):
                 if q.text() == subname and len(self.stage_buttons) > n+1:
@@ -303,6 +419,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
     def go_you(self):
         self.projectname = os.path.join(os.getcwd(), self.label.text())
+        if self.projectname.endswith('/'): self.projectname = self.projectname[:-1]
 
         if not os.path.exists(self.projectname): os.mkdir(self.projectname)
         self.setWindowTitle('PyTom -- ' + basename(self.projectname))
@@ -462,6 +579,24 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.image.setLayout(self.imagelayout)
 
         self.topleft_layout.addWidget(self.image,alignment=Qt.AlignHCenter)
+
+    def open3DImage(self):
+        try:
+            self.view3d.close()
+            self.view3d.show()
+        except:
+            self.view3d = View3d(self)
+
+            self.view3d.show()
+
+    def open2DImage(self):
+        try:
+            self.view2d.close()
+            self.view2d.show()
+        except:
+            self.view2d = View2d(self)
+            self.view2d.show()
+
 
 def main():
 

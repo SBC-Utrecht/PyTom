@@ -718,7 +718,7 @@ class TomographReconstruct(GuiTabWidget):
             num += 1
 
         signals.finished_mcor.emit()
-        self.popup_messagebox("Info", "Completion", 'Successfully generated tomogram directories.')
+        if a: self.popup_messagebox("Info", "Completion", 'Successfully generated tomogram directories.')
 
     def update_progress_generate_tomogramdir(self, total):
         self.progressBar.setValue(total)
@@ -1172,9 +1172,8 @@ class TomographReconstruct(GuiTabWidget):
                 logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
                 os.system(f'cp {exefilename} {logcopy}')
 
-
             else:
-                os.system('sh {}'.format(params[0]))
+                os.system('sh {}'.format(exefilename))
         except:
             print ('Please check your input parameters. They might be incomplete.')
 

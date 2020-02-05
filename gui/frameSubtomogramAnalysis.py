@@ -369,7 +369,8 @@ class SubtomoAnalysis(GuiTabWidget):
             if '_tomogram_' in particleFile:
                 particleFiles.append(particleFile)
             else:
-                pLs = extractParticleListsByTomoNameFromXML(particleFile, directory=os.path.dirname(particleFile))
+                output_folder = os.path.join(self.pickpartdir, os.path.splitext(os.basename(particleFile))[0])
+                pLs = extractParticleListsByTomoNameFromXML(particleFile, directory=output_folder)
                 for pl in pLs:
                     particleFiles.append(pl)
 
