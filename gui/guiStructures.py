@@ -1380,7 +1380,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                 layoutCheckBox.setContentsMargins(0, 0, 0, 0)
                 self.table2.setCellWidget(0, n, widget)
                 self.general_widgets.append(le)
-
+                applyOptionSum += 1
                 le.textChanged.connect(lambda dummy, rowIndex=n, c=t: self.on_changeItem(rowIndex, c))
             else:
                 widget = QWidget()

@@ -274,3 +274,11 @@ fsc.py {d[2]} \\
 --pixelsize {d[8]} \\
 --randomizePhases {d[9]} \\
 {d[10]}'''
+
+templateCTFCorrectionImod = '''cd {d[0]}                                                                                                                                                                                      
+                                                                                                                                                                                           
+ctfphaseflip -inp {d[1]} -o {d[2]} -an {d[3]} -defF {d[4]} \\
+-defT {d[5]} -iW {d[6]} -pi {d[7]} -cs {d[8]} \\
+-am {d[9]} -vo {d[10]} -AxisAngle {d[11]} 
+
+mrcs2mrc.py -f {d[2]} -t {d[12]} -p {d[13]} -o {d[14]}'''

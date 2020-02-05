@@ -3,9 +3,6 @@
 import mrcfile
 import sys, os
 from pytom.tompy.io import read, write
-from pytom.tompy.mpi import MPI
-
-mpi = MPI()
 
 def extract_single_image(dataSlice, sliceId, out_name, tiltangle, origdir, outdir, prefix):
     if origdir:
@@ -37,7 +34,7 @@ if __name__=='__main__':
                           description='Extract tilt images from mrcstack, and creation of meta data file.',
                           authors='Gijs van der Schot',
                           options=options)
-    mpi.begin()
+    
 
     if len(sys.argv) == 1:
         print(helper)
@@ -46,7 +43,7 @@ if __name__=='__main__':
     try:
         filename, outdir, prefix, origdir, mdoc, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print(e)
+        print(helper)
         sys.exit()
 
     if help is True:
@@ -82,7 +79,9 @@ TiltAngle = {}
 SubFramePath = X:\{}
 
 '''
-
+    if not os.path.exists(outdir):
+        try: os.mkdir(outdir)
+        except: raise Exception('Output directory does not exist and cannot be created.')
 
     if origdir:
         out_names = sorted([fname for fname in os.listdir(origdir) if fname.startswith('sorted')])
@@ -103,8 +102,7 @@ SubFramePath = X:\{}
         #mrcfile.new(outname, data[sliceId, :,:].astype('float32'), overwrite=True)
         if mdoc: mdocfile.write(d.format(sliceId, tiltangle, os.path.basename(outname)))
 
-    mpi.parfor(extract_single_image, out)
-    mpi.end()
+        extract_single_image(*out[-1])
 
     if mdoc: mdocfile.close()
     

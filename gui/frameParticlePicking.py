@@ -40,6 +40,7 @@ class ParticlePick(GuiTabWidget):
         self.projectname = self.parent().projectname
         self.logfolder = self.parent().logfolder
         self.templatematchfolder = os.path.join( self.projectname, '04_Particle_Picking/Template_Matching' )
+        self.ccfolder = os.path.join(self.templatematchfolder, 'cross_correlation')
         self.pickpartfolder = os.path.join(self.projectname, '04_Particle_Picking/Picked_Particles')
         self.subtomofolder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
         self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
@@ -166,7 +167,7 @@ class ParticlePick(GuiTabWidget):
         except:
             self.jobFilesExtract = QLineEdit()
 
-        self.batchEC = SelectFiles(self, initdir=self.tomogramfolder, search='file', filter=['xml'],
+        self.batchEC = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['xml'],
                                    outputline=self.jobFilesExtract, run_upon_complete=self.populate_batch_extract_cand,
                                    id=key, title='Select job files.')
 
@@ -392,7 +393,7 @@ class ParticlePick(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
         w = 170
 
-        self.ccfolder = os.path.join(self.templatematchfolder, 'cross_correlation')
+
 
         self.insert_label_line_push(parent, 'Tomogram', mode + 'tomogramFname', initdir=self.ccfolder,
                                     tooltip='Select the particle list.', mode='file', filetype=['em','mrc'],cstep=-1)
@@ -557,7 +558,19 @@ class ParticlePick(GuiTabWidget):
 
         angleLists = os.listdir(os.path.join(self.pytompath, 'angles/angleLists'))
         for n, tomogramFile in enumerate(tomogramFiles):
-            values.append([tomogramFile, 1, 1, templateFiles, maskFiles, 30, 30, angleLists, 0, 0, ''])
+            try:
+                folder = os.path.dirname(os.popen(f'ls -alrt {tomogramFile}').read()[:-1].split(' ')[-1])
+                print(folder)
+                widthfile = os.path.join(folder, 'z_limits.txt')
+                if os.path.exists( widthfile):
+
+                    start, end = map(int, list(numpy.loadtxt(widthfile)))
+                else:
+                    start, end = 0,0
+            except Exception as e:
+                print(e)
+                start, end = 0, 0
+            values.append([tomogramFile, 1, 1, templateFiles, maskFiles, 30, 30, angleLists, start, end, ''])
 
         try:
             self.num_nodes[id].setParent(None)
@@ -575,6 +588,10 @@ class ParticlePick(GuiTabWidget):
     def populate_batch_extract_cand(self,id='tab23'):
         self.batchEC.close()
         jobfiles = sorted(self.jobFilesExtract.text().split('\n'))
+
+        jobfiles += glob.glob(os.path.join(self.ccfolder, '*/job*flipped.xml'))
+        jobfiles = numpy.unique(jobfiles)
+
         if len(jobfiles) == 0:
             print('\n\nPlease select at least one job file template and mask file.\n\n')
             return
@@ -594,6 +611,7 @@ class ParticlePick(GuiTabWidget):
         values = []
 
         for n, jobFile in enumerate(jobfiles):
+            if not jobFile: continue
             folder = os.path.basename(os.path.dirname(jobFile))
             particleList = os.path.join(self.pickpartfolder, 'particleList_TM_{}.xml'.format(folder))
             if not os.path.exists(os.path.dirname(particleList)): os.mkdir(os.path.dirname(particleList))

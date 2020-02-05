@@ -37,11 +37,8 @@ def update_env_vars(pytompath):
                     update_vars = True
         #If any of the env vars are updated reopen this script.
         if update_vars:
-            if len(sys.argv) < 2:
-                pythonVersion = 'python{d[0]}.{d[1]}'.format( d=sys.version_info )
-                path = os.popen('which {}'.format(pythonVersion)).read()[:-1]
-                sys.argv = [path] + sys.argv
-
+            if not 'python' in os.path.basename(sys.argv[0]):
+                sys.argv = [sys.executable] + sys.argv
             os.execv(sys.argv[0],sys.argv)
             #os.execv('/cm/shared/apps/python3/3.7/bin/python3.7', sys.argv)
 update_env_vars(pytompath)
@@ -132,7 +129,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.qcommand = 'sbatch'
         self.logbook = {}
         dropdown = []
-        self.modules = ['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel']
+        self.modules = ['openmpi/2.1.1', 'python3/3.7', 'lib64/append']
 
         self.setStyleSheet('background: #{};'.format(self.mainc))
         bar=self.menuBar()
@@ -140,7 +137,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         tb = QToolBar()
         tb.setStyleSheet('background: #{};'.format(self.bars))
         self.addToolBar(tb)
-        print(self.pytompath+'/gui/Icons/new_project4.png')
+
         new=QAction(QIcon("{}/gui/Icons/new_project4.png".format(self.pytompath)),"New",self)
         tb.addAction(new)
         load=QAction(QIcon("{}/gui/Icons/open_project4.png".format(self.pytompath)),"Open",self)
@@ -167,7 +164,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
                           ('ParticlePick',         "Particle Picking" ),
                           ('SubtomoAnalysis',      "Subtomogram Analysis"))
 
-        dropdown_menu_project = ("Project",('New','Open','Save','Quit'), self.processtrigger)
+        dropdown_menu_project = ("Project",('New','Open','Save', "Settings", 'Quit'), self.processtrigger)
         dropdown_menu_file = ("File", ('Open', 'Save', 'Close'), self.filetrigger)
         self.drs = dropdown_menu_stage = ("Enable Stage",("Tomographic Reconstruction","Particle Picking","Subtomogram Analysis"),
                                self.processtrigger)
@@ -184,6 +181,18 @@ class PyTomGui(QMainWindow, CommonFunctions):
         # self.statusBar.setLayout(QHBoxLayout())
         self.setStatusBar(self.sbar)
         self.sbar.setSizeGripEnabled(False)
+
+        try:
+            if os.path.isdir(sys.argv[-1]):
+                self.projectname = sys.argv[1]
+                if self.is_pytomgui_project(self.projectname):
+                    # self.destroy(error_dialog)
+                    self.setWindowTitle(basename(self.projectname))
+                    guiFunctions.create_project_filestructure(projectdir=self.projectname)
+                    self.run_project()
+        except Exception as e:
+            print(e)
+            pass
 
     def resizeEvent(self, event):
         self.resized.emit()
@@ -216,11 +225,10 @@ class PyTomGui(QMainWindow, CommonFunctions):
         if os.path.exists(os.path.join(projectname, 'logfile.js')):
             self.load_logfile(os.path.join(projectname, 'logfile.js'))
             return True
-        else:#if os.path.exists(os.path.join(projectname, 'logfile.pickle'))  :
+        elif os.path.exists(os.path.join(projectname, 'logfile.pickle')):
             for t, text in self.targets:
                 self.logbook['00_framebutton_{}'.format(t)] = (t == self.targets[0][0])
             return True
-
         return False
 
     def filetrigger(self, q):
@@ -444,6 +452,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.topleft_layout.addWidget(self.image,alignment=Qt.AlignHCenter)
 
 def main():
+
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     app.setWindowIcon(QIcon('/Users/gijs/Documents/PostDocUtrecht/GUI/pp.jpg'))
