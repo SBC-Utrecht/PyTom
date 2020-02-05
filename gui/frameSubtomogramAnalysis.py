@@ -1212,16 +1212,18 @@ class SubtomoAnalysis(GuiTabWidget):
 
     def updatePixelSize(self, mode):
         from pytom.basic.structures import ParticleList
-        particleList = self.widgets[mode + 'particleList'].text()
-        pl = ParticleList()
-        pl.fromXMLFile(particleList)
-        tomid = pl[0].getPickPosition().getOriginFilename().split('/tomogram_')[1].split('_')[0]
-        metaquery = os.path.join( self.tomoanalysis, f'tomogram_{tomid}/sorted/*.meta')
-        a = glob.glob(metaquery)
-        if len(a):
-            pixelsize = guiFunctions.loadstar(a[0], dtype=guiFunctions.datatype)['PixelSpacing'][0]
-            self.widgets[mode + 'pixelSize'].setValue(pixelsize)
-
+        try:
+            particleList = self.widgets[mode + 'particleList'].text()
+            pl = ParticleList()
+            pl.fromXMLFile(particleList)
+            tomid = pl[0].getPickPosition().getOriginFilename().split('/tomogram_')[1].split('_')[0]
+            metaquery = os.path.join( self.tomoanalysis, f'tomogram_{tomid}/sorted/*.meta')
+            a = glob.glob(metaquery)
+            if len(a):
+                pixelsize = guiFunctions.loadstar(a[0], dtype=guiFunctions.datatype)['PixelSpacing'][0]
+                self.widgets[mode + 'pixelSize'].setValue(pixelsize)
+        except:
+            pass
     def updateJobname(self, mode):
         dest = self.widgets[mode+'destination'].text()
         if dest:
