@@ -1151,7 +1151,8 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
 
         self.insert_label_spinbox(self.grid,'bin_alg', text='Binning Factor Finding Fiducials',rstep=1,
                                   minimum=1,maximum=16,stepsize=2,value=8,wtype=QSpinBox,cstep=0,
-                                  tooltip='Binning factor for finding fiducials, used to improve contrast.')
+                                  tooltip='Binning factor for finding fiducials, used to improve contrast.\n'
+                                          'Must be a multiple of the binning factor for reading.')
 
         self.insert_pushbutton(self.grid, text='Load Tilt Images', rstep=1, action=self.parent().load_images,params='',
                                tooltip='Load tilt images of tomogram set in settings.', cstep=-1)
@@ -1196,6 +1197,22 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         self.widgets['fiducial_size'].valueChanged.connect(self.update_radius)
         self.widgets['ref_frame'].valueChanged.connect(self.update_ref_frame)
         self.update_radius()
+
+        self.widgets['bin_read'].valueChanged.connect(self.keepMultiple)
+        self.widgets['bin_alg'].valueChanged.connect(self.keepMultiple)
+
+    def keepMultiple(self):
+        v = self.widgets['bin_read'].value()
+        w = self.widgets['bin_alg'].value()
+
+        if v % w != 0:
+            w = numpy.around(((w+v-1)//v)*v,0)
+
+        self.widgets['bin_read'].setValue(v)
+        self.widgets['bin_alg'].setValue(w)
+
+
+
 
     def update_ref_frame(self):
         self.parent().ref_frame = int(self.widgets['ref_frame'].text())

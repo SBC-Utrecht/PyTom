@@ -45,15 +45,15 @@ if __name__ == '__main__':
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         filename, directory, target, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
-        print e
+        print(e)
         sys.exit()
     if help is True:
-        print helper
+        print(helper)
         sys.exit()
     
     if filename:
@@ -65,5 +65,5 @@ if __name__ == '__main__':
         fileList = os.listdir(directory)
         for file in fileList:
             if file[len(file)-3:len(file)] == '.em':
-                print directory + os.sep + file , target
+                print(directory + os.sep + file , target)
                 em2ccp4(directory + os.sep + file,target)

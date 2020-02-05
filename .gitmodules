@@ -1,3 +1,6 @@
 [submodule "external/src/mpi4py"]
 	path = external/src/mpi4py
 	url = https://bitbucket.org/mpi4py/mpi4py.git
+[submodule "external/src/voltools"]
+	path = external/src/voltools
+	url = https://github.com/the-lay/voltools.git

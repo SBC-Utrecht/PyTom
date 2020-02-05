@@ -129,6 +129,7 @@ def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binni
             pasteCenter(maskBin, mask)
         else:
             mask = maskBin
+
     else:
         mask = None
 
@@ -359,6 +360,7 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
     import time
 
     v = p.getVolume(binning)
+
     if mask.__class__ == str:
         maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
         if v.sizeX() != maskBin.sizeX() or v.sizeY() != maskBin.sizeY() or v.sizeZ() != maskBin.sizeZ():
@@ -367,6 +369,7 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
             pasteCenter(maskBin, mask)
         else:
             mask = maskBin
+
     pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
 
     return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), 
@@ -647,6 +650,7 @@ def distance(p, ref, freq, mask, binning):
 
 
     s = nxcc(a, b, mask)
+
     d2 = 2*(1-s)
 
     return d2

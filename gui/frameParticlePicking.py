@@ -876,8 +876,8 @@ class ParticlePick(GuiTabWidget):
             if not os.path.exists(ff): os.mkdir(ff)
             fname_plist = 'particleList_{}.xml'.format(os.path.basename(coordinateFile[:-4]))
             active = True
-            #if coordinateFile.endswith('.xml'):
-                #prefix = 'UNCHANGED'
+            if coordinateFile.endswith('.xml'):
+                prefix = 'UNCHANGED'
                 #fname_plist = 'UNCHANGED'
                 #active=False
             values.append( [coordinateFile, prefix, 30, 30, fname_plist, active, ''] )
@@ -918,7 +918,10 @@ class ParticlePick(GuiTabWidget):
                     w1      = self.tab32_widgets['widget_{}_{}'.format(row, 2)].text()
                     w2      = self.tab32_widgets['widget_{}_{}'.format(row, 3)].text()
                     outname = self.tab32_widgets['widget_{}_{}'.format(row, 4)].text()
-                    r       = self.tab32_widgets['widget_{}_{}'.format(row, 5)].isChecked()
+                    try:
+                        r   = self.tab32_widgets['widget_{}_{}'.format(row, 5)].isChecked()
+                    except:
+                        r   = None
 
                     outname = os.path.join(os.path.dirname(c), outname)
                     wedges = '{},{},'.format(w1,w2)
@@ -966,19 +969,22 @@ class ParticlePick(GuiTabWidget):
                 convertCoords2PL([c], pl, subtomoPrefix=[p], wedgeAngles=wedge, angleList=angleList)
                 #os.system(createParticleList.format(d=[c, p, wedge, pl]))
 
-            except:
+            except Exception as e:
+                print(e)
                 print('Writing {} failed.'.format(os.path.basename(fname)))
                 return
 
 
         convertCoords2PL(conf[0], fname, subtomoPrefix=conf[2], wedgeAngles=conf[3], angleList=AL)
 
-        fnamesPL = fnamesPL + [fname]
+        fnamesPL2 = fnamesPL + [fname]
 
         if wedges: wedges = wedges[:-1]
 
-        if len(fnamesPL) > 1:
-            os.system('combineParticleLists.py -f {} -o {} '.format(",".join(fnamesPL), fname))
+        if len(fnamesPL2) > 1:
+            os.system('combineParticleLists.py -f {} -o {} '.format(",".join(fnamesPL2), fname))
+            for remove_fname in fnamesPL:
+                os.remove(remove_fname)
 
     def changeXMLParameters(self, mode='', title=''):
         tooltip = 'Tick this box to update specific fields in an particle list (XML format).'
