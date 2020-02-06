@@ -46,6 +46,9 @@ class ParticlePick(GuiTabWidget):
         self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
         self.qtype = self.parent().qtype
         self.qcommand = self.parent().qcommand
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
 
         self.tabs_dict, self.tab_actions = {}, {}
 
@@ -633,7 +636,7 @@ class ParticlePick(GuiTabWidget):
     def mass_submitEC(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = 0
-
+        qIds = []
         for row in range(self.tables[pid].table.rowCount()):
 
             jobFile       = values[row][0]
@@ -660,15 +663,23 @@ class ParticlePick(GuiTabWidget):
             outjob = open(os.path.join(outDirectory, 'extractCandidatesBatch.sh'), 'w')
             outjob.write(job)
             outjob.close()
-            os.system('sbatch {}/{}'.format(outDirectory, 'extractCandidatesBatch.sh'))
+            execfilename = os.path.join(outDirectory, 'extractCandidatesBatch.sh')
+            dd = os.popen('{} {}'.format(self.qcommand, execfilename))
+
+            text = dd.read()[:-1]
+            ID = text.split()[-1]
+            qIDs.append(ID)
+            logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(execfilename)}')
+            os.system(f'cp {execfilename} {logcopy}')
             num_submitted_jobs += 1
 
         self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+        self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Extract Cand. Batch')
 
     def mass_submitTM(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = 0
-
+        qIDs = []
         for row in range(self.tables[pid].table.rowCount()):
             normal = self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked()
             mirrored = self.tab22_widgets['widget_{}_{}'.format(row, 2)].isChecked()
@@ -753,9 +764,19 @@ class ParticlePick(GuiTabWidget):
                 outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
                 outjob2.write(job)
                 outjob2.close()
-                os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
+                execfilename = os.path.join(outDirectory, 'templateMatchingBatch.sh')
+                dd = os.popen('{} {}'.format(self.qcommand, execfilename))
+
+                text = dd.read()[:-1]
+                ID = text.split()[-1]
+                qIDs.append(ID)
+                logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(execfilename)}')
+                os.system(f'cp {execfilename} {logcopy}')
+
                 num_submitted_jobs += 1
+
         self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+        self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Templ. Match Batch')
 
     def createParticleList(self, mode=''):
         title = "Create Particle List"

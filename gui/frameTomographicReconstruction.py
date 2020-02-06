@@ -44,6 +44,10 @@ class TomographReconstruct(GuiTabWidget):
         self.qtype = self.parent().qtype
         self.qcommand = self.parent().qcommand
         self.widgets = {}
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
+
         self.qparams = self.parent().qparams
 
         self.widgets['pytomPath'] = QLineEdit()
@@ -909,6 +913,9 @@ class TomographReconstruct(GuiTabWidget):
 
         num_submitted_jobs = 0
         qname, n_nodes, cores, time, modules = self.qparams['BatchAlignment'].values()
+
+        submissionIDs = []
+
         for n in range(len(lprocs) - 1):
 
             input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1], num_procs_per_proc,
@@ -928,10 +935,10 @@ class TomographReconstruct(GuiTabWidget):
                 exefilename = '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n)
                 dd = os.popen('{} {}'.format(self.qcommand, exefilename))
                 text = dd.read()[:-1]
-                id = text.split()[-1]
-                logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
+                ID = text.split()[-1]
+                logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(exefilename)}')
                 os.system(f'cp {exefilename} {logcopy}')
-
+                submissionIDs.append(ID)
 
                 num_submitted_jobs += 1
             else:
@@ -939,6 +946,8 @@ class TomographReconstruct(GuiTabWidget):
 
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(submissionIDs, key='QJobs', job_description='Alignment Batch')
+
 
     def updateTomoFolder(self, mode):
 
@@ -1081,6 +1090,7 @@ class TomographReconstruct(GuiTabWidget):
     def run_multi_reconstruction(self, id, values):
         print('multi_reconstructions', id)
 
+        qIDs = []
         n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables[id].table
         widgets = self.tables[id].widgets
@@ -1165,11 +1175,13 @@ class TomographReconstruct(GuiTabWidget):
                         commandText = header + commandText
 
                     params = [execfilename, commandText]
-                    self.submit_multi_recon_job(params)
+                    q, ID = self.submit_multi_recon_job(params)
+                    if q: qIDs.append(ID)
                     num_submitted_jobs += 1
 
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Tom. Reconstr. Batch')
 
     def submit_multi_recon_job(self, params):
 
@@ -1183,14 +1195,17 @@ class TomographReconstruct(GuiTabWidget):
 
                 dd = os.popen('{} {}'.format(self.qcommand, exefilename))
                 text = dd.read()[:-1]
-                id = text.split()[-1]
-                logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
+                ID = text.split()[-1]
+                logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(exefilename)}')
                 os.system(f'cp {exefilename} {logcopy}')
+                return True, ID
 
             else:
                 os.system('sh {}'.format(exefilename))
+                return False, 0
         except:
             print ('Please check your input parameters. They might be incomplete.')
+            return False, 0
 
     def ctfDetermination(self, mode):
 
@@ -1512,6 +1527,7 @@ class TomographReconstruct(GuiTabWidget):
         print('multi_ctf_corrections', id)
         num_nodes = self.tables[id].table.rowCount()
         num_submitted_jobs = 0
+        submissionIDs = []
         try:
             num_nodes = self.num_nodes[id].value()
         except:
@@ -1577,10 +1593,10 @@ class TomographReconstruct(GuiTabWidget):
                     dd = os.popen('{} {}'.format(self.qcommand, exefilename ))
 
                     text = dd.read()[:-1]
-                    id = text.split()[-1]
-
-                    logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{tomofolder}_ctfCorrectionBatch.sh')
-                    print(f'cp {exefilename} {logcopy}')
+                    ID = text.split()[-1]
+                    submissionIDs.append(ID)
+                    logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{tomofolder}_ctfCorrectionBatch.sh')
+                    os.system(f'cp {exefilename} {logcopy}')
 
                     num_submitted_jobs += 1
 
@@ -1591,3 +1607,4 @@ class TomographReconstruct(GuiTabWidget):
 
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(submissionIDs, key='QJobs', job_description='CTF Correction Batch')

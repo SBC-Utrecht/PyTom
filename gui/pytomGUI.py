@@ -216,6 +216,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.projectname = None
         self.stage_buttons = []
         self.qparams = {}
+        self.qEvents = {}
         self.projectname = './'
         y,b,g,w = 'f9ce00', '343434', 'cacaca','fcfaf1'
         bl='1989ac'
@@ -293,7 +294,8 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
             print(sys.argv[-1])
             if os.path.isdir(sys.argv[-1]):
-
+                if sys.argv[-1] == './' or sys.argv[-1]== '.':
+                    sys.argv[-1] = ''
                 self.projectname =  os.path.join(os.getcwd(), sys.argv[-1])
                 if self.projectname.endswith('/'): self.projectname = self.projectname[:-1]
                 if self.is_pytomgui_project(self.projectname):
@@ -599,6 +601,12 @@ class PyTomGui(QMainWindow, CommonFunctions):
         except:
             self.view2d = View2d(self)
             self.view2d.show()
+
+    def closeEvent(self, event):
+        for e in self.qEvents.values():
+            e.set()
+        event.accept()
+
 
 
 def main():

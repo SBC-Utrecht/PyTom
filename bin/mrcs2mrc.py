@@ -34,7 +34,7 @@ if __name__=='__main__':
                           description='Extract tilt images from mrcstack, and creation of meta data file.',
                           authors='Gijs van der Schot',
                           options=options)
-    
+
 
     if len(sys.argv) == 1:
         print(helper)

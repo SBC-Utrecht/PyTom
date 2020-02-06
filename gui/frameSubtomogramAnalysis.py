@@ -47,6 +47,9 @@ class SubtomoAnalysis(GuiTabWidget):
         self.acpath = os.path.join(self.parent().subtomo_folder, 'Classification/AutoFocus')
         self.qtype = self.parent().qtype
         self.qcommand = self.parent().qcommand
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
 
         self.tabs_dict = {}
         self.tab_actions = {}
@@ -1225,6 +1228,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 self.widgets[mode + 'pixelSize'].setValue(pixelsize)
         except:
             pass
+
     def updateJobname(self, mode):
         dest = self.widgets[mode+'destination'].text()
         if dest:
@@ -1273,6 +1277,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
     def massExtractParticles(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
+        qIDs = []
         num_submitted_jobs = nsj = 0
         values = self.valuesBatchSubtomoReconstruction
         for row in range(self.tables[pid].table.rowCount()):
@@ -1347,9 +1352,18 @@ class SubtomoAnalysis(GuiTabWidget):
                 out = open(execfilename, 'w')
                 out.write(jobtxt)
                 out.close()
-                os.system('{} {}'.format(self.qcommand, execfilename))
+                #   os.system('{} {}'.format(self.qcommand, execfilename))
+                dd = os.popen('{} {}'.format(self.qcommand, execfilename))
+
+                text = dd.read()[:-1]
+                ID = text.split()[-1]
+                qIDs.append(ID)
+                logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(execfilename)}.sh')
+                os.system(f'cp {execfilename} {logcopy}')
                 nsj += 1
+
         self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
+        self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Subtom Recon Batch')
 
     def massPolishParticles(self, pid, values):
 

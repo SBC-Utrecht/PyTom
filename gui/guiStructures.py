@@ -1,7 +1,8 @@
 import os
 import copy
 import pickle
-
+import glob
+import atexit
 import pyqtgraph as pg
 
 from PyQt5.QtWidgets import *
@@ -23,6 +24,8 @@ import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 from ftplib import FTP_TLS, FTP
 import lxml.etree as et
+
+from multiprocessing import Manager, Event, Process
 
 class BrowseWindowRemote(QMainWindow):
     '''This class creates a new windows for browsing'''
@@ -266,6 +269,7 @@ class WorkerSignals(QObject):
 
     '''
 
+    finished_queue = pyqtSignal(object)
     finished_mcor = pyqtSignal()
     finished_collect = pyqtSignal()
     error = pyqtSignal(tuple)
@@ -327,6 +331,69 @@ class CommonFunctions():
         except:
             print ('Please check your input parameters. They might be incomplete.')
 
+    def addProgressBarToStatusBar(self, qids=[], key='', job_description='Queue'):
+        if not key or not len(qids): return
+
+
+        counters = [0, ] * len(qids)
+
+        manager = Manager()
+
+        ID = qids[0]
+
+        self.progressBarCounters[ID] = manager.list(counters)
+        self.generateStatusBar(len(qids), ID, job_description)
+
+        proc = Worker(fn=self.checkRun, args=(ID, qids, job_description))
+        proc.signals.result1.connect(self.updateProgressBar)
+        proc.signals.finished_queue.connect(self.deleteProgressBar)
+        proc.start()
+        event = Event()
+        self.queueEvents[job_description] = event
+
+
+    def generateStatusBar(self, nrJobs, key, job_description):
+        widget = QWidget(self)
+        layout = QHBoxLayout()
+        widget.setLayout(layout)
+
+        self.progressBars[key] = QProgressBar()
+
+        self.progressBars[key].setSizePolicy(self.sizePolicyA)
+        self.progressBars[key].setStyleSheet(DEFAULT_STYLE_PROGRESSBAR)
+        self.progressBars[key].setFormat(f'{job_description}: %v/%m')
+        self.progressBars[key].setSizePolicy(self.sizePolicyB)
+        self.progressBars[key].setMaximum(nrJobs)
+        layout.addWidget(self.progressBars[key])
+        self.statusBar.addPermanentWidget(self.progressBars[key], stretch=1)
+
+    def whichRunning(self, qids):
+        runningJobs = [rid[:-1] for rid in os.popen(" squeue | awk 'NR > 1 {print $1}' ").readlines()]
+        inQueue = [str(int(qid)) for qid in qids if qid in runningJobs]
+        return inQueue
+
+    def checkRun(self, id, qids, job_description, signals):
+        import time
+
+        inQueue = self.whichRunning(qids)
+        while len(inQueue):
+            total = len(qids) - len(inQueue)
+            signals.result1.emit([id, total])
+            time.sleep(1)
+            inQueue = self.whichRunning(qids)
+            if self.queueEvents[job_description].is_set():
+                print(f'exit {job_description} loop')
+                return
+        self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
+        signals.finished_queue.emit(id)
+        #self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
+
+    def updateProgressBar(self, keys):
+        key, total = keys
+        self.progressBars[key].setValue(total)
+
+    def deleteProgressBar(self, key):
+        self.statusBar.removeWidget(self.progressBars[key])
 
     def add_toolbar(self, decider, new=False, open=True, save=True,
                     newText='Create New Project', openText='Load Project', saveText="Save Project"):
@@ -2544,7 +2611,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         self.add_controls(self.layout_operationbox)
 
-        self.subtomo_plots = PlotterSubPlots(self, size_subtomo=self.radius)
+        self.subtomo_plots = PlotterSubPlots(self, size_subtomo=self.radius*2)
         self.subtomo_plots.show()
         pg.QtGui.QApplication.processEvents()
 
@@ -2617,7 +2684,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         params = ['file', self.widgets['filenameMask'], ['mrc', 'em'], False, self.parent().pickpartfolder]
         self.insert_pushbutton(prnt,'Browse', action=self.browse, params=params, width=100)
         self.widgets['filenameMask'].textChanged.connect(self.updateMask)
-
 
     def updateMask(self):
         fname = self.widgets['filenameMask'].text()
@@ -2780,7 +2846,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                     continue
                 self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), score, self.radius, score=score)
 
-
+        self.widgets['numSelected'].setText(str(len(self.particleList)))
         self.replot()
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
 
@@ -4380,7 +4446,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
 
 
 class PlotterSubPlots(QMainWindow,CommonFunctions):
-    def __init__(self, parent=None, width=400, size_subplot=80, size_subtomo=40, height=1000, offset_x=0, offset_y=0):
+    def __init__(self, parent=None, width=800, size_subplot=80, size_subtomo=40, height=1000, offset_x=0, offset_y=0):
         super(PlotterSubPlots,self).__init__(parent)
         self.width = width
         self.height = height
@@ -4408,6 +4474,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         #self.setCentralWidget(self.scrollarea)
         self.setLayout(QHBoxLayout())
         self.setGeometry(self.dx,self.dy,self.width,self.height)
+        self.setWindowTitle('Selected Particles')
         self.init_variables()
 
     def init_variables(self):
@@ -4517,6 +4584,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
             self.parent().pos.setX(self.coordinates[ID][0] - self.parent().radius)
             self.parent().pos.setY(self.coordinates[ID][1] - self.parent().radius)
             self.parent().centimage.addItem(circle(self.parent().pos, size=(self.parent().radius) * 2, color=Qt.red))
+
     def reset_display_subtomograms(self, particleList, volume ):
         for child in self.vBoxList:
             self.canvas.removeItem(child)
