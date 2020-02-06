@@ -327,17 +327,21 @@ class TomographReconstruct(GuiTabWidget):
 
     def tab43UI(self, id=''):
 
-        headers = ["Name Tomogram", 'Correct', "Input Stack", "Angle File", "Defocus Complete File", 'Parameter File', 'Output Folder', 'Width Interpol.', '']
-        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
-        sizes = [0, 0, 30, 30, 430, 30, 30, 30, 0]
+        headers = ["Name Tomogram", 'Correct', 'Defocus Tol', 'Width Interpol.', 'Pixel Size', 'Spherical Aberr.',
+                   'Amp. Contrast', 'Voltage', 'Rot. Angle', "Input Stack", "Angle File", "Defocus File", 'Output Folder', '']
+        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
+        sizes = [0, 0, 30, 30, 430, 30, 30, 30, 0, 0 ,0, 0, 0, 0, ]
 
         tooltip = ['Names of existing tomogram folders.',
+                   'Interpolation width (pixels)',
+                   'Pixel Size (nm)', 'Spherical Aberration', 'Amplitude Contrast', 'Voltage (kV)',
+                   'In-plane rotation angle',
                    'CTF Correction.',
                    'Input Stack.',
                    'Angle File',
                    'Defocus file (from correction).',
                    'Parameter File from wich other relevant input values are taken, i.e. Volrage or Rot Angle.',
-                   'Output Folder', 'Interpolation width (pixels)']
+                   'Output Folder']
 
         defocusfiles = sorted(glob.glob('{}/tomogram_*/ctf/*.defocus'.format(self.tomogram_folder)))
 
@@ -358,21 +362,19 @@ class TomographReconstruct(GuiTabWidget):
                         kvpair = line.split()
                         if len(kvpair) == 2 and kvpair[0] in keys:
                             k, v = kvpair
-                            try:
-                                d[k] = float(v)
-                            except:
-                                d[k] = v
+                            d[k] = v
                     origdir = os.path.dirname(d['InputStack'])
                     prefix = os.path.basename(origdir) + '_ctf'
                     outfolder = os.path.join(ctffolder, prefix)
                     if not os.path.exists(outfolder):
                         os.mkdir(outfolder)
+                    values.append([tomogramName, True, d['DefocusTol'], 15, d['PixelSize'], d['SphericalAberration'],
+                                   d['AmplitudeContrast'], d['Voltage'], d['AxisAngle'], d['InputStack'],
+                                   d['AngleFile'], defocusfile, outfolder, ''])
 
             except Exception as e:
                 print(e)
                 continue
-
-            values.append( [tomogramName, True, d['InputStack'], d['AngleFile'], defocusfile, ctfplotter, outfolder, 15, ''] )
 
         if values:
             try:
@@ -820,10 +822,10 @@ class TomographReconstruct(GuiTabWidget):
         widgets = self.tables[id].widgets
 
         for i in range(10000):
-            file_tomoname = os.path.join(self.tomogram_folder, '.multi_alignment_{:04d}.txt'.format(i))
+            file_tomoname = os.path.join(self.tomogram_folder, 'jobscripts/.multi_alignment_{:04d}.txt'.format(i))
             if not os.path.exists(file_tomoname):
                 break
-        print('tomoname', file_tomoname)
+
         tomofolder_info = []
         total_number_markers = 0
         number_tomonames = 0
@@ -922,20 +924,9 @@ class TomographReconstruct(GuiTabWidget):
                 cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname, time=time,
                                                     num_nodes=n_nodes, cmd=cmd, modules=modules, num_jobs_per_node=cores)
 
-            guiFunctions.write_text2file(cmd, '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n), 'w')
-
-            if self.checkbox[id].isChecked():
-                exefilename = '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n)
-                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
-                text = dd.read()[:-1]
-                id = text.split()[-1]
-                logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
-                os.system(f'cp {exefilename} {logcopy}')
-
-
-                num_submitted_jobs += 1
-            else:
-                os.system('bash {}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n))
+            exefilename = '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n)
+            ID, num = self.submitBatchJob(exefilename, id, cmd)
+            num_submitted_jobs += num
 
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
@@ -1164,33 +1155,11 @@ class TomographReconstruct(GuiTabWidget):
                                                                partition=qname)
                         commandText = header + commandText
 
-                    params = [execfilename, commandText]
-                    self.submit_multi_recon_job(params)
+                    self.submitBatchJob(execfilename, id, commandText)
                     num_submitted_jobs += 1
 
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
-
-    def submit_multi_recon_job(self, params):
-
-        try:
-            exefilename = params[0]
-            exefile = open(exefilename, 'w')
-            exefile.write(params[1])
-            exefile.close()
-
-            if len(params[1].split('SBATCH')) > 2:
-
-                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
-                text = dd.read()[:-1]
-                id = text.split()[-1]
-                logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
-                os.system(f'cp {exefilename} {logcopy}')
-
-            else:
-                os.system('sh {}'.format(exefilename))
-        except:
-            print ('Please check your input parameters. They might be incomplete.')
 
     def ctfDetermination(self, mode):
 
@@ -1521,43 +1490,29 @@ class TomographReconstruct(GuiTabWidget):
             if self.tab43_widgets[widget].isChecked():
                 ctffolder     = os.path.join(values[row][0], 'ctf')
                 tomofolder    = self.tab43_widgets['widget_{}_{}'.format(row, 0)].text()
-                inputstack    = self.tab43_widgets['widget_{}_{}'.format(row, 2)].text()
-                anglefile     = self.tab43_widgets['widget_{}_{}'.format(row, 3)].text()
-                defocusfile   = self.tab43_widgets['widget_{}_{}'.format(row, 4)].text()
-                parameterfile = self.tab43_widgets['widget_{}_{}'.format(row, 5)].text()
-                outputfolder  = self.tab43_widgets['widget_{}_{}'.format(row, 6)].text()
-                interpolation = self.tab43_widgets['widget_{}_{}'.format(row, 7)].text()
+                defocustol    = self.tab43_widgets['widget_{}_{}'.format(row, 2)].text()
+                interpolation = self.tab43_widgets['widget_{}_{}'.format(row, 3)].text()
+                pixelsize     = self.tab43_widgets['widget_{}_{}'.format(row, 4)].text()
+                cs            = self.tab43_widgets['widget_{}_{}'.format(row, 5)].text()
+                ac            = self.tab43_widgets['widget_{}_{}'.format(row, 6)].text()
+                voltage       = self.tab43_widgets['widget_{}_{}'.format(row, 7)].text()
+                axisangle     = self.tab43_widgets['widget_{}_{}'.format(row, 8)].text()
+                inputstack    = self.tab43_widgets['widget_{}_{}'.format(row, 9)].text()
+                anglefile     = self.tab43_widgets['widget_{}_{}'.format(row,10)].text()
+                defocusfile   = self.tab43_widgets['widget_{}_{}'.format(row,11)].text()
+                outputfolder  = self.tab43_widgets['widget_{}_{}'.format(row,12)].text()
 
                 try:
-                    d = {}
-                    if os.path.exists(parameterfile):
-                        keys = ('InputStack', 'AngleFile', 'DefocusFile', 'AxisAngle', 'PixelSize', 'Voltage',
-                                'SphericalAberration', 'AmplitudeContrast', 'DefocusTol')
-                        for line in open(parameterfile).readlines():
-                            kvpair = line.split()
-                            if len(kvpair) == 2 and kvpair[0] in keys:
-                                k, v = kvpair
-                                try:
-                                    d[k] = float(v)
-                                except:
-                                    d[k] = v
-
-                        origdir = os.path.dirname(d['InputStack'])
-                        prefix = os.path.basename(origdir) + '_ctf'
-                        outfolder = os.path.join(ctffolder, prefix)
-                        if not os.path.exists(outfolder):
-                            os.mkdir(outfolder)
-
-                    else:
-                        raise Exception('No valid Parameter file submitted.')
-
+                    origdir = os.path.dirname(inputstack)
+                    prefix = os.path.basename(origdir) + '_ctf'
+                    outfolder = os.path.join(ctffolder, prefix)
+                    if not os.path.exists(outfolder):
+                        os.mkdir(outfolder)
 
                     outputfile = 'ctfCorrected.st'
 
-                    jobParams = [ctffolder, inputstack, outputfile, anglefile, defocusfile,
-                                 int(numpy.around(d['DefocusTol'])), interpolation, d['PixelSize'],
-                                 d['SphericalAberration'], d['AmplitudeContrast'], int(numpy.around(d['Voltage'])),
-                                 int(numpy.around(d['AxisAngle'])), outputfolder, prefix, origdir]
+                    jobParams = [ctffolder, inputstack, outputfile, anglefile, defocusfile, defocustol, interpolation,
+                                 pixelsize, cs, ac, voltage, axisangle, outputfolder, prefix, origdir]
 
                     jobscript = templateCTFCorrectionImod.format(d=jobParams)
 
@@ -1570,19 +1525,10 @@ class TomographReconstruct(GuiTabWidget):
                     job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, time=time,
                                                         partition=qname, num_nodes=n_nodes, singleton=True,
                                                         num_jobs_per_node = cores, modules=modules) + jobscript
-                    outjob = open(os.path.join(outputfolder, 'ctfCorrectionBatch.sh'), 'w')
-                    outjob.write(job)
-                    outjob.close()
+
                     exefilename = os.path.join(outputfolder, 'ctfCorrectionBatch.sh')
-                    dd = os.popen('{} {}'.format(self.qcommand, exefilename ))
-
-                    text = dd.read()[:-1]
-                    id = text.split()[-1]
-
-                    logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{tomofolder}_ctfCorrectionBatch.sh')
-                    print(f'cp {exefilename} {logcopy}')
-
-                    num_submitted_jobs += 1
+                    ID, num = self.submitBatchJob(exefilename, id, job)
+                    num_submitted_jobs += num
 
                 except Exception as e:
                     print(e)

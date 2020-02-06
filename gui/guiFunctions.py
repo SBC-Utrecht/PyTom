@@ -528,7 +528,9 @@ def create_project_filestructure(projectdir='.'):
             "copy_files": [""],
             "run_scripts": [""]
         },
-        "LogFiles": ""
+        "LogFiles": {
+            "Local": ""
+        }
     }
 
     if not os.path.exists(projectdir):

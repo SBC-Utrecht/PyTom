@@ -77,6 +77,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.pbs = {}
         self.ends = {}
         self.num_nodes = {}
+        self.checkbox = {}
 
         for i in range(len(headers)):
             t = 'tab{}'.format(i + 1)
@@ -91,6 +92,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 self.pbs[tt] = QWidget()
                 self.ends[tt] = QWidget()
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
+                self.checkbox[tt] = QCheckBox('queue')
 
                 if not static_tabs[i][j]:#tt in ('tab12'):
                     button = QPushButton('Refresh Tab')
@@ -369,7 +371,7 @@ class SubtomoAnalysis(GuiTabWidget):
             if '_tomogram_' in particleFile:
                 particleFiles.append(particleFile)
             else:
-                output_folder = os.path.join(self.pickpartdir, os.path.splitext(os.basename(particleFile))[0])
+                output_folder = os.path.join(self.pickpartdir, os.path.splitext(os.path.basename(particleFile))[0])
                 pLs = extractParticleListsByTomoNameFromXML(particleFile, directory=output_folder)
                 for pl in pLs:
                     particleFiles.append(pl)
@@ -1225,6 +1227,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 self.widgets[mode + 'pixelSize'].setValue(pixelsize)
         except:
             pass
+
     def updateJobname(self, mode):
         dest = self.widgets[mode+'destination'].text()
         if dest:
@@ -1344,11 +1347,10 @@ class SubtomoAnalysis(GuiTabWidget):
                     jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,singleton=True, num_nodes=n_nodes,
                                                            name='SubtomoRecon_{}'.format(nsj % num_nodes), partition=qname,
                                                            num_jobs_per_node=cores, time=time, modules=modules) + txt
-                out = open(execfilename, 'w')
-                out.write(jobtxt)
-                out.close()
-                os.system('{} {}'.format(self.qcommand, execfilename))
-                nsj += 1
+
+                ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
+                nsj += num
+
         self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
 
     def massPolishParticles(self, pid, values):
@@ -1393,12 +1395,8 @@ class SubtomoAnalysis(GuiTabWidget):
                                                        num_jobs_per_node=cores, time=time, partition=qname,
                                                        modules=modules, num_nodes=n_nodes) + txt
 
-
-                out = open(execfilename, 'w')
-                out.write(jobtxt)
-                out.close()
-                #os.system('{} {}'.format(self.qcommand, execfilename))
-                nsj += 1
+                # ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
+                # nsj += num
         self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
 
     def gen_average(self, params):

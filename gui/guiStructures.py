@@ -327,7 +327,6 @@ class CommonFunctions():
         except:
             print ('Please check your input parameters. They might be incomplete.')
 
-
     def add_toolbar(self, decider, new=False, open=True, save=True,
                     newText='Create New Project', openText='Load Project', saveText="Save Project"):
         self.setStyleSheet(MAINC)
@@ -448,7 +447,8 @@ class CommonFunctions():
         self.row += rstep
         self.column += cstep
 
-    def insert_label_modules(self, parent, wname, text='', rstep=1, cstep=-1, width=0, tooltip='', height=0, logvar=False, options=[], mode=''):
+    def insert_label_modules(self, parent, wname, text='', rstep=1, cstep=-1, width=0, tooltip='', height=0,
+                             logvar=False, options=[], mode=''):
         self.insert_label(parent, text=text, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
         self.insert_module(parent, wname=wname, cstep=cstep, rstep=rstep, options=options, mode=mode)
 
@@ -789,11 +789,30 @@ class CommonFunctions():
                     print(e)
                     
             else:
-                proc = Worker(fn=os.system, args=['sh {}'.format(exefilename)], sig=False)
+                proc = Worker(fn=self.submit_local_job, args=[exefilename], sig=False)
                 proc.start()
-#                os.system('sh {}'.format(params[0]))
+                # os.system('sh {}'.format(params[0]))
         except:
             print ('Please check your input parameters. They might be incomplete.')
+
+    def getLocalID(self):
+        idfile = os.path.join(self.logfolder, 'Local/.idcounter.txt')
+        if os.path.exists(idfile):
+            ID = open(idfile,'r').readlines()[0].split()[0].zfill(8)
+        else:
+            ID = '0'.zfill(8)
+            out = open(idfile, 'w')
+            out.write(ID)
+            out.close()
+
+
+    def submit_local_job(self, execfilename):
+        ID = self.getLocalID()
+        logcopy = os.path.join(self.logfolder, f'Local/{ID}_{os.path.basename(execfilename)}')
+        os.system(f'sh {execfilename} >> {os.path.splitext(logcopy)[0]}.out')
+        os.system(f'cp {execfilename} {logcopy}')
+        self.popup_messagebox('Info', 'Local Job Finished', f'Finished Job {ID}')
+        return ID
 
     def gen_action(self, params):
         mode = params[1][0][:-len('CommandText')]
@@ -1007,9 +1026,29 @@ class CommonFunctions():
         self.ends[id] = QWidget()
         self.ends[id].setSizePolicy(self.sizePolicyA)
 
-        for n, a in enumerate( (self.tables[id], self.num_nodes[id], self.pbs[id], self.ends[id]) ):
+        for n, a in enumerate( (self.tables[id], self.num_nodes[id], self.checkbox[id], self.pbs[id], self.ends[id]) ):
             if n==1 and nn == False: continue
+            if n == 2:
+                self.widgets[f'{id}_queue'] = a
+                a.setEnabled(self.qtype != 'none')
+
             self.table_layouts[id].addWidget(a)
+
+    def submitBatchJob(self, execfilename, id, command):
+        outjob = open(execfilename, 'w')
+        outjob.write(command)
+        outjob.close()
+
+        if self.checkbox[id].isChecked():
+            dd = os.popen('{} {}'.format(self.qcommand, execfilename))
+            text = dd.read()[:-1]
+            ID = text.split()[-1]
+            logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(execfilename)}')
+            os.system(f'cp {execfilename} {logcopy}')
+            return ID, 1
+        else:
+            self.submit_local_job(execfilename)
+            return 1, 0
 
     def create_groupbox(self,title,tooltip,sizepol):
         groupbox = QGroupBox(title)
@@ -2544,8 +2583,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         self.add_controls(self.layout_operationbox)
 
-        self.subtomo_plots = PlotterSubPlots(self, size_subtomo=self.radius)
-        self.subtomo_plots.show()
+        self.subtomo_plots = PlotterSubPlots(self, size_subtomo = self.radius*2)
+
         pg.QtGui.QApplication.processEvents()
 
     def wheelEvent(self, event):
@@ -2557,6 +2596,10 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.replot()
 
     def keyPressEvent(self, evt):
+        if Qt.Key_P == evt.key():
+            self.subtomo_plots.close()
+            self.subtomo_plots.show()
+
         if Qt.Key_G == evt.key():
             w = self.widgets['apply_gaussian_filter']
             w.setChecked(w.isChecked()==False)
@@ -2590,7 +2633,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.insert_lineedit(prnt,'width_gaussian_filter', validator=vDouble, rstep=1, cstep=-1, value='1.',width=100)
 
         self.insert_label(prnt, text='Size Selection: ',cstep=1)
-        self.insert_spinbox(prnt, wname='size_selection: ',cstep=-1,rstep=1, value=14, minimum=1, maximum=1000,width=100)
+        self.insert_spinbox(prnt, wname='size_selection: ',cstep=-1,rstep=1, value=16, minimum=1, maximum=1000,width=100)
         self.widgets['size_selection: '].valueChanged.connect(self.sizeChanged)
 
         self.insert_label(prnt,text='Step Size',cstep=1,alignment=Qt.AlignLeft)
@@ -2617,7 +2660,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         params = ['file', self.widgets['filenameMask'], ['mrc', 'em'], False, self.parent().pickpartfolder]
         self.insert_pushbutton(prnt,'Browse', action=self.browse, params=params, width=100)
         self.widgets['filenameMask'].textChanged.connect(self.updateMask)
-
 
     def updateMask(self):
         fname = self.widgets['filenameMask'].text()
@@ -2708,6 +2750,9 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.filetype = 'xml'
             self.load_xmlFile(filename)
             self.xmlfile = filename
+
+        self.subtomo_plots.close()
+        self.subtomo_plots.show()
 
     def remove_element(self, el):
         parent = el.getparent()
@@ -4517,6 +4562,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
             self.parent().pos.setX(self.coordinates[ID][0] - self.parent().radius)
             self.parent().pos.setY(self.coordinates[ID][1] - self.parent().radius)
             self.parent().centimage.addItem(circle(self.parent().pos, size=(self.parent().radius) * 2, color=Qt.red))
+
     def reset_display_subtomograms(self, particleList, volume ):
         for child in self.vBoxList:
             self.canvas.removeItem(child)
