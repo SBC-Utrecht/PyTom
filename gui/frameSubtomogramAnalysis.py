@@ -80,6 +80,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.pbs = {}
         self.ends = {}
         self.num_nodes = {}
+        self.checkbox = {}
 
         for i in range(len(headers)):
             t = 'tab{}'.format(i + 1)
@@ -94,6 +95,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 self.pbs[tt] = QWidget()
                 self.ends[tt] = QWidget()
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
+                self.checkbox[tt] = QCheckBox('queue')
 
                 if not static_tabs[i][j]:#tt in ('tab12'):
                     button = QPushButton('Refresh Tab')
@@ -144,7 +146,6 @@ class SubtomoAnalysis(GuiTabWidget):
 
     def PolishSingleUI(self, key=''):
 
-        return
 
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
@@ -166,7 +167,6 @@ class SubtomoAnalysis(GuiTabWidget):
 
     def PolishBatchUI(self, key=''):
 
-        return
 
         try: self.polishLists.text()
         except: self.polishLists = QLineEdit()
@@ -372,7 +372,7 @@ class SubtomoAnalysis(GuiTabWidget):
             if '_tomogram_' in particleFile:
                 particleFiles.append(particleFile)
             else:
-                output_folder = os.path.join(self.pickpartdir, os.path.splitext(os.basename(particleFile))[0])
+                output_folder = os.path.join(self.pickpartdir, os.path.splitext(os.path.basename(particleFile))[0])
                 pLs = extractParticleListsByTomoNameFromXML(particleFile, directory=output_folder)
                 for pl in pLs:
                     particleFiles.append(pl)
@@ -411,8 +411,8 @@ class SubtomoAnalysis(GuiTabWidget):
 
             tomoindex = base.split('tomogram_')[1].split('_')[0]
 
-            polishfiles = glob.glob(f'{self.polishfolder}/polishResults*tomogram_{tomoindex}*.txt')
-            polishfiles += glob.glob(f'{self.polishfolder}/*/polishResults*tomogram_{tomoindex}*.txt')
+            polishfiles = glob.glob(f'{self.polishfolder}/resultsPolish*tomogram_{tomoindex}*.txt')
+            polishfiles += glob.glob(f'{self.polishfolder}/*/resultsPolish*tomogram_{tomoindex}*.txt')
             polishfiles += ['']
 
 
@@ -488,7 +488,7 @@ class SubtomoAnalysis(GuiTabWidget):
         w = 170
 
         self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB)
-        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particlelist',
                                     'Select the particle list.', mode='file', filetype='xml')
         self.insert_label_line_push(parent, 'Folder with aligned tilt images', mode + 'AlignedTiltDir',
                                     'Select the folder with the aligned tilt images.')
@@ -496,6 +496,8 @@ class SubtomoAnalysis(GuiTabWidget):
                                     tooltip='Select a template file.')
         self.insert_label_line_push(parent, 'FSC File', mode + 'FSCPath', mode='file', filetype=['dat'],
                                     tooltip='Select a FSC file.')
+        self.insert_label_line_push(parent, 'Meta File', mode + 'MetaFile', mode='file', filetype=['meta'],
+                                    tooltip='Select the corresponding meta file (in tomogram_???/sorted)')
         self.insert_label_line_push(parent, 'Output Directory', mode + 'destination', mode='folder',
                                     tooltip='Select the destination directory.')
 
@@ -527,15 +529,18 @@ class SubtomoAnalysis(GuiTabWidget):
 
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
         self.widgets[mode + 'FSCFlag'] = QLineEdit('')
+        self.widgets[mode + 'MetaFileFlag'] = QLineEdit('')
 
+        self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateMeta(m))
         self.widgets[mode + 'FSCPath'].textChanged.connect(lambda d, m=mode: self.updateFSCFlag(m))
+        self.widgets[mode + 'MetaFile'].textChanged.connect(lambda d, m=mode: self.updateMetaFileFlag(m))
 
         execfilename = os.path.join(self.subtomodir, 'ParticlePolishing/reconstructSubtomograms.sh')
         paramsSbatch = guiFunctions.createGenericDict(fname='particlePolishSingle', folder=self.logfolder,
                                                       id='SingleParticlePolish')
-        paramsCmd = [self.subtomodir, mode + 'numberMpiCores', self.pytompath, mode + 'particleList',
+        paramsCmd = [self.subtomodir, mode + 'numberMpiCores', self.pytompath, mode + 'particlelist',
                      mode + 'AlignedTiltDir', mode + 'Template', mode + 'destination', mode + 'BinFactorReconstruction',
-                     mode + 'maxParticleShift', mode + 'OffsetX', mode + 'OffsetY', mode + 'OffsetZ', mode + 'FSCFlag',
+                     mode + 'maxParticleShift', mode + 'OffsetX', mode + 'OffsetY', mode + 'OffsetZ', mode + 'FSCFlag', mode + 'MetaFileFlag',
                      polishParticles]
 
         self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename, paramsSbatch=paramsSbatch)
@@ -562,9 +567,9 @@ class SubtomoAnalysis(GuiTabWidget):
         headers = ["Filename particleList", "Run", "Origin", "Tilt Images",  'Template', 'dimZ', 'Bin factor recon',
                    "std shift", "Offset X", "Offset Y", "Offset Z", 'FSC Filter', '']
         types = ['txt', 'checkbox', 'combobox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit', 'lineedit',
-                 'lineedit', 'lineedit', 'combobox', 'txt']
+                 'lineedit', 'lineedit', 'combobox', 'combobox', 'txt']
         a = 40
-        sizes = [0, 0, 80, 80, a, a, a, a, a, a, a, a]
+        sizes = [0, 0, 80, 80, a, a, a, a, a, a, a, a, a]
 
         tooltip = ['Names of the particleList files',
                    'Check this box to run particle polishing.',
@@ -575,6 +580,7 @@ class SubtomoAnalysis(GuiTabWidget):
                    'Binning factor used for the reconstruction.',
                    'Stdev of the particle shift (pixel). Is used to remove outliers.'
                    'Offset in X-dimension', 'Offset in Y-dimension', 'Offset in Z-dimension',
+                   'Meta file from which angles are extracted',
                    'FSC File used for filtering the cross-correlation']
 
         values = []
@@ -609,7 +615,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                 # markerfile  = os.path.join(folder, 'markerfile.txt')
                 # markerdata = readMarkerfile(markerfile,61)
-
+                sor = os.path.join(os.path.dirname(os.path.dirname(folder)), 'sorted')
                 al = os.path.join(os.path.dirname(os.path.dirname(folder)), 'alignment')
                 ctf = os.path.join(os.path.dirname(os.path.dirname(folder)), 'ctf')
                 choices = [al + '/' + f for f in os.listdir(al) if 'marker_' in f and os.path.isdir(al + '/' + f)]
@@ -630,7 +636,9 @@ class SubtomoAnalysis(GuiTabWidget):
                 # binning = os.popen('cat {} | grep "--referenceMarkerIndex" '.format(a)).read()[:-1]
                 # print(binning)
                 origin = ['alignment', 'ctf', 'sorted']
-                values.append([particleFile, True, origin, choices, templates, dimZ, binning, 5, 0, 0, 0, fscfiles, ''])
+                metafiles = [os.path.join(sor, f) for f in os.listdir(sor) if f.endswith('.meta')] + ['']
+
+                values.append([particleFile, True, origin, choices, templates, dimZ, binning, 5, 0, 0, 0, metafiles, fscfiles, ''])
                 refmarkindices.append(refmarkindex)
 
         try:
@@ -1079,6 +1087,15 @@ class SubtomoAnalysis(GuiTabWidget):
 
         self.widgets[mode + 'FSCFlag'].setText(f'--FSCPath {fname}')
 
+    def updateMetaFileFlag(self, mode):
+
+        fname = self.widgets[mode + 'MetaFile'].text()
+        if not fname:
+            self.widgets[mode + 'MetaFileFlag'].setText('')
+            return
+
+        self.widgets[mode + 'MetaFileFlag'].setText(f'--metaFile {fname}')
+
     def updateMeta(self,mode):
         pl = self.widgets[mode + 'particlelist'].text()
         try: 
@@ -1349,24 +1366,17 @@ class SubtomoAnalysis(GuiTabWidget):
                     jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,singleton=True, num_nodes=n_nodes,
                                                            name='SubtomoRecon_{}'.format(nsj % num_nodes), partition=qname,
                                                            num_jobs_per_node=cores, time=time, modules=modules) + txt
-                out = open(execfilename, 'w')
-                out.write(jobtxt)
-                out.close()
-                #   os.system('{} {}'.format(self.qcommand, execfilename))
-                dd = os.popen('{} {}'.format(self.qcommand, execfilename))
 
-                text = dd.read()[:-1]
-                ID = text.split()[-1]
-                qIDs.append(ID)
-                logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(execfilename)}.sh')
-                os.system(f'cp {execfilename} {logcopy}')
-                nsj += 1
+                ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
+                if num:
+                    nsj += num
+                    qIDs.append(ID)
 
         self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
         self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Subtom Recon Batch')
 
     def massPolishParticles(self, pid, values):
-
+        qIds =[]
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = nsj = 0
         values = self.valuesBatchParticlePolishing
@@ -1384,10 +1394,11 @@ class SubtomoAnalysis(GuiTabWidget):
                 offx = self.tabPolish_widgets['widget_{}_{}'.format(row, 8)].text()
                 offy = self.tabPolish_widgets['widget_{}_{}'.format(row, 9)].text()
                 offz = self.tabPolish_widgets['widget_{}_{}'.format(row, 10)].text()
-                fscfile = values[row][11][self.tabPolish_widgets['widget_{}_{}'.format(row, 11)].currentIndex()]
+                meta = values[row][11][self.tabPolish_widgets['widget_{}_{}'.format(row, 11)].currentIndex()]
+                fscfile = values[row][12][self.tabPolish_widgets['widget_{}_{}'.format(row, 12)].currentIndex()]
 
                 fscflag = f'--FSCPath {fscfile}' if fscfile else ''
-
+                metaflag = f'--metaFile {meta}' if meta else ''
                 refid = folder_aligned.split('marker_')[1].split('_')[0]
 
                 # generate output directory for particle polishing results if output directory does not exist.
@@ -1399,7 +1410,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 qname, n_nodes, cores, time, modules = self.qparams['BatchParticlePolish'].values()
 
                 paramsCmd = [self.subtomodir, str(cores * n_nodes), self.pytompath, particleXML, folder_aligned,
-                             template, destination, bin_read, maxShift, offx, offy, offz, fscflag]
+                             template, destination, bin_read, maxShift, offx, offy, offz, fscflag, metaflag]
 
                 txt = polishParticles.format(d=paramsCmd)
                 jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
@@ -1407,13 +1418,12 @@ class SubtomoAnalysis(GuiTabWidget):
                                                        num_jobs_per_node=cores, time=time, partition=qname,
                                                        modules=modules, num_nodes=n_nodes) + txt
 
-
-                out = open(execfilename, 'w')
-                out.write(jobtxt)
-                out.close()
-                #os.system('{} {}'.format(self.qcommand, execfilename))
-                nsj += 1
-        self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
+                ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
+                if num:
+                    nsj += num
+                    qIDs.append(ID)
+        if nsj:
+            self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
 
     def gen_average(self, params):
         key_particleList, key_filename_average, key_outputDir = params

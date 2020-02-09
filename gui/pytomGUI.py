@@ -217,6 +217,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.stage_buttons = []
         self.qparams = {}
         self.qEvents = {}
+        self.queueEvents = {}
         self.projectname = './'
         y,b,g,w = 'f9ce00', '343434', 'cacaca','fcfaf1'
         bl='1989ac'

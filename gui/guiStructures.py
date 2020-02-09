@@ -384,16 +384,21 @@ class CommonFunctions():
             if self.queueEvents[job_description].is_set():
                 print(f'exit {job_description} loop')
                 return
-        self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
-        signals.finished_queue.emit(id)
+        #self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
+        signals.finished_queue.emit([id,job_description, qids])
         #self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
 
     def updateProgressBar(self, keys):
         key, total = keys
         self.progressBars[key].setValue(total)
 
-    def deleteProgressBar(self, key):
+    def deleteProgressBar(self, keys):
+        key, job_description, qids = keys
         self.statusBar.removeWidget(self.progressBars[key])
+        if len(qids)>1:
+            self.popup_messagebox("Info", "Completion", f'Finished {job_description} Jobs {qids[0]}-{qids[-1]}')
+        elif len(qids) > 0:
+            self.popup_messagebox("Info", "Completion", f'Finished {job_description} Job {qids[0]}')
 
     def add_toolbar(self, decider, new=False, open=True, save=True,
                     newText='Create New Project', openText='Load Project', saveText="Save Project"):
@@ -515,7 +520,8 @@ class CommonFunctions():
         self.row += rstep
         self.column += cstep
 
-    def insert_label_modules(self, parent, wname, text='', rstep=1, cstep=-1, width=0, tooltip='', height=0, logvar=False, options=[], mode=''):
+    def insert_label_modules(self, parent, wname, text='', rstep=1, cstep=-1, width=0, tooltip='', height=0,
+                             logvar=False, options=[], mode=''):
         self.insert_label(parent, text=text, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
         self.insert_module(parent, wname=wname, cstep=cstep, rstep=rstep, options=options, mode=mode)
 
@@ -856,11 +862,30 @@ class CommonFunctions():
                     print(e)
                     
             else:
-                proc = Worker(fn=os.system, args=['sh {}'.format(exefilename)], sig=False)
+                proc = Worker(fn=self.submit_local_job, args=[exefilename], sig=False)
                 proc.start()
-#                os.system('sh {}'.format(params[0]))
+                # os.system('sh {}'.format(params[0]))
         except:
             print ('Please check your input parameters. They might be incomplete.')
+
+    def getLocalID(self):
+        idfile = os.path.join(self.logfolder, 'Local/.idcounter.txt')
+        if os.path.exists(idfile):
+            ID = open(idfile,'r').readlines()[0].split()[0].zfill(8)
+        else:
+            ID = '0'.zfill(8)
+            out = open(idfile, 'w')
+            out.write(ID)
+            out.close()
+
+
+    def submit_local_job(self, execfilename):
+        ID = self.getLocalID()
+        logcopy = os.path.join(self.logfolder, f'Local/{ID}-{os.path.basename(execfilename)}')
+        os.system(f'sh {execfilename} >> {os.path.splitext(logcopy)[0]}.out')
+        os.system(f'cp {execfilename} {logcopy}')
+        self.popup_messagebox('Info', 'Local Job Finished', f'Finished Job {ID}')
+        return ID
 
     def gen_action(self, params):
         mode = params[1][0][:-len('CommandText')]
@@ -1059,7 +1084,7 @@ class CommonFunctions():
         if nn:
             num_nodes = QSpinBox()
             num_nodes.setValue(2)
-            num_nodes.setRange(1,9)
+            num_nodes.setRange(1,99)
             num_nodes.setPrefix('Num Nodes: ')
             
         
@@ -1074,9 +1099,29 @@ class CommonFunctions():
         self.ends[id] = QWidget()
         self.ends[id].setSizePolicy(self.sizePolicyA)
 
-        for n, a in enumerate( (self.tables[id], self.num_nodes[id], self.pbs[id], self.ends[id]) ):
+        for n, a in enumerate( (self.tables[id], self.num_nodes[id], self.checkbox[id], self.pbs[id], self.ends[id]) ):
             if n==1 and nn == False: continue
+            if n == 2:
+                self.widgets[f'{id}_queue'] = a
+                a.setEnabled(self.qtype != 'none')
+
             self.table_layouts[id].addWidget(a)
+
+    def submitBatchJob(self, execfilename, id, command):
+        outjob = open(execfilename, 'w')
+        outjob.write(command)
+        outjob.close()
+
+        if self.checkbox[id].isChecked():
+            dd = os.popen('{} {}'.format(self.qcommand, execfilename))
+            text = dd.read()[:-1]
+            ID = text.split()[-1]
+            logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(execfilename)}')
+            os.system(f'cp {execfilename} {logcopy}')
+            return ID, 1
+        else:
+            self.submit_local_job(execfilename)
+            return 1, 0
 
     def create_groupbox(self,title,tooltip,sizepol):
         groupbox = QGroupBox(title)
@@ -2612,7 +2657,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.add_controls(self.layout_operationbox)
 
         self.subtomo_plots = PlotterSubPlots(self, size_subtomo=self.radius*2)
-        self.subtomo_plots.show()
+
         pg.QtGui.QApplication.processEvents()
 
     def wheelEvent(self, event):
@@ -2624,6 +2669,10 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.replot()
 
     def keyPressEvent(self, evt):
+        if Qt.Key_P == evt.key():
+            self.subtomo_plots.close()
+            self.subtomo_plots.show()
+
         if Qt.Key_G == evt.key():
             w = self.widgets['apply_gaussian_filter']
             w.setChecked(w.isChecked()==False)
@@ -2657,7 +2706,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.insert_lineedit(prnt,'width_gaussian_filter', validator=vDouble, rstep=1, cstep=-1, value='1.',width=100)
 
         self.insert_label(prnt, text='Size Selection: ',cstep=1)
-        self.insert_spinbox(prnt, wname='size_selection: ',cstep=-1,rstep=1, value=14, minimum=1, maximum=1000,width=100)
+        self.insert_spinbox(prnt, wname='size_selection: ',cstep=-1,rstep=1, value=16, minimum=1, maximum=1000,width=100)
         self.widgets['size_selection: '].valueChanged.connect(self.sizeChanged)
 
         self.insert_label(prnt,text='Step Size',cstep=1,alignment=Qt.AlignLeft)
@@ -2774,6 +2823,9 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.filetype = 'xml'
             self.load_xmlFile(filename)
             self.xmlfile = filename
+
+        self.subtomo_plots.close()
+        self.subtomo_plots.show()
 
     def remove_element(self, el):
         parent = el.getparent()
@@ -3144,9 +3196,9 @@ class Viewer3D(QMainWindow, CommonFunctions):
         self.centcanvas.sigMouseReleased.connect(self.empty)
 
         self.load_image()
-        self.leftimage.setXRange(0, self.vol.shape[0])
-
-        self.add_controls(self.layout_operationbox)
+        if not self.failed:
+            self.leftimage.setXRange(0, self.vol.shape[0])
+            self.add_controls(self.layout_operationbox)
 
         pg.QtGui.QApplication.processEvents()
 
@@ -3267,6 +3319,10 @@ class Viewer3D(QMainWindow, CommonFunctions):
 
     def load_image(self):
         if not self.title: return
+        if not os.path.exists(self.title):
+            self.popup_messagebox('Error', 'File does not exist', 'File does not exist. Please provide a valid filename.')
+            self.failed = True
+            return
 
         if self.title.endswith('em'):
             from pytom.tompy.io import read
@@ -3575,6 +3631,10 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         self.qcommand = self.parent().qcommand
         self.setGeometry(0, 0, 900, 550)
         self.size_policies()
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
+        self.qtype = None
 
         headers = ['Local Jobs', 'Queued Jobs']
         subheaders = [[], ] * len(headers)
@@ -3614,6 +3674,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
                 self.pbs[tt] = QWidget()
                 self.ends[tt] = QWidget()
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
+                self.checkbox[tt] = QCheckBox('queue')
 
                 if tt in ('tab1', 'tab2'):
                     self.table_layouts[tt].addWidget(button)
@@ -3716,6 +3777,9 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
 
         for running in reversed(qjobs):
             if not running in added_jobs:
+                queueId = int(running)
+                if len(glob.glob(os.path.join(self.logfolder, f'{queueId}*.sh'))) < 1:
+                    continue
                 values.append( ['', int(running), 0, 16, 1, '', ''] )
 
         values = sorted(values, key=self.nthElem, reverse=True)
@@ -4175,7 +4239,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.stage='generalSettings_'
         self.pytompath = self.parent().pytompath
         self.projectname = self.parent().projectname
-
+        self.qtype = None
         self.setGeometry(0,0,700,300)
 
         headers = ['Alignment Errors', 'Template Matching Results', 'FSC Curve']

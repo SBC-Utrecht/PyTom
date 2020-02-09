@@ -65,6 +65,7 @@ class ParticlePick(GuiTabWidget):
         self.pbs = {}
         self.ends = {}
         self.num_nodes = {}
+        self.checkbox = {}
 
         self.tabs2 = {'tab1': self.tab1,
                      'tab21': self.tab21, 'tab22': self.tab22,
@@ -90,6 +91,7 @@ class ParticlePick(GuiTabWidget):
                 self.pbs[tt] = QWidget()
                 self.ends[tt] = QWidget()
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
+                self.checkbox[tt] = QCheckBox('queue')
 
                 if not static_tabs[i][j]:
                     print(tt)#tt in ('tab22', 'tab32'):
@@ -599,12 +601,13 @@ class ParticlePick(GuiTabWidget):
             print('\n\nPlease select at least one job file template and mask file.\n\n')
             return
 
-        headers = ["Job name", "File Name Particle List", "Ouput Dir Subtomograms", "Size (px)",
+        headers = ["Job name", "Extract", "File Name Particle List", "Ouput Dir Subtomograms", "Size (px)",
                    "# Candidates", 'Min. Score', '']
-        types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
-        sizes = [0, 80, 150, 0, 0, 0, 0]
+        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
+        sizes = [0, 0, 80, 150, 0, 0, 0, 0]
 
         tooltip = ['Name of job files.',
+                   'Select if you want to extract particles using this job file.',
                    'File name of particle list in which a number of candidates are written.',
                    'Prefix indicating in which folder particles will be saved when subtomograms are extracted',
                    'Particle Size in pixels',
@@ -620,7 +623,7 @@ class ParticlePick(GuiTabWidget):
             if not os.path.exists(os.path.dirname(particleList)): os.mkdir(os.path.dirname(particleList))
             p = os.path.basename(particleList)[:-4]
             prefix = 'Subtomograms/{}'.format(p)
-            values.append([jobFile, particleList, prefix, 16, 1000, 0.001, ''])
+            values.append([jobFile, True, particleList, prefix, 16, 1000, 0.001, ''])
 
         try:
             self.num_nodes[id].setParent(None)
@@ -637,44 +640,45 @@ class ParticlePick(GuiTabWidget):
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = 0
         qIds = []
+
         for row in range(self.tables[pid].table.rowCount()):
+            try:
+                if self.tab23_widgets['widget_{}_{}'.format(row, 1)].isChecked():
+                    jobFile       = values[row][0]
+                    suffix        = os.path.basename(jobFile)[3:-4]
+                    scoresFile    = os.path.join(os.path.dirname(jobFile), f'scores{suffix}.em')
+                    anglesFile    = os.path.join(os.path.dirname(jobFile), f'angles{suffix}.em')
+                    particleList  = os.path.join(self.pickpartfolder, self.tab23_widgets['widget_{}_{}'.format(row, 2)].text())
+                    particlePath  = self.tab23_widgets['widget_{}_{}'.format(row, 3)].text()
+                    particleSize  = self.tab23_widgets['widget_{}_{}'.format(row, 4)].text()
+                    numCandidates = self.tab23_widgets['widget_{}_{}'.format(row, 5)].text()
+                    minCCScore    = self.tab23_widgets['widget_{}_{}'.format(row, 6)].text()
 
-            jobFile       = values[row][0]
-            suffix        = os.path.basename(jobFile)[3:-4]
-            scoresFile    = os.path.join(os.path.dirname(jobFile), f'scores{suffix}.em')
-            anglesFile    = os.path.join(os.path.dirname(jobFile), f'angles{suffix}.em')
-            particleList  = os.path.join(self.pickpartfolder, self.tab23_widgets['widget_{}_{}'.format(row, 1)].text())
-            particlePath  = self.tab23_widgets['widget_{}_{}'.format(row, 2)].text()
-            particleSize  = self.tab23_widgets['widget_{}_{}'.format(row, 3)].text()
-            numCandidates = self.tab23_widgets['widget_{}_{}'.format(row, 4)].text()
-            minCCScore    = self.tab23_widgets['widget_{}_{}'.format(row, 5)].text()
+                    paramsCmd     = [self.templatematchfolder, self.pytompath, jobFile, scoresFile, anglesFile,
+                                    particleList, particlePath, particleSize, numCandidates, minCCScore, '']
 
-            paramsCmd     = [self.templatematchfolder, self.pytompath, jobFile, scoresFile, anglesFile,
-                            particleList, particlePath, particleSize, numCandidates, minCCScore, '']
+                    fname         = 'EC_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
+                    cmd           = templateExtractCandidates.format(d=paramsCmd)
+                    qname, n_nodes, cores, time, modules = self.qparams['BatchExtractCandidates'].values()
+                    job           = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, singleton=True, time=time,
+                                                                  num_nodes=n_nodes, partition=qname, modules=modules,
+                                                                  num_jobs_per_node=cores) + cmd
 
-            fname         = 'EC_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
-            cmd           = templateExtractCandidates.format(d=paramsCmd)
-            qname, n_nodes, cores, time, modules = self.qparams['BatchExtractCandidates'].values()
-            job           = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, singleton=True, time=time,
-                                                          num_nodes=n_nodes, partition=qname, modules=modules,
-                                                          num_jobs_per_node=cores) + cmd
 
-            outDirectory = os.path.dirname(jobFile)
-            outjob = open(os.path.join(outDirectory, 'extractCandidatesBatch.sh'), 'w')
-            outjob.write(job)
-            outjob.close()
-            execfilename = os.path.join(outDirectory, 'extractCandidatesBatch.sh')
-            dd = os.popen('{} {}'.format(self.qcommand, execfilename))
+                    execfilename = os.path.join(os.path.dirname(jobFile), 'extractCandidatesBatch.sh')
+                    ID, num = self.submitBatchJob(execfilename, pid, job)
+                    if num:
+                        num_submitted_jobs += num
+                        qIDs.append(ID)
 
-            text = dd.read()[:-1]
-            ID = text.split()[-1]
-            qIDs.append(ID)
-            logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(execfilename)}')
-            os.system(f'cp {execfilename} {logcopy}')
-            num_submitted_jobs += 1
+            except Exception as e:
+                print('Error: ', e)
+                print(f'Failed to setup job for {os.path.basename(values[row][0])}')
 
-        self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
-        self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Extract Cand. Batch')
+        if num_submitted_jobs:
+            self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Extract Cand. Batch')
+
 
     def mass_submitTM(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
@@ -761,22 +765,14 @@ class ParticlePick(GuiTabWidget):
                 job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
                                                     time=time, num_nodes=n_nodes, partition=qname, modules=modules,
                                                     num_jobs_per_node=cores) + cmd
-                outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
-                outjob2.write(job)
-                outjob2.close()
                 execfilename = os.path.join(outDirectory, 'templateMatchingBatch.sh')
-                dd = os.popen('{} {}'.format(self.qcommand, execfilename))
+                ID, num = self.submitBatchJob(execfilename, pid, job)
+                if num:
+                    num_submitted_jobs += num
+                    qIDs.append(ID)
+        if num_submitted_jobs:
+            self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
 
-                text = dd.read()[:-1]
-                ID = text.split()[-1]
-                qIDs.append(ID)
-                logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(execfilename)}')
-                os.system(f'cp {execfilename} {logcopy}')
-
-                num_submitted_jobs += 1
-
-        self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
-        self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Templ. Match Batch')
 
     def createParticleList(self, mode=''):
         title = "Create Particle List"
@@ -963,8 +959,6 @@ class ParticlePick(GuiTabWidget):
                     if n==4: n=3
                     conf[n].append(inp)
                 pFolder = os.path.join(self.subtomofolder, os.path.basename(p))
-                if not os.path.exists(pFolder): os.mkdir(pFolder)
-
                 angleList = angleListDefault*r
 
 

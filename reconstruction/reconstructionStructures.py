@@ -342,8 +342,9 @@ class ProjectionList(PyTomClass):
         from pytom.gui.guiFunctions import datatype, loadstar
         import numpy
 
-        metadata = loadstar(metafile, dtype=datatype)
-        tiltAngles = metadata['TiltAngle']
+        if metafile:
+            metadata = loadstar(metafile, dtype=datatype)
+            tiltAngles = metadata['TiltAngle']
         if not checkDirExists(directory):
             raise RuntimeError('Directory ' + directory + ' does not exist!')
 
@@ -519,12 +520,39 @@ class ProjectionList(PyTomClass):
 
         procs = []
         num_finished, num_started = 0, 0
+        polishIndices = range(len(self))
+        if polishResultFile:
+            try:
+                from pytom.gui.guiFunctions import LOCAL_ALIGNMENT_RESULTS, loadstar
+                import pytom.basic.combine_transformations as ct
+                ppf = loadstar(polishResultFile, dtype=LOCAL_ALIGNMENT_RESULTS)
+                num = ppf['ParticleIndex'][-1] + 1
+                rppf = ppf.reshape(num, ppf.shape[0] // num)
+                polishangles = rppf[0]['TiltAngle']
+                polishIndices = []
+                for angle in self.tilt_angles:
+                    for n, pangle in enumerate(polishangles):
+                        if abs(pangle-angle) < 0.01:
+                            polishIndices.append(n)
+                            break
+
+                if len(polishIndices) != len(self):
+                    print(self.tilt_angles)
+                    print(polishIndices)
+                    raise Exception('data from polishfile does not contain the same angles as the angles from tiltimages')
+
+                polishResults = rppf
+                print(polishIndices)
+
+            except Exception as e:
+                print(e)
+                raise Exception('data from polishfile does not contain the same angles as the angles from tiltimages')
 
         submitted = 0
         if num_procs:
             for n, result in enumerate(resultProjstack):
-                if not os.path.exists(os.path.dirname(particles[0].getFilename())): os.mkdir(
-                    os.path.dirname(particles[0].getFilename()))
+                if not os.path.exists(os.path.dirname(particles[0].getFilename())):
+                    os.mkdir(os.path.dirname(particles[0].getFilename()))
                 write_em(os.path.dirname(particles[0].getFilename()) + '/.temp_{}.em'.format(n), result)
 
             for particleIndex in range(len(particles)):
@@ -534,8 +562,12 @@ class ProjectionList(PyTomClass):
                     time.sleep(0.1)
                     procs = [proc for proc in procs if proc.is_alive()]
                     num_finished += num_started - num_finished - len(procs)
+                if polishResultFile:
+                    particlePolishResults = polishResults[particleIndex][polishIndices]
+                else:
+                    particlePolishResults = None
                 proc = Process(target=self.extract_single_particle, args=(p, particleIndex, verbose, binning, postScale,
-                                                                          cubeSize, polishResultFile))
+                                                                          cubeSize, particlePolishResults))
                 procs.append(proc)
                 proc.start()
                 submitted += 1
@@ -545,6 +577,11 @@ class ProjectionList(PyTomClass):
         else:
             vol_bp = vol(cubeSize, cubeSize, cubeSize)
             for particleIndex in range(len(particles)):
+                if polishResultFile:
+                    particlePolishResults = polishResults[particleIndex][polishIndices]
+                else:
+                    particlePolishResults = None
+
                 p = particles[particleIndex]
                 # self.extract_single_particle(p, particleIndex, verbose, binning, postScale, cubeSize)
                 # print('Subtomogram reconstruction for particle {} has started.'.format(particleIndex))
@@ -560,19 +597,44 @@ class ProjectionList(PyTomClass):
                 reconstructionPosition.setAll(0.0)
 
                 # adjust coordinates of subvolumes to binned reconstruction
-                for i in range(len(self)):
-                    reconstructionPosition(float(p.getPickPosition().getX() / binning), 0, i, 0)
-                    reconstructionPosition(float(p.getPickPosition().getY() / binning), 1, i, 0)
-                    reconstructionPosition(float(p.getPickPosition().getZ() / binning), 2, i, 0)
+                if particlePolishResults is None:
+                    for i in range(num_projections):
+                        reconstructionPosition(float(p.getPickPosition().getX() / binning), 0, i, 0)
+                        reconstructionPosition(float(p.getPickPosition().getY() / binning), 1, i, 0)
+                        reconstructionPosition(float(p.getPickPosition().getZ() / binning), 2, i, 0)
+                else:
+                    import pytom.basic.combine_transformations as ct
+                    x, y, z = float(p.getPickPosition().getX() / binning), \
+                              float(p.getPickPosition().getY() / binning), \
+                              float(p.getPickPosition().getZ() / binning)
+
+                    for i in range(len(self)):
+                        offsetX = polishResults['AlignmentTransX'][i]
+                        offsetY = polishResults['AlignmentTransY'][i]
+
+                        pick_position = np.matrix([x, y, z]).T
+
+                        rotation = ct.matrix_rotate_3d_y(self._list[i].getTiltAngle())
+
+                        shift = np.matrix([offsetX, offsetY, 0]).T
+
+                        new_position = rotation * pick_position
+
+                        new_position_shifted = new_position + shift
+                        reposition = np.linalg.inv(rotation) * new_position_shifted
+                        reposition = np.array(reposition.T)[0]
+
+                        reconstructionPosition(float(reposition[0] / binning), 0, i, 0)
+                        reconstructionPosition(float(reposition[1] / binning), 1, i, 0)
+                        reconstructionPosition(float(reposition[2] / binning), 2, i, 0)
 
                 if verbose:
-                    print((p.getPickPosition().getX() / binning, p.getPickPosition().getY() / binning,
+                    print((p.getPickPosition().getX() / binning,
+                           p.getPickPosition().getY() / binning,
                            p.getPickPosition().getZ() / binning))
 
-                folder = os.path.dirname(p.getFilename())
-
                 [vol_img, vol_phi, vol_the, vol_offsetProjections] = resultProjstack
-                print(vol2npy(reconstructionPosition))
+
                 backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition, vol_offsetProjections)
 
                 if postScale > 1:
@@ -591,7 +653,7 @@ class ProjectionList(PyTomClass):
         progressBar.update(len(particles))
         print('\n Subtomogram reconstructions have finished.\n\n')
 
-    def extract_single_particle(self, p, pid, verbose, binning, postScale, cubeSize, filename_ppr=''):
+    def extract_single_particle(self, p, pid, verbose, binning, postScale, cubeSize, polishResults=None):
         import os
         from pytom.basic.files import read
         from pytom_volume import vol, backProject, rescaleSpline
@@ -616,26 +678,22 @@ class ProjectionList(PyTomClass):
 
             reconstructionPosition = vol(3, num_projections, 1)
             reconstructionPosition.setAll(0.0)
-            start_index = pid * len(self)
+
             # adjust coordinates of subvolumes to binned reconstruction
-            if not filename_ppr:
+            if polishResults is None:
                 for i in range(num_projections):
                     reconstructionPosition(float(p.getPickPosition().getX() / binning), 0, i, 0)
                     reconstructionPosition(float(p.getPickPosition().getY() / binning), 1, i, 0)
                     reconstructionPosition(float(p.getPickPosition().getZ() / binning), 2, i, 0)
             else:
-
-                x, y, z = float(p.getPickPosition().getX() / binning), float(
-                    p.getPickPosition().getY() / binning), float(p.getPickPosition().getZ() / binning)
+                import pytom.basic.combine_transformations as ct
+                x, y, z = float(p.getPickPosition().getX() / binning), \
+                          float(p.getPickPosition().getY() / binning), \
+                          float(p.getPickPosition().getZ() / binning)
 
                 for i in range(len(self)):
-                    from pytom.gui.guiFunctions import LOCAL_ALIGNMENT_RESULTS, loadstar
-                    import pytom.basic.combine_transformations as ct
-
-                    particle_polish_file = loadstar(filename_ppr, dtype=LOCAL_ALIGNMENT_RESULTS)
-
-                    offsetX = float(particle_polish_file['AlignmentTransX'][start_index + i])
-                    offsetY = float(particle_polish_file['AlignmentTransY'][start_index + i])
+                    offsetX = polishResults['AlignmentTransX'][i]
+                    offsetY = polishResults['AlignmentTransY'][i]
 
                     pick_position = np.matrix([x, y, z]).T
 
@@ -653,7 +711,7 @@ class ProjectionList(PyTomClass):
                     reconstructionPosition(float(reposition[1] / binning), 1, i, 0)
                     reconstructionPosition(float(reposition[2] / binning), 2, i, 0)
 
-            if 1:
+            if verbose:
                 print((p.getPickPosition().getX() / binning, p.getPickPosition().getY() / binning,
                        p.getPickPosition().getZ() / binning))
 
@@ -665,8 +723,6 @@ class ProjectionList(PyTomClass):
                 volumeRescaled.write(p.getFilename())
             else:
                 vol_bp.write(p.getFilename())
-
-            print(vol2npy(reconstructionPosition))
 
             for a in [vol_img, vol_phi, vol_the, vol_offsetProjections]: del a
             del results

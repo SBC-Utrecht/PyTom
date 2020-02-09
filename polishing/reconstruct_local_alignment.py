@@ -62,7 +62,7 @@ def polish_particles(particle_list_filename, projection_directory, averaged_subt
 
     import numpy as np
     import os
-    from pytom.tompy.io import read_size
+    from pytom.tompy.io import read_size, read
     from pytom.basic.datatypes import fmtLAR, headerLocalAlignmentResults, LOCAL_ALIGNMENT_RESULTS
 
     # load particle list
@@ -70,8 +70,9 @@ def polish_particles(particle_list_filename, projection_directory, averaged_subt
 
     particlelist = ParticleList()
     particlelist.fromXMLFile(particle_list_filename)
-    particle_list_name = os.path.basename(particle_list_filename).split('.')[0]
-
+    print(particle_list_filename)
+    particle_list_name = os.path.splitext(os.path.basename(str(particle_list_filename)))[0]
+    print(particle_list_name, number_of_particles, outputDirectory)
     if number_of_particles > 0:
         particlelist = particlelist[:number_of_particles]
 
@@ -80,31 +81,44 @@ def polish_particles(particle_list_filename, projection_directory, averaged_subt
         print("{:s}> Creating the input array".format(gettime()))
 
     dimz = read_size(particlelist[0].getPickPosition().getOriginFilename(), 'z') * binning
-
+    print(dimz)
+    vol_size = 200
     input_to_processes = []
+
+
+    # data = {}
+    # for projectioname in projections:
+    #     data[projectioname] = read(projectioname)
+    #
+    # template = read(averaged_subtomogram)
+    # output = []
+
     for particle_number, particle in enumerate(particlelist):
 
         rot = (particle.getRotation().getZ1(), particle.getRotation().getX(), particle.getRotation().getZ2())
 
         # loop over tiltrange, take patch and cross correlate with reprojected subtomogram
         for img, ang in zip(projections, tilt_angles):
-            input_to_processes.append([ang, averaged_subtomogram, offset, vol_size,
-                                       particle.getPickPosition().toVector(), rot, particle.getFilename(),
+            pick_position = particle.getPickPosition().toVector()
+            #patch = cut_patch(data[img], ang, pick_position, vol_size, binning, dimz, offset)
+            input_to_processes.append([averaged_subtomogram, ang, offset, vol_size,
+                                       pick_position, rot, particle.getFilename(),
                                        particle_number, binning, img, create_graphics, fsc_path, dimz, peak_border])
 
-    if verbose:
-        print(len(input_to_processes))
-        print("{:s}> Created the input array".format(gettime()))
+    # if verbose:
+    #     print(len(input_to_processes))
+    #     print("{:s}> Created the input array".format(gettime()))
 
-    results_file = os.path.join(outputDirectory, f"resultsPolish {particle_list_name}.txt")
 
-    if verbose: print("{:s}> Started on running the process".format(gettime()))
+    # if verbose: print("{:s}> Started on running the process".format(gettime()))
 
-    lists = zip(*input_to_processes)
+
+    lists = list(zip(*input_to_processes))
     if verbose: print(len(lists))
 
-    output = mpi.parfor(run_single_tilt_angle, zip(lists[0], lists[1],lists[2],lists[3],lists[4],lists[5],lists[6],lists[7],lists[8],lists[9],lists[10],lists[11],lists[12],lists[13])) # Some problem internally 23/10/2019
+    output = mpi.parfor(run_single_tilt_angle, list(zip(lists[0], lists[1],lists[2],lists[3],lists[4],lists[5],lists[6],lists[7],lists[8],lists[9],lists[10],lists[11],lists[12],lists[13]))) # Some problem internally 23/10/2019
 
+    results_file = os.path.join(outputDirectory, f"resultsPolish_{particle_list_name}.txt")
     np.savetxt(results_file, np.array(output, dtype=LOCAL_ALIGNMENT_RESULTS), fmt=fmtLAR, header=headerLocalAlignmentResults)
 
     if verbose: print("{:s}> Ran the processes".format(gettime()))
@@ -121,9 +135,34 @@ def run_single_tilt_angle_unpack(inp):
     """
     return run_single_tilt_angle(*inp)
 
+def cut_patch(projection, ang, pick_position, vol_size=200, binning=8, dimz=0, offset=[0,0,0]):
+    from pytom.tompy.transform import rotate3d, rotate_axis
+    import numpy as np
+    from math import cos, sin, pi
+    from pytom.tompy.transform import cut_from_projection
+    from pytom.tompy.io import read
 
-def run_single_tilt_angle(ang, subtomogram, offset, vol_size, particle_position, particle_rotation,  particle_filename,
-                          particle_number, binning, img, create_graphics, fsc_path, dimz, peak_border):
+    # Get the size of the original projection
+    dim_x = projection.shape[0]
+    dim_z = dim_x if dimz is None else dimz
+
+    x, y, z = pick_position
+    x = (x + offset[0]) * binning
+    y = (y + offset[1]) * binning
+    z = (z + offset[2]) * binning
+
+    # Get coordinates of the paricle adjusted for the tilt angle
+    yy = y  # assume the rotation axis is around y
+    xx = (cos(ang * pi / 180) * (x - dim_x / 2) - sin(ang * pi / 180) * (z - dim_z / 2)) + dim_x / 2
+
+    # Cut the small patch out
+    patch = cut_from_projection(projection.squeeze(), [xx, yy], [vol_size, vol_size])
+    patch = patch - patch.mean()
+
+    return patch
+
+def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position, particle_rotation,  particle_filename,
+                          particle_number, binning, patch, create_graphics, fsc_path, dimz, peak_border):
     """
     To run a single tilt angle to allow for parallel computing
 
@@ -154,50 +193,35 @@ def run_single_tilt_angle(ang, subtomogram, offset, vol_size, particle_position,
     @returntype: list
     """
 
-    print(ang, offset, binning, particle_position)
-    from pytom.tompy.transform import rotate3d
+
+    from pytom.tompy.transform import rotate3d, rotate_axis
     import numpy as np
     from math import cos, sin, pi
     from pytom.tompy.transform import cut_from_projection
     from pytom.tompy.io import read
 
-    subtomogram = read(subtomogram)
-    img = read(img)
-
-    # Get the size of the original projection
-    dim_x = img.shape[0]
-    dim_z = dim_x if dimz is None else dimz
-    print(dim_x, dim_z)
-
-    x, y, z = particle_position
-    x = (x + offset[0]) * binning
-    y = (y + offset[1]) * binning
-    z = (z + offset[2]) * binning
+    print(particle_filename, ang)
 
     # Get template
-    # First rotate towards orientation of the particle, then to the tilt angle
+    # First rotate the template towards orientation of the particle, then to the tilt angle
+    subtomogram = read(subtomogram)
     rotated1 = rotate3d(subtomogram, phi=particle_rotation[0], the=particle_rotation[1], psi=particle_rotation[2])
-    rotated2 = rotate3d(rotated1, the=ang)  # 'the' is the rotational axis
+    rotated2 = rotate_axis(rotated1, -ang, 'y')  # SWITCHED TO ROTATE AXIS AND ANGLE *-1 THIS IS AN ATTEMPT
     template = rotated2.sum(axis=2)
 
-    # Get coordinates of the paricle adjusted for the tilt angle
-    yy = y  # assume the rotation axis is around y
-    xx = (cos(ang * pi / 180) * (x - dim_x / 2) - sin(ang * pi / 180) * (z - dim_z / 2)) + dim_x / 2
-
-    # Cut the small patch out
-    patch = cut_from_projection(img.sum(axis=2), [xx, yy], [vol_size, vol_size])
-    patch = patch - patch.mean()
+    patch = cut_patch(read(patch), ang, particle_position, dimz=dimz )
 
     # Filter using FSC
     fsc_mask = None
     import os
-    if os.path.isfile(fsc_path):
-        f = open(fsc_path, "r")
-        fsc = map(lambda a: float(a), f.readlines())
-        f.close()
-        fsc_mask = create_fsc_mask(fsc, vol_size)
-    elif fsc_path != "":
-        print("Not an existing FSC file: " + fsc_path)
+
+    # if 0 and os.path.isfile(fsc_path):
+    #     f = open(fsc_path, "r")
+    #     fsc = map(lambda a: float(a), f.readlines())
+    #     f.close()
+    #     fsc_mask = create_fsc_mask(fsc, vol_size)
+    # elif fsc_path != "":
+    #    print("Not an existing FSC file: " + fsc_path)
 
     # Cross correlate the template and patch, this should give the pixel shift it is after
     ccf = normalised_cross_correlation(template, patch, fsc_mask)
@@ -206,7 +230,7 @@ def run_single_tilt_angle(ang, subtomogram, offset, vol_size, particle_position,
     x_diff = points2d[0] - vol_size / 2
     y_diff = points2d[1] - vol_size / 2
 
-    if create_graphics:
+    if 0 and create_graphics:
         # Create an image to display and/or test the inner workings of the algorithm
         m_style = dict(color='tab:blue', linestyle=':', marker='o', markersize=5, markerfacecoloralt='tab:red')
         m_style_alt = dict(color='tab:red', linestyle=':', marker='o', markersize=5, markerfacecoloralt='tab:blue')
@@ -223,7 +247,8 @@ def run_single_tilt_angle(ang, subtomogram, offset, vol_size, particle_position,
         nccf = normalised_cross_correlation(template, npatch.squeeze())
         npoints = find_sub_pixel_max_value(nccf)
         npoints2d = find_sub_pixel_max_value_2d(nccf, ignore_border=peak_border)
-
+        import matplotlib
+        matplotlib.use('Qt5Agg')
         import pylab as pp
 
         grid = pp.GridSpec(3, 3, wspace=0, hspace=0.35, left=0.05, right=0.95, top=0.90, bottom=0.05)
@@ -285,7 +310,7 @@ def run_single_tilt_angle(ang, subtomogram, offset, vol_size, particle_position,
         import scipy
         ax_2_2.imshow(scipy.ndimage.gaussian_filter(patch, 3))
 
-        pp.savefig("polish_particle_{:04d}_tiltimage_{:05.2f}.png".format(particle_number, ang))
+        pp.savefig("Images/polish_particle_{:04d}_tiltimage_{:05.2f}.png".format(particle_number, ang))
 
     return particle_number, x_diff, y_diff, ang, 0, 0, particle_filename
 
