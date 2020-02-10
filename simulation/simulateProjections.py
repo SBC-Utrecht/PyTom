@@ -731,7 +731,7 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
     import numpy as xp
 
     SIZE = grandcell.shape[1]
-
+    print('size of grandcell: ', SIZE)
     if grandcell.shape[0] >= heightBox:
         raise Exception('Your model is larger than than the box that we will rotate (heightBox parameter)')
 
@@ -743,7 +743,7 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
     gpu_volume = cupy.array(volume)
     d_vol = StaticVolume(gpu_volume, interpolation=Interpolations.FILT_BSPLINE) # turn into Voltools volume
 
-    noisefree_projections = xp.zeros((len(angles), SIZE//2, SIZE//2), dtype=float32)
+    noisefree_projections = xp.zeros((len(angles), SIZE//2, SIZE//2), dtype=float64)
 
     #TODO allow for different defocus per tilt image. Now single defocus for all images
     ctf = calcCTF(defocus, xp.zeros((SIZE,SIZE)), pixelSize, voltage, sphericalAberration, sigmaDecayCTF, amplitudeContrast)
@@ -798,12 +798,6 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
             # TRANSMISSON FUNCTION: the slice thickness is constant
             psi_t = xp.exp(1j * sig_transfer * projected_potent_ms * dzprop)
 
-            num_px_last_slice = heightBox % px_per_slice
-
-            if num_px_last_slice:
-                dzprop_end = num_px_last_slice * pixelSize
-                psi_t[-1,:,:] = xp.exp(1j * sig_transfer * projected_potent_ms[-1,:,:] * dzprop_end)
-
 
             # Determine Fresnel Propagator for slice
 
@@ -815,22 +809,25 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
             # FRESNEL PROPAGATOR
             P = xp.exp(-1j * pi * Lambda * (q_m**2) * dzprop)
 
-            if num_px_last_slice:
-                P_end = xp.exp(-1j * pi * Lambda * (q_m ** 2) * dzprop_end)
-
-
 
             # PsiExit = multislice(psi_t, Nm, n, Lambda , q_m, dzprop); # function in matlab code
             # MULTISLICE
             psi_multislice = xp.zeros((SIZE, SIZE), dtype=complex) + 1 # should be complex datatype
 
+            num_px_last_slice = heightBox % px_per_slice
+
             for ii in range(n_slices-min(1,num_px_last_slice)):
-                # ADD APPLICATION OF PYTOM.TOMPY
+                #TODO ADD APPLICATION OF PYTOM.TOMPY
                 psi_multislice = xp.fft.ifftn(xp.fft.fftn( psi_multislice * xp.squeeze(psi_t[ii, :, :]) )*P)
 
+            # Calculate propagation through last slice in case the last slice contains a different number of pixels
             if num_px_last_slice:
+                dzprop_end = num_px_last_slice * pixelSize
+                psi_t[-1, :, :] = xp.exp(1j * sig_transfer * projected_potent_ms[-1, :, :] * dzprop_end)
+                P_end = xp.exp(-1j * pi * Lambda * (q_m ** 2) * dzprop_end)
                 psi_multislice = xp.fft.ifftn(xp.fft.fftn( psi_multislice * xp.squeeze(psi_t[-1, :, :]) )*P_end)
 
+            # To make clear that we obtain the exit_wave here! Could be removed.
             psi_exit = psi_multislice
 
             # GET INTENSITIES IN IMAGE PLANE
@@ -839,12 +836,11 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
 
             projected_tilt_image = xp.abs(xp.fft.ifftn(xp.fft.fftn(psi_exit) * ctf)) ** 2
 
-            print('complex part for projection: ', xp.abs(psi_exit.imag).mean())
+            print('complex part of projection: ', xp.abs(psi_exit.imag).mean())
 
                 # noisefree_projections[n] = gpu_proj[300:-300,300:-300]
 
-        offset = SIZE//2
-        noisefree_projections[n] = projected_tilt_image[offset:-offset, offset:-offset]
+        noisefree_projections[n] = projected_tilt_image[SIZE//4:-SIZE//4, SIZE//4:-SIZE//4]
 
         # =  create_projections(dens, range(-60, 61, 3))
         # noisefree_projections[n] /= noisefree_projections[n][:,140:160].mean()
@@ -974,7 +970,7 @@ if __name__ == '__main__':
             print(e)
             raise Exception('Missing reconstruct tomogram parameters.')
     else:
-        reconstructTomogram = True
+        reconstructTomogram = False
 
     # Generate or read a grand model
     if generateModel:
