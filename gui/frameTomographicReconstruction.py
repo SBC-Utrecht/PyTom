@@ -734,8 +734,8 @@ class TomographReconstruct(GuiTabWidget):
             time.sleep(1)
             num += 1
 
-        signals.finished_mcor.emit()
         if a: self.popup_messagebox("Info", "Completion", 'Successfully generated tomogram directories.')
+        signals.finished_mcor.emit()
 
     def update_progress_generate_tomogramdir(self, total):
         self.progressBar.setValue(total)

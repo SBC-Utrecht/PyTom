@@ -423,7 +423,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     if writeResults:
         from pytom.gui.guiFunctions import fmtMR, headerMarkerResults
         numpy.savetxt(writeResults, numpy.array(results), fmt=fmtMR, header=headerMarkerResults)
-
+        print(f'markerfile has been created. See {writeResults}')
     return(psiindeg, shiftX, shiftY, x, y, z, distLine, diffX, diffY, 
            shiftVarX, shiftVarY)
 

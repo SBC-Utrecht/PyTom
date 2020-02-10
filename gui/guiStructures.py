@@ -796,14 +796,22 @@ class CommonFunctions():
             print ('Please check your input parameters. They might be incomplete.')
 
     def getLocalID(self):
-        idfile = os.path.join(self.logfolder, 'Local/.idcounter.txt')
-        if os.path.exists(idfile):
-            ID = open(idfile,'r').readlines()[0].split()[0].zfill(8)
-        else:
+        import os
+        try:
+            idfile = os.path.join(self.logfolder, 'Local/.idcounter.txt')
+
+            if os.path.exists(idfile):
+                ID = open(idfile, 'r').readlines()[0].split()[0].zfill(8)
+            else:
+                ID = '0'.zfill(8)
+        except:
             ID = '0'.zfill(8)
-            out = open(idfile, 'w')
-            out.write(ID)
-            out.close()
+
+        out = open(idfile, 'w')
+        out.write(str(int(ID) + 1) + '\n')
+        out.close()
+
+        return ID
 
 
     def submit_local_job(self, execfilename):
@@ -1380,6 +1388,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                         cb.addItem(val)
 
                     table.setCellWidget(v, i, widget)
+
                     self.widgets['widget_{}_{}'.format(v,i)] = cb
                     widget.setStyleSheet('background: white; selection-background-color: #1989ac;')
                 else:
@@ -2554,6 +2563,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.centimage  = w.addViewBox(row=0, col=0, lockAspect=True)
         self.centimage.setMenuEnabled(False)
         self.target = w3 = pg.ImageView()
+        rgn = pg.LinearRegionItem([100., 300])
+        self.leftimage.addItem(rgn)
 
         self.bottomcanvas = w2 = pg.GraphicsWindow(size=(600, 200), border=True)
         self.bottomimage  = w2.addViewBox(row=0, col=0 )
@@ -2863,6 +2874,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.replot_all()
 
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
+
 
     def sizeChanged(self):
         a = self.widgets['size_selection: '].text()
@@ -4154,7 +4166,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.stage='generalSettings_'
         self.pytompath = self.parent().pytompath
         self.projectname = self.parent().projectname
-
+        self.qtype = None
         self.setGeometry(0,0,700,300)
 
         headers = ['Alignment Errors', 'Template Matching Results', 'FSC Curve']
@@ -4357,9 +4369,9 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def tab32UI(self, id=''):
         import glob, numpy
-        headers = ["name tomogram", 'Score', 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Det. Rot. Angle', '']
-        types = ['txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt']
-        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
+        headers = ["name tomogram", 'Score', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Det. Rot. Angle', 'CTF Corrected',  '']
+        types = ['txt', 'txt', 'txt', 'txt', 'txt', 'combobox', 'txt', 'txt', 'checkbox', 'txt']
+        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0,0]
 
         tooltip = ['Names of existing tomogram folders.',
                    'Alignment Score.',
@@ -4367,17 +4379,30 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                    'Last angle of tiltimages.',
                    'Reference image number.',
                    'Reference Marker',
-                   'Expected Rotation Angle', 'Determined Rotation Angle']
+                   'Expected Rotation Angle', 'Determined Rotation Angle', 'CTF Correction Done']
 
         tomofolders = sorted([f for f in os.listdir(f'{self.projectname}/03_Tomographic_Reconstruction/') if f.startswith('tomogram_')])
 
         values = []
         tomograms = {}
+        self.alignmentResulsDict = {}
         for tomofolder in tomofolders:
+            self.alignmentResulsDict[tomofolder] ={'results': [], 'refmarker':[] }
+            first=True
             for logfile in sorted(glob.glob(f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/alignment/marker*/logfile*.txt')):
                 #tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
                 logdata = open(logfile,'r').read()
                 try:
+                    ctffolder = f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/ctf/sorted_ctf/'
+                    if os.path.exists(ctffolder):
+                        ctfcorr = [f for f in os.listdir(ctffolder) if '_ctf_' in f and f.endswith('.mrc')]
+                    else:
+                        ctfcorr = []
+                    if len(ctfcorr) > 4:
+                        ctf = True
+                    else:
+                        ctf = False
+
                     d = eval(logdata.split("Spawned job")[1].split('\n')[1])
                     first, last = os.path.basename(os.path.dirname(logfile)).split('_')[-1].split(',')
                     if not d: continue
@@ -4390,23 +4415,20 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                     logfal = logdata.split('Alignment successful. See ')[1].split(' ')[0]
                     path = os.path.join(self.projectname, '03_Tomographic_Reconstruction', tomofolder, logfal)
                     angles = guiFunctions.loadstar(path, dtype=guiFunctions.datatypeAR)['InPlaneRotation'].mean()
-                    det_angle = str(int(round(angles)) % 360)
+                    detangle = str(int(round(angles)) % 360)
 
-                    key = f'{tomofolder}_{firstangle}_{lastangle}_{refindex}_{expected}'
+                    results = [tomofolder, alignmentscore, firstangle, lastangle, refindex, refmarker, expected, detangle, ctf]
+                    self.alignmentResulsDict[tomofolder]['results'].append(results)
+                    self.alignmentResulsDict[tomofolder]['refmarker'].append(refmarker)
+                    first=False
 
-                    if not (key in tomograms.keys()):
-                        tomograms[key] = [tomofolder, firstangle, lastangle, refindex, expected]
-                        values.append([tomofolder, alignmentscore, first, last, refindex, refmarker, expected, det_angle, ''])
-                    else:
-                        f, l, r, e = tomograms[key]
-                        if f == firstangle and l == lastangle and r == refindex and e == expected:
-                            continue
-                        else:
-                            tomograms[key] = [tomofolder, firstangle, lastangle, refindex, expected]
-                            values.append([tomofolder, alignmentscore, first, last, refindex, refmarker, expected, det_angle, ''])
                 except Exception as e:
                     print(e)
                     continue
+            if not first:
+                tt, aa, ff, ll, rr, mm, ee, dd, ctf = self.alignmentResulsDict[tomofolder]['results'][0]
+                mm = self.alignmentResulsDict[tomofolder]['refmarker']
+                values.append([tt, aa, ff, ll, rr, mm, ee, dd, ctf, ''])
 
         if not values:
             return
@@ -4422,6 +4444,24 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
             else:
                 color = 'red'
             self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : "+color+"}")
+            tom = values[i][0]
+            self.tables[id].widgets[f'widget_{i}_5'].currentIndexChanged.connect(lambda d, index=i, ID=id, t=tom: self.update(index, ID, t))
+
+    def update(self, row, ID, tomofolder):
+        print(self.alignmentResulsDict[tomofolder]['results'][row])
+        for column in (1,2,3,4,6,7):
+            print(self.alignmentResulsDict[tomofolder]['results'][row][column])
+            self.tables[ID].widgets[f'widget_{row}_{column}'].setText(self.alignmentResulsDict[tomofolder]['results'][row][column])
+
+        score = float(self.tables[ID].widgets[f'widget_{row}_1'].text())
+        if score < 3:
+            color = 'green'
+        elif score < 4.5:
+            color = 'orange'
+        else:
+            color = 'red'
+
+        self.tables[ID].widgets[f'widget_{row}_1'].setStyleSheet("QLabel { color : " + color + "}")
 
 
 class PlotterSubPlots(QMainWindow,CommonFunctions):
