@@ -233,19 +233,19 @@ class TomographReconstruct(GuiTabWidget):
         self.table_layouts[id].addWidget(label)
 
     def tab32UI(self, id=''):
-        headers = ["name tomogram", "align", 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Input Folder', '']
-        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox', 'lineedit', 'combobox', 'txt']
-        sizes = [0, 80, 0, 0, 0, 0, 0, 0]
+        headers = ["name tomogram", "align", 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Input Folder', 'Fix Marker Pos', '']
+        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox', 'lineedit', 'combobox', 'checkbox', 'txt']
+        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
 
         tooltip = ['Names of existing tomogram folders.',
                    'Do alignment.',
                    'First angle of tiltimages.',
                    'Last angle of tiltimages.',
                    'Reference image number.',
-                   'Redo the creation of a tomogram file.',
-                   'Select items to delete tomogram folders.',
+                   'Reference marker index',
                    'Expected Rotation Angle',
-                   'Input Folder for tilt images used in alignment.']
+                   'Input Folder for tilt images used in alignment.',
+                   'Fix marker position during optimization step. Useful for local marker alignment.']
 
         markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.txt'.format(self.tomogram_folder)))
         markerfilesEM = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
@@ -284,7 +284,7 @@ class TomographReconstruct(GuiTabWidget):
                 expect = int(float(metadata['InPlaneRotation'][0]))
                 input_folders = ['sorted', 'ctf/sorted_ctf']
                 values.append( [markerfile.split('/')[-3], True, numpy.floor(tangs.min()), numpy.ceil(tangs.max()),
-                                index_zero_angle, options_reference, expect, input_folders, ''] )
+                                index_zero_angle, options_reference, expect, input_folders, True, ''] )
                 self.mfiles.append(markerfile)
             else:continue
         if not values:
@@ -852,6 +852,7 @@ class TomographReconstruct(GuiTabWidget):
                 markindex  = widgets['widget_{}_{}'.format(row, 5)].currentText()
                 expected   = widgets['widget_{}_{}'.format(row, 6)].text()
                 inputfolder= values[row][7][widgets['widget_{}_{}'.format(row, 7)].currentIndex()]
+                fixmarkers = widgets['widget_{}_{}'.format(row, 8)].isChecked()
 
                 tiltseriesname = os.path.join(inputfolder, os.path.basename(inputfolder))
                 self.widgets[mode + 'FolderSorted'].setText(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
@@ -873,7 +874,7 @@ class TomographReconstruct(GuiTabWidget):
 
                 markerfile = '{}/alignment/markerfile.{}'.format(folder,self.mfiles[row].split('.')[-1])
                 l = len(glob.glob(os.path.join(os.path.dirname(self.mfiles[row]), 'sorted_*.mrc')))
-                print('num files: ', l)
+
                 markerdata = guiFunctions.readMarkerfile(markerfile, l)
 
                 if markindex == 'all':
@@ -882,8 +883,8 @@ class TomographReconstruct(GuiTabWidget):
                     numMark = 1
 
                 total_number_markers += numMark
-                ll = '{} {} {} {} {} {} {} {} {} {} {} {}\n'
-                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0, expected, tiltseriesname, markerfile)
+                ll = '{} {} {} {} {} {} {} {} {} {} {} {} {}\n'
+                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0, expected, tiltseriesname, markerfile, fixmarkers)
                 tomofolder_info.append([ numMark, ll])
 
         if not tomofolder_info:
