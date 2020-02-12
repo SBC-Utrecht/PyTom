@@ -1077,7 +1077,7 @@ class CommonFunctions():
         pb.setValue( int(value.text()) )
 
     def fill_tab(self, id, headers, types, values, sizes, tooltip=[],wname='v02_batch_aligntable_', connect=0, nn=False,
-                 sorting=False, runbutton=True, runtitle='Run'):
+                 sorting=False, runbutton=True, runtitle='Run',addQCheckBox=True):
         try:
             self.tables[id].setParent(None)
             self.pbs[id].setParent(None)
@@ -1108,12 +1108,18 @@ class CommonFunctions():
         self.ends[id].setSizePolicy(self.sizePolicyA)
 
         for n, a in enumerate( (self.tables[id], self.num_nodes[id], self.checkbox[id], self.pbs[id], self.ends[id]) ):
-            if n==1 and nn == False: continue
+            if n==1 and nn == False:
+                continue
+
             if n == 2:
                 self.widgets[f'{id}_queue'] = a
                 a.setEnabled(self.qtype != 'none')
 
-            self.table_layouts[id].addWidget(a)
+                if addQCheckBox:
+                    self.table_layouts[id].addWidget(a)
+            else:
+                self.table_layouts[id].addWidget(a)
+
 
     def submitBatchJob(self, execfilename, id, command):
         outjob = open(execfilename, 'w')
@@ -4252,7 +4258,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.pytompath = self.parent().pytompath
         self.projectname = self.parent().projectname
         self.qtype = None
-        self.setGeometry(0,0,700,300)
+        self.setGeometry(0,0,800,450)
 
         headers = ['Alignment Errors', 'Template Matching Results', 'FSC Curve']
         subheaders  = [['Reconstruction', 'Alignment'], [], []]*len(headers)
@@ -4446,16 +4452,29 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
             return
 
         outfile = open(outname, 'w')
-        for i in range(len(values)):
-            for j in range(1,4):
-                values[i][j] = float(values[i][j])
-            outfile.write('{} {:10.3f} {:10.1f} {:10.1f}    {:4s} {:4s} {:3s}   {:3s}\n'.format(*(values[i][:-1])))
+        try:
+            for i in range(len(values)):
+                for j in range(1,4):
+                    values[i][j] = float(values[i][j])
+                outfile.write('{} {:10.3f} {:10.1f} {:10.1f}    {:4s} {:4s} {:3s}   {:3s}\n'.format(*(values[i][:-1])))
+        except:
+            for key in self.alignmentResulsDict.keys():
+                results, refmarkers = self.alignmentResulsDict[key].values()
+                print(results)
+                for i in results.keys():
+                    print(i, results[i])
+                    for j in range(len(results[i])):
+                        for k in range(1,4):
+                            results[i][j][k] = float(results[i][j][k])
+                        print(results[i][j])
+                        outfile.write('{:15s} {:10.3f} {:10.1f} {:10.1f}    {:4s} {:4s} {:3s}   {:3s}\n'.format(*(results[i][j][:-1])))
+
         outfile.close()
 
     def tab32UI(self, id=''):
         import glob, numpy
         headers = ["name tomogram", 'Score', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Det. Rot. Angle', 'CTF Corrected',  '']
-        types = ['txt', 'txt', 'txt', 'txt', 'txt', 'combobox', 'txt', 'txt', 'checkbox', 'txt']
+        types = ['txt', 'txt', 'combobox', 'combobox', 'txt', 'combobox', 'txt', 'txt', 'checkbox', 'txt']
         sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0,0]
 
         tooltip = ['Names of existing tomogram folders.',
@@ -4472,7 +4491,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         tomograms = {}
         self.alignmentResulsDict = {}
         for tomofolder in tomofolders:
-            self.alignmentResulsDict[tomofolder] ={'results': [], 'refmarker':[] }
+            self.alignmentResulsDict[tomofolder] = {'results': {}, 'refmarker':[] }
             first=True
             for logfile in sorted(glob.glob(f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/alignment/marker*/logfile*.txt')):
                 #tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
@@ -4503,22 +4522,36 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                     detangle = str(int(round(angles)) % 360)
 
                     results = [tomofolder, alignmentscore, firstangle, lastangle, refindex, refmarker, expected, detangle, ctf]
-                    self.alignmentResulsDict[tomofolder]['results'].append(results)
-                    self.alignmentResulsDict[tomofolder]['refmarker'].append(refmarker)
+                    print(results)
+                    if not refmarker in self.alignmentResulsDict[tomofolder]['refmarker']:
+                        self.alignmentResulsDict[tomofolder]['results'][refmarker] = [results]
+                        self.alignmentResulsDict[tomofolder]['refmarker'].append(refmarker)
+                    else:
+                        self.alignmentResulsDict[tomofolder]['results'][refmarker].append(results)
+
                     first=False
 
                 except Exception as e:
                     print(e)
                     continue
             if not first:
-                tt, aa, ff, ll, rr, mm, ee, dd, ctf = self.alignmentResulsDict[tomofolder]['results'][0]
-                mm = self.alignmentResulsDict[tomofolder]['refmarker']
-                values.append([tt, aa, ff, ll, rr, mm, ee, dd, ctf, ''])
+                refmarkers = self.alignmentResulsDict[tomofolder]['refmarker']
+                mm = refmarkers[0]
+                tt, aa, ff, ll, rr, mm, ee, dd, ctf = self.alignmentResulsDict[tomofolder]['results'][mm][0]
+
+                print(mm, tt, self.alignmentResulsDict[tomofolder]['refmarker'] )
+                firstAngle, lastAngle = [], []
+                for results in self.alignmentResulsDict[tomofolder]['results'][mm]:
+                    print(results)
+                    firstAngle.append(results[2])
+                    lastAngle.append(results[3])
+
+                values.append([tt, aa, firstAngle, lastAngle, rr, refmarkers, ee, dd, ctf, ''])
 
         if not values:
             return
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save')
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save', addQCheckBox=False)
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
 
         for i in range(len(values)):
@@ -4531,13 +4564,29 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
             self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : "+color+"}")
             tom = values[i][0]
             self.tables[id].widgets[f'widget_{i}_5'].currentIndexChanged.connect(lambda d, index=i, ID=id, t=tom: self.update(index, ID, t))
+            self.tables[id].widgets[f'widget_{i}_2'].currentIndexChanged.connect(lambda d, index=i, ID=id, t=tom: self.updateLast(index, ID, t))
+            self.tables[id].widgets[f'widget_{i}_3'].currentIndexChanged.connect(lambda d, index=i, ID=id, t=tom: self.updateFirst(index, ID, t))
+
 
     def update(self, row, ID, tomofolder):
-        print(self.alignmentResulsDict[tomofolder]['results'][row])
-        for column in (1,2,3,4,6,7):
-            print(self.alignmentResulsDict[tomofolder]['results'][row][column])
-            self.tables[ID].widgets[f'widget_{row}_{column}'].setText(self.alignmentResulsDict[tomofolder]['results'][row][column])
+        refmarker = self.tables[ID].widgets[f'widget_{row}_5'].currentText()
+        for column in (1,4,6,7):
+            text = self.alignmentResulsDict[tomofolder]['results'][refmarker][0][column]
+            self.tables[ID].widgets[f'widget_{row}_{column}'].setText(text)
 
+        self.tables[ID].widgets[f'widget_{row}_2'].clear()
+        self.tables[ID].widgets[f'widget_{row}_3'].clear()
+        firstAngle, lastAngle = [], []
+        for results in self.alignmentResulsDict[tomofolder]['results'][refmarker]:
+            firstAngle.append(results[2])
+            lastAngle.append(results[3])
+        for ff, ll in zip(firstAngle, lastAngle):
+            self.tables[ID].widgets[f'widget_{row}_2'].addItem(ff)
+            self.tables[ID].widgets[f'widget_{row}_3'].addItem(ll)
+
+        self.updateScoreColor(ID, row)
+
+    def updateScoreColor(self, ID, row):
         score = float(self.tables[ID].widgets[f'widget_{row}_1'].text())
         if score < 3:
             color = 'green'
@@ -4548,6 +4597,23 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
 
         self.tables[ID].widgets[f'widget_{row}_1'].setStyleSheet("QLabel { color : " + color + "}")
 
+    def updateFirst(self, row, ID, tomofolder):
+        refmarker = self.tables[ID].widgets[f'widget_{row}_5'].currentText()
+        index = self.tables[ID].widgets[f'widget_{row}_3'].currentIndex()
+        self.tables[ID].widgets[f'widget_{row}_2'].setCurrentIndex(index)
+        for column in (1,4,6,7):
+            text = self.alignmentResulsDict[tomofolder]['results'][refmarker][index][column]
+            self.tables[ID].widgets[f'widget_{row}_{column}'].setText(text)
+        self.updateScoreColor(ID, row)
+
+    def updateLast(self, row, ID, tomofolder):
+        refmarker = self.tables[ID].widgets[f'widget_{row}_5'].currentText()
+        index = self.tables[ID].widgets[f'widget_{row}_2'].currentIndex()
+        self.tables[ID].widgets[f'widget_{row}_3'].setCurrentIndex(index)
+        for column in (1,4,6,7):
+            text = self.alignmentResulsDict[tomofolder]['results'][refmarker][index][column]
+            self.tables[ID].widgets[f'widget_{row}_{column}'].setText(text)
+        self.updateScoreColor(ID, row)
 
 class PlotterSubPlots(QMainWindow,CommonFunctions):
     def __init__(self, parent=None, width=800, size_subplot=80, size_subtomo=40, height=1000, offset_x=0, offset_y=0):
