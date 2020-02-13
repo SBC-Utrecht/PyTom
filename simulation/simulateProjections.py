@@ -30,8 +30,8 @@ import numpy as xp
 
 # from scipy.ndimage import rotate
 
-# Dictionary containing physical constants required for calculation
 phys_const_dict = {
+    # Dictionary containing physical constants required for calculation
     "c": 299792458, # m/s
     "el": 1.60217646e-19, # C
     "h": 6.62606896e-34, # J*S
@@ -50,18 +50,22 @@ phys_const_dict = {
     "eps0": 8.854187817620e-12 # F/m
 }
 
-# function calculates the electron wavelength given a certain accelaration voltage V
 def wavelength_eV2m(V):
+    # OLD FUNCTION
+    # h / sqrt( 2 * me * el * ev * 1)
+    # return 6.625 * 10 ** (-34) / ((2 * 9.1 * 10 ** (-31)) * 1.6 * (10 ** (-19)) * ev * 1) ** 0.5
+
+    # NEW FUNCTION
+    # function calculates the electron wavelength given a certain accelaration voltage V
     h = phys_const_dict["h"]
     e = phys_const_dict["el"]
     m = phys_const_dict["me"]
     c = phys_const_dict["c"]
 
+    # matlab original: lambda = h/sqrt(e*V*m*(e/m*V/c^2 + 2 ));
     Lambda = h/xp.sqrt(e*V*m*(e/m*V/c**2 + 2 ))
 
     return Lambda
-
-
 
 def tom_bandpass(image, low, hi, smooth=0):
     try:
@@ -128,12 +132,7 @@ def spheremask(vol, radius, smooth=0):
     return vol * mask
 
 
-#def wavelength_eV2nm(ev):
-#    # h / sqrt( 2 * me * el * ev * 1)
-#    return 6.625 * 10 ** (-34) / ((2 * 9.1 * 10 ** (-31)) * 1.6 * (10 ** (-19)) * ev * 1) ** 0.5
-
-
-def create_ctf(Dz, vol, pix_size, voltage=200E3, Cs=2.7E-3, sigma=0.):
+def create_ctf(Dz, vol, pix_size, voltage, Cs, sigma):
     '''
     %TOM_CREATE_CTF calculates 2D or 3D CTF (pure phase contrast)
     %
@@ -197,11 +196,15 @@ def create_ctf(Dz, vol, pix_size, voltage=200E3, Cs=2.7E-3, sigma=0.):
     else
         pix_size=pix_size*10^(-9);
     '''
-    Dz = Dz * 10 ** (-6)
+
+    # TODO remove: deprecated function!
 
     Lambda = wavelength_eV2m(voltage)
 
     Ny = 1 / (2 * pix_size)
+
+    # print('in create_ctf the pixelsize = ', pix_size)
+    # print('in create_ctf the Ny freq = ', Ny)
 
     if len(vol.shape) > 2:
         R, Y, Z = xp.meshgrid(xp.arange(-Ny, Ny, 2 * Ny / vol.shape[0]), xp.arange(-Ny, Ny, 2 * Ny / vol.shape[1]),
@@ -211,26 +214,54 @@ def create_ctf(Dz, vol, pix_size, voltage=200E3, Cs=2.7E-3, sigma=0.):
         R, Y = xp.meshgrid(xp.arange(-Ny, Ny, 2. * Ny / (vol.shape[0])), xp.arange(-Ny, Ny, 2. * Ny / (vol.shape[1])))
         r = xp.sqrt(R ** 2 + Y ** 2)
 
-    vol = xp.sin(pi / 2 * (Cs * Lambda ** 3 * r ** 4 - 2 * Dz * Lambda * r ** 2))
-    amplitude = xp.cos(pi / 2 * (Cs * Lambda ** 3 * r ** 4 - 2 * Dz * Lambda * r ** 2))
+    # print(r)
+
+    phase = xp.sin(pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2) ))
+    amplitude = xp.cos(pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2) ))
 
     if sigma:
-        vol = vol * xp.exp(-(r / (sigma * Ny)) ** 2)
+        phase = phase * xp.exp(-(r / (sigma * Ny)) ** 2)
         amplitude = amplitude * xp.exp(-(r / (sigma * Ny)) ** 2)
 
-    return vol, amplitude
+    return phase, amplitude
 
 
 def tom_dev(image):
     return image.mean(), image.max(), image.min(), image.std(), image.std() ** 2
 
 
-def calcCTF(defocus, image, pixelsize, voltage, spherical_aberration, sigma_decay_ctf, amplitude_contrast):
-    ctf1, amplitude = create_ctf(defocus, image, pixelsize, voltage, spherical_aberration, sigma_decay_ctf)
+def calcCTF(Dz, vol, pix_size, voltage=200E3, Cs=2.7E-3, sigma_decay_ctf=0.4, amplitude_contrast=0.07):
 
-    ctf1 = -ctf1
-    amplitude = -amplitude
-    ctf = (1-amplitude_contrast) * ctf1 + amplitude_contrast * amplitude
+    # calcCTF does not call create_ctf any longer!
+
+    Lambda = wavelength_eV2m(voltage)
+
+    Ny = 1 / (2 * pix_size)
+
+    # print('in create_ctf the pixelsize = ', pix_size)
+    # print('in create_ctf the Ny freq = ', Ny)
+
+    if len(vol.shape) > 2:
+        R, Y, Z = xp.meshgrid(xp.arange(-Ny, Ny, 2 * Ny / vol.shape[0]), xp.arange(-Ny, Ny, 2 * Ny / vol.shape[1]),
+                              xp.arange(-Ny, Ny, 2 * Ny / vol.shape[2]))
+        r = xp.sqrt(R ** 2 + Y ** 2 + Z ** 2)
+    else:
+        R, Y = xp.meshgrid(xp.arange(-Ny, Ny, 2. * Ny / (vol.shape[0])), xp.arange(-Ny, Ny, 2. * Ny / (vol.shape[1])))
+        r = xp.sqrt(R ** 2 + Y ** 2)
+
+    # print(r)
+
+    phase = xp.sin(pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)))
+    amplitude = xp.cos(pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)))
+
+    ctf = amplitude * amplitude_contrast - 1j * phase * (1-amplitude_contrast)
+
+    if sigma_decay_ctf:
+        ctf = ctf * xp.exp(-(r / (sigma_decay_ctf * Ny)) ** 2)
+
+    # ctf1 = -ctf1
+    # amplitude = -amplitude
+    # ctf = (1-amplitude_contrast) * ctf1 + amplitude_contrast * amplitude
     return ctf
 
 def simutomo(dens, defocus, pixelsize, angles, SNR, the, psi, phi, globalsigma=0, gpu=False, pytom=False,
@@ -437,7 +468,7 @@ def rotate_quat(v, q):
 
 
 def dotproduct(v1, v2):
-    return numpy.sum((a * b) for a, b in zip(v1, v2))
+    return numpy.sum(list((a * b) for a, b in zip(v1, v2)))
 
 
 def rand_quat():
@@ -534,10 +565,16 @@ def addNoise(noise_size, dim):
 # a = read_mrc('1bxn_chimera.mrc')
 
 def addStructuralNoise(model, th=1.3):
+    # What is the threshold value??
+
     dx, dy, dz = model.shape
     data2 = model.copy()
+
+    # set all values larger than threshold to the threshold value
     data2[data2 > th] = th
 
+    # values in data2 equaling th will be zero, others will be larger than zero
+    # zero values will become 1
     data4 = (1 - data2 / th)
 
     data5 = numpy.ones((dx, dy, dz))
@@ -609,78 +646,88 @@ def rr(x = 256, y = 256):
     return out**0.5
 
 
-def generate_model(outputFolder, modelID, listpdbs, SIZE, waterdensity=1., numberOfParticles=1000):
-    if not os.path.exists(os.path.join(outputFolder, f'model_{modelID}')):
-        os.mkdir(os.path.join(outputFolder, f'model_{modelID}'))
+def generate_model(particleFolder, outputFolder, modelID, listpdbs, SIZE, waterdensity=1., numberOfParticles=1000):
+
+    from voltools import transform
+    from pytom.tompy.io import read
 
     # ['3cf3', '1s3x','1u6g','4b4t','1qvr','3h84','2cg9','3qm1','3gl1','3d2f','4d8q','1bxn']
 
-    factor = 10
-    skipped = 0
-    models = []
     dims = []
-    for n, pdbid in enumerate(listpdbs):
-        if not os.path.exists('{}/{}_model.mrc'.format(outputFolder, pdbid)):
-            fname = generate_map(pdbid, n + skipped)
-        else:
-            fname = '{}/{}_model.mrc'.format(outputFolder, pdbid)
-            skipped += 1
-        if 1 or not os.path.exists('{}/{}_model_binned.mrc'.format(outputFolder, pdbid)):
-            m = read_mrc(fname)
-            size = max(m.shape)
-            m2 = numpy.zeros((size, size, size))
-            dx, dy, dz = m.shape
-            sx, ex = (size - dx) // 2, size - int(ceil((size - dx) / 2.))
-            sy, ey = (size - dy) // 2, size - int(ceil((size - dy) / 2.))
-            sz, ez = (size - dz) // 2, size - int(ceil((size - dz) / 2.))
-            m2[sx:ex, sy:ey, sz:ez] = m
-            m_r = crop(m2, factor)
-            # print m_r.sum(), m2.sum(), m_r.max(), m2.max()
-            # m_str = addStructuralNoise(m_r,m_r.shape[0])
-            # print median(m_str[m_str > 1.]),median(m_r[m_r > 1.])
-            convert_numpy_array3d_mrc(m_r, '{}/{}_model_binned.mrc'.format(outputFolder, pdbid))
 
-
-        else:
-            m_r = read_mrc('{}/{}_model_binned.mrc'.format(outputFolder, pdbid))
-
-        models.append(m_r)
-        dims.append(m_r.shape[0])
+    # factor = 10
+    # skipped = 0
+    # models = []
+    # for n, pdbid in enumerate(listpdbs):
+    #     if not os.path.exists('{}/{}_model.mrc'.format(outputFolder, pdbid)):
+    #         fname = generate_map(pdbid, n + skipped)
+    #     else:
+    #         fname = '{}/{}_model.mrc'.format(outputFolder, pdbid)
+    #         skipped += 1
+    #     if 1 or not os.path.exists('{}/{}_model_binned.mrc'.format(outputFolder, pdbid)):
+    #         m = read_mrc(fname)
+    #         size = max(m.shape)
+    #         m2 = numpy.zeros((size, size, size))
+    #         dx, dy, dz = m.shape
+    #         sx, ex = (size - dx) // 2, size - int(ceil((size - dx) / 2.))
+    #         sy, ey = (size - dy) // 2, size - int(ceil((size - dy) / 2.))
+    #         sz, ez = (size - dz) // 2, size - int(ceil((size - dz) / 2.))
+    #         m2[sx:ex, sy:ey, sz:ez] = m
+    #         m_r = crop(m2, factor)
+    #         # print m_r.sum(), m2.sum(), m_r.max(), m2.max()
+    #         # m_str = addStructuralNoise(m_r,m_r.shape[0])
+    #         # print median(m_str[m_str > 1.]),median(m_r[m_r > 1.])
+    #         convert_numpy_array3d_mrc(m_r, '{}/{}_model_binned.mrc'.format(outputFolder, pdbid))
+    #
+    #
+    #     else:
+    #         m_r = read_mrc('{}/{}_model_binned.mrc'.format(outputFolder, pdbid))
+    #
+    #     models.append(m_r)
+    #     dims.append(m_r.shape[0])
 
     X, Y, Z = 200, SIZE, SIZE
-    cell = numpy.zeros((X, Y, Z))
+    cell = xp.zeros((X, Y, Z))
 
-    cell[:, :, :] = waterdensity
+    # cell[:, :, :] = waterdensity
 
-    mask = numpy.zeros_like(cell)
+    mask = xp.zeros_like(cell)
 
     #if addStructNoise:
     #    cell = addStructuralNoise(cell)
     volumes = []
-    for i in range(len(models)):
-        vol = read('{}_model_binned.mrc'.format(listpdbs[i]))
-        volumes.append(vol)
+    for i in range(len(listpdbs)):
+        try:
+            vol = read(f'{particleFolder}/{listpdbs[i]}_model_binned.mrc')
+            volumes.append(vol)
+            dims.append(vol.shape[0])
+        except Exception as e:
+            print(e)
+            raise Exception('Could not open pdb ', listpdbs[i])
 
-    total = [0, ] * len(models)
+
+    total = [0, ] * len(volumes)
     particleNr = 0
     outline = ''
     for i in range(numberOfParticles):
         if i % 200 == 0:
             print(i)
-        a = numpy.random.randint(0, len(models))
+        a = xp.random.randint(0, len(volumes))
         q = rand_quat()
         euler = euler_from_quat(q)
         euler *= 180. / pi
+        mdl = transform(volumes[a], rotation=(float(euler[0]), float(euler[1]), float(euler[2])), rotation_order='szyx', interpolation='filt_bspline', device='cpu')
 
-        mdl_vol = rotate(volumes[a], float(euler[0]), x=float(euler[1]), z2=float(euler[2]))
-        mdl = vol2npy(mdl_vol)
+        # mdl_vol = rotate(volumes[a], float(euler[0]), x=float(euler[1]), z2=float(euler[2]))
+        # mdl = vol2npy(mdl_vol)
         # mdl = rotate(models[a],randint(0,360),reshape=False)
+
         xx, yy, zz = mdl.shape
 
         for i in range(900):
-            loc_x = numpy.random.randint(xx // 2 + 1, X - xx // 2 - 1)
-            loc_y = numpy.random.randint(yy // 2 + 1, Y - yy // 2 - 1)
-            loc_z = numpy.random.randint(zz // 2 + 1, Z - zz // 2 - 1)
+            loc_x = xp.random.randint(xx // 2 + 1, X - xx // 2 - 1)
+            loc_y = xp.random.randint(yy // 2 + 1, Y - yy // 2 - 1)
+            loc_z = xp.random.randint(zz // 2 + 1, Z - zz // 2 - 1)
 
             if mask[loc_x - dims[a] // 2:loc_x + dims[a] // 2 + dims[a] % 2,
                loc_y - dims[a] // 2:loc_y + dims[a] // 2 + dims[a] % 2,
@@ -698,7 +745,7 @@ def generate_model(outputFolder, modelID, listpdbs, SIZE, waterdensity=1., numbe
         loc_y - dims[a] // 2:loc_y + dims[a] // 2 + dims[a] % 2,
         loc_z - dims[a] // 2:loc_z + dims[a] // 2 + dims[a] % 2] = mdl
 
-        if abs(512 - loc_y) < 256 and abs(512 - loc_z) < 256:
+        if xp.abs(512 - loc_y) < 256 and xp.abs(512 - loc_z) < 256:
             outline += "{} {:4d} {:4d} {:4d} {:4.0f} {:4.0f} {:4.0f}\n".format(listpdbs[a], loc_x, loc_y - 256,
                                                                                loc_z - 256, euler[0], euler[1],
                                                                                euler[2])
@@ -707,59 +754,101 @@ def generate_model(outputFolder, modelID, listpdbs, SIZE, waterdensity=1., numbe
 
         total[a] += 1
 
-    cell = addStructuralNoise(cell)
+    # cell = addStructuralNoise(cell)
 
-    grandcell = zeros((750, SIZE, SIZE))
-    grandcell[275:475, :, :] = cell
+    # grandcell = xp.zeros((750, SIZE, SIZE))
+    # grandcell[275:475, :, :] = cell
 
-    convert_numpy_array3d_mrc(grandcell, f'{outputFolder}/model_{modelID}/grandmodel_{modelID}.mrc')
+    convert_numpy_array3d_mrc(cell, f'{outputFolder}/model_{modelID}/grandmodel_{modelID}.mrc')
 
     convert_numpy_array3d_mrc(cell[:, SIZE // 4:-SIZE // 4, SIZE // 4:-SIZE // 4],
-                              f'{outputFolder}/model_{modelID}/grandmodel_{modelID}.mrc')
+                              f'{outputFolder}/model_{modelID}/croppedmodel_{modelID}.mrc')
 
     outfile = open(f'{outputFolder}/model_{modelID}/particle_locations_model_{modelID}.txt', 'w')
-    outfile.write(outline)
+    try:
+        outfile.write(outline)
+    except Exception as e:
+        print(e)
+        raise Exception('Could not write to outfile.')
+    finally:
+        outfile.close()
 
-    return grandcell
+    return cell # [:, SIZE // 4:-SIZE // 4, SIZE // 4:-SIZE // 4]
+
+
+def rotate_volume(filename, outname, angle):
+    from voltools import transform
+    from pytom.tompy.io import read, write
+    print('rotating volume to ', angle)
+    volume = read(filename)
+    rotated_volume = transform(volume, rotation=(0, angle, 0), rotation_order='szyx', interpolation='linear', device='cpu')
+    write(outname, rotated_volume, tilt_angle=angle)
 
 def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelSize=1e-9, voltage = 200e3,
-                         sigmaDecayCtf=0.4, sphericalAberration=2.7E-3, multislice=None, msdz=5e-9, heightBox=1200,
-                         amplitudeContrast=0.07, defocus=2, sigmaDecayCTF=0.4):
+                         sphericalAberration=2.7E-3, multislice=None, msdz=5e-9, heightBox=1200,
+                         amplitudeContrast=0.07, defocus=2, sigmaDecayCTF=0.4, rotate=True):
 
-    from voltools import StaticVolume, Interpolations
+    from pytom.tompy.io import read, write
+    from voltools import StaticVolume, transform
     import cupy
     import numpy as xp
 
+
     SIZE = grandcell.shape[1]
     print('size of grandcell: ', SIZE)
-    if grandcell.shape[0] >= heightBox:
-        raise Exception('Your model is larger than than the box that we will rotate (heightBox parameter)')
 
-    offset = (heightBox - grandcell.shape[0])//2
+    if rotate:
+        if grandcell.shape[0] >= heightBox:
+            raise Exception('Your model is larger than than the box that we will rotate (heightBox parameter)')
 
-    volume = xp.zeros((heightBox, SIZE, SIZE), dtype=float32)
-    volume[offset:-offset, :, :] = grandcell[:, :, :] # place the 750 long grandcell in a 1200 long volume to accommodate rotation
+        volume = xp.zeros((heightBox, SIZE, SIZE), dtype=float32)
 
-    gpu_volume = cupy.array(volume)
-    d_vol = StaticVolume(gpu_volume, interpolation=Interpolations.FILT_BSPLINE) # turn into Voltools volume
+        offset = (heightBox - grandcell.shape[0]) // 2
+        if (heightBox - grandcell.shape[0]) % 2:
+            volume[offset+1:-offset, :, :] = grandcell[:, :, :]
+        else:
+            volume[offset:-offset, :, :] = grandcell[:, :,:]
 
-    noisefree_projections = xp.zeros((len(angles), SIZE//2, SIZE//2), dtype=float64)
+        filename = f'{outputFolder}/model_{modelID}/rotated_volume_0.mrc'
+        write(filename, volume)
+
+        params = []
+        angles2 = angles.copy()
+        angles2.remove(0.)
+        for ang in angles2:
+            outfilename = f'{outputFolder}/model_{modelID}/rotated_volume_{int(ang)}.mrc'
+            params.append((filename, outfilename, ang))
+
+        from pytom.tompy.mpi import MPI
+        mpi = MPI()
+        mpi.begin()
+        mpi.parfor(rotate_volume, params)
+        mpi.end()
+
+
+    noisefree_projections = xp.zeros((len(angles), SIZE // 2, SIZE // 2), dtype=float32)
 
     #TODO allow for different defocus per tilt image. Now single defocus for all images
-    ctf = calcCTF(defocus, xp.zeros((SIZE,SIZE)), pixelSize, voltage, sphericalAberration, sigmaDecayCTF, amplitudeContrast)
+    ctf = calcCTF(defocus, xp.zeros((SIZE,SIZE)), pixelSize, voltage=voltage, Cs=sphericalAberration,
+                  sigma_decay_ctf=sigmaDecayCTF, amplitude_contrast=amplitudeContrast)
 
     for n, angle in enumerate(angles):
 
-        print('simulating projection from tilt angle ',angle)
 
-        rotated_volume = d_vol.transform(rotation=(0, angle, 0), rotation_order='szyx', rotation_units='deg') # if center = None: center = np.divide(volume.shape, 2, dtype=np.float32)
+        filename = f'{outputFolder}/model_{modelID}/rotated_volume_{int(angle)}.mrc'
+        rotated_volume = read(filename)  #* 1E12
+
+        #transform(gpu_volume, rotation=(0, angle, 0), rotation_order='szyx', interpolation='linear', device='cpu')
+        # rotated_volume = d_vol.transform(rotation=(0, angle, 0), rotation_order='szyx', rotation_units='deg') # if center = None: center = np.divide(volume.shape, 2, dtype=np.float32)
 
         if not multislice:
-            projected_tilt_image = rotated_volume.sum(axis=0).get() # remove .get() if fully cupy
+            print('simulating projection (without ms) from tilt angle ', angle)
+            projected_tilt_image = rotated_volume.sum(axis=0)#.get() # remove .get() if fully cupy
             projected_tilt_image = xp.abs(xp.fft.ifftn(xp.fft.fftn(projected_tilt_image)*ctf))**2
             #TODO is abs()**2 the way to go for exit wave field?
 
         else:
+            print('simulating projection (with ms) from tilt angle ', angle)
             # raise Exception('Not implemented yet!!!')
             # Multislice wave propagation only needs to be done in a 512 by 512 area as that produces the final image.
             # calculate the number of slices based on the msdz
@@ -781,25 +870,23 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
             # Allocate space for multislice projection
             projected_potent_ms = xp.zeros((n_slices, SIZE, SIZE), dtype=complex)
 
-            px_per_slice = int(xp.ceil(xp.around(heightBox / n_slices,3)))
+            px_per_slice = int(xp.ceil(xp.around(heightBox / n_slices,3))) # CORRECT
             # PROJECTED POTENTIAL whithin slices (phase grating)
             for ii in range(n_slices):
-                projected_potent_ms[ii, :, :] = rotated_volume[ii*px_per_slice : (ii+1)*px_per_slice - 1, :, :].mean(axis=0).get() # remove .get() if fully cupy
-
+                projected_potent_ms[ii, :, :] = rotated_volume[ii*px_per_slice : (ii+1)*px_per_slice - 1, :, :].mean(axis=0) #.get() # remove .get() if fully cupy
 
             # zheight of slices in nm for Fresnel propagator
-            dzprop = px_per_slice * pixelSize
+            dzprop = px_per_slice * pixelSize # CORRECT
             # wavelength
             Lambda = wavelength_eV2m(voltage)
             # relative mass
             relmass = phys_const_dict["me"] + phys_const_dict["el"] * voltage / (phys_const_dict["c"]**2)
             # sigma_transfer
-            sig_transfer = 2 * pi * relmass * phys_const_dict["el"] * Lambda / (phys_const_dict["h"]**2)
+            sig_transfer = 2 * pi * relmass * phys_const_dict["el"] * Lambda / (phys_const_dict["h"]**2) # CORRECT
+
             # TRANSMISSON FUNCTION: the slice thickness is constant
             psi_t = xp.exp(1j * sig_transfer * projected_potent_ms * dzprop)
 
-
-            # Determine Fresnel Propagator for slice
 
             # Get value of q in Fourier space because the Fresnel propagator needs them
             xwm = pixelSize * SIZE  # pixelsize for multislice * size sample
@@ -807,51 +894,62 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
             q_m = rr(SIZE, SIZE) * q_true_pix_m  # frequencies in Fourier domain
 
             # FRESNEL PROPAGATOR
-            P = xp.exp(-1j * pi * Lambda * (q_m**2) * dzprop)
+            P = xp.exp(-1j * pi * Lambda * (q_m**2) * dzprop) # CORRECT
 
-
-            # PsiExit = multislice(psi_t, Nm, n, Lambda , q_m, dzprop); # function in matlab code
             # MULTISLICE
             psi_multislice = xp.zeros((SIZE, SIZE), dtype=complex) + 1 # should be complex datatype
 
-            num_px_last_slice = heightBox % px_per_slice
+            num_px_last_slice = heightBox % px_per_slice # CORRECT
 
             for ii in range(n_slices-min(1,num_px_last_slice)):
                 #TODO ADD APPLICATION OF PYTOM.TOMPY
-                psi_multislice = xp.fft.ifftn(xp.fft.fftn( psi_multislice * xp.squeeze(psi_t[ii, :, :]) )*P)
+
+                waveField = xp.fft.fftshift( xp.fft.fftn( psi_multislice * psi_t[ii, :, :] ) )
+
+                psi_multislice = xp.fft.ifftn( waveField * P )
+
+                plot = False
+                if (not (ii % 20) and ii) and plot:
+                    fig, ax = subplots(1, 3, figsize=(12, 4))
+                    ax[0].imshow(xp.abs(waveField) ** 2)
+                    ax[1].imshow(xp.abs(P))
+                    ax[2].imshow(abs(psi_multislice))
+                    show()
 
             # Calculate propagation through last slice in case the last slice contains a different number of pixels
             if num_px_last_slice:
                 dzprop_end = num_px_last_slice * pixelSize
                 psi_t[-1, :, :] = xp.exp(1j * sig_transfer * projected_potent_ms[-1, :, :] * dzprop_end)
                 P_end = xp.exp(-1j * pi * Lambda * (q_m ** 2) * dzprop_end)
-                psi_multislice = xp.fft.ifftn(xp.fft.fftn( psi_multislice * xp.squeeze(psi_t[-1, :, :]) )*P_end)
-
-            # To make clear that we obtain the exit_wave here! Could be removed.
-            psi_exit = psi_multislice
+                waveField = xp.fft.fftshift( xp.fft.fftn( psi_multislice * psi_t[-1, :, :] ) )
+                psi_multislice = xp.fft.ifftn( waveField * P_end )
 
             # GET INTENSITIES IN IMAGE PLANE
+            waveCTF = ctf * xp.fft.fftshift( xp.fft.fftn(psi_multislice) )
+            projected_tilt_image = xp.abs(xp.fft.ifftn(waveCTF)) ** 2
 
-            # intensity = modulo squared (exit wave)
+            plot = False
+            if plot:
+                fig, ax = subplots(1,3, figsize=(12, 4))
+                ax[0].imshow(xp.abs(psi_multislice))
+                ax[1].imshow(xp.abs(waveCTF))
+                ax[2].imshow(xp.abs(projected_tilt_image))
+                show()
 
-            projected_tilt_image = xp.abs(xp.fft.ifftn(xp.fft.fftn(psi_exit) * ctf)) ** 2
-
-            print('complex part of projection: ', xp.abs(psi_exit.imag).mean())
-
-                # noisefree_projections[n] = gpu_proj[300:-300,300:-300]
+            # print('complex part of projection: ', xp.abs(psi_multislice[0,0]))
 
         noisefree_projections[n] = projected_tilt_image[SIZE//4:-SIZE//4, SIZE//4:-SIZE//4]
+
+        outproj = f'{outputFolder}/model_{modelID}/projections_grandmodel_{modelID}_angle_{angle}.em'
+        write(outproj, noisefree_projections[n])
 
         # =  create_projections(dens, range(-60, 61, 3))
         # noisefree_projections[n] /= noisefree_projections[n][:,140:160].mean()
 
-    if not os.path.exists('{}/model_{}'.format(outputFolder, modelID)): os.mkdir(
-        '{}/model_{}'.format(outputFolder, modelID))
-
-    a = mrcfile.new('{}/model_{}/projections_grandmodel_{}.mrc'.format(outputFolder, modelID, modelID),
-                    data=noisefree_projections.astype(xp.float32), overwrite=True) # if cupy noisefree_projections.get()
+    a = mrcfile.new(f'{outputFolder}/model_{modelID}/projections_grandmodel_{modelID}.mrc',
+                    data=noisefree_projections, overwrite=True) # noisefree_projections.astype(xp.float32)?
     a.close()
-    del d_vol # + del volume?
+
     return noisefree_projections
 
 def add_effects_microscope(outputFolder, modelID, grandcell, noisefree_projections, defocus, pixelSize, angles, SNR):
@@ -904,12 +1002,14 @@ if __name__ == '__main__':
 
         # meta file
         metadata = loadstar(config['General']['MetaFile'], dtype=datatype)
-        angles = metadata['TiltAngle'] # specified in degrees
+        # angles = metadata['TiltAngle'] # specified in degrees
+        angles = [-30,-20,-10,0,10,20,30]
         defocus = metadata['DefocusU'][0] * 1E-6 # defocus in um
         voltage = metadata['Voltage'][0] * 1E3 # voltage in keV
         sphericalAberration = metadata['SphericalAberration'][0] * 1E-3 # spherical aberration in mm
         amplitudeContrast = metadata['AmplitudeContrast'][0] # fraction of amplitude contrast
-        pixelSize = metadata['PixelSpacing'][0] * 1E-9 # pixel size in nm
+        # pixelSize = metadata['PixelSpacing'][0] * 1E-9 # pixel size in nm
+        pixelSize = 1E-9
     except Exception as e:
         print(e)
         raise Exception('No general parameters specified in the config file.')
@@ -917,6 +1017,7 @@ if __name__ == '__main__':
     if 'GenerateModel' in config.sections():
         generateModel = True
         try:
+            particleFolder = config['GenerateModel']['ParticleFolder']
             listpdbs = eval(config['GenerateModel']['Models'])
             SIZE = int(config['GenerateModel']['Size'])
             # instead: modelSize = int(config['GenerateModel']['Size'])
@@ -932,11 +1033,12 @@ if __name__ == '__main__':
     if 'GenerateProjections' in config.sections():
         generateProjections = True
         try:
-            multislice = bool(config['GenerateProjections']['MultiSlice'])
+            multislice = config['GenerateProjections'].getboolean('MultiSlice')
             if multislice:
                 msdz = float(config['GenerateProjections']['MultiSliceSize']) * 1E-9 # multislice step size in nm
             heightBox = int(config['GenerateProjections']['HeightBox'])
             sigmaDecayCTF = float(config['GenerateProjections']['SigmaDecayCTF'])
+            rotate = config['GenerateProjections'].getboolean('Rotate')
             if not(generateModel):
                 grandmodelFile = config['GenerateProjections']['GrandModelFile']
         except Exception as e:
@@ -949,8 +1051,10 @@ if __name__ == '__main__':
         addEffectsMicroscope = True
         try:
             SNR = float(config['AddEffectsMicroscope']['SNR'])
+            if not(generateModel):
+                grandmodelFile = config['AddEffectsMicroscope']['GrandmodelFile']
             if not(generateProjections):
-                projectionsFile = config['AddeffectsMicroscope']['ProjectionsFile']
+                projectionsFile = config['AddEffectsMicroscope']['ProjectionsFile']
         except Exception as e:
             print(e)
             raise Exception('Missing add effects microscope parameters.')
@@ -972,27 +1076,29 @@ if __name__ == '__main__':
     else:
         reconstructTomogram = False
 
+    if not os.path.exists(os.path.join(outputFolder, f'model_{modelID}')):
+        os.mkdir(os.path.join(outputFolder, f'model_{modelID}'))
+
     # Generate or read a grand model
     if generateModel:
         print('Generating model')
-        grandcell = generate_model(outputFolder, modelID, listpdbs, SIZE, waterdensity, numberOfParticles)
-    elif grandmodelFile:
+        grandcell = generate_model(particleFolder, outputFolder, modelID, listpdbs, SIZE, waterdensity, numberOfParticles)
+    elif generateProjections or addEffectsMicroscope: #TODO grandcell should not be needed to add microscope effects!!!
         grandcell = read_mrc(grandmodelFile)
-    else:
-        grandcell = None
 
     # Generate or read noise-free projections
     if generateProjections and not (grandcell is None):
         print('Simulating projections')
         noisefree_projections = generate_projections(grandcell, angles, outputFolder=outputFolder, modelID=modelID,
-                                                     pixelSize=pixelSize, voltage=voltage, multislice=multislice, msdz=msdz)
-    elif projectionsFile:
+                                                     pixelSize=pixelSize, voltage=voltage, sphericalAberration=sphericalAberration,
+                                                     multislice=multislice, msdz=msdz, heightBox=heightBox,
+                                                     amplitudeContrast=amplitudeContrast, defocus=defocus, sigmaDecayCTF=sigmaDecayCTF,
+                                                     rotate=rotate)
+    elif addEffectsMicroscope:
         noisefree_projections = read_mrc(projectionsFile)
-    else:
-        noisefree_projections = None
 
     # Add effects of the microscope to the noise-free projections
-    if addEffectsMicroscope and not (grandcell is None) and not (noisefree_projections is None):
+    if addEffectsMicroscope:
         print('Adding effects of microscope')
         add_effects_microscope(outputFolder, modelID, grandcell, noisefree_projections, defocus, pixelSize, angles, SNR)
 
