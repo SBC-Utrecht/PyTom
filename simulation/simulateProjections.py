@@ -1,32 +1,36 @@
 """
 Gijs' tilt series simulation - used for Ilja's contest paper
 """
-import numpy
-import sys
+# import numpy
+# import sys
 # from chimera import runCommand
 from pytom.gui.mrcOperations import *
 import matplotlib
 matplotlib.use('Qt5Agg')
 from pylab import *
 from pytom.basic.transformations import rotate
-from pytom_volume import read
-from pytom_numpy import vol2npy
-import os
-import mrcfile
+# from pytom_volume import read
+# from pytom_numpy import vol2npy
+# import os
+# import mrcfile
 from numpy import *
 from numpy.fft import *
 import os
 from scipy.ndimage import gaussian_filter
-import scipy
-from nufft.reconstruction import fourier_2d1d_iter_reconstruct
+# import scipy
+# from nufft.reconstruction import fourier_2d1d_iter_reconstruct
 import numpy
-from pytom.tools.script_helper import ScriptHelper, ScriptOption
-from pytom.tools.parse_script_options import parse_script_options
-from pytom.reconstruction.reconstructionFunctions import alignWeightReconstruct
+# from pytom.tools.script_helper import ScriptHelper, ScriptOption
+# from pytom.tools.parse_script_options import parse_script_options
+# from pytom.reconstruction.reconstructionFunctions import alignWeightReconstruct
 from pytom.reconstruction.reconstructionStructures import *
 from pytom.basic.files import *
 import mrcfile
 import numpy as xp
+from pytom.gui.guiFunctions import loadstar, datatype
+# from pytom.gui.mrcOperations import read_mrc
+import configparser
+import logging
 
 # from scipy.ndimage import rotate
 
@@ -49,6 +53,19 @@ phys_const_dict = {
 
     "eps0": 8.854187817620e-12 # F/m
 }
+
+class ConfigLogger(object):
+    def __init__(self, log):
+        self.__log = log
+
+    def __call__(self, config):
+        self.__log.info("Config:")
+        config.write(self)
+
+    def write(self, data):
+        # stripping the data makes the output nicer and avoids empty lines
+        line = data.strip()
+        self.__log.info(line)
 
 def wavelength_eV2m(V):
     # OLD FUNCTION
@@ -254,7 +271,7 @@ def calcCTF(Dz, vol, pix_size, voltage=200E3, Cs=2.7E-3, sigma_decay_ctf=0.4, am
     phase = xp.sin(pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)))
     amplitude = xp.cos(pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)))
 
-    ctf = amplitude * amplitude_contrast - 1j * phase * (1-amplitude_contrast)
+    ctf = (amplitude * amplitude_contrast - 1j * phase * (1-amplitude_contrast)).astype(xp.complex64)
 
     if sigma_decay_ctf:
         ctf = ctf * xp.exp(-(r / (sigma_decay_ctf * Ny)) ** 2)
@@ -646,7 +663,7 @@ def rr(x = 256, y = 256):
     return out**0.5
 
 
-def generate_model(particleFolder, outputFolder, modelID, listpdbs, SIZE, waterdensity=1., numberOfParticles=1000):
+def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, thickness=200, waterdensity=1., numberOfParticles=1000):
 
     from voltools import transform
     from pytom.tompy.io import read
@@ -654,6 +671,8 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, SIZE, waterd
     # ['3cf3', '1s3x','1u6g','4b4t','1qvr','3h84','2cg9','3qm1','3gl1','3d2f','4d8q','1bxn']
 
     dims = []
+
+    #================================== binning
 
     # factor = 10
     # skipped = 0
@@ -686,7 +705,9 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, SIZE, waterd
     #     models.append(m_r)
     #     dims.append(m_r.shape[0])
 
-    X, Y, Z = 200, SIZE, SIZE
+    #==================================
+
+    X, Y, Z = thickness, size, size
     cell = xp.zeros((X, Y, Z))
 
     # cell[:, :, :] = waterdensity
@@ -699,8 +720,12 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, SIZE, waterd
     for i in range(len(listpdbs)):
         try:
             vol = read(f'{particleFolder}/{listpdbs[i]}_model_binned.mrc')
-            volumes.append(vol)
-            dims.append(vol.shape[0])
+            dx,dy,dz = vol.shape
+            vol2 =numpy.zeros((dx*2,dy*2, dz*2))
+            # print(dx, dy, dz, vol2.shape)
+            vol2[dx//2:-dx//2,dy//2:-dy//2,dz//2:-dz//2] = vol
+            volumes.append(vol2)
+            dims.append(vol2.shape[0])
         except Exception as e:
             print(e)
             raise Exception('Could not open pdb ', listpdbs[i])
@@ -739,7 +764,7 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, SIZE, waterd
 
         mask[loc_x - dims[a] // 2:loc_x + dims[a] // 2 + dims[a] % 2,
         loc_y - dims[a] // 2:loc_y + dims[a] // 2 + dims[a] % 2,
-        loc_z - dims[a] // 2:loc_z + dims[a] // 2 + dims[a] % 2] = 1
+        loc_z - dims[a] // 2:loc_z + dims[a] // 2 + dims[a] % 2] = (mdl > 0.01).astype(numpy.float32)
 
         cell[loc_x - dims[a] // 2:loc_x + dims[a] // 2 + dims[a] % 2,
         loc_y - dims[a] // 2:loc_y + dims[a] // 2 + dims[a] % 2,
@@ -754,14 +779,14 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, SIZE, waterd
 
         total[a] += 1
 
-    # cell = addStructuralNoise(cell)
+    cell = addStructuralNoise(cell,th=1.3)
 
     # grandcell = xp.zeros((750, SIZE, SIZE))
     # grandcell[275:475, :, :] = cell
 
     convert_numpy_array3d_mrc(cell, f'{outputFolder}/model_{modelID}/grandmodel_{modelID}.mrc')
 
-    convert_numpy_array3d_mrc(cell[:, SIZE // 4:-SIZE // 4, SIZE // 4:-SIZE // 4],
+    convert_numpy_array3d_mrc(cell[:, size // 4:-size // 4, size // 4:-size // 4],
                               f'{outputFolder}/model_{modelID}/croppedmodel_{modelID}.mrc')
 
     outfile = open(f'{outputFolder}/model_{modelID}/particle_locations_model_{modelID}.txt', 'w')
@@ -826,11 +851,14 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
         mpi.end()
 
 
-    noisefree_projections = xp.zeros((len(angles), SIZE // 2, SIZE // 2), dtype=float32)
+    noisefree_projections = xp.zeros((len(angles), SIZE // 2 - 10, SIZE // 2 - 10), dtype=float32)
 
     #TODO allow for different defocus per tilt image. Now single defocus for all images
-    ctf = calcCTF(defocus, xp.zeros((SIZE,SIZE)), pixelSize, voltage=voltage, Cs=sphericalAberration,
+    ctf = calcCTF(defocus, xp.zeros((SIZE//2-10,SIZE//2-10)), pixelSize, voltage=voltage, Cs=sphericalAberration,
                   sigma_decay_ctf=sigmaDecayCTF, amplitude_contrast=amplitudeContrast)
+
+    imshow(xp.abs(ctf))
+    show()
 
     for n, angle in enumerate(angles):
 
@@ -856,24 +884,26 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
             zheight = heightBox * pixelSize # thickness of volume in nm???
 
             # Determine the number of slices
-            if msdz >= zheight:
+            if msdz > zheight:
                 n_slices = 1
                 msdz = zheight
                 print('The multislice step can not be larger than volume thickness. Use only one slice.\n')
-            elif msdz <= pixelSize:
+            elif msdz < pixelSize:
                 n_slices = heightBox
                 msdz = pixelSize
                 print('The multislice steps can not be smaller than the pixel size. Use the pixel size instead for the step size.\n')
             else:
                 n_slices = int(xp.ceil(xp.around(zheight/msdz,3)))
 
+            print(n_slices)
             # Allocate space for multislice projection
-            projected_potent_ms = xp.zeros((n_slices, SIZE, SIZE), dtype=complex)
+            projected_potent_ms = xp.zeros((n_slices, SIZE//2-10, SIZE//2-10), dtype=complex)
 
             px_per_slice = int(xp.ceil(xp.around(heightBox / n_slices,3))) # CORRECT
             # PROJECTED POTENTIAL whithin slices (phase grating)
             for ii in range(n_slices):
-                projected_potent_ms[ii, :, :] = rotated_volume[ii*px_per_slice : (ii+1)*px_per_slice - 1, :, :].mean(axis=0) #.get() # remove .get() if fully cupy
+                projected_potent_ms[ii, :, :] = rotated_volume[ii*px_per_slice : (ii+1)*px_per_slice, SIZE//4+5:-SIZE//4-5, SIZE//4+5:-SIZE//4-5].mean(axis=0) #.get() # remove .get() if fully cupy
+
 
             # zheight of slices in nm for Fresnel propagator
             dzprop = px_per_slice * pixelSize # CORRECT
@@ -889,15 +919,15 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
 
 
             # Get value of q in Fourier space because the Fresnel propagator needs them
-            xwm = pixelSize * SIZE  # pixelsize for multislice * size sample
+            xwm = pixelSize * (SIZE//2-10)  # pixelsize for multislice * size sample
             q_true_pix_m = 1 / xwm
-            q_m = rr(SIZE, SIZE) * q_true_pix_m  # frequencies in Fourier domain
+            q_m = rr(SIZE//2-10, SIZE//2-10) * q_true_pix_m  # frequencies in Fourier domain
 
             # FRESNEL PROPAGATOR
             P = xp.exp(-1j * pi * Lambda * (q_m**2) * dzprop) # CORRECT
 
             # MULTISLICE
-            psi_multislice = xp.zeros((SIZE, SIZE), dtype=complex) + 1 # should be complex datatype
+            psi_multislice = xp.zeros((SIZE//2-10, SIZE//2-10), dtype=complex) + 1 # should be complex datatype
 
             num_px_last_slice = heightBox % px_per_slice # CORRECT
 
@@ -906,14 +936,15 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
 
                 waveField = xp.fft.fftshift( xp.fft.fftn( psi_multislice * psi_t[ii, :, :] ) )
 
-                psi_multislice = xp.fft.ifftn( waveField * P )
+                psi_multislice = xp.fft.ifftn((waveField * P ))
 
                 plot = False
-                if (not (ii % 20) and ii) and plot:
-                    fig, ax = subplots(1, 3, figsize=(12, 4))
+                if (not (ii % 10) and ii) and plot:
+                    fig, ax = subplots(1, 4, figsize=(16, 4))
                     ax[0].imshow(xp.abs(waveField) ** 2)
                     ax[1].imshow(xp.abs(P))
                     ax[2].imshow(abs(psi_multislice))
+                    ax[3].imshow(abs(psi_t[ii,:,:]))
                     show()
 
             # Calculate propagation through last slice in case the last slice contains a different number of pixels
@@ -938,7 +969,7 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
 
             # print('complex part of projection: ', xp.abs(psi_multislice[0,0]))
 
-        noisefree_projections[n] = projected_tilt_image[SIZE//4:-SIZE//4, SIZE//4:-SIZE//4]
+        noisefree_projections[n] = projected_tilt_image #[SIZE//4:-SIZE//4, SIZE//4:-SIZE//4]
 
         outproj = f'{outputFolder}/model_{modelID}/projections_grandmodel_{modelID}_angle_{angle}.em'
         write(outproj, noisefree_projections[n])
@@ -983,10 +1014,6 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, volsize, angles, ou
 
 if __name__ == '__main__':
 
-    import configparser
-    from pytom.gui.guiFunctions import loadstar, datatype
-    from pytom.gui.mrcOperations import read_mrc
-
     config = configparser.ConfigParser()
     try:
         config.read_file(open('simulation.conf'))
@@ -1003,7 +1030,7 @@ if __name__ == '__main__':
         # meta file
         metadata = loadstar(config['General']['MetaFile'], dtype=datatype)
         # angles = metadata['TiltAngle'] # specified in degrees
-        angles = [-30,-20,-10,0,10,20,30]
+        angles = [-10,0,10]
         defocus = metadata['DefocusU'][0] * 1E-6 # defocus in um
         voltage = metadata['Voltage'][0] * 1E3 # voltage in keV
         sphericalAberration = metadata['SphericalAberration'][0] * 1E-3 # spherical aberration in mm
@@ -1019,7 +1046,8 @@ if __name__ == '__main__':
         try:
             particleFolder = config['GenerateModel']['ParticleFolder']
             listpdbs = eval(config['GenerateModel']['Models'])
-            SIZE = int(config['GenerateModel']['Size'])
+            size = int(config['GenerateModel']['Size'])
+            thickness = int(config['GenerateModel']['Thickness'])
             # instead: modelSize = int(config['GenerateModel']['Size'])
             # iceThickness = int(config['GenerateModel']['IceThickness'])
             waterdensity = float(config['GenerateModel']['WaterDensity'])
@@ -1079,10 +1107,15 @@ if __name__ == '__main__':
     if not os.path.exists(os.path.join(outputFolder, f'model_{modelID}')):
         os.mkdir(os.path.join(outputFolder, f'model_{modelID}'))
 
+    logging.basicConfig(filename=f'{outputFolder}/model_{modelID}/simulator.log', level=logging.INFO)
+    config_logger = ConfigLogger(logging)
+    config_logger(config)
+
     # Generate or read a grand model
     if generateModel:
         print('Generating model')
-        grandcell = generate_model(particleFolder, outputFolder, modelID, listpdbs, SIZE, waterdensity, numberOfParticles)
+        grandcell = generate_model(particleFolder, outputFolder, modelID, listpdbs, size=size, thickness=thickness,
+                                   waterdensity=waterdensity, numberOfParticles=numberOfParticles)
     elif generateProjections or addEffectsMicroscope: #TODO grandcell should not be needed to add microscope effects!!!
         grandcell = read_mrc(grandmodelFile)
 
