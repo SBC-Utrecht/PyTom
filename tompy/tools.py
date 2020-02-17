@@ -1,8 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import numpy as np
-import scipy
+from pytom.gpu.initialize import xp
 
 from pytom.tompy.filter import gaussian3d
 from numpy.random import standard_normal
@@ -27,16 +26,16 @@ def create_sphere(size, radius=-1, sigma=0, center=None, gpu=False):
     if center is None:
         center = [size[0]/2, size[1]/2, size[2]/2]
     if radius == -1:
-        radius = np.min(size)/2
+        radius = xp.min(size)/2
 
-    sphere = np.zeros(size)
-    [x,y,z] = np.mgrid[0:size[0], 0:size[1], 0:size[2]]
-    r = np.sqrt((x-center[0])**2+(y-center[1])**2+(z-center[2])**2)
+    sphere = xp.zeros(size)
+    [x,y,z] = xp.mgrid[0:size[0], 0:size[1], 0:size[2]]
+    r = xp.sqrt((x-center[0])**2+(y-center[1])**2+(z-center[2])**2)
     sphere[r<=radius] = 1
 
     if sigma > 0:
-        ind = np.logical_and(r>radius, r<radius+2*sigma)
-        sphere[ind] = np.exp(-((r[ind] - radius)/sigma)**2/2)
+        ind = xp.logical_and(r>radius, r<radius+2*sigma)
+        sphere[ind] = xp.exp(-((r[ind] - radius)/sigma)**2/2)
 
 
     return sphere
@@ -53,8 +52,8 @@ def prepare_mask(v, threshold, smooth):
     @return: mask.
     """
     from pytom.tompy.filter import gaussian3d
-    ind = np.where(v>threshold)
-    mask = np.zeros(v.shape)
+    ind = xp.where(v>threshold)
+    mask = xp.zeros(v.shape)
     mask[ind] = 1
     
     return gaussian3d(mask, smooth)
@@ -68,10 +67,10 @@ def add_noise(data, snr=0.1, m=0):
 
     @return The image with gaussian noise	
     """
-    vs = np.var(data)
+    vs = xp.var(data)
     vn = vs/snr
-    sd = np.sqrt(vn)
-    s = np.ndarray(data.shape)
+    sd = xp.sqrt(vn)
+    s = xp.ndarray(data.shape)
     noise = sd*standard_normal(s.shape)+m
     t = data + noise
     return t
@@ -106,12 +105,12 @@ def rotation_matrix_x(angle):
 
     @return: rotation matrix.
     """
-    angle = np.deg2rad(angle)
-    mtx = np.matrix(np.zeros((3,3)))
-    mtx[1,1] = np.cos(angle)
-    mtx[2,1] = np.sin(angle)
-    mtx[2,2] = np.cos(angle)
-    mtx[1,2] = -np.sin(angle)
+    angle = xp.deg2rad(angle)
+    mtx = xp.matrix(xp.zeros((3,3)))
+    mtx[1,1] = xp.cos(angle)
+    mtx[2,1] = xp.sin(angle)
+    mtx[2,2] = xp.cos(angle)
+    mtx[1,2] = -xp.sin(angle)
     mtx[0,0] = 1
 
     return mtx
@@ -124,12 +123,12 @@ def rotation_matrix_y(angle):
 
     @return: rotation matrix.
     """
-    angle = np.deg2rad(angle)
-    mtx = np.matrix(np.zeros((3,3)))
-    mtx[0,0] = np.cos(angle)
-    mtx[2,0] = -np.sin(angle)
-    mtx[2,2] = np.cos(angle)
-    mtx[0,2] = np.sin(angle)
+    angle = xp.deg2rad(angle)
+    mtx = xp.matrix(xp.zeros((3,3)))
+    mtx[0,0] = xp.cos(angle)
+    mtx[2,0] = -xp.sin(angle)
+    mtx[2,2] = xp.cos(angle)
+    mtx[0,2] = xp.sin(angle)
     mtx[1,1] = 1
 
     return mtx
@@ -142,12 +141,12 @@ def rotation_matrix_z(angle):
 
     @return: rotation matrix.
     """
-    angle = np.deg2rad(angle)
-    mtx = np.matrix(np.zeros((3,3)))
-    mtx[0,0] = np.cos(angle)
-    mtx[1,0] = np.sin(angle)
-    mtx[1,1] = np.cos(angle)
-    mtx[0,1] = -np.sin(angle)
+    angle = xp.deg2rad(angle)
+    mtx = xp.matrix(xp.zeros((3,3)))
+    mtx[0,0] = xp.cos(angle)
+    mtx[1,0] = xp.sin(angle)
+    mtx[1,1] = xp.cos(angle)
+    mtx[0,1] = -xp.sin(angle)
     mtx[2,2] = 1
 
     return mtx
@@ -186,8 +185,8 @@ def rotation_distance(ang1, ang2):
     """
     mtx1 = rotation_matrix_zxz(ang1)
     mtx2 = rotation_matrix_zxz(ang2)
-    res = np.multiply(mtx1, mtx2) # elementwise multiplication
-    trace = np.sum(res)
+    res = xp.multiply(mtx1, mtx2) # elementwise multiplication
+    trace = xp.sum(res)
     
     from math import pi, acos
     temp=0.5*(trace-1.0)
@@ -199,6 +198,6 @@ def rotation_distance(ang1, ang2):
 
 
 def euclidian_distance(pos1, pos2):
-    return np.linalg.norm(np.array(pos1)-np.array(pos2))
+    return xp.linalg.norm(xp.array(pos1)-xp.array(pos2))
 
 

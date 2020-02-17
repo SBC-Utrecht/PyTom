@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import numpy as np
+from pytom.gpu.initialize import xp
 import scipy
 
 def rotate_axis(data, angle, axis='z'):
@@ -49,18 +49,18 @@ def rotate3d(data, phi=0, psi=0, the=0, center=None, order=2):
         (cx, cy, cz) = center
 
     # Transfer the angle to Euclidean
-    phi = -float(phi) * np.pi / 180.0
-    the = -float(the) * np.pi / 180.0
-    psi = -float(psi) * np.pi / 180.0
-    sin_alpha = np.sin(phi)
-    cos_alpha = np.cos(phi)
-    sin_beta = np.sin(the)
-    cos_beta = np.cos(the)
-    sin_gamma = np.sin(psi)
-    cos_gamma = np.cos(psi)
+    phi = -float(phi) * xp.pi / 180.0
+    the = -float(the) * xp.pi / 180.0
+    psi = -float(psi) * xp.pi / 180.0
+    sin_alpha = xp.sin(phi)
+    cos_alpha = xp.cos(phi)
+    sin_beta = xp.sin(the)
+    cos_beta = xp.cos(the)
+    sin_gamma = xp.sin(psi)
+    cos_gamma = xp.cos(psi)
 
     # Calculate inverse rotation matrix
-    Inv_R = np.zeros((3, 3), dtype='float32')
+    Inv_R = xp.zeros((3, 3), dtype='float32')
 
     Inv_R[0, 0] = cos_alpha * cos_gamma - cos_beta * sin_alpha \
         * sin_gamma
@@ -79,18 +79,16 @@ def rotate3d(data, phi=0, psi=0, the=0, center=None, order=2):
     Inv_R[2, 2] = cos_beta
 
 
-
-    from scipy import mgrid
-    grid = mgrid[-cx:data.shape[0]-cx, -cy:data.shape[1]-cy, -cz:data.shape[2]-cz]
+    grid = xp.mgrid[-cx:data.shape[0]-cx, -cy:data.shape[1]-cy, -cz:data.shape[2]-cz]
     temp = grid.reshape((3, grid.size // 3))
-    temp = np.dot(Inv_R, temp)
-    grid = np.reshape(temp, grid.shape)
+    temp = xp.dot(Inv_R, temp)
+    grid = xp.reshape(temp, grid.shape)
     grid[0] += cx
     grid[1] += cy
     grid[2] += cz
 
     # Interpolation
-    from scipy.ndimage import map_coordinates
+    from pytom.gpu.initialize import map_coordinates
     d = map_coordinates(data, grid, order=order)
 
     return d
@@ -133,13 +131,13 @@ def translate3d_f(data, dx=0, dy=0, dz=0):
     sy = data.shape[1]
     sz = data.shape[2]
 
-    xx, yy, zz = np.indices((sx, sy, sz/2+1))
+    xx, yy, zz = xp.indices((sx, sy, sz/2+1))
 
-    xx[np.where(xx >= sx/2)] -= sx
-    yy[np.where(yy >= sy/2)] -= sy
+    xx[xp.where(xx >= sx/2)] -= sx
+    yy[xp.where(yy >= sy/2)] -= sy
 
     # Fourier shift theorem
-    shift = np.exp(-2j*np.pi/sx*xx*dx) * np.exp(-2j*np.pi/sy*yy*dy) * np.exp(-2j*np.pi/sz*zz*dz)
+    shift = xp.exp(-2j*xp.pi/sx*xx*dx) * xp.exp(-2j*xp.pi/sy*yy*dy) * xp.exp(-2j*xp.pi/sz*zz*dz)
 
     fdata = rfft(data)
 
@@ -159,8 +157,8 @@ def transform3d(data, m, order=2):
     from scipy import mgrid
     grid = mgrid[0.:data.shape[0], 0.:data.shape[1], 0.:data.shape[2]]
     temp = grid.reshape((3, grid.size // 3))
-    temp = np.dot(m, temp)
-    grid = np.reshape(temp, grid.shape)
+    temp = xp.dot(m, temp)
+    grid = xp.reshape(temp, grid.shape)
 
     from scipy.ndimage import map_coordinates
     d = map_coordinates(data, grid, order=order)
@@ -218,7 +216,7 @@ def rfft(data):
 
     @return: the data after transformation.
     """
-    return np.fft.rfftn(data)
+    return xp.fft.rfftn(data)
 
 
 def irfft(data, s=None):
@@ -228,7 +226,7 @@ def irfft(data, s=None):
     
     @return: the data after ifft (without the need to scale).
     """
-    return np.fft.irfftn(data, s)
+    return xp.fft.irfftn(data, s)
 
 
 def fft(data):
@@ -238,7 +236,7 @@ def fft(data):
 
     @return: the data after transformation.
     """
-    return np.fft.fftn(data)
+    return xp.fft.fftn(data)
 
 
 def ifft(data):
@@ -248,15 +246,15 @@ def ifft(data):
     
     @return: the data after ifft (without the need to scale).
     """
-    return np.fft.ifftn(data)
+    return xp.fft.ifftn(data)
 
 
 def fftshift(data):
-    return np.fft.fftshift(data)
+    return xp.fft.fftshift(data)
 
 
 def ifftshift(data):
-    return np.fft.ifftshift(data)
+    return xp.fft.ifftshift(data)
 
 
 def conv3d(data, kernel):
@@ -283,16 +281,16 @@ def fourier_reduced2full(data, isodd=False):
     else:
         sz = (data.shape[2]-1)*2
 
-    res = np.zeros((sx, sy, sz), dtype=data.dtype)
+    res = xp.zeros((sx, sy, sz), dtype=data.dtype)
     res[:, :, 0:data.shape[2]] = data
 
     # calculate the coodinates accordingly
     szz = sz - data.shape[2]
-    x, y, z = np.indices((sx, sy, szz))
-    ind = [np.mod(sx-x, sx), np.mod(sy-y, sy), szz-z]
+    x, y, z = xp.indices((sx, sy, szz))
+    ind = [xp.mod(sx-x, sx), xp.mod(sy-y, sy), szz-z]
 
     # do the complex conjugate of the second part
-    res[:, :, data.shape[2]:] = np.ma.conjugate(data[tuple(ind)])
+    res[:, :, data.shape[2]:] = xp.ma.conjugate(data[tuple(ind)])
 
     return res
 

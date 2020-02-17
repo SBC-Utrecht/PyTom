@@ -3,8 +3,9 @@
 """
 basic filters operating on numpy arrays
 """
-import numpy as np
+from pytom.gpu.initialize import xp
 import scipy
+import numpy as np
 
 def normalize(v):
     """Normalize the data according to standard deviation

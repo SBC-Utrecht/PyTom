@@ -137,9 +137,9 @@ def FLCF(volume, template, mask=None, stdV=None, gpu=False):
     
 
     size = volume.shape
-    fT = xp.fft.rfft(tempV)
-    fT = xp.conjugate(fT)
-    result = xp.fft.fftshift(xp.fft.irfft(fT*xp.fft.rfft(volume), size))/stdV
+    fT = np.fft.rfft(tempV)
+    fT = np.conjugate(fT)
+    result = np.fft.fftshift(np.fft.irfft(fT*np.fft.rfft(volume), size))/stdV
     
     return result/np.sum(mask)
 

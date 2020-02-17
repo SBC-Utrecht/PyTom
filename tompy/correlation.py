@@ -1,5 +1,6 @@
 
 from pytom.tompy.tools import paste_in_center, create_sphere
+from pytom.gpu.initialize import xp
 
 def meanUnderMask(volume, mask=None, p=None, gpu=False):
     """
@@ -48,7 +49,6 @@ def meanVolUnderMask(volume, mask, gpu=False, xp=None):
     @rtype:  L{numpy.ndarray} L{cupy.ndarray}
     @author: Gijs van der Schot
     """
-    import numpy as xp
     res = xp.fft.fftshift(xp.fft.irfftn(xp.fft.rfftn(volume) * xp.conj(xp.fft.rfftn(mask)))) / mask.sum()
     return res.real
 
@@ -175,7 +175,29 @@ def nxcc(volume, template, mask=None, volumeIsNormalized=False):
 
     return ncc
 
-def xcf(volume, template, mask=None, stdV=None, gpu=False):
+
+def mean0std1(volume, copyFlag=False):
+    """
+    mean0std1: normalises input volume to mean 0 and std 1. Procedure is performed inplace if copyFlag is unspecified!!!
+    @param volume: Data containing either an image or a volume
+    @param copyFlag: If True a copy of volume will be returned. False unless specified otherwise.
+    @return: If copyFlag == True, then return a normalised copy.
+    @author: Thomas Hrabe
+    """
+    from pytom.tools.maths import epsilon
+
+
+    volume = xp.fft.fftshift(xp.fft.ifftn(volume))
+
+    volumeMean = volume.mean()
+    volume -= volumeMean
+    volumeStd = volume.std()
+
+    volume /= volumeStd if volumeStd > epsilon else 1
+
+    return volume
+
+def xcf(volume, template, mask=None, stdV=None, ):
     """
     XCF: returns the non-normalised cross correlation function. The xcf
     result is scaled only by the square of the number of elements.
@@ -191,11 +213,6 @@ def xcf(volume, template, mask=None, stdV=None, gpu=False):
     @author: Thomas Hrabe
     """
 
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
-
     # if mask:
     #    volume = volume * mask
     #	 template = template * mask
@@ -210,6 +227,41 @@ def xcf(volume, template, mask=None, stdV=None, gpu=False):
         ftemplate = xp.fft.fftn(template)
     else:
         ftemplate = template
+
+    # perform element wise - conjugate multiplication
+    ftemplate = xp.conj(ftemplate)
+    fresult = fvolume * ftemplate
+
+    # transform back to real space
+    result = abs(xp.fft.ifftn(fresult))
+
+    #xp.fft.iftshift(result)
+
+    return result
+
+def xcf_mult(volume, template, mask, stdV=None, ):
+    """
+    XCF: returns the non-normalised cross correlation function. The xcf
+    result is scaled only by the square of the number of elements.
+
+    @param volume : The search volume
+    @type volume: L{pytom_volume.vol}
+    @param template : The template searched (this one will be used for conjugate complex multiplication)
+    @type template: L{pytom_volume.vol}
+    @param mask: Will be unused, only for compatibility reasons with FLCF
+    @param stdV: Will be unused, only for compatibility reasons with FLCF
+    @return: XCF volume
+    @rtype: L{pytom_volume.vol}
+    @author: Thomas Hrabe
+    """
+
+    # if mask:
+    #    volume = volume * mask
+    #	 template = template * mask
+
+    # determine fourier transforms of volumes
+    fvolume = xp.fft.fftn(volume)
+    ftemplate = xp.fft.fftn(template)
 
     # perform element wise - conjugate multiplication
     ftemplate = xp.conj(ftemplate)
@@ -239,22 +291,50 @@ def nXcf(volume, template, mask=None, stdV=None, gpu=False):
     @change: masking of template implemented
     """
 
-    if gpu:
-        import cupy as xp
+    if not (mask is None):
+        result = xcf_mult(normaliseUnderMask(volume=volume, mask=mask, p=None),
+                     normaliseUnderMask(volume=template, mask=mask, p=None), mask)
     else:
-        import numpy as xp
+        result = xcf_mult(mean0std1(volume), mean0std1(template), mask)
 
-    from pytom.tompy.normalise import mean0std1
 
-    if mask:
-        from pytom.tompy.normalise import normaliseUnderMask, shiftscale
-        result = xcf(normaliseUnderMask(volume=volume, mask=mask, p=None, gpu=gpu)[0],
-                     normaliseUnderMask(volume=template, mask=mask, p=None, gpu=gpu)[0],gpu=gpu)
-    else:
-        result = xcf(mean0std1(volume, True), mean0std1(template, True), gpu=gpu)
     n = result.size
-    result = shiftscale(result, 0, 1 / float(n * n))
+
+    result /= float(n * n)
+
     return result
+
+
+def normaliseUnderMask(volume, mask, p=None):
+    """
+    normalize volume within a mask - take care: only normalization, but NOT multiplication with mask!
+
+    @param volume: volume for normalization
+    @type volume: pytom volume
+    @param mask: mask
+    @type mask: pytom volume
+    @param p: sum of gray values in mask (if pre-computed)
+    @type p: C{int} or C{float}
+    @return: volume normalized to mean=0 and std=1 within mask, p
+    @rtype: C{list}
+    @author: FF
+    """
+
+    #from math import sqrt
+    if not p:
+        p = mask.sum()
+    #meanT = sum(volume) / p
+    ## subtract mean and mask
+    #res = mask * (volume - meanT)
+    #stdT = sum(res*res) / p
+    #stdT = sqrt(stdT)
+    #res = res / stdT
+
+    meanT = meanUnderMask(volume, mask, p)
+
+    stdT = stdUnderMask(volume, mask, meanT, p)
+    res = (volume - meanT)/stdT
+    return res
 
 def bandCC(volume,reference,band,verbose = False, gpu=False):
     """
@@ -269,10 +349,7 @@ def bandCC(volume,reference,band,verbose = False, gpu=False):
     @rtype: List - [float,L{pytom_freqweight.weight}]
     @author: Thomas Hrabe    
     """
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
+
 
 
     from pytom.tompy.filter import bandpass
