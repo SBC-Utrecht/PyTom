@@ -114,6 +114,7 @@ def transform_matrix(scale: Union[Tuple[float, float, float], np.ndarray] = None
                      axisrotation: Union[Tuple[float, float, float], np.ndarray] = None,
                      rotation_units: str = 'deg', rotation_order: str = 'rzxz',
                      translation: Union[Tuple[float, float, float], np.ndarray] = None,
+                     translation2: Union[Tuple[float, float, float], np.ndarray] = None,
                      center: Union[Tuple[float, float, float], np.ndarray] = None,
                      dtype: np.dtype = np.float32) -> np.ndarray:
     """
@@ -137,6 +138,7 @@ def transform_matrix(scale: Union[Tuple[float, float, float], np.ndarray] = None
     if rotation is not None:
         m = np.dot(m, rotation_matrix(rotation, rotation_units, rotation_order, dtype))
 
+    # Rotation around a single tilt axis order = 'sxyz'
     if axisrotation is not None:
         m = np.dot(m, rotation_matrix(axisrotation, rotation_units, 'rxyz', dtype))
 
@@ -152,7 +154,11 @@ def transform_matrix(scale: Union[Tuple[float, float, float], np.ndarray] = None
     if center is not None:
         m = np.dot(m, translation_matrix(center, dtype))
 
-    # Keep it homo, geneous
+    # Second translation applied after all other transformations
+    if not (translation2 is None):
+        m = np.dot(m, translation_matrix(translation2, dtype))
+
+    # Keep it homogeneous
     m /= m[3, 3]
 
     return m
