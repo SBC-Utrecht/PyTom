@@ -1,4 +1,5 @@
 import numpy as np
+import numpy as cp
 from typing import Tuple, Union
 from .transforms import _get_transform_kernel, _bspline_prefilter, affine
 from .utils import compute_elementwise_launch_dims, switch_to_device,\
@@ -92,10 +93,11 @@ class StaticVolume:
     def transform(self, scale: Union[float, Tuple[float, float, float], np.ndarray] = None,
                   shear: Union[float, Tuple[float, float, float], np.ndarray] = None,
                   rotation: Union[Tuple[float, float, float], np.ndarray] = None,
+                  axisrotation: Union[Tuple[float, float, float], np.ndarray] = None,
                   rotation_units: str = 'deg', rotation_order: str = 'rzxz',
                   translation: Union[Tuple[float, float, float], np.ndarray] = None,
                   center: Union[Tuple[float, float, float], np.ndarray] = None,
-                  profile: bool = False, output = None) -> Union[np.ndarray, None]:
+                  profile: bool = False, output = None, matrix: np.ndarray = None) -> Union[np.ndarray, None]:
 
         if center is None:
             center = np.divide(self.shape, 2, dtype=np.float32)
@@ -106,9 +108,10 @@ class StaticVolume:
         if isinstance(shear, float):
             shear = (shear, shear, shear)
 
-        m = transform_matrix(scale, shear, rotation, rotation_units, rotation_order,
-                             translation, center)
-        return self.affine(m, profile, output)
+        if matrix is None:
+            matrix = transform_matrix(scale, shear, rotation, axisrotation, rotation_units, rotation_order, translation, center)
+
+        return self.affine(matrix, profile, output)
 
     def translate(self,
                   translation: Tuple[float, float, float],

@@ -1,5 +1,7 @@
 import time
 import numpy as np
+import numpy as cp
+
 from scipy.ndimage import affine_transform
 from typing import Union, Tuple
 from pathlib import Path
@@ -26,12 +28,13 @@ def transform(volume: np.ndarray,
               scale: Union[float, Tuple[float, float, float], np.ndarray] = None,
               shear: Union[float, Tuple[float, float, float], np.ndarray] = None,
               rotation: Union[Tuple[float, float, float], np.ndarray] = None,
+              axisrotation: Union[Tuple[float, float, float], np.ndarray] = None,
               rotation_units: str = 'deg', rotation_order: str = 'rzxz',
               translation: Union[Tuple[float, float, float], np.ndarray] = None,
               center: Union[Tuple[float, float, float], np.ndarray] = None,
               interpolation: str = 'linear',
               profile: bool = False,
-              output = None, device: str = 'cpu'):
+              output = None, device: str = 'cpu', matrix: np.ndarray = None):
 
     if center is None:
         center = np.divide(volume.shape, 2, dtype=np.float32)
@@ -42,9 +45,10 @@ def transform(volume: np.ndarray,
     if isinstance(shear, float):
         shear = (shear, shear, shear)
 
-    m = transform_matrix(scale, shear, rotation, rotation_units, rotation_order, translation, center)
-    return affine(volume, m, interpolation, profile, output, device)
+    if matrix is None:
+        matrix = transform_matrix(scale, shear, rotation, axisrotation, rotation_units, rotation_order, translation, center)
 
+    return affine(volume, matrix, interpolation, profile, output, device)
 
 def translate(volume: np.ndarray,
               translation: Tuple[float, float, float],

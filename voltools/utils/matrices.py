@@ -111,6 +111,7 @@ def scale_matrix(coefficients: Union[Tuple[float, float, float], np.ndarray],
 def transform_matrix(scale: Union[Tuple[float, float, float], np.ndarray] = None,
                      shear: Union[Tuple[float, float, float], np.ndarray] = None,
                      rotation: Union[Tuple[float, float, float], np.ndarray] = None,
+                     axisrotation: Union[Tuple[float, float, float], np.ndarray] = None,
                      rotation_units: str = 'deg', rotation_order: str = 'rzxz',
                      translation: Union[Tuple[float, float, float], np.ndarray] = None,
                      center: Union[Tuple[float, float, float], np.ndarray] = None,
@@ -135,6 +136,9 @@ def transform_matrix(scale: Union[Tuple[float, float, float], np.ndarray] = None
     # Rotation
     if rotation is not None:
         m = np.dot(m, rotation_matrix(rotation, rotation_units, rotation_order, dtype))
+
+    if axisrotation is not None:
+        m = np.dot(m, rotation_matrix(axisrotation, rotation_units, 'rxyz', dtype))
 
     # Shear
     if shear is not None:
