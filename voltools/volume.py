@@ -96,6 +96,7 @@ class StaticVolume:
                   axisrotation: Union[Tuple[float, float, float], np.ndarray] = None,
                   rotation_units: str = 'deg', rotation_order: str = 'rzxz',
                   translation: Union[Tuple[float, float, float], np.ndarray] = None,
+                  translation2: Union[Tuple[float, float, float], np.ndarray] = None,
                   center: Union[Tuple[float, float, float], np.ndarray] = None,
                   profile: bool = False, output = None, matrix: np.ndarray = None) -> Union[np.ndarray, None]:
 
@@ -109,7 +110,8 @@ class StaticVolume:
             shear = (shear, shear, shear)
 
         if matrix is None:
-            matrix = transform_matrix(scale, shear, rotation, axisrotation, rotation_units, rotation_order, translation, center)
+            matrix = transform_matrix(scale, shear, rotation, axisrotation, rotation_units, rotation_order, translation,
+                                      translation2, center)
 
         return self.affine(matrix, profile, output)
 

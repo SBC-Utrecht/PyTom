@@ -31,6 +31,7 @@ def transform(volume: np.ndarray,
               axisrotation: Union[Tuple[float, float, float], np.ndarray] = None,
               rotation_units: str = 'deg', rotation_order: str = 'rzxz',
               translation: Union[Tuple[float, float, float], np.ndarray] = None,
+              translation2: Union[Tuple[float, float, float], np.ndarray] = None,
               center: Union[Tuple[float, float, float], np.ndarray] = None,
               interpolation: str = 'linear',
               profile: bool = False,
@@ -46,7 +47,8 @@ def transform(volume: np.ndarray,
         shear = (shear, shear, shear)
 
     if matrix is None:
-        matrix = transform_matrix(scale, shear, rotation, axisrotation, rotation_units, rotation_order, translation, center)
+        matrix = transform_matrix(scale, shear, rotation, axisrotation, rotation_units, rotation_order, translation,
+                                  translation2=translation2, center=center)
 
     return affine(volume, matrix, interpolation, profile, output, device)
 
