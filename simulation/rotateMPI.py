@@ -11,13 +11,15 @@ def rotate_volume(filename, outname, angle):
     print('rotating volume to ', angle)
     volume = pytom.tompy.io.read_mrc(filename)
     # either 'linear' or 'filt_bspline'
-    rotated_volume = transform(volume, rotation=(angle, 0, 0), rotation_order='sxyz', interpolation='filt_bspline', device='cpu')
+    rotated_volume = transform(volume, rotation=(0, angle, 0), rotation_order='sxyz', interpolation='filt_bspline', device='cpu')
     pytom.tompy.io.write(outname, rotated_volume)
 
 
 def mpi_rotation(angles, heightBox, outputFolder, modelID):
 
-    grandcell = pytom.tompy.io.read_mrc(f'{outputFolder}/model_{modelID}/grandmodel_{modelID}.mrc')
+    save_path = f'{outputFolder}/model_{modelID}'
+
+    grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
 
     print(grandcell.shape)
 
@@ -36,7 +38,7 @@ def mpi_rotation(angles, heightBox, outputFolder, modelID):
     else:
         volume[:, :, offset:-offset] = grandcell[:, :, :]
 
-    dir = f'{outputFolder}/model_{modelID}/rotations'
+    dir = f'{save_path}/rotations'
 
     filename = f'{dir}/rotated_volume_0.mrc'
     pytom.tompy.io.write(filename, volume)
