@@ -391,7 +391,8 @@ class SubtomoAnalysis(GuiTabWidget):
                    'Aligned Images',
                    'Binning factor used for the reconstruction.',
                    'Weighting Type.\n0: No Weighting,\n1: Analytical Weighting.\n-1: Ramp Weighting',
-                   'Size Subtomograms', 'Binning factor for subtomograms (--projBinning)', 'Offset in X-dimension',
+                   'Size of the reconstructed subtomograms (px), after applying the binning factor of the subtomos.',
+                   'Binning factor for subtomograms (--projBinning)', 'Offset in X-dimension',
                    'Offset in Y-dimension', 'Offset in Z-dimension', 'Results files from particle polishing.']
 
         values = []
