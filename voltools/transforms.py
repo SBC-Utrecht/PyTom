@@ -52,7 +52,6 @@ def transform(volume: np.ndarray,
 
     return affine(volume, matrix, interpolation, profile, output, device)
 
-
 def translate(volume: np.ndarray,
               translation: Tuple[float, float, float],
               interpolation: str = 'linear',

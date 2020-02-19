@@ -216,6 +216,7 @@ if __name__ == '__main__':
                            alignedTiltSeriesName=alignedTiltSeriesName,
                            weightingType=weightingType, alignResultFile=alignResultFile,
                            lowpassFilter=lowpassFilter, projBinning=projBinning,
-                           outMarkerFileName=outMarkerFileName, outfile=outfile, verbose=True, write_images=write_images)
+                           outMarkerFileName=outMarkerFileName, outfile=outfile, verbose=True,
+                           write_images=write_images)
 
 

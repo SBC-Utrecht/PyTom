@@ -129,12 +129,10 @@ def transform_matrix(scale: Union[Tuple[float, float, float], np.ndarray] = None
     # Translation
     if translation is not None:
         m = np.dot(m, translation_matrix(translation, dtype))
-    print(m)
 
     # Post-translation
     if center is not None:
         m = np.dot(m, translation_matrix(tuple(-1 * i for i in center), dtype))
-
 
     # Rotation
     if rotation is not None:
@@ -142,7 +140,7 @@ def transform_matrix(scale: Union[Tuple[float, float, float], np.ndarray] = None
 
     # Rotation around a single tilt axis order = 'sxyz'
     if axisrotation is not None:
-        m = np.dot(m, rotation_matrix(axisrotation, rotation_units, 'sxyz', dtype))
+        m = np.dot(m, rotation_matrix(axisrotation, rotation_units, 'rxyz', dtype))
 
     # Shear
     if shear is not None:

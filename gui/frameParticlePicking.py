@@ -46,6 +46,9 @@ class ParticlePick(GuiTabWidget):
         self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
         self.qtype = self.parent().qtype
         self.qcommand = self.parent().qcommand
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
 
         self.tabs_dict, self.tab_actions = {}, {}
 
@@ -636,7 +639,7 @@ class ParticlePick(GuiTabWidget):
     def mass_submitEC(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = 0
-
+        qIds = []
 
         for row in range(self.tables[pid].table.rowCount()):
             try:
@@ -664,18 +667,23 @@ class ParticlePick(GuiTabWidget):
 
                     execfilename = os.path.join(os.path.dirname(jobFile), 'extractCandidatesBatch.sh')
                     ID, num = self.submitBatchJob(execfilename, pid, job)
-                    num_submitted_jobs += num
+                    if num:
+                        num_submitted_jobs += num
+                        qIDs.append(ID)
 
             except Exception as e:
                 print('Error: ', e)
                 print(f'Failed to setup job for {os.path.basename(values[row][0])}')
+
         if num_submitted_jobs:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Extract Cand. Batch')
+
 
     def mass_submitTM(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = 0
-
+        qIDs = []
         for row in range(self.tables[pid].table.rowCount()):
             normal = self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked()
             mirrored = self.tab22_widgets['widget_{}_{}'.format(row, 2)].isChecked()
@@ -759,10 +767,12 @@ class ParticlePick(GuiTabWidget):
                                                     num_jobs_per_node=cores) + cmd
                 execfilename = os.path.join(outDirectory, 'templateMatchingBatch.sh')
                 ID, num = self.submitBatchJob(execfilename, pid, job)
-                num_submitted_jobs += num
-
+                if num:
+                    num_submitted_jobs += num
+                    qIDs.append(ID)
         if num_submitted_jobs:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+
 
     def createParticleList(self, mode=''):
         title = "Create Particle List"

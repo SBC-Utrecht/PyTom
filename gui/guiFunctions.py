@@ -23,6 +23,10 @@ from pytom.basic.files import write_em
 def kill_proc(runner):
     runner.terminate()
 
+def terminateWorker(killEvent):
+    killEvent.set()
+    print('Please exit: ', killEvent.is_set())
+
 def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, filename='', cutoff_SD=3):
     from scipy.ndimage import gaussian_filter
     if cent_x < 0 or cent_x > x: cent_x = x // 2

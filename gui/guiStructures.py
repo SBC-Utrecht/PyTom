@@ -1,7 +1,8 @@
 import os
 import copy
 import pickle
-
+import glob
+import atexit
 import pyqtgraph as pg
 
 from PyQt5.QtWidgets import *
@@ -23,6 +24,8 @@ import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 from ftplib import FTP_TLS, FTP
 import lxml.etree as et
+
+from multiprocessing import Manager, Event, Process
 
 class BrowseWindowRemote(QMainWindow):
     '''This class creates a new windows for browsing'''
@@ -266,6 +269,7 @@ class WorkerSignals(QObject):
 
     '''
 
+    finished_queue = pyqtSignal(object)
     finished_mcor = pyqtSignal()
     finished_collect = pyqtSignal()
     error = pyqtSignal(tuple)
@@ -326,6 +330,75 @@ class CommonFunctions():
                 os.system('sh {}'.format(exefilename))
         except:
             print ('Please check your input parameters. They might be incomplete.')
+
+    def addProgressBarToStatusBar(self, qids=[], key='', job_description='Queue'):
+        if not key or not len(qids): return
+
+
+        counters = [0, ] * len(qids)
+
+        manager = Manager()
+
+        ID = qids[0]
+
+        self.progressBarCounters[ID] = manager.list(counters)
+        self.generateStatusBar(len(qids), ID, job_description)
+
+        proc = Worker(fn=self.checkRun, args=(ID, qids, job_description))
+        proc.signals.result1.connect(self.updateProgressBar)
+        proc.signals.finished_queue.connect(self.deleteProgressBar)
+        proc.start()
+        event = Event()
+        self.queueEvents[job_description] = event
+
+
+    def generateStatusBar(self, nrJobs, key, job_description):
+        widget = QWidget(self)
+        layout = QHBoxLayout()
+        widget.setLayout(layout)
+
+        self.progressBars[key] = QProgressBar()
+
+        self.progressBars[key].setSizePolicy(self.sizePolicyA)
+        self.progressBars[key].setStyleSheet(DEFAULT_STYLE_PROGRESSBAR)
+        self.progressBars[key].setFormat(f'{job_description}: %v/%m')
+        self.progressBars[key].setSizePolicy(self.sizePolicyB)
+        self.progressBars[key].setMaximum(nrJobs)
+        layout.addWidget(self.progressBars[key])
+        self.statusBar.addPermanentWidget(self.progressBars[key], stretch=1)
+
+    def whichRunning(self, qids):
+        runningJobs = [rid[:-1] for rid in os.popen(" squeue | awk 'NR > 1 {print $1}' ").readlines()]
+        inQueue = [str(int(qid)) for qid in qids if qid in runningJobs]
+        return inQueue
+
+    def checkRun(self, id, qids, job_description, signals):
+        import time
+
+        inQueue = self.whichRunning(qids)
+        while len(inQueue):
+            total = len(qids) - len(inQueue)
+            signals.result1.emit([id, total])
+            time.sleep(1)
+            inQueue = self.whichRunning(qids)
+            if self.queueEvents[job_description].is_set():
+                print(f'exit {job_description} loop')
+                return
+        #self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
+        signals.finished_queue.emit([id,job_description, qids])
+        #self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
+
+    def updateProgressBar(self, keys):
+        key, total = keys
+        self.progressBars[key].setValue(total)
+
+    def deleteProgressBar(self, keys):
+        key, job_description, qids = keys
+        self.statusBar.removeWidget(self.progressBars[key])
+        if len(qids)>1:
+            self.popup_messagebox("Info", "Completion", f'Finished {job_description} Jobs {qids[0]}-{qids[-1]}')
+        elif len(qids) > 0:
+            self.popup_messagebox("Info", "Completion", f'Finished {job_description} Job {qids[0]}')
 
     def add_toolbar(self, decider, new=False, open=True, save=True,
                     newText='Create New Project', openText='Load Project', saveText="Save Project"):
@@ -816,7 +889,7 @@ class CommonFunctions():
 
     def submit_local_job(self, execfilename):
         ID = self.getLocalID()
-        logcopy = os.path.join(self.logfolder, f'Local/{ID}_{os.path.basename(execfilename)}')
+        logcopy = os.path.join(self.logfolder, f'Local/{ID}-{os.path.basename(execfilename)}')
         os.system(f'sh {execfilename} >> {os.path.splitext(logcopy)[0]}.out')
         os.system(f'cp {execfilename} {logcopy}')
         self.popup_messagebox('Info', 'Local Job Finished', f'Finished Job {ID}')
@@ -2600,7 +2673,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         self.add_controls(self.layout_operationbox)
 
-        self.subtomo_plots = PlotterSubPlots(self, size_subtomo = self.radius*2)
+        self.subtomo_plots = PlotterSubPlots(self, size_subtomo=self.radius*2)
 
         pg.QtGui.QApplication.processEvents()
 
@@ -2842,7 +2915,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                     continue
                 self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), score, self.radius, score=score)
 
-
+        self.widgets['numSelected'].setText(str(len(self.particleList)))
         self.replot()
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
 
@@ -3141,9 +3214,9 @@ class Viewer3D(QMainWindow, CommonFunctions):
         self.centcanvas.sigMouseReleased.connect(self.empty)
 
         self.load_image()
-        self.leftimage.setXRange(0, self.vol.shape[0])
-
-        self.add_controls(self.layout_operationbox)
+        if not self.failed:
+            self.leftimage.setXRange(0, self.vol.shape[0])
+            self.add_controls(self.layout_operationbox)
 
         pg.QtGui.QApplication.processEvents()
 
@@ -3264,6 +3337,10 @@ class Viewer3D(QMainWindow, CommonFunctions):
 
     def load_image(self):
         if not self.title: return
+        if not os.path.exists(self.title):
+            self.popup_messagebox('Error', 'File does not exist', 'File does not exist. Please provide a valid filename.')
+            self.failed = True
+            return
 
         if self.title.endswith('em'):
             from pytom.tompy.io import read
@@ -3572,6 +3649,10 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         self.qcommand = self.parent().qcommand
         self.setGeometry(0, 0, 900, 550)
         self.size_policies()
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
+        self.qtype = None
 
         headers = ['Local Jobs', 'Queued Jobs']
         subheaders = [[], ] * len(headers)
@@ -3611,6 +3692,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
                 self.pbs[tt] = QWidget()
                 self.ends[tt] = QWidget()
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
+                self.checkbox[tt] = QCheckBox('queue')
 
                 if tt in ('tab1', 'tab2'):
                     self.table_layouts[tt].addWidget(button)
@@ -3713,6 +3795,9 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
 
         for running in reversed(qjobs):
             if not running in added_jobs:
+                queueId = int(running)
+                if len(glob.glob(os.path.join(self.logfolder, f'{queueId}*.sh'))) < 1:
+                    continue
                 values.append( ['', int(running), 0, 16, 1, '', ''] )
 
         values = sorted(values, key=self.nthElem, reverse=True)
@@ -4531,7 +4616,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.updateScoreColor(ID, row)
 
 class PlotterSubPlots(QMainWindow,CommonFunctions):
-    def __init__(self, parent=None, width=400, size_subplot=80, size_subtomo=40, height=1000, offset_x=0, offset_y=0):
+    def __init__(self, parent=None, width=800, size_subplot=80, size_subtomo=40, height=1000, offset_x=0, offset_y=0):
         super(PlotterSubPlots,self).__init__(parent)
         self.width = width
         self.height = height
@@ -4559,6 +4644,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         #self.setCentralWidget(self.scrollarea)
         self.setLayout(QHBoxLayout())
         self.setGeometry(self.dx,self.dy,self.width,self.height)
+        self.setWindowTitle('Selected Particles')
         self.init_variables()
 
     def init_variables(self):

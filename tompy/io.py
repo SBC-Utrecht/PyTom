@@ -1,9 +1,8 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from pytom.gpu.initialize import xp, device
 import numpy as np
-import scipy
-
 
 def read(filename,ndarray=True):
     """Read EM file. Now only support read the type float32 on little-endian machines.
@@ -28,6 +27,7 @@ def read(filename,ndarray=True):
         return n2v(data)
 
 def read_mrc(filename):
+    import numpy as np
     f = open(filename, 'r')
     try:
         dt_header = np.dtype('int32')
@@ -63,7 +63,7 @@ def read_mrc(filename):
     if default_type:
         volume = v.reshape((x, y, z), order='F')  # fortran-order array
     else:  # if the input data is not the default type, convert
-        volume = np.array(v.reshape((x, y, z), order='F'), dtype='float32')  # fortran-order array
+        volume = xp.array(v.reshape((x, y, z), order='F'), dtype='float32')  # fortran-order array
 
     return volume
 
@@ -76,7 +76,7 @@ def read_em(filename):
     """
     f = open(filename, 'r')
     try:
-        dt_header = np.dtype('int32')
+        dt_header =np.dtype('int32')
         header = np.fromfile(f, dt_header, 128)
         x = header[1]
         y = header[2]
@@ -111,7 +111,7 @@ def read_em(filename):
     if default_type:
         volume = v.reshape((x, y, z), order='F') # fortran-order array
     else: # if the input data is not the default type, convert
-        volume = np.array(v.reshape((x, y, z), order='F'), dtype='float32') # fortran-order array
+        volume = xp.array(v.reshape((x, y, z), order='F'), dtype=np.float32) # fortran-order array
     
     return volume
 
@@ -135,6 +135,11 @@ def write(filename, data, tilt_angle=0, pixel_size=1):
     if data.dtype != np.dtype("float32"):
         data = data.astype(np.float32)
 
+    try:
+        data = data.get()
+    except:
+        pass
+
     if filename.endswith('.em'):
         write_em(filename, data, tilt_angle)
     elif filename.endswith('.mrc'):
@@ -143,12 +148,17 @@ def write(filename, data, tilt_angle=0, pixel_size=1):
         raise Exception('Unsupported file format, cannot write an {}-file'.format(filename.split('.')[-1]))
 
 def binary_string(values, type):
-
+    import numpy as np
     return np.array(values, type).tostring()
 
 def write_mrc(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnification=1., dx=0., dy=0., current_tilt_angle=999):
+    import numpy as np
+    try:
+        data = data.get()
+    except:
+        pass
     if data.dtype != np.dtype('float32'): # if the origin data type is not float32, convert
-        data = np.array(data, dtype='float32')
+        data = data.astype(np.float32)
 
     assert len(data.shape) < 4 and len(data.shape) > 0
 

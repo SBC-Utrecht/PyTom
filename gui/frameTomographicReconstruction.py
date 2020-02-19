@@ -44,6 +44,10 @@ class TomographReconstruct(GuiTabWidget):
         self.qtype = self.parent().qtype
         self.qcommand = self.parent().qcommand
         self.widgets = {}
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
+
         self.qparams = self.parent().qparams
 
         self.widgets['pytomPath'] = QLineEdit()
@@ -229,19 +233,19 @@ class TomographReconstruct(GuiTabWidget):
         self.table_layouts[id].addWidget(label)
 
     def tab32UI(self, id=''):
-        headers = ["name tomogram", "align", 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Input Folder', '']
-        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox', 'lineedit', 'combobox', 'txt']
-        sizes = [0, 80, 0, 0, 0, 0, 0, 0]
+        headers = ["name tomogram", "align", 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Input Folder', 'Fix Marker Pos', '']
+        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox', 'lineedit', 'combobox', 'checkbox', 'txt']
+        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
 
         tooltip = ['Names of existing tomogram folders.',
                    'Do alignment.',
                    'First angle of tiltimages.',
                    'Last angle of tiltimages.',
                    'Reference image number.',
-                   'Redo the creation of a tomogram file.',
-                   'Select items to delete tomogram folders.',
+                   'Reference marker index',
                    'Expected Rotation Angle',
-                   'Input Folder for tilt images used in alignment.']
+                   'Input Folder for tilt images used in alignment.',
+                   'Fix marker position during optimization step. Useful for local marker alignment.']
 
         markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.txt'.format(self.tomogram_folder)))
         markerfilesEM = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
@@ -280,7 +284,7 @@ class TomographReconstruct(GuiTabWidget):
                 expect = int(float(metadata['InPlaneRotation'][0]))
                 input_folders = ['sorted', 'ctf/sorted_ctf']
                 values.append( [markerfile.split('/')[-3], True, numpy.floor(tangs.min()), numpy.ceil(tangs.max()),
-                                index_zero_angle, options_reference, expect, input_folders, ''] )
+                                index_zero_angle, options_reference, expect, input_folders, True, ''] )
                 self.mfiles.append(markerfile)
             else:continue
         if not values:
@@ -720,6 +724,7 @@ class TomographReconstruct(GuiTabWidget):
 
 
         self.rerunid = id
+        self.aa = len(jobs)
         proc = Worker(fn=self.check_run, args=(len(jobs), id))
         proc.signals.result1.connect(self.update_progress_generate_tomogramdir)
         proc.signals.finished_mcor.connect(self.delete_progressbar_tomogramdir)
@@ -734,7 +739,6 @@ class TomographReconstruct(GuiTabWidget):
             time.sleep(1)
             num += 1
 
-        if a: self.popup_messagebox("Info", "Completion", 'Successfully generated tomogram directories.')
         signals.finished_mcor.emit()
 
     def update_progress_generate_tomogramdir(self, total):
@@ -742,6 +746,7 @@ class TomographReconstruct(GuiTabWidget):
 
     def delete_progressbar_tomogramdir(self):
         self.statusBar.removeWidget(self.progressBar)
+        if self.aa: self.popup_messagebox("Info", "Completion", 'Successfully generated tomogram directories.')
         self.tab1UI(self.rerunid)
 
     def run_jobs(self, jobs, procid, counters):
@@ -847,6 +852,7 @@ class TomographReconstruct(GuiTabWidget):
                 markindex  = widgets['widget_{}_{}'.format(row, 5)].currentText()
                 expected   = widgets['widget_{}_{}'.format(row, 6)].text()
                 inputfolder= values[row][7][widgets['widget_{}_{}'.format(row, 7)].currentIndex()]
+                fixmarkers = widgets['widget_{}_{}'.format(row, 8)].isChecked()
 
                 tiltseriesname = os.path.join(inputfolder, os.path.basename(inputfolder))
                 self.widgets[mode + 'FolderSorted'].setText(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
@@ -868,7 +874,7 @@ class TomographReconstruct(GuiTabWidget):
 
                 markerfile = '{}/alignment/markerfile.{}'.format(folder,self.mfiles[row].split('.')[-1])
                 l = len(glob.glob(os.path.join(os.path.dirname(self.mfiles[row]), 'sorted_*.mrc')))
-                print('num files: ', l)
+
                 markerdata = guiFunctions.readMarkerfile(markerfile, l)
 
                 if markindex == 'all':
@@ -877,8 +883,8 @@ class TomographReconstruct(GuiTabWidget):
                     numMark = 1
 
                 total_number_markers += numMark
-                ll = '{} {} {} {} {} {} {} {} {} {} {} {}\n'
-                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0, expected, tiltseriesname, markerfile)
+                ll = '{} {} {} {} {} {} {} {} {} {} {} {} {}\n'
+                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0, expected, tiltseriesname, markerfile, fixmarkers)
                 tomofolder_info.append([ numMark, ll])
 
         if not tomofolder_info:
@@ -911,6 +917,9 @@ class TomographReconstruct(GuiTabWidget):
 
         num_submitted_jobs = 0
         qname, n_nodes, cores, time, modules = self.qparams['BatchAlignment'].values()
+
+        submissionIDs = []
+
         for n in range(len(lprocs) - 1):
 
             input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1], num_procs_per_proc,
@@ -924,12 +933,17 @@ class TomographReconstruct(GuiTabWidget):
                 cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname, time=time,
                                                     num_nodes=n_nodes, cmd=cmd, modules=modules, num_jobs_per_node=cores)
 
+
             exefilename = '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n)
             ID, num = self.submitBatchJob(exefilename, id, cmd)
-            num_submitted_jobs += num
+            if num:
+                num_submitted_jobs += num
+                submissionIDs.append(ID)
 
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(submissionIDs, key='QJobs', job_description='Alignment Batch')
+
 
     def updateTomoFolder(self, mode):
 
@@ -1072,6 +1086,7 @@ class TomographReconstruct(GuiTabWidget):
     def run_multi_reconstruction(self, id, values):
         print('multi_reconstructions', id)
 
+        qIDs = []
         n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables[id].table
         widgets = self.tables[id].widgets
@@ -1155,11 +1170,16 @@ class TomographReconstruct(GuiTabWidget):
                                                                partition=qname)
                         commandText = header + commandText
 
-                    self.submitBatchJob(execfilename, id, commandText)
-                    num_submitted_jobs += 1
+                    ID, num = self.submitBatchJob(execfilename, id, commandText)
+
+                    if num:
+                        num_submitted_jobs += 1
+                        qIDs.append(ID)
 
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Tom. Reconstr. Batch')
+
 
     def ctfDetermination(self, mode):
 
@@ -1481,6 +1501,7 @@ class TomographReconstruct(GuiTabWidget):
         print('multi_ctf_corrections', id)
         num_nodes = self.tables[id].table.rowCount()
         num_submitted_jobs = 0
+        submissionIDs = []
         try:
             num_nodes = self.num_nodes[id].value()
         except:
@@ -1528,7 +1549,9 @@ class TomographReconstruct(GuiTabWidget):
 
                     exefilename = os.path.join(outputfolder, 'ctfCorrectionBatch.sh')
                     ID, num = self.submitBatchJob(exefilename, id, job)
-                    num_submitted_jobs += num
+                    if num:
+                        num_submitted_jobs += num
+                        submissionIDs.append(ID)
 
                 except Exception as e:
                     print(e)
@@ -1537,3 +1560,4 @@ class TomographReconstruct(GuiTabWidget):
 
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(submissionIDs, key='QJobs', job_description='CTF Correction Batch')
