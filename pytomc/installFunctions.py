@@ -227,7 +227,7 @@ def generatePathsFile(pytomDirectory,libPaths, binPaths, pyPaths):
         
         if libPaths.__class__ == list and len(libPaths) > 0:
             for lib in libPaths:
-                if not lib == None:
+                if not lib == None and lib.__class__ == str:
                     libString += lib + ':'
         
         pyString = ''
