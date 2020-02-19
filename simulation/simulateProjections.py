@@ -32,9 +32,9 @@ from pylab import *
 matplotlib.use('Qt5Agg')
 
 # math
-from scipy.ndimage import gaussian_filter
 from pytom.reconstruction.reconstructionStructures import *
 from pytom.basic.files import *
+import scipy.ndimage
 import numpy as xp
 import random
 
@@ -98,9 +98,9 @@ def tom_bandpass(image, low, hi, smooth=0):
     scf = 1 / (s1 * s2 * s3)
 
     if smooth < 0.001:
-        [x, y, z] = xp.meshgrid(xp.arange(-xp.floor(s1 / 2), -xp.floor(s1 / 2) + s1 - 1),
-                                xp.arange(-xp.floor(s2 / 2), -xp.floor(s2 / 2) + s2 - 1),
-                                xp.arange(-xp.floor(s3 / 2), -xp.floor(s3 / 2) + s3 - 1))
+        [x, y, z] = xp.meshgrid(xp.arange(-xp.floor(s1 / 2), -xp.floor(s1 / 2) + s1 -1 ),
+                                xp.arange(-xp.floor(s2 / 2), -xp.floor(s2 / 2) + s2 -1 ),
+                                xp.arange(-xp.floor(s3 / 2), -xp.floor(s3 / 2) + s3 -1 ))
 
         r = xp.sqrt(x ** 2 + y ** 2 + z ** 2)
         lowp = (r <= hi)
@@ -150,8 +150,16 @@ def spheremask(vol, radius, smooth=0):
     mask[r > radius] = 0
 
     if smooth > 0.01:
-        mask = gaussian_filter(mask, smooth)
-    return vol * mask
+        # gaussian_filter(input,sigma)
+        gaussMask = scipy.ndimage.gaussian_filter(mask, smooth)
+        # fig, ax = subplots(1, 3, figsize=(12, 4))
+        # ax[0].imshow(r)
+        # ax[1].imshow(mask)
+        # ax[2].imshow(gaussMask)
+        # show()
+        return vol * gaussMask
+    else:
+        return vol * mask
 
 
 def tom_dev(image):
@@ -333,8 +341,6 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
 
     sigma = sigma / n_images
 
-    print('average sigma over all projections is ', sigma)
-
     # take care of signal reduction due to ctf
     # ratio of white noise with and without mult by ctf
     # tom_dev() returns single values, no arrays
@@ -344,8 +350,6 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
         xp.fft.fftshift(spheremask(xp.fft.fftshift(xp.fft.fftn(tom_error(xp.zeros((size, size)), 0, 1.)[0, :, :])), 10, 0)))))
     corrfac = whitenoise / corrfac
     sigma = sigma * corrfac
-
-    print('sigma after reduction by ctf is ', sigma)
 
     # generate weighting function for reconstruction # WHY GENERATE WEIGHTING???
     # s1, s2, s3 = rotvol.shape
@@ -359,51 +363,52 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
 
     projections = xp.zeros((size, size, n_images), dtype=xp.float32)
 
-    for n in range(n_images):
-        proj = noisefree_projections[:,:,n]
+    print('noise added is samples from a standard normal distribution multiplied by sqrt( 0.5/SNR * sigma) = ',
+          xp.sqrt(0.5 / SNR * sigma))
 
-        # ctf dependent contribution of noise
+    for n in range(n_images):
+        projection = noisefree_projections[:,:,n]
+
+        # POISSONIAN NOISE!
         # flux = 80 # electrons per square A
         # flux_per_tilt = flux / 60 # electrons per square A per tilt
         # flux_per_pixel = flux_per_tilt * 100
         # projFlux = proj * flux_per_pixel
         # noisy = xp.random.poisson(lam=(projFlux/SNR))
-        proj_fft = xp.fft.fftn(xp.fft.ifftshift(proj))
-        noisy = tom_error(proj_fft, 0, 0.5 / SNR * sigma)[0, :, :] # 0.5 / SNR * sigma
+        # ADD AT LATER STAGE
 
-        print('noise added is samples from a standard normal distribution multiplied by sqrt( 0.5/SNR * sigma) = ',
-              xp.sqrt(0.5/SNR*sigma))
-
-        # noisy = noisy[nx/2-sx/2:nx/2+sx/2,nx/2-sx/2:nx/2+sx/2]
+        # CTF dependent noise
+        preNoise = tom_error(xp.zeros(projection.shape), 0, 0.5 / SNR * sigma)[0, :, :] # 0.5 / SNR * sigma
+        ctfNoise = xp.fft.fftn(xp.fft.ifftshift(preNoise)) * xp.real(ctf)
 
         # ctf independent contribution of noise
-        bb = tom_error(xp.zeros(proj.shape), 0, 0.5 / SNR * sigma)[0, :, :] # 0.5 / SNR * sigma
-        bg = tom_bandpass(bb, 0, 1, 0.2 * size)
+        # tom_bandpass(im, lo, hi, smooth)
+        bg = tom_bandpass(preNoise, 0, 7, smooth=0.2 * size)
 
-        plot = False
+        plot = True
         if plot:
             fig, ax = subplots(1, 3, figsize=(12, 4))
-            ax[0].imshow(proj)
-            ax[1].imshow(noisy)
+            ax[0].imshow(preNoise)
+            ax[1].imshow(xp.real(ctf))
             ax[2].imshow(bg)
             show()
 
         # add both contributions (ratio 1:1) in Fourier space
-        tmp = noisy + xp.fft.fftn(xp.fft.ifftshift(bg)) # = fftshift(fftn(noisy)) + fftshift(fftn(bg))
+        tmp = xp.fft.fftn(xp.fft.ifftshift(projection)) + ctfNoise + xp.fft.fftn(xp.fft.ifftshift(bg))
         tmp = tmp * xp.fft.ifftshift(mask)
         noisy = xp.real(xp.fft.fftshift(xp.fft.ifftn(tmp)))
+
+        plot = False
+        if plot:
+            fig, ax = subplots(1, 2, figsize=(8, 4))
+            ax[0].imshow(projection)
+            ax[1].imshow(noisy)
+            show()
 
         out = mrcfile.new(
             f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_model{modelID}_{n+1}.mrc',
             noisy.astype(xp.float32), overwrite=True)
         out.close()
-
-        plot = False
-        if plot:
-            fig, ax = subplots(1, 2, figsize=(8, 4))
-            ax[0].imshow(bg)
-            ax[1].imshow(noisy)
-            show()
 
         projections[:,:,n] = noisy
 
