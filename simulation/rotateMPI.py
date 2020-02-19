@@ -11,7 +11,7 @@ def rotate_volume(filename, outname, angle):
     print('rotating volume to ', angle)
     volume = pytom.tompy.io.read_mrc(filename)
     # either 'linear' or 'filt_bspline'
-    rotated_volume = transform(volume, rotation=(0, angle, 0), rotation_order='sxyz', interpolation='filt_bspline', device='cpu')
+    rotated_volume = transform(volume, rotation=(angle, 0, 0), rotation_order='sxyz', interpolation='filt_bspline', device='cpu')
     pytom.tompy.io.write(outname, rotated_volume)
 
 
