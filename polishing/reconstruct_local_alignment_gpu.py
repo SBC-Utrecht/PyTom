@@ -10,13 +10,12 @@ global xp
 from pytom.gpu.initialize import xp
 import matplotlib
 matplotlib.use('Qt5Agg')
-import pylab as pp
 from pylab import imshow, show, savefig, subplots
-
+from pytom.gui.guiFunctions import savestar
 
 def polish_particles(particle_list_filename, projection_directory, averaged_subtomogram, binning, offset,
                      projections, tilt_angles, fsc_path='', peak_border=75, outputDirectory='./',
-                     create_graphics=False, number_of_particles=0, verbose=False ):
+                     create_graphics=False, number_of_particles=0, verbose=False, gpuID=-1 ):
     """
     To polish a particle list based on (an) initial subtomogram(s).
 
@@ -67,9 +66,10 @@ def polish_particles(particle_list_filename, projection_directory, averaged_subt
     import os, time
     from pytom.tompy.io import read_size, read
     from pytom.basic.datatypes import fmtLAR, headerLocalAlignmentResults, LOCAL_ALIGNMENT_RESULTS
+    import pytom.voltools as vt
 
     print('path: ', xp.__path__)
-    print(xp.abs(-10))
+
 
     # load particle list
     from pytom.basic.structures import ParticleList
@@ -90,26 +90,36 @@ def polish_particles(particle_list_filename, projection_directory, averaged_subt
 
 
     data = {}
+
     for projectioname in projections:
          data[projectioname] = xp.array(read(projectioname))
-    #
-    # template = read(averaged_subtomogram)
+#
+    template1 = read(averaged_subtomogram)
+
+    template = vt.StaticVolume(template1.T, interpolation='filt_bspline', device='gpu:0')
+
     # output = []
     results_file = os.path.join(outputDirectory, f"resultsPolish_{particle_list_name}.txt")
+
+    results = []
 
     for particle_number, particle in enumerate(particlelist):
 
         rot = (particle.getRotation().getZ1(), particle.getRotation().getX(), particle.getRotation().getZ2())
         # loop over tiltrange, take patch and cross correlate with reprojected subtomogram
         for img, ang in zip(projections, tilt_angles):
+            print(os.path.basename(particle.getFilename()), ang, os.path.basename(img))
             pick_position = particle.getPickPosition().toVector()
             #patch = cut_patch(data[img], ang, pick_position, vol_size, binning, dimz, offset)
             t = time.time()
-            run_single_tilt_angle(averaged_subtomogram, ang, offset, vol_size,
-                                       pick_position, rot, particle.getFilename(),
-                                       particle_number, binning, data, create_graphics, fsc_path, dimz, peak_border, img)
-            print(time.time()-t)
-    # if verbose:
+
+            result = run_single_tilt_angle(template, ang, offset, vol_size, pick_position, rot, particle.getFilename(),
+                                            particle_number, binning, data, create_graphics, fsc_path, dimz, peak_border, img,
+                                            averaged_subtomogram)
+            results.append(result)
+            print('total:\t\t', time.time()-t)
+            print()
+# if verbose:
     #     print(len(input_to_processes))
     #     print("{:s}> Created the input array".format(gettime()))
 
@@ -119,7 +129,7 @@ def polish_particles(particle_list_filename, projection_directory, averaged_subt
 
     #lists = list(zip(*input_to_processes))
     #if verbose: print(len(lists))
-            #xp.savetxt(results_file, xp.array(output, dtype=LOCAL_ALIGNMENT_RESULTS), fmt=fmtLAR, header=headerLocalAlignmentResults)
+    savestar(results_file, results, fmt=fmtLAR, header=headerLocalAlignmentResults)
 
     if verbose: print("{:s}> Ran the processes".format(gettime()))
 
@@ -137,7 +147,7 @@ def run_single_tilt_angle_unpack(inp):
 
 def cut_patch(projection, ang, pick_position, vol_size=200, binning=8, dimz=0, offset=[0,0,0], projection_name=None):
     #from pytom.gpu.initialize import xp
-
+    from pytom.voltools import transform
     from pytom.tompy.transform import rotate3d, rotate_axis
     from pytom.tompy.transform import cut_from_projection
     from pytom.tompy.io import read
@@ -156,13 +166,15 @@ def cut_patch(projection, ang, pick_position, vol_size=200, binning=8, dimz=0, o
     xx = (xp.cos(ang * xp.pi / 180) * (x - dim_x / 2) - xp.sin(ang * xp.pi / 180) * (z - dim_z / 2)) + dim_x / 2
 
     # Cut the small patch out
-    patch = cut_from_projection(projection.squeeze(), [xx, yy], [vol_size, vol_size])
-    patch = patch - patch.mean()
+    patch = projection[max(0, xp.floor(xx)-vol_size//2):xp.floor(xx)+vol_size//2, yy-vol_size//2:yy+vol_size//2,:]
+    #transform(patch, output=patch, translation=[0,xx-float(xx),0], device='gpu:0')
+    #patch = patch[1:-1,1:-1] - patch.mean()
 
     return patch, xx, yy
 
 def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position, particle_rotation,  particle_filename,
-                          particle_number, binning, data, create_graphics, fsc_path, dimz, peak_border, projectioname):
+                          particle_number, binning, data, create_graphics, fsc_path, dimz, peak_border, projectioname,
+                          fileNameSubtomogram):
     """
     To run a single tilt angle to allow for parallel computing
 
@@ -192,30 +204,47 @@ def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position,
     @return: the newly found positions of the particle, as a list  in the LOCAL_ALIGNMENT_RESULTS format
     @returntype: list
     """
-
-
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    from pylab import subplots, show
+    import pytom.voltools as vt
     from pytom.tompy.transform import rotate3d, rotate_axis
     import numpy as np
     from math import cos, sin, pi, sqrt
     from pytom.tompy.transform import cut_from_projection
     from pytom.tompy.io import read
-
+    import time
     #print(particle_filename, ang)
-
     # Get template
-    # First rotate the template towards orientation of the particle, then to the tilt angle
-    subtomogram = xp.array(read(subtomogram))
-    rotated1 = rotate3d(subtomogram, phi=particle_rotation[0], the=particle_rotation[1], psi=particle_rotation[2])
-    rotated2 = rotate_axis(rotated1, -ang, 'y')  # SWITCHED TO ROTATE AXIS AND ANGLE *-1 THIS IS AN ATTEMPT
-    template = rotated2.sum(axis=2)
 
+    t=time.time()
     img = data[projectioname]
     patch, xx, yy = cut_patch(img, ang, particle_position, dimz=dimz )
+    print('cut_patch:\t', time.time()-t)
+
+    #particle_rotation=[0,0,0]
+    particle_rotation2 = [-particle_rotation[0],-particle_rotation[1],-particle_rotation[2]]
+
+    # First rotate the template towards orientation of the particle, then to the tilt angle
+    # rotated = xp.zeros((200,200,200))
+    rotated = subtomogram.transform(rotation=particle_rotation2, rotation_order='rxzx', translation2=[xx % 1, 0, 0], axisrotation=[0, ang, 0])
+    template = rotated.T.sum(axis=2)
+
+    # rotated3 = rotate3d(read(fileNameSubtomogram).get(), phi=particle_rotation[0], the=particle_rotation[1], psi=particle_rotation[2])
+    # rotated4 = rotate_axis(rotated3, -ang, 'y')  # SWITCHED TO ROTATE AXIS AND ANGLE *-1 THIS IS AN ATTEMPT
+    #
+    # fig,ax = subplots(2,2,figsize=(10,10))
+    # ax[0][0].imshow(template.get())
+    # ax[0][1].imshow(rotated.T.sum(axis=2).get())
+    # ax[1][0].imshow(rotated3.sum(axis=2))
+    # ax[1][1].imshow(rotated4.sum(axis=2))
+    # show()
+
+    print('rotation:\t', time.time()-t)
+    del rotated
 
     # Filter using FSC
     fsc_mask = None
-
-    import os
 
     # if 0 and os.path.isfile(fsc_path):
     #     f = open(fsc_path, "r")
@@ -226,19 +255,31 @@ def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position,
     #    print("Not an existing FSC file: " + fsc_path)
 
     # Cross correlate the template and patch, this should give the pixel shift it is after
-    from pytom.tompy.correlation import nXcf
 
-    print('single: ', xp.__path__)
-    ccf = normalised_cross_correlation(template, patch, fsc_mask)
-    points2d, maxvalue = find_sub_pixel_voltools(ccf, k=10)
+    print(template.shape, patch.shape, template.__class__, patch.__class__)
 
-    x_diff = points2d[0] - vol_size / 2
-    y_diff = points2d[1] - vol_size / 2
+    try:
+        ccf = normalised_cross_correlation(template, patch.squeeze(), fsc_mask)
+    except:
+        return particle_number, 999., 999., ang, 0, 1, particle_filename
+
+    # fig,ax = subplots(1,2,figsize=(10,5))
+    # ax[0].imshow(patch.squeeze().get())
+    # ax[1].imshow(ccf.get())
+    # show()
+
+    print('ccc:\t\t', time.time()-t)
+
+    points2dx, points2dy, grid = find_sub_pixel_voltools(ccf, k=0.1)
+    print('find_max:\t', time.time()-t)
+
+    x_diff = points2dx - vol_size / 2
+    y_diff = points2dy - vol_size / 2
 
     dist = sqrt(x_diff**2+y_diff**2)
-    print(f'{particle_number:3d} {ang:5.1f}, {dist:5.2f}')
 
-    return particle_number, x_diff, y_diff, ang, 0, 0, particle_filename
+    # print(f'{particle_number:3d} {ang:5.1f}, {dist:5.2f}')
+    return particle_number, x_diff, y_diff, ang, 0., 1., particle_filename
 
 
 def axis_title(axis, title):
@@ -370,7 +411,7 @@ sleep 5 & mpiexec -n {:d} pytom /data2/dschulte/pytom-develop/pytom/bin/GLocalJo
             print("There seems to be a problem with scheduling the job, output: " + out)
 
 
-def normalised_cross_correlation(first, second, filter_mask=None):
+def normalised_cross_correlation(first, second, filter_mask=None, device=0):
     """
     Do a cross correlation based on numpy
 
@@ -390,10 +431,11 @@ def normalised_cross_correlation(first, second, filter_mask=None):
     if not(filter_mask is None): assert first.shape == filter_mask.shape
 
 
-    if filter_mask is None:
-        ffirst = xp.fft.fftn(first)
-    else:
-        ffirst = xp.fft.fftshift(xp.fft.fftshift(xp.fft.fftn(first)) * filter_mask)
+
+    # if filter_mask is None:
+    ffirst = xp.fft.fft2(xp.array(first))
+    # else:
+    #     ffirst = xp.fft.fftshift(xp.fft.fftshift(xp.fft.fftn(first)) * filter_mask)
 
     return xp.real(xp.fft.fftshift(xp.fft.ifftn(xp.multiply(xp.fft.fftn(second), xp.conj(ffirst)))))
 
@@ -445,16 +487,35 @@ def norm_inside_mask(inp, mask):
     st = xp.sqrt(xp.sum((xp.multiply(mask, mea) + xp.multiply(inp, mask) - mea) ** 2) / xp.sum(mask))
     return xp.multiply((inp - mea) / st, mask)
 
-def find_sub_pixel_voltools(inp, k=4):
+def find_sub_pixel_voltools(inp, k=4, border=75):
     import pytom.voltools as vt
+    import numpy as np
+    initial_max = xp.unravel_index(inp[border:-border, border:-border].argmax(), (50,50))
+    initial_max = [v + border for v in initial_max] + [0]
+    print(initial_max)
 
-    inputVol = xp.expand_dims(inp, axis=0)
-    initial_max = xp.unravel_index(inputVol.argmax(), inputVol.shape)
-    transformed_volume = vt.transform(inputVol, center=initial_max, scale=(1,k,k), interpolation='filt_bspline', device='cpu')
+    imshow(inp.get())
+    show()
+
+    inputVol = xp.expand_dims(inp,axis=2)
+
+    imshow(inputVol[:,:,0].get() )
+    show()
+
+    print(inputVol.shape)
+    transformed_volume = xp.zeros_like(inputVol)
+    vt.transform(inputVol, scale=(0.5,0.5,1), interpolation='bspline', device='gpu:0', output=transformed_volume,
+                 )
+
+    fig, ax = subplots(1, 2, figsize=(10, 5))
+    ax[0].imshow(inp.get().squeeze())
+    ax[1].imshow(transformed_volume.get().squeeze())
+    show()
+
     transformed_max = xp.unravel_index(transformed_volume.argmax(), transformed_volume.shape)
-    interpolated_max = [initial_max[index] + (initial_max[index] - transformed_max[index])*k for index in (0,1)]
+    interpolated_max = [initial_max[index] + (initial_max[index] + (transformed_max[index]- inp.shape[index-1]//2) * k) for index in (1,2)]
 
-    return interpolated_max, transformed_volume[interpolated_max[0],interpolated_max[1]]
+    return interpolated_max[0], interpolated_max[1], transformed_volume.squeeze() # transformed_volume[0, transformed_max[0], transformed_max[1]]
 
 def find_sub_pixel_max_value(inp, k=4):
     """
@@ -472,20 +533,20 @@ def find_sub_pixel_max_value(inp, k=4):
     # assert len(ixp.shape) == 2
     # assert isinstance(k, int) and 1 <= k <= 5
 
-    import numpy as np
+    import numpy as xp
     from scipy.interpolate import InterpolatedUnivariateSpline
 
     v = xp.amax(inp)  # the max value
     result = xp.where(inp == v)  # arrays of x and y positions of max values
     output = []
 
-    for xp, yp in zip(result[0], result[1]):
+    for xx, yy in zip(result[0], result[1]):
         # Find the highest point for x (first check if on sides otherwise interpolate)
-        if xp == 1 or xp == ixp.shape[0]:
-            x = xp
+        if xx == 1 or xx == inp.shape[0]:
+            x = xx
             xv = v
         else:
-            f = InterpolatedUnivariateSpline(range(0, ixp.shape[0]), inp[:, yp], k=k)  # spline interpolation
+            f = InterpolatedUnivariateSpline(range(0, inp.shape[0]), inp[:, yy], k=k)  # spline interpolation
             cr_pts = f.derivative().roots()
             cr_vals = f(cr_pts)
             val = xp.argmax(cr_vals)
@@ -493,11 +554,11 @@ def find_sub_pixel_max_value(inp, k=4):
             xv = cr_vals[val]
 
         # Find the highest point for y (first check if on sides otherwise interpolate)
-        if yp == 1 or yp == ixp.shape[1]:
-            y = yp
+        if yy == 1 or yy == ixp.shape[1]:
+            y = yy
             yv = v
         else:
-            f = InterpolatedUnivariateSpline(range(0, ixp.shape[1]), inp[xp, :], k=k)  # spline interpolation
+            f = InterpolatedUnivariateSpline(range(0, inp.shape[1]), inp[xx, :], k=k)  # spline interpolation
             cr_pts = f.derivative().roots()
             cr_vals = f(cr_pts)
             val = xp.argmax(cr_vals)
@@ -568,21 +629,21 @@ def find_sub_pixel_max_value_2d(inp, interpolate_factor=100, smoothing=2, dim=10
 
     # Get the position of the initial maximum
     inp_without_border = inp[ignore_border:-ignore_border, ignore_border:-ignore_border]
-    initial_max = xp.unravel_index(inp_without_border.argmax(), inp_without_border.shape)
+    initial_max = np.unravel_index(inp_without_border.argmax(), inp_without_border.shape)
     # Reset the coordinates to be relative to the original inp(ut)
     initial_max = (initial_max[0] + ignore_border, initial_max[1] + ignore_border)
 
     # Get the starting points of the peak cutout
-    x_dim = ixp.shape[0]
-    y_dim = ixp.shape[1]
+    x_dim = inp.shape[0]
+    y_dim = inp.shape[1]
     x_start = max([0, initial_max[0] - dim])
     x_end = min([x_dim, initial_max[0] + dim])
     y_start = max([0, initial_max[1] - dim])
     y_end = min([y_dim, initial_max[1] + dim])
 
     # Create a grid to save the original points and one to save the interpolated points
-    x, y, = xp.mgrid[x_start:x_end, y_start:y_end]
-    xnew, ynew = xp.mgrid[x_start:x_end:complex((x_end - x_start) * interpolate_factor),
+    x, y, = np.mgrid[x_start:x_end, y_start:y_end]
+    xnew, ynew = np.mgrid[x_start:x_end:complex((x_end - x_start) * interpolate_factor),
                           y_start:y_end:complex((y_end - y_start) * interpolate_factor)]
 
     #print(x_start, x_end, y_start, y_end)
@@ -595,7 +656,7 @@ def find_sub_pixel_max_value_2d(inp, interpolate_factor=100, smoothing=2, dim=10
         tck = interpolate.bisplrep(x, y, inp[x_start:x_end, y_start:y_end], s=smoothing)
         interpolated_grid = interpolate.bisplev(xnew[:, 0], ynew[0, :], tck)
         cropped_inter_grid = interpolated_grid[border_size:-border_size, border_size:-border_size]
-        result = xp.unravel_index(cropped_inter_grid.argmax(), cropped_inter_grid.shape)
+        result = np.unravel_index(cropped_inter_grid.argmax(), cropped_inter_grid.shape)
 
         # Reset the coordinates to point to a place in the original data array
         result = ((float(result[0]) + border_size) / interpolate_factor + x_start,
