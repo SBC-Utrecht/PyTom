@@ -34,7 +34,7 @@ matplotlib.use('Qt5Agg')
 # math
 from pytom.reconstruction.reconstructionStructures import *
 from pytom.basic.files import *
-import scipy
+import scipy.ndimage
 import numpy as xp
 import random
 
@@ -379,13 +379,13 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
 
         # CTF dependent noise
         preNoise = tom_error(xp.zeros(projection.shape), 0, 0.5 / SNR * sigma)[0, :, :] # 0.5 / SNR * sigma
-        ctfNoise = xp.fft.fftn(xp.fft.ifftshift(preNoise)) * xp.real(ctf)
+        ctfNoise = xp.fft.fftn(xp.fft.ifftshift(preNoise)) * ctf
 
         # ctf independent contribution of noise
         # tom_bandpass(im, lo, hi, smooth)
         bg = tom_bandpass(preNoise, 0, 7, smooth=0.2 * size)
 
-        plot = True
+        plot = False
         if plot:
             fig, ax = subplots(1, 3, figsize=(12, 4))
             ax[0].imshow(preNoise)
@@ -406,7 +406,7 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
             show()
 
         out = mrcfile.new(
-            f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_model{modelID}_{n+1}.mrc',
+            f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_{n+1}.mrc',
             noisy.astype(xp.float32), overwrite=True)
         out.close()
 
@@ -1103,4 +1103,4 @@ if __name__ == '__main__':
         prefix  = os.path.join(outputFolder, f'model_{modelID}/noisyProjections/simulated_proj_')
         suffix  = '.mrc'
         vol_size = [sizeRecon, sizeRecon, sizeRecon]
-        reconstruct_tomogram(prefix, suffix, 13, 47, vol_size, angles, outputFolder, modelID, weighting=weighting)
+        reconstruct_tomogram(prefix, suffix, 1, 61, vol_size, angles, outputFolder, modelID, weighting=weighting)
