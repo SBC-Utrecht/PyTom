@@ -389,7 +389,7 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
         noisy = xp.real(xp.fft.ifftn(tmp))
 
         out = mrcfile.new(
-            f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_model{modelID}_{n+1}.mrc',
+            f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_{n+1}.mrc',
             noisy.astype(xp.float32), overwrite=True)
         out.close()
 
@@ -584,7 +584,7 @@ def addStructuralNoise(model, water=.94, th=1.3):
     a2[:, :] = model
     # noise = addNoise(dx*9//10, dz)
     # noise = noise[:dx,:dy,:dz]
-    noise = xp.normal(water, 0.05, (dx, dy, dz))
+    noise = xp.random.normal(water, 0.05, (dx, dy, dz))
 
     final = a2 + data5 * noise
     # final = xp.ones((128,128,128))
@@ -652,137 +652,146 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
 
     from voltools import transform
 
-    dims = []
-
-    #================================== binning
-
-    # factor = 10
-    # skipped = 0
-    # models = []
-    # for n, pdbid in enumerate(listpdbs):
-    #     if not os.path.exists('{}/{}_model.mrc'.format(outputFolder, pdbid)):
-    #         fname = generate_map(pdbid, n + skipped)
-    #     else:
-    #         fname = '{}/{}_model.mrc'.format(outputFolder, pdbid)
-    #         skipped += 1
-    #     if 1 or not os.path.exists('{}/{}_model_binned.mrc'.format(outputFolder, pdbid)):
-    #         m = read_mrc(fname)
-    #         size = max(m.shape)
-    #         m2 = xp.zeros((size, size, size))
-    #         dx, dy, dz = m.shape
-    #         sx, ex = (size - dx) // 2, size - int(ceil((size - dx) / 2.))
-    #         sy, ey = (size - dy) // 2, size - int(ceil((size - dy) / 2.))
-    #         sz, ez = (size - dz) // 2, size - int(ceil((size - dz) / 2.))
-    #         m2[sx:ex, sy:ey, sz:ez] = m
-    #         m_r = crop(m2, factor)
-    #         # print m_r.sum(), m2.sum(), m_r.max(), m2.max()
-    #         # m_str = addStructuralNoise(m_r,m_r.shape[0])
-    #         # print median(m_str[m_str > 1.]),median(m_r[m_r > 1.])
-    #         convert_xp_array3d_mrc(m_r, '{}/{}_model_binned.mrc'.format(outputFolder, pdbid))
-    #
-    #
-    #     else:
-    #         m_r = read_mrc('{}/{}_model_binned.mrc'.format(outputFolder, pdbid))
-    #
-    #     models.append(m_r)
-    #     dims.append(m_r.shape[0])
-
-    #==================================
-
+    # outputs
     X, Y, Z = size, size, thickness
     cell = xp.zeros((X, Y, Z))
 
-    mask = xp.zeros_like(cell)
+    occupancy_bbox_mask = xp.zeros_like(cell)
+    occupancy_accurate_mask = xp.zeros_like(cell)
+    class_bbox_mask = xp.zeros_like(cell)
+    class_accurate_mask = xp.zeros_like(cell)
+    ground_truth_txt_file = ''
 
+    # load pdb volumes and pad them
     volumes = []
     for i in range(len(listpdbs)):
         try:
             vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{listpdbs[i]}_model_binned.mrc')
-            dx,dy,dz = vol.shape
-            vol2 =xp.zeros((dx*2,dy*2, dz*2))
-            # print(dx, dy, dz, vol2.shape)
-            vol2[dx//2:-dx//2,dy//2:-dy//2,dz//2:-dz//2] = vol
+            dx, dy, dz = vol.shape
+            vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
+            vol2[dx//2:-dx//2, dy//2:-dy//2, dz//2:-dz//2] = vol
             volumes.append(vol2)
-            dims.append(vol2.shape[0])
-        except Exception as e:
-            print(e)
+        except Exception as ee:
+            print(ee)
             raise Exception('Could not open pdb ', listpdbs[i])
 
+    # attributes
+    number_of_classes = len(listpdbs)
+    save_path = f'{outputFolder}/model_{modelID}'
+    dims = [v.shape for v in volumes]
+    particles_by_class = [0, ] * number_of_classes
+    particle_nr = 1
 
-    total = [0, ] * len(volumes)
-    particleNr = 0
-    outline = ''
-    for i in range(numberOfParticles):
-        if i % 200 == 0:
-            print(i)
-        a = xp.random.randint(0, len(volumes))
-        q = rand_quat()
-        euler = euler_from_quat(q)
-        euler *= 180. / pi
-        mdl = transform(volumes[a], rotation=(float(euler[0]), float(euler[1]), float(euler[2])), rotation_order='szyx', interpolation='filt_bspline', device='cpu')
+    for _ in range(numberOfParticles):
 
-        # mdl_vol = rotate(volumes[a], float(euler[0]), x=float(euler[1]), z2=float(euler[2]))
-        # mdl = vol2npy(mdl_vol)
-        # mdl = rotate(models[a],randint(0,360),reshape=False)
+        # select random class
+        cls_id = xp.random.randint(0, number_of_classes)
 
-        xx, yy, zz = mdl.shape
+        # generate random rotation
+        # to be properly random, use uniform sphere sampling
+        # https://math.stackexchange.com/a/442423/72032
+        # https://en.wikipedia.org/wiki/Rotation_matrix#Uniform_random_rotation_matrices
+        # http://corysimon.github.io/articles/uniformdistn-on-sphere/
+        u = xp.random.uniform(0.0, 1.0, (2,))
+        theta = xp.arccos(2 * u[0] - 1)
+        phi = 2 * xp.pi * u[1]
+        psi = xp.random.uniform(0.0, 2 * xp.pi)
+        p_angles = xp.rad2deg([theta, phi, psi])
 
-        for i in range(900):
+        # rotate particle
+        rotated_particle = transform(volumes[cls_id], rotation=p_angles,
+                                     rotation_order='szyx', interpolation='filt_bspline', device='cpu')
+
+        # find random location for the particle
+        xx, yy, zz = rotated_particle.shape
+        tries_left = 900
+        while tries_left > 0:
             loc_x = xp.random.randint(xx // 2 + 1, X - xx // 2 - 1)
             loc_y = xp.random.randint(yy // 2 + 1, Y - yy // 2 - 1)
             loc_z = xp.random.randint(zz // 2 + 1, Z - zz // 2 - 1)
 
-            if mask[loc_x - dims[a] // 2:loc_x + dims[a] // 2 + dims[a] % 2,
-               loc_y - dims[a] // 2:loc_y + dims[a] // 2 + dims[a] % 2,
-               loc_z - dims[a] // 2:loc_z + dims[a] // 2 + dims[a] % 2].sum() == 0:
+            tries_left -= 1
+
+            # coordinates in masks and cell
+            bbox_x = [loc_x - dims[cls_id][0] // 2, loc_x + dims[cls_id][0] // 2 + dims[cls_id][0] % 2]
+            bbox_y = [loc_y - dims[cls_id][1] // 2, loc_y + dims[cls_id][1] // 2 + dims[cls_id][1] % 2]
+            bbox_z = [loc_z - dims[cls_id][2] // 2, loc_z + dims[cls_id][2] // 2 + dims[cls_id][2] % 2]
+
+            # if the location fits (occupancy bbox mask is empty), break the loop
+            if occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]].sum() == 0:
                 break
-        if i > 898:
+
+        # however if still can't fit, ignore this particle (also adds variance in how many particles are actually put)
+        if tries_left < 1:
+            print('900 tries were not enough, skipping a particle')
             continue
-        # print ('place particle {} at: {},{},{}'.format(particleNr,loc_x,loc_y,loc_z))
+        # debug show how many tries it took to place particle
+        # print(f'Took {900 - tries_left} tries to put particle nr {particle_nr}!')
 
-        mask[loc_x - dims[a] // 2:loc_x + dims[a] // 2 + dims[a] % 2,
-        loc_y - dims[a] // 2:loc_y + dims[a] // 2 + dims[a] % 2,
-        loc_z - dims[a] // 2:loc_z + dims[a] // 2 + dims[a] % 2] = (mdl > 0.01).astype(xp.float32)
+        # remove rotated particle artifacts
+        # threshold = min(volumes[cls_id][volumes[cls_id] > 0]) / 10
+        # the approach above doesn't work well with PDB particles, there are often voxels with values of ^-11
+        threshold = 0.001
+        rotated_particle[rotated_particle < threshold] = 0
 
-        cell[loc_x - dims[a] // 2:loc_x + dims[a] // 2 + dims[a] % 2,
-        loc_y - dims[a] // 2:loc_y + dims[a] // 2 + dims[a] % 2,
-        loc_z - dims[a] // 2:loc_z + dims[a] // 2 + dims[a] % 2] = mdl
+        # thresholded rotated particle
+        accurate_particle_occupancy = rotated_particle > 0
 
-        if xp.abs(size - loc_x) < size//2 and xp.abs(size - loc_y) < size//2:
-            outline += "{} {:4d} {:4d} {:4d} {:4.0f} {:4.0f} {:4.0f}\n".format(listpdbs[a], loc_x -size//2, loc_y - size//2,
-                                                                               loc_z, euler[0], euler[1],
-                                                                               euler[2])
+        # populate occupancy masks
+        occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = particle_nr
+        occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = \
+            accurate_particle_occupancy * particle_nr
 
-        particleNr += 1
+        # populate class masks
+        class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = cls_id
+        class_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = \
+            accurate_particle_occupancy * cls_id
 
-        total[a] += 1
+        # populate density volume
+        cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = rotated_particle
 
-    print(outline)
+        # update stats
+        particle_nr += 1
+        particles_by_class[cls_id] += 1
 
-    # Noise free model
-    pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/model_{modelID}_noisefree.mrc', cell)
+        # update text
+        ground_truth_txt_file += f'{listpdbs[cls_id]} {loc_x:.4f} {loc_y - 256:.4f} {loc_z - 256:.4f} ' \
+                                 f'{p_angles[0]:.4f} {p_angles[1]:.4f} {p_angles[2]:.4f}\n'
 
-    # Add water desnity with structural noise
-    cell = addStructuralNoise(cell, water=waterdensity, th=proteindensity)
+    # add water density and structural noise
+    noisy_cell = addStructuralNoise(cell, water=waterdensity, th=proteindensity)
 
-    # Grand model
-    pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/grandmodel_{modelID}.mrc', cell)
+    # save grandmodels
+    pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree.mrc', cell)
+    pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', noisy_cell)
 
-    # Cropped version
-    pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/model_{modelID}_cropped.mrc',
-                         cell[size // 4:-size // 4, size // 4:-size // 4, :])
+    # save class masks
+    pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', class_bbox_mask)
+    pytom.tompy.io.write(f'{save_path}/class_mask.mrc', class_accurate_mask)
 
-    # Save particle locations
-    outfile = open(f'{outputFolder}/model_{modelID}/particle_locations_model_{modelID}.txt', 'w')
-    try:
-        outfile.write(outline)
-    except Exception as e:
-        print(e)
-        raise Exception('Could not write to outfile.')
-    finally:
-        outfile.close()
+    # save occupancy masks
+    pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', occupancy_bbox_mask)
+    pytom.tompy.io.write(f'{save_path}/occupancy_mask.mrc', occupancy_accurate_mask)
 
-    return cell
+    # save particle text file
+    with open(f'{save_path}/particle_locations.txt', 'w') as f:
+        f.write(ground_truth_txt_file)
+
+    # reporting
+    print(f'\nTotal number of particles in the tomogram: {particle_nr - 1}\n'
+          f'Particles by class: {particles_by_class}\n')
+
+    # # debug: inspect all generated volumes
+    # import napari
+    # with napari.gui_qt():
+    #     viewer = napari.Viewer()
+    #     viewer.add_image(occupancy_bbox_mask, name='occupancy bbox mask', interpolation='bicubic')
+    #     viewer.add_image(occupancy_accurate_mask, name='occupancy accurate mask', interpolation='bicubic')
+    #     viewer.add_image(class_bbox_mask, name='class bbox mask', interpolation='bicubic')
+    #     viewer.add_image(class_accurate_mask, name='class accurate mask', interpolation='bicubic')
+    #     viewer.add_image(cell, name='cell', interpolation='bicubic')
+
+    return noisy_cell
 
 
 def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelSize=1e-9, voltage = 200e3,
@@ -915,7 +924,7 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
         # outproj = f'{outputFolder}/model_{modelID}/projections_grandmodel_{modelID}_angle_{angle}.em'
         # pytom.tompy.io.write(outproj, noisefree_projections[:,:,n])
 
-    pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/projections_noisefree_{modelID}.mrc',
+    pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/projections_noisefree.mrc',
                          noisefree_projections) # noisefree_projections.astype(xp.float32)?
 
     return
@@ -923,12 +932,12 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
 def add_effects_microscope(outputFolder, modelID, defocus, pixelsize, SNR, voltage, amplitude_contrast, Cs, sigma_decay_ctf):
 
     # TODO add try except for opening these files as I am not specifying paths
-    noisefree_projections = pytom.tompy.io.read_mrc(f'{outputFolder}/model_{modelID}/projections_noisefree_{modelID}.mrc')
+    noisefree_projections = pytom.tompy.io.read_mrc(f'{outputFolder}/model_{modelID}/projections_noisefree.mrc')
 
     projections = simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder=outputFolder, modelID=modelID,
                            voltage=voltage, amplitude_contrast=amplitude_contrast, Cs=Cs, sigma_decay_ctf=sigma_decay_ctf)
 
-    pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/projections_{modelID}.mrc', projections)
+    pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/projections.mrc', projections)
 
     return
 
@@ -940,7 +949,7 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, vol_size, angles, o
         p = Projection(prefix+str(i)+suffix,tiltAngle=angles[i-1])
         projections.append(p)
 
-    outputname = os.path.join(outputFolder, f'model_{modelID}/tomogram_model_{modelID}.em')
+    outputname = os.path.join(outputFolder, f'model_{modelID}/reconstruction.em')
 
     vol = projections.reconstructVolume( dims=vol_size, reconstructionPosition=[0,0,0], binning=1, applyWeighting=weighting)
     vol.write(outputname)
@@ -1078,7 +1087,7 @@ if __name__ == '__main__':
     # Reconstruct tomogram
     if 'ReconstructTomogram' in config.sections():
         print('Reconstructing tomogram')
-        prefix  = os.path.join(outputFolder, f'model_{modelID}/noisyProjections/simulated_proj_model{modelID}_')
+        prefix  = os.path.join(outputFolder, f'model_{modelID}/noisyProjections/simulated_proj_')
         suffix  = '.mrc'
         vol_size = [sizeRecon, sizeRecon, sizeRecon]
         reconstruct_tomogram(prefix, suffix, 13, 47, vol_size, angles, outputFolder, modelID, weighting=weighting)
