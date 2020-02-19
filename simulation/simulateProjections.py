@@ -25,6 +25,7 @@ import configparser
 import logging
 import os
 import mrcfile
+import datetime
 
 # Plotting
 import matplotlib
@@ -364,7 +365,13 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
         proj = noisefree_projections[:,:,n]
 
         # ctf dependent contribution of noise
-        # noisy = tom_error(proj, 0, 0.5 / SNR * sigma)[0, :, :] # 0.5 / SNR * sigma
+        # flux = 80 # electrons per square A
+        # flux_per_tilt = flux / 60 # electrons per square A per tilt
+        # flux_per_pixel = flux_per_tilt * 100
+        # projFlux = proj * flux_per_pixel
+        # noisy = xp.random.poisson(lam=(projFlux/SNR))
+        proj_fft = xp.fft.fftn(xp.fft.ifftshift(proj))
+        noisy = tom_error(proj_fft, 0, 0.5 / SNR * sigma)[0, :, :] # 0.5 / SNR * sigma
 
         print('noise added is samples from a standard normal distribution multiplied by sqrt( 0.5/SNR * sigma) = ',
               xp.sqrt(0.5/SNR*sigma))
@@ -384,9 +391,9 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
             show()
 
         # add both contributions (ratio 1:1) in Fourier space
-        tmp = xp.fft.fftshift(xp.fft.fftn(proj)) + xp.fft.fftshift(xp.fft.fftn(bg)) # = fftshift(fftn(noisy)) + fftshift(fftn(bg))
-        tmp = xp.fft.ifftshift(tmp * mask)
-        noisy = xp.real(xp.fft.ifftn(tmp))
+        tmp = noisy + xp.fft.fftn(xp.fft.ifftshift(bg)) # = fftshift(fftn(noisy)) + fftshift(fftn(bg))
+        tmp = tmp * xp.fft.ifftshift(mask)
+        noisy = xp.real(xp.fft.fftshift(xp.fft.ifftn(tmp)))
 
         out = mrcfile.new(
             f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_{n+1}.mrc',
@@ -791,15 +798,17 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
     #     viewer.add_image(class_accurate_mask, name='class accurate mask', interpolation='bicubic')
     #     viewer.add_image(cell, name='cell', interpolation='bicubic')
 
-    return noisy_cell
+    return
 
 
-def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelSize=1e-9, voltage = 200e3,
-                         sphericalAberration=2.7E-3, multislice=None, msdz=5e-9, heightBox=1200,
-                         amplitudeContrast=0.07, defocus=2, sigmaDecayCTF=0.4, rotate=True):
+def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, voltage = 200e3,
+                         sphericalAberration=2.7E-3, multislice=None, msdz=5e-9, amplitudeContrast=0.07, defocus=2,
+                         sigmaDecayCTF=0.4):
+
+    grandcell = pytom.tompy.io.read_mrc(f'{outputFolder}/model_{modelID}/rotations/rotated_volume_{0}.mrc')
 
     SIZE = grandcell.shape[0]
-    print('size of grandcell: ', SIZE)
+    heightBox = grandcell.shape[2]
 
     noisefree_projections = xp.zeros((SIZE//2, SIZE//2, len(angles)), dtype=float32)
 
@@ -886,9 +895,9 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
             for ii in range(n_slices-min(1,num_px_last_slice)):
                 #TODO ADD APPLICATION OF PYTOM.TOMPY
 
-                waveField = xp.fft.fftshift( xp.fft.fftn( psi_multislice * psi_t[:, :, ii] ) )
+                waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, ii]) )
 
-                psi_multislice = xp.fft.ifftn((waveField * P ))
+                psi_multislice = xp.fft.fftshift( xp.fft.ifftn((waveField * xp.fft.ifftshift(P) )) )
 
                 plot = False
                 if (not (ii % 10) and ii) and plot:
@@ -904,12 +913,12 @@ def generate_projections(grandcell, angles, outputFolder='./', modelID=0, pixelS
                 dzprop_end = num_px_last_slice * pixelSize
                 psi_t[:, :, -1] = xp.exp(1j * sig_transfer * projected_potent_ms[:, :, -1] * dzprop_end)
                 P_end = xp.exp(-1j * pi * Lambda * (q_m ** 2) * dzprop_end)
-                waveField = xp.fft.fftshift( xp.fft.fftn( psi_multislice * psi_t[:, :, -1] ) )
-                psi_multislice = xp.fft.ifftn( waveField * P_end )
+                waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, -1]) )
+                psi_multislice = xp.fft.fftshift( xp.fft.ifftn( waveField * xp.fft.ifftshift(P_end) ) )
 
             # GET INTENSITIES IN IMAGE PLANE
-            waveCTF = ctf * xp.fft.fftshift( xp.fft.fftn(psi_multislice) )
-            projected_tilt_image = xp.abs(xp.fft.ifftn(waveCTF)) ** 2
+            waveCTF = xp.fft.ifftshift(ctf) * xp.fft.fftn(xp.fft.ifftshift(psi_multislice) )
+            projected_tilt_image = xp.abs(xp.fft.fftshift(xp.fft.ifftn(waveCTF))) ** 2
 
             plot = False
             if plot:
@@ -946,6 +955,7 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, vol_size, angles, o
     projections = ProjectionList()
 
     for i in range(start_idx, end_idx+1):
+
         p = Projection(prefix+str(i)+suffix,tiltAngle=angles[i-1])
         projections.append(p)
 
@@ -1041,7 +1051,8 @@ if __name__ == '__main__':
     if os.path.exists(f'{outputFolder}/model_{modelID}/simulator.log'):
         os.remove(f'{outputFolder}/model_{modelID}/simulator.log')
 
-    logging.basicConfig(filename=f'{outputFolder}/model_{modelID}/simulator.log', level=logging.INFO)
+    logging.basicConfig(filename='{}/model_{}/simulator-{date:%Y-%m-%d_%H:%M:%S}.log'.format(outputFolder, modelID,
+                                                                                             date=datetime.datetime.now()), level=logging.INFO)
     config_logger = ConfigLogger(logging)
     config_logger(config)
 
@@ -1052,7 +1063,7 @@ if __name__ == '__main__':
         random.seed(SEED)
 
         print('Generating model')
-        grandcell = generate_model(particleFolder, outputFolder, modelID, listpdbs, size=size, thickness=thickness,
+        generate_model(particleFolder, outputFolder, modelID, listpdbs, size=size, thickness=thickness,
                                    waterdensity=waterdensity, proteindensity=proteindensity, numberOfParticles=numberOfParticles)
 
     if 'Rotation' in config.sections():
@@ -1069,10 +1080,9 @@ if __name__ == '__main__':
     # Generate or read noise-free projections
     if 'GenerateProjections' in config.sections():
         print('Simulating projections')
-        generate_projections(grandcell, angles, outputFolder=outputFolder, modelID=modelID,pixelSize=pixelSize,
+        generate_projections(angles, outputFolder=outputFolder, modelID=modelID,pixelSize=pixelSize,
                              voltage=voltage, sphericalAberration=sphericalAberration,multislice=multislice, msdz=msdz,
-                             heightBox=heightBox, amplitudeContrast=amplitudeContrast, defocus=defocus,
-                             sigmaDecayCTF=sigmaDecayCTF, rotate=rotate)
+                             amplitudeContrast=amplitudeContrast, defocus=defocus, sigmaDecayCTF=sigmaDecayCTF)
 
     # Add effects of the microscope to the noise-free projections
     if 'AddEffectsMicroscope' in config.sections():
