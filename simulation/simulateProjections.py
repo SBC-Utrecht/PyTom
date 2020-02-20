@@ -1092,4 +1092,4 @@ if __name__ == '__main__':
         prefix  = os.path.join(outputFolder, f'model_{modelID}/noisyProjections/simulated_proj_')
         suffix  = '.mrc'
         vol_size = [sizeRecon, sizeRecon, sizeRecon]
-        reconstruct_tomogram(prefix, suffix, 1, 61, vol_size, angles, outputFolder, modelID, weighting=weighting)
+        reconstruct_tomogram(prefix, suffix, 11, 51, vol_size, angles, outputFolder, modelID, weighting=weighting)
