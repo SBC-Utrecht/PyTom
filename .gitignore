@@ -7,18 +7,32 @@
 *.so.*
 *.o
 *.btr
-external/lib
-external/include
-external/lib64
-external/shared
-pytomc/swigModules/
+*.Plo
+*.Po
+
+# pycharm stuff
+.idea/
+
+# external stuff
+external/lib/
+external/include/
+external/lib64/
+external/shared/
+external/src/nfft-3.1.3/*
+external/src/mpi4py/
+external/share
+external/src/nfft-3.1.3/3rdparty/
+
+
+# pytomc compiled stuff
 bin/pytom
 bin/ipytom
 bin/paths.csh
-external/src/nfft-3.1.3
-external/src/mpi4py
-external/share
+bin/pytomGUI.py
+
+pytomc/swigModules/
 pytomc/nufft/mkswig.sh
+pytomc/sh_alignment/frm/swig/
 pytomc/sh_alignment/SpharmonicKit27/CONV_HYBRID_DISK
 pytomc/sh_alignment/SpharmonicKit27/CONV_HYBRID_MEMO
 pytomc/sh_alignment/SpharmonicKit27/CONV_SEMI_DISK
@@ -37,4 +51,6 @@ pytomc/sh_alignment/SpharmonicKit27/test_flt_hybrid
 pytomc/sh_alignment/SpharmonicKit27/test_naive
 pytomc/sh_alignment/SpharmonicKit27/test_semi
 pytomc/sh_alignment/SpharmonicKit27/test_stability_naive
+
+# compiled docs
 doc/epydoc/

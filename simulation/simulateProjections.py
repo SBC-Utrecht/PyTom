@@ -706,7 +706,7 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
 
         # find random location for the particle
         xx, yy, zz = rotated_particle.shape
-        tries_left = 900
+        tries_left = 1000
         while tries_left > 0:
             loc_x = xp.random.randint(xx // 2 + 1, X - xx // 2 - 1)
             loc_y = xp.random.randint(yy // 2 + 1, Y - yy // 2 - 1)
@@ -725,7 +725,7 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
 
         # however if still can't fit, ignore this particle (also adds variance in how many particles are actually put)
         if tries_left < 1:
-            print('900 tries were not enough, skipping a particle')
+            print('1000 tries were not enough, skipping a particle')
             continue
         # debug show how many tries it took to place particle
         # print(f'Took {900 - tries_left} tries to put particle nr {particle_nr}!')
@@ -745,9 +745,9 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
             accurate_particle_occupancy * particle_nr
 
         # populate class masks
-        class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = cls_id
+        class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = (cls_id + 1)
         class_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = \
-            accurate_particle_occupancy * cls_id
+            accurate_particle_occupancy * (cls_id + 1)
 
         # populate density volume
         cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = rotated_particle
