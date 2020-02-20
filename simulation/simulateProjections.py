@@ -363,7 +363,7 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
 
     projections = xp.zeros((size, size, n_images), dtype=xp.float32)
 
-    print('noise added is samples from a standard normal distribution multiplied by sqrt( 0.5/SNR * sigma) = ',
+    print('noise will be scaled to sqrt( 0.5/SNR * sigma) = ',
           xp.sqrt(0.5 / SNR * sigma))
 
     for n in range(n_images):
@@ -379,17 +379,17 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
 
         # CTF dependent noise
         preNoise = tom_error(xp.zeros(projection.shape), 0, 0.5 / SNR * sigma)[0, :, :] # 0.5 / SNR * sigma
-        ctfNoise = xp.fft.fftn(xp.fft.ifftshift(preNoise)) * ctf
+        ctfNoise = xp.fft.fftn(preNoise) * xp.fft.ifftshift(ctf) # for preNoise the ifftshift will have no effect
 
         # ctf independent contribution of noise
-        # tom_bandpass(im, lo, hi, smooth)
+        # tom_bandpass(im, lo hi, smooth) ---> hi = 7 gives good results
         bg = tom_bandpass(preNoise, 0, 7, smooth=0.2 * size)
 
         plot = False
         if plot:
             fig, ax = subplots(1, 3, figsize=(12, 4))
             ax[0].imshow(preNoise)
-            ax[1].imshow(xp.real(ctf))
+            ax[1].imshow(xp.abs(xp.fft.fftshift(xp.fft.ifftn(ctfNoise))))
             ax[2].imshow(bg)
             show()
 
@@ -412,14 +412,6 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
 
         projections[:,:,n] = noisy
 
-    # sys.exit()
-
-    # simtomo =  fourier_2d1d_iter_reconstruct(projections, list(range(tiltrange[0],tiltrange[1]+1,tiltincr)), iter)
-    # simtomo =  fourier_2d1d_iter_reconstruct(nfp, list(range(tiltrange[0],tiltrange[1]+1,tiltincr)), iter)
-    # normalize to stdv
-    # [mnv, maxv, minv, stv, dummy] = tom_dev(simtomo)
-    # simtomo = (simtomo-mnv)/stv
-    # return simtomo
     return projections
 
 
@@ -932,9 +924,6 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
                 show()
 
         noisefree_projections[:,:,n] = projected_tilt_image[SIZE//4:-SIZE//4, SIZE//4:-SIZE//4]
-
-        # outproj = f'{outputFolder}/model_{modelID}/projections_grandmodel_{modelID}_angle_{angle}.em'
-        # pytom.tompy.io.write(outproj, noisefree_projections[:,:,n])
 
     pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/projections_noisefree.mrc',
                          noisefree_projections) # noisefree_projections.astype(xp.float32)?
