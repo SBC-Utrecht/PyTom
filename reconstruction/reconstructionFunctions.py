@@ -89,7 +89,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
                            voldims=None, recCent=[0,0,0], tiltSeriesFormat='st', firstProj=1, irefmark=1, ireftilt=1,
                            handflip=False, alignedTiltSeriesName='align/myTilt', weightingType=-1,
                            lowpassFilter=1., projBinning=1, outMarkerFileName=None, verbose=False, outfile='',
-                           write_images=True):
+                           write_images=True, shift_markers=True):
     """
     @param tiltSeriesName: Name of tilt series (set of image files in .em or .mrc format) or stack file (ending '.st').\
     Note: the actual file ending should NOT be provided.
@@ -140,6 +140,8 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
     @author: FF
     """
     from pytom.reconstruction.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
+    from pytom.gui.guiFunctions import savestar, headerMarkerResults, fmtMR
+    import numpy
 
     if not alignResultFile:
         if verbose:
@@ -167,7 +169,8 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
                                     verbose=False)
         else:
             if verbose:
-                print(" EM markerfile file used for alignment")
+                format = markerFileName.split('.')[-1].upper()
+                print(f"{format} markerfile file used for alignment")
             tiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName, TiltAlignmentParas=tiltParas,
                                     alignedTiltSeriesName=alignedTiltSeriesName,
                                     markerFileName=markerFileName, firstProj=firstProj, lastProj=lastProj,
@@ -179,9 +182,40 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
             tiltSeries.writeMarkerFile(markerFileName=outMarkerFileName)
             tiltSeries._markerFileName = outMarkerFileName
         tiltAlignment.resetAlignmentCenter()  # overrule cent in Paras
-        print(outfile)
-        tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute, outfile=outfile)
-        tiltAlignment.alignFromFiducials(mute=mute)
+
+        tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute, optimizeShift=shift_markers)
+        tiltAlignment.alignFromFiducials(mute=mute, shift_markers=shift_markers)
+
+        values = []
+
+
+
+
+        if outfile:
+            ireftilt = numpy.argwhere( tiltAlignment._projIndices.astype(int) == tiltSeries._TiltAlignmentParas.ireftilt)[0][0]
+            ref = tiltAlignment._Markers[tiltSeries._TiltAlignmentParas.irefmark].get_r()
+            for i in tiltAlignment._projIndices.astype(int):
+                print("{:3.0f} {:6.0f} {:6.0f} {:6.0f} {:6.0f}".format(tiltAlignment._tiltAngles[i],
+                      tiltAlignment._Markers[tiltSeries._TiltAlignmentParas.irefmark].xProj[i],
+                      tiltAlignment._Markers[tiltSeries._TiltAlignmentParas.irefmark].yProj[i],
+                      tiltSeries._ProjectionList[int(i)]._alignmentTransX,
+                      tiltSeries._ProjectionList[int(i)]._alignmentTransY))
+
+            xx = tiltAlignment._Markers[tiltSeries._TiltAlignmentParas.irefmark].xProj[ireftilt]
+            yy = tiltAlignment._Markers[tiltSeries._TiltAlignmentParas.irefmark].yProj[ireftilt]
+            zz = float(tiltSeries._imdim//2 +1)
+
+
+
+            for (imark, Marker) in enumerate(tiltAlignment._Markers):
+                # reference marker irefmark is fixed to standard value
+                r = Marker.get_r()
+                values.append([imark, r[0]-ref[0], r[1]-ref[1], r[2]-ref[2],
+                               xx+r[0]-ref[0], yy+r[1]-ref[1], zz+r[2]-ref[2]])
+
+            savestar(outfile, numpy.array(values), header=headerMarkerResults, fmt=fmtMR)
+
+
         # creating dir for aligned tilt series if default filename
         if alignedTiltSeriesName == 'align/myTilt':
             from os import mkdir
