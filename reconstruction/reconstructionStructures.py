@@ -513,7 +513,8 @@ class ProjectionList(PyTomClass):
                                                      showProgressBar=False,
                                                      verbose=False, num_procs=num_procs)
         else:
-            resultProjstack = self.toProjectionStackFromAlignmentResultsFile(alignResultFile, weighting=applyWeighting,
+            from pytom.reconstruction.reconstructionFunctions import toProjectionStackFromAlignmentResultsFile
+            resultProjstack = toProjectionStackFromAlignmentResultsFile(alignResultFile, weighting=applyWeighting,
                                                                              num_procs=num_procs, binning=binning,
                                                                              circleFilter=True)
         # if verbose: return

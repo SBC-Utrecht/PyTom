@@ -7,7 +7,7 @@ from pytom.tompy.filter import gaussian3d
 from numpy.random import standard_normal
 
 
-def create_sphere(size, radius=-1, sigma=0, center=None, gpu=False):
+def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False):
     """Create a 3D sphere volume.
 
     @param size: size of the resulting volume.
@@ -24,9 +24,9 @@ def create_sphere(size, radius=-1, sigma=0, center=None, gpu=False):
     assert len(size) == 3
 
     if center is None:
-        center = [size[0]/2, size[1]/2, size[2]/2]
+        center = [size[0]//2, size[1]//2, size[2]//2]
     if radius == -1:
-        radius = xp.min(size)/2
+        radius = xp.min(size)//2
 
     sphere = xp.zeros(size)
     [x,y,z] = xp.mgrid[0:size[0], 0:size[1], 0:size[2]]
@@ -34,11 +34,42 @@ def create_sphere(size, radius=-1, sigma=0, center=None, gpu=False):
     sphere[r<=radius] = 1
 
     if sigma > 0:
-        ind = xp.logical_and(r>radius, r<radius+2*sigma)
+        ind = xp.logical_and(r>radius, r<radius+num_sigma*sigma)
         sphere[ind] = xp.exp(-((r[ind] - radius)/sigma)**2/2)
 
-
     return sphere
+
+def create_circle(size, radius=-1, sigma=0, num_sigma=3, center=None):
+    """Create a 3D sphere volume.
+
+    @param size: size of the resulting volume.
+    @param radius: radius of the sphere inside the volume.
+    @param sigma: sigma of the Gaussian.
+    @param center: center of the sphere.
+
+    @return: sphere inside a volume.
+    """
+
+
+    if len(size) == 1:
+        size = (size, size)
+    assert len(size) == 2
+
+    if center is None:
+        center = [size[0]//2, size[1]//2]
+    if radius == -1:
+        radius = xp.min(size)//2
+
+    circle = xp.zeros(size)
+    [x,y] = xp.mgrid[0:size[0], 0:size[1]]
+    r = xp.sqrt((x-center[0])**2+(y-center[1])**2)
+    circle[r<=radius] = 1
+
+    if sigma > 0:
+        ind = xp.logical_and(r>radius, r<=radius+num_sigma*sigma)
+        circle[ind] = xp.exp(-((r[ind] - radius)/sigma)**2/2)
+
+    return circle
 
 
 def prepare_mask(v, threshold, smooth):
@@ -200,4 +231,39 @@ def rotation_distance(ang1, ang2):
 def euclidian_distance(pos1, pos2):
     return xp.linalg.norm(xp.array(pos1)-xp.array(pos2))
 
+
+def taper_edges(image, width):
+    """
+    taper edges of image (or volume) with cos function
+
+    @param image: input image (or volume)
+    @type image: ndarray
+    @param width: width of edge
+    @type width: int
+
+    @return: image with smoothened edges, taper_mask
+    @rtype: array-like
+
+    @author: GvdS
+    """
+
+    dims = list(image.shape) + [0]
+    val = xp.cos(xp.arange(1, width + 1) * xp.pi / (2. * (width)))
+    taperX = xp.ones((dims[0]), dtype=xp.float32)
+    taperY = xp.ones((dims[1]))
+    taperX[:width] = val[::-1]
+    taperX[-width:] = val
+    taperY[:width] = val[::-1]
+    taperY[-width:] = val
+    if dims[2] > 1:
+        taperZ = xp.ones((dims[2]))
+        taperZ[:width] = val[::-1]
+        taperZ[-width:] = val
+        Z, X, Y = xp.meshgrid(taperX, taperY, taperZ)
+        taper_mask = X * (X < Y) * (X < Z) + Y * (Y <= X) * (Y < Z) + Z * (Z <= Y) * (Z <= X)
+    else:
+        X, Y = xp.meshgrid(taperX, taperY)
+        taper_mask = X * (X < Y) + Y * (Y <= X)
+
+    return image * taper_mask, taper_mask
 
