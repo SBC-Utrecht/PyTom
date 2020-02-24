@@ -43,7 +43,7 @@ def bandpass(v, low=0, high=-1, sigma=0):
     else:
         # BUG! TODO
         # the sigma
-        mask = create_sphere(v.shape, high, sigma) - create_sphere(v.shape, low, sigma)
+        mask = create_sphere(v.shape, high, sigma) - create_sphere(v.shape, max(0,low-sigma*2), sigma)
 
     from pytom.tompy.transform import fourier_filter
 
@@ -375,3 +375,74 @@ def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, s
 
     wedge[r > cutoffRadius] = 0
     return wedge
+
+def circle_filter(sizeX, sizeY, radiusCutoff):
+    """
+    circleFilter: NEEDS Documentation
+    @param sizeX: NEEDS Documentation
+    @param sizeY: NEEDS Documentation
+    @param radiusCutoff: NEEDS Documentation
+    """
+    X, Y = xp.meshgrid(xp.arange(-sizeX//2 + sizeX%2, sizeX//2+sizeX%2), xp.arange(-sizeY//2+sizeY%2, sizeY//2+sizeY%2))
+    R = xp.sqrt(X**2 + Y**2)
+
+    filter = xp.zeros((sizeX, sizeY), dtype=xp.float32)
+    filter[R <= radiusCutoff] = 1
+
+    return filter
+
+def ramp_filter(sizeX, sizeY, crowtherFreq=None):
+    """
+    rampFilter: Generates the weighting function required for weighted backprojection - y-axis is tilt axis
+
+    @param sizeX: size of weighted image in X
+    @param sizeY: size of weighted image in Y
+    @param crowtherFreq: size of weighted image in Y
+    @return: filter volume
+
+    """
+
+
+    if crowtherFreq is None: crowtherFreq = sizeX//2
+    rampLine = xp.abs(xp.arange(-sizeX//2, sizeX//2)) / crowtherFreq
+    rampLine[rampLine > 1] = 1
+    rampfilter = xp.row_stack(([(rampLine), ] * (sizeY)))
+
+    return rampfilter
+
+
+def exact_filter(tilt_angles, tiltAngle, sX, sY, sliceWidth=1, arr=[]):
+    """
+    exactFilter: Generates the exact weighting function required for weighted backprojection - y-axis is tilt axis
+    Reference : Optik, Exact filters for general geometry three dimensional reconstuction, vol.73,146,1986.
+    @param tilt_angles: list of all the tilt angles in one tilt series
+    @param titlAngle: tilt angle for which the exact weighting function is calculated
+    @param sizeX: size of weighted image in X
+    @param sizeY: size of weighted image in Y
+
+    @return: filter volume
+
+    """
+    import numpy as xp
+
+    # Calculate the relative angles in radians.
+    diffAngles = (xp.array(tilt_angles) - tiltAngle) * xp.pi / 180.
+
+    # Closest angle to tiltAngle (but not tiltAngle) sets the maximal frequency of overlap (Crowther's frequency).
+    # Weights only need to be calculated up to this frequency.
+    sampling = xp.min(xp.abs(diffAngles)[xp.abs(diffAngles) > 0.001])
+
+    crowtherFreq = min(sX // 2, xp.int32(xp.ceil(sliceWidth / xp.sin(sampling))))
+    arrCrowther = xp.matrix(xp.abs(xp.arange(-crowtherFreq, min(sX // 2, crowtherFreq + 1))))
+
+    # Calculate weights
+    wfuncCrowther = 1. / (xp.clip(1 - xp.array(xp.matrix(xp.abs(xp.sin(diffAngles))).T * arrCrowther) ** 2, 0, 2)).sum(axis=0)
+
+    # Create full with weightFunc
+    wfunc = xp.ones((sX, sY), dtype=xp.float32)
+
+    weightingFunc = xp.row_stack( ([(wfuncCrowther), ] * (sY) ))
+
+    wfunc[:, sX // 2 - crowtherFreq:sX // 2 + min(sX // 2, crowtherFreq + 1)] = weightingFunc
+
+    return wfunc
