@@ -977,6 +977,45 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, vol_size, angles, o
 
     return
 
+def rotate_model(volume, outname, angle):
+    print(f'Starting rotation process for angle {angle}')
+    # volume = pytom.tompy.io.read_mrc(filename)
+    from voltools import transform
+    rotated_volume = transform(volume, rotation=(angle, 0, 0), rotation_order='sxyz', interpolation='filt_bspline', device='cpu')
+    pytom.tompy.io.write(outname, rotated_volume)
+    print(f'Process for angle {angle} is finished ({outname})')
+
+def create_rotation_model(outputFolder, modelID):
+
+    # Load grandmodel
+    save_path = f'{outputFolder}/model_{modelID}'
+    if os.path.exists(f'{save_path}/grandmodel.mrc'):
+        grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
+    else:
+        raise Exception(f'create_rotation_model expects grandmodel be created before ({save_path}/grandmodel.mrc)')
+
+    print(f'Successfully loaded grandcell (shape: {grandcell.shape})')
+
+    size = grandcell.shape[0]
+    height = grandcell.shape[2]
+    if grandcell.shape[2] >= heightBox:
+        raise Exception('Your model is larger than than the box that we will rotate (heightBox parameter)')
+
+    volume = xp.zeros((size, size, heightBox), dtype=xp.float32)
+    offset = (heightBox - height) // 2
+
+    if (heightBox - height) % 2:
+        volume[:, :, offset + 1:-offset] = grandcell[:, :, :]
+    else:
+        volume[:, :, offset:-offset] = grandcell[:, :, :]
+
+    dir = f'{save_path}/rotations'
+    filename = f'{dir}/rotated_volume_0.mrc'
+    pytom.tompy.io.write(filename, volume)
+
+    print(f'Saved initial rotation volume at {filename}')
+    return filename
+
 if __name__ == '__main__':
 
     # Read config
@@ -1012,6 +1051,8 @@ if __name__ == '__main__':
         # pixelSize = metadata['PixelSpacing'][0] * 1E-9 # pixel size in nm
         pixelSize = 1E-9
         sigmaDecayCTF = float(config['General']['SigmaDecayCTF'])
+
+        print(f'Generating model {modelID} in folder {outputFolder}')
     except Exception as e:
         print(e)
         raise Exception('No general parameters specified in the config file.')
@@ -1081,25 +1122,55 @@ if __name__ == '__main__':
         xp.random.seed(seed)
         random.seed(seed)
 
-        print('\nGenerating grand model')
+        print('\n- Generating grand model')
         generate_model(particleFolder, outputFolder, modelID, listpdbs, size=size, thickness=thickness,
-                                   waterdensity=waterdensity, proteindensity=proteindensity, numberOfParticles=numberOfParticles)
+                       waterdensity=waterdensity, proteindensity=proteindensity, numberOfParticles=numberOfParticles)
 
     # Generated rotated grand model versions
     if 'Rotation' in config.sections():
-        print(f'\nRotating model with {nodes} MPI processes')
+        print(f'\n- Rotating model')
+
+        # If needed, creating rotations directory, removing leftover initial rotation volume
         dir = f'{outputFolder}/model_{modelID}/rotations'
         if not (os.path.exists(dir)):
             os.mkdir(dir)
         filename = f'{dir}/rotated_volume_0.mrc'
         if os.path.exists(filename):
-            print(f'rotated volume 0 ({filename}) exists, so remove it...')
+            print(f'Found leftover rotated volume 0, removing it (path: {filename}')
             os.remove(filename)
-        os.system(f'mpiexec -n {nodes} pytom rotateMPI.py')
+
+        #  Create initial rotation volume (0 degree rotation)
+        filename = create_rotation_model(outputFolder, modelID)
+
+        # parallel rotate
+        from joblib import Parallel, delayed
+        verbosity = 11 # set to 55 for debugging
+
+        # joblib automatically memory maps a numpy array to child processes
+        volume = pytom.tompy.io.read_mrc(filename)
+        par_params = []
+        for ang in angles:
+            if ang == 0.:
+                continue
+            par_params.append((volume, f'{dir}/rotated_volume_{int(ang)}.mrc', ang))
+
+        # old style, passing filename and letting child load volume itself
+        # angles2 = list(angles.copy())
+        # angles2.remove(0.)
+        #
+        # par_params = []
+        # for ang in angles2:
+        #     outfilename = f'{dir}/rotated_volume_{int(ang)}.mrc'
+        #     par_params.append((filename, outfilename, ang))
+
+        print(f'Rotating the model with {nodes} processes')
+        results = Parallel(n_jobs=nodes, verbose=verbosity)(delayed(rotate_model)(*params) for params in par_params)
+
+        print(f'Done rotating the model {results}')
 
     # Generate noise-free projections
     if 'GenerateProjections' in config.sections():
-        print('\nGenerating projections')
+        print('\n- Generating projections')
         generate_projections(angles, outputFolder=outputFolder, modelID=modelID,pixelSize=pixelSize,
                              voltage=voltage, sphericalAberration=sphericalAberration,multislice=multislice, msdz=msdz,
                              amplitudeContrast=amplitudeContrast, defocus=defocus, sigmaDecayCTF=sigmaDecayCTF)
@@ -1110,13 +1181,13 @@ if __name__ == '__main__':
         xp.random.seed(seed)
         random.seed(seed)
 
-        print('\nAdding effects of microscope')
+        print('\n- Adding effects of microscope')
         add_effects_microscope(outputFolder, modelID, defocus, pixelSize, SNR, voltage, amplitudeContrast,
                                sphericalAberration, sigmaDecayCTF)
 
     # Reconstruct tomogram
     if 'ReconstructTomogram' in config.sections():
-        print('\nReconstructing tomogram')
+        print('\n- Reconstructing tomogram')
         prefix = os.path.join(outputFolder, f'model_{modelID}/noisyProjections/simulated_proj_')
         suffix = '.mrc'
         vol_size = [sizeRecon, sizeRecon, sizeRecon]
