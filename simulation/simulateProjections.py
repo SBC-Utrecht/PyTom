@@ -25,11 +25,13 @@ import logging
 import os
 import mrcfile
 import datetime
+import sys
+from tqdm import tqdm
 
 # Plotting
-import matplotlib
-from pylab import *
-matplotlib.use('Qt5Agg')
+#import matplotlib
+#from pylab import *
+#matplotlib.use('Qt5Agg')
 
 # math
 from pytom.reconstruction.reconstructionStructures import *
@@ -39,7 +41,7 @@ import numpy as xp
 import random
 
 phys_const_dict = {
-    # Dictionary of physical constants rquired for calculation.
+    # Dictionary of physical constants required for calculation.
     "c": 299792458, # m/s
     "el": 1.60217646e-19, # C
     "h": 6.62606896e-34, # J*S
@@ -596,7 +598,7 @@ def addStructuralNoise(model, water=.94, th=1.3):
     # imshow(final[64,:,:],cmap='binary')
     # imshow(final.sum(axis=0))
     # show()
-    print(xp.median(noise[final > th]))
+    # print(xp.median(noise[final > th]))
     return final
 
 
@@ -683,8 +685,11 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
     dims = [v.shape for v in volumes]
     particles_by_class = [0, ] * number_of_classes
     particle_nr = 1
+    default_tries_left = 5000
+    particle_field_size = (512, 512) # TODO how large is the actual
+    skipped_particles = 0
 
-    for _ in range(numberOfParticles):
+    for _ in tqdm(range(numberOfParticles), desc='Placing particles'):
 
         # select random class
         cls_id = xp.random.randint(0, number_of_classes)
@@ -701,36 +706,15 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
         p_angles = xp.rad2deg([theta, phi, psi])
 
         # rotate particle
-        rotated_particle = transform(volumes[cls_id], rotation=p_angles,
-                                     rotation_order='szyx', interpolation='filt_bspline', device='cpu')
-
-        # find random location for the particle
-        xx, yy, zz = rotated_particle.shape
-        tries_left = 1000
-        while tries_left > 0:
-            loc_x = xp.random.randint(xx // 2 + 1, X - xx // 2 - 1)
-            loc_y = xp.random.randint(yy // 2 + 1, Y - yy // 2 - 1)
-            loc_z = xp.random.randint(zz // 2 + 1, Z - zz // 2 - 1)
-
-            tries_left -= 1
-
-            # coordinates in masks and cell
-            bbox_x = [loc_x - dims[cls_id][0] // 2, loc_x + dims[cls_id][0] // 2 + dims[cls_id][0] % 2]
-            bbox_y = [loc_y - dims[cls_id][1] // 2, loc_y + dims[cls_id][1] // 2 + dims[cls_id][1] % 2]
-            bbox_z = [loc_z - dims[cls_id][2] // 2, loc_z + dims[cls_id][2] // 2 + dims[cls_id][2] % 2]
-
-            # if the location fits (occupancy bbox mask is empty), break the loop
-            if occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]].sum() == 0:
-                break
-
-        # however if still can't fit, ignore this particle (also adds variance in how many particles are actually put)
-        if tries_left < 1:
-            print('1000 tries were not enough, skipping a particle')
+        try:
+            rotated_particle = transform(volumes[cls_id], rotation=p_angles,
+                                         rotation_order='szyx', interpolation='filt_bspline', device='cpu')
+        except Exception as e:
+            print(e)
+            print('Something went wrong while rotating?')
             continue
-        # debug show how many tries it took to place particle
-        # print(f'Took {900 - tries_left} tries to put particle nr {particle_nr}!')
 
-        # remove rotated particle artifacts
+        # remove particle rotation artifacts
         # threshold = min(volumes[cls_id][volumes[cls_id] > 0]) / 10
         # the approach above doesn't work well with PDB particles, there are often voxels with values of ^-11
         threshold = 0.001
@@ -739,7 +723,35 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
         # thresholded rotated particle
         accurate_particle_occupancy = rotated_particle > 0
 
-        # populate occupancy masks
+        # find random location for the particle
+        xx, yy, zz = rotated_particle.shape
+        tries_left = default_tries_left
+        while tries_left > 0:
+            loc_x = xp.random.randint(xx // 2 + 1, X - xx // 2 - 1)
+            loc_y = xp.random.randint(yy // 2 + 1, Y - yy // 2 - 1)
+            loc_z = xp.random.randint(zz // 2 + 1, Z - zz // 2 - 1)
+
+            tries_left -= 1
+
+            # calculate coordinates of bbox for the newly rotated particle
+            bbox_x = [loc_x - dims[cls_id][0] // 2, loc_x + dims[cls_id][0] // 2 + dims[cls_id][0] % 2]
+            bbox_y = [loc_y - dims[cls_id][1] // 2, loc_y + dims[cls_id][1] // 2 + dims[cls_id][1] % 2]
+            bbox_z = [loc_z - dims[cls_id][2] // 2, loc_z + dims[cls_id][2] // 2 + dims[cls_id][2] % 2]
+
+            # find mask for the particle in entire grandvolume
+            # location_mask = np.zeros_like(cell)
+
+
+            # if the location fits (occupancy pixel-wise mask is empty), break the loop
+            if occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]].sum() == 0:
+                break
+
+        # however if still can't fit, ignore this particle (also adds variance in how many particles are actually put)
+        if tries_left < 1:
+            skipped_particles += 1
+            continue
+
+        # populate occupancy volumes
         occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = particle_nr
         occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = \
             accurate_particle_occupancy * particle_nr
@@ -761,17 +773,21 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
                                  f'{p_angles[0]:.4f} {p_angles[1]:.4f} {p_angles[2]:.4f}\n'
 
     # add water density and structural noise
+    print('Adding water and structural noise')
     noisy_cell = addStructuralNoise(cell, water=waterdensity, th=proteindensity)
 
     # save grandmodels
+    print('Saving grandmodels')
     pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree.mrc', cell)
     pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', noisy_cell)
 
     # save class masks
+    print('Saving class volumes')
     pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', class_bbox_mask)
     pytom.tompy.io.write(f'{save_path}/class_mask.mrc', class_accurate_mask)
 
     # save occupancy masks
+    print('Saving occupancy volumes')
     pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', occupancy_bbox_mask)
     pytom.tompy.io.write(f'{save_path}/occupancy_mask.mrc', occupancy_accurate_mask)
 
@@ -780,8 +796,9 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
         f.write(ground_truth_txt_file)
 
     # reporting
-    print(f'\nTotal number of particles in the tomogram: {particle_nr - 1}\n'
-          f'Particles by class: {particles_by_class}\n')
+    print(f'Total number of particles in the tomogram: {particle_nr - 1}\n'
+          f'Skipped {skipped_particles} particles ({default_tries_left} random location retries)\n'
+          f'Particles by class: {particles_by_class}')
 
     # # debug: inspect all generated volumes
     # import napari
@@ -953,28 +970,37 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, vol_size, angles, o
 
     outputname = os.path.join(outputFolder, f'model_{modelID}/reconstruction.em')
 
-    vol = projections.reconstructVolume( dims=vol_size, reconstructionPosition=[0,0,0], binning=1, applyWeighting=weighting)
+    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=1, applyWeighting=weighting)
     vol.write(outputname)
-    os.system('em2mrc.py -f {} -t {}'.format(outputname, os.path.dirname(outputname)) ) 
+    os.system(f'em2mrc.py -f {outputname} -t {os.path.dirname(outputname)}')
     os.system(f'rm {outputname}')
 
     return
 
 if __name__ == '__main__':
 
+    # Read config
     config = configparser.ConfigParser()
     try:
-        config.read_file(open('simulation.conf'))
+        if len(sys.argv) > 1:
+            config_given = sys.argv[1]
+            if config_given and os.path.exists(config_given):
+                print(f'\nLoading a given configuration file: {config_given}')
+                config.read_file(open(config_given))
+        else:
+            print(f'\nLoading default configuration file: pytom/simulation/simulation.conf')
+            config.read_file(open('simulation.conf'))
     except Exception as e:
         print(e)
         raise Exception('Could not open config file.')
 
-    print(config.sections())
+    print('Configuration sections:', config.sections())
 
+    # Set simulation parameters
     try:
         outputFolder = config['General']['OutputFolder']
         modelID = int(config['General']['ModelID'])
-        SEED = int(config['General']['Seed'])
+        seed = int(config['General']['Seed'])
 
         # meta file
         metadata = loadstar(config['General']['MetaFile'], dtype=datatype)
@@ -1029,14 +1055,15 @@ if __name__ == '__main__':
 
     if 'ReconstructTomogram' in config.sections():
         try:
-            # start = int(config['ReconstructTomogram']['StartIdx'])
-            # end = int(config['ReconstructTomogram']['EndIdx'])
+            start = int(config['ReconstructTomogram']['StartIdx'])
+            end = int(config['ReconstructTomogram']['EndIdx'])
             weighting = int(config['ReconstructTomogram']['Weighting'])
             sizeRecon = int(config['ReconstructTomogram']['SizeRecon'])
         except Exception as e:
             print(e)
             raise Exception('Missing reconstruct tomogram parameters.')
 
+    # Create directories and logger
     if not os.path.exists(os.path.join(outputFolder, f'model_{modelID}')):
         os.mkdir(os.path.join(outputFolder, f'model_{modelID}'))
 
@@ -1048,48 +1075,49 @@ if __name__ == '__main__':
     config_logger = ConfigLogger(logging)
     config_logger(config)
 
-    # Generate or read a grand model
+    # Generate a grand model
     if 'GenerateModel' in config.sections():
-        # SET SEED for random number generation
-        xp.random.seed(SEED)
-        random.seed(SEED)
+        # set seed for random number generation
+        xp.random.seed(seed)
+        random.seed(seed)
 
-        print('Generating model')
+        print('\nGenerating grand model')
         generate_model(particleFolder, outputFolder, modelID, listpdbs, size=size, thickness=thickness,
                                    waterdensity=waterdensity, proteindensity=proteindensity, numberOfParticles=numberOfParticles)
 
+    # Generated rotated grand model versions
     if 'Rotation' in config.sections():
-        print('Rotating model with ', nodes, ' nodes')
+        print(f'\nRotating model with {nodes} MPI processes')
         dir = f'{outputFolder}/model_{modelID}/rotations'
         if not (os.path.exists(dir)):
             os.mkdir(dir)
         filename = f'{dir}/rotated_volume_0.mrc'
         if os.path.exists(filename):
-            print('rotated volume 0 exists, so remove it...')
+            print(f'rotated volume 0 ({filename}) exists, so remove it...')
             os.remove(filename)
         os.system(f'mpiexec -n {nodes} pytom rotateMPI.py')
 
-    # Generate or read noise-free projections
+    # Generate noise-free projections
     if 'GenerateProjections' in config.sections():
-        print('Simulating projections')
+        print('\nGenerating projections')
         generate_projections(angles, outputFolder=outputFolder, modelID=modelID,pixelSize=pixelSize,
                              voltage=voltage, sphericalAberration=sphericalAberration,multislice=multislice, msdz=msdz,
                              amplitudeContrast=amplitudeContrast, defocus=defocus, sigmaDecayCTF=sigmaDecayCTF)
 
     # Add effects of the microscope to the noise-free projections
     if 'AddEffectsMicroscope' in config.sections():
-        # SET SEED for random number generation
-        xp.random.seed(SEED)
-        random.seed(SEED)
+        # set seed for random number generation
+        xp.random.seed(seed)
+        random.seed(seed)
 
-        print('Adding effects of microscope')
+        print('\nAdding effects of microscope')
         add_effects_microscope(outputFolder, modelID, defocus, pixelSize, SNR, voltage, amplitudeContrast,
                                sphericalAberration, sigmaDecayCTF)
 
     # Reconstruct tomogram
     if 'ReconstructTomogram' in config.sections():
-        print('Reconstructing tomogram')
-        prefix  = os.path.join(outputFolder, f'model_{modelID}/noisyProjections/simulated_proj_')
-        suffix  = '.mrc'
+        print('\nReconstructing tomogram')
+        prefix = os.path.join(outputFolder, f'model_{modelID}/noisyProjections/simulated_proj_')
+        suffix = '.mrc'
         vol_size = [sizeRecon, sizeRecon, sizeRecon]
-        reconstruct_tomogram(prefix, suffix, 1, 61, vol_size, angles, outputFolder, modelID, weighting=weighting)
+        reconstruct_tomogram(prefix, suffix, start, end, vol_size, angles, outputFolder, modelID, weighting=weighting)
