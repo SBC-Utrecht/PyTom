@@ -154,11 +154,6 @@ def spheremask(vol, radius, smooth=0):
     if smooth > 0.01:
         # gaussian_filter(input,sigma)
         gaussMask = scipy.ndimage.gaussian_filter(mask, smooth)
-        # fig, ax = subplots(1, 3, figsize=(12, 4))
-        # ax[0].imshow(r)
-        # ax[1].imshow(mask)
-        # ax[2].imshow(gaussMask)
-        # show()
         return vol * gaussMask
     else:
         return vol * mask
@@ -394,11 +389,6 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
         noisy = noisy.astype(xp.float32)
 
         pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_{n+1}.mrc', noisy)
-
-        # out = mrcfile.new(
-        #     f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_{n+1}_mrcfile.mrc',
-        #     np.rot90(noisy, 3), overwrite=True)   # TODO FIX ROTATIONS
-        # out.close()
 
         projections[:, :, n] = noisy
 
@@ -663,7 +653,6 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
     #     viewer.add_image(cell, name='cell', interpolation='bicubic')
 
     # trying to reduce intermediate memory usage
-
     del cell, noisy_cell, class_accurate_mask, class_bbox_mask, occupancy_accurate_mask, occupancy_bbox_mask
 
     return
@@ -685,12 +674,6 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
     ctf = calcCTF(defocus, xp.zeros((imageSize,imageSize)), pixelSize, voltage=voltage, Cs=sphericalAberration,
                   sigma_decay_ctf=sigmaDecayCTF, amplitude_contrast=amplitudeContrast)
 
-    plot = False
-    if plot:
-        fig, ax = subplots(1, 2, figsize=(8, 4))
-        ax[0].imshow(ctf.real)
-        ax[1].imshow(ctf.imag)
-        show()
 
     for n, angle in enumerate(angles):
 
@@ -1042,3 +1025,4 @@ if __name__ == '__main__':
         suffix = '.mrc'
         vol_size = [sizeRecon, sizeRecon, sizeRecon]
         reconstruct_tomogram(prefix, suffix, start, end, vol_size, angles, outputFolder, modelID, weighting=weighting)
+
