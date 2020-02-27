@@ -23,10 +23,10 @@ import pytom.tompy.io
 import configparser
 import logging
 import os
-import mrcfile
 import datetime
 import sys
 from tqdm import tqdm
+import time
 
 # Plotting
 #import matplotlib
@@ -251,8 +251,8 @@ def create_ctf(Dz, vol, pix_size, voltage, Cs, sigma):
 
     # print(r)
 
-    phase = xp.sin(pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2) ))
-    amplitude = xp.cos(pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2) ))
+    phase = xp.sin(xp.pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2) ))
+    amplitude = xp.cos(xp.pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2) ))
 
     if sigma:
         phase = phase * xp.exp(-(r / (sigma * Ny)) ** 2)
@@ -281,8 +281,8 @@ def calcCTF(Dz, vol, pix_size, voltage=200E3, Cs=2.7E-3, sigma_decay_ctf=0.4, am
 
     # print(r)
 
-    phase = xp.sin(pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)))
-    amplitude = xp.cos(pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)))
+    phase = xp.sin(xp.pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)))
+    amplitude = xp.cos(xp.pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)))
 
     ctf = amplitude * amplitude_contrast - 1j * phase * (1-amplitude_contrast)
 
@@ -387,169 +387,22 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
         # tom_bandpass(im, lo hi, smooth) ---> hi = 7 gives good results
         bg = tom_bandpass(preNoise, 0, 7, smooth=0.2 * size)
 
-        plot = False
-        if plot:
-            fig, ax = subplots(1, 3, figsize=(12, 4))
-            ax[0].imshow(preNoise)
-            ax[1].imshow(xp.abs(xp.fft.fftshift(xp.fft.ifftn(ctfNoise))))
-            ax[2].imshow(bg)
-            show()
-
         # add both contributions (ratio 1:1) in Fourier space
         tmp = xp.fft.fftn(xp.fft.ifftshift(projection)) + ctfNoise + xp.fft.fftn(xp.fft.ifftshift(bg))
         tmp = tmp * xp.fft.ifftshift(mask)
         noisy = xp.real(xp.fft.fftshift(xp.fft.ifftn(tmp)))
+        noisy = noisy.astype(xp.float32)
 
-        plot = False
-        if plot:
-            fig, ax = subplots(1, 2, figsize=(8, 4))
-            ax[0].imshow(projection)
-            ax[1].imshow(noisy)
-            show()
+        pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_{n+1}.mrc', noisy)
 
-        out = mrcfile.new(
-            f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_{n+1}.mrc',
-            noisy.astype(xp.float32), overwrite=True)
-        out.close()
+        # out = mrcfile.new(
+        #     f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_{n+1}_mrcfile.mrc',
+        #     np.rot90(noisy, 3), overwrite=True)   # TODO FIX ROTATIONS
+        # out.close()
 
-        projections[:,:,n] = noisy
+        projections[:, :, n] = noisy
 
     return projections
-
-
-def quat_mult(q1, q2):
-    r"""
-    Return the product of two quaternions
-
-    Args:
-       :q1 (array): Length-4 array [:math:`w_1`, :math:`x_1`, :math:`y_1`, :math:`z_1`] that represents the first quaternion
-
-       :q2 (array): Length-4 array [:math:`w_2`, :math:`x_2`, :math:`y_2`, :math:`z_2`] that represents the second quaternion
-    """
-    w1, x1, y1, z1 = q1
-    w2, x2, y2, z2 = q2
-    w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
-    x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
-    y = w1 * y2 + y1 * w2 + z1 * x2 - x1 * z2
-    z = w1 * z2 + z1 * w2 + x1 * y2 - y1 * x2
-    return xp.array([w, x, y, z])
-
-
-def quat_vec_mult(q, v):
-    r"""
-    Return the product of a quaternion and a vector
-
-    Args:
-       :q (array): Length-4 array [:math:`w`, :math:`x`, :math:`y`, :math:`z`] that represents the quaternion
-
-       :v (array): Length-3 array [:math:`v_x`, :math:`v_y`, :math:`v_z`] that represents the vector
-    """
-    q2 = xp.array([0., v[0], v[1], v[2]])
-    return quat_mult(quat_mult(q, q2), quat_conj(q))[1:]
-
-
-def quat_conj(q):
-    r"""
-    Return the conjugate quaternion as a length-4 array [w,-ix,-jy,-kz]
-
-    Args:
-       :q (array): Numpy array :math:`[w,x,y,z]` that represents the quaternion
-    """
-    iq = q.copy()
-    iq[1:] = -iq[1:]
-    return iq
-
-
-def rotate_quat(v, q):
-    r"""
-    Return rotated version of a given vector by a given quaternion
-
-    Args:
-       :v (array): Length-3 array :math:`[v_x,v_y,v_z]` that represents the vector
-
-       :q (array): Length-4 array [:math:`w`, :math:`x`, :math:`y`, :math:`z`] that represents the quaternion
-    """
-    return quat_vec_mult(q, v)
-
-
-def dotproduct(v1, v2):
-    return xp.sum(list((a * b) for a, b in zip(v1, v2)))
-
-
-def rand_quat():
-    r"""
-    Obtain a uniform random rotation in quaternion representation ([Shoemake1992]_ pages 129f)
-    """
-    x0, x1, x2 = xp.random.random(3)
-    theta1 = 2. * xp.pi * x1
-    theta2 = 2. * xp.pi * x2
-    s1 = xp.sin(theta1)
-    s2 = xp.sin(theta2)
-    c1 = xp.cos(theta1)
-    c2 = xp.cos(theta2)
-    r1 = xp.sqrt(1 - x0)
-    r2 = xp.sqrt(x0)
-    q = xp.array([s1 * r1, c1 * r1, s2 * r2, c2 * r2])
-    return q
-
-
-def euler_from_quat(q, rotation_axes="zxz"):
-    if len(rotation_axes) != 3:
-        print("Error: rotation_axes = %s is an invalid input." % rotation_axes)
-        return
-    for s in rotation_axes:
-        if s not in "xyz":
-            print("Error: rotation_axes = %s is an invalid input." % rotation_axes)
-            return
-    i1 = 0 if rotation_axes[0] == "x" else 1 if rotation_axes[0] == "y" else 2 if rotation_axes[0] == "z" else None
-    i2 = 0 if rotation_axes[1] == "x" else 1 if rotation_axes[1] == "y" else 2 if rotation_axes[1] == "z" else None
-    i3 = 0 if rotation_axes[2] == "x" else 1 if rotation_axes[2] == "y" else 2 if rotation_axes[2] == "z" else None
-    v3 = xp.array([0., 0., 0.])
-    v3[i3] = 1.
-    v3r = rotate_quat(v3, q)
-    if ((i1 == 0) and (i2 == 2) and (i3 == 0)) or \
-            ((i1 == 1) and (i2 == 0) and (i3 == 1)) or \
-            ((i1 == 2) and (i2 == 1) and (i3 == 2)):
-        e0 = xp.arctan2(v3r[(i1 + 2) % 3], v3r[(i1 + 1) % 3])
-        e1 = xp.arccos(v3r[i1])
-    elif ((i1 == 0) and (i2 == 2) and (i3 == 1)) or \
-            ((i1 == 1) and (i2 == 0) and (i3 == 2)) or \
-            ((i1 == 2) and (i2 == 1) and (i3 == 0)):
-        e0 = xp.arctan2(v3r[(i1 + 2) % 3], v3r[(i1 + 1) % 3])
-        e1 = -xp.arcsin(v3r[i1])
-    elif ((i1 == 0) and (i2 == 1) and (i3 == 0)) or \
-            ((i1 == 1) and (i2 == 2) and (i3 == 1)) or \
-            ((i1 == 2) and (i2 == 0) and (i3 == 2)):
-        e0 = xp.arctan2(v3r[(i1 + 1) % 3], -v3r[(i1 + 2) % 3])
-        e1 = xp.arccos(v3r[i1])
-    else:
-        e0 = xp.arctan2(-v3r[(i1 + 1) % 3], v3r[(i1 + 2) % 3])
-        # The reference states this:
-        # e1 = -xp.arcsin(v3r[i1])
-        # The tests only pass with the inverse sign, so I guess this is a typo.
-        e1 = xp.arcsin(v3r[i1])
-    q1 = xp.array([xp.cos(e0 / 2.), 0., 0., 0.])
-    q1[1 + i1] = xp.sin(e0 / 2.)
-    q2 = xp.array([xp.cos(e1 / 2.), 0., 0., 0.])
-    q2[1 + i2] = xp.sin(e1 / 2.)
-    q12 = quat_mult(q1, q2)
-    v3n = xp.array([0., 0., 0.])
-    v3n[(i3 + 1) % 3] = 1.
-    v3n12 = quat_vec_mult(q12, v3n)
-    v3nG = quat_vec_mult(q, v3n)
-    e2_mag = xp.arccos(dotproduct(v3n12, v3nG))
-    vc = crossproduct(v3n12, v3nG)
-    m = dotproduct(vc, v3r)
-    e2 = xp.sign(m) * e2_mag
-    return xp.array([e0, e1, e2])
-
-
-def crossproduct(a, b):
-    c = xp.array([a[1] * b[2] - a[2] * b[1],
-                     a[2] * b[0] - a[0] * b[2],
-                     a[0] * b[1] - a[1] * b[0]])
-    return c
-
 
 def generate_map(pdbid, id):
     print(pdbid)
@@ -566,8 +419,6 @@ def addNoise(noise_size, dim):
     noise = 1. + 0.1 * noise_no_norm / abs(noise_no_norm).max()
     return noise
 
-
-# a = read_mrc('1bxn_chimera.mrc')
 
 def addStructuralNoise(model, water=.94, th=1.3):
     # What is the threshold value??
@@ -588,7 +439,7 @@ def addStructuralNoise(model, water=.94, th=1.3):
     a2[:, :] = model
     # noise = addNoise(dx*9//10, dz)
     # noise = noise[:dx,:dy,:dz]
-    noise = xp.random.normal(water, 0.05, (dx, dy, dz))
+    noise = xp.random.normal(water, 0.01, (dx, dy, dz))
 
     final = a2 + data5 * noise
     # final = xp.ones((128,128,128))
@@ -652,7 +503,7 @@ def rr(x = 256, y = 256):
 
 
 def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, thickness=200, waterdensity=.94,
-                   proteindensity=1.3, numberOfParticles=1000):
+                   proteindensity=1.3, numberOfParticles=1000, placementSize=512, retries=5000):
 
     from voltools import transform
 
@@ -685,9 +536,10 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
     dims = [v.shape for v in volumes]
     particles_by_class = [0, ] * number_of_classes
     particle_nr = 1
-    default_tries_left = 5000
-    particle_field_size = (512, 512) # TODO how large is the actual
+    default_tries_left = retries
     skipped_particles = 0
+    loc_x_start = loc_y_start = (size - placementSize) - (placementSize // 2)
+    loc_x_end = loc_y_end = (size - placementSize) + (placementSize // 2)
 
     for _ in tqdm(range(numberOfParticles), desc='Placing particles'):
 
@@ -708,7 +560,7 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
         # rotate particle
         try:
             rotated_particle = transform(volumes[cls_id], rotation=p_angles,
-                                         rotation_order='szyx', interpolation='filt_bspline', device='cpu')
+                                         rotation_order='szxz', interpolation='filt_bspline', device='cpu')
         except Exception as e:
             print(e)
             print('Something went wrong while rotating?')
@@ -727,8 +579,8 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
         xx, yy, zz = rotated_particle.shape
         tries_left = default_tries_left
         while tries_left > 0:
-            loc_x = xp.random.randint(xx // 2 + 1, X - xx // 2 - 1)
-            loc_y = xp.random.randint(yy // 2 + 1, Y - yy // 2 - 1)
+            loc_x = xp.random.randint(loc_x_start + xx // 2 + 1, loc_x_end - xx // 2 - 1)
+            loc_y = xp.random.randint(loc_y_start + yy // 2 + 1, loc_y_end - yy // 2 - 1)
             loc_z = xp.random.randint(zz // 2 + 1, Z - zz // 2 - 1)
 
             tries_left -= 1
@@ -738,12 +590,12 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
             bbox_y = [loc_y - dims[cls_id][1] // 2, loc_y + dims[cls_id][1] // 2 + dims[cls_id][1] % 2]
             bbox_z = [loc_z - dims[cls_id][2] // 2, loc_z + dims[cls_id][2] // 2 + dims[cls_id][2] % 2]
 
-            # find mask for the particle in entire grandvolume
-            # location_mask = np.zeros_like(cell)
+            # create masked occupancy mask
+            masked_occupancy_mask = occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]]
+            masked_occupancy_mask = masked_occupancy_mask * accurate_particle_occupancy
 
-
-            # if the location fits (occupancy pixel-wise mask is empty), break the loop
-            if occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]].sum() == 0:
+            # if the location fits (masked occupancy pixel-wise mask is empty), break the loop and use this location
+            if masked_occupancy_mask.sum() == 0:
                 break
 
         # however if still can't fit, ignore this particle (also adds variance in how many particles are actually put)
@@ -753,16 +605,16 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
 
         # populate occupancy volumes
         occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = particle_nr
-        occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = \
+        occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
             accurate_particle_occupancy * particle_nr
 
         # populate class masks
         class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = (cls_id + 1)
-        class_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = \
+        class_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
             accurate_particle_occupancy * (cls_id + 1)
 
         # populate density volume
-        cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = rotated_particle
+        cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += rotated_particle
 
         # update stats
         particle_nr += 1
@@ -810,6 +662,10 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
     #     viewer.add_image(class_accurate_mask, name='class accurate mask', interpolation='bicubic')
     #     viewer.add_image(cell, name='cell', interpolation='bicubic')
 
+    # trying to reduce intermediate memory usage
+
+    del cell, noisy_cell, class_accurate_mask, class_bbox_mask, occupancy_accurate_mask, occupancy_bbox_mask
+
     return
 
 
@@ -820,12 +676,13 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
     grandcell = pytom.tompy.io.read_mrc(f'{outputFolder}/model_{modelID}/rotations/rotated_volume_{0}.mrc')
 
     SIZE = grandcell.shape[0]
+    imageSize = SIZE//2
     heightBox = grandcell.shape[2]
 
-    noisefree_projections = xp.zeros((SIZE//2, SIZE//2, len(angles)), dtype=float32)
+    noisefree_projections = xp.zeros((imageSize, imageSize, len(angles)), dtype=float32)
 
     #TODO allow for different defocus per tilt image. Now single defocus for all images
-    ctf = calcCTF(defocus, xp.zeros((SIZE,SIZE)), pixelSize, voltage=voltage, Cs=sphericalAberration,
+    ctf = calcCTF(defocus, xp.zeros((imageSize,imageSize)), pixelSize, voltage=voltage, Cs=sphericalAberration,
                   sigma_decay_ctf=sigmaDecayCTF, amplitude_contrast=amplitudeContrast)
 
     plot = False
@@ -848,7 +705,7 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
 
         if not multislice:
             print('simulating projection (without ms) from tilt angle ', angle)
-            projected_tilt_image = rotated_volume.sum(axis=2)#.get() # remove .get() if fully cupy
+            projected_tilt_image = rotated_volume[imageSize//2:-imageSize//2,imageSize//2:-imageSize//2,:].sum(axis=2)#.get() # remove .get() if fully cupy
             projected_tilt_image = xp.abs(xp.fft.ifftn(xp.fft.fftn(projected_tilt_image)*ctf))**2
             #TODO is abs()**2 the way to go for exit wave field?
 
@@ -871,12 +728,13 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
 
             print('number of slices: ', n_slices)
             # Allocate space for multislice projection
-            projected_potent_ms = xp.zeros((SIZE, SIZE, n_slices), dtype=complex)
+            projected_potent_ms = xp.zeros((imageSize,imageSize, n_slices), dtype=complex)
 
             px_per_slice = int(xp.ceil(xp.around(heightBox / n_slices,3))) # CORRECT
             # PROJECTED POTENTIAL whithin slices (phase grating)
             for ii in range(n_slices):
-                projected_potent_ms[:, :, ii] = rotated_volume[:,:, ii*px_per_slice : (ii+1)*px_per_slice].mean(axis=2) #.get() # remove .get() if fully cupy
+                projected_potent_ms[:, :, ii] = rotated_volume[imageSize//2:-imageSize//2,imageSize//2:-imageSize//2,
+                                                ii*px_per_slice : (ii+1)*px_per_slice].mean(axis=2) #.get() # remove .get() if fully cupy
 
             # zheight of slices in nm for Fresnel propagator
             dzprop = px_per_slice * pixelSize # CORRECT
@@ -885,22 +743,22 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
             # relative mass
             relmass = phys_const_dict["me"] + phys_const_dict["el"] * voltage / (phys_const_dict["c"]**2)
             # sigma_transfer
-            sig_transfer = 2 * pi * relmass * phys_const_dict["el"] * Lambda / (phys_const_dict["h"]**2) # CORRECT
+            sig_transfer = 2 * xp.pi * relmass * phys_const_dict["el"] * Lambda / (phys_const_dict["h"]**2) # CORRECT
 
             # TRANSMISSON FUNCTION: the slice thickness is constant
             psi_t = xp.exp(1j * sig_transfer * projected_potent_ms * dzprop)
 
 
             # Get value of q in Fourier space because the Fresnel propagator needs them
-            xwm = pixelSize * (SIZE)  # pixelsize for multislice * size sample
+            xwm = pixelSize * (imageSize)  # pixelsize for multislice * size sample
             q_true_pix_m = 1 / xwm
-            q_m = rr(SIZE, SIZE) * q_true_pix_m  # frequencies in Fourier domain
+            q_m = rr(imageSize,imageSize) * q_true_pix_m  # frequencies in Fourier domain
 
             # FRESNEL PROPAGATOR
-            P = xp.exp(-1j * pi * Lambda * (q_m**2) * dzprop) # CORRECT
+            P = xp.exp(-1j * xp.pi * Lambda * (q_m**2) * dzprop) # CORRECT
 
             # MULTISLICE
-            psi_multislice = xp.zeros((SIZE, SIZE), dtype=complex) + 1 # should be complex datatype
+            psi_multislice = xp.zeros((imageSize,imageSize), dtype=complex) + 1 # should be complex datatype
 
             num_px_last_slice = heightBox % px_per_slice # CORRECT
 
@@ -911,20 +769,11 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
 
                 psi_multislice = xp.fft.fftshift( xp.fft.ifftn((waveField * xp.fft.ifftshift(P) )) )
 
-                plot = False
-                if (not (ii % 10) and ii) and plot:
-                    fig, ax = subplots(1, 4, figsize=(16, 4))
-                    ax[0].imshow(xp.abs(waveField) ** 2)
-                    ax[1].imshow(xp.abs(P))
-                    ax[2].imshow(abs(psi_multislice))
-                    ax[3].imshow(abs(psi_t[:,:, ii]))
-                    show()
-
             # Calculate propagation through last slice in case the last slice contains a different number of pixels
             if num_px_last_slice:
                 dzprop_end = num_px_last_slice * pixelSize
                 psi_t[:, :, -1] = xp.exp(1j * sig_transfer * projected_potent_ms[:, :, -1] * dzprop_end)
-                P_end = xp.exp(-1j * pi * Lambda * (q_m ** 2) * dzprop_end)
+                P_end = xp.exp(-1j * xp.pi * Lambda * (q_m ** 2) * dzprop_end)
                 waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, -1]) )
                 psi_multislice = xp.fft.fftshift( xp.fft.ifftn( waveField * xp.fft.ifftshift(P_end) ) )
 
@@ -932,15 +781,7 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
             waveCTF = xp.fft.ifftshift(ctf) * xp.fft.fftn(xp.fft.ifftshift(psi_multislice) )
             projected_tilt_image = xp.abs(xp.fft.fftshift(xp.fft.ifftn(waveCTF))) ** 2
 
-            plot = False
-            if plot:
-                fig, ax = subplots(1,3, figsize=(12, 4))
-                ax[0].imshow(xp.abs(psi_multislice))
-                ax[1].imshow(xp.abs(waveCTF))
-                ax[2].imshow(xp.abs(projected_tilt_image))
-                show()
-
-        noisefree_projections[:,:,n] = projected_tilt_image[SIZE//4:-SIZE//4, SIZE//4:-SIZE//4]
+        noisefree_projections[:,:,n] = projected_tilt_image
 
     pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/projections_noisefree.mrc',
                          noisefree_projections) # noisefree_projections.astype(xp.float32)?
@@ -965,7 +806,7 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, vol_size, angles, o
 
     for i in range(start_idx, end_idx+1):
 
-        p = Projection(prefix+str(i)+suffix,tiltAngle=angles[i-1])
+        p = Projection(prefix+str(i)+suffix, tiltAngle=angles[i-1])
         projections.append(p)
 
     outputname = os.path.join(outputFolder, f'model_{modelID}/reconstruction.em')
@@ -977,13 +818,16 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, vol_size, angles, o
 
     return
 
-def rotate_model(volume, outname, angle):
+def parallel_rotate_model(volume, outname, angle):
     print(f'Starting rotation process for angle {angle}')
-    # volume = pytom.tompy.io.read_mrc(filename)
+    sys.stdout.flush()
     from voltools import transform
-    rotated_volume = transform(volume, rotation=(angle, 0, 0), rotation_order='sxyz', interpolation='filt_bspline', device='cpu')
+    # volume = pytom.tompy.io.read_mrc(filename)
+    rotated_volume = transform(volume, rotation=(0, angle, 0), rotation_order='sxyz', interpolation='filt_bspline', device='cpu')
     pytom.tompy.io.write(outname, rotated_volume)
     print(f'Process for angle {angle} is finished ({outname})')
+    sys.stdout.flush()
+    return True
 
 def create_rotation_model(outputFolder, modelID):
 
@@ -1014,7 +858,7 @@ def create_rotation_model(outputFolder, modelID):
     pytom.tompy.io.write(filename, volume)
 
     print(f'Saved initial rotation volume at {filename}')
-    return filename
+    return volume
 
 if __name__ == '__main__':
 
@@ -1061,11 +905,21 @@ if __name__ == '__main__':
         try:
             particleFolder = config['GenerateModel']['ParticleFolder']
             listpdbs = eval(config['GenerateModel']['Models'])
+            placementSize = int(config['GenerateModel']['PlacementSize'])
             size = int(config['GenerateModel']['Size'])
             thickness = int(config['GenerateModel']['Thickness'])
             waterdensity = float(config['GenerateModel']['WaterDensity'])
             proteindensity = float(config['GenerateModel']['ProteinDensity'])
-            numberOfParticles = int(config['GenerateModel']['NumberOfParticles'])
+
+            # parse range of number of particles
+            p_range = config['GenerateModel']['NumberOfParticles'].split('-')
+            if len(p_range) > 1:
+                xp.random.seed(seed)
+                random.seed(seed)
+
+                numberOfParticles = np.random.randint(int(p_range[0]), int(p_range[1]))
+            else:
+                numberOfParticles = int(p_range[0])
         except Exception as e:
             print(e)
             raise Exception('Missing generate model parameters.')
@@ -1124,7 +978,8 @@ if __name__ == '__main__':
 
         print('\n- Generating grand model')
         generate_model(particleFolder, outputFolder, modelID, listpdbs, size=size, thickness=thickness,
-                       waterdensity=waterdensity, proteindensity=proteindensity, numberOfParticles=numberOfParticles)
+                       placementSize=placementSize, waterdensity=waterdensity, proteindensity=proteindensity,
+                       numberOfParticles=numberOfParticles)
 
     # Generated rotated grand model versions
     if 'Rotation' in config.sections():
@@ -1140,33 +995,28 @@ if __name__ == '__main__':
             os.remove(filename)
 
         #  Create initial rotation volume (0 degree rotation)
-        filename = create_rotation_model(outputFolder, modelID)
+        volume = create_rotation_model(outputFolder, modelID)
 
         # parallel rotate
+        sys.stdout.flush()
+        time.sleep(5)
+        # sleep helps with memory usage
+        # my theory (ilja): it gives time for garbage collector to clean up
+
         from joblib import Parallel, delayed
-        verbosity = 11 # set to 55 for debugging
+        verbosity = 55 # set to 55 for debugging, 11 to see progress, 0 to turn off output
 
         # joblib automatically memory maps a numpy array to child processes
-        volume = pytom.tompy.io.read_mrc(filename)
-        par_params = []
-        for ang in angles:
-            if ang == 0.:
-                continue
-            par_params.append((volume, f'{dir}/rotated_volume_{int(ang)}.mrc', ang))
-
-        # old style, passing filename and letting child load volume itself
-        # angles2 = list(angles.copy())
-        # angles2.remove(0.)
-        #
-        # par_params = []
-        # for ang in angles2:
-        #     outfilename = f'{dir}/rotated_volume_{int(ang)}.mrc'
-        #     par_params.append((filename, outfilename, ang))
-
         print(f'Rotating the model with {nodes} processes')
-        results = Parallel(n_jobs=nodes, verbose=verbosity)(delayed(rotate_model)(*params) for params in par_params)
+        results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads")\
+            (delayed(parallel_rotate_model)(volume, f'{dir}/rotated_volume_{int(ang)}.mrc', ang)
+             for ang in angles if ang != 0.)
 
-        print(f'Done rotating the model {results}')
+        sys.stdout.flush()
+        if all(results):
+            print('All rotation processes finished successfully')
+        else:
+            print(f'{results.count(None)} rotation processes did not finish successfully')
 
     # Generate noise-free projections
     if 'GenerateProjections' in config.sections():
