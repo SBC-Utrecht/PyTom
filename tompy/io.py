@@ -4,7 +4,7 @@
 from pytom.gpu.initialize import xp, device
 import numpy as np
 
-def read(filename,ndarray=True):
+def read(filename,ndarray=True,order='F'):
     """Read EM file. Now only support read the type float32 on little-endian machines.
 
     @param filename: file name to read.
@@ -15,9 +15,9 @@ def read(filename,ndarray=True):
     assert filename.split('.')[-1].lower() in ('em', 'mrc')
 
     if filename.endswith('.em'):
-        data = read_em(filename)
+        data = read_em(filename,order=order)
     elif filename.endswith('.mrc'):
-        data = read_mrc(filename)
+        data = read_mrc(filename,order=order)
     else:
         raise Exception('Invalid filetype. Please provide a *.em or a *.mrc file.')
 
@@ -26,7 +26,7 @@ def read(filename,ndarray=True):
     else:
         return n2v(data)
 
-def read_mrc(filename):
+def read_mrc(filename,order='F'):
     import numpy as np
     f = open(filename, 'r')
     try:
@@ -60,14 +60,16 @@ def read_mrc(filename):
     finally:
         f.close()
 
+
     if default_type:
-        volume = v.reshape((x, y, z), order='F')  # fortran-order array
+        #with xp.cuda.Device(2):
+        volume = xp.array(v.reshape((x, y, z), order=order) ).copy() # fortran-order array
     else:  # if the input data is not the default type, convert
-        volume = xp.array(v.reshape((x, y, z), order='F'), dtype='float32')  # fortran-order array
+        volume = xp.array(v.reshape((x, y, z), order=order), dtype='float32').copy()  # fortran-order array
 
     return volume
 
-def read_em(filename):
+def read_em(filename,order='F'):
     """Read EM file. Now only support read the type float32 on little-endian machines.
 
     @param filename: file name to read.
@@ -109,9 +111,9 @@ def read_em(filename):
         f.close()
 
     if default_type:
-        volume = v.reshape((x, y, z), order='F') # fortran-order array
+        volume = xp.array(v.reshape((x, y, z), order=order), dtype=xp.float32).copy() # fortran-order array
     else: # if the input data is not the default type, convert
-        volume = xp.array(v.reshape((x, y, z), order='F'), dtype=np.float32) # fortran-order array
+        volume = xp.array(v.reshape((x, y, z), order=order), dtype=xp.float32).copy() # fortran-order array
     
     return volume
 
@@ -126,6 +128,12 @@ def write(filename, data, tilt_angle=0, pixel_size=1):
     """
     assert filename
     assert filename.split('.')[-1].lower() in ('em', 'mrc')
+
+
+    try:
+        data = data.get()
+    except:
+        pass
 
     if not type(data) == type(np.array((1))):
         from pytom_numpy import vol2npy

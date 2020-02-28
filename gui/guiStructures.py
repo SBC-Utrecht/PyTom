@@ -1562,7 +1562,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                 a = QLabel('')
                 l = QVBoxLayout(widget)
                 l.setAlignment(Qt.AlignCenter)
-                if n == 0:
+                if n == 0 and applyOptionSum:
                     a.setText('Apply to all')
                     l.setAlignment(Qt.AlignCenter)
                 l.addWidget(a)
@@ -1577,7 +1577,9 @@ class SimpleTable(QMainWindow, CommonFunctions):
         self.table2.setMaximumHeight(self.table2.rowHeight(0))
         self.table.setMinimumHeight(min(400, self.table2.rowHeight(0)*(len(values)+.8)))
 
-        if applyOptionSum: grid_layout.addWidget(self.table2, 0, 0)
+
+        grid_layout.addWidget(self.table2, 0, 0)
+
         grid_layout.addWidget(table, 1, 0)
         #self.table2.horizontalHeaderItem(len(headers) - 1).setTextAlignment(Qt.AlignLeft)
 
@@ -4258,7 +4260,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.pytompath = self.parent().pytompath
         self.projectname = self.parent().projectname
         self.qtype = None
-        self.setGeometry(0,0,800,450)
+        self.setGeometry(0,0,1050,490)
 
         headers = ['Alignment Errors', 'Template Matching Results', 'FSC Curve']
         subheaders  = [['Reconstruction', 'Alignment'], [], []]*len(headers)
@@ -4388,7 +4390,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def tab31UI(self, id=''):
         import glob
-        headers = ["Name Tomogram", 'Score', 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Det. Rot. Angle', '']
+        headers = ["Name Tomogram", 'Score', 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Enp. Rot. Angle', 'Det. Rot. Angle', '']
         types = ['txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt']
         sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
 
@@ -4431,7 +4433,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         if not values:
             return
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save')
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save', addQCheckBox=False)
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
 
         for i in range(len(values)):
@@ -4473,7 +4475,8 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def tab32UI(self, id=''):
         import glob, numpy
-        headers = ["name tomogram", 'Score', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Det. Rot. Angle', 'CTF Corrected',  '']
+        from pytom.gui.guiFunctions import loadstar, datatype
+        headers = ["name tomogram", 'Score', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker', 'Enp. Rot. Angle', 'Det. Rot. Angle', 'CTF Corrected',  '']
         types = ['txt', 'txt', 'combobox', 'combobox', 'txt', 'combobox', 'txt', 'txt', 'checkbox', 'txt']
         sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0,0]
 
@@ -4493,6 +4496,12 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         for tomofolder in tomofolders:
             self.alignmentResulsDict[tomofolder] = {'results': {}, 'refmarker':[] }
             first=True
+            try:
+                metafile = [f for f in glob.glob(f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/sorted/*.meta')][0]
+                metadata = loadstar(metafile, dtype=datatype)
+            except Exception as e:
+                print(e)
+                continue
             for logfile in sorted(glob.glob(f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/alignment/marker*/logfile*.txt')):
                 #tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
                 logdata = open(logfile,'r').read()
@@ -4503,7 +4512,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                     else:
                         ctfcorr = []
                     if len(ctfcorr) > 4:
-                        ctf = True
+                        ctf = 16
                     else:
                         ctf = False
 
@@ -4511,8 +4520,8 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                     first, last = os.path.basename(os.path.dirname(logfile)).split('_')[-1].split(',')
                     if not d: continue
                     alignmentscore = str(numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
-                    firstangle = str(d['firstProj'])
-                    lastangle = str(d['lastProj'])
+                    firstangle = str(numpy.around(metadata['TiltAngle'][d['firstProj']],1))
+                    lastangle = str(numpy.around(metadata['TiltAngle'][d['lastProj']],1))
                     refindex = str(d['ireftilt'])
                     refmarker = str(d['irefmark'])
                     expected = str(int(numpy.around(180 * float(d['handflip'] / numpy.pi))))
@@ -4614,6 +4623,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
             text = self.alignmentResulsDict[tomofolder]['results'][refmarker][index][column]
             self.tables[ID].widgets[f'widget_{row}_{column}'].setText(text)
         self.updateScoreColor(ID, row)
+
 
 class PlotterSubPlots(QMainWindow,CommonFunctions):
     def __init__(self, parent=None, width=800, size_subplot=80, size_subtomo=40, height=1000, offset_x=0, offset_y=0):
