@@ -4,18 +4,22 @@ import pickle
 import glob
 import atexit
 import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore, QtGui
+import pyqtgraph.opengl as gl
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5 import QtWidgets, QtCore, QtGui
+from pytom.tompy.io import read, write
+from pytom_numpy import vol2npy
 
 #from pytom.basic.functions import initSphere
 from pytom.basic.files import pdb2em
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.mrcOperations import *
 from pytom.gui.guiFunctions import initSphere
-
+from pytom.tompy.transform import rotate3d
 import pytom.gui.guiFunctions as guiFunctions
 import traceback
 from numpy import zeros, meshgrid, arange, sqrt
@@ -422,6 +426,26 @@ class CommonFunctions():
             #tb.actionTriggered[QAction].connect(self.save_particleList)
 
         tb.actionTriggered[QAction].connect(decider)
+
+    def insert_slider(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=0, cstep=0, tickinterval=1,
+                        alignment=Qt.AlignCenter, tooltip='', logvar=False, width=0, value=15, minimum=0, maximum=50):
+
+        widget = QtWidgets.QSlider(Qt.Horizontal)
+        widget.setStyleSheet("QSlider{background:none;}")
+        widget.setMinimum(minimum)
+        widget.setMaximum(maximum)
+        widget.setValue(value)
+        widget.setTickPosition(QSlider.TicksBelow)
+        widget.setTickInterval(tickinterval)
+
+        if tooltip: widget.setToolTip(tooltip)
+        if width: widget.setFixedWidth(width)
+        parent.addWidget(widget, self.row, self.column, rowspan, columnspan, alignment)
+        setattr(self, wname, widget)
+        self.widgets[wname] = widget
+        self.items[self.row][self.column] = widget
+        self.row += rstep
+        self.column += cstep
 
     def insert_checkbox(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=0, cstep=0,
                         alignment=Qt.AlignCenter, tooltip='', logvar=False,width=0):
@@ -3153,6 +3177,579 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.slice += update
 
 
+class FlexWindow(gl.GLViewWidget):
+    def __init__(self, parent=None, controlWindow=None):
+        super(FlexWindow, self).__init__(parent)
+
+        self.controlWindow = controlWindow
+        self.offset = np.array((0,0,0),dtype=np.float32)
+
+        self.recenterParticle = QCheckBox()
+        self.reorientParticle = QCheckBox()
+
+    def asCartesian(self, r=1, azimuth=0, elev=0):
+
+        # takes list rthetaphi (single coord)
+        r = r
+        phi = (azimuth) * np.pi / 180  # to radian
+        theta = (90 - elev) * np.pi / 180
+        x = r * np.sin(theta) * np.cos(phi)
+        y = r * np.sin(theta) * np.sin(phi)
+        z = r * np.cos(theta)
+        return np.array([x, y, z])
+
+    def orbit(self, azim, elev):
+        """Orbits the camera around the center position. *azim* and *elev* are given in degrees."""
+
+        v0 = self.asCartesian(1, self.opts['azimuth'], self.opts['elevation'])
+        print(self.opts['azimuth'], self.opts['elevation'])
+        self.opts['azimuth'] = (self.opts['azimuth'] + azim) % 360
+        self.opts['elevation'] = (self.opts['elevation'] + elev)
+
+        if self.opts['elevation'] < -359: self.opts['elevation'] += 360
+        if self.opts['elevation'] > 359: self.opts['elevation'] -= 360
+
+        if (self.opts['elevation']) in (90,270,-90,-270):
+            self.opts['elevation'] += 1
+
+        # print(self.opts['azimuth'], self.opts['elevation'])
+        v1 = self.asCartesian(1, self.opts['azimuth'], self.opts['elevation'])
+        x, y, z = vc = np.cross(v1, v0)
+        ang = np.rad2deg(np.arccos(np.clip(np.dot(v1, v0), -1.0, 1.0)))
+
+        if self.reorientParticle.isChecked():
+            try:
+                self.xmesh.rotate(-ang, x, y, z)
+                self.ymesh.rotate(-ang, x, y, z)
+                self.zmesh.rotate(-ang, x, y, z)
+            except:
+                pass
+
+        self.update()
+
+    def pan(self, dx, dy, dz, relative=False):
+        """
+        Moves the center (look-at) position while holding the camera in place.
+
+        If relative=True, then the coordinates are interpreted such that x
+        if in the global xy plane and points to the right side of the view, y is
+        in the global xy plane and orthogonal to x, and z points in the global z
+        direction. Distances are scaled roughly such that a value of 1.0 moves
+        by one pixel on screen.
+
+        """
+
+        if not relative:
+            self.opts['center'] += QtGui.QVector3D(dx, dy, dz)
+            xScale = 1
+            xVec = QtGui.QVector3D(1,0,0)
+            yVec = QtGui.QVector3D(0,1,0)
+            zVec = QtGui.QVector3D(0,0,1)
+        else:
+            cPos = self.cameraPosition()
+            cVec = self.opts['center'] - cPos
+            dist = cVec.length()  ## distance from camera to center
+            xDist = dist * 2. * np.tan(0.5 * self.opts['fov'] * np.pi / 180.)  ## approx. width of view at distance of center point
+            xScale = xDist / self.width()
+            yVec = QtGui.QVector3D(0, 0, 1)
+            xVec = QtGui.QVector3D.crossProduct(yVec, cVec).normalized()
+            zVec = QtGui.QVector3D.crossProduct(xVec, yVec).normalized()
+            for n, v in enumerate((cPos, cVec)):
+                print(n, v.x(), v.y(), v.z())
+
+            if self.recenterParticle.isChecked():
+                self.move_origin_now( xVec * xScale * dx , yVec * xScale * dy , zVec * xScale * dz, cPos)
+            else:
+                self.opts['center'] = self.opts['center'] + xVec * xScale * dx + yVec * xScale * dy + zVec * xScale * dz
+
+        self.update()
+
+    def move_origin_now(self, vx, vy, vz, vc, update=True):
+        vector = vx+vy+vz
+        el,az = self.opts['elevation'], self.opts['azimuth']
+
+        d = {True:1, False:-1}
+
+
+        f = 1 if abs(el) < 90 or abs(el) > 270 else -1
+        dx, dy, dz = int(np.around(-vector.x())), int(np.around(-vector.y()*f)), int(np.around(-vector.z()))
+        # print(dx, dy, dz)
+        self.zmesh.translate(dx, dy, dz)
+        self.ymesh.translate(dx, dy, dz)
+        self.xmesh.translate(dx, dy, dz)
+        self.offset = self.offset + np.array((dx,dy,dz))
+
+        if update:
+            for name, value in (('cX', self.offset[0]), ('cY', self.offset[1]), ('cZ', self.offset[2])):
+                self.controlWindow.widgets[name].blockSignals(True)
+                self.controlWindow.widgets[name].setValue(value)
+                self.controlWindow.widgets[name].blockSignals(False)
+
+    def deleteGrids(self):
+        try:
+            for item in (self.xmesh, self.ymesh, self.zmesh):
+                self.removeItem(item)
+        except:
+            pass
+
+    def resetView(self, grids=True):
+        self.orbit(-self.opts['azimuth'], -self.opts['elevation'])
+
+        if grids:
+            self.xmesh = gl.GLGridItem()
+            self.xmesh.scale(4, 4, 1)
+
+            self.ymesh = gl.GLGridItem()
+            self.ymesh.rotate(90,1,0,0)
+            self.ymesh.scale(5,5,1)
+
+            self.zmesh = gl.GLGridItem()
+            self.zmesh.rotate(90,0,1,0)
+            self.zmesh.scale(6,6,1)
+
+            self.addItem(self.xmesh)
+            self.addItem(self.ymesh)
+            self.addItem(self.zmesh)
+
+class Viewer3DSurface(QMainWindow, CommonFunctions):
+    def __init__(self, parent=None, fname=''):
+        super(Viewer3DSurface, self).__init__(parent)
+        self.size_policies()
+        self.layout = QGridLayout(self)
+        self.cw = QWidget(self)
+        self.cw.setLayout(self.layout)
+        self.setCentralWidget(self.cw)
+        self.setGeometry(0, 0, 800, 800)
+        self.operationbox = QWidget()
+        self.layout_operationbox = prnt = QGridLayout()
+        self.operationbox.setLayout(self.layout_operationbox)
+        self.logbook = {}
+        self.radius = 8
+        self.jump = 1
+        self.current_width = 0.
+        self.pos = QPoint(0, 0)
+        self.max_score = 1.
+        self.min_score = 0.
+        self.xmlfile = ''
+        self.filetype = 'txt'
+        self.failed = False
+        self.mode = 'Viewer3DSurface_'
+        self.list_operations = []
+        self.controlWindow = ControlWindowSurface(self)
+        self.controlWindow.show()
+        self.opacity=0.125
+        self.shader = 'shaded'
+
+
+        self.centcanvas = w = FlexWindow(self, self.controlWindow)
+        w.show()
+        w.setWindowTitle('pyqtgraph example: GLIsosurface')
+        w.setCameraPosition(distance=200)
+        w.opts['azimuth'] = 0
+        w.opts['elevation'] = 0
+        # w.setGLOptions('translucent')
+        # w.setBackgroundColor('w')
+        w.update()
+
+        self.layout.addWidget(w, 0, 1)
+        import sys
+
+        if fname and os.path.exists(fname):
+            self.title = fname
+        else:
+            try:
+                if os.path.exists(sys.argv[1]):
+                    self.title = sys.argv[1]
+                else:
+                    return
+            except:
+                return
+
+        if not os.path.exists(self.title):
+            return
+
+        self.setWindowTitle("Manual Particle Selection From: {}".format(os.path.basename(self.title)))
+        self.load_image()
+
+
+
+        pg.QtGui.QApplication.processEvents()
+
+    def wheelEvent(self, event):
+        return
+        step = event.angleDelta().y() / 120
+        increment = int(self.widgets['step_size'].text()) * step
+        if self.slice + increment < self.vol.shape[0] and self.slice + increment > -1:
+            self.slice += increment
+            self.replot()
+
+    def keyPressEvent(self, evt):
+        return
+        if Qt.Key_G == evt.key():
+            w = self.widgets['apply_gaussian_filter']
+            w.setChecked(w.isChecked() == False)
+
+        if Qt.Key_Right == evt.key():
+            if self.slice + int(self.widgets['step_size'].text()) < self.dim:
+                update = int(self.widgets['step_size'].text())
+                self.slice += update
+                self.replot()
+
+        if Qt.Key_Left == evt.key():
+            if self.slice > int(self.widgets['step_size'].text()) - 1:
+                update = -1 * int(self.widgets['step_size'].text())
+                self.slice += update
+                self.replot()
+
+        if evt.key() == Qt.Key_Escape:
+            self.subtomo_plots.close()
+            self.close()
+
+    def add_controls(self, parent, mode):
+        vDouble = QtGui.QDoubleValidator()
+        vInt = QtGui.QIntValidator()
+        self.widgets = {}
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+
+
+
+        # self.insert_label(prnt, sizepolicy=self.sizePolicyA)
+
+    def empty(self):
+        pass
+
+    def stateGaussianChanged(self):
+        w = self.widgets['apply_gaussian_filter']
+        width = self.widgets['width_gaussian_filter'].text()
+
+        if w.isChecked():
+            if len(width) > 0 and abs(self.current_width - float(width)) > 0.01:
+                self.vol = self.volg = gaussian_filter(self.backup, float(width))
+                self.current_width = float(width)
+            else:
+                self.vol = self.volg
+        else:
+            self.vol = self.backup.copy()
+        self.replot_all()
+
+    def replot_all(self):
+        self.replot()
+        volA, volB = self.getSideWindowsIndices()
+        print(self.vol.shape)
+        self.img1a.setImage(image=volA)
+        self.img1b.setImage(image=volB)
+
+    def sliceVol(self):
+        if self.slicedir == 'x':
+            crop = self.vol[:, :, int(self.slice)]
+        elif self.slicedir == 'y':
+            crop = self.vol[:, int(self.slice), :]
+        else:
+            crop = self.vol[int(self.slice), :, :]
+        return crop
+
+    def getSideWindowsIndices(self):
+        if self.slicedir == 'x':
+            return self.vol.sum(axis=1).T, self.vol.sum(axis=0)
+        elif self.slicedir == 'y':
+            return self.vol.sum(axis=0), self.vol.sum(axis=2)
+        else:
+            return self.vol.sum(axis=2), self.vol.sum(axis=1).T
+
+    def replot(self):
+        crop = self.sliceVol()
+        self.img1m.setImage(image=crop.T)
+        self.hist.setImageItem(self.img1m)
+        self.hist.setLevels(numpy.median(crop) - crop.std() * 3, numpy.median(crop) + crop.std() * 3)
+
+    def mouseHasMoved(self, evt):
+        pass
+
+    def mouseHasMovedBottom(self, evt):
+        pos = self.bottomimage.mapSceneToView(evt.scenePos())
+        if pos.y() < 0 or pos.y() >= self.vol.shape[2]: return
+        step = pos.y() - self.slice
+        self.slice += step
+        self.replot()
+
+    def mouseHasMovedLeft(self, evt):
+        pos = self.leftimage.mapSceneToView(evt.scenePos())
+        if pos.x() < 0 or pos.x() >= self.vol.shape[1]: return
+
+        step = pos.x() - self.slice
+        self.slice += step
+        self.replot()
+
+    def load_image(self):
+        import time
+        if not self.title: return
+        if not os.path.exists(self.title):
+            self.popup_messagebox('Error', 'File does not exist', 'File does not exist. Please provide a valid filename.')
+            self.failed = True
+            return
+
+        if self.title.endswith('em'):
+            t = time.time()
+            self.vol = data = read(self.title)
+            self.vol = data = self.vol.T
+            print(time.time()-t)
+        elif self.title.endswith('mrc'):
+            t = time.time()
+            self.vol = data = read(self.title, order='C').copy()
+
+            print(time.time()-t)
+        self.mask = numpy.ones_like(self.vol)
+        # self.vol[self.vol < -4.] = -4.
+        self.backup = self.vol.copy()
+        t = time.time()
+        verts, faces = pg.isosurface(data, data.mean() - data.std() * self.controlWindow.widgets['IsoSurface'].value())
+        print(time.time()-t)
+        t = time.time()
+        md = gl.MeshData(vertexes=verts, faces=faces)
+
+        colors = np.ones((md.faceCount(), 4), dtype=float)
+        colors[:, 3] = self.opacity
+        colors[:, 2] = np.linspace(0, 0.95, colors.shape[0])
+        md.setFaceColors(colors)
+
+        # m1 = gl.GLMeshItem(meshdata=md, smooth=False, shader='balloon')
+        # m1.setGLOptions('additive')
+        #
+        # w.addItem(m1)
+        # m1.translate(-100, -100, -100)
+
+        self.m2 = gl.GLMeshItem(meshdata=md, smooth=True, shader=self.shader)
+        self.m2.setGLOptions('additive')
+        self.centcanvas.addItem(self.m2)
+
+        self.m2.translate(-data.shape[0]//2, -data.shape[1]//2, -data.shape[2]//2)
+
+        #self.centcanvas.orbit(60,50)
+        print(time.time() - t)
+
+    def reload_image(self, params):
+        from numpy import cos, sin, arccos, arcsin
+        from pytom.tompy.transform import rotate3d
+
+        if self.centcanvas.reorientParticle.isChecked():
+            azimuth = np.deg2rad(self.centcanvas.opts['azimuth'])
+            elevation = np.deg2rad( self.centcanvas.opts['elevation'])
+
+            Z1 = (-np.rad2deg(azimuth)-90) % 360
+            Z2 = 90
+            X  =  (np.rad2deg(elevation)) % 360
+
+            self.list_operations.append(['rotation_zxz',[Z1, X, Z2]])
+
+            self.vol = data = rotate3d(self.vol, phi=Z1, the=X, psi=Z2)
+
+            self.centcanvas.removeItem(self.m2)
+            verts, faces = pg.isosurface(data, data.mean() - data.std() * self.controlWindow.widgets['IsoSurface'].value())
+            md = gl.MeshData(vertexes=verts, faces=faces)
+
+            colors = np.ones((md.faceCount(), 4), dtype=float)
+            colors[:, 3] = self.opacity
+            colors[:, 2] = np.linspace(0, 0.95, colors.shape[0])
+            md.setFaceColors(colors)
+
+            self.m2 = gl.GLMeshItem(meshdata=md, smooth=True, shader=self.shader)
+            self.m2.setGLOptions('additive')
+
+            self.centcanvas.addItem(self.m2)
+            self.m2.translate(-data.shape[0]//2, -data.shape[1]//2, -data.shape[2]//2)
+            self.centcanvas.resetView(grids=False)
+            print('reloaded')
+
+
+            print(f'new orientation (Z1, Z2, X): {Z1}, {Z2}, {X}')
+            self.controlWindow.widgets['Z1'].setValue(Z1)
+            self.controlWindow.widgets['Z2'].setValue(Z2)
+            self.controlWindow.widgets['X'].setValue(X)
+
+
+            for name, value in (('cX', 0), ('cY', 0), ('cZ', 0)):
+                #self.controlWindow.widgets[name].blockSignals(True)
+                self.controlWindow.widgets[name].setValue(value)
+                #self.controlWindow.widgets[name].blockSignals(False)
+
+
+        else:
+            print('No regridding done!')
+
+    def redrawImage(self):
+        data = self.vol
+        self.centcanvas.removeItem(self.m2)
+        verts, faces = pg.isosurface(data, data.mean() - data.std() * self.controlWindow.widgets['IsoSurface'].value())
+        md = gl.MeshData(vertexes=verts, faces=faces)
+
+        colors = np.ones((md.faceCount(), 4), dtype=float)
+        colors[:, 3] = self.opacity
+        colors[:, 2] = np.linspace(0, 0.95, colors.shape[0])
+        md.setFaceColors(colors)
+
+        self.m2 = gl.GLMeshItem(meshdata=md, smooth=True, shader=self.shader)
+        self.m2.setGLOptions('additive')
+
+        self.centcanvas.addItem(self.m2)
+        self.m2.translate(-100, -100, -100)
+        self.centcanvas.resetView(grids=False)
+
+class ControlWindowSurface(QMainWindow, CommonFunctions):
+    def __init__(self,parent=None, mode = ''):
+        super(ControlWindowSurface, self).__init__(parent)
+        self.setGeometry(900, 0, 300, 100)
+        self.layout = self.grid = QGridLayout(self)
+        self.setWindowTitle('Control Window Surface')
+        self.settings = QWidget(self)
+        self.settings.setLayout(self.layout)
+        self.setCentralWidget(self.settings)
+
+        self.row, self.column = 0, 0
+        self.logbook = {}
+        self.widgets = {}
+        rows, columns = 20, 20
+
+
+
+        self.items = [['', ] * columns, ] * rows
+
+        self.insert_label(self.grid, '', rstep=1, cstep=0)
+        self.insert_checkbox_label_spinbox(self.grid, mode + 'reorientParticle', 'Reorient Subtomogram -- Z (deg)',
+                                           mode + 'Z1', value=0, wtype=QDoubleSpinBox, decimals=2, rstep=1, cstep=-1, maximum=360)
+        self.insert_label_spinbox(self.grid, mode + 'X', 'X (deg)', value=0, wtype=QDoubleSpinBox, decimals=2, rstep=1, maximum=360)
+        self.insert_label_spinbox(self.grid, mode + 'Z2', 'Z (deg)', value=0, wtype=QDoubleSpinBox, decimals=2, rstep=1,
+                                  maximum=360, cstep=0, enabled=False)
+        self.insert_pushbutton(self.grid, 'Rotate!', action=self.parent().reload_image, rstep=1, cstep=0,
+                               wname='rotateButton',state=False)
+
+        self.insert_label(self.grid, text='', cstep=-2, rstep=1)
+        self.insert_checkbox_label_spinbox(self.grid, mode + 'recenterParticle', 'Recenter Subtomogram -- X (px)',
+                                           mode + 'cX', value=0, wtype=QSpinBox, rstep=1, cstep=-1, minimum=-1300)
+        self.insert_label_spinbox(self.grid, mode + 'cY', 'Y (px)', value=0, wtype=QSpinBox, rstep=1, minimum=-1300)
+        self.insert_label_spinbox(self.grid, mode + 'cZ', 'Z (px)', value=0, wtype=QSpinBox, minimum=-1300, cstep=0, rstep=1)
+        self.insert_pushbutton(self.grid, 'Save Image!', action=self.save_image, rstep=1, cstep=0, wname='saveImage')
+
+        self.insert_label(self.grid, text='', cstep=-1, rstep=1)
+        self.insert_label_line_push(self.grid, 'Particle List (Optional)', 'particleList', filetype='xml',rstep=1, cstep=-1)
+        self.insert_pushbutton(self.grid, 'Adjust!', action=self.adjustPL, rstep=1, cstep=0,
+                               wname='adjustPL', state=False)
+        self.insert_label(self.grid, text='', cstep=-1, rstep=1)
+        self.insert_label_spinbox(self.grid, mode + 'IsoSurface', 'IsoSurface', value=4., wtype=QDoubleSpinBox,
+                                  decimals=2,
+                                  maximum=360, stepsize=0.1, rstep=1, cstep=0)
+
+        self.insert_label(self.grid, text='', cstep=-1, rstep=1)
+
+
+        #CONNECT
+        self.widgets[mode + 'cX'].valueChanged.connect(self.centerChanged)
+        self.widgets[mode + 'cY'].valueChanged.connect(self.centerChanged)
+        self.widgets[mode + 'cZ'].valueChanged.connect(self.centerChanged)
+        self.widgets[mode + 'Z1'].valueChanged.connect(self.orientationChanged)
+        self.widgets[mode + 'X'].valueChanged.connect(self.orientationChanged)
+        self.widgets[mode + 'Z2'].valueChanged.connect(self.orientationChanged)
+        self.widgets[mode + 'recenterParticle'].stateChanged.connect(self.centerStateChanged)
+        self.widgets[mode + 'reorientParticle'].stateChanged.connect(self.orientStateChanged)
+        self.widgets[mode + 'IsoSurface'].valueChanged.connect(self.parent().redrawImage)
+
+
+    def save_image(self,params=None):
+        from pytom.tompy.io import read, write
+        fname = str(QFileDialog.getSaveFileName(self, 'Save image.', '', filter="MRC File (*.mrc);; EM File (*.em)")[0])
+        if fname:
+            if not (fname.split('.')[-1] in ('mrc', 'em')):
+                fname += '.mrc'
+
+            out = np.zeros_like(self.parent().vol)
+            dx, dy, dz = -self.get_shifts()
+            cx, cy, cz = out.shape[0] // 2, out.shape[1] // 2, out.shape[2] // 2
+            x,y,z = out.shape
+            sx,sy,sz = max(0,dx), max(0,dy), max(0,dz)
+            ex,ey,ez = min(x, 2 * cx + dx), min(y, 2 * cy + dy), min(z, 2 * cz + dz)
+            try:
+                out[sx-dx:ex-dx,sy-dy:ey-dy,sz-dz:ez-dz] = self.parent().vol[sx:ex,sy:ey,sz:ez]
+                vol = rotate3d(out, 90, -90, 90)
+                write(fname, vol, order='C')
+            except Exception as e:
+               print(e)
+               print(sx,ex,sy,ey,sz,ez)
+               print(dx,dy,dz)
+               print('writing failed.')
+
+    def adjustPL(self, params=None):
+        from pytom.basic.combine_transformations import generate_rotation_matrix
+        from pytom.bin.updateParticleList import updatePL
+
+        pl = self.widgets('particleList').text()
+        fname = str(
+            QFileDialog.getSaveFileName(self, 'Save particle list.', '', filter="XML File (*.xml)")[0])
+
+        if not pl or not fname:
+            return
+
+        shape = self.parent().vol.shape
+        new_center = -self.get_shifts() +  np.array((shape[0]//2, shape[1]//2, shape[2]//2))
+        rot_matrix = zeros((3,3),dtype=np.float32)
+        for type, angles in [['rotation_zxz',[0,0,0]]] + self.parent().list_rotations + ['rotation_zxz',[90,90,-90]]:
+            rot_matrix = np.matmul(rot_matrix, generate_rotation_matrix(angles[0], angles[1], angles[2]))
+
+
+        from numpy import cos, sin, arccos, arcsin, rad2deg
+        X = arccos(rot_matrix[2,2])
+        Z2 = arccos(rot_matrix[2,1] / sin(X))
+        Z1 = arccos(rot_matrix[1,2] / -sin(Z2))
+
+        Z1, X, Z2 = rad2deg(Z1), rad2deg(X), rad2deg(Z2)
+
+        updatePL(pl, fname, rotation=[Z1,X,Z2], new_center=new_center)
+
+
+    def centerChanged(self):
+        x,y,z = self.parent().centcanvas.offset
+        xVec = QtGui.QVector3D(x, 0, 0)
+        yVec = QtGui.QVector3D(0, y, 0)
+        zVec = QtGui.QVector3D(0, 0, z)
+        self.parent().centcanvas.move_origin_now(xVec, yVec, zVec, True, update=False)
+
+        nx,ny,nz = self.get_shifts()
+        xVec = QtGui.QVector3D(nx, 0, 0)
+        yVec = QtGui.QVector3D(0, ny, 0)
+        zVec = QtGui.QVector3D(0, 0, nz)
+        self.parent().centcanvas.move_origin_now(xVec, yVec, zVec, True, update=False)
+
+    def get_shifts(self):
+        return np.array((self.widgets['cX'].value(), self.widgets['cY'].value(), self.widgets['cZ'].value()))
+
+    def get_rotation_angles(self):
+        return self.widgets['Z1'].value(), self.widgets['X'].value(), self.widgets['Z2'].value()
+
+    def orientationChanged(self):
+        pass
+
+    def centerStateChanged(self):
+        state = self.widgets['recenterParticle'].isChecked()
+        self.widgets['reorientParticle'].setChecked(False)
+        self.widgets['recenterParticle'].setChecked(state)
+        self.parent().centcanvas.recenterParticle.setChecked(state)
+        if state:
+            self.parent().centcanvas.resetView()
+            nx, ny, nz = self.widgets['cX'].value(), self.widgets['cY'].value(), self.widgets['cZ'].value()
+            xVec = QtGui.QVector3D(nx, 0, 0)
+            yVec = QtGui.QVector3D(0, ny, 0)
+            zVec = QtGui.QVector3D(0, 0, nz)
+            self.parent().centcanvas.move_origin_now(xVec, yVec, zVec, True, update=False)
+        else:
+            self.parent().centcanvas.deleteGrids()
+
+    def orientStateChanged(self):
+        state = self.widgets['reorientParticle'].isChecked()
+        self.widgets['recenterParticle'].setChecked(False)
+        self.parent().centcanvas.reorientParticle.setChecked(state)
+        self.widgets['reorientParticle'].setChecked(state)
+        self.widgets['rotateButton'].setEnabled(state)
+
 class Viewer3D(QMainWindow, CommonFunctions):
     def __init__(self, parent=None, fname=''):
         super(Viewer3D, self).__init__(parent)
@@ -4614,6 +5211,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
             text = self.alignmentResulsDict[tomofolder]['results'][refmarker][index][column]
             self.tables[ID].widgets[f'widget_{row}_{column}'].setText(text)
         self.updateScoreColor(ID, row)
+
 
 class PlotterSubPlots(QMainWindow,CommonFunctions):
     def __init__(self, parent=None, width=800, size_subplot=80, size_subtomo=40, height=1000, offset_x=0, offset_y=0):
