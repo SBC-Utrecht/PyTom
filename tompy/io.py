@@ -4,7 +4,8 @@
 from pytom.gpu.initialize import xp, device
 import numpy as np
 
-def read(filename,ndarray=True,order='F'):
+
+def read(filename,ndarray=True, order='F'):
     """Read EM file. Now only support read the type float32 on little-endian machines.
 
     @param filename: file name to read.
@@ -15,9 +16,9 @@ def read(filename,ndarray=True,order='F'):
     assert filename.split('.')[-1].lower() in ('em', 'mrc')
 
     if filename.endswith('.em'):
-        data = read_em(filename,order=order)
+        data = read_em(filename, order=order)
     elif filename.endswith('.mrc'):
-        data = read_mrc(filename,order=order)
+        data = read_mrc(filename, order=order)
     else:
         raise Exception('Invalid filetype. Please provide a *.em or a *.mrc file.')
 
@@ -26,7 +27,7 @@ def read(filename,ndarray=True,order='F'):
     else:
         return n2v(data)
 
-def read_mrc(filename,order='F'):
+def read_mrc(filename, order='F'):
     import numpy as np
     f = open(filename, 'r')
     try:
@@ -69,7 +70,7 @@ def read_mrc(filename,order='F'):
 
     return volume
 
-def read_em(filename,order='F'):
+def read_em(filename, order='F'):
     """Read EM file. Now only support read the type float32 on little-endian machines.
 
     @param filename: file name to read.
@@ -114,10 +115,9 @@ def read_em(filename,order='F'):
         volume = xp.array(v.reshape((x, y, z), order=order), dtype=xp.float32).copy() # fortran-order array
     else: # if the input data is not the default type, convert
         volume = xp.array(v.reshape((x, y, z), order=order), dtype=xp.float32).copy() # fortran-order array
-    
     return volume
 
-def write(filename, data, tilt_angle=0, pixel_size=1):
+def write(filename, data, tilt_angle=0, pixel_size=1, order='F'):
     """Write EM or MRC file. Now only support written in type float32 on little-endian machines.
 
     @param filename: file name.
@@ -149,9 +149,9 @@ def write(filename, data, tilt_angle=0, pixel_size=1):
         pass
 
     if filename.endswith('.em'):
-        write_em(filename, data, tilt_angle)
+        write_em(filename, data, tilt_angle, order=order)
     elif filename.endswith('.mrc'):
-        write_mrc(filename, data, tilt_angle, pixel_size=pixel_size)
+        write_mrc(filename, data, tilt_angle, pixel_size=pixel_size, order=order)
     else:
         raise Exception('Unsupported file format, cannot write an {}-file'.format(filename.split('.')[-1]))
 
@@ -159,7 +159,8 @@ def binary_string(values, type):
     import numpy as np
     return np.array(values, type).tostring()
 
-def write_mrc(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnification=1., dx=0., dy=0., current_tilt_angle=999):
+def write_mrc(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnification=1., dx=0., dy=0., current_tilt_angle=999,
+              order='F'):
     import numpy as np
     try:
         data = data.get()
@@ -215,11 +216,11 @@ def write_mrc(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnific
     f = open(filename, 'wb')
     try:
         f.write(header)
-        f.write(data.tostring(order='F')) # fortran-order array
+        f.write(data.tostring(order=order)) # fortran-order array
     finally:
         f.close()
 
-def write_em(filename, data, tilt_angle=0):
+def write_em(filename, data, tilt_angle=0,order='F'):
     """Write EM file. Now only support written in type float32 on little-endian machines.
 
     @param filename: file name.
@@ -243,7 +244,7 @@ def write_em(filename, data, tilt_angle=0):
     f = open(filename, 'wb')
     try:
         f.write(header.tostring())
-        f.write(data.tostring(order='F')) # fortran-order array
+        f.write(data.tostring(order=order)) # fortran-order array
     finally:
         f.close()
 
