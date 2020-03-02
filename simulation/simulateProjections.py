@@ -1,5 +1,5 @@
 """
-Gijs' tilt series simulation - used for Ilja's contest paper
+Marten's, Gijs', and Ilja's tilt series simulation for SHREC2020 - used for Ilja's contest paper
 """
 # import numpy
 # import sys
