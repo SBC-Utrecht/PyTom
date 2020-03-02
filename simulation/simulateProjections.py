@@ -380,7 +380,7 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
 
         # ctf independent contribution of noise
         # tom_bandpass(im, lo hi, smooth) ---> hi = 7 gives good results
-        bg = tom_bandpass(preNoise, 0, 7, smooth=0.2 * size)
+        bg = tom_bandpass(preNoise, 0, 3, smooth=0.2 * size)
 
         # add both contributions (ratio 1:1) in Fourier space
         tmp = xp.fft.fftn(xp.fft.ifftshift(projection)) + ctfNoise + xp.fft.fftn(xp.fft.ifftshift(bg))
@@ -660,7 +660,7 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
 
 def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, voltage = 200e3,
                          sphericalAberration=2.7E-3, multislice=None, msdz=5e-9, amplitudeContrast=0.07, defocus=2,
-                         sigmaDecayCTF=0.4):
+                         sigmaDecayCTF=0.4, noise_sigma = 0.04):
 
     grandcell = pytom.tompy.io.read_mrc(f'{outputFolder}/model_{modelID}/rotations/rotated_volume_{0}.mrc')
 
@@ -677,23 +677,26 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
 
     for n, angle in enumerate(angles):
 
-
         filename = f'{outputFolder}/model_{modelID}/rotations/rotated_volume_{int(angle)}.mrc'
         rotated_volume = pytom.tompy.io.read_mrc(filename)  #* 1E12
 
-        print(rotated_volume.shape)
+        # add structural noise with sigma dependent on the structural SNR
+        # default value structSNR = 1.4 from Baxter et al. (2009)
 
-        #transform(gpu_volume, rotation=(0, angle, 0), rotation_order='szyx', interpolation='linear', device='cpu')
-        # rotated_volume = d_vol.transform(rotation=(0, angle, 0), rotation_order='szyx', rotation_units='deg') # if center = None: center = np.divide(volume.shape, 2, dtype=np.float32)
+        print(f'Adding structural noise to rotated volume with sigma = {noise_sigma:5.3f}')
+
+        rotated_volume += xp.random.normal(0, noise_sigma, rotated_volume.shape) * (rotated_volume > 0)
+
+        print(f'Volumes\' shape after structural noise addition is {rotated_volume.shape}')
 
         if not multislice:
-            print('simulating projection (without ms) from tilt angle ', angle)
+            print('Simulating projection (without ms) from tilt angle ', angle)
             projected_tilt_image = rotated_volume[imageSize//2:-imageSize//2,imageSize//2:-imageSize//2,:].sum(axis=2)#.get() # remove .get() if fully cupy
             projected_tilt_image = xp.abs(xp.fft.ifftn(xp.fft.fftn(projected_tilt_image)*ctf))**2
             #TODO is abs()**2 the way to go for exit wave field?
 
         else:
-            print('simulating projection (with ms) from tilt angle ', angle)
+            print('Simulating projection (with ms) from tilt angle ', angle)
 
             zheight = heightBox * pixelSize # thickness of volume in nm???
 
@@ -709,7 +712,7 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
             else:
                 n_slices = int(xp.ceil(xp.around(zheight/msdz,3)))
 
-            print('number of slices: ', n_slices)
+            print('Number of slices: ', n_slices)
             # Allocate space for multislice projection
             projected_potent_ms = xp.zeros((imageSize,imageSize, n_slices), dtype=complex)
 
@@ -768,6 +771,8 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
 
     pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/projections_noisefree.mrc',
                          noisefree_projections) # noisefree_projections.astype(xp.float32)?
+
+    del grandcell, noisefree_projections, ctf
 
     return
 
@@ -1003,6 +1008,10 @@ if __name__ == '__main__':
 
     # Generate noise-free projections
     if 'GenerateProjections' in config.sections():
+        # set seed for random number generation
+        xp.random.seed(seed)
+        random.seed(seed)
+
         print('\n- Generating projections')
         generate_projections(angles, outputFolder=outputFolder, modelID=modelID,pixelSize=pixelSize,
                              voltage=voltage, sphericalAberration=sphericalAberration,multislice=multislice, msdz=msdz,
