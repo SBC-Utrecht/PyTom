@@ -29,9 +29,9 @@ from tqdm import tqdm
 import time
 
 # Plotting
-#import matplotlib
-#from pylab import *
-#matplotlib.use('Qt5Agg')
+# import matplotlib
+# from pylab import *
+# matplotlib.use('Qt5Agg')
 
 # math
 from pytom.reconstruction.reconstructionStructures import *
@@ -275,19 +275,16 @@ def calcCTF(Dz, vol, pix_size, voltage=200E3, Cs=2.7E-3, sigma_decay_ctf=0.4, am
         r = xp.sqrt(R ** 2 + Y ** 2)
 
     # print(r)
+    ctf = xp.exp( -1j * xp.pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)) )
 
-    phase = xp.sin(xp.pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)))
-    amplitude = xp.cos(xp.pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)))
-
-    ctf = amplitude * amplitude_contrast - 1j * phase * (1-amplitude_contrast)
+    ctf.real = ctf.real * amplitude_contrast
+    ctf.imag = ctf.imag * (1-amplitude_contrast)
 
     if sigma_decay_ctf:
-        ctf = ctf * xp.exp(-(r / (sigma_decay_ctf * Ny)) ** 2)
+        decay = xp.exp(-(r / (sigma_decay_ctf * Ny)) ** 2)
+        ctf = ctf * decay
 
-    # ctf1 = -ctf1
-    # amplitude = -amplitude
-    # ctf = (1-amplitude_contrast) * ctf1 + amplitude_contrast * amplitude
-    return ctf
+    return - ctf
 
 def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', modelID=0,
              voltage=200e3, amplitude_contrast=0.07, Cs=2.7E-3, sigma_decay_ctf=0.4):
@@ -326,8 +323,9 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
     print('number of projections is ', n_images)
 
     # calculate CTF
-    ctf = calcCTF(defocus, xp.zeros((size,size)), pixelsize, voltage=voltage, Cs=Cs, sigma_decay_ctf=sigma_decay_ctf,
-                  amplitude_contrast=amplitude_contrast)
+    # maybe at this point there should be a '-' for the CTF like in the old code
+    ctf = - calcCTF(defocus, xp.zeros((size,size)), pixelsize, voltage=voltage, Cs=Cs, sigma_decay_ctf=sigma_decay_ctf,
+                    amplitude_contrast=amplitude_contrast)
 
     sigma = 0
     # pre-calculate average stdv for a whole tilt series
@@ -341,10 +339,9 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
     # take care of signal reduction due to ctf
     # ratio of white noise with and without mult by ctf
     # tom_dev() returns single values, no arrays
-    [mv, mn, mx, stv, corrfac] = tom_dev(xp.real(xp.fft.ifftn(xp.fft.fftshift(
-        ctf * spheremask(xp.fft.fftshift(xp.fft.fftn(tom_error(xp.zeros((size, size)), 0, 1.)[0, :, :])), 10, 0)))))
-    [mv, mn, mx, stv, whitenoise] = tom_dev(xp.real(xp.fft.ifftn(
-        xp.fft.fftshift(spheremask(xp.fft.fftshift(xp.fft.fftn(tom_error(xp.zeros((size, size)), 0, 1.)[0, :, :])), 10, 0)))))
+    masked_noise = spheremask(xp.fft.fftshift(xp.fft.fftn(tom_error(xp.zeros((size, size)), 0, 1.)[0, :, :])), 10, 0)
+    [mv, mn, mx, stv, corrfac] = tom_dev(xp.real(xp.fft.ifftn(xp.fft.fftshift(ctf * masked_noise))))
+    [mv, mn, mx, stv, whitenoise] = tom_dev(xp.real(xp.fft.ifftn(xp.fft.fftshift(masked_noise))))
     corrfac = whitenoise / corrfac
     sigma = sigma * corrfac
 
@@ -380,10 +377,10 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
 
         # ctf independent contribution of noise
         # tom_bandpass(im, lo hi, smooth) ---> hi = 7 gives good results
-        bg = tom_bandpass(preNoise, 0, 3, smooth=0.2 * size)
+        bg = tom_bandpass(preNoise, 0, 1, smooth=0.2 * size)
 
         # add both contributions (ratio 1:1) in Fourier space
-        tmp = xp.fft.fftn(xp.fft.ifftshift(projection)) + ctfNoise + xp.fft.fftn(xp.fft.ifftshift(bg))
+        tmp = xp.fft.fftn(xp.fft.ifftshift(projection)) + xp.fft.fftn(xp.fft.ifftshift(bg)) # + ctfNoise
         tmp = tmp * xp.fft.ifftshift(mask)
         noisy = xp.real(xp.fft.fftshift(xp.fft.ifftn(tmp)))
         noisy = noisy.astype(xp.float32)
