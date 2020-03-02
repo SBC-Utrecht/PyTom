@@ -794,7 +794,7 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, vol_size, angles, o
 
     for i in range(start_idx, end_idx+1):
 
-        p = Projection(prefix+str(i)+suffix, tiltAngle=angles[i-1])
+        p = Projection(prefix+str(i)+suffix, tiltAngle=-1 * angles[i-1])
         projections.append(p)
 
     outputname = os.path.join(outputFolder, f'model_{modelID}/reconstruction.em')
