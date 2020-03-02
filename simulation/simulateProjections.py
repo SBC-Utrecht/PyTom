@@ -611,7 +611,7 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
         particles_by_class[cls_id] += 1
 
         # update text
-        ground_truth_txt_file += f'{listpdbs[cls_id]} {loc_x:.4f} {loc_y - 256:.4f} {loc_z - 256:.4f} ' \
+        ground_truth_txt_file += f'{listpdbs[cls_id]} {int(loc_x - loc_x_start)} {int(loc_y - loc_y_start)} {int(loc_z)} ' \
                                  f'{p_angles[0]:.4f} {p_angles[1]:.4f} {p_angles[2]:.4f}\n'
 
     # add water density and structural noise
