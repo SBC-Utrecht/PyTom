@@ -1,8 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from pytom.gpu.initialize import xp
-import scipy
+from pytom.gpu.initialize import xp, map_coordinates
 
 def rotate_axis(data, angle, axis='z'):
     """Rotate the volume around certain axis.
@@ -40,6 +39,8 @@ def rotate3d(data, phi=0, psi=0, the=0, center=None, order=2):
     @return: the data after rotation.
     """
     # Figure out the rotation center
+    import numpy as xp
+
     if center is None:
         cx = data.shape[0] // 2
         cy = data.shape[1] // 2
@@ -47,6 +48,9 @@ def rotate3d(data, phi=0, psi=0, the=0, center=None, order=2):
     else:
         assert len(center) == 3
         (cx, cy, cz) = center
+
+    if phi == 0 and psi==0 and the==0:
+        return data
 
     # Transfer the angle to Euclidean
     phi = -float(phi) * xp.pi / 180.0
@@ -88,7 +92,7 @@ def rotate3d(data, phi=0, psi=0, the=0, center=None, order=2):
     grid[2] += cz
 
     # Interpolation
-    from pytom.gpu.initialize import map_coordinates
+    from scipy.ndimage import map_coordinates
     d = map_coordinates(data, grid, order=order)
 
     return d
@@ -165,7 +169,7 @@ def transform3d(data, m, order=2):
     return d
 
 
-def resize(data, x, y, z):
+def resize_scipy(data, x, y, z):
     """Resize the data in real space.
 
     @param data: input data.
@@ -183,7 +187,7 @@ def resize(data, x, y, z):
     return d
 
 
-def cut_from_projection(proj, center, size):
+def cut_from_projection(proj, center, size, device=2):
     """Cut out a subregion out from a 2D projection.
 
     @param proj: 2D projection.
@@ -192,17 +196,178 @@ def cut_from_projection(proj, center, size):
 
     @return: subprojection.
     """
-    from scipy import mgrid
-    from scipy.ndimage import map_coordinates
-
+    import pytom.voltools as vt
     if len(proj.shape) > 2 and proj.shape[2] > 1:
         raise Exception('We assume that projections come from a 3D object, thus your projection cannot be a 3D object itself')
 
+    import numpy as np
+    from scipy.ndimage import map_coordinates
+    try:
+        proj = proj.squeeze().get()
+    except:
+        proj = proj.squeeze()
+
+    #v =
     # adjusted to python3
-    grid = mgrid[center[0]-size[0]//2:center[0]+size[0]-size[0]//2-1:size[0]*1j, 
-                 center[1]-size[1]//2:center[1]+size[1]-size[1]//2-1:size[1]*1j]
-    v = map_coordinates(proj.squeeze(), grid, order=2)
-    return v
+    grid = np.mgrid[center[0]-size[0]//2:center[0]+size[0]-size[0]//2-1:size[0]*1j,
+                    center[1]-size[1]//2:center[1]+size[1]-size[1]//2-1:size[1]*1j]
+
+
+    v = map_coordinates(proj, grid, order=2)
+
+    return xp.array(v)
+
+
+def scale(volume, factor, interpolation='Spline'):
+    """
+    scale: Scale a volume by a factor in REAL SPACE - see also resize function for more accurate operation in Fourier \
+    space
+    @param volume: input volume
+    @type volume: L{pytom_volume.vol}
+    @param factor: a factor > 0. Factors < 1 will de-magnify the volume, factors > 1 will magnify.
+    @type factor: L{float}
+    @param interpolation: Can be Spline (default), Cubic or Linear
+    @type interpolation: L{str}
+
+    @return: The scaled volume
+    @author: Thomas Hrabe
+    """
+
+    from pytom.voltools import transform
+    if factor <= 0:
+        raise RuntimeError('Scaling factor must be > 0!')
+
+
+    interpolation_dict = {'Spline': 'filt_bspline', 'Linear': 'linear', 'Cubic': 'filt_bspline', 'filt_bspline': 'filt_bspline', 'linear':'linear'}
+    interpolation = interpolation_dict[interpolation]
+
+    volume = volume.squeeze()
+
+    sizeX = volume.shape[0]
+    sizeY = volume.shape[1]
+    sizeZ = 1
+    newSizeX = int(xp.ceil(sizeX * float(factor)))
+    newSizeY = int(xp.ceil(sizeY * float(factor)))
+    newSizeZ = 1
+
+    if len(volume.shape) == 3:
+        sizeZ = volume.shape[2]
+        newSizeZ = int(xp.ceil(sizeZ * float(factor)))
+        scaleF = [1/scale, 1/scale, 1/scale]
+    else:
+        scaleF = [1/scale, 1/scale, 1]
+        volume = xp.expand_dims(volume,2)
+
+    if factor ==1:
+        rescaledVolume = volume
+    elif factor > 1:
+        newVolume = xp.zeros((newSizeX, newSizeY, newSizeZ),dtype=volume.dtype)
+        newVolume = paste_in_center(volume, newVolume)
+        rescaledVolume = xp.zeros_like(newVolume)
+        transform(newVolume, scale=scaleF, output=rescaledVolume, device=device, interpolation=interpolation)
+    else:
+        rescaledVolumeFull = xp.zeros_like(volume)
+        transform(volume, scale=scaleF, output=rescaledVolumeFull, device=device, interpolation=interpolation)
+        rescaledVolume = xp.zeros((newSizeX, newSizeY, newSizeZ), dtype=volume.dtype)
+        rescaledVolume = paste_in_center(rescaledVolumeFull, rescaledVolume)
+
+    return rescaledVolume
+
+
+def resize(volume, factor, interpolation='Fourier'):
+    """
+    resize volume in real or Fourier space
+    @param volume: input volume
+    @type volume: L{pytom_volume.vol}
+    @param factor: a factor > 0. Factors < 1 will de-magnify the volume, factors > 1 will magnify.
+    @type factor: L{float}
+    @param interpolation: Can be 'Fourier' (default), 'Spline', 'Cubic' or 'Linear'
+    @type interpolation: L{str}
+
+    @return: The re-sized volume
+    @rtype: L{pytom_volume.vol}
+    @author: FF
+    """
+
+    if (interpolation == 'Spline') or (interpolation == 'Cubic') or (interpolation == 'Linear'):
+        return scale(volume, factor, interpolation='Spline')
+    else:
+        from pytom.basic.fourier import fft, ifft
+
+        fvol = fft(data=volume)
+        newfvol = resizeFourier(fvol=fvol, factor=factor)
+        newvol = ifft(newfvol)
+
+        return newvol, newfvol
+
+def resizeFourier(fvol, factor):
+    """
+    resize Fourier transformed by factor
+
+    @param fvol: Fourier transformed of a volume  - reduced complex
+    @type fvol: L{pytom_volume.vol_comp}
+    @param factor:  a factor > 0. Factors < 1 will de-magnify the volume, factors > 1 will magnify.
+    @type factor: float
+    @return: resized Fourier volume (deruced complex)
+    @rtype: L{pytom_volume.vol_comp}
+    @author: FF
+    """
+    from pytom_volume import vol_comp
+
+    assert isinstance(fvol, vol_comp), "fvol must be reduced complex"
+
+    fvol = fvol.squeeze()
+
+    oldFNx = fvol.sizeX()
+    oldFNy = fvol.sizeY()
+    oldNy = fvol.getFtSizeY()
+
+    # new dims in real and Fourier space
+    newFNx = int(float(oldFNx * factor) + 0.5)
+    newNx = newFNx
+    newNy = int(float(oldNy * factor) + 0.5)
+
+
+
+    # check 3D images
+    if len(fvol.shape) == 3:
+        oldNz = fvol.getFtSizeZ()
+        newNz = int(float(oldNz * factor) + 0.5)
+        scf = 1. / (newNx * newNy * newNz)
+        newFNz = newNz // 2 + 1
+        newFNy = newNy
+        fvol_center_scaled = xp.fft.fftshift(fvol,axes=(0,1)) *scf
+        newfvol = xp.zeros((newFNx, newFNy, newFNz), dtype=fvol.dtype)
+
+        if factor >= 1:
+            # Effectively zero-padding
+            newfvol[newFnx // 2 - oldFNx // 2:newFnx // 2 + oldFNx // 2,
+                    newFny // 2 - oldFNy // 2:newFny // 2 + oldFNy // 2,
+                    :oldFNy] = fvol_center_scaled
+        else:
+            # Effectively cropping
+            newfvol = fvol_center_scaled[oldFnx // 2 - newFNx // 2: oldFnx // 2 + newFNx // 2,
+                                         oldFny // 2 - newFNy // 2: oldFny // 2 + newFNy // 2,
+                                         :newFNz]
+        newfvol = xp.fft.fftshift(newfvol, axes=(0,1))
+
+    else:
+        newNz = 1
+        scf = 1. / (newNx * newNy * newNz)
+        newFNz = 1
+        newFNy = newNy // 2 + 1
+        fvol_center_scaled = xp.fft.fftshift(fvol,axes=(0))
+        newfvol = xp.zeros((newFNx, newFNy), dtype=fvol.dtype) *scf
+
+        if factor >= 1:
+            newfvol[newFnx // 2 - oldFNx // 2:newFnx // 2 + oldFNx // 2, :oldFNx] = fvol_center_scaled
+        else:
+            newfvol = fvol_center_scaled[oldFnx // 2 - newFNx // 2: oldFnx // 2 + newFNx // 2, :newFNy]
+
+        newfvol = xp.fft.fftshift(newfvol, axes=(0))
+        newfvol = xp.expand_dims(newfvol,2)
+
+    return newfvol
 
 
 ################################
@@ -218,7 +383,6 @@ def rfft(data):
     """
     return xp.fft.rfftn(data)
 
-
 def irfft(data, s=None):
     """Do 3D Inverse Fourier transformaion to get back data of real numbers.
 
@@ -227,7 +391,6 @@ def irfft(data, s=None):
     @return: the data after ifft (without the need to scale).
     """
     return xp.fft.irfftn(data, s)
-
 
 def fft(data):
     """Do 3D Fourier transformaion of data (real or complex numbers).
@@ -238,7 +401,6 @@ def fft(data):
     """
     return xp.fft.fftn(data)
 
-
 def ifft(data):
     """Do 3D Inverse Fourier transformaion to get back data (real or complex numbers).
 
@@ -248,14 +410,11 @@ def ifft(data):
     """
     return xp.fft.ifftn(data)
 
-
 def fftshift(data):
     return xp.fft.fftshift(data)
 
-
 def ifftshift(data):
     return xp.fft.ifftshift(data)
-
 
 def conv3d(data, kernel):
     """Do 3D convolution.
@@ -268,7 +427,6 @@ def conv3d(data, kernel):
     from scipy.ndimage.filters import convolve
     d = convolve(data, kernel)
     return d
-
 
 def fourier_reduced2full(data, isodd=False):
     """Return an Hermitian symmetried data.
@@ -294,11 +452,8 @@ def fourier_reduced2full(data, isodd=False):
 
     return res
 
-
 def fourier_full2reduced(data):
     return data[:,:,0:data.shape[2]//2+1]
-
-
 
 def fourier_filter(data, fltr, human=True):
     if human:

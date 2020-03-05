@@ -71,7 +71,6 @@ def create_circle(size, radius=-1, sigma=0, num_sigma=3, center=None):
 
     return circle
 
-
 def prepare_mask(v, threshold, smooth):
     """Prepare a mask according to the given volume.
     Everything above the given threshold will be set to 1.
@@ -89,7 +88,6 @@ def prepare_mask(v, threshold, smooth):
     
     return gaussian3d(mask, smooth)
 
-
 def add_noise(data, snr=0.1, m=0):
     """Add gaussian noise to the given volume.
     @param data: input volume.
@@ -105,7 +103,6 @@ def add_noise(data, snr=0.1, m=0):
     noise = sd*standard_normal(s.shape)+m
     t = data + noise
     return t
-
 
 def paste_in_center(volume, volume2, gpu=False):
     if 0:
@@ -128,7 +125,6 @@ def paste_in_center(volume, volume2, gpu=False):
             volume2[SX//2-sx//2:SX//2+sx//2+sx%2,SY//2-sy//2:SY//2+sy//2+sy%2] = volume
             return volume2
 
-
 def rotation_matrix_x(angle):
     """Return the 3x3 rotation matrix around x axis.
 
@@ -145,7 +141,6 @@ def rotation_matrix_x(angle):
     mtx[0,0] = 1
 
     return mtx
-
 
 def rotation_matrix_y(angle):
     """Return the 3x3 rotation matrix around y axis.
@@ -164,7 +159,6 @@ def rotation_matrix_y(angle):
 
     return mtx
 
-
 def rotation_matrix_z(angle):
     """Return the 3x3 rotation matrix around z axis.
 
@@ -181,7 +175,6 @@ def rotation_matrix_z(angle):
     mtx[2,2] = 1
 
     return mtx
-
 
 def rotation_matrix_zxz(angle):
     """Return the 3x3 rotation matrix of an Euler angle in ZXZ convention.
@@ -205,7 +198,6 @@ def rotation_matrix_zxz(angle):
 
     return res
 
-
 def rotation_distance(ang1, ang2):
     """Given two angles (lists), calculate the angular distance (degree).
 
@@ -227,10 +219,13 @@ def rotation_distance(ang1, ang2):
         return 180
     return acos(temp)*180/pi
 
-
 def euclidian_distance(pos1, pos2):
     return xp.linalg.norm(xp.array(pos1)-xp.array(pos2))
 
+def volumesSameSize(v0, v1):
+    if len(v0.shape) != len(v1.shape):
+        return False
+    return xp.array([abs(v0.shape[pos] - v1.shape[pos]) == 0 for pos in range(len(v0.shape))]).sum() == len(v0.shape)
 
 def taper_edges(image, width):
     """
@@ -267,3 +262,68 @@ def taper_edges(image, width):
 
     return image * taper_mask, taper_mask
 
+def resize(*args, **kwargs):
+    pass
+
+def determineRotationCenter(particle, binning):
+    """
+    determineRotationCenter:
+    @param particle: The particle
+    @type particle: Either L{pytom_volume.vol} or string specifying the particle file name
+    @param binning: Binning factor
+    @return: [centerX,centerY,centerZ]
+
+    @author: GvdS
+    """
+    if particle.__class__ == str:
+        from pytom.tompy.io import read
+        particle = read(particle)
+
+    centerX = particle.shape[0] / 2.0 * (1.0 / float(binning))
+    centerY = particle.shape[1] / 2.0 * (1.0 / float(binning))
+    centerZ = particle.shape[2] / 2.0 * (1.0 / float(binning))
+    #
+    # if binning > 1:
+    #   centerX = centerX - 0.25*(binning-1)
+    #    centerY = centerY - 0.25*(binning-1)
+    #    centerZ = centerZ - 0.25*(binning-1)
+
+    return [centerX, centerY, centerZ]
+
+def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
+    """
+    invert wedge sum - avoid division by zero and boost of high frequencies
+
+    @param invol: input volume
+    @type invol: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+    @param r_max: radius
+    @type r_max: L{int}
+    @param lowlimit: lower limit - all values below this value that lie in the specified radius will be replaced \
+                by lowval
+    @type lowlimit: L{float}
+    @param lowval: replacement value
+    @type lowval: L{float}
+
+    @author: FF
+    """
+    from math import sqrt
+    if not r_max:
+        r_max=invol.shape[1]//2-1
+
+    dx,dy,dz= invol.shape
+    if dz != dx:
+        X, Y, Z = meshgrid(arange(-dx // 2, dx // 2 + dx % 2), arange(-dy // 2, dy // 2 + dy % 2), arange(0,dz//2+1))
+        invol = xp.fft.fftshift(invol,axes=(0,1))
+    else:
+        X, Y, Z = meshgrid(arange(-dx // 2, dx // 2 + dx % 2), arange(-dy // 2, dy // 2 + dy % 2), arange(-dz // 2, dz // 2 + dz % 2))
+    R = sqrt(X ** 2 + Y ** 2 + Z**2).astype(int)
+
+    invol_out= invol.copy()
+    invol_out[invol < lowlimit] =  lowval
+    invol_out = 1/invol_out
+    invol_out[R >= rmax] = 0
+
+    if dx != dz:
+        invol_out = xp.fft.fftshift(invol_out, axes=(0,1))
+
+    return invol_out

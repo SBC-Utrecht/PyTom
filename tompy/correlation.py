@@ -175,7 +175,6 @@ def nxcc(volume, template, mask=None, volumeIsNormalized=False):
 
     return ncc
 
-
 def mean0std1(volume, copyFlag=False):
     """
     mean0std1: normalises input volume to mean 0 and std 1. Procedure is performed inplace if copyFlag is unspecified!!!
@@ -303,7 +302,6 @@ def nXcf(volume, template, mask=None, stdV=None, gpu=False):
     result /= float(n * n)
 
     return result
-
 
 def normaliseUnderMask(volume, mask, p=None):
     """
@@ -1133,7 +1131,7 @@ def randomizePhaseBeyondFreq(volume, frequency):
 
     return image.real
 
-def calc_FSC_true(FSC_t, FSC_n):
+def calc_FSC_true(FSC_t, FSC_n, ring_thickness=2):
     '''Calculates the true FSC as defined in Henderson
     @param FSC_t: array with FSC values without randomized phases.
     @type FSC_t: ndarray
@@ -1149,10 +1147,14 @@ def calc_FSC_true(FSC_t, FSC_n):
     if len(FSC_t) != len(FSC_n):
         raise Exception('FSC arrays are not of equal length.')
     FSC_true = zeros_like(FSC_t)
+    steps = 0
     for i in range(len(FSC_t)):
 
         if abs(FSC_t[i] - FSC_n[i]) < 1e-1:
             FSC_true[i] = FSC_t[i]
+        elif steps < 2*ring_thickness:
+            FSC_true[i] = FSC_t[i]
+            steps += 1
         else:
             FSC_true[i] = (FSC_t[i] - FSC_n[i]) / (1 - FSC_n[i])
 

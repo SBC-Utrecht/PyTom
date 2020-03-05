@@ -401,3 +401,43 @@ def n2v(data):
 
     return v
 
+def readSubvolumeFromFourierspaceFile(filename, sizeX, sizeY, sizeZ):
+    """
+    readSubvolumeFromFourierspaceFile: This function is required when data \
+    (in real space) is read in binned mode and a related fourier space file
+    like a wedge needs to be read alongside.
+    Works only if fourier file is reduced complex without any shift applied.
+    @param filename: The fourier space file name
+    @param sizeX: X final size of subvolume if it was complete
+    (what L{pytom.basic.structures.Wedge.returnWedgeVolume} with
+    humanUnderstandable == True returns)
+    @param sizeY: Y final size of subvolume if it was complete
+    (what L{pytom.basic.structures.Wedge.returnWedgeVolume}
+    with humanUnderstandable == True returns)
+    @param sizeZ: Z final size of subvolume if it was complete
+    (what L{pytom.basic.structures.Wedge.returnWedgeVolume}
+    with humanUnderstandable == True returns)
+    @return: A subvolume
+    @author: Thomas Hrabe
+    """
+    from pytom.tompy.io import read
+    from pytom.basic.fourier import fourierSizeOperation
+    [newX, newY, newZ] = fourierSizeOperation(sizeX, sizeY, sizeZ,
+                                              reducedToFull=False)
+
+
+    if filename.__class__ == str:
+        originalVolume = read(filename)
+    elif filename.__class__ == xp.array:
+        # open a backdoor for this function to take volumes, but
+        # this should be rather an exception -> not fully documented
+        originalVolume = filename
+    else:
+        raise TypeError('Filename must be a string')
+
+    originalVolume = xp.fft.fftshift(originalVolume,axes=(0,1))
+    newVolume = originalVolume[sizeX//2-newX//2:sizeX//2+newX//2, sizeY//2-newY//2:sizeY//2+newY//2,:newZ]
+    newVolume = xp.fft.fftshift(newVolume,axes=(0,1))
+
+
+    return newVolume

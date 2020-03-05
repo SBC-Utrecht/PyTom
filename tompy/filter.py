@@ -3,7 +3,7 @@
 """
 basic filters operating on numpy arrays
 """
-from pytom.gpu.initialize import xp
+from pytom.gpu.initialize import xp, device
 import scipy
 import numpy as np
 
@@ -20,10 +20,10 @@ def normalize(v):
     v = v/s
     return v
 
-def bandpass(v, low=0, high=-1, sigma=0):
+def bandpass(volume, low=0, high=-1, sigma=0):
     """Do a bandpass filter on a given volume.
 
-    @param v: input volume.
+    @param volume: input volume.
     @param low: low frequency in k-space.
     @param high: high frequency in k-space.
     @param sigma: smoothness factor.
@@ -35,19 +35,19 @@ def bandpass(v, low=0, high=-1, sigma=0):
     from pytom.tompy.tools import create_sphere
 
     if high == -1:
-        high = np.min(v.shape)/2
+        high = np.min(volume.shape)/2
     assert low < high, "upper bandpass must be > than lower limit"
 
     if low == 0:
-        mask = create_sphere(v.shape, high, sigma)
+        mask = create_sphere(volume.shape, high, sigma)
     else:
         # BUG! TODO
         # the sigma
-        mask = create_sphere(v.shape, high, sigma) - create_sphere(v.shape, max(0,low-sigma*2), sigma)
+        mask = create_sphere(volume.shape, high, sigma) - create_sphere(volume.shape, max(0,low-sigma*2), sigma)
 
     from pytom.tompy.transform import fourier_filter
 
-    res = fourier_filter(v, mask, True)
+    res = fourier_filter(volume, mask, True)
 
     return res
 
@@ -269,7 +269,7 @@ class SingleTiltWedge(Wedge):
         return self._sf
 
 
-def create_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth=0):
+def create_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth=0, rotation=None):
     '''This function returns a wedge object. For speed reasons it decides whether to generate a symmetric or assymetric wedge.
     @param wedgeAngle1: angle of wedge1 in degrees
     @type wedgeAngle1: int
@@ -287,13 +287,14 @@ def create_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, sm
     @type smooth: float
     @return: 3D array determining the wedge object.
     @rtype: ndarray of np.float64'''
+    import numpy
     print(wedgeAngle1, wedgeAngle2)
     if wedgeAngle1 == wedgeAngle2:
-        return create_symmetric_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth)
+        return create_symmetric_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth, rotation).astype(np.float32)
     else:
-        return create_asymmetric_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth)
+        return create_asymmetric_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth, rotation).astype(np.float32)
 
-def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, smooth):
+def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, smooth, rotation=None):
     '''This function returns a symmetric wedge object.
     @param angle1: angle of wedge1 in degrees
     @type angle1: int
@@ -312,28 +313,78 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
     @return: 3D array determining the wedge object.
     @rtype: ndarray of np.float64'''
 
-    range_angle1Smooth = smooth / np.sin(angle1 * np.pi / 180.)
-    range_angle2Smooth = smooth / np.sin(angle2 * np.pi / 180.)
+    print('smoth: ', angle1)
+
+
+
     wedge = np.zeros((sizeX, sizeY, sizeZ // 2 + 1), dtype=np.float64)
+    if rotation is None:
+        z, y, x = np.meshgrid(np.abs(np.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2, 1.)),
+                              np.abs(np.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2, 1.)),
+                              np.arange(0, sizeZ // 2 + 1, 1.))
 
-    z, y, x = np.meshgrid(np.abs(np.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2, 1.)),
-                          np.abs(np.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2, 1.)),
-                          np.arange(0, sizeZ // 2 + 1, 1.))
+    else:
+        cx,cy,cz = [s//2 for s in (sizeX,sizeY,sizeZ)]
+        grid = xp.mgrid[-cx:sizeX - cx, -cy:sizeY - cy, :sizeZ // 2 + 1]
+
+        phi, the, psi = rotation
+
+        phi = -float(phi) * xp.pi / 180.0
+        the = -float(the) * xp.pi / 180.0
+        psi = -float(psi) * xp.pi / 180.0
+        sin_alpha = xp.sin(phi)
+        cos_alpha = xp.cos(phi)
+        sin_beta = xp.sin(the)
+        cos_beta = xp.cos(the)
+        sin_gamma = xp.sin(psi)
+        cos_gamma = xp.cos(psi)
+
+        # Calculate inverse rotation matrix
+        Inv_R = xp.zeros((3, 3), dtype='float32')
+
+        Inv_R[0, 0] = cos_alpha * cos_gamma - cos_beta * sin_alpha \
+                      * sin_gamma
+        Inv_R[0, 1] = -cos_alpha * sin_gamma - cos_beta * sin_alpha \
+                      * cos_gamma
+        Inv_R[0, 2] = sin_beta * sin_alpha
+
+        Inv_R[1, 0] = sin_alpha * cos_gamma + cos_beta * cos_alpha \
+                      * sin_gamma
+        Inv_R[1, 1] = -sin_alpha * sin_gamma + cos_beta * cos_alpha \
+                      * cos_gamma
+        Inv_R[1, 2] = -sin_beta * cos_alpha
+
+        Inv_R[2, 0] = sin_beta * sin_gamma
+        Inv_R[2, 1] = sin_beta * cos_gamma
+        Inv_R[2, 2] = cos_beta
+
+        temp = grid.reshape((3, grid.size // 3))
+        temp = xp.dot(Inv_R, temp)
+        grid = xp.reshape(temp, grid.shape)
+
+        y = abs(grid[0, :, :, :])
+        z = abs(grid[1, :, :, :])
+        x = abs(grid[2, :, :, :])
+
     r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-    with np.errstate(all='ignore'):
-        wedge[np.tan(angle1 * np.pi / 180) < y / x] = 1
+    if angle1 > 1E-3:
+        range_angle1Smooth = smooth / np.sin(angle1 * np.pi / 180.)
+        with np.errstate(all='ignore'):
+            wedge[np.tan(angle1 * np.pi / 180) < y / x] = 1
 
-    wedge[sizeX // 2, :, 0] = 1
+        wedge[sizeX // 2, :, 0] = 1
 
-    if smooth:
-        area = np.abs(x - (y / np.tan(angle1 * np.pi / 180))) <= range_angle1Smooth
-        strip = 1 - (np.abs(x - (y / np.tan(angle1 * np.pi / 180.))) * np.sin(angle1 * np.pi / 180.) / smooth)
-        wedge += (strip * area * (1 - wedge))
+        if smooth:
+            area = np.abs(x - (y / np.tan(angle1 * np.pi / 180))) <= range_angle1Smooth
+            strip = 1 - (np.abs(x - (y / np.tan(angle1 * np.pi / 180.))) * np.sin(angle1 * np.pi / 180.) / smooth)
+            wedge += (strip * area * (1 - wedge))
 
+    else:
+        wedge += 1
     wedge[r > cutoffRadius] = 0
     return np.fft.fftshift(wedge, axes=(0, 1))
 
-def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, smooth):
+def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, smooth, rotation=None):
     '''This function returns an asymmetric wedge object.
     @param angle1: angle of wedge1 in degrees
     @type angle1: int
@@ -356,8 +407,54 @@ def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, s
     range_angle2Smooth = smooth / np.sin(angle2 * np.pi / 180.)
     wedge = np.zeros((sizeX, sizeY, sizeZ // 2 + 1))
 
-    z, y, x = np.meshgrid(np.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2),
-                          np.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2), np.arange(0, sizeZ // 2 + 1))
+    if rotation is None:
+        z, y, x = np.meshgrid(np.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2),
+                              np.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2), np.arange(0, sizeZ // 2 + 1))
+
+    else:
+        cx, cy, cz = [s // 2 for s in (sizeX, sizeY, sizeZ)]
+        grid = xp.mgrid[-cx:sizeX - cx, -cy:sizeY - cy, :sizeZ // 2 + 1]
+
+        phi, the, psi = rotation
+
+        phi = -float(phi) * xp.pi / 180.0
+        the = -float(the) * xp.pi / 180.0
+        psi = -float(psi) * xp.pi / 180.0
+        sin_alpha = xp.sin(phi)
+        cos_alpha = xp.cos(phi)
+        sin_beta = xp.sin(the)
+        cos_beta = xp.cos(the)
+        sin_gamma = xp.sin(psi)
+        cos_gamma = xp.cos(psi)
+
+        # Calculate inverse rotation matrix
+        Inv_R = xp.zeros((3, 3), dtype='float32')
+
+        Inv_R[0, 0] = cos_alpha * cos_gamma - cos_beta * sin_alpha \
+                      * sin_gamma
+        Inv_R[0, 1] = -cos_alpha * sin_gamma - cos_beta * sin_alpha \
+                      * cos_gamma
+        Inv_R[0, 2] = sin_beta * sin_alpha
+
+        Inv_R[1, 0] = sin_alpha * cos_gamma + cos_beta * cos_alpha \
+                      * sin_gamma
+        Inv_R[1, 1] = -sin_alpha * sin_gamma + cos_beta * cos_alpha \
+                      * cos_gamma
+        Inv_R[1, 2] = -sin_beta * cos_alpha
+
+        Inv_R[2, 0] = sin_beta * sin_gamma
+        Inv_R[2, 1] = sin_beta * cos_gamma
+        Inv_R[2, 2] = cos_beta
+
+        temp = grid.reshape((3, grid.size // 3))
+        temp = xp.dot(Inv_R, temp)
+        grid = xp.reshape(temp, grid.shape)
+
+        y = grid[0, :, :, :]
+        z = grid[1, :, :, :]
+        x = grid[2, :, :, :]
+
+
     r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
 
     wedge[np.tan(angle1 * np.pi / 180) < y / x] = 1
@@ -406,10 +503,9 @@ def ramp_filter(sizeX, sizeY, crowtherFreq=None):
     if crowtherFreq is None: crowtherFreq = sizeX//2
     rampLine = xp.abs(xp.arange(-sizeX//2, sizeX//2)) / crowtherFreq
     rampLine[rampLine > 1] = 1
-    rampfilter = xp.row_stack(([(rampLine), ] * (sizeY)))
+    rampfilter = xp.column_stack(([(rampLine), ] * (sizeY))).T
 
     return rampfilter
-
 
 def exact_filter(tilt_angles, tiltAngle, sX, sY, sliceWidth=1, arr=[]):
     """
@@ -441,8 +537,145 @@ def exact_filter(tilt_angles, tiltAngle, sX, sY, sliceWidth=1, arr=[]):
     # Create full with weightFunc
     wfunc = xp.ones((sX, sY), dtype=xp.float32)
 
-    weightingFunc = xp.row_stack( ([(wfuncCrowther), ] * (sY) ))
+    # row_stack is not implemented in cupy
+    weightingFunc = xp.column_stack( ([(wfuncCrowther), ] * (sY) )).T
 
     wfunc[:, sX // 2 - crowtherFreq:sX // 2 + min(sX // 2, crowtherFreq + 1)] = weightingFunc
 
     return wfunc
+
+def rotateWeighting(weighting, rotation, mask=None, binarize=False):
+    """
+    rotateWeighting: Rotates a frequency weighting volume around the center. If the volume provided is reduced complex, it will be rescaled to full size, ftshifted, rotated, iftshifted and scaled back to reduced size.
+    @param weighting: A weighting volume in reduced complex convention
+    @type weighting: cupy or numpy array
+    @param rotation: rotation angles in zxz order
+    @type rotation: list
+    @param mask:=None is there a rotation mask? A mask with all = 1 will be generated otherwise. Such mask should be \
+        provided anyway.
+    @type mask: cupy or numpy ndarray
+    @return: weight as reduced complex volume
+    @rtype: L{pytom_volume.vol_comp}
+    """
+    from pytom_volume import vol, limit, vol_comp
+    from pytom_volume import rotate
+    from pytom.voltools import transform
+    assert type(weighting) == vol or type(weighting) == vol_comp, "rotateWeighting: input neither vol nor vol_comp"
+    from pytom.tompy.transform import fourier_reduced2full, fourier_full2reduced
+
+    weighting = fourier_reduced2full(weighting, isodd=weighting.shape[0]%2 == 1)
+    xp.fft.fftshift(weighting)
+
+    weightingRotated = xp.zeros_like(weighting)
+
+    transform(weighting, output=weightingRotated, rotation=rotation, rotation_order='rzxz', device=device, interpolation='filt_bspline')
+
+    if not mask is None:
+        weightingRotated *= mask
+
+    xp.fft.fftshift(weightingRotated)
+    returnVolume = fourier_full2reduced(weightingRotated)
+
+    if binarize:
+        returnVolume[returnVolume < 0.5] = 0
+        returnVolume[returnVolume >= 0.5] = 1
+
+    return returnVolume
+
+def profile2FourierVol(profile, dim=None, reduced=False):
+    """
+    create Volume from 1d radial profile, e.g., to modulate signal with \
+    specific function such as CTF or FSC. Simple linear interpolation is used\
+    for sampling.
+
+    @param profile: profile
+    @type profile: 1-d L{pytom_volume.vol} or 1-d python array
+    @param dim: dimension of (cubic) output
+    @type dim: L{int}
+    @param reduced: If true reduced Fourier representation (N/2+1, N, N) is generated.
+    @type reduced: L{bool}
+
+    @return: 3-dim complex volume with spherically symmetrical profile
+    @rtype: L{pytom_volume.vol}
+    @author: FF
+    """
+
+    if not dim:
+        if profile.__class__ == xp.array:
+            dim = 2 * profile.shape[0]
+        else:
+            dim = 2 * len(profile)
+
+    if reduced:
+        nz = int(dim // 2) + 1
+    else:
+        nz = dim
+
+    if profile.__class__ == xp.array:
+        r_max = profile.shape[0] - 1
+    else:
+        r_max = len(profile) - 1
+
+    if reduced:
+        X, Y, Z = meshgrid(arange(-dim // 2, dim // 2 + dim % 2), arange(-dim // 2, dim // 2 + dim % 2),
+                           arange(0, nz // 2 + 1))
+    else:
+        X, Y, Z = meshgrid(arange(-dim // 2, dim // 2 + dim % 2), arange(-dim // 2, dim // 2 + dim % 2),
+                           arange(-nz // 2, nz // 2 + nz % 2))
+
+    R = xp.sqrt(X ** 2 + Y ** 2 + Z ** 2)
+
+    IR = xp.floor(R).astype(xp.int64)
+    valIR_l1 = IR.copy()
+    valIR_l2 = valIR_l1 + 1
+    val_l1, val_l2 = xp.zeros_like(X, dtype=xp.float64), xp.zeros_like(X, dtype=xp.float64)
+
+    l1 = R - IR.astype(xp.float32)
+    l2 = 1 - l1
+
+    for n in xp.arange(r_max):
+        val_l1[valIR_l1 == n] = profile[n]
+        val_l2[valIR_l2 == n + 1] = profile[n + 1]
+
+    val_l1[IR == r_max] = profile[n + 1]
+    val_l2[IR == r_max] = profile[n + 1]
+
+    val_l1[R > r_max] = 0
+    val_l2[R > r_max] = 0
+
+    fkernel = l2 * val_l1 + l1 * val_l2
+
+    if reduced:
+        fkernel = xp.fft.fftshift(fkernel, axes=(0, 1))
+
+    return fkernel
+
+def filter_volume_by_profile(volume, profile):
+    """
+    filter volume by 1-d profile
+    @param volume: volume
+    @type volume: L{pytom_volume.vol}
+    @param profile: 1-d profile
+    @type profile: L{pytom_volume.vol}
+    @return: outvol
+    @rtype: L{pytom_volume.vol}
+    @author: FF
+    """
+    from pytom.gpu.gpuFunctions import applyFourierFilter, applyFourierFilterFull
+
+    if volume.shape[0] != volume.shape[2]:
+        reduced = True
+        convolute = applyFourierFilter
+    else:
+        reduced = False
+        convolute = applyFourierFilterFull
+
+    kernel = profile2FourierVol(profile=profile, dim=volume.shape[0], reduced=reduced)
+    outvol = convolute(volume, kernel)
+    return outvol
+
+def applyFourierFilter(particle, filter):
+    return xp.fft.irfftn(xp.fft.rfftn(particle) * filter)
+
+def applyFourierFilterFull(particle, filter):
+    return xp.fft.ifftn(xp.fft.fftn(particle) * filter)
