@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+from pytom.gpu.initialize import xp, device
 
 from pytom.gpu.initialize import xp, map_coordinates
 
@@ -25,7 +26,6 @@ def rotate_axis(data, angle, axis='z'):
     from scipy.ndimage.interpolation import rotate
     res = rotate(data, angle, a, reshape=False, mode='constant')
     return res
-
 
 def rotate3d(data, phi=0, psi=0, the=0, center=None, order=2):
     """Rotate a 3D data using ZXZ convention (phi: z1, the: x, psi: z2).
@@ -97,7 +97,6 @@ def rotate3d(data, phi=0, psi=0, the=0, center=None, order=2):
 
     return d
 
-
 def translate3d(data, dx=0, dy=0, dz=0, order=2):
     """Translate the data.
 
@@ -124,7 +123,6 @@ def translate3d(data, dx=0, dy=0, dz=0, order=2):
 
     return d
 
-
 def translate3d_f(data, dx=0, dy=0, dz=0):
     """Translate the data using Fourier shift theorem.
     """
@@ -149,7 +147,6 @@ def translate3d_f(data, dx=0, dy=0, dz=0):
 
     return res
 
-
 def transform3d(data, m, order=2):
     """Transform 3D data using 3x3 transformation matrix.
 
@@ -168,7 +165,6 @@ def transform3d(data, m, order=2):
     d = map_coordinates(data, grid, order=order)
     return d
 
-
 def resize_scipy(data, x, y, z):
     """Resize the data in real space.
 
@@ -185,7 +181,6 @@ def resize_scipy(data, x, y, z):
     grid = mgrid[0:s[0]-1:x * 1j, 0:s[1]-1:y * 1j, 0:s[2]-1:z * 1j]
     d = map_coordinates(data, grid, order=2)
     return d
-
 
 def cut_from_projection(proj, center, size, device=2):
     """Cut out a subregion out from a 2D projection.
@@ -217,7 +212,6 @@ def cut_from_projection(proj, center, size, device=2):
 
     return xp.array(v)
 
-
 def scale(volume, factor, interpolation='Spline'):
     """
     scale: Scale a volume by a factor in REAL SPACE - see also resize function for more accurate operation in Fourier \
@@ -234,6 +228,7 @@ def scale(volume, factor, interpolation='Spline'):
     """
 
     from pytom.voltools import transform
+    from pytom.tompy.tools import paste_in_center
     if factor <= 0:
         raise RuntimeError('Scaling factor must be > 0!')
 
@@ -253,9 +248,9 @@ def scale(volume, factor, interpolation='Spline'):
     if len(volume.shape) == 3:
         sizeZ = volume.shape[2]
         newSizeZ = int(xp.ceil(sizeZ * float(factor)))
-        scaleF = [1/scale, 1/scale, 1/scale]
+        scaleF = [1/factor, 1/factor, 1/factor]
     else:
-        scaleF = [1/scale, 1/scale, 1]
+        scaleF = [1/factor, 1/factor, 1]
         volume = xp.expand_dims(volume,2)
 
     if factor ==1:
@@ -272,7 +267,6 @@ def scale(volume, factor, interpolation='Spline'):
         rescaledVolume = paste_in_center(rescaledVolumeFull, rescaledVolume)
 
     return rescaledVolume
-
 
 def resize(volume, factor, interpolation='Fourier'):
     """
@@ -292,15 +286,13 @@ def resize(volume, factor, interpolation='Fourier'):
     if (interpolation == 'Spline') or (interpolation == 'Cubic') or (interpolation == 'Linear'):
         return scale(volume, factor, interpolation='Spline')
     else:
-        from pytom.basic.fourier import fft, ifft
+        fvol = xp.fft.rfftn(volume)
+        newfvol = resizeFourier(fvol=fvol, factor=factor, isodd=volume.shape[2]%2)
+        newvol = (xp.fft.irfftn(newfvol, s=[newfvol.shape[0],]*len(newfvol.shape)))
 
-        fvol = fft(data=volume)
-        newfvol = resizeFourier(fvol=fvol, factor=factor)
-        newvol = ifft(newfvol)
+        return newvol
 
-        return newvol, newfvol
-
-def resizeFourier(fvol, factor):
+def resizeFourier(fvol, factor, isodd=False):
     """
     resize Fourier transformed by factor
 
@@ -312,42 +304,41 @@ def resizeFourier(fvol, factor):
     @rtype: L{pytom_volume.vol_comp}
     @author: FF
     """
-    from pytom_volume import vol_comp
-
-    assert isinstance(fvol, vol_comp), "fvol must be reduced complex"
 
     fvol = fvol.squeeze()
+    if factor == 1: return fvol
+    oldFNx = fvol.shape[0]
+    oldFNy = fvol.shape[1]
 
-    oldFNx = fvol.sizeX()
-    oldFNy = fvol.sizeY()
-    oldNy = fvol.getFtSizeY()
 
     # new dims in real and Fourier space
-    newFNx = int(float(oldFNx * factor) + 0.5)
-    newNx = newFNx
-    newNy = int(float(oldNy * factor) + 0.5)
-
-
-
+    newNx = newFNx = xp.int32(xp.floor(oldFNx * factor +0.5))
+    newNy = newFNy = xp.int32(xp.floor(oldFNy * factor +0.5))
+    print(newNx)
     # check 3D images
     if len(fvol.shape) == 3:
-        oldNz = fvol.getFtSizeZ()
-        newNz = int(float(oldNz * factor) + 0.5)
-        scf = 1. / (newNx * newNy * newNz)
+        oldNz = xp.int32((fvol.shape[2] - 1)*2 + 1*isodd)
+        newNz = xp.int32(xp.floor(oldNz * factor + 0.5))
         newFNz = newNz // 2 + 1
-        newFNy = newNy
-        fvol_center_scaled = xp.fft.fftshift(fvol,axes=(0,1)) *scf
-        newfvol = xp.zeros((newFNx, newFNy, newFNz), dtype=fvol.dtype)
+        oldFNz = fvol.shape[2]
 
+        scf = 1#oldNz **3 / (newNx * newNy * newNz)
+        newxIsEven = newFNx%2
+        newyIsEven = newFNy%2
+
+        fvol_center_scaled = xp.fft.fftshift(fvol,axes=(0,1)) * scf
+        newfvol = xp.zeros((newFNx, newFNy, newFNz), dtype=fvol.dtype)
+        print(newfvol.shape)
         if factor >= 1:
             # Effectively zero-padding
-            newfvol[newFnx // 2 - oldFNx // 2:newFnx // 2 + oldFNx // 2,
-                    newFny // 2 - oldFNy // 2:newFny // 2 + oldFNy // 2,
-                    :oldFNy] = fvol_center_scaled
+            newfvol[newFNx // 2 - oldFNx // 2 + newxIsEven :newFNx // 2 + oldFNx // 2 + isodd + newxIsEven,
+                    newFNy // 2 - oldFNy // 2 + newyIsEven :newFNy // 2 + oldFNy // 2 + isodd + newyIsEven,
+                    :oldFNz] = fvol_center_scaled
+                    # newFNz // 2 - oldFNz // 2 :newFNz // 2 + oldFNz // 2 + 1] = fvol_center_scaled
         else:
             # Effectively cropping
-            newfvol = fvol_center_scaled[oldFnx // 2 - newFNx // 2: oldFnx // 2 + newFNx // 2,
-                                         oldFny // 2 - newFNy // 2: oldFny // 2 + newFNy // 2,
+            newfvol = fvol_center_scaled[oldFNx // 2 - newFNx // 2 - newxIsEven: oldFNx // 2 + newFNx // 2 + isodd ,
+                                         oldFNy // 2 - newFNy // 2 - newyIsEven: oldFNy // 2 + newFNy // 2 + isodd ,
                                          :newFNz]
         newfvol = xp.fft.fftshift(newfvol, axes=(0,1))
 
@@ -360,13 +351,13 @@ def resizeFourier(fvol, factor):
         newfvol = xp.zeros((newFNx, newFNy), dtype=fvol.dtype) *scf
 
         if factor >= 1:
-            newfvol[newFnx // 2 - oldFNx // 2:newFnx // 2 + oldFNx // 2, :oldFNx] = fvol_center_scaled
+            newfvol[newFNx // 2 - oldFNx // 2:newFNx // 2 + oldFNx // 2 + isodd, :oldFNx] = fvol_center_scaled
         else:
-            newfvol = fvol_center_scaled[oldFnx // 2 - newFNx // 2: oldFnx // 2 + newFNx // 2, :newFNy]
+            newfvol = fvol_center_scaled[oldFNx // 2 - newFNx // 2: oldFNx // 2 + newFNx // 2 + isodd, :newFNy]
 
         newfvol = xp.fft.fftshift(newfvol, axes=(0))
         newfvol = xp.expand_dims(newfvol,2)
-
+    print(newfvol.shape)
     return newfvol
 
 

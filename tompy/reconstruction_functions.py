@@ -1,4 +1,4 @@
-from pytom.gpu.initialize import xp, gpu
+from pytom.gpu.initialize import xp, device
 import voltools
 
 

@@ -19,7 +19,7 @@ def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False)
     """
 
 
-    if len(size) == 1:
+    if size.__class__ == float or len(size) == 1:
         size = (size, size, size)
     assert len(size) == 3
 
@@ -116,7 +116,14 @@ def paste_in_center(volume, volume2, gpu=False):
         if len(volume.shape) == 3:
             sx,sy,sz = volume.shape
             SX, SY, SZ = volume2.shape
-            volume2[SX//2-sx//2:SX//2+sx//2+sx%2,SY//2-sy//2:SY//2+sy//2+sy%2,SZ//2-sz//2:SZ//2+sz//2+sz%2 ] = volume
+            if SX <= sx:
+                volume2[:,:,:] = volume[sx//2-SX//2:sx//2+SX//2+SX%2,
+                                        sy//2-SY//2:sy//2+SY//2+SY%2,
+                                        sz//2-SZ//2:sz//2+SZ//2+SZ%2 ]
+            else:
+                volume2[SX//2-sx//2:SX//2+sx//2+sx%2,
+                        SY//2-sy//2:SY//2+sy//2+sy%2,
+                        SZ//2-sz//2:SZ//2+sz//2+sz%2 ] = volume
             return volume2
 
         if len(volume.shape) == 2:

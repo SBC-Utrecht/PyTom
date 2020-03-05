@@ -51,7 +51,6 @@ def bandpass(volume, low=0, high=-1, sigma=0):
 
     return res
 
-
 def median3d(data, size=3):
     """Median filter.
 
@@ -65,7 +64,6 @@ def median3d(data, size=3):
     assert type(size) == int, "median3d: size must be integer"
     d = median_filter(data, size)
     return d
-
 
 def gaussian3d(data, sigma=0):
     """Gaussian filter.
@@ -617,11 +615,11 @@ def profile2FourierVol(profile, dim=None, reduced=False):
         r_max = len(profile) - 1
 
     if reduced:
-        X, Y, Z = meshgrid(arange(-dim // 2, dim // 2 + dim % 2), arange(-dim // 2, dim // 2 + dim % 2),
-                           arange(0, nz // 2 + 1))
+        X, Y, Z = xp.meshgrid(xp.arange(-dim // 2, dim // 2 + dim % 2), xp.arange(-dim // 2, dim // 2 + dim % 2),
+                           xp.arange(0, nz // 2 + 1))
     else:
-        X, Y, Z = meshgrid(arange(-dim // 2, dim // 2 + dim % 2), arange(-dim // 2, dim // 2 + dim % 2),
-                           arange(-nz // 2, nz // 2 + nz % 2))
+        X, Y, Z = xp.meshgrid(xp.arange(-dim // 2, dim // 2 + dim % 2), xp.arange(-dim // 2, dim // 2 + dim % 2),
+                           xp.arange(-nz // 2, nz // 2 + nz % 2))
 
     R = xp.sqrt(X ** 2 + Y ** 2 + Z ** 2)
 
@@ -661,7 +659,7 @@ def filter_volume_by_profile(volume, profile):
     @rtype: L{pytom_volume.vol}
     @author: FF
     """
-    from pytom.gpu.gpuFunctions import applyFourierFilter, applyFourierFilterFull
+    from pytom.tompy.filter import applyFourierFilter, applyFourierFilterFull
 
     if volume.shape[0] != volume.shape[2]:
         reduced = True
