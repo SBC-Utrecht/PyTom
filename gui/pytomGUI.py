@@ -37,11 +37,8 @@ def update_env_vars(pytompath):
                     update_vars = True
         #If any of the env vars are updated reopen this script.
         if update_vars:
-            if len(sys.argv) < 2:
-                pythonVersion = 'python{d[0]}.{d[1]}'.format( d=sys.version_info )
-                path = os.popen('which {}'.format(pythonVersion)).read()[:-1]
-                sys.argv = [path] + sys.argv
-
+            if not 'python' in os.path.basename(sys.argv[0]):
+                sys.argv = [sys.executable] + sys.argv
             os.execv(sys.argv[0],sys.argv)
             #os.execv('/cm/shared/apps/python3/3.7/bin/python3.7', sys.argv)
 update_env_vars(pytompath)
@@ -114,16 +111,9 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.qparams = {}
         self.projectname = './'
         y,b,g,w = 'f9ce00', '343434', 'cacaca','fcfaf1'
-        ly = 'f4e8c1'
-        green = 'a0c1b8'
-        gr = '5c636e'
         bl='1989ac'
         lg = 'f6f6f6'
-        r = '970747'
-        gg = '00818a'
-        lb = 'bbf1fd'
-        yy = 'f4e033'
-        tt = 'bbf1fd'
+
         self.bars = bl
         self.mainc = w
         self.middlec = lg
@@ -132,32 +122,33 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.qcommand = 'sbatch'
         self.logbook = {}
         dropdown = []
-        self.modules = ['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel']
+        self.modules = ['openmpi/2.1.1', 'python3/3.7', 'lib64/append']
 
         self.setStyleSheet('background: #{};'.format(self.mainc))
         bar=self.menuBar()
+        bar.setNativeMenuBar(False)
         bar.setStyleSheet('selection-background-color: #1989ac;')
         tb = QToolBar()
         tb.setStyleSheet('background: #{};'.format(self.bars))
         self.addToolBar(tb)
-        print(self.pytompath+'/gui/Icons/new_project4.png')
-        new=QAction(QIcon("{}/gui/Icons/new_project4.png".format(self.pytompath)),"New",self)
-        tb.addAction(new)
-        load=QAction(QIcon("{}/gui/Icons/open_project4.png".format(self.pytompath)),"Open",self)
-        tb.addAction(load)
 
+        # ADD ICONS FOR NEW, OPEN, SAVE, AND SETTINGS.
+        new  = QAction(QIcon("{}/gui/Icons/new_project4.png".format(self.pytompath)),"New",self)
+        load = QAction(QIcon("{}/gui/Icons/open_project4.png".format(self.pytompath)),"Open",self)
         save = QAction(QIcon("{}/gui/Icons/save_project4.png".format(self.pytompath)), "Save", self)
-        tb.addAction(save)
-
-        plot = QAction(QIcon("{}/gui/Icons/PlotIcon.png".format(self.pytompath)), "Plot", self)
-        tb.addAction(plot)
-
-        log = QAction(QIcon("{}/gui/Icons/LogFileTray.png".format(self.pytompath)), "Queue", self)
-        tb.addAction(log)
-
         settings = QAction(QIcon("{}/gui/Icons/cogwheel.png".format(self.pytompath)), "Settings", self)
-        tb.insertSeparator(settings)
-        tb.addAction(settings)
+        for action in (new, load, save, settings):
+            tb.addAction(action)
+
+        # ADD ICONS FOR PLOT AND QUEUE -- ALSO ACCESSIBLE THROUGH DROPDOWN MENU FOR TOOLS
+        plot = QAction(QIcon("{}/gui/Icons/PlotIcon.png".format(self.pytompath)), "Plot", self)
+        log = QAction(QIcon("{}/gui/Icons/LogFileTray.png".format(self.pytompath)), "Queue", self)
+        for action in (plot, log):
+            tb.addAction(action)
+
+        # ADD SEPARATOR
+        tb.insertSeparator(plot)
+        tb.insertSeparator(plot)
 
         tb.actionTriggered[QAction].connect(self.processtrigger)
 
@@ -167,15 +158,16 @@ class PyTomGui(QMainWindow, CommonFunctions):
                           ('ParticlePick',         "Particle Picking" ),
                           ('SubtomoAnalysis',      "Subtomogram Analysis"))
 
-        dropdown_menu_project = ("Project",('New','Open','Save','Quit'), self.processtrigger)
-        dropdown_menu_file = ("File", ('Open', 'Save', 'Close'), self.filetrigger)
+        dmp = dropdown_menu_project = ("Project",('New', 'Open', 'Save', 'Settings', 'Quit'), self.processtrigger)
+        dmf = dropdown_menu_file    = ("File", ('Open', 'Save', 'Close'), self.filetrigger)
+        dmt = dropdown_menu_tools   = ("Tools", ('Plot', 'Queue'), self.processtrigger)
         self.drs = dropdown_menu_stage = ("Enable Stage",("Tomographic Reconstruction","Particle Picking","Subtomogram Analysis"),
                                self.processtrigger)
 
-        for name, actionlist, trigger in (dropdown_menu_project, dropdown_menu_file, dropdown_menu_stage):
+        for name, actionlist, trigger in (dropdown_menu_project, dmf, self.drs, dmt):
             dropdown.append(bar.addMenu(name))
             for subname in actionlist:
-                action=QAction(subname,self)
+                action=QAction(subname, self)
                 dropdown[-1].addAction(action)
             dropdown[-1].triggered[QAction].connect(trigger)
 
@@ -184,6 +176,18 @@ class PyTomGui(QMainWindow, CommonFunctions):
         # self.statusBar.setLayout(QHBoxLayout())
         self.setStatusBar(self.sbar)
         self.sbar.setSizeGripEnabled(False)
+
+        try:
+            if os.path.isdir(sys.argv[-1]):
+                self.projectname = sys.argv[-1]
+                if self.is_pytomgui_project(self.projectname):
+                    # self.destroy(error_dialog)
+                    self.setWindowTitle('PyTom -- ' + basename(self.projectname))
+                    guiFunctions.create_project_filestructure(projectdir=self.projectname)
+                    self.run_project()
+        except Exception as e:
+            print(e)
+            pass
 
     def resizeEvent(self, event):
         self.resized.emit()
@@ -216,11 +220,10 @@ class PyTomGui(QMainWindow, CommonFunctions):
         if os.path.exists(os.path.join(projectname, 'logfile.js')):
             self.load_logfile(os.path.join(projectname, 'logfile.js'))
             return True
-        if os.path.exists(os.path.join(projectname, 'logfile.pickle'))  :
+        elif os.path.exists(os.path.join(projectname, 'logfile.pickle')):
             for t, text in self.targets:
                 self.logbook['00_framebutton_{}'.format(t)] = (t == self.targets[0][0])
             return True
-
         return False
 
     def filetrigger(self, q):
@@ -234,7 +237,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
         elif q.text() == 'Close': self.filewindow.close()
 
     def processtrigger(self,q):
-
         if   q.text() == 'New':          self.new_project()
         elif q.text() == 'Open':         self.open_project()
         elif q.text() == 'Open Project': self.open_project()
@@ -252,6 +254,12 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
     def plot_results(self):
         try:
+            self.CD
+        except:
+            self.popup_messagebox('Warning', 'Current Project Not Set', 'Functionality has been disabled. Please create or open a project. ')
+            return
+
+        try:
             self.plotWindow.close()
             self.plotWindow.show()
         except:
@@ -267,6 +275,12 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
     def open_settings(self,show_menu=True):
         try:
+            self.CD
+        except:
+            self.popup_messagebox('Warning', 'Current Project Not Set', 'Functionality has been disabled. Please create or open a project. ')
+            return
+
+        try:
             self.generalSettings.close()
             self.generalSettings.show()
         except:
@@ -274,6 +288,12 @@ class PyTomGui(QMainWindow, CommonFunctions):
             if show_menu: self.generalSettings.show()
 
     def show_logfiles(self,show_menu=True):
+        try:
+            self.CD
+        except:
+            self.popup_messagebox('Warning', 'Current Project Not Set', 'Functionality has been disabled. Please create or open a project. ')
+            return
+
         try:
             self.executedJobs.close()
             self.executedJobs.show()
@@ -285,7 +305,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.projectname = os.path.join(os.getcwd(), self.label.text())
 
         if not os.path.exists(self.projectname): os.mkdir(self.projectname)
-        self.setWindowTitle(basename(self.projectname))
+        self.setWindowTitle('PyTom -- ' + basename(self.projectname))
         self.logbook = {}
         for t, text in self.targets:
             self.logbook['00_framebutton_{}'.format(t)] = (t == self.targets[0][0])
@@ -310,7 +330,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
         elif self.projectname and self.is_pytomgui_project(self.projectname):
             #self.destroy(error_dialog)
-            self.setWindowTitle(basename(self.projectname))
+            self.setWindowTitle(basename('PyTom -- ' + self.projectname))
             guiFunctions.create_project_filestructure(projectdir=self.projectname)
             self.run_project()
 
@@ -365,7 +385,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.topright.addWidget(self.PP)
         self.topright.addWidget(self.SA)
         #self.topright.setSizePolicy(self.sizePolicyB)
-        self.topright.setCurrentIndex(2)
+        self.topright.setCurrentIndex(0)
         self.CD.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.CD.scrollarea.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.CD.tabWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -444,6 +464,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.topleft_layout.addWidget(self.image,alignment=Qt.AlignHCenter)
 
 def main():
+
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     app.setWindowIcon(QIcon('/Users/gijs/Documents/PostDocUtrecht/GUI/pp.jpg'))

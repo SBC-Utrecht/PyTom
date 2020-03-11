@@ -1,4 +1,4 @@
-PyTom v0.971
+PyTom v0.980
 
 This license affects the software package PyTom and all the herein distributed source / data files.
 Authors: 
@@ -7,7 +7,7 @@ Thomas Hrabe
 Yuxiang Chen
 Friedrich Foerster
 
-Copyright (c) 2019
+Copyright (c) 2020
 Utrecht University
 http://www.pytom.org
 

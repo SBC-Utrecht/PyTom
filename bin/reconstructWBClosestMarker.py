@@ -21,6 +21,7 @@ if __name__ == '__main__':
     from pytom.tools.files import checkFileExists,checkDirExists
     from pytom.basic.files import read_em_header
     from pytom.bin.createXMLsClosestMarker import *
+    from pytom.gui.guiFunctions import datatypeAR
 
     helper = ScriptHelper(sys.argv[0].split('/')[-1],
                       description='Reconstruct particles in a particle list. Documentation is available at\n\
@@ -80,8 +81,10 @@ if __name__ == '__main__':
         coordinateBinning = float(coordinateBinning)
     else:
         coordinateBinning = 1
-    if not aw:
-        aw = False
+    if aw is None:
+        aw = 0
+    else:
+        aw = int(aw)
 
     if recOffset:
         recOffset = [int(i) for i in recOffset.split(",")]
@@ -108,14 +111,21 @@ if __name__ == '__main__':
         vol.write(tomogram)
         
     else:
-
+        print(xmlsBasedOnClosestMarker)
         for markerIndex, particleListXMLPath in xmlsBasedOnClosestMarker:
             markerIndex = int(markerIndex)
             projections = ProjectionList()
             projectionDirectory = projectionDirectoryTemplate.replace('_CLOSEST_', '_{:04d}_'.format(markerIndex))
-            alignResultFile = ''#os.path.join(projectionDirectory, 'alignmentResults.txt')
-            if not os.path.exists(alignResultFile): alignResultFile = ''  
+            alignResultFile = os.path.join(projectionDirectory, 'alignmentResults.txt')
 
+            if not os.path.exists(alignResultFile):
+                alignResultFile = ''
+            else:
+                alignmentResults = loadstar(alignResultFile, dtype=datatypeAR)
+                projectionsFileNames = alignmentResults['FileName']
+                projectionDirectory = os.path.dirname(projectionsFileNames[0])
+                print(projectionDirectory,checkDirExists(projectionDirectory) )
+                prefix = os.path.basename(projectionsFileNames[0]).split('_')[0] + '_'
             if checkFileExists(projectionList):
                 projections.fromXMLFile(projectionList)
             elif checkDirExists(projectionDirectory):
@@ -162,4 +172,3 @@ if __name__ == '__main__':
 
 
             del projections
-

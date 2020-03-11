@@ -336,6 +336,8 @@ def resizeFourier(fvol, factor):
                     for ix in range(newFNx_2-1, newFNx):
                         ixOld = ix + (oldFNx - newFNx)
                         newfvol.setV( fvol.getV(ixOld, iyOld, iz)*scf, ix, iy, iz)
+
+
     return newfvol
 
 def mirror(volume,axis = 'x',copyFlag = True):

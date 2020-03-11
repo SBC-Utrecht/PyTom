@@ -77,7 +77,7 @@ def read_markerfile(filename,tiltangles):
 
     return mark_frames
 
-def readMarkerfile(filename, num_tilt_images):
+def readMarkerfile(filename, num_tilt_images=0):
     if filename.endswith('.em'):
         from pytom.basic.files import read
         from pytom_numpy import vol2npy
@@ -86,9 +86,9 @@ def readMarkerfile(filename, num_tilt_images):
         return markerdata
 
     elif filename.endswith('.txt'):
-        
         data = loadstar(filename)
         datalen = data.shape[0]
+        num_tilt_images = (data[:,0] == data[0,0]).sum()
         x, y = datalen // num_tilt_images, num_tilt_images
         markerdata = data.reshape(x, y, 4)[:, :, 1:].transpose(2, 1, 0)
         return markerdata
@@ -147,7 +147,7 @@ def mrc2markerfile(filename, tiltangles):
 
     return markers
 
-def em2markerfile(filename,tiltangles):
+def em2markerfile(filename, tiltangles):
     vol = read(filename)
     mf = copy.deepcopy(vol2npy(vol))
 
@@ -520,6 +520,7 @@ def create_project_filestructure(projectdir='.'):
                 "CPCA": "",
                 "AutoFocus":""
             },
+            "Validation": "",
             "copy_files": [""],
             "run_scripts": [""]
         },
@@ -640,7 +641,6 @@ def headerline(line):
     else:
 
         return True
-
 
 def loadstar(filename, dtype='float32', usecols=None, skip_header=0):
     with open(filename, 'r') as f:
@@ -902,3 +902,23 @@ def addShiftToMarkFrames(mark_frames, shifts, metadata, excluded):
 
 
     return mark_frames, shifts
+
+def convert_markerfile(filename, outname):
+    from pytom.tompy.io import read
+    import numpy as np
+    from pytom.basic.datatypes import HEADER_MARKERFILE, fmtMarkerfile
+
+    a = read(filename)
+
+    point, num_images, num_markers = a.shape
+
+    markerFile = np.ones((num_markers,num_images,4))*-1
+    for i in range(num_markers):
+        markerFile[i,:,0] = i
+        markerFile[i,:,1:4] = a[0:3,:,i].T
+
+    with open(outname, 'w') as outfile:
+        np.savetxt(outfile,[],header=HEADER_MARKERFILE)
+
+        for data_slice in markerFile:
+            np.savetxt(outfile, data_slice, fmt=fmtMarkerfile)

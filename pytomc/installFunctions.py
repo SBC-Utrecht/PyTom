@@ -172,8 +172,6 @@ def adjustLibraryVersions(library,versionList,flag,extension, search_dir):
     
     return [lib,libraryFlag]
     
-    
-    
 def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None,python_version=''):
     
     os.chdir('..')
@@ -183,12 +181,9 @@ def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None,python_version
     generatePyTomScript(pytomDirectory, python_version)
     generateIPyTomScript(pytomDirectory)
     generatePathsFile(pytomDirectory,libPaths,binPaths,pyPaths)
-    
-    
+    generatePyTomGuiScript(pytomDirectory, python_version)
 
 def generatePyTomScript(pytomDirectory,python_version):
-
-
     pytomCommand = '#!/usr/bin/env csh\n'
     pytomCommand += 'cat ' + pytomDirectory + os.sep + 'LICENSE.txt\n'
     pytomCommand += 'source ' + pytomDirectory + os.sep + 'bin' + os.sep + 'paths.csh\n'
@@ -199,7 +194,16 @@ def generatePyTomScript(pytomDirectory,python_version):
     f.close()
     
     os.system('chmod 755 ' + pytomDirectory + os.sep + 'bin' + os.sep + 'pytom')
-    
+
+def generatePyTomGuiScript(pytomDirectory, python_version):
+    pytomguiCommand = '# !/bin/bash\n'
+    pytomguiCommand += f'python{python_version} {pytomDirectory}/gui/pytomGUI.py $1\n'
+
+    f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'pytomGUI.py', 'w')
+    f.write(pytomguiCommand)
+    f.close()
+
+    os.system('chmod 755 ' + pytomDirectory + os.sep + 'bin' + os.sep + 'pytomGUI.py')
 
 def generateIPyTomScript(pytomDirectory):
 
@@ -213,8 +217,7 @@ def generateIPyTomScript(pytomDirectory):
     f.close()
     
     os.system('chmod 755 ' + pytomDirectory + os.sep + 'bin' + os.sep + 'ipytom')
-    
-    
+
 def generatePathsFile(pytomDirectory,libPaths, binPaths, pyPaths):
         os.chdir(pytomDirectory + os.sep + '..')
         oneAbove = os.getcwd()

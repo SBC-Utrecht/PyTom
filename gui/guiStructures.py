@@ -217,7 +217,7 @@ class SelectFiles(BrowseWindowRemote):
             else:
                 selected = False
                 for file in self.selectedfiles:
-                    if filename == os.path.basename(file):
+                    if os.path.join(self.folderpath, filename) == file:
                         selected = True
                         break
                 if not selected: self.matchingfiles.append(filename)
@@ -422,7 +422,6 @@ class CommonFunctions():
 
     def insert_module(self, parent, wname='', cstep=0, rstep=1, rowspan=1, columnspan=1, options=[], mode=''):
         widget = SelectModules(self, modules=options, mode=mode)
-        print(f'wname: {wname}')
         if wname: self.widgets[wname] = widget
         parent.addWidget(widget, self.row, self.column, rowspan, columnspan)
         self.items[self.row][self.column] = widget
@@ -682,26 +681,51 @@ class CommonFunctions():
         self.insert_pushbutton(parent, text=actiontext, rstep=rstep, cstep=cstep, action=action, params=params, wname=wname)
         self.insert_label(parent,sizepolicy=sizepolicy,rstep=1)
 
+    def insert_label_action(self, parent, actiontext, action='', cstep=0, rstep=1, sizepolicy='', params='', wname='',
+                            width=150):
+        self.insert_label(parent,alignment=Qt.AlignRight,sizepolicy=sizepolicy,rstep=1)
+        self.insert_pushbutton(parent, text=actiontext, rstep=1, cstep=cstep, action=action, params=params, wname=wname,
+                               width=width)
+
     def insert_gen_text_exe(self, parent, mode, gen_action='', action='', paramsAction=[], paramsXML=[], paramsCmd=[],
-                            paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, id='', gpu=True):
+                            paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, id='', gpu=True,
+                            queue=True, cs=3):
 
-        self.insert_label_action_label(parent, 'Generate command', cstep=1, rstep=-1, sizepolicy=self.sizePolicyB,
-                                       action=self.gen_action, wname=mode + 'GeneratePushButton',
-                                       params=[[mode + 'XMLText']+paramsXML,
-                                               [mode+'CommandText'] + paramsCmd,
-                                               paramsSbatch])
+        if not queue:
+            self.insert_label_action(parent, 'Generate command', cstep=1, rstep=-1, sizepolicy=self.sizePolicyB,
+                                           action=self.gen_action, wname=mode + 'GeneratePushButton',
+                                           params=[[mode + 'XMLText'] + paramsXML,
+                                                   [mode + 'CommandText'] + paramsCmd,
+                                                   paramsSbatch])
+            self.widgets[mode+'queue'] = QCheckBox()
 
 
-        self.insert_checkbox(parent,mode + 'queue',text='queue',cstep=-3,rstep=1,logvar=True,alignment=Qt.AlignLeft)
+        if queue:
+            self.insert_label_action_label(parent, 'Generate command', cstep=1, rstep=-1, sizepolicy=self.sizePolicyB,
+                                           action=self.gen_action, wname=mode + 'GeneratePushButton',
+                                           params=[[mode + 'XMLText'] + paramsXML,
+                                                   [mode + 'CommandText'] + paramsCmd,
+                                                   paramsSbatch])
+            self.insert_checkbox(parent,mode + 'queue',text='queue',cstep=-cs,rstep=1,logvar=True,alignment=Qt.AlignLeft)
+        else:
+            self.column -= cs
+            self.row += 1
 
         if jobfield:
-            self.insert_textfield(parent, mode + 'XMLText', columnspan=3, rstep=0, cstep=3, width=600,logvar=False)
+            self.insert_textfield(parent, mode + 'XMLText', columnspan=cs, rstep=0, cstep=3, width=600,logvar=False)
             if gpu: self.insert_checkbox(parent,mode + 'gpuRun',text='gpu',cstep=-1,rstep=1,logvar=True, alignment=Qt.AlignTop | Qt.AlignLeft)
             self.insert_label(parent, alignment=Qt.AlignRight, rstep=1, cstep=-2, sizepolicy=self.sizePolicyB)
-        self.insert_textfield(parent, mode + 'CommandText', columnspan=3, rstep=1, cstep=2, width=600, logvar=False)
-        self.insert_label_action_label(parent, 'Execute command', rstep=1, action=self.exe_action,
+        self.insert_textfield(parent, mode + 'CommandText', columnspan=cs, rstep=1, cstep=cs-1, width=600, logvar=False)
+
+        if queue:
+            self.insert_label_action_label(parent, 'Execute command', rstep=1, action=self.exe_action,
                                        params=[exefilename, mode+'CommandText', xmlfilename, mode+'XMLText', action,
                                                paramsAction])
+        else:
+            self.insert_label_action(parent, 'Execute command', rstep=1, action=self.exe_action,
+                                           params=[exefilename, mode + 'CommandText', xmlfilename, mode + 'XMLText',
+                                                   action,
+                                                   paramsAction])
 
     def exe_action(self, params):
 
@@ -717,8 +741,8 @@ class CommonFunctions():
                         tempfilename = os.path.join(self.widgets[params[2][0]].text(), params[2][1])
                 else:
                     tempfilename = params[2]
-                jobfile = open(tempfilename,'w')
 
+                jobfile = open(tempfilename,'w')
                 jobfile.write(self.widgets[params[3]].toPlainText())
                 jobfile.close()
 
@@ -736,7 +760,14 @@ class CommonFunctions():
                 dd = os.popen('{} {}'.format(self.qcommand, exefilename))
                 print('Submitted')
                 text = dd.read()[:-1]
+                id = text.split()[-1]
                 self.popup_messagebox('Info','Submitted job to the queue', text)
+
+                logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
+                try: os.system(f'cp {exefilename} {logcopy}')
+                except Exception as e:
+                    print(e)
+                    
             else:
                 proc = Worker(fn=os.system, args=['sh {}'.format(exefilename)], sig=False)
                 proc.start()
@@ -752,7 +783,6 @@ class CommonFunctions():
         if id:
             partition, num_nodes, cores, time, modules = self.qparams[id].values()
 
-        print(params[1][1:-1], params[2]['id'])
         for key in params[1][1:-1]:
             if 'numberMpiCores' in key and params[2]['id']:
                 self.widgets[key].setText(str(num_nodes*cores))
@@ -770,11 +800,11 @@ class CommonFunctions():
                             if datatype in (QSpinBox, QDoubleSpinBox, QLineEdit): d.append(self.widgets[a].text())
                             elif datatype == QComboBox: d.append(self.widgets[a].currentText())
                             elif datatype == QCheckBox: d.append(str(int(self.widgets[a].isChecked())))
-                            else: print(a, datatype)
+                            else: pass
                         elif type(str(a)) == type(''):
                             d.append(a)
-                        else: print(a)
-                    print(d)
+                        else: pass
+
                     text = text.format( d=d )
                 if i==0: self.widgets[params[i][0]].setPlainText(text)
         # Check if user wants to submit to queue. If so, add queue header.
@@ -912,7 +942,7 @@ class CommonFunctions():
         widget2.setVisible(True)
 
     def popup_messagebox(self, messagetype, title, message):
-        print(messagetype, title, message)
+
         if messagetype == 'Info':
             QMessageBox().information(self, title, message, QMessageBox.Ok)
 
@@ -927,7 +957,7 @@ class CommonFunctions():
         pb.setValue( int(value.text()) )
 
     def fill_tab(self, id, headers, types, values, sizes, tooltip=[],wname='v02_batch_aligntable_', connect=0, nn=False,
-                 sorting=False):
+                 sorting=False, runbutton=True, runtitle='Run'):
         try:
             self.tables[id].setParent(None)
             self.pbs[id].setParent(None)
@@ -951,9 +981,9 @@ class CommonFunctions():
         except:
             self.num_nodes ={}
             self.num_nodes[id] = 0
-
-        self.pbs[id] = QPushButton('Run')
-        self.pbs[id].setSizePolicy(self.sizePolicyC)
+        if runbutton:
+            self.pbs[id] = QPushButton(runtitle)
+            self.pbs[id].setSizePolicy(self.sizePolicyC)
         self.ends[id] = QWidget()
         self.ends[id].setSizePolicy(self.sizePolicyA)
 
@@ -1080,6 +1110,64 @@ class ConvertEM2PDB(QMainWindow, CommonFunctions):
         self.close()
 
 
+class CreateFSCMaskFile(QMainWindow, CommonFunctions):
+    def __init__(self,parent, emfname='',folder='./'):
+        super(CreateFSCMaskFile, self).__init__(parent)
+        self.folder = folder
+        w = QWidget(self)
+        l = QGridLayout()
+        self.logbook = self.parent().logbook
+        w.setLayout(l)
+        self.widgets = {}
+        self.row, self.column = 0, 0
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+        parent = l
+
+        self.insert_label_line_push(parent, 'Volume (Filtered)', 'volume', mode='file',
+                                    filetype=['em', 'mrc'], enabled=True,
+                                    tooltip='Volume path.')
+        self.insert_label_line_push(parent, 'Mask (Optional)', 'mask', mode='file',
+                                    filetype=['em', 'mrc'], enabled=True,
+                                    tooltip='The mask is used to only select a part of the model for resolution '
+                                            'determination.')
+        self.insert_label_spinbox(parent, 'numstd', text='Threshold: #std below mean', rstep=1, cstep=-1,
+                                  minimum=0, maximum=100, value=1, wtype=QDoubleSpinBox,
+                                  tooltip='This parameter sets the threshold value for what is a particle.\n '
+                                          'Threshold = mean signal - num_stds * std signal. ')
+        self.insert_label_spinbox(parent, 'smooth', rstep=1, cstep=-1, wtype=QDoubleSpinBox,
+                                  tooltip='std for the gaussian kernel used for smoothing of the edge of the mask.',
+                                  minimum=0, maximum=100, value=2,
+                                  text='Smoothing Edges')
+        self.insert_label_spinbox(parent, 'cycles', text='Number of Dilation Cycles', rstep=1, cstep=0,
+                                  stepsize=1,minimum=0,maximum=100,value=2,
+                                  tooltip='Number of dilation cycles. Creates a less structured mask')
+
+        self.insert_pushbutton(parent, 'Create', action=self.generate,
+                               params=['volume', 'mask', 'numstd', 'smooth', 'cycles', emfname])
+
+        self.setCentralWidget(w)
+        self.show()
+
+    def generate(self,params):
+        from pytom.bin.gen_mask import gen_mask_fsc
+        from pytom.tompy.io import read
+        out_fname = str(QFileDialog.getSaveFileName(self, 'Save model as.', self.folder, filter='*.mrc')[0])
+        if not out_fname: return
+        if not out_fname.endswith('.mrc'): out_fname += '.mrc'
+
+        data = read(self.widgets[params[0]].text())
+        if self.widgets[params[1]].text(): data *= read(self.widgets[params[1]].text())
+        numstd = float(self.widgets[params[2]].value())
+        smooth = float(self.widgets[params[3]].value())
+        cycles = int(self.widgets[params[4]].value())
+
+        gen_mask_fsc(data, cycles, out_fname, numstd, smooth)
+
+        self.parent().widgets[params[-1]].setText(out_fname)
+        self.close()
+
+
 class MyCircleOverlay(pg.EllipseROI):
     def __init__(self, pos, size, label='', **args):
         pg.ROI.__init__(self, pos, size, **args)
@@ -1157,7 +1245,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                 # Fill the first line
                 if types[i] == 'txt':
                     widget = QWidget()
-                    data= "{}".format(values[v][i].split('/')[-1])
+                    data= "{}".format(values[v][i].split('/')[-1]) if '/' in values[v][i] else values[v][i]
                     cb = QLabel( data )
                     layoutCheckBox = QHBoxLayout(widget)
                     layoutCheckBox.addWidget(cb)
@@ -1229,7 +1317,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                                 val = value
                         else:
                             val = value.split('/')[-1]
-                        print( types[i], val)
+
                         cb.addItem(val)
 
                     table.setCellWidget(v, i, widget)
@@ -1257,7 +1345,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
         self.types = types
         self.general_widgets = []
         self.table2 = QTableWidget()
-        self.table2.setColumnCount(len(headers))  # Set three columns
+        self.table2.setColumnCount(len(headers))
         self.table2.setRowCount(1)
         self.table2.verticalHeader().hide()
         self.table2.horizontalHeader().hide()
@@ -1300,7 +1388,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                         except: v =value
                     else:
                         v = value.split('/')[-1]
-                    print(n, t, v)
+
                     cb.addItem(v)
 
                 #glayout.addWidget(cb)
@@ -2940,7 +3028,7 @@ class QParams():
 
         for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
             tab.qparams = parent.qparams
-            print(parent.qparams['BatchSubtomoReconstruct'].values())
+
 
     def values(self):
         return [self.queue, self.nodes, self.cores, self.time, self.modules]
@@ -3067,7 +3155,6 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
                 except: pass
         #self.tab2_widgets[f'widget_{i}_2'].setChecked(status)
 
-
     def tab2UI(self):
         self.tab1UI()
 
@@ -3091,7 +3178,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         qjobs = [int(line.split()[0]) for line in os.popen(f'squeue -u {whoami} | grep -v JOBID').readlines()]
         added_jobs = []
         for n, jobfile in enumerate(self.jobFilesQueue):
-            queueId = int(os.path.basename(jobfile.split('-')[0]))
+            queueId = int(os.path.basename(jobfile).split('-')[0])
             added_jobs.append(queueId)
             running = 1*(queueId in qjobs)
             values.append([jobfile.split('-')[1].split('.')[0], queueId, 1, 16*running, running, jobfile, ''])
@@ -3274,17 +3361,22 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.widgets[mode + 'maxTime'].setValue(self.qparams[self.currentJobName].time)
         self.widgets[mode + 'numberOfNodes'].setValue(self.qparams[self.currentJobName].nodes)
         self.widgets[mode + 'numberOfCores'].setValue(self.qparams[self.currentJobName].cores)
-        self.widgets[mode + 'modules'].activateModules(self.qparams[self.currentJobName].modules)
+        self.widgets[mode + 'modules'].activateModules(self.qparams[self.currentJobName].modules,block=(jobname=='All'))
+
+
+
 
     def tab1UI(self):
-        self.jobnames = ['SingleAlignment', 'BatchAlignment',
+        self.jobnames = ['All',
+                         'CollectData', 'MotionCorrection',
+                         'SingleAlignment', 'BatchAlignment',
                          'ReconstructWBP', 'ReconstructINFR', 'BatchReconstruct',
                          'CTFDetermination', 'SingleCTFCorrection', 'BatchCTFCorrection',
-                         'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch',
+                         'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch','BatchExtractCandidates',
                          'SingleSubtomoReconstruct', 'BatchSubtomoReconstruct',
                          'SingleParticlePolish', 'BatchParticlePolish',
                          'FRMAlignment','GLocalAlignment',
-                         'PairwiseCrossCorrelation', 'CPCA', 'AutoFocusClassification']
+                         'PairwiseCrossCorrelation', 'CPCA', 'AutoFocusClassification', 'FSCValidation']
         self.setQNames()
         self.currentJobName = self.jobnames[0]
 
@@ -3416,7 +3508,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
 
     def showFSCPlot(self, mode):
-        from pytom.bin.plotFSC import plot_FSC
+        from pytom.plotting.plotFSC import plot_FSC
         filename = self.widgets[mode + 'FSCFilename'].text()
         pixel_size = self.widgets[mode + 'PixelSize'].value()
         box_size = self.widgets[mode + 'BoxSize'].value()
@@ -3460,7 +3552,7 @@ class SelectModules(QWidget):
         myBoxLayout = QVBoxLayout()
         self.setLayout(myBoxLayout)
         #self.setCentralWidget(myQWidget)
-
+        self.generalize = True
         self.toolbutton = QToolButton(self)
         self.toolbutton.setText('Select Modules')
         self.toolmenu = QMenu(self)
@@ -3476,6 +3568,7 @@ class SelectModules(QWidget):
         q = "module avail --long 2>&1 | awk 'NR >2 {print $1}'"
         avail = [line for line in os.popen(q).readlines() if not line.startswith('/')
                  and not line.startswith('shared') and not 'intel' in line]
+        avail += ['python3/3.7', 'imod/4.10.25', 'imod/4.10.28']
         self.grouped = [mod.strip("\n") for mod in avail if 'python' in mod or 'lib64' in mod or 'motioncor' in mod
                         or 'imod' in mod or 'pytom' in mod or 'openmpi' in mod]
         self.update = True
@@ -3505,37 +3598,65 @@ class SelectModules(QWidget):
                 action.setChecked(False)
         self.update = True
 
-        self.modules = []
-        for action in self.actions:
-            if action.isChecked(): self.modules.append(action.text())
+        self.modules = self.getActivatedModules()
 
         text = self.p.widgets[self.mode + 'jobName'].currentText()
         self.p.qparams[text].update(self.mode, self.p)
+        removed = not name in self.modules
+        if text == 'All':
+            for jobname in self.p.jobnames:
+                if jobname != 'All':
+                    if removed:
+                        print(jobname, name, self.p.qparams[jobname].modules, [mod for mod in self.p.qparams[jobname].modules if mod != name])
+                        self.p.qparams[jobname].modules = [mod for mod in self.p.qparams[jobname].modules if mod != name]
+                    else:
+                        self.p.qparams[jobname].modules  += [name]
+                    self.p.qparams[jobname].update(self.mode, self.p)
 
-    def activateModules(self, modules):
+
+    def activateModules(self, modules, block=False):
+        if block:
+            for action in self.actions:
+                action.blockSignals(True)
+
         for action in self.actions:
             if action.text() in modules:
                 action.setChecked(True)
             else:
                 action.setChecked(False)
 
+        for action in self.actions:
+            action.blockSignals(False)
+
     def getModules(self):
         return self.modules
 
+    def getActivatedModules(self):
+        return [action.text() for action in self.actions if action.isChecked()]
+
+
 
 class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
+    resized = pyqtSignal()
     def __init__(self,parent):
         super(PlotWindow, self).__init__(parent)
         self.stage='generalSettings_'
         self.pytompath = self.parent().pytompath
         self.projectname = self.parent().projectname
 
-        self.setGeometry(0,0,500,300)
+        self.setGeometry(0,0,700,300)
 
-        headers = ['Template Matching Results', 'FSC Curve']
-        subheaders  = [[],]*len(headers)
+        headers = ['Alignment Errors', 'Template Matching Results', 'FSC Curve']
+        subheaders  = [['Reconstruction', 'Alignment'], [], []]*len(headers)
+        static_tabs = [[False, False],[True], [True]]
 
-        self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders,sizeX=500,sizeY=300)
+        tabUIs = [[self.tab31UI, self.tab32UI],
+                  self.tab1UI,
+                  self.tab2UI]
+        self.tabs_dict, self.tab_actions = {}, {}
+
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict,
+                     tab_actions=self.tab_actions, sizeX=700, sizeY=300)
 
         self.table_layouts = {}
         self.tables = {}
@@ -3543,37 +3664,56 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.ends = {}
         self.checkbox = {}
         self.num_nodes = {}
-        self.widgets={}
-        self.subprocesses = 10
 
-        self.tabs = {'tab1': self.tab1,
-                     'tab2':  self.tab2,
-                     }
-
-        self.tab_actions = {'tab1':  self.tab1UI,
-                            'tab2':  self.tab2UI,
-                            }
+        self.queue_job_names = []
 
         for i in range(len(headers)):
-            t = 'tab{}'.format(i+1)
-            empty = 1*(len(subheaders[i]) == 0)
-            for j in range(len(subheaders[i])+empty):
-                tt = t+str(j+1)*(1-empty)
-                if tt in ('tab1', 'tab2'):
+            t = 'tab{}'.format(i + 1)
+            empty = 1 * (len(subheaders[i]) == 0)
+
+            for j in range(len(subheaders[i]) + empty):
+                tt = t + (str(j + 1) * (1 - empty))
+
+                if static_tabs[i][j]:  # tt in ('tab2', 'tab31', 'tab41', 'tab42', 'tab51', 'tab52'):
                     self.table_layouts[tt] = QGridLayout()
                 else:
                     self.table_layouts[tt] = QVBoxLayout()
 
-                if tt in ('tab1','tab2'):
-                    self.tab_actions[tt]()
+                self.tables[tt] = QWidget()
+                self.pbs[tt] = QWidget()
+                self.ends[tt] = QWidget()
+                self.ends[tt].setSizePolicy(self.sizePolicyA)
+                self.checkbox[tt] = QCheckBox('queue')
 
+                if not static_tabs[i][j]:  # tt in ('tab1','tab32', 'tab43', 'tab53'):
+                    button = QPushButton('Refresh Tab')
+                    button.setSizePolicy(self.sizePolicyC)
+                    button.clicked.connect(lambda d, k=tt, a=self.tab_actions[tt]: a(k))
+                    self.table_layouts[tt].addWidget(button)
+                    self.table_layouts[tt].addWidget(self.ends[tt])
 
-                tab = self.tabs[tt]
+                else:  # if tt in ('tab2','tab31','tab41', 'tab42', 'tab51', 'tab52'):
+                    self.tab_actions[tt](tt)
+
+                tab = self.tabs_dict[tt]
                 tab.setLayout(self.table_layouts[tt])
 
-    def tab1UI(self):
+        self.resized.connect(self.sizetest)
+        self.sizetest()
 
-        id = 'tab1'
+    def resizeEvent(self, event):
+        self.resized.emit()
+        return super(PlotWindow, self).resizeEvent(event)
+
+    def sizetest(self):
+        w = self.frameGeometry().width()
+        h  = self.frameGeometry().height()
+
+        for scrollarea in self.scrollareas:
+            scrollarea.resize(w,h)
+
+    def tab1UI(self, id=''):
+
         self.row, self.column = 0, 0
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
@@ -3591,7 +3731,6 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.insert_pushbutton(parent,'Plot',action=self.showTMPlot, params=mode,rstep=1,cstep=0)
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
 
-
     def showTMPlot(self, mode):
         from pytom.plotting.plottingFunctions import plotTMResults
 
@@ -3600,8 +3739,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
 
         plotTMResults([normal, mirrored], labels=['Normal', 'Mirrored'])
 
-    def tab2UI(self):
-        id = 'tab2'
+    def tab2UI(self, id=''):
         self.row, self.column = 0, 0
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
@@ -3624,7 +3762,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
 
     def showFSCPlot(self, mode):
-        from pytom.bin.plotFSC import plot_FSC
+        from pytom.plotting.plotFSC import plot_FSC
         filename = self.widgets[mode+'FSCFilename'].text()
         pixel_size = self.widgets[mode+'PixelSize'].value()
         box_size = self.widgets[mode+'BoxSize'].value()
@@ -3633,6 +3771,146 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         outFname = 'temp.png'
         if filename and outFname:
             plot_FSC(filename, pixel_size, boxsize=box_size, show_image=show_image, c=cut_off )
+
+    def tab31UI(self, id=''):
+        import glob
+        headers = ["Name Tomogram", 'Score', 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Det. Rot. Angle', '']
+        types = ['txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt']
+        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
+
+        tooltip = ['Names of existing tomogram folders.',
+                   'Alignment Score.',
+                   'First angle of tiltimages.',
+                   'Last angle of tiltimages.',
+                   'Reference image number.',
+                   'Reference Marker',
+                   'Expected Rotation Angle',
+                   'Retrieved Rotation Angle']
+
+        logfiles = sorted(glob.glob('{}/LogFiles/*construction*.out'.format(self.projectname)))
+
+        values = []
+        tomograms = {}
+        for logfile in logfiles[::-1]:
+            #tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
+            dir = os.path.dirname(logfile)
+            ids = os.path.basename(logfile).split('-')[0]
+            infile = glob.glob(f"{dir}/{ids}_*.sh")
+            if not infile:
+                continue
+            logdata = open(logfile,'r').read()
+            indata = open(infile[0],'r').read()
+
+            tomogram = os.path.basename(indata.split('cd ')[1].split('\n')[0])
+            if tomogram in tomograms: continue
+            tomograms[tomogram] = 1
+            alignmentscore = str(numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
+            firstangle = logdata.split('tiltAngle=')[1].split(')')[0]
+            lastangle = logdata.split('tiltAngle=')[-1].split(')')[0]
+            refindex = indata.split('--referenceIndex ')[1].split(' ')[0]
+            refmarker = indata.split('--referenceMarkerIndex ')[1].split(' ')[0]
+            expected = indata.split('--expectedRotationAngle ')[1].split(' ')[0]
+            
+            angles = [float(i.split(',')[0]) for i in logdata.split('rot=')[1:]]
+            det_angle = str(int(round(sum(angles)/len(angles))) % 360)
+            values = [[tomogram, alignmentscore, firstangle, lastangle, refindex, refmarker, expected, det_angle, '']] + values
+        if not values:
+            return
+
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save')
+        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
+
+        for i in range(len(values)):
+            if float(values[i][1]) < 3:
+                color = 'green'
+            elif float(values[i][1]) < 4.5:
+                color = 'orange'
+            else:
+                color = 'red'
+            self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : "+color+"}")
+
+    def save2file(self, id, values):
+        outname = str(QFileDialog.getSaveFileName( self, 'Save alignment scores.', self.projectname, filter='*.txt')[0])
+        if outname and not outname.endswith('.txt'):
+            outname += '.txt'
+
+        if not outname:
+            return
+
+        outfile = open(outname, 'w')
+        for i in range(len(values)):
+            for j in range(1,4):
+                values[i][j] = float(values[i][j])
+            outfile.write('{} {:10.3f} {:10.1f} {:10.1f}    {:4s} {:4s} {:3s}   {:3s}\n'.format(*(values[i][:-1])))
+        outfile.close()
+
+    def tab32UI(self, id=''):
+        import glob, numpy
+        headers = ["name tomogram", 'Score', 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Det. Rot. Angle', '']
+        types = ['txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt']
+        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
+
+        tooltip = ['Names of existing tomogram folders.',
+                   'Alignment Score.',
+                   'First angle of tiltimages.',
+                   'Last angle of tiltimages.',
+                   'Reference image number.',
+                   'Reference Marker',
+                   'Expected Rotation Angle', 'Determined Rotation Angle']
+
+        tomofolders = sorted([f for f in os.listdir(f'{self.projectname}/03_Tomographic_Reconstruction/') if f.startswith('tomogram_')])
+
+        values = []
+        tomograms = {}
+        for tomofolder in tomofolders:
+            for logfile in sorted(glob.glob(f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/alignment/marker*/logfile*.txt')):
+                #tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
+                logdata = open(logfile,'r').read()
+                try:
+                    d = eval(logdata.split("Spawned job")[1].split('\n')[1])
+                    first, last = os.path.basename(os.path.dirname(logfile)).split('_')[-1].split(',')
+                    if not d: continue
+                    alignmentscore = str(numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
+                    firstangle = str(d['firstProj'])
+                    lastangle = str(d['lastProj'])
+                    refindex = str(d['ireftilt'])
+                    refmarker = str(d['irefmark'])
+                    expected = str(int(numpy.around(180 * float(d['handflip'] / numpy.pi))))
+                    logfal = logdata.split('Alignment successful. See ')[1].split(' ')[0]
+                    path = os.path.join(self.projectname, '03_Tomographic_Reconstruction', tomofolder, logfal)
+                    angles = guiFunctions.loadstar(path, dtype=guiFunctions.datatypeAR)['InPlaneRotation'].mean()
+                    det_angle = str(int(round(angles)) % 360)
+
+                    key = f'{tomofolder}_{firstangle}_{lastangle}_{refindex}_{expected}'
+
+                    if not (key in tomograms.keys()):
+                        tomograms[key] = [tomofolder, firstangle, lastangle, refindex, expected]
+                        values.append([tomofolder, alignmentscore, first, last, refindex, refmarker, expected, det_angle, ''])
+                    else:
+                        f, l, r, e = tomograms[key]
+                        if f == firstangle and l == lastangle and r == refindex and e == expected:
+                            continue
+                        else:
+                            tomograms[key] = [tomofolder, firstangle, lastangle, refindex, expected]
+                            values.append([tomofolder, alignmentscore, first, last, refindex, refmarker, expected, det_angle, ''])
+                except Exception as e:
+                    print(e)
+                    continue
+
+        if not values:
+            return
+
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save')
+        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
+
+        for i in range(len(values)):
+            if float(values[i][1]) < 3:
+                color = 'green'
+            elif float(values[i][1]) < 4.5:
+                color = 'orange'
+            else:
+                color = 'red'
+            self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : "+color+"}")
 
 
 class PlotterSubPlots(QMainWindow,CommonFunctions):

@@ -159,7 +159,6 @@ class ParticlePick(GuiTabWidget):
                                    outputline=self.jobFiles, run_upon_complete=self.getTemplateFiles, id=key,
                                    title='Select Tomograms.')
 
-
     def tab23UI(self, key=''):
 
         try:
@@ -170,7 +169,6 @@ class ParticlePick(GuiTabWidget):
         self.batchEC = SelectFiles(self, initdir=self.tomogramfolder, search='file', filter=['xml'],
                                    outputline=self.jobFilesExtract, run_upon_complete=self.populate_batch_extract_cand,
                                    id=key, title='Select job files.')
-
 
     def tab31UI(self, key=''):
         grid = self.table_layouts[key]
@@ -581,10 +579,10 @@ class ParticlePick(GuiTabWidget):
             print('\n\nPlease select at least one job file template and mask file.\n\n')
             return
 
-        headers = ["Job name", "File Name Particle List", "Prefix", "Particle Size (px)",
-                   "Number of Candidates", 'Minimum Score', '']
+        headers = ["Job name", "File Name Particle List", "Ouput Dir Subtomograms", "Size (px)",
+                   "# Candidates", 'Min. Score', '']
         types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
-        sizes = [0, 80, 80, 0, 0, 0, 0]
+        sizes = [0, 80, 150, 0, 0, 0, 0]
 
         tooltip = ['Name of job files.',
                    'File name of particle list in which a number of candidates are written.',
@@ -614,13 +612,13 @@ class ParticlePick(GuiTabWidget):
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_submitEC(pid, v))
 
-    def mass_submitEC(self, pid, value):
+    def mass_submitEC(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = 0
 
         for row in range(self.tables[pid].table.rowCount()):
 
-            jobFile = values[row][0]
+            jobFile       = values[row][0]
             suffix        = os.path.basename(jobFile)[3:-4]
             scoresFile    = os.path.join(os.path.dirname(jobFile), f'scores{suffix}.em')
             anglesFile    = os.path.join(os.path.dirname(jobFile), f'angles{suffix}.em')
@@ -634,12 +632,13 @@ class ParticlePick(GuiTabWidget):
                             particleList, particlePath, particleSize, numCandidates, minCCScore, '']
 
             fname         = 'EC_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
-            cmd           = templateTM.format(d=paramsCmd)
+            cmd           = templateExtractCandidates.format(d=paramsCmd)
             qname, n_nodes, cores, time, modules = self.qparams['BatchExtractCandidates'].values()
             job           = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, singleton=True, time=time,
                                                           num_nodes=n_nodes, partition=qname, modules=modules,
                                                           num_jobs_per_node=cores) + cmd
 
+            outDirectory = os.path.dirname(jobFile)
             outjob = open(os.path.join(outDirectory, 'extractCandidatesBatch.sh'), 'w')
             outjob.write(job)
             outjob.close()

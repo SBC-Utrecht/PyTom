@@ -30,7 +30,7 @@ def xcc(volume,template,mask=None, volumeIsNormalized=False):
     
     return cc 
     
-def nxcc(volume,template,mask=None, volumeIsNormalized=False):
+def nxcc(volume, template, mask=None, volumeIsNormalized=False):
     """
     nxcc: Calculates the normalized cross correlation coefficient in real space
     @param volume: A volume
@@ -64,19 +64,18 @@ def nxcc(volume,template,mask=None, volumeIsNormalized=False):
         from pytom_numpy import vol2npy
         from pytom.basic.normalise import normaliseUnderMask
         if not volumeIsNormalized:
-            (v,p) = normaliseUnderMask(volume,mask)
-            (t,p) = normaliseUnderMask(template,mask,p)
-            t = t*mask # multiply with the mask
-            result = v*t
+            (v,p) = normaliseUnderMask(volume, mask)
+            (t,p) = normaliseUnderMask(template, mask, p)
+            t = t * mask # multiply with the mask
+            result = v * t
         else:
             (t,p) = normaliseUnderMask(template,mask)
-            t = t*mask # multiply with the mask
-            result = volume*t
+            t = t * mask # multiply with the mask
+            result = volume * t
     
     ncc = sum(result)
-    
     ncc = ncc / float(p)
-    
+
     return ncc 
 
     

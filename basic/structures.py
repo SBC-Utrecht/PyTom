@@ -2748,6 +2748,8 @@ class ParticleList(PyTomClass):
         fsc = FSC(oddVolume, evenVolume, numberBands, mask, verbose)
 
         if randomize is None:
+            for (ii, fscel) in enumerate(f):
+                f[ii] = 2.*fscel/(1.+fscel)
             r = determineResolution(f, fscCriterion, verbose)
         else:
             randomizationFrequency    = np.floor(determineResolution(np.array(f), float(randomize), verbose)[1])
@@ -2759,6 +2761,8 @@ class ParticleList(PyTomClass):
             evenVolumeRandomizedPhase = read('randEven.mrc')
             fsc2 = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
             fsc_true = list(correlation.calc_FSC_true(np.array(f), np.array(fsc2)))
+            for (ii, fscel) in enumerate(fsc_true):
+                fsc_true[ii] = 2.*fscel/(1.+fscel)
             r = determineResolution(fsc_true,fscCriterion, verbose)
         #randomizationFrequency = np.floor(determineResolution(fsc, 0.8, verbose)[1])
 
@@ -3408,7 +3412,7 @@ class Rotation(PyTomClass):
             q = angle+str(num_repeat[angle])
             num_repeat[angle] += 1
             outname.append(dictAngles[q])
-            print(q)
+
         return outname
     
     def toQuaternion(self):
