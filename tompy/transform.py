@@ -97,7 +97,7 @@ def rotate3d(data, phi=0, psi=0, the=0, center=None, order=2):
 
 
 def translate3d(data, dx=0, dy=0, dz=0, order=2):
-    """Translate the data.
+    """Translate the data in real space.
 
     @param data: data to be shifted.
     @param dx: translation along x-axis.
@@ -205,6 +205,97 @@ def cut_from_projection(proj, center, size):
                  center[1]-size[1]//2:center[1]+size[1]-size[1]//2-1:size[1]*1j]
     v = map_coordinates(proj.squeeze(), grid, order=2)
     return v
+
+def projTiltY(vol, tiltangle, projSize=None, center=None):
+    """
+    project volume along z, tilted around y
+    @param vol: volume
+    @type vol: numpy array
+    @param tiltangle
+    @type tiltangle: C{float}
+    @param center: (x,z) rotation center (default Nx//2, Nz//2, first index=0)
+    @type center: L{numpy.array}
+    @return: projection
+    @rtype: numpy array
+    """
+    dims = vol.shape
+    assert dims[2] == 1, "input volume must be 3-dim"
+    if projSize is None:
+        projSize = 2*[0]
+        projSize[0] = dims[0]
+        projSize[1] = dims[1]
+    else:
+        assert len(projSize) == 2, "projection Size must be 2D vector"
+        assert projSize[1] <= dims[1], "projection y-Size must not exceed dimension of volume"
+        assert projSize[0] <= dims[0], "projection x-Size must not exceed dimension of volume"
+
+    if center is None:
+        cx = dims[0] // 2
+        cz = dims[2] // 2
+    else:
+        assert len(center) == 2, "center olume must be 2D vector"
+        (cx, cz) = center
+
+    # define rotation around y-axis - inverse because you start from the projection
+    print('tiltangle: ',tiltangle)
+    the = -float(tiltangle) * np.pi / 180.0
+    sin_beta = np.sin(the)
+    cos_beta = np.cos(the)
+
+    # mapping
+    rotmat = np.zeros((2, 2), dtype='float32')
+    projmat = np.zeros((2, 2), dtype='float32')
+    projrotmat = np.zeros((2, 2), dtype='float32')
+    rotmat[0, 0] = cos_beta
+    rotmat[1, 1] = cos_beta
+    rotmat[0, 1] = -sin_beta
+    rotmat[1, 0] = sin_beta
+    projmat[0,0] = 1.
+    projrotmat[0,0] = projmat[0,0]*rotmat[0, 0]
+    projrotmat[0,1] = projmat[0,0]*rotmat[0, 1]
+
+    from scipy import mgrid
+    grid = mgrid[-cx:dims[0]-cx, -cz:dims[2]-cz]
+    temp = grid.reshape((2, grid.size // 2))
+    temp = np.dot(projrotmat, temp)
+    grid = np.reshape(temp, grid.shape)
+    grid[0] += cx
+    projCoordsInXZSlice = grid[0]
+
+    # split into 2D problems
+    projgrid = mgrid[-cx:dims[0]-cx]
+    # linear interpolation weights
+    #i1 = projCoordsInXZSlice.round()
+    i1 = projCoordsInXZSlice.astype(int)
+    w1 = 1. - np.abs(projCoordsInXZSlice - i1)
+    i2 = (1+projCoordsInXZSlice).astype(int)
+    #w2 = np.abs(projCoordsInXZSlice - i1)
+    w2 = 1-w1
+    # make lists - can be re-used for each slice
+    indexlist = []
+    weightlist = []
+    for ix in range(0,projSize[0]):
+        itmp1 = np.where(i1 == ix)
+        wtmp1 = w1[itmp1]
+        itmp2 = np.where(i2 == ix)
+        wtmp2 = w2[itmp2]
+        itmpx = (np.concatenate((itmp1[0],itmp2[0])), np.concatenate((itmp1[1],itmp2[1])))
+        indexlist.append(itmpx)
+        weightlist.append( np.concatenate((w1[itmp1], w2[itmp2])))
+
+    projection = np.zeros((projSize[0], projSize[1]), dtype='float32')
+    projline = np.zeros( projSize[0], dtype='float32')
+    # loop over y
+    for iy in range(0,projSize[1]):
+        projline[:] = 0.
+        volslice = vol[:,iy,:]
+        for ix in range(0,projSize[0]):
+            itmp = indexlist[ix]
+            projline[ix] = np.sum( volslice[itmp]*weightlist[ix] )
+        projection[:,iy] = projline
+
+    return projection
+
 
 
 ################################
