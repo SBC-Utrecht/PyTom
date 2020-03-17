@@ -143,7 +143,7 @@ def readSubvolumeFromFourierspaceFile(filename, sizeX, sizeY, sizeZ):
 
 class NaiveAtom:
 
-    def __init__(self, atomSeq, atomType, x, y, z, resSeq, resType):
+    def __init__(self, atomSeq, atomType, x, y, z, resSeq, resType, occupancy, tempFact, element):
 
         self._atomSeq = atomSeq
         self._atomType = atomType
@@ -152,6 +152,9 @@ class NaiveAtom:
         self._z = z
         self._resSeq = resSeq
         self._resType = resType
+        self._occupancy = occupancy
+        self._tempFact = tempFact
+        self._element = element
 
     def getAtomType(self):
         return self._atomType
@@ -167,6 +170,15 @@ class NaiveAtom:
 
     def getZ(self):
         return self._z
+
+    def getOccupancy(self):
+        return self._occupancy
+
+    def getTempFact(self):
+        return self._tempFact
+
+    def getElement(self):
+        return self._element
 
     def setX(self, value):
         if value.__class__ == str:
@@ -221,7 +233,7 @@ ATOM   3458 O OXT . GLU B 1 220 ? 28.062  59.037 64.587 1.00 43.20  ? 220 GLU B 
                     if chainName is not None and chain != chainName:
                         continue
                 atomdata = line.split()
-                if len(atomdata) > 17:
+                if len(atomdata) > 17: # For PDB this is never true...
                     line = atomdata
                     atomSeq  = line[1]
                     atomType = line[3]
@@ -230,17 +242,23 @@ ATOM   3458 O OXT . GLU B 1 220 ? 28.062  59.037 64.587 1.00 43.20  ? 220 GLU B 
                     x        = float(line[10])
                     y        = float(line[11])
                     z        = float(line[12])
+                    occupancy = float(line[13])
+                    tempFact = float(line[14])
+                    element = line[15]
 
                 else:
                     atomSeq  = line[5:11]
-                    atomType = line[11:17].strip()
+                    atomType = line[12:17].strip()
                     resType  = line[17:20]
                     resSeq   = line[22:26]
-                    x        = float(line[29:38])
+                    x        = float(line[30:38])
                     y        = float(line[38:46])
                     z        = float(line[46:54])
+                    occupancy = float(line[54:60])
+                    tempFact = float(line[60:66])
+                    element  = line[76:78].strip()
 
-                atomList.append(NaiveAtom(atomSeq, atomType, x, y, z, resSeq, resType))
+                atomList.append(NaiveAtom(atomSeq, atomType, x, y, z, resSeq, resType, occupancy, tempFact, element))
     finally:
         pdbFile.close()
 

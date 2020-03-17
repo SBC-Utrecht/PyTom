@@ -133,21 +133,58 @@ def tom_error(a, m=0, v=1):
     return c
 
 
-def spheremask(vol, radius, smooth=0):
-    shape = vol.shape
+def spheremask(vol, radius, smooth=0, ellipsoid=0):
+    """
+    Create a spherical mask in vol of size radius. Smooth option can gaussian blur the mask at its edges. The ellipsoid
+    option will instead create a ellipsoid mask. Radius should in this case correspond to radius of the ellipsoid in the
+    smallest dimension of vol. Radii in other dimensions will be fit accordingly.
 
+    @param vol: Volume
+    @type vol: 2d or 3d array
+    @param radius: Radius of the sphere
+    @type radius: float
+    @param smooth:
+    @type smooth:
+    @param ellipsoid: Flag for ellipsoid mask, 0 by default
+    @type ellipsoid: bool
+
+    @return:
+    @rtype:
+
+    @author: Marten Chaillet
+    """
+    shape = vol.shape
     mask = xp.ones_like(vol).astype(xp.float32)
-    if len(shape) == 2:
-        x, y = xp.meshgrid(xp.arange(-shape[0] / 2, shape[0] / 2, 1), xp.arange(-shape[1] / 2, shape[1] / 2))
-        r = xp.sqrt(x ** 2 + y ** 2)
-        # imshow(mask[:,:])
-        # show()
-    if len(shape) == 3:
-        x, y, z = xp.meshgrid(xp.arange(-shape[1] / 2, shape[1] / 2, 1), xp.arange(-shape[0] / 2, shape[0] / 2),
-                           xp.arange(-shape[2] / 2, shape[2] / 2, 1))
-        r = xp.sqrt(x ** 2 + y ** 2 + z ** 2)
-        # imshow(mask[mask.shape[0]//2,:,:])
-        # show()
+
+    if ellipsoid==0:
+        if len(shape) == 2:
+            x, y = xp.meshgrid(xp.arange(-shape[0] / 2, shape[0] / 2, 1), xp.arange(-shape[1] / 2, shape[1] / 2))
+            r = xp.sqrt(x ** 2 + y ** 2)
+            # imshow(mask[:,:])
+            # show()
+        if len(shape) == 3:
+            x, y, z = xp.meshgrid(xp.arange(-shape[1] / 2, shape[1] / 2, 1), xp.arange(-shape[0] / 2, shape[0] / 2),
+                               xp.arange(-shape[2] / 2, shape[2] / 2, 1))
+            r = xp.sqrt(x ** 2 + y ** 2 + z ** 2)
+            # imshow(mask[mask.shape[0]//2,:,:])
+            # show()
+    elif ellipsoid:
+        shortest_side = min(shape)
+        if len(shape) == 2:
+            x, y = xp.meshgrid(xp.arange(-shortest_side / 2, shortest_side / 2, shortest_side/shape[0]),
+                               xp.arange(-shortest_side / 2, shortest_side / 2, shortest_side/shape[1]))
+            r = xp.sqrt(x ** 2 + y ** 2)
+            # imshow(mask[:,:])
+            # show()
+        if len(shape) == 3:
+            x, y, z = xp.meshgrid(xp.arange(-shortest_side / 2, shortest_side / 2, shortest_side/shape[1]),
+                                  xp.arange(-shortest_side / 2, shortest_side / 2, shortest_side/shape[0]),
+                                  xp.arange(-shortest_side / 2, shortest_side / 2, shortest_side/shape[2]))
+            r = xp.sqrt(x ** 2 + y ** 2 + z ** 2)
+            # imshow(mask[mask.shape[0]//2,:,:])
+            # show()
+    else:
+        print('Non-valid option for ellipoid')
 
     mask[r > radius] = 0
 
@@ -440,27 +477,6 @@ def addStructuralNoise(model, water=.94, th=1.3):
     return final
 
 
-def crop(data, factor):
-    s = (data.shape[0] % factor) // 2
-    d = (data.shape[0] % factor) % 2
-    data = data[s:data.shape[0] - s - d, s:data.shape[0] - s - d, s:data.shape[0] - s - d]
-
-    ds = data.shape[0] // factor
-    image_size = data.shape[0]
-    binned = data.reshape(ds, image_size // ds, ds, image_size // ds, ds, image_size // ds).mean(-1).mean(1).mean(-2)
-
-    # fig,ax = subplots(1,2,figsize=(10,5))
-    # ax[0].imshow(binned.sum(axis=0))
-    ft = xp.fft.fftshift(xp.fft.fftn(data))
-    x, y, z = xp.array(ft.shape) // 2
-    ff = factor
-    ft = ft[int(x - x // ff):int(x + x // ff), int(y - y // ff):int(y + y // ff), int(z - z // ff):int(z + z // ff)]
-    particle = abs(xp.fft.ifftn(xp.fft.fftshift(ft)))
-    # ax[1].imshow(particle.sum(axis=0))
-    # show()
-
-    return binned
-
 def createramp(sz,dim):
 # Takes a list of dimensions sizes (sz) and a specfic dimension (dim) as input.
 # Output returns a 2d matrix with a gradient of this dimensions towards the center
@@ -479,6 +495,7 @@ def createramp(sz,dim):
         x = 0
 
     return xp.tile(x, sz)
+
 
 def rr(x = 256, y = 256):
 # Takes size for x and y dimension as input and returns a 2d matrix with a gradient of angular coordinates towards the
@@ -508,6 +525,9 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
     volumes = []
     for i in range(len(listpdbs)):
         try:
+            # First find the voxel size of the map...
+            # rotate
+            # then bin
             vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{listpdbs[i]}_model_binned.mrc')
             dx, dy, dz = vol.shape
             vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
