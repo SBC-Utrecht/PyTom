@@ -40,6 +40,8 @@ import scipy.ndimage
 import numpy as xp
 import random
 
+V_WATER = 4.5301
+
 phys_const_dict = {
     # Dictionary of physical constants required for calculation.
     "c": 299792458, # m/s
@@ -199,8 +201,10 @@ def spheremask(vol, radius, smooth=0, ellipsoid=0):
 def tom_dev(image):
     return image.mean(), image.max(), image.min(), image.std(), image.std() ** 2
 
-def create_ctf(Dz, vol, pix_size, voltage, Cs, sigma):
+
+def calcCTF(Dz, vol, pix_size, voltage=300E3, Cs=2.7E-3, sigma_decay_ctf=0.4, amplitude_contrast=0.07):
     '''
+    TODO UPDATE DESCRIPTION
     %TOM_CREATE_CTF calculates 2D or 3D CTF (pure phase contrast)
     %
     %   Note: only tested for even dimensions!
@@ -209,7 +213,8 @@ def create_ctf(Dz, vol, pix_size, voltage, Cs, sigma):
     %
     %PARAMETERS
     %  INPUT
-    %   Dz       : Defocus (<0 underfocus, >0 overfocus) (in \mu m);
+    @param Dz: Defocus (>0 underfocus, <0 overfocus) (in m)
+    @type Dz: float
     %   vol      : Volume (or image)
     %   pix_size : pixel size (in nm) (default: 0.72 nm)
     %   voltage  : accelerating Voltage (in eV) (default: 300 kV)
@@ -244,64 +249,11 @@ def create_ctf(Dz, vol, pix_size, voltage, Cs, sigma):
     %   Dept. Molecular Structural Biology
     %   82152 Martinsried, Germany
     %   http://www.biochem.mpg.de/tom
-
-    error(nargchk(2,6,nargin));
-
-    if nargin<5
-      Cs=2*10^(-3);
-    else
-       Cs=Cs*10^(-3);
-    end;
-    if nargin<4
-        voltage=300000;
-    else
-        voltage = voltage * 1000;
-    end;
-
-    if nargin <3
-        pix_size=0.72*10^(-9);
-    else
-        pix_size=pix_size*10^(-9);
     '''
 
-    # TODO remove: deprecated function!
-
     Lambda = wavelength_eV2m(voltage)
 
     Ny = 1 / (2 * pix_size)
-
-    # print('in create_ctf the pixelsize = ', pix_size)
-    # print('in create_ctf the Ny freq = ', Ny)
-
-    if len(vol.shape) > 2:
-        R, Y, Z = xp.meshgrid(xp.arange(-Ny, Ny, 2 * Ny / vol.shape[0]), xp.arange(-Ny, Ny, 2 * Ny / vol.shape[1]),
-                           xp.arange(-Ny, Ny, 2 * Ny / vol.shape[2]))
-        r = xp.sqrt(R ** 2 + Y ** 2 + Z ** 2)
-    else:
-        R, Y = xp.meshgrid(xp.arange(-Ny, Ny, 2. * Ny / (vol.shape[0])), xp.arange(-Ny, Ny, 2. * Ny / (vol.shape[1])))
-        r = xp.sqrt(R ** 2 + Y ** 2)
-
-    # print(r)
-
-    phase = xp.sin(xp.pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2) ))
-    amplitude = xp.cos(xp.pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2) ))
-
-    if sigma:
-        phase = phase * xp.exp(-(r / (sigma * Ny)) ** 2)
-        amplitude = amplitude * xp.exp(-(r / (sigma * Ny)) ** 2)
-
-    return phase, amplitude
-
-def calcCTF(Dz, vol, pix_size, voltage=200E3, Cs=2.7E-3, sigma_decay_ctf=0.4, amplitude_contrast=0.07):
-
-    # calcCTF does not call create_ctf any longer!
-
-    Lambda = wavelength_eV2m(voltage)
-
-    Ny = 1 / (2 * pix_size)
-
-    # print('in create_ctf the pixelsize = ', pix_size)
-    # print('in create_ctf the Ny freq = ', Ny)
 
     if len(vol.shape) > 2:
         R, Y, Z = xp.meshgrid(xp.arange(-Ny, Ny, 2 * Ny / vol.shape[0]), xp.arange(-Ny, Ny, 2 * Ny / vol.shape[1]),
@@ -321,10 +273,10 @@ def calcCTF(Dz, vol, pix_size, voltage=200E3, Cs=2.7E-3, sigma_decay_ctf=0.4, am
         decay = xp.exp(-(r / (sigma_decay_ctf * Ny)) ** 2)
         ctf = ctf * decay
 
-    return - ctf
+    return ctf
 
 def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', modelID=0,
-             voltage=200e3, amplitude_contrast=0.07, Cs=2.7E-3, sigma_decay_ctf=0.4):
+             voltage=300e3, amplitude_contrast=0.07, Cs=2.7E-3, sigma_decay_ctf=0.4):
     '''%
     %   simtomo = av3_simutomo(dens, tiltrange, tiltincr, SNR, the, psi, phi, globalsigma)
     %
@@ -361,7 +313,7 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
 
     # calculate CTF
     # maybe at this point there should be a '-' for the CTF like in the old code
-    ctf = - calcCTF(defocus, xp.zeros((size,size)), pixelsize, voltage=voltage, Cs=Cs, sigma_decay_ctf=sigma_decay_ctf,
+    ctf = calcCTF(defocus, xp.zeros((size,size)), pixelsize, voltage=voltage, Cs=Cs, sigma_decay_ctf=sigma_decay_ctf,
                     amplitude_contrast=amplitude_contrast)
 
     sigma = 0
@@ -397,6 +349,15 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
     print('noise will be scaled to sqrt( 0.5/SNR * sigma) = ',
           xp.sqrt(0.5 / SNR * sigma))
 
+    import detector
+    dqe = detector.create_detector_response('FALCONII', 'DQE', xp.zeros((size, size)), voltage=voltage,
+                                            folder='/data2/mchaillet/simulation/detectors')
+    mtf = detector.create_detector_response('FALCONII', 'MTF', xp.zeros((size, size)), voltage=voltage,
+                                            folder='/data2/mchaillet/simulation/detectors')
+    nnps = mtf ** 2 / dqe
+
+    # em_image = image_noiseless * mtf / xp.sqrt(nnps)
+
     for n in range(n_images):
         projection = noisefree_projections[:,:,n]
 
@@ -428,20 +389,67 @@ def simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder='./', 
 
     return projections
 
-def generate_map(pdbid, id):
-    print(pdbid)
 
-    runCommand('open {}'.format(pdbid))
-    runCommand('addh')
-    runCommand('molmap #{} 3 symmetry biomt'.format(id))
-    runCommand('volume #{} save {}_model.mrc'.format(id, pdbid))
-    return '{}_model.mrc'.format(pdbid)
+def microscope(noisefree_projections, pixelsize=1E-9, outputFolder='./', modelID=0, voltage=300e3):
+    """
+    TODO add parameters for camera type and folder with detector data
+    Inspired by InSilicoTEM (Vulovic et al., 2013)
+    @author: Marten Chaillet
+    """
+    import detector
+    # noisefree_projections is a stack of images
+    # Assuming images are same size in x and y
+    size = noisefree_projections.shape[0]
+    n_images = noisefree_projections.shape[2]
 
+    print('number of projections is ', n_images)
 
-def addNoise(noise_size, dim):
-    noise_no_norm = abs(ifftn(fftshift(fftn(random((noise_size, noise_size, noise_size)))), [dim] * 3))
-    noise = 1. + 0.1 * noise_no_norm / abs(noise_no_norm).max()
-    return noise
+    if not os.path.exists(f'{outputFolder}/model_{modelID}/noisyProjections/'):
+        os.mkdir(f'{outputFolder}/model_{modelID}/noisyProjections/')
+
+    projections = xp.zeros((size, size, n_images), dtype=xp.float32)
+
+    dqe = detector.create_detector_response('K2SUMMIT', 'DQE', xp.zeros((size, size)), voltage=voltage,
+                                            folder='/data2/mchaillet/simulation/detectors')
+    mtf = detector.create_detector_response('K2SUMMIT', 'MTF', xp.zeros((size, size)), voltage=voltage,
+                                            folder='/data2/mchaillet/simulation/detectors')
+    nnps = mtf ** 2 / dqe
+    mtf_shift = xp.fft.ifftshift(mtf)
+    nnps_shift = xp.fft.ifftshift(nnps)
+
+    # NUMBER OF ELECTRONS PER PIXEL
+    dose = 80  # electrons per square A
+    dose_per_tilt = dose / 40  # electrons per square A per tilt
+    dose_per_pixel = dose_per_tilt * (pixelsize*1E9*10)**2  # from square A to square nm (10A pixels)
+    print(f'number of electrons per pixel: {dose_per_pixel}')
+
+    for n in range(n_images):
+        projection = noisefree_projections[:, :, n]
+
+        projection_fourier = xp.fft.fftn(xp.fft.ifftshift(projection))
+        projection_fourier *= (mtf_shift / xp.sqrt(nnps_shift))
+
+        projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier)))
+
+        # Draw from poissonian distribution
+        projection_poisson = xp.random.poisson(lam=(projection * dose_per_pixel))
+
+        conversion_factor = 100 # in ADU/e- , this is an arbitrary unit. Value taken from Vulovic et al., 2010
+        projection_fourier = xp.fft.fftn(xp.fft.ifftshift(projection_poisson)) * xp.sqrt(nnps_shift) * conversion_factor
+
+        # readout noise standard deviation can be 7 ADUs, from Vulovic et al., 2010
+        sigma_readout = 7
+        readsim = xp.random.normal(0, sigma_readout, projection.shape) # readout noise has a gaussian distribution
+        darksim = 0     # dark current noise has a poisson distribution, usually an order of magnitude smaller than readout
+                        # noise and can hence be neglected
+
+        projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier))) + readsim + darksim
+
+        pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_{n+1}.mrc', projection)
+
+        projections[:,:,n] = projection
+
+    return projections
 
 
 def addStructuralNoise(model, water=.94, th=1.3):
@@ -523,19 +531,19 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
 
     # load pdb volumes and pad them
     volumes = []
-    for i in range(len(listpdbs)):
+    for pdb in [id.upper() for id in listpdbs]:
         try:
             # First find the voxel size of the map...
             # rotate
             # then bin
-            vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{listpdbs[i]}_model_binned.mrc')
+            vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_10.0A.mrc')
             dx, dy, dz = vol.shape
             vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
             vol2[dx//2:-dx//2, dy//2:-dy//2, dz//2:-dz//2] = vol
             volumes.append(vol2)
         except Exception as ee:
             print(ee)
-            raise Exception('Could not open pdb ', listpdbs[i])
+            raise Exception('Could not open pdb ', pdb)
 
     # attributes
     number_of_classes = len(listpdbs)
@@ -633,7 +641,8 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
 
     # add water density and structural noise
     print('Adding water and structural noise')
-    noisy_cell = addStructuralNoise(cell, water=waterdensity, th=proteindensity)
+    # noisy_cell = addStructuralNoise(cell, water=waterdensity, th=proteindensity)
+    noisy_cell = cell + V_WATER
 
     # save grandmodels
     print('Saving grandmodels')
@@ -677,12 +686,11 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
 
 def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, voltage = 200e3,
                          sphericalAberration=2.7E-3, multislice=None, msdz=5e-9, amplitudeContrast=0.07, defocus=2,
-                         sigmaDecayCTF=0.4, noise_sigma = 0.04):
+                         sigmaDecayCTF=0.4, structural_noise = 0.2):
 
     grandcell = pytom.tompy.io.read_mrc(f'{outputFolder}/model_{modelID}/rotations/rotated_volume_{0}.mrc')
 
-    SIZE = grandcell.shape[0]
-    imageSize = SIZE//2
+    imageSize = grandcell.shape[0]//2
     heightBox = grandcell.shape[2]
 
     noisefree_projections = xp.zeros((imageSize, imageSize, len(angles)), dtype=float32)
@@ -700,9 +708,10 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
         # add structural noise with sigma dependent on the structural SNR
         # default value structSNR = 1.4 from Baxter et al. (2009)
 
-        print(f'Adding structural noise to rotated volume with sigma = {noise_sigma:5.3f}')
+        print(f'Adding structural noise to rotated volume with sigma = {structural_noise:5.3f}')
 
-        rotated_volume += xp.random.normal(0, noise_sigma, rotated_volume.shape) * (rotated_volume > 0)
+        # THIS STEP ALSO TAKES CONSIDERABLE TIME
+        rotated_volume += xp.random.normal(0, structural_noise, rotated_volume.shape) * (rotated_volume > 0)
 
         print(f'Volumes\' shape after structural noise addition is {rotated_volume.shape}')
 
@@ -740,13 +749,13 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
                                                 ii*px_per_slice : (ii+1)*px_per_slice].mean(axis=2) #.get() # remove .get() if fully cupy
 
             # zheight of slices in nm for Fresnel propagator
-            dzprop = px_per_slice * pixelSize # CORRECT
+            dzprop = px_per_slice * pixelSize
             # wavelength
             Lambda = wavelength_eV2m(voltage)
             # relative mass
             relmass = phys_const_dict["me"] + phys_const_dict["el"] * voltage / (phys_const_dict["c"]**2)
             # sigma_transfer
-            sig_transfer = 2 * xp.pi * relmass * phys_const_dict["el"] * Lambda / (phys_const_dict["h"]**2) # CORRECT
+            sig_transfer = 2 * xp.pi * relmass * phys_const_dict["el"] * Lambda / (phys_const_dict["h"]**2)
 
             # TRANSMISSON FUNCTION: the slice thickness is constant
             psi_t = xp.exp(1j * sig_transfer * projected_potent_ms * dzprop)
@@ -758,12 +767,12 @@ def generate_projections(angles, outputFolder='./', modelID=0, pixelSize=1e-9, v
             q_m = rr(imageSize,imageSize) * q_true_pix_m  # frequencies in Fourier domain
 
             # FRESNEL PROPAGATOR
-            P = xp.exp(-1j * xp.pi * Lambda * (q_m**2) * dzprop) # CORRECT
+            P = xp.exp(-1j * xp.pi * Lambda * (q_m**2) * dzprop)
 
             # MULTISLICE
             psi_multislice = xp.zeros((imageSize,imageSize), dtype=complex) + 1 # should be complex datatype
 
-            num_px_last_slice = heightBox % px_per_slice # CORRECT
+            num_px_last_slice = heightBox % px_per_slice
 
             for ii in range(n_slices-min(1,num_px_last_slice)):
                 #TODO ADD APPLICATION OF PYTOM.TOMPY
@@ -798,8 +807,11 @@ def add_effects_microscope(outputFolder, modelID, defocus, pixelsize, SNR, volta
     # TODO add try except for opening these files as I am not specifying paths
     noisefree_projections = pytom.tompy.io.read_mrc(f'{outputFolder}/model_{modelID}/projections_noisefree.mrc')
 
-    projections = simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder=outputFolder, modelID=modelID,
-                           voltage=voltage, amplitude_contrast=amplitude_contrast, Cs=Cs, sigma_decay_ctf=sigma_decay_ctf)
+    projections = microscope(noisefree_projections, pixelsize=pixelsize, outputFolder=outputFolder, modelID=modelID,
+                             voltage=voltage)
+
+    # projections = simutomo(noisefree_projections, defocus, pixelsize, SNR, outputFolder=outputFolder, modelID=modelID,
+    #                        voltage=voltage, amplitude_contrast=amplitude_contrast, Cs=Cs, sigma_decay_ctf=sigma_decay_ctf)
 
     pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/projections.mrc', projections)
 
@@ -893,7 +905,8 @@ if __name__ == '__main__':
         # meta file
         metadata = loadstar(config['General']['MetaFile'], dtype=datatype)
         angles = metadata['TiltAngle'] # specified in degrees
-        defocus = metadata['DefocusU'][0] * 1E-6 # defocus in um
+        # defocus = metadata['DefocusU'][0] * 1E-6 # defocus in um
+        defocus = 6E-6
         voltage = metadata['Voltage'][0] * 1E3 # voltage in keV
         sphericalAberration = metadata['SphericalAberration'][0] * 1E-3 # spherical aberration in mm
         amplitudeContrast = metadata['AmplitudeContrast'][0] # fraction of amplitude contrast
