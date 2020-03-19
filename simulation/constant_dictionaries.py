@@ -5,22 +5,12 @@
 # % M. J. Whelan, Robust Parameterization of Elastic and Absorptive Electron
 # % Atomic Scattering Factors, Acta Cryst. (1996). A52, 257-276, Table 1.
 # %
-# % SYNOPSIS:
-# % [a,b,, m] : parametrizeScFac(elem)
-# %
-# % PARAMETERS:
-# %   elem: atom type
-# %
-# % OUTPUT:
-# %  a, b: 2x5 Gaussian coefecients of parametrized scattering factors
-# %     m: atomic mass of the element
-# % fprintf('%s/n',elem{1,1})
-# % s : strjoin(elem)
 
-# Dict containing the scattering factors of each atom type. Atoms can be retrieved by their element name specified in
-# captitals with one or two letter. Each element has a g and m assigned as a nested dictionary which specify gaussian
-# coefficients of scattering factors and the atomic mass, respectively. g is in a 2x5 format?
-
+"""
+Dict containing the scattering factors of each atom type. Atoms can be retrieved by their element name specified in
+captitals with one or two letter. Each element has a g and m assigned as a nested dictionary which specify gaussian
+coefficients of scattering factors and the atomic mass, respectively. g is in a 2x5 format?
+"""
 
 constants = {
     # Dictionary of physical constants required for calculation.
