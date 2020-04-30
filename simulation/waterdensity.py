@@ -3,13 +3,14 @@ from simulateProjections import *
 import numpy
 import glob
 
-folder = '/data2/mchaillet/simulation/pytom'
+cutoff = 1E-4
 
-m = read_mrc(f'{folder}/ice/H2O_model.mrc')
+# ice folder : /data2/mchaillet/simulation/ice/
+m = read_mrc(f'/data2/mchaillet/simulation/ice/H2O_model.mrc')
 
-print(f'average water electron density = {m[m>0.1].mean():5.3f}')
-print(f'average water electron density = {(m[m>0.1]*0.94).mean():5.3f}')
-print(f'std water electron density = {(m[m>0.1]*0.94).std():5.3f}')
+print(f'average water electron density = {m[m>cutoff].mean():5.3f}')
+print(f'average water electron density = {(m[m>cutoff]*0.94).mean():5.3f}')
+print(f'std water electron density = {(m[m>cutoff]*0.94).std():5.3f}')
 
 print(m.shape)
 
@@ -28,10 +29,16 @@ print(m.shape)
 #
 # convert_numpy_array3d_mrc(m_r, f'{folder}/ice/H2O_model_binned.mrc')
 
-for i in glob.glob(f'{folder}/particles/*.mrc'):
-    n = read_mrc(i)
-    print(f'average protein electron density {i.split("/")[-1]:30s} = { n[n>0].mean():5.3f}')
-    print(f'std protein electron density {i.split("/")[-1]:30s} = { n[n>0].std():5.3f}')
+# particle folder: /data2/mchaillet/structures/particles_pytom_shrec1920/
+
+i = '/data2/mchaillet/structures/particles_pytom_shrec1920/3cf3.mrc'
+n = read_mrc(i)
+print(f'average protein electron density {i.split("/")[-1]:30s} = { n[n>0].mean():5.3f}')
+
+# for i in glob.glob(f'/data2/mchaillet/structures/particles_pytom_shrec1920/*.mrc'):
+#     n = read_mrc(i)
+#     print(f'average protein electron density {i.split("/")[-1]:30s} = { n[n>0].mean():5.3f}')
+#     print(f'std protein electron density {i.split("/")[-1]:30s} = { n[n>0].std():5.3f}')
 
 #===================  output
 # average water electron density =  0.013135817

@@ -8,37 +8,28 @@ from pytom.tompy.filter import gaussian3d
 from numpy.random import standard_normal
 
 
-def create_sphere(size, radius=-1, sigma=0, center=None, gpu=False):
+def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False):
     """Create a 3D sphere volume.
-
     @param size: size of the resulting volume.
     @param radius: radius of the sphere inside the volume.
     @param sigma: sigma of the Gaussian.
     @param center: center of the sphere.
-
     @return: sphere inside a volume.
     """
-
-
-    if len(size) == 1:
+    if size.__class__ == float or len(size) == 1:
         size = (size, size, size)
     assert len(size) == 3
-
     if center is None:
-        center = [size[0]/2, size[1]/2, size[2]/2]
+        center = [size[0]//2, size[1]//2, size[2]//2]
     if radius == -1:
-        radius = np.min(size)/2
-
-    sphere = np.zeros(size)
+        radius = np.min(size)//2
+    sphere = np.zeros(size, dtype=np.float32)
     [x,y,z] = np.mgrid[0:size[0], 0:size[1], 0:size[2]]
     r = np.sqrt((x-center[0])**2+(y-center[1])**2+(z-center[2])**2)
-    sphere[r<=radius] = 1
-
+    sphere[r<radius] = 1
     if sigma > 0:
-        ind = np.logical_and(r>radius, r<radius+2*sigma)
+        ind = np.logical_and(r>radius, r<radius+num_sigma*sigma)
         sphere[ind] = np.exp(-((r[ind] - radius)/sigma)**2/2)
-
-
     return sphere
 
 
@@ -89,13 +80,13 @@ def paste_in_center(volume, volume2, gpu=False):
         if len(volume.shape) == 3:
             sx,sy,sz = volume.shape
             SX, SY, SZ = volume2.shape
-            volume2[SX//2-sx//2:SX//2+sx//2+sx%2,SY//2-sy//2:SY//2+sy//2+sy%2,SZ//2-sz//2:SZ//2+sz//2+sz%2 ] = volume
+            volume2[SX//2-sx//2:SX//2+sx//2+sx%2, SY//2-sy//2:SY//2+sy//2+sy%2, SZ//2-sz//2:SZ//2+sz//2+sz%2 ] = volume
             return volume2
 
         if len(volume.shape) == 2:
             sx,sy = volume.shape
             SX, SY = volume2.shape
-            volume2[SX//2-sx//2:SX//2+sx//2+sx%2,SY//2-sy//2:SY//2+sy//2+sy%2] = volume
+            volume2[SX//2-sx//2:SX//2+sx//2+sx%2, SY//2-sy//2:SY//2+sy//2+sy%2] = volume
             return volume2
 
 

@@ -2,9 +2,149 @@ import numpy as xp
 import constant_dictionaries as phys
 import scipy.ndimage
 import os
-import pytom.basic.functions
+# import pytom.basic.functions
 
-V_WATER = 4.5301 # potential value of amorphous ice (from Vulovic et al., 2013)
+V_WATER = 4.5301 # potential value of low density amorphous ice (from Vulovic et al., 2013)
+
+def extend_volume(vol, increment, pad_value=0, symmetrically=False):
+    """
+
+    @param vol:
+    @param increment: list with increment value for each dimension
+    @param symmetrically: False default, if False the volume is just padded with zeros.
+    @return:
+    """
+    vol = xp.pad(vol, tuple([(0,x) for x in increment]), 'constant', constant_values=pad_value)
+    if symmetrically:
+        # TODO Use voltools for this as well!
+        return scipy.ndimage.interpolation.shift(vol, tuple([x / 2 for x in increment]), order=3)
+    else:
+        return vol
+
+
+def create_gaussian_low_pass(size, radius, center=None):
+    """Create a 3D mask with gaussian edges.
+
+    @param size: size of the resulting volume.
+    @param cutoff: radius of the sphere inside the volume.
+    @param center: sigma of the Gaussian.
+    @param gpu: center of the sphere.
+
+    @return: sphere inside a volume.
+    """
+    assert len(size) == 3
+
+    if center is None:
+        center = [size[0]/2, size[1]/2, size[2]/2]
+
+    [x,y,z] = xp.mgrid[0:size[0], 0:size[1], 0:size[2]]
+    r = xp.sqrt((x-center[0])**2+(y-center[1])**2+(z-center[2])**2)
+
+    filter = xp.exp(-(r ** 2) / (2 * radius ** 2))
+
+    return filter
+
+
+def reduce_resolution(map, voxel_size, resolution):
+    """
+    Accepts only square input maps to easy low-pass filtering
+
+    @param map: Volume
+    @type map: 3d numpy array
+    @param voxel_size: Voxel size of the volume in A
+    @type voxel_size: float
+    @param to_resolution: Desired resolution after applying low-pass filter
+    @type to_resolution: float
+    @param sharpness: ratio
+    @type sharpness: float
+
+    @return: Filtered volume
+    @rtype: 3d numpy array
+
+    @author: Marten Chaillet
+    """
+    from pytom.tompy.transform import fourier_filter
+
+    assert resolution > voxel_size, "the requested resolution is non-valid as it is smaller than the voxel size"
+    assert len(set(map.shape)) == 1, "dimensions of input are not equal"
+
+    # resolution reduction factor
+    nr_pixels_fourier = (map.shape[0] * voxel_size ) / resolution
+    # create full gaussian mask
+    mask = create_gaussian_low_pass(map.shape, nr_pixels_fourier/2)
+    # apply mask in fourier space
+    result = fourier_filter(map, mask, human=True)
+    return result
+
+
+def low_pass_filter(map, voxel_size, resolution):
+    """
+    Accepts only square input maps to easy low-pass filtering
+
+    @param map: Volume
+    @type map: 3d numpy array
+    @param voxel_size: Voxel size of the volume in A
+    @type voxel_size: float
+    @param to_resolution: Desired resolution after applying low-pass filter
+    @type to_resolution: float
+    @param sharpness: ratio
+    @type sharpness: float
+
+    @return: Filtered volume
+    @rtype: 3d numpy array
+
+    @author: Marten Chaillet
+    """
+    from pytom.tompy.transform import fourier_filter
+    from pytom.tompy.tools import create_sphere
+
+    assert resolution > voxel_size, "the requested resolution is non-valid as it is smaller than the voxel size"
+    assert len(set(map.shape)) == 1, "dimensions of input are not equal"
+
+    # calculate radius of mask from pixels needed in fourier space for the desired resolution
+    nr_pixels_fourier = (map.shape[0] * voxel_size) / resolution
+    mask = create_sphere(map.shape, radius=nr_pixels_fourier, sigma=15, num_sigma=10)
+    # apply mask in fourier space
+    result = fourier_filter(map, mask, human=True)
+    return result
+
+
+def scale(potential, voxel_size_in, voxel_size_out, tapering=True):
+    """
+    Zoom potential from input voxel size to desired output voxel spacing. Possibly with edge_tapering.
+    @param potential: 3d array (numpy)
+    @param voxel_size_in: Original voxel size in A
+    @param voxel_size_out: Desired voxel size in A
+    @return:
+    """
+    # Make the array cubic
+    if len(set(potential.shape)) > 1:
+        # Make the volume cubica
+        diff = [max(potential.shape)-a for a in potential.shape]
+        potential = extend_volume(potential, diff, pad_value=0, symmetrically=False)
+    # Filter to prevent ringing
+    if tapering:
+        reduce_resolution(potential, voxel_size_in, voxel_size_out)
+    # Downsample volume with scipy.ndimage
+    factor = voxel_size_in / voxel_size_out
+    # VOLTOOLS?
+    potential = scipy.ndimage.zoom(potential, factor, order=3)
+    return potential
+    # Binning is better than interpolation
+    # factor = voxel_size_out / voxel_size_in
+    # print(potential.shape[0], factor)
+    # s = int((potential.shape[0] % factor) // 2)
+    # d = int((potential.shape[0] % factor) % 2)
+    # print(s,d)
+    # potential = potential[s:potential.shape[0] - s - d, s:potential.shape[0] - s - d, s:potential.shape[0] - s - d]
+    #
+    # ds = int(potential.shape[0] // factor)
+    # image_size = potential.shape[0]
+    # print(ds,image_size)
+    # binned = potential.reshape(ds, image_size // ds, ds, image_size // ds, ds, image_size // ds).mean(-1).mean(1).mean(-2)
+    #
+    # return binned
+
 
 def call_chimera(pdb_folder, pdb_id):
     """
@@ -45,7 +185,7 @@ def call_chimera(pdb_folder, pdb_id):
 
     extension = 'py'
     if len(set(symmetry)) > 1:
-        scriptname = f'_sym_addh_{pdb_id}'
+        scriptname = f'_rem-solvent_sym_{pdb_id}'
         try:
             with open(f'{pdb_folder}/{scriptname}.{extension}', 'w') as chimera_script:
                 chimera_script.write(f'# Open chimera for {pdb_id} then execute following command:\n'
@@ -54,16 +194,16 @@ def call_chimera(pdb_folder, pdb_id):
                                      f'rc("open {pdb_folder}/{pdb_id}.pdb")\n'
                                      f'rc("delete solvent")\n'
                                      f'rc("delete ions")\n'
-                                     f'rc("addh")\n'
+                                     # f'rc("addh")\n'
                                      f'rc("sym group biomt")\n'             # group biomt is also the default
                                      f'rc("combine all modelId 10")\n'
-                                     f'rc("write format pdb #10 {pdb_folder}/{pdb_id}_sym_addh.pdb")\n'
+                                     f'rc("write format pdb #10 {pdb_folder}/{pdb_id}_rem-solvent_sym.pdb")\n'
                                      f'rc("stop")\n')
         except Exception as e:
             print(e)
             raise Exception('Could not create chimera script.')
     else:
-        scriptname = f'_addh_{pdb_id}'
+        scriptname = f'_rem-solvent_{pdb_id}'
         try:
             with open(f'{pdb_folder}/{scriptname}.{extension}', 'w') as chimera_script:
                 chimera_script.write(f'# Open chimera for {pdb_id} then execute following command:\n'
@@ -72,8 +212,8 @@ def call_chimera(pdb_folder, pdb_id):
                                      f'rc("open {pdb_folder}/{pdb_id}.pdb")\n'
                                      f'rc("delete solvent")\n'
                                      f'rc("delete ions")\n'
-                                     f'rc("addh")\n'
-                                     f'rc("write format pdb #0 {pdb_folder}/{pdb_id}_addh.pdb")\n'
+                                     # f'rc("addh")\n'
+                                     f'rc("write format pdb #0 {pdb_folder}/{pdb_id}_rem-solvent.pdb")\n'
                                      f'rc("stop")\n')
         except Exception as e:
             print(e)
@@ -86,14 +226,14 @@ def call_chimera(pdb_folder, pdb_id):
         raise Exception('Chimera is likely not on your current path.')
 
     if len(set(symmetry)) > 1:
-        return f'{pdb_id}_sym_addh' # returns new pdb name
+        return f'{pdb_id}_rem-solvent_sym' # returns new pdb name
     else:
-        return f'{pdb_id}_addh'
+        return f'{pdb_id}_rem-solvent'
 
 
 def modify_structure_file(filename, pattern, replacement, line_start=''):
     """
-    Function required to make pqr files with large negative coordinates readible for APBS. This program can only parse
+    Function required to make pqr files with large negative coordinates readible for APBS. APBS can only parse
     columns in the file when they are properly separated by white spaces. Input file will be overwritten.
 
     @param filename: File path of pqr type file (with extension)
@@ -169,11 +309,12 @@ def call_apbs(pdb_folder, structure, apbs_folder, force_field='amber', ph=7.):
     try:
         # Also PDB2PKA ph calculation method. Requires PARSE force field, can take very long for large proteins.
         os.system(f'pdb2pqr.py --ff={force_field} --ph-calc-method=propka --with-ph={ph} --apbs-input {input_file} {output_file}')
-        print('Add white space delimiters to pqr file.')
+        print(' - Add white space delimiters to pqr file.')
         modify_structure_file(output_file, '-', ' -', line_start='ATOM')
         # APBS needs to execute from the folder where the structure is present
         os.chdir(output_folder)
-        os.system(f'module load apbs_mc/1.5; apbs {apbs_in}')
+        os.system(f'apbs {apbs_in}')
+        # os.system(f'module load apbs_mc/1.5; apbs {apbs_in}')
         # ? subprocess.run(['apbs', f'{structure}.in'], cwd=output_folder) # executes in cwd
     except Exception as e:
         print(e)
@@ -184,53 +325,82 @@ def call_apbs(pdb_folder, structure, apbs_folder, force_field='amber', ph=7.):
     return
 
 
-def iasa_potential(filename, voxel_size=1., oversampling=1): # add params voxel_size, oversampling?
+def read_structure(filename):
+
+    x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = [], [], [], [], [], []
+
+    filetype = filename.split('.')[-1]
+
+    if filetype == 'pdb':
+        try:
+            with open(filename, 'r') as pdb:
+                lines = pdb.readlines()
+                # TODO Whay about HETATM lines?
+                atoms = [line for line in lines if line[:4] == 'ATOM']
+                for line in atoms:
+                    '''
+        PDB example
+        ATOM   4366  OXT SER I 456      10.602  32.380  -1.590  1.00 53.05           O
+                    '''
+                    x_coordinates.append(float(line[30:38]))
+                    y_coordinates.append(float(line[38:46]))
+                    z_coordinates.append(float(line[46:54]))
+                    elements.append(line[76:78].strip())
+                    b_factors.append(float(line[60:66]))
+                    occupancies.append(float(line[54:60]))
+        except Exception as e:
+            print(e)
+            raise Exception('Could not read pdb file.')
+    elif filetype == 'pqr':
+        try:
+            with open(filename, 'r') as pqr:
+                lines = pqr.readlines()
+                for line in lines:
+                    split_line = line.split()
+                    # TODO Whay about HETATM lines?
+                    if split_line[0] == 'ATOM':
+                        '''
+            PQR example
+            ATOM   5860  HA  ILE   379      26.536  13.128  -3.443  0.0869 1.3870
+                        '''
+                        x_coordinates.append(float(split_line[5]))
+                        y_coordinates.append(float(split_line[6]))
+                        z_coordinates.append(float(split_line[7]))
+                        elements.append(split_line[2][0])  # first letter of long atom id is the element
+                        b_factors.append(0.0)
+                        occupancies.append(1.0)
+        except Exception as e:
+            print(e)
+            raise Exception('Could not read pdb file.')
+    else:
+        print('invalid filetype in iasa_potential, return 0')
+        return 0
+
+    return x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies
+
+
+def iasa_potential(filename, voxel_size=1., oversampling=0, tapering=False): # add params voxel_size, oversampling?
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
 
-    @param pdb_folder: Path to folder with pdb files
-    @type pdb_folder:
-    @param pdb_id: ID of pdb file as present in pdb folder
-    @type pdb_id:
+    @param filename: ID of pdb file as present in pdb folder
+    @type filename: string
     @param voxel_size: Size (A) of voxel in output map, default 1 A
-    @type voxel_size:
+    @type voxel_size: float
     @param oversampling: Increased sampling of potential (multiple of 1), default 1 i.e. no oversampling
-    @type oversampling:
+    @type oversampling: int
 
     @return: A volume with interaction potentials
     @rtype: 3d numpy/cupy array[x,y,z], float
 
     @author: Marten Chaillet
     """
-
-    # oversampling = int(oversampling)   # oversampling to 0.25 A ==> Not used at the moment
-    # if oversampling:
-    #   voxel_size = voxel_size / oversampling
     extra_pixels = 10  # extend volume by 10 A
 
     print(f' - Calculating IASA potential from {filename}')
 
-    x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = [],[],[],[],[],[]
-
-    try:
-        with open(filename, 'r') as pdb:
-            lines = pdb.readlines()
-            atoms = [line for line in lines if line[:4]=='ATOM']
-            for line in atoms:
-                '''
-    PDB example
-    ATOM   4366  OXT SER I 456      10.602  32.380  -1.590  1.00 53.05           O
-                '''
-                x_coordinates.append(float(line[30:38]))
-                y_coordinates.append(float(line[38:46]))
-                z_coordinates.append(float(line[46:54]))
-                elements.append(line[76:78].strip())
-                b_factors.append(float(line[60:66]))
-                occupancies.append(float(line[54:60]))
-    except Exception as e:
-        print(e)
-        raise Exception('Could not read pdb file.')
+    x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(filename)
 
     x_coordinates = x_coordinates - xp.min(x_coordinates) + extra_pixels
     y_coordinates = y_coordinates - xp.min(y_coordinates) + extra_pixels
@@ -240,7 +410,13 @@ def iasa_potential(filename, voxel_size=1., oversampling=1): # add params voxel_
     szy = xp.abs(xp.max(y_coordinates) - xp.min(y_coordinates)) + 2 * extra_pixels
     szz = xp.abs(xp.max(z_coordinates) - xp.min(z_coordinates)) + 2 * extra_pixels
 
-    sz = [szx,szy,szz] # [ x / voxel_size for x in [szx,szy,szz]] could increase size for oversampling here
+    if (oversampling > 0) and ( type(oversampling) is int ):
+        spacing = voxel_size / oversampling
+    else:
+        spacing = voxel_size
+
+    # sz = [ x / spacing for x in [szx,szy,szz]] # could increase size for oversampling here
+    sz = [x / voxel_size for x in [szx, szy, szz]]
     # C = 2132.8 A^2 * V; 1E20 is a conversion factor for Angstrom^2
     C = 4 * xp.sqrt(xp.pi) * phys.constants['h']**2 / (phys.constants['el'] *
                                                                 phys.constants['me']) * 1E20
@@ -260,17 +436,19 @@ def iasa_potential(filename, voxel_size=1., oversampling=1): # add params voxel_
         b = sf[5:10]
 
         # b is used for calculating the radius of the potential. See Rullgard et al. (2011) for addition of 16 R^2
-        b += b_factor + 16 * voxel_size**2
+        # b += (b_factor + 16 * spacing**2)
+        b += (b_factor + 16 * voxel_size ** 2)
+
         r2 = 0
         b1 = xp.zeros(5)
         for j in range(5):
             # calculate maximal radius assuming symmetrical potential
-            b1[j] = 4 * xp.pi**2 / b[j] * voxel_size**2
+            # b1[j] = 4 * xp.pi**2 / b[j] * spacing**2
+            b1[j] = 4 * xp.pi ** 2 / b[j] * voxel_size ** 2
             r2 = xp.maximum(r2, 10/b1[j])
         r = xp.sqrt(r2 / 3)
-        xc1 = x_coordinates[i] # / voxel_size
-        yc1 = y_coordinates[i] # / voxel_size
-        zc1 = z_coordinates[i] # / voxel_size
+        # xc1, yc1, zc1 = x_coordinates[i] / spacing, y_coordinates[i] / spacing, z_coordinates[i] / spacing
+        xc1, yc1, zc1 = x_coordinates[i] / voxel_size, y_coordinates[i] / voxel_size, z_coordinates[i] / voxel_size
         rc = [xc1, yc1, zc1]
         kmin = [xp.maximum(0,x).astype(int) for x in xp.ceil(rc-r)]
         kmax = [xp.minimum(xp.floor(x)-1,xp.floor(y+r)).astype(int) for x,y in zip(sz,rc)]
@@ -292,11 +470,8 @@ def iasa_potential(filename, voxel_size=1., oversampling=1): # add params voxel_
         potential[kmin[0]:kmin[0]+kmm+1, kmin[1]:kmin[1]+kmm+1, kmin[2]:kmin[2]+kmm+1] = \
             potential[kmin[0]:kmin[0]+kmm+1, kmin[1]:kmin[1]+kmm+1, kmin[2]:kmin[2]+kmm+1] + atom_potential
 
-    potential -= V_WATER
-    potential[potential<0] = 0
-
-    # if oversampling:
-    #     downsample with voltools transform
+    if spacing != voxel_size:
+        potential = scale(potential, spacing, voxel_size, tapering=tapering)
 
     return potential
 
@@ -345,7 +520,7 @@ def parse_apbs_output(filename):
     return data, dx, dy, dz
 
 
-def resample_apbs(filename):
+def resample_apbs(filename, voxel_size=1.0, tapering=False):
     """
     resample_APBS: First calls parse_abps_output to read an apbs output file, then scales voxels to 1 A voxels and
     refactors the values to volts.
@@ -360,29 +535,26 @@ def resample_apbs(filename):
     """
     # from pytom_volume import vol
     # from pytom_numpy import vol2npy
-    # from voltools import transform
+    from voltools import transform
 
     print(f' - Parsing and resampling APBS file {filename}')
 
     # Parse APBS data file
     potential, dxnew, dynew, dznew = parse_apbs_output(filename)
-    # Make the voxels cubic 1 A
-    voxel_size = 1
-    scaling = [dxnew/voxel_size, dynew/voxel_size, dznew/voxel_size] # dxnew, etc. are in A
-    # TODO We want to use voltools here instead of scipy
-    potential = scipy.ndimage.zoom(potential, tuple(scaling), order=5)
+    # Check if the voxel size is allowed, and adjust if neccessary
+    smallest_possible = max([dxnew, dynew, dznew])
+    if not(voxel_size >= smallest_possible):
+        print(f'Requested voxel size is smaller than voxel size of the apbs map. Adjust to smallest possible voxel size '
+              f'of {smallest_possible}.')
+        voxel_size = smallest_possible
+    # Make the volume cubic
+    scaling = [dxnew/dxnew, dxnew/dynew, dxnew/dznew]
+    # TODO voltools make cubic
+    potential = scipy.ndimage.zoom(potential, tuple(scaling), order=3)
+    # Gaussian filter before downsampling (InSilicoTEM does not do this for resampling APBS)
+    potential = scale(potential, dxnew, voxel_size, tapering=tapering)
 
-    # # Create a edge taper mask
-    # taper_width = 5 # half of extra pixels added?
-    # [x,y,z] = potential.shape
-    # # taper_edges only takes pytom volume
-    # _, taper_mask = pytom.basic.functions.taper_edges(vol(x,y,z),taper_width)
-    # taper_mask = vol2npy(taper_mask)
-    # # Apply the mask in Fourier space
-    # print('Check')
-    # potential = xp.real(xp.fft.fftshift(xp.fft.ifftn(xp.fft.fftn(xp.fft.ifftshift(potential)) * xp.fft.ifftshift(taper_mask))))
-
-    print(f'Data after reshaping to 1A voxels: {potential.shape}')
+    print(f'Data after reshaping to {voxel_size} A voxels: {potential.shape}')
 
     # Convert to from kT/e to volts
     temperature = 291 # [K] = 18 C (room temperature)
@@ -411,13 +583,13 @@ def combine_potential(iasa_potential, bond_potential):
         bond_size = bond_potential.shape
         if all(x >= y for x,y in zip(iasa_size,bond_size)):
             difference = [x-y for x,y in zip(iasa_size,bond_size)]
-            bond_potential = xp.pad(bond_potential, tuple([(0,x) for x in difference]), 'constant', constant_values=0)
-            bond_potential = scipy.ndimage.interpolation.shift(bond_potential,tuple([x/2 for x in difference]), order=5)
+            # Need to extend symmetrically otherwise volumes migth not line up
+            bond_potential = extend_volume(bond_potential, difference, symmetrically=True)
             print(f'Extended bond volume from {bond_size} to {bond_potential.shape}, and shifted values to new center.')
         elif all(x < y for x,y in zip(iasa_size,bond_size)):
             difference = [y-x for x, y in zip(iasa_size, bond_size)]
-            iasa_potential = xp.pad(iasa_potential, tuple([(0,x) for x in difference]), 'constant', constant_values=0)
-            iasa_potential = scipy.ndimage.interpolation.shift(iasa_potential, tuple([x/2 for x in difference]), order=5)
+            # Need to extend symmetrically otherwise volumes migth not line up
+            iasa_potential = extend_volume(iasa_potential, difference, symmetrically=True)
             print(f'Extended IASA volume from {iasa_size} to {iasa_potential.shape}, and shifted values to new center.')
         full_potential = iasa_potential + bond_potential
     except Exception as e:
@@ -426,57 +598,7 @@ def combine_potential(iasa_potential, bond_potential):
     return full_potential
 
 
-def crop(data, factor):
-    s = int((data.shape[0] % factor) // 2)
-    d = int((data.shape[0] % factor) % 2)
-    data = data[s:data.shape[0] - s - d, s:data.shape[0] - s - d, s:data.shape[0] - s - d]
-
-    ds = int(data.shape[0] // factor)
-    image_size = data.shape[0]
-    binned = data.reshape(ds, image_size // ds, ds, image_size // ds, ds, image_size // ds).mean(-1).mean(1).mean(-2)
-
-    # Apply edge tapering
-    # ft = fftshift(fftn(data))
-    # x, y, z = numpy.array(ft.shape) // 2
-    # ff = factor
-    # ft = ft[int(x - x // ff):int(x + x // ff), int(y - y // ff):int(y + y // ff), int(z - z // ff):int(z + z // ff)]
-    # particle = abs(ifftn(fftshift(ft)))
-
-    return binned
-
-
-def scale(potential, resolution_in, resolution_out, order=5, taper_edges=0):
-
-    size = max(potential.shape)
-    m2 = xp.zeros((size, size, size))
-    dx, dy, dz = potential.shape
-    sx, ex = (size - dx) // 2, size - int(xp.ceil((size - dx) / 2.))
-    sy, ey = (size - dy) // 2, size - int(xp.ceil((size - dy) / 2.))
-    sz, ez = (size - dz) // 2, size - int(xp.ceil((size - dz) / 2.))
-    m2[sx:ex, sy:ey, sz:ez] = potential
-    factor = resolution_out/resolution_in
-
-    return crop(m2, factor)
-
-
-# def scale(potential, resolution_in, resolution_out, order=5, taper_edges=0):
-#     """
-#     Scale potential from resolution_in to resolution_out. Possibly with edge_tapering.
-#     @param potential: 3d array (numpy)
-#     @param resolution_in:
-#     @param resolution_out:
-#     @return:
-#     """
-#     from voltools import transform
-#     scaling = resolution_in/resolution_out
-#     potential = scipy.ndimage.zoom(potential, scaling, order=order)
-#     if taper_edges:
-#         print("Edge tapering has to be implemented.")
-#         # from simulateProjections import spheremask
-#         # sphere_mask = spheremask(xp.ones_like(potential), maxradius-10, smooth=10, ellipsoid=1)
-#     return potential
-
-def wrapper(pdb_id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folder):
+def wrapper(pdb_id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folder, voxel_size=1.0, ph=7.0):
     import pytom.tompy.io
     # TODO function can be executed in parallel for multiple structures
     # pdb_folder = '/data2/mchaillet/structures/pdb'
@@ -487,19 +609,22 @@ def wrapper(pdb_id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folde
 
     # Call external programs for structure preparation and PB-solver
     structure = call_chimera(pdb_folder, pdb_id) # output structure name is dependent on modification by chimera
-    call_apbs(pdb_folder, structure, apbs_folder)
+    call_apbs(pdb_folder, structure, apbs_folder, ph=ph)
 
-    outfile = f'{structure}_1.0A.mrc'
+    outfile = f'{structure}_ph{ph:.1f}_{voxel_size:.2f}A.mrc'
     # Calculate atom and bond potential, and store them
-    v_atom = iasa_potential(f'{pdb_folder}/{structure}.pdb')
+    v_atom = iasa_potential(f'{apbs_folder}/{structure.split("_")[0]}/{structure}.pqr', voxel_size=voxel_size,
+                            oversampling=0, tapering=True)
     pytom.tompy.io.write(f'{iasa_folder}/{outfile}', v_atom)
-    v_bond = resample_apbs(f'{apbs_folder}/{structure.split("_")[0]}/{structure}.pqr.dx')
+    v_bond = resample_apbs(f'{apbs_folder}/{structure.split("_")[0]}/{structure}.pqr.dx', voxel_size=voxel_size,
+                           tapering=True)
     pytom.tompy.io.write(f'{bond_folder}/{outfile}', v_bond)
     map = combine_potential(v_atom, v_bond)
     pytom.tompy.io.write(f'{map_folder}/{outfile}', map)
 
-    map = scale(map, 1, 10)
-    map[map<0] = 0
+    # Output voxel size is 10 by default
+    map = scale(map, voxel_size, 10, tapering=True)
+    # map[map<0] = 0
     outfile = f'{structure.split("_")[0]}_10.0A.mrc'
     pytom.tompy.io.write(f'{map_folder}/{outfile}', map)
     return
@@ -516,18 +641,19 @@ if __name__ == '__main__':
     # IN ORDER TO FUNCTION, SCRIPT REQUIRES INSTALLATION OF PYTOM (and dependencies), CHIMERA, PDB2PQR (modified), APBS
 
     # LIST OF PDBS TO EXECUTE ON
-    pdb_ids = ['3cf3', '1s3x', '1u6g', '4cr2', '1qvr', '3h84', '2cg9', '3qm1', '3gl1', '3d2f', '4d8q', '1bxn']
+    # pdb_ids = ['3cf3', '1s3x', '1u6g', '4cr2', '1qvr', '3h84', '2cg9', '3qm1', '3gl1', '3d2f', '4d8q', '1bxn']
+    pdb_ids = ['6RGQ']
 
     for id in [id.upper() for id in pdb_ids]:
         if not os.path.exists(f'{pdb_folder}/{id}.pdb'):
             print(f'Skipping {id} because the pdb file does not exist in {pdb_folder}.')
             continue
-        elif os.path.exists(f'{map_folder}/{id}_addh_1.0A.mrc') or os.path.exists(f'{map_folder}/{id}_sym_addh_1.0A.mrc'):
-            print(f'{id} already has a map in folder {map_folder}.')
-            continue
+        # elif os.path.exists(f'{map_folder}/{id}_1.0A.mrc') or os.path.exists(f'{map_folder}/{id}_sym_addh_1.0A.mrc'):
+        #     print(f'{id} already has a map in folder {map_folder}.')
+        #     continue
         else:
             try:
-                wrapper(id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folder)
+                wrapper(id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folder, voxel_size=0.81)
             except Exception as e:
                 print(e)
                 print(f'Something when wrong while creating map for {id}. Continuing with next pdb file in list.')

@@ -29,9 +29,9 @@ from tqdm import tqdm
 import time
 
 # Plotting
-# import matplotlib
-# from pylab import *
-# matplotlib.use('Qt5Agg')
+import matplotlib
+from pylab import *
+matplotlib.use('Qt5Agg')
 
 # math
 from pytom.reconstruction.reconstructionStructures import *
@@ -40,7 +40,7 @@ import scipy.ndimage
 import numpy as xp
 import random
 
-V_WATER = 4.5301
+V_WATER = 4.5301 # potential value of low density amorphous ice (from Vulovic et al., 2013)
 
 phys_const_dict = {
     # Dictionary of physical constants required for calculation.
@@ -413,9 +413,9 @@ def microscope(noisefree_projections, pixelsize=1E-9, outputFolder='./', modelID
                                             folder='/data2/mchaillet/simulation/detectors')
     mtf = detector.create_detector_response('K2SUMMIT', 'MTF', xp.zeros((size, size)), voltage=voltage,
                                             folder='/data2/mchaillet/simulation/detectors')
-    nnps = mtf ** 2 / dqe
+    ntf = xp.sqrt(mtf ** 2 / dqe) # square root because dqe = mtf^2 / ntf^2
     mtf_shift = xp.fft.ifftshift(mtf)
-    nnps_shift = xp.fft.ifftshift(nnps)
+    ntf_shift = xp.fft.ifftshift(ntf)
 
     # NUMBER OF ELECTRONS PER PIXEL
     dose = 80  # electrons per square A
@@ -425,25 +425,29 @@ def microscope(noisefree_projections, pixelsize=1E-9, outputFolder='./', modelID
 
     for n in range(n_images):
         projection = noisefree_projections[:, :, n]
-
+        # Fourier transform and multiply with sqrt(dqe) = mtf/ntf
         projection_fourier = xp.fft.fftn(xp.fft.ifftshift(projection))
-        projection_fourier *= (mtf_shift / xp.sqrt(nnps_shift))
-
+        projection_fourier = projection_fourier * mtf_shift / ntf_shift
+        # Convert back to real space
         projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier)))
-
-        # Draw from poissonian distribution
-        projection_poisson = xp.random.poisson(lam=(projection * dose_per_pixel))
-
-        conversion_factor = 100 # in ADU/e- , this is an arbitrary unit. Value taken from Vulovic et al., 2010
-        projection_fourier = xp.fft.fftn(xp.fft.ifftshift(projection_poisson)) * xp.sqrt(nnps_shift) * conversion_factor
-
+        # Draw from poisson distribution and scale by camera's conversion factor
+        conversion_factor = 100  # in ADU/e- , this is an arbitrary unit. Value taken from Vulovic et al., 2010
+        projection_poisson = xp.random.poisson(lam=(projection * dose_per_pixel)) # + conversion_factor
+        # Image values are now in ADU
+        # Apply the camera's noise transfer function to the noisy image
+        projection_fourier = xp.fft.fftn(xp.fft.ifftshift(projection_poisson)) * ntf_shift
         # readout noise standard deviation can be 7 ADUs, from Vulovic et al., 2010
         sigma_readout = 7
         readsim = xp.random.normal(0, sigma_readout, projection.shape) # readout noise has a gaussian distribution
         darksim = 0     # dark current noise has a poisson distribution, usually an order of magnitude smaller than readout
                         # noise and can hence be neglected
-
-        projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier))) + readsim + darksim
+        if 0:
+            fig, ax = subplots(1, 2, figsize=(8, 4))
+            ax[0].imshow(projection_poisson)
+            ax[1].imshow(xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier))))
+            show()
+        # Add readout noise and dark noise in real space
+        projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier))) # + readsim + darksim
 
         pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/noisyProjections/simulated_proj_{n+1}.mrc', projection)
 
@@ -521,7 +525,7 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
 
     # outputs
     X, Y, Z = size, size, thickness
-    cell = xp.zeros((X, Y, Z))
+    cell = xp.zeros((X, Y, Z)) + V_WATER
 
     occupancy_bbox_mask = xp.zeros_like(cell)
     occupancy_accurate_mask = xp.zeros_like(cell)
@@ -537,6 +541,7 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
             # rotate
             # then bin
             vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_10.0A.mrc')
+            vol = vol - V_WATER
             dx, dy, dz = vol.shape
             vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
             vol2[dx//2:-dx//2, dy//2:-dy//2, dz//2:-dz//2] = vol
@@ -822,8 +827,8 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, vol_size, angles, o
     projections = ProjectionList()
 
     for i in range(start_idx, end_idx+1):
-
-        p = Projection(prefix+str(i)+suffix, tiltAngle=angles[i-1])
+        # IMPORTANT: angles *-1 to get the right reconstrunction relative to the orignal model!
+        p = Projection(prefix+str(i)+suffix, tiltAngle= -1 * angles[i-1])
         projections.append(p)
 
     outputname = os.path.join(outputFolder, f'model_{modelID}/reconstruction.em')

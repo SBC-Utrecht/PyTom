@@ -54,7 +54,7 @@ def mean_vol_under_mask(volume, mask):
     p = np.sum(mask)
 
     # do the (circular) convolution
-    from transform import rfft, irfft, fftshift
+    from pytom.tompy.transform import rfft, irfft, fftshift
     size = volume.shape
     # somehow this should be conjugated
     res = fftshift(irfft(rfft(volume) * np.conjugate(rfft(mask)), size)) / p
@@ -137,9 +137,9 @@ def FLCF(volume, template, mask=None, stdV=None, gpu=False):
     
 
     size = volume.shape
-    fT = xp.fft.rfft(tempV)
+    fT = rfft(tempV)
     fT = xp.conjugate(fT)
-    result = xp.fft.fftshift(xp.fft.irfft(fT*xp.fft.rfft(volume), size))/stdV
+    result = fftshift(irfft(fT*rfft(volume), size))/stdV
     
     return result/np.sum(mask)
 
