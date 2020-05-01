@@ -94,7 +94,6 @@ em_map = read_mrc('/data2/mchaillet/structures/em_maps/emd_4877.map')
 # BENCHMARK
 v_atom = read_mrc('/data2/mchaillet/structures/correlation/6RGQ_atom_ph7_grid-0.81A_res-2.60A.mrc')
 v_atom = extend_volume(v_atom, [10,10,10])
-print(v_atom.shape)
 # store template size for use later
 template_size = v_atom.shape[0]
 
@@ -102,6 +101,7 @@ correlation_at(em_map, v_atom)
 
 # Read updated volume
 v_atom = read_mrc('/data2/mchaillet/structures/potential_iasa/6RGQ_rem-solvent_ph7.0_0.81A.mrc')
+
 
 diff = [template_size - a for a in v_atom.shape]
 v_atom = extend_volume(v_atom, diff, pad_value=0, symmetrically=False)
