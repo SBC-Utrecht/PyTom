@@ -1,7 +1,7 @@
 import numpy as xp
 
 from potential import reduce_resolution, extend_volume
-from pytom.tompy.io import read_mrc, write
+from pytom.tompy.io import read_mrc, read, write
 
 V_WATER = 4.5301 # potential value of low density amorphous ice (from Vulovic et al., 2013)
 
@@ -44,6 +44,7 @@ def max_correlation(volume, template, mask=None):
         # syntax = initSphere(volume, radius, sigma, maxradius, centerX, centerY, centerZ)
         initSphere(mask, radius, sigma, 0, centerX, centerY, centerZ)
     else:
+        # print(template.sizeX(), mask.sizeX(), template.sizeY(), mask.sizeY(), template.sizeZ(), mask.sizeZ())
         if template.sizeX() != mask.sizeX() and template.sizeY() != mask.sizeY() and template.sizeZ() != mask.sizeZ():
             raise RuntimeError('Template and mask size are not consistent!')
 
@@ -66,55 +67,56 @@ def max_correlation(volume, template, mask=None):
     return peakValue, [shiftX, shiftY, shiftZ]
 
 
-def correlation_at(volume, template, voxel_size=None, at=None, mask=None):
+def correlation_at(volume, template, voxel_size=None, at=None, mask=None, filter_map=True):
     if at is None:
         template -= V_WATER
         template[template<0] = 0
-        score, shift = max_correlation(open_as_vol(volume), open_as_vol(template), mask)
+        if mask is None:
+            score, shift = max_correlation(open_as_vol(volume), open_as_vol(template), mask)
+        else:
+            score, shift = max_correlation(open_as_vol(volume), open_as_vol(template), open_as_vol(mask))
         print(f'correlation score at {voxel_size}')
-        print(score)
+        print(f'{score:.3f}')
     elif (type(at) is list) and (type(voxel_size) is float):
         for resolution in at:
-            new_volume = volume
-            # new_volume = reduce_resolution(volume, voxel_size, resolution)
-            new_template = reduce_resolution(volume, voxel_size, resolution)
+            if filter_map:
+                new_volume = reduce_resolution(volume, voxel_size, resolution)
+            else:
+                new_volume = volume
+            new_template = reduce_resolution(template, voxel_size, resolution)
             new_template -= V_WATER
             new_template[new_template<0] = 0
-            score, shift = max_correlation(open_as_vol(new_volume), open_as_vol(new_template), mask)
+            if mask is None:
+                score, shift = max_correlation(open_as_vol(new_volume), open_as_vol(new_template), mask)
+            else:
+                score, shift = max_correlation(open_as_vol(new_volume), open_as_vol(new_template), open_as_vol(mask))
             print(f'correlation score at {resolution}')
-            print(score)
+            print(f'{score:.3f}')
     else:
         print('invalid argument type for keyword at')
     return
 
-
-
 em_map = read_mrc('/data2/mchaillet/structures/em_maps/emd_4877.map')
 
 # BENCHMARK
-v_atom = read_mrc('/data2/mchaillet/structures/correlation/6RGQ_atom_ph7_grid-0.81A_res-2.60A.mrc')
-v_atom = extend_volume(v_atom, [10,10,10])
-# store template size for use later
-template_size = v_atom.shape[0]
-
-correlation_at(em_map, v_atom)
+bench = read('/data2/mchaillet/structures/correlation/6RGQ_iasa_grid0.81_res2.6_excluded_sol.em')
+mask = read_mrc('/data2/mchaillet/structures/correlation/structural_mask.mrc')
+correlation_at(em_map, bench, mask=mask)
 
 # Read updated volume
 v_atom = read_mrc('/data2/mchaillet/structures/potential_iasa/6RGQ_rem-solvent_ph7.0_0.81A.mrc')
 
+res = [2, 2.5, 3, 3.5, 4, 5]
+correlation_at(em_map, v_atom, voxel_size=0.81, at=res, mask=mask, filter_map=False)
+res = [3, 5, 7, 10, 20, 30]
+correlation_at(em_map, v_atom, voxel_size=0.81, at=res, mask=mask, filter_map=True)
 
-diff = [template_size - a for a in v_atom.shape]
-v_atom = extend_volume(v_atom, diff, pad_value=0, symmetrically=False)
+v_int = read('/data2/mchaillet/structures/potential_map/6RGQ_rem-solvent_ph7.0_0.81A.mrc')
 
-# correlate at given resolution
-correlation_at(em_map, v_atom)
-
-# reduce resolution needs cubic volume
-res = [1, 1.5, 2, 2.5, 3, 3.5, 4]
-# print(type(res), type(res) is list)
-correlation_at(em_map, v_atom, voxel_size=0.81, at=res)
-
-
+res = [2, 2.5, 3, 3.5, 4, 5]
+correlation_at(em_map, v_int, voxel_size=0.81, at=res, mask=mask, filter_map=False)
+res = [3, 5, 7, 10, 20, 30]
+correlation_at(em_map, v_int, voxel_size=0.81, at=res, mask=mask, filter_map=True)
 
 # v_pdb = read_mrc('/data2/mchaillet/structures/correlation/6RGQ_pdb_chimera_grid-0.81A_res-5.0A.mrc')
 #

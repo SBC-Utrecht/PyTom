@@ -4,6 +4,11 @@ import scipy.ndimage
 import os
 # import pytom.basic.functions
 
+# image display
+# import matplotlib.pyplot as plt
+# from pylab import *
+# matplotlib.use('Qt5Agg')
+
 V_WATER = 4.5301 # potential value of low density amorphous ice (from Vulovic et al., 2013)
 
 def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=False):
@@ -12,14 +17,16 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
     @param vol:
     @param increment: list with increment value for each dimension
     @param pad_value: Float, value to use as padding
-    @param symmetrically: False default, if False the volume is just padded with zeros.
+    @param symmetrically: Boolean, if False (default) the volume is just padded with zeros.
     @param true_center: Boolean, if True interpolate to true center
+    @param filter: Boolean, prefilter for scipy interpolation
     @return:
     """
     if symmetrically:
         if true_center:
             vol = xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
             # TODO Use voltools for this as well!
+            # Filter removes potential artifacts from the interpolation
             return scipy.ndimage.interpolation.shift(vol, tuple([x / 2 for x in increment]), order=3)
         else:
             from pytom.tompy.tools import paste_in_center
@@ -74,13 +81,13 @@ def reduce_resolution(map, voxel_size, resolution):
     """
     from pytom.tompy.transform import fourier_filter
 
-    assert resolution > voxel_size, "the requested resolution is non-valid as it is smaller than the voxel size"
+    assert resolution >= voxel_size, "the requested resolution is non-valid as it is smaller than the voxel size"
     assert len(set(map.shape)) == 1, "dimensions of input are not equal"
 
     # resolution reduction factor
     nr_pixels_fourier = (map.shape[0] * voxel_size ) / resolution
     # create full gaussian mask
-    mask = create_gaussian_low_pass(map.shape, nr_pixels_fourier)
+    mask = create_gaussian_low_pass(map.shape, nr_pixels_fourier/2)
     # apply mask in fourier space
     result = fourier_filter(map, mask, human=True)
     return result
@@ -118,9 +125,9 @@ def low_pass_filter(map, voxel_size, resolution):
     return result
 
 
-def scale(potential, voxel_size_in, voxel_size_out, tapering=True, binning=False):
+def scale_old(potential, voxel_size_in, voxel_size_out):
     """
-    Zoom potential from input voxel size to desired output voxel spacing. Possibly with edge_tapering.
+    Scale volume with scipy ndimage zoom.
     @param potential: 3d array (numpy)
     @param voxel_size_in: Original voxel size in A
     @param voxel_size_out: Desired voxel size in A
@@ -132,6 +139,19 @@ def scale(potential, voxel_size_in, voxel_size_out, tapering=True, binning=False
     potential = scipy.ndimage.zoom(potential, factor, order=3)
     return potential
 
+
+def scale(volume, factor):
+    """
+    Scale volumes with skimage.
+    @param potential: ndimage, numpy array
+    @param factor: float, tuple of floats. Single float for same scaling in each dimension. Tuple for different factors
+    @return: scaled multidimensional array (numpy)
+    """
+    # Skimage scale could be better for downsampling than scipy zoom
+    import skimage
+    # order 3 for splines, preserve_range otherwise image is returned as float between -1 and 1
+    return skimage.transform.rescale(volume, factor, mode='constant', order=3, preserve_range=True, multichannel=False,
+                                     anti_aliasing=False)
 
 def bin(potential, factor):
     """
@@ -389,7 +409,7 @@ def read_structure(filename):
     return x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies
 
 
-def iasa_potential(filename, voxel_size=1., oversampling=0, tapering=False): # add params voxel_size, oversampling?
+def iasa_potential(filename, voxel_size=1., oversampling=0, low_pass_filter=True): # add params voxel_size, oversampling?
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
@@ -429,11 +449,11 @@ def iasa_potential(filename, voxel_size=1., oversampling=0, tapering=False): # a
     sz = [ x / spacing for x in [szx,szy,szz]] # could increase size for oversampling here
     # sz = [x / voxel_size for x in [szx, szy, szz]]
     # C = 2132.8 A^2 * V; 1E20 is a conversion factor for Angstrom^2
-    C = 4 * xp.sqrt(xp.pi) * phys.constants['h']**2 / (phys.constants['el'] *
-                                                                phys.constants['me']) * 1E20
+    C = 4 * xp.sqrt(xp.pi) * phys.constants['h']**2 / (phys.constants['el'] * phys.constants['me']) * 1E20
 
     potential = xp.zeros(tuple(xp.round(sz).astype(int)))
     print(f'#atoms to go over is {len(x_coordinates)}.')
+
     for i in range(len(elements)):
         if xp.mod(i, 5000) == 0:
             print(f'Potential for atom number {i}.')
@@ -446,28 +466,47 @@ def iasa_potential(filename, voxel_size=1., oversampling=0, tapering=False): # a
         a = sf[0:5]
         b = sf[5:10]
 
-        # b is used for calculating the radius of the potential. See Rullgard et al. (2011) for addition of 16 R^2
-        b += (b_factor + 16 * spacing**2)
-        # b += (b_factor + 16 * voxel_size ** 2)
+        # b is used for calculating the radius of the potential. See Rullgard et al. (2011) for addition of 16 R^2.
+        # Incorporates low pass filtering by extending the gaussian radius. NOTE: b_factor is zero anyway
+        b += (b_factor) # + 16 * spacing**2)
 
         r2 = 0
         b1 = xp.zeros(5)
         for j in range(5):
-            # calculate maximal radius assuming symmetrical potential
-            b1[j] = 4 * xp.pi**2 / b[j] * spacing**2
-            # b1[j] = 4 * xp.pi ** 2 / b[j] * voxel_size ** 2
+            # Find the max radius over all gaussians (assuming symmetrical potential to 4.5 sigma truncation
+            # (corresponds to 10).
+            b1[j] = 4 * xp.pi ** 2 / b[j] * spacing ** 2
             r2 = xp.maximum(r2, 10/b1[j])
+        # Radius of gaussian sphere
         r = xp.sqrt(r2 / 3)
         xc1, yc1, zc1 = x_coordinates[i] / spacing, y_coordinates[i] / spacing, z_coordinates[i] / spacing
-        # xc1, yc1, zc1 = x_coordinates[i] / voxel_size, y_coordinates[i] / voxel_size, z_coordinates[i] / voxel_size
+        # Center of the gaussian sphere.
         rc = [xc1, yc1, zc1]
+        # Calculate the absolute indexes for the potential matrix.
         kmin = [xp.maximum(0,x).astype(int) for x in xp.ceil(rc-r)]
         kmax = [xp.minimum(xp.floor(x)-1,xp.floor(y+r)).astype(int) for x,y in zip(sz,rc)]
         kmm = max([x-y for x,y in zip(kmax,kmin)])
-
+        # Determine the coordinates for sampling from the sum of Gaussians.
         x = xc1 - xp.arange(kmin[0], kmin[0]+kmm+1, 1)
         y = yc1 - xp.arange(kmin[1], kmin[1]+kmm+1, 1)
         z = zc1 - xp.arange(kmin[2], kmin[2]+kmm+1, 1)
+
+        test = 0
+        if test:
+            # test in 1D
+            print(atom)
+            potential_1d = 0
+            for j in range(5):
+                print(f'{a[j] / (b[j] ** (3 / 2)) * C:.3f}, a_i = {a[j]:.3f}, b_i = {b[j]:.3f}, C = {C:.3f}')
+                gaussian = xp.exp(-b1[j] * x ** 2)
+                print([f'{c:.2f}' for c in gaussian])
+                tmp = a[j] / ( b[j]**(3/2) ) * C * gaussian
+                print([f'{c:.2f}' for c in tmp])
+                potential_1d += tmp
+            print('\n')
+            print([f'{c:.2f}' for c in x])
+            print([f'{p:.2f}' for p in potential_1d])
+            return None
 
         atom_potential = 0
         for j in range(5):
@@ -486,12 +525,13 @@ def iasa_potential(filename, voxel_size=1., oversampling=0, tapering=False): # a
         # Volume needs to be cubic before applying a low pass filter and binning (??)
         size = max(potential.shape)
         increment = [size - a for a in potential.shape]
+        # using spline interpolation here does not decrease our accuracy as the volume is already oversampled!
         potential = extend_volume(potential, increment, pad_value=0, symmetrically=True, true_center=True)
-        if tapering:
+        if low_pass_filter:
             potential = reduce_resolution(potential, spacing, voxel_size)
-        potential = bin(potential, oversampling)
+        # potential = bin(potential, oversampling)
         # Other option is to use scale instead of binning, which is proper downsampling.
-        # potential = scale(potential, spacing, voxel_size, tapering=tapering, binning=True)
+        potential = scale(potential, 1/oversampling)
 
     return potential
 
@@ -540,7 +580,7 @@ def parse_apbs_output(filename):
     return data, dx, dy, dz
 
 
-def resample_apbs(filename, voxel_size=1.0):
+def resample_apbs(filename, voxel_size=1.0, low_pass_filter=False):
     """
     resample_APBS: First calls parse_abps_output to read an apbs output file, then scales voxels to 1 A voxels and
     refactors the values to volts.
@@ -567,14 +607,16 @@ def resample_apbs(filename, voxel_size=1.0):
         print(f'Requested voxel size is smaller than voxel size of the apbs map. Adjust to smallest possible voxel size '
               f'of {smallest_possible}.')
         voxel_size = smallest_possible
-    # Make voxels same size
-    scaling = [dxnew/dxnew, dxnew/dynew, dxnew/dznew]
-    potential = scipy.ndimage.zoom(potential, tuple(scaling), order=3)
-    size = max(potential.shape)
-    increment = [size-a for a in potential.shape]
-    potential = extend_volume(potential, increment, pad_value=0, symmetrically=True, true_center=True)
-    potential = reduce_resolution(potential, dxnew, voxel_size)
-    potential = scipy.ndimage.zoom(potential, dxnew/voxel_size, order=3)
+    # Make voxels same size by scaling to dx
+    factor = (dxnew/dxnew, dynew/dxnew, dznew/dxnew)
+    potential = scale(potential, factor)
+    if low_pass_filter:
+        size = max(potential.shape)
+        increment = [size-a for a in potential.shape]
+        potential = extend_volume(potential, increment, pad_value=0, symmetrically=True, true_center=True)
+        potential = reduce_resolution(potential, dxnew, voxel_size)
+    # Scale the volume to voxels with voxel_size
+    potential = scale(potential, dxnew/voxel_size)
 
     # TODO use voltools
 
@@ -587,7 +629,7 @@ def resample_apbs(filename, voxel_size=1.0):
     return potential
 
 
-def combine_potential(iasa_potential, bond_potential):
+def combine_potential(iasa_potential, bond_potential, voxel_size):
     """
     Combine isolated atom and bond potential.
 
@@ -602,18 +644,20 @@ def combine_potential(iasa_potential, bond_potential):
     @author: Marten Chaillet
     """
     print(' - Combining iasa and bond potential')
+    # Reduce interpolation! Only shift one of the volumes to true center. Preferably V_bond.
+    # This code could be more elegant.
+    assert max(iasa_potential.shape) >= max(bond_potential.shape), print('Break! Attempting to extend IASA volume.')
     try:
         # Because volumes are shifted to true center (by interpolation) the precision is reduced slightly.
-        ext = max(max(iasa_potential.shape), max(bond_potential.shape))
-        difference = [ext - a for a in iasa_potential.shape]
-        iasa_potential = extend_volume(iasa_potential, difference, symmetrically=True, true_center=True)
-        difference = [ext - a for a in bond_potential.shape]
+        difference = [max(iasa_potential.shape) - x for x in bond_potential.shape]
         bond_potential = extend_volume(bond_potential, difference, symmetrically=True, true_center=True)
+        # Apply filter to remove the artifacts from interpolating
+        bond_potential = reduce_resolution(bond_potential, voxel_size, voxel_size)
         full_potential = iasa_potential + bond_potential
     except Exception as e:
         print(e)
         raise Exception('Could not fit atom and bond potential together.')
-    return full_potential
+    return iasa_potential, bond_potential, full_potential
 
 
 def wrapper(pdb_id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folder, voxel_size=1.0, ph=7.0):
@@ -629,15 +673,22 @@ def wrapper(pdb_id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folde
     structure = call_chimera(pdb_folder, pdb_id) # output structure name is dependent on modification by chimera
     call_apbs(pdb_folder, structure, apbs_folder, ph=ph)
 
-    outfile = f'{structure}_ph{ph:.1f}_{voxel_size:.2f}A.mrc'
+    outfile = f'{structure}_ph{ph:.1f}_{voxel_size:.2f}A'
     # Calculate atom and bond potential, and store them
+    # 4 times oversampling of IASA yields accurate potentials
     v_atom = iasa_potential(f'{apbs_folder}/{structure.split("_")[0]}/{structure}.pqr', voxel_size=voxel_size,
-                            oversampling=2, tapering=True)
-    pytom.tompy.io.write(f'{iasa_folder}/{outfile}', v_atom)
-    v_bond = resample_apbs(f'{apbs_folder}/{structure.split("_")[0]}/{structure}.pqr.dx', voxel_size=voxel_size)
-    pytom.tompy.io.write(f'{bond_folder}/{outfile}', v_bond)
-    map = combine_potential(v_atom, v_bond)
-    pytom.tompy.io.write(f'{map_folder}/{outfile}', map)
+                            oversampling=4, low_pass_filter=True)
+    # extension with even numbers does not require interpolation
+    v_atom = extend_volume(v_atom, [10, 10, 10], symmetrically=True, true_center=False)
+    pytom.tompy.io.write(f'{iasa_folder}/{outfile}.mrc', v_atom)
+    # Volume for creating mask and calculating correlation scores
+    pytom.tompy.io.write(f'{iasa_folder}/{outfile}.em', v_atom)
+
+    v_bond = resample_apbs(f'{apbs_folder}/{structure.split("_")[0]}/{structure}.pqr.dx', voxel_size=voxel_size,
+                           low_pass_filter=False)
+    _, v_bond, map = combine_potential(v_atom, v_bond, voxel_size)
+    pytom.tompy.io.write(f'{bond_folder}/{outfile}.mrc', v_bond)
+    pytom.tompy.io.write(f'{map_folder}/{outfile}.mrc', map)
 
     # Bin volume 10 times
     resolution = voxel_size * 10
