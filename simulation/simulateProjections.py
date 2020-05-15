@@ -30,8 +30,9 @@ import time
 
 # Plotting
 import matplotlib
-from pylab import *
+# use Qt5Agg to prevent conflict with tkinter in pylab.
 matplotlib.use('Qt5Agg')
+from pylab import *
 
 # math
 from pytom.reconstruction.reconstructionStructures import *

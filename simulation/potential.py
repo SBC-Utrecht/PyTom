@@ -1,15 +1,19 @@
 import numpy as xp
 import constant_dictionaries as phys
-import scipy.ndimage
 import os
 # import pytom.basic.functions
 
 # image display
-# import matplotlib.pyplot as plt
-# from pylab import *
+# import matplotlib
 # matplotlib.use('Qt5Agg')
+# from pylab import *
 
 V_WATER = 4.5301 # potential value of low density amorphous ice (from Vulovic et al., 2013)
+
+def subtract_solvent(volume):
+    rvol = volume - V_WATER
+    rvol[rvol<0] = 0
+    return rvol
 
 def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=False):
     """
@@ -24,6 +28,7 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
     """
     if symmetrically:
         if true_center:
+            import scipy.ndimage
             vol = xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
             # TODO Use voltools for this as well!
             # Filter removes potential artifacts from the interpolation
@@ -89,8 +94,10 @@ def reduce_resolution(map, voxel_size, resolution):
     # create full gaussian mask
     mask = create_gaussian_low_pass(map.shape, nr_pixels_fourier/2)
     # apply mask in fourier space
-    result = fourier_filter(map, mask, human=True)
-    return result
+    # result = fourier_filter(map, mask, human=True)
+    ft_map = xp.fft.fftn(xp.fft.ifftshift(map)) # shift center to origin
+    result = xp.fft.fftshift( xp.fft.ifftn( ft_map * xp.fft.ifftshift(mask) ) ) # shift center of mask to origin
+    return result.real
 
 
 def low_pass_filter(map, voxel_size, resolution):
@@ -133,6 +140,7 @@ def scale_old(potential, voxel_size_in, voxel_size_out):
     @param voxel_size_out: Desired voxel size in A
     @return:
     """
+    import scipy.ndimage
     # Downsample volume with scipy.ndimage
     factor = voxel_size_in / voxel_size_out
     # VOLTOOLS?
@@ -149,7 +157,8 @@ def scale(volume, factor):
     """
     # Skimage scale could be better for downsampling than scipy zoom
     import skimage
-    # order 3 for splines, preserve_range otherwise image is returned as float between -1 and 1
+    # order 1 would be bi-linear, maybe better?
+    # order 3 for bi-cubic (splines), preserve_range otherwise image is returned as float between -1 and 1
     return skimage.transform.rescale(volume, factor, mode='constant', order=3, preserve_range=True, multichannel=False,
                                      anti_aliasing=False)
 
@@ -678,25 +687,27 @@ def wrapper(pdb_id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folde
     # 4 times oversampling of IASA yields accurate potentials
     v_atom = iasa_potential(f'{apbs_folder}/{structure.split("_")[0]}/{structure}.pqr', voxel_size=voxel_size,
                             oversampling=4, low_pass_filter=True)
-    # extension with even numbers does not require interpolation
+    # Extension with even numbers does not require interpolation
     v_atom = extend_volume(v_atom, [10, 10, 10], symmetrically=True, true_center=False)
-    pytom.tompy.io.write(f'{iasa_folder}/{outfile}.mrc', v_atom)
-    # Volume for creating mask and calculating correlation scores
-    pytom.tompy.io.write(f'{iasa_folder}/{outfile}.em', v_atom)
+    # Subtract solvent before saving
+    pytom.tompy.io.write(f'{iasa_folder}/{outfile}.mrc', subtract_solvent(v_atom))
 
     v_bond = resample_apbs(f'{apbs_folder}/{structure.split("_")[0]}/{structure}.pqr.dx', voxel_size=voxel_size,
                            low_pass_filter=False)
-    _, v_bond, map = combine_potential(v_atom, v_bond, voxel_size)
+    # Do not subtract solvent before combining. Interpolation will go smoother without the hard edges of subtraction.
+    _, v_bond, v_int = combine_potential(v_atom, v_bond, voxel_size)
     pytom.tompy.io.write(f'{bond_folder}/{outfile}.mrc', v_bond)
-    pytom.tompy.io.write(f'{map_folder}/{outfile}.mrc', map)
+    # Subtract solvent before saving
+    pytom.tompy.io.write(f'{map_folder}/{outfile}.mrc', subtract_solvent(v_int))
 
     # Bin volume 10 times
     resolution = voxel_size * 10
-    map = reduce_resolution(map, voxel_size, resolution)
-    map = bin(map, 10)
+    # Subtract solvent before reducing resolution
+    v_int = reduce_resolution(subtract_solvent(v_int), voxel_size, resolution)
+    v_int = bin(v_int, 10)
 
     outfile = f'{structure.split("_")[0]}_{resolution:.2f}A.mrc'
-    pytom.tompy.io.write(f'{map_folder}/{outfile}', map)
+    pytom.tompy.io.write(f'{map_folder}/{outfile}', v_int)
     return
 
 
