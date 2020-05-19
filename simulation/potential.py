@@ -529,6 +529,8 @@ def iasa_potential(filename, voxel_size=1., oversampling=0, low_pass_filter=True
         potential[kmin[0]:kmin[0]+kmm+1, kmin[1]:kmin[1]+kmm+1, kmin[2]:kmin[2]+kmm+1] = \
             potential[kmin[0]:kmin[0]+kmm+1, kmin[1]:kmin[1]+kmm+1, kmin[2]:kmin[2]+kmm+1] + atom_potential
 
+    # potential = subtract_solvent(potential)
+
     # Only need to downscale if the volume was oversampled.
     if spacing != voxel_size:
         # Volume needs to be cubic before applying a low pass filter and binning (??)
@@ -689,7 +691,7 @@ def wrapper(pdb_id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folde
                             oversampling=4, low_pass_filter=True)
     # Extension with even numbers does not require interpolation
     v_atom = extend_volume(v_atom, [10, 10, 10], symmetrically=True, true_center=False)
-    # Subtract solvent before saving
+    # Subtract solvent before saving?
     pytom.tompy.io.write(f'{iasa_folder}/{outfile}.mrc', subtract_solvent(v_atom))
 
     v_bond = resample_apbs(f'{apbs_folder}/{structure.split("_")[0]}/{structure}.pqr.dx', voxel_size=voxel_size,
@@ -712,6 +714,12 @@ def wrapper(pdb_id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folde
 
 
 if __name__ == '__main__':
+    # Make into script with command line options, following options should suffice
+    # pdb_id, mandatory
+    # voxel_size, optional, default is 1 A?
+    # resolution, optional, default is 2*voxel_size
+    # pH, optional, default is 7
+    # folders?
     # DEFAULT FOLDERS FOR WRITING INPUT/OUTPUT
     pdb_folder = '/data2/mchaillet/structures/pdb'
     apbs_folder = '/data2/mchaillet/structures/apbs'
@@ -723,9 +731,9 @@ if __name__ == '__main__':
 
     # LIST OF PDBS TO EXECUTE ON
     # pdb_ids = ['3cf3', '1s3x', '1u6g', '4cr2', '1qvr', '3h84', '2cg9', '3qm1', '3gl1', '3d2f', '4d8q', '1bxn']
-    pdb_ids = ['6RGQ']
+    pdb_ids = ['6m54']
 
-    for id in [id.upper() for id in pdb_ids]:
+    for id in [id for id in pdb_ids]:
         if not os.path.exists(f'{pdb_folder}/{id}.pdb'):
             print(f'Skipping {id} because the pdb file does not exist in {pdb_folder}.')
             continue
@@ -734,7 +742,7 @@ if __name__ == '__main__':
         #     continue
         else:
             try:
-                wrapper(id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folder, voxel_size=0.81)
+                wrapper(id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folder, voxel_size=1.08, ph=7.5)
             except Exception as e:
                 print(e)
                 print(f'Something when wrong while creating map for {id}. Continuing with next pdb file in list.')
