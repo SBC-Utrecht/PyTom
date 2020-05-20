@@ -89,9 +89,27 @@ def create_job_frm():
                 raise Exception()
         except:
             print("The number of iterations should be a positive integer. Please enter again.")
+
+    # adaptive resolution
+    print("7/10. Please enter the binning factor (>=1, default is 1).")
+    while True:
+        binning = input('--> ')
+        
+        try:
+            if len(binning) == 0:
+                binning = 1
+            else:
+                binning = int(binning)
+            if binning >= 1:
+                break
+            else:
+                raise Exception()
+        except:
+            print("The Binning factor should be 1 or greater. Please enter again.")
+            
     
     # pixel size
-    print("7/9. Please enter the pixel size (in Angstrom).")
+    print("8/10. Please enter the pixel size (in Angstrom).")
     while True:
         pixel_size = input('--> ')
         
@@ -105,7 +123,7 @@ def create_job_frm():
             print("The pixel size should be a positive number. Please enter again.")
     
     # adaptive resolution
-    print("8/9. Please enter the adaptive resolution to be included (in percentage, default is 0).")
+    print("9/10. Please enter the adaptive resolution to be included (in percentage, default is 0).")
     while True:
         adaptive_res = input('--> ')
         
@@ -122,7 +140,7 @@ def create_job_frm():
             print("The adaptive resolution should be a number in the range 0-1. Please enter again.")
             
     # FSC criterion
-    print("9/9. Please enter the FSC criterion to use (default is 0.5).")
+    print("10/10. Please enter the FSC criterion to use (default is 0.5).")
     while True:
         fsc = input('--> ')
         
@@ -144,10 +162,10 @@ def create_job_frm():
         output = input('--> ')
         try:
             f = open(output, 'w')
-            f.write(f"<FRMJob Destination='.' BandwidthRange='[4, 64]' Frequency='{freq:d}' MaxIterations='{niter:d}' PeakOffset='{peak_offset:d}' AdaptiveResolution='{adaptive_res:.2f}' FSC='{fsc:.2f}'>\n")
+            f.write(f"<FRMJob Destination='.' BandwidthRange='[4, 64]' Frequency='{freq:d}' MaxIterations='{niter:d}' PeakOffset='{peak_offset:d}' AdaptiveResolution='{adaptive_res:.2f}' FSC='{fsc:.2f}' binning='{binning:d}'>\n")
             #f.write("    <Reference PreWedge='' File='%s' Weighting=''>\n      <ParticleList Path='/'/>\n    </Reference>\n" % ref_filename)
             f.write("    <Reference PreWedge='' File='%s' Weighting=''>\n          </Reference>\n" % ref_filename)
-            f.write("    <Mask Filename='%s' Binning='1' isSphere='True'/>\n" % mask_filename)
+            f.write("    <Mask Filename='%s' isSphere='True'/>\n" % mask_filename)
             f.write("    <SampleInformation PixelSize='%.2f' ParticleDiameter='1'/>\n" % pixel_size)
             for pl_filename in pl_filenames:
                 f.write("    <ParticleListLocation Path='%s'/>\n" % pl_filename)
