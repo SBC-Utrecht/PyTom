@@ -13,7 +13,7 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
     def __init__(self, pl=None, ref=None, mask=None, peak_offset=0, sample_info=None, 
             bw_range=None, freq=None, dest='.', max_iter=10, r_score=False, 
             weighting=False, bfactor=None, symmetries=None, adaptive_res=0.1, 
-            fsc_criterion=0.5, constraint=None):
+            fsc_criterion=0.5, constraint=None, binning=1):
         """
         initiate FRM job
         @param pl: particle list
@@ -48,6 +48,8 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
         @type fsc_criterion: C{float}
         @param constraint: Constraint on orientations (deafult: None)
         @type constraint: ??
+        @param binning: Perform binning (downscale) of subvolumes by factor. Default=1.
+        @type binning C{float}
         """
         self.particleList = pl
         self.reference = ref
@@ -65,6 +67,7 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
         self.adaptive_res = adaptive_res
         self.fsc_criterion = fsc_criterion
         self.constraint = constraint
+        self.binning = binning
     
     def fromXML(self, xmlObj):
         """
@@ -129,6 +132,7 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
         self.r_score = jobDescription.get('RScore')=='True'
         self.weighting = jobDescription.get('WeightedAverage')=='True'
         self.bfactor = jobDescription.get('BFactor')
+        self.binning = int(jobDescription.get('binning'))
         if jobDescription.get('AdaptiveResolution'):
             adaptive_resolution = jobDescription.get('AdaptiveResolution')
             if adaptive_resolution == '+1':
@@ -179,6 +183,7 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
         jobElement.set("RScore", str(self.r_score))
         jobElement.set("WeightedAverage", str(self.weighting))
         jobElement.set("BFactor", str(self.bfactor))
+        jobElement.set("binning", str(self.binning))
         if self.adaptive_res is False:
             jobElement.set("AdaptiveResolution", '+1')
         else:
@@ -276,6 +281,14 @@ class FRMWorker():
             new_reference = job.reference
             old_freq = job.freq
             new_freq = job.freq
+            #print(f"reference  = {job.reference}")
+            #print(f"particlelist = {job.particleList}")
+            print(f"iterations = {job.max_iter:d}")
+            print(f"binning    = {job.binning:d}")
+            #print(f"mask       = {job.mask}")
+            #print(f"peak_offset= {job.peak_offset:f2.1}")
+            print(f"destination= {job.destination:s}")
+            print(f"freq cut   = {job.freq:d}")
             # main node
             for i in range(job.max_iter):
                 if verbose:
@@ -285,7 +298,8 @@ class FRMWorker():
                 new_job = FRMJob(job.particleList, new_reference, job.mask, 
                                  job.peak_offset, job.sampleInformation, job.bw_range, 
                                  new_freq, job.destination, job.max_iter-i, job.r_score, 
-                                 job.weighting, constraint=job.constraint)
+                                 job.weighting, constraint=job.constraint, 
+                                 binning=job.binning)
                 
                 # distribute it
                 self.distribute_job(new_job, verbose)
@@ -403,6 +417,8 @@ class FRMWorker():
         from sh_alignment.constrained_frm import frm_constrained_align, AngularConstraint
         from pytom.basic.structures import Shift, Rotation
         from pytom.tools.ProgressBar import FixedProgBar
+        from pytom.basic.transformations import resize, resizeFourier
+        binningType = 'Fourier'
         
         while True:
             # get the job
@@ -416,25 +432,61 @@ class FRMWorker():
             if verbose:
                 prog = FixedProgBar(0, len(job.particleList)-1, self.node_name+':')
                 i = 0
-            
             ref = job.reference.getVolume()
+            if job.binning > 1:
+                ref = resize(volume=ref, factor=1./job.binning, interpolation=binningType)
+                if type(ref) == tuple:
+                    ref = ref[0]
+            # re-set max frequency in case it exceeds Nyquist - a bit brute force
+            job.freq = min(job.freq, ref.sizeX()//2-1)
             # run the job
             for p in job.particleList:
                 if verbose:
                     prog.update(i)
                     i += 1
                 v = p.getVolume()
-                
+                if job.binning > 1:
+                    v = resize(volume=v, factor=1./job.binning, interpolation=binningType)
+                    if type(v) == tuple:
+                        v = v[0]
+                mask = job.mask.getVolume()
+                if job.binning > 1:
+                    mask = resize(volume=mask, factor=1./job.binning, interpolation='Spline')
+                    if type(mask) == tuple:
+                        mask = mask[0]
                 if job.constraint:
                     constraint = job.constraint
                     if job.constraint.type == AngularConstraint.ADP_ANGLE: # set the constraint around certain angle
                         rot = p.getRotation()
                         constraint.setAngle(rot.getPhi(), rot.getPsi(), rot.getTheta())
-                    pos, angle, score = frm_constrained_align(v, p.getWedge(), ref, None, job.bw_range, job.freq, job.peak_offset, job.mask.getVolume(), constraint)
+                    #pos, angle, score = frm_constrained_align(v, p.getWedge(), ref, None, job.bw_range, job.freq, job.peak_offset, job.mask.getVolume(), constraint)
+                    if job.binning >1:
+                        pos, angle, score = frm_constrained_align(v, p.getWedge(), ref, None, 
+                                                job.bw_range, job.freq, job.peak_offset/job.binning,
+                                                mask, constraint)
+                    else:
+                        pos, angle, score = frm_constrained_align(v, p.getWedge(), ref, None, 
+                                                job.bw_range, job.freq, job.peak_offset, mask, constraint)
                 else:
-                    pos, angle, score = frm_align(v, p.getWedge(), ref, None, job.bw_range, job.freq, job.peak_offset, job.mask.getVolume())
-                    
-                p.setShift(Shift([pos[0]-v.sizeX()/2, pos[1]-v.sizeY()/2, pos[2]-v.sizeZ()/2]))
+                    #pos, angle, score = frm_align(v, p.getWedge(), ref, None, job.bw_range, job.freq, job.peak_offset, job.mask.getVolume())
+                    #if job.binning >1:
+                    #    print(job.peak_offset)
+                    #    print(type(job.peak_offset))
+                    #    print(job.peak_offset/job.binning)
+                    #    print(type(job.binning))
+                    #    pos, angle, score = frm_align(v, p.getWedge(), ref, None, job.bw_range, job.freq, 
+                    #                            job.peak_offset/job.binning, mask)
+                    #else:
+                    pos, angle, score = frm_align(v, p.getWedge(), ref, None, job.bw_range, job.freq, 
+                                                job.peak_offset, mask)
+
+                if job.binning > 1:
+                    pos[0] = job.binning*(pos[0]-v.sizeX()/2)
+                    pos[1] = job.binning*(pos[1]-v.sizeY()/2) 
+                    pos[2] = job.binning*(pos[2]-v.sizeZ()/2)
+                    p.setShift(Shift([pos[0], pos[1], pos[2]]))
+                else:     
+                    p.setShift(Shift([pos[0]-v.sizeX()/2, pos[1]-v.sizeY()/2, pos[2]-v.sizeZ()/2]))
                 p.setRotation(Rotation(angle))
                 p.setScore(FRMScore(score))
                 
@@ -593,7 +645,8 @@ class FRMWorker():
             subJob = FRMJob(subPL, job.reference, job.mask, job.peak_offset, 
                             job.sampleInformation, job.bw_range, job.freq, 
                             job.destination, job.max_iter, job.r_score, 
-                            job.weighting, constraint=job.constraint)
+                            job.weighting, constraint=job.constraint, 
+                            binning=job.binning)
             self.send_job(subJob, i)
             
             if verbose:
