@@ -145,7 +145,8 @@ def create_job_frm():
         try:
             f = open(output, 'w')
             f.write(f"<FRMJob Destination='.' BandwidthRange='[4, 64]' Frequency='{freq:d}' MaxIterations='{niter:d}' PeakOffset='{peak_offset:d}' AdaptiveResolution='{adaptive_res:.2f}' FSC='{fsc:.2f}'>\n")
-            f.write("    <Reference PreWedge='' File='%s' Weighting=''>\n      <ParticleList Path='/'/>\n    </Reference>\n" % ref_filename)
+            #f.write("    <Reference PreWedge='' File='%s' Weighting=''>\n      <ParticleList Path='/'/>\n    </Reference>\n" % ref_filename)
+            f.write("    <Reference PreWedge='' File='%s' Weighting=''>\n          </Reference>\n" % ref_filename)
             f.write("    <Mask Filename='%s' Binning='1' isSphere='True'/>\n" % mask_filename)
             f.write("    <SampleInformation PixelSize='%.2f' ParticleDiameter='1'/>\n" % pixel_size)
             for pl_filename in pl_filenames:
