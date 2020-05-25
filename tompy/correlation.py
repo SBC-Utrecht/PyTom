@@ -393,7 +393,7 @@ def normaliseUnderMask(volume, mask, p=None):
 
     stdT = stdUnderMask(volume, mask, meanT, p)
     res = (volume - meanT) / stdT
-    return res
+    return (res, p)
 
 
 def bandCC(volume, reference, band, verbose=False, shared=None, index=None):

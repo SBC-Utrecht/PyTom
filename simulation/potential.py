@@ -10,23 +10,48 @@ import os
 
 V_WATER = 4.5301 # potential value of low density amorphous ice (from Vulovic et al., 2013)
 
-def subtract_solvent(volume):
+def subtract_solvent(volume, solvent_potential=4.5301):
+    """
+    Subtract the average solvent potential from protein interaction potential and set all negative values to zero.
+
+    @param volume: Interaction potential map
+    @type volume: numpy ndarray
+    @param solvent_potential: Average value of solvent, optional, default is potential of amorphous ice
+    @type solvent_potential: float
+
+    @return: Interaction potential embedded in solvent
+    @rtype: numpy ndarray
+
+    @author: Marten Chaillet
+    """
     rvol = volume - V_WATER
     rvol[rvol<0] = 0
     return rvol
 
 def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=False):
     """
+    Increase volume by parameter increment ([x,y,z]). Options for changing the padding value, extending symmetrically on
+    both sides of the input volume, shifting the original volume to the true new center if the increment/2 is
+    non-integer.
 
-    @param vol:
-    @param increment: list with increment value for each dimension
-    @param pad_value: Float, value to use as padding
-    @param symmetrically: Boolean, if False (default) the volume is just padded with zeros.
-    @param true_center: Boolean, if True interpolate to true center
-    @param filter: Boolean, prefilter for scipy interpolation
-    @return:
+    @param vol: 3D matrix
+    @type vol: numpy ndarray
+    @param increment: list with increment value for each dimension, only integers
+    @type increment: [int, int, int]
+    @param pad_value: value to use as padding
+    @type pad_value: float
+    @param symmetrically: If False (default) the volume is just padded with zeros.
+    @type symmetrically: Bool
+    @param true_center: If True interpolate to true center
+    @type true_center: Bool
+
+    @return: Extended volume
+    @rtype: numpy ndarray
+
+    @author: Marten Chaillet
     """
     if symmetrically:
+        # condition = any([x%2 for x in increment])
         if true_center:
             import scipy.ndimage
             vol = xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
@@ -44,7 +69,8 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
 
 
 def create_gaussian_low_pass(size, radius, center=None):
-    """Create a 3D mask with gaussian edges.
+    """
+    Create a 3D mask with gaussian edges.
 
     @param size: size of the resulting volume.
     @param cutoff: radius of the sphere inside the volume.
@@ -91,8 +117,10 @@ def reduce_resolution(map, voxel_size, resolution):
 
     # resolution reduction factor
     nr_pixels_fourier = (map.shape[0] * voxel_size ) / resolution
+    # NOTE: if resolution == 2*voxel_size, filter radius will be 0.5 * map.shape[0]. I.E. no filtering. This is correct
+    # because the highest possible resolution (nyquist) equals 2*voxel_size.
     # create full gaussian mask
-    mask = create_gaussian_low_pass(map.shape, nr_pixels_fourier/2)
+    mask = create_gaussian_low_pass(map.shape, nr_pixels_fourier*0.5)
     # apply mask in fourier space
     # result = fourier_filter(map, mask, human=True)
     ft_map = xp.fft.fftn(xp.fft.ifftshift(map)) # shift center to origin
@@ -185,7 +213,7 @@ def bin(potential, factor):
     return binned
 
 
-def call_chimera(pdb_folder, pdb_id):
+def call_chimera(folder, pdb_id):
     """
     Run chimera for pdb file in order to add hydrogens and add symmetry units. The resulting structure is stored as a
     new pdb file with the extension {id}_symmetry.pdb
@@ -207,7 +235,7 @@ def call_chimera(pdb_folder, pdb_id):
     # executed when the BIOMT information specifies symmetrical units.
     symmetry = []
     try:
-        with open(f'{pdb_folder}/{pdb_id}.pdb','r') as pdb:
+        with open(f'{folder}/{pdb_id}.pdb','r') as pdb:
             line = pdb.readline().split()
             while line[0] != 'REMARK':
                 line = pdb.readline().split()
@@ -226,17 +254,17 @@ def call_chimera(pdb_folder, pdb_id):
     if len(set(symmetry)) > 1:
         scriptname = f'_rem-solvent_sym_{pdb_id}'
         try:
-            with open(f'{pdb_folder}/{scriptname}.{extension}', 'w') as chimera_script:
+            with open(f'{folder}/{scriptname}.{extension}', 'w') as chimera_script:
                 chimera_script.write(f'# Open chimera for {pdb_id} then execute following command:\n'
                                      f'# (i) remove solvent and ions (ii) add hydrogens (iii) add symmetry units\n'
                                      f'from chimera import runCommand as rc\n'
-                                     f'rc("open {pdb_folder}/{pdb_id}.pdb")\n'
+                                     f'rc("open {folder}/{pdb_id}.pdb")\n'
                                      f'rc("delete solvent")\n'
                                      f'rc("delete ions")\n'
                                      # f'rc("addh")\n'
                                      f'rc("sym group biomt")\n'             # group biomt is also the default
                                      f'rc("combine all modelId 10")\n'
-                                     f'rc("write format pdb #10 {pdb_folder}/{pdb_id}_rem-solvent_sym.pdb")\n'
+                                     f'rc("write format pdb #10 {folder}/{pdb_id}_rem-solvent_sym.pdb")\n'
                                      f'rc("stop")\n')
         except Exception as e:
             print(e)
@@ -244,22 +272,22 @@ def call_chimera(pdb_folder, pdb_id):
     else:
         scriptname = f'_rem-solvent_{pdb_id}'
         try:
-            with open(f'{pdb_folder}/{scriptname}.{extension}', 'w') as chimera_script:
+            with open(f'{folder}/{scriptname}.{extension}', 'w') as chimera_script:
                 chimera_script.write(f'# Open chimera for {pdb_id} then execute following command:\n'
                                      f'# (i) remove solvent and ions (ii) add hydrogens (iii) add symmetry units\n'
                                      f'from chimera import runCommand as rc\n'
-                                     f'rc("open {pdb_folder}/{pdb_id}.pdb")\n'
+                                     f'rc("open {folder}/{pdb_id}.pdb")\n'
                                      f'rc("delete solvent")\n'
                                      f'rc("delete ions")\n'
                                      # f'rc("addh")\n'
-                                     f'rc("write format pdb #0 {pdb_folder}/{pdb_id}_rem-solvent.pdb")\n'
+                                     f'rc("write format pdb #0 {folder}/{pdb_id}_rem-solvent.pdb")\n'
                                      f'rc("stop")\n')
         except Exception as e:
             print(e)
             raise Exception('Could not create chimera script.')
     # module chimera should be loaded here...
     try:
-        os.system(f'chimera --nogui --script {pdb_folder}/{scriptname}.{extension}')
+        os.system(f'chimera --nogui --script {folder}/{scriptname}.{extension}')
     except Exception as e:
         print(e)
         raise Exception('Chimera is likely not on your current path.')
@@ -316,7 +344,7 @@ def modify_structure_file(filename, pattern, replacement, line_start=''):
     return
 
 
-def call_apbs(pdb_folder, structure, apbs_folder, force_field='amber', ph=7.):
+def call_apbs(folder, structure, force_field='amber', ph=7.):
     """
     Calls external programs pdb2pqr and apbs to execute on pdb structure. References:
 
@@ -337,21 +365,19 @@ def call_apbs(pdb_folder, structure, apbs_folder, force_field='amber', ph=7.):
     @author: Marten Chaillet
     """
     # pdb2pqr and apbs should be on path for this function to run
-    print(f' - Running pdb2pqr and APBS on {pdb_folder}/{structure}.pdb')
+    print(f' - Running pdb2pqr and APBS on {folder}/{structure}.pdb')
     cwd = os.getcwd()
-    input_file = f'{pdb_folder}/{structure}.pdb'
-    output_folder = f'{apbs_folder}/{structure.split("_")[0]}'
-    if not os.path.exists(output_folder):
-        os.mkdir(output_folder)
-    output_file = f'{output_folder}/{structure}.pqr'
-    apbs_in = f'{output_folder}/{structure}.in'
+    input_file = f'{folder}/{structure}.pdb'
+
+    output_file = f'{folder}/{structure}.pqr'
+    apbs_in = f'{folder}/{structure}.in'
     try:
         # Also PDB2PKA ph calculation method. Requires PARSE force field, can take very long for large proteins.
         os.system(f'pdb2pqr.py --ff={force_field} --ph-calc-method=propka --with-ph={ph} --apbs-input {input_file} {output_file}')
         print(' - Add white space delimiters to pqr file.')
         modify_structure_file(output_file, '-', ' -', line_start='ATOM')
         # APBS needs to execute from the folder where the structure is present
-        os.chdir(output_folder)
+        os.chdir(folder)
         os.system(f'apbs {apbs_in}')
         # os.system(f'module load apbs_mc/1.5; apbs {apbs_in}')
         # ? subprocess.run(['apbs', f'{structure}.in'], cwd=output_folder) # executes in cwd
@@ -671,45 +697,42 @@ def combine_potential(iasa_potential, bond_potential, voxel_size):
     return iasa_potential, bond_potential, full_potential
 
 
-def wrapper(pdb_id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folder, voxel_size=1.0, ph=7.0):
+def wrapper(pdb_id, folder, voxel_size=1.0, ph=7.0, bin=False):
     import pytom.tompy.io
     # TODO function can be executed in parallel for multiple structures
-    # pdb_folder = '/data2/mchaillet/structures/pdb'
-    # apbs_folder = '/data2/mchaillet/structures/apbs'
-    # iasa_folder = '/data2/mchaillet/structures/potential_iasa'
-    # bond_folder = '/data2/mchaillet/structures/potential_bond'
-    # map_folder = '/data2/mchaillet/structures/potential_map'
 
     # Call external programs for structure preparation and PB-solver
-    structure = call_chimera(pdb_folder, pdb_id) # output structure name is dependent on modification by chimera
-    call_apbs(pdb_folder, structure, apbs_folder, ph=ph)
+    structure = call_chimera(folder, pdb_id) # output structure name is dependent on modification by chimera
+    call_apbs(folder, structure, ph=ph)
 
-    outfile = f'{structure}_ph{ph:.1f}_{voxel_size:.2f}A'
+    extension = f'ph{ph:.1f}_{voxel_size:.2f}A'
     # Calculate atom and bond potential, and store them
     # 4 times oversampling of IASA yields accurate potentials
-    v_atom = iasa_potential(f'{apbs_folder}/{structure.split("_")[0]}/{structure}.pqr', voxel_size=voxel_size,
+    v_atom = iasa_potential(f'{folder}/{structure}.pqr', voxel_size=voxel_size,
                             oversampling=4, low_pass_filter=True)
     # Extension with even numbers does not require interpolation
     v_atom = extend_volume(v_atom, [10, 10, 10], symmetrically=True, true_center=False)
     # Subtract solvent before saving?
-    pytom.tompy.io.write(f'{iasa_folder}/{outfile}.mrc', subtract_solvent(v_atom))
+    pytom.tompy.io.write(f'{folder}/vatom_{extension}.mrc', subtract_solvent(v_atom))
 
-    v_bond = resample_apbs(f'{apbs_folder}/{structure.split("_")[0]}/{structure}.pqr.dx', voxel_size=voxel_size,
+    v_bond = resample_apbs(f'{folder}/{structure}.pqr.dx', voxel_size=voxel_size,
                            low_pass_filter=False)
     # Do not subtract solvent before combining. Interpolation will go smoother without the hard edges of subtraction.
     _, v_bond, v_int = combine_potential(v_atom, v_bond, voxel_size)
-    pytom.tompy.io.write(f'{bond_folder}/{outfile}.mrc', v_bond)
+    pytom.tompy.io.write(f'{folder}/vbond_{extension}.mrc', v_bond)
     # Subtract solvent before saving
-    pytom.tompy.io.write(f'{map_folder}/{outfile}.mrc', subtract_solvent(v_int))
+    pytom.tompy.io.write(f'{folder}/vint_{extension}.mrc', subtract_solvent(v_int))
 
-    # Bin volume 10 times
-    resolution = voxel_size * 10
-    # Subtract solvent before reducing resolution
-    v_int = reduce_resolution(subtract_solvent(v_int), voxel_size, resolution)
-    v_int = bin(v_int, 10)
+    if bin:
+        # Bin volume 10 times
+        resolution = voxel_size * 10
+        # Subtract solvent before reducing resolution
+        v_int_reduced = reduce_resolution(subtract_solvent(v_int), voxel_size, resolution)
+        # Perhaps extend volume more before binning to prevent edge effects?
+        v_int_reduced = bin(v_int_reduced, 10)
 
-    outfile = f'{structure.split("_")[0]}_{resolution:.2f}A.mrc'
-    pytom.tompy.io.write(f'{map_folder}/{outfile}', v_int)
+        outfile = f'vint_ph{ph:.1f}_{resolution:.2f}A.mrc'
+        pytom.tompy.io.write(f'{folder}/{outfile}', v_int_reduced)
     return
 
 
@@ -719,30 +742,28 @@ if __name__ == '__main__':
     # voxel_size, optional, default is 1 A?
     # resolution, optional, default is 2*voxel_size
     # pH, optional, default is 7
-    # folders?
-    # DEFAULT FOLDERS FOR WRITING INPUT/OUTPUT
-    pdb_folder = '/data2/mchaillet/structures/pdb'
-    apbs_folder = '/data2/mchaillet/structures/apbs'
-    iasa_folder = '/data2/mchaillet/structures/potential_iasa'
-    bond_folder = '/data2/mchaillet/structures/potential_bond'
-    map_folder = '/data2/mchaillet/structures/potential_map'
+
+    # parameters: folder, pdb_id, ph, voxel_size, resolution?
+
+    folder = '/data2/mchaillet/structures/potential'
 
     # IN ORDER TO FUNCTION, SCRIPT REQUIRES INSTALLATION OF PYTOM (and dependencies), CHIMERA, PDB2PQR (modified), APBS
 
     # LIST OF PDBS TO EXECUTE ON
-    # pdb_ids = ['3cf3', '1s3x', '1u6g', '4cr2', '1qvr', '3h84', '2cg9', '3qm1', '3gl1', '3d2f', '4d8q', '1bxn']
-    pdb_ids = ['6m54']
+    pdb_ids = ['3cf3', '1s3x', '1u6g', '4cr2', '1qvr', '3h84', '2cg9', '3qm1', '3gl1', '3d2f', '4d8q', '1bxn']
+    pdb_ids = [id.upper() for id in pdb_ids]
 
-    for id in [id for id in pdb_ids]:
-        if not os.path.exists(f'{pdb_folder}/{id}.pdb'):
-            print(f'Skipping {id} because the pdb file does not exist in {pdb_folder}.')
+    for id in pdb_ids:
+        structure_folder = f'{folder}/{id}'
+        if not os.path.exists(f'{structure_folder}/{id}.pdb'):
+            print(f'Skipping {id} because the pdb file does not exist in {structure_folder}.')
             continue
         # elif os.path.exists(f'{map_folder}/{id}_1.0A.mrc') or os.path.exists(f'{map_folder}/{id}_sym_addh_1.0A.mrc'):
         #     print(f'{id} already has a map in folder {map_folder}.')
         #     continue
         else:
             try:
-                wrapper(id, pdb_folder, apbs_folder, iasa_folder, bond_folder, map_folder, voxel_size=1.08, ph=7.5)
+                wrapper(id, structure_folder, voxel_size=1, ph=7, bin=False)
             except Exception as e:
                 print(e)
                 print(f'Something when wrong while creating map for {id}. Continuing with next pdb file in list.')

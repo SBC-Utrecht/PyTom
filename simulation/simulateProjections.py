@@ -541,7 +541,7 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, size=1024, t
             # First find the voxel size of the map...
             # rotate
             # then bin
-            vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_10.0A.mrc')
+            vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_ph7_10A.mrc')
             vol = vol - V_WATER
             dx, dy, dz = vol.shape
             vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
