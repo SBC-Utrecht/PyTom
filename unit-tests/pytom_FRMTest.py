@@ -2,6 +2,61 @@ import unittest
 
 class pytom_FRMTest(unittest.TestCase):
 
+    def mySetUp(self):
+        from helper_functions import create_RandomParticleList
+        print("running setup")
+        self.reffile = './testData/ribo.em'
+        self.pl_filename = 'pl.xml'
+        self.pdir = './testparticles' 
+        self.pl = create_RandomParticleList( reffile=self.reffile, pl_filename=self.pl_filename, 
+                  pdir=self.pdir, nparticles=10)
+
+        # set parameters
+        self.settings = {}
+        self.settings["frequency"] = 10
+        self.settings["peak_offset"] = 5
+        self.settings["binning"] = 2
+        self.settings["niteration"] = 2
+        self.settings["mask"] = './testData/ribo_mask.em'
+        self.settings["pixsize"] = 2.7
+        self.settings["adres"]   = 0.00
+        self.settings["rescrit"] = 0.5
+        self.settings["jobfile"] = 'xxx.xml'
+
+    #def cleanUp(self):
+    def myCleanUp(self):
+        """
+        check that files are written and remove them
+        """
+        from helper_functions import cleanUp_RandomParticleList
+        from os import system
+
+        print("running cleanup")
+        for ii in range(0,self.settings["niteration"]):
+            tline=('rm average_iter'+str(ii)+'*.em')
+            system(tline)
+            tline=('rm fsc_'+str(ii)+'_odd.em')
+            system(tline)
+            tline=('rm fsc_'+str(ii)+'_even.em')
+            system(tline)
+            tline=('rm aligned_pl_iter'+str(ii)+'.xml')
+            system(tline)
+        system('rm '+self.settings["jobfile"])
+        #cleanUp_RandomParticleList( pl_filename=self.pl_filename, pdir=self.pdir)
+        #self.remove_file( filename=self.settings["jobfile"])
+
+    def remove_file(self, filename):
+        """
+        assert that file exists end remove it
+        """
+        from os import remove
+        from os import path
+
+        filecheck = path.exists(filename)
+        self.assertTrue( filecheck, msg="file "+filename+" does not exist")
+        if filecheck:
+            remove(filename)
+
     def test_FRM(self):
         import swig_frm
         from sh_alignment.frm import frm_align
@@ -34,6 +89,34 @@ class pytom_FRMTest(unittest.TestCase):
         self.assertTrue( diffx < .5, msg='x-difference > .5')
         self.assertTrue( diffy < .5, msg='y-difference > .5')
         self.assertTrue( diffz < .5, msg='z-difference > .5')
+
+    def test_commandLine(self):
+        """test that script works"""
+        from os import system
+        self.mySetUp()
+        cmd = (r"printf '0\n"+
+                     self.pl_filename+r'\n'+
+                     self.reffile+r'\n'+
+                     self.settings["mask"]+r'\n'+
+                     str(self.settings["frequency"])+r'\n'+
+                     str(self.settings["peak_offset"])+r'\n'+
+                     str(self.settings["niteration"])+r'\n'+
+                     str(self.settings["binning"])+r'\n'+
+                     str(self.settings["pixsize"])+r'\n'+
+                     str(self.settings["adres"])+r'\n'+
+                     str(self.settings["rescrit"])+r'\n'+
+                     self.settings["jobfile"] + "' | ../bin/pytom ../frm/createJob.py")
+        e = system(cmd)
+        cmd = 'mpirun -np 2 ../bin/pytom ../frm/FRMAlignment.py -j '+self.settings["jobfile"]
+        e = system(cmd)
+        myCleanUp()
+        #try:
+        #    e = system(cmd)
+        #except:
+        #    print('hello')
+        #self.assertTrue( e == 256, 'no error raised!')
+
         
 if __name__ == '__main__':
     unittest.main()
+
