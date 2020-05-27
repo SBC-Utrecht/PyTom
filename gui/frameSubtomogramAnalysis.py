@@ -835,7 +835,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         exefilename = [mode + 'outFolder', 'CPCA_Classification.sh']
         paramsSbatch = guiFunctions.createGenericDict(fname='CPCA', folder=self.logfolder, id='CPCA')
-        paramsCmd = [mode+'outFolder', self.pytompath, mode + 'particleList', mode + 'outputFilename',
+        paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'outputFilename',
                      mode + 'cccFile', mode + 'numEig', mode+'numClasses', mode+'prefix',  templateCPCA]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,

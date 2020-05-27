@@ -913,8 +913,8 @@ class TomographReconstruct(GuiTabWidget):
                 exefilename = '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n)
                 dd = os.popen('{} {}'.format(self.qcommand, exefilename))
                 text = dd.read()[:-1]
-                id = text.split()[-1]
-                logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
+                ID = text.split()[-1]
+                logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(exefilename)}')
                 os.system(f'cp {exefilename} {logcopy}')
 
 
