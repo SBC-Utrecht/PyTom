@@ -275,12 +275,35 @@ fsc.py {d[2]} \\
 --randomizePhases {d[9]} \\
 {d[10]}'''
 
+
+
+templateFSC2 = '''cd {d[0]}
+
+fsc.py {d[2]} \\
+{d[3]} \\
+{d[4]} \\
+{d[5]} \\
+--outputFolder {d[6]} \\
+--fsc {d[7]} \\
+--pixelsize {d[8]} \\
+--randomizePhases {d[9]} \\
+{d[10]}{d[11]} {d[12]}'''
+
+templateCTFCorrectionImod = '''cd {d[0]}                                                                                                                                                                                      
+
+ctfphaseflip -inp {d[1]} -o {d[2]} -an {d[3]} -defF {d[4]} \\
+-defT {d[5]} -iW {d[6]} -pi {d[7]} -cs {d[8]} \\
+-am {d[9]} -vo {d[10]} -AxisAngle {d[11]} 
+
+mrcs2mrc.py -f {d[2]} -t {d[12]} -p {d[13]} -o {d[14]}'''
+
 templateMotionCorrection = '''cd {d[0]}
 
-motioncor2 -In{d[1]} {d[2]} \\
--OutMrc {d[3]} \\
+motioncor2 -In{d[1]} {d[2]}/ \\
+-InSuffix .{d[8]} \\
+-OutMrc {d[3]}/ \\
 -Serial 1 \\
 {d[7]} \\
-{d[4]} \\
-{d[5]} {d[6]}
+{d[4]} {d[5]} {d[6]}
 '''
+

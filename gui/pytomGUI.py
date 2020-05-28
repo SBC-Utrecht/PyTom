@@ -109,6 +109,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.projectname = None
         self.stage_buttons = []
         self.qparams = {}
+        self.qEvents = {}
         self.projectname = './'
         y,b,g,w = 'f9ce00', '343434', 'cacaca','fcfaf1'
         bl='1989ac'
@@ -462,6 +463,11 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.image.setLayout(self.imagelayout)
 
         self.topleft_layout.addWidget(self.image,alignment=Qt.AlignHCenter)
+
+    def closeEvent(self, event):
+        for e in self.qEvents.values():
+            e.set()
+        event.accept()
 
 def main():
 

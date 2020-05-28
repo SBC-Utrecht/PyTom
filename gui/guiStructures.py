@@ -24,6 +24,9 @@ from scipy.ndimage.filters import gaussian_filter
 from ftplib import FTP_TLS, FTP
 import lxml.etree as et
 
+from multiprocessing import Manager, Event, Process
+
+
 class BrowseWindowRemote(QMainWindow):
     '''This class creates a new windows for browsing'''
     def __init__(self, parent=None, initdir='/',filter=[''],search='file',credentials=['','',''],outputline='',
@@ -266,6 +269,7 @@ class WorkerSignals(QObject):
 
     '''
 
+    finished_queue = pyqtSignal(object)
     finished_mcor = pyqtSignal()
     finished_collect = pyqtSignal()
     error = pyqtSignal(tuple)
@@ -769,11 +773,23 @@ class CommonFunctions():
                     print(e)
                     
             else:
-                proc = Worker(fn=os.system, args=['sh {}'.format(exefilename)], sig=False)
+                proc = Worker(fn=self.executeJob, args=['sh {}'.format(exefilename)])
+                proc.signals.finished_mcor.connect(self.finishedJob)
                 proc.start()
+                #self.popup_messagebox('Info', 'Job Finished', 'Job Finished')
 #                os.system('sh {}'.format(params[0]))
-        except:
+        except Exception as e:
+            print( e)
             print ('Please check your input parameters. They might be incomplete.')
+
+    def finishedJob(self, keys=None):
+        self.popup_messagebox('Info', 'Job Finished', 'Job Finished')
+
+    def executeJob(self, command, signals=None):
+        os.system(command)
+
+        print('Motioncor finished')
+        signals.finished_mcor.emit()
 
     def gen_action(self, params):
         mode = params[1][0][:-len('CommandText')]
@@ -1000,6 +1016,166 @@ class CommonFunctions():
         parent = QtWidgets.QGridLayout()
         groupbox.setLayout(parent)
         return groupbox, parent
+
+    def submitBatchJob(self, execfilename, id, command):
+        import time
+        outjob = open(execfilename, 'w')
+        outjob.write(command)
+        outjob.close()
+
+        if self.checkbox[id].isChecked():
+            dd = os.popen('{} {}'.format(self.qcommand, execfilename))
+            text = dd.read()[:-1]
+            ID = text.split()[-1]
+            logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(execfilename)}')
+            os.system(f'cp {execfilename} {logcopy}')
+            return ID, 1
+        else:
+            ID = self.getLocalID()
+            self.submit_local_job(execfilename, ID)
+            self.popup_messagebox('TimedInfo', 'Local Job Finished', f'Finished Job {ID}')
+            return 1, 0
+
+    def getLocalID(self):
+        import os
+        try:
+            idfile = os.path.join(self.logfolder, 'Local/.idcounter.txt')
+
+            if os.path.exists(idfile):
+                ID = open(idfile, 'r').readlines()[0].split()[0].zfill(8)
+            else:
+                ID = '0'.zfill(8)
+        except:
+            ID = '0'.zfill(8)
+
+        out = open(idfile, 'w')
+        out.write(str(int(ID) + 1) + '\n')
+        out.close()
+
+        return ID
+
+    def submit_local_job(self, execfilename, ID):
+        logcopy = os.path.join(self.logfolder, f'Local/{ID}-{os.path.basename(execfilename)}')
+        os.system(f'cp {execfilename} {logcopy}')
+        os.system(f'sh {execfilename} >> {os.path.splitext(logcopy)[0]}.out')
+
+        self.localqID[ID] = 1
+
+    def submit_multi_job(self, exefilename, command, queue=True):
+
+        try:
+            exefile = open(exefilename, 'w')
+            exefile.write(command)
+            exefile.close()
+
+            if queue:
+
+                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
+                text = dd.read()[:-1]
+                id = text.split()[-1]
+                logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
+                os.system(f'cp {exefilename} {logcopy}')
+            else:
+                os.system('sh {}'.format(exefilename))
+        except:
+            print ('Please check your input parameters. They might be incomplete.')
+
+    def addProgressBarToStatusBar(self, qids=[], key='', job_description='Queue'):
+        if not key or not len(qids): return
+
+
+        counters = [0, ] * len(qids)
+
+        manager = Manager()
+
+        ID = qids[0]
+
+        self.progressBarCounters[ID] = manager.list(counters)
+        self.generateStatusBar(len(qids), ID, job_description)
+
+        proc = Worker(fn=self.checkRun, args=(ID, qids, job_description))
+        proc.signals.result1.connect(self.updateProgressBar)
+        proc.signals.finished_queue.connect(self.deleteProgressBar)
+        proc.start()
+        event = Event()
+        self.queueEvents[job_description] = event
+
+    def generateStatusBar(self, nrJobs, key, job_description):
+        widget = QWidget(self)
+        layout = QHBoxLayout()
+        widget.setLayout(layout)
+
+        self.progressBars[key] = QProgressBar()
+
+        self.progressBars[key].setSizePolicy(self.sizePolicyA)
+        self.progressBars[key].setStyleSheet(DEFAULT_STYLE_PROGRESSBAR)
+        self.progressBars[key].setFormat(f'{job_description}: %v/%m')
+        self.progressBars[key].setSizePolicy(self.sizePolicyB)
+        self.progressBars[key].setMaximum(nrJobs)
+        layout.addWidget(self.progressBars[key])
+        self.statusBar.addPermanentWidget(self.progressBars[key], stretch=1)
+
+    def whichRunning(self, qids):
+        runningJobs = [rid[:-1] for rid in os.popen(" squeue | awk 'NR > 1 {print $1}' ").readlines()]
+        inQueue = [str(int(qid)) for qid in qids if qid in runningJobs]
+        return inQueue
+
+    def checkRun(self, id, qids, job_description, signals):
+        import time
+
+        inQueue = self.whichRunning(qids)
+        while len(inQueue):
+            total = len(qids) - len(inQueue)
+            signals.result1.emit([id, total])
+            time.sleep(1)
+            inQueue = self.whichRunning(qids)
+            if self.queueEvents[job_description].is_set():
+                print(f'exit {job_description} loop')
+                return
+        #self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
+        signals.finished_queue.emit([id, job_description, qids])
+        #self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
+
+    def updateProgressBar(self, keys):
+        key, total = keys
+        self.progressBars[key].setValue(total)
+
+    def deleteProgressBar(self, keys):
+        key, job_description, qids = keys
+        self.statusBar.removeWidget(self.progressBars[key])
+        if len(qids)>1:
+            self.popup_messagebox("Info", "Completion", f'Finished {job_description} Jobs {qids[0]}-{qids[-1]}')
+        elif len(qids) > 0:
+            self.popup_messagebox("Info", "Completion", f'Finished {job_description} Job {qids[0]}')
+
+
+class TimedMessageBox(QMessageBox):
+    def __init__(self, parent=None, timeout=3, info=None, type=''):
+        super(TimedMessageBox, self).__init__(parent)
+        self.setWindowTitle(info[1])
+        self.message = info[2]
+        self.time_to_wait = timeout
+        self.setText("{1}\n(closing automatically in {0} secondes.)".format(self.time_to_wait,self.message))
+        self.setStandardButtons(info[3])
+        self.timer = QtCore.QTimer(self)
+        self.timer.setInterval(1000)
+        self.timer.timeout.connect(self.changeContent)
+        # if type == 'TimedInfo':
+        #     self.information(*info)
+        # elif type == 'TimedWarning':
+        #     self.warning(*info)
+        self.timer.start()
+        self.exec_()
+
+    def changeContent(self):
+        self.setText("{1}\n(closing automatically in {0} secondes.)".format(self.time_to_wait,self.message))
+        if self.time_to_wait <= 0:
+            self.close()
+        self.time_to_wait -= 1
+
+    def closeEvent(self, event):
+        self.timer.stop()
+        event.accept()
 
 
 class CreateMaskFile(QMainWindow, CommonFunctions):
@@ -3029,7 +3205,6 @@ class QParams():
         for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
             tab.qparams = parent.qparams
 
-
     def values(self):
         return [self.queue, self.nodes, self.cores, self.time, self.modules]
 
@@ -3337,6 +3512,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
 
                 tab = self.tabs[tt]
                 tab.setLayout(self.table_layouts[tt])
+
         self.resized.connect(self.sizetest)
         self.sizetest()
 
@@ -3362,9 +3538,6 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.widgets[mode + 'numberOfNodes'].setValue(self.qparams[self.currentJobName].nodes)
         self.widgets[mode + 'numberOfCores'].setValue(self.qparams[self.currentJobName].cores)
         self.widgets[mode + 'modules'].activateModules(self.qparams[self.currentJobName].modules,block=(jobname=='All'))
-
-
-
 
     def tab1UI(self):
         self.jobnames = ['All',

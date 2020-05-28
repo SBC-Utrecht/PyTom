@@ -329,7 +329,7 @@ def avail_gpu(cutoff_busy=.25, cutoff_space = 0.5):
     comb = list(zip(available_gpu,busy_list))
 
     sort(comb,1)
-
+    print(comb)
     try:
         av, b = zip(*comb)
     except:

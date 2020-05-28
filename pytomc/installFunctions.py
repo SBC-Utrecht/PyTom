@@ -210,7 +210,7 @@ def generateIPyTomScript(pytomDirectory):
     ipytomCommand = '#!/usr/bin/env csh\n'
     ipytomCommand += 'cat ' + pytomDirectory + os.sep + 'LICENSE.txt\n'
     ipytomCommand += 'source ' + pytomDirectory + os.sep + 'bin' + os.sep + 'paths.csh\n'
-    ipytomCommand += 'ipython{} $* -i\n'.format(python_version)
+    ipytomCommand += 'ipython $* -i\n'
     
     f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'ipytom','w')
     f.write(ipytomCommand)

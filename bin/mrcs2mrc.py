@@ -5,7 +5,7 @@ import sys, os
 from pytom.tompy.io import read, write
 from pytom.tompy.mpi import MPI
 
-mpi = MPI()
+#mpi = MPI()
 
 def extract_single_image(dataSlice, sliceId, out_name, tiltangle, origdir, outdir, prefix):
     if origdir:
@@ -37,7 +37,7 @@ if __name__=='__main__':
                           description='Extract tilt images from mrcstack, and creation of meta data file.',
                           authors='Gijs van der Schot',
                           options=options)
-    mpi.begin()
+    # mpi.begin()
 
     if len(sys.argv) == 1:
         print(helper)
@@ -103,8 +103,10 @@ SubFramePath = X:\{}
         #mrcfile.new(outname, data[sliceId, :,:].astype('float32'), overwrite=True)
         if mdoc: mdocfile.write(d.format(sliceId, tiltangle, os.path.basename(outname)))
 
-    mpi.parfor(extract_single_image, out)
-    mpi.end()
+        extract_single_image(*out[-1])
+
+    #mpi.parfor(extract_single_image, out)
+    #mpi.end()
 
     if mdoc: mdocfile.close()
     

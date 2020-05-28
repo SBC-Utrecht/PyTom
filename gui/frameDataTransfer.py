@@ -490,7 +490,7 @@ class CollectPreprocess(GuiTabWidget):
         self.insert_lineedit(parent, mode+'ftBin', cstep=2 , rstep=1, columnspan=3,
                              validator=QIntValidator(), logvar=True)
 
-        self.widgets[mode + 'fileTypeCapitalized'] = QLineEdit('Tif')
+        self.widgets[mode + 'fileTypeCapitalized'] = QLineEdit('Tiff')
         self.widgets[mode + 'gainFileFlag'] = QLineEdit('')
         self.widgets[mode + 'patchSizeFlag'] = QLineEdit('')
         self.widgets[mode + 'ftBinFlag'] = QLineEdit('')
@@ -505,7 +505,7 @@ class CollectPreprocess(GuiTabWidget):
                                                       id='MotionCorrection')
         paramsCmd = [self.motioncor_folder, mode + 'fileTypeCapitalized', mode + 'folder_nanographs',
                      self.motioncor_folder, mode + 'gainFileFlag', mode + 'patchSizeFlag', mode + 'ftBinFlag',
-                     mode + 'gpuIdFlag', templateMotionCorrection]
+                     mode + 'gpuIdFlag', mode + 'filetype_nanographs', templateMotionCorrection]
 
         self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename, paramsSbatch=paramsSbatch,
                                  cs=3, queue=True)
@@ -1007,6 +1007,7 @@ class CollectPreprocess(GuiTabWidget):
 
     def updateFileType(self, mode):
         text = self.widgets[mode + 'filetype_nanograph'].currentText()
+        if text == 'tif': text = 'tiff'
         self.widget[mode + 'fileTypeCapitalized'].setText(text.capitalize())
 
     def updateCredentials(self, mode):

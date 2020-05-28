@@ -44,6 +44,10 @@ class TomographReconstruct(GuiTabWidget):
         self.qtype = self.parent().qtype
         self.qcommand = self.parent().qcommand
         self.widgets = {}
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
+        self.localqID = {}
         self.qparams = self.parent().qparams
 
         self.widgets['pytomPath'] = QLineEdit()
@@ -326,6 +330,66 @@ class TomographReconstruct(GuiTabWidget):
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
     def tab43UI(self, id=''):
+
+        headers = ["Name Tomogram", 'Correct', 'Defocus Tol', 'Width Interpol.', 'Pixel Size', 'Spherical Aberr.',
+                   'Amp. Contrast', 'Voltage', 'Rot. Angle', "Input Stack", "Angle File", "Defocus File", 'Output Folder', '']
+        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
+        sizes = [0, 0, 30, 30, 430, 30, 30, 30, 0, 0 ,0, 0, 0, 0, ]
+
+        tooltip = ['Names of existing tomogram folders.',
+                   'Interpolation width (pixels)',
+                   'Pixel Size (nm)', 'Spherical Aberration', 'Amplitude Contrast', 'Voltage (kV)',
+                   'In-plane rotation angle',
+                   'CTF Correction.',
+                   'Input Stack.',
+                   'Angle File',
+                   'Defocus file (from correction).',
+                   'Parameter File from wich other relevant input values are taken, i.e. Volrage or Rot Angle.',
+                   'Output Folder']
+
+        defocusfiles = sorted(glob.glob('{}/tomogram_*/ctf/*.defocus'.format(self.tomogram_folder)))
+
+        values = []
+
+        for defocusfile in defocusfiles:
+            tomogramName = os.path.dirname(os.path.dirname(defocusfile))
+            ctffolder = os.path.dirname(defocusfile)
+            ctfplotter = os.path.join(ctffolder, 'ctfplotter.com')
+
+            try:
+
+                if os.path.exists(ctfplotter):
+                    d = {}
+                    keys = ('InputStack', 'AngleFile', 'DefocusFile', 'AxisAngle', 'PixelSize', 'Voltage',
+                            'SphericalAberration', 'AmplitudeContrast', 'DefocusTol')
+                    for line in open(ctfplotter).readlines():
+                        kvpair = line.split()
+                        if len(kvpair) == 2 and kvpair[0] in keys:
+                            k, v = kvpair
+                            d[k] = v
+                    origdir = os.path.dirname(d['InputStack'])
+                    prefix = os.path.basename(origdir) + '_ctf'
+                    outfolder = os.path.join(ctffolder, prefix)
+                    if not os.path.exists(outfolder):
+                        os.mkdir(outfolder)
+                    values.append([tomogramName, True, d['DefocusTol'], 15, d['PixelSize'], d['SphericalAberration'],
+                                   d['AmplitudeContrast'], d['Voltage'], d['AxisAngle'], d['InputStack'],
+                                   d['AngleFile'], defocusfile, outfolder, ''])
+
+            except Exception as e:
+                print(e)
+                continue
+
+        if values:
+            try:
+                self.num_nodes[id].setParent(None)
+            except:
+                pass
+            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True)
+            self.tab43_widgets = self.tables[id].widgets
+            self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_ctf_correction(pid, v))
+
+    def tab43UIOld(self, id=''):
 
         headers = ["Name Tomogram", 'Correct', "Reference Marker", "Defocus File", "Rot. Angle", 'Grid Spacing', 'Field Size', 'Bin Factor', '']
         types = ['txt', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
@@ -1349,61 +1413,107 @@ class TomographReconstruct(GuiTabWidget):
         rows, columns = 40, 20
         self.items = [['', ] * columns, ] * rows
 
-        self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB, width=400)
+        self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB, width=300)
 
-        self.insert_label_line_push(parent, 'Folder Sorted (& Aligned Tilt Images)', mode + 'FolderSortedAligned',
-                                    'Select the folder where the sorted tiltimages are located.\n',
-                                    initdir=self.tomogram_folder, mode='folder')
+
         self.insert_label_line_push(parent, 'Defocus File', mode + 'DefocusFile', mode='file', filetype='defocus',
-                                    tooltip='Filename with results from CTF Correction (.defocus extension).',
+                                    tooltip='Filename with results from CTF Estimation (.defocus extension).',
                                     initdir=self.tomogram_folder)
-        self.insert_label_spinbox(parent, mode + 'GridSpacing', text='Grid Spacing',
-                                  tooltip='Grid spacing [2,4,6,...] is the size of the area which is corrected with a' +
-                                          'constant ctf. The ctf value is taken from the center of this area. This ' +
-                                          'area builds up the corrected projection.',
-                                  value=1, stepsize=1, minimum=1, maximum=1000)
-        self.insert_label_spinbox(parent, mode + 'FieldSize', text='FieldSize',
-                                  tooltip='Field size [2,4,6,...] & (fs>=gs) is the size of the area which is extracted' +
-                                          ' from the projection and corrected with a constant ctf. Fieldsize is also ' +
-                                          'the size of the modelled ctf.',
-                                  value=1, stepsize=1, minimum=1, maximum=1000)
-        self.insert_label_spinbox(parent, mode + 'rotationAngle', text='In-plane Rotation Angle of tilt axis',
+        self.insert_label_line_push(parent, 'Stack with Sorted (& Aligned Tilt Images)', mode + 'InputStack',
+                                    'Select the stack of sorted and possibly aligned tiltimages.\n',
+                                    initdir=self.tomogram_folder, mode='folder')
+        self.insert_label_line_push(parent, 'IMOD tlt File', mode + 'AngleFile', mode='file', filetype='tlt',
+                                    tooltip='Filename with tilt angles (.tlt extension).',
+                                    initdir=self.tomogram_folder)
+        self.insert_label_line(parent, 'Output File', mode + 'OutputFile', value='ctfCorrected.st',
+                                    tooltip='Filename with results from CTF Correction.')
+        self.insert_label_spinbox(parent, mode + 'DefocusTol', text='Defocus Tolerance (nm)',
+                                  tooltip='',
+                                  value=200, stepsize=10, minimum=1, maximum=1000)
+        self.insert_label_spinbox(parent, mode + 'InterpolationWidth', text='Interpolation Width',
+                                  tooltip='number of pixels of corrected strip which are interpolated',
+                                  value=15, stepsize=1, minimum=1, maximum=1000)
+        self.insert_label_spinbox(parent, mode + 'PixelSize', text='Pixel Size (nm)',
+                                  tooltip='Physical size corresponding to one pixel in image (nm)', decimals=3,
+                                  value=0.262, stepsize=.1, minimum=.01, maximum=1000, wtype=QDoubleSpinBox)
+        self.insert_label_spinbox(parent, mode + 'SphericalAberration', text='Spherical Abberration',
+                                  tooltip='Physical size corresponding to one pixel in image (nm)',
+                                  value=2.7, stepsize=.1, minimum=.01, maximum=1000, wtype=QDoubleSpinBox)
+        self.insert_label_spinbox(parent, mode + 'AmplitudeContrast', text='Amplitude Contrast ',
+                                  tooltip='Amplittude Contrast (fraction between 0 and 1)',
+                                  value=0.08, stepsize=.01, minimum=0, maximum=1, wtype=QDoubleSpinBox)
+        self.insert_label_spinbox(parent, mode + 'Voltage', text='Voltage (kV)',
+                                  tooltip='Voltage (kV)', value=200, stepsize=.1, minimum=10, maximum=1000)
+        self.insert_label_spinbox(parent, mode + 'AxisAngle', text='In-plane Rotation Angle of tilt axis',
                                   tooltip='In-plane rotation angle of tilt axis after alignment.',
-                                  value=0, stepsize=1, minimum=0, maximum=359)
-        self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',
-                                  value=1, stepsize=1, minimum=1, maximum=16, rstep=1, cstep=0)
+                                  value=0, stepsize=1, minimum=0, maximum=359, cstep=0)
 
-        self.widgets[mode + 'tomofolder'] = QLineEdit()
-        self.widgets[mode + 'uPrefix'] = QLineEdit()
-        self.widgets[mode + 'cPrefix'] = QLineEdit()
-        self.widgets[mode + 'MetaFile'] = QLineEdit()
-        self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
+        self.widgets[mode + 'ctffolder'] = QLineEdit()
+        self.widgets[mode + 'OutputFolder'] = QLineEdit()
+        self.widgets[mode + 'prefix'] = QLineEdit()
+        self.widgets[mode + 'origdir'] = QLineEdit()
 
-        exefilename = [mode + 'tomofolder', 'ctf/CTFCorrection.sh']
+        self.widgets[mode + 'DefocusFile'].textChanged.connect(lambda d, m=mode: self.updateCTFCorrectionImod(m))
+        exefilename = [mode + 'ctffolder', 'CTFCorrectionImod.sh']
 
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'CTF_Correction'
         paramsSbatch['folder'] = self.logfolder #[mode + 'tomofolder', 'ctf']
         paramsSbatch['id'] = 'SingleCTFCorrection'
-        paramsCmd = [mode + 'tomofolder', self.pytompath, mode + 'uPrefix', mode + 'cPrefix', mode + 'MetaFile',
-                     mode + 'rotationAngle', mode + 'GridSpacing', mode + 'FieldSize', mode + 'BinningFactor',
-                     mode + 'numberMpiCores', templateCTFCorrection]
+        paramsCmd = [ mode + 'ctffolder', mode + 'InputStack', mode + 'OutputFile', mode + 'AngleFile',
+                      mode + 'DefocusFile', mode + 'DefocusTol', mode + 'InterpolationWidth', mode + 'PixelSize',
+                      mode + 'SphericalAberration', mode + 'AmplitudeContrast', mode + 'Voltage', mode + 'AxisAngle',
+                      mode + 'OutputFolder', mode + 'prefix', mode + 'origdir', templateCTFCorrectionImod]
 
         self.insert_gen_text_exe(parent, mode, exefilename=exefilename, paramsSbatch=paramsSbatch,
-                                 paramsCmd=paramsCmd, action=self.updateMetaFile, paramsAction=[mode])
+                                 paramsCmd=paramsCmd, paramsAction=[mode])
 
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         parent.addWidget(label)
 
-        self.widgets[mode + 'FolderSortedAligned'].textChanged.connect( lambda dummy, m=mode: self.updateCTFCorrection(m))
-        self.widgets[mode + 'GridSpacing'].valueChanged.connect(lambda dummy, m=mode: self.updateGridAndFieldSize(m))
-
-        self.updateCTFCorrection(mode)
-        self.updateGridAndFieldSize(mode)
-
         setattr(self, mode + 'gb_CD', groupbox)
         return groupbox
+
+    def updateCTFCorrectionImod(self, mode):
+        defocusfile = self.widgets[mode + 'DefocusFile'].text()
+        ctffolder = os.path.dirname(defocusfile)
+        ctfplotter = os.path.join(ctffolder, 'ctfplotter.com')
+        if not defocusfile:
+            return
+
+        try:
+            self.widgets[mode + 'ctffolder'].setText(ctffolder)
+            if os.path.exists(ctfplotter):
+                d = {}
+                keys = ('InputStack', 'AngleFile', 'DefocusFile', 'AxisAngle', 'PixelSize', 'Voltage',
+                             'SphericalAberration', 'AmplitudeContrast', 'DefocusTol')
+                for line in open(ctfplotter).readlines():
+                    kvpair = line.split()
+                    if len(kvpair) == 2 and kvpair[0] in keys:
+                        k, v = kvpair
+                        try:
+                            d[k] = float(v)
+                        except:
+                            d[k] = v
+
+                for k in d.keys():
+                    if d[k].__class__ == str:
+                        self.widgets[mode + k].setText(d[k])
+                    else:
+                        self.widgets[mode + k].setValue(d[k])
+                origdir = os.path.dirname(d['InputStack'])
+                prefix = os.path.basename(origdir) + '_ctf'
+                outfolder = os.path.join(ctffolder, prefix)
+                if not os.path.exists(outfolder):
+                    os.mkdir(outfolder)
+                self.widgets[mode + 'origdir'].setText(origdir)
+                self.widgets[mode + 'prefix'].setText(prefix)
+                self.widgets[mode + 'OutputFolder'].setText(outfolder)
+
+        except Exception as e:
+            print(e)
+
 
     def updateCTFCorrection(self, mode):
         folder = self.widgets[mode + 'FolderSortedAligned'].text()
@@ -1450,6 +1560,72 @@ class TomographReconstruct(GuiTabWidget):
                                   'Update metadata has failed. Your job is not using the paramaters from the selected defocus file.')
 
     def run_multi_ctf_correction(self, id, values):
+        print('multi_ctf_corrections', id)
+        num_nodes = self.tables[id].table.rowCount()
+        num_submitted_jobs = 0
+        submissionIDs = []
+        try:
+            num_nodes = self.num_nodes[id].value()
+        except:
+            pass
+        for row in range(self.tables[id].table.rowCount()):
+            widget = 'widget_{}_1'.format(row)
+            if self.tab43_widgets[widget].isChecked():
+                ctffolder     = os.path.join(values[row][0], 'ctf')
+                tomofolder    = self.tab43_widgets['widget_{}_{}'.format(row, 0)].text()
+                defocustol    = self.tab43_widgets['widget_{}_{}'.format(row, 2)].text()
+                interpolation = self.tab43_widgets['widget_{}_{}'.format(row, 3)].text()
+                pixelsize     = self.tab43_widgets['widget_{}_{}'.format(row, 4)].text()
+                cs            = self.tab43_widgets['widget_{}_{}'.format(row, 5)].text()
+                ac            = self.tab43_widgets['widget_{}_{}'.format(row, 6)].text()
+                voltage       = self.tab43_widgets['widget_{}_{}'.format(row, 7)].text()
+                axisangle     = self.tab43_widgets['widget_{}_{}'.format(row, 8)].text()
+                inputstack    = self.tab43_widgets['widget_{}_{}'.format(row, 9)].text()
+                anglefile     = self.tab43_widgets['widget_{}_{}'.format(row,10)].text()
+                defocusfile   = self.tab43_widgets['widget_{}_{}'.format(row,11)].text()
+                outputfolder  = self.tab43_widgets['widget_{}_{}'.format(row,12)].text()
+
+                try:
+                    origdir = os.path.dirname(inputstack)
+                    prefix = os.path.basename(origdir) + '_ctf'
+                    outfolder = os.path.join(ctffolder, prefix)
+                    if not os.path.exists(outfolder):
+                        os.mkdir(outfolder)
+
+                    outputfile = 'ctfCorrected.st'
+
+                    jobParams = [ctffolder, inputstack, outputfile, anglefile, defocusfile, defocustol, interpolation,
+                                 pixelsize, cs, ac, voltage, axisangle, outputfolder, prefix, origdir]
+
+                    jobscript = templateCTFCorrectionImod.format(d=jobParams)
+
+
+                    fname = 'CTF_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
+                    suffix = f"_{tomofolder}_"
+
+                    qname,n_nodes,cores,time, modules = self.qparams['BatchCTFCorrection'].values()
+
+                    job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, time=time,
+                                                        partition=qname, num_nodes=n_nodes, singleton=True,
+                                                        num_jobs_per_node = cores, modules=modules) + jobscript
+
+                    exefilename = os.path.join(outputfolder, 'ctfCorrectionBatch.sh')
+                    ID, num = self.submitBatchJob(exefilename, id, job)
+                    if num:
+                        num_submitted_jobs += num
+                        submissionIDs.append(ID)
+
+                except Exception as e:
+                    print(e)
+                    print('Failed correction for '+defocusfile)
+                    continue
+
+        if num_submitted_jobs > 0:
+            self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(submissionIDs, key='QJobs', job_description='CTF Correction Batch')
+
+
+    def run_multi_ctf_correction_old(self, id, values):
         print('multi_ctf_corrections', id)
         num_nodes = self.tables[id].table.rowCount()
         num_submitted_jobs = 0
