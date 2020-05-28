@@ -456,6 +456,7 @@ def create_project_filestructure(projectdir='.'):
     # with open('config.json') as json_data_file:
     #    folderstructure = json.load(json_data_file)
 
+
     folderstructure = {
         "01_Raw_Nanographs": {
             "copy_files": ["/Users/gijs/Documents/PostDocUtrecht/ExperimentalData/180221_CPXV12_Strep/em-fscollect"],
@@ -493,6 +494,7 @@ def create_project_filestructure(projectdir='.'):
                 },
                 "copy_files": [""]
             },
+            "jobscripts": "",
             "copy_files": ["em_tomoprep", "em_prepbatch_utrecht.sh", "validate_generated_tomograms.py",
                            "reconstruction_batch.py"],
             "run_scripts": [""]
@@ -518,7 +520,7 @@ def create_project_filestructure(projectdir='.'):
             },
             "Classification": {
                 "CPCA": "",
-                "AutoFocus":""
+                "AutoFocus": ""
             },
             "Validation": "",
             "copy_files": [""],
@@ -528,9 +530,11 @@ def create_project_filestructure(projectdir='.'):
             "copy_files": [""],
             "run_scripts": [""]
         },
-        "LogFiles": ""
+        "LogFiles": {
+            "Local": ""
+        },
+        "Images": ''
     }
-
     if not os.path.exists(projectdir):
         os.mkdir(projectdir)
     create_folderstructure(folderstructure, projectdir)
