@@ -179,11 +179,16 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.sbar.setSizeGripEnabled(False)
 
         try:
+
+            print(sys.argv[-1])
             if os.path.isdir(sys.argv[-1]):
-                self.projectname = sys.argv[-1]
+                if sys.argv[-1] == './' or sys.argv[-1]== '.':
+                    sys.argv[-1] = ''
+                self.projectname =  os.path.join(os.getcwd(), sys.argv[-1])
+                if self.projectname.endswith('/'): self.projectname = self.projectname[:-1]
                 if self.is_pytomgui_project(self.projectname):
                     # self.destroy(error_dialog)
-                    self.setWindowTitle('PyTom -- ' + basename(self.projectname))
+                    self.setWindowTitle('PyTom -- ' + os.path.basename(self.projectname))
                     guiFunctions.create_project_filestructure(projectdir=self.projectname)
                     self.run_project()
         except Exception as e:
@@ -274,7 +279,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         widget = NewProject(self,self.label)
         widget.show()
 
-    def open_settings(self,show_menu=True):
+    def open_settings(self,show_menu=True, new_project=False):
         try:
             self.CD
         except:
@@ -283,10 +288,15 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
         try:
             self.generalSettings.close()
-            self.generalSettings.show()
+            if new_project:
+                del self.generalSettings
+                self.generalSettings = GeneralSettings(self)
+            if show_menu:
+                self.generalSettings.show()
         except:
             self.generalSettings = GeneralSettings(self)
-            if show_menu: self.generalSettings.show()
+            if show_menu:
+                self.generalSettings.show()
 
     def show_logfiles(self,show_menu=True):
         try:
@@ -401,7 +411,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
                           #('Segmentation',         "Segmentation") )
 
-        self.open_settings(show_menu=False)
+        self.open_settings(show_menu=False, new_project=True)
 
         self.iconnames = [os.path.join(self.pytompath, 'gui/Icons/td.png'),
                           os.path.join(self.pytompath, 'gui/Icons/recon.png'),

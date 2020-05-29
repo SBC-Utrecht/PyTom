@@ -96,10 +96,26 @@ def readMarkerfile(filename, num_tilt_images=0):
 def txt2markerfile(filename,tiltangles):
     data = loadstar(filename)
     datalen = data.shape[0]
-    x, y = datalen // len(tiltangles), len(tiltangles)
-    mark_frames = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
-    print(mark_frames.shape)
-    return mark_frames
+    num_angles = (data[:, 0] < 1E-6).sum()
+    if num_angles == len(tiltangles):
+        x, y = datalen // len(tiltangles), len(tiltangles)
+        mark_frames = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
+        print(mark_frames.shape)
+        return mark_frames
+    else:
+        x,y = datalen // num_angles, num_angles
+        mark_frames_small = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
+        mark_frames = -1*numpy.ones((len(tiltangles), x, 2), dtype=numpy.float32)
+        ang_selected = data[:num_angles, 1]
+        runner = 0
+        print(mark_frames_small.shape, mark_frames.shape)
+        for n, angle in enumerate(tiltangles):
+            if numpy.abs(ang_selected-angle).min() < 1E-5:
+                mark_frames[n,:,:] = mark_frames_small[runner,:,:]
+                runner += 1
+
+        print(runner)
+        return mark_frames
 
 def npy2markerfile(filename,tiltangles):
     return numpy.load(filename)
