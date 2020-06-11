@@ -73,7 +73,7 @@ class ExPeakResult:
         
         return [score, orientation]
     
-    def maskOut(self, mask, center, size):
+    def maskOut(self, mask, center, size, structured_mask=None, orientation=None):
         """
         maskOut: Set part of mask volume to all zero. The region is specified by center and size.
         @param mask: volume that you handle with
@@ -95,6 +95,11 @@ class ExPeakResult:
             p_sizeX = mm.sizeX()
             p_sizeY = mm.sizeY()
             p_sizeZ = mm.sizeZ()
+        elif not structured_mask is None:
+            radius = size
+            p_sizeX = structured_mask.sizeX()
+            p_sizeY = structured_mask.sizeY()
+            p_sizeZ = structured_mask.sizeZ()
         else:
             radius = size
             p_sizeX = radius*2
@@ -145,10 +150,22 @@ class ExPeakResult:
         elif size.__class__ == vol:
             from pytom_volume import limit, subvolume
             subV = (mm-1)/-1
-            limit(subV, 0.999, 0, 0,0, True, False)
+            limit(subV, 0.999, 0, 0, 0, True, False)
             subV = subvolume(subV, sub_startX, sub_startY, sub_startZ, sizeX, sizeY, sizeZ)
             tempV = subvolume(mask, startX, startY, startZ, sizeX, sizeY, sizeZ)
             subV = subV*tempV # AND operation
+        elif not structured_mask is None:
+            from pytom.basic.transformations import rotate
+            from pytom_volume import initSphere, subvolume
+            subV = rotate(structured_mask, orientation[0], z2=orientation[1], x=orientation[2])
+
+            tempV = vol(structured_mask.sizeX(), structured_mask.sizeY(), structured_mask.sizeZ())
+            tempV.setAll(1)
+            subV = tempV - subV
+            subV = subvolume(subV, sub_startX, sub_startY, sub_startZ, sizeX, sizeY, sizeZ)
+            tempV = subvolume(mask, startX, startY, startZ, sizeX, sizeY, sizeZ)
+            subV = subV * tempV
+
         else:
             from pytom_volume import initSphere, subvolume
             subV = vol(radius*2, radius*2, radius*2)
@@ -163,7 +180,7 @@ class ExPeakResult:
         putSubVolume(subV, mask, startX, startY, startZ)
         
     
-    def findParticles(self, sizeParticle, maxNumParticle=0, minScore=-1, write2disk=0, margin=None, offset=[0,0,0]):
+    def findParticles(self, sizeParticle, maxNumParticle=0, minScore=-1, write2disk=0, margin=None, offset=[0,0,0], structured_mask=None):
         """
         findParticles: Find particles in target volume according to the result volume.
         @param sizeParticle: size or radius of searched particle
@@ -182,7 +199,10 @@ class ExPeakResult:
         """
         from pytom_volume import vol, peak, putSubVolume, read
         from pytom.localization.structures import FoundParticle
-        
+
+        if not structured_mask is None:
+            structured_mask = read(structured_mask)
+
         # prepare the mask
         x = self.result.sizeX(); y = self.result.sizeY(); z = self.result.sizeZ()
         
@@ -248,7 +268,7 @@ class ExPeakResult:
                 elif sizeParticle.__class__ == vol:
                     self.maskOut(mask, posV, sizeParticle)
                 else:
-                    self.maskOut(mask, posV, radius)
+                    self.maskOut(mask, posV, radius, structured_mask, orientV )
             else:
                 break
             

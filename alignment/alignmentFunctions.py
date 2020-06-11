@@ -4,6 +4,11 @@ Created on Jan 27, 2010
 @author: Thomas Hrabe, FF
 '''
 analytWedge=False
+import matplotlib
+matplotlib.use('Qt5Agg')
+from pylab import imshow, show
+
+from pytom.gpu.initialize import xp, device
 
 def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
     """
@@ -40,9 +45,9 @@ def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
                     if r < r_max:
                         v = invol.getV( ix, iy, iz)
                         if v < lowlimit:
-                            v = 1./lowval
+                            v = 1./ lowval
                         else:
-                            v = 1./v
+                            v = 1./ v
                     else:
                         v = 0.
                     invol.setV( v, ix, iy, iz)
@@ -325,7 +330,7 @@ def distributeAverage(particleList,averageName,showProgressBar = False,verbose=F
         return average(particleList,averageName,showProgressBar,verbose,createInfoVolumes)
 
 def average( particleList, averageName, showProgressBar=False, verbose=False,
-        createInfoVolumes=False, weighting=False, norm=False):
+        createInfoVolumes=False, weighting=False, norm=False, gpuID=None):
     """
     average : Creates new average from a particleList
     @param particleList: The particles
@@ -453,7 +458,7 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             progressBar.update(numberAlignedParticles)
 
     ###apply spectral weighting to sum
-    result = lowpassFilter(result, sizeX/2-1, 0.)[0]
+    result = lowpassFilter(result, sizeX//2-1, 0.)[0]
     #if createInfoVolumes:
     result.write(averageName[:len(averageName)-3]+'-PreWedge.em')
     wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumUnscaled.em')
@@ -488,7 +493,7 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
     from pytom.basic.fourier import fft, ifft, convolute
     from pytom.basic.normalise import mean0std1
     from pytom.tools.ProgressBar import FixedProgBar
-    from pytom.basic.filter import lowpassFilter, rotateWeighting
+    from pytom.basic.filter import lowpassFilter, rotateWeighting, filter
     from math import exp
     
     if len(particleList) == 0:
@@ -506,14 +511,22 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
     newParticle = None
     
     is_odd = True
+
     for particleObject in particleList:
         particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, binning,binning,binning)
         if norm:
             mean0std1(particle)
-        wedgeInfo = particleObject.getWedge()
+        if odd == None:
+            wedgeInfo = particleList[0].getWedge()
+            wedgeFilter = wedgeInfo.returnWedgeFilter(particle.sizeX(), particle.sizeY(), particle.sizeZ())
+
+        result = list(filter(particle, wedgeFilter))
+        particle = result[0]
+
+        #wedgeInfo = particleObject.getWedge()
         
         # apply its wedge to itself
-        particle = wedgeInfo.apply(particle)
+        #particle = wedgeInfo.apply(particle)
         
         if odd is None: # initialization
             sizeX = particle.sizeX() 
@@ -619,6 +632,165 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
     
     return (result, fsc)
 
+def write_time(t, message):
+    from time import time
+    print(f'{message:30s} {(time()-t):.3f} sec')
+
+def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
+            createInfoVolumes=False, weighting=False, norm=False):
+    """
+    average : Creates new average from a particleList
+    @param particleList: The particles
+    @param averageName: Filename of new average
+    @param verbose: Prints particle information. Disabled by default.
+    @param createInfoVolumes: Create info data (wedge sum, inverted density) too? False by default.
+    @param weighting: apply weighting to each average according to its correlation score
+    @param norm: apply normalization for each particle
+    @return: A new Reference object
+    @rtype: L{pytom.basic.structures.Reference}
+    @author: Thomas Hrabe
+    @change: limit for wedgeSum set to 1% or particles to avoid division by small numbers - FF
+    """
+    from pytom.tompy.io import read, write
+    from pytom.tompy.transform import fourier_reduced2full
+    from pytom.tompy.filter import bandpass, rotateWeighting, applyFourierFilter
+    from pytom.voltools import transform
+    from pytom.basic.fourier import convolute
+    from pytom.tompy.structures import Reference
+    from pytom.tompy.correlation import mean0std1, subPixelMax3D
+    from pytom.tools.ProgressBar import FixedProgBar
+    from math import exp
+    from pytom.tompy.tools import invert_WedgeSum
+    import os
+
+    if len(particleList) == 0:
+        raise RuntimeError('The particle list is empty. Aborting!')
+
+    if showProgressBar:
+        progressBar = FixedProgBar(0, len(particleList), 'Particles averaged ')
+        progressBar.update(0)
+        numberAlignedParticles = 0
+
+    result = []
+    wedgeSum = []
+
+    newParticle = None
+    # pre-check that scores != 0
+    if weighting:
+        wsum = 0.
+        for particleObject in particleList:
+            wsum += particleObject.getScore().getValue()
+        if wsum < 0.00001:
+            weighting = False
+            print("Warning: all scores have been zero - weighting not applied")
+
+    for particleObject in particleList:
+
+        if verbose:
+            print(particleObject)
+
+        if not os.path.exists(particleObject.getFilename()): continue
+        particle = read(particleObject.getFilename())
+
+
+        if norm:  # normalize the particle
+            mean0std1(particle)  # happen inplace
+
+        wedgeInfo = particleObject.getWedge()
+        wedgeInfo = wedgeInfo.convert2numpy()
+        # apply its wedge to itself
+        particle = wedgeInfo.apply(particle)
+
+        if type(result) == list:
+            sizeX, sizeY, sizeZ = particle.shape
+
+            newParticle = xp.zeros((sizeX, sizeY, sizeZ), dtype=xp.float32)
+
+            centerX = sizeX // 2
+            centerY = sizeY // 2
+            centerZ = sizeZ // 2
+
+            result = xp.zeros((sizeX, sizeY, sizeZ),dtype=xp.float32)
+
+            if analytWedge:
+                wedgeSum = wedgeInfo.returnWedgeVolume(wedgeSizeX=sizeX, wedgeSizeY=sizeY, wedgeSizeZ=sizeZ)
+            else:
+                # > FF bugfix
+                wedgeSum = wedgeInfo.returnWedgeVolume(sizeX, sizeY, sizeZ)
+                # < FF
+                # > TH bugfix
+                # wedgeSum = vol(sizeX,sizeY,sizeZ)
+                # < TH
+                # wedgeSum.setAll(0)
+            assert wedgeSum.shape[0] == sizeX and wedgeSum.shape[1] == sizeY and wedgeSum.shape[2] == sizeZ // 2 + 1, \
+                "wedge initialization result in wrong dims :("
+            wedgeSum *= 0
+
+        ### create spectral wedge weighting
+        rotation = particleObject.getRotation()
+        rotinvert = rotation.invert()
+        if analytWedge:
+            # > analytical buggy version
+            wedge = wedgeInfo.returnWedgeVolume(sizeX, sizeY, sizeZ, False, rotinvert)
+        else:
+            # > FF: interpol bugfix
+            wedge = rotateWeighting(weighting=wedgeInfo.returnWedgeVolume(sizeX, sizeY, sizeZ, False),
+                                    rotation=[rotinvert[0],rotinvert[2],rotinvert[1]], mask=None)
+            # < FF
+            # > TH bugfix
+            # wedgeVolume = wedgeInfo.returnWedgeVolume(wedgeSizeX=sizeX, wedgeSizeY=sizeY, wedgeSizeZ=sizeZ,
+            #                                    humanUnderstandable=True, rotation=rotinvert)
+            # wedge = rotate(volume=wedgeVolume, rotation=rotinvert, imethod='linear')
+            # < TH
+
+        ### shift and rotate particle
+        shiftV = particleObject.getShift()
+        newParticle *= 0
+        transform(particle, output=newParticle, rotation =[-rotation[1], -rotation[0], -rotation[2]],
+                  rotation_order='rzxz',device=device, center=[centerX, centerY, centerZ],
+                  translation=[-shiftV[0], -shiftV[1], -shiftV[2]], interpolation='filt_bspline')
+        if weighting:
+            weight = 1. - particleObject.getScore().getValue()
+            # weight = weight**2
+            weight = exp(-1. * weight)
+            result = result + newParticle * weight
+            wedgeSum = wedgeSum + wedge * weight
+        else:
+            result = result + newParticle
+            wedgeSum = wedgeSum + wedge
+
+        if showProgressBar:
+            numberAlignedParticles = numberAlignedParticles + 1
+            progressBar.update(numberAlignedParticles)
+
+
+    ###apply spectral weighting to sum
+    result = bandpass(result, high=sizeX // 2 - 1, sigma=0.)
+    # if createInfoVolumes:
+    write(averageName[:len(averageName) - 3] + '-PreWedge.em', result)
+    write(averageName[:len(averageName) - 3] + '-WedgeSumUnscaled.em', wedgeSum)
+
+
+    invert_WedgeSum(wedgeSum, r_max=sizeX // 2 - 2., lowlimit=.05 * len(particleList),
+                    lowval=.05 * len(particleList))
+
+    if createInfoVolumes:
+        write(averageName[:len(averageName) - 3] + '-WedgeSumInverted.em', wedgeSum)
+
+    result = applyFourierFilter(result, wedgeSum)
+
+    # do a low pass filter
+    # result = lowpassFilter(result, sizeX/2-2, (sizeX/2-1)/10.)[0]
+    write(averageName, result)
+
+    if createInfoVolumes:
+        resultINV = result * -1
+        # write sign inverted result to disk (good for chimera viewing ... )
+        write(averageName[:len(averageName) - 3] + '-INV.em', resultINV)
+    newReference = Reference(averageName, particleList)
+
+    return newReference
+
 def averageWeighteBackProjection(projectionLists,particleList,averageName,showProgressBar = False,verbose=False):
     """
     averageWeighteBackProjection: Performs averaging based on weighted backprojections of particles
@@ -672,7 +844,6 @@ def _rotateWedgeReference(reference,rotation,wedgeInfo,mask,rotationCenter):
     @change: support mask == None, FF
     """
     from pytom_volume import vol, transform as transform #developers: your can also import transformSpline for more accurate rotation!
-    
     rotatedVolume = vol(reference.sizeX(),reference.sizeY(),reference.sizeZ())
     transform(reference,rotatedVolume,rotation[0],rotation[1],rotation[2],rotationCenter[0],rotationCenter[1],rotationCenter[2],0,0,0,0,0,0)
    
@@ -769,8 +940,8 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     preprocessing.setTaper( taper=particle.sizeX()/10.)
     particle = preprocessing.apply(volume=particle, bypassFlag=True)  # filter particle to some resolution
     particleCopy.copyVolume(particle)
-    # compute standard veviation volume really only if needed
-    if mask and (scoreObject._type=='FLCFScore'):
+    
+    if mask:
         from pytom_volume import sum
         from pytom.basic.correlation import meanUnderMask, stdUnderMask
         p = sum(m)
@@ -780,23 +951,24 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         meanV = None
         stdV = None
 
+    n=-1
     while currentRotation != [None,None,None]:
+        n+=1
         if mask:
             m = mask.getVolume(currentRotation)
             if binning != 1:
                 m = resize(volume=m, factor=1./binning, interpolation='Spline')
             #update stdV if mask is not a sphere
-            # compute standard deviation volume really only if needed
-            if not mask.isSphere() and (scoreObject._type=='FLCFScore'):
+            if not mask.isSphere():
                 meanV   = meanUnderMask(particle, m, p)
                 stdV    = stdUnderMask(particle, m, p, meanV)
         else:
             m = None
-        
         simulatedVol = _rotateWedgeReference(reference, currentRotation, wedgeInfo, m, [centerX, centerY, centerZ])
         simulatedVol = preprocessing.apply(volume=simulatedVol, bypassFlag=True)
-        
-        #weight particle
+
+
+        # weight particle
         if not referenceWeighting.__class__ == str:
             from pytom_freqweight import weight
             weightingRotated = rotateWeighting(weighting=referenceWeighting, z1=currentRotation[0],
@@ -807,10 +979,9 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
             particleCopy = r[0]
         
         scoringResult = scoreObject.score(particleCopy, simulatedVol, m, stdV)
-        
         pk = peak(scoringResult)
 
-        #with subPixelPeak
+        # with subPixelPeak
         [peakValue,peakPosition] = subPixelPeak(scoreVolume=scoringResult, coordinates=pk,
                                                interpolation='Quadratic', verbose=False)
         #[peakValue,peakPosition] = subPixelPeakParabolic(scoreVolume=scoringResult, coordinates=pk, verbose=False)
@@ -821,8 +992,8 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         shiftZ = (peakPosition[2] - centerZ) * binning
 
         #NANs would fail this test.
-        assert peakValue == peakValue, "peakValue seems to be NaN"
-        
+        assert peakValue == peakValue
+
         newPeak = Peak(peakValue, Rotation(currentRotation), Shift(shiftX, shiftY, shiftZ))
         
         if verbose:
@@ -831,14 +1002,17 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
 
         if bestPeak is None:
             bestPeak = newPeak
+
             if verbose:
                 scoringResult.write('BestScore.em')
         if bestPeak < newPeak:
             bestPeak = newPeak
+
             if verbose:
                 scoringResult.write('BestScore.em')
 
         currentRotation = rotations.nextRotation()
+
     # repeat ccf for binned sampling to get translation accurately
     if binning != 1:
         m = mask.getVolume(bestPeak.getRotation())
@@ -847,10 +1021,9 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         simulatedVol = _rotateWedgeReference(referenceUnbinned, bestPeak.getRotation(), wedgeInfo, m,
                                              [centerX, centerY, centerZ])
         simulatedVol = preprocessing.apply(volume=simulatedVol, bypassFlag=True)
-        if mask and scoreObject._type=='FLCFScore':
-            p = sum(m)
-            meanV = meanUnderMask(volume=particleUnbinned, mask=m, p=p)
-            stdV  = stdUnderMask(volume=particleUnbinned, mask=m, p=p, meanV=meanV)
+        p = sum(m)
+        meanV = meanUnderMask(volume=particleUnbinned, mask=m, p=p)
+        stdV  = stdUnderMask(volume=particleUnbinned, mask=m, p=p, meanV=meanV)
         scoreObject._peakPrior.reset_weight()
         scoringResult = scoreObject.score(particle=particleUnbinned, reference=simulatedVol, mask=m, stdV=stdV)
         pk = peak(scoringResult)
@@ -869,7 +1042,8 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     return bestPeak
 
 
-def bestAlignmentGPU(particleList, rotations, plan, isSphere=True):
+def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=None, isSphere=True, rotation_order='rzxz', max_shift=30,
+                     profile=False, interpolation_factor=0.1):
     """
     bestAlignment: Determines best alignment of particle relative to the reference
     @param particle: A particle
@@ -896,67 +1070,74 @@ def bestAlignmentGPU(particleList, rotations, plan, isSphere=True):
     @return: Returns the best rotation for particle and the corresponding scoring result.
     @author: Thomas Hrabe
     """
-    from pytom.gpu.tools import add_particle_to_sum
-    from pytom.gpu.prepare_plans import prepare_glocal_plan
-    from pytom.gpu.correlation import subPixelPeak, find_coords_max_ccmap
-    from pytom.gpu.filter import filter, applyWedge
-    from pytom.gpu.preprocessing import applyPreprocessing
-    from pytom.gpu.transformations import resize, resizeFourier, rotate
-    import numpy as np
+    from pytom.gpu.gpuFunctions import add_transformed_particle_to_sum, applyFourierFilter, applyFourierFilters
+    from pytom.gpu.gpuFunctions import cross_correlation, subPixelShifts, find_coords_max_ccmap, add_transformed_particle_to_sum
+    from pytom.tompy.correlation import meanVolUnderMask, stdVolUnderMask, meanUnderMask, stdUnderMask, subPixelMax3D
+    from pytom.basic.structures import Rotation, Shift
+    from pytom.tompy.structures import Preprocessing
+    from pytom.tompy.transform import fourier_full2reduced
+    from pytom.alignment.structures import Peak
+    from pytom.tompy.io import write
 
-    binningType = 'Fourier'  # or 'Fourier'
 
-    bestPeakList = []
+    centerCoordinates = [size//2 for size in plan.volume.shape]
+    border = max(1,centerCoordinates[0]-max_shift)
 
-    for pid, particle in particleList:
+    # create buffer volume for transformed particle
+    plan.volume = plan.cp.array(particle, dtype=plan.cp.float32) * plan.taperMask
+    plan.updateWedge(wedgeInfo)
+    plan.wedgeParticle()
+    plan.calc_stdV()
 
-        centerCoordinates = np.array([size//2 for size in plan.shape], dtype=np.int32)
+    currentRotation = rotations.nextRotation()
+    if currentRotation == [None, None, None]:
+        raise Exception('bestAlignment: No rotations are sampled! Something is wrong with input rotations')
 
-        # create buffer volume for transformed particle
-        applyWedge(particle)  # apply wedge to itself
-        applyPreprocessing(particle, taper=np.float32(shape[0] / 10.) )  # filter particle to some resolution
+    bestPeak =  Peak(float(-100000.), Rotation(currentRotation), Shift([0,0,0]))
 
-        bestPeak = [-1000, [0,0,0], [0,0,0]]
+    while currentRotation != [None, None, None]:
+        plan.rotatedRef *= 0
 
-        for n, currentRotation in enumerate(rotations):
-            if not isSphere:
-                meanUnderMask(particle, plan.mask, plan.p)
-                stdUnderMask(particle, plan.mask, plan.p, plan.meanV)
+        # If not spherical mask, recalculate respective arrays
+        if not isSphere:
+            plan.mask.transform(output=plan.rotatedMask, rotation=[currentRotation[0],currentRotation[2],currentRotation[1]],
+                                                   center=centerCoordinates, rotation_order=rotation_order)
+            plan.p = plan.rotatedMask.sum()
+            plan.mask_fft = plan.fftnP(plan.rotatedMask.astype(plan.cp.complex64),plan=plan.fftplan)
+            plan.calc_stdV()
 
-            rotateWedge(plan.reference, currentRotation, plan.wedge, plan.mask, centerCoordinates)
-            applyPreprocessing(plan.simulatedVol, bypassFlag=True)
+        # Rotate reference
+        plan.referenceTex.transform(rotation=[float(currentRotation[0]),float(currentRotation[2]),float(currentRotation[1])],
+                                    center=centerCoordinates, rotation_order=rotation_order, output=plan.rotatedRef)
 
-            # weight particle
+        # Apply wedge filter to rotated reference
+        plan.wedgeRotatedRef()
 
-            rotateWeight(plan.reference, plan.referenceWeighting, currentRotation)
-            filterParticle(particle, weight(weightingRotated), plan.particleCopy)
+        # Normalize rotated wedged reference
+        plan.normalizeVolume()
 
-            cross_correlation(plan.particleCopy, plan.simulatedVol, plan.ccc_map)
+        # Calculate normalized crosscorrelation
+        plan.cross_correlation()
 
-            peakCoordinates = find_coords_max_ccmap(plan.ccc_map)
+        # Find subPixelPeak
+        [peakValue, peakShifts] = plan.subPixelMax3D(ignore_border=border, k=0.1, profile=profile)#, zoomed=zoomed*0, fast_sum=fast_sum*0, max_id=max_id*0)
+        newPeak = Peak(float(peakValue), Rotation(currentRotation), Shift(*peakShifts))
 
-            # with subPixelPeak
-            [peakValue, peakPosition] = subPixelPeak(plan.ccc_map, coordinates=peakCoordinates, cropsize=10)
+        # Save peak if correlation is better
+        if bestPeak < newPeak:
+            bestPeak = newPeak
 
-            # determine shift relative to center
-            shiftX = (peakPosition[0] - centerX)
-            shiftY = (peakPosition[1] - centerY)
-            shiftZ = (peakPosition[2] - centerZ)
+        # Update current rotation
+        currentRotation = rotations.nextRotation()
 
-            newPeak = (peakValue, currentRotation, (shiftX, shiftY, shiftZ))
+    # Update respective averages, saves time as one does not have to allocate particles to gpu again.
+    plan.addParticleAndWedgeToSum(particle, bestPeak, centerCoordinates)
 
-            if bestPeak[0] < newPeak[0]:
-                bestPeak = newPeak
+    return bestPeak
 
-        if pid % 2 == 0:
-            add_particle_to_sum(particle, bestPeak[1][::-1]*-1, plan.evenSum)
-        else:
-            add_particle_to_sum(particle, bestPeak[1][::-1]*-1, plan.oddSum)
 
-        bestPeakList.append(bestPeak)
-
-    return bestPeakList
-
+def find_coords_max_ccmap(volume):
+    return xp.unravel_index(volume.argmax(),volume.shape)
 
 def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,shift,
          scoreObject=0,mask=None,preprocessing=[],binning=1,verbose=False):
@@ -983,8 +1164,8 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
     from pytom.basic.filter import filter,rotateWeighting
     from pytom.angles.angleList import OneAngleList
     
-    assert particle.__class__ == vol, "particle not of type vol"
-    assert reference.__class__ == vol, "reference not of type vol"
+    assert particle.__class__ == vol
+    assert reference.__class__ == vol
     assert referenceWeighting.__class__ == vol or referenceWeighting.__class__ == str
     assert rotations.__class__ == OneAngleList or len(rotations) == 1
     
@@ -1041,7 +1222,7 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
         scoringResult = scoringResult[0]
     
     
-    assert scoringResult == scoringResult, "scoringResult possibly NaN"
+    assert scoringResult == scoringResult
     
     return scoringResult 
 
