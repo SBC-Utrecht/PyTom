@@ -6,7 +6,7 @@ from pytom.tompy.mpi import MPI
 import os
 import sys
 analytWedge=False
-
+from pytom.gpu.initialize import xp, device
 
 def splitParticleList(particleList, setParticleNodesRatio=3, numberOfNodes=10):
     """
@@ -27,7 +27,7 @@ def splitParticleList(particleList, setParticleNodesRatio=3, numberOfNodes=10):
     return splitLists
 
 def average( particleList, averageName, showProgressBar=False, verbose=False,
-        createInfoVolumes=False, weighting=False, norm=False):
+        createInfoVolumes=False, weighting=False, norm=False, gpuId=None):
     """
     average : Creates new average from a particleList
     @param particleList: The particles
@@ -45,11 +45,15 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
     from pytom.basic.filter import lowpassFilter, rotateWeighting
     from pytom_volume import transformSpline as transform
     from pytom.basic.fourier import convolute
-    from pytom.basic.structures import Reference
+    from pytom.basic.structures import Reference, Rotation
     from pytom.basic.normalise import mean0std1
     from pytom.tools.ProgressBar import FixedProgBar
     from math import exp
     import os
+    from pytom.basic.functions import initSphere
+    from pytom.basic.filter import filter
+
+
 
     if len(particleList) == 0:
         raise RuntimeError('The particle list is empty. Aborting!')
@@ -72,9 +76,11 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             weighting = False
             print("Warning: all scores have been zero - weighting not applied")
 
+    n = 0
+
+
 
     for particleObject in particleList:
-        print('go', result, not result)
         if 0 and verbose:
             print(particleObject)
 
@@ -87,7 +93,9 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
         
         wedgeInfo = particleObject.getWedge()
         # apply its wedge to itself
-        particle = wedgeInfo.apply(particle)
+
+        rotation = particleObject.getRotation()
+        rotinvert = rotation.invert()
 
         if not result:
             sizeX = particle.sizeX() 
@@ -96,9 +104,9 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
 
             newParticle = vol(sizeX,sizeY,sizeZ)
             
-            centerX = sizeX/2 
-            centerY = sizeY/2 
-            centerZ = sizeZ/2 
+            centerX = sizeX//2
+            centerY = sizeY//2
+            centerZ = sizeZ//2
             
             result = vol(sizeX,sizeY,sizeZ)
             result.setAll(0.0)
@@ -116,10 +124,13 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             assert wedgeSum.sizeX() == sizeX and wedgeSum.sizeY() == sizeY and wedgeSum.sizeZ() == sizeZ/2+1, \
                     "wedge initialization result in wrong dims :("
             wedgeSum.setAll(0)
+            wedgeFilter = wedgeInfo.returnWedgeFilter(particle.sizeX(), particle.sizeY(), particle.sizeZ())
+
+        particle = particle
+
+        particle = list(filter(particle, wedgeFilter))[0]
 
         ### create spectral wedge weighting
-        rotation = particleObject.getRotation()
-        rotinvert =  rotation.invert()
         if analytWedge:
             # > analytical buggy version
             wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False, rotinvert)
@@ -128,6 +139,8 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             wedge = rotateWeighting( weighting=wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False),
                                      z1=rotinvert[0], z2=rotinvert[1], x=rotinvert[2], mask=None,
                                      isReducedComplex=True, returnReducedComplex=True)
+            #wedge = wedgeInfo.returnWedgeVolume(sizeX, sizeY, sizeZ, False, rotation=rotinvert)
+
             # < FF
             # > TH bugfix
             #wedgeVolume = wedgeInfo.returnWedgeVolume(wedgeSizeX=sizeX, wedgeSizeY=sizeY, wedgeSizeZ=sizeZ,
@@ -141,7 +154,7 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             
         transform(particle,newParticle,-rotation[1],-rotation[0],-rotation[2],
                   centerX,centerY,centerZ,-shiftV[0],-shiftV[1],-shiftV[2],0,0,0)
-        
+
         if weighting:
             weight = 1.-particleObject.getScore().getValue()
             #weight = weight**2
@@ -155,18 +168,20 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
         if showProgressBar:
             numberAlignedParticles = numberAlignedParticles + 1
             progressBar.update(numberAlignedParticles)
-        print(sizeX)
+
+        n += 1
     ###apply spectral weighting to sum
 
     result = lowpassFilter(result, sizeX/2-1, 0.)[0]
     #if createInfoVolumes:
     result.write(averageName[:len(averageName)-3]+'-PreWedge.em')
+    #wedgeSum = wedgeSum*0+len(particleList)
     wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumUnscaled.em')
-        
     invert_WedgeSum( invol=wedgeSum, r_max=sizeX/2-2., lowlimit=.05*len(particleList), lowval=.05*len(particleList))
     
     if createInfoVolumes:
-        wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumInverted.em')
+        w1 = reducedToFull(wedgeSum)
+        w1.write(averageName[:len(averageName)-3] + '-WedgeSumInverted.em')
         
     result = convolute(v=result, k=wedgeSum, kernel_in_fourier=True)
 
@@ -180,6 +195,252 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
         resultINV.write(averageName[:len(averageName)-3]+'-INV.em')
     newReference = Reference(averageName,particleList)
     
+    return newReference
+
+
+def multi_read(shared, filenames, startID=0, size=0):
+    from pytom.tompy.io import read
+    print(len(filenames), size)
+    for i, filename in enumerate(filenames):
+        shared[(startID+i)*size:(startID+i+1)*size] = read(filename, keepnumpy=True).flatten()
+
+
+def allocateProcess(pl, shared_array, n=0, total=1, size=200):
+    from multiprocessing import Process
+
+    filenames = []
+    if n+total > len(pl):
+        total -= n+total-len(pl)
+
+    for i in range(total):
+        filenames.append(pl[n+i].getFilename())
+        print(filenames[-1])
+    procs = []
+    p = Process(target=multi_read, args=(shared_array, filenames, 0, size))
+    p.start()
+    procs.append(p)
+    return procs
+
+def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
+            createInfoVolumes=False, weighting=False, norm=False, gpuId=None, profile=True):
+    """
+    average : Creates new average from a particleList
+    @param particleList: The particles
+    @param averageName: Filename of new average
+    @param verbose: Prints particle information. Disabled by default.
+    @param createInfoVolumes: Create info data (wedge sum, inverted density) too? False by default.
+    @param weighting: apply weighting to each average according to its correlation score
+    @param norm: apply normalization for each particle
+    @return: A new Reference object
+    @rtype: L{pytom.basic.structures.Reference}
+    @author: Thomas Hrabe
+    @change: limit for wedgeSum set to 1% or particles to avoid division by small numbers - FF
+    """
+    import time
+    from pytom.tompy.io import read, write, read_size
+    from pytom.tompy.filter import bandpass as lowpassFilter, rotateWeighting, applyFourierFilter, applyFourierFilterFull, create_wedge
+    from pytom.voltools import transform, StaticVolume
+    from pytom.basic.structures import Reference
+    from pytom.tompy.normalise import mean0std1
+    from pytom.tompy.tools import volumesSameSize, invert_WedgeSum, create_sphere
+    from pytom.tompy.transform import fourier_full2reduced, fourier_reduced2full
+    from cupyx.scipy.fftpack.fft import fftn as fftnP
+    from cupyx.scipy.fftpack.fft import ifftn as ifftnP
+    from cupyx.scipy.fftpack.fft import get_fft_plan
+    from pytom.tools.ProgressBar import FixedProgBar
+    from multiprocessing import RawArray
+    import numpy as np
+    import cupy as xp
+
+
+    if not gpuId is None:
+        device = f'gpu:{gpuId}'
+        xp.cuda.Device(gpuId).use()
+    else:
+        print(gpuId)
+        raise Exception('Running gpu code on non-gpu device')
+    print(device)
+    cstream = xp.cuda.Stream()
+    if profile:
+        stream = xp.cuda.Stream.null
+        t_start = stream.record()
+
+    # from pytom.tools.ProgressBar import FixedProgBar
+    from math import exp
+    import os
+
+
+    if len(particleList) == 0:
+        raise RuntimeError('The particle list is empty. Aborting!')
+
+    if showProgressBar:
+        progressBar = FixedProgBar(0, len(particleList), 'Particles averaged ')
+        progressBar.update(0)
+        numberAlignedParticles = 0
+
+    # pre-check that scores != 0
+    if weighting:
+        wsum = 0.
+        for particleObject in particleList:
+            wsum += particleObject.getScore().getValue()
+        if wsum < 0.00001:
+            weighting = False
+            print("Warning: all scores have been zero - weighting not applied")
+    import time
+    sx,sy,sz = read_size(particleList[0].getFilename())
+    wedgeInfo = particleList[0].getWedge().convert2numpy()
+    print('angle: ', wedgeInfo.getWedgeAngle())
+    wedgeZero = xp.fft.fftshift(xp.array(wedgeInfo.returnWedgeVolume(sx, sy, sz, True).get(), dtype=xp.float32))
+    # wedgeZeroReduced = fourier_full2reduced(wedgeZero)
+    wedge     = xp.zeros_like(wedgeZero,dtype=xp.float32)
+    wedgeSum  = xp.zeros_like(wedge,dtype=xp.float32)
+    print('init texture')
+    wedgeText = StaticVolume(xp.fft.fftshift(wedgeZero), device=device, interpolation='filt_bspline')
+
+    newParticle = xp.zeros((sx, sy, sz), dtype=xp.float32)
+
+    centerX = sx // 2
+    centerY = sy // 2
+    centerZ = sz // 2
+
+    result = xp.zeros((sx, sy, sz), dtype=xp.float32)
+
+    fftplan = get_fft_plan(wedge.astype(xp.complex64))
+
+    n = 0
+
+    total = len(particleList)
+    # total = int(np.floor((11*1024**3 - mempool.total_bytes())/(sx*sy*sz*4)))
+    # total = 128
+    #
+    #
+    # particlesNP = np.zeros((total, sx, sy, sz),dtype=np.float32)
+    # particles = []
+    # mask = create_sphere([sx,sy,sz], sx//2-6, 2)
+    # raw = RawArray('f', int(particlesNP.size))
+    # shared_array = np.ctypeslib.as_array(raw)
+    # shared_array[:] = particlesNP.flatten()
+    # procs = allocateProcess(particleList, shared_array, n, total, wedgeZero.size)
+    # del particlesNP
+
+    if profile:
+        t_end = stream.record()
+        t_end.synchronize()
+
+        time_took = xp.cuda.get_elapsed_time(t_start, t_end)
+        print(f'startup time {n:5d}: \t{time_took:.3f}ms')
+        t_start = stream.record()
+
+    for particleObject in particleList:
+
+        rotation = particleObject.getRotation()
+        rotinvert = rotation.invert()
+        shiftV = particleObject.getShift()
+
+        # if n % total == 0:
+        #     while len(procs):
+        #         procs =[proc for proc in procs if proc.is_alive()]
+        #         time.sleep(0.1)
+        #         print(0.1)
+        #     # del particles
+        #     # xp._default_memory_pool.free_all_blocks()
+        #     # pinned_mempool.free_all_blocks()
+        #     particles = xp.array(shared_array.reshape(total, sx, sy, sz), dtype=xp.float32)
+        #     procs = allocateProcess(particleList, shared_array, n, total, size=wedgeZero.size)
+        #     #pinned_mempool.free_all_blocks()
+        #     #print(mempool.total_bytes()/1024**3)
+
+        particle = read(particleObject.getFilename(),deviceID=device)
+
+        #particle = particles[n%total]
+
+
+        if norm:  # normalize the particle
+            mean0std1(particle)  # happen inplace
+
+
+
+        # apply its wedge to
+        #particle = applyFourierFilter(particle, wedgeZeroReduced)
+        #particle = (xp.fft.ifftn( xp.fft.fftn(particle) * wedgeZero)).real
+        particle = (ifftnP(fftnP(particle,plan=fftplan) * wedgeZero, plan=fftplan)).real
+
+
+        ### create spectral wedge weighting
+
+        wedge *= 0
+
+        wedgeText.transform(rotation=[rotinvert[0],rotinvert[2], rotinvert[1]], rotation_order='rzxz', output=wedge)
+        #wedge = xp.fft.fftshift(fourier_reduced2full(create_wedge(30, 30, 21, 42, 42, 42, rotation=[rotinvert[0],rotinvert[2], rotinvert[1]])))
+        # if analytWedge:
+        #     # > analytical buggy version
+        # wedge = wedgeInfo.returnWedgeVolume(sx, sy, sz, True, rotinvert)
+        # else:
+        #     # > FF: interpol bugfix
+
+        # wedge = rotateWeighting(weighting=wedgeInfo.returnWedgeVolume(sx, sy, sz, True), rotation=[rotinvert[0], rotinvert[2], rotinvert[1]])
+        #     # < FF
+        #     # > TH bugfix
+        #     # wedgeVolume = wedgeInfo.returnWedgeVolume(wedgeSizeX=sizeX, wedgeSizeY=sizeY, wedgeSizeZ=sizeZ,
+        #     #                                    humanUnderstandable=True, rotation=rotinvert)
+        #     # wedge = rotate(volume=wedgeVolume, rotation=rotinvert, imethod='linear')
+        #     # < TH
+
+        ### shift and rotate particle
+
+        newParticle *= 0
+        transform(particle, output=newParticle, rotation=[-rotation[1], -rotation[2], -rotation[0]],
+                  center=[centerX, centerY, centerZ], translation=[-shiftV[0], -shiftV[1], -shiftV[2]],
+                  device=device, interpolation='filt_bspline', rotation_order='rzxz')
+
+        #write(f'trash/GPU_{n}.em', newParticle)
+        # print(rotation.toVector())
+        # break
+        result   += newParticle
+        wedgeSum += xp.fft.fftshift(wedge)
+        # if showProgressBar:
+        #     numberAlignedParticles = numberAlignedParticles + 1
+        #     progressBar.update(numberAlignedParticles)
+
+        if n% total ==0:
+            if profile:
+                t_end = stream.record()
+                t_end.synchronize()
+
+                time_took = xp.cuda.get_elapsed_time(t_start, t_end)
+                print(f'total time {n:5d}: \t{time_took:.3f}ms')
+                t_start = stream.record()
+        cstream.synchronize()
+        n+=1
+
+    print('averaed particles')
+    ###apply spectral weighting to sum
+
+    result = lowpassFilter(result, high=sx / 2 - 1, sigma=0)
+    # if createInfoVolumes:
+    write(averageName[:len(averageName) - 3] + '-PreWedge.em', result)
+    write(averageName[:len(averageName) - 3] + '-WedgeSumUnscaled.em', fourier_full2reduced(wedgeSum))
+
+    wedgeSumINV = invert_WedgeSum(wedgeSum, r_max=sx // 2 - 2., lowlimit=.05 * len(particleList), lowval=.05 * len(particleList))
+    wedgeSumINV = wedgeSumINV
+
+    #print(wedgeSum.mean(), wedgeSum.std())
+    if createInfoVolumes:
+        write(averageName[:len(averageName) - 3] + '-WedgeSumInverted.em', xp.fft.fftshift(wedgeSumINV))
+
+    result = applyFourierFilterFull(result, xp.fft.fftshift(wedgeSumINV))
+
+    # do a low pass filter
+    result = lowpassFilter(result, sx/2-2, (sx/2-1)/10.)[0]
+    write(averageName, result)
+
+    if createInfoVolumes:
+        resultINV = result * -1
+        # write sign inverted result to disk (good for chimera viewing ... )
+        write(averageName[:len(averageName) - 3] + '-INV.em', resultINV)
+
+    newReference = Reference(averageName, particleList)
+
     return newReference
 
 def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
@@ -252,7 +513,7 @@ def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
 
 def averageParallel(particleList,averageName, showProgressBar=False, verbose=False,
                     createInfoVolumes=False, weighting=None, norm=False,
-                    setParticleNodesRatio=3,cores=6):
+                    setParticleNodesRatio=3,cores=6, gpuId=None):
     """
     compute average using parfor
     @param particleList: The particles
@@ -275,6 +536,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     from pytom.alignment.alignmentFunctions import invert_WedgeSum
 
     import os
+        #average = averageGPU
 
     splitLists = splitParticleList(particleList, setParticleNodesRatio=setParticleNodesRatio, numberOfNodes=cores)
     splitFactor = len(splitLists)
@@ -293,20 +555,65 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     from multiprocessing import Process
 
     procs = []
-    for i in range(splitFactor):
-        proc = Process(target=average,args=(splitLists[i],avgNameList[i], showProgressBar,verbose,createInfoVolumes, weighting, norm) )
-        procs.append(proc)
-        proc.start()
-
     import time
-    while procs:
-        procs = [proc for proc in procs if proc.is_alive()]
-        time.sleep(.1)
+    t = time.time()
+    if 'cpu' in device:
+        for i in range(splitFactor):
+            proc = Process(target=average,args=(splitLists[i],avgNameList[i], showProgressBar,verbose, createInfoVolumes, weighting, norm) )
+            procs.append(proc)
+            proc.start()
 
+        import time
+        while procs:
+            procs = [proc for proc in procs if proc.is_alive()]
+            time.sleep(.1)
+    else:
+        averageGPU(splitLists[0],avgNameList[0], showProgressBar,verbose,createInfoVolumes, weighting, norm)
     #averageList = mpi.parfor( average, list(zip(splitLists, avgNameList, [showProgressBar]*splitFactor,
     #                                       [verbose]*splitFactor, [createInfoVolumes]*splitFactor,
     #                                            [weighting]*splitFactor, [norm]*splitFactor)), verbose=True)
-    
+        print(f'total time: {time.time()-t:5.3f}')
+
+        from pytom.tompy.tools import invert_WedgeSum
+        from pytom_numpy import vol2npy
+        from pytom.tompy.io import write, read
+
+        unweiAv = read(preList[0])
+        wedgeSum = read(wedgeList[0])
+        os.system('rm ' + wedgeList[0])
+        os.system('rm ' + avgNameList[0])
+        os.system('rm ' + preList[0])
+        for ii in range(1, splitFactor):
+            print(preList[ii], wedgeList[ii], avgNameList[ii])
+            av = read(preList[ii])
+            unweiAv += av
+            os.system('rm ' + preList[ii])
+            w = read(wedgeList[ii])
+            wedgeSum += w
+            os.system('rm ' + wedgeList[ii])
+            os.system('rm ' + avgNameList[ii])
+
+        if createInfoVolumes:
+            write(averageName[:len(averageName) - 3] + '-PreWedge.em', unweiAv)
+            write(averageName[:len(averageName) - 3] + '-WedgeSumUnscaled.em', wedgeSum)
+
+        # convolute unweighted average with inverse of wedge sum
+        wedgeINV = invert_WedgeSum((wedgeSum), r_max=unweiAv.shape[0] / 2 - 2., lowlimit=.05 * len(particleList),
+                                   lowval=.05 * len(particleList))
+
+        if createInfoVolumes:
+            write(averageName[:len(averageName) - 3] + '-WedgeSumINV.em', wedgeINV)
+
+        r = xp.fft.rfftn(unweiAv) * wedgeINV
+        unweiAv = (xp.fft.irfftn(r)).real
+        # unweiAv.shiftscale(0.0,1/float(unweiAv.sizeX()*unweiAv.sizeY()*unweiAv.sizeZ()))
+        # low pass filter to remove artifacts at fringes
+        # unweiAv = lowpassFilter(volume=unweiAv, band=unweiAv.sizeX()/2-2, smooth=(unweiAv.sizeX()/2-1)/10.)[0]
+
+        write(averageName, unweiAv)
+        return 1
+
+    print(f'total time: {time.time()-t:5.3f}')
     #collect results from files
     unweiAv = read(preList[0])
     wedgeSum = read(wedgeList[0])
@@ -314,6 +621,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     os.system('rm ' + avgNameList[0])
     os.system('rm ' + preList[0])
     for ii in range(1,splitFactor):
+        print(preList[ii], wedgeList[ii], avgNameList[ii])
         av = read(preList[ii])
         unweiAv += av
         os.system('rm ' + preList[ii])
@@ -330,16 +638,20 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     # convolute unweighted average with inverse of wedge sum
     invert_WedgeSum( invol=wedgeSum, r_max=unweiAv.sizeX()/2-2., lowlimit=.05*len(particleList),
                      lowval=.05*len(particleList))
+
+    if createInfoVolumes:
+        wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumINV.em')
+
     fResult = fft(unweiAv)
     r = complexRealMult(fResult,wedgeSum)
     unweiAv = ifft(r)
     unweiAv.shiftscale(0.0,1/float(unweiAv.sizeX()*unweiAv.sizeY()*unweiAv.sizeZ()))
     # low pass filter to remove artifacts at fringes
-    unweiAv = lowpassFilter(volume=unweiAv, band=unweiAv.sizeX()/2-2, smooth=(unweiAv.sizeX()/2-1)/10.)[0]
+    #unweiAv = lowpassFilter(volume=unweiAv, band=unweiAv.sizeX()/2-2, smooth=(unweiAv.sizeX()/2-1)/10.)[0]
 
     unweiAv.write(averageName)
 
-    return Reference(averageName,particleList)
+    return Reference(averageName, particleList)
 
 def run(fname, outname, cores=6):
 
@@ -372,6 +684,7 @@ if __name__=='__main__':
                ScriptOption(['-s','--showProgressBar'],'Show progress bar. False by default.', False, True),
                ScriptOption(['-i','--createInfoVolumes'],'Create Info data (wedge sum, inverted density) too? False by default.', False, True),
                ScriptOption(['-n','--normalize'],'Normalize average. False by default.', False, True),
+               ScriptOption(['-g','--gpuID'],'Provide a gpu if you want to use one', True, True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
 
@@ -383,7 +696,7 @@ if __name__=='__main__':
         print(helper)
         sys.exit()
     try:
-        plName, outname, cores, weighting, verbose, showProgressBar, createInfoVol, norm, help = dd = parse_script_options(sys.argv[1:], helper)
+        plName, outname, cores, weighting, verbose, showProgressBar, createInfoVol, norm, gpudId, help = dd = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -399,12 +712,15 @@ if __name__=='__main__':
         print('Please provide an existing particle list')
         sys.exit()
 
+    gpuId = None if gpudId is None else int(gpudId)
+    pnr = 3 if gpudId is None else 1
+
     even = ParticleList()
     even.fromXMLFile(plName)
-
+    a = xp.array((20))
     averageParallel(particleList=even,
                     averageName=outname,
                     showProgressBar=showProgressBar, verbose=verbose, createInfoVolumes=createInfoVol,
                     weighting=weighting, norm=norm,
-                    setParticleNodesRatio=3, cores=cores)
+                    setParticleNodesRatio=pnr, cores=cores, gpuId = gpuId)
     

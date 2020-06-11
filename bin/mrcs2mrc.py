@@ -26,7 +26,7 @@ if __name__=='__main__':
                ScriptOption(['-p', '--prefix'], 'Prefix to filename. Default name of file.', True, False),
                ScriptOption(['-o', '--origDir'], 'Directory from which images in the stack originate. '
                                                 'It will use the prefix "sorted" to select the output file names.',
-                            True, False),
+                            True, True),
                ScriptOption(['-m', '--mdoc'], 'Create truncated mdoc files.', False, True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
@@ -56,7 +56,6 @@ if __name__=='__main__':
 
     if os.path.exists(filename):
         data = mrcfile.open(filename, permissive=True).data.copy()
-        print(data.shape)
     else:
         print(helper)
         sys.exit()
@@ -88,15 +87,20 @@ SubFramePath = X:\{}
         if len(out_names) != sliceNR:
             print(out_names)
             raise Exception('Number of files in orig dir is different from the number of defined images in stack.')
-
+    else:
+        out_names = []
+        for i in range(sliceNR):
+            out_names.append(f'{prefix}_{i}.mrc')
     out = []
+
     for sliceId in range(sliceNR):
+        print(sliceId)
         out.append((data[sliceId,:,:], sliceId, out_names[sliceId], angles[sliceId], origdir, outdir, prefix))
-        #tiltangle = angles[sliceId]
-        #if origdir:
-        #    outname = os.path.join(outdir, out_names[sliceId].replace('sorted_', prefix))
-        #else:
-        #    outname = os.path.join(outdir, '{}{:02d}.mrc'.format(prefix, sliceId))
+        tiltangle = angles[sliceId]
+        if origdir:
+           outname = os.path.join(outdir, out_names[sliceId].replace('sorted_', prefix))
+        else:
+           outname = os.path.join(outdir, '{}{:02d}.mrc'.format(prefix, sliceId))
         #print(f'extracted {os.path.basename(outname)} into {outdir}')
         #write(outname, data[:,:,sliceId], tilt_angle=tiltangle)
         #mrcfile.new(outname, data[sliceId, :,:].astype('float32'), overwrite=True)

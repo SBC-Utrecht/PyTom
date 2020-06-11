@@ -123,7 +123,7 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
                 pp.scale(multiplypickpos)
 
             # Shift is multiply by the respective binning factor.
-            if multiplyshift > -1:
+            if multiplyshift > 1E-3:
                 shift = particle.getShift()
                 shift.scale(multiplyshift)
 

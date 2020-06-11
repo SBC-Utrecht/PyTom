@@ -109,7 +109,7 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             oz = markers['OffsetZ'][closestMarkerIndex]
             originFname = particle.getPickPosition().getOriginFilename()
 
-            print(x,y,z, ox,oy, oz)
+            print(closestMarkerIndex, x, y, z, ox, oy, oz)
             pp = PickPosition(x=(x-ox)/binning_factor,y=(y-oy)/binning_factor,z=((z-oz)/binning_factor), originFilename=originFname)
             particle.setPickPosition(pp)
             outLists[closestMarkerIndex].append(particle)
