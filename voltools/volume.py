@@ -16,7 +16,6 @@ class StaticVolume:
 
         if data.ndim != 3:
             raise ValueError('Expected a 3D array')
-
         if device not in get_available_devices():
             raise ValueError(f'Unknown device ({device}), must be one of {get_available_devices()}')
         switch_to_device(device)
@@ -53,6 +52,7 @@ class StaticVolume:
             del data
 
         elif device == 'cpu':
+            self.shape = data.shape
             self.data = data
 
     def affine(self, transform_m: np.ndarray, profile: bool = False, output: cp.ndarray = None) -> Union[np.ndarray, None]:
@@ -70,7 +70,6 @@ class StaticVolume:
                 output_vol = cp.zeros(self.shape, dtype=self.d_type)
             else:
                 output_vol = output
-
             # launch
             self.affine_kernel(self.dim_grid, self.dim_blocks, (output_vol, self.tex_obj, xform, self.d_shape))
 
@@ -83,7 +82,7 @@ class StaticVolume:
 
             del xform
             if output is None:
-                return output_vol.get()
+                return output_vol
             else:
                 return None
 
@@ -102,7 +101,6 @@ class StaticVolume:
 
         if center is None:
             center = np.divide(self.shape, 2, dtype=np.float32)
-
         # passing just one float is uniform scaling
         if isinstance(scale, float):
             scale = (scale, scale, scale)
@@ -112,7 +110,6 @@ class StaticVolume:
         if matrix is None:
             matrix = transform_matrix(scale, shear, rotation, axisrotation, rotation_units, rotation_order, translation,
                                       translation2, center)
-
         return self.affine(matrix, profile, output)
 
     def translate(self,

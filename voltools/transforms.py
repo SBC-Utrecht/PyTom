@@ -148,7 +148,7 @@ def affine(volume: np.ndarray,
             stream = cp.cuda.Stream.null
             t_start = stream.record()
 
-        volume = cp.asarray(volume)
+        volume = cp.asarray(volume).copy()
         volume_shape = volume.shape
 
         # texture setup
