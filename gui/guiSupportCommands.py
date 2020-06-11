@@ -177,7 +177,7 @@ reconstructWB.py --particleList {d[0]} \\
 
 polishParticles = '''cd {d[0]}
 
-mpiexec -n {d[1]} particlePolishing.py \\
+mpiexec -n {d[1]} particlePolishingOrig.py \\
 --particleList {d[3]} \\
 --projectionDirectory {d[4]} \\
 --template {d[5]} \\
@@ -185,7 +185,7 @@ mpiexec -n {d[1]} particlePolishing.py \\
 --coordinateBinning {d[7]} \\
 --maxParticleShift {d[8]} \\
 --recOffset {d[9]},{d[10]},{d[11]} \\
-{d[12]} {d[13]}
+{d[12]} {d[13]} {d[14]}
 '''
 
 extractParticlesClosestMarker = '''cd {d[8]}
@@ -273,7 +273,7 @@ fsc.py {d[2]} \\
 --fsc {d[7]} \\
 --pixelsize {d[8]} \\
 --randomizePhases {d[9]} \\
-{d[10]}'''
+{d[10]}{d[11]} {d[12]}'''
 
 
 templateCTFCorrectionImod = '''cd {d[0]}                                                                                                                                                                                      

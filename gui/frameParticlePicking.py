@@ -49,7 +49,7 @@ class ParticlePick(GuiTabWidget):
         self.progressBarCounters = {}
         self.progressBars = {}
         self.queueEvents = self.parent().qEvents
-
+        self.localqID = {}
         self.tabs_dict, self.tab_actions = {}, {}
 
 
@@ -346,7 +346,7 @@ class ParticlePick(GuiTabWidget):
             return
 
         if len(id) > 0:
-            for key, value in zip(['numCores', 'numX', 'numY', 'numZ', 'gpuString'], [1, 1, 1, 1, f'--gpu {id}']):
+            for key, value in zip(['numCores', 'numX', 'numY', 'numZ', 'gpuString'], [1, 1, 1, 1, f'--gpuID {id}']):
                 self.widgets[mode + key].setText(str(value))
         else:
             for key, value in zip(['numCores', 'numX', 'numY', 'numZ', 'gpuString'], [16, 4, 4, 1, '']):
@@ -546,9 +546,9 @@ class ParticlePick(GuiTabWidget):
             return
 
         headers = ["Filename Tomogram", "Run", "Mirrored", "Optional Templates", 'Optional Masks', 'Wedge Angle 1',
-                   "Wedge Angle 2", 'Angle List', 'Start Z', 'End Z', '']
-        types = ['txt', 'checkbox', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox','lineedit', 'lineedit', 'txt']
-        sizes = [0, 0, 0, 80, 80, 0, 0, 0, 0 ,0]
+                   "Wedge Angle 2", 'Angle List', 'Start Z', 'End Z', 'GPU ID', '']
+        types = ['txt', 'checkbox', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox','lineedit', 'lineedit', 'lineedit', 'txt']
+        sizes = [0, 0, 0, 80, 80, 0, 0, 0, 0 ,0 ,0]
 
         tooltip = ['Name of tomogram files.',
                    'Check this box if you want to do template matching using the optional settings.',
@@ -557,7 +557,8 @@ class ParticlePick(GuiTabWidget):
                    'Optional masks.',
                    'Angle between 90 and the highest tilt angle.',
                    'Angle between the lowest tilt angle and -90.',
-                   'Optional angle lists.']
+                   'Optional angle lists.',
+                   'At which Z-slice does your object start?', 'At which Z-slice does your object end?' ]
 
         values = []
 
@@ -575,7 +576,7 @@ class ParticlePick(GuiTabWidget):
             except Exception as e:
                 print(e)
                 start, end = 0, 0
-            values.append([tomogramFile, 1, 1, templateFiles, maskFiles, 30, 30, angleLists, start, end, ''])
+            values.append([tomogramFile, 1, 1, templateFiles, maskFiles, 30, 30, angleLists, start, end, '', ''])
 
         try:
             self.num_nodes[id].setParent(None)
@@ -639,7 +640,7 @@ class ParticlePick(GuiTabWidget):
     def mass_submitEC(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = 0
-        qIds = []
+        qIDs = []
 
         for row in range(self.tables[pid].table.rowCount()):
             try:
@@ -684,95 +685,128 @@ class ParticlePick(GuiTabWidget):
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = 0
         qIDs = []
+
+        todoList = {}
         for row in range(self.tables[pid].table.rowCount()):
-            normal = self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked()
-            mirrored = self.tab22_widgets['widget_{}_{}'.format(row, 2)].isChecked()
-            if not normal and not mirrored:
-                continue
-
-            tomogramFile = values[row][0]
-            templateFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
-            maskFile = values[row][4][self.tab22_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
-            w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
-            w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 6)].text())
-            angleList = self.tab22_widgets['widget_{}_{}'.format(row, 7)].currentText()
-            start = self.tab22_widgets['widget_{}_{}'.format(row, 8)].text()
-            end = self.tab22_widgets['widget_{}_{}'.format(row, 9)].text()
-            widthX, widthY, widthZ = 0, 0 ,0
             try:
-                start, end = int(start), int(end)
-                widthZ = end-start
-                if widthZ < 1:
-                    widthZ = 0
-                    start = 0
-                if widthZ:
-                    from pytom_volume import read
-                    v = read(tomogramFile)
-                    widthX = v.sizeX()
-                    widthY = v.sizeY()
-                    del v
+                normal = self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked()
+                mirrored = self.tab22_widgets['widget_{}_{}'.format(row, 2)].isChecked()
+                if not normal and not mirrored:
+                    continue
 
-            except:
-                continue
+                tomogramFile = values[row][0]
+                templateFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
+                maskFile = values[row][4][self.tab22_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
+                w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
+                w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 6)].text())
+                angleList = self.tab22_widgets['widget_{}_{}'.format(row, 7)].currentText()
+                start = self.tab22_widgets['widget_{}_{}'.format(row, 8)].text()
+                end = self.tab22_widgets['widget_{}_{}'.format(row, 9)].text()
+                gpuID = self.tab22_widgets['widget_{}_{}'.format(row, 10)].text()
+                if not gpuID in todoList.keys():
+                    todoList[gpuID] = []
 
-            tomofile, ext = os.path.splitext(tomogramFile)
-            suffices = []
-            if normal:
-                suffices.append('')
-            if mirrored:
-                suffices.append('_Mirrored')
-                outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
-                if not os.path.exists(outDirectory): os.mkdir(outDirectory)
+                if gpuID:
+                    gpuIDFlag = f'--gpuID {gpuID}'
+                else:
+                    gpuIDFlag = ''
 
-                from pytom_volume import read, vol, mirrorVolume
-                for n, input_filename in enumerate([templateFile, maskFile]):
-                    v = read(input_filename)
-                    res = vol(v)
-                    mirrorVolume(v, res)
+                widthX, widthY, widthZ = 0, 0 ,0
+                try:
+                    start, end = int(start), int(end)
+                    widthZ = end-start
+                    if widthZ < 1:
+                        widthZ = 0
+                        start = 0
+                    if widthZ:
+                        from pytom_volume import read
+                        v = read(tomogramFile)
+                        widthX = v.sizeX()
+                        widthY = v.sizeY()
+                        del v
 
-                    i = os.path.basename(input_filename)
-                    base,ext = os.path.splitext(i)
-                    i = base+'_Mirrored'+ext
-                    output_filename = os.path.join(outDirectory, i)
-                    if n == 0: templateFileMirrored = output_filename
-                    if n == 1: maskFileMirrored = output_filename
+                except:
+                    continue
 
-                    res.write(output_filename)
+                tomofile, ext = os.path.splitext(tomogramFile)
+                suffices = []
+                if normal:
+                    suffices.append('')
+                if mirrored:
+                    suffices.append('_Mirrored')
+                    outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
+                    if not os.path.exists(outDirectory): os.mkdir(outDirectory)
 
-            for n, suffix in enumerate(suffices):
-                outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
-                if not os.path.exists(outDirectory): os.mkdir(outDirectory)
-                if 'Mirror' in suffix:
-                    templateFile = templateFileMirrored
-                    maskFile = maskFileMirrored
+                    from pytom_volume import read, vol, mirrorVolume
+                    for n, input_filename in enumerate([templateFile, maskFile]):
+                        v = read(input_filename)
+                        res = vol(v)
+                        mirrorVolume(v, res)
 
-                XMLParams = [tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory,
-                             start, widthX, widthY, widthZ]
+                        i = os.path.basename(input_filename)
+                        base,ext = os.path.splitext(i)
+                        i = base+'_Mirrored'+ext
+                        output_filename = os.path.join(outDirectory, i)
+                        if n == 0: templateFileMirrored = output_filename
+                        if n == 1: maskFileMirrored = output_filename
 
-                jobxml = templateXML.format(d=XMLParams)
-                template = os.path.basename(templateFile).split('.')[0]
-                jobname = 'job_{}.xml'.format(template)
-                outjob = open(os.path.join(outDirectory, jobname), 'w')
-                outjob.write(jobxml)
-                outjob.close()
+                        res.write(output_filename)
+
+                for n, suffix in enumerate(suffices):
+                    outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
+                    if not os.path.exists(outDirectory): os.mkdir(outDirectory)
+                    if 'Mirror' in suffix:
+                        templateFile = templateFileMirrored
+                        maskFile = maskFileMirrored
 
 
-                fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
-                folder = outDirectory
-                cmd = templateTM.format(d=[outDirectory, 16, self.pytompath, jobname, 4, 4, 1, ''])
-                suffix = "_" + os.path.basename(outDirectory)
-                qname, n_nodes, cores, time, modules = self.qparams['BatchTemplateMatch'].values()
-                job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
-                                                    time=time, num_nodes=n_nodes, partition=qname, modules=modules,
-                                                    num_jobs_per_node=cores) + cmd
-                execfilename = os.path.join(outDirectory, 'templateMatchingBatch.sh')
-                ID, num = self.submitBatchJob(execfilename, pid, job)
-                if num:
-                    num_submitted_jobs += num
-                    qIDs.append(ID)
+
+
+                    XMLParams = [tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory,
+                                 start, widthX, widthY, widthZ]
+
+                    jobxml = templateXML.format(d=XMLParams)
+                    template = os.path.basename(templateFile).split('.')[0]
+                    jobname = 'job_{}.xml'.format(template)
+                    outjob = open(os.path.join(outDirectory, jobname), 'w')
+                    outjob.write(jobxml)
+                    outjob.close()
+
+                    x,y,z = 4,4,1
+                    if gpuIDFlag:
+                        x,y,z = 1,1,1
+
+                    fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
+                    folder = outDirectory
+                    cmd = templateTM.format(d=[outDirectory, x*y*z, self.pytompath, jobname, x, y, z, gpuIDFlag])
+                    suffix = "_" + os.path.basename(outDirectory)
+                    qname, n_nodes, cores, time, modules = self.qparams['BatchTemplateMatch'].values()
+                    job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
+                                                        time=time, num_nodes=n_nodes, partition=qname, modules=modules,
+                                                        num_jobs_per_node=cores) + cmd
+                    execfilename = os.path.join(outDirectory, 'templateMatchingBatch.sh')
+
+                    todoList[gpuID].append([execfilename, pid, job])
+
+                    # ID, num = self.submitBatchJob(execfilename, pid, job)
+                    # QtGui.QApplication.processEvents()
+
+                    # if num:
+                    #     num_submitted_jobs += num
+                    #     qIDs.append(ID)
+
+            except Exception as e:
+                print(e)
+
+        for key in todoList.keys():
+            print(f'starting {len(todoList[key])} jobs on device {key}')
+            proc = Worker(fn=self.multiSeq, args=((self.submitBatchJob, todoList[key])))
+            proc.start()
+
+
         if num_submitted_jobs:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
-
+            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Templ. Match')
 
     def createParticleList(self, mode=''):
         title = "Create Particle List"
@@ -1019,7 +1053,7 @@ class ParticlePick(GuiTabWidget):
         self.insert_checkbox_label_spinbox(parent, mode + 'adjustBinning', 'Multiply Pick Positions', mode + 'binning',
                                            value=1, stepsize=1, minimum=0, maximum=32, wtype=QDoubleSpinBox)
         self.insert_checkbox_label_spinbox(parent, mode + 'multiplyShifts', 'Multiply Shifts',
-                                           mode + 'factorMultiplyShifts', value=1, stepsize=1, wtype=QSpinBox,
+                                           mode + 'factorMultiplyShifts', value=1, stepsize=1, wtype=QDoubleSpinBox,
                                            minimum=0, rstep=0, cstep=4)
         self.insert_label(parent,'', sizepolicy=self.sizePolicyA, cstep=-6,rstep=1)
 
@@ -1142,8 +1176,10 @@ class ParticlePick(GuiTabWidget):
             suffix, dir, w, bin, fm = values
 
             if bin == '': bin = 1
-            if fm == '': fm = -1
-            else: fm = int(fm)
+            if fm == '' or self.widgets[mode + 'multiplyShift'].isChecked() == False:
+                fm = None
+            else:
+                fm = int(fm)
 
 
             if outputName:

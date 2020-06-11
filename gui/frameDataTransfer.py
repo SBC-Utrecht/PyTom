@@ -35,6 +35,7 @@ class BrowseWindowRemote(QMainWindow):
         self.topleft = QListWidget()
         self.topleft.itemDoubleClicked.connect(self.repopulate_folder_list)
         self.topright = QListWidget()
+
         if search == 'file': self.topright.itemDoubleClicked.connect(self.select_file)
         splitter1 = QSplitter(Qt.Horizontal)
         splitter1.addWidget(self.topleft)
@@ -173,6 +174,7 @@ class CollectPreprocess(GuiTabWidget):
         self.qcommand = self.parent().qcommand
         self.widgets = {}
         self.qparams = self.parent().qparams
+        self.localqID = {}
 
         self.widgets['pytomPath'] = QLineEdit()
         self.widgets['pytomPath'].setText(self.parent().pytompath)
@@ -581,6 +583,8 @@ class CollectPreprocess(GuiTabWidget):
                         os.system('mv {}.temp {}'.format(outname, outname))
                     num_files_downloaded += 1
             else:
+
+
                 outname = "{}/{}".format(folder_local, os.path.basename(fname) )
                 if os.path.exists(fname) and not os.path.exists(outname):
 
@@ -601,6 +605,9 @@ class CollectPreprocess(GuiTabWidget):
 
     def meta_retrieve(self, ftps, flist, mdoc_list, folder_remote, folder_local, e, value, only_missing=True):
         import time
+
+
+
 
         num_flist = self.retrieve_files(ftps, flist, folder_local, value, only_missing=True)
         num_mdoc = self.retrieve_files(ftps, mdoc_list, folder_local, value, only_missing=True)
@@ -631,7 +638,7 @@ class CollectPreprocess(GuiTabWidget):
         for mdoc in mdocs:
             os.system("mv {} {}".format(mdoc, mdoc[:-5]))
 
-        guiFunctions.createMetaDataFiles(self.rawnanographs_folder, '')
+        guiFunctions.createMetaDataFiles(self.running_folder, '')
         self.popup_messagebox("Info", "Completion", 'Successfully finished data transfer')
         #self.widgets['CandP'].setEnabled(True)
 
@@ -723,17 +730,25 @@ class CollectPreprocess(GuiTabWidget):
                 if ftps: ftps.close()
                 return
         self.progressBar_Collect.setMaximum(len(mdoc_list+flist))
+
+
+        for ni in range(10000):
+            ff = f'{self.rawnanographs_folder}/import_{ni:05d}'
+            if not os.path.exists(ff):
+                os.mkdir(ff)
+                break
+        self.running_folder = ff
         # Download or copy selected files.
         for i in range(self.number_collection_subprocesses):
             proc = Process(target=self.meta_retrieve,
                            args=(ftps, flist, mdoc_list[i::self.number_collection_subprocesses],
                                  self.remote_data_folder[i::self.number_collection_subprocesses],
-                                 self.local_data_folder, e, 1))
+                                 self.running_folder, e, 1))
             procs.append(proc)
             proc.start()
             atexit.register(guiFunctions.kill_proc, proc)
         self.flist = flist
-        proc = Worker( fn=self.check_run, args=([e], self.flist, self.rawnanographs_folder) )
+        proc = Worker( fn=self.check_run, args=([e], self.flist, self.running_folder) )
 
         proc.signals.result1.connect(self.update_progress_collect)
         proc.signals.finished_collect.connect(self.delete_progressbar_collect)

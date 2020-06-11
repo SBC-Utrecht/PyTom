@@ -47,7 +47,7 @@ class TomographReconstruct(GuiTabWidget):
         self.progressBarCounters = {}
         self.progressBars = {}
         self.queueEvents = self.parent().qEvents
-
+        self.localqID = {}
         self.qparams = self.parent().qparams
 
         self.widgets['pytomPath'] = QLineEdit()
@@ -138,7 +138,8 @@ class TomographReconstruct(GuiTabWidget):
 
         processed = sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder)))
         processed_fn = [basename(line) for line in processed]
-        unprocessed = numpy.array(sorted(glob.glob('{}/*.meta'.format(self.rawnanographs_folder))))
+        unprocessed = sorted(glob.glob('{}/*.meta'.format(self.rawnanographs_folder)))
+        unprocessed = numpy.array(unprocessed + sorted(glob.glob('{}/import*/*.meta'.format(self.rawnanographs_folder))))
         unprocessed = unprocessed[[not (basename(u_item) in processed_fn) for u_item in unprocessed]]
 
 
@@ -934,7 +935,7 @@ class TomographReconstruct(GuiTabWidget):
                                                     num_nodes=n_nodes, cmd=cmd, modules=modules, num_jobs_per_node=cores)
 
 
-            exefilename = '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n)
+            exefilename = '{}/jobscripts/alignment_{:03d}.sh'.format(self.tomogram_folder, n)
             ID, num = self.submitBatchJob(exefilename, id, cmd)
             if num:
                 num_submitted_jobs += num
@@ -943,7 +944,6 @@ class TomographReconstruct(GuiTabWidget):
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
             self.addProgressBarToStatusBar(submissionIDs, key='QJobs', job_description='Alignment Batch')
-
 
     def updateTomoFolder(self, mode):
 
@@ -1179,7 +1179,6 @@ class TomographReconstruct(GuiTabWidget):
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
             self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Tom. Reconstr. Batch')
-
 
     def ctfDetermination(self, mode):
 

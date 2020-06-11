@@ -24,6 +24,7 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
     expectedRotationAngles = [line.split()[9] for line in open(fnames).readlines()]
     tiltSeriesNames = [line.split()[10] for line in open(fnames).readlines()]
     markerFileNames = [line.split()[11] for line in open(fnames).readlines()]
+    fixMarkers = ['--fixMarkerPos'* ('True' in line.split()[12]) for line in open(fnames).readlines()]
 
     for t in tomogram_names:
         if not os.path.exists(os.path.join(t,'alignment')):
@@ -61,11 +62,11 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 	--lowpassFilter 0.9 \
 	--weightingType {} \
 	--expectedRotationAngle {} \
-    --numberProcesses {} > {}'''
+    --numberProcesses {} {} > {}'''
 
             cmd = cmd.format(tomogram_names[index], pytompath, tiltSeriesName, firstIndices[index],
                   lastIndices[index], refIndices[index], refmarkindex, markerFileNames[index], outdir,
-                  weightingTypes[index], expectedRotationAngles[index], 1, logfile)
+                  weightingTypes[index], expectedRotationAngles[index], 1, fixMarkers[index], logfile)
 
             while len(procs) > 19.1:
                 time.sleep(1)

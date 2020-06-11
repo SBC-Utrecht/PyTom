@@ -97,7 +97,7 @@ def readMarkerfile(filename, num_tilt_images=0):
         markerdata = data.reshape(x, y, 4)[:, :, 1:].transpose(2, 1, 0)
         return markerdata
 
-def txt2markerfile(filename,tiltangles):
+def txt2markerfile(filename, tiltangles):
     data = loadstar(filename)
     datalen = data.shape[0]
     x, y = datalen // len(tiltangles), len(tiltangles)
@@ -250,6 +250,8 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
                      qtype='slurm', num_jobs_per_node=20, time=12, partition='defq', singleton=False, gpus=''):
     module_load = ''
     queue_command = ''
+
+    modules = list(numpy.unique(numpy.array(modules)))
     if modules:
         module_load = 'module load '
     for module in modules:
@@ -497,6 +499,7 @@ def create_project_filestructure(projectdir='.'):
                 },
                 "copy_files": [""]
             },
+            "jobscripts": "",
             "copy_files": ["em_tomoprep", "em_prepbatch_utrecht.sh", "validate_generated_tomograms.py",
                            "reconstruction_batch.py"],
             "run_scripts": [""]
@@ -534,7 +537,8 @@ def create_project_filestructure(projectdir='.'):
         },
         "LogFiles": {
             "Local": ""
-        }
+        },
+        "Images": ''
     }
 
     if not os.path.exists(projectdir):
@@ -635,9 +639,23 @@ LOCAL_ALIGNMENT_RESULTS = [('ParticleIndex', 'i4'),
 
 headerLocalAlignmentResults = ''
 unitsLAR = ['', 'px', 'px', 'degrees', 'degrees', '', '']
-fmtLAR = '%7d %15.10f %15.10f %15.10f %15.10f %15.10f %s'
+fmtLAR = '%7d %15.2f %15.2f %15.3f %15.3f %15.10f %s'
 for n, h in enumerate(LOCAL_ALIGNMENT_RESULTS):
     headerLocalAlignmentResults += '{} {}\n'.format(h[0], '({})'.format(unitsLAR[n]) * (unitsLAR[n] != ''))
+
+ALIGNMENT_ERRORS = [('MarkerIndex', 'i4'),
+                           ('TiltAngle', 'f4'),
+                           ('AlignmentError', 'f4'),
+                           ('XMeasured', 'f4'),
+                           ('YMeasuerd', 'f4'),
+                           ('XProjected', 'f4'),
+                           ('YProjected', 'f4')]
+
+headerAlignmentErrors = ''
+unitsAE = ['', 'deg', 'px', 'px', 'px', 'px', 'px']
+fmtAE = '%7d %15.2f %15.3f %15.3f %15.3f %15.3f %15.3f'
+for n, h in enumerate(ALIGNMENT_ERRORS):
+    headerAlignmentErrors += '{} {}\n'.format(h[0], '({})'.format(unitsAE[n]) * (unitsAE[n] != ''))
 
 
 def headerline(line):
@@ -655,7 +673,7 @@ def loadstar(filename, dtype='float32', usecols=None, skip_header=0):
     return arr
 
 def savestar(filename, arr, header='', fmt='', comments='#'):
-    numpy.savetxt(filename, arr, comments=comments, header=header,fmt=fmt)
+    numpy.savetxt(filename, arr, comments=comments, header=header, fmt=fmt)
 
 def update_metafile(filename, columnID, values ):
     metadata= loadstar(filename,dtype=datatype)
@@ -928,3 +946,67 @@ def convert_markerfile(filename, outname):
 
         for data_slice in markerFile:
             np.savetxt(outfile, data_slice, fmt=fmtMarkerfile)
+
+def readPolishResultFile(filename, tilt_angles=None, non_stacked=False):
+    try:
+        from pytom.gui.guiFunctions import LOCAL_ALIGNMENT_RESULTS, loadstar
+
+        ppf = loadstar(filename, dtype=LOCAL_ALIGNMENT_RESULTS)
+        if non_stacked:
+            return ppf
+        num = ppf['ParticleIndex'][-1] + 1
+        rppf = ppf.reshape(num, ppf.shape[0] // num)
+
+        if not tilt_angles is None:
+            polishangles = rppf[0]['TiltAngle']
+            polishIndices = []
+            for angle in tilt_angles:
+                for n, pangle in enumerate(polishangles):
+                    if abs(pangle - angle) < 0.01:
+                        polishIndices.append(n)
+                        break
+
+            if len(polishIndices) != len(self):
+                print(self.tilt_angles)
+                print(polishIndices)
+                raise Exception('data from polishfile does not contain the same angles as the angles from tiltimages')
+
+        polishResults = rppf
+
+    except Exception as e:
+        print(e)
+        raise Exception('data from polishfile does not contain the same angles as the angles from tiltimages')
+
+    return polishResults
+
+def plotCurve(data, num_rows=1, num_cols=1, s=5, e=None, h=None):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    from pylab import subplots, show, savefig
+
+    fig, ax = subplots(num_rows, num_cols, figsize=(num_cols*s, num_rows*s))
+
+    for n, d in enumerate(data):
+        if num_rows > 1 and num_cols> 1:
+            ax[n//num_cols][n%num_cols].plot(d)
+        elif num_rows > 1:
+            ax[n][0].plot(d)
+        elif num_cols > 1:
+            ax[n].plot(d)
+        else:
+            if e is None and (h is None):
+                ax.scatter(range(len(d)), d)
+            elif not (h is None):
+                import numpy as np
+                x = np.random.normal(size=50000)
+                y = x * 3 + np.random.normal(size=50000)
+                print(len(h[1]), len(h[0]))
+                a = ax.hist2d(np.array(h[0]), np.array(h[1]), range=[[-20,20],[-20,20]], bins=(81,81))
+                print(a[0].shape, a[2].max(), a[1].min())
+
+            else:
+                ax.errorbar(range(len(d)), d, e[n], linestyle='None')
+
+    show()
+    try: return(a)
+    except: pass

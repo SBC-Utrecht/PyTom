@@ -50,6 +50,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.progressBarCounters = {}
         self.progressBars = {}
         self.queueEvents = self.parent().qEvents
+        self.localqID = {}
 
         self.tabs_dict = {}
         self.tab_actions = {}
@@ -499,6 +500,8 @@ class SubtomoAnalysis(GuiTabWidget):
                                     tooltip='Select a FSC file.')
         self.insert_label_line_push(parent, 'Meta File', mode + 'MetaFile', mode='file', filetype=['meta'],
                                     tooltip='Select the corresponding meta file (in tomogram_???/sorted)')
+        self.insert_label_line_push(parent, 'Alignment Results File', mode + 'AlignmentResultsFile', mode='file', filetype=['txt'],
+                                    tooltip='Select the alignment results file (in alignment/???/)')
         self.insert_label_line_push(parent, 'Output Directory', mode + 'destination', mode='folder',
                                     tooltip='Select the destination directory.')
 
@@ -531,18 +534,23 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
         self.widgets[mode + 'FSCFlag'] = QLineEdit('')
         self.widgets[mode + 'MetaFileFlag'] = QLineEdit('')
+        self.widgets[mode + 'AlignmentResultsFileFlag'] = QLineEdit('')
+
 
         self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateMeta(m))
         self.widgets[mode + 'FSCPath'].textChanged.connect(lambda d, m=mode: self.updateFSCFlag(m))
         self.widgets[mode + 'MetaFile'].textChanged.connect(lambda d, m=mode: self.updateMetaFileFlag(m))
+        self.widgets[mode + 'AlignmentResultsFile'].textChanged.connect(lambda d, m=mode: self.updateAlignmentResultsFlag(m))
 
         execfilename = os.path.join(self.subtomodir, 'ParticlePolishing/reconstructSubtomograms.sh')
         paramsSbatch = guiFunctions.createGenericDict(fname='particlePolishSingle', folder=self.logfolder,
                                                       id='SingleParticlePolish')
         paramsCmd = [self.subtomodir, mode + 'numberMpiCores', self.pytompath, mode + 'particlelist',
                      mode + 'AlignedTiltDir', mode + 'Template', mode + 'destination', mode + 'BinFactorReconstruction',
-                     mode + 'maxParticleShift', mode + 'OffsetX', mode + 'OffsetY', mode + 'OffsetZ', mode + 'FSCFlag', mode + 'MetaFileFlag',
-                     polishParticles]
+                     mode + 'maxParticleShift', mode + 'OffsetX', mode + 'OffsetY', mode + 'OffsetZ', mode + 'FSCFlag',
+                     mode + 'MetaFileFlag', mode + 'AlignmentResultsFileFlag',polishParticles]
+
+        [func(mode) for func in (self.updateMeta, self.updateFSCFlag, self.updateMetaFileFlag, self.updateAlignmentResultsFlag)]
 
         self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename, paramsSbatch=paramsSbatch)
         setattr(self, mode + 'gb_inputFiles', groupbox)
@@ -566,11 +574,11 @@ class SubtomoAnalysis(GuiTabWidget):
         particleFiles = sorted(particleFiles)
 
         headers = ["Filename particleList", "Run", "Origin", "Tilt Images",  'Template', 'dimZ', 'Bin factor recon',
-                   "std shift", "Offset X", "Offset Y", "Offset Z", 'FSC Filter', '']
+                   "Max Shift", "Offset X", "Offset Y", "Offset Z", 'Meta File', 'Align Results', 'FSC Filter', '']
         types = ['txt', 'checkbox', 'combobox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit', 'lineedit',
-                 'lineedit', 'lineedit', 'combobox', 'combobox', 'txt']
+                 'lineedit', 'lineedit', 'combobox', 'comboboxF', 'combobox', 'txt']
         a = 40
-        sizes = [0, 0, 80, 80, a, a, a, a, a, a, a, a, a]
+        sizes = [0, 0, 80, 80, a, a, a, a, a, a, a, a, a, a]
 
         tooltip = ['Names of the particleList files',
                    'Check this box to run particle polishing.',
@@ -579,7 +587,7 @@ class SubtomoAnalysis(GuiTabWidget):
                    'Template File',
                    'Z-dimension of tomogram from which particles are picked.',
                    'Binning factor used for the reconstruction.',
-                   'Stdev of the particle shift (pixel). Is used to remove outliers.'
+                   'Max particle shift (pixel). Set the area used to locate maximum.'
                    'Offset in X-dimension', 'Offset in Y-dimension', 'Offset in Z-dimension',
                    'Meta file from which angles are extracted',
                    'FSC File used for filtering the cross-correlation']
@@ -639,7 +647,11 @@ class SubtomoAnalysis(GuiTabWidget):
                 origin = ['alignment', 'ctf', 'sorted']
                 metafiles = [os.path.join(sor, f) for f in os.listdir(sor) if f.endswith('.meta')] + ['']
 
-                values.append([particleFile, True, origin, choices, templates, dimZ, binning, 5, 0, 0, 0, metafiles, fscfiles, ''])
+                import glob
+                query = os.path.join(al,'*/alignmentResults.txt')
+                alignfiles= [os.path.join(sor, f) for f in glob.glob(query)] + ['']
+
+                values.append([particleFile, True, origin, choices, templates, dimZ, binning, 25, 0, 0, 0, metafiles, alignfiles, fscfiles, ''])
                 refmarkindices.append(refmarkindex)
 
         try:
@@ -658,7 +670,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 w = self.tabPolish_widgets['widget_{}_2'.format(row)]
                 w.currentIndexChanged.connect(lambda d, r=row, v=values: self.updateChoicesPP(r, v))
 
-            self.particleFilesBatchExtract = particleFiles
+            self.particleFilesBatchPolish = particleFiles
             self.pbs[key].clicked.connect(lambda dummy, pid=key, v=values: self.massPolishParticles(pid, v))
         else:
             return
@@ -834,10 +846,10 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_line_push(parent, 'CCC File', mode + 'cccFile',
                                     'Select the constrained correlation matrix file from the previous step.', mode='file', filetype='csv')
         self.insert_label_spinbox(parent, mode + 'numEig', text='Number of Eigenvectors',
-                                  value=4, minimum=1, stepsize=1,
+                                  value=4, minimum=1, stepsize=1, maximum=100,
                                   tooltip='Sets the number of eigenvectors (corresponding to largest eigenvectors) used for clustering.')
         self.insert_label_spinbox(parent, mode + 'numClasses', 'Number of Classes',
-                                  value=4, minimum=1,stepsize=1,
+                                  value=4, minimum=1,stepsize=1, maximum=1000,
                                   tooltip='Number of classes used for kmeans classification.')
         self.insert_label_line(parent, 'Prefix', mode + 'prefix', rstep=1, cstep=0,
                                tooltip='Root for generated averages of the corresponding classes. The files will be called "Prefix"_iclass.em.')
@@ -848,7 +860,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         exefilename = [mode + 'outFolder', 'CPCA_Classification.sh']
         paramsSbatch = guiFunctions.createGenericDict(fname='CPCA', folder=self.logfolder, id='CPCA')
-        paramsCmd = [mode+'outFolder', self.pytompath, mode + 'particleList', mode + 'outputFilename',
+        paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'outputFilename',
                      mode + 'cccFile', mode + 'numEig', mode+'numClasses', mode+'prefix',  templateCPCA]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
@@ -940,10 +952,18 @@ class SubtomoAnalysis(GuiTabWidget):
                                   tooltip='Noise percentage (between 0 and 1). If you estimate your dataset contains certain amount of noise outliers, specify it here.')
         self.insert_label_spinbox(parent, mode + 'partDensThresh', 'Particle Density Threshold',
                                   wtype=QDoubleSpinBox, value=0., minimum=-6.0, maximum=6.0, stepsize=.1,
-                                  tooltip='Particle density threshold for calculating the difference map (optional, by default 0). Two other most common choise are -2 and 2. -2 means all the values of the subtomogram below the -2 sigma will be used for calculating the difference mask (negative values count). 2 means all the values of the subtomogram above the 2 sigma will be used for calculating t he difference mask (positive values count). Finally, 0 means all the values are used for the calculation.')
+                                  tooltip='Particle density threshold for calculating the difference map (optional, by default 0).\n'
+                                          'Two other most common choise are -2 and 2. -2 means all the values of the subtomogram \n'
+                                          'below the -2 sigma will be used for calculating the difference mask (negative values\n'
+                                          'count). 2 means all the values of the subtomogram above the 2 sigma will be used for\n'
+                                          'calculating t he difference mask (positive values count). Finally, 0 means all the \n'
+                                          'values are used for the calculation.')
         self.insert_label_spinbox(parent, mode + 'stdDiffMap', 'STD Threshold Diff Map', rstep=1, cstep=0,
                                   wtype=QDoubleSpinBox, stepsize=.1, minimum=0, maximum=1, value=0.4,
-                                  tooltip='STD threshold for the difference map (optional, by default 0.4). This value should be between 0 and 1. 1 means only the place with the peak value will be set to 1 in the difference map (too much discriminative ability). 0 means all the places with the value above the average of STD will be set to 1 (not enough discriminative ability).')
+                                  tooltip='STD threshold for the difference map (optional, by default 0.4). This value should be \n'
+                                          'between 0 and 1. 1 means only the place with the peak value will be set to 1 in the \n'
+                                          'difference map (too much discriminative ability). 0 means all the places with the value\n'
+                                          'above the average of STD will be set to 1 (not enough discriminative ability).')
 
         # Connected Widgets
         self.widgets[mode + 'filenameAlignmentMask'].textChanged.connect(
@@ -1010,15 +1030,21 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
                                     tooltip='Select/Create an output folder.')
         self.insert_label_spinbox(parent, mode + 'fsc', 'FSC cutoff', stepsize=1, value=0.17, minimum=0, maximum=1.,
-                                  wtype=QDoubleSpinBox,
+                                  wtype=QDoubleSpinBox,decimals=3,
                                   tooltip='The FSC criterion. Value between 0.0 and 1.0. Standard values are 0.5, 0.3. or 0.17')
-        self.insert_label_spinbox(parent, mode + 'pixelsize', 'Pixelsize (A)',stepsize=1,value=2.62, minimum=.1,
+        self.insert_label_spinbox(parent, mode + 'pixelsize', 'Pixelsize (A)',stepsize=1,value=2.62, minimum=.1, decimals=3,
                                   tooltip='Pixelsize in Angstrom', wtype=QDoubleSpinBox)
         self.insert_label_spinbox(parent, mode + 'randomizePhases', 'randomizePhases', stepsize=1,value=0.8, minimum=0, maximum=1,
                                   tooltip='Check validity of FSC using phases randomization beyond spatial frequency'
                                           ' where the uncorrected FSC curve drops below set threshold. Values between '
-                                          '0, 1. No phase randomization check performed when value is set to 0.',
+                                          '0, 1. No phase randomization check performed when value is set to 0.', decimals=3,
                                   wtype=QDoubleSpinBox)
+        self.insert_label_line(parent, "GPU's", mode + 'gpuID', cstep=-1,
+                                  tooltip="Which GPU's do you want to reserve. If you want to use multiple GPUs separate them using a comma, e.g. 0,1,2 ")
+
+        self.insert_label_checkbox(parent, mode + 'CombinedResolution', 'Combined Resolution',
+                                   tooltip='Check this box to calculate the resolution of the two volumes together.')
+
         self.insert_label_checkbox(parent, mode + 'plot', 'Plot Results',
                                    tooltip='Check this box to plot the results.', cstep=0, rstep=1)
 
@@ -1034,13 +1060,17 @@ class SubtomoAnalysis(GuiTabWidget):
             lambda d, m=mode: self.updateFSCFlags(m, 3))
         self.widgets[mode + 'plot'].stateChanged.connect(
             lambda d, m=mode: self.updateFSCPlotFlag(m))
-
+        self.widgets[mode + 'CombinedResolution'].stateChanged.connect(
+            lambda d, m=mode: self.updateFSCCombResFlag(m))
+        self.widgets[mode + 'gpuID'].textChanged.connect(lambda d, m=mode: self.updateGpuString(m))
         # Widgets Updated When Other Widgets Are Updated
         self.widgets[mode + 'flagVolume1'] = QLineEdit('')
         self.widgets[mode + 'flagVolume2'] = QLineEdit('')
         self.widgets[mode + 'flagParticleList'] = QLineEdit('')
         self.widgets[mode + 'flagMask'] = QLineEdit('')
         self.widgets[mode + 'flagPlot'] = QLineEdit('')
+        self.widgets[mode + 'flagCombinedResolution'] = QLineEdit('')
+        self.widgets[mode + 'gpuString'] = QLineEdit('')
 
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
 
@@ -1051,7 +1081,8 @@ class SubtomoAnalysis(GuiTabWidget):
                                                       id='FSCValidation')
         paramsCmd = [self.fscdir, self.pytompath, mode + 'flagParticleList', mode + 'flagVolume1',
                      mode + 'flagVolume2', mode + 'flagMask', mode + 'outFolder', mode + 'fsc',
-                     mode + 'pixelsize', mode + 'randomizePhases', mode + 'flagPlot', templateFSC]
+                     mode + 'pixelsize', mode + 'randomizePhases', mode + 'flagPlot', mode + 'flagCombinedResolution',
+                     mode + 'gpuString', templateFSC]
 
 
         # Generation of textboxes and pushbuttons related to submission
@@ -1064,7 +1095,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.updateFSCFlags(mode)
         self.updateFSCPlotFlag(mode)
         self.updateLog(mode)
-
+        self.updateFSCCombResFlag(mode)
+        self.updateGpuString(mode)
 
         setattr(self, mode + 'gb_FSC', groupbox)
         return groupbox
@@ -1096,6 +1128,15 @@ class SubtomoAnalysis(GuiTabWidget):
             return
 
         self.widgets[mode + 'MetaFileFlag'].setText(f'--metaFile {fname}')
+
+    def updateAlignmentResultsFlag(self, mode):
+
+        fname = self.widgets[mode + 'AlignmentResultsFile'].text()
+        if not fname:
+            self.widgets[mode + 'AlignmentResultsFileFlag'].setText('')
+            return
+
+        self.widgets[mode + 'AlignmentResultsFileFlag'].setText(f'--alignmentResultsFile {fname}')
 
     def updateMeta(self,mode):
         pl = self.widgets[mode + 'particlelist'].text()
@@ -1228,7 +1269,7 @@ class SubtomoAnalysis(GuiTabWidget):
             return
 
         if len(id) > 0:
-            self.widgets[mode + 'gpuString'].setText(f'--gpu {id}')
+            self.widgets[mode + 'gpuString'].setText(f'--gpuID {id}')
         else:
             self.widgets[mode + 'gpuString'].setText('')
 
@@ -1274,7 +1315,15 @@ class SubtomoAnalysis(GuiTabWidget):
 
     def updateOutFolder(self,mode, path, name='particleList'):
         pl = self.widgets[mode + name].text()
-        if not pl: return
+        if not pl or not os.path.exists(pl):
+            self.widgets[mode + name].setText('')
+            return
+
+        if not self.doAllParticlesExist(pl):
+            self.popup_messagebox('Error', 'Particles do not exist',
+                                  f'Not all particles in {os.path.basename(pl)} have been created')
+            self.widgets[mode + name].setText('')
+            return
 
         folder = os.path.basename(pl).replace('particleList_','')[:-4]
         folder = os.path.join(path,folder)
@@ -1292,6 +1341,17 @@ class SubtomoAnalysis(GuiTabWidget):
         if not folder: return
         if not os.path.exists(folder):
             os.mkdir(folder)
+
+    def doAllParticlesExist(self, particleList):
+        from pytom.basic.structures import ParticleList
+        pl = ParticleList()
+        pl.fromXMLFile(particleList)
+        allParticlesExist = True
+        for particle in pl:
+            if not os.path.exists(particle.getFilename()):
+                allParticlesExist = False
+                break
+        return allParticlesExist
 
     def massExtractParticles(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
@@ -1320,6 +1380,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 ppflag = f'--particlePolishResultFile {ppfile}' if ppfile else ''
                 refid = folder_aligned.split('marker_')[1].split('_')[0]
 
+
                 if refid.lower() != 'closest':
 
                     outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'.format(int(tomoindex),refid)
@@ -1332,7 +1393,7 @@ class SubtomoAnalysis(GuiTabWidget):
                     txt = extractParticles.format(d=paramsCmd)
                     jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, name='SubtomoRecon_{}'.format(nsj % num_nodes),
                                                            num_jobs_per_node=cores, time=time, partition=qname,
-                                                           modules=modules, num_nodes=n_nodes) + txt
+                                                           modules=modules, num_nodes=n_nodes, singleton=True) + txt
 
                 else:
                     outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'
@@ -1364,7 +1425,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                     txt = extractParticlesClosestMarker.format(d=paramsCmd)
 
-                    jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,singleton=True, num_nodes=n_nodes,
+                    jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, singleton=True, num_nodes=n_nodes,
                                                            name='SubtomoRecon_{}'.format(nsj % num_nodes), partition=qname,
                                                            num_jobs_per_node=cores, time=time, modules=modules) + txt
 
@@ -1377,7 +1438,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Subtom Recon Batch')
 
     def massPolishParticles(self, pid, values):
-        qIds =[]
+        qIDs =[]
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = nsj = 0
         values = self.valuesBatchParticlePolishing
@@ -1396,10 +1457,13 @@ class SubtomoAnalysis(GuiTabWidget):
                 offy = self.tabPolish_widgets['widget_{}_{}'.format(row, 9)].text()
                 offz = self.tabPolish_widgets['widget_{}_{}'.format(row, 10)].text()
                 meta = values[row][11][self.tabPolish_widgets['widget_{}_{}'.format(row, 11)].currentIndex()]
-                fscfile = values[row][12][self.tabPolish_widgets['widget_{}_{}'.format(row, 12)].currentIndex()]
+                alignfile = values[row][12][self.tabPolish_widgets['widget_{}_{}'.format(row, 12)].currentIndex()]
+                fscfile = values[row][13][self.tabPolish_widgets['widget_{}_{}'.format(row, 13)].currentIndex()]
 
                 fscflag = f'--FSCPath {fscfile}' if fscfile else ''
                 metaflag = f'--metaFile {meta}' if meta else ''
+                alignflag = f'--alignmentResultsFile {alignfile}' if alignfile else ''
+
                 refid = folder_aligned.split('marker_')[1].split('_')[0]
 
                 # generate output directory for particle polishing results if output directory does not exist.
@@ -1411,7 +1475,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 qname, n_nodes, cores, time, modules = self.qparams['BatchParticlePolish'].values()
 
                 paramsCmd = [self.subtomodir, str(cores * n_nodes), self.pytompath, particleXML, folder_aligned,
-                             template, destination, bin_read, maxShift, offx, offy, offz, fscflag, metaflag]
+                             template, destination, bin_read, maxShift, offx, offy, offz, fscflag, metaflag, alignflag]
 
                 txt = polishParticles.format(d=paramsCmd)
                 jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
@@ -1425,6 +1489,7 @@ class SubtomoAnalysis(GuiTabWidget):
                     qIDs.append(ID)
         if nsj:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
+            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Particle Polish')
 
     def gen_average(self, params):
         key_particleList, key_filename_average, key_outputDir = params
@@ -1467,7 +1532,8 @@ class SubtomoAnalysis(GuiTabWidget):
                                                  title='Select FSC File for filtering cross-correlation (optional)')
 
     def updateFSCFlags(self, mode, id='all'):
-        for n, (name, flag) in enumerate((('particleList', '--pl'), ('volume1','--v1'), ('volume2', '--v2'), ('mask', '--mask'))):
+        for n, (name, flag) in enumerate((('particleList', '--pl'), ('volume1','--v1'), ('volume2', '--v2'),
+                                          ('mask', '--mask'))):
             if n != id and id != 'all': continue
             t = self.widgets[mode + name].text()
 
@@ -1478,15 +1544,22 @@ class SubtomoAnalysis(GuiTabWidget):
         t = self.widgets[mode + 'plot'].isChecked()
 
         if t:
-            self.widgets[mode + 'flagPlot'].setText('--plot')
+            self.widgets[mode + 'flagPlot'].setText('--plot ')
             self.widgets[mode + 'queue'].setChecked(False)
         else:
             self.widgets[mode + 'flagPlot'].setText('')
 
+    def updateFSCCombResFlag(self, mode):
+        t = self.widgets[mode + 'CombinedResolution'].isChecked()
+
+        if t:
+            self.widgets[mode + 'flagCombinedResolution'].setText('--combinedResolution')
+        else:
+            self.widgets[mode + 'flagCombinedResolution'].setText('')
+
     def gen_fsc_mask(self,params):
         maskfilename = CreateFSCMaskFile(self, params[-1])
         maskfilename.show()
-
 
     def updateLog(self, mode):
         if self.widgets[mode + 'queue'].isChecked():

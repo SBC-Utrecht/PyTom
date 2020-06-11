@@ -5,7 +5,7 @@ import glob
 import atexit
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
-import pyqtgraph.opengl as gl
+# import pyqtgraph.opengl as gl
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -299,6 +299,35 @@ class Worker(QRunnable):
         QThreadPool.globalInstance().start(self)
 
 
+class TimedMessageBox(QMessageBox):
+    def __init__(self, parent=None, timeout=3, info=None, type=''):
+        super(TimedMessageBox, self).__init__(parent)
+        self.setWindowTitle(info[1])
+        self.message = info[2]
+        self.time_to_wait = timeout
+        self.setText("{1}\n(closing automatically in {0} secondes.)".format(self.time_to_wait,self.message))
+        self.setStandardButtons(info[3])
+        self.timer = QtCore.QTimer(self)
+        self.timer.setInterval(1000)
+        self.timer.timeout.connect(self.changeContent)
+        # if type == 'TimedInfo':
+        #     self.information(*info)
+        # elif type == 'TimedWarning':
+        #     self.warning(*info)
+        self.timer.start()
+        self.exec_()
+
+    def changeContent(self):
+        self.setText("{1}\n(closing automatically in {0} secondes.)".format(self.time_to_wait,self.message))
+        if self.time_to_wait <= 0:
+            self.close()
+        self.time_to_wait -= 1
+
+    def closeEvent(self, event):
+        self.timer.stop()
+        event.accept()
+
+
 class CommonFunctions():
     def __init__(self,parent=None):
         pass
@@ -325,6 +354,7 @@ class CommonFunctions():
             exefile.close()
 
             if queue:
+
                 dd = os.popen('{} {}'.format(self.qcommand, exefilename))
                 text = dd.read()[:-1]
                 id = text.split()[-1]
@@ -354,7 +384,6 @@ class CommonFunctions():
         proc.start()
         event = Event()
         self.queueEvents[job_description] = event
-
 
     def generateStatusBar(self, nrJobs, key, job_description):
         widget = QWidget(self)
@@ -389,7 +418,7 @@ class CommonFunctions():
                 print(f'exit {job_description} loop')
                 return
         #self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
-        signals.finished_queue.emit([id,job_description, qids])
+        signals.finished_queue.emit([id, job_description, qids])
         #self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
 
     def updateProgressBar(self, keys):
@@ -886,8 +915,20 @@ class CommonFunctions():
                     print(e)
                     
             else:
-                proc = Worker(fn=self.submit_local_job, args=[exefilename], sig=False)
+                import time
+                ID = self.getLocalID()
+                try:
+                    self.localqID[ID] = 0
+                except:
+                    self.localqID = {}
+                    self.localqID[ID] = 0
+
+                proc = Worker(fn=self.submit_local_job, args=[exefilename, ID], sig=False)
                 proc.start()
+
+                while self.localqID[ID] == 0:
+                    time.sleep(1)
+                self.popup_messagebox('Info', 'Local Job Finished', f'Finished Job {ID}')
                 # os.system('sh {}'.format(params[0]))
         except:
             print ('Please check your input parameters. They might be incomplete.')
@@ -911,13 +952,12 @@ class CommonFunctions():
         return ID
 
 
-    def submit_local_job(self, execfilename):
-        ID = self.getLocalID()
+    def submit_local_job(self, execfilename, ID):
         logcopy = os.path.join(self.logfolder, f'Local/{ID}-{os.path.basename(execfilename)}')
-        os.system(f'sh {execfilename} >> {os.path.splitext(logcopy)[0]}.out')
         os.system(f'cp {execfilename} {logcopy}')
-        self.popup_messagebox('Info', 'Local Job Finished', f'Finished Job {ID}')
-        return ID
+        os.system(f'sh {execfilename} >> {os.path.splitext(logcopy)[0]}.out')
+
+        self.localqID[ID] = 1
 
     def gen_action(self, params):
         mode = params[1][0][:-len('CommandText')]
@@ -1086,7 +1126,7 @@ class CommonFunctions():
         widget2.setVisible(True)
 
     def popup_messagebox(self, messagetype, title, message):
-
+        import time
         if messagetype == 'Info':
             QMessageBox().information(self, title, message, QMessageBox.Ok)
 
@@ -1095,6 +1135,9 @@ class CommonFunctions():
 
         elif messagetype == 'Warning':
             QMessageBox().warning(self, title, message, QMessageBox.Ok)
+
+        elif messagetype == 'TimedInfo':
+            TimedMessageBox(self, timeout=4, info=(self, title, message, QMessageBox.Ok), type=messagetype)
 
     def update_pb(self, pb, value):
         print ( 'update: ', value.text() )
@@ -1146,6 +1189,7 @@ class CommonFunctions():
 
 
     def submitBatchJob(self, execfilename, id, command):
+        import time
         outjob = open(execfilename, 'w')
         outjob.write(command)
         outjob.close()
@@ -1158,8 +1202,15 @@ class CommonFunctions():
             os.system(f'cp {execfilename} {logcopy}')
             return ID, 1
         else:
-            self.submit_local_job(execfilename)
+            ID = self.getLocalID()
+            self.submit_local_job(execfilename, ID)
+            self.popup_messagebox('TimedInfo', 'Local Job Finished', f'Finished Job {ID}')
             return 1, 0
+
+    def multiSeq(self, func, params, dummy=None):
+        for execfilename, pid, job in params:
+            func(execfilename, pid, job)
+            QtGui.QApplication.processEvents()
 
     def create_groupbox(self,title,tooltip,sizepol):
         groupbox = QGroupBox(title)
@@ -1327,12 +1378,15 @@ class CreateFSCMaskFile(QMainWindow, CommonFunctions):
         if not out_fname.endswith('.mrc'): out_fname += '.mrc'
 
         data = read(self.widgets[params[0]].text())
-        if self.widgets[params[1]].text(): data *= read(self.widgets[params[1]].text())
+        if self.widgets[params[1]].text():
+            mask = read(self.widgets[params[1]].text())
+        else:
+            mask= None
         numstd = float(self.widgets[params[2]].value())
         smooth = float(self.widgets[params[3]].value())
         cycles = int(self.widgets[params[4]].value())
 
-        gen_mask_fsc(data, cycles, out_fname, numstd, smooth)
+        gen_mask_fsc(data, cycles, out_fname, numstd, smooth, maskD=mask)
 
         self.parent().widgets[params[-1]].setText(out_fname)
         self.close()
@@ -1415,6 +1469,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
                 # Fill the first line
                 if types[i] == 'txt':
                     widget = QWidget()
+                    print(v,i, values[v])
                     data= "{}".format(values[v][i].split('/')[-1]) if '/' in values[v][i] else values[v][i]
                     cb = QLabel( data )
                     layoutCheckBox = QHBoxLayout(widget)
@@ -2628,6 +2683,24 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
             self.add_points(self.pos, cx, cy, cz, cs, radius, add=add, score=cs, new=False)
 
 
+class LinearRegionItem(pg.LinearRegionItem):
+    def lineMoveFinished(self):
+
+        try:
+            if self.saveZLimits:
+                outfile = open(self.filename, 'w')
+                outfile.write(f'{int(self.lines[0].value())} {int(self.lines[1].value())}')
+                outfile.close()
+                print(f'written {self.filename}')
+        except Exception as e:
+            print(e)
+            print('file NOT written')
+
+        self.other.lines[0].setValue(self.lines[0].value())
+        self.other.lines[1].setValue(self.lines[1].value())
+        self.sigRegionChangeFinished.emit(self)
+
+
 class ParticlePicker(QMainWindow, CommonFunctions):
     def __init__(self,parent=None, fname=''):
         super(ParticlePicker,self).__init__(parent)
@@ -2653,6 +2726,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.min_score = 0.
         self.xmlfile = ''
         self.filetype = 'txt'
+        self.activate = 0
 
         self.circles_left = []
         self.circles_cent = []
@@ -2668,8 +2742,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.centimage  = w.addViewBox(row=0, col=0, lockAspect=True)
         self.centimage.setMenuEnabled(False)
         self.target = w3 = pg.ImageView()
-        rgn = pg.LinearRegionItem([100., 300])
-        self.leftimage.addItem(rgn)
+        self.title = parent.widgets['v03_manualpp_tomogramFname'].text()
 
         self.bottomcanvas = w2 = pg.GraphicsWindow(size=(600, 200), border=True)
         self.bottomimage  = w2.addViewBox(row=0, col=0 )
@@ -2677,15 +2750,15 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         self.image_list = [self.leftimage, self.centimage, self.bottomimage]
 
-
-
         self.layout.addWidget(w1,0,0)
         self.layout.addWidget(w,0,1)
         self.layout.addWidget(w2,1,1)
         self.layout.addWidget(self.operationbox,1,0)
         self.title = parent.widgets['v03_manualpp_tomogramFname'].text()
         if not self.title: self.title = 'Dummy Data'
-        self.setWindowTitle( "Manual Particle Selection From: {}".format( os.path.basename(self.title)) )
+
+        self.folder = os.path.dirname(self.title)
+        self.setWindowTitle("Manual Particle Selection From: {}".format( os.path.basename(self.title)))
         self.centcanvas.wheelEvent = self.wheelEvent
 
         self.centimage.scene().sigMouseClicked.connect(self.mouseHasMoved)
@@ -2735,6 +2808,14 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         if evt.key() == Qt.Key_Escape:
             self.subtomo_plots.close()
             self.close()
+
+        if evt.key() == Qt.Key_A:
+            self.activate = 1 - self.activate
+            if self.activate:
+                self.adjustZLimits()
+            else:
+                self.resetZLimits()
+                self.replot_all()
 
     def add_controls(self,prnt):
         vDouble = QtGui.QDoubleValidator()
@@ -3151,6 +3232,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.img1b = pg.ImageItem(self.vol.sum(axis=2))
         self.img1m = pg.ImageItem(self.vol[int(self.slice), :, :])
 
+        self.resetZLimits(True)
         self.leftimage.addItem(self.img1a)
         self.centimage.addItem(self.img1m)
         self.bottomimage.addItem(self.img1b)
@@ -3178,7 +3260,47 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.add_points(self.pos, cx, cy, cz, cs, radius,add=add)
         self.slice += update
 
+    def adjustZLimits(self):
+        self.replot_all()
+        self.resetZLimits(True)
+        for r in [self.rgnleft, self.rgnbott]:
+            r.saveZLimits = True
+            r.filename = os.path.join(self.folder, 'z_limits.txt')
 
+    def resetZLimits(self, insert=False):
+
+        for image in [self.leftimage, self.bottomimage]:
+            for child in image.allChildren():
+                if type(child) == LinearRegionItem:
+                    image.removeItem(child)
+        if not insert:
+            return
+        try:
+            tt = os.path.dirname(os.popen(f'ls -alrt {self.title}').read().split()[-1])
+            self.folder = tt
+            zlimitfile = os.path.join(tt, 'z_limits.txt')
+
+            if os.path.exists(zlimitfile):
+                z_start, z_end = list(map(int, open(zlimitfile).readlines()[0].split()[:2]))
+            else:
+                z_start, z_end = 0, self.vol.shape[0]
+                zlimitfile = ''
+            self.rgnleft = LinearRegionItem([z_start, z_end])
+            self.rgnbott = LinearRegionItem(values=(z_start, z_end), orientation=1)
+            self.rgnbott.filename = zlimitfile
+            self.rgnleft.filename = zlimitfile
+            self.rgnleft.other = self.rgnbott
+            self.rgnbott.other = self.rgnleft
+            self.leftimage.addItem(self.rgnleft)
+            self.bottomimage.addItem(self.rgnbott)
+
+        except Exception as e:
+            print('\n\n\n', e)
+
+
+
+
+'''
 class FlexWindow(gl.GLViewWidget):
     def __init__(self, parent=None, controlWindow=None):
         super(FlexWindow, self).__init__(parent)
@@ -3312,6 +3434,7 @@ class FlexWindow(gl.GLViewWidget):
             self.addItem(self.xmesh)
             self.addItem(self.ymesh)
             self.addItem(self.zmesh)
+
 
 class Viewer3DSurface(QMainWindow, CommonFunctions):
     def __init__(self, parent=None, fname=''):
@@ -3598,6 +3721,7 @@ class Viewer3DSurface(QMainWindow, CommonFunctions):
         self.m2.translate(-100, -100, -100)
         self.centcanvas.resetView(grids=False)
 
+
 class ControlWindowSurface(QMainWindow, CommonFunctions):
     def __init__(self,parent=None, mode = ''):
         super(ControlWindowSurface, self).__init__(parent)
@@ -3751,6 +3875,7 @@ class ControlWindowSurface(QMainWindow, CommonFunctions):
         self.parent().centcanvas.reorientParticle.setChecked(state)
         self.widgets['reorientParticle'].setChecked(state)
         self.widgets['rotateButton'].setEnabled(state)
+'''
 
 class Viewer3D(QMainWindow, CommonFunctions):
     def __init__(self, parent=None, fname=''):
@@ -4219,8 +4344,10 @@ class QParams():
         self.time    = parent.widgets[mode + 'maxTime'].value()
         self.nodes   = parent.widgets[mode + 'numberOfNodes'].value()
         self.cores   = parent.widgets[mode + 'numberOfCores'].value()
-        if mode+'modules' in parent.widgets.keys(): self.modules = parent.widgets[mode + 'modules'].getModules()
-        else: self.modules = parent.parent().modules
+        if mode+'modules' in parent.widgets.keys():
+            self.modules = parent.widgets[mode + 'modules'].getModules()
+        else:
+            self.modules =  list(numpy.unique(numpy.array(parent.parent().modules)))
 
         with open(os.path.join(parent.projectname, '.qparams.pickle'), 'wb') as handle:
             pickle.dump(parent.qparams, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -4320,7 +4447,9 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         self.buttons['tab2'].setEnabled(False)
 
         jobfiles = [line for line in sorted(os.listdir(self.logfolder)) if line.endswith('.out')]
-        self.jobFilesLocal = [os.path.join(self.logfolder, job) for job in jobfiles if job.startswith('local_')]
+        jobfilesLocal = [line for line in sorted(os.listdir(self.logfolder+'/Local')) if line.endswith('.out')]
+
+        self.jobFilesLocal = [os.path.join(self.logfolder, 'Local', job) for job in jobfilesLocal ]
         self.jobFilesQueue = [os.path.join(self.logfolder, job) for job in jobfiles if not job.startswith('local_')]
         self.populate_local()
         self.populate_queue()
@@ -4334,17 +4463,25 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
             return
 
         id = 'tab1'
-        headers = ["Filename Logfile Single", "Open", "Running", 'Terminate', '']
-        types = ['txt', 'checkbox', 'checkbox', 'checkbox', 'txt']
-        sizes = [0, 0, 0, 0, 0, 0]
+        headers = ["Type", "QueueId", "Open Job", "Open Log", "Filename Jobfile Queue", 'Filename Logfile', '']
+        types = ['sort_txt', 'sort_txt', 'checkbox', 'checkbox', 'txt', 'txt', 'txt']
+        sizes = [0, 0, 0, 0, 0, 0, 0]
 
         tooltip = []
         values = []
+        added_jobs = []
+        for n, logfile in enumerate(self.jobFilesLocal):
+            queueId = os.path.basename(logfile).split('-')[0]
+            jobname = glob.glob(os.path.join(self.logfolder, 'Local', f'{queueId}*.sh'))
+            if len(jobname) < 1:
+                continue
+            jobname = jobname[0]
+            added_jobs.append(queueId)
+            name = os.path.splitext(os.path.basename(logfile).split('-')[1])[0]
+            values.append([name, queueId, 1, 1, jobname, logfile, ''])
 
-        for n, jobfile in enumerate(self.jobFilesLocal):
-            values.append([jobfile, 1, 0, 0,''])
-
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, sorting=True,connect=self.checkboxUpdate,
+                      addQCheckBox=False)
 
         self.tab1_widgets = self.tables[id].widgets
 
@@ -4352,13 +4489,26 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def checkboxUpdate(self, id, rowID=0, columnID=2):
 
-        if not columnID == 2: return
-        status = self.tab2_widgets[f'widget_{rowID}_2'].isChecked()
+
+        try:
+            widgets = self.tables[id].widgets
+            self.tab2_widgets
+        except:
+            return
+        other = {2: 3, 3: 2}
+        if not columnID in (2,3):
+            return
+        status = widgets[f'widget_{rowID}_{columnID}'].isChecked()
         if not status: return
         for i in range(self.tables[id].table.rowCount()):
             if i != rowID:
-                try: self.tab2_widgets[f'widget_{i}_2'].setChecked(False)
-                except: pass
+                try:
+                    widgets[f'widget_{i}_{columnID}'].setChecked(False)
+                    widgets[f'widget_{i}_{other[columnID]}'].setChecked(False)
+                except:
+                    pass
+            else:
+                widgets[f'widget_{i}_{other[columnID]}'].setChecked(False)
         #self.tab2_widgets[f'widget_{i}_2'].setChecked(status)
 
     def tab2UI(self):
@@ -4372,9 +4522,9 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
             return
 
         id = 'tab2'
-        headers = ["Type", "QueueId", "Open", "Running", 'Terminate', "Filename Logfile Queue", '']
-        types = ['sort_txt', 'sort_txt', 'checkbox', 'checkbox', 'checkbox', 'txt', 'txt']
-        sizes = [0, 0, 0, 0, 0, 0]
+        headers = ["Type", "QueueId", "Open Job", "Open Log", "Running", 'Terminate', "Filename Jobfile Queue", 'Filename Logfile', '']
+        types = ['sort_txt', 'sort_txt', 'checkbox', 'checkbox', 'checkbox', 'checkbox', 'txt', 'txt', 'txt']
+        sizes = [0, 0, 0, 0, 0, 0, 0, 0,0]
 
         tooltip = []
         values = []
@@ -4383,25 +4533,28 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         whoami = getpass.getuser()
         qjobs = [int(line.split()[0]) for line in os.popen(f'squeue -u {whoami} | grep -v JOBID').readlines()]
         added_jobs = []
-        for n, jobfile in enumerate(self.jobFilesQueue):
-            queueId = int(os.path.basename(jobfile).split('-')[0])
-            if len(glob.glob(os.path.join(self.logfolder, f'{queueId}*.sh'))) < 1:
+        for n, logfile in enumerate(self.jobFilesQueue):
+            queueId = int(os.path.basename(logfile).split('-')[0])
+            jobname = glob.glob(os.path.join(self.logfolder, f'{queueId}*.sh'))
+            if len(jobname) < 1:
                 continue
+            jobname = jobname[0]
             added_jobs.append(queueId)
             running = 1*(queueId in qjobs)
-            name = os.path.splitext(os.path.basename(jobfile).split('-')[1])[0]
-            values.append([name, queueId, 1, 16*running, running, jobfile, ''])
+            name = os.path.splitext(os.path.basename(logfile).split('-')[1])[0]
+            values.append([name, queueId, 1, 1, 16*running, running, jobname, logfile, ''])
 
         for running in reversed(qjobs):
             if not running in added_jobs:
                 queueId = int(running)
                 if len(glob.glob(os.path.join(self.logfolder, f'{queueId}*.sh'))) < 1:
                     continue
-                values.append( ['', int(running), 0, 16, 1, '', ''] )
+                values.append( ['', int(running), 0, 0, 16, 1, '', '', ""] )
 
         values = sorted(values, key=self.nthElem, reverse=True)
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, sorting=True, connect=self.checkboxUpdate)
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, sorting=True, connect=self.checkboxUpdate,
+                      addQCheckBox=False)
 
         self.tab2_widgets = self.tables[id].widgets
 
@@ -4410,28 +4563,35 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
     def do_something(self, pid, values):
         if pid == 'tab1':
             for row in range(self.tables[pid].table.rowCount()):
-                logfile = values[row][0]
-
-                if self.tab1_widgets[f'widget_{row}_1'].isChecked():
+                logfile = values[row][5]
+                exefile = values[row][4]
+                if self.tab1_widgets[f'widget_{row}_3'].isChecked():
                     self.open_resultfile(logfile)
+                if self.tab1_widgets[f'widget_{row}_2'].isChecked():
+                    self.open_resultfile(exefile)
 
         if pid == 'tab2':
             for row in range(self.tables[pid].table.rowCount()):
-                logfile = values[row][5]
+                logfile = values[row][7]
+                jobfile = values[row][6]
                 qId = self.tab2_widgets[f'widget_{row}_1'].text()
 
                 try:
                     if self.tab2_widgets[f'widget_{row}_2'].isChecked():
+                        self.open_resultfile(jobfile)
+                except:
+                    pass
+                try:
+                    if self.tab2_widgets[f'widget_{row}_3'].isChecked():
                         self.open_resultfile(logfile)
                 except:
                     pass
-
                 try:
-                    if self.tab2_widgets[f'widget_{row}_4'].isChecked():
+                    if self.tab2_widgets[f'widget_{row}_5'].isChecked():
                         try:
                             os.system('scancel {}'.format(qId))
                             self.tab2_widgets[f'widget_{row}_4'].setChecked(False)
-                            self.tab2_widgets[f'widget_{row}_3'].setChecked(False)
+                            self.tab2_widgets[f'widget_{row}_5'].setChecked(False)
                         except:
                             print('Failed to cancel job {}'.format(qId))
                 except:
@@ -4571,14 +4731,13 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
     def updateJobName(self, mode='v00_QParams_'):
         jobname = self.widgets[mode + 'jobName'].currentText()
         self.currentJobName = jobname
+        print(jobname, self.qparams[jobname].values())
+
         self.widgets[mode + 'queueName'].setText(self.qparams[self.currentJobName].queue)
         self.widgets[mode + 'maxTime'].setValue(self.qparams[self.currentJobName].time)
         self.widgets[mode + 'numberOfNodes'].setValue(self.qparams[self.currentJobName].nodes)
         self.widgets[mode + 'numberOfCores'].setValue(self.qparams[self.currentJobName].cores)
         self.widgets[mode + 'modules'].activateModules(self.qparams[self.currentJobName].modules,block=(jobname=='All'))
-
-
-
 
     def tab1UI(self):
         self.jobnames = ['All',
@@ -4751,7 +4910,6 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
     def updateNumberOfCores(self, mode):
         self.parent().TR.num_parallel_procs = int(self.widgets[mode+'numberOfCores'].value())
 
-
     def tab4UI(self):
         pass
 
@@ -4843,7 +5001,7 @@ class SelectModules(QWidget):
             action.blockSignals(False)
 
     def getModules(self):
-        return self.modules
+        return list(numpy.unique(numpy.array(self.modules)))
 
     def getActivatedModules(self):
         return [action.text() for action in self.actions if action.isChecked()]
@@ -5073,7 +5231,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
     def tab32UI(self, id=''):
         import glob, numpy
         from pytom.gui.guiFunctions import loadstar, datatype
-        headers = ["name tomogram", 'Score', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker', 'Enp. Rot. Angle', 'Det. Rot. Angle', 'CTF Corrected',  '']
+        headers = ["name tomogram", 'Score', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Det. Rot. Angle', 'CTF Corrected',  '']
         types = ['txt', 'txt', 'combobox', 'combobox', 'txt', 'combobox', 'txt', 'txt', 'checkbox', 'txt']
         sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0,0]
 

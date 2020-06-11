@@ -134,6 +134,8 @@ class View3d(QMainWindow, CommonFunctions):
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA, rstep=1)
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyB, width=10)
 
+        self.widgets[mode + 'sliceDirection'].setCurrentIndex(2)
+
         self.cwidget.setLayout(parent)
         self.setWindowTitle('Select a file describing a 3D model')
         self.setCentralWidget(self.cwidget)
@@ -404,7 +406,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
         try:
             self.generalSettings.close()
-            self.generalSettings.show()
+            if show_menu: self.generalSettings.show()
         except:
             self.generalSettings = GeneralSettings(self)
             if show_menu: self.generalSettings.show()
