@@ -4,8 +4,7 @@
 from pytom.gpu.initialize import xp, device
 import numpy as np
 
-
-def read(filename,ndarray=True, order='F'):
+def read(filename, ndarray=True, order='F', keepnumpy=False, deviceID=None):
     """Read EM file. Now only support read the type float32 on little-endian machines.
 
     @param filename: file name to read.
@@ -16,9 +15,9 @@ def read(filename,ndarray=True, order='F'):
     assert filename.split('.')[-1].lower() in ('em', 'mrc')
 
     if filename.endswith('.em'):
-        data = read_em(filename, order=order)
+        data = read_em(filename, order=order, keepnumpy=keepnumpy, deviceID=deviceID)
     elif filename.endswith('.mrc'):
-        data = read_mrc(filename, order=order)
+        data = read_mrc(filename, order=order, keepnumpy=keepnumpy, deviceID=deviceID)
     else:
         raise Exception('Invalid filetype. Please provide a *.em or a *.mrc file.')
 
@@ -27,7 +26,7 @@ def read(filename,ndarray=True, order='F'):
     else:
         return n2v(data)
 
-def read_mrc(filename, order='F'):
+def read_mrc(filename, order='F', keepnumpy=False, deviceID=None):
     import numpy as np
     f = open(filename, 'r')
     try:
@@ -62,15 +61,17 @@ def read_mrc(filename, order='F'):
         f.close()
 
 
-    if default_type:
-        #with xp.cuda.Device(2):
-        volume = xp.array(v.reshape((x, y, z), order=order) ).copy() # fortran-order array
-    else:  # if the input data is not the default type, convert
-        volume = xp.array(v.reshape((x, y, z), order=order), dtype='float32').copy()  # fortran-order array
+    if keepnumpy:
+        volume = np.array(v.reshape((x, y, z), order=order), dtype='float32').copy()  # fortran-order array
+    else:
+        if not deviceID == None:
+            id = int(deviceID.split(":")[1])
+            xp.cuda.Device(id).use()
+        volume = xp.array(v.reshape((x, y, z), order=order), dtype=xp.float32).copy()  # fortran-order array
 
     return volume
 
-def read_em(filename, order='F'):
+def read_em(filename, order='F', keepnumpy=False, deviceID=None):
     """Read EM file. Now only support read the type float32 on little-endian machines.
 
     @param filename: file name to read.
@@ -78,6 +79,7 @@ def read_em(filename, order='F'):
     @return The data from the EM file in ndarray
     """
     f = open(filename, 'r')
+
     try:
         dt_header =np.dtype('int32')
         header = np.fromfile(f, dt_header, 128)
@@ -111,10 +113,15 @@ def read_em(filename, order='F'):
     finally:
         f.close()
 
-    if default_type:
-        volume = xp.array(v.reshape((x, y, z), order=order), dtype=xp.float32).copy() # fortran-order array
+
+    if keepnumpy:
+        volume = np.array(v.reshape((x, y, z), order=order), dtype='float32').copy() # fortran-order array
     else: # if the input data is not the default type, convert
-        volume = xp.array(v.reshape((x, y, z), order=order), dtype=xp.float32).copy() # fortran-order array
+        if not deviceID == None:
+            id = int(deviceID.split(":")[1])
+            xp.cuda.Device(id).use()
+        volume = xp.array(v.reshape((x, y, z), order=order), dtype='float32').copy() # fortran-order array
+
     return volume
 
 def write(filename, data, tilt_angle=0, pixel_size=1, order='F'):

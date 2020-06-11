@@ -1,3 +1,5 @@
+from pytom.gpu.initialize import xp, device
+
 
 class PyTomClassError(Exception):
 
@@ -259,8 +261,6 @@ class Preprocessing(PyTomClass):
         @return: Returns modified volume
         @author: Thomas Hrabe
         """
-
-        from pytom_volume import vol
         from pytom.tompy.filter import bandpass as bandpassFilter
 
         if self._bandpassOn:
@@ -278,7 +278,7 @@ class Preprocessing(PyTomClass):
 
             v = bandpassFilter(volume, low=lowestFrequency, high=highestFrequency,
                                smooth=self._bandpassSmooth)
-            volume = v[0]
+            volume = v
 
         if self._prerotateOn and (not bypassFlag):
             from pytom.voltools import transform
@@ -297,7 +297,6 @@ class Preprocessing(PyTomClass):
             wedgeSum = read(self._weightingFile)
 
             applyFourierFilter(volume, wedgeSum)
-
 
         if self._substractParticle and particle.__class__ == vol:
             volume -= particle
@@ -1300,7 +1299,6 @@ class SingleTiltWedge(PyTomClass):
             cut = wedgeSizeX // 2
         else:
             cut = self._cutoffRadius
-
         weightObject = weight(self._wedgeAngle1, self._wedgeAngle2, cut, wedgeSizeX, wedgeSizeY, wedgeSizeZ,
                               self._smooth)
 
@@ -1328,12 +1326,12 @@ class SingleTiltWedge(PyTomClass):
         """
         wedgeVolume = None
 
-        if self._wedgeAngle1 == 0 and self._wedgeAngle2 == 0:
+        if abs(self._wedgeAngle1) < 1E-4 and abs(self._wedgeAngle2) < 1E-4:
 
             if not humanUnderstandable:
-                wedgeVolume = xp.ones((wedgeSizeX, wedgeSizeY, int(wedgeSizeZ // 2) + 1), dtype=xp.float32)
+                wedgeVolume = xp.ones((wedgeSizeX, wedgeSizeY, wedgeSizeZ // 2 + 1), dtype=xp.float32)
             else:
-                wedgeVolume = xp.ones((wedgeSizeX, wedgeSizeY, wedgeSizeZ),dtype=xp.float32)
+                wedgeVolume = xp.ones((wedgeSizeX, wedgeSizeY, wedgeSizeZ),dtype=xp.int32)
 
         else:
             # add a custom rotation to the previously specified one
@@ -1344,11 +1342,9 @@ class SingleTiltWedge(PyTomClass):
 
             if humanUnderstandable:
                 # applies hermitian symmetry to full and ftshift so that even humans do understand
-                from xp.fft import fftshift as fftShift
                 from pytom.tompy.transform import fourier_reduced2full as reducedToFull
-                wedgeVolume = reducedToFull(wedgeVolume, (wedgeSizeX %1))
-
-                fftShift(wedgeVolume)
+                wedgeVolume = reducedToFull(wedgeVolume, (wedgeSizeX % 2))
+                wedgeVolume = xp.fft.fftshift(wedgeVolume)
 
         return wedgeVolume
 
@@ -1363,16 +1359,13 @@ class SingleTiltWedge(PyTomClass):
         @rtype: L{pytom_volume.vol}
         @author: Thomas Hrabe
         """
-
-        if not volume.__class__ == xp.array:
+        if not volume.__class__ == xp.array((1)).__class__:
             raise TypeError('SingleTiltWedge: You must provide a xp.array here!')
 
         if self._wedgeAngle1 > 0 or self._wedgeAngle2 > 0:
-
             from pytom.tompy.filter import applyFourierFilter as filter
 
-            wedgeFilter = self.returnWedgeFilter(volume.shape[0], volume.shape[1], volume.shape[2], rotation)
-
+            wedgeFilter = self.returnWedgeVolume(volume.shape[0], volume.shape[1], volume.shape[2], rotation)
             result = filter(volume, wedgeFilter)
 
             return result
@@ -2193,7 +2186,7 @@ class Particle(PyTomClass):
 
         if rotation != Rotation(0, 0, 0) or shift != Shift(0, 0, 0):
 
-            volumeTransformed = xp.zeros((volume.sizeX(), volume.sizeY(), volume.sizeZ()),dtype=xp.float32)
+            volumeTransformed = xp.zeros((volume.shape[0], volume.shape[1], volume.shape[2]),dtype=xp.float32)
 
             transform(volume, output=volumeTransformed, rotation=[-rotation[1], -rotation[0], -rotation[2]],
                       center=[int(volume.shape[0] // 2), int(volume.shape[0] // 2), int(volume.shape[0] // 2)],
@@ -3229,10 +3222,9 @@ class ParticleList(PyTomClass):
         @return: 3D variance map
         @rtype: L{pytom_volume.vol}
         """
-        from pytom_volume import power, complexDiv, mean, variance
-        from pytom.basic.fourier import fft, ifft
-        from math import sqrt
+        from pytom_volume import variance
         from pytom.tools.ProgressBar import FixedProgBar
+        from pytom.tompy.filter import applyFourierFilter
 
         if verbose:
             progressBar = FixedProgBar(0, len(self._particleList), '')
@@ -3247,18 +3239,19 @@ class ParticleList(PyTomClass):
             # rotate the wedge
             w = p.getWedge()
             if sum_w is None:
-                sum_w = w.returnWedgeVolume(v.sizeX(), v.sizeY(), v.sizeZ(), False, p.getRotation().invert())
+                sum_w = w.returnWedgeVolume(v.shape[0], v.shape[1], v.shape[2], False, p.getRotation().invert())
             else:
-                sum_w += w.returnWedgeVolume(v.sizeX(), v.sizeY(), v.sizeZ(), False, p.getRotation().invert())
+                sum_w += w.returnWedgeVolume(v.shape[0], v.shape[1], v.shape[2], False, p.getRotation().invert())
 
             # calculate the variance
             wa = w.apply(average, p.getRotation().invert())
             # rescale the vol
-            vv = v / sqrt(variance(v, False)) * sqrt(variance(wa, False))
-            vv.shiftscale(mean(wa) - mean(vv), 1)
+            vv = v / xp.sqrt(variance(v, False)) * xp.sqrt(variance(wa, False))
+            vv.shiftscale(wa.mean() - vv.mean(), 1)
 
             var = wa - vv
-            power(var, 2)
+            var = var**2
+
             if sum_var is None:
                 sum_var = var
             else:
@@ -3269,11 +3262,7 @@ class ParticleList(PyTomClass):
                 progressBar.update(num_processed)
 
         # take care the wedge weighting
-        fResult = fft(sum_var)
-        r = complexDiv(fResult, sum_w)
-
-        result = ifft(r)
-        result.shiftscale(0.0, 1 / float(sum_var.sizeX() * sum_var.sizeY() * sum_var.sizeZ()))
+        result = applyFourierFilter(sum_var, 1/sum_w)
 
         return result
 
@@ -3804,7 +3793,7 @@ class Rotation(PyTomClass):
         """
         if self._paradigm == 'ZXZ':
             from pytom.angles.angleFnc import zxzToMat as toMat
-            res = toMat(self)
+            res = toMat(*self.toVector())
         else:
             raise RuntimeError("Rotation: Paradigm other than ZXZ not supported yet!")
 
@@ -3835,6 +3824,10 @@ class Rotation(PyTomClass):
         m2 = otherRotation.toMatrix()
 
         return m1 == m2
+
+    def convert2pytomc(self):
+        from pytom.basic.structures import Rotation
+        return Rotation(*self.toVector())
 
 
 class Shift(PyTomClass):
@@ -4086,6 +4079,10 @@ class Shift(PyTomClass):
             raise NotImplementedError("Shift sub: Add partner must be another Shift, too!")
 
         return self + (-1 * otherShift)
+
+    def convert2pytomc(self):
+        from pytom.basic.structures import Shift
+        return Shift(*self.toVector())
 
 
 class PickPosition(PyTomClass):
@@ -4866,7 +4863,7 @@ class Weight():
         self.sizeY = sizeY
         self.sizeZ = sizeZ
         self.smooth=smooth
-        self.rotation =rotation
+        self.rotation = rotation
 
     def rotate(self, phi, psi, theta):
         self.rotation = [phi, theta, psi]
@@ -4881,7 +4878,6 @@ class Weight():
     def getWeightVolume(self, reducedComplex=True):
         from pytom.tompy.filter import create_wedge
         from pytom.tompy.transform import fourier_reduced2full
-        from xp.fft import fftshift
 
         wedge = create_wedge(self.wedgeAngle1, self.wedgeAngle2, self.cutOffRadius, self.sizeX, self.sizeY, self.sizeZ, self.smooth, self.rotation)
 
@@ -4889,3 +4885,255 @@ class Weight():
             wedge = fourier_reduced2full(wedge)
 
         return wedge
+
+
+from pytom.basic.correlation import nxcc
+import scipy.optimize
+
+
+class Alignment:
+    def __init__(self, vol1, vol2, score, mask=None, iniRot=None, iniTrans=None,
+                 opti='fmin_powell', interpolation='linear', verbose=False):
+        """
+        alignment of a particle against a reference
+
+        @param vol1: (constant) volume
+        @type vol1: L{pytom_volume.vol}
+        @param vol2: volume that is matched to reference
+        @type vol2: L{pytom_volume.vol}
+        @param score: score for alignment - e.g., pytom.basic.correlation.nxcc
+        @type score: L{pytom.basic.correlation}
+        @param mask: mask correlation is constrained on
+        @type mask: L{pytom_volume.vol}
+        @param iniRot: initial rotation of vol2
+        @type iniRot: L{pytom.basic.Rotation}
+        @param iniTrans: initial translation of vol2
+        @type iniTrans: L{pytom.basic.Shift}
+        @param opti: optimizer ('fmin_powell', 'fmin', 'fmin_cg', 'fmin_slsqp', 'fmin_bfgs')
+        @param interpolation: interpolation type - 'linear' (default) or 'spline'
+        @type interpolation: str
+        @type opti: L{str}
+
+        @author: FF
+        """
+        from pytom.tompy.normalise import normaliseUnderMask, mean0std1
+        from pytom.tompy.tools import volumesSameSize
+        from pytom.tompy.structures import Rotation, Shift
+        from pytom.voltools import StaticVolume
+        assert isinstance(interpolation, str), "interpolation must be of type str"
+
+        self.verbose = verbose
+        if not volumesSameSize(vol1, vol2):
+            raise RuntimeError('Vol1 and vol2 must have same size!')
+
+        # normalize constant volume
+        if not mask is None:
+            (v, p) = normaliseUnderMask(vol1, mask)
+        else:
+            v = mean0std1(vol1, True)
+
+        self.vol1 = v
+        self.vol2 = StaticVolume(xp.array(vol2), interpolation='filt_bspline', device=device)
+        self.rotvol2 = xp.zeros_like(self.vol1,dtype=xp.float32)
+        self.mask = mask
+
+        if not iniRot:
+            iniRot = Rotation()
+        if not iniTrans:
+            iniTrans = Shift()
+        self.rot_trans = self.transRot2vector(rot=iniRot, trans=iniTrans)
+
+        self.score = score
+        self.val = -100000.
+        self.centX = int(self.vol1.shape[0] // 2)
+        self.centY = int(self.vol1.shape[1] // 2)
+        self.centZ = int(self.vol1.shape[2] // 2)
+        self.binning = 1
+        self.interpolation = interpolation
+
+        # set optimizer
+        self.opti = opti
+        if opti == 'fmin':
+            self.optimizer = scipy.optimize.fmin
+        elif opti == 'fmin_slsqp':
+            self.optimizer = scipy.optimize.fmin_slsqp
+        elif opti == 'fmin_cg':
+            self.optimizer = scipy.optimize.fmin_cg
+        elif opti == 'fmin_bfgs':
+            self.optimizer = scipy.optimize.fmin_bfgs
+        elif opti == 'fmin_powell':
+            self.optimizer = scipy.optimize.fmin_powell
+        else:
+            raise TypeError('opti must be of type str')
+
+    def transRot2vector(self, rot, trans):
+        """
+        convert rotation and translation to 6-dimensional vector
+        @param rot: rotation of vol2
+        @type rot: L{pytom.basic.Rotation}
+        @param trans: translation of vol2
+        @type trans: L{pytom.basic.Shift}
+        @return: rotation and translation vector (6-dim: z1,z2,x \
+            angles, x,y,z, translations)
+        @rtype: L{list}
+        @author: FF
+
+        """
+        self.rot_trans = 6 * [0.]
+        for ii in range(0, 3):
+            self.rot_trans[ii] = rot[ii]
+        for ii in range(3, 6):
+            self.rot_trans[ii] = trans[ii - 3]
+        return self.rot_trans
+
+    def vector2transRot(self, rot_trans):
+        """
+        convert 6-dimensional vector to rotation and translation
+
+        @param rot_trans: rotation and translation vector (6-dim: z1,z2,x \
+            angles, x,y,z, translations)
+        @type rot_trans: L{list}
+        @return: rotation of vol2, translation of vol2
+        @rtype: L{pytom.basic.Rotation}, L{pytom.basic.Shift}
+        @author: FF
+        """
+        from pytom.tompy.structures import Rotation, Shift
+
+        rot = Rotation()
+        trans = Shift()
+        for ii in range(0, 3):
+            rot[ii] = self.rot_trans[ii]
+        for ii in range(3, 6):
+            trans[ii - 3] = self.rot_trans[ii]
+        return rot, trans
+
+    def set_rot(self, rot):
+        """
+        set initial rotation
+
+        @param rot: rotation of vol2
+        @type rot: L{pytom.basic.Rotation}
+        """
+        self.rot_trans[0] = rot[0]
+        self.rot_trans[1] = rot[1]
+        self.rot_trans[2] = rot[2]
+
+    def set_trans(self, trans):
+        """
+        set initial translation
+
+        @param trans: translation of vol2
+        @type trans: L{pytom.basic.Shift}
+        """
+        self.rot_trans[3] = trans[0]
+        self.rot_trans[4] = trans[1]
+        self.rot_trans[5] = trans[2]
+
+    def set_searchVol(self, vol1):
+        """
+        set search volume (vol1 internally)
+
+        @param vol1: search volume
+        @type vol1: L{pytom_volume.vol}
+
+        """
+        from pytom.tompy.normalise import normaliseUnderMask, mean0std1
+
+        if self.mask:
+            (self.vol1, p) = normaliseUnderMask(vol1, self.mask)
+        else:
+            self.vol1 = mean0std1(vol1, True)
+
+    def evalScore(self, rot_trans):
+        """
+        evaluate score for given rotation and translation - NEGATIVE cc because\
+        optimizer MINIMIZES
+
+        @param rot_trans: rotation and translation vector (6-dim: z1,z2,x \
+            angles, x,y,z, translations)
+        @type rot_trans: L{list}
+        @author: FF
+        """
+        from pytom.voltools import transform
+        self.vol2.transform(output=self.rotvol2, rotation=[rot_trans[0], rot_trans[2], rot_trans[1]],rotation_order='rzxz',
+                  center=[self.centX, self.centY, self.centZ],
+                  translation=[rot_trans[3] / self.binning, rot_trans[4] / self.binning, rot_trans[5] / self.binning])
+
+        self.val = float(-1. * (self.score(volume=self.vol1, template=self.rotvol2, mask=self.mask, volumeIsNormalized=True)))
+
+        return self.val
+
+    def cc(self, rot, trans):
+        """
+        evaluate the CC for given rotation and translation - here directly CC not multiplied by -1 as in evalScore
+
+        @param rot: rotation of vol2
+        @type rot: L{pytom.basic.Rotation}
+        @param trans: translation of vol2
+        @type trans: L{pytom.basic.Shift}
+        @return: cc
+        @rtype: L{float}
+        @author: FF
+        """
+        from pytom.voltools import transform
+
+        # transform vol2
+        self.vol2.transform(self.rotvol2, rotation=[rot[0], rot[2], rot[1]], center=[self.centX,self.centY,self.centZ],
+                            translation=[trans[0] / self.binning, trans[1] / self.binning, trans[2] / self.binning],
+                            rotation_order='rzxz')
+        # compute CCC
+        cc = self.score(volume=self.vol1, template=self.rotvol2, mask=self.mask, volumeIsNormalized=True)
+
+        return float(cc)
+
+    def localOpti(self, iniRot=None, iniTrans=None):
+        """
+        @param iniRot: initial rotation of vol2
+        @type iniRot: L{pytom.basic.Rotation}
+        @param iniTrans: initial translation of vol2
+        @type iniTrans: L{pytom.basic.Shift}
+        @return: opti_score, opti_rot, opti_trans
+        @rtype: L{float}, L{pytom.basic.structures.Rotation}, L{pytom.basic.structures.Shift}
+        @author: FF
+        """
+        from pytom.tompy.structures import Rotation, Shift
+
+        if not (type(iniRot) == type(None)):
+            self.set_rot(rot=iniRot)
+        if not (type(iniTrans) == type(None)):
+            self.set_trans(trans=iniTrans)
+
+        if self.verbose:
+            # alignment score before optimization
+            print("CC before optimization %1.3f" % (-1. * self.evalScore(self.rot_trans)))
+
+        # optimize scoring function
+        maxiter = 20
+        if ((self.opti == 'fmin') or (self.opti == 'fmin_powell')):
+            rot_trans = self.optimizer(self.evalScore, self.rot_trans,
+                                       xtol=0.05, ftol=0.001, maxiter=maxiter, maxfun=maxiter * 20)
+            # xtol=0.0001, ftol=0.0001, maxiter=maxiter, maxfun=None)
+        elif self.opti == 'fmin_cg':
+            rot_trans = self.optimizer(self.evalScore, self.rot_trans,
+                                       gtol=0.0000001,
+                                       maxiter=maxiter)
+        elif self.opti == 'fmin_slsqp':
+            rot_trans = self.optimizer(self.evalScore, self.rot_trans,
+                                       iter=maxiter, acc=1e-03)
+        elif self.opti == 'fmin_bfgs':
+            rot_trans = self.optimizer(self.evalScore, self.rot_trans,
+                                       maxiter=maxiter, epsilon=1e-06)
+        elif self.opti == 'leastsq':
+            rot_trans, success = self.optimizer(self.evalScore, self.rot_trans,
+                                                maxfev=maxiter, epsfcn=0.0, factor=10)
+        self.rot_trans = rot_trans
+
+        # alignment score before optimization
+        finscore = self.evalScore(self.rot_trans)
+        rot, trans = self.vector2transRot(rot_trans)
+        if self.verbose:
+            print("CC after optimization %1.3f" % (-1. * finscore))
+            print("rot_trans = ", rot_trans)
+            print(rot, trans)
+
+        return -1. * finscore, rot, trans

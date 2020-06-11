@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 from pytom.gpu.initialize import xp, device
 
-from pytom.gpu.initialize import xp, map_coordinates
-
 def rotate_axis(data, angle, axis='z'):
     """Rotate the volume around certain axis.
 
@@ -241,13 +239,13 @@ def scale(volume, factor, interpolation='Spline'):
     sizeX = volume.shape[0]
     sizeY = volume.shape[1]
     sizeZ = 1
-    newSizeX = int(xp.ceil(sizeX * float(factor)))
-    newSizeY = int(xp.ceil(sizeY * float(factor)))
+    newSizeX = int(xp.floor(sizeX * float(factor) + 0.5))
+    newSizeY = int(xp.floor(sizeY * float(factor) + 0.5))
     newSizeZ = 1
 
     if len(volume.shape) == 3:
         sizeZ = volume.shape[2]
-        newSizeZ = int(xp.ceil(sizeZ * float(factor)))
+        newSizeZ = int(xp.floor(sizeZ * factor + 0.5))
         scaleF = [1/factor, 1/factor, 1/factor]
     else:
         scaleF = [1/factor, 1/factor, 1]
@@ -312,13 +310,12 @@ def resizeFourier(fvol, factor, isodd=False):
 
 
     # new dims in real and Fourier space
-    newNx = newFNx = xp.int32(xp.floor(oldFNx * factor +0.5))
-    newNy = newFNy = xp.int32(xp.floor(oldFNy * factor +0.5))
-    print(newNx)
+    newNx = newFNx = int(xp.floor(oldFNx * factor + 0.5))
+    newNy = newFNy = int(xp.floor(oldFNy * factor + 0.5 ))
     # check 3D images
     if len(fvol.shape) == 3:
-        oldNz = xp.int32((fvol.shape[2] - 1)*2 + 1*isodd)
-        newNz = xp.int32(xp.floor(oldNz * factor + 0.5))
+        oldNz = int((fvol.shape[2] - 1)*2 + 1*isodd)
+        newNz = int(xp.floor(oldNz * factor + 0.5))
         newFNz = newNz // 2 + 1
         oldFNz = fvol.shape[2]
 
@@ -328,7 +325,6 @@ def resizeFourier(fvol, factor, isodd=False):
 
         fvol_center_scaled = xp.fft.fftshift(fvol,axes=(0,1)) * scf
         newfvol = xp.zeros((newFNx, newFNy, newFNz), dtype=fvol.dtype)
-        print(newfvol.shape)
         if factor >= 1:
             # Effectively zero-padding
             newfvol[newFNx // 2 - oldFNx // 2 + newxIsEven :newFNx // 2 + oldFNx // 2 + isodd + newxIsEven,
@@ -357,7 +353,6 @@ def resizeFourier(fvol, factor, isodd=False):
 
         newfvol = xp.fft.fftshift(newfvol, axes=(0))
         newfvol = xp.expand_dims(newfvol,2)
-    print(newfvol.shape)
     return newfvol
 
 
@@ -439,7 +434,7 @@ def fourier_reduced2full(data, isodd=False):
     ind = [xp.mod(sx-x, sx), xp.mod(sy-y, sy), szz-z]
 
     # do the complex conjugate of the second part
-    res[:, :, data.shape[2]:] = xp.ma.conjugate(data[tuple(ind)])
+    res[:, :, data.shape[2]:] = xp.conj(data[tuple(ind)])
 
     return res
 
@@ -453,6 +448,9 @@ def fourier_filter(data, fltr, human=True):
 
     fd = rfft(data)
     res = irfft(fd * fltr, data.shape)
+
+
+
 
     return res
 
