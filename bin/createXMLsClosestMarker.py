@@ -55,14 +55,13 @@ def determine_closest_marker(x,y,z,markers):
     markerIndex = 0
     dist = 10000
     for n, (rx, ry, rz) in enumerate(refmarkers):
-        print(rx, ry, rz, x, y, z)
         tempdist = numpy.sqrt((rx-x)**2+(ry-y)**2+(rz-z)**2)
         if tempdist < dist:
             markerIndex = n
             dist = tempdist
             rrx, rry, rrz = rx, ry, rz
-            print(n, '--', tempdist, '--', x,y,z, '--',  rx, ry, rz)
-    return markerIndex
+            #print(n, '--', tempdist, '--', x,y,z, '--',  rx, ry, rz)
+    return markerIndex, dist
 
 def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8, directory='./', projDirTemplate=''):
     from pytom.basic.structures import PickPosition, ParticleList
@@ -97,7 +96,7 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             y *= binning_factor
             z *= binning_factor
 
-            closestMarkerIndex = determine_closest_marker(x,y,z, markers)
+            closestMarkerIndex, dist = determine_closest_marker(x,y,z, markers)
             projectionDirectory = projDirTemplate.replace('_CLOSEST_', '_{:04d}_'.format(closestMarkerIndex))
             markerPositionFile = f'{projectionDirectory}/markerLocations_irefmark_{closestMarkerIndex}.txt'
 
@@ -111,7 +110,7 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             oz = markers['OffsetZ'][closestMarkerIndex]
             originFname = particle.getPickPosition().getOriginFilename()
 
-            print(x,y,z, ox, oy, oz)
+            print(closestMarkerIndex, x,y,z, ox, oy, oz, dist)
             pp = PickPosition(x=(x-ox)/binning_factor,y=(y-oy)/binning_factor,z=((z-oz)/binning_factor), originFilename=originFname)
             particle.setPickPosition(pp)
             outLists[closestMarkerIndex].append(particle)
