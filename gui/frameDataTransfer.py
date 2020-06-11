@@ -194,7 +194,7 @@ class CollectPreprocess(GuiTabWidget):
         self.ends = {}
         self.num_nodes = {}
         self.modes = {}
-
+        self.checkbox= {}
 
         for i in range(len(headers)):
             t = 'tab{}'.format(i + 1)

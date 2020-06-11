@@ -61,6 +61,7 @@ class ParticlePick(GuiTabWidget):
         self.pbs = {}
         self.ends = {}
         self.num_nodes = {}
+        self.checkbox = {}
 
         self.tabs2 = {'tab1': self.tab1,
                      'tab21': self.tab21, 'tab22': self.tab22,
@@ -86,6 +87,7 @@ class ParticlePick(GuiTabWidget):
                 self.pbs[tt] = QWidget()
                 self.ends[tt] = QWidget()
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
+                self.checkbox[tt] = QCheckBox('queue')
 
                 if not static_tabs[i][j]:
                     print(tt)#tt in ('tab22', 'tab32'):
@@ -948,7 +950,8 @@ class ParticlePick(GuiTabWidget):
                 convertCoords2PL([c], pl, subtomoPrefix=[p], wedgeAngles=wedge, angleList=angleList)
                 #os.system(createParticleList.format(d=[c, p, wedge, pl]))
 
-            except:
+            except Exception as e:
+                print(e)
                 print('Writing {} failed.'.format(os.path.basename(fname)))
                 return
 

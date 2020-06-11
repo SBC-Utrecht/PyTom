@@ -5,13 +5,324 @@ import numpy
 def cmp(a,b):
     return (a > b) - (a < b)
 
+def refMarkerResidualForTiltImage(cent, Marker, cTilt, sTilt, transX, transY, rotInPlane, iproj=0, ireftilt=0,
+                                  isoMag=None, dBeam=None, dMagnFocus=None, dRotFocus=None, equationSet=False,
+                                  logfile_residual=None, returnErrors=None):
+    """
+    calculate residual of a marker model given the marker coords
 
-def markerResidual(cent, Markers_, cTilt, sTilt, 
-        transX, transY, rotInPlane, 
-        isoMag=None, 
-        dBeam=None, 
-        dMagnFocus=None, dRotFocus=None,
-        equationSet=False):
+    @param cent: x,y coordinates of tiltaxis rotation stage.
+    @type cent: numpy.array
+    @param Markers_: Markers
+    @type Markers_: Markers
+    @param transX: translations in X
+    @type transX: vector (ntilt)
+    @param transY: translations in Y
+    @type transY: vector (ntilt)
+    @param rotInPlane: rotation of tilt axis in each projection (against X-axis in deg)
+    @type rotInPlane: array
+    @param dmag: delta magnification (vector; dim: ntilt)
+    @type dmag: vector (ntilt)
+    @param dbeam: beam inclination
+    @type dbeam: float
+    @param dmagnfoc: linear magnification change as function of defocus (experimental)
+    @type dmagnfoc: float
+    @param drotfoc: linear image rotation change as function of defocus
+    @type drotfoc: float
+    @param equationSet: Compute differences instead of scalar function (sum of squares)
+    @type quationSet: logical
+    @return: squared error of fit in 3D (or array of deviations for equationSet==True)
+    @rtype: float (or array for equationSet==True)
+    @author: foerster
+
+    tilt geom:
+
+    [cos(the_itilt)  0  -sin(the_itilt) ]  [ x_imark ]
+    [ 0              1             0    ]  [ y_imark ]
+                                           [ z_imark ]
+
+
+    = [ cos(-psi+dpsi_itilt-pi/2) sin(-psi+dpsi_itilt-pi/2)] isoMag_itilt [markx_itilt,imark] - [transX_itilt]
+      [-sin(-psi+dpsi_itilt-pi/2) cos(-psi+dpsi_itilt-pi/2)]              [marky_itilt,imark]   [transY_itilt]
+
+
+    """
+    from math import sin, cos, pi
+    from sys import exit
+    from numpy import mean
+    from pytom.tools.maths import rotate_vector2d
+
+
+    if equationSet:
+        Dev = []
+
+    # approximate tilt axis = mean
+    zeropsi = rotInPlane[ireftilt]
+    psi = rotInPlane[iproj]
+    czeropsi = cos(- zeropsi / 180. * pi - pi / 2.)
+    szeropsi = sin(- zeropsi / 180. * pi - pi / 2.)
+
+    # pre-compute sin and cos
+    cpsi = cos(- psi / 180. * pi - pi / 2.)
+    spsi = sin(- psi / 180. * pi - pi / 2.)
+
+    if dBeam:
+        cdbeam = cos(dBeam)
+        sdbeam = sin(dBeam)
+
+    ndif = 0  # counter for datapoints
+
+    # marker loop
+    residual = 0.
+    errors = []
+
+    errors.append(0.)
+    ind_dif = 0
+    markCoord = Marker.get_r()
+
+    # marker positions in 3d model rotated on approximate tilt axis
+    zmod = markCoord[2]
+    [xmod, ymod] = rotate_vector2d([markCoord[0], markCoord[1]], czeropsi, szeropsi)
+
+
+    if ((Marker.xProj[iproj] > -1.) and (Marker.yProj[iproj] > -1.)):
+        ndif = ndif + 1
+
+        # rotate clicked markers back and inverse shift
+        xmark = Marker.xProj[iproj] - cent[0] - transX[iproj]
+        ymark = Marker.yProj[iproj] - cent[1] - transY[iproj]
+
+        [x_meas, y_meas] = rotate_vector2d([xmark, ymark], cpsi, spsi)
+        # additional variable magnification
+        try:
+            if isoMag:
+                x_meas = x_meas * isoMag[iproj]
+                y_meas = y_meas * isoMag[iproj]
+
+            # model projection
+
+            # beam inclination
+            if dBeam:
+                x_proj = cTilt[iproj] * xmod - sTilt[iproj] * sdbeam * ymod - sTilt[iproj] * cdbeam * zmod
+                y_proj = sTilt[iproj] * sdbeam * xmod + (cdbeam ** 2 + sdbeam ** 2 * cTilt[iproj] * ymod +
+                                                         cdbeam * sdbeam * (1 - cTilt[iproj]) * zmod)
+            else:
+                x_proj = cTilt[iproj] * xmod - sTilt[iproj] * zmod
+                y_proj = ymod
+
+            # x-dependent magnification of model
+            if dMagnFocus:
+                y_proj_dmag = y_proj
+                tmp = dMagnFocus * x_proj
+                x_proj = (1 + .5 * tmp) * x_proj
+                y_proj_dmag = (1 + tmp) * y_proj
+                y_proj = y_proj_dmag
+        except Exception as e:
+            print(e)
+            raise(e)
+        # score
+        deltaX = x_meas - x_proj
+        deltaY = y_meas - y_proj
+
+
+        print(deltaX, deltaY)
+        ## Warning for large differences
+        # if (abs(deltaX) >100.) or (abs(deltaY) > 100.):
+        #    print "Huge Difference for marker oberved: "
+        #    print "  iproj="+str(iproj)+", imark="+str(imark+1)
+        #    print "  deltaX = "+str(deltaX)
+        #    print "  deltaY = "+str(deltaY)
+
+        residual = deltaX ** 2 + deltaY ** 2 + residual
+        if equationSet:
+            Dev.append(deltaX)
+            Dev.append(deltaY)
+        ind_dif += 1
+        errors[-1] += numpy.sqrt(deltaX ** 2 + deltaY ** 2)
+    else:
+        raise('Reference marker should be assigned for each image')
+
+    errors[-1] = errors[-1] / float(ind_dif) ** 2
+    # normalize and prepare output
+    normf = 1. / (ndif - 0)
+    # residual = sqrt(residual/(ndif - size(Matrixmark,3)));
+    residual = residual * normf
+    # print error, residual
+    if equationSet:
+        return Dev
+    else:
+        return residual
+
+
+def markerResidualFixedMarker(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, tiltangles=[], ireftilt=0,
+                              irefmark=0, isoMag=None,dBeam=None, dMagnFocus=None, dRotFocus=None, equationSet=False,
+                              logfile_residual=None, returnErrors=None):
+    """
+    calculate residual of a marker model given the marker coords
+
+    @param cent: x,y coordinates of tiltaxis rotation stage.
+    @type cent: numpy.array
+    @param Markers_: Markers
+    @type Markers_: Markers
+    @param transX: translations in X
+    @type transX: vector (ntilt)
+    @param transY: translations in Y
+    @type transY: vector (ntilt)
+    @param rotInPlane: rotation of tilt axis in each projection (against X-axis in deg)
+    @type rotInPlane: array
+    @param dmag: delta magnification (vector; dim: ntilt)
+    @type dmag: vector (ntilt)
+    @param dbeam: beam inclination
+    @type dbeam: float
+    @param dmagnfoc: linear magnification change as function of defocus (experimental)
+    @type dmagnfoc: float
+    @param drotfoc: linear image rotation change as function of defocus
+    @type drotfoc: float
+    @param equationSet: Compute differences instead of scalar function (sum of squares)
+    @type quationSet: logical
+    @return: squared error of fit in 3D (or array of deviations for equationSet==True)
+    @rtype: float (or array for equationSet==True)
+    @author: foerster
+
+    tilt geom:
+
+    [cos(the_itilt)  0  -sin(the_itilt) ]  [ x_imark ]
+    [ 0              1             0    ]  [ y_imark ]
+                                           [ z_imark ]
+
+
+    = [ cos(-psi+dpsi_itilt-pi/2) sin(-psi+dpsi_itilt-pi/2)] isoMag_itilt [markx_itilt,imark] - [transX_itilt]
+      [-sin(-psi+dpsi_itilt-pi/2) cos(-psi+dpsi_itilt-pi/2)]              [marky_itilt,imark]   [transY_itilt]
+
+
+    """
+    from math import sin, cos, pi
+    from sys import exit
+    from numpy import mean
+    from pytom.tools.maths import rotate_vector2d
+
+    ntilt = len(transX)
+    nmark = len(Markers_)
+    if equationSet:
+        Dev = []
+
+    # approximate tilt axis = mean
+    meanpsi = mean(rotInPlane)
+    cmeanpsi = cos(- meanpsi / 180. * pi - pi / 2.)
+    smeanpsi = sin(- meanpsi / 180. * pi - pi / 2.)
+
+    # pre-compute sin and cos
+    cpsi = numpy.array(ntilt * [0.])
+    spsi = numpy.array(ntilt * [0.])
+    for (ii, psi) in enumerate(rotInPlane):
+        cpsi[ii] = cos(- psi / 180. * pi - pi / 2.)
+        spsi[ii] = sin(- psi / 180. * pi - pi / 2.)
+    if dBeam:
+        cdbeam = cos(dBeam)
+        sdbeam = sin(dBeam)
+
+    ndif = 0  # counter for datapoints
+
+    # marker loop
+    residual = 0.
+    errors = []
+
+    transXRef, transYRef = [],[]
+    for iproj in range(0,ntilt):
+        markCoords = numpy.array(Markers_[irefmark].get_r())
+        markCoords /= isoMag[iproj]
+
+        markCoordsRotInPlane = rotate_vector2d([markCoords[0], markCoords[1]], cpsi[ireftilt], spsi[ireftilt])
+        projMarkCoords = [markCoordsRotInPlane[0]*cTilt[iproj] - sTilt[iproj]*markCoords[2], markCoordsRotInPlane[1]]
+        rotMarkCoords = rotate_vector2d([projMarkCoords[0], projMarkCoords[1]], cpsi[iproj], -spsi[iproj])
+        transXRef.append(Markers_[irefmark].xProj[iproj] - cent[0] - rotMarkCoords[0])
+        transYRef.append(Markers_[irefmark].yProj[iproj] - cent[1] - rotMarkCoords[1])
+
+        #print(transX[iproj], transXRef[iproj], isoMag[iproj])
+
+
+    for (imark, Marker) in enumerate(Markers_):
+        errors.append(0.)
+        ind_dif = 0
+        markCoord = Marker.get_r()
+        # marker positions in 3d model rotated on approximate tilt axis
+        zmod = markCoord[2]
+
+        # tilt loop
+        for iproj in range(0, ntilt):
+            [xmod, ymod] = rotate_vector2d([markCoord[0], markCoord[1]],cpsi[ireftilt], spsi[ireftilt])
+            # check for not-clicked Markers (have coordinates -1,-1)
+            if ((Markers_[imark].xProj[iproj] > -1.) and
+                    (Markers_[imark].yProj[iproj] > -1.)):
+                ndif = ndif + 1
+
+                # rotate clicked markers back and inverse shift
+                xmark = Markers_[imark].xProj[iproj] - cent[0] - transXRef[iproj]
+                ymark = Markers_[imark].yProj[iproj] - cent[1] - transYRef[iproj]
+
+                [x_meas, y_meas] = rotate_vector2d([xmark, ymark], cpsi[iproj], spsi[iproj])
+                # additional variable magnification
+                try:
+                    if isoMag:
+                        x_meas = x_meas * isoMag[iproj]
+                        y_meas = y_meas * isoMag[iproj]
+
+                    # model projection
+
+                    # beam inclination
+                    if dBeam:
+                        x_proj = cTilt[iproj] * xmod - sTilt[iproj] * sdbeam * ymod - sTilt[iproj] * cdbeam * zmod
+                        y_proj = sTilt[iproj] * sdbeam * xmod + (cdbeam ** 2 + sdbeam ** 2 * cTilt[iproj] * ymod +
+                                                                 cdbeam * sdbeam * (1 - cTilt[iproj]) * zmod)
+                    else:
+                        x_proj = cTilt[iproj] * xmod - sTilt[iproj] * zmod
+                        y_proj = ymod
+
+                    # x-dependent magnification of model
+                    if dMagnFocus:
+                        y_proj_dmag = y_proj
+                        tmp = dMagnFocus * x_proj
+                        x_proj = (1 + .5 * tmp) * x_proj
+                        y_proj_dmag = (1 + tmp) * y_proj
+                        y_proj = y_proj_dmag
+                except Exception as e:
+                    print(e)
+                    continue
+                # score
+                deltaX = x_meas - x_proj
+                deltaY = y_meas - y_proj
+
+                # if imark == irefmark:
+                #     print(deltaX, deltaY)
+
+                ## Warning for large differences
+                # if (abs(deltaX) >100.) or (abs(deltaY) > 100.):
+                #    print "Huge Difference for marker oberved: "
+                #    print "  iproj="+str(iproj)+", imark="+str(imark+1)
+                #    print "  deltaX = "+str(deltaX)
+                #    print "  deltaY = "+str(deltaY)
+
+                residual = deltaX ** 2 + deltaY ** 2 + residual
+                if equationSet:
+                    Dev.append(deltaX)
+                    Dev.append(deltaY)
+                ind_dif += 1
+                errors[-1] += numpy.sqrt(deltaX ** 2 + deltaY ** 2)
+        errors[-1] = errors[-1] / float(ind_dif) ** 2
+    # normalize and prepare output
+    normf = 1. / (ndif - nmark)
+    # residual = sqrt(residual/(ndif - size(Matrixmark,3)));
+    residual = residual * normf
+    # print error, residual
+    if equationSet:
+        return Dev
+    else:
+        return residual
+
+
+def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, tiltangles=None, ireftilt=None,
+                   irefmark=None, isoMag=None, dBeam=None, dMagnFocus=None, dRotFocus=None, equationSet=False,
+                   logfile_residual=None, returnErrors=None):
     """
     calculate residual of a marker model given the marker coords
 
@@ -87,8 +398,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
         markCoord = Marker.get_r()
         # marker positions in 3d model rotated on approximate tilt axis
         zmod = markCoord[2]
-        [xmod, ymod] = rotate_vector2d([markCoord[0],markCoord[1]], 
-            cmeanpsi, smeanpsi)
+        [xmod, ymod] = rotate_vector2d([markCoord[0],markCoord[1]], cpsi[imark], spsi[imark])
 
         # tilt loop
         for iproj in range(0, ntilt):
@@ -156,9 +466,8 @@ def markerResidual(cent, Markers_, cTilt, sTilt,
         return residual
 
 
-def alignmentFixMagRot( Markers_, cTilt, sTilt,
-        ireftilt, irefmark=1, r=None, imdim=2048, handflip=0,
-        mute=True, writeResults=''):
+def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, imdim=2048, handflip=0,
+                        mute=True, writeResults='', optimizeShift=True, logfile_residual=''):
     """
     compute alignment analytically (constant mag. and tilt axis)
 
@@ -398,6 +707,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
                 diffY[itilt,imark] = 0.
             sumxx = sumxx + diffX[itilt,imark]
             sumyy = sumyy + diffY[itilt,imark]
+
         # mean values of shifts
         if (ndif > 0):
             shiftX[itilt] = sumxx / ndif
@@ -405,7 +715,12 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
         else:
             shiftX[itilt] = 1000000
             shiftY[itilt] = 1000000
-        
+
+
+        if not optimizeShift:
+            shiftX[itilt] = Markers_[irefmark].xProj[itilt] - projX[itilt]
+            shiftY[itilt] = Markers_[irefmark].yProj[itilt] - projY[itilt]
+
         # deviations of individual shift from mean
         sumxx = 0.
         sumyy = 0.
@@ -424,8 +739,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
         from pytom.gui.guiFunctions import fmtMR, headerMarkerResults
         numpy.savetxt(writeResults, numpy.array(results), fmt=fmtMR, header=headerMarkerResults)
 
-    return(psiindeg, shiftX, shiftY, x, y, z, distLine, diffX, diffY, 
-           shiftVarX, shiftVarY)
+    return(psiindeg, shiftX, shiftY, x, y, z, distLine, diffX, diffY, shiftVarX, shiftVarY)
 
 
 def simulate_markers(markCoords, tiltAngles, tiltAxis=-76.71, ireftilt=None,

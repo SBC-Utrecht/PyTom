@@ -42,8 +42,8 @@ PositionZ (px)'''
     b.close()
 
 def determineShiftXY(marker1, marker2):
-    print([marker1[name].mean()-marker2[name].mean() for name in ('PositionX', 'PositionY')])
-    print([marker1[name].std()-marker2[name].std() for name in ('PositionX', 'PositionY')])
+    # print([marker1[name].mean()-marker2[name].mean() for name in ('PositionX', 'PositionY')])
+    # print([marker1[name].std()-marker2[name].std() for name in ('PositionX', 'PositionY')])
     return [marker1[name].mean()-marker2[name].mean() for name in ('PositionX', 'PositionY')]
 
 def determine_closest_marker(x,y,z,markers):
@@ -55,12 +55,13 @@ def determine_closest_marker(x,y,z,markers):
     markerIndex = 0
     dist = 10000
     for n, (rx, ry, rz) in enumerate(refmarkers):
-        #print(rx, ry, rz, x, y, z)
+        print(rx, ry, rz, x, y, z)
         tempdist = numpy.sqrt((rx-x)**2+(ry-y)**2+(rz-z)**2)
         if tempdist < dist:
             markerIndex = n
             dist = tempdist
-
+            rrx, rry, rrz = rx, ry, rz
+            print(n, '--', tempdist, '--', x,y,z, '--',  rx, ry, rz)
     return markerIndex
 
 def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8, directory='./', projDirTemplate=''):
@@ -78,11 +79,12 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             dict_particle_lists[tomogram] = ParticleList()
         dict_particle_lists[tomogram].append(particle)
 
-
+    print(markerfile)
     try: 
         markers = loadstar(markerfile, dtype=datatypeMR)
     except:
         correct_header_markerfile(markerfile)
+        print(markerfile)
         markers = loadstar(markerfile, dtype=datatypeMR)
 
     xmlsCM = []
@@ -109,7 +111,7 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             oz = markers['OffsetZ'][closestMarkerIndex]
             originFname = particle.getPickPosition().getOriginFilename()
 
-            print(x,y,z, ox,oy, oz)
+            print(x,y,z, ox, oy, oz)
             pp = PickPosition(x=(x-ox)/binning_factor,y=(y-oy)/binning_factor,z=((z-oz)/binning_factor), originFilename=originFname)
             particle.setPickPosition(pp)
             outLists[closestMarkerIndex].append(particle)
@@ -131,6 +133,8 @@ if __name__ == '__main__':
     options = [ScriptOption(['-p','--particleList'], 'Particle List', True, False),
                ScriptOption(['-l','--logfileReconstruction'], 'Particle List', True, False),
                ScriptOption(['-b','--binningFactor'], 'Binning Factor for reconstruction.', True, False),
+               ScriptOption(['-t', '--templateAlignmentResultFolder'], 'generic path to different alignmentResults. '
+                                                                       'Typically alignment/marker_CLOSEST_-60.0,54.0/LocalMarkerRefinement/sorted',True, False),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
 
@@ -142,7 +146,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        plName, logfile, binningFactor, help = parse_script_options(sys.argv[1:], helper)
+        plName, logfile, binningFactor, template, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -151,7 +155,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
 
-    if not binningFactor:
+    if binningFactor is None:
         binningFactor = 8
     else:
         try:
@@ -167,6 +171,8 @@ if __name__ == '__main__':
         print('logfile does not exist. Exit.')
         sys.exit()
 
-    fnames = extractParticleListsClosestToRefMarker(plName, logfile)
+    template = os.path.join( os.path.dirname(os.path.dirname(os.path.dirname(logfile))), template)
+
+    fnames = extractParticleListsClosestToRefMarker(plName, logfile, binning_factor=binningFactor, projDirTemplate=template)
 
     

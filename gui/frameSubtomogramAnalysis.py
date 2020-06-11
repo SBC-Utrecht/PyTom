@@ -77,6 +77,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.pbs = {}
         self.ends = {}
         self.num_nodes = {}
+        self.checkbox = {}
 
         for i in range(len(headers)):
             t = 'tab{}'.format(i + 1)
@@ -91,7 +92,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 self.pbs[tt] = QWidget()
                 self.ends[tt] = QWidget()
                 self.ends[tt].setSizePolicy(self.sizePolicyA)
-
+                self.checkbox[tt] = QCheckBox('queue')
                 if not static_tabs[i][j]:#tt in ('tab12'):
                     button = QPushButton('Refresh Tab')
                     button.setSizePolicy(self.sizePolicyC)
@@ -375,12 +376,12 @@ class SubtomoAnalysis(GuiTabWidget):
 
         particleFiles = sorted(particleFiles)
 
-        headers = ["Filename particleList", "Run", "Origin", "Tilt Images", 'Bin factor recon', 'Weighting',
+        headers = ["Filename particleList", "Run", "Tilt Images", "Alignment Type", "Origin", 'Bin factor recon', 'Weighting',
                    "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Z", 'Polish Result', '']
-        types = ['txt', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit',
+        types = ['txt', 'checkbox', 'combobox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit',
                  'lineedit', 'lineedit', 'comboboxF', 'txt']
         a = 40
-        sizes = [0, 0, 80, 80, a, a, a, a, a, a, a, a, 80, a]
+        sizes = [0, 0, 80, 80, 90, a, a, a, a, a, a, a, a, 80, a]
 
         tooltip = ['Names of the particleList files',
                    'Check this box to run subtomogram reconstruction.',
@@ -444,8 +445,27 @@ class SubtomoAnalysis(GuiTabWidget):
                     refmarkindex = 1
                 # binning = os.popen('cat {} | grep "--referenceMarkerIndex" '.format(a)).read()[:-1]
                 # print(binning)
-                origin = ['alignment', 'ctf', 'sorted']
-                values.append([particleFile, True, origin, choices, binning, -1, 128, 1, 0, 0, 0, polishfiles, ''])
+
+                closest_options = []
+                for c in choices:
+                    align_folder = os.path.dirname(c)
+                    mm, markID, angles = os.path.basename(c).split('_')
+                    closestTemp = f'{align_folder}/{mm}_CLOSEST_{angles}'
+                    if not closestTemp in closest_options: closest_options.append(closestTemp)
+
+                if choices:
+                    aligntype = [f'{choices[0]}/{f}' for f in os.listdir(choices[0]) if os.path.isdir(f'{choices[0]}/{f}')]
+                    if aligntype:
+                        origin = [f'{aligntype[0]}/{f}' for f in os.listdir(aligntype[0]) if os.path.isdir(f'{aligntype[0]}/{f}')]
+                    else:
+                        origin = []
+
+                else:
+                    aligntype, origin = [],[]
+
+                choices += closest_options
+
+                values.append([particleFile, True, choices, aligntype, origin, binning, -1, 128, 1, 0, 0, 0, polishfiles, ''])
                 refmarkindices.append(refmarkindex)
 
         try:
@@ -463,6 +483,10 @@ class SubtomoAnalysis(GuiTabWidget):
             for row in range(len(values)):
                 w = self.tab12_widgets['widget_{}_2'.format(row)]
                 w.currentIndexChanged.connect(lambda d, r=row, k=key: self.updateChoices(r, k))
+
+                ww = self.tab12_widgets['widget_{}_3'.format(row)]
+                ww.currentIndexChanged.connect(lambda d, r=row, k=key: self.updateAlignmentType(r, k))
+
 
             self.particleFilesBatchExtract = particleFiles
             self.pbs[key].clicked.connect(lambda dummy, pid=key, v=values: self.massExtractParticles(pid, v))
@@ -1097,59 +1121,129 @@ class SubtomoAnalysis(GuiTabWidget):
         header.addItems([item for item in indPart if not item in AllItemsGeneral and 'CLOSEST' in item])
         header.addItems(AllItemsGeneral)
 
+    def updateAlignmentType(self, rowID, table_id):
+        print('Update alignment type')
+        values = self.valuesBatchSubtomoReconstruction
+        self.tab12_widgets['widget_{}_4'.format(rowID)].clear()
+        current_index_f = self.tab12_widgets['widget_{}_2'.format(rowID)].currentIndex()
+        current_index_a = self.tab12_widgets['widget_{}_3'.format(rowID)].currentIndex()
+        folder = values[rowID][2][current_index_f]
+        aligntype = values[rowID][3][current_index_a]
+
+        if not '_closest_' in os.path.basename(folder.lower()):
+            if aligntype:
+                origin = [f'{aligntype}/{f}' for f in os.listdir(aligntype) if os.path.isdir(f'{aligntype}/{f}')]
+            else:
+                origin = []
+        else:
+            origin = []
+            angles = os.path.basename(folder).split('_')[-1]
+            if aligntype:
+                for ff in values[rowID][2]:
+                    temp_angles = os.path.basename(ff).split('_')[-1]
+                    if 'CLOSEST' in ff or temp_angles != angles:
+                        continue
+                    tempaligntype = [f for f in os.listdir(ff) if os.path.isdir(ff + '/' + f)]
+
+                    if tempaligntype:
+                        temporigin = [f for f in os.listdir(f'{ff}/{tempaligntype[0]}') if os.path.isdir(f'{ff}/{tempaligntype[0]}/{f}')]
+                    else:
+                        temporigin = []
+
+                    for to in temporigin:
+                        if not to in origin:
+                            origin.append(to)
+
+        print(origin)
+        self.valuesBatchSubtomoReconstruction[rowID][4] = origin
+        for item in origin:
+            self.tab12_widgets['widget_{}_4'.format(rowID)].addItem(os.path.basename(item))
+
     def updateChoices(self, rowID, table_id):
         print(f'Update Choices {rowID}')
+
         values = self.valuesBatchSubtomoReconstruction
         self.tab12_widgets['widget_{}_3'.format(rowID)].clear()
+        self.tab12_widgets['widget_{}_4'.format(rowID)].clear()
 
         current_index = self.tab12_widgets['widget_{}_2'.format(rowID)].currentIndex()
 
-        origin = values[rowID][2][current_index]
+        folder = values[rowID][2][current_index]
         particleFile = values[rowID][0]
         a = 'tomogram_' + particleFile.split('_tomogram_')[1][:3]
 
-        folder = os.path.join(self.tomogram_folder, a, origin)
+        print('update for folder', folder)
 
-        choices = [folder + '/' + f for f in os.listdir(folder) if
-                    'marker_' in f and os.path.isdir(folder + '/' + f)]
+        if not '_closest_' in os.path.basename(folder.lower()):
+            aligntype = [folder + '/' + f for f in os.listdir(folder) if os.path.isdir(folder + '/' + f)]
+            if aligntype:
+                origin = [f'{aligntype[0]}/{f}' for f in os.listdir(aligntype[0]) if os.path.isdir(f'{aligntype[0]}/{f}')]
+            else:
+                origin = []
+        else:
+            aligntype = []
+            origin = []
+            angles = os.path.basename(folder).split('_')[-1]
+            for ff in values[rowID][2]:
+                temp_angles = os.path.basename(ff).split('_')[-1]
+                if 'CLOSEST' in ff or temp_angles != angles:
+                    continue
+                tempaligntype = [f for f in os.listdir(ff) if os.path.isdir(ff + '/' + f)]
 
-        closest_choices = {}
+                if tempaligntype:
+                    temporigin = [f for f in os.listdir(f'{ff}/{tempaligntype[0]}') if os.path.isdir(f'{ff}/{tempaligntype[0]}/{f}')]
+                else:
+                    temporigin = []
 
-        for choice in choices:
-            f = os.path.dirname(choice)
-            try: a = choice.split('marker_')[1]
-            except: continue
-            if ',' in a:
+                for ta in tempaligntype:
+                    if not ta in aligntype:
+                        aligntype.append(ta)
+                for to in temporigin:
+                    if not to in origin:
+                        origin.append(to)
 
-                try:
-                    aS, aE = a.split('_')[1].split(',')
-                    angleS = '{:4.1f}'.format( float(aS) )
-                    angleE = '{:4.1f}'.format( float(aE) )
+        #
+        # closest_choices = {}
+        #
+        # for choice in choices:
+        #     f = os.path.dirname(choice)
+        #     try: a = choice.split('marker_')[1]
+        #     except: continue
+        #     if ',' in a:
+        #
+        #         try:
+        #             aS, aE = a.split('_')[1].split(',')
+        #             angleS = '{:4.1f}'.format( float(aS) )
+        #             angleE = '{:4.1f}'.format( float(aE) )
+        #
+        #             if 'ctf' in a: ctf = '_ctf'
+        #             else: ctf = ''
+        #
+        #
+        #             key = '{}/marker_CLOSEST_{},{}{}'.format(f, angleS, angleE, ctf)
+        #             value = '{}/marker_CLOSEST_{},{}{}'.format(f, aS, aE, ctf)
+        #
+        #
+        #             closest_choices[key] = value
+        #         except:
+        #             pass
+        #
+        #     elif 'marker_' in a:
+        #         closest_choices['{}/marker_CLOSEST'.format(f)] = 1
+        #     elif 'sorted' in a:
+        #         closest_choices[choice] = 1
+        #
+        # choices  = list(closest_choices.values()) + choices
+        #
+        self.valuesBatchSubtomoReconstruction[rowID][3] = aligntype
+        self.valuesBatchSubtomoReconstruction[rowID][4] = origin
 
-                    if 'ctf' in a: ctf = '_ctf'
-                    else: ctf = ''
-
-
-                    key = '{}/marker_CLOSEST_{},{}{}'.format(f, angleS, angleE, ctf)
-                    value = '{}/marker_CLOSEST_{},{}{}'.format(f, aS, aE, ctf)
-
-
-                    closest_choices[key] = value
-                except:
-                    pass
-
-            elif 'marker_' in a:
-                closest_choices['{}/marker_CLOSEST'.format(f)] = 1
-            elif 'sorted' in a:
-                closest_choices[choice] = 1
-
-        choices  = list(closest_choices.values()) + choices
-
-        self.valuesBatchSubtomoReconstruction[rowID][3] = choices
-
-        for item in choices:
+        for item in aligntype:
             self.tab12_widgets['widget_{}_3'.format(rowID)].addItem(os.path.basename(item))
-
+        # for item in origin:
+        #     self.tab12_widgets['widget_{}_4'.format(rowID)].addItem(os.path.basename(item))
+        if aligntype:
+            self.updateAlignmentType(rowID, table_id)
         self.updateHeaderChoices(rowID, table_id)
 
     def updateChoicesPP(self, rowID, values):
@@ -1224,6 +1318,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 self.widgets[mode + 'pixelSize'].setValue(pixelsize)
         except:
             pass
+
     def updateJobname(self, mode):
         dest = self.widgets[mode+'destination'].text()
         if dest:
@@ -1271,84 +1366,94 @@ class SubtomoAnalysis(GuiTabWidget):
             os.mkdir(folder)
 
     def massExtractParticles(self, pid, values):
-        num_nodes = int(self.num_nodes[pid].value())
-        num_submitted_jobs = nsj = 0
-        values = self.valuesBatchSubtomoReconstruction
-        for row in range(self.tables[pid].table.rowCount()):
-            if self.tab12_widgets['widget_{}_1'.format(row)].isChecked():
-                particleXML = values[row][0] #[row][0]
-                tomoindex = particleXML.split('_tomogram_')[-1][:3]
-                origin = values[row][2][self.tab12_widgets['widget_{}_{}'.format(row,2)].currentIndex()]
-                folder_aligned = values[row][3][self.tab12_widgets['widget_{}_{}'.format(row,3)].currentIndex()]
-                metafile = glob.glob('{}/03_Tomographic_Reconstruction/tomogram_{}/sorted/*.meta'.format(self.projectname,tomoindex))
-                if not metafile: continue
-                metafile = metafile[0]
-                #q = '{}/03_Tomographic_Reconstruction/tomogram_{}/alignment/unweighted_unbinned_marker_{}'
-                #folder_aligned = q.format(self.projectname,tomoindex,ref_marker)
-                bin_read = self.tab12_widgets['widget_{}_{}'.format(row,4)].text()
-                weight = self.tab12_widgets['widget_{}_{}'.format(row, 5)].text()
-                size = self.tab12_widgets['widget_{}_{}'.format(row, 6)].text()
-                bin_subtomo = self.tab12_widgets['widget_{}_{}'.format(row,7)].text()
-                offx = self.tab12_widgets['widget_{}_{}'.format(row, 8)].text()
-                offy = self.tab12_widgets['widget_{}_{}'.format(row, 9)].text()
-                offz = self.tab12_widgets['widget_{}_{}'.format(row, 10)].text()
-                ppfile = values[row][11][self.tab12_widgets['widget_{}_{}'.format(row, 11)].currentIndex()]
-                ppflag = f'--particlePolishResultFile {ppfile}' if ppfile else ''
-                refid = folder_aligned.split('marker_')[1].split('_')[0]
+        try:
 
-                if refid.lower() != 'closest':
+            num_nodes = int(self.num_nodes[pid].value())
+            num_submitted_jobs = nsj = 0
+            values = self.valuesBatchSubtomoReconstruction
+            for row in range(self.tables[pid].table.rowCount()):
+                if self.tab12_widgets['widget_{}_1'.format(row)].isChecked():
+                    particleXML = values[row][0] #[row][0]
+                    tomoindex = particleXML.split('_tomogram_')[-1][:3]
+                    markerPath = values[row][2][self.tab12_widgets['widget_{}_{}'.format(row,2)].currentIndex()]
+                    folder_align_type = values[row][3][self.tab12_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
+                    folder_origin      = values[row][4][self.tab12_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
 
-                    outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'.format(int(tomoindex),refid)
-                    execfilename = os.path.join(self.subtomodir, outname)
-                    qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
+                    metafile = glob.glob('{}/03_Tomographic_Reconstruction/tomogram_{}/sorted/*.meta'.format(self.projectname,tomoindex))
+                    if not metafile: continue
+                    metafile = metafile[0]
+                    #q = '{}/03_Tomographic_Reconstruction/tomogram_{}/alignment/unweighted_unbinned_marker_{}'
+                    #folder_aligned = q.format(self.projectname,tomoindex,ref_marker)
+                    bin_read = self.tab12_widgets['widget_{}_{}'.format(row,5)].text()
+                    weight = self.tab12_widgets['widget_{}_{}'.format(row, 6)].text()
+                    size = self.tab12_widgets['widget_{}_{}'.format(row, 7)].text()
+                    bin_subtomo = self.tab12_widgets['widget_{}_{}'.format(row,8)].text()
+                    offx = self.tab12_widgets['widget_{}_{}'.format(row, 9)].text()
+                    offy = self.tab12_widgets['widget_{}_{}'.format(row, 10)].text()
+                    offz = self.tab12_widgets['widget_{}_{}'.format(row, 11)].text()
+                    ppfile = values[row][12][self.tab12_widgets['widget_{}_{}'.format(row, 12)].currentIndex()]
+                    ppflag = f'--particlePolishResultFile {ppfile}' if ppfile else ''
+                    refid = os.path.basename(markerPath).split('_')[1]
 
-                    paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
-                                 self.subtomodir, weight, metafile,  str(cores*n_nodes), ppflag]
+                    if refid.lower() != 'closest':
 
-                    txt = extractParticles.format(d=paramsCmd)
-                    jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, name='SubtomoRecon_{}'.format(nsj % num_nodes),
-                                                           num_jobs_per_node=cores, time=time, partition=qname,
-                                                           modules=modules, num_nodes=n_nodes) + txt
+                        outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'.format(int(tomoindex),refid)
+                        execfilename = os.path.join(self.subtomodir, outname)
+                        qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
 
-                else:
-                    outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'
-                    outname = outname.format(int(tomoindex), refid)
-                    execfilename = os.path.join(self.subtomodir, outname)
+                        paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
+                                     self.subtomodir, weight, metafile,  str(cores*n_nodes), ppflag]
 
-                    tomodir = os.path.dirname(os.path.dirname(metafile))
+                        txt = extractParticles.format(d=paramsCmd)
+                        jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, name='SubtomoRecon_{}'.format(nsj % num_nodes),
+                                                               num_jobs_per_node=cores, time=time, partition=qname,
+                                                               modules=modules, num_nodes=n_nodes) + txt
 
-                    reconAlg = None
-                    for alg in ('WBP', 'INFR'):
-                        if alg in particleXML:
-                            reconAlg = alg
+                    else:
+                        outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'
+                        outname = outname.format(int(tomoindex), refid)
+                        execfilename = os.path.join(self.subtomodir, outname)
 
-                    if not reconAlg:
-                        print('FAIL: subtomogram reconstruction for {} failed. No INFR or WBP in xml path to particle.')
-                        continue
-
-                    end = 'reconstruction/{}/marker*_irefmark_*.txt'
-
-                    end = end.format(reconAlg, tomoindex, reconAlg)
-
-                    logfilequery = os.path.join(tomodir, end)
-                    logfile = sorted(glob.glob(logfilequery))[0]
-                    qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
-
-                    paramsCmd = [particleXML, folder_aligned, bin_read, size, bin_subtomo, offx, offy, offz,
-                                 self.subtomodir, weight, metafile, logfile, str(cores*n_nodes), 'sorted_aligned']
+                        folder_origin = os.path.join(markerPath, folder_align_type, folder_origin)
 
 
-                    txt = extractParticlesClosestMarker.format(d=paramsCmd)
+                        tomodir = os.path.dirname(os.path.dirname(metafile))
 
-                    jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,singleton=True, num_nodes=n_nodes,
-                                                           name='SubtomoRecon_{}'.format(nsj % num_nodes), partition=qname,
-                                                           num_jobs_per_node=cores, time=time, modules=modules) + txt
-                out = open(execfilename, 'w')
-                out.write(jobtxt)
-                out.close()
-                os.system('{} {}'.format(self.qcommand, execfilename))
-                nsj += 1
-        self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
+                        reconAlg = None
+                        for alg in ('WBP', 'INFR'):
+                            if alg in particleXML:
+                                reconAlg = alg
+
+                        if not reconAlg:
+                            print('FAIL: subtomogram reconstruction for {} failed. No INFR or WBP in xml path to particle.')
+                            continue
+
+                        end = 'reconstruction/{}/markerLocations*_irefmark_*.txt'
+
+                        end = end.format(reconAlg, tomoindex, reconAlg)
+
+                        logfilequery = os.path.join(tomodir, end)
+                        logfile = sorted(glob.glob(logfilequery))[0]
+                        qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
+
+                        paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
+                                     self.subtomodir, weight, metafile, logfile, str(cores*n_nodes), 'sorted_aligned']
+
+
+                        txt = extractParticlesClosestMarker.format(d=paramsCmd)
+
+                        jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,singleton=True, num_nodes=n_nodes,
+                                                               name='SubtomoRecon_{}'.format(nsj % num_nodes), partition=qname,
+                                                               num_jobs_per_node=cores, time=time, modules=modules) + txt
+                    out = open(execfilename, 'w')
+                    out.write(jobtxt)
+                    out.close()
+                    os.system('{} {}'.format(self.qcommand, execfilename))
+                    nsj += 1
+            self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
+        except Exception as e:
+            print('Submission failed due to following error: ')
+            print(e)
 
     def massPolishParticles(self, pid, values):
 
