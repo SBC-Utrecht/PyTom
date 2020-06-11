@@ -9,8 +9,8 @@ Updated on Sep 08, 2019 (GS)
 import matplotlib
 matplotlib.use('Qt5Agg')
 import pylab as pp
+from pytom.gpu.initialize import xp, device
 from pylab import imshow, show, savefig, subplots
-
 
 def polish_particles(particle_list_filename, projection_directory, averaged_subtomogram, binning, offset,
                      projections, tilt_angles, mpi, fsc_path='', peak_border=75, outputDirectory='./',
@@ -83,8 +83,9 @@ def polish_particles(particle_list_filename, projection_directory, averaged_subt
         print("{:s}> Creating the input array".format(gettime()))
 
     dimz = read_size(particlelist[0].getPickPosition().getOriginFilename(), 'z') * binning
-    vol_size = 200
+    vol_size = read_size(particlelist[0].getFilename(), 'x')
     input_to_processes = []
+
 
 
     # data = {}
@@ -92,34 +93,32 @@ def polish_particles(particle_list_filename, projection_directory, averaged_subt
     #     data[projectioname] = read(projectioname)
     #
     # template = read(averaged_subtomogram)
-    # output = []
-
+    input_to_processes = []
     for particle_number, particle in enumerate(particlelist):
 
         rot = (particle.getRotation().getZ1(), particle.getRotation().getX(), particle.getRotation().getZ2())
+
         # loop over tiltrange, take patch and cross correlate with reprojected subtomogram
         for img, ang in zip(projections, tilt_angles):
-            pick_position = particle.getPickPosition().toVector()
-            #patch = cut_patch(data[img], ang, pick_position, vol_size, binning, dimz, offset)
             input_to_processes.append([averaged_subtomogram, ang, offset, vol_size,
-                                       pick_position, rot, particle.getFilename(),
-                                       particle_number, binning, img, create_graphics, fsc_path, dimz, peak_border])
+                                       particle.getPickPosition().toVector(), rot, particle.getFilename(),
+                                       particle_number, binning, img, create_graphics, fsc_path, dimz, peak_border,
+                                       ])
 
-    # if verbose:
-    #     print(len(input_to_processes))
-    #     print("{:s}> Created the input array".format(gettime()))
+    if verbose:
+        print(len(input_to_processes))
+        print("{:s}> Created the input array".format(gettime()))
 
 
-    # if verbose: print("{:s}> Started on running the process".format(gettime()))
-
+    if verbose: print("{:s}> Started on running the process".format(gettime()))
 
     lists = list(zip(*input_to_processes))
-    if verbose: print(len(lists))
+    if verbose: print(len(list(lists)))
 
     output = mpi.parfor(run_single_tilt_angle, list(zip(lists[0], lists[1],lists[2],lists[3],lists[4],lists[5],lists[6],lists[7],lists[8],lists[9],lists[10],lists[11],lists[12],lists[13]))) # Some problem internally 23/10/2019
 
     results_file = os.path.join(outputDirectory, f"resultsPolish_{particle_list_name}.txt")
-    xp.savetxt(results_file, xp.array(output, dtype=LOCAL_ALIGNMENT_RESULTS), fmt=fmtLAR, header=headerLocalAlignmentResults)
+    np.savetxt(results_file, np.array(output, dtype=LOCAL_ALIGNMENT_RESULTS), fmt=fmtLAR, header=headerLocalAlignmentResults)
 
     if verbose: print("{:s}> Ran the processes".format(gettime()))
 
@@ -157,9 +156,16 @@ def cut_patch(projection, ang, pick_position, vol_size=200, binning=8, dimz=0, o
 
     # Cut the small patch out
     patch = cut_from_projection(projection.squeeze(), [xx, yy], [vol_size, vol_size])
-    patch = patch - patch.mean()
+    patch = patch #- patch.mean()
 
     return patch, xx, yy
+
+
+def normalize_image(image, mask, p):
+    from pytom.tompy.correlation import meanUnderMask, stdUnderMask
+    mp = meanUnderMask(image, mask, p)
+    normalized_image = (image - mp) / stdUnderMask(image, mask, mp, p)
+    return normalized_image * mask
 
 def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position, particle_rotation,  particle_filename,
                           particle_number, binning, img, create_graphics, fsc_path, dimz, peak_border):
@@ -194,133 +200,204 @@ def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position,
     """
 
 
+    from pytom.reconstruction.reconstructionFunctions import alignImageUsingAlignmentResultFile
     from pytom.tompy.transform import rotate3d, rotate_axis
+    from pytom.gui.guiFunctions import datatypeAR, loadstar
     import numpy as np
     from math import cos, sin, pi, sqrt
+    from pytom.tompy.tools import create_circle
     from pytom.tompy.transform import cut_from_projection
-    from pytom.tompy.io import read
+    from pytom.tompy.filter import applyFourierFilterFull, bandpass_circle
+    from pytom.tompy.io import read, write
+    from pytom.tompy.correlation import meanUnderMask, stdUnderMask
+    import os
+    import time
 
-    #print(particle_filename, ang)
+    t = time.time()
+    # print(particle_filename, ang)
+
+    # Filter using FSC
+    fsc_mask = None
+    k = 0.01
+    subtomogram = read(subtomogram) * read(
+        '/data/gijsvds/ctem/05_Subtomogram_Analysis/Alignment/GLocal/mask_200_75_5.mrc')
+
+    import os
+    from pytom.tompy.filter import filter_volume_by_profile, profile2FourierVol
+    fsc_path = ''
+    if os.path.isfile(fsc_path):
+        profile = [line.split()[0] for line in open(fsc_path, 'r').readlines()]
+        fsc_mask3d = profile2FourierVol(profile, subtomogram.shape)
+
+        subtomogram = applyFourierFilterFull(subtomogram, fsc_mask3d)
+
+
+    # Cross correlate the templat
+    # e and patch, this should give the pixel shift it is after
+    from pytom.tompy.correlation import nXcf
 
     # Get template
     # First rotate the template towards orientation of the particle, then to the tilt angle
-    subtomogram = read(subtomogram)
+
+
+
+    img = read(img)
+
     rotated1 = rotate3d(subtomogram, phi=particle_rotation[0], the=particle_rotation[1], psi=particle_rotation[2])
     rotated2 = rotate_axis(rotated1, -ang, 'y')  # SWITCHED TO ROTATE AXIS AND ANGLE *-1 THIS IS AN ATTEMPT
     template = rotated2.sum(axis=2)
 
-    img = read(img)
-    patch, xx, yy = cut_patch(img, ang, particle_position, dimz=dimz )
-
-    # Filter using FSC
-    fsc_mask = None
-
-    import os
-
-    # if 0 and os.path.isfile(fsc_path):
-    #     f = open(fsc_path, "r")
-    #     fsc = map(lambda a: float(a), f.readlines())
-    #     f.close()
-    #     fsc_mask = create_fsc_mask(fsc, vol_size)
-    # elif fsc_path != "":
-    #    print("Not an existing FSC file: " + fsc_path)
-
-    # Cross correlate the template and patch, this should give the pixel shift it is after
-    from pytom.tompy.correlation import nXcf
+    # write('pp1_template.mrc', template)
 
 
-    ccf = normalised_cross_correlation(template, patch, fsc_mask)
+    # img = read(img)
+    try:
+        patch, xx, yy = cut_patch(img, ang, particle_position, dimz=dimz, vol_size=vol_size, binning=binning )
+        mask2d = create_circle(patch.shape, radius=75, sigma=5, num_sigma=2)
+        patch *= mask2d
+        # write('pp1_patch.mrc', patch)
+
+        if os.path.isfile(fsc_path):
+            profile = [line.split()[0] for line in open(fsc_path, 'r').readlines()]
+            fsc_mask2d = profile2FourierVol(profile, patch.shape)
+            patch = applyFourierFilterFull(patch, fsc_mask2d)
 
 
-    points2d = find_sub_pixel_max_value_2d(ccf, ignore_border=peak_border)
+        template = normalize_image(template, mask2d, mask2d.sum())
+        patch = normalize_image(patch, mask2d, mask2d.sum())
 
-    x_diff = points2d[0] - vol_size / 2
-    y_diff = points2d[1] - vol_size / 2
+        if 1:
+            ff = xp.ones_like(patch)
+        else:
+            ff = bandpass_circle(patch.squeeze(), 6, 25, 3)
 
-    dist = sqrt(x_diff**2+y_diff**2)
-    print(f'{particle_number:3d} {ang:5.1f}, {dist:5.2f}')
-    if create_graphics:
-        # Create an image to display and/or test the inner workings of the algorithm
-        m_style = dict(color='tab:blue', linestyle=':', marker='o', markersize=5, markerfacecoloralt='tab:red')
-        m_style_alt = dict(color='tab:red', linestyle=':', marker='o', markersize=5, markerfacecoloralt='tab:blue')
+        ccf = normalised_cross_correlation(template, patch, ff)
 
-        points = find_sub_pixel_max_value(ccf)
+        points2d1 = find_sub_pixel_max_value_2d(ccf.copy(), ignore_border=peak_border)
+        points2d2 = find_sub_pixel_max_value(ccf.copy(), ignore_border=peak_border)
+        points2d = list(points2d2[:2]) + [points2d1[-1]]
 
-        nx, ny, nz = particle_position
-        nx += x_diff
-        ny += y_diff
+        x_diff = points2d[0] - vol_size / 2
+        y_diff = points2d[1] - vol_size / 2
 
-        
+        dist = sqrt(x_diff**2+y_diff**2)
 
-        npatch = cut_from_projection(img.sum(axis=2), [xx + x_diff, yy + y_diff], [vol_size, vol_size])  # img.sum(axis=2)[int(xx+x_diff-v):int(xx+x_diff+v), int(yy+y_diff-v):int(yy+y_diff+v)]  #
-        npatch = npatch - xp.mean(npatch)
+        #rx, ry, ii, oox, ooy, x2, y2 = find_sub_pixel_max_value_voltools(ccf.copy())
 
-        nccf = normalised_cross_correlation(template, npatch.squeeze())
-        npoints = find_sub_pixel_max_value(nccf)
-        npoints2d = find_sub_pixel_max_value_2d(nccf, ignore_border=peak_border)
+        #print(rx,ry, x_diff, y_diff, x2, y2, oox, ooy, ii.shape)
+        #print(f'{particle_number:3d} {ang:5.1f}, {dist:5.2f} {x_diff} {y_diff} {ccf.max()}')
+        if create_graphics:
+            rx, ry, ii, oox, ooy, x2, y2 = find_sub_pixel_max_value_voltools(ccf.copy(),k=k)
+            print(rx, ry)
+            from scipy.ndimage.filters import gaussian_filter
+            # Create an image to display and/or test the inner workings of the algorithm
 
+            points = find_sub_pixel_max_value(ccf, ignore_border=peak_border)
 
-        grid = pp.GridSpec(3, 3, wspace=0, hspace=0.35, left=0.05, right=0.95, top=0.90, bottom=0.05)
+            nx, ny, nz = particle_position
+            nx += x_diff
+            ny += y_diff
 
-        ax_0_0 = pp.subplot(grid[0, 0])
-        ax_0_1 = pp.subplot(grid[0, 1])
-        ax_0_2 = pp.subplot(grid[0, 2])
-        ax_1_0 = pp.subplot(grid[1, 0])
-        ax_1_1 = pp.subplot(grid[1, 1])
-        ax_1_2 = pp.subplot(grid[1, 2])
-        ax_2_0 = pp.subplot(grid[2, 0])
-        ax_2_1 = pp.subplot(grid[2, 1])
-        ax_2_2 = pp.subplot(grid[2, 2])
+            npatch = cut_from_projection(img.squeeze(), [xx + x_diff, yy + y_diff], [vol_size,
+                                                                                     vol_size])  # img.sum(axis=2)[int(xx+x_diff-v):int(xx+x_diff+v), int(yy+y_diff-v):int(yy+y_diff+v)]  #
+            npatch = normalize_image(npatch, mask2d, mask2d.sum())
 
-        ax_0_0.axis('off')
-        ax_0_1.axis('off')
-        ax_0_2.axis('off')
-        ax_1_0.axis('off')
-        ax_1_1.axis('off')
-        ax_1_2.axis('off')
-        ax_2_0.axis('off')
-        ax_2_1.axis('off')
-        ax_2_2.axis('off')
+            nccf = normalised_cross_correlation(template, npatch.squeeze(), ff)
+            npoints = find_sub_pixel_max_value(nccf, ignore_border=peak_border)
+            npoints2d = find_sub_pixel_max_value_2d(nccf, ignore_border=peak_border)
+            #rx, ry = abs(xp.array(npoints2d[:2]) - 100)
 
-        axis_title(ax_0_0, "Cutout")
-        ax_0_0.imshow(patch)
-        axis_title(ax_0_1, "Template")
-        ax_0_1.imshow(template)
-        axis_title(ax_0_2, "Shifted Cutout\n(based on cross correlation)")
-        ax_0_2.imshow(npatch.squeeze())
+            from scipy.ndimage.filters import gaussian_filter
+            # Create an image to display and/or test the inner workings of the algorithm
 
-        axis_title(ax_1_0, u"Cross correlation\ncutout × template")
-        ax_1_0.imshow(ccf)
-        ax_1_0.plot([p[1] for p in points], [p[0] for p in points], fillstyle='none', **m_style)
-        ax_1_0.plot([points2d[1]], [points2d[0]], fillstyle='none', **m_style_alt)
-        ax_1_0.plot([vol_size / 2], [vol_size / 2], ",k")
+            points = find_sub_pixel_max_value(ccf, ignore_border=peak_border)
 
-        ax_1_1.text(0.5, 0.8,
-                    "Red: 2D spline interpolation\nx: {:f}\ny: {:f}\nBlue: 1D spline interpolation\nx: {:f}\ny: {:f}"
-                    "\nBlack: center".format(
-                        x_diff, y_diff, points[0][0] - vol_size / 2, points[0][1] - vol_size / 2), fontsize=8,
-                    horizontalalignment='center', verticalalignment='center', transform=ax_1_1.transAxes)
+            nx, ny, nz = particle_position
+            nx += x_diff
+            ny += y_diff
 
-        axis_title(ax_1_2, u"Cross correlation\nshifted cutout × template")
-        ax_1_2.imshow(nccf)
-        ax_1_2.plot([p[0] for p in npoints], [p[1] for p in npoints], fillstyle='none', **m_style)
-        ax_1_2.plot([npoints2d[0]], [npoints2d[1]], fillstyle='none', **m_style_alt)
-        ax_1_2.plot([vol_size / 2], [vol_size / 2], ",k")
+            npatch = cut_from_projection(img.squeeze(), [xx + x_diff, yy + y_diff], [vol_size,
+                                                                                     vol_size])  # img.sum(axis=2)[int(xx+x_diff-v):int(xx+x_diff+v), int(yy+y_diff-v):int(yy+y_diff+v)]  #
+            npatch = normalize_image(npatch, mask2d, mask2d.sum())
 
-        axis_title(ax_2_0, u"Zoom into red peak\nin CC cutout × template")
-        d = 10
-        peak = ccf[int(points2d[0]) - d:int(points2d[0]) + d, int(points2d[1]) - d:int(points2d[1] + d)]
-        ax_2_0.imshow(peak)
+            nccf = normalised_cross_correlation(template, npatch.squeeze(), ff)
+            npoints = find_sub_pixel_max_value(nccf, ignore_border=peak_border)
+            npoints2d = find_sub_pixel_max_value_2d(nccf, ignore_border=peak_border)
+            #rx, ry = abs(xp.array(npoints2d[:2]) - 100)
 
-        axis_title(ax_2_1, u"Zoom into red peak\nin CC cutout × template\ninterpolated")
-        ax_2_1.imshow(points2d[2])
+            m_style = dict(color='tab:blue', linestyle=':', marker='o', markersize=5, markerfacecoloralt='tab:red')
+            m_style_alt = dict(color='tab:red', linestyle=':', marker='o', markersize=5, markerfacecoloralt='tab:orange')
 
-        axis_title(ax_2_2, u"Cutout\nGaussian filter σ3")
-        import scipy
-        ax_2_2.imshow(scipy.ndimage.gaussian_filter(patch, 3))
+            grid = pp.GridSpec(3, 3, wspace=0, hspace=0.35, left=0.05, right=0.95, top=0.90, bottom=0.05)
 
-        pp.savefig("Images/wrong/polish_particle_{:04d}_tiltimage_{:05.2f}_shift_{:5.1f}.png".format(particle_number, ang, dist))
+            ax_0_0 = pp.subplot(grid[0, 0])
+            ax_0_1 = pp.subplot(grid[0, 1])
+            ax_0_2 = pp.subplot(grid[0, 2])
+            ax_1_0 = pp.subplot(grid[1, 0])
+            ax_1_1 = pp.subplot(grid[1, 1])
+            ax_1_2 = pp.subplot(grid[1, 2])
+            ax_2_0 = pp.subplot(grid[2, 0])
+            ax_2_1 = pp.subplot(grid[2, 1])
+            ax_2_2 = pp.subplot(grid[2, 2])
 
+            ax_0_0.axis('off')
+            ax_0_1.axis('off')
+            ax_0_2.axis('off')
+            ax_1_0.axis('off')
+            ax_1_1.axis('off')
+            ax_1_2.axis('off')
+            ax_2_0.axis('off')
+            ax_2_1.axis('off')
+            ax_2_2.axis('off')
+
+            axis_title(ax_0_0, "Cutout")
+            ax_0_0.imshow(applyFourierFilterFull(patch,xp.fft.fftshift(ff)))
+            axis_title(ax_0_1, "Template")
+            ax_0_1.imshow(template)
+            axis_title(ax_0_2, "Shifted Cutout\n(based on cross correlation)")
+            ax_0_2.imshow(npatch.squeeze())
+
+            axis_title(ax_1_0, u"Cross correlation\ncutout × template")
+            ax_1_0.imshow(ccf)
+            ax_1_0.plot([points[1]], [points[0]], fillstyle='none', **m_style)
+            ax_1_0.plot([points2d[1]], [points2d[0]], fillstyle='none', **m_style_alt)
+            ax_1_0.plot([vol_size / 2], [vol_size / 2], ",k")
+
+            ax_1_1.text(0.5, 0.8,
+                        "Red: 2D spline interpolation\nx: {:f}\ny: {:f}\nBlue: 1D spline interpolation\nx: {:f}\ny: {:f}"
+                        "\nBlack: center".format(
+                            x_diff, y_diff, points[0] - vol_size / 2, points[1] - vol_size / 2), fontsize=8,
+                        horizontalalignment='center', verticalalignment='center', transform=ax_1_1.transAxes)
+
+            axis_title(ax_1_2, u"Cross correlation\nshifted cutout × template")
+            ax_1_2.imshow(nccf)
+            ax_1_2.plot([npoints[0]], [npoints[1]], fillstyle='none', **m_style)
+            ax_1_2.plot([npoints2d[0]], [npoints2d[1]], fillstyle='none', **m_style_alt)
+            ax_1_2.plot([vol_size / 2], [vol_size / 2], ",k")
+
+            axis_title(ax_2_0, u"Zoom into red peak\nin CC cutout × template")
+            d = 10
+
+            points2d = list(xp.unravel_index(ccf.argmax(), ccf.shape)) + [points2d[-1]]
+            peak = ccf[int(points2d[0]) - d:int(points2d[0]) + d, int(points2d[1]) - d:int(points2d[1] + d)]
+            ax_2_0.imshow(peak)
+
+            axis_title(ax_2_1, u"Zoom into red peak\nin CC cutout × template\ninterpolated")
+            ax_2_1.imshow(ii)
+
+            ax_2_1.plot( [ y2 + (y_diff - ry)/k],[x2 + (x_diff - rx)/k], fillstyle='none', **m_style)
+            ax_2_1.plot([y2], [x2], fillstyle='none', **m_style_alt)
+            axis_title(ax_2_2, u"Cutout\nGaussian filter σ3")
+            import scipy
+            ax_2_2.imshow(scipy.ndimage.gaussian_filter(patch, 3))
+
+            pp.savefig("../Images/test/polish_particle_{:04d}_tiltimage_{:05.2f}_shift_{:.1f}.png".format(particle_number, ang, dist))
+        del img
+    except Exception as e:
+        print(e)
+        x_diff = y_diff = 0
+
+    print(f'{particle_number:3d} {ang:4d} {x_diff:5.2f} {y_diff:5.2f} {points2d1[0]-patch.shape[0]//2:.2f} {points2d1[1]-patch.shape[0]//2:.2f} {time.time()-t:5.3f}')
     return particle_number, x_diff, y_diff, ang, 0, 0, particle_filename
 
 
@@ -468,24 +545,30 @@ def normalised_cross_correlation(first, second, filter_mask=None):
 
     @requires: the shape of first to be equal to the shape of second, and equal t the shape of the filter (if used of course)
     """
+    import sys
+    from pytom.tompy.io import write
     assert first.shape == second.shape
     assert len(first.shape) == 2
     if not(filter_mask is None): assert first.shape == filter_mask.shape
 
     from numpy.fft import fftshift, ifftn, fftn
-    import numpy as np
+    import numpy as xp
 
     prod = 1
     for d in first.shape:
         prod *= d
 
     if filter_mask is None:
-        ffirst = fftn(first)
+        ffirst = xp.fft.fftn(first)
+        fsecond = xp.fft.fftn(second)
     else:
-        ffirst = fftshift(fftshift(fftn(first)) * filter_mask)
+        ffirst = ((xp.fft.fftn(first)) * xp.fft.fftshift(filter_mask))
+        fsecond = xp.fft.fftn(second) * xp.fft.fftshift(filter_mask)
+    ccmap = xp.real(xp.fft.fftshift(xp.fft.ifftn( fsecond * xp.conj(ffirst)) )) / filter_mask.sum()
 
-    return xp.real(fftshift(ifftn(xp.multiply(fftn(second), xp.conj(ffirst))))) / prod
+    # write('real_ccmap.mrc', ccmap)
 
+    return ccmap
 
 def normalised_cross_correlation_mask(first, second, mask):
     """
@@ -512,7 +595,7 @@ def normalised_cross_correlation_mask(first, second, mask):
     a = norm_inside_mask(first, mask)
     b = norm_inside_mask(second, mask)
 
-    return xp.real(nf.fftshift(nf.ifftn(xp.multiply(nf.fftn(b), xp.conj(nf.fftn(a)))))) / xp.sum(mask)
+    return np.real(nf.fftshift(nf.ifftn(np.multiply(nf.fftn(b), np.conj(nf.fftn(a)))))) / np.sum(mask)
 
 
 def norm_inside_mask(inp, mask):
@@ -531,14 +614,13 @@ def norm_inside_mask(inp, mask):
     # assert ixp.shape == mask.shape
     # assert len(ixp.shape) == 2
 
-    import numpy as np
+    import numpy as xp
 
     mea = xp.divide(xp.sum(xp.multiply(inp, mask)), xp.sum(mask))
     st = xp.sqrt(xp.sum((xp.multiply(mask, mea) + xp.multiply(inp, mask) - mea) ** 2) / xp.sum(mask))
     return xp.multiply((inp - mea) / st, mask)
 
-
-def find_sub_pixel_max_value(inp, k=4):
+def find_sub_pixel_max_value_voltools(inp, k=.1, ignore_border=50):
     """
     To find the highest point in a 2D array, with subpixel accuracy based on 1D spline interpolation.
     The algorithm is based on a matlab script "tom_peak.m"
@@ -554,20 +636,61 @@ def find_sub_pixel_max_value(inp, k=4):
     # assert len(ixp.shape) == 2
     # assert isinstance(k, int) and 1 <= k <= 5
 
-    import numpy as np
+    import cupy
+    import numpy as xp
     from scipy.interpolate import InterpolatedUnivariateSpline
+    from pytom.voltools import transform
+
+    inp2 = inp[ignore_border:-ignore_border, ignore_border:-ignore_border]
+
+    out = cupy.array(inp,dtype=cupy.float32)
+    x,y = xp.array(xp.unravel_index(inp2.argmax(), inp2.shape))+ignore_border
+
+    out = cupy.expand_dims(out,2)
+    zoomed = cupy.zeros_like(out,dtype=cupy.float32)
+    transform(out, output=zoomed, scale=(k,k,1), translation=[inp.shape[0]//2-x, inp.shape[1]//2-y,0],
+              device='gpu:0', interpolation='filt_bspline')
+
+    z = zoomed.get().squeeze()
+
+    x2,y2 = xp.unravel_index(z.argmax(), z.shape)
+    return [x + (x2-z.shape[0]//2)*k -z.shape[0]//2, y + (y2-z.shape[1]//2)*k -z.shape[0]//2, z, x, y, x2, y2]
+
+
+
+def find_sub_pixel_max_value(inp, k=4, ignore_border=50):
+    """
+    To find the highest point in a 2D array, with subpixel accuracy based on 1D spline interpolation.
+    The algorithm is based on a matlab script "tom_peak.m"
+
+    @param inp: A 2D numpy array containing the data points.
+    @type inp: numpy array 2D
+    @param k: The smoothing factor used in the spline interpolation, must be 1 <= k <= 5.
+    @type k: int
+    @return: A list of all points of maximal value in the structure of tuples with the x position, the y position and
+        the value.
+    @returntype: list
+    """
+    # assert len(ixp.shape) == 2
+    # assert isinstance(k, int) and 1 <= k <= 5
+
+    import numpy as xp
+    from scipy.interpolate import InterpolatedUnivariateSpline
+
+
+    inp = inp[ignore_border:-ignore_border, ignore_border:-ignore_border]
 
     v = xp.amax(inp)  # the max value
     result = xp.where(inp == v)  # arrays of x and y positions of max values
     output = []
 
-    for xp, yp in zip(result[0], result[1]):
+    for xpp, yp in zip(result[0], result[1]):
         # Find the highest point for x (first check if on sides otherwise interpolate)
-        if xp == 1 or xp == ixp.shape[0]:
-            x = xp
+        if xpp == 1 or xpp == inp.shape[0]:
+            x = xpp
             xv = v
         else:
-            f = InterpolatedUnivariateSpline(range(0, ixp.shape[0]), inp[:, yp], k=k)  # spline interpolation
+            f = InterpolatedUnivariateSpline(range(0, inp.shape[0]), inp[:, yp], k=k)  # spline interpolation
             cr_pts = f.derivative().roots()
             cr_vals = f(cr_pts)
             val = xp.argmax(cr_vals)
@@ -575,11 +698,11 @@ def find_sub_pixel_max_value(inp, k=4):
             xv = cr_vals[val]
 
         # Find the highest point for y (first check if on sides otherwise interpolate)
-        if yp == 1 or yp == ixp.shape[1]:
+        if yp == 1 or yp == inp.shape[1]:
             y = yp
             yv = v
         else:
-            f = InterpolatedUnivariateSpline(range(0, ixp.shape[1]), inp[xp, :], k=k)  # spline interpolation
+            f = InterpolatedUnivariateSpline(range(0, inp.shape[1]), inp[xpp, :], k=k)  # spline interpolation
             cr_pts = f.derivative().roots()
             cr_vals = f(cr_pts)
             val = xp.argmax(cr_vals)
@@ -587,12 +710,12 @@ def find_sub_pixel_max_value(inp, k=4):
             yv = cr_vals[val]
 
         # Calculate the average of the max value to return a single value which is maybe more close to the true value
-        output.append((x, y, (xv + yv) / 2))
+        output.append([x+ignore_border, y+ignore_border, (xv + yv) / 2])
 
-    return output
+    return output[0]
 
 
-def find_sub_pixel_max_value_2d(inp, interpolate_factor=100, smoothing=2, dim=10, border_size=2, ignore_border=37): #ignore_border for 200: 75
+def find_sub_pixel_max_value_2d(inp, interpolate_factor=100, smoothing=0, dim=10, border_size=5, ignore_border=37): #ignore_border for 200: 75
     """
     To find the highest point in a given numpy array based on 2d spline interpolation, returns the maximum with subpixel
     precision.
@@ -642,7 +765,7 @@ def find_sub_pixel_max_value_2d(inp, interpolate_factor=100, smoothing=2, dim=10
     # assert isinstance(border_size, int) and border_size > 0
     # assert isinstance(ignore_border, int) and ignore_border > 0
 
-    import numpy as np
+    import numpy as xp
     from scipy import interpolate
     import warnings
 
@@ -653,19 +776,21 @@ def find_sub_pixel_max_value_2d(inp, interpolate_factor=100, smoothing=2, dim=10
     initial_max = xp.unravel_index(inp_without_border.argmax(), inp_without_border.shape)
     # Reset the coordinates to be relative to the original inp(ut)
     initial_max = (initial_max[0] + ignore_border, initial_max[1] + ignore_border)
+    # imshow(inp[initial_max[0]-10: initial_max[0]+10, initial_max[1]-10: initial_max[1]+10])
+    # show()
 
     # Get the starting points of the peak cutout
-    x_dim = ixp.shape[0]
-    y_dim = ixp.shape[1]
+    x_dim = inp.shape[0]
+    y_dim = inp.shape[1]
     x_start = max([0, initial_max[0] - dim])
     x_end = min([x_dim, initial_max[0] + dim])
     y_start = max([0, initial_max[1] - dim])
     y_end = min([y_dim, initial_max[1] + dim])
 
     # Create a grid to save the original points and one to save the interpolated points
-    x, y, = xp.mgrid[x_start:x_end, y_start:y_end]
-    xnew, ynew = xp.mgrid[x_start:x_end:complex((x_end - x_start) * interpolate_factor),
-                          y_start:y_end:complex((y_end - y_start) * interpolate_factor)]
+    x, y = xp.mgrid[0:x_end-x_start,0:y_end-y_start]
+    xnew, ynew = xp.mgrid[0:x_end-x_start:1/interpolate_factor, 0:y_end-y_start:1/interpolate_factor]
+
 
     #print(x_start, x_end, y_start, y_end)
 
@@ -675,13 +800,16 @@ def find_sub_pixel_max_value_2d(inp, interpolate_factor=100, smoothing=2, dim=10
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         tck = interpolate.bisplrep(x, y, inp[x_start:x_end, y_start:y_end], s=smoothing)
-        interpolated_grid = interpolate.bisplev(xnew[:, 0], ynew[0, :], tck)
+        interpolated_grid = interpolate.bisplev(xnew[:, 0], ynew[0,:], tck)
         cropped_inter_grid = interpolated_grid[border_size:-border_size, border_size:-border_size]
         result = xp.unravel_index(cropped_inter_grid.argmax(), cropped_inter_grid.shape)
 
+        rx, ry = result
+        ix,iy = interpolated_grid.shape
+        # imshow(interpolated_grid)
+        # show()
         # Reset the coordinates to point to a place in the original data array
-        result = ((float(result[0]) + border_size) / interpolate_factor + x_start,
-                  (float(result[1]) + border_size) / interpolate_factor + y_start)
+        result = [x_start + (border_size+rx)/interpolate_factor, y_start + (border_size+ry)/interpolate_factor]
 
         return result[0], result[1], cropped_inter_grid
 
