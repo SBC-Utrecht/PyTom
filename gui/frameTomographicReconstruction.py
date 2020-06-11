@@ -1392,7 +1392,7 @@ class TomographReconstruct(GuiTabWidget):
                         continue
 
                     if self.checkbox[id].isChecked():
-                        qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
+                        qname, n_nodes, cores, time, modules = self.qparams['BatchReconstruct'].values()
                         header = guiFunctions.gen_queue_header(name=paramsSbatch['fname'], folder=paramsSbatch['folder'],
                                                                modules=modules, time=1, num_jobs_per_node=1,
                                                                partition=qname)

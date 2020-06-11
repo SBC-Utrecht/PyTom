@@ -1428,12 +1428,14 @@ class SubtomoAnalysis(GuiTabWidget):
                             print('FAIL: subtomogram reconstruction for {} failed. No INFR or WBP in xml path to particle.')
                             continue
 
+                        # Find the most recent markerLocation file
                         end = 'reconstruction/{}/markerLocations*_irefmark_*.txt'
-
                         end = end.format(reconAlg, tomoindex, reconAlg)
-
                         logfilequery = os.path.join(tomodir, end)
-                        logfile = sorted(glob.glob(logfilequery))[0]
+                        logfiles = glob.glob(logfilequery)
+                        logfiles.sort(key=os.path.getmtime)
+                        logfile = logfiles[-1]
+
                         qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
 
                         paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
