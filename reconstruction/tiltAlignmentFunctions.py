@@ -222,7 +222,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt,
     #  minimize sum( (x(i)*sin(psi) + y(i)*cos(psi))^2) =: Min(F)  --- linear regression  
     #  d/d(psi) (F) leads to:
     psi = 0.
-    if sumxx-sumyy > 0.0000001:
+    if abs(sumxx-sumyy) > 0.0000001:
         psi = 0.5*atan(2*sumxy/(sumxx-sumyy))
     if (sumxx > sumyy):
         psi = psi - 0.5*pi*cmp(psi, 0)
