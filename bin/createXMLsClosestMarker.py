@@ -60,7 +60,7 @@ def determine_closest_marker(x,y,z,markers):
             markerIndex = n
             dist = tempdist
             rrx, rry, rrz = rx, ry, rz
-            #print(n, '--', tempdist, '--', x,y,z, '--',  rx, ry, rz)
+    #print(markerIndex, '--', dist, '--', x,y,z, '--', numpy.abs(x-rrx), numpy.abs(y-rry), numpy.abs(z-rrz))
     return markerIndex, dist
 
 def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8, directory='./', projDirTemplate=''):
@@ -111,7 +111,7 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             originFname = particle.getPickPosition().getOriginFilename()
 
             print(closestMarkerIndex, x,y,z, ox, oy, oz, dist)
-            pp = PickPosition(x=(x-ox)/binning_factor,y=(y-oy)/binning_factor,z=((z-oz)/binning_factor), originFilename=originFname)
+            pp = PickPosition(x=(x)/binning_factor,y=(y)/binning_factor,z=((z)/binning_factor), originFilename=originFname)
             particle.setPickPosition(pp)
             outLists[closestMarkerIndex].append(particle)
 

@@ -72,7 +72,6 @@ class TiltSeries(PyTomClass):
             self._TiltAlignmentParas = TiltAlignmentParas
             self._alignedTiltSeriesName = alignedTiltSeriesName
 
-            print(markerFileName, len(files))
             if markerFileName.endswith('.em'): self.mf = vol2npy(read(markerFileName))
 
             elif markerFileName.endswith('.txt'): self.mf = self.txt2markerfile(markerFileName, len(files))
@@ -147,7 +146,8 @@ class TiltSeries(PyTomClass):
                     if self.verbose:
                         print(("Projection " + fname + " appended ..."))
             self._ProjectionList = ProjectionList(projs)
-            self._imdim = projs[0].getDimensions()[0]
+            self._imdimX, self._imdimY = projs[0].getDimensions()[0], projs[0].getDimensions()[1]
+            self._imdim = max(self._imdimX, self._imdimY)
 
             # read markerFile if set
             self._markerFileName = markerFileName
@@ -156,7 +156,6 @@ class TiltSeries(PyTomClass):
             self.missing_till_reference = 0
             for i in range( TiltAlignmentParas.ireftilt):
                 if not f'{i:02d}' in self._projIndices:
-                    print(f'{i:02d}')
                     self.missing_till_reference += 1
 
             self._projIndices = self._projIndices[self._firstIndex:self._lastIndex]
@@ -269,7 +268,6 @@ class TiltSeries(PyTomClass):
         for i in range(len(data)):
             if data[i][0] == 0:
                 start += 1
-        print(start)
 
         x, y = int(round(id)), datalen // id#, num_tilt_images
         markerfile = data.reshape(x, y, 4)[:, :, 1:].transpose(2, 1, 0)
@@ -286,7 +284,6 @@ class TiltSeries(PyTomClass):
         @author: FF
         """
         from math import pi
-        print(f'first, last: {self._firstIndex} {self._lastIndex}')
         if markerFileName.endswith('.em') or markerFileName.endswith('.mrc'):
             markerFileVol = read(markerFileName)
             nproj = markerFileVol.sizeY()
@@ -328,7 +325,6 @@ class TiltSeries(PyTomClass):
             self._Markers.append(Marker(self._projIndices))
             x = markerFile[1, 0:nproj, imark]
             y = markerFile[2, 0:nproj, imark]
-            print(imark, x, y)
             self._Markers[imark].set_xProjs(x)
             self._Markers[imark].set_yProjs(y)
         return self._Markers
@@ -603,12 +599,13 @@ class TiltAlignment:
         set alignment center according to dimensions of images
         """
         cent = self.TiltSeries_._TiltAlignmentParas.cent
-        imdim = self.TiltSeries_._imdim
-        print(imdim)
-        if cent[0] != imdim//2+1:
+        imdimX = self.TiltSeries_._imdimX
+        imdimY = self.TiltSeries_._imdimY
+        print(imdimX, imdimY)
+        if cent[0] != imdimX//2+1 or cent[1] != imdimY//2+1:
             #rint "Centers do not match: cent="+str(cent)+", imdim="+str(imdim)
-            self.TiltSeries_._TiltAlignmentParas.cent = [imdim//2+1, imdim//2+1]
-
+            self.TiltSeries_._TiltAlignmentParas.cent = [imdimX//2+1, imdimY//2+1]
+        print('cent: ', self.TiltSeries_._TiltAlignmentParas.cent)
     def getMarkersFromTiltSeries(self, TiltSeries_):
         """
         get marker coordinates from TiltSeries and update in TiltAlignment
@@ -855,11 +852,12 @@ class TiltAlignment:
         from pytom.reconstruction.tiltAlignmentFunctions import markerResidual, refMarkerResidualForTiltImage as refResidual
         import numpy
         self.setOptimizableVariables(self.TiltSeries_._TiltAlignmentParas, optimizableVariables)
+
         if self.TiltSeries_._TiltAlignmentParas.leastsq == True:
             score = markerResidual(self.TiltSeries_._TiltAlignmentParas.cent,
                                    Markers_=self._Markers,
                                    cTilt=self._cTilt, sTilt=self._sTilt,
-                                   transX=self._alignmentTransX, transY=self._alignmentTransY,
+                                   transX=self._alignmentTransX, transY=self._alignmentTransY,ireftilt=self.ireftilt,
                                    rotInPlane=self._alignmentRotations,irefmark=self.irefmark, tiltangles=self._tiltAngles,
                                    isoMag=self._alignmentMagnifications, dBeam=self._alignmentBeamTilt,
                                    dMagnFocus=None, dRotFocus=None, equationSet=True)
@@ -1079,6 +1077,7 @@ class TiltAlignment:
                 r = numpy.array([optimizableVariables[ivar],
                                  optimizableVariables[ivar + 1], optimizableVariables[ivar + 2]])
                 self._Markers[imark].set_r(r)
+
                 ivar = ivar + 3
 
 
@@ -1139,15 +1138,27 @@ class TiltAlignment:
 
             for iproj in range(0, ntilt):
                 markCoords = numpy.array(self._Markers[self.irefmark].get_r())
+                # if self.ireftilt == iproj: print(markCoords)
                 markCoords /= self._alignmentMagnifications[iproj]
+                # if self.ireftilt == iproj: print(markCoords)
 
                 markCoordsRotInPlane = rotate_vector2d([markCoords[0], markCoords[1]], cpsi[self.ireftilt], spsi[self.ireftilt])
+                # if self.ireftilt == iproj: print(markCoordsRotInPlane)
+
                 projMarkCoords = [markCoordsRotInPlane[0] * self._cTilt[iproj] - self._sTilt[iproj] * markCoords[2],
                                   markCoordsRotInPlane[1]]
+                # if self.ireftilt == iproj: print(projMarkCoords)
+
                 rotMarkCoords = rotate_vector2d([projMarkCoords[0], projMarkCoords[1]], cpsi[iproj], -spsi[iproj])
+                # if self.ireftilt == iproj:
+                #     print(rotMarkCoords)
+                #     print(self._Markers[self.irefmark].xProj[iproj], self._Markers[self.irefmark].yProj[iproj])
+                #     print(cent)
+
                 self._alignmentTransX[iproj] = self._Markers[self.irefmark].xProj[iproj] - cent[0] - rotMarkCoords[0]
                 self._alignmentTransY[iproj] = self._Markers[self.irefmark].yProj[iproj] - cent[1] - rotMarkCoords[1]
 
+        # print(self.irefmark, self._alignmentTransX[self.ireftilt], self._alignmentTransY[self.ireftilt])
         # for itilt in range(ntilt):
         #     self.q[itilt] = optimizableVariables[ivar]
         #     ivar += 1
@@ -1223,7 +1234,7 @@ class TiltAlignment:
         # alignment score before optimization
         score = markerResidual(self.TiltSeries_._TiltAlignmentParas.cent,
             Markers_=self._Markers,
-            cTilt=self._cTilt, sTilt=self._sTilt,
+            cTilt=self._cTilt, sTilt=self._sTilt, ireftilt=self.ireftilt,
             transX=self._alignmentTransX, transY=self._alignmentTransY,
             rotInPlane=self._alignmentRotations, tiltangles=self._tiltAngles,
             isoMag=self._alignmentMagnifications, dBeam=self._alignmentBeamTilt,
@@ -1254,7 +1265,7 @@ class TiltAlignment:
         score = markerResidual(self.TiltSeries_._TiltAlignmentParas.cent,
             Markers_=self._Markers,
             cTilt=self._cTilt, sTilt=self._sTilt,
-            transX=self._alignmentTransX, transY=self._alignmentTransY,
+            transX=self._alignmentTransX, transY=self._alignmentTransY, ireftilt=self.ireftilt,
             rotInPlane=self._alignmentRotations, irefmark=self.irefmark, tiltangles=self._tiltAngles,
             isoMag=self._alignmentMagnifications, dBeam=self._alignmentBeamTilt,
             dMagnFocus=None, dRotFocus=None, equationSet=False, logfile_residual=logfile_residual)
@@ -1282,7 +1293,7 @@ class TiltAlignment:
                                         isoMag=self._alignmentMagnifications, dBeam=self._alignmentBeamTilt,
                                         dMagnFocus=None, dRotFocus=None, equationSet=False)
 
-            print("Error score refmarker: ", numpy.sqrt(errors.mean()))
+            print("Error score refmarker: ", numpy.sqrt(errors[errors < 9000].mean()))
 
 
 
@@ -1688,12 +1699,13 @@ class TiltAlignment:
             Markers_=self._Markers, cTilt=self._cTilt, sTilt=self._sTilt,
             ireftilt=numpy.argwhere( self._projIndices.astype(int) == TiltSeries_._TiltAlignmentParas.ireftilt)[0][0],
             irefmark=TiltSeries_._TiltAlignmentParas.irefmark,
-            r=TiltSeries_._TiltAlignmentParas.r, imdim=TiltSeries_._imdim,
+            r=TiltSeries_._TiltAlignmentParas.r, imdim=TiltSeries_._imdim,imdimX=TiltSeries_._imdimX, imdimY=TiltSeries_._imdimY,
             handflip=TiltSeries_._TiltAlignmentParas.handflip, mute=mute, writeResults=outfile,
             optimizeShift=optimizeShift, logfile_residual=logfile_residual)
         if not mute:
             print(("Tilt Axis: %.2f" % psiindeg))
         # copy parameters to TiltSeries
+        ireftilt  = numpy.argwhere( self._projIndices.astype(int) == TiltSeries_._TiltAlignmentParas.ireftilt)[0][0]
         self._alignmentRotations = numpy.array(self._ntilt * [psiindeg])
         self.setRotationsInTiltSeries(TiltSeries_)
         self._alignmentTransX = shiftX
@@ -1703,11 +1715,12 @@ class TiltAlignment:
 
         for (imark, Marker) in enumerate(self._Markers):
             Marker.set_r(numpy.array([x[imark], y[imark], z[imark]]))
-            
+            # if not optimizeShift:
+            #     Marker.set_r(numpy.array([x[imark] + 6.326546124766944 , y[imark] + 5.187672225662868, z[imark]]))
+
     def set_TranslationsInTiltSeries(self, TiltSeries_):
         """
         set translations in TiltSeries
-
         @author: FF
         """
         for (kk, Proj) in enumerate(TiltSeries_._ProjectionList):

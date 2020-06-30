@@ -213,7 +213,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
                            voldims=None, recCent=[0,0,0], tiltSeriesFormat='st', firstProj=0, irefmark=1, ireftilt=1,
                            handflip=False, alignedTiltSeriesName='align/myTilt', weightingType=-1,
                            lowpassFilter=1., projBinning=1, outMarkerFileName=None, verbose=False, outfile='',
-                           write_images=True, shift_markers=True, logfile_residual=''):
+                           write_images=True, shift_markers=True, logfile_residual='', refMarkTomo=''):
     """
     @param tiltSeriesName: Name of tilt series (set of image files in .em or .mrc format) or stack file (ending '.st').\
     Note: the actual file ending should NOT be provided.
@@ -266,6 +266,8 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
     from pytom.reconstruction.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
     from pytom.gui.guiFunctions import savestar, headerMarkerResults, fmtMR
     import numpy
+
+
     if not alignResultFile:
         if verbose:
             print("Function alignWeightReconstruct started")
@@ -273,10 +275,18 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
         else:
             mute = True
         from pytom.reconstruction.TiltAlignmentStructures import TiltSeries, TiltAlignment, TiltAlignmentParameters
+
+
+        if not shift_markers:
+            irefmarkInit = irefmark
+            irefmark = refMarkTomo if refMarkTomo else 0
+
+
         tiltParas = TiltAlignmentParameters(dmag=True, drot=True, dbeam=False, finealig=True,
                                             finealigfile='xxx.txt', grad=False,
                                             irefmark=irefmark, ireftilt=ireftilt, r=None, cent=[2049, 2049],
                                             handflip=handflip, optimizer='leastsq', maxIter=1000)
+
         markerFileType = markerFileName.split('.')[-1]
         # align with wimpfile
         if not preBin:
@@ -306,8 +316,29 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
             tiltSeries._markerFileName = outMarkerFileName
         tiltAlignment.resetAlignmentCenter()  # overrule cent in Paras
 
+
+
         tiltAlignment.computeCoarseAlignment(tiltSeries, mute=mute, optimizeShift=shift_markers)
-        tiltAlignment.alignFromFiducials(mute=mute, shift_markers=shift_markers,logfile_residual=logfile_residual)
+        ireftilt = int(
+            numpy.argwhere(tiltAlignment._projIndices.astype(int) == tiltSeries._TiltAlignmentParas.ireftilt)[0][0])
+
+
+        tiltAlignment.alignFromFiducials(mute=mute, shift_markers=True, logfile_residual=logfile_residual)
+
+
+
+
+        if not shift_markers:
+            tiltSeries._TiltAlignmentParas.irefmark = irefmarkInit
+            tiltParas.irefmark = irefmarkInit
+
+            for (imark, Marker) in enumerate(tiltAlignment._Markers):
+                r = Marker.get_r()
+                # Marker.set_r(numpy.array([r[0] - tiltSeries._ProjectionList[ireftilt]._alignmentTransX,
+                #                           r[1] - tiltSeries._ProjectionList[ireftilt]._alignmentTransY, r[2]]))
+
+            tiltAlignment.alignFromFiducials(mute=mute, shift_markers=False, logfile_residual=logfile_residual)
+
 
         values = []
 
@@ -330,12 +361,10 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
             # Create center point (3D)
             cent = tiltAlignment.TiltSeries_._TiltAlignmentParas.cent
             cent.append(float(tiltSeries._imdim // 2 + 1))
-            print(cent)
 
             # Create shift
             shift = [tiltSeries._ProjectionList[ireftilt]._alignmentTransX,
                      tiltSeries._ProjectionList[ireftilt]._alignmentTransY, 0]
-            print(shift)
 
             # Retrieve the two relevant angles
             inPlaneAng = tiltAlignment._alignmentRotations[ireftilt]
@@ -344,22 +373,17 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
             # Retrieve the original pick position
             xx = tiltAlignment._Markers[tiltSeries._TiltAlignmentParas.irefmark].xProj[ireftilt]
             yy = tiltAlignment._Markers[tiltSeries._TiltAlignmentParas.irefmark].yProj[ireftilt]
-            zz = float(tiltSeries._imdim // 2 + 1)
-
-            pickpos = rotate_vector3D([xx,yy,zz], cent, shift, inPlaneAng, tiltAng)
+            dx,dy = float(tiltSeries._imdimX // 2 + 1), float(tiltSeries._imdimY // 2 + 1)
+            dz = min(dx,dy)
 
             # Create ref marker point
             ref = tiltAlignment._Markers[tiltSeries._TiltAlignmentParas.irefmark].get_r()
-            print(ref)
             ref = rotate_vector3D(ref, [0,0,0], shift, inPlaneAng, tiltAng)
-            print(ref)
 
             for (imark, Marker) in enumerate(tiltAlignment._Markers):
                 # reference marker irefmark is fixed to standard value
                 r = rotate_vector3D(Marker.get_r(), [0,0,0], shift, inPlaneAng, tiltAng)
-                print('in: ', r)
-                values.append([imark, r[0]-ref[0], r[1]-ref[1], r[2]-ref[2],
-                               pickpos[0]+r[0]-ref[0], pickpos[1]+r[1]-ref[1], pickpos[2]+r[2]-ref[2]])
+                values.append([imark, r[0]-ref[0], r[1]-ref[1], r[2]-ref[2], r[0]+dx, r[1]+dy, r[2]+dz])
 
             savestar(outfile, numpy.array(values), header=headerMarkerResults, fmt=fmtMR)
 
@@ -406,8 +430,6 @@ def rotate_vector3D(point3D, centerPoint3D, shift3D, inPlaneRotAngle, tiltAngle)
     spsi = sin((inPlaneRotAngle%360) / 180. * pi)
     xmod, ymod = rotate_vector2d(newPoint[:2], cpsi, spsi)
     zmod = newPoint[2]
-
-    print(newPoint, xmod,ymod, inPlaneRotAngle, tiltAngle)
 
     # In-plane rotation of x and z coordinate over tiltAngle
     sTilt = sin(tiltAngle / 180. * pi)

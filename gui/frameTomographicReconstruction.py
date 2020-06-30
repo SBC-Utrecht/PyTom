@@ -293,9 +293,9 @@ class TomographReconstruct(GuiTabWidget):
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_align(pid, v))
 
     def tab32UI(self, id=''):
-        headers = ["name tomogram", "align", 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Input Folder', 'Fix Marker Pos', '']
-        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox', 'lineedit', 'combobox', 'checkbox', 'txt']
-        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
+        headers = ["name tomogram", "align", 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Input Folder', 'Fix Marker Pos', 'Ref. Marker Tomo', '']
+        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox', 'lineedit', 'combobox', 'checkbox', 'combobox', 'txt']
+        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0, 0 ]
 
         tooltip = ['Names of existing tomogram folders.',
                    'Do alignment.',
@@ -305,7 +305,8 @@ class TomographReconstruct(GuiTabWidget):
                    'Reference marker index',
                    'Expected Rotation Angle',
                    'Input Folder for tilt images used in alignment.',
-                   'Fix marker position during optimization step. Useful for local marker alignment.']
+                   'Fix marker position during optimization step. Useful for local marker alignment.',
+                   'Marker ID of reference marker in tomogram. Needed for Local Marker Refinement.']
 
         markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.txt'.format(self.tomogram_folder)))
         markerfilesEM = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
@@ -343,8 +344,11 @@ class TomographReconstruct(GuiTabWidget):
                 options_reference = list(map(str, range( data.shape[2] ))) + ['all']
                 expect = int(float(metadata['InPlaneRotation'][0]))
                 input_folders = ['sorted', 'ctf/sorted_ctf']
+
+
+
                 values.append( [markerfile.split('/')[-3], True, numpy.floor(tangs.min()), numpy.ceil(tangs.max()),
-                                index_zero_angle, options_reference, expect, input_folders, True, ''] )
+                                index_zero_angle, options_reference, expect, input_folders, True, options_reference[:-1], ''] )
                 self.mfiles.append(markerfile)
             else:continue
         if not values:
@@ -651,6 +655,7 @@ class TomographReconstruct(GuiTabWidget):
         novel = [markerfile for markerfile in markerfilesEM if not markerfile[:-3]+'.txt' in markerfiles]
 
         markerfiles += novel
+        markerfiles += sorted(glob.glob('{}/tomogram_*/sorted/alignmentResults.txt'.format(self.tomogram_folder)))
         markerfiles = sorted(markerfiles)
         values = []
 
@@ -1083,7 +1088,7 @@ class TomographReconstruct(GuiTabWidget):
                 expected   = widgets['widget_{}_{}'.format(row, 6)].text()
                 inputfolder= values[row][7][widgets['widget_{}_{}'.format(row, 7)].currentIndex()]
                 fixmarkers = widgets['widget_{}_{}'.format(row, 8)].isChecked()
-
+                refmarkIDTomo = widgets['widget_{}_{}'.format(row, 9)].currentText()
                 tiltseriesname = os.path.join(inputfolder, os.path.basename(inputfolder))
                 self.widgets[mode + 'FolderSorted'].setText(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
                 num_procs_per_proc = max(num_procs_per_proc, len(values[row][5]) - 1)
@@ -1113,8 +1118,11 @@ class TomographReconstruct(GuiTabWidget):
                     numMark = 1
 
                 total_number_markers += numMark
-                ll = '{} {} {} {} {} {} {} {} {} {} {} {} {}\n'
-                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0, expected, tiltseriesname, markerfile, fixmarkers)
+
+                if not refmarkIDTomo: refmarkIDTomo = '*'
+
+                ll = '{} {} {} {} {} {} {} {} {} {} {} {} {} {}\n'
+                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0, expected, tiltseriesname, markerfile, fixmarkers, refmarkIDTomo)
                 tomofolder_info.append([ numMark, ll])
 
         if not tomofolder_info:
@@ -1308,9 +1316,11 @@ class TomographReconstruct(GuiTabWidget):
 
         if os.path.exists(f'{directory}/sorted/markerfile.txt'):
             os.system(f'cp {directory}/sorted/markerfile.txt {output_folder}/markerfile.txt')
-        else:
+        elif os.path.exists(f'{directory}/sorted/markerfile.em'):
             guiFunctions.convert_markerfile(f'{directory}/sorted/markerfile.em', f'{directory}/sorted/markerfile.txt')
             os.system(f'cp {directory}/sorted/markerfile.txt {output_folder}/markerfile.txt')
+        else:
+            pass
 
     def run_multi_reconstruction(self, id, values):
         print('multi_reconstructions', id)

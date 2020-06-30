@@ -61,6 +61,9 @@ def refMarkerResidualForTiltImage(cent, Marker, cTilt, sTilt, transX, transY, ro
     psi = rotInPlane[iproj]
     czeropsi = cos(- zeropsi / 180. * pi - pi / 2.)
     szeropsi = sin(- zeropsi / 180. * pi - pi / 2.)
+    meanpsi = mean(rotInPlane)
+    cmeanpsi = cos(- meanpsi / 180. * pi - pi / 2.)
+    smeanpsi = sin(- meanpsi / 180. * pi - pi / 2.)
 
     # pre-compute sin and cos
     cpsi = cos(- psi / 180. * pi - pi / 2.)
@@ -82,7 +85,7 @@ def refMarkerResidualForTiltImage(cent, Marker, cTilt, sTilt, transX, transY, ro
 
     # marker positions in 3d model rotated on approximate tilt axis
     zmod = markCoord[2]
-    [xmod, ymod] = rotate_vector2d([markCoord[0], markCoord[1]], czeropsi, szeropsi)
+    [xmod, ymod] = rotate_vector2d([markCoord[0], markCoord[1]], cmeanpsi, smeanpsi)
 
 
     if ((Marker.xProj[iproj] > -1.) and (Marker.yProj[iproj] > -1.)):
@@ -125,7 +128,6 @@ def refMarkerResidualForTiltImage(cent, Marker, cTilt, sTilt, transX, transY, ro
         deltaY = y_meas - y_proj
 
 
-        print(deltaX, deltaY)
         ## Warning for large differences
         # if (abs(deltaX) >100.) or (abs(deltaY) > 100.):
         #    print "Huge Difference for marker oberved: "
@@ -140,7 +142,8 @@ def refMarkerResidualForTiltImage(cent, Marker, cTilt, sTilt, transX, transY, ro
         ind_dif += 1
         errors[-1] += numpy.sqrt(deltaX ** 2 + deltaY ** 2)
     else:
-        raise('Reference marker should be assigned for each image')
+        return 99999
+
 
     errors[-1] = errors[-1] / float(ind_dif) ** 2
     # normalize and prepare output
@@ -232,12 +235,12 @@ def markerResidualFixedMarker(cent, Markers_, cTilt, sTilt, transX, transY, rotI
         markCoords = numpy.array(Markers_[irefmark].get_r())
         markCoords /= isoMag[iproj]
 
-        markCoordsRotInPlane = rotate_vector2d([markCoords[0], markCoords[1]], cpsi[ireftilt], spsi[ireftilt])
+        markCoordsRotInPlane = rotate_vector2d([markCoords[0], markCoords[1]], cmeanpsi, smeanpsi)
         projMarkCoords = [markCoordsRotInPlane[0]*cTilt[iproj] - sTilt[iproj]*markCoords[2], markCoordsRotInPlane[1]]
         rotMarkCoords = rotate_vector2d([projMarkCoords[0], projMarkCoords[1]], cpsi[iproj], -spsi[iproj])
         transXRef.append(Markers_[irefmark].xProj[iproj] - cent[0] - rotMarkCoords[0])
         transYRef.append(Markers_[irefmark].yProj[iproj] - cent[1] - rotMarkCoords[1])
-
+        # print('translation: ', transXRef[-1], transYRef[-1], transY[iproj], transX)
         #print(transX[iproj], transXRef[iproj], isoMag[iproj])
 
 
@@ -398,7 +401,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, til
         markCoord = Marker.get_r()
         # marker positions in 3d model rotated on approximate tilt axis
         zmod = markCoord[2]
-        [xmod, ymod] = rotate_vector2d([markCoord[0],markCoord[1]], cpsi[imark], spsi[imark])
+        [xmod, ymod] = rotate_vector2d([markCoord[0],markCoord[1]], cmeanpsi, smeanpsi)
 
         # tilt loop
         for iproj in range(0, ntilt):
@@ -410,7 +413,6 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, til
                 # rotate clicked markers back and inverse shift
                 xmark = Markers_[imark].xProj[iproj] - cent[0]- transX[iproj]
                 ymark = Markers_[imark].yProj[iproj] - cent[1]- transY[iproj]
-                
                 [x_meas, y_meas] = rotate_vector2d([xmark,ymark], cpsi[iproj], spsi[iproj])
                 # additional variable magnification
                 try:
@@ -467,7 +469,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, til
 
 
 def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, imdim=2048, handflip=0,
-                        mute=True, writeResults='', optimizeShift=True, logfile_residual=''):
+                        mute=True, writeResults='', optimizeShift=True, logfile_residual='', imdimX=0, imdimY=0):
     """
     compute alignment analytically (constant mag. and tilt axis)
 
@@ -498,7 +500,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
         r = numpy.array(3*[0.])
         r[0] = Markers_[irefmark].xProj[ireftilt]
         r[1] = Markers_[irefmark].yProj[ireftilt]
-        r[2] = float(imdim/2 +1)
+        r[2] = float(imdimY/2 +1)
     else:
         r = Markers_[irefmark].get_r()
         
@@ -531,11 +533,10 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
     #  minimize sum( (x(i)*sin(psi) + y(i)*cos(psi))^2) =: Min(F)  --- linear regression  
     #  d/d(psi) (F) leads to:
     psi = 0.
-    if sumxx-sumyy > 0.0000001:
+    if abs(sumxx-sumyy) > 0.0000001:
         psi = 0.5*atan(2*sumxy/(sumxx-sumyy))
     if (sumxx > sumyy):
         psi = psi - 0.5*pi*cmp(psi, 0)
-
 
     result = (270*pi/180) - psi
 
@@ -559,7 +560,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
     #    psi = (psi + pi)%(2*pi)
     #if psi < 0.: psi += (2*pi)
     psiindeg = psi*180/pi
-    
+    print('angle: ', psi)
     #  psi 2?!
     #fact = 1 /(1 + (sumxy/sumxx)**2)
     
@@ -662,9 +663,9 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
             if not mute:
                 print(('     %3d - %3d :.............. = %7.1f, %7.1f, %7.1f'
                     %(imark, irefmark, x[imark], y[imark], z[imark])))
-            x[imark] = x[imark] + r[0] - imdim/2. -1. # move to center
-            y[imark] = y[imark] + r[1] - imdim/2. -1.
-            z[imark] = z[imark] + r[2] - imdim/2. -1.
+            x[imark] = x[imark] + r[0] - imdimX/2. -1. # move to center
+            y[imark] = y[imark] + r[1] - imdimY/2. -1.
+            z[imark] = z[imark] + r[2] - imdimY/2. -1.
         else:
             if not mute:
                 print(('Marker '+str(imark)+' : undefined! det = 0! Click more!'))
@@ -693,10 +694,10 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
         for (imark,Marker) in enumerate(Markers_):
             projX[itilt] = (x[imark]*(spsi**2*cTilt[itilt]+cpsi**2) + 
                              y[imark]*spsi*cpsi*(1-cTilt[itilt]) + 
-                             z[imark]*spsi*sTilt[itilt] + imdim/2. + 1.)
+                             z[imark]*spsi*sTilt[itilt] + imdimX/2. + 1.)
             projY[itilt] = (x[imark]*spsi*cpsi*(1-cTilt[itilt]) +
                              y[imark]*(cpsi**2*cTilt[itilt]+spsi**2) -
-                             z[imark]*cpsi*sTilt[itilt] + imdim/2. + 1.)
+                             z[imark]*cpsi*sTilt[itilt] + imdimY/2. + 1.)
             
             if ( (Marker.xProj[itilt] > -1.) and (x[imark]!=1000000) ):
                 ndif = ndif + 1
@@ -717,10 +718,16 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
             shiftY[itilt] = 1000000
 
 
-        if not optimizeShift:
-            shiftX[itilt] = Markers_[irefmark].xProj[itilt] - projX[itilt]
-            shiftY[itilt] = Markers_[irefmark].yProj[itilt] - projY[itilt]
-
+        # if not optimizeShift:
+        #     # print('shiftPre fixed magrot: ', itilt, irefmark, shiftX[itilt], shiftY[itilt])
+        #     pX = (x[irefmark] * (spsi ** 2 * cTilt[itilt] + cpsi ** 2) + y[irefmark] * spsi * cpsi * (1 - cTilt[itilt])+
+        #           z[irefmark] * spsi * sTilt[itilt] + imdim / 2. + 1.)
+        #     pY = (x[irefmark] * spsi * cpsi * (1 - cTilt[itilt]) + y[irefmark] * (cpsi ** 2 * cTilt[itilt] + spsi ** 2)-
+        #           z[irefmark] * cpsi * sTilt[itilt] + imdim / 2. + 1.)
+        #
+        #     shiftX[itilt] = Markers_[irefmark].xProj[itilt] - pX
+        #     shiftY[itilt] = Markers_[irefmark].yProj[itilt] - pY
+            # print('shiftPos fixed magrot: ', itilt, irefmark, shiftX[itilt], shiftY[itilt])
         # deviations of individual shift from mean
         sumxx = 0.
         sumyy = 0.

@@ -225,10 +225,13 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
     tiltSeriesNames = [line.split()[10] for line in lines]
     markerFileNames = [line.split()[11] for line in lines]
     fixMarkers = ['--fixMarkerPos' * ('True' in line.split()[12]) for line in lines]
-
+    refMarkIdFlag = [f'--refMarkIdTomo {line.split()[13]}' * (line.split()[13] != '*') for line in lines]
     for t in tomogram_names:
         if not os.path.exists(os.path.join(t, 'alignment')):
             os.mkdir(os.path.join(t, 'alignment'))
+
+    print(fixMarkers)
+    print(refMarkIdFlag)
 
     procs = []
 
@@ -270,11 +273,12 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
 	--lowpassFilter 0.9 \
 	--weightingType {} \
 	--expectedRotationAngle {} \
-    --numberProcesses {} {} > {}'''
+    --numberProcesses {} {} {} > {}'''
 
             cmd = cmd.format(tomogram_names[index], pytompath, tiltSeriesName, firstIndices[index],
                              lastIndices[index], refIndices[index], refmarkindex, markerFileNames[index], outdir,
-                             weightingTypes[index], expectedRotationAngles[index], 1, fixMarkers[index], logfile)
+                             weightingTypes[index], expectedRotationAngles[index], 1, fixMarkers[index],
+                             refMarkIdFlag[index], logfile)
 
             while len(procs) > 19.1:
                 time.sleep(1)

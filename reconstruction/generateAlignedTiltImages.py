@@ -340,6 +340,10 @@ if __name__ == '__main__':
                ScriptOption(['--fixMarkerPos'],
                             'Fix marker position during second optimization step. Useful for local marker alignment.',
                             arg=False, optional=True),
+               ScriptOption(['--refMarkIdTomo'],
+                            'Index of reference marker used in the reconstruction of the tomogram. '
+                            'Only needed if you want to execute local marker refinement',
+                            arg=True, optional=True),
                ScriptOption(['--verbose'], 'Enable verbose mode', arg=False, optional=True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
@@ -359,7 +363,7 @@ if __name__ == '__main__':
         volumeName, filetype, \
         tomogramSizeX, tomogramSizeY, tomogramSizeZ, \
         reconstructionCenterX, reconstructionCenterY, reconstructionCenterZ, \
-        numberProcesses, weightingType, projIndices, fixMarkers, verbose, help = parse_script_options(sys.argv[1:],
+        numberProcesses, weightingType, projIndices, fixMarkers, refMarkTomo, verbose, help = parse_script_options(sys.argv[1:],
                                                                                                       helper)
     except Exception as e:
         print(sys.version_info)
@@ -453,6 +457,8 @@ if __name__ == '__main__':
 
     print('Fix: ', fixMarkers)
     shift_markers = True if fixMarkers is None else False
+    refMarkTomo = '' if refMarkTomo is None else int(refMarkTomo)
+
 
     outMarkerFileName = 'MyMarkerFile.em'
     if verbose:
@@ -537,7 +543,8 @@ if __name__ == '__main__':
                   'weightingType': weightingType, "lowpassFilter": lowpassFilter, "projBinning": projBinning,
                   'outMarkerFileName': outMarkerFileName, 'verbose': True, 'outfile': outfile, 'write_images': False,
                   'shift_markers': shift_markers,
-                  'logfile_residual': os.path.join(os.path.dirname(outfile), 'alignmentErrors.txt')}
+                  'logfile_residual': os.path.join(os.path.dirname(outfile),'alignmentErrors.txt'),
+                  'refMarkTomo': refMarkTomo}
 
         print(kwargs)
 

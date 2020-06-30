@@ -153,14 +153,14 @@ if __name__ == '__main__':
             except RuntimeError:
                 print('Error reading particleList XML file! Abort')
                 sys.exit()
-
+            print(particleListXMLPath)
             from pytom.basic.structures import PickPosition
             for particle in particleList:
                 pickPosition = particle.getPickPosition()
                 x = (pickPosition.getX() * coordinateBinning + recOffset2[0])
                 y = (pickPosition.getY() * coordinateBinning + recOffset2[1])
                 z = (pickPosition.getZ() * coordinateBinning + recOffset2[2])
-
+                print(x,y,z)
                 particle.setPickPosition( PickPosition(x=x, y=y, z=z))
 
             if alignResultFile:

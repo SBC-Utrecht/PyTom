@@ -123,7 +123,7 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
                 pp.scale(multiplypickpos)
 
             # Shift is multiply by the respective binning factor.
-            if not multiplyshift is None:
+            if not (multiplyshift is None):
                 shift = particle.getShift()
                 shift.scale(multiplyshift)
 
@@ -146,9 +146,18 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
 
             if move_shift == True:
                 pp = particle.getPickPosition()
+                print(shift.toVector())
                 shift.scale( binSubtomo / binRecon)
-                pp + shift.toVector()
+                ss = shift.toVector()
+                print(pp)
+                pp.setX(pp.getX() + ss[0])
+                pp.setY(pp.getY() + ss[1])
+                pp.setZ(pp.getZ() + ss[2])
+                print(pp)
+                particle.setPickPosition(pp)
                 shift.scale(0.)
+                #print(particle)
+                break
 
             # Combine rotations from particleList and rotation
             if rotation:

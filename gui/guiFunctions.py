@@ -108,13 +108,11 @@ def txt2markerfile(filename,tiltangles):
         mark_frames = -1*numpy.ones((len(tiltangles), x, 2), dtype=numpy.float32)
         ang_selected = data[:num_angles, 1]
         runner = 0
-        print(mark_frames_small.shape, mark_frames.shape)
         for n, angle in enumerate(tiltangles):
             if numpy.abs(ang_selected-angle).min() < 1E-5:
                 mark_frames[n,:,:] = mark_frames_small[runner,:,:]
                 runner += 1
 
-        print(runner)
         return mark_frames
 
 def npy2markerfile(filename,tiltangles):
@@ -926,7 +924,7 @@ def addShiftToMarkFrames(mark_frames, shifts, metadata, excluded):
 def convert_markerfile(filename, outname):
     from pytom.tompy.io import read
     import numpy as np
-    from pytom.basic.datatypes import HEADER_MARKERFILE, fmtMarkerfile
+    from pytom.basic.datatypes import HEADER_MARKERFILE, FMT_MARKERFILE as fmtMarkerfile
 
     a = read(filename)
 
