@@ -331,9 +331,7 @@ def rampFilter( sizeX, sizeY):
     """
     from pytom_volume import vol
     from math import exp
-    import time
 
-    s = time.time()
     centerX = sizeX//2
     
     centerY = sizeY//2
@@ -349,7 +347,7 @@ def rampFilter( sizeX, sizeY):
         ratio = distX/Ny
         for j in range(sizeY):            
             filter_vol.setV(ratio, i, j, 0)
-    print('ramp filter takes: ', time.time()-s, sizeX, sizeY)
+
     return filter_vol
 
 

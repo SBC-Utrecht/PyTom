@@ -26,11 +26,14 @@ if __name__ == '__main__':
              ScriptOption(['--prexgFile'], 'prexgFile containing pre-shifts from IMOD.', arg=True, optional=True),
              ScriptOption(['--preBin'], 'pre-Binning in IMOD prior to marker determination.', arg=True, optional=True),
              ScriptOption(['--referenceIndex'], 'Index of reference projection used for alignment.', arg=True,
-                          optional=False),
+                          optional=True),
              ScriptOption(['--markerFile'], 'Name of EM markerfile or IMOD wimp File containing marker coordinates.',
-                          arg=True, optional=False),
+                          arg=True, optional=True),
+             ScriptOption(['--alignmentResultsFile'], 'Name of alignmentResults file markerfile containing per image shift, '
+                                                      'tilt angle, in-plane rotation, magnification and filename.',
+                          arg=True, optional=True),
              ScriptOption(['--referenceMarkerIndex'], 'Index of reference marker to set up coordinate system.',
-                          arg=True, optional=False),
+                          arg=True, optional=True),
              ScriptOption(['--expectedRotationAngle'], 'Is your tilt series outside of 0-180deg (Specify if yes).',
                           arg=True, optional=True),
              ScriptOption(['--projectionTargets'],
@@ -41,7 +44,7 @@ if __name__ == '__main__':
                           arg=True, optional=True),
              ScriptOption(['--projectionBinning'], 'Binning of projections during read - default: 1.', arg=True,
                           optional=True),
-             ScriptOption(['--lowpassFilter'], 'Lowpass filter in Nyquist after binning.', arg=True, optional=False),
+             ScriptOption(['--lowpassFilter'], 'Lowpass filter in Nyquist after binning.', arg=True, optional=True),
              ScriptOption(['--tomogramFile'],
                           'Relative or absolute path to final tomogram (no tomogram written if not specified).',
                           arg=True, optional=True),
@@ -79,7 +82,7 @@ if __name__ == '__main__':
         sys.exit()
     try:
         tiltSeriesName, tiltSeriesFormat, firstProj, lastProj, projIndices,\
-        tltFile, prexgFile, preBin, referenceIndex, markerFileName, referenceMarkerIndex, expectedRotationAngle, \
+        tltFile, prexgFile, preBin, referenceIndex, markerFileName, alignResultFile, referenceMarkerIndex, expectedRotationAngle, \
         projectionTargets, fineAlignFile, projBinning, lowpassFilter, \
         volumeName, filetype, \
         tomogramSizeX, tomogramSizeY, tomogramSizeZ, \
@@ -88,34 +91,43 @@ if __name__ == '__main__':
     except Exception as e:
         print(sys.version_info)
         print(e)
+        print()
+        print(helper)
         sys.exit()
 
     if help is True:
         print(helper)
         sys.exit()
 
-    # input parameters
-    #tiltSeriesName = tiltSeriesPath + tiltSeriesPrefix  # "../projections/tomo01_sorted" # ending is supposed to be tiltSeriesName_index.em (or mrc)
-    if not tiltSeriesFormat:
-        tiltSeriesFormat = 'em'
-    if firstProj:
-        firstProj = int(firstProj)  # 1 # index of first projection
-    else:
-        firstProj = 1
+    if (markerFileName is None) and (alignResultFile is None):
+        raise Exception('Please provide either a markerfile or an alignmentResults.txt file')
 
-    lastProj = int(lastProj)  # 41 # index of last projection
-    ireftilt = int(referenceIndex)  # 21 # reference projection (used for alignment)
-    if referenceMarkerIndex:
-        irefmark = int(referenceMarkerIndex)  # reference marker (defines 3D coordinate system)
-    else:
-        irefmark = 1
+    irefmark, ireftilt = 1, 1
 
-    try:
-        expectedRotationAngle = int(expectedRotationAngle)
-    except:
-        expectedRotationAngle = 0
-    #handflip = handflip is not None  # False # is your tilt axis outside 0-180 deg?
-    # output parameters
+    if not markerFileName is None and os.path.exists(markerFileName):
+
+        # input parameters
+        #tiltSeriesName = tiltSeriesPath + tiltSeriesPrefix  # "../projections/tomo01_sorted" # ending is supposed to be tiltSeriesName_index.em (or mrc)
+        if not tiltSeriesFormat:
+            tiltSeriesFormat = 'em'
+        if firstProj:
+            firstProj = int(firstProj)  # 1 # index of first projection
+        else:
+            firstProj = 1
+
+        lastProj = int(lastProj)  # 41 # index of last projection
+        ireftilt = int(referenceIndex)  # 21 # reference projection (used for alignment)
+        if referenceMarkerIndex:
+            irefmark = int(referenceMarkerIndex)  # reference marker (defines 3D coordinate system)
+        else:
+            irefmark = 1
+
+        try:
+            expectedRotationAngle = int(expectedRotationAngle)
+        except:
+            expectedRotationAngle = 0
+        #handflip = handflip is not None  # False # is your tilt axis outside 0-180 deg?
+        # output parameters
     if projectionTargets:
         # weighted and aligned projections are stored as alignedTiltSeriesName_index.em
         alignedTiltSeriesName = projectionTargets
@@ -123,6 +135,7 @@ if __name__ == '__main__':
             os.mkdir(os.path.dirname(projectionTargets))
     else:
         alignedTiltSeriesName = 'align/myTilt'
+
     if projBinning:
         projBinning = int(projBinning)  # binning factor
     else:
@@ -177,9 +190,9 @@ if __name__ == '__main__':
 
     outMarkerFileName = 'MyMarkerFile.em'
 
-    alignResultFile = ''
+    alignResultFile = '' if alignResultFile is None else alignResultFile
 
-    if 'alignmentResults.txt' in os.listdir(os.path.dirname(tiltSeriesName)):
+    if not alignResultFile and 'alignmentResults.txt' in os.listdir(os.path.dirname(tiltSeriesName)):
         alignResultFile = os.path.join(os.path.dirname(tiltSeriesName), 'alignmentResults.txt')
 
     outfile = ''

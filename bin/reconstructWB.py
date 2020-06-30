@@ -130,7 +130,7 @@ if __name__ == '__main__':
         #tmp = projections[0]
         #sx = tmp.getXSize() # here should be the size of original projection!
         #sy = tmp.getYSize()
-        sx, sy = 3710, 3710
+        sx, sy = 1024, 1024
         recOffset[0] = -sx/2 + recOffset[0]*coordinateBinning
         recOffset[1] = -sy/2 + recOffset[1]*coordinateBinning
         recOffset[2] = -sx/2 + recOffset[2]*coordinateBinning

@@ -29,7 +29,7 @@ if __name__=='__main__':
                ScriptOption(['-p', '--prefix'], 'Prefix to filename. Default name of file.', True, False),
                ScriptOption(['-o', '--origDir'], 'Directory from which images in the stack originate. '
                                                 'It will use the prefix "sorted" to select the output file names.',
-                            True, False),
+                            True, True),
                ScriptOption(['-m', '--mdoc'], 'Create truncated mdoc files.', False, True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
@@ -47,6 +47,8 @@ if __name__=='__main__':
         filename, outdir, prefix, origdir, mdoc, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
+
+        print(helper)
         sys.exit()
 
     if help is True:
@@ -72,7 +74,7 @@ if __name__=='__main__':
     x,y,z = data.shape
     sliceNR = min(x,y,z)
 
-    angles = range(-60,61,2)
+    angles = range(-50,51,2)
     if mdoc:
         mdocname = os.path.join(outdir, os.path.basename(filename).replace('.mrc', '.mdoc'))
         mdocfile = open(mdocname, 'w')
@@ -90,6 +92,9 @@ SubFramePath = X:\{}
             print(out_names)
             raise Exception('Number of files in orig dir is different from the number of defined images in stack.')
 
+    else:
+        out_names = [os.path.join(outdir, '{}{:02d}.mrc'.format(prefix, sliceId)) for sliceId in range(sliceNR)]
+
     out = []
     for sliceId in range(sliceNR):
         out.append((data[sliceId,:,:], sliceId, out_names[sliceId], angles[sliceId], origdir, outdir, prefix))
@@ -101,7 +106,7 @@ SubFramePath = X:\{}
         #print(f'extracted {os.path.basename(outname)} into {outdir}')
         #write(outname, data[:,:,sliceId], tilt_angle=tiltangle)
         #mrcfile.new(outname, data[sliceId, :,:].astype('float32'), overwrite=True)
-        if mdoc: mdocfile.write(d.format(sliceId, tiltangle, os.path.basename(outname)))
+        if mdoc: mdocfile.write(d.format(sliceId, angles[sliceId], os.path.basename(out_names[sliceId])))
 
         extract_single_image(*out[-1])
 

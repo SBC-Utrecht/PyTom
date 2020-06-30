@@ -1132,7 +1132,8 @@ class SubtomoAnalysis(GuiTabWidget):
 
         if not '_closest_' in os.path.basename(folder.lower()):
             if aligntype:
-                origin = [f'{aligntype}/{f}' for f in os.listdir(aligntype) if os.path.isdir(f'{aligntype}/{f}')]
+                temp = os.path.join(folder, aligntype)
+                origin = [f'{temp}/{f}' for f in os.listdir(temp) if os.path.isdir(f'{temp}/{f}')]
             else:
                 origin = []
         else:
