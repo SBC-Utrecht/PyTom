@@ -22,7 +22,7 @@ def fit_sinc_square(xdata,ydata):
     # to find the best fit
     popt, pcov = curve_fit(sinc_square,xdata,ydata,p0=(1.0, 1.0, 1.0, 1.0)) #THESE PARAMETERS ARE USER DEFINED
 
-    print(popt) # This contains your two best fit parameters
+    # print(popt) # This contains your two best fit parameters
 
     # Performing sum of squares
     p1 = popt[0]
@@ -32,7 +32,7 @@ def fit_sinc_square(xdata,ydata):
     residuals = ydata - sinc_square(xdata,p1,p2,p3,p4)
     fres = sum(residuals**2)
 
-    print(f'chi-square value for fitting is {fres}') #THIS IS YOUR CHI-SQUARE VALUE!
+    print(f'chi-square value for fitting sinc function is {fres}') #THIS IS YOUR CHI-SQUARE VALUE!
 
     # Visually inspect fit of function.
     #
@@ -77,7 +77,7 @@ def create_detector_response(detector, response_function, image, voltage=300E3, 
         filename = f'{name}.csv'
     else:
         filename = f'{folder}/{name}.csv'
-
+    print(f'Determining {response_function} for {detector}')
     # data is a function of spatial frequency
     qdata,ydata = read_detector_csv(filename)
     params = fit_sinc_square(qdata,ydata)

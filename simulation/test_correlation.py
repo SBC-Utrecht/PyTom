@@ -162,19 +162,26 @@ def center_potential(emdb, potential, shift):
     pt_size = potential.shape[0]
     # These steps perfectly center the em map and the constructed potential maps!
     potential = extend_volume(potential, [em_size - pt_size] * 3, symmetrically=True, true_center=False)
-    return scipy.ndimage.interpolation.shift(potential, shift, order=3)
+    return scipy.ndimage.interpolation.shift(potential, shift, order=2)
 
 
 if __name__ == '__main__':
-
+    from potential import reduce_resolution
     voxel_size = 1.08
     template_size = 150
+    resolution = 3.2
 
     em_map = read_mrc('/data2/mchaillet/structures/em_maps/apoFer_masked.mrc')
+    em_map_filtered = reduce_resolution(em_map, voxel_size, 5)
+    write('/data2/mchaillet/structures/correlation/6m54/fitted/em_map_filtered_5A.mrc', em_map_filtered)
+    em_map_filtered = reduce_resolution(em_map, voxel_size, resolution)
+    write('/data2/mchaillet/structures/correlation/6m54/fitted/em_map_filtered_3.2A.mrc', em_map_filtered)
 
     mask = read_mrc('/data2/mchaillet/structures/potential/6m54/structural_mask.mrc')
 
-    from potential import reduce_resolution
+    map_type = []
+    scores_flcf = []
+
     # from pytom.tompy.score import FLCF
 
     # print('correlation with FLCF from tompy without peak interpolation')
@@ -187,57 +194,37 @@ if __name__ == '__main__':
     # score = FLCF(em_map, reduce_resolution(template, voxel_size, 3), mask=mask)
     # print(score.max())
 
-    volume = read(f'/data2/mchaillet/structures/potential/6m54/6m54_pdb_chimera_3A.mrc')
+    volume = read(f'/data2/mchaillet/structures/potential/6m54/6m54_pdb_chimera_{resolution}A.mrc')
     assert len(set(volume.shape)) == 1
     if volume.shape[0] != template_size:
         difference = [template_size - x for x in volume.shape]
         volume = extend_volume(volume, difference, symmetrically=True, true_center=False)
-    score, shift, _ = max_correlation(open_as_vol(em_map), open_as_vol(volume),
+    score, shift, _ = max_correlation(open_as_vol(em_map_filtered), open_as_vol(volume),
                                       open_as_vol(mask))
-    print('FLCF pdb chimera 3A')
-    print(score)
+    map_type.append('chimera')
+    scores_flcf.append(score)
+
     mask_shift = center_potential(em_map, mask, shift)
 
     volume_shift = center_potential(em_map, volume, shift)
 
-    print('FSC correlation with pdb chimera 3A')
-    from pytom.basic.correlation import FSC
+    # Store volume_shift and mask_shift
+    write(f'/data2/mchaillet/structures/correlation/6m54/fitted/pdb_{resolution}A.mrc', volume_shift)
+    write('/data2/mchaillet/structures/correlation/6m54/fitted/mask.mrc', mask_shift)
 
-    # from pytom.basic.plot import plotFSC
-    number_bands = 50
-    fsc_result = FSC(open_as_vol(em_map), open_as_vol(volume_shift), number_bands, mask=open_as_vol(mask_shift),
-                     verbose=True,
-                     filename='/data2/mchaillet/structures/correlation/6m54/FSC_pdb_3A.txt')
+    # print(f'FSC correlation with pdb chimera {resolution}A')
+    # from pytom.basic.correlation import FSC
+    #
+    # # from pytom.basic.plot import plotFSC
+    # number_bands = 50
+    # fsc_result = FSC(open_as_vol(em_map_filtered), open_as_vol(volume_shift), number_bands, mask=open_as_vol(mask_shift),
+    #                  verbose=True,
+    #                  filename=f'/data2/mchaillet/structures/correlation/6m54/FSC_pdb_{resolution}A.txt')
 
     from pytom.tompy.correlation import nxcc
-    print('normalised cross correlation with pdb chimera')
-    # print(3, nxcc(em_map, volume_shift, mask=mask_shift, volumeIsNormalized=False))
-
-    res = [2.5, 3, 4, 5, 6, 7]
-    scores = []
-    for r in res:
-        volume = read(f'/data2/mchaillet/structures/potential/6m54/6m54_pdb_chimera_{r}A.mrc')
-        assert len(set(volume.shape)) == 1
-        # if volume.shape[0] < template_size:
-        #     difference = [template_size - x for x in volume.shape]
-        #     volume = extend_volume(volume, difference, symmetrically=True, true_center=False)
-        # elif volume.shape[0] > template_size:
-        #     difference = [x - template_size for x in volume.shape]
-        #     volume = volume[difference[0] // 2:-(difference[0] // 2 + difference[0] % 2),
-        #              difference[1] // 2:-(difference[1] // 2 + difference[1] % 2),
-        #              difference[2] // 2:-(difference[2] // 2 + difference[2] % 2)]
-        volume_shift = center_potential(em_map, volume, shift)
-        score = nxcc(em_map, volume_shift, mask=mask_shift)
-        print(r,score)
-        scores.append(score)
-
-    file = f'/data2/mchaillet/structures/correlation/6m54/chimera_correlation.txt'
-    with open(file, 'w') as f:
-        for r, s in zip(res, scores):
-            f.write(f'{r}, {s}\n')
 
     print('normalised cross correlation with pdb chimera and filtered map')
-    res = [3, 5, 7, 10, 20, 30]
+    res = [resolution, 5, 7, 10, 20, 30]
     scores = []
     for r in res:
         volume = read(f'/data2/mchaillet/structures/potential/6m54/6m54_pdb_chimera_{r}A.mrc')
@@ -251,7 +238,10 @@ if __name__ == '__main__':
                      difference[1] // 2:-(difference[1] // 2 + difference[1] % 2),
                      difference[2] // 2:-(difference[2] // 2 + difference[2] % 2)]
         volume_shift = center_potential(em_map, volume, shift)
-        score = nxcc(reduce_resolution(em_map, voxel_size, r), volume_shift, mask=mask_shift)
+        if r == 5:
+            write(f'/data2/mchaillet/structures/correlation/6m54/fitted/pdb_{r}A.mrc', volume_shift)
+        score = nxcc(reduce_resolution(em_map, voxel_size, r), volume_shift,
+                     mask=mask_shift)
         print(r,score)
         scores.append(score)
 
@@ -262,50 +252,43 @@ if __name__ == '__main__':
 
     # Now the IASA and IASA+PBE map
 
-    for pot in ['vatom', 'vint']:
+    for pot in ['full_integration', 'full_integration_solvent_subtracted',
+                'iasa_integration', 'iasa_integration_solvent_excluded']:
 
-        volume = read(f'/data2/mchaillet/structures/potential/6m54/{pot}_ph7.5_1.08A.mrc')
-        mask = read_mrc('/data2/mchaillet/structures/potential/6m54/structural_mask.mrc')
+        volume = read(f'/data2/mchaillet/structures/potential/6m54/{pot}_1.08A.mrc')
+        # mask = read_mrc('/data2/mchaillet/structures/potential/6m54/structural_mask.mrc')
 
         assert len(set(volume.shape)) == 1
         if volume.shape[0] != template_size:
             difference = [template_size - x for x in volume.shape]
             volume = extend_volume(volume, difference, symmetrically=True, true_center=False)
 
-        score, shift, _ = max_correlation(open_as_vol(em_map), open_as_vol(reduce_resolution(volume, voxel_size, 3)),
+        score, shift, _ = max_correlation(open_as_vol(em_map_filtered),
+                                          open_as_vol(reduce_resolution(volume, voxel_size, resolution)),
                                           open_as_vol(mask))
-        print(f'FLCF {pot} 3A')
-        print(score)
-        mask_shift = center_potential(em_map, mask, shift)
+        map_type.append(pot)
+        scores_flcf.append(score)
 
         volume_shift = center_potential(em_map, volume, shift)
 
-        print('FSC correlation with v_atom 3A')
-        from pytom.basic.correlation import FSC
+        # Store shifted volume for grayscale maps
+        write(f'/data2/mchaillet/structures/correlation/6m54/fitted/{pot}_{resolution}A.mrc', volume_shift)
 
-        # from pytom.basic.plot import plotFSC
-        number_bands = 50
-        fsc_result = FSC(open_as_vol(em_map), open_as_vol(reduce_resolution(volume_shift, voxel_size, 2)),
-                         number_bands, mask=open_as_vol(mask_shift), verbose=True,
-                         filename=f'/data2/mchaillet/structures/correlation/6m54/FSC_{pot}_3A.txt')
-
-        print(f'correlation with nxcc {pot}')
-        res = [1.5, 2, 2.5, 3, 4, 5]
-        scores = []
-        for r in res:
-            score = nxcc(em_map, reduce_resolution(volume_shift, voxel_size, r), mask=mask_shift)
-            print(r, score)
-            scores.append(score)
-
-        file = f'/data2/mchaillet/structures/correlation/6m54/{pot}_correlation.txt'
-        with open(file, 'w') as f:
-            for r, s in zip(res, scores):
-                f.write(f'{r}, {s}\n')
+        # print(f'FSC correlation with v_atom {resolution}A')
+        # from pytom.basic.correlation import FSC
+        #
+        # # from pytom.basic.plot import plotFSC
+        # number_bands = 50
+        # fsc_result = FSC(open_as_vol(em_map_filtered), open_as_vol(reduce_resolution(volume_shift, voxel_size, resolution)),
+        #                  number_bands, mask=open_as_vol(mask_shift), verbose=True,
+        #                  filename=f'/data2/mchaillet/structures/correlation/6m54/FSC_{pot}_{resolution}A.txt')
 
         print(f'correlation with nxcc {pot} and map filtered')
-        res = [3, 5, 7, 10, 20, 30]
+        res = [resolution, 5, 7, 10, 20, 30]
         scores = []
         for r in res:
+            if r == 5:
+                write(f'/data2/mchaillet/structures/correlation/6m54/fitted/{pot}_{r}A.mrc', reduce_resolution(volume_shift, voxel_size, r))
             score = nxcc(reduce_resolution(em_map, voxel_size, r), reduce_resolution(volume_shift, voxel_size, r),
                          mask=mask_shift)
             print(r, score)
@@ -315,3 +298,8 @@ if __name__ == '__main__':
         with open(file, 'w') as f:
             for r, s in zip(res, scores):
                 f.write(f'{r}, {s}\n')
+
+    # overall scores
+    print('FLCF score for each input map')
+    print(map_type)
+    print(scores_flcf)

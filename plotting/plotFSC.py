@@ -14,7 +14,7 @@ def plot_FSC(FSCFile, pixelsize, boxsize=0, outname='',show_image=True, c=0.143)
         print('Boxsize set to dimension of FSC data ({})'.format(boxsize))
     x = numpy.arange(dim)*(1/(float(pixelsize)*int(boxsize)))
 
-    fig, ax = subplots(1,1,figsize=(5,3))
+    fig, ax = subplots(1,1,figsize=(3,5))
 
     ax.plot( x, data,color='#1989ac',lw=2, label=os.path.basename(FSCFile))
 
