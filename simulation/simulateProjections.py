@@ -174,7 +174,7 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, pixelSize = 
         particles_by_class[cls_id] += 1
 
         # update text
-        ground_truth_txt_file += f'{listpdbs[cls_id]} {loc_x:.4f} {loc_y - 256:.4f} {loc_z - 256:.4f} ' \
+        ground_truth_txt_file += f'{listpdbs[cls_id]} {int(loc_x - loc_x_start)} {int(loc_y - loc_y_start)} {int(loc_z)} ' \
                                  f'{p_angles[0]:.4f} {p_angles[1]:.4f} {p_angles[2]:.4f}\n'
 
     # add solvent background potential
@@ -568,8 +568,8 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, vol_size, angles, o
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
     projections = ProjectionList()
 
+    # IMPORTANT: angles *-1 to get the right reconstrunction relative to the orignal model!
     for i in range(start_idx, end_idx+1):
-        # IMPORTANT: angles *-1 to get the right reconstrunction relative to the orignal model!
         p = Projection(prefix+str(i)+suffix, tiltAngle= -1 * angles[i-1])
         projections.append(p)
 
