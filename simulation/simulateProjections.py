@@ -24,7 +24,6 @@ matplotlib.use('Qt5Agg')
 from pylab import *
 
 # math
-from pytom.reconstruction.reconstructionStructures import *
 from pytom.basic.files import *
 import numpy as xp
 import random
@@ -47,8 +46,39 @@ class ConfigLogger(object):
         self.__log.info(line)
 
 
+def create_gold_marker(diameter, voxel_size, solvent_potential):
+    """
+    From Rahman 2018 (International Journal of Biosensors and Bioelectronics).
+    Volume of unit cell gold is 0.0679 nm^3 with 4 atoms per unit cell.
+    Volume of gold bead is 4/3 pi r^3.
+    """
+    from pytom.tompy.tools import create_sphere
+    from pytom.tompy.filter import gaussian3d
+
+    # constants
+    unit_cell_volume = 0.0679 # nm^3
+    atoms_per_unit_cell = 4
+    C = 2 * xp.pi * phys.constants['h_bar']**2 / (phys.constants['el'] * phys.constants['me']) * 1E20  # A^2
+
+    # dimension of gold box, always add 5 nm to the sides
+    dimension = int(xp.ceil(diameter / voxel_size * 1E-9)) * 3
+    sphere = create_sphere((dimension,)*3, radius=(diameter*0.5)*1E-9/voxel_size)
+    rounded_sphere = gaussian3d(sphere, sigma=0.3)
+
+    # values transformed to occupied volume per voxel from 1 nm**3 per voxel to actual voxel size
+    solvent_correction = rounded_sphere * solvent_potential
+    gold_atoms = (rounded_sphere / unit_cell_volume) * atoms_per_unit_cell
+
+    # interaction potential
+    gold_scattering_factors = xp.array(phys.scattering_factors['AU']['g'])
+    gold_potential = gold_atoms * gold_scattering_factors[0:5].sum() * C / 1000 # 1000 A^3 = 1 nm^3
+
+    return gold_potential - solvent_correction
+
+
 def generate_model(particleFolder, outputFolder, modelID, listpdbs, pixelSize = 1, size=1024, thickness=200,
-                   solvent_potential=4.5301, sigma_structural=0.2, numberOfParticles=1000, placementSize=512, retries=5000):
+                   solvent_potential=4.5301, sigma_structural=0.2, numberOfParticles=1000, placementSize=512, retries=5000,
+                   add_gold_markers=True, number_of_markers=20):
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
 
     from voltools import transform
@@ -82,18 +112,118 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, pixelSize = 
     # attributes
     number_of_classes = len(listpdbs)
     save_path = f'{outputFolder}/model_{modelID}'
-    dims = [v.shape for v in volumes]
+    dims = [v.shape for v in volumes] # TODO solve this!!!!!!!!!
     particles_by_class = [0, ] * number_of_classes
     particle_nr = 1
     default_tries_left = retries
     skipped_particles = 0
-    loc_x_start = loc_y_start = (size - placementSize) - (placementSize // 2)
-    loc_x_end = loc_y_end = (size - placementSize) + (placementSize // 2)
+
+    difference = size - placementSize
+    if not difference:
+        loc_x_start = loc_y_start = 0
+        loc_x_end = loc_y_end = size
+    else:
+        loc_x_start = loc_y_start = difference // 2
+        loc_x_end = loc_y_end = int(size - xp.ceil(difference / 2))
+
+    # GOLD MARKERS WILL ALSO BE COUNTER TOWARDS TOTAL PARTICLE NUMBER
+    # There are also added as an additional class
+    if add_gold_markers:
+        number_of_classes += 1
+        particles_by_class += [0]
+
+        # select a gold particle of either 5, 10, or 15 nm diameter
+        size_list = [5,10,15] # in nm
+
+        # class id of gold markers is always the same
+        cls_id = number_of_classes - 1
+
+        for _ in tqdm(range(number_of_markers), desc='Placing gold markers'):
+            # select a random size for the gold marker
+            marker_size = size_list[xp.random.randint(0,len(size_list))]
+            # create the gold marker in other function
+            gold_marker = create_gold_marker(marker_size, pixelSize, solvent_potential)
+            dimensions = gold_marker.shape
+
+            threshold = 0.01
+            gold_marker[gold_marker < threshold] = 0
+
+            u = xp.random.uniform(0.0, 1.0, (2,))
+            theta = xp.arccos(2 * u[0] - 1)
+            phi = 2 * xp.pi * u[1]
+            psi = xp.random.uniform(0.0, 2 * xp.pi)
+            p_angles = xp.rad2deg([theta, phi, psi])
+
+            # randomly mirror and rotate particle
+            try:
+                gold_marker = transform(gold_marker, rotation=p_angles,
+                                        rotation_order='szxz', interpolation='filt_bspline', device='cpu')
+            except Exception as e:
+                print(e)
+                print('Something went wrong while rotating?')
+                continue
+
+            threshold = 0.001
+            gold_marker[gold_marker < threshold] = 0
+
+            # thresholded particle
+            accurate_particle_occupancy = gold_marker > 0
+
+            # find random location for the particle
+            xx, yy, zz = gold_marker.shape
+            tries_left = default_tries_left
+            while tries_left > 0:
+                loc_x = xp.random.randint(loc_x_start + xx // 2 + 1, loc_x_end - xx // 2 - 1)
+                loc_y = xp.random.randint(loc_y_start + yy // 2 + 1, loc_y_end - yy // 2 - 1)
+                loc_z = xp.random.randint(zz // 2 + 1, Z - zz // 2 - 1)
+
+                tries_left -= 1
+
+                # calculate coordinates of bbox for the newly rotated particle
+                bbox_x = [loc_x - dimensions[0] // 2, loc_x + dimensions[0] // 2 + dimensions[0] % 2]
+                bbox_y = [loc_y - dimensions[1] // 2, loc_y + dimensions[1] // 2 + dimensions[1] % 2]
+                bbox_z = [loc_z - dimensions[2] // 2, loc_z + dimensions[2] // 2 + dimensions[2] % 2]
+
+                # create masked occupancy mask
+                masked_occupancy_mask = occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1],
+                                        bbox_z[0]:bbox_z[1]]
+                masked_occupancy_mask = masked_occupancy_mask * accurate_particle_occupancy
+
+                # if the location fits (masked occupancy pixel-wise mask is empty), break the loop and use this location
+                if masked_occupancy_mask.sum() == 0:
+                    break
+
+            # however if still can't fit, ignore this particle (also adds variance in how many particles are
+            # actually put)
+            if tries_left < 1:
+                skipped_particles += 1
+                continue
+
+            # populate occupancy volumes
+            occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = particle_nr
+            occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
+                accurate_particle_occupancy * particle_nr
+
+            # populate class masks
+            class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = (cls_id + 1)
+            class_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
+                accurate_particle_occupancy * (cls_id + 1)
+
+            # populate density volume
+            cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += gold_marker
+
+            # update stats
+            particle_nr += 1
+            particles_by_class[cls_id] += 1
+
+            # update text
+            ground_truth_txt_file += f'fiducial {int(loc_x - loc_x_start)} {int(loc_y - loc_y_start)} {int(loc_z)}' \
+                                     f'NaN NaN NaN\n'
 
     for _ in tqdm(range(numberOfParticles), desc='Placing particles'):
 
-        # select random class
-        cls_id = xp.random.randint(0, number_of_classes)
+        # select random class but correct for artifact class if adding gold particles
+        cls_id = xp.random.randint(0, number_of_classes - 1) if add_gold_markers else xp.random.randint(0, number_of_classes)
 
         # generate random rotation
         # to be properly random, use uniform sphere sampling
@@ -189,24 +319,38 @@ def generate_model(particleFolder, outputFolder, modelID, listpdbs, pixelSize = 
     print('Saving grandmodels')
     pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree.mrc', cell)
     pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', noisy_cell)
-    pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree_cropped.mrc', cell[placementSize // 2:-placementSize // 2,
-                                                                  placementSize // 2:-placementSize // 2, :])
-    pytom.tompy.io.write(f'{save_path}/grandmodel_cropped.mrc', noisy_cell[placementSize // 2:-placementSize // 2,
-                                                        placementSize // 2:-placementSize // 2, :])
+    if not difference:
+        pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree_cropped.mrc', cell)
+        pytom.tompy.io.write(f'{save_path}/grandmodel_cropped.mrc', noisy_cell)
 
-    # save class masks
-    print('Saving class volumes')
-    pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', class_bbox_mask[placementSize//2:-placementSize//2,
-                                                                  placementSize//2:-placementSize//2, :])
-    pytom.tompy.io.write(f'{save_path}/class_mask.mrc', class_accurate_mask[placementSize//2:-placementSize//2,
-                                                                  placementSize//2:-placementSize//2, :])
+        # save class masks
+        print('Saving class volumes')
+        pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', class_bbox_mask)
+        pytom.tompy.io.write(f'{save_path}/class_mask.mrc', class_accurate_mask)
 
-    # save occupancy masks
-    print('Saving occupancy volumes')
-    pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', occupancy_bbox_mask[placementSize//2:-placementSize//2,
-                                                                  placementSize//2:-placementSize//2, :])
-    pytom.tompy.io.write(f'{save_path}/occupancy_mask.mrc', occupancy_accurate_mask[placementSize//2:-placementSize//2,
-                                                                  placementSize//2:-placementSize//2, :])
+        # save occupancy masks
+        print('Saving occupancy volumes')
+        pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', occupancy_bbox_mask)
+        pytom.tompy.io.write(f'{save_path}/occupancy_mask.mrc', occupancy_accurate_mask)
+    else:
+        pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree_cropped.mrc', cell[loc_x_start:loc_x_end,
+                                                                      loc_y_start:loc_y_end, :])
+        pytom.tompy.io.write(f'{save_path}/grandmodel_cropped.mrc', noisy_cell[loc_x_start:loc_x_end,
+                                                            loc_y_start:loc_y_end, :])
+
+        # save class masks
+        print('Saving class volumes')
+        pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', class_bbox_mask[loc_x_start:loc_x_end,
+                                                                      loc_y_start:loc_y_end, :])
+        pytom.tompy.io.write(f'{save_path}/class_mask.mrc', class_accurate_mask[loc_x_start:loc_x_end,
+                                                                      loc_y_start:loc_y_end, :])
+
+        # save occupancy masks
+        print('Saving occupancy volumes')
+        pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', occupancy_bbox_mask[loc_x_start:loc_x_end,
+                                                                      loc_y_start:loc_y_end, :])
+        pytom.tompy.io.write(f'{save_path}/occupancy_mask.mrc', occupancy_accurate_mask[loc_x_start:loc_x_end,
+                                                                      loc_y_start:loc_y_end, :])
 
     # save particle text file
     with open(f'{save_path}/particle_locations.txt', 'w') as f:
@@ -392,6 +536,27 @@ def fresnel_propagator(imageSize, pixelSize, voltage, dz):
     return xp.exp(-1j * xp.pi * Lambda * (q_m ** 2) * dz)
 
 
+def gradient_image(size, factor, angle=0, center_shift=0):
+    """
+    Creates an image with a gradient of values rotated along angle. Factor determines the strength of the gradient.
+    @param size:
+    @param factor:
+    @param angle:
+    @param shift:
+    @return:
+    """
+    from scipy.ndimage import rotate
+    max_rotation_radius = (size/2) / xp.cos(45 * xp.pi / 180)
+    extension = int(xp.ceil(max_rotation_radius - size/2))
+    left = 1 - factor
+    right = 1 + factor
+    step = (right-left) / size
+    values = xp.arange(left - extension * step + center_shift * step,
+                       right + extension * step + center_shift * step, step)
+    image = xp.repeat(values[xp.newaxis, :], size + 2*extension, axis=0)
+    return rotate(image, angle, reshape=False)[extension:size+extension, extension:size+extension]
+
+
 def microscope(noisefree_projections, outputFolder, modelID, dose=80, pixelsize=1E-9, voltage=300E3,
                camera_type='K2SUMMIT', camera_folder=''):
     """
@@ -443,8 +608,8 @@ def microscope(noisefree_projections, outputFolder, modelID, dose=80, pixelsize=
         # readout noise standard deviation can be 7 ADUs, from Vulovic et al., 2010
         # sigma_readout = 7
         # readsim = xp.random.normal(0, sigma_readout, projection.shape) # readout noise has a gaussian distribution
-        # darksim = 0     # dark current noise has a poisson distribution, usually an order of magnitude smaller than readout
-        #                 # noise and can hence be neglected
+        # darksim = 0     # dark current noise has a poisson distribution, usually an order of magnitude smaller than
+        #                 # readout noise and can hence be neglected
 
         # Add readout noise and dark noise in real space
         projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier))) # + readsim + darksim
@@ -461,7 +626,8 @@ def generate_projections(angles, outputFolder, modelID, dose=80, pixelSize=1E-9,
 
     grandcell = pytom.tompy.io.read_mrc(f'{outputFolder}/model_{modelID}/rotations/rotated_volume_{0}.mrc')
 
-    imageSize = grandcell.shape[0]//2
+    # imageSize = grandcell.shape[0]//2
+    imageSize = grandcell.shape[0]
     heightBox = grandcell.shape[2]
 
     zheight = heightBox * pixelSize  # thickness of volume in nm?
@@ -518,8 +684,10 @@ def generate_projections(angles, outputFolder, modelID, dose=80, pixelSize=1E-9,
 
             # Project potential for each slice (phase grating)
             for ii in range(n_slices):
-                projected_potent_ms[:, :, ii] = rotated_volume[imageSize//2:-imageSize//2,imageSize//2:-imageSize//2,
-                                                ii*px_per_slice : (ii+1)*px_per_slice].mean(axis=2) #.get() # remove .get() if fully cupy
+                # projected_potent_ms[:, :, ii] = rotated_volume[imageSize//2:-imageSize//2,imageSize//2:-imageSize//2,
+                #                                 ii*px_per_slice : (ii+1)*px_per_slice].mean(axis=2) #.get() # remove .get() if fully cupy
+                projected_potent_ms[:, :, ii] = rotated_volume[:, :,
+                                                ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2)  # .get() # remove .get() if fully cupy
 
             # calculate the transmission function for each slice
             psi_t = transmission_function(projected_potent_ms, voltage, msdz)
@@ -548,6 +716,15 @@ def generate_projections(angles, outputFolder, modelID, dose=80, pixelSize=1E-9,
 
         noisefree_projections[:,:,n] = projected_tilt_image
 
+    # Add random gradient (artifact) to all projected intensities
+    random_factor = xp.random.uniform(.0, .2)
+    random_angle = xp.random.uniform(-180, 180)
+    random_shift = xp.random.uniform(-imageSize/2, imageSize/2)
+    intensity_gradient = gradient_image(imageSize, random_factor, angle=random_angle, center_shift=random_shift)
+    # Apply the gradient to each projections
+    for i in range(len(angles)):
+        noisefree_projections[:,:,i] *= intensity_gradient
+
     pytom.tompy.io.write(f'{outputFolder}/model_{modelID}/projections_noisefree.mrc',
                          noisefree_projections) # noisefree_projections.astype(xp.float32)?
 
@@ -565,18 +742,59 @@ def generate_projections(angles, outputFolder, modelID, dose=80, pixelSize=1E-9,
 
 
 def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, vol_size, angles, outputFolder, modelID, weighting=-1):
-    from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
-    projections = ProjectionList()
+    """
+    Reconstruction of simulated tilt series into a tomogram. First creates an alignemnt file, then uses weighted back
+    projection to make a reconstruction.
 
+    @param prefix: file name prefix
+    @type prefix: string
+    @param suffix: file extension
+    @type suffix: basestring
+    @param start_idx: starting index number of first tilt image in file names
+    @type start_idx: int
+    @param end_idx: ending index of last tilt image in file names
+    @type end_idx: int
+    @param vol_size: size of the reconstruction volume
+    @type vol_size: [int, int, int]
+    @param angles: list of angles of the tilt projections
+    @type angles: [float, float, ...]
+    @param outputFolder: output directory path
+    @type outputFolder: string
+    @param modelID: number of the model
+    @type modelID: int
+    @param weighting: weighting factor, either -1, 0, or 1
+    @type weighting: int
+
+    @return: -
+    @rtype: None
+
+    @author: Gijs van der Schot, Marten Chaillet
+    """
+    from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
+    from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS as dar
+    from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
+    from pytom.gui.guiFunctions import savestar
+
+    # len(angles) is the number of files that we have
+    alignment = xp.zeros(len(angles), dtype=dar)
+    alignment['TiltAngle'] = angles
+    alignment['Magnification'] = xp.repeat(1.0, len(angles))
+    for i in range(start_idx, end_idx+1):
+        alignment['FileName'][i-1] = prefix + str(i) + suffix
+    alignment_file = f'{outputFolder}/model_{modelID}/noisyProjections/alignment_simulated.txt'
+    savestar(alignment_file, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
+
+    projections = ProjectionList()
     # IMPORTANT: angles *-1 to get the right reconstrunction relative to the orignal model!
     for i in range(start_idx, end_idx+1):
         p = Projection(prefix+str(i)+suffix, tiltAngle= -1 * angles[i-1])
         projections.append(p)
 
-    outputname = os.path.join(outputFolder, f'model_{modelID}/reconstruction.em')
+    outputname = f'{outputFolder}/model_{modelID}/reconstruction.em'
 
     # IF EM alignment file provided, filters applied and reconstruction will be identical.
-    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=1, applyWeighting=weighting)
+    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=1,
+                                        applyWeighting=weighting, alignResultFile=alignment_file)
     vol.write(outputname)
     os.system(f'em2mrc.py -f {outputname} -t {os.path.dirname(outputname)}')
     os.system(f'rm {outputname}')
@@ -623,6 +841,15 @@ if __name__ == '__main__':
             placementSize = int(config['GenerateModel']['PlacementSize'])
             size = int(config['GenerateModel']['Size'])
             sigma_structural = float(config['GenerateModel']['SigmaStructuralNoise'])
+            add_gold_markers = config['GenerateModel'].getboolean('GoldMarkers')
+            if add_gold_markers:
+                m_range = number_of_markers = config['GenerateModel']['NumberOfMarkers'].split('-')
+                if len(m_range) > 1:
+                    xp.random.seed(seed)
+                    random.seed(seed)
+                    number_of_markers = xp.random.randint(int(m_range[0]), int(m_range[1]))
+                else:
+                    number_of_markers = int(m_range[0])
 
             # Randomly vary solvent potential
             solvent_potential = float(config['GenerateModel']['SolventPotential'])
@@ -747,7 +974,8 @@ if __name__ == '__main__':
         print('\n- Generating grand model')
         generate_model(particleFolder, outputFolder, modelID, listpdbs, pixelSize=pixelSize, size=size,
                        thickness=thickness, placementSize=placementSize, solvent_potential=solvent_potential,
-                       numberOfParticles=numberOfParticles, sigma_structural=sigma_structural)
+                       numberOfParticles=numberOfParticles, sigma_structural=sigma_structural,
+                       add_gold_markers=add_gold_markers, number_of_markers=number_of_markers)
 
     # Generated rotated grand model versions
     if 'Rotation' in config.sections():

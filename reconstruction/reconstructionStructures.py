@@ -406,6 +406,7 @@ class ProjectionList(PyTomClass):
         self.reconstructVolumes(particles, cubeSize, binning, applyWeighting,
 	        showProgressBar ,verbose,preScale,postScale)
 
+
     def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0],
                           binning=1, applyWeighting=False, alignResultFile='', gpu=-1):
         """
@@ -435,8 +436,8 @@ class ProjectionList(PyTomClass):
                 binning=binning, applyWeighting=applyWeighting, showProgressBar=False,
                 verbose=False)
         else:
-            [vol_img, vol_phi, vol_the, vol_offsetProjections] = self.toProjectionStackFromAlignmentResultFile(
-                alignResultFile, binning=binning, applyWeighting=applyWeighting, showProgressBar=False, verbose=False)
+            [vol_img, vol_phi, vol_the, vol_offsetProjections] = self.toProjectionStackFromAlignmentResultsFile(
+                                                        alignResultFile, binning=binning, weighting=applyWeighting)
 
         # volume storing reconstruction offset from center (x,y,z)
         recPosVol = vol(3, vol_img.sizeZ(), 1)
