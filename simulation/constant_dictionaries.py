@@ -40,6 +40,11 @@ volume_displaced = {
         'O': 9.13 }
 
 
+mean_free_path = {
+        120E3: 200 * 1E-9,
+        300E3: 350 * 1E-9# 300 keV corresponds to inelastic mean free path 350 nm
+}
+
 scattering_factors = {
     'H': {
         'g': [0.0349, 0.1201, 0.1970, 0.0573, 0.1195, 0.5347, 3.5867, 12.3471, 18.9525, 38.6269],
