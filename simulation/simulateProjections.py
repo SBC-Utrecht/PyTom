@@ -310,7 +310,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
 
     # add solvent background potential
     print('Adding background solvent potential')
-    cell += solvent_potential
+    # cell += solvent_potential
 
     # Add structural nois
     print('Adding structural noise to grand model cell')
@@ -642,7 +642,7 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
     save_path = f'{output_folder}/model_{model_ID}'
     grandcell = pytom.tompy.io.read_mrc(f'{save_path}/rotations/rotated_volume_{0}.mrc')
 
-    imageSize = grandcell.shape[0]//2
+    # imageSize = grandcell.shape[0]//2
     box_size = grandcell.shape[0]
     box_height = grandcell.shape[2]
 
@@ -717,23 +717,16 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
             # Wave propagation with MULTISLICE method
             psi_multislice = xp.zeros((image_size,image_size), dtype=complex) + 1 # should be complex datatype
 
-            # imshow(psi_t[:, :, 0].real)
-            # show()
-            # imshow(psi_t[:, :, 0].imag)
-            # show()
-            # imshow(xp.abs(psi_multislice) ** 2)
-            # show()
-
             for ii in range(n_slices-min(1,num_px_last_slice)):
                 waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, ii]) )
                 psi_multislice = xp.fft.fftshift( xp.fft.ifftn((waveField * xp.fft.ifftshift(propagator) )) )
 
-                if ii%50 == 0:
-                    fig, ax = plt.subplots(1, 3)
-                    ax[0].imshow(psi_t[:,:,ii].real, vmin=0, vmax=2)
-                    ax[1].imshow(psi_t[:, :, ii].imag, vmin=0, vmax=2)
-                    ax[2].imshow(xp.abs(psi_multislice)**2, vmin=0, vmax=2)
-                    show()
+                # if ii%50 == 0:
+                #     fig, ax = plt.subplots(1, 3)
+                #     ax[0].imshow(psi_t[:,:,ii].real, vmin=0, vmax=2)
+                #     ax[1].imshow(psi_t[:, :, ii].imag, vmin=0, vmax=2)
+                #     ax[2].imshow(xp.abs(psi_multislice)**2, vmin=0, vmax=2)
+                #     show()
 
             # Calculate propagation through last slice in case the last slice contains a different number of pixels
             if num_px_last_slice:
@@ -743,16 +736,10 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
                 waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, -1]) )
                 psi_multislice = xp.fft.fftshift( xp.fft.ifftn( waveField * xp.fft.ifftshift(propagator_end) ) )
 
-            imshow(xp.abs(psi_multislice)**2)
-            show()
-
             # Multiple by CTF for microscope effects on electron wave
             wave_CTF = xp.fft.ifftshift(complex_CTF) * xp.fft.fftn(xp.fft.ifftshift(psi_multislice) )
             # Intensity in image plane is obtained by taking the absolute square of the wave function
             projected_tilt_image = xp.abs(xp.fft.fftshift(xp.fft.ifftn(wave_CTF))) ** 2
-
-            imshow(projected_tilt_image)
-            show()
 
         noisefree_projections[:,:,n] = projected_tilt_image
 
@@ -790,7 +777,7 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
     for i in range(len(angles)):
         # These files are needed for the reconstruction
         pytom.tompy.io.write(f'{save_path}/projections/synthetic_{i+1}.mrc',
-                             projections[:, :, n].squeeze())
+                             projections[:, :, i].squeeze())
 
     # len(angles) is the number of files that we have
     alignment = xp.zeros(len(angles), dtype=dar)
@@ -868,7 +855,8 @@ def reconstruct_tomogram(start_idx, end_idx, size_reconstruction, angles, output
     difference = cell.shape[0] - reconstruction.shape[0]
     del reconstruction
 
-    if difference:
+    already_exists = os.path.exists(f'{save_path}/grandmodel.mrc')
+    if difference and not already_exists:
         ileft = difference // 2
         iright = - int(xp.ceil(difference/2))
         print('-- Cropping models')
@@ -883,7 +871,7 @@ def reconstruct_tomogram(start_idx, end_idx, size_reconstruction, angles, output
         pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', cell[ileft:iright, ileft:iright, :])
         cell = pytom.tompy.io.read_mrc(f'{save_path}/occupancy_mask.mrc')
         pytom.tompy.io.write(f'{save_path}/occupancy_mask.mrc', cell[ileft:iright, ileft:iright, :])
-    else:
+    elif not already_exists:
         pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', cell[:, :, :])
         cell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_noisefree_original.mrc')
         pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree.mrc', cell[:, :, :])
