@@ -616,9 +616,10 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     
-    if 1:
+    try:
         job_filename, verbose, bHelp = parse_script_options(sys.argv[1:], helper)     
-    else:
+    except Exception as e:
+        print(e)
         sys.exit()
         
     if bHelp is True:

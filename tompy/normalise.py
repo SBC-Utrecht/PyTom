@@ -52,6 +52,7 @@ def normaliseUnderMask(volume, mask, p=None):
     # from math import sqrt
     if not p:
         p = xp.sum(mask)
+        print(p)
     # meanT = sum(volume) / p
     ## subtract mean and mask
     # res = mask * (volume - meanT)
@@ -62,6 +63,7 @@ def normaliseUnderMask(volume, mask, p=None):
     meanT = meanUnderMask(volume, mask, p)
 
     stdT = stdUnderMask(volume, mask, meanT, p)
+    print(meanT, stdT)
     res = (volume - meanT) / stdT
     return (res, p)
 

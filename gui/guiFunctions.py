@@ -681,7 +681,7 @@ def update_metafile(filename, columnID, values ):
     savestar(filename,metadata,fmt=fmt,header=headerText)
 
 def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=False):
-
+    
     if not mdocfiles:
         mdocfiles = [mdocfile for mdocfile in os.listdir(nanographfolder) if mdocfile.endswith('.mdoc')]
     datafiles = [fname for fname in os.listdir(nanographfolder) if fname.split('.')[-1] in ('tif','mrc','em') and not (fname[0] in '0123456789')]

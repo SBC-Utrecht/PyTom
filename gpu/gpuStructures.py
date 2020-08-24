@@ -293,8 +293,446 @@ class TemplateMatchingGPU(threading.Thread):
         return self.map_coordinates(data, grid.reshape(len(grid), -1), order=order).reshape(grid.shape[1:])
 
 
+class CCCPlan():
+    def __init__(self, particleList, maskname, freq, cp=xp, device='cpu', interpolation='filt_bspline',
+                 max_num_part=65, profile=True, binning=1):
+        id = int(device.split(":")[1])
+
+        cp.cuda.Device(id).use()
+        self.cp = cp
+        self.device = device
+        print(f'start init on: {device}')
+        from pytom.voltools import transform, StaticVolume
+        from pytom.tompy.tools import taper_edges
+        from pytom.tompy.transform import fourier_reduced2full, resize
+        from cupyx.scipy.fftpack.fft import get_fft_plan
+        from cupyx.scipy.fftpack.fft import fftn as fftnP
+        from cupyx.scipy.fftpack.fft import ifftn as ifftnP
+        from pytom.tompy.io import read_size, read, write
+        from pytom.tompy.tools import create_sphere
+
+        maskFull = read(maskname)
+
+        if binning != 1:
+            mask = resize(maskFull, 1./binning)[0]
+        else:
+            mask = maskFull
+
+        wedgeVol = particleList[0].getWedge().convert2numpy().getWedgeObject().returnWedgeVolume(*mask.shape)
+        wedge = fourier_reduced2full(wedgeVol, isodd=mask.shape[-1] % 2)
+        lpf = xp.fft.fftshift(create_sphere(mask.shape, freq))
+
+        print(mask.shape)
+        self.volume        = cp.zeros(mask.shape, dtype=cp.float32)
+        self.vg            = cp.zeros_like(self.volume, dtype=cp.float32)
+        self.vf            = cp.zeros_like(self.volume, dtype=cp.float32)
+
+        self.binning       = binning
+        self.max_particles_on_card = max_num_part
+        self.particleList  = particleList
+        self.formatting    = ['',]*self.max_particles_on_card*2
+
+        # General functions
+        self.transform     = transform
+        self.ifftnP        = ifftnP
+        self.fftnP         = fftnP
+        self.fftplan       = get_fft_plan(self.volume.astype(cp.complex64))
+        self.ifftplan = get_fft_plan(self.volume.astype(cp.complex64))
+        self.fftplan2 = get_fft_plan(maskFull.astype(cp.complex64))
+        self.ifftplan2 = get_fft_plan(self.volume.astype(cp.complex64))
+
+        self.read          = read
+        self.write         = write
+        self.xp            = cp
+        self.profile       = profile
+        self.stream = cp.cuda.Stream.null
+        self.staticVolume = StaticVolume
+        self.device = device
+        self.interpolation = interpolation
+        self.read_time = 0
+
+        # Mask info
+        self.mask          = self.cp.array(mask,dtype=xp.float32)
+        self.p             = mask.sum()
+
+        # Wedge
+        self.wedge         = StaticVolume(cp.fft.fftshift(wedge), device=device, interpolation=interpolation)
+        self.wedgeZero     = self.cp.array(wedge,dtype=self.cp.float32)
+        self.rot_wf        = self.cp.zeros_like(self.volume)
+        self.rot_wg        = self.cp.zeros_like(self.volume)
+        self.cwf,self.cwg  = [-9999,-9999,-9999], [-9999,-9999,-9999]
+
+
+        # Low Pass Filter
+        self.lpf           = self.cp.array(lpf,dtype=self.cp.float32)
+
+        # Allocate arrays used for normalisation of reference
+        self.num_threads   = 1024
+        rr = 1
+        self.nblocks       = int(self.cp.ceil(self.volume.size / self.num_threads / 2))
+        self.fast_sum_mean = self.cp.zeros((self.nblocks *rr ), dtype=self.cp.float32)
+        self.fast_sum_stdv = self.cp.zeros((self.nblocks *rr ), dtype=self.cp.float32)
+
+        # Kernels
+        self.normalize     = cp.ElementwiseKernel( 'T ref, T mask, raw T mean, raw T stdV ', 'T z', 'z = ((ref - mean[i*0]) / stdV[i*0]) * mask', 'norm2')
+        self.sumMeanStdv   = cp.RawKernel(r'''
+    __device__ void warpReduce(volatile float* sdata, volatile float* stdv, int tid, int blockSize) {
+        if (blockSize >= 64) {sdata[tid] += sdata[tid + 32]; stdv[tid] += stdv[tid+32];}
+        if (blockSize >= 32) {sdata[tid] += sdata[tid + 16]; stdv[tid] += stdv[tid+16];}
+        if (blockSize >= 16) {sdata[tid] += sdata[tid +  8]; stdv[tid] += stdv[tid+ 8];}
+        if (blockSize >=  8) {sdata[tid] += sdata[tid +  4]; stdv[tid] += stdv[tid+ 4];}
+        if (blockSize >=  4) {sdata[tid] += sdata[tid +  2]; stdv[tid] += stdv[tid+ 2];}
+        if (blockSize >=  2) {sdata[tid] += sdata[tid +  1]; stdv[tid] += stdv[tid+ 1];} }
+
+
+
+    extern "C" __global__ 
+    void sumMeanStdv(float *g_idata, float *mask, float *g_mean, float * g_stdv,  int n) {
+                                                                                                                                                         
+        __shared__ float mean[1024];
+        __shared__ float stdv[1024];
+        int blockSize = blockDim.x; 
+        unsigned int tid = threadIdx.x;                                                                                                                                        
+        int i = blockIdx.x*(blockSize)*2 + tid;                                                                                                                       
+        int gridSize = blockSize*gridDim.x*2;                                                                                                                         
+
+        mean[tid] = 0.;                                                                                                                                                       
+        stdv[tid] = 0.;
+        
+        while (i < n) {
+            mean[tid] += g_idata[i] * mask[i] ; 
+            stdv[tid] += g_idata[i] * g_idata[i] * mask[i];
+            if (i + blockSize < n){
+                mean[tid] += g_idata[i + blockSize] * mask[i+blockSize];
+                stdv[tid] += g_idata[i + blockSize] * g_idata[i + blockSize] * mask[i+blockSize];}
+            i += gridSize;}
+         __syncthreads();                                                                                                                                                       
+
+        if (blockSize >= 1024){ if (tid < 512) { mean[tid] += mean[tid + 512]; stdv[tid] += stdv[tid+512];} __syncthreads(); }                                                                                                    
+        if (blockSize >= 512) { if (tid < 256) { mean[tid] += mean[tid + 256]; stdv[tid] += stdv[tid+256];} __syncthreads(); }                                                                          
+        if (blockSize >= 256) { if (tid < 128) { mean[tid] += mean[tid + 128]; stdv[tid] += stdv[tid+128];} __syncthreads(); }                                                                          
+        if (blockSize >= 128) { if (tid <  64) { mean[tid] += mean[tid +  64]; stdv[tid] += stdv[tid+ 64];} __syncthreads(); }                                                                          
+        if (tid < 32){ warpReduce(mean, stdv, tid, blockSize);}                                                                                                                                                                      
+        if (tid == 0) {g_mean[blockIdx.x] = mean[0]; g_stdv[blockIdx.x] = stdv[0];} 
+       __syncthreads(); 
+
+    }''', 'sumMeanStdv')
+        self.sumKernel     = cp.RawKernel(r'''
+            __device__ void warpReduceSum(volatile float* sdata, int tid, int blockSize) {
+                if (blockSize >= 64) {sdata[tid] += sdata[tid + 32];}
+                if (blockSize >= 32) {sdata[tid] += sdata[tid + 16];}
+                if (blockSize >= 16) {sdata[tid] += sdata[tid +  8];}
+                if (blockSize >=  8) {sdata[tid] += sdata[tid +  4];}
+                if (blockSize >=  4) {sdata[tid] += sdata[tid +  2];}
+                if (blockSize >=  2) {sdata[tid] += sdata[tid +  1];} }
+
+
+
+            extern "C" __global__ 
+            void sumKernel(float *g_idata, float *g_mean,  int n) {
+
+                __shared__ float mean[1024];
+                int blockSize = blockDim.x; 
+                unsigned int tid = threadIdx.x;                                                                                                                                        
+                int i = blockIdx.x*(blockSize)*2 + tid;                                                                                                                       
+                int gridSize = blockSize*gridDim.x*2;                                                                                                                         
+
+                mean[tid] = 0.;                                                                                                                                                       
+
+                while (i < n) {
+                    mean[tid] += g_idata[i]; 
+                    if (i + blockSize < n){mean[tid] += g_idata[i + blockSize];}
+                    i += gridSize;}
+                 __syncthreads();                                                                                                                                                       
+
+                if (blockSize >= 1024){ if (tid < 512) { mean[tid] += mean[tid + 512];} __syncthreads(); }                                                                                                    
+                if (blockSize >= 512) { if (tid < 256) { mean[tid] += mean[tid + 256];} __syncthreads(); }                                                                          
+                if (blockSize >= 256) { if (tid < 128) { mean[tid] += mean[tid + 128];} __syncthreads(); }                                                                          
+                if (blockSize >= 128) { if (tid <  64) { mean[tid] += mean[tid +  64];} __syncthreads(); }                                                                          
+                if (tid < 32){ warpReduceSum(mean, tid, blockSize);}                                                                                                                                                                      
+                if (tid == 0) {g_mean[blockIdx.x] = mean[0];} 
+               __syncthreads(); 
+
+            }''', 'sumKernel')
+        self.argmax        = self.cp.RawKernel(r'''
+
+                extern "C"  __device__ void warpReduce(volatile float* sdata, volatile int* maxid, int tid, int blockSize) {
+                    if (blockSize >= 64 && sdata[tid] < sdata[tid + 32]){ sdata[tid] = sdata[tid + 32]; maxid[tid] = maxid[tid+32];} 
+                    if (blockSize >= 32 && sdata[tid] < sdata[tid + 16]){ sdata[tid] = sdata[tid + 16]; maxid[tid] = maxid[tid+16];}
+                    if (blockSize >= 16 && sdata[tid] < sdata[tid +  8]){ sdata[tid] = sdata[tid +  8]; maxid[tid] = maxid[tid+ 8];}
+                    if (blockSize >=  8 && sdata[tid] < sdata[tid +  4]){ sdata[tid] = sdata[tid +  4]; maxid[tid] = maxid[tid+ 4];}
+                    if (blockSize >=  4 && sdata[tid] < sdata[tid +  2]){ sdata[tid] = sdata[tid +  2]; maxid[tid] = maxid[tid+ 2];}
+                    if (blockSize >=  2 && sdata[tid] < sdata[tid +  1]){ sdata[tid] = sdata[tid +  1]; maxid[tid] = maxid[tid+ 1];}
+                }
+
+                extern "C" __global__ 
+                void argmax(float *g_idata, float *g_odata, int *g_mdata, int n) {
+                    __shared__ float sdata[1024]; 
+                    __shared__ int maxid[1024];
+                    /* 
+                    for (int i=0; i < 1024; i++){ 
+                        sdata[i] = 0;
+                        maxid[i] = 0;}
+
+                    __syncthreads();                                                                                                                              
+                    */
+                    int blockSize = blockDim.x;                                                                                                                                                   
+                    unsigned int tid = threadIdx.x;                                                                                                                                        
+                    int i = blockIdx.x*(blockSize)*2 + tid;                                                                                                                       
+                    int gridSize = blockSize*gridDim.x*2;                                                                                                                         
+
+                    while (i < n) {
+                        //if (sdata[tid] < g_idata[i]){
+                            sdata[tid] = g_idata[i];
+                            maxid[tid] = i;
+                        //}
+                        if (sdata[tid] < g_idata[i+blockSize]){
+                            sdata[tid] = g_idata[i+blockSize];
+                            maxid[tid] = i + blockSize; 
+                        }
+                        i += gridSize; 
+                    };
+                     __syncthreads();                                                                                                                                                       
+
+                    if (blockSize >= 1024){ if (tid < 512 && sdata[tid] < sdata[tid + 512]){ sdata[tid] = sdata[tid + 512]; maxid[tid] = maxid[tid+512]; } __syncthreads(); }
+                    if (blockSize >=  512){ if (tid < 256 && sdata[tid] < sdata[tid + 256]){ sdata[tid] = sdata[tid + 256]; maxid[tid] = maxid[tid+256]; } __syncthreads(); }
+                    if (blockSize >=  256){ if (tid < 128 && sdata[tid] < sdata[tid + 128]){ sdata[tid] = sdata[tid + 128]; maxid[tid] = maxid[tid+128]; } __syncthreads(); }
+                    if (blockSize >=  128){ if (tid <  64 && sdata[tid] < sdata[tid +  64]){ sdata[tid] = sdata[tid +  64]; maxid[tid] = maxid[tid+ 64]; } __syncthreads(); }
+                    if (tid < 32){ warpReduce(sdata, maxid, tid, blockSize);}                                                                                                                                                                      
+                    if (tid == 0) {g_odata[blockIdx.x] = sdata[0]; g_mdata[blockIdx.x] = maxid[0];} 
+
+
+                }''', 'argmax')
+
+        # Results
+        self.results       = cp.zeros((len(self.particleList), len(self.particleList)),dtype=cp.float32)
+        self.currently_loaded = cp.ones((self.max_particles_on_card*2), dtype=cp.int32) * -1
+        self.needed        = cp.ones_like(self.currently_loaded) * -1
+
+        print(f'init completed on: {device}')
+
+    def normalizeVolume(self, volume):
+        self.fast_sum_stdv *= 0.
+        self.fast_sum_mean *= 0.
+        self.sumMeanStdv((self.nblocks, 1,), (self.num_threads, 1, 1), (volume, self.mask, self.fast_sum_mean, self.fast_sum_stdv, self.simulatedVolume.size),
+                         shared_mem= 8 * self.num_threads)
+        meanT = self.fast_sum_mean.sum() / self.p
+        stdT = self.cp.sqrt(self.fast_sum_stdv.sum()/self.p - meanT*meanT)
+
+        return ((self.simulatedVolume - meanT)/stdT) * self.mask
+
+    def ccc_go(self, pairs):
+        from pytom.tompy.filter import create_wedge
+        from pytom.tompy.transform import fourier_reduced2full as r2f
+        ttt = 0
+        vg, vf = 0,0
+        for pair in pairs:
+            if self.profile:
+                tall = self.stream.record()
+            tt = 0
+            # print(int(self.currently_loaded[pair[0]]), int(self.currently_loaded[pair[1]]))
+            g = self.particleList[int(self.currently_loaded[pair[0]])]
+            f = self.particleList[int(self.currently_loaded[pair[1]])]
+
+
+            shift_f = f.getShift()
+            shift_f.scale(-1)
+            shift_g = g.getShift()
+            shift_g.scale(-1)
+
+            wf_rotation_zzx = f.getRotation().invert().toVector()
+            wf_rotation = wf = [wf_rotation_zzx[0], wf_rotation_zzx[2], wf_rotation_zzx[1]]
+            wg_rotation_zzx = g.getRotation().invert().toVector()
+            wg_rotation = wg = [wg_rotation_zzx[0], wg_rotation_zzx[2], wg_rotation_zzx[1]]
+
+
+            if self.cwf == f.getFilename():
+                dowf = False
+            else:
+                dowf = True
+                self.cwf = f.getFilename()
+
+            if self.cwg == g.getFilename():
+                dowg = False
+            else:
+                dowg=True
+                self.cwg = g.getFilename()
+            if self.profile:
+                t_start = self.stream.record()
+            # self.transform(self.particles[int(pair[0]),:,:,:], output=self.vf, interpolation='filt_bspline', rotation=wf_rotation, device=self.device)
+            # self.transform(self.particles[int(pair[1]),:,:,:], output=self.vg, interpolation='filt_bspline', rotation=wg_rotation, device=self.device)
+
+            if dowg:
+                self.formatting[pair[0]].transform(output=self.vg, rotation=wg_rotation, rotation_order='rzxz', translation2=shift_g.toVector())
+                self.fvg = self.fftnP(self.vg.astype(self.cp.complex64), plan=self.fftplan)
+
+                self.wedge.transform(output=self.rot_wg, rotation=wg_rotation, rotation_order='rzxz')
+                self.rot_wg = self.xp.fft.fftshift(self.rot_wg)
+
+
+            if dowf:
+                self.formatting[pair[1]].transform(output=self.vf, rotation=wf_rotation, rotation_order='rzxz', translation2=shift_f.toVector())
+                self.fvf = self.fftnP(self.vf.astype(self.cp.complex64), plan=self.fftplan)
+
+                self.wedge.transform(output=self.rot_wf, rotation=wf_rotation, rotation_order='rzxz')
+                self.rot_wf = self.xp.fft.fftshift(self.rot_wf)
+
+            #
+            # self.rot_wf *= 0.
+            # self.rot_wg *= 0.
+            if self.profile:
+                t_end = self.stream.record()
+                t_end.synchronize()
+
+                time_took = self.cp.cuda.get_elapsed_time(t_start, t_end)
+                print(f'rotation parts: \t{time_took:.3f}ms')
+                t_start = self.stream.record()
+
+
+
+
+
+
+            # self.rot_wg = self.xp.fft.fftshift(r2f(create_wedge(30,30,30,60,60,60, rotation=wg_rotation)))
+            # self.rot_wf = self.xp.fft.fftshift(r2f(create_wedge(30,30,30,60,60,60, rotation=wf_rotation)))
+            #
+
+
+            #self.write('wg.mrc', self.xp.fft.fftshift(self.rot_wg))
+            #self.write('wf.mrc', self.rot_wf)
+            #raise Exception('Test')
+
+            # write(f'GPU/vol_{self.currently_loaded[pair[0]]}_{self.currently_loaded[pair[1]]}.mrc', self.ifftnP(self.fftnP(self.vf.astype(self.cp.complex64), plan=self.fftplan) * self.xp.fft.fftshift(self.rot_wg*self.rot_wf), plan=self.fftplan).real.astype(self.xp.float32))
+            # # write(f'GPU/vol_{self.currently_loaded[pair[1]]}_{self.currently_loaded[pair[0]]}.mrc', self.ifftnP(self.fftnP(self.vg.astype(self.cp.complex64), plan=self.fftplan) * self.xp.fft.fftshift(self.rot_wf*self.rot_wg), plan=self.fftplan).real.astype(self.xp.float32))
+            # a = self.ifftnP(self.fftnP(self.vf.astype(self.cp.complex64), plan=self.fftplan) * self.xp.fft.fftshift(self.rot_wg), plan=self.fftplan).real.astype(self.xp.float32)
+            # b = self.ifftnP(self.fftnP(self.vg.astype(self.cp.complex64), plan=self.fftplan) * self.xp.fft.fftshift(self.rot_wf), plan=self.fftplan).real.astype(self.xp.float32)
+            # #
+            # #
+            # write(f'GPU/vol_{self.currently_loaded[pair[0]]}_{self.currently_loaded[pair[1]]}.mrc', a)
+            # write(f'GPU/vol_{self.currently_loaded[pair[1]]}_{self.currently_loaded[pair[0]]}.mrc', b)
+
+            w = self.rot_wg * self.rot_wf
+            self.wvf = self.ifftnP(self.fvf * w, plan=self.ifftplan).real.astype(self.xp.float32)
+            self.wvg = self.ifftnP(self.fvg * w, plan=self.ifftplan2).real.astype(self.xp.float32)
+
+            #write(f'GPU/vol_{self.currently_loaded[pair[0]]}_{self.currently_loaded[pair[1]]}.mrc', self.wvf)
+            #write(f'GPU/vol_{self.currently_loaded[pair[1]]}_{self.currently_loaded[pair[0]]}.mrc', self.wvg)
+
+            if self.profile:
+                t_end = self.stream.record()
+                t_end.synchronize()
+
+                time_took = self.cp.cuda.get_elapsed_time(t_start, t_end)
+                print(f'apply wedge: \t{time_took:.3f}ms')
+                t_start = self.stream.record()
+
+            score = self.nxcc(self.wvf,self.wvg)
+
+            if self.profile:
+                t_end = self.stream.record()
+                t_end.synchronize()
+
+                time_took = self.cp.cuda.get_elapsed_time(t_start, t_end)
+                print(f'nxcc calculate: \t{time_took:.3f}ms')
+
+
+
+            self.results[self.currently_loaded[pair[0]], self.currently_loaded[pair[1]]] += self.xp.float32(score)
+            if self.profile:
+                t_end = self.stream.record()
+                t_end.synchronize()
+
+                time_took = self.cp.cuda.get_elapsed_time(tall, t_end)
+                print(f'total time: \t{time_took:.3f}ms\n')
+
+    def nxcc(self,volume, template):
+        """
+        nxcc: Calculates the normalized cross correlation coefficient in real space
+        @param volume: A volume
+        @type volume:  L{pytom_volume.vol}
+        @param template: A template that is searched in volume. Must be of same size as volume.
+        @type template:  L{pytom_volume.vol}
+        @param mask: mask to constrain correlation
+        @type mask: L{pytom_volume.vol}
+        @param volumeIsNormalized: speed up if volume is already normalized
+        @type volumeIsNormalized: L{bool}
+        @return: A value between -1 and 1
+        @raise exception: Raises a runtime error if volume and template have a different size.
+        @author: Thomas Hrabe
+        @change: flag for pre-normalized volume, FF
+        """
+
+        from pytom.tompy.macros import volumesSameSize
+        from pytom.tompy.io import write
+
+        if not volumesSameSize(volume, template):
+            raise RuntimeError('Volume and template must have same size!')
+
+        v = self.normaliseUnderMask(volume)
+        t = self.normaliseUnderMask(template)
+
+        t = t * self.mask  # multiply with the mask
+        result = v * t
+
+        self.fast_sum_mean *= 0.
+        self.sumKernel((self.nblocks, 1, 1), (self.num_threads,),
+                         (result, self.fast_sum_mean, result.size),
+                         shared_mem=16 * self.num_threads)
+
+        ncc = self.fast_sum_mean.sum()
+        ncc /= self.p
+
+        return float(ncc)
+
+    def normaliseUnderMask(self, volume):
+
+        self.fast_sum_stdv *= 0.
+        self.fast_sum_mean *= 0.
+
+        self.sumMeanStdv((self.nblocks, 1, 1), (self.num_threads,), (volume, self.mask, self.fast_sum_mean, self.fast_sum_stdv, volume.size),
+                         shared_mem=16 * self.num_threads)
+        # if self.profile:
+        #     t_end = self.stream.record()
+        #     t_end.synchronize()
+        #
+        #     time_took = self.cp.cuda.get_elapsed_time(t_start, t_end)
+        #     print(f'nxcc norm s: \t{time_took:.3f}ms')
+        #     t_start = self.stream.record()
+
+
+        #print(meanT[meanT.argmax()-4:meanT.argmax()+2])
+
+        meanT = self.fast_sum_mean.sum() / self.p
+        stdT = self.cp.sqrt(self.fast_sum_stdv.sum() / self.p - meanT * meanT)
+        # print(meanT, (volume*self.mask).sum()/self.p, stdT, self.cp.sqrt((volume*volume*self.mask).sum()/self.p - meanT**2))
+
+        return ((volume - meanT) / stdT) * self.mask
+
+    def store_particle(self, id, filename, profile=True, binning=1):
+        from pytom.tompy.transform import resize, fourier_reduced2full, resizeFourier, fourier_full2reduced
+        if self.profile:
+            t_start = self.stream.record()
+
+        if self.binning != 1:
+            volume = read(filename)
+            volumef = fourier_full2reduced(self.fftnP(volume, plan=self.fftplan2))
+            volumef = resizeFourier(volumef, 1./self.binning, (volumef.shape[0]%2) == 1)
+            # volume,volumef = resize(read(filename), 1./self.binning)
+            p = self.ifftnP(fourier_reduced2full(volumef, isodd=(volumef.shape[0]%2) == 1 ) * self.lpf, plan=self.ifftplan).real.astype(self.xp.float32)
+        else:
+            p = self.ifftnP(self.fftnP(read(filename),plan=self.fftplan) * self.lpf, plan=self.ifftplan).real.astype(self.xp.float32)
+
+        self.formatting[id] = self.staticVolume(p, device=self.device, interpolation=self.interpolation)
+
+        if self.profile:
+            t_end = self.stream.record()
+            t_end.synchronize()
+
+            time_took = self.cp.cuda.get_elapsed_time(t_start, t_end)
+            print(f'read/bin particle: \t{time_took:.3f}ms')
+
 class GLocalAlignmentPlan():
-    def __init__(self, particle, reference, mask, wedge, maskIsSphere=True, cp=xp, device='cpu', interpolation='filt_bspline', taper=0):
+    def __init__(self, shape, reference, mask, wedge, maskIsSphere=True, cp=xp, device='cpu', interpolation='filt_bspline', taper=0):
         id = int(device.split(":")[1])
 
         cp.cuda.Device(id).use()
@@ -310,7 +748,7 @@ class GLocalAlignmentPlan():
         from pytom.tompy.io import read_size
 
         # Allocate volume and volume_fft
-        self.volume        = cp.zeros(read_size(particle.getFilename()), dtype=cp.float32)
+        self.volume        = cp.zeros(shape, dtype=cp.float32)
         self.volume_fft    = cp.zeros_like(self.volume, dtype=cp.complex64)
 
         # Allocate planned-fftn-related functions and structure
@@ -695,6 +1133,7 @@ class GLocalAlignmentPlan():
         meanV = (self.cp.fft.fftshift(self.ifftnP(self.volume_fft * self.cp.conj(self.mask_fft), plan=self.fftplan))/self.p).real
         self.stdV = 1 / (self.stdVolUnderMaskPlanned(self.volume, meanV) * self.p)
         del meanV
+
     def meanVolUnderMaskPlanned(self, volume):
         """
         meanUnderMask: calculate the mean volume under the given mask (Both should have the same size)
@@ -770,6 +1209,7 @@ class GLocalAlignmentPlan():
             self.rotatedWedge = self.cp.array(wedgePart, dtype=self.cp.float32)
             self.wedgePart    = self.cp.fft.fftshift(wedgePart)
             self.wedgeTex     = StaticVolume(self.rotatedWedge.copy(), device=self.device, interpolation=interpolation)
+
 
 def rotate3d(data, phi=0, psi=0, the=0, center=None, order=1, output=None):
     """Rotate a 3D data using ZXZ convention (phi: z1, the: x, psi: z2).

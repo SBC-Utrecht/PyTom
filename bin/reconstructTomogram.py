@@ -88,6 +88,8 @@ if __name__ == '__main__':
     except Exception as e:
         print(sys.version_info)
         print(e)
+        print()
+        print(helper)
         sys.exit()
 
     if help is True:

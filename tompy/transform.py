@@ -288,7 +288,7 @@ def resize(volume, factor, interpolation='Fourier'):
         newfvol = resizeFourier(fvol=fvol, factor=factor, isodd=volume.shape[2]%2)
         newvol = (xp.fft.irfftn(newfvol, s=[newfvol.shape[0],]*len(newfvol.shape)))
 
-        return newvol
+        return newvol, newfvol
 
 def resizeFourier(fvol, factor, isodd=False):
     """

@@ -1,7 +1,7 @@
 import numpy
 import os
-from pytom.reconstruction.tiltAlignmentFunctions import markerResidual
-from pytom.reconstruction.imageStructures import ImageStack
+from pytom.gui.additional.tiltAlignmentFunctions import markerResidual
+from pytom.gui.additional.imageStructures import ImageStack
 from pytom.reconstruction.TiltAlignmentStructures import TiltAlignmentParameters, TiltSeries, TiltAlignment
 from pytom.basic.functions import initSphere, taper_edges
 
@@ -11,7 +11,8 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
     refine coordinates of markers
     """
     mask = None
-
+    logfile = os.path.join( os.path.dirname(markerFileName), 'alignmentErrors.txt')
+    print(logfile)
     #read data
     MyTiltAlignmentParas=TiltAlignmentParameters(
         dmag=False, drot=False, dbeam=False,
@@ -26,7 +27,8 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
         markerFileName=markerFileName,
                              firstProj=firstProj, lastProj=lastProj,projIndices=projIndices,tiltSeriesFormat=tiltSeriesFormat)
     MyTiltAlignment = TiltAlignment(MyTiltSeries)
-    MyTiltAlignment.computeCoarseAlignment( MyTiltSeries)
+    MyTiltAlignment.computeCoarseAlignment( MyTiltSeries, logfile_residual=logfile)
+
     #MyTiltAlignment.alignFromFiducials()
 
     dxdy_markers = numpy.zeros((len(projIndices),len(MyTiltSeries._Markers),2),dtype=float)
@@ -92,7 +94,7 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
     #     shiftVarX, shiftVarY) = MyTiltAlignment.computeCoarseAlignment( MyTiltSeries)
 
     #for i in range(len(MyTiltSeries._Markers)):
-    errors = MyTiltAlignment.alignmentResidual()
+    errors = MyTiltAlignment.alignmentResidual( returnErrors=True)
     transX = MyTiltAlignment._alignmentTransY - MyTiltAlignment.TiltSeries_._TiltAlignmentParas.cent[0]
     transY = MyTiltAlignment._alignmentTransX - MyTiltAlignment.TiltSeries_._TiltAlignmentParas.cent[1]
 

@@ -1942,7 +1942,7 @@ class Particle(PyTomClass):
 
         try:
             # volume = read(self._filename, 0,0,0,0,0,0,0,0,0, binning, binning, binning)
-            volume = read(self._filename, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1)
+            volume = read(self._filename)#, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1)
             if binning != 1:
                 volume, volumef = resize(volume=volume, factor=1. / binning, interpolation='Fourier')
         except RuntimeError:
@@ -2878,7 +2878,7 @@ class ParticleList(PyTomClass):
             self[i] = particle
 
     def average(self, averageFileName, progressBar=False, createInfoVolumes=False,
-                _mpiParallel=False, weighting=False):
+                _mpiParallel=False, weighting=False, gpuIDs=[]):
         """
         average: Calculates average of ParticleList, stored as file
         @param averageFileName: Filename of average result such as average.em
@@ -2889,10 +2889,15 @@ class ParticleList(PyTomClass):
         @return: Reference object for resulting average
         @rtype: L{pytom.tompy.structures.Reference}
         """
+
+        gpuIDs = [] if gpuIDs is None else gpuIDs
         if _mpiParallel:
             from pytom.alignment.alignmentFunctions import _disrtibuteAverageMPI
 
             return _disrtibuteAverageMPI(self, averageFileName, progressBar, False, createInfoVolumes)
+        elif gpuIDs:
+            from pytom.alignment.alignmentFunctions import averageGPU as average
+            return average(self, averageFileName, progressBar, False, createInfoVolumes, weighting)
         else:
             from pytom.alignment.alignmentFunctions import average
 

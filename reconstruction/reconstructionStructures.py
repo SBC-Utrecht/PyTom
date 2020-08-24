@@ -507,7 +507,7 @@ class ProjectionList(PyTomClass):
             progressBar.update(0)
             numberParticleVolumes = 0
 
-        # stacks for images, projections angles etc.
+
         if not alignResultFile:
             resultProjstack = self.toProjectionStack(binning=binning, applyWeighting=applyWeighting,
                                                      showProgressBar=False,
@@ -517,11 +517,10 @@ class ProjectionList(PyTomClass):
             resultProjstack = toProjectionStackFromAlignmentResultsFile(alignResultFile, weighting=applyWeighting,
                                                                              num_procs=num_procs, binning=binning,
                                                                              circleFilter=True)
-        # if verbose: return
 
         procs = []
         num_finished, num_started = 0, 0
-        polishIndices = range(len(self))
+        polishIndices = range(resultProjstack[2].sizeZ())
         if polishResultFile:
             try:
                 from pytom.gui.guiFunctions import LOCAL_ALIGNMENT_RESULTS, loadstar
@@ -531,13 +530,14 @@ class ProjectionList(PyTomClass):
                 rppf = ppf.reshape(num, ppf.shape[0] // num)
                 polishangles = rppf[0]['TiltAngle']
                 polishIndices = []
-                for angle in self.tilt_angles:
+                print(self.tilt_angles, resultProjstack[2].sizeZ())
+                for angle in vol2npy(resultProjstack[2]).squeeze():
                     for n, pangle in enumerate(polishangles):
                         if abs(pangle-angle) < 0.01:
                             polishIndices.append(n)
                             break
 
-                if len(polishIndices) != len(self):
+                if len(polishIndices) != resultProjstack[2].sizeZ():
                     print(self.tilt_angles)
                     print(polishIndices)
                     raise Exception('data from polishfile does not contain the same angles as the angles from tiltimages')
@@ -651,7 +651,7 @@ class ProjectionList(PyTomClass):
         # for n, result in enumerate(resultProjstack):
 
         os.system('rm -f {}'.format(os.path.dirname(particles[0].getFilename()) + '/.temp_*.em'))
-        progressBar.update(len(particles))
+        if showProgressBar: progressBar.update(len(particles))
         print('\n Subtomogram reconstructions have finished.\n\n')
 
     def extract_single_particle(self, p, pid, verbose, binning, postScale, cubeSize, polishResults=None):
@@ -692,13 +692,13 @@ class ProjectionList(PyTomClass):
                           float(p.getPickPosition().getY() / binning), \
                           float(p.getPickPosition().getZ() / binning)
 
-                for i in range(len(self)):
+                for i in range(len(list(polishResults['AlignmentTransX']))):
                     offsetX = polishResults['AlignmentTransX'][i]
                     offsetY = polishResults['AlignmentTransY'][i]
 
                     pick_position = np.matrix([x, y, z]).T
 
-                    rotation = ct.matrix_rotate_3d_y(self._list[i].getTiltAngle())
+                    rotation = ct.matrix_rotate_3d_y(polishResults['TiltAngle'][i])
 
                     shift = np.matrix([offsetX, offsetY, 0]).T
 
@@ -707,7 +707,7 @@ class ProjectionList(PyTomClass):
                     new_position_shifted = new_position + shift
                     reposition = np.linalg.inv(rotation) * new_position_shifted
                     reposition = np.array(reposition.T)[0]
-
+                    print(pid, polishResults['TiltAngle'][i], reposition, offsetX, offsetY)
                     reconstructionPosition(float(reposition[0] / binning), 0, i, 0)
                     reconstructionPosition(float(reposition[1] / binning), 1, i, 0)
                     reconstructionPosition(float(reposition[2] / binning), 2, i, 0)

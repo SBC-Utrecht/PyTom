@@ -21,7 +21,7 @@ def normalize(v):
     return v
 
 
-def bandpass_circle(volume, low=0, high=-1, sigma=0):
+def bandpass_circle(image, low=0, high=-1, sigma=0):
     """Do a bandpass filter on a given volume.
 
     @param volume: input volume.
@@ -31,6 +31,7 @@ def bandpass_circle(volume, low=0, high=-1, sigma=0):
 
     @return: bandpass filtered volume.
     """
+    from pytom.tompy.transform import fourier_filter
     assert low >= 0, "lower limit must be >= 0"
 
     from pytom.tompy.tools import create_sphere, create_circle
@@ -40,15 +41,16 @@ def bandpass_circle(volume, low=0, high=-1, sigma=0):
     assert low < high, "upper bandpass must be > than lower limit"
 
     if low == 0:
-        mask = create_circle(volume.shape, high, sigma,num_sigma=2)
+        mask = create_circle(image.shape, high, sigma, num_sigma=2)
     else:
         # BUG! TODO
         # the sigma
+        mask = create_circle(image.shape, high, sigma, 2) - create_circle(image.shape, max(0,low-sigma*2), sigma, 2)
 
-        mask = create_circle(volume.shape, high, sigma, 2) - create_circle(volume.shape, max(0,low-sigma*2), sigma, 2)
 
+    res = applyFourierFilterFull(image, xp.fft.fftshift(mask))
 
-    return mask
+    return res
 
 
 def bandpass(volume, low=0, high=-1, sigma=0, returnMask=False, mask=None, fourierOnly=False):
@@ -92,7 +94,7 @@ def bandpass(volume, low=0, high=-1, sigma=0, returnMask=False, mask=None, fouri
         res = fourierMult(xp.fft.fftshift(fcrop), mcrop, True)
 
     else:
-        res = fourier_filter(volume, mask,True)
+        res = fourier_filter(volume, mask, True)
     if returnMask:
         return res, mask
     else:
@@ -532,6 +534,22 @@ def circle_filter(sizeX, sizeY, radiusCutoff):
 
     filter = xp.zeros((sizeX, sizeY), dtype=xp.float32)
     filter[R <= radiusCutoff] = 1
+
+    return filter
+
+def ellipse_filter(sizeX, sizeY, radiusCutoffX, radiusCutoffY):
+    """
+    circleFilter: NEEDS Documentation
+    @param sizeX: NEEDS Documentation
+    @param sizeY: NEEDS Documentation
+    @param radiusCutoff: NEEDS Documentation
+    """
+    X, Y = xp.meshgrid(xp.arange(-sizeY//2+sizeY%2, sizeY//2+sizeY%2), xp.arange(-sizeX//2 + sizeX%2, sizeX//2+sizeX%2))
+    R = xp.sqrt((X/radiusCutoffX)**2 + (Y/radiusCutoffY)**2)
+
+    filter = xp.zeros((sizeX, sizeY), dtype=xp.float32)
+    print(filter.shape, R.shape)
+    filter[R <= 1] = 1
 
     return filter
 

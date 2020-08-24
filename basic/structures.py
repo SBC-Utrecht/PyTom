@@ -237,8 +237,22 @@ class Mask(PyTomClass):
                 raise IOError('Could not find mask named: ' + self._filename)
             
             from pytom_volume import read
-            self._volume = read(self._filename,0,0,0,0,0,0,0,0,0,self._binning,
-	        self._binning,self._binning)
+            from pytom_volume import read
+            from pytom.tools.files import checkFileExists
+            from pytom.basic.transformations import resize
+
+            if not checkFileExists(self._filename):
+                raise IOError('Particle ' + self._filename + ' does not exist!')
+
+            try:
+                self._volume = read(self._filename, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1)
+                if self._binning != 1:
+                    self._volume, volumef = resize(volume=self._volume, factor=1. / self._binning, interpolation='Fourier')
+            except RuntimeError:
+                raise RuntimeError('Error reading file ' + self._volume)
+
+            #self._volume = read(self._filename,0,0,0,0,0,0,0,0,0,self._binning,
+	        #self._binning,self._binning)
             
         if rotation and not(self._isSphere):
             from pytom_volume import vol,transform 
@@ -305,6 +319,11 @@ class Mask(PyTomClass):
         
         if not checkFileExists(self._filename):
             raise IOError('Could not find mask file: ' + str(self._filename))
+
+    def convert2numpy(self):
+        from pytom.tompy.structures import Mask
+        mask = Mask(self._filename, self._isSphere, self._binning)
+        return mask
 
 
 class Reference(PyTomClass):
@@ -441,19 +460,30 @@ class Reference(PyTomClass):
             from pytom.basic.structures import ParticleList
             self._generatedByParticleList = ParticleList('/')
     
-    def getVolume(self):
+    def getVolume(self, binning=1):
         """
-        getVolume: 
+        getVolume:
+        @param binning: binning factor
+        @type binning: int
         @return: Reference volume
         """
         
+
         from pytom_volume import read
         from pytom.tools.files import checkFileExists
-        
+        from pytom.basic.transformations import resize
+
         if not checkFileExists(self._referenceFile):
-            raise IOError('Reference ' + self._referenceFile + ' does not exist!')
-        
-        return read(self._referenceFile)
+            raise IOError('Particle ' + self._referenceFile + ' does not exist!')
+
+        try:
+            reference = read(self._referenceFile, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1)
+            if binning != 1:
+                reference, referencef = resize(volume=reference, factor=1. / binning, interpolation='Fourier')
+        except RuntimeError:
+            raise RuntimeError('Error reading file ' + self._referenceFile)
+
+        return reference
        
     def getWeighting(self):
         """
@@ -906,6 +936,21 @@ class Wedge(PyTomClass):
     def setWedgeAngles(self, wedgeangles):
         self._wedgeObject.setWedgeAngles(wedgeangles)
 
+    def convert2numpy(self):
+        from pytom.tompy.structures import Wedge, SingleTiltWedge
+
+        angle = self.getWedgeAngle()
+        print(angle)
+        if angle.__class__ != list:
+            w1 = w2 = angle
+        else:
+            w1, w2 = angle
+
+        cutoff = self._wedgeObject._cutoffRadius
+        smooth = self._wedgeObject._smooth
+        wedge = Wedge([w1, w2], cutoff, smooth=smooth)
+        return wedge
+
 
 class SingleTiltWedge(PyTomClass):
     """
@@ -1004,8 +1049,7 @@ class SingleTiltWedge(PyTomClass):
             cut = wedgeSizeX//2
         else:
             cut = self._cutoffRadius
-        
-        weightObject = weight(self._wedgeAngle1,self._wedgeAngle2, cut, wedgeSizeX, wedgeSizeY, wedgeSizeZ, self._smooth)
+        weightObject = weight(self._wedgeAngle1,self._wedgeAngle2, cut, wedgeSizeX, wedgeSizeY, wedgeSizeZ, float(self._smooth))
 
         if not rotation.__class__ == Rotation:
             rotation = Rotation()
@@ -1043,8 +1087,7 @@ class SingleTiltWedge(PyTomClass):
         else:
             #add a custom rotation to the previously specified one
             wedgeFilter = self.returnWedgeFilter(wedgeSizeX, wedgeSizeY, wedgeSizeZ, rotation)
-             
-            #return only the reduced complex part.   
+            #return only the reduced complex part.
             wedgeVolume = wedgeFilter.getWeightVolume(True)
                 
             if humanUnderstandable:
@@ -1563,7 +1606,7 @@ class Particle(PyTomClass):
             raise TypeError('Unknown type for rotation parameter!')
         
         #if not shift:
-        if shift == None:
+        if shift is None:
             self._shift = Shift(0.0,0.0,0.0)
         elif shift.__class__ == list:
             self._shift = Shift(shift[0],shift[1],shift[2])
@@ -1711,6 +1754,7 @@ class Particle(PyTomClass):
     
     def setRotation(self,rotation):
         from pytom.basic.structures import Rotation
+
 
         if not rotation.__class__ == Rotation:
             raise TypeError('rotation parameter must be of type Rotation!')
@@ -2592,7 +2636,7 @@ class ParticleList(PyTomClass):
             self[i] = particle
         
     def average(self, averageFileName, progressBar=False, createInfoVolumes=False,
-                _mpiParallel=False, weighting=False):
+                _mpiParallel=False, weighting=False, gpuIDs=[]):
         """
         average: Calculates average of ParticleList, stored as file
         @param averageFileName: Filename of average result such as average.em
@@ -2660,15 +2704,14 @@ class ParticleList(PyTomClass):
         @type odd: L{ParticleList}
         @type even: L{ParticleList}
         """
-        assert type(odd) == ParticleList
-        assert type(even) == ParticleList
-        assert len(even)+len(odd) == len(self)
+        if not (type(odd) == ParticleList and type(even) == ParticleList and len(even)+len(odd) == len(self)):
+            raise Exception('Failed to update')
         if verbose:
             print('Number of particles in particle list: ', len(self), ", odd:", len(odd), ", even:", len(even))
         iodd = 0
         ieven = 0
         for ii in range(len(self)):
-            if ii %2 == 0:
+            if ii % 2 == 0:
                 self._particleList[ii] = even[ieven]
                 ieven = ieven + 1
             else:
@@ -2676,7 +2719,7 @@ class ParticleList(PyTomClass):
                 iodd = iodd + 1
 
     def determineResolution(self, criterion=0.5, numberBands=None, mask=None, verbose=False, plot='',
-                            keepHalfsetAverages=False, halfsetPrefix='', parallel=True, randomize=0.8):
+                            keepHalfsetAverages=False, halfsetPrefix='', parallel=True, randomize=None, combinedResolution=False):
         """
         determineResolution
         @param criterion: The resolution criterion
@@ -2748,22 +2791,27 @@ class ParticleList(PyTomClass):
         fsc = FSC(oddVolume, evenVolume, numberBands, mask, verbose)
 
         if randomize is None:
-            for (ii, fscel) in enumerate(f):
-                f[ii] = 2.*fscel/(1.+fscel)
-            r = determineResolution(f, fscCriterion, verbose)
+            if combinedResolution:
+                for (ii, fscel) in enumerate(fsc):
+                    fsc[ii] = 2.*fscel/(1.+fscel)
+            r = determineResolution(fsc, criterion, verbose)
         else:
-            randomizationFrequency    = np.floor(determineResolution(np.array(f), float(randomize), verbose)[1])
-            oddVolumeRandomizedPhase  = correlation.randomizePhaseBeyondFreq(vol2npy(v1), randomizationFrequency)
-            evenVolumeRandomizedPhase = correlation.randomizePhaseBeyondFreq(vol2npy(v2), randomizationFrequency)
+            import numpy as np
+            from pytom.tompy.io import write
+            from pytom.tompy.correlation import randomizePhaseBeyondFreq, calc_FSC_true
+            randomizationFrequency    = np.floor(determineResolution(fsc, float(randomize), verbose)[1])
+            oddVolumeRandomizedPhase  = randomizePhaseBeyondFreq(vol2npy(oddVolume), randomizationFrequency)
+            evenVolumeRandomizedPhase = randomizePhaseBeyondFreq(vol2npy(evenVolume), randomizationFrequency)
             write('randOdd.mrc', oddVolumeRandomizedPhase)
             write('randEven.mrc', evenVolumeRandomizedPhase)
             oddVolumeRandomizedPhase = read('randOdd.mrc')
             evenVolumeRandomizedPhase = read('randEven.mrc')
             fsc2 = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
-            fsc_true = list(correlation.calc_FSC_true(np.array(f), np.array(fsc2)))
-            for (ii, fscel) in enumerate(fsc_true):
-                fsc_true[ii] = 2.*fscel/(1.+fscel)
-            r = determineResolution(fsc_true,fscCriterion, verbose)
+            fsc_true = list(calc_FSC_true(np.array(fsc), np.array(fsc2)))
+            if combinedResolution:
+                for (ii, fscel) in enumerate(fsc_true):
+                    fsc_true[ii] = 2.*fscel/(1.+fscel)
+            r = determineResolution(fsc_true,criterion, verbose)
         #randomizationFrequency = np.floor(determineResolution(fsc, 0.8, verbose)[1])
 
         #oddVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
@@ -2772,9 +2820,11 @@ class ParticleList(PyTomClass):
         if verbose:
             print('FSC list:')
             print(fsc)
-            print('FSC_Random:\n', fsc2)
-            print('FSC_true:\n', fsc_true)
-
+            try:
+                print('FSC_Random:\n', fsc2)
+                print('FSC_true:\n', fsc_true)
+            except:
+                pass
         if not plot == '':
             try:
                 from pytom.basic.plot import plotFSC
@@ -2852,13 +2902,14 @@ class ParticleList(PyTomClass):
             #do nothing
             return [self]
         
-        from math import floor
-        stepSize = int(floor(len(self) / float(n)))
+        from math import floor, ceil
+        stepSize = int(ceil(len(self) / float(n)))
 
         lastIndex = 0
         lists = []
-        
-        for i in range(stepSize,len(self),stepSize):
+        print(len(self), stepSize)
+        for i in range(stepSize,len(self), stepSize):
+            print(i)
             lists.append(self[lastIndex:i])
             lastIndex = i
             if i + stepSize >= len(self):
@@ -3132,6 +3183,7 @@ class ParticleList(PyTomClass):
         from pytom.alignment.structures import Peak
         assert type(peaks[0]) == Peak
         assert len(self) == len(peaks)
+
         for (ii, part) in enumerate(self._particleList):
             part.setRotation(rotation=peaks[ii].getRotation())
             part.setShift(shift=peaks[ii].getShift())
@@ -3831,6 +3883,9 @@ class PickPosition(PyTomClass):
 
     def getOriginFilename(self):
         return self._originFilename
+
+    def setOriginFilename(self, originFilename):
+        self._originFilename = originFilename
     
     def toXML(self):
         """

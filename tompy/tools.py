@@ -66,7 +66,7 @@ def create_circle(size, radius=-1, sigma=0, num_sigma=3, center=None):
     circle[r<=radius] = 1
 
     if sigma > 0:
-        ind = xp.logical_and(r>radius, r<=radius+num_sigma*sigma)
+        ind = xp.logical_and(r>radius, r<radius+num_sigma*sigma)
         circle[ind] = xp.exp(-((r[ind] - radius)/sigma)**2/2)
 
     return circle
@@ -264,7 +264,7 @@ def taper_edges(image, width):
         Z, X, Y = xp.meshgrid(taperX, taperY, taperZ)
         taper_mask = X * (X < Y) * (X < Z) + Y * (Y <= X) * (Y < Z) + Z * (Z <= Y) * (Z <= X)
     else:
-        X, Y = xp.meshgrid(taperX, taperY)
+        X, Y = xp.meshgrid(taperY, taperX)
         taper_mask = X * (X < Y) + Y * (Y <= X)
 
     return image * taper_mask, taper_mask

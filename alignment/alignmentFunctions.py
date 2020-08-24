@@ -697,7 +697,8 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
             mean0std1(particle)  # happen inplace
 
         wedgeInfo = particleObject.getWedge()
-        wedgeInfo = wedgeInfo.convert2numpy()
+        try: wedgeInfo = wedgeInfo.convert2numpy()
+        except: pass
         # apply its wedge to itself
         particle = wedgeInfo.apply(particle)
 
@@ -1097,7 +1098,6 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
 
     while currentRotation != [None, None, None]:
         plan.rotatedRef *= 0
-
         # If not spherical mask, recalculate respective arrays
         if not isSphere:
             plan.mask.transform(output=plan.rotatedMask, rotation=[currentRotation[0],currentRotation[2],currentRotation[1]],

@@ -126,8 +126,8 @@ def write_fsc2Ascii(fsc, filename, fsc_rand=None, fsc_corr=None):
     """
     fh = open( filename, "w")
 
-    fsc_rand = ['',]*len(fsc) if sc_rand is None else fsc_rand
-    fsc_corr = ['',]*len(fsc) if sc_rand is None else fsc_corr
+    fsc_rand = ['',]*len(fsc) if fsc_rand is None else fsc_rand
+    fsc_corr = ['',]*len(fsc) if fsc_corr is None else fsc_corr
 
     for fscval, fscrandval, fsccorrval in zip(fsc, fsc_rand, fsc_corr):
         fh.write(f'{fscval}\t{fscrandval}\t{fsccorrval}\n')

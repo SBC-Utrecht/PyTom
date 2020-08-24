@@ -572,7 +572,10 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
 
     use_device=f'gpu:{gpuID}'
     print('devices: ', use_device)
-    plan = GLocalAlignmentPlan(pl[0], reference, mask, wedge, maskIsSphere=True, cp=xp, device=use_device,
+
+    shape = read_size(particle.getFilename())
+
+    plan = GLocalAlignmentPlan(shape, reference, mask, wedge, maskIsSphere=True, cp=xp, device=use_device,
                                interpolation='filt_bspline')
 
     try:

@@ -82,7 +82,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
         aty = alignmentResults['AlignmentTransY'][n]
         rot = alignmentResults['InPlaneRotation'][n]
         mag = alignmentResults['Magnification'][n]
-        print(imageList[n], tilt_angles[n], atx, aty, rot, mag)
+
         projection = Projection(imageList[n], tiltAngle=tilt_angles[n], alignmentTransX=atx,alignmentTransY=aty,
                                 alignmentRotation=rot,alignmentMagnification=mag)
         projectionList.append(projection)
@@ -100,6 +100,7 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
     offsetStack.setAll(0.0)
 
     for (ii, projection) in enumerate(projectionList):
+        print(projection._filename)
         if projection._filename.split('.')[-1] == 'st':
             from pytom.basic.files import EMHeader, read
             idx = projection._index
@@ -150,14 +151,14 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
             w_func = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
             image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
 
-        print(projection.getTiltAngle(), projection.getOffsetX(), projection.getOffsetY())
+
         thetaStack(int(round(projection.getTiltAngle())), 0, 0, ii)
         offsetStack(int(round(projection.getOffsetX())), 0, 0, ii)
         offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
         paste(image, stack, 0, 0, ii)
-        fname = 'sorted_aligned_novel_{:02d}.mrc'.format(ii)
-        write_em(fname.replace('mrc','em'), image)
-        mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
+        #fname = 'sorted_aligned_novel_{:02d}.mrc'.format(ii)
+        #write_em(fname.replace('mrc','em'), image)
+        #mrcfile.new(fname, vol2npy(image).copy().astype('float32').T, overwrite=True)
 
     return [stack, phiStack, thetaStack, offsetStack]
 
@@ -167,5 +168,59 @@ def toProjectionStackFromAlignmentResultsFile( alignmentResultsFile, weighting=N
 if __name__ == '__main__':
     import sys
     alignmentResultFile = sys.argv[1]
+    markerResultFile = sys.argv[2]
 
-    toProjectionStackFromAlignmentResultsFile(alignmentResultFile, binning=1, weighting=0, lowpassFilter=0.9)
+    import numpy as xp
+    from pytom_numpy import vol2npy
+    from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar, datatypeMR
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    from pylab import imshow, show, subplots
+
+
+    print('start')
+    s, p, t, o = toProjectionStackFromAlignmentResultsFile(alignmentResultFile, binning=1, weighting=0, lowpassFilter=0.9)
+
+    print('stacked')
+
+    stackImages = vol2npy(s)
+
+    binning=8
+
+    dim_x = dim_z = dimz = 3710
+
+    dd = loadstar(alignmentResultFile, dtype=datatypeAR)
+    mm = loadstar(markerResultFile, dtype=datatypeMR)
+
+    size = 10
+
+    pick_position = [432.0, 260.0, 246.]
+    pick_position = [285.0, 422.0, 120.0]
+    pick_position = [53., 173.0, 233.0]
+
+    #pick_position = [mm['PositionX'][1]//8,mm['PositionY'][1]//8,mm['PositionZ'][1]//8]
+    print(pick_position)
+
+
+    offset = [0,0,0]
+
+    fig,ax = subplots(5,6,figsize=(18,15))
+
+    for i in range(stackImages.shape[2]):
+        ang = dd['TiltAngle'][i]
+        x, y, z = pick_position
+        x = (x + offset[0]) * binning
+        y = (y + offset[1]) * binning
+        z = (z + offset[2]) * binning
+
+        # Get coordinates of the paricle adjusted for the tilt angle
+        yy = y  # assume the rotation axis is around y
+        xx = (xp.cos(ang * xp.pi / 180) * (x - dim_x / 2) - xp.sin(ang * xp.pi / 180) * (z - dim_z / 2)) + dim_x / 2
+
+        yy = int(numpy.around(yy))
+        xx = int(numpy.around(xx))
+
+        print(xx, yy)
+
+        ax[i//6][i%6].imshow(stackImages[:,:,i][xx-size:xx+size, yy-size:yy+size])
+    show()

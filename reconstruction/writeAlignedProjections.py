@@ -34,14 +34,27 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         imdim = int(float(TiltSeries_._imdim)/float(binning)+.5)
     else:
         imdim = TiltSeries_._imdim
-    print('imdim', imdim)
 
     sliceWidth = imdim
 
+    tilt_angles = []
+    sampling = 100
+
+    for projection in TiltSeries_._ProjectionList:
+        tilt_angles.append(projection._tiltAngle)
+    tilt_angles = numpy.array(sorted(tilt_angles))
+
+    for n in range(1, len(tilt_angles)):
+        cursampling = abs(tilt_angles[n] - tilt_angles[n-1])
+        if cursampling < sampling:
+            sampling = cursampling
+
+    crowtherFreq = min(imdim // 2, int(numpy.ceil(1 / numpy.sin(sampling))))
+
     # pre-determine analytical weighting function and lowpass for speedup
     if (weighting != None) and (weighting < -0.001):
-        w_func = fourierFilterShift(rampFilter( imdim, imdim))
-    print('start weighting')
+        w_func = fourierFilterShift(rampFilter(imdim, imdim, crowtherFreq=None))
+
     # design lowpass filter
     if lowpassFilter:
         if lowpassFilter > 1.:
@@ -53,12 +66,9 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         #                     bpf=None,smooth=lowpassFilter/5.*imdim,fourierOnly=False)[1]
 
 
-    tilt_angles = []
 
-    for projection in TiltSeries_._ProjectionList:
-        tilt_angles.append( projection._tiltAngle )
-    tilt_angles = sorted(tilt_angles)
-    print(tilt_angles)
+
+
     #q = numpy.matrix(abs(numpy.arange(-imdim//2, imdim//2)))
 
     alignmentResults = numpy.zeros((len(TiltSeries_._ProjectionList)),dtype=datatypeAR)
@@ -149,6 +159,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
 
                 image = (ifft( complexRealMult( fft( image), w_func) )/
                       (image.sizeX()*image.sizeY()*image.sizeZ()) )
+
             header.set_tiltangle(tilt_angles[ii])
 
             if newFilename.endswith ('.mrc'):

@@ -14,9 +14,10 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
     @rtype: L{pytom.basic.ParticleList}
     
     """
-    from pytom.basic.structures import Particle, ParticleList, Rotation, Shift
+    from pytom.basic.structures import Particle, ParticleList, Rotation, Shift, Wedge
     from pytom_volume import vol, rotate, shift, read
     from pytom.basic.transformations import general_transform_crop
+    from pytom.basic.functions import initSphere
     from pytom.simulation.whiteNoise import add as addNoise
     import random
     from os import mkdir
@@ -28,22 +29,41 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
         print('directory '+pdir+' existed already - using this one')
     random.seed(0)
 
+    a = 0
+
+
+    wedge = Wedge(wedgeAngles=[30.0,30.0], cutoffRadius=50.0)
+
     pl = ParticleList( directory='./')
-    ref = read(reffile)
+    ref1 = read(reffile)
+    ref2 = initSphere(sizeX=ref1.sizeX(), sizeY=ref1.sizeY(), sizeZ=ref1.sizeZ(), radius=45)
+    #ref2.write('testData/mask_45.em')
+    parts = {0:ref1, 1:ref2}
+
     for ii in range(0, nparticles):
+        if not ii%2:
+            ref = read(reffile)
+        else:
+            ref = initSphere(sizeX=ref1.sizeX(), sizeY=ref1.sizeY(), sizeZ=ref1.sizeZ(), radius=30, smooth=30 / 10)
+
         rot = Rotation(random.uniform(0,360), random.uniform(0,360), 
                        random.uniform(0,180))
-        shift = Shift( x=random.uniform(-5,5), y=random.uniform(-5,5), 
-                       z=random.uniform(-5,5))
-        rotvol = general_transform_crop(v=ref, rot=rot, shift=shift, 
+        shift = Shift( x=a*random.uniform(-5,5), y=a*random.uniform(-5,5),
+                       z=a*random.uniform(-5,5))
+        rotvol = general_transform_crop(v=ref, rot=rot, shift=shift,
                  scale=None, order=[0,1,2])
         # add some noise
         noisy = addNoise(volume=rotvol,SNR=1)
         fname = pdir + '/particle_' + str(ii) + '.em'
-        noisy.write( fname)
-        p = Particle(filename=fname, rotation=rot, shift=shift, wedge=None, 
+
+        #noisy.write( fname)
+        p = Particle(filename=fname, rotation=rot, shift=shift, wedge=wedge,
                      className=0, pickPosition=None, score=score, sourceInfo=None)
         p.setScoreValue(0.0)
+
+        wg = p.getWedge().getWedgeObject()
+        wg.apply(noisy, Rotation(0,0,0)).write(fname)
+
         pl.append( particle=p)
 
     pl.setFileName( filename=pl_filename) 

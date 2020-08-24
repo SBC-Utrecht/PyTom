@@ -53,9 +53,9 @@ class Alignment:
         self.rotvol2 = vol(self.vol1.sizeX(), self.vol2.sizeY(), self.vol2.sizeZ())
         self.mask = mask
         
-        if not iniRot:
+        if iniRot is None:
             iniRot=Rotation()
-        if not iniTrans:
+        if iniTrans is None:
             iniTrans=Shift()
         self.rot_trans = self.transRot2vector( rot=iniRot, trans=iniTrans)
 

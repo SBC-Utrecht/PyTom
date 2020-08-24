@@ -73,6 +73,7 @@ if __name__ == '__main__':
              ScriptOption(['--weightingType'], 'Type of weighting (-1 default r-weighting, 0 no weighting)', arg=True,
                           optional=True),
              ScriptOption(['--projIndices'], 'Supply Indices', arg=False, optional=True),
+             ScriptOption(['--fixMarkerPos'], 'Fix marker position during second optimization step. Useful for local marker alignment.', arg=False, optional=True),
              ScriptOption(['--verbose'], 'Enable verbose mode', arg=False, optional=True),
              ScriptOption(['-h', '--help'], 'Help.', False, True)]
     
@@ -92,7 +93,7 @@ if __name__ == '__main__':
         volumeName, filetype, \
         tomogramSizeX, tomogramSizeY, tomogramSizeZ, \
         reconstructionCenterX, reconstructionCenterY, reconstructionCenterZ, \
-        numberProcesses, weightingType, projIndices, verbose, help = parse_script_options(sys.argv[1:], helper)
+        numberProcesses, weightingType, projIndices, fixMarkers, verbose, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(sys.version_info)
         print(e)
@@ -181,6 +182,9 @@ if __name__ == '__main__':
     except:
         expectedRotationAngle = 0
 
+    print('Fix: ', fixMarkers)
+    shift_markers = True if fixMarkers is None else False
+
     outMarkerFileName = 'MyMarkerFile.em'
     if verbose:
         print("Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj) )
@@ -256,7 +260,8 @@ if __name__ == '__main__':
                 'tiltSeriesFormat': 'mrc', "firstProj":firstProj, "irefmark":irefmark, "ireftilt":ireftilt,
                 'handflip': expectedRotationAngle, "alignedTiltSeriesName":falignedTiltSeriesName,
                 'weightingType': weightingType, "lowpassFilter":lowpassFilter, "projBinning":projBinning,
-                'outMarkerFileName': outMarkerFileName, 'verbose':True, 'outfile':outfile, 'write_images':False}
+                'outMarkerFileName': outMarkerFileName, 'verbose':True, 'outfile':outfile, 'write_images':False,
+                'shift_markers': shift_markers, 'logfile_residual': os.path.join(os.path.dirname(outfile), 'alignmentErrors.txt')}
 
         print(kwargs)
 
