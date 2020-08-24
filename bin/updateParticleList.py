@@ -146,18 +146,15 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
 
             if move_shift == True:
                 pp = particle.getPickPosition()
-                print(shift.toVector())
                 shift.scale( binSubtomo / binRecon)
                 ss = shift.toVector()
-                print(pp)
                 pp.setX(pp.getX() + ss[0])
                 pp.setY(pp.getY() + ss[1])
                 pp.setZ(pp.getZ() + ss[2])
-                print(pp)
                 particle.setPickPosition(pp)
                 shift.scale(0.)
                 #print(particle)
-                break
+
 
             # Combine rotations from particleList and rotation
             if rotation:
@@ -177,7 +174,7 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
                 rotationT.setZ2(-1*rotationT.getZ2())
                 rotationT.setX(-1*rotationT.getX())
                 particle.setRotation(rotationT)
-        print(tempPL[0])
+
         tempPL.toXMLFile(outnames[n])
         if mirror:
             mirrorParticleList(outnames[n], outnames[n], directory=tomogram_dir)

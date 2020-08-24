@@ -85,7 +85,7 @@ def refMarkerResidualForTiltImage(cent, Marker, cTilt, sTilt, transX, transY, ro
 
     # marker positions in 3d model rotated on approximate tilt axis
     zmod = markCoord[2]
-    [xmod, ymod] = rotate_vector2d([markCoord[0], markCoord[1]], cmeanpsi, smeanpsi)
+    [xmod, ymod] = rotate_vector2d([markCoord[0], markCoord[1]], czeropsi, szeropsi)
 
 
     if ((Marker.xProj[iproj] > -1.) and (Marker.yProj[iproj] > -1.)):
@@ -235,13 +235,13 @@ def markerResidualFixedMarker(cent, Markers_, cTilt, sTilt, transX, transY, rotI
         markCoords = numpy.array(Markers_[irefmark].get_r())
         markCoords /= isoMag[iproj]
 
-        markCoordsRotInPlane = rotate_vector2d([markCoords[0], markCoords[1]], cmeanpsi, smeanpsi)
+        markCoordsRotInPlane = rotate_vector2d([markCoords[0], markCoords[1]], cpsi[ireftilt], spsi[ireftilt])
         projMarkCoords = [markCoordsRotInPlane[0]*cTilt[iproj] - sTilt[iproj]*markCoords[2], markCoordsRotInPlane[1]]
         rotMarkCoords = rotate_vector2d([projMarkCoords[0], projMarkCoords[1]], cpsi[iproj], -spsi[iproj])
         transXRef.append(Markers_[irefmark].xProj[iproj] - cent[0] - rotMarkCoords[0])
         transYRef.append(Markers_[irefmark].yProj[iproj] - cent[1] - rotMarkCoords[1])
-        # print('translation: ', transXRef[-1], transYRef[-1], transY[iproj], transX)
-        #print(transX[iproj], transXRef[iproj], isoMag[iproj])
+        # if iproj == ireftilt: print('translation: ', transXRef[-1], transYRef[-1], transY[iproj], transX[iproj])
+        # print(transX[iproj], transXRef[iproj], isoMag[iproj])
 
 
     for (imark, Marker) in enumerate(Markers_):
@@ -292,6 +292,7 @@ def markerResidualFixedMarker(cent, Markers_, cTilt, sTilt, transX, transY, rotI
                     print(e)
                     continue
                 # score
+                #print(x_meas, x_proj, y_meas, y_proj)
                 deltaX = x_meas - x_proj
                 deltaY = y_meas - y_proj
 
@@ -325,7 +326,7 @@ def markerResidualFixedMarker(cent, Markers_, cTilt, sTilt, transX, transY, rotI
 
 def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, tiltangles=None, ireftilt=None,
                    irefmark=None, isoMag=None, dBeam=None, dMagnFocus=None, dRotFocus=None, equationSet=False,
-                   logfile_residual=None, returnErrors=None):
+                   logfile_residual=None, returnErrors=None, verbose=False, errorRef=False):
     """
     calculate residual of a marker model given the marker coords
 
@@ -449,7 +450,9 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, til
                 #    print "  iproj="+str(iproj)+", imark="+str(imark+1)
                 #    print "  deltaX = "+str(deltaX)
                 #    print "  deltaY = "+str(deltaY)
-                
+                if verbose and irefmark == imark:
+                    print(iproj, imark, deltaX, deltaY)
+
                 residual = deltaX**2 + deltaY**2 + residual
                 if equationSet:
                     Dev.append(deltaX)
@@ -461,6 +464,9 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, til
     normf = 1. /(ndif - nmark)
     # residual = sqrt(residual/(ndif - size(Matrixmark,3)));
     residual = residual*normf
+
+    if errorRef:
+        residual = errors[irefmark]
     #print error, residual
     if equationSet:
         return Dev
@@ -735,6 +741,8 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
             if ( (Marker.xProj[itilt] > -1.) and (x[imark]!=1000000) ):
                 sumxx = sumxx + (diffX[itilt,imark]-shiftX[itilt])**2
                 sumyy = sumyy + (diffY[itilt,imark]-shiftY[itilt])**2
+                if not mute and imark == irefmark:
+                    print(imark, itilt, diffX[itilt,imark]-shiftX[itilt], diffY[itilt,imark]-shiftY[itilt])
         if (ndif > 1):
             shiftVarX[itilt]=sqrt(sumxx/(ndif-1))
             shiftVarY[itilt]=sqrt(sumyy/(ndif-1))

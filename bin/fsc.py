@@ -177,11 +177,13 @@ if __name__ == '__main__':
         if randomize:
             ax.plot(fsc_rand, label='FSC rand')
             ax.plot(fsc_corr, label='FSC corrected')
-        ax.set_xticks([0,20,40,60,80,100])
-        ax.set_xticklabels([200*pixelSize, 200*pixelSize/20, 200*pixelSize/40, numpy.around(200*pixelSize/60,2), 200*pixelSize/80, 200*pixelSize/100])
 
-        ax.hlines(0.17,0,100,label='cutoff = 0.17')
+        num_pix = len(fsc_rand)
+        ax.set_xticks([0,int(round(0.2*num_pix)),int(round(0.4*num_pix)),int(round(0.6*num_pix)),int(round(0.8*num_pix)),int(round(num_pix))])
+        ax.set_xticklabels([num_pix*2*pixelSize, num_pix*2*pixelSize/20, num_pix*2*pixelSize/40, numpy.around(num_pix*2*pixelSize/60,2), num_pix*2*pixelSize/80, num_pix*2*pixelSize/100])
 
+        ax.hlines(fscCriterion,0,num_pix,label=f'cutoff = {fscCriterion}')
+        ax.set_title(f'Resolution determined for pixelsize : {pixelSize} at {bandToAngstrom(r[1], pixelSize, numberBands)} Angstrom')
         #fig, ax = subplots(1, 1, figsize=(7, 7))
         #ax.plot(f, label='FSC orig')
         #if randomize:

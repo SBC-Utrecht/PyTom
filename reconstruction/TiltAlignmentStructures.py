@@ -1132,6 +1132,10 @@ class TiltAlignment:
             cent = self.TiltSeries_._TiltAlignmentParas.cent
             cpsi, spsi = [0, ] * ntilt, [0, ] * ntilt
 
+            meanpsi = mean(self._alignmentRotations)
+            cmeanpsi = cos(- meanpsi / 180. * pi - pi / 2.)
+            smeanpsi = sin(- meanpsi / 180. * pi - pi / 2.)
+
             for (ii, psi) in enumerate(self._alignmentRotations):
                 cpsi[ii] = cos(- psi / 180. * pi - pi / 2.)
                 spsi[ii] = sin(- psi / 180. * pi - pi / 2.)
@@ -1142,7 +1146,7 @@ class TiltAlignment:
                 markCoords /= self._alignmentMagnifications[iproj]
                 # if self.ireftilt == iproj: print(markCoords)
 
-                markCoordsRotInPlane = rotate_vector2d([markCoords[0], markCoords[1]], cpsi[self.ireftilt], spsi[self.ireftilt])
+                markCoordsRotInPlane = rotate_vector2d([markCoords[0], markCoords[1]], cmeanpsi, smeanpsi)
                 # if self.ireftilt == iproj: print(markCoordsRotInPlane)
 
                 projMarkCoords = [markCoordsRotInPlane[0] * self._cTilt[iproj] - self._sTilt[iproj] * markCoords[2],
@@ -1193,9 +1197,9 @@ class TiltAlignment:
         # self._alignmentTransYOrig = numpy.array(self._alignmentTransY)
         scoringFunction = self.alignmentScore
 
-        if not self.optimizeMarkerPositions:
-            from pytom.reconstruction.tiltAlignmentFunctions import markerResidualFixedMarker as markerResidual
-            scoringFunction = self.alignmentScoreFixedMarker
+        # if not self.optimizeMarkerPositions:
+        #     from pytom.reconstruction.tiltAlignmentFunctions import markerResidualFixedMarker as markerResidual
+        #     scoringFunction = self.alignmentScoreFixedMarker
 
         self.q = [.001,]*len(self._alignmentTransX)
 
@@ -1292,8 +1296,16 @@ class TiltAlignment:
                                         ireftilt=self.ireftilt,
                                         isoMag=self._alignmentMagnifications, dBeam=self._alignmentBeamTilt,
                                         dMagnFocus=None, dRotFocus=None, equationSet=False)
-
-            print("Error score refmarker: ", numpy.sqrt(errors[errors < 9000].mean()))
+            errorRef = markerResidual(self.TiltSeries_._TiltAlignmentParas.cent,
+                                   Markers_=self._Markers,
+                                   cTilt=self._cTilt, sTilt=self._sTilt,
+                                   transX=self._alignmentTransX, transY=self._alignmentTransY, ireftilt=self.ireftilt,
+                                   rotInPlane=self._alignmentRotations, irefmark=self.irefmark,
+                                   tiltangles=self._tiltAngles,
+                                   isoMag=self._alignmentMagnifications, dBeam=self._alignmentBeamTilt,
+                                   dMagnFocus=None, dRotFocus=None, equationSet=False,
+                                   logfile_residual=logfile_residual, verbose=True, errorRef=True)
+            print("Error score refmarker: ", errorRef)
 
 
 

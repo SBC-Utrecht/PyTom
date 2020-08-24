@@ -404,3 +404,26 @@ def fourier_filter(data, fltr, human=True):
     return res
 
 
+def resiz2e(volume, factor, interpolation='Fourier'):
+    """
+    resize volume in real or Fourier space
+    @param volume: input volume
+    @type volume: L{pytom_volume.vol}
+    @param factor: a factor > 0. Factors < 1 will de-magnify the volume, factors > 1 will magnify.
+    @type factor: L{float}
+    @param interpolation: Can be 'Fourier' (default), 'Spline', 'Cubic' or 'Linear'
+    @type interpolation: L{str}
+
+    @return: The re-sized volume
+    @rtype: L{pytom_volume.vol}
+    @author: FF
+    """
+
+    if (interpolation == 'Spline') or (interpolation == 'Cubic') or (interpolation == 'Linear'):
+        return scale(volume, factor, interpolation='Spline')
+    else:
+        fvol = xp.fft.rfftn(volume)
+        newfvol = resizeFourier(fvol=fvol, factor=factor, isodd=volume.shape[2]%2)
+        newvol = (xp.fft.irfftn(newfvol, s=[newfvol.shape[0],]*len(newfvol.shape)))
+
+        return newvol, newfvol

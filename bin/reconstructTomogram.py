@@ -225,7 +225,7 @@ if __name__ == '__main__':
                            volumeName=volumeName, volumeFileType=filetype,
                            voldims=voldims, recCent=reconstructionPosition,
                            tiltSeriesFormat=tiltSeriesFormat, firstProj=firstProj, irefmark=irefmark, ireftilt=ireftilt,
-                           handflip=expectedRotationAngle*numpy.pi/180,
+                           handflip=float(expectedRotationAngle)*numpy.pi/180,
                            alignedTiltSeriesName=alignedTiltSeriesName,
                            weightingType=weightingType, alignResultFile=alignResultFile,
                            lowpassFilter=lowpassFilter, projBinning=projBinning,

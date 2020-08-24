@@ -1002,7 +1002,7 @@ class ProjectionList(PyTomClass):
         from pytom.basic.fourier import ifft, fft
         from pytom.basic.filter import filter as filterFunction, bandpassFilter
         from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
-        from pytom_volume import complexRealMult, vol, paste
+        from pytom_volume import complexRealMult, vol, paste, pasteCenter
         import pytom_freqweight
         from pytom.basic.transformations import resize, rotate
         from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
@@ -1106,6 +1106,8 @@ class ProjectionList(PyTomClass):
             transY = projection._alignmentTransY / binning
             rot = float(projection._alignmentRotation)
             mag = float(projection._alignmentMagnification)
+
+            print(imdimX, imdimY)
 
             # 3 -- square if needed
             if imdimY != imdimX:

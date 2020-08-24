@@ -74,9 +74,9 @@ if __name__=='__main__':
     x,y,z = data.shape
     sliceNR = min(x,y,z)
 
-    angles = range(-50,51,2)
+    angles = range(-60,61,2)
     if mdoc:
-        mdocname = os.path.join(outdir, os.path.basename(filename).replace('.mrc', '.mdoc'))
+        mdocname = os.path.join(outdir, os.path.basename(filename).replace('.mrc', '.mdoc').replace('.ali','.mdoc'))
         mdocfile = open(mdocname, 'w')
 
     d = '''[ZValue = {}]
