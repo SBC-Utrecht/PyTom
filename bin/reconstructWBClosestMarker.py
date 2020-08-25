@@ -124,7 +124,6 @@ if __name__ == '__main__':
                 alignmentResults = loadstar(alignResultFile, dtype=datatypeAR)
                 projectionsFileNames = alignmentResults['FileName']
                 projectionDirectory = os.path.dirname(projectionsFileNames[0])
-                print(projectionDirectory,checkDirExists(projectionDirectory) )
                 prefix = os.path.basename(projectionsFileNames[0]).split('_')[0] + '_'
             if checkFileExists(projectionList):
                 projections.fromXMLFile(projectionList)
@@ -161,8 +160,10 @@ if __name__ == '__main__':
                 x = (pickPosition.getX() * coordinateBinning + recOffset2[0])
                 y = (pickPosition.getY() * coordinateBinning + recOffset2[1])
                 z = (pickPosition.getZ() * coordinateBinning + recOffset2[2])
-
                 particle.setPickPosition( PickPosition(x=x, y=y, z=z))
+
+            if alignResultFile:
+                print(f'Alignment result file is used.\n\n{alignResultFile}')
 
             projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \
                                            binning=projBinning, applyWeighting = aw, \

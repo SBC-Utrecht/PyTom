@@ -41,10 +41,10 @@ if __name__=='__main__':
         print(helper)
         sys.exit()
 
-
     if b_help:
         print(helper)
         sys.exit()
+
 
     if fname.endswith('.em'):
         vol = read(fname)

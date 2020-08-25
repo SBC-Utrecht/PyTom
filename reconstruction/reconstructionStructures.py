@@ -436,8 +436,8 @@ class ProjectionList(PyTomClass):
                 binning=binning, applyWeighting=applyWeighting, showProgressBar=False,
                 verbose=False)
         else:
-            [vol_img, vol_phi, vol_the, vol_offsetProjections] = self.toProjectionStackFromAlignmentResultFile(
-                alignResultFile, binning=binning, applyWeighting=applyWeighting, showProgressBar=False, verbose=False)
+            [vol_img, vol_phi, vol_the, vol_offsetProjections] = self.toProjectionStackFromAlignmentResultsFile(
+                alignResultFile, binning=binning, weighting=applyWeighting)
 
         # volume storing reconstruction offset from center (x,y,z)
         recPosVol = vol(3, vol_img.sizeZ(), 1)
@@ -1059,7 +1059,7 @@ class ProjectionList(PyTomClass):
         from pytom.basic.fourier import ifft, fft
         from pytom.basic.filter import filter as filterFunction, bandpassFilter
         from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
-        from pytom_volume import complexRealMult, vol, paste
+        from pytom_volume import complexRealMult, vol, paste, pasteCenter
         import pytom_freqweight
         from pytom.basic.transformations import resize, rotate
         from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
@@ -1073,9 +1073,13 @@ class ProjectionList(PyTomClass):
         tilt_angles = alignmentResults['TiltAngle']
 
         a = mrcfile.open(imageList[0], permissive=True)
-        imdim = a.data.T.shape[0]
+        imdimX, imdimY = a.data.T.squeeze().shape
+        imdim = max(imdimX, imdimY)
+
 
         if binning > 1:
+            imdimX = int(float(imdimX) / float(binning) + .5)
+            imdimY = int(float(imdimY) / float(binning) + .5)
             imdim = int(float(imdim) / float(binning) + .5)
         else:
             imdim = imdim
@@ -1143,9 +1147,7 @@ class ProjectionList(PyTomClass):
                 # image = rotate(image,180.,0.,0.)
                 image = resize(volume=image, factor=1 / float(binning))[0]
 
-            if lowpassFilter:
-                filtered = filterFunction(volume=image, filterObject=lpf, fourierOnly=False)
-                image = filtered[0]
+
 
             tiltAngle = projection._tiltAngle
 
@@ -1162,7 +1164,21 @@ class ProjectionList(PyTomClass):
             rot = float(projection._alignmentRotation)
             mag = float(projection._alignmentMagnification)
 
+            print(imdimX, imdimY)
+
+            # 3 -- square if needed
+            if imdimY != imdimX:
+                newImage = vol(imdim, imdim, 1)
+                newImage.setAll(0)
+                pasteCenter(image, newImage)
+                image = newImage
+
             image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=[2, 1, 0], crop=True)
+
+            if lowpassFilter:
+                filtered = filterFunction(volume=image, filterObject=lpf, fourierOnly=False)
+                image = filtered[0]
+
 
             # smoothen once more to avoid edges
             image = taper_edges(image, imdim // 30)[0]

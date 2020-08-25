@@ -80,7 +80,7 @@ def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='
 
     return z1 - rotation_angle, x, z2
 
-def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiplypickpos=1, multiplyshift=0,
+def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiplypickpos=1, multiplyshift=None,
              new_center=[], sizeSubtomo=64, move_shift=False, binSubtomo=1, binRecon=1, rotation=[],
              anglelist='', mirror=False,  tomogram_dir='./', convention='zxz'):
     if type(fnames) == str:
@@ -123,7 +123,7 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
                 pp.scale(multiplypickpos)
 
             # Shift is multiply by the respective binning factor.
-            if multiplyshift > 1E-3:
+            if not (multiplyshift is None):
                 shift = particle.getShift()
                 shift.scale(multiplyshift)
 
@@ -147,8 +147,14 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
             if move_shift == True:
                 pp = particle.getPickPosition()
                 shift.scale( binSubtomo / binRecon)
-                pp + shift.toVector()
+                ss = shift.toVector()
+                pp.setX(pp.getX() + ss[0])
+                pp.setY(pp.getY() + ss[1])
+                pp.setZ(pp.getZ() + ss[2])
+                particle.setPickPosition(pp)
                 shift.scale(0.)
+                #print(particle)
+
 
             # Combine rotations from particleList and rotation
             if rotation:
@@ -157,9 +163,21 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
                 z1, x, z2 = combined_rotation.as_euler(convention, degrees=True)
                 particle.setRotation(rotation=Rotation(z1=z1, z2=z2, x=x, paradigm='ZXZ'))
 
+            if mirror:
+                # Update shifts
+                shift.scale(-1)
+                particle.setShift(shift)
+
+                # Update angles as well
+                rotationT = particle.getRotation()
+                rotationT.setZ1(-1*rotationT.getZ1())
+                rotationT.setZ2(-1*rotationT.getZ2())
+                rotationT.setX(-1*rotationT.getX())
+                particle.setRotation(rotationT)
 
         tempPL.toXMLFile(outnames[n])
-        if mirror: mirrorParticleList(xmlfile, outnames[n], directory=tomogram_dir)
+        if mirror:
+            mirrorParticleList(outnames[n], outnames[n], directory=tomogram_dir)
 
 if __name__ == '__main__':
     import sys

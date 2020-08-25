@@ -13,8 +13,8 @@ if __name__ == '__main__':
     import sys, os
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
-    from pytom.tompy.correlation import FSC, determineResolution
-    from pytom.tompy.io import read
+    from pytom.basic.correlation import FSC,determineResolution
+    from pytom.basic.files import read
     
     helper = ScriptHelper(sys.argv[0].split('/')[-1], # script name
                           description='Determine resolution by FSC.',
@@ -30,9 +30,7 @@ if __name__ == '__main__':
                                    ScriptOption('--randomizePhases', 'Correlation threshold beyond which phases are randomized. Default None. (optional) ', arg=True, optional=True),
                                    ScriptOption('--plot', 'Plot Output. (optional) ', arg=False, optional=True),
                                    ScriptOption('--outputFolder', 'Output Folder. (optional) ', arg=True, optional=True),
-                                   ScriptOption('--combinedResolution', 'Calculate the resolution for two volumes combined.', arg=False, optional=True),
                                    ScriptOption(['-v','--verbose'], 'Verbose data. (optional) ', arg=False, optional=True),
-                                   ScriptOption(['-g', '--gpuID'], 'Which gpu do you want to use?', True, True),
                                    ScriptOption(['-h', '--help'], 'Help.', arg=False, optional=True)])
 
 
@@ -40,8 +38,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        v1Filename, v2Filename, particleList, fscCriterion, numberBands, mask, pixelSize, xml, randomize, plot, outdir, \
-        combined_resolution, verbose, gpuIDs, help = parse_script_options(sys.argv[1:], helper)
+        v1Filename, v2Filename, particleList, fscCriterion, numberBands, mask, pixelSize, xml, randomize, plot, outdir, verbose, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -88,13 +85,12 @@ if __name__ == '__main__':
         v2  = read(v2Filename)
         
         if not numberBands:
-            numberBands = int(v1.shape[0]//2)
+            numberBands = int(v1.sizeX()//2)
         
         f = FSC(v1,v2,numberBands,mask,verbose)
+        #f = [1, 0.9999816330959427, 0.9998727543638058, 0.9986706311763134, 0.9967503089610698, 0.9945473896086455, 0.9953391452631559, 0.9926167503040506, 0.9886499997836082, 0.9846988786130074, 0.9850170987613799, 0.9849222409268831, 0.9820779872082366, 0.981161445747785, 0.978102618561267, 0.9749670311874213, 0.9710488103484851, 0.9686564997495193, 0.9643854526532541, 0.9621314730670771, 0.9568606791204185, 0.9488084842261655, 0.9416015322427522, 0.9316703960630233, 0.9106972097966776, 0.8912878863048055, 0.8795187076235272, 0.8713474813842144, 0.8508750246010772, 0.8195820950483931, 0.8065990902773463, 0.7823660922709397, 0.7521861621134768, 0.7236765089946452, 0.6967229052025852, 0.6815563485825349, 0.6606856188994277, 0.6513326589007892, 0.6340321380485363, 0.6057709663336085, 0.584793117868313, 0.5612341962238455, 0.5623548376402193, 0.5564192235463952, 0.5397585867441497, 0.5089376925831242, 0.4647300273454635, 0.4310334881504598, 0.41741429413879966, 0.4195952490948154, 0.4066609275881065, 0.37019375197265786, 0.31936001816491055, 0.275903152373691, 0.2538399661514517, 0.24197349348826183, 0.20730706794873432, 0.1823204187105925, 0.17041895753522998, 0.16153106667416953, 0.13872290716093824, 0.12428131231796732, 0.09594749780671366, 0.09281895056407187, 0.0950512406930502, 0.07845013400157819, 0.06778918720241832, 0.05699422426625805, 0.04004787096713291, 0.035285330785697615, 0.02761223114687527, 0.029854265039150632, 0.030802679570736933, 0.02855574408867763, 0.04062783248396335, 0.046982827702621556, 0.044667285930674615, 0.03327190294513204, 0.028879433147898908, 0.019113096081122542, 0.018889519864393182, 0.03363102079214279, 0.030416314115916717, 0.015045702588444513, 0.007700419599421394, 0.013662921155622407, 0.02549288977161008, 0.01648898979277964, 0.004577992397744576, 0.003687537468279412, 0.015624522796941348, 0.012150048589636583, 0.013236997547964386, 0.024818980351894827, 0.017881736272355488, 0.008875703095090339, 0.004009836930167128, 0.005169522148403328, 0.013778610598594218, 0.024255111798589142]
 
-        if combined_resolution:
-            for (ii, fscel) in enumerate(f):
-                f[ii] = 2. * fscel / (1. + fscel)
+
 
         if verbose: print('FSC:\n', f)
 
@@ -102,31 +98,28 @@ if __name__ == '__main__':
         from pytom_numpy import vol2npy
         import numpy as np
         from pytom.tompy.io import write
-        print(randomize)
-        if randomize is None or randomize < 1E-3:
+        if randomize is None:
+            for (ii, fscel) in enumerate(f):
+                f[ii] = 2.*fscel/(1.+fscel)
             r = determineResolution(f, fscCriterion, verbose)
         else:
             randomizationFrequency    = np.floor(determineResolution(np.array(f), randomize, verbose)[1])
-            oddVolumeRandomizedPhase  = correlation.randomizePhaseBeyondFreq(v1, randomizationFrequency)
-            evenVolumeRandomizedPhase = correlation.randomizePhaseBeyondFreq(v2, randomizationFrequency)
-            # write(os.path.join(outdir, 'randOdd.mrc'), oddVolumeRandomizedPhase)
-            # write(os.path.join(outdir, 'randEven.mrc'), evenVolumeRandomizedPhase)
-            # oddVolumeRandomizedPhase = read(os.path.join(outdir, 'randOdd.mrc'))
-            # evenVolumeRandomizedPhase = read(os.path.join(outdir, 'randEven.mrc'))
+            oddVolumeRandomizedPhase  = correlation.randomizePhaseBeyondFreq(vol2npy(v1), randomizationFrequency)
+            evenVolumeRandomizedPhase = correlation.randomizePhaseBeyondFreq(vol2npy(v2), randomizationFrequency)
+            write(os.path.join(outdir, 'randOdd.mrc'), oddVolumeRandomizedPhase)
+            write(os.path.join(outdir, 'randEven.mrc'), evenVolumeRandomizedPhase)
+            oddVolumeRandomizedPhase = read(os.path.join(outdir, 'randOdd.mrc'))
+            evenVolumeRandomizedPhase = read(os.path.join(outdir, 'randEven.mrc'))
             fsc_rand = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
-
-            if combined_resolution:
-                for (ii, fscel) in enumerate(fsc_rand):
-                    fsc_rand[ii] = 2.*fscel/(1.+fscel)
-
             if verbose:
-
                 print('FSC_Random:\n', fsc_rand)
             fsc_corr = list(correlation.calc_FSC_true(np.array(f),np.array(fsc_rand)))
             if verbose:
                 print('FSC_true:\n', fsc_corr)
 
-            r = determineResolution(fsc_corr, fscCriterion, verbose)
+            #for (ii, fscel) in enumerate(fsc_corr):
+            #    fsc_corr[ii] = 2.*fscel/(1.+fscel)
+            r = determineResolution(fsc_corr,fscCriterion, verbose)
             #os.system('rm randOdd.em randEven.em')
 
     elif particleList:
@@ -166,8 +159,8 @@ if __name__ == '__main__':
         
         if pixelSize:
             from pytom.basic.resolution import bandToAngstrom
-            resolution = bandToAngstrom(r[1], pixelSize, numberBands)
-            print('Resolution determined for pixelsize : ', pixelSize , ' at ', resolution, ' Angstrom')
+            
+            print('Resolution determined for pixelsize : ', pixelSize , ' at ', bandToAngstrom(r[1], pixelSize, numberBands), ' Angstrom')
     
     else:
         print('XML')
@@ -180,27 +173,17 @@ if __name__ == '__main__':
 
 
         fig,ax = subplots(1,1,figsize=(10,5))
-
         ax.plot(f, label='FSC orig')
-
-        l = len(f)
-        size = len(f)*2
-
         if randomize:
             ax.plot(fsc_rand, label='FSC rand')
             ax.plot(fsc_corr, label='FSC corrected')
 
-        # xticklabels = [max(2,(r*size))//2 for r in numpy.arange(0,1.1,0.2)]
-        # ax.set_xticks(xticklabels)
-        # ax.set_xticklabels(xticklabels)
+        num_pix = len(fsc_rand)
+        ax.set_xticks([0,int(round(0.2*num_pix)),int(round(0.4*num_pix)),int(round(0.6*num_pix)),int(round(0.8*num_pix)),int(round(num_pix))])
+        ax.set_xticklabels([num_pix*2*pixelSize, num_pix*2*pixelSize/20, num_pix*2*pixelSize/40, numpy.around(num_pix*2*pixelSize/60,2), num_pix*2*pixelSize/80, num_pix*2*pixelSize/100])
 
-        try: ax.vlines(r[1], 0, fscCriterion, linestyles='dashed', label=f'resolution = {float(resolution):8.3f}', )
-        except Exception as e: print(e)# ax2 = ax.twiny()
-        # ax2.set_xticks(xticklabels)
-        # ax2.set_xticklabels([size*pixelSize/xtick for xtick in xticklabels])
-
-        ax.hlines(fscCriterion,0,l,label=f'cutoff = {fscCriterion}')
-        ax.set_title(f'resolution: {float(resolution):8.3f} A')
+        ax.hlines(fscCriterion,0,num_pix,label=f'cutoff = {fscCriterion}')
+        ax.set_title(f'Resolution determined for pixelsize : {pixelSize} at {bandToAngstrom(r[1], pixelSize, numberBands)} Angstrom')
         #fig, ax = subplots(1, 1, figsize=(7, 7))
         #ax.plot(f, label='FSC orig')
         #if randomize:

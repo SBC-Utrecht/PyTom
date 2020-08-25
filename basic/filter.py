@@ -329,9 +329,7 @@ def rampFilter( sizeX, sizeY, crowtherFreq=None):
     """
     from pytom_volume import vol
     from math import exp
-    import time
 
-    s = time.time()
     centerX = sizeX//2
     
     centerY = sizeY//2
@@ -350,7 +348,7 @@ def rampFilter( sizeX, sizeY, crowtherFreq=None):
         ratio = min(1, distX/Ny)
         for j in range(sizeY):            
             filter_vol.setV(ratio, i, j, 0)
-    print('ramp filter takes: ', time.time()-s, sizeX, sizeY)
+
     return filter_vol
 
 def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):

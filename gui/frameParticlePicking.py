@@ -1229,6 +1229,7 @@ class ParticlePick(GuiTabWidget):
             if recenter or reorient or mirror or randomize or moveShift:
                 outputName = self.requestOutputName(folder=self.pickpartfolder)
                 if outputName:
+                    print(mirror, new_center, rotation, moveShift, binRecon, binSubtomo, sizeSubtomo)
                     updatePL(particleList, outputName, new_center=new_center, rotation=rotation, mirror=mirror,
                              anglelist=angleListDefaultData, move_shift=moveShift, tomogram_dir=self.tomogramfolder,
                              binSubtomo=binSubtomo, binRecon=binRecon, sizeSubtomo=sizeSubtomo)

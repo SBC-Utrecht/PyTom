@@ -1073,7 +1073,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             write_em(markerFileName, markerFileVol)
 
         elif output_type == 'txt':
-            from pytom.basic.datatypes import HEADER_MARKERFILE, fmtMarkerfile
+            from pytom.basic.datatypes import HEADER_MARKERFILE, FMT_MARKERFILE as fmtMarkerfile
             markerFile = numpy.ones((num_markers,len(projIndices),4))*-1
             for iMark, Marker in enumerate(markIndices):
                 markerFile[iMark,:,0] = iMark

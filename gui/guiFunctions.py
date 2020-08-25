@@ -100,10 +100,24 @@ def readMarkerfile(filename, num_tilt_images=0):
 def txt2markerfile(filename, tiltangles):
     data = loadstar(filename)
     datalen = data.shape[0]
-    x, y = datalen // len(tiltangles), len(tiltangles)
-    mark_frames = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
-    print(mark_frames.shape)
-    return mark_frames
+    num_angles = (data[:, 0] < 1E-6).sum()
+    if num_angles == len(tiltangles):
+        x, y = datalen // len(tiltangles), len(tiltangles)
+        mark_frames = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
+        print(mark_frames.shape)
+        return mark_frames
+    else:
+        x,y = datalen // num_angles, num_angles
+        mark_frames_small = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
+        mark_frames = -1*numpy.ones((len(tiltangles), x, 2), dtype=numpy.float32)
+        ang_selected = data[:num_angles, 1]
+        runner = 0
+        for n, angle in enumerate(tiltangles):
+            if numpy.abs(ang_selected-angle).min() < 1E-5:
+                mark_frames[n,:,:] = mark_frames_small[runner,:,:]
+                runner += 1
+
+        return mark_frames
 
 def npy2markerfile(filename,tiltangles):
     return numpy.load(filename)
@@ -335,7 +349,7 @@ def avail_gpu(cutoff_busy=.25, cutoff_space = 0.5):
     comb = list(zip(available_gpu,busy_list))
 
     sort(comb,1)
-
+    print(comb)
     try:
         av, b = zip(*comb)
     except:
@@ -462,6 +476,7 @@ def create_project_filestructure(projectdir='.'):
     # with open('config.json') as json_data_file:
     #    folderstructure = json.load(json_data_file)
 
+
     folderstructure = {
         "01_Raw_Nanographs": {
             "copy_files": ["/Users/gijs/Documents/PostDocUtrecht/ExperimentalData/180221_CPXV12_Strep/em-fscollect"],
@@ -525,7 +540,7 @@ def create_project_filestructure(projectdir='.'):
             },
             "Classification": {
                 "CPCA": "",
-                "AutoFocus":""
+                "AutoFocus": ""
             },
             "Validation": "",
             "copy_files": [""],
@@ -540,7 +555,6 @@ def create_project_filestructure(projectdir='.'):
         },
         "Images": ''
     }
-
     if not os.path.exists(projectdir):
         os.mkdir(projectdir)
     create_folderstructure(folderstructure, projectdir)
@@ -930,7 +944,7 @@ def addShiftToMarkFrames(mark_frames, shifts, metadata, excluded):
 def convert_markerfile(filename, outname):
     from pytom.tompy.io import read
     import numpy as np
-    from pytom.basic.datatypes import HEADER_MARKERFILE, fmtMarkerfile
+    from pytom.basic.datatypes import HEADER_MARKERFILE, FMT_MARKERFILE as fmtMarkerfile
 
     a = read(filename)
 

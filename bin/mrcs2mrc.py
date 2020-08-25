@@ -3,6 +3,9 @@
 import mrcfile
 import sys, os
 from pytom.tompy.io import read, write
+from pytom.tompy.mpi import MPI
+
+#mpi = MPI()
 
 def extract_single_image(dataSlice, sliceId, out_name, tiltangle, origdir, outdir, prefix):
     if origdir:
@@ -34,7 +37,7 @@ if __name__=='__main__':
                           description='Extract tilt images from mrcstack, and creation of meta data file.',
                           authors='Gijs van der Schot',
                           options=options)
-
+    # mpi.begin()
 
     if len(sys.argv) == 1:
         print(helper)
@@ -43,6 +46,8 @@ if __name__=='__main__':
     try:
         filename, outdir, prefix, origdir, mdoc, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
+        print(e)
+
         print(helper)
         sys.exit()
 
@@ -56,6 +61,7 @@ if __name__=='__main__':
 
     if os.path.exists(filename):
         data = mrcfile.open(filename, permissive=True).data.copy()
+        print(data.shape)
     else:
         print(helper)
         sys.exit()
@@ -70,7 +76,7 @@ if __name__=='__main__':
 
     angles = range(-60,61,2)
     if mdoc:
-        mdocname = os.path.join(outdir, os.path.basename(filename).replace('.mrc', '.mdoc'))
+        mdocname = os.path.join(outdir, os.path.basename(filename).replace('.mrc', '.mdoc').replace('.ali','.mdoc'))
         mdocfile = open(mdocname, 'w')
 
     d = '''[ZValue = {}]
@@ -78,35 +84,34 @@ TiltAngle = {}
 SubFramePath = X:\{}
 
 '''
-    if not os.path.exists(outdir):
-        try: os.mkdir(outdir)
-        except: raise Exception('Output directory does not exist and cannot be created.')
+
 
     if origdir:
         out_names = sorted([fname for fname in os.listdir(origdir) if fname.startswith('sorted')])
         if len(out_names) != sliceNR:
             print(out_names)
             raise Exception('Number of files in orig dir is different from the number of defined images in stack.')
-    else:
-        out_names = []
-        for i in range(sliceNR):
-            out_names.append(f'{prefix}_{i}.mrc')
-    out = []
 
+    else:
+        out_names = [os.path.join(outdir, '{}{:02d}.mrc'.format(prefix, sliceId)) for sliceId in range(sliceNR)]
+
+    out = []
     for sliceId in range(sliceNR):
-        print(sliceId)
         out.append((data[sliceId,:,:], sliceId, out_names[sliceId], angles[sliceId], origdir, outdir, prefix))
-        tiltangle = angles[sliceId]
-        if origdir:
-           outname = os.path.join(outdir, out_names[sliceId].replace('sorted_', prefix))
-        else:
-           outname = os.path.join(outdir, '{}{:02d}.mrc'.format(prefix, sliceId))
+        #tiltangle = angles[sliceId]
+        #if origdir:
+        #    outname = os.path.join(outdir, out_names[sliceId].replace('sorted_', prefix))
+        #else:
+        #    outname = os.path.join(outdir, '{}{:02d}.mrc'.format(prefix, sliceId))
         #print(f'extracted {os.path.basename(outname)} into {outdir}')
         #write(outname, data[:,:,sliceId], tilt_angle=tiltangle)
         #mrcfile.new(outname, data[sliceId, :,:].astype('float32'), overwrite=True)
-        if mdoc: mdocfile.write(d.format(sliceId, tiltangle, os.path.basename(outname)))
+        if mdoc: mdocfile.write(d.format(sliceId, angles[sliceId], os.path.basename(out_names[sliceId])))
 
         extract_single_image(*out[-1])
+
+    #mpi.parfor(extract_single_image, out)
+    #mpi.end()
 
     if mdoc: mdocfile.close()
     

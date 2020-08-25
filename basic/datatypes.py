@@ -78,7 +78,7 @@ DATATYPE_ALIGNMENT_RESULTS = [('AlignmentTransX', 'f4'),
 
 HEADER_ALIGNMENT_RESULTS = ''
 unitsAlignmentResults = ['px', 'px', 'degrees', 'degrees', '', '']
-fmtAlignmentResults ='%15.10f %15.10f %15.10f %15.10f %15.10f %s'
+fmtAlignmentResults = FMT_ALIGNMENT_RESULTS ='%15.10f %15.10f %15.10f %15.10f %15.10f %s'
 for n, h in enumerate(DATATYPE_ALIGNMENT_RESULTS):
     HEADER_ALIGNMENT_RESULTS += '{} {}\n'.format(h[0], '({})'.format(unitsAlignmentResults[n])*(unitsAlignmentResults[n]!=''))
 

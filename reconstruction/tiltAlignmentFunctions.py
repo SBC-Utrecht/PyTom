@@ -5,9 +5,9 @@ import numpy
 def cmp(a,b):
     return (a > b) - (a < b)
 
-
 def refMarkerResidualForTiltImage(cent, Marker, cTilt, sTilt, transX, transY, rotInPlane, iproj=0, ireftilt=0,
-                                  isoMag=None, dBeam=None, dMagnFocus=None, dRotFocus=None, equationSet=False):
+                                  isoMag=None, dBeam=None, dMagnFocus=None, dRotFocus=None, equationSet=False,
+                                  logfile_residual=None, returnErrors=None):
     """
     calculate residual of a marker model given the marker coords
 
@@ -61,6 +61,9 @@ def refMarkerResidualForTiltImage(cent, Marker, cTilt, sTilt, transX, transY, ro
     psi = rotInPlane[iproj]
     czeropsi = cos(- zeropsi / 180. * pi - pi / 2.)
     szeropsi = sin(- zeropsi / 180. * pi - pi / 2.)
+    meanpsi = mean(rotInPlane)
+    cmeanpsi = cos(- meanpsi / 180. * pi - pi / 2.)
+    smeanpsi = sin(- meanpsi / 180. * pi - pi / 2.)
 
     # pre-compute sin and cos
     cpsi = cos(- psi / 180. * pi - pi / 2.)
@@ -125,7 +128,6 @@ def refMarkerResidualForTiltImage(cent, Marker, cTilt, sTilt, transX, transY, ro
         deltaY = y_meas - y_proj
 
 
-        print(deltaX, deltaY)
         ## Warning for large differences
         # if (abs(deltaX) >100.) or (abs(deltaY) > 100.):
         #    print "Huge Difference for marker oberved: "
@@ -140,7 +142,8 @@ def refMarkerResidualForTiltImage(cent, Marker, cTilt, sTilt, transX, transY, ro
         ind_dif += 1
         errors[-1] += numpy.sqrt(deltaX ** 2 + deltaY ** 2)
     else:
-        raise('Reference marker should be assigned for each image')
+        return 99999
+
 
     errors[-1] = errors[-1] / float(ind_dif) ** 2
     # normalize and prepare output
@@ -155,7 +158,8 @@ def refMarkerResidualForTiltImage(cent, Marker, cTilt, sTilt, transX, transY, ro
 
 
 def markerResidualFixedMarker(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, tiltangles=[], ireftilt=0,
-                              irefmark=0, isoMag=None,dBeam=None, dMagnFocus=None, dRotFocus=None, equationSet=False):
+                              irefmark=0, isoMag=None,dBeam=None, dMagnFocus=None, dRotFocus=None, equationSet=False,
+                              logfile_residual=None, returnErrors=None):
     """
     calculate residual of a marker model given the marker coords
 
@@ -236,8 +240,8 @@ def markerResidualFixedMarker(cent, Markers_, cTilt, sTilt, transX, transY, rotI
         rotMarkCoords = rotate_vector2d([projMarkCoords[0], projMarkCoords[1]], cpsi[iproj], -spsi[iproj])
         transXRef.append(Markers_[irefmark].xProj[iproj] - cent[0] - rotMarkCoords[0])
         transYRef.append(Markers_[irefmark].yProj[iproj] - cent[1] - rotMarkCoords[1])
-
-        #print(transX[iproj], transXRef[iproj], isoMag[iproj])
+        # if iproj == ireftilt: print('translation: ', transXRef[-1], transYRef[-1], transY[iproj], transX[iproj])
+        # print(transX[iproj], transXRef[iproj], isoMag[iproj])
 
 
     for (imark, Marker) in enumerate(Markers_):
@@ -288,6 +292,7 @@ def markerResidualFixedMarker(cent, Markers_, cTilt, sTilt, transX, transY, rotI
                     print(e)
                     continue
                 # score
+                #print(x_meas, x_proj, y_meas, y_proj)
                 deltaX = x_meas - x_proj
                 deltaY = y_meas - y_proj
 
@@ -319,10 +324,9 @@ def markerResidualFixedMarker(cent, Markers_, cTilt, sTilt, transX, transY, rotI
         return residual
 
 
-def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, isoMag=None,
-        dBeam=None, 
-        dMagnFocus=None, dRotFocus=None,
-        equationSet=False, irefmark=0, tiltangles=None, logfile_residual='', returnErrors=False):
+def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, tiltangles=None, ireftilt=None,
+                   irefmark=None, isoMag=None, dBeam=None, dMagnFocus=None, dRotFocus=None, equationSet=False,
+                   logfile_residual=None, returnErrors=None, verbose=False, errorRef=False):
     """
     calculate residual of a marker model given the marker coords
 
@@ -367,17 +371,10 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, iso
     from numpy import mean
     from pytom.tools.maths import rotate_vector2d
 
-
-
     ntilt = len(transX)
     nmark = len(Markers_)
     if equationSet:
         Dev = []
-
-    if logfile_residual:
-        logres = [(0, 0, 0, 0, 0, 0, 0),]*(ntilt*nmark)
-
-    ireftilt = cTilt.argmax()
 
     # approximate tilt axis = mean
     meanpsi = mean(rotInPlane)
@@ -390,7 +387,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, iso
     for (ii, psi) in enumerate(rotInPlane):
         cpsi[ii] = cos(- psi/180.*pi - pi/2.)
         spsi[ii] = sin(- psi/180.*pi - pi/2.)
-    if not (dBeam is None):
+    if dBeam:
         cdbeam = cos(dBeam)
         sdbeam = sin(dBeam)
 
@@ -406,17 +403,17 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, iso
         # marker positions in 3d model rotated on approximate tilt axis
         zmod = markCoord[2]
         [xmod, ymod] = rotate_vector2d([markCoord[0],markCoord[1]], cmeanpsi, smeanpsi)
+
         # tilt loop
         for iproj in range(0, ntilt):
             # check for not-clicked Markers (have coordinates -1,-1)
-            if ( (Markers_[imark].xProj[iproj] > -1.) and
+            if ( (Markers_[imark].xProj[iproj] > -1.) and 
                     (Markers_[imark].yProj[iproj] > -1.) ):
                 ndif= ndif +1
 
                 # rotate clicked markers back and inverse shift
                 xmark = Markers_[imark].xProj[iproj] - cent[0]- transX[iproj]
                 ymark = Markers_[imark].yProj[iproj] - cent[1]- transY[iproj]
-                
                 [x_meas, y_meas] = rotate_vector2d([xmark,ymark], cpsi[iproj], spsi[iproj])
                 # additional variable magnification
                 try:
@@ -434,7 +431,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, iso
                     else:
                         x_proj = cTilt[iproj] * xmod - sTilt[iproj]*zmod
                         y_proj = ymod
-
+        
                     # x-dependent magnification of model
                     if dMagnFocus:
                         y_proj_dmag = y_proj
@@ -442,23 +439,20 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, iso
                         x_proj      = (1+.5*tmp)*x_proj
                         y_proj_dmag = (1+tmp)*y_proj
                         y_proj      = y_proj_dmag
-
-                except Exception as e:
-                    print('problem? ', e)
+                except:
                     continue
                 # score
                 deltaX = x_meas-x_proj
                 deltaY = y_meas-y_proj
-                if logfile_residual:
-                    logres[imark*ntilt+iproj] = (imark, tiltangles[iproj], numpy.sqrt(deltaX**2+deltaY**2), x_meas, y_meas, x_proj, y_proj)
-
                 ## Warning for large differences
                 #if (abs(deltaX) >100.) or (abs(deltaY) > 100.):
                 #    print "Huge Difference for marker oberved: "
                 #    print "  iproj="+str(iproj)+", imark="+str(imark+1)
                 #    print "  deltaX = "+str(deltaX)
                 #    print "  deltaY = "+str(deltaY)
-                
+                if verbose and irefmark == imark:
+                    print(iproj, imark, deltaX, deltaY)
+
                 residual = deltaX**2 + deltaY**2 + residual
                 if equationSet:
                     Dev.append(deltaX)
@@ -471,23 +465,17 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, iso
     # residual = sqrt(residual/(ndif - size(Matrixmark,3)));
     residual = residual*normf
 
-    if logfile_residual:
-        from pytom.gui.guiFunctions import ALIGNMENT_ERRORS, fmtAE, headerAlignmentErrors
-        numpy.savetxt(logfile_residual, numpy.array(logres, dtype=ALIGNMENT_ERRORS), fmt=fmtAE,
-                   header=headerAlignmentErrors)
-
+    if errorRef:
+        residual = errors[irefmark]
+    #print error, residual
     if equationSet:
         return Dev
     else:
-        if returnErrors:
-            print('\n\n\nreturn errors\n\n\n')
-            return errors
-        else:
-            return residual
+        return residual
 
 
 def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, imdim=2048, handflip=0,
-                        mute=False, writeResults='', optimizeShift=True, logfile_residual=''):
+                        mute=True, writeResults='', optimizeShift=True, logfile_residual='', imdimX=0, imdimY=0):
     """
     compute alignment analytically (constant mag. and tilt axis)
 
@@ -511,22 +499,17 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
 
     ntilt = len(cTilt)
     nmark = len(Markers_)
-
-    if logfile_residual:
-        logres = [(0, 0, 0, 0, 0, 0, 0),]*(ntilt*nmark)
-
+    
     if ( r==None):
         if not mute:
             print("Assign reference marker to default value")
         r = numpy.array(3*[0.])
         r[0] = Markers_[irefmark].xProj[ireftilt]
         r[1] = Markers_[irefmark].yProj[ireftilt]
-        r[2] = float(imdim/2 +1)
+        r[2] = float(imdimY/2 +1)
     else:
         r = Markers_[irefmark].get_r()
-
-
-
+        
     #   calculate means of difference vectors
     meanx=numpy.array(nmark*[0.])
     meany=numpy.array(nmark*[0.])
@@ -556,11 +539,10 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
     #  minimize sum( (x(i)*sin(psi) + y(i)*cos(psi))^2) =: Min(F)  --- linear regression  
     #  d/d(psi) (F) leads to:
     psi = 0.
-    if sumxx-sumyy > 0.0000001:
+    if abs(sumxx-sumyy) > 0.0000001:
         psi = 0.5*atan(2*sumxy/(sumxx-sumyy))
     if (sumxx > sumyy):
         psi = psi - 0.5*pi*cmp(psi, 0)
-
 
     result = (270*pi/180) - psi
 
@@ -584,7 +566,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
     #    psi = (psi + pi)%(2*pi)
     #if psi < 0.: psi += (2*pi)
     psiindeg = psi*180/pi
-    
+    print('angle: ', psi)
     #  psi 2?!
     #fact = 1 /(1 + (sumxy/sumxx)**2)
     
@@ -687,9 +669,9 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
             if not mute:
                 print(('     %3d - %3d :.............. = %7.1f, %7.1f, %7.1f'
                     %(imark, irefmark, x[imark], y[imark], z[imark])))
-            x[imark] = x[imark] + r[0] - imdim/2. -1. # move to center
-            y[imark] = y[imark] + r[1] - imdim/2. -1.
-            z[imark] = z[imark] + r[2] - imdim/2. -1.
+            x[imark] = x[imark] + r[0] - imdimX/2. -1. # move to center
+            y[imark] = y[imark] + r[1] - imdimY/2. -1.
+            z[imark] = z[imark] + r[2] - imdimY/2. -1.
         else:
             if not mute:
                 print(('Marker '+str(imark)+' : undefined! det = 0! Click more!'))
@@ -711,7 +693,6 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
     diffY = numpy.array(ntilt*[nmark*[0.]])
     shiftVarX  = numpy.array(ntilt*[0.])
     shiftVarY  = numpy.array(ntilt*[0.])
-
     for itilt in range(0,ntilt):
         sumxx = 0.
         sumyy = 0.
@@ -719,10 +700,10 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
         for (imark,Marker) in enumerate(Markers_):
             projX[itilt] = (x[imark]*(spsi**2*cTilt[itilt]+cpsi**2) + 
                              y[imark]*spsi*cpsi*(1-cTilt[itilt]) + 
-                             z[imark]*spsi*sTilt[itilt] + imdim/2. + 1.)
+                             z[imark]*spsi*sTilt[itilt] + imdimX/2. + 1.)
             projY[itilt] = (x[imark]*spsi*cpsi*(1-cTilt[itilt]) +
                              y[imark]*(cpsi**2*cTilt[itilt]+spsi**2) -
-                             z[imark]*cpsi*sTilt[itilt] + imdim/2. + 1.)
+                             z[imark]*cpsi*sTilt[itilt] + imdimY/2. + 1.)
             
             if ( (Marker.xProj[itilt] > -1.) and (x[imark]!=1000000) ):
                 ndif = ndif + 1
@@ -731,10 +712,6 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
             else:
                 diffX[itilt,imark] = 0.
                 diffY[itilt,imark] = 0.
-
-            if logfile_residual:
-                logres[imark * ntilt + itilt] = [ imark, numpy.arcsin(sTilt[itilt])*180/numpy.pi, 0,
-                                                  Marker.xProj[itilt], Marker.yProj[itilt], projX[itilt], projY[itilt]]
             sumxx = sumxx + diffX[itilt,imark]
             sumyy = sumyy + diffY[itilt,imark]
 
@@ -746,14 +723,17 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
             shiftX[itilt] = 1000000
             shiftY[itilt] = 1000000
 
-        if logfile_residual:
-            for (imark, Marker) in enumerate(Markers_):
-                if ((Marker.xProj[itilt] > -1.) and (x[imark] != 1000000)):
-                    logres[imark*ntilt + itilt][2] = numpy.sqrt((diffX[itilt,imark]-shiftX[itilt])**2 + (diffY[itilt,imark]-shiftY[itilt])**2)
-                    logres[imark * ntilt + itilt][5] += shiftX[itilt]
-                    logres[imark * ntilt + itilt][6] += shiftY[itilt]
-                    logres[imark*ntilt + itilt] = tuple(logres[imark*ntilt + itilt])
 
+        # if not optimizeShift:
+        #     # print('shiftPre fixed magrot: ', itilt, irefmark, shiftX[itilt], shiftY[itilt])
+        #     pX = (x[irefmark] * (spsi ** 2 * cTilt[itilt] + cpsi ** 2) + y[irefmark] * spsi * cpsi * (1 - cTilt[itilt])+
+        #           z[irefmark] * spsi * sTilt[itilt] + imdim / 2. + 1.)
+        #     pY = (x[irefmark] * spsi * cpsi * (1 - cTilt[itilt]) + y[irefmark] * (cpsi ** 2 * cTilt[itilt] + spsi ** 2)-
+        #           z[irefmark] * cpsi * sTilt[itilt] + imdim / 2. + 1.)
+        #
+        #     shiftX[itilt] = Markers_[irefmark].xProj[itilt] - pX
+        #     shiftY[itilt] = Markers_[irefmark].yProj[itilt] - pY
+            # print('shiftPos fixed magrot: ', itilt, irefmark, shiftX[itilt], shiftY[itilt])
         # deviations of individual shift from mean
         sumxx = 0.
         sumyy = 0.
@@ -761,6 +741,8 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
             if ( (Marker.xProj[itilt] > -1.) and (x[imark]!=1000000) ):
                 sumxx = sumxx + (diffX[itilt,imark]-shiftX[itilt])**2
                 sumyy = sumyy + (diffY[itilt,imark]-shiftY[itilt])**2
+                if not mute and imark == irefmark:
+                    print(imark, itilt, diffX[itilt,imark]-shiftX[itilt], diffY[itilt,imark]-shiftY[itilt])
         if (ndif > 1):
             shiftVarX[itilt]=sqrt(sumxx/(ndif-1))
             shiftVarY[itilt]=sqrt(sumyy/(ndif-1))
@@ -768,20 +750,9 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
             shiftVarX[itilt]=None
             shiftVarY[itilt]=None
 
-        if not optimizeShift:
-            shiftX[itilt] = Markers_[irefmark].xProj[itilt] - projX[itilt]
-            shiftY[itilt] = Markers_[irefmark].yProj[itilt] - projY[itilt]
-            #print(shiftX[itilt], Marker.xProj[itilt], projX[itilt])
-
-    if logfile_residual:
-        from pytom.gui.guiFunctions import ALIGNMENT_ERRORS, fmtAE, headerAlignmentErrors
-        numpy.savetxt(logfile_residual, numpy.array(logres, dtype=ALIGNMENT_ERRORS), fmt=fmtAE,
-                   header=headerAlignmentErrors)
-
     if writeResults:
         from pytom.gui.guiFunctions import fmtMR, headerMarkerResults
         numpy.savetxt(writeResults, numpy.array(results), fmt=fmtMR, header=headerMarkerResults)
-        print(f'markerfile has been created. See {writeResults}')
 
     return(psiindeg, shiftX, shiftY, x, y, z, distLine, diffX, diffY, shiftVarX, shiftVarY)
 
@@ -861,7 +832,7 @@ def simulate_markers(markCoords, tiltAngles, tiltAxis=-76.71, ireftilt=None,
             alignedTiltSeriesName=None,
             markerFileName=None, firstProj=1, lastProj=ntilt, projIndices=None, 
             tiltSeriesFormat='em')
-    TiltSeries.createEmptyProjections(tiltAngles=tiltAngles)
+    TiltSeries.createEmptyProjections()
 
     #compute 'alignment'
     for (itilt, tiltAngle) in enumerate(tiltAngles):
