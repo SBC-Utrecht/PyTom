@@ -675,9 +675,10 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, V_sol=4.5
 
     if solvent_exclusion:
         # Correct for solvent and convert both the solvent and potential array to the correct units.
-        return (potential / dV * C) - (solvent / dV * V_sol)
+        out = (potential / dV * C) - (solvent / dV * V_sol)
     else:
-        return potential / dV * C
+        out = potential / dV * C
+    return out
 
 
 def iasa_rough(filename, voxel_size=10, solvent_exclusion=False, V_sol=4.5301):
