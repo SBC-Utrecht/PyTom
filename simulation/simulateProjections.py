@@ -86,12 +86,12 @@ def addNoise(noise_size, dim):
         noise_size = 1
 
     noise_no_norm = abs(ifftn(fftshift(fftn(random((noise_size, noise_size, noise_size)))), [dim] * 3))
-    noise = 0.3 * noise_no_norm / abs(noise_no_norm).max()
+    noise = 0.2 * noise_no_norm / abs(noise_no_norm).max()
 
     return 1 + (noise - noise.mean())
 
 
-def create_gold_marker(voxel_size, solvent_potential, imaginary=False, voltage=300E3):
+def create_gold_marker(voxel_size, solvent_potential, solvent_factor=1.0, imaginary=False, voltage=300E3):
     """
     From Rahman 2018 (International Journal of Biosensors and Bioelectronics).
     Volume of unit cell gold is 0.0679 nm^3 with 4 atoms per unit cell.
@@ -122,7 +122,6 @@ def create_gold_marker(voxel_size, solvent_potential, imaginary=False, voltage=3
     else:
         bead = create_sphere((dimension,)*3, radius=r, sigma=r/2)
 
-
     bead *= addNoise(int(r*0.75), dimension) * addNoise(int(r*0.25), dimension)
     # SIGMA DEPENDENT ON VOXEL SIZE
     # rounded_sphere = gaussian3d(sphere, sigma=(1 * 0.25 / voxel_size_nm))
@@ -133,12 +132,12 @@ def create_gold_marker(voxel_size, solvent_potential, imaginary=False, voltage=3
     # rounded_sphere[rounded_sphere < 0] = 0
 
     if imaginary:
-        solvent_amplitude = potential_amplitude(0.93, 18, voltage)
+        solvent_amplitude = potential_amplitude(0.93, 18, voltage) * solvent_factor
         gold_amplitude = potential_amplitude(19.3, 197, voltage)
         gold_imaginary = bead * (gold_amplitude - solvent_amplitude)
 
     # values transformed to occupied volume per voxel from 1 nm**3 per voxel to actual voxel size
-    solvent_correction = bead * solvent_potential
+    solvent_correction = bead * (solvent_potential * solvent_factor)
     unit_cells_per_voxel = (bead * voxel_volume / unit_cell_volume)
     gold_atoms = unit_cells_per_voxel * atoms_per_unit_cell
 
@@ -155,7 +154,7 @@ def create_gold_marker(voxel_size, solvent_potential, imaginary=False, voltage=3
 
 
 def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize = 1, size=1024, thickness=200,
-                   solvent_potential=4.5301, sigma_structural=0.2, numberOfParticles=1000, placement_size=512, retries=5000,
+                   solvent_potential=4.5301, solvent_factor=1.0, sigma_structural=0.2, numberOfParticles=1000, placement_size=512, retries=5000,
                    add_gold_markers=True, number_of_markers=20, absorption_contrast=False, voltage=300E3):
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
 
@@ -182,9 +181,9 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
             # then bin
             if absorption_contrast:
                 vol_real = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixelSize*1E10:.2f}A_solvent-'
-                                              f'{solvent_potential:.3f}V_real.mrc')
+                                              f'{solvent_potential*solvent_factor:.3f}V_real.mrc')
                 vol_imag = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixelSize*1E10:.2f}A_solvent-'
-                                                   f'{solvent_potential:.3f}V_imag.mrc')
+                                                   f'{solvent_potential*solvent_factor:.3f}V_imag.mrc')
                 assert vol_real.shape == vol_imag.shape, print(f'real and imaginary interaction potential not the same '
                                                                f'shape for {pdb}')
                 dx, dy, dz = vol_real.shape
@@ -196,7 +195,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
                 volumes_imag.append(vol2_imag)
             else:
                 vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixelSize*1E10:.2f}A_solvent-'
-                                              f'{solvent_potential:.3f}V.mrc')
+                                              f'{solvent_potential*solvent_factor:.3f}V.mrc')
                 dx, dy, dz = vol.shape
                 vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
                 vol2[dx//2:-dx//2, dy//2:-dy//2, dz//2:-dz//2] = vol
@@ -235,10 +234,10 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
 
             # create the gold marker in other function
             if absorption_contrast:
-                gold_marker, gold_imag = create_gold_marker(pixelSize, solvent_potential, imaginary=True,
-                                                            voltage=voltage)
+                gold_marker, gold_imag = create_gold_marker(pixelSize, solvent_potential, solvent_factor=solvent_factor,
+                                                            imaginary=True, voltage=voltage)
             else:
-                gold_marker = create_gold_marker(pixelSize, solvent_potential)
+                gold_marker = create_gold_marker(pixelSize, solvent_potential, solvent_factor=solvent_factor)
             dimensions = gold_marker.shape
 
             u = xp.random.uniform(0.0, 1.0, (2,))
@@ -920,7 +919,7 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
                          dose=80, voltage=300E3, spherical_aberration=2.7E-3, multislice=False, msdz=5E-9,
                          amplitudeContrast=0.07, defocus=2E-6, sigma_decay_CTF=0.4, camera_type='K2SUMMIT',
                          camera_folder='', random_gradient=False, random_rotation=False, solvent_potential=4.5301,
-                         absorption_contrast=False):
+                         solvent_factor=1.0, absorption_contrast=False):
     """
 
     @param angles:
@@ -990,7 +989,7 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
     iright = -int(xp.ceil((box_size - image_size)/2))
 
     if absorption_contrast:
-        solvent_amplitude = potential_amplitude(0.93, 18, voltage)
+        solvent_amplitude = potential_amplitude(0.93, 18, voltage) * solvent_factor
         print(f'solvent absorption = {solvent_amplitude:.3f}')
 
     # create a 3d array for the exit wave of each image
@@ -1030,7 +1029,8 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
             add_ice_layer=True
             if add_ice_layer:
                 # add ice layer with some smoothing to prevent sharp edges
-                ice = create_ice_layer(rotated_volume.shape, angle, ice_thickness//pixel_size, solvent_potential, sigma=2)
+                ice = create_ice_layer(rotated_volume.shape, angle, ice_thickness//pixel_size,
+                                       solvent_potential*solvent_factor, sigma=2)
                 rotated_volume += ice
                 if absorption_contrast:
                     ice_imag = create_ice_layer(rotated_volume.shape, angle, ice_thickness // pixel_size, solvent_amplitude,
@@ -1282,12 +1282,19 @@ if __name__ == '__main__':
         pixel_size = float(config['General']['PixelSize']) * 1E-9
         # Randomly vary solvent potential
         solvent_potential = float(config['General']['SolventPotential'])
-        vary_solvent = config['General'].getboolean('VarySolvent')
-        if vary_solvent:
+        # vary_solvent = config['General'].getboolean('VarySolvent')
+        # if vary_solvent:
+        #     xp.random.seed(seed)
+        #     random.seed(seed)
+        #     factor = xp.random.randint(-1, 4) * 0.1
+        #     solvent_potential = solvent_potential + factor * solvent_potential
+        solvent_factor_range = config['General']['SolventFactor'].split('-')
+        if len(solvent_factor_range) > 1:
             xp.random.seed(seed)
             random.seed(seed)
-            factor = xp.random.randint(-1, 4) * 0.1
-            solvent_potential = solvent_potential + factor * solvent_potential
+            solvent_factor = xp.round(xp.random.uniform(solvent_factor_range[0], solvent_factor_range[1]), decimals=1)
+        else:
+            solvent_factor = xp.round(solvent_factor_range[0], decimals=1)
 
         absorption_contrast = config['General'].getboolean('AbsorptionContrast')
         metadata = loadstar(config['General']['MetaFile'], dtype=datatype)
@@ -1443,6 +1450,7 @@ if __name__ == '__main__':
         print('\n- Generating grand model')
         generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize=pixel_size, size=size,
                        thickness=thickness, placement_size=placement_size, solvent_potential=solvent_potential,
+                       solvent_factor=solvent_factor,
                        numberOfParticles=numberOfParticles, sigma_structural=sigma_structural,
                        add_gold_markers=add_gold_markers, number_of_markers=number_of_markers,
                        absorption_contrast=absorption_contrast, voltage=voltage)
@@ -1511,7 +1519,7 @@ if __name__ == '__main__':
                              multislice=multislice, msdz=msdz, amplitudeContrast=amplitude_contrast, defocus=defocus,
                              sigma_decay_CTF=sigma_decay_CTF, camera_type=camera_type, camera_folder=camera_folder,
                              random_gradient=random_gradient, random_rotation=random_rotation, solvent_potential=solvent_potential,
-                             absorption_contrast=absorption_contrast)
+                             solvent_factor=solvent_factor, absorption_contrast=absorption_contrast)
 
     # Reconstruct tomogram
     if 'ReconstructTomogram' in config.sections():

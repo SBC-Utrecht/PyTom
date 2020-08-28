@@ -538,7 +538,7 @@ def read_structure(filename):
 
 
 def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, V_sol=4.5301, absorption_contrast=False,
-                     voltage=300E3):
+                     voltage=300E3, solvent_factor=1.0):
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
@@ -676,7 +676,7 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, V_sol=4.5
 
     if solvent_exclusion:
         # Correct for solvent and convert both the solvent and potential array to the correct units.
-        real = (potential / dV * C) - (solvent / dV * V_sol)
+        real = (potential / dV * C) - (solvent / dV * (V_sol * solvent_factor))
     else:
         real = potential / dV * C
 
@@ -684,7 +684,7 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, V_sol=4.5
         from simulateProjections import potential_amplitude
         # voltage by default 300 keV
         protein_absorption = potential_amplitude(1.35, 7.2, voltage)
-        solvent_absorption = potential_amplitude(0.93, 18, voltage)
+        solvent_absorption = potential_amplitude(0.93, 18, voltage) * solvent_factor
         # gold_amplitude = potential_amplitude(19.3, 197, voltage)
         print(f'protein absorption = {protein_absorption:.3f}')
         print(f'solvent absorption = {solvent_absorption:.3f}')
@@ -1021,7 +1021,8 @@ def combine_potential(iasa_potential, bond_potential, voxel_size):
 
 
 def wrapper(file, input_folder, output_folder, voxel_size, binning=None,
-            exclude_solvent=False, solvent_potential=4.5301, absorption_contrast=False, voltage=300E3):
+            exclude_solvent=False, solvent_potential=4.5301, absorption_contrast=False, voltage=300E3,
+            solvent_factor=1.0):
     import pytom.tompy.io
     # TODO function can be executed in parallel for multiple structures
 
@@ -1043,20 +1044,20 @@ def wrapper(file, input_folder, output_folder, voxel_size, binning=None,
     # structure file created by call chimera has a .pdb extension.
     v_atom = iasa_integration(f'{output_folder}/{structure}.pdb', voxel_size=voxel_size,
                               solvent_exclusion=exclude_solvent, V_sol=solvent_potential,
-                              absorption_contrast= absorption_contrast, voltage=voltage)
+                              absorption_contrast= absorption_contrast, voltage=voltage, solvent_factor=solvent_factor)
     # Absorption contrast map generated here will look blocky when generated at 2.5A and above!
     if absorption_contrast:
         print('filtering volume')
         filtered = [reduce_resolution_2(v_atom[0], voxel_size, 2*voxel_size),
                     reduce_resolution_2(v_atom[1], voxel_size, 2*voxel_size)]
-        output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential:.3f}V'
+        output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
         pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', filtered[0])
         pytom.tompy.io.write(f'{output_folder}/{output_name}_imag.mrc', filtered[1])
     else:
         print('filtering volume')
         filtered = reduce_resolution_2(v_atom, voxel_size, 2*voxel_size)
         if exclude_solvent:
-            output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential:.3f}V'
+            output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
         else:
             output_name = f'{pdb_id}_{voxel_size:.2f}A'
         pytom.tompy.io.write(f'{output_folder}/{output_name}.mrc', filtered)
@@ -1072,7 +1073,7 @@ def wrapper(file, input_folder, output_folder, voxel_size, binning=None,
             print('binning volume')
             binned = [bin(filtered[0], binning), bin(filtered[1], binning)]
 
-            output_name = f'{pdb_id}_{voxel_size*binning:.2f}A_solvent-{solvent_potential:.3f}V'
+            output_name = f'{pdb_id}_{voxel_size*binning:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
             pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', binned[0])
             pytom.tompy.io.write(f'{output_folder}/{output_name}_imag.mrc', binned[1])
 
@@ -1082,7 +1083,7 @@ def wrapper(file, input_folder, output_folder, voxel_size, binning=None,
             print('binning volume')
             binned = bin(filtered, binning)
             if exclude_solvent:
-                output_name = f'{pdb_id}_{voxel_size*binning:.2f}A_solvent-{solvent_potential:.3f}V'
+                output_name = f'{pdb_id}_{voxel_size*binning:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
             else:
                 output_name = f'{pdb_id}_{voxel_size*binning:.2f}A'
             pytom.tompy.io.write(f'{output_folder}/{output_name}.mrc', binned)
@@ -1114,6 +1115,9 @@ if __name__ == '__main__':
                             'Whether to exclude solvent around each atom as a correction of the potential.', False, True),
                ScriptOption(['-p', '--solvent_potential'],
                             'Value for the solvent potential. By default amorphous ice, 4.5301 V.', True, False),
+               ScriptOption(['-c', '--percentile'], 'Multiplication for solvent potential and absorption contrast of '
+                                                    'solvent to decrease/increase contrast. Value between 0 and 3 (could'
+                                                    ' be higher but would no make sense).', True, True),
                ScriptOption(['-a', '--absorption_contrast'],
                             'Whether to add imaginary part of absorption contrast, can only be done if solvent'
                             'is excluded.', False, True),
@@ -1135,8 +1139,8 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        file, input_folder, output_folder, voxel_size, binning, exclude_solvent, solvent_potential, absorption_contrast, voltage, help = \
-            parse_script_options(sys.argv[1:], helper)
+        file, input_folder, output_folder, voxel_size, binning, exclude_solvent, solvent_potential, solvent_factor, \
+                absorption_contrast, voltage, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -1146,6 +1150,9 @@ if __name__ == '__main__':
 
     if not solvent_potential: solvent_potential = 4.5301
     else: solvent_potential = float(solvent_potential)
+
+    if not solvent_factor: solvent_factor = 1
+    else: solvent_factor = float(solvent_factor)
 
     if not voltage: voltage = 300E3
     else: voltage = float(voltage)*1E3 # value should be given in keV
@@ -1161,6 +1168,6 @@ if __name__ == '__main__':
 
     wrapper(file, input_folder, output_folder, voxel_size, binning=binning,
             exclude_solvent=exclude_solvent, solvent_potential=solvent_potential,
-            absorption_contrast=absorption_contrast, voltage=voltage)
+            absorption_contrast=absorption_contrast, voltage=voltage, solvent_factor=solvent_factor)
 
 
