@@ -18,9 +18,9 @@ from tqdm import tqdm
 import time
 
 # Plotting
-import matplotlib
+import matplotlib as plt
 # use Qt5Agg to prevent conflict with tkinter in pylab.
-matplotlib.use('Qt5Agg')
+plt.use('Qt5Agg')
 from pylab import *
 
 # math
@@ -91,7 +91,7 @@ def addNoise(noise_size, dim):
     return 1 + (noise - noise.mean())
 
 
-def create_gold_marker(voxel_size, solvent_potential):
+def create_gold_marker(voxel_size, solvent_potential, imaginary=False, voltage=300E3):
     """
     From Rahman 2018 (International Journal of Biosensors and Bioelectronics).
     Volume of unit cell gold is 0.0679 nm^3 with 4 atoms per unit cell.
@@ -101,7 +101,7 @@ def create_gold_marker(voxel_size, solvent_potential):
     # from pytom.tompy.filter import gaussian3d
 
     # select a random size for the gold marker in nm
-    diameter = xp.random.uniform(low=4.0, high=11.0)
+    diameter = xp.random.uniform(low=4.0, high=10.0)
 
     # constants
     unit_cell_volume = 0.0679 # nm^3
@@ -132,6 +132,11 @@ def create_gold_marker(voxel_size, solvent_potential):
     # rounded_sphere = (rounded_sphere > 0) * (rounded_sphere * xp.random.normal(1, 0.3, rounded_sphere.shape))
     # rounded_sphere[rounded_sphere < 0] = 0
 
+    if imaginary:
+        solvent_amplitude = potential_amplitude(0.93, 18, voltage)
+        gold_amplitude = potential_amplitude(19.3, 197, voltage)
+        gold_imaginary = bead * (gold_amplitude - solvent_amplitude)
+
     # values transformed to occupied volume per voxel from 1 nm**3 per voxel to actual voxel size
     solvent_correction = bead * solvent_potential
     unit_cells_per_voxel = (bead * voxel_volume / unit_cell_volume)
@@ -143,12 +148,15 @@ def create_gold_marker(voxel_size, solvent_potential):
     # C and scattering factor are in A units thus divided by 1000 A^3 = 1 nm^3 to convert
     gold_potential = gold_atoms * gold_scattering_factors[0:5].sum() * C / voxel_volume / 1000
 
-    return gold_potential - solvent_correction
+    if imaginary:
+        return gold_potential - solvent_correction, gold_imaginary
+    else:
+        return gold_potential - solvent_correction
 
 
 def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize = 1, size=1024, thickness=200,
                    solvent_potential=4.5301, sigma_structural=0.2, numberOfParticles=1000, placement_size=512, retries=5000,
-                   add_gold_markers=True, number_of_markers=20):
+                   add_gold_markers=True, number_of_markers=20, absorption_contrast=False, voltage=300E3):
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
 
     from voltools import transform
@@ -156,6 +164,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
     # outputs
     X, Y, Z = size, size, thickness
     cell = xp.zeros((X, Y, Z))
+    if absorption_contrast: cell_imag = xp.zeros_like(cell)
 
     occupancy_bbox_mask = xp.zeros_like(cell)
     occupancy_accurate_mask = xp.zeros_like(cell)
@@ -165,16 +174,33 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
 
     # load pdb volumes and pad them
     volumes = []
+    if absorption_contrast: volumes_imag = []
     for pdb in listpdbs:
         try:
             # First find the voxel size of the map...
             # rotate
             # then bin
-            vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixelSize*1E10:.2f}A_solvent-{solvent_potential:.3f}V.mrc')
-            dx, dy, dz = vol.shape
-            vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
-            vol2[dx//2:-dx//2, dy//2:-dy//2, dz//2:-dz//2] = vol
-            volumes.append(vol2)
+            if absorption_contrast:
+                vol_real = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixelSize*1E10:.2f}A_solvent-'
+                                              f'{solvent_potential:.3f}V_real.mrc')
+                vol_imag = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixelSize*1E10:.2f}A_solvent-'
+                                                   f'{solvent_potential:.3f}V_imag.mrc')
+                assert vol_real.shape == vol_imag.shape, print(f'real and imaginary interaction potential not the same '
+                                                               f'shape for {pdb}')
+                dx, dy, dz = vol_real.shape
+                vol2_real = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
+                vol2_imag = xp.zeros_like(vol2_real)
+                vol2_real[dx // 2:-dx // 2, dy // 2:-dy // 2, dz // 2:-dz // 2] = vol_real
+                vol2_imag[dx // 2:-dx // 2, dy // 2:-dy // 2, dz // 2:-dz // 2] = vol_imag
+                volumes.append(vol2_real)
+                volumes_imag.append(vol2_imag)
+            else:
+                vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixelSize*1E10:.2f}A_solvent-'
+                                              f'{solvent_potential:.3f}V.mrc')
+                dx, dy, dz = vol.shape
+                vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
+                vol2[dx//2:-dx//2, dy//2:-dy//2, dz//2:-dz//2] = vol
+                volumes.append(vol2)
         except Exception as ee:
             print(ee)
             raise Exception('Could not open pdb ', pdb)
@@ -208,11 +234,12 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
         for _ in tqdm(range(number_of_markers), desc='Placing gold markers'):
 
             # create the gold marker in other function
-            gold_marker = create_gold_marker(pixelSize, solvent_potential)
+            if absorption_contrast:
+                gold_marker, gold_imag = create_gold_marker(pixelSize, solvent_potential, imaginary=True,
+                                                            voltage=voltage)
+            else:
+                gold_marker = create_gold_marker(pixelSize, solvent_potential)
             dimensions = gold_marker.shape
-
-            threshold = 0.01
-            gold_marker[gold_marker < threshold] = 0
 
             u = xp.random.uniform(0.0, 1.0, (2,))
             theta = xp.arccos(2 * u[0] - 1)
@@ -224,6 +251,8 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
             try:
                 gold_marker = transform(gold_marker, rotation=p_angles,
                                         rotation_order='szxz', interpolation='linear', device='cpu')
+                if absorption_contrast: gold_imag = transform(gold_imag, rotation=p_angles,
+                                        rotation_order='szxz', interpolation='linear', device='cpu')
                 # do something to remove edge artifacts of rotation? linear instead of filt_bspline
             except Exception as e:
                 print(e)
@@ -232,6 +261,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
 
             threshold = 0.001
             gold_marker[gold_marker < threshold] = 0
+            if absorption_contrast: gold_imag[gold_imag < threshold] = 0
 
             # thresholded particle
             accurate_particle_occupancy = gold_marker > 0
@@ -278,6 +308,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
 
             # populate density volume
             cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += gold_marker
+            cell_imag[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += gold_imag
 
             # update stats
             particle_nr += 1
@@ -306,10 +337,15 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
         # randomly mirror and rotate particle
         try:
             particle = volumes[cls_id]
+            if absorption_contrast: particle_imag = volumes_imag[cls_id]
             if xp.random.randint(2): # Generate true/false randomly
                 # Mirror the particle to cover both left and right handedness of the proteins
-                particle = xp.flip(particle, axis=xp.random.randint(3))
+                ax = xp.random.randint(3)
+                particle = xp.flip(particle, axis=ax)
+                if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=ax)
             rotated_particle = transform(particle, rotation=p_angles,
+                                         rotation_order='szxz', interpolation='filt_bspline', device='cpu')
+            if absorption_contrast: rotated_particle_imag = transform(particle_imag, rotation=p_angles,
                                          rotation_order='szxz', interpolation='filt_bspline', device='cpu')
         except Exception as e:
             print(e)
@@ -321,6 +357,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
         # the approach above doesn't work well with PDB particles, there are often voxels with values of ^-11
         threshold = 0.001
         rotated_particle[rotated_particle < threshold] = 0
+        if absorption_contrast: rotated_particle_imag[rotated_particle_imag < threshold]
 
         # thresholded rotated particle
         accurate_particle_occupancy = rotated_particle > 0
@@ -365,6 +402,8 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
 
         # populate density volume
         cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += rotated_particle
+        if absorption_contrast: cell_imag[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
+                                                    rotated_particle_imag
 
         # update stats
         particle_nr += 1
@@ -380,12 +419,13 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
     #
     # # Add structural nois
     # print('Adding structural noise to grand model cell')
-    noisy_cell = cell #+ xp.random.normal(0, sigma_structural, cell.shape)
+    # noisy_cell = cell #+ xp.random.normal(0, sigma_structural, cell.shape)
+    # pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree_original.mrc', cell)
 
     # save grandmodels
     print('Saving grandmodels')
-    pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree_original.mrc', cell)
-    pytom.tompy.io.write(f'{save_path}/grandmodel_original.mrc', noisy_cell)
+    pytom.tompy.io.write(f'{save_path}/grandmodel_original.mrc', cell)
+    if absorption_contrast: pytom.tompy.io.write(f'{save_path}/grandmodel_original_imag.mrc', cell_imag)
 
     # save class masks
     print('Saving class volumes')
@@ -417,8 +457,8 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
     #     viewer.add_image(cell, name='cell', interpolation='bicubic')
 
     # trying to reduce intermediate memory usage
-    del cell, noisy_cell, class_accurate_mask, class_bbox_mask, occupancy_accurate_mask, occupancy_bbox_mask
-
+    del cell, class_accurate_mask, class_bbox_mask, occupancy_accurate_mask, occupancy_bbox_mask
+    if absorption_contrast: del cell_imag
     return
 
 
@@ -428,18 +468,25 @@ def parallel_rotate_model(volume, outname, angle):
     from voltools import transform
     # volume = pytom.tompy.io.read_mrc(filename)
     rotated_volume = transform(volume, rotation=(0, angle, 0), rotation_order='sxyz', interpolation='filt_bspline', device='cpu')
+    threshold = 0.001
+    rotated_volume[rotated_volume < threshold] = 0
     pytom.tompy.io.write(outname, rotated_volume)
     print(f'Process for angle {angle} is finished ({outname})')
     sys.stdout.flush()
     return True
 
 
-def create_rotation_model(output_folder, model_ID):
+def create_rotation_model(output_folder, model_ID, heightBox, imaginary=False):
 
     # Load grandmodel
     save_path = f'{output_folder}/model_{model_ID}'
-    if os.path.exists(f'{save_path}/grandmodel_original.mrc'):
-        grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original.mrc')
+    if imaginary:
+        file = f'{save_path}/grandmodel_original_imag.mrc'
+    else:
+        file = f'{save_path}/grandmodel_original.mrc'
+
+    if os.path.exists(file):
+        grandcell = pytom.tompy.io.read_mrc(file)
     else:
         raise Exception(f'create_rotation_model expects grandmodel be created before ({save_path}/grandmodel_original.mrc)')
 
@@ -459,7 +506,10 @@ def create_rotation_model(output_folder, model_ID):
         volume[:, :, offset:-offset] = grandcell[:, :, :]
 
     dir = f'{save_path}/rotations'
-    filename = f'{dir}/rotated_volume_0.mrc'
+    if imaginary:
+        filename = f'{dir}/rotated_volume_0_imag.mrc'
+    else:
+        filename = f'{dir}/rotated_volume_0.mrc'
     pytom.tompy.io.write(filename, volume)
 
     print(f'Saved initial rotation volume at {filename}')
@@ -592,13 +642,13 @@ def radial_average(image):
     mean = xp.vectorize(f)(r)
 
     # plot it
-    fig, ax = plt.subplots()
-    ax.plot(r, mean)
-    plt.show()
+    # fig, ax = plt.subplots()
+    # ax.plot(r, mean)
+    # plt.show()
     return r, mean
 
 
-def create_complex_CTF(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, sigma_decay_CTF=0.4, amplitude_contrast=0.07):
+def create_complex_CTF(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, sigma_decay_CTF=0.4, display_CTF=False):
     """
     Adapated from Vulovic et al., 2013. Returns a complex contrast transfer function. Dimensions of input image or
     volume should be equal. Only phase part of CTF.
@@ -639,18 +689,27 @@ def create_complex_CTF(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, sigm
     # print(r)
     complex_CTF = xp.exp( -1j * xp.pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)) )
 
-    # TODO Should amplitude contrast be in??? Discuss with Friedrich and Gijs
-    # ctf.real = ctf.real * amplitude_contrast
-    # ctf.imag = ctf.imag * (1-amplitude_contrast)
-
     # Decay function
     if sigma_decay_CTF:
         decay = xp.exp(-(r / (sigma_decay_CTF * Ny)) ** 2)
-    return complex_CTF * decay
+
+    CTF = complex_CTF * decay
+
+    # visual inspection of CTF
+    if display_CTF:
+        r1, m1 = radial_average(CTF.real)
+        r2, m2 = radial_average(CTF.imag)
+        fig, ax = plt.subplots()
+
+        ax.plot(r1, m1, label='real')
+        ax.plot(r2, m2, label='imaginary')
+        ax.legend()
+        show()
+
+    return CTF
 
 
-def create_complex_CTF_ext(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, sigma_decay_CTF=0.4,
-                       amplitude_contrast=0.07):
+def create_complex_CTF_ext(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, display_CTF=False):
     """
     Adapated from Vulovic et al., 2013. Returns a complex contrast transfer function. Dimensions of input image or
     volume should be equal. Only phase part of CTF.
@@ -698,15 +757,6 @@ def create_complex_CTF_ext(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, 
     c = xp.pi / 2 * (Cs * (Lambda ** 3) * (q ** 4) - 2 * Dz * Lambda * (q ** 2))
     complex_CTF = xp.cos(c) - 1j * xp.sin(c)
 
-    # TODO Should amplitude contrast be in??? Discuss with Friedrich and Gijs
-    # ctf.real = ctf.real * amplitude_contrast
-    # ctf.imag = ctf.imag * (1-amplitude_contrast)
-
-    # Decay function
-    # if sigma_decay_CTF:
-    #     decay = xp.exp(-(r / (sigma_decay_CTF * Ny)) ** 2)
-    # return complex_CTF * decay
-
     # parameters for extended CTF function (InSilicoTEM
     chromatic_abberation    = 2.7E-3 # C_c
     energy_spread           = 0.7 # deltaE
@@ -731,9 +781,21 @@ def create_complex_CTF_ext(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, 
     A[q > qmax] = 0
     A = gaussian_filter(A, sigma=3)
 
-    # print(complex_CTF.shape, K.shape, A.shape)
+    CTF = complex_CTF * K * A
 
-    return complex_CTF * K * A
+    # print(complex_CTF.shape, K.shape, A.shape)
+    # visual inspection of CTF
+    if display_CTF:
+        r1, m1 = radial_average(CTF.real)
+        r2, m2 = radial_average(CTF.imag)
+        fig, ax = plt.subplots()
+
+        ax.plot(r1, m1, label='real')
+        ax.plot(r2, m2, label='imaginary')
+        ax.legend()
+        show()
+
+    return CTF
 
 
 def transmission_function(sliced_potential, voltage, dz):
@@ -928,30 +990,14 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
     iright = -int(xp.ceil((box_size - image_size)/2))
 
     if absorption_contrast:
-        protein_amplitude = potential_amplitude(1.35, 7.2, voltage)
         solvent_amplitude = potential_amplitude(0.93, 18, voltage)
-        gold_amplitude = potential_amplitude(19.3, 197, voltage)
-        # gold_amplitude = 50
-        print(f'protein absorption = {protein_amplitude:.3f}')
         print(f'solvent absorption = {solvent_amplitude:.3f}')
-        print(f'gold absorption = {gold_amplitude:.3f}')
 
     # create a 3d array for the exit wave of each image
     noisefree_projections = xp.zeros((image_size, image_size, len(angles)))
     # get the contrast transfer function
-    complex_CTF = create_complex_CTF_ext((image_size, image_size), pixel_size, defocus, voltage=voltage, Cs=spherical_aberration,
-                  sigma_decay_CTF=sigma_decay_CTF, amplitude_contrast=amplitudeContrast)
-
-    # visual inspection of CTF
-    # _ = radial_average(xp.abs(complex_CTF)**2)
-    # r1, m1 = radial_average(complex_CTF.real)
-    # r2, m2 = radial_average(complex_CTF.imag)
-    # fig, ax = plt.subplots()
-    #
-    # ax.plot(r1, m1, label='real')
-    # ax.plot(r2, m2, label='imaginary')
-    # ax.legend()
-    # show()
+    complex_CTF = create_complex_CTF_ext((image_size, image_size), pixel_size, defocus, voltage=voltage,
+                                         Cs=spherical_aberration, display_CTF=False)
 
     # Check if msdz is viable, else correct it
     if msdz % pixel_size != 0:
@@ -965,8 +1011,9 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
 
     for n, angle in enumerate(angles):
 
-        filename = f'{save_path}/rotations/rotated_volume_{int(angle)}.mrc'
-        rotated_volume = pytom.tompy.io.read_mrc(filename)  #* 1E1
+        filename = f'{save_path}/rotations/rotated_volume_{int(angle)}'
+        rotated_volume = pytom.tompy.io.read_mrc(f'{filename}.mrc')  #* 1E1
+        if absorption_contrast: rotated_volume_imag = pytom.tompy.io.read_mrc(f'{filename}_imag.mrc')
 
         if not multislice:
             print('Simulating projection (without ms) from tilt angle ', angle)
@@ -978,29 +1025,24 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
         else:
             print('Simulating projection (with ms) from tilt angle ', angle)
 
-            # remove rotation artifacts ??
-            threshold = 0.001
-            rotated_volume[rotated_volume < threshold] = 0
+            # Rotation artifacts are removed in rotate_model() !
 
-            add_ice=True
-            if add_ice:
+            add_ice_layer=True
+            if add_ice_layer:
                 # add ice layer with some smoothing to prevent sharp edges
                 ice = create_ice_layer(rotated_volume.shape, angle, ice_thickness//pixel_size, solvent_potential, sigma=2)
                 rotated_volume += ice
+                if absorption_contrast:
+                    ice_imag = create_ice_layer(rotated_volume.shape, angle, ice_thickness // pixel_size, solvent_amplitude,
+                                           sigma=2)
+                    rotated_volume_imag += ice_imag
             else:
-                solvent_potential = 0
+                if absorption_contrast:
+                    rotated_volume_imag += solvent_amplitude
 
-            # add absorption contrast as imaginary part of potential
             if absorption_contrast:
-                # protein electrostatic potential usually smaller than 25 (careful with very small pixel size)
-                # gold larger than 25
-                th = 20 + solvent_potential # max value in 5mrc 2.62 A interaction potential map
-                absorption = solvent_amplitude * (rotated_volume == solvent_potential) + \
-                        protein_amplitude * xp.logical_and(rotated_volume > solvent_potential, rotated_volume < th) + \
-                        gold_amplitude * (rotated_volume >= th)
                 rotated_volume = rotated_volume.astype(complex)
-                rotated_volume = rotated_volume.real + 1j * absorption
-                # del absorption # delete volume here?
+                rotated_volume = rotated_volume.real + 1j * rotated_volume_imag
 
             # Determine the number of slices
             if msdz > zheight:
@@ -1042,13 +1084,6 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
             for ii in range(n_slices-min(1,num_px_last_slice)):
                 waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, ii]) )
                 psi_multislice = xp.fft.fftshift( xp.fft.ifftn((waveField * xp.fft.ifftshift(propagator) )) )
-
-                # if ii%50 == 0:
-                #     fig, ax = plt.subplots(1, 3)
-                #     ax[0].imshow(psi_t[:,:,ii].real, vmin=0, vmax=2)
-                #     ax[1].imshow(psi_t[:, :, ii].imag, vmin=0, vmax=2)
-                #     ax[2].imshow(xp.abs(psi_multislice)**2, vmin=0, vmax=2)
-                #     show()
 
             # Calculate propagation through last slice in case the last slice contains a different number of pixels
             if num_px_last_slice:
@@ -1198,8 +1233,8 @@ def reconstruct_tomogram(start_idx, end_idx, size_reconstruction, angles, output
         iright = - int(xp.ceil(difference/2))
         print('-- Cropping models')
         pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', cell[ileft:iright, ileft:iright, :])
-        cell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_noisefree_original.mrc')
-        pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree.mrc', cell[ileft:iright, ileft:iright, :])
+        # cell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_noisefree_original.mrc')
+        # pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree.mrc', cell[ileft:iright, ileft:iright, :])
         cell = pytom.tompy.io.read_mrc(f'{save_path}/class_bbox_original.mrc')
         pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', cell[ileft:iright, ileft:iright, :])
         cell = pytom.tompy.io.read_mrc(f'{save_path}/class_mask_original.mrc')
@@ -1210,7 +1245,7 @@ def reconstruct_tomogram(start_idx, end_idx, size_reconstruction, angles, output
         pytom.tompy.io.write(f'{save_path}/occupancy_mask.mrc', cell[ileft:iright, ileft:iright, :])
     else:
         pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', cell[:, :, :])
-        os.system(f'cp {save_path}/grandmodel_noisefree_original.mrc {save_path}/grandmodel_noisefree.mrc')
+        # os.system(f'cp {save_path}/grandmodel_noisefree_original.mrc {save_path}/grandmodel_noisefree.mrc')
         os.system(f'cp {save_path}/class_bbox_original.mrc {save_path}/class_bbox.mrc')
         os.system(f'cp {save_path}/class_mask_original.mrc {save_path}/class_mask.mrc')
         os.system(f'cp {save_path}/occupancy_bbox_original.mrc {save_path}/occupancy_bbox.mrc')
@@ -1253,7 +1288,12 @@ if __name__ == '__main__':
             random.seed(seed)
             factor = xp.random.randint(-1, 4) * 0.1
             solvent_potential = solvent_potential + factor * solvent_potential
+
+        absorption_contrast = config['General'].getboolean('AbsorptionContrast')
         metadata = loadstar(config['General']['MetaFile'], dtype=datatype)
+
+        # voltage is needed at multiple points now that we add absorption contrast
+        voltage = metadata['Voltage'][0] * 1E3  # voltage in keV
 
         print(f'Generating model {model_ID} in folder {output_folder}')
     except Exception as e:
@@ -1343,7 +1383,6 @@ if __name__ == '__main__':
 
             # get all relevant parameters for the simulation from the meta file
             angles = metadata['TiltAngle']  # specified in degrees
-            voltage = metadata['Voltage'][0] * 1E3  # voltage in keV
             spherical_aberration = metadata['SphericalAberration'][0] * 1E-3  # spherical aberration in mm
             amplitude_contrast = metadata['AmplitudeContrast'][0]  # fraction of amplitude contrast
 
@@ -1405,7 +1444,8 @@ if __name__ == '__main__':
         generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize=pixel_size, size=size,
                        thickness=thickness, placement_size=placement_size, solvent_potential=solvent_potential,
                        numberOfParticles=numberOfParticles, sigma_structural=sigma_structural,
-                       add_gold_markers=add_gold_markers, number_of_markers=number_of_markers)
+                       add_gold_markers=add_gold_markers, number_of_markers=number_of_markers,
+                       absorption_contrast=absorption_contrast, voltage=voltage)
 
     # Generated rotated grand model versions
     if 'Rotation' in config.sections():
@@ -1419,9 +1459,15 @@ if __name__ == '__main__':
         if os.path.exists(filename):
             print(f'Found leftover rotated volume 0, removing it (path: {filename}')
             os.remove(filename)
+        if absorption_contrast:
+            filename = f'{dir}/rotated_volume_0_imag.mrc'
+            if os.path.exists(filename):
+                print(f'Found leftover rotated volume 0, removing it (path: {filename}')
+                os.remove(filename)
 
         #  Create initial rotation volume (0 degree rotation)
-        volume = create_rotation_model(output_folder, model_ID)
+        volume = create_rotation_model(output_folder, model_ID, heightBox)
+        if absorption_contrast: volume_imag = create_rotation_model(output_folder, model_ID, heightBox, imaginary=True)
 
         # parallel rotate
         sys.stdout.flush()
@@ -1437,6 +1483,11 @@ if __name__ == '__main__':
         results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads")\
             (delayed(parallel_rotate_model)(volume, f'{dir}/rotated_volume_{int(ang)}.mrc', ang)
              for ang in angles if ang != 0.)
+        if absorption_contrast:
+            results_imag = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
+                (delayed(parallel_rotate_model)(volume_imag, f'{dir}/rotated_volume_{int(ang)}_imag.mrc', ang)
+                 for ang in angles if ang != 0.)
+            results += results_imag
 
         sys.stdout.flush()
         if all(results):
