@@ -250,10 +250,57 @@ if __name__ == '__main__':
         for r, s in zip(res, scores):
             f.write(f'{r}, {s}\n')
 
+    # IASA map with solvent masking
+    pot = 'iasa solvent masked'
+    volume = read('/data2/mchaillet/structures/potential/6m54_smask/6m54_1.08A_solvent-4.530V.mrc')
+    # mask = read_mrc('/data2/mchaillet/structures/potential/6m54/structural_mask.mrc')
+
+    assert len(set(volume.shape)) == 1
+    if volume.shape[0] != template_size:
+        difference = [template_size - x for x in volume.shape]
+        volume = extend_volume(volume, difference, symmetrically=True, true_center=False)
+
+    score, shift, _ = max_correlation(open_as_vol(em_map_filtered),
+                                      open_as_vol(reduce_resolution(volume, voxel_size, resolution)),
+                                      open_as_vol(mask))
+    map_type.append(pot)
+    scores_flcf.append(score)
+
+    volume_shift = center_potential(em_map, volume, shift)
+
+    # Store shifted volume for grayscale maps
+    write(f'/data2/mchaillet/structures/correlation/6m54/fitted/iasa_{resolution}A_smask.mrc', volume_shift)
+
+    # print(f'FSC correlation with v_atom {resolution}A')
+    # from pytom.basic.correlation import FSC
+    #
+    # # from pytom.basic.plot import plotFSC
+    # number_bands = 50
+    # fsc_result = FSC(open_as_vol(em_map_filtered), open_as_vol(reduce_resolution(volume_shift, voxel_size, resolution)),
+    #                  number_bands, mask=open_as_vol(mask_shift), verbose=True,
+    #                  filename=f'/data2/mchaillet/structures/correlation/6m54/FSC_{pot}_{resolution}A.txt')
+
+    print(f'correlation with nxcc {pot} and map filtered')
+    res = [resolution, 5, 7, 10, 20, 30]
+    scores = []
+    for r in res:
+        if r == 5:
+            write(f'/data2/mchaillet/structures/correlation/6m54/fitted/iasa_{r}A_smask.mrc',
+                  reduce_resolution(volume_shift, voxel_size, r))
+        score = nxcc(reduce_resolution(em_map, voxel_size, r), reduce_resolution(volume_shift, voxel_size, r),
+                     mask=mask_shift)
+        print(r, score)
+        scores.append(score)
+
+    file = f'/data2/mchaillet/structures/correlation/6m54/iasa_smask_correlation_map-filter.txt'
+    with open(file, 'w') as f:
+        for r, s in zip(res, scores):
+            f.write(f'{r}, {s}\n')
+
     # Now the IASA and IASA+PBE map
 
-    for pot in ['full_integration', 'full_integration_solvent_subtracted',
-                'iasa_integration', 'iasa_integration_solvent_excluded']:
+    for pot in ['iasa_integration', 'iasa_integration_solvent_excluded',
+                'full_integration', 'full_integration_solvent_subtracted']:
 
         volume = read(f'/data2/mchaillet/structures/potential/6m54/{pot}_1.08A.mrc')
         # mask = read_mrc('/data2/mchaillet/structures/potential/6m54/structural_mask.mrc')

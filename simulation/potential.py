@@ -5,9 +5,9 @@ import os
 # import pytom.basic.functions
 
 # image display
-# import matplotlib
-# matplotlib.use('Qt5Agg')
-# from pylab import *
+import matplotlib as plt
+plt.use('Qt5Agg')
+from pylab import *
 
 V_WATER = 4.5301 # potential value of low density amorphous ice (from Vulovic et al., 2013)
 
@@ -203,7 +203,10 @@ def bin(potential, factor):
     @param factor: integer value
     @return:
     """
-    assert type(factor) is int and factor > 1, print('non-valid binning factor, should be integer above 1')
+    assert type(factor) is int and factor >= 1, print('non-valid binning factor, should be integer above 1')
+
+    if factor == 1:
+        return potential
 
     s = (potential.shape[0] % factor) // 2
     d = (potential.shape[0] % factor) % 2
@@ -277,7 +280,7 @@ def call_chimera(file, input_folder, output_folder):
                                          f'from chimera import runCommand as rc\n'
                                          f'rc("open {input_folder}/{file}")\n'
                                          f'rc("delete solvent")\n'
-                                         # f'rc("delete ions")\n'
+                                         f'rc("delete ions")\n'
                                          f'rc("addh")\n' # If using pdb2pqr do not add hydrogens here.
                                          f'rc("sym group biomt")\n'             # group biomt is also the default
                                          f'rc("combine all modelId 10")\n'
@@ -295,7 +298,7 @@ def call_chimera(file, input_folder, output_folder):
                                          f'from chimera import runCommand as rc\n'
                                          f'rc("open {input_folder}/{file}")\n'
                                          f'rc("delete solvent")\n'
-                                         # f'rc("delete ions")\n'
+                                         f'rc("delete ions")\n'
                                          f'rc("addh")\n' # If using pdb2pqr do not add hydrogens here.
                                          f'rc("write format pdb #0 {output_folder}/{pdb_id}_rem-solvent_addh.pdb")\n'
                                          f'rc("stop")\n')
@@ -327,7 +330,7 @@ def call_chimera(file, input_folder, output_folder):
                                      f'from chimera import runCommand as rc\n'
                                      f'rc("open {input_folder}/{file}")\n'
                                      f'rc("delete solvent")\n'
-                                     # f'rc("delete ions")\n'
+                                     f'rc("delete ions")\n'
                                      f'rc("addh")\n' # If using pdb2pqr do not add hydrogens here.
                                      f'rc("write format pdb #0 {output_folder}/{pdb_id}_rem-solvent_addh.pdb")\n'
                                      f'rc("stop")\n')
@@ -537,8 +540,8 @@ def read_structure(filename):
     return x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies
 
 
-def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, V_sol=4.5301, absorption_contrast=False,
-                     voltage=300E3, solvent_factor=1.0):
+def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_masking=False, V_sol=4.5301,
+                     absorption_contrast=False, voltage=300E3, solvent_factor=1.0):
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
@@ -560,7 +563,7 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, V_sol=4.5
     """
     from scipy.special import erf
 
-    extra_space = 60  # extend volume by 10 A in all directions
+    extra_space = 10  # extend volume by 30 A in all directions
 
     print(f' - Calculating IASA potential from {filename}')
 
@@ -674,9 +677,26 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, V_sol=4.5
     # Convert to correct units
     C = 4 * xp.sqrt(xp.pi) * phys.constants['h'] ** 2 / (phys.constants['el'] * phys.constants['me']) * 1E20  # angstrom**2
 
+    # construct solvent mask
+    # solvent_mask = xp.zeros_like(potential)
+    cutoff = potential[potential > 0].mean()
+    solvent_mask = (potential > 0.7 * cutoff) * 1.6
+    # print(solvent_mask.shape)
+    # gaussian decay of mask
+    smoothed_mask = reduce_resolution(solvent_mask, voxel_size, voxel_size*4)
+    smoothed_mask[smoothed_mask<0.001] = 0
+
+    # fig, (ax1, ax2) = plt.subplots(1, 2)
+    # slice = int(solvent_mask.shape[2] // 2)
+    # ax1.imshow(solvent_mask[:, :, slice ])
+    # ax2.imshow(smoothed_mask[:, :, slice ])
+    # show()
+
     if solvent_exclusion:
         # Correct for solvent and convert both the solvent and potential array to the correct units.
         real = (potential / dV * C) - (solvent / dV * (V_sol * solvent_factor))
+    elif solvent_masking:
+        real = (potential / dV * C) - (smoothed_mask * (V_sol * solvent_factor))
     else:
         real = potential / dV * C
 
@@ -689,7 +709,10 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, V_sol=4.5
         print(f'protein absorption = {protein_absorption:.3f}')
         print(f'solvent absorption = {solvent_absorption:.3f}')
 
-        imaginary = (real > 0) * (protein_absorption - solvent_absorption)
+        if solvent_masking:
+            imaginary = smoothed_mask * (protein_absorption - solvent_absorption)
+        else:
+            imaginary = (real > 0) * (protein_absorption - solvent_absorption)
 
         return [real, imaginary]
     else:
@@ -1020,9 +1043,8 @@ def combine_potential(iasa_potential, bond_potential, voxel_size):
     return iasa_potential, bond_potential, full_potential
 
 
-def wrapper(file, input_folder, output_folder, voxel_size, binning=None,
-            exclude_solvent=False, solvent_potential=4.5301, absorption_contrast=False, voltage=300E3,
-            solvent_factor=1.0):
+def wrapper(file, input_folder, output_folder, voxel_size, binning=None, exclude_solvent=False, solvent_masking=False,
+            solvent_potential=4.5301, absorption_contrast=False, voltage=300E3, solvent_factor=1.0):
     import pytom.tompy.io
     # TODO function can be executed in parallel for multiple structures
 
@@ -1043,20 +1065,21 @@ def wrapper(file, input_folder, output_folder, voxel_size, binning=None,
     # Could be {structure}.{extension}, but currently chimera is only able to produce .pdb files, so the extended
     # structure file created by call chimera has a .pdb extension.
     v_atom = iasa_integration(f'{output_folder}/{structure}.pdb', voxel_size=voxel_size,
-                              solvent_exclusion=exclude_solvent, V_sol=solvent_potential,
+                              solvent_exclusion=exclude_solvent, solvent_masking=solvent_masking, V_sol=solvent_potential,
                               absorption_contrast= absorption_contrast, voltage=voltage, solvent_factor=solvent_factor)
     # Absorption contrast map generated here will look blocky when generated at 2.5A and above!
     if absorption_contrast:
-        print('filtering volume')
+        print(' - Filtering volume')
+        print(v_atom[0].shape, v_atom[1].shape)
         filtered = [reduce_resolution_2(v_atom[0], voxel_size, 2*voxel_size),
                     reduce_resolution_2(v_atom[1], voxel_size, 2*voxel_size)]
         output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
         pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', filtered[0])
         pytom.tompy.io.write(f'{output_folder}/{output_name}_imag.mrc', filtered[1])
     else:
-        print('filtering volume')
-        filtered = reduce_resolution_2(v_atom, voxel_size, 2*voxel_size)
-        if exclude_solvent:
+        print(' - Filtering volume')
+        filtered = reduce_resolution_2(v_atom[0], voxel_size, 2*voxel_size)
+        if exclude_solvent or solvent_masking:
             output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
         else:
             output_name = f'{pdb_id}_{voxel_size:.2f}A'
@@ -1067,10 +1090,10 @@ def wrapper(file, input_folder, output_folder, voxel_size, binning=None,
         #                       solvent_exclusion=exclude_solvent, V_sol=solvent_potential)
         # first filter the volume!
         if absorption_contrast:
-            print('filtering volume')
+            print(' - Filtering volume')
             filtered = [reduce_resolution_2(v_atom[0], voxel_size, voxel_size * binning),
                         reduce_resolution_2(v_atom[1], voxel_size, voxel_size * binning)]
-            print('binning volume')
+            print(' - Binning volume')
             binned = [bin(filtered[0], binning), bin(filtered[1], binning)]
 
             output_name = f'{pdb_id}_{voxel_size*binning:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
@@ -1078,11 +1101,11 @@ def wrapper(file, input_folder, output_folder, voxel_size, binning=None,
             pytom.tompy.io.write(f'{output_folder}/{output_name}_imag.mrc', binned[1])
 
         else:
-            print('filtering volume')
+            print(' - Filtering volume')
             filtered = reduce_resolution_2(v_atom, voxel_size, voxel_size*binning)
-            print('binning volume')
+            print(' - Binning volume')
             binned = bin(filtered, binning)
-            if exclude_solvent:
+            if exclude_solvent or solvent_masking:
                 output_name = f'{pdb_id}_{voxel_size*binning:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
             else:
                 output_name = f'{pdb_id}_{voxel_size*binning:.2f}A'
@@ -1113,8 +1136,9 @@ if __name__ == '__main__':
                ScriptOption(['-b', '--binning'], 'Number of times to bin. Additional storage of binned volume.', True, True),
                ScriptOption(['-x', '--exclude_solvent'],
                             'Whether to exclude solvent around each atom as a correction of the potential.', False, True),
+               ScriptOption(['-m', '--mask_solvent'], 'Whether to exclude solvent by masking.', False, True),
                ScriptOption(['-p', '--solvent_potential'],
-                            'Value for the solvent potential. By default amorphous ice, 4.5301 V.', True, False),
+                            'Value for the solvent potential. By default amorphous ice, 4.5301 V.', True, True),
                ScriptOption(['-c', '--percentile'], 'Multiplication for solvent potential and absorption contrast of '
                                                     'solvent to decrease/increase contrast. Value between 0 and 3 (could'
                                                     ' be higher but would no make sense).', True, True),
@@ -1123,7 +1147,7 @@ if __name__ == '__main__':
                             'is excluded.', False, True),
                ScriptOption(['-v', '--voltage'],
                             'Value for the electron acceleration voltage. Need for calculating the inelastic mean free '
-                            'path in case of absorption contrast calculation. By default 300 (keV).', True, False),
+                            'path in case of absorption contrast calculation. By default 300 (keV).', True, True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
     helper = ScriptHelper(sys.argv[0].split('/')[-1], description='Calculate electrostatic potential from protein structure file.\n'
@@ -1139,8 +1163,8 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        file, input_folder, output_folder, voxel_size, binning, exclude_solvent, solvent_potential, solvent_factor, \
-                absorption_contrast, voltage, help = parse_script_options(sys.argv[1:], helper)
+        file, input_folder, output_folder, voxel_size, binning, exclude_solvent, solvent_masking, solvent_potential, \
+                    solvent_factor, absorption_contrast, voltage, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -1167,7 +1191,7 @@ if __name__ == '__main__':
         sys.exit()
 
     wrapper(file, input_folder, output_folder, voxel_size, binning=binning,
-            exclude_solvent=exclude_solvent, solvent_potential=solvent_potential,
+            exclude_solvent=exclude_solvent, solvent_masking=solvent_masking, solvent_potential=solvent_potential,
             absorption_contrast=absorption_contrast, voltage=voltage, solvent_factor=solvent_factor)
 
 
