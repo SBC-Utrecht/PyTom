@@ -442,7 +442,11 @@ def call_apbs(folder, structure, force_field='amber', ph=7.):
 
 
 def read_structure(filename):
-
+    """
+    Read pdb, cif, or pqr file and return atom data in lists.
+    @param filename:
+    @return:
+    """
     x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = [], [], [], [], [], []
 
     filetype = filename.split('.')[-1]
@@ -541,7 +545,7 @@ def read_structure(filename):
 
 
 def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_masking=False, V_sol=4.5301,
-                     absorption_contrast=False, voltage=300E3, solvent_factor=1.0):
+                     absorption_contrast=False, voltage=300E3, solvent_factor=1.0, structure_tuple=None):
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
@@ -567,7 +571,10 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_m
 
     print(f' - Calculating IASA potential from {filename}')
 
-    x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(filename)
+    if structure_tuple is None:
+        x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(filename)
+    else:
+        x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = structure_tuple
 
     x_max = xp.max(x_coordinates - xp.min(x_coordinates))
     y_max = xp.max(y_coordinates - xp.min(y_coordinates))
@@ -677,25 +684,23 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_m
     # Convert to correct units
     C = 4 * xp.sqrt(xp.pi) * phys.constants['h'] ** 2 / (phys.constants['el'] * phys.constants['me']) * 1E20  # angstrom**2
 
-    # construct solvent mask
-    # solvent_mask = xp.zeros_like(potential)
-    cutoff = potential[potential > 0].mean()
-    solvent_mask = (potential > 0.7 * cutoff) * 1.6
-    # print(solvent_mask.shape)
-    # gaussian decay of mask
-    smoothed_mask = reduce_resolution(solvent_mask, voxel_size, voxel_size*4)
-    smoothed_mask[smoothed_mask<0.001] = 0
-
-    # fig, (ax1, ax2) = plt.subplots(1, 2)
-    # slice = int(solvent_mask.shape[2] // 2)
-    # ax1.imshow(solvent_mask[:, :, slice ])
-    # ax2.imshow(smoothed_mask[:, :, slice ])
-    # show()
-
     if solvent_exclusion:
         # Correct for solvent and convert both the solvent and potential array to the correct units.
         real = (potential / dV * C) - (solvent / dV * (V_sol * solvent_factor))
     elif solvent_masking:
+        # construct solvent mask
+        # solvent_mask = xp.zeros_like(potential)
+        cutoff = potential[potential > 0].mean()
+        solvent_mask = (potential > 0.7 * cutoff) * 1.6
+        # print(solvent_mask.shape)
+        # gaussian decay of mask
+        smoothed_mask = reduce_resolution(solvent_mask, voxel_size, voxel_size * 4)
+        smoothed_mask[smoothed_mask < 0.001] = 0
+        # fig, (ax1, ax2) = plt.subplots(1, 2)
+        # slice = int(solvent_mask.shape[2] // 2)
+        # ax1.imshow(solvent_mask[:, :, slice ])
+        # ax2.imshow(smoothed_mask[:, :, slice ])
+        # show()
         real = (potential / dV * C) - (smoothed_mask * (V_sol * solvent_factor))
     else:
         real = potential / dV * C
