@@ -545,7 +545,8 @@ def read_structure(filename):
 
 
 def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_masking=False, V_sol=4.5301,
-                     absorption_contrast=False, voltage=300E3, solvent_factor=1.0, structure_tuple=None):
+                     absorption_contrast=False, voltage=300E3, density=1.35, molecular_weight=7.2, solvent_factor=1.0,
+                     structure_tuple=None):
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
@@ -567,7 +568,7 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_m
     """
     from scipy.special import erf
 
-    extra_space = 10  # extend volume by 30 A in all directions
+    extra_space = 20  # extend volume by 30 A in all directions
 
     print(f' - Calculating IASA potential from {filename}')
 
@@ -708,16 +709,16 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_m
     if absorption_contrast:
         from simulateProjections import potential_amplitude
         # voltage by default 300 keV
-        protein_absorption = potential_amplitude(1.35, 7.2, voltage)
+        molecule_absorption = potential_amplitude(density, molecular_weight, voltage)
         solvent_absorption = potential_amplitude(0.93, 18, voltage) * solvent_factor
         # gold_amplitude = potential_amplitude(19.3, 197, voltage)
-        print(f'protein absorption = {protein_absorption:.3f}')
+        print(f'molecule absorption = {molecule_absorption:.3f}')
         print(f'solvent absorption = {solvent_absorption:.3f}')
 
         if solvent_masking:
-            imaginary = smoothed_mask * (protein_absorption - solvent_absorption)
+            imaginary = smoothed_mask * (molecule_absorption - solvent_absorption)
         else:
-            imaginary = (real > 0) * (protein_absorption - solvent_absorption)
+            imaginary = (real > 0) * (molecule_absorption - solvent_absorption)
 
         return [real, imaginary]
     else:

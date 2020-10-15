@@ -163,8 +163,9 @@ def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=
 
 
 def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize = 1, binning=1, size=1024, thickness=200,
-                   solvent_potential=4.5301, solvent_factor=1.0, sigma_structural=0.2, numberOfParticles=1000, placement_size=512, retries=5000,
-                   add_gold_markers=True, number_of_markers=20, absorption_contrast=False, voltage=300E3):
+                   solvent_potential=4.5301, solvent_factor=1.0, sigma_structural=0.2, numberOfParticles=1000,
+                   placement_size=512, retries=5000, add_gold_markers=True, number_of_markers=20,
+                   absorption_contrast=False, voltage=300E3, add_membrane=False, number_of_membranes=1):
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
 
     from voltools import transform
@@ -229,6 +230,104 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
     else:
         loc_x_start = loc_y_start = difference // 2
         loc_x_end = loc_y_end = int(size - xp.ceil(difference / 2))
+
+    # Add large cell structures, such as membranes first!
+    if add_membrane:
+        number_of_classes += 1
+        particles_by_class += [0]
+
+        # class id of cell structures is always the same
+        cls_id = number_of_classes - 1
+
+        for _ in tqdm(range(number_of_membranes), desc='Placing membranes and micelles'):
+
+            # create the gold marker in other function
+            if absorption_contrast:
+                membrane_vol = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixelSize*1E10:.2f}A_'
+                                                   f'35x40x35nm_{solvent_potential*solvent_factor:.2f}V_real.mrc')
+                membrane_vol_imag = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixelSize*1E10:.2f}A_'
+                                                   f'35x40x35nm_{solvent_potential*solvent_factor:.2f}V_imag_300V.mrc')
+            else:
+                membrane_vol = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixelSize*1E10:.2f}A_'
+                                                   f'35x40x35nm_{solvent_potential*solvent_factor:.2f}V.mrc')
+
+            u = xp.random.uniform(0.0, 1.0, (2,))
+            theta = xp.arccos(2 * u[0] - 1)
+            phi = 2 * xp.pi * u[1]
+            psi = xp.random.uniform(0.0, 2 * xp.pi)
+            p_angles = xp.rad2deg([theta, phi, psi])
+
+            # randomly mirror and rotate particle
+            try:
+                membrane_vol = transform(membrane_vol, rotation=p_angles,
+                                        rotation_order='szxz', interpolation='linear', device='cpu')
+                if absorption_contrast: membrane_vol_imag = transform(membrane_vol_imag, rotation=p_angles,
+                                        rotation_order='szxz', interpolation='linear', device='cpu')
+                # do something to remove edge artifacts of rotation? linear instead of filt_bspline
+            except Exception as e:
+                print(e)
+                print('Something went wrong while rotating?')
+                continue
+
+            threshold = 0.001
+            membrane_vol[membrane_vol < threshold] = 0
+            if absorption_contrast: membrane_vol_imag[membrane_vol_imag < threshold] = 0
+
+            # thresholded particle
+            accurate_particle_occupancy = membrane_vol > 0
+
+            # find random location for the particle
+            dimensions = membrane_vol.shape
+            xx, yy, zz = dimensions
+            tries_left = default_tries_left
+            while tries_left > 0:
+                loc_x = xp.random.randint(loc_x_start + xx // 2 + 1, loc_x_end - xx // 2 - 1)
+                loc_y = xp.random.randint(loc_y_start + yy // 2 + 1, loc_y_end - yy // 2 - 1)
+                loc_z = xp.random.randint(zz // 2 + 1, Z - zz // 2 - 1)
+
+                tries_left -= 1
+
+                # calculate coordinates of bbox for the newly rotated particle
+                bbox_x = [loc_x - dimensions[0] // 2, loc_x + dimensions[0] // 2 + dimensions[0] % 2]
+                bbox_y = [loc_y - dimensions[1] // 2, loc_y + dimensions[1] // 2 + dimensions[1] % 2]
+                bbox_z = [loc_z - dimensions[2] // 2, loc_z + dimensions[2] // 2 + dimensions[2] % 2]
+
+                # create masked occupancy mask
+                masked_occupancy_mask = occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1],
+                                        bbox_z[0]:bbox_z[1]]
+                masked_occupancy_mask = masked_occupancy_mask * accurate_particle_occupancy
+
+                # if the location fits (masked occupancy pixel-wise mask is empty), break the loop and use this location
+                if masked_occupancy_mask.sum() == 0:
+                    break
+
+            # however if still can't fit, ignore this particle (also adds variance in how many particles are
+            # actually put)
+            if tries_left < 1:
+                skipped_particles += 1
+                continue
+
+            # populate occupancy volumes
+            occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = particle_nr
+            occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
+                accurate_particle_occupancy * particle_nr
+
+            # populate class masks
+            class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = (cls_id + 1)
+            class_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
+                accurate_particle_occupancy * (cls_id + 1)
+
+            # populate density volume
+            cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += membrane_vol
+            cell_imag[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += membrane_vol_imag
+
+            # update stats
+            particle_nr += 1
+            particles_by_class[cls_id] += 1
+
+            # update text
+            ground_truth_txt_file += f'fiducial {int(loc_x - loc_x_start)} {int(loc_y - loc_y_start)} {int(loc_z)} ' \
+                                     f'NaN NaN NaN\n'
 
     # GOLD MARKERS WILL ALSO BE COUNTER TOWARDS TOTAL PARTICLE NUMBER
     # There are also added as an additional class
@@ -331,7 +430,8 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
     for _ in tqdm(range(numberOfParticles), desc='Placing particles'):
 
         # select random class but correct for artifact class if adding gold particles
-        cls_id = xp.random.randint(0, number_of_classes - 1) if add_gold_markers else xp.random.randint(0, number_of_classes)
+        
+        cls_id = xp.random.randint(0, number_of_classes - add_gold_markers - add_membrane)
 
         # generate random rotation
         # to be properly random, use uniform sphere sampling
@@ -583,21 +683,39 @@ def potential_amplitude(rho, molecular_weight, voltage):
     beta2 = 1 - (E0 / (voltage + E0)) ** 2
     beta2_100 = 1 - (E0 / (100E3 + E0)) ** 2
 
-    if molecular_weight == 18:
+    if molecular_weight == 18: # water molecule
+        # rho for amorphous ice is 0.93 g/cm^3
         ZO = 8
         sigma_inelastic_H = ( 8.8E-6 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
                               (beta2 * xp.log(beta2_100 * (100E3 + E0) / (E_loss / 2))) )
         sigma_inelastic_O = 1.5 * 1E-6 * ZO ** 0.5 / beta2 * xp.log(beta2 * (voltage+E0) / (E_loss/2))
         sigma_inelastic = 2 * sigma_inelastic_H + sigma_inelastic_O
-    elif molecular_weight == 12:
+    elif molecular_weight == 12: # carbon film
         ZC = 6
         sigma_inelastic = 1.5 * 1E-6 * ZC ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-    elif molecular_weight == 7.2:
+    elif molecular_weight == 7.2: # protein
+        # rho for proteins is assumed to be 1.35 g/cm^3
+        # fractional composition is 0.492, 0.313, 0.094, and 0.101 for elements H, C, N, and O, respectively
         sigma_inelastic = (0.82 * 1E-4 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
                            (beta2 * xp.log(beta2_100 * (100E3 + E0) / (E_loss / 2))) )
-    elif molecular_weight == 197: # gold molecular weight ???
+    elif molecular_weight == 197: # gold particles
         ZAu = 79
         sigma_inelastic = 1.5 * 1E-6 * ZAu ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+    elif molecular_weight == 734.1:
+        # DPPC lipid composition C40H80NO8P, molar mass 734.053 g/mol
+        # rho is 0.92 g/cm^3 for most vegetable oils, find a better reference!
+        ZC = 6
+        ZN = 7
+        ZO = 8
+        ZP = 15
+        sigma_inelastic_H = (8.8E-6 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
+                             (beta2 * xp.log(beta2_100 * (100E3 + E0) / (E_loss / 2))))
+        sigma_inelastic_C = 1.5 * 1E-6 * ZC ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic_N = 1.5 * 1E-6 * ZN ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic_O = 1.5 * 1E-6 * ZO ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic_P = 1.5 * 1E-6 * ZP ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic = 40 * sigma_inelastic_C + 80 * sigma_inelastic_H + sigma_inelastic_N + 8 * sigma_inelastic_O + \
+            sigma_inelastic_P
 
     concentration = rho * 1000 * phys.constants['na'] / (molecular_weight / 1000)
     lamda_inelastic = ( 1. / (concentration * sigma_inelastic * 1E-18) )
@@ -1397,6 +1515,9 @@ if __name__ == '__main__':
                 numberOfParticles = xp.random.randint(int(p_range[0]), int(p_range[1]))
             else:
                 numberOfParticles = int(p_range[0])
+
+            add_membrane = config['GenerateModel'].getboolean('MembraneStructures')
+            number_of_membranes = int(config['GenerateModel']['NumberOfMembranes'])
         except Exception as e:
             print(e)
             raise Exception('Missing generate model parameters in config file.')
@@ -1502,7 +1623,8 @@ if __name__ == '__main__':
                        solvent_potential=solvent_potential, solvent_factor=solvent_factor,
                        numberOfParticles=numberOfParticles, sigma_structural=sigma_structural,
                        add_gold_markers=add_gold_markers, number_of_markers=number_of_markers,
-                       absorption_contrast=absorption_contrast, voltage=voltage)
+                       absorption_contrast=absorption_contrast, voltage=voltage, add_membrane=add_membrane,
+                       number_of_membranes=number_of_membranes)
 
     # Generated rotated grand model versions
     if 'Rotation' in config.sections():

@@ -365,7 +365,8 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
     structure = (membrane_x, membrane_y, membrane_z, membrane_e, membrane_b, membrane_o)
     # pass directly to iasa_integration
     potential = iasa_integration('', voxel_size, solvent_exclusion=True, V_sol=solvent,
-                                 absorption_contrast=True, voltage=voltage, structure_tuple=structure)
+                                 absorption_contrast=True, voltage=voltage, density=0.92, molecular_weight=734.1,
+                                 structure_tuple=structure)
     return potential
 
 
@@ -373,14 +374,14 @@ if __name__ == '__main__':
 
     folder = '/data2/mchaillet/structures'
 
-    N = 500
-    alpha = 2000
+    N = 1000
+    alpha = 10000
     voxel = 2.62 * 2 # A
     pdb = f'{folder}/pdb/lipid/dppc128_dehydrated.pdb'
     solvent = 4.5301
     voltage = 300E3
 
-    points = sample_points_ellipsoid(N, a=350, b=400, c=350)
+    points = sample_points_ellipsoid(N, a=700, b=800, c=650)
     surface = triangulate(points, alpha)
 
     volume = membrane_potential(surface, voxel, pdb, solvent, voltage)
@@ -389,17 +390,20 @@ if __name__ == '__main__':
 
     from potential import reduce_resolution_2, bin
 
+    name = 'bilayer'
+    size = '70x80x65nm'
+
     real_fil = reduce_resolution_2(real, voxel, 2 * voxel)
     imag_fil = reduce_resolution_2(imag, voxel, 2 * voxel)
 
-    write(f'{folder}/potential/membrane/bilayer_{voxel:.2f}A_35x40x35nm_4.53V_real.mrc', real)
-    write(f'{folder}/potential/membrane/bilayer_{voxel:.2f}A_35x40x35nm_4.53V_imag_300V.mrc', imag)
+    write(f'{folder}/potential/membrane/{name}_{voxel:.2f}A_{size}_4.53V_real.mrc', real)
+    write(f'{folder}/potential/membrane/{name}_{voxel:.2f}A_{size}_4.53V_imag_300V.mrc', imag)
 
     binning = 4
 
     real_bin = bin(reduce_resolution_2(real, voxel, binning * voxel), binning)
     imag_bin = bin(reduce_resolution_2(imag, voxel, binning * voxel), binning)
 
-    write(f'{folder}/potential/membrane/bilayer_{voxel*binning:.2f}A_35x40x35nm_4.53V_real.mrc', real_bin)
-    write(f'{folder}/potential/membrane/bilayer_{voxel*binning:.2f}A_35x40x35nm_4.53V_imag_300V.mrc', imag_bin)
+    write(f'{folder}/potential/membrane/{name}_{voxel*binning:.2f}A_{size}_4.53V_real.mrc', real_bin)
+    write(f'{folder}/potential/membrane/{name}_{voxel*binning:.2f}A_{size}_4.53V_imag_300V.mrc', imag_bin)
 
