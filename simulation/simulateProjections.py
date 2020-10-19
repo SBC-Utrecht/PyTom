@@ -430,7 +430,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
     for _ in tqdm(range(numberOfParticles), desc='Placing particles'):
 
         # select random class but correct for artifact class if adding gold particles
-        
+
         cls_id = xp.random.randint(0, number_of_classes - add_gold_markers - add_membrane)
 
         # generate random rotation
@@ -1332,6 +1332,285 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
     return
 
 
+def microscope_single_projection(noisefree_projection, dqe, mtf, dose=80, pixel_size=1E-9, binning=1):
+    """
+    TODO add parameters for camera type and folder with detector data
+    Inspired by InSilicoTEM (Vulovic et al., 2013)
+    @author: Marten Chaillet
+    """
+
+    ntf = xp.sqrt(mtf ** 2 / dqe) # square root because dqe = mtf^2 / ntf^2
+    mtf_shift = xp.fft.ifftshift(mtf)
+    ntf_shift = xp.fft.ifftshift(ntf)
+
+    # NUMBER OF ELECTRONS PER PIXEL
+    dose_per_pixel = dose * (pixel_size*1E10)**2 / binning**2 # from square A to square nm (10A pixels)
+    print(f'Number of electrons per pixel (before binning and sample absorption): {dose_per_pixel}')
+
+    # Fourier transform and multiply with sqrt(dqe) = mtf/ntf
+    projection_fourier = xp.fft.fftn(xp.fft.ifftshift(noisefree_projection)) * mtf_shift / ntf_shift
+    # projection_fourier = projection_fourier
+    # Convert back to real space
+    projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier)))
+    projection[projection<0] = 0
+    # Draw from poisson distribution and scale by camera's conversion factor
+    # conversion_factor = 100  # in ADU/e- , this is an arbitrary unit. Value taken from Vulovic et al., 2010
+
+    # Apply poissonian noise
+    poisson_mean = projection * dose_per_pixel
+    projection_poisson = xp.zeros(projection.shape)
+    for _ in range(binning**2):
+        projection_poisson += ( xp.random.poisson(lam=poisson_mean) / binning**2 )
+        # imshow(projection_poisson)
+        # show()
+
+    # Image values are now in ADU
+    # Apply the camera's noise transfer function to the noisy image
+    projection_fourier = xp.fft.fftn(xp.fft.ifftshift(projection_poisson)) * ntf_shift
+
+    # Add additional noise from digitization process, less relevant for modern day cameras.
+    # readout noise standard deviation can be 7 ADUs, from Vulovic et al., 2010
+    # sigma_readout = 7
+    # readsim = xp.random.normal(0, sigma_readout, projection.shape) # readout noise has a gaussian distribution
+    # darksim = 0     # dark current noise has a poisson distribution, usually an order of magnitude smaller than
+    #                 # readout noise and can hence be neglected
+
+    # Add readout noise and dark noise in real space
+    projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier))) # + readsim + darksim
+
+    return projection
+
+
+def parallel_project_frame_series(sample, frame, translation, rotation, add_ice=False, solvent_potential=4.5301,
+                                  solvent_absorption=0.209, image_size=None, pixel_size, msdz):
+    """
+    Only use multislice for this.
+    @param model:
+    @param frame:
+    @param translation:
+    @param rotation:
+    @return:
+    """
+    from voltools import transform
+
+    print('Transforming and damaging sample for frame ', frame)
+
+    # model parameter is a complex volume or real volume depending on the addition of absorption contrast
+    # first transform the volume
+    if sample.dtype == 'complex':
+        sample.real = transform(sample.real, translation=translation, rotation=rotation, rotation_order='sxyz',
+                                interpolation='filt_bspline', device='cpu')
+        sample.imag = transform(sample.imag, translation=translation, rotation=rotation, rotation_order='sxyz',
+                                interpolation='filt_bspline', device='cpu')
+        # remove rotation artifacts
+        threshold = 0.001
+        sample.real[sample.real < threshold] = 0
+        sample.imag[sample.imag < threshold] = 0
+    elif sample.dtype == 'float':
+        sample = transform(sample, translation=translation, rotation=rotation, rotation_order='sxyz',
+                                interpolation='filt_bspline', device='cpu')
+        # remove rotation artifacts
+        threshold = 0.001
+        sample[sample < threshold] = 0
+    else:
+        print('Invalid dtype of sample.')
+        sys.exit(0)
+
+    # apply structural deterioration due to beam damage via random noise with increment based on frame number
+    # incremental damage based on frame number
+    sample += xp.random.normal(0, frame*sigma_structural, sample.shape)
+
+    # add the ice layer to the sample
+    if add_ice:
+        if sample.dtype == 'complex':
+            sample.real += solvent_potential
+            sample.imag += solvent_absorption
+        else:
+            sample += solvent_potential
+
+    print('Simulating projection with multislice method for frame ', frame)
+    # Start with projection, first prepare parameters
+    box_size = sample.shape[0]
+    box_height = sample.shape[2]
+
+    if image_size is None: image_size = box_size
+    ileft = (box_size - image_size) // 2
+    iright = -int(xp.ceil((box_size - image_size) / 2))
+
+    # Determine the number of slices
+    if msdz > zheight:
+        n_slices = 1
+        msdz = zheight
+        print('The multislice step can not be larger than volume thickness. Use only one slice.\n')
+    elif msdz < pixel_size:
+        n_slices = box_height
+        msdz = pixel_size
+        print('The multislice steps can not be smaller than the pixel size. Use the pixel size instead for the step size.\n')
+    else:
+        n_slices = int(xp.ceil(xp.around(zheight/msdz,3)))
+
+    print('Number of slices: ', n_slices)
+    # Allocate space for multislice projection
+    projected_potent_ms = xp.zeros((image_size, image_size, n_slices), dtype=complex)
+
+    px_per_slice = int(msdz/pixel_size)
+    num_px_last_slice = box_height % px_per_slice  # consider last slice might have a different number of pixels
+
+    # Project potential for each slice (phase grating)
+    for ii in range(n_slices):
+        if ileft==0 and iright==0:
+            projected_potent_ms[:, :, ii] = rotated_volume[:,:,
+                                            ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2)  # .get()
+        else:
+            projected_potent_ms[:, :, ii] = rotated_volume[ileft:iright, ileft:iright,
+                                            ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2)  # .get()
+
+    # calculate the transmission function for each slice
+    psi_t = transmission_function(projected_potent_ms, voltage, msdz)
+
+    # calculate the fresnel propagator (identical for same dz)
+    propagator = fresnel_propagator(image_size, pixel_size, voltage, msdz)
+
+    # Wave propagation with MULTISLICE method
+    psi_multislice = xp.zeros((image_size,image_size), dtype=complex) + 1 # should be complex datatype
+
+    for ii in range(n_slices-min(1,num_px_last_slice)):
+        waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, ii]) )
+        psi_multislice = xp.fft.fftshift( xp.fft.ifftn((waveField * xp.fft.ifftshift(propagator) )) )
+
+    # Calculate propagation through last slice in case the last slice contains a different number of pixels
+    if num_px_last_slice:
+        msdz_end = num_px_last_slice * pixel_size
+        psi_t[:, :, -1] = transmission_function(projected_potent_ms[:, :, -1], voltage, msdz_end)
+        propagator_end = fresnel_propagator(image_size, pixel_size, voltage, msdz_end)
+        waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, -1]) )
+        psi_multislice = xp.fft.fftshift( xp.fft.ifftn( waveField * xp.fft.ifftshift(propagator_end) ) )
+
+    # Multiple by CTF for microscope effects on electron wave
+    wave_CTF = xp.fft.ifftshift(complex_CTF) * xp.fft.fftn(xp.fft.ifftshift(psi_multislice) )
+    # Intensity in image plane is obtained by taking the absolute square of the wave function
+    noisefree_projection = xp.abs(xp.fft.fftshift(xp.fft.ifftn(wave_CTF))) ** 2
+
+    # imshow(projected_tilt_image)
+    # show()
+    #
+    # test = xp.log(xp.abs(xp.fft.fftshift(xp.fft.fftn(projected_tilt_image))))
+    #
+    # imshow(test)
+    # show()
+    #
+    # _ = radial_average(test)
+
+    pytom.tompy.io.write('', noisefree_projection)
+
+    projection = microscope(noisefree_projection, dqe, mtf, dose=dose, pixel_size=pixel_size, binning=binning)
+
+    pytom.tompy.io.write('', projection)
+
+    return projection
+
+def generate_frame_series(output_folder, model_ID, n_frames=20, image_size=512, pixel_size=1E-9, binning=1, dose=80,
+                          voltage=300E3, spherical_aberration=2.7E-3, multislice=False, msdz=1E-9, defocus=2E-6,
+                          sigma_decay_CTF=0.4, camera_type='K2SUMMIT', camera_folder='', random_gradient=False,
+                          solvent_potential=4.5301, solvent_factor=1.0, absorption_contrast=False):
+    """
+    Creating a frame series for the initial grand model by applying stage drift (translation) and some rotations for
+    each frame, and the calculating the sample projection in the microscope. Additionally apply increasing random noise
+    to the images to imitate particle degradation through beam interaction. I cannot do this incremental as I want
+    to parallelize the rotation+projection, but the overall effect on signal should be identical.
+
+    @param output_folder:
+    @param model_ID:
+    @param n_frames:
+    @param image_size:
+    @param pixel_size:
+    @param binning:
+    @param dose:
+    @param voltage:
+    @param spherical_aberration:
+    @param multislice:
+    @param msdz:
+    @param defocus:
+    @param sigma_decay_CTF:
+    @param camera_type:
+    @param camera_folder:
+    @param random_gradient:
+    @param solvent_potential:
+    @param solvent_factor:
+    @param absorption_contrast:
+    @return:
+    """
+    # from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS as dar
+    # from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
+    # from pytom.gui.guiFunctions import savestar
+    # from scipy.ndimage import rotate
+    import detector
+    # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
+
+    # First generate stage drift and in-plane rotation, stage drift is a set of correlated translations across the
+    # number of frames. In MotionCorr2 paper accumulated motion for 20S proteasome dataset is 11A across the whole
+    # frame series.
+    # First generate global motion and global direction of motion.
+    global_motion = xp.random.normal(10, 3) # normal around mean 10 A and std 3A
+    average_motion_per_frame = global_motion / n_frames
+    global_angle = xp.random.uniform(0,360) # random angle from uniform
+    translations, cumulative_translations = [], []
+    x, y = 0, 0
+    for i in range(n_frames):
+        # randomly vary the motion per frame and angle
+        motion_i = xp.random.normal(average_motion_per_frame, average_motion_per_frame/2)
+        angle_i = xp.random.normal(global_angle, 20)
+        # decompose motion into x and y translation
+        y_i = xp.sin(angle_i * xp.pi / 180) * motion_i
+        x_i = xp.cos(angle_i * xp.pi / 180) * motion_i
+        translations.append((x_i, y_i, 0)) # append the translation for the frame as a tuple
+        y += y_i
+        x += x_i
+        cumulative_translations.append((x,y, 0)) # translation for z coordinate as we are referring to volumes
+
+    # grab model
+    save_path = f'{output_folder}/model_{model_ID}'
+    grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
+    if absorption_contrast:
+        grandcell = grandcell.astype(complex)
+        grandcell.imag = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_imag.mrc')
+        solvent_amplitude = potential_amplitude(0.93, 18, voltage) * solvent_factor
+        print(f'solvent absorption = {solvent_amplitude:.3f}')
+
+    # extract size
+    box_size = grandcell.shape[0]
+    box_height = grandcell.shape[2]
+
+    # determine dose per frame
+    dose_per_frame = dose / n_frames
+
+    # adjust defocus
+    zheight = box_height * pixel_size  # thickness of rotation volume in nm
+    defocus -= (zheight / 2)  # center defocus value at tilt angle
+
+    # confirm image size is valid
+    assert image_size <= box_size, 'Specified projection image size is invalid as it is larger than the model dimension.'
+
+    # TODO determine these inside parallel project
+    # ileft = (box_size - image_size) // 2
+    # iright = -int(xp.ceil((box_size - image_size) / 2))
+
+    # get the contrast transfer function
+    complex_CTF = create_complex_CTF_ext((image_size, image_size), pixel_size, defocus, voltage=voltage,
+                                         Cs=spherical_aberration, display_CTF=False)
+
+    dqe = detector.create_detector_response(camera_type, 'DQE', xp.zeros((image_size, image_size)), voltage=voltage,
+                                            folder=camera_folder)
+    mtf = detector.create_detector_response(camera_type, 'MTF', xp.zeros((image_size, image_size)), voltage=voltage,
+                                            folder=camera_folder)
+
+
+
+
+
+
+
+
 def reconstruct_tomogram(start_idx, end_idx, size_reconstruction, angles, output_folder, model_ID, weighting=-1):
     """
     Reconstruction of simulated tilt series into a tomogram. First creates an alignemnt file, then uses weighted back
@@ -1441,6 +1720,7 @@ if __name__ == '__main__':
     # Set simulation parameters
     try:
         output_folder = config['General']['OutputFolder']
+        simulator_mode = config['General']['Mode']
         model_ID = int(config['General']['ModelID'])
         seed = int(config['General']['Seed'])
         pixel_size = float(config['General']['PixelSize']) * 1E-9
@@ -1626,86 +1906,108 @@ if __name__ == '__main__':
                        absorption_contrast=absorption_contrast, voltage=voltage, add_membrane=add_membrane,
                        number_of_membranes=number_of_membranes)
 
-    # Generated rotated grand model versions
-    if 'Rotation' in config.sections():
-        print(f'\n- Rotating model')
+    if simulator_mode == 'Tilt-series':
+        # Generated rotated grand model versions
+        if 'Rotation' in config.sections():
+            print(f'\n- Rotating model')
 
-        # If needed, creating rotations directory, removing leftover initial rotation volume
-        dir = f'{output_folder}/model_{model_ID}/rotations'
-        if not (os.path.exists(dir)):
-            os.mkdir(dir)
-        filename = f'{dir}/rotated_volume_0.mrc'
-        if os.path.exists(filename):
-            print(f'Found leftover rotated volume 0, removing it (path: {filename}')
-            os.remove(filename)
-        if absorption_contrast:
-            filename = f'{dir}/rotated_volume_0_imag.mrc'
+            # If needed, creating rotations directory, removing leftover initial rotation volume
+            dir = f'{output_folder}/model_{model_ID}/rotations'
+            if not (os.path.exists(dir)):
+                os.mkdir(dir)
+            filename = f'{dir}/rotated_volume_0.mrc'
             if os.path.exists(filename):
                 print(f'Found leftover rotated volume 0, removing it (path: {filename}')
                 os.remove(filename)
+            if absorption_contrast:
+                filename = f'{dir}/rotated_volume_0_imag.mrc'
+                if os.path.exists(filename):
+                    print(f'Found leftover rotated volume 0, removing it (path: {filename}')
+                    os.remove(filename)
 
-        #  Create initial rotation volume (0 degree rotation)
-        volume = create_rotation_model(output_folder, model_ID, heightBox)
-        if absorption_contrast: volume_imag = create_rotation_model(output_folder, model_ID, heightBox, imaginary=True)
+            #  Create initial rotation volume (0 degree rotation)
+            volume = create_rotation_model(output_folder, model_ID, heightBox)
+            if absorption_contrast: volume_imag = create_rotation_model(output_folder, model_ID, heightBox,
+                                                                        imaginary=True)
 
-        # parallel rotate
-        sys.stdout.flush()
-        time.sleep(5)
-        # sleep helps with memory usage
-        # my theory (ilja): it gives time for garbage collector to clean up
+            # parallel rotate
+            sys.stdout.flush()
+            time.sleep(5)
+            # sleep helps with memory usage
+            # my theory (ilja): it gives time for garbage collector to clean up
 
-        from joblib import Parallel, delayed
-        verbosity = 55 # set to 55 for debugging, 11 to see progress, 0 to turn off output
+            from joblib import Parallel, delayed
 
-        # joblib automatically memory maps a numpy array to child processes
-        print(f'Rotating the model with {nodes} processes')
-        results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads")\
-            (delayed(parallel_rotate_model)(volume, f'{dir}/rotated_volume_{int(ang)}.mrc', ang)
-             for ang in angles if ang != 0.)
-        if absorption_contrast:
-            results_imag = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
-                (delayed(parallel_rotate_model)(volume_imag, f'{dir}/rotated_volume_{int(ang)}_imag.mrc', ang)
+            verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
+
+            # joblib automatically memory maps a numpy array to child processes
+            print(f'Rotating the model with {nodes} processes')
+            results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
+                (delayed(parallel_rotate_model)(volume, f'{dir}/rotated_volume_{int(ang)}.mrc', ang)
                  for ang in angles if ang != 0.)
-            results += results_imag
+            if absorption_contrast:
+                results_imag = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
+                    (delayed(parallel_rotate_model)(volume_imag, f'{dir}/rotated_volume_{int(ang)}_imag.mrc', ang)
+                     for ang in angles if ang != 0.)
+                results += results_imag
 
-        sys.stdout.flush()
-        if all(results):
-            print('All rotation processes finished successfully')
-        else:
-            print(f'{results.count(None)} rotation processes did not finish successfully')
+            sys.stdout.flush()
+            if all(results):
+                print('All rotation processes finished successfully')
+            else:
+                print(f'{results.count(None)} rotation processes did not finish successfully')
 
-    # Generate noise-free projections
-    if 'GenerateProjections' in config.sections():
-        # set seed for random number generation
-        xp.random.seed(seed)
-        random.seed(seed)
-        # Grab the ice thickness from the initial model
-        ice_thickness = (
+        # Generate noise-free projections
+        if 'GenerateProjections' in config.sections():
+            # set seed for random number generation
+            xp.random.seed(seed)
+            random.seed(seed)
+            # Grab the ice thickness from the initial model
+            ice_thickness = (
                     pytom.tompy.io.read_mrc(f'{output_folder}/model_{model_ID}/grandmodel_original.mrc').shape[2] *
                     pixel_size)
 
-        print('\n- Generating projections')
-        generate_projections(angles, output_folder, model_ID, image_size=image_size, pixel_size=pixel_size, binning=binning,
-                             ice_thickness=ice_thickness, dose=dose, voltage=voltage, spherical_aberration=spherical_aberration,
+            print('\n- Generating projections')
+            generate_projections(angles, output_folder, model_ID, image_size=image_size, pixel_size=pixel_size,
+                                 binning=binning,
+                                 ice_thickness=ice_thickness, dose=dose, voltage=voltage,
+                                 spherical_aberration=spherical_aberration,
+                                 multislice=multislice, msdz=msdz, defocus=defocus,
+                                 sigma_decay_CTF=sigma_decay_CTF, camera_type=camera_type, camera_folder=camera_folder,
+                                 random_gradient=random_gradient, random_rotation=random_rotation,
+                                 solvent_potential=solvent_potential,
+                                 solvent_factor=solvent_factor, absorption_contrast=absorption_contrast)
+
+            if delete_rotations_flag:
+                # grab all files in rotations/
+                print('-- Deleting rotation files')
+                folder = f'{output_folder}/model_{model_ID}/rotations'
+                for filename in os.listdir(folder):
+                    file_path = os.path.join(folder, filename)
+                    try:
+                        if os.path.isfile(file_path) or os.path.islink(file_path):
+                            os.unlink(file_path)
+                    except Exception as e:
+                        print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+        # Reconstruct tomogram
+        if 'ReconstructTomogram' in config.sections():
+            print('\n- Reconstructing tomogram')
+            reconstruct_tomogram(start, end, sizeRecon, angles, output_folder, model_ID, weighting=weighting)
+
+    elif simulator_mode == 'Frame-series':
+        generate_frame_series(output_folder, model_ID, n_frames=n_frames, image_size=image_size, pixel_size=pixel_size,
+                             binning=binning,
+                             ice_thickness=ice_thickness, dose=dose, voltage=voltage,
+                             spherical_aberration=spherical_aberration,
                              multislice=multislice, msdz=msdz, defocus=defocus,
                              sigma_decay_CTF=sigma_decay_CTF, camera_type=camera_type, camera_folder=camera_folder,
-                             random_gradient=random_gradient, random_rotation=random_rotation, solvent_potential=solvent_potential,
+                             random_gradient=random_gradient, random_rotation=random_rotation,
+                             solvent_potential=solvent_potential,
                              solvent_factor=solvent_factor, absorption_contrast=absorption_contrast)
+    else:
+        print('Invalid simulation mode specified in config file.')
+        sys.exit(0)
 
-        if delete_rotations_flag:
-            # grab all files in rotations/
-            print('-- Deleting rotation files')
-            folder = f'{output_folder}/model_{model_ID}/rotations'
-            for filename in os.listdir(folder):
-                file_path = os.path.join(folder, filename)
-                try:
-                    if os.path.isfile(file_path) or os.path.islink(file_path):
-                        os.unlink(file_path)
-                except Exception as e:
-                    print('Failed to delete %s. Reason: %s' % (file_path, e))
 
-    # Reconstruct tomogram
-    if 'ReconstructTomogram' in config.sections():
-        print('\n- Reconstructing tomogram')
-        reconstruct_tomogram(start, end, sizeRecon, angles, output_folder, model_ID, weighting=weighting)
 
