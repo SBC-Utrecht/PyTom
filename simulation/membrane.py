@@ -374,14 +374,14 @@ if __name__ == '__main__':
 
     folder = '/data2/mchaillet/structures'
 
-    N = 1000
-    alpha = 10000
-    voxel = 2.62 * 2 # A
+    N = 300
+    alpha = 2000
+    voxel = 2.62 # A
     pdb = f'{folder}/pdb/lipid/dppc128_dehydrated.pdb'
     solvent = 4.5301
     voltage = 300E3
 
-    points = sample_points_ellipsoid(N, a=700, b=800, c=650)
+    points = sample_points_ellipsoid(N, a=225, b=250, c=240)
     surface = triangulate(points, alpha)
 
     volume = membrane_potential(surface, voxel, pdb, solvent, voltage)
@@ -391,7 +391,7 @@ if __name__ == '__main__':
     from potential import reduce_resolution_2, bin
 
     name = 'bilayer'
-    size = '70x80x65nm'
+    size = '45x50x48nm' # double the values of the ellipsoid radii
 
     real_fil = reduce_resolution_2(real, voxel, 2 * voxel)
     imag_fil = reduce_resolution_2(imag, voxel, 2 * voxel)
@@ -399,10 +399,10 @@ if __name__ == '__main__':
     write(f'{folder}/potential/membrane/{name}_{voxel:.2f}A_{size}_4.53V_real.mrc', real)
     write(f'{folder}/potential/membrane/{name}_{voxel:.2f}A_{size}_4.53V_imag_300V.mrc', imag)
 
-    binning = 4
+    binning = 2
 
-    real_bin = bin(reduce_resolution_2(real, voxel, binning * voxel), binning)
-    imag_bin = bin(reduce_resolution_2(imag, voxel, binning * voxel), binning)
+    real_bin = bin(reduce_resolution_2(real, voxel, binning * voxel * 2), binning) # *2 still?
+    imag_bin = bin(reduce_resolution_2(imag, voxel, binning * voxel * 2), binning)
 
     write(f'{folder}/potential/membrane/{name}_{voxel*binning:.2f}A_{size}_4.53V_real.mrc', real_bin)
     write(f'{folder}/potential/membrane/{name}_{voxel*binning:.2f}A_{size}_4.53V_imag_300V.mrc', imag_bin)

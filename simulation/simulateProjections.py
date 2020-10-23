@@ -140,7 +140,8 @@ def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=
         gold_amplitude = potential_amplitude(19.3, 197, voltage)
         gold_imaginary = bead * (gold_amplitude - solvent_amplitude)
         # filter and bin
-        gold_imaginary = bin(reduce_resolution(gold_imaginary, voxel_size_nm, voxel_size_nm*2), binning)
+        gold_imaginary = bin(gold_imaginary, binning)
+        # gold_imaginary = bin(reduce_resolution(gold_imaginary, voxel_size_nm, voxel_size_nm*2), binning)
 
     # values transformed to occupied volume per voxel from 1 nm**3 per voxel to actual voxel size
     solvent_correction = bead * (solvent_potential * solvent_factor)
@@ -154,7 +155,8 @@ def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=
     gold_potential = gold_atoms * gold_scattering_factors[0:5].sum() * C / voxel_volume / 1000
     gold_real = gold_potential - solvent_correction
     # filter and bin
-    gold_real = bin(reduce_resolution(gold_real, voxel_size_nm, voxel_size_nm * 2), binning)
+    # gold_real = bin(reduce_resolution(gold_real, voxel_size_nm, voxel_size_nm * 2), binning)
+    gold_real = bin(gold_real, binning)
 
     if imaginary:
         return gold_real, gold_imaginary
@@ -205,11 +207,11 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
                 volumes_imag.append(vol_imag)
             else:
                 vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixelSize*1E10:.2f}A_solvent-'
-                                              f'{solvent_potential*solvent_factor:.3f}V.mrc')
-                dx, dy, dz = vol.shape
-                vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
-                vol2[dx//2:-dx//2, dy//2:-dy//2, dz//2:-dz//2] = vol
-                volumes.append(vol2)
+                                              f'{solvent_potential*solvent_factor:.3f}V_real.mrc')
+                # dx, dy, dz = vol.shape
+                # vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
+                # vol2[dx//2:-dx//2, dy//2:-dy//2, dz//2:-dz//2] = vol
+                volumes.append(vol)
         except Exception as ee:
             print(ee)
             raise Exception('Could not open pdb ', pdb)
@@ -244,12 +246,12 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
             # create the gold marker in other function
             if absorption_contrast:
                 membrane_vol = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixelSize*1E10:.2f}A_'
-                                                   f'35x40x35nm_{solvent_potential*solvent_factor:.2f}V_real.mrc')
+                                                   f'45x50x48nm_{solvent_potential*solvent_factor:.2f}V_real.mrc')
                 membrane_vol_imag = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixelSize*1E10:.2f}A_'
-                                                   f'35x40x35nm_{solvent_potential*solvent_factor:.2f}V_imag_300V.mrc')
+                                                   f'45x50x48nm_{solvent_potential*solvent_factor:.2f}V_imag_300V.mrc')
             else:
                 membrane_vol = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixelSize*1E10:.2f}A_'
-                                                   f'35x40x35nm_{solvent_potential*solvent_factor:.2f}V.mrc')
+                                                   f'45x50x48nm_{solvent_potential*solvent_factor:.2f}V.mrc')
 
             u = xp.random.uniform(0.0, 1.0, (2,))
             theta = xp.arccos(2 * u[0] - 1)
@@ -283,7 +285,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
             while tries_left > 0:
                 loc_x = xp.random.randint(loc_x_start + xx // 2 + 1, loc_x_end - xx // 2 - 1)
                 loc_y = xp.random.randint(loc_y_start + yy // 2 + 1, loc_y_end - yy // 2 - 1)
-                loc_z = xp.random.randint(zz // 2 + 1, Z - zz // 2 - 1)
+                loc_z = xp.random.randint(zz // 2 + 1, Z - zz // 2 - 1) # TODO error for membranes here
 
                 tries_left -= 1
 
@@ -417,7 +419,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
 
             # populate density volume
             cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += gold_marker
-            cell_imag[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += gold_imag
+            if absorption_contrast: cell_imag[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += gold_imag
 
             # update stats
             particle_nr += 1
@@ -1058,6 +1060,7 @@ def microscope(noisefree_projections, angles, ice_thickness=200, dose=80, pixel_
             projection_poisson += ( xp.random.poisson(lam=poisson_mean) / binning**2 )
             # imshow(projection_poisson)
             # show()
+        # projection_poisson = xp.random.poisson(lam=poisson_mean)
 
         # Image values are now in ADU
         # Apply the camera's noise transfer function to the noisy image

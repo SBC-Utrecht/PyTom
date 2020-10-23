@@ -568,7 +568,7 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_m
     """
     from scipy.special import erf
 
-    extra_space = 20  # extend volume by 30 A in all directions
+    extra_space = 30  # extend volume by 30 A in all directions
 
     print(f' - Calculating IASA potential from {filename}')
 
@@ -718,8 +718,17 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_m
         if solvent_masking:
             imaginary = smoothed_mask * (molecule_absorption - solvent_absorption)
         else:
-            imaginary = (real > 0) * (molecule_absorption - solvent_absorption)
-
+            cutoff = 0.8 * potential[potential > 0].mean()
+            solvent_mask = (potential > cutoff) * 1.0
+            smoothed_mask = reduce_resolution(solvent_mask, voxel_size, voxel_size * 2)
+            smoothed_mask[smoothed_mask < 0.001] = 0
+            imaginary = smoothed_mask * (molecule_absorption - solvent_absorption)
+            # show 2d slice of imaginary
+            fig, (ax1, ax2) = plt.subplots(1, 2)
+            slice = int(imaginary.shape[2] // 2)
+            ax1.imshow(real[:, :, slice])
+            ax2.imshow(imaginary[:, :, slice])
+            show()
         return [real, imaginary]
     else:
         return [real]
@@ -1097,8 +1106,8 @@ def wrapper(file, input_folder, output_folder, voxel_size, binning=None, exclude
         # first filter the volume!
         if absorption_contrast:
             print(' - Filtering volume')
-            filtered = [reduce_resolution_2(v_atom[0], voxel_size, voxel_size * binning),
-                        reduce_resolution_2(v_atom[1], voxel_size, voxel_size * binning)]
+            filtered = [reduce_resolution_2(v_atom[0], voxel_size, voxel_size * 2 * binning),
+                        reduce_resolution_2(v_atom[1], voxel_size, voxel_size * 2 * binning)]
             print(' - Binning volume')
             binned = [bin(filtered[0], binning), bin(filtered[1], binning)]
 
@@ -1108,7 +1117,7 @@ def wrapper(file, input_folder, output_folder, voxel_size, binning=None, exclude
 
         else:
             print(' - Filtering volume')
-            filtered = reduce_resolution_2(v_atom, voxel_size, voxel_size*binning)
+            filtered = reduce_resolution_2(v_atom, voxel_size, voxel_size * 2 * binning)
             print(' - Binning volume')
             binned = bin(filtered, binning)
             if exclude_solvent or solvent_masking:
