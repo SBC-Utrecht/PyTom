@@ -18,10 +18,12 @@ from tqdm import tqdm
 import time
 
 # Plotting
-import matplotlib as plt
+import matplotlib
 # use Qt5Agg to prevent conflict with tkinter in pylab.
-plt.use('Qt5Agg')
-from pylab import *
+# plt.use('Qt5Agg')
+# use Agg for plotting without display on cluster nodes
+matplotlib.use('Agg')
+import matplotlib.pylab as plt
 
 # math
 from pytom.basic.files import *
@@ -163,7 +165,7 @@ def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=
 
 
 def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize = 1, binning=1, size=1024, thickness=200,
-                   solvent_potential=4.5301, solvent_factor=1.0, sigma_structural=0.2, numberOfParticles=1000,
+                   solvent_potential=4.5301, solvent_factor=1.0, numberOfParticles=1000,
                    placement_size=512, retries=5000, add_gold_markers=True, number_of_markers=20,
                    absorption_contrast=False, voltage=300E3, add_membrane=False, number_of_membranes=1):
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
@@ -862,6 +864,7 @@ def create_complex_CTF(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, sigm
 
 def create_complex_CTF_ext(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, display_CTF=False):
     """
+    TODO extend function chromatic abberation, energy spread, illumination aperture, objective diameter, focus length
     Adapated from Vulovic et al., 2013. Returns a complex contrast transfer function. Dimensions of input image or
     volume should be equal. Only phase part of CTF.
 
@@ -1080,7 +1083,7 @@ def microscope(noisefree_projections, angles, ice_thickness=200, dose=80, pixel_
 
 def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel_size=1E-9, binning=1, ice_thickness=200E-9,
                          dose=80, voltage=300E3, spherical_aberration=2.7E-3, multislice=False, msdz=5E-9,
-                         defocus=2E-6, sigma_decay_CTF=0.4, camera_type='K2SUMMIT',
+                         defocus=2E-6, sigma_damage=0.0, camera_type='K2SUMMIT',
                          camera_folder='', random_gradient=False, random_rotation=False, solvent_potential=4.5301,
                          solvent_factor=1.0, absorption_contrast=False):
     """
@@ -1113,8 +1116,8 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
     @type amplitudeContrast
     @param defocus:
     @type defocus:
-    @param sigmaDecayCTF:
-    @type sigmaDecayCTF:
+    @param sigma_damage:
+    @type sigma_damage:
     @param camera_type:
     @type camera_type:
     @param camera_folder:
@@ -1332,9 +1335,8 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
     return
 
 
-def microscope_single_projection(noisefree_projection, dqe, mtf, dose=80, pixel_size=1E-9, binning=1):
+def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_size, binning=1):
     """
-    TODO add parameters for camera type and folder with detector data
     Inspired by InSilicoTEM (Vulovic et al., 2013)
     @author: Marten Chaillet
     """
@@ -1376,13 +1378,12 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose=80, pixel_
     #                 # readout noise and can hence be neglected
 
     # Add readout noise and dark noise in real space
-    projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier))) # + readsim + darksim
-
-    return projection
+    return xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier))) # + readsim + darksim
 
 
-def parallel_project_frame_series(sample, frame, translation, rotation, add_ice=False, solvent_potential=4.5301,
-                                  solvent_absorption=0.209, image_size=None, pixel_size, msdz):
+def parallel_project_frame_series(grandcell, folder, frame, image_size, pixel_size, msdz, ctf, dose, dqe, mtf, binning=1,
+                                  translation=(.0,.0,.0), rotation=(.0,.0,.0), solvent_potential=0.0,
+                                  solvent_absorption=0.0, sigma_damage=0.0):
     """
     Only use multislice for this.
     @param model:
@@ -1394,6 +1395,8 @@ def parallel_project_frame_series(sample, frame, translation, rotation, add_ice=
     from voltools import transform
 
     print('Transforming and damaging sample for frame ', frame)
+
+    sample = grandcell.copy()
 
     # model parameter is a complex volume or real volume depending on the addition of absorption contrast
     # first transform the volume
@@ -1418,22 +1421,22 @@ def parallel_project_frame_series(sample, frame, translation, rotation, add_ice=
 
     # apply structural deterioration due to beam damage via random noise with increment based on frame number
     # incremental damage based on frame number
-    sample += xp.random.normal(0, frame*sigma_structural, sample.shape)
+    if not (sigma_damage==0.0):
+        sample += xp.random.normal(0, frame*sigma_damage, sample.shape)
 
     # add the ice layer to the sample
-    if add_ice:
-        if sample.dtype == 'complex':
-            sample.real += solvent_potential
-            sample.imag += solvent_absorption
-        else:
-            sample += solvent_potential
+    if sample.dtype == 'complex':
+        sample.real += solvent_potential
+        sample.imag += solvent_absorption
+    else:
+        sample += solvent_potential
 
     print('Simulating projection with multislice method for frame ', frame)
     # Start with projection, first prepare parameters
     box_size = sample.shape[0]
     box_height = sample.shape[2]
+    zheight = box_height * pixel_size
 
-    if image_size is None: image_size = box_size
     ileft = (box_size - image_size) // 2
     iright = -int(xp.ceil((box_size - image_size) / 2))
 
@@ -1459,11 +1462,10 @@ def parallel_project_frame_series(sample, frame, translation, rotation, add_ice=
     # Project potential for each slice (phase grating)
     for ii in range(n_slices):
         if ileft==0 and iright==0:
-            projected_potent_ms[:, :, ii] = rotated_volume[:,:,
-                                            ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2)  # .get()
+            projected_potent_ms[:, :, ii] = sample[:,:, ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2) #.get()
         else:
-            projected_potent_ms[:, :, ii] = rotated_volume[ileft:iright, ileft:iright,
-                                            ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2)  # .get()
+            projected_potent_ms[:, :, ii] = sample[ileft:iright, ileft:iright,
+                                            ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2) #.get()
 
     # calculate the transmission function for each slice
     psi_t = transmission_function(projected_potent_ms, voltage, msdz)
@@ -1471,26 +1473,28 @@ def parallel_project_frame_series(sample, frame, translation, rotation, add_ice=
     # calculate the fresnel propagator (identical for same dz)
     propagator = fresnel_propagator(image_size, pixel_size, voltage, msdz)
 
-    # Wave propagation with MULTISLICE method
-    psi_multislice = xp.zeros((image_size,image_size), dtype=complex) + 1 # should be complex datatype
+    # Wave propagation with MULTISLICE method, psi_multislice is complex
+    psi_multislice = xp.zeros((image_size,image_size), dtype=complex) + 1 # +1 for initial probability
 
+    # Loop over all the slices, except the last one if it has a different slice size
     for ii in range(n_slices-min(1,num_px_last_slice)):
-        waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, ii]) )
-        psi_multislice = xp.fft.fftshift( xp.fft.ifftn((waveField * xp.fft.ifftshift(propagator) )) )
+        wave_field = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, ii]) )
+        psi_multislice = xp.fft.fftshift( xp.fft.ifftn((wave_field * xp.fft.ifftshift(propagator) )) )
 
     # Calculate propagation through last slice in case the last slice contains a different number of pixels
     if num_px_last_slice:
         msdz_end = num_px_last_slice * pixel_size
         psi_t[:, :, -1] = transmission_function(projected_potent_ms[:, :, -1], voltage, msdz_end)
         propagator_end = fresnel_propagator(image_size, pixel_size, voltage, msdz_end)
-        waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, -1]) )
-        psi_multislice = xp.fft.fftshift( xp.fft.ifftn( waveField * xp.fft.ifftshift(propagator_end) ) )
+        wave_field = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, -1]) )
+        psi_multislice = xp.fft.fftshift( xp.fft.ifftn( wave_field * xp.fft.ifftshift(propagator_end) ) )
 
     # Multiple by CTF for microscope effects on electron wave
-    wave_CTF = xp.fft.ifftshift(complex_CTF) * xp.fft.fftn(xp.fft.ifftshift(psi_multislice) )
+    wave_ctf = xp.fft.ifftshift(ctf) * xp.fft.fftn(xp.fft.ifftshift(psi_multislice) )
     # Intensity in image plane is obtained by taking the absolute square of the wave function
-    noisefree_projection = xp.abs(xp.fft.fftshift(xp.fft.ifftn(wave_CTF))) ** 2
+    noisefree_projection = xp.abs(xp.fft.fftshift(xp.fft.ifftn(wave_ctf))) ** 2
 
+    # DEBUGGING
     # imshow(projected_tilt_image)
     # show()
     #
@@ -1501,18 +1505,18 @@ def parallel_project_frame_series(sample, frame, translation, rotation, add_ice=
     #
     # _ = radial_average(test)
 
-    pytom.tompy.io.write('', noisefree_projection)
+    # Apply the microscope function
+    projection = microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_size, binning=binning)
+    # Write the projection to the projection folder
+    pytom.tompy.io.write(f'{folder}/synthetic_{frame+1}.mrc', projection)
+    # Return noisefree and projection as tuple for writing as mrc stack in higher function
+    return (noisefree_projection, projection)
 
-    projection = microscope(noisefree_projection, dqe, mtf, dose=dose, pixel_size=pixel_size, binning=binning)
 
-    pytom.tompy.io.write('', projection)
-
-    return projection
-
-def generate_frame_series(output_folder, model_ID, n_frames=20, image_size=512, pixel_size=1E-9, binning=1, dose=80,
-                          voltage=300E3, spherical_aberration=2.7E-3, multislice=False, msdz=1E-9, defocus=2E-6,
-                          sigma_decay_CTF=0.4, camera_type='K2SUMMIT', camera_folder='', random_gradient=False,
-                          solvent_potential=4.5301, solvent_factor=1.0, absorption_contrast=False):
+def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, image_size=None, pixel_size=1E-9,
+                              binning=1, dose=80, voltage=300E3, spherical_aberration=2.7E-3,
+                              msdz=1E-9, defocus=2E-6, sigma_damage=0.0, camera_type='K2SUMMIT', camera_folder='',
+                              solvent_potential=4.5301, absorption_contrast=False):
     """
     Creating a frame series for the initial grand model by applying stage drift (translation) and some rotations for
     each frame, and the calculating the sample projection in the microscope. Additionally apply increasing random noise
@@ -1540,46 +1544,37 @@ def generate_frame_series(output_folder, model_ID, n_frames=20, image_size=512, 
     @param absorption_contrast:
     @return:
     """
-    # from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS as dar
-    # from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
-    # from pytom.gui.guiFunctions import savestar
-    # from scipy.ndimage import rotate
+    from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS as dar
+    from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
+    from pytom.gui.guiFunctions import savestar
     import detector
+    from joblib import Parallel, delayed
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
-
-    # First generate stage drift and in-plane rotation, stage drift is a set of correlated translations across the
-    # number of frames. In MotionCorr2 paper accumulated motion for 20S proteasome dataset is 11A across the whole
-    # frame series.
-    # First generate global motion and global direction of motion.
-    global_motion = xp.random.normal(10, 3) # normal around mean 10 A and std 3A
-    average_motion_per_frame = global_motion / n_frames
-    global_angle = xp.random.uniform(0,360) # random angle from uniform
-    translations, cumulative_translations = [], []
-    x, y = 0, 0
-    for i in range(n_frames):
-        # randomly vary the motion per frame and angle
-        motion_i = xp.random.normal(average_motion_per_frame, average_motion_per_frame/2)
-        angle_i = xp.random.normal(global_angle, 20)
-        # decompose motion into x and y translation
-        y_i = xp.sin(angle_i * xp.pi / 180) * motion_i
-        x_i = xp.cos(angle_i * xp.pi / 180) * motion_i
-        translations.append((x_i, y_i, 0)) # append the translation for the frame as a tuple
-        y += y_i
-        x += x_i
-        cumulative_translations.append((x,y, 0)) # translation for z coordinate as we are referring to volumes
 
     # grab model
     save_path = f'{output_folder}/model_{model_ID}'
-    grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
+    grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original.mrc')
     if absorption_contrast:
         grandcell = grandcell.astype(complex)
-        grandcell.imag = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_imag.mrc')
-        solvent_amplitude = potential_amplitude(0.93, 18, voltage) * solvent_factor
+        grandcell.imag = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original_imag.mrc')
+        # calculate the absorption for amorphous ice at the specified voltage
+        solvent_amplitude = potential_amplitude(0.93, 18, voltage)
         print(f'solvent absorption = {solvent_amplitude:.3f}')
 
     # extract size
     box_size = grandcell.shape[0]
     box_height = grandcell.shape[2]
+
+    if image_size is None:
+        image_size = box_size
+
+    # confirm image_size is valid
+    assert image_size <= box_size, 'Specified projection image size is invalid as it is larger than the model dimension.'
+
+    # create folder for individual projections
+    projection_folder = f'{save_path}/projections'
+    if not os.path.exists(projection_folder):
+        os.mkdir(projection_folder)
 
     # determine dose per frame
     dose_per_frame = dose / n_frames
@@ -1588,27 +1583,87 @@ def generate_frame_series(output_folder, model_ID, n_frames=20, image_size=512, 
     zheight = box_height * pixel_size  # thickness of rotation volume in nm
     defocus -= (zheight / 2)  # center defocus value at tilt angle
 
-    # confirm image size is valid
-    assert image_size <= box_size, 'Specified projection image size is invalid as it is larger than the model dimension.'
+    # First generate stage drift and in-plane rotation, stage drift is a set of correlated translations across the
+    # number of frames. In MotionCorr2 paper accumulated motion for 20S proteasome dataset is 11A across the whole
+    # frame series.
+    # First generate global motion and global direction of motion.
+    global_motion = xp.random.normal(10, 3) # normal around mean 10 A and std 3A
+    average_motion_per_frame = global_motion / n_frames
+    global_angle = xp.random.uniform(0,360) # random angle from uniform
+    translations, cumulative_translations, translations_voxel = [], [], []
+    x, y = 0, 0
+    for i in range(n_frames):
+        # randomly vary the motion per frame and angle
+        motion_i = xp.random.normal(average_motion_per_frame, average_motion_per_frame/2)
+        angle_i = xp.random.normal(global_angle, 20)
+        # decompose motion into x and y translation
+        y_i = xp.sin(angle_i * xp.pi / 180) * motion_i
+        x_i = xp.cos(angle_i * xp.pi / 180) * motion_i
+        # TODO decide if translations can be removed, only seem to need cumulative_translations
+        translations.append((x_i, y_i, 0)) # append the translation for the frame as a tuple
+        y += y_i
+        x += x_i
+        cumulative_translations.append((x,y, 0)) # translation for z coordinate as we are referring to volumes
+        translations_voxel.append((x*1E-10 / pixel_size, y*1E-10 / pixel_size, 0))
 
-    # TODO determine these inside parallel project
-    # ileft = (box_size - image_size) // 2
-    # iright = -int(xp.ceil((box_size - image_size) / 2))
+    # write movement to a png file as reference!
+    # fig, ax = plt.subplots(2)
+    # ax[0].plot([x for (x,y,z) in cumulative_translations], [y for (x,y,z) in cumulative_translations], label='trajectory')
+    # ax[0].set_xlabel('x (A)')
+    # ax[0].set_ylabel('y (A)')
+    # ax[0].legend()
+    # ax[1].plot([x for (x,y,z) in translations_voxel], [y for (x,y,z) in translations_voxel], label='trajectory')
+    # ax[1].set_xlabel('x (voxels)')
+    # ax[1].set_ylabel('y (voxels)')
+    # ax[1].legend()
+    # plt.savefig(f'{save_path}/global_motion.png')
+    # plt.close()
 
     # get the contrast transfer function
-    complex_CTF = create_complex_CTF_ext((image_size, image_size), pixel_size, defocus, voltage=voltage,
-                                         Cs=spherical_aberration, display_CTF=False)
+    ctf = create_complex_CTF_ext((image_size, image_size), pixel_size,
+                                 defocus, voltage=voltage, Cs=spherical_aberration, display_CTF=False)
 
     dqe = detector.create_detector_response(camera_type, 'DQE', xp.zeros((image_size, image_size)), voltage=voltage,
                                             folder=camera_folder)
     mtf = detector.create_detector_response(camera_type, 'MTF', xp.zeros((image_size, image_size)), voltage=voltage,
                                             folder=camera_folder)
 
+    # joblib automatically memory maps a numpy array to child processes
+    print(f'Projecting the model with {nodes} processes')
 
+    verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
+    results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
+        (delayed(parallel_project_frame_series)(grandcell, projection_folder, frame, image_size, pixel_size, msdz, ctf,
+                                                dose_per_frame, dqe, mtf, binning=binning, translation=shift, rotation=(.0,.0,.0),
+                                                solvent_potential=solvent_potential, solvent_absorption=solvent_amplitude,
+                                                sigma_damage=sigma_damage)
+         for frame, shift in enumerate(translations_voxel))
 
+    sys.stdout.flush()
+    if results.count(None) == 0:
+        print('All projection processes finished successfully')
+    else:
+        print(f'{results.count(None)} rotation processes did not finish successfully')
 
+    # write (noisefree) projections as mrc stacks
+    pytom.tompy.io.write(f'{save_path}/noisefree_projections.mrc', xp.stack([n for (n,p) in results], axis=2))
+    pytom.tompy.io.write(f'{save_path}/projections.mrc', xp.stack([p for (n, p) in results], axis=2))
 
+    # Store translations as reference for model
+    # len(angles) is the number of files that we have
+    alignment = xp.zeros(n_frames, dtype=dar)
+    alignment['AlignmentTransX'] = xp.array([x for (x,y,z) in cumulative_translations])
+    alignment['AlignmentTransY'] = xp.array([y for (x,y,z) in cumulative_translations])
+    alignment['Magnification'] = xp.repeat(1.0, n_frames)
+    # if in_plane_rotation:
+    #     alignment['InPlaneRotation'] = random_angles
+    for i in range(n_frames):
+        alignment['FileName'][i] = f'{projection_folder}/synthetic_{i+1}.mrc'
 
+    # Write the alignment file as a text file
+    alignment_file = f'{projection_folder}/alignment_simulated.txt'
+    savestar(alignment_file, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
+    return
 
 
 def reconstruct_tomogram(start_idx, end_idx, size_reconstruction, angles, output_folder, model_ID, weighting=-1):
@@ -1700,6 +1755,10 @@ def reconstruct_tomogram(start_idx, end_idx, size_reconstruction, angles, output
 
 if __name__ == '__main__':
 
+    import tracemalloc
+
+    tracemalloc.start()
+
     # Read config
     config = configparser.ConfigParser()
     try:
@@ -1747,6 +1806,8 @@ if __name__ == '__main__':
 
         # voltage is needed at multiple points now that we add absorption contrast
         voltage = metadata['Voltage'][0] * 1E3  # voltage in keV
+        device = config['General']['Device']
+        nodes = int(config['General']['Nodes'])
 
         print(f'Generating model {model_ID} in folder {output_folder}')
     except Exception as e:
@@ -1760,7 +1821,6 @@ if __name__ == '__main__':
             listpdbs = eval(config['GenerateModel']['Models'])
             placement_size = int(config['GenerateModel']['PlacementSize'])
             size = int(config['GenerateModel']['Size'])
-            sigma_structural = float(config['GenerateModel']['SigmaStructuralNoise'])
             add_gold_markers = config['GenerateModel'].getboolean('GoldMarkers')
             if add_gold_markers:
                 m_range = number_of_markers = config['GenerateModel']['NumberOfMarkers'].split('-')
@@ -1805,7 +1865,6 @@ if __name__ == '__main__':
     if 'Rotation' in config.sections():
         try:
             heightBox = int(config['Rotation']['HeightBox'])
-            nodes = int(config['Rotation']['Nodes'])
         except Exception as e:
             print(e)
             raise Exception('Missing rotation parameters in config file.')
@@ -1818,7 +1877,7 @@ if __name__ == '__main__':
                 msdz = float(config['GenerateProjections']['MultiSliceSize']) * 1E-9 # multislice step size in nm
             else:
                 msdz = 0
-            sigma_decay_CTF = float(config['GenerateProjections']['SigmaDecayCTF'])
+            sigma_structural = float(config['GenerateProjections']['SigmaStructuralNoise'])
             camera_type = config['GenerateProjections']['Camera']
             camera_folder = config['GenerateProjections']['CameraFolder']
             random_gradient = config['GenerateProjections'].getboolean('RandomGradient')
@@ -1850,6 +1909,8 @@ if __name__ == '__main__':
                 defocus = float(defocus_range[0]) * 1E-6
 
             delete_rotations_flag = config['GenerateProjections'].getboolean('DeleteRotations')
+
+            n_frames = int(config['GenerateProjections']['NumberOfFrames'])
 
             # pixelSize = 1E-9 # We want to get this from the metafile eventually
             # pixelSize = metadata['PixelSpacing'][0] * 1E-9 # pixel size in nm
@@ -1901,8 +1962,7 @@ if __name__ == '__main__':
         generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize=pixel_size, binning=binning,
                        size=size, thickness=thickness, placement_size=placement_size,
                        solvent_potential=solvent_potential, solvent_factor=solvent_factor,
-                       numberOfParticles=numberOfParticles, sigma_structural=sigma_structural,
-                       add_gold_markers=add_gold_markers, number_of_markers=number_of_markers,
+                       numberOfParticles=numberOfParticles, add_gold_markers=add_gold_markers, number_of_markers=number_of_markers,
                        absorption_contrast=absorption_contrast, voltage=voltage, add_membrane=add_membrane,
                        number_of_membranes=number_of_membranes)
 
@@ -1973,7 +2033,7 @@ if __name__ == '__main__':
                                  ice_thickness=ice_thickness, dose=dose, voltage=voltage,
                                  spherical_aberration=spherical_aberration,
                                  multislice=multislice, msdz=msdz, defocus=defocus,
-                                 sigma_decay_CTF=sigma_decay_CTF, camera_type=camera_type, camera_folder=camera_folder,
+                                 sigma_damage=sigma_structural, camera_type=camera_type, camera_folder=camera_folder,
                                  random_gradient=random_gradient, random_rotation=random_rotation,
                                  solvent_potential=solvent_potential,
                                  solvent_factor=solvent_factor, absorption_contrast=absorption_contrast)
@@ -1996,18 +2056,26 @@ if __name__ == '__main__':
             reconstruct_tomogram(start, end, sizeRecon, angles, output_folder, model_ID, weighting=weighting)
 
     elif simulator_mode == 'Frame-series':
-        generate_frame_series(output_folder, model_ID, n_frames=n_frames, image_size=image_size, pixel_size=pixel_size,
-                             binning=binning,
-                             ice_thickness=ice_thickness, dose=dose, voltage=voltage,
-                             spherical_aberration=spherical_aberration,
-                             multislice=multislice, msdz=msdz, defocus=defocus,
-                             sigma_decay_CTF=sigma_decay_CTF, camera_type=camera_type, camera_folder=camera_folder,
-                             random_gradient=random_gradient, random_rotation=random_rotation,
-                             solvent_potential=solvent_potential,
-                             solvent_factor=solvent_factor, absorption_contrast=absorption_contrast)
+        xp.random.seed(seed)
+        random.seed(seed)
+        print('\n- Generate frame series projections')
+        if device == 'CPU':
+            generate_frame_series_cpu(output_folder, model_ID, n_frames=n_frames, nodes=nodes ,image_size=image_size,
+                                      pixel_size=pixel_size, binning=binning, dose=dose, voltage=voltage,
+                                      spherical_aberration=spherical_aberration, msdz=msdz, defocus=defocus,
+                                      sigma_damage=sigma_structural, camera_type=camera_type, camera_folder=camera_folder,
+                                      solvent_potential=solvent_potential, absorption_contrast=absorption_contrast)
+        elif device == 'GPU':
+            print('This option needs to be implemented.')
+            sys.exit(0)
+        else:
+            print('Invalid device type.')
+            sys.exit(0)
     else:
         print('Invalid simulation mode specified in config file.')
         sys.exit(0)
 
-
+    current, peak = tracemalloc.get_traced_memory()
+    print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
+    tracemalloc.stop()
 

@@ -609,7 +609,7 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_m
         a = sf[0:5]
         b = sf[5:10]
 
-        b += (b_factor) # units in A
+        # b += (b_factor) # units in A
 
         if atom in list(phys.volume_displaced):
             r_0 = xp.cbrt(phys.volume_displaced[atom] / (xp.pi ** (3 / 2)))
