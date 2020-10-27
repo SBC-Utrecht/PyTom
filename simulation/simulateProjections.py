@@ -1466,6 +1466,8 @@ def parallel_project_frame_series(grandcell, folder, frame, image_size, pixel_si
         else:
             projected_potent_ms[:, :, ii] = sample[ileft:iright, ileft:iright,
                                             ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2) #.get()
+    # at this point we no longer need the sample
+    del sample
 
     # calculate the transmission function for each slice
     psi_t = transmission_function(projected_potent_ms, voltage, msdz)
@@ -1606,7 +1608,7 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
         cumulative_translations.append((x,y, 0)) # translation for z coordinate as we are referring to volumes
         translations_voxel.append((x*1E-10 / pixel_size, y*1E-10 / pixel_size, 0))
 
-    # write movement to a png file as reference!
+    # write motion trajectory to a png file for debugging
     # fig, ax = plt.subplots(2)
     # ax[0].plot([x for (x,y,z) in cumulative_translations], [y for (x,y,z) in cumulative_translations], label='trajectory')
     # ax[0].set_xlabel('x (A)')
