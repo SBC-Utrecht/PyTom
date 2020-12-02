@@ -189,7 +189,7 @@ def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=
         return gold_real
 
 
-def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize = 1, binning=1, size=1024, thickness=200,
+def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixel_size = 1, binning=1, size=1024, thickness=200,
                    solvent_potential=4.5301, solvent_factor=1.0, numberOfParticles=1000,
                    placement_size=512, retries=5000, number_of_markers=0,
                    absorption_contrast=False, voltage=300E3, number_of_membranes=0):
@@ -217,9 +217,9 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
             # rotate
             # then bin
             if absorption_contrast:
-                vol_real = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixelSize*1E10:.2f}A_solvent-'
+                vol_real = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixel_size*1E10:.2f}A_solvent-'
                                               f'{solvent_potential*solvent_factor:.3f}V_real.mrc')
-                vol_imag = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixelSize*1E10:.2f}A_solvent-'
+                vol_imag = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixel_size*1E10:.2f}A_solvent-'
                                                    f'{solvent_potential*solvent_factor:.3f}V_imag.mrc')
                 assert vol_real.shape == vol_imag.shape, print(f'real and imaginary interaction potential not the same '
                                                                f'shape for {pdb}')
@@ -231,7 +231,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
                 volumes.append(vol_real)
                 volumes_imag.append(vol_imag)
             else:
-                vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixelSize*1E10:.2f}A_solvent-'
+                vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixel_size*1E10:.2f}A_solvent-'
                                               f'{solvent_potential*solvent_factor:.3f}V_real.mrc')
                 # dx, dy, dz = vol.shape
                 # vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
@@ -270,12 +270,12 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
 
             # create the gold marker in other function
             if absorption_contrast:
-                membrane_vol = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixelSize*1E10:.2f}A_'
+                membrane_vol = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixel_size*1E10:.2f}A_'
                                                    f'45x50x48nm_{solvent_potential*solvent_factor:.2f}V_real.mrc')
-                membrane_vol_imag = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixelSize*1E10:.2f}A_'
+                membrane_vol_imag = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixel_size*1E10:.2f}A_'
                                                    f'45x50x48nm_{solvent_potential*solvent_factor:.2f}V_imag_300V.mrc')
             else:
-                membrane_vol = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixelSize*1E10:.2f}A_'
+                membrane_vol = pytom.tompy.io.read_mrc(f'{particleFolder}/cell_structures/bilayer_{pixel_size*1E10:.2f}A_'
                                                    f'45x50x48nm_{solvent_potential*solvent_factor:.2f}V.mrc')
 
             u = xp.random.uniform(0.0, 1.0, (2,))
@@ -369,11 +369,11 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
 
             # create the gold marker in other function
             if absorption_contrast:
-                gold_marker, gold_imag = create_gold_marker(pixelSize, solvent_potential, binning=binning,
+                gold_marker, gold_imag = create_gold_marker(pixel_size, solvent_potential, binning=binning,
                                                             solvent_factor=solvent_factor,
                                                             imaginary=True, voltage=voltage)
             else:
-                gold_marker = create_gold_marker(pixelSize, solvent_potential, binning=binning,
+                gold_marker = create_gold_marker(pixel_size, solvent_potential, binning=binning,
                                                  solvent_factor=solvent_factor)
 
             u = xp.random.uniform(0.0, 1.0, (2,))
@@ -558,6 +558,11 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixelSize 
     # print('Adding structural noise to grand model cell')
     # noisy_cell = cell #+ xp.random.normal(0, sigma_structural, cell.shape)
     # pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree_original.mrc', cell)
+
+    # motion blur
+    # from scipy.ndimage import gaussian_filter
+    # gaussian_filter(cell, sigma=1/(pixel_size*1E9), output=cell)
+    # gaussian_filter(cell_imag, sigma=1/(pixel_size*1E9), output=cell_imag)
 
     # save grandmodels
     print('Saving grandmodels')
@@ -770,8 +775,8 @@ def create_ice_layer(shape, angle, width, value=1.0, sigma=0.0):
     ysize = shape[1]
     zsize = shape[2]
 
-    x = xp.arange(-xsize / 2, xsize / 2, 1)
-    z = xp.arange(-zsize / 2, zsize / 2, 1)
+    x = xp.arange(-xsize / 2, xsize / 2, 1, dtype=xp.float32)
+    z = xp.arange(-zsize / 2, zsize / 2, 1, dtype=xp.float32)
     zm = xp.tile(z[xp.newaxis, :], [xsize, 1])
 
     xline = x * xp.tan(-angle * xp.pi / 180)
@@ -798,7 +803,7 @@ def create_ice_layer(shape, angle, width, value=1.0, sigma=0.0):
     grad2 = (grad2 - grad2.min()) / (grad2.max() - grad2.min())
 
     # if a sigma is provided apply gaussian filter
-    if sigma > 0:
+    if not (sigma == 0.0):
         layer = gaussian_filter(grad1 * grad2 * value, sigma=sigma)
     else:
         layer = grad1 * grad2 * value
@@ -889,7 +894,7 @@ def create_complex_CTF(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, sigm
 
 def create_complex_CTF_ext(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-3, Cc=2.7E-3,
                            energy_spread=0.7, illumination_aperture=0.030E-3, objective_diameter=100E-6,
-                           focus_length=4.7E-3, astigmatism=0.0E-9, astigmatism_angle=0, display_CTF=False):
+                           focus_length=4.7E-3, astigmatism=0.0, astigmatism_angle=0.0, display_CTF=False):
     """
         # parameters for extended CTF function (InSilicoTEM)
     chromatic_abberation    = 2.7E-3 # C_c
@@ -897,6 +902,8 @@ def create_complex_CTF_ext(image_shape, pixel_size, defocus, voltage=300E3, Cs=2
     illumination_aperture   = 0.030E-3 # a_i
     objective_diameter      = 100E-6 #
     focus_length            = 4.7E-3 # focal distance
+    astigmatism in 0.0E-9
+    astigmatism angle in degrees
 
     Adapated from Vulovic et al., 2013. Returns a complex contrast transfer function. Dimensions of input image or
     volume should be equal. Only phase part of CTF.
@@ -992,10 +999,10 @@ def transmission_function(sliced_potential, voltage, dz):
     return xp.exp(1j * sigma_transfer * sliced_potential * dz)
 
 
-def fresnel_propagator(imageSize, pixelSize, voltage, dz):
+def fresnel_propagator(imageSize, pixel_size, voltage, dz):
     Lambda = wavelength_eV2m(voltage)
 
-    xwm = pixelSize * (imageSize)  # pixelsize for multislice * size sample
+    xwm = pixel_size * (imageSize)  # pixelsize for multislice * size sample
     q_true_pix_m = 1 / xwm  # spacing in Fourier space
     x_line = xp.arange(-(imageSize - 1) / 2, (imageSize - 1) / 2 + 1, 1)
     [xv, yv] = xp.meshgrid(x_line, x_line)
@@ -1358,9 +1365,10 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
     Inspired by InSilicoTEM (Vulovic et al., 2013)
     @author: Marten Chaillet
     """
+    from scipy.ndimage import shift
 
     ntf = xp.sqrt(mtf ** 2 / dqe) # square root because dqe = mtf^2 / ntf^2
-    ntf[ntf == 0] = max(min(ntf), 1E-7) # ensure we do not divide by zero
+    ntf = xp.maximum(ntf, 1E-7) # ensure we do not divide by zero
     mtf_shift = xp.fft.ifftshift(mtf)
     ntf_shift = xp.fft.ifftshift(ntf)
 
@@ -1378,10 +1386,13 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
     # conversion_factor = 100  # in ADU/e- , this is an arbitrary unit. Value taken from Vulovic et al., 2010
 
     # Apply poissonian noise
-    poisson_mean = projection * dose_per_pixel
+    # poisson_mean = projection * dose_per_pixel
+    sigma_motion = 0 / (pixel_size*1E9)
     projection_poisson = xp.zeros(projection.shape)
     for _ in range(binning**2):
-        projection_poisson += ( xp.random.poisson(lam=poisson_mean) / binning**2 )
+        translation = (xp.random.normal(0, sigma_motion), xp.random.normal(0, sigma_motion))
+        projection_poisson += (
+                xp.random.poisson(lam=shift(projection, translation, mode='nearest') * dose_per_pixel) / binning**2 )
         # imshow(projection_poisson)
         # show()
 
@@ -1419,18 +1430,18 @@ def parallel_project(grandcell, folder, frame, image_size, pixel_size, msdz, n_s
 
     # model parameter is a complex volume or real volume depending on the addition of absorption contrast
     # first transform the volume
-    if sample.dtype == 'complex':
-        sample.real = transform(sample.real, translation=translation, rotation=rotation, rotation_order='sxyz',
-                                interpolation='filt_bspline', device='cpu')
-        sample.imag = transform(sample.imag, translation=translation, rotation=rotation, rotation_order='sxyz',
-                                interpolation='filt_bspline', device='cpu')
+    if sample.dtype == 'complex64':
+        transform(sample.real, translation=translation, rotation=rotation, rotation_order='sxyz',
+                                interpolation='filt_bspline', device='cpu', output=sample.real)
+        transform(sample.imag, translation=translation, rotation=rotation, rotation_order='sxyz',
+                                interpolation='filt_bspline', device='cpu', output=sample.imag)
         # remove rotation artifacts
         threshold = 0.001
         sample.real[sample.real < threshold] = 0
         sample.imag[sample.imag < threshold] = 0
-    elif sample.dtype == 'float':
-        sample = transform(sample, translation=translation, rotation=rotation, rotation_order='sxyz',
-                                interpolation='filt_bspline', device='cpu')
+    elif sample.dtype == 'float32':
+        transform(sample, translation=translation, rotation=rotation, rotation_order='sxyz',
+                                interpolation='filt_bspline', device='cpu', output=sample)
         # remove rotation artifacts
         threshold = 0.001
         sample[sample < threshold] = 0
@@ -1438,47 +1449,54 @@ def parallel_project(grandcell, folder, frame, image_size, pixel_size, msdz, n_s
         print('Invalid dtype of sample.')
         sys.exit(0)
 
-    print('Simulating projection with multislice method for frame ', frame)
+    print('Simulating projection with multislice method for frame/tilt ', frame)
     # Start with projection, first prepare parameters
     box_size = sample.shape[0]
     box_height = sample.shape[2]
 
     # add the ice layer to the sample
-    if ice_voxels is None: # this does not seem like the best condition
+    if ice_voxels is None: # this does not seem like the best condition 'or not sample.dtype=='complex64' '
         ice_layer = 1
     else:
         ice_layer = create_ice_layer(sample.shape, rotation[1], ice_voxels, value=1.0, sigma=0.0)
-
+        # ice layer datatype at this point should be np.float32
+        # print(f'data type of ice: {ice_layer.dtype}')
     # apply structural deterioration due to beam damage via random noise with increment based on frame number
     # incremental damage based on frame number
-    if not (sigma_damage == 0.0):
-        # this does not add noise to imaginary part, but maybe not needed
-        sample += ( ice_layer * xp.random.normal(0, sigma_damage, sample.shape) )
+    # if not (sigma_damage == 0.0):
+    #     # this does not add noise to imaginary part, but maybe not needed
+    #     sample += ( ice_layer * xp.random.normal(0, sigma_damage, sample.shape) )
 
-    if sample.dtype == 'complex':
+    if sample.dtype == 'complex64':
         sample.real += ( ice_layer * solvent_potential ) # Maybe we can remove this? Are we only interested in absorption of ice layer?
-        sample.imag += ( ice_layer * solvent_absorption )
+        # ice_layer *= solvent_absorption
+        sample.imag += (ice_layer *solvent_absorption )
     else:
         sample += ( ice_layer * solvent_potential )
 
     del ice_layer # free memory
 
-    ileft = (box_size - image_size) // 2
-    iright = -int(xp.ceil((box_size - image_size) / 2))
+    if n_slices==box_height and image_size==box_size:
+        projected_potent_ms = sample
+        px_per_slice = 1
+        num_px_last_slice = box_height % px_per_slice
+    else:
+        ileft = (box_size - image_size) // 2
+        iright = -int(xp.ceil((box_size - image_size) / 2))
 
-    # Allocate space for multislice projection
-    projected_potent_ms = xp.zeros((image_size, image_size, n_slices), dtype=complex)
+        # Allocate space for multislice projection
+        projected_potent_ms = xp.zeros((image_size, image_size, n_slices), dtype=xp.complex64)
 
-    px_per_slice = int(msdz/pixel_size)
-    num_px_last_slice = box_height % px_per_slice  # consider last slice might have a different number of pixels
+        px_per_slice = int(msdz/pixel_size)
+        num_px_last_slice = box_height % px_per_slice  # consider last slice might have a different number of pixels
 
-    # Project potential for each slice (phase grating)
-    for ii in range(n_slices):
-        if ileft==0 and iright==0:
-            projected_potent_ms[:, :, ii] = sample[:,:, ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2) #.get()
-        else:
-            projected_potent_ms[:, :, ii] = sample[ileft:iright, ileft:iright,
-                                            ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2) #.get()
+        # Project potential for each slice (phase grating)
+        for ii in range(n_slices):
+            if ileft==0 and iright==0:
+                projected_potent_ms[:, :, ii] = sample[:,:, ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2) #.get()
+            else:
+                projected_potent_ms[:, :, ii] = sample[ileft:iright, ileft:iright,
+                                                ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2) #.get()
     # at this point we no longer need the sample, because all information in now contained in the projected slices
     # free the memory to accomodate space
     del sample
@@ -1490,7 +1508,7 @@ def parallel_project(grandcell, folder, frame, image_size, pixel_size, msdz, n_s
     propagator = fresnel_propagator(image_size, pixel_size, voltage, msdz)
 
     # Wave propagation with MULTISLICE method, psi_multislice is complex
-    psi_multislice = xp.zeros((image_size,image_size), dtype=complex) + 1 # +1 for initial probability
+    psi_multislice = xp.zeros((image_size,image_size), dtype=xp.complex64) + 1 # +1 for initial probability
 
     # Loop over all the slices, except the last one if it has a different slice size
     for ii in range(n_slices-min(1,num_px_last_slice)):
@@ -1541,27 +1559,33 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
     import detector
     from joblib import Parallel, delayed
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
+    save_path = f'{output_folder}/model_{model_ID}'
     # create folder for individual projections
     projection_folder = f'{save_path}/projections'
     if not os.path.exists(projection_folder):
         os.mkdir(projection_folder)
 
     # grab model
-    save_path = f'{output_folder}/model_{model_ID}'
     grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original.mrc')
     if absorption_contrast:
-        grandcell = grandcell.astype(xp.complex64)
+        xp_type = xp.complex64
+        grandcell = grandcell.astype(xp_type)
         grandcell.imag = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original_imag.mrc')
         # calculate the absorption for amorphous ice at the specified voltage
         solvent_amplitude = potential_amplitude(0.93, 18, voltage)
         print(f'solvent absorption = {solvent_amplitude:.3f}')
+    else:
+        xp_type = xp.float32
+        grandcell = grandcell.astype(xp_type)
+        solvent_amplitude = 0.0
 
     box_size = grandcell.shape[0]
     box_height = grandcell.shape[2]
 
+    # For sample set the arrays specifically to np.complex64 datatype to save memory space
     if rotation_box_height is not None:
         # Use the specified rotation box height
-        rotation_volume = xp.zeros((box_size, box_size, rotation_box_height), dtype=xp.complex64)
+        rotation_volume = xp.zeros((box_size, box_size, rotation_box_height), dtype=xp_type) # TODO datatype should not be complex if working with only real potential
         offset = (rotation_box_height - box_height) // 2
 
         if (rotation_box_height - box_height) % 2:
@@ -1575,7 +1599,7 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
                                           thickness_voxels / xp.cos(max_tilt * xp.pi / 180)))
         if rotation_box_height % 2: rotation_box_height += 1
         # Place grandcell in rotation volume
-        rotation_volume = xp.zeros((box_size, box_size, rotation_box_height), dtype=xp.complex64)
+        rotation_volume = xp.zeros((box_size, box_size, rotation_box_height), dtype=xp_type)
         offset = (rotation_box_height - box_height) // 2
 
         if (rotation_box_height - box_height) % 2:
@@ -1621,12 +1645,25 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
     # determine dose per frame
     dose_per_tilt = dose / len(angles)
 
-    # get the contrast transfer function
-    ctf = create_complex_CTF_ext((image_size, image_size), pixel_size, defocus, voltage=voltage,
-                                 Cs=spherical_aberration, Cc=chromatic_aberration, energy_spread=energy_spread,
-                                 illumination_aperture=illumination_aperture, objective_diameter=objective_diameter,
-                                 focus_length=focus_length, astigmatism=astigmatism,
-                                 astigmatism_angle=astigmatism_angle, display_CTF=False)
+    # create motion blur by introducing random  x,y translation for each tilt
+    sigma_motion = 0.0 # nm
+    translations = []
+    for i in angles:
+        x = xp.random.normal(0, sigma_motion) / (pixel_size*1E9)
+        y = xp.random.normal(0, sigma_motion) / (pixel_size*1E9)
+        # print((x,y,0.0))
+        translations.append((x,y,0.0))
+
+    # defocus_series = [xp.random.normal(defocus, 0.2E-6) for a in angles]
+    ctf_series = []
+    for i in angles:
+        dz = xp.random.normal(defocus, 0.2E-6)
+        ctf = create_complex_CTF_ext((image_size, image_size), pixel_size, dz, voltage=voltage,
+                                     Cs=spherical_aberration, Cc=chromatic_aberration, energy_spread=energy_spread,
+                                     illumination_aperture=illumination_aperture, objective_diameter=objective_diameter,
+                                     focus_length=focus_length, astigmatism=astigmatism,
+                                     astigmatism_angle=astigmatism_angle, display_CTF=False)
+        ctf_series.append(ctf)
 
     dqe = detector.create_detector_response(camera_type, 'DQE', xp.zeros((image_size, image_size)), voltage=voltage,
                                             folder=camera_folder)
@@ -1639,11 +1676,11 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
     verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
         (delayed(parallel_project)(rotation_volume, projection_folder, i, image_size, pixel_size, msdz, n_slices, ctf,
-                                   dose_per_tilt, dqe, mtf, voltage, binning=binning, translation=(.0,.0,.0),
+                                   dose_per_tilt, dqe, mtf, voltage, binning=binning, translation=translation,
                                    rotation=(.0, angle, .0), solvent_potential=solvent_potential,
                                    solvent_absorption=solvent_amplitude, sigma_damage=sigma_damage,
                                    ice_voxels=box_height)
-         for i, angle in enumerate(angles))
+         for i, (angle, translation, ctf) in enumerate(zip(angles, translations, ctf_series)))
 
     sys.stdout.flush()
     if results.count(None) == 0:
@@ -1707,6 +1744,9 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
     from pytom.gui.guiFunctions import savestar
     import detector
     from joblib import Parallel, delayed
+
+    save_path = f'{output_folder}/model_{model_ID}'
+
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
     # create folder for individual projections
     projection_folder = f'{save_path}/projections'
@@ -1714,14 +1754,16 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
         os.mkdir(projection_folder)
 
     # grab model
-    save_path = f'{output_folder}/model_{model_ID}'
     grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original.mrc')
     if absorption_contrast:
-        grandcell = grandcell.astype(complex)
+        grandcell = grandcell.astype(xp.complex64)
         grandcell.imag = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original_imag.mrc')
         # calculate the absorption for amorphous ice at the specified voltage
         solvent_amplitude = potential_amplitude(0.93, 18, voltage)
         print(f'solvent absorption = {solvent_amplitude:.3f}')
+    else:
+        grandcell = grandcell.astype(xp.float32)
+        solvent_amplitude = 0.0
 
     # extract size
     box_size = grandcell.shape[0]
@@ -1848,7 +1890,7 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
     return
 
 
-def reconstruct_tomogram(size_reconstruction, output_folder, model_ID, weighting=-1, crop=False):
+def reconstruct_tomogram(size_reconstruction, output_folder, model_ID, weighting=-1, crop=False, binning=1):
     """
     Reconstruction of simulated tilt series into a tomogram. First creates an alignemnt file, then uses weighted back
     projection to make a reconstruction.
@@ -1888,16 +1930,16 @@ def reconstruct_tomogram(size_reconstruction, output_folder, model_ID, weighting
 
     projections = ProjectionList()
     # IMPORTANT: angles *-1 to get the right reconstrunction relative to the orignal model!
-    for d in alignment_data:
-        # In the alignment file the angles were already multiplied by -1
-        p = Projection(d[5], tiltAngle= d[2])
-        # Old method: here we multiply by -1 to get right angles
-        # p = Projection(f'{save_path}/projections/synthetic_{i+1}.mrc', tiltAngle=-1 * angles[i - 1])
-        projections.append(p)
+    # for d in alignment_data:
+    #     # In the alignment file the angles were already multiplied by -1
+    #     p = Projection(d[5], tiltAngle= d[2])
+    #     # Old method: here we multiply by -1 to get right angles
+    #     # p = Projection(f'{save_path}/projections/synthetic_{i+1}.mrc', tiltAngle=-1 * angles[i - 1])
+    #     projections.append(p)
 
     outputname = f'{save_path}/reconstruction.em'
     # IF EM alignment file provided, filters applied and reconstruction will be identical.
-    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=1,
+    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=binning,
                                         applyWeighting=weighting, alignResultFile=alignment_file)
     vol.write(outputname)
     os.system(f'em2mrc.py -f {outputname} -t {os.path.dirname(outputname)}')
@@ -2014,12 +2056,12 @@ if __name__ == '__main__':
             camera                  = config['Microscope']['Camera']
             camera_folder           = config['Microscope']['CameraFolder']
             defocus                 = draw_range(literal_eval(config['Microscope']['Defocus']), float, 'Defocus') * 1E-6
-            electron_dose           = config['Microscope'].getfloat('ElectronDose')
+            electron_dose           = draw_range(literal_eval(config['Microscope']['ElectronDose']), float, 'ElectronDose')
             spherical_aberration    = config['Microscope'].getfloat('SphericalAberration') * 1E-3
             chromatic_aberration    = config['Microscope'].getfloat('ChromaticAberration') * 1E-3
             energy_spread           = config['Microscope'].getfloat('EnergySpread')
             illumination_aperture   = config['Microscope'].getfloat('IlluminationAperture') * 1E-3
-            objective_diameter      = config['Microscope'].getfloat('ObjetiveDiameter') * 1E-6
+            objective_diameter      = config['Microscope'].getfloat('ObjectiveDiameter') * 1E-6
             focus_length            = config['Microscope'].getfloat('FocalDistance') * 1E-3
             astigmatism             = config['Microscope'].getfloat('Astigmatism') * 1E-9
             astigmatism_angle       = config['Microscope'].getfloat('AstigmatismAngle')
@@ -2047,6 +2089,7 @@ if __name__ == '__main__':
         try:
             weighting           = config['TomogramReconstruction'].getint('Weighting')
             reconstruction_size = config['TomogramReconstruction'].getint('ReconstructionSize')
+            reconstruction_bin  = config['TomogramReconstruction'].getint('Binning')
         except Exception as e:
             print(e)
             raise Exception('Missing tomogram reconstruction parameters in config file.')
@@ -2054,9 +2097,6 @@ if __name__ == '__main__':
     # Create directories and logger
     if not os.path.exists(os.path.join(output_folder, f'model_{model_ID}')):
         os.mkdir(os.path.join(output_folder, f'model_{model_ID}'))
-
-    if os.path.exists(f'{output_folder}/model_{model_ID}/simulator.log'):
-        os.remove(f'{output_folder}/model_{model_ID}/simulator.log')
 
     logging.basicConfig(filename='{}/model_{}/simulator-{date:%Y-%m-%d_%H:%M:%S}.log'.format(output_folder, model_ID,
                                                                                              date=datetime.datetime.now()), level=logging.INFO)
@@ -2071,7 +2111,7 @@ if __name__ == '__main__':
         logging.info(f'# of membranes = {number_of_membranes}')
     if 'Microscope' in config.sections():
         logging.info(f'defocus = {defocus*1E6:.2f}um')
-        logging.info(f'dose = {dose} e-/A^2')
+        logging.info(f'electron dose = {electron_dose} e-/A^2')
 
     # Generate a grand model
     if 'GenerateModel' in config.sections():
@@ -2081,7 +2121,7 @@ if __name__ == '__main__':
 
         print('\n- Generating grand model')
         generate_model(particle_folder, output_folder, model_ID, listpdbs,
-                       pixelSize            =pixel_size,
+                       pixel_size           =pixel_size,
                        binning              =binning,
                        size                 =size,
                        thickness            =thickness_voxels,
@@ -2167,9 +2207,9 @@ if __name__ == '__main__':
         print('Invalid simulation mode specified in config file.')
         sys.exit(0)
 
-    if 'ReconstructTomogram' in config.sections():
+    if 'TomogramReconstruction' in config.sections():
         print('\n- Reconstructing tomogram')
-        reconstruct_tomogram(reconstruction_size, output_folder, model_ID, weighting=weighting)
+        reconstruct_tomogram(reconstruction_size, output_folder, model_ID, weighting=weighting, binning=reconstruction_bin)
 
     current, peak = tracemalloc.get_traced_memory()
     print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")

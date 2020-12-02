@@ -51,31 +51,12 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
         return xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
 
 
-# def create_gaussian_low_pass(size, radius, center=None):
-#     """
-#     Create a 3D mask with gaussian edges.
-#
-#     @param size: size of the resulting volume.
-#     @param cutoff: radius of the sphere inside the volume.
-#     @param center: sigma of the Gaussian.
-#     @param gpu: center of the sphere.
-#
-#     @return: sphere inside a volume.
-#     """
-#     assert len(size) == 3
-#
-#     if center is None:
-#         center = [size[0]/2, size[1]/2, size[2]/2]
-#
-#     [x,y,z] = xp.mgrid[0:size[0], 0:size[1], 0:size[2]]
-#     r = xp.sqrt((x-center[0])**2+(y-center[1])**2+(z-center[2])**2)
-#
-#     filter = xp.exp(-(r ** 2) / (2 * radius ** 2))
-#
-#     return filter
+def fourier_filter(volume, filter):
+    ft = xp.fft.fftn(xp.fft.ifftshift(volume))
+    return xp.fft.fftshift(xp.fft.ifftn(ft * xp.fft.ifftshift(filter))).real  # shift center to origin
 
 
-def create_gaussian_low_pass(size, hwhm, center=None):
+def create_gaussian_low_pass(size, cutoff, center=None):
     """
     NOTE: MOVE FUNCTION TO TOMPY.FILTER
     Create a 3D mask with gaussian edges.
@@ -89,8 +70,8 @@ def create_gaussian_low_pass(size, hwhm, center=None):
     assert len(size) == 3
 
     # full width at half maximum is two times the half width at half maximum (or cutoff)
-    sigma = 2*hwhm / 2.355 # obtain sigma by dividing by 2 * sqrt( 2 * ln(2) )
-    sigma *= 0.75 # factor for obtaining functioning filter? 0.8 gives the best results
+    c = 2  # or can be set to np.sqrt(2) for butterworth filter
+    sigma_cutoff = cutoff / xp.sqrt(2 * xp.log(c))
 
     if center is None:
         center = [(size[0]-1)/2, (size[1]-1)/2, (size[2]-1)/2]
@@ -98,7 +79,7 @@ def create_gaussian_low_pass(size, hwhm, center=None):
     [x,y,z] = xp.mgrid[0:size[0], 0:size[1], 0:size[2]]
     r = xp.sqrt((x-center[0])**2+(y-center[1])**2+(z-center[2])**2)
 
-    filter = xp.exp(-r ** 2 / (2 * sigma ** 2))
+    filter = xp.exp(-r ** 2 / (2 * sigma_cutoff ** 2))
 
     return filter
 
@@ -132,12 +113,9 @@ def reduce_resolution(map, voxel_size, resolution):
     # NOTE: if resolution == 2*voxel_size, filter radius will be 0.5 * map.shape[0]. I.E. no filtering. This is correct
     # because the highest possible resolution (nyquist) equals 2*voxel_size.
     # create full gaussian mask
-    mask = create_gaussian_low_pass( map.shape, nr_pixels_cutoff )
+    filter = create_gaussian_low_pass( map.shape, nr_pixels_cutoff )
     # apply mask in fourier space
-    # result = fourier_filter(map, mask, human=True)
-    ft_map = xp.fft.fftn( xp.fft.ifftshift( map ) ) # shift center to origin
-    result = xp.fft.fftshift( xp.fft.ifftn( ft_map * xp.fft.ifftshift( mask) ) ) # shift center of mask to origin
-    return result.real
+    return fourier_filter(map, filter)
 
 
 def reduce_resolution_2(map, voxel_size, resolution):
@@ -149,36 +127,13 @@ def reduce_resolution_2(map, voxel_size, resolution):
     return xp.fft.ifftn(result).real
 
 
-def low_pass_filter(map, voxel_size, resolution):
-    """
-    Accepts only square input maps to easy low-pass filtering
-
-    @param map: Volume
-    @type map: 3d numpy array
-    @param voxel_size: Voxel size of the volume in A
-    @type voxel_size: float
-    @param to_resolution: Desired resolution after applying low-pass filter
-    @type to_resolution: float
-    @param sharpness: ratio
-    @type sharpness: float
-
-    @return: Filtered volume
-    @rtype: 3d numpy array
-
-    @author: Marten Chaillet
-    """
-    from pytom.tompy.transform import fourier_filter
-    from pytom.tompy.tools import create_sphere
-
-    assert resolution > voxel_size, "the requested resolution is non-valid as it is smaller than the voxel size"
-    assert len(set(map.shape)) == 1, "dimensions of input are not equal"
-
-    # calculate radius of mask from pixels needed in fourier space for the desired resolution
-    nr_pixels_fourier = (map.shape[0] * voxel_size) / resolution
-    mask = create_sphere(map.shape, radius=nr_pixels_fourier, sigma=15, num_sigma=10)
-    # apply mask in fourier space
-    result = fourier_filter(map, mask, human=True)
-    return result
+# def create_gaussian_blur(shape, sigma_motion, voxel_size):
+#
+#
+# def motion_blur(volume, sigma_motion, voxel_size):
+#
+#     filter = create_gaussian_blur(volume.shape, sigma_motion, voxel_size)
+#     return fourier_filter(volume, filter)
 
 
 def scale(volume, factor):
@@ -544,7 +499,7 @@ def read_structure(filename):
     return x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies
 
 
-def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_masking=False, V_sol=4.5301,
+def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=False, solvent_masking=False, V_sol=4.5301,
                      absorption_contrast=False, voltage=300E3, density=1.35, molecular_weight=7.2, solvent_factor=1.0,
                      structure_tuple=None):
     """
@@ -567,6 +522,9 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_m
     @author: Marten Chaillet
     """
     from scipy.special import erf
+
+    if oversampling > 1:
+        voxel_size /= oversampling
 
     extra_space = 30  # extend volume by 30 A in all directions
 
@@ -688,20 +646,19 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_m
     if solvent_exclusion:
         # Correct for solvent and convert both the solvent and potential array to the correct units.
         real = (potential / dV * C) - (solvent / dV * (V_sol * solvent_factor))
-    elif solvent_masking:
+    elif solvent_masking: # only if voxel size is small enough for accurate determination of mask
+        solvent_mask = (potential > 0.00001) * 1.0
         # construct solvent mask
-        # solvent_mask = xp.zeros_like(potential)
-        cutoff = potential[potential > 0].mean()
-        solvent_mask = (potential > 0.7 * cutoff) * 1.6
-        # print(solvent_mask.shape)
         # gaussian decay of mask
-        smoothed_mask = reduce_resolution(solvent_mask, voxel_size, voxel_size * 4)
+        # cutoff = potential[potential > 0].mean()
+        # solvent_mask = (potential > 0.7 * cutoff) * 1.6
+        smoothed_mask = reduce_resolution(solvent_mask, voxel_size, voxel_size * 2)
         smoothed_mask[smoothed_mask < 0.001] = 0
-        # fig, (ax1, ax2) = plt.subplots(1, 2)
-        # slice = int(solvent_mask.shape[2] // 2)
-        # ax1.imshow(solvent_mask[:, :, slice ])
-        # ax2.imshow(smoothed_mask[:, :, slice ])
-        # show()
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        slice = int(solvent_mask.shape[2] // 2)
+        ax1.imshow(potential[:, :, slice])
+        ax2.imshow(smoothed_mask[:, :, slice])
+        show()
         real = (potential / dV * C) - (smoothed_mask * (V_sol * solvent_factor))
     else:
         real = potential / dV * C
@@ -715,22 +672,39 @@ def iasa_integration(filename, voxel_size=1., solvent_exclusion=False, solvent_m
         print(f'molecule absorption = {molecule_absorption:.3f}')
         print(f'solvent absorption = {solvent_absorption:.3f}')
 
-        if solvent_masking:
-            imaginary = smoothed_mask * (molecule_absorption - solvent_absorption)
-        else:
-            cutoff = 0.8 * potential[potential > 0].mean()
-            solvent_mask = (potential > cutoff) * 1.0
-            smoothed_mask = reduce_resolution(solvent_mask, voxel_size, voxel_size * 2)
-            smoothed_mask[smoothed_mask < 0.001] = 0
-            imaginary = smoothed_mask * (molecule_absorption - solvent_absorption)
-            # show 2d slice of imaginary
-            fig, (ax1, ax2) = plt.subplots(1, 2)
-            slice = int(imaginary.shape[2] // 2)
-            ax1.imshow(real[:, :, slice])
-            ax2.imshow(imaginary[:, :, slice])
-            show()
+        imaginary = solvent/dV * (molecule_absorption - solvent_absorption)
+
+        # if solvent_masking:
+        #     imaginary = smoothed_mask * (molecule_absorption - solvent_absorption)
+        # else:
+        #     if voxel_size > 7: # At too large spacings this becomes incorrect again....
+        #         # Only do this for large voxel spacing and large macromolecule. The max value should then represent
+        #         # average protein potential in a voxel 'fully filled' with protein atoms. We then use that to scale
+        #         # all values between 0 and 1 so that we get a gradient between solvent (0.0) and protein (1.0),
+        #         # representing relative occupation.
+        #         if voxel_size>15:
+        #             print('Warning: assignment of imaginary part of molecules potential can become incorrect at'
+        #                   'voxel spacing >15A.')
+        #         imaginary = (molecule_absorption - solvent_absorption) * (real / real.max())
+        #     elif voxel_size < 2: # for tiny voxels create a binary mask, here we can 'safely' assume the potential
+        #         # overlaps with the occupied space of the protein.
+        #         imaginary = (molecule_absorption - solvent_absorption) * (potential > 0.001) # threshold of 0.01 is occupied
+        #         # and filter to remove hard edges?
+        #     else:
+        #         cutoff = 0.5 * potential[potential > 0.001].mean()
+        #         imaginary = (potential > cutoff) * 1.0 * (molecule_absorption - solvent_absorption)
+
+        if oversampling > 1:
+            real = reduce_resolution(real, voxel_size, voxel_size*2*oversampling)
+            real = bin(real, oversampling)
+            imaginary = reduce_resolution(imaginary, voxel_size, voxel_size*2*oversampling)
+            imaginary = bin(imaginary, oversampling)
+
         return [real, imaginary]
     else:
+        if oversampling > 1:
+            real = reduce_resolution(real, voxel_size, voxel_size*2*oversampling)
+            real = bin(real, oversampling)
         return [real]
 
 
@@ -1058,7 +1032,7 @@ def combine_potential(iasa_potential, bond_potential, voxel_size):
     return iasa_potential, bond_potential, full_potential
 
 
-def wrapper(file, input_folder, output_folder, voxel_size, binning=None, exclude_solvent=False, solvent_masking=False,
+def wrapper(file, input_folder, output_folder, voxel_size, oversampling=1, binning=None, exclude_solvent=False, solvent_masking=False,
             solvent_potential=4.5301, absorption_contrast=False, voltage=300E3, solvent_factor=1.0):
     import pytom.tompy.io
     # TODO function can be executed in parallel for multiple structures
@@ -1079,26 +1053,26 @@ def wrapper(file, input_folder, output_folder, voxel_size, binning=None, exclude
     # 4 times oversampling of IASA yields accurate potentials
     # Could be {structure}.{extension}, but currently chimera is only able to produce .pdb files, so the extended
     # structure file created by call chimera has a .pdb extension.
-    v_atom = iasa_integration(f'{output_folder}/{structure}.pdb', voxel_size=voxel_size,
+    v_atom = iasa_integration(f'{output_folder}/{structure}.pdb', voxel_size=voxel_size, oversampling=oversampling,
                               solvent_exclusion=exclude_solvent, solvent_masking=solvent_masking, V_sol=solvent_potential,
                               absorption_contrast= absorption_contrast, voltage=voltage, solvent_factor=solvent_factor)
     # Absorption contrast map generated here will look blocky when generated at 2.5A and above!
     if absorption_contrast:
         print(' - Filtering volume')
-        print(v_atom[0].shape, v_atom[1].shape)
-        filtered = [reduce_resolution_2(v_atom[0], voxel_size, 2*voxel_size),
-                    reduce_resolution_2(v_atom[1], voxel_size, 2*voxel_size)]
+        # print(v_atom[0].shape, v_atom[1].shape)
+        filtered = [reduce_resolution(v_atom[0], voxel_size, 2*voxel_size),
+                    reduce_resolution(v_atom[1], voxel_size, 2*voxel_size)]
         output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
         pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', filtered[0])
         pytom.tompy.io.write(f'{output_folder}/{output_name}_imag.mrc', filtered[1])
     else:
         print(' - Filtering volume')
-        filtered = reduce_resolution_2(v_atom[0], voxel_size, 2*voxel_size)
+        filtered = reduce_resolution(v_atom[0], voxel_size, 2*voxel_size)
         if exclude_solvent or solvent_masking:
             output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
         else:
             output_name = f'{pdb_id}_{voxel_size:.2f}A'
-        pytom.tompy.io.write(f'{output_folder}/{output_name}.mrc', filtered)
+        pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', filtered)
 
     if binning is not None:
         # v_atom_binned = iasa_integration(f'{output_folder}/{structure}.pdb', voxel_size=voxel_size*binning,
@@ -1106,8 +1080,8 @@ def wrapper(file, input_folder, output_folder, voxel_size, binning=None, exclude
         # first filter the volume!
         if absorption_contrast:
             print(' - Filtering volume')
-            filtered = [reduce_resolution_2(v_atom[0], voxel_size, voxel_size * 2 * binning),
-                        reduce_resolution_2(v_atom[1], voxel_size, voxel_size * 2 * binning)]
+            filtered = [reduce_resolution(v_atom[0], voxel_size, voxel_size * 2 * binning),
+                        reduce_resolution(v_atom[1], voxel_size, voxel_size * 2 * binning)]
             print(' - Binning volume')
             binned = [bin(filtered[0], binning), bin(filtered[1], binning)]
 
@@ -1117,14 +1091,14 @@ def wrapper(file, input_folder, output_folder, voxel_size, binning=None, exclude
 
         else:
             print(' - Filtering volume')
-            filtered = reduce_resolution_2(v_atom, voxel_size, voxel_size * 2 * binning)
+            filtered = reduce_resolution(v_atom[0], voxel_size, voxel_size * 2 * binning)
             print(' - Binning volume')
             binned = bin(filtered, binning)
             if exclude_solvent or solvent_masking:
                 output_name = f'{pdb_id}_{voxel_size*binning:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
             else:
                 output_name = f'{pdb_id}_{voxel_size*binning:.2f}A'
-            pytom.tompy.io.write(f'{output_folder}/{output_name}.mrc', binned)
+            pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', binned)
     return
 
 
@@ -1148,6 +1122,7 @@ if __name__ == '__main__':
                ScriptOption(['-d', '--folder'], 'Folder where the structure file is located.', True, False),
                ScriptOption(['-o', '--outputfolder'], 'Folder to store the files produced by potential.py.', True, False),
                ScriptOption(['-s', '--spacing'], 'The size of the voxels of the output volume. 1A by default.', True, True),
+               ScriptOption(['-n', '--oversampling'], 'n times pixel size oversampling.', True, True),
                ScriptOption(['-b', '--binning'], 'Number of times to bin. Additional storage of binned volume.', True, True),
                ScriptOption(['-x', '--exclude_solvent'],
                             'Whether to exclude solvent around each atom as a correction of the potential.', False, True),
@@ -1178,7 +1153,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        file, input_folder, output_folder, voxel_size, binning, exclude_solvent, solvent_masking, solvent_potential, \
+        file, input_folder, output_folder, voxel_size, oversampling, binning, exclude_solvent, solvent_masking, solvent_potential, \
                     solvent_factor, absorption_contrast, voltage, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
@@ -1186,6 +1161,9 @@ if __name__ == '__main__':
 
     if not voxel_size: voxel_size=1
     else: voxel_size = float(voxel_size)
+
+    if not oversampling: oversampling=1
+    else: oversampling = int(oversampling)
 
     if not solvent_potential: solvent_potential = 4.5301
     else: solvent_potential = float(solvent_potential)
@@ -1205,7 +1183,7 @@ if __name__ == '__main__':
         print('Output folder does not exist!')
         sys.exit()
 
-    wrapper(file, input_folder, output_folder, voxel_size, binning=binning,
+    wrapper(file, input_folder, output_folder, voxel_size, oversampling=oversampling, binning=binning,
             exclude_solvent=exclude_solvent, solvent_masking=solvent_masking, solvent_potential=solvent_potential,
             absorption_contrast=absorption_contrast, voltage=voltage, solvent_factor=solvent_factor)
 

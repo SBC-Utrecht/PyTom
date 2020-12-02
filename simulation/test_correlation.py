@@ -47,7 +47,7 @@ def max_correlation(volume, template, mask=None):
         initSphere(mask, radius, sigma, 0, centerX, centerY, centerZ)
     else:
         # print(template.sizeX(), mask.sizeX(), template.sizeY(), mask.sizeY(), template.sizeZ(), mask.sizeZ())
-        if template.sizeX() != mask.sizeX() and template.sizeY() != mask.sizeY() and template.sizeZ() != mask.sizeZ():
+        if template.sizeX() != mask.sizeX() or template.sizeY() != mask.sizeY() or template.sizeZ() != mask.sizeZ():
             raise RuntimeError('Template and mask size are not consistent!')
 
     # Center position of volume
@@ -96,7 +96,7 @@ def max_correlation_nxcf(volume, template, mask=None):
         initSphere(mask, radius, sigma, 0, centerX, centerY, centerZ)
     else:
         # print(template.sizeX(), mask.sizeX(), template.sizeY(), mask.sizeY(), template.sizeZ(), mask.sizeZ())
-        if template.sizeX() != mask.sizeX() and template.sizeY() != mask.sizeY() and template.sizeZ() != mask.sizeZ():
+        if template.sizeX() != mask.sizeX() or template.sizeY() != mask.sizeY() or template.sizeZ() != mask.sizeZ():
             raise RuntimeError('Template and mask size are not consistent!')
 
     # Center position of volume
@@ -166,12 +166,14 @@ def center_potential(emdb, potential, shift):
 
 
 if __name__ == '__main__':
-    from potential import reduce_resolution
+    from potential import reduce_resolution_2 as reduce_resolution # reduce resolution 2 contains stronger filtering
+    # more appropriate for the experimental map as there the obtained resolution is often overestimated and not
+    # homogeneous throughout the map.
     voxel_size = 1.08
     template_size = 150
     resolution = 3.2
 
-    em_map = read_mrc('/data2/mchaillet/structures/em_maps/apoFer_masked.mrc')
+    em_map = read_mrc('/data2/mchaillet/structures/em_maps/apoFer_unmasked.mrc')
     em_map_filtered = reduce_resolution(em_map, voxel_size, 5)
     write('/data2/mchaillet/structures/correlation/6m54/fitted/em_map_filtered_5A.mrc', em_map_filtered)
     em_map_filtered = reduce_resolution(em_map, voxel_size, resolution)
