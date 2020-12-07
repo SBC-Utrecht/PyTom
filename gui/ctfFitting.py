@@ -28,6 +28,6 @@ def wavelength_eV2nm(ev):
 
 if __name__=='__main__':
     from pylab import *
-    ctf = CTF(ones((2000,2000)),6908E-10,7115E-10,30.68,200E3,2.7E-3,0.1,80000,3.5E-10)
+    ctf = CTF(ones((2000,2000)),6908E-9,7115E-9,30.68,200E3,2.7E-3,0.1,80000,3.5E-10)
     imshow(ctf)
     show()

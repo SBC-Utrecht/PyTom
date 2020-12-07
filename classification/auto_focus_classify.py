@@ -413,12 +413,15 @@ def calculate_scores(pl, references, freqs, offset, binning, mask, noalign=False
 def calculate_prob(s, scores):
     i = 0
     n = len(scores)
+    print('n: ', n)
+    if n < 1:
+        raise Exception('len scores == 0: for probability calculation scores must be larger than 0')
     for item in scores:
         sc = item[2]
         if sc >= s:
             i += 1
 
-    return float(i)/n
+    return float(i) / n
 
 
 def voting(p, i, scores, references, frequencies, dmaps, binning, noise):
@@ -476,6 +479,7 @@ def voting(p, i, scores, references, frequencies, dmaps, binning, noise):
 
 
 def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, noise_percentage=None):
+    print('particle List', len(pl))
     # make sure the particle list and scores have the same order
     for i, p in enumerate(pl):
         fname1 = p.getFilename()
@@ -610,6 +614,7 @@ def split_topn_classes(pls, n):
 
 def compare_pl(old_pl, new_pl):
     n = len(old_pl)
+    print(f'len particlelist, {n}, {len(new_pl)}')
     assert n == len(new_pl)
 
     ndiff = 0
@@ -672,7 +677,7 @@ def initialize(pl, settings):
     kn = len(pl)//K 
     references = {}
     frequencies = {}
-
+    print(K)
     # get the first class centroid
     pp = pl[:kn]
     # avg, fsc = average2(pp, norm=True, verbose=False)
@@ -696,6 +701,7 @@ def initialize(pl, settings):
                     distances[i] = dist[i]
         
         distances = np.asarray(distances)
+        print('sum distances: ', distances.sum())
         distances = distances/np.sum(distances)
         idx = np.random.choice(len(pl), kn, replace=False, p=distances)
         pp = ParticleList()
@@ -795,6 +801,8 @@ def classify(pl, settings):
         # start the alignments
         print("Start alignments ...")
         scores = calculate_scores(pl, references, frequencies, offset, binning, mask, settings["noalign"])
+
+        print('len scores: ', len(scores))
 
         # determine the class labels & track the class changes
         pl = determine_class_labels(pl, references, frequencies, scores, dmaps, binning, settings["noise"])

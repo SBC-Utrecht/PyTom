@@ -162,6 +162,8 @@ if __name__ == '__main__':
 
             particle.setPickPosition( PickPosition(x=x, y=y, z=z))
 
+        print(particlePolishResultFile)
+
         projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \
                                        binning=projBinning, applyWeighting = aw, \
                                        showProgressBar = True,verbose=False, \

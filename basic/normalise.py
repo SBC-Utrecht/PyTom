@@ -68,6 +68,7 @@ def normaliseUnderMask(volume, mask, p=None):
     #stdT = sqrt(stdT)
     #res = res / stdT
 
+
     meanT = meanValueUnderMask(volume, mask, p)
     
     stdT = stdValueUnderMask(volume, mask, meanT, p)

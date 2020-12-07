@@ -219,7 +219,7 @@ if __name__ == '__main__':
         print("Reconstruction size: "+str(voldims))
         print("Reconstruction center: "+str(reconstructionPosition))
         print("write only aligned projections out: "+str(onlyWeightedProjections))
-        print(f"Marker locationas are written to: {outfile}")
+        print(f"Marker locations are written to: {outfile}")
     alignWeightReconstruct(tiltSeriesName=tiltSeriesName, markerFileName=markerFileName, lastProj=lastProj,
                            tltfile=tltFile, prexgfile=prexgFile, preBin=preBin,
                            volumeName=volumeName, volumeFileType=filetype,
@@ -229,6 +229,7 @@ if __name__ == '__main__':
                            alignedTiltSeriesName=alignedTiltSeriesName,
                            weightingType=weightingType, alignResultFile=alignResultFile,
                            lowpassFilter=lowpassFilter, projBinning=projBinning,
-                           outMarkerFileName=outMarkerFileName, outfile=outfile, verbose=True, write_images=write_images)
+                           outMarkerFileName=outMarkerFileName, outfile=outfile, verbose=True,
+                           write_images=write_images)
 
 

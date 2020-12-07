@@ -72,12 +72,15 @@ if __name__=='__main__':
 
     options = [ScriptOption(['-f', '--fileName'], 'Filename of model.', True, False),
                ScriptOption(['-o', '--outputName'], 'Filename of mask file.', True, False),
-               ScriptOption(['-n', '--numStd'], 'The particle threshold is set to mean - stdev * numStd. Default value = 1', True, True),
-               ScriptOption(['-s', '--smooth'], 'Smooth factor used to soften the edges of the mask (pixels). Default = 2', True, True),
+               ScriptOption(['-n', '--numStd'],
+                            'The particle threshold is set to mean - stdev * numStd. Default value = 1', True, True),
+               ScriptOption(['-s', '--smooth'],
+                            'Smooth factor used to soften the edges of the mask (pixels). Default = 2', True, True),
                ScriptOption(['-c', '--numDilationCycles'], 'Number of binary dilation cycles. Default = 2', True, True),
+               ScriptOption(['-m', '--mask'], 'Number of binary dilation cycles. Default = 2', True, True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
-    helper = ScriptHelper(sys.argv[0].split('/')[-1], # script name             
+    helper = ScriptHelper(sys.argv[0].split('/')[-1],  # script name
                           description='Extract tilt images from mrcstack, and creation of meta data file.',
                           authors='Gijs van der Schot',
                           options=options)
@@ -87,7 +90,7 @@ if __name__=='__main__':
         sys.exit()
 
     try:
-        filename, outname, numSTD, smooth, num_cycles, help = parse_script_options(sys.argv[1:], helper)
+        filename, outname, numSTD, smooth, num_cycles, mask, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -96,7 +99,6 @@ if __name__=='__main__':
         print(helper)
         sys.exit()
 
-
     if os.path.exists(filename):
         data = read(filename)
     else:
@@ -104,7 +106,10 @@ if __name__=='__main__':
         sys.exit()
 
     num_cycles = 2 if num_cycles is None else int(num_cycles)
-    numStd     = 1 if num_cycles is None else float(numSTD)
-    smooth     = 2 if smooth is None else float(smooth)
+    numStd = 1 if num_cycles is None else float(numSTD)
+    smooth = 2 if smooth is None else float(smooth)
 
-    gen_mask_fsc(data, num_cycles, outname, numSTD, smooth)
+    if not mask is None:
+        mask = read(mask)
+
+    gen_mask_fsc(data, num_cycles, outname, numSTD, smooth, maskD=mask)

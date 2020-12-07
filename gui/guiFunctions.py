@@ -118,7 +118,7 @@ def readMarkerfile(filename, num_tilt_images=0):
         markerdata = data.reshape(x, y, 4)[:, :, 1:].transpose(2, 1, 0)
         return markerdata
 
-def txt2markerfile(filename,tiltangles):
+def txt2markerfile(filename, tiltangles):
     data = loadstar(filename)
     datalen = data.shape[0]
     num_angles = (data[:, 0] < 1E-6).sum()
@@ -674,9 +674,23 @@ LOCAL_ALIGNMENT_RESULTS = [('ParticleIndex', 'i4'),
 
 headerLocalAlignmentResults = ''
 unitsLAR = ['', 'px', 'px', 'degrees', 'degrees', '', '']
-fmtLAR = '%7d %15.10f %15.10f %15.10f %15.10f %15.10f %s'
+fmtLAR = '%7d %15.2f %15.2f %15.3f %15.3f %15.10f %s'
 for n, h in enumerate(LOCAL_ALIGNMENT_RESULTS):
     headerLocalAlignmentResults += '{} {}\n'.format(h[0], '({})'.format(unitsLAR[n]) * (unitsLAR[n] != ''))
+
+ALIGNMENT_ERRORS = [('MarkerIndex', 'i4'),
+                           ('TiltAngle', 'f4'),
+                           ('AlignmentError', 'f4'),
+                           ('XMeasured', 'f4'),
+                           ('YMeasuerd', 'f4'),
+                           ('XProjected', 'f4'),
+                           ('YProjected', 'f4')]
+
+headerAlignmentErrors = ''
+unitsAE = ['', 'deg', 'px', 'px', 'px', 'px', 'px']
+fmtAE = '%7d %15.2f %15.3f %15.3f %15.3f %15.3f %15.3f'
+for n, h in enumerate(ALIGNMENT_ERRORS):
+    headerAlignmentErrors += '{} {}\n'.format(h[0], '({})'.format(unitsAE[n]) * (unitsAE[n] != ''))
 
 
 def headerline(line):

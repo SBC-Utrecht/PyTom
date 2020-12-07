@@ -234,7 +234,6 @@ def convolutionCTF(volume, defocus, pixelSize=None, voltage=None, Cs=None, sigma
     
     return filteredVolume
 
-
 def fourierFilterShift(filter):
     """
     fourierFilterShift: NEEDS Documentation
@@ -318,8 +317,7 @@ def circleFilter(sizeX,sizeY, radiusCutoff):
                 
     return filter_vol
 
-
-def rampFilter( sizeX, sizeY):
+def rampFilter( sizeX, sizeY, crowtherFreq=None):
     """
     rampFilter: Generates the weighting function required for weighted backprojection - y-axis is tilt axis
 
@@ -336,20 +334,22 @@ def rampFilter( sizeX, sizeY):
     
     centerY = sizeY//2
     sizeY = (sizeY//2) +1
-    
-    Ny = sizeX//2
-        
+
+    if crowtherFreq is None:
+        Ny = sizeX//2
+    else:
+        Ny = crowtherFreq
+
     filter_vol = vol(sizeX, sizeY, 1)
     filter_vol.setAll(0.0)
     
     for i in range(sizeX):        
         distX = abs(float(i-centerX))
-        ratio = distX/Ny
+        ratio = min(1, distX/Ny)
         for j in range(sizeY):            
             filter_vol.setV(ratio, i, j, 0)
 
     return filter_vol
-
 
 def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     """
@@ -537,8 +537,7 @@ def wedgeFilter(volume,angle,radius=0,angleIsHalf=True,fourierOnly=False):
     
     return filter(volume,wf,fourierOnly)
 
-def bandpassFilter(volume, lowestFrequency, highestFrequency, bpf=None,
-                   smooth=0,fourierOnly=False):
+def bandpassFilter(volume, lowestFrequency, highestFrequency, bpf=None, smooth=0,fourierOnly=False):
     """
     bandpassFilter: Performs bandpass filtering of volume.
     @param volume: The volume to be filtered

@@ -78,12 +78,11 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
             dict_particle_lists[tomogram] = ParticleList()
         dict_particle_lists[tomogram].append(particle)
 
-    print(markerfile)
+
     try: 
         markers = loadstar(markerfile, dtype=datatypeMR)
     except:
         correct_header_markerfile(markerfile)
-        print(markerfile)
         markers = loadstar(markerfile, dtype=datatypeMR)
 
     xmlsCM = []

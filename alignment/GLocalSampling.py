@@ -198,7 +198,6 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         # split particle lists
         evenSplitList = splitParticleList(particleList=even, setParticleNodesRatio=setParticleNodesRatio)
         oddSplitList  = splitParticleList(particleList=odd, setParticleNodesRatio=setParticleNodesRatio)
-        print('num processes: ', len(oddSplitList))
         print(">>>>>>>>> Aligning Even ....")
 
 

@@ -50,7 +50,8 @@ def extractParticleListsByTomoNameFromXML(xmlfile, directory='./', query='all'):
                 remove_element(particle)
 
         excludeList.append(tomogram)
-        
+        if not os.path.exists(directory):
+            os.mkdir(directory)
         try:
             tomoname = os.path.basename(tomogram).replace('.mrc','').replace('.em','')
             outfile = "particleList_{}_{}.xml".format(os.path.basename(xmlfile)[:-4], tomoname)
@@ -61,7 +62,8 @@ def extractParticleListsByTomoNameFromXML(xmlfile, directory='./', query='all'):
                 tree.write(outfile, pretty_print=True)
                 outfiles.append(outfile)
                 print(outfile)
-        except:
+        except Exception as e:
+            print(e)
             print('writing {} failed.'.format(xmlfile))
             print('No file written.')
 

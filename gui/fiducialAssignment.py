@@ -249,6 +249,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         pg.QtGui.QApplication.processEvents()
         self.loaded_data = False
 
+
     def raise_window(self,window):
         window.close()
         window.show()

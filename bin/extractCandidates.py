@@ -11,7 +11,7 @@ def usage():
 
 
 def extractCandidates(jobFilename='', resultFilename='', orientFilename='', sizeParticle=None, maxNumParticle=0,
-                      minScore=-1, write2disk=0, margin=None,mask=None):
+                      minScore=-1, write2disk=0, margin=None,mask=None, structuredMask=None):
     # construct the original job from the xml file
     if jobFilename=='':
         jobFilename='JobInfo.xml'
@@ -44,7 +44,9 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
         resultdata, maskdata = deepcopy(vol2npy(resultfile)), deepcopy(vol2npy(maskfile))
 
         import mrcfile
-        masked_data = (resultdata*maskdata)
+        x,y,z,sx,sy,sz = job.volume.subregion
+
+        masked_data = (resultdata*maskdata[x:x+sx,y:y+sy,z:z+sz])
         #masked_data[masked_data < 0.00001] = resultdata.median()
 
         mrcfile.new(res.resultFilename.replace('.em', '_masked.em'),masked_data.T, overwrite=True)
@@ -63,7 +65,7 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
         ref = job.reference.getVolume()
         sizeParticle = [ref.sizeX(),ref.sizeY(),ref.sizeZ()]
     print(job.volume.subregion[:3])
-    particleList = res.findParticles(sizeParticle,maxNumParticle,minScore,write2disk,margin, offset=job.volume.subregion[:3])
+    particleList = res.findParticles(sizeParticle,maxNumParticle,minScore,write2disk,margin, offset=job.volume.subregion[:3], structured_mask=structuredMask)
     
     return particleList
 
@@ -85,9 +87,11 @@ if __name__ == '__main__':
                                     ScriptOption(['-t','--particlePath'], 'Path prepended to each particle.', arg=True, optional=True),
                                     ScriptOption(['-v','--minimalScoreValue'], 'Minimal score value to which to extract.', arg=True, optional=True),
                                     ScriptOption(['-m','--motlList'], 'Write a MOTL file with candidates. The name of the file will be an extension of the particle list with .em.', arg=True,optional=True),
-                                    ScriptOption(['-g','--margin'], 'Size of outer margin that will be ignored for potential candidates.', arg=True,optional=True),
+                                    ScriptOption(['--margin'], 'Size of outer margin that will be ignored for potential candidates.', arg=True,optional=True),
                                     ScriptOption(['-w','--sizeCubes'], 'If specified, it will cut out candidates from the original tomogram with the specified size.', arg=True,optional=True),
                                     ScriptOption(['--scale'], 'Scale coordinates by a factor. Set > 1 to adjust to larger volumes. Use 2 if the localization tomo was 1x binned.', arg=True, optional=True),
+                                    ScriptOption(['--structuredMask'], 'Use structured mask for specific exclusion.',
+                                                 arg=True, optional=True),
                                     ScriptOption(['--help'], 'Print this help.', arg=False,optional= True)])
     
     if len(sys.argv) ==1:
@@ -96,8 +100,9 @@ if __name__ == '__main__':
     
     
     try:
-        jobFilename, maskFile, resultFilename, orientFilename, maxNumParticle, sizeParticle, plFilename, particlePath, minScore, motlFilename, margin, write2disk, scale, help = parse_script_options(sys.argv[1:], helper)
-    except:
+        jobFilename, maskFile, resultFilename, orientFilename, maxNumParticle, sizeParticle, plFilename, particlePath, minScore, motlFilename, margin, write2disk, scale, structuredMask, help = parse_script_options(sys.argv[1:], helper)
+    except Exception as e:
+        print(e)
         sys.exit()
     if help is True:
         print(helper)
@@ -119,7 +124,9 @@ if __name__ == '__main__':
         scale = 1.0
 
 
-    res=extractCandidates(jobFilename,resultFilename,orientFilename,int(sizeParticle),int(maxNumParticle),minScore,int(write2disk),margin, mask = maskFile)
+
+
+    res=extractCandidates(jobFilename,resultFilename,orientFilename,int(sizeParticle),int(maxNumParticle),minScore,int(write2disk),margin, mask=maskFile, structuredMask=structuredMask)
     if not plFilename and not motlFilename:
         raise RuntimeError('You must specify at least a particle list or a motl file as result of this script!')
     

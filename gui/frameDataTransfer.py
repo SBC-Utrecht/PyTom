@@ -961,7 +961,7 @@ class CollectPreprocess(GuiTabWidget):
 
     def check_run(self, events, flist, folder1, signals):
 
-        print(flist, folder1)
+
         while len(events):
             events = [proc for proc in events if not proc.is_set()]
 
@@ -975,7 +975,6 @@ class CollectPreprocess(GuiTabWidget):
             signals.result1.emit(total)
 
             if total >= len(flist):
-                print(total)
                 signals.finished_collect.emit()
                 break
             time.sleep(0.1)

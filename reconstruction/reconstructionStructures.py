@@ -667,8 +667,6 @@ class ProjectionList(PyTomClass):
             else:
                 vol_bp.write(p.getFilename())
 
-            print(vol2npy(reconstructionPosition))
-
             for a in [vol_img, vol_phi, vol_the, vol_offsetProjections]: del a
             del results
 

@@ -18,7 +18,7 @@ class TemplateMatchingPlan():
         self.maskPadded = cp.zeros_like(self.volume).astype(cp.float32)
         self.sOrg = mask.shape
         pad(self.mask, self.maskPadded, self.sPad, self.sOrg)
-        print(device, deviceid)
+
         self.templateOrig = cp.asarray(template, dtype=cp.float32,order='C')
         self.template = cp.asarray(template, dtype=cp.float32,order='C')
         self.texture = vt.StaticVolume(self.template, interpolation='filt_bspline', device=device)

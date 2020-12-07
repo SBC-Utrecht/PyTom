@@ -56,8 +56,11 @@ if __name__=='__main__':
 
 
     for folder in todo:
-
-        a = [[os.path.join(folder, '03_Tomographic_Reconstruction', f, 'ctf/'),f] for f in os.listdir(os.path.join(folder, '03_Tomographic_Reconstruction')) if f.startswith('tomogram') and os.path.exists(os.path.join(folder, '03_Tomographic_Reconstruction', f, 'ctf/resultsCTFPlotter.defocus'))]
+        if os.path.exists(os.path.join(folder, 'logfile.js')):
+            a = [[os.path.join(folder, '03_Tomographic_Reconstruction', f, 'ctf/'),f] for f in os.listdir(os.path.join(folder, '03_Tomographic_Reconstruction')) if f.startswith('tomogram') and os.path.exists(os.path.join(folder, '03_Tomographic_Reconstruction', f, 'ctf/resultsCTFPlotter.defocus'))]
+        else:
+            a = [[os.path.join(folder,'ctf/'), os.path.basename(folder)]]
+            folder = os.path.dirname(os.path.dirname(folder))
 
         for n, (ff, tom) in enumerate(a):
 
@@ -65,5 +68,5 @@ if __name__=='__main__':
             fname = os.path.join(ff, 'ctfCorrected.st')
             outfolder = os.path.join(ff, 'sorted_ctf')
             origdir = os.path.join(os.path.dirname(os.path.dirname(ff)), 'sorted')
-            os.system(f'mpiexec -n 10 mrcs2mrc.py -f {fname} -t {outfolder} -p sorted_ctf -o {origdir}')
+            os.system(f'mrcs2mrc.py -f {fname} -t {outfolder} -p sorted_ctf -o {origdir}')
 

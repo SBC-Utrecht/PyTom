@@ -434,6 +434,7 @@ def bandCC(volume,reference,band,verbose = False, shared=None, index=None):
         sumR =1
 
     cc = cc / (xp.sqrt(sumV*sumR))
+    
     #numerical errors will be punished with nan
     if abs(cc) > 1.1 :
         cc = float('nan')
@@ -786,7 +787,6 @@ def FSC(volume1, volume2, numberBands=None, mask=None, verbose=False, filename=N
         for item in fscResult:
             f.write("%s\n" % item)
         f.close()
-    print('total time: ', time.time()-t)
 
     return fscResult
 

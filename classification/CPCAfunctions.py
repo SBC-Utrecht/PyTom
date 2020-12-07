@@ -114,7 +114,7 @@ def averageClasses(particleListFilename, avName, gpuIDs=None):
 
     for cl in pls:
         className = cl[0].getClassName()
-        cl.average(avName + "_" + str(className) + '.em')
+        cl.average(avName + "_" + str(className) + '.em', gpuIDs=gpuIDs)
         print(className, ' contains ' , len(cl) , ' particles')
 
 

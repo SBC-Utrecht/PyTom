@@ -7,6 +7,8 @@ import os
 import sys
 analytWedge=False
 
+from pytom.gpu.initialize import xp, device
+
 def splitParticleList(particleList, setParticleNodesRatio=3, numberOfNodes=10):
     """
     @param particleList: The particle list
@@ -739,6 +741,10 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     # convolute unweighted average with inverse of wedge sum
     invert_WedgeSum( invol=wedgeSum, r_max=unweiAv.sizeX()/2-2., lowlimit=.05*len(particleList),
                      lowval=.05*len(particleList))
+
+    if createInfoVolumes:
+        wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumINV.em')
+
     fResult = fft(unweiAv)
     r = complexRealMult(fResult,wedgeSum)
     unweiAv = ifft(r)
@@ -748,7 +754,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
 
     unweiAv.write(averageName)
 
-    return Reference(averageName,particleList)
+    return Reference(averageName, particleList)
 
 
 def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose=False,

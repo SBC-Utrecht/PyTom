@@ -4,6 +4,11 @@ Created on Jan 27, 2010
 @author: Thomas Hrabe, FF
 '''
 analytWedge=False
+import matplotlib
+matplotlib.use('Qt5Agg')
+from pylab import imshow, show
+
+from pytom.gpu.initialize import xp, device
 
 def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
     """
@@ -40,9 +45,9 @@ def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
                     if r < r_max:
                         v = invol.getV( ix, iy, iz)
                         if v < lowlimit:
-                            v = 1./lowval
+                            v = 1./ lowval
                         else:
-                            v = 1./v
+                            v = 1./ v
                     else:
                         v = 0.
                     invol.setV( v, ix, iy, iz)
@@ -453,7 +458,7 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             progressBar.update(numberAlignedParticles)
 
     ###apply spectral weighting to sum
-    result = lowpassFilter(result, sizeX/2-1, 0.)[0]
+    result = lowpassFilter(result, sizeX//2-1, 0.)[0]
     #if createInfoVolumes:
     result.write(averageName[:len(averageName)-3]+'-PreWedge.em')
     wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumUnscaled.em')
@@ -925,8 +930,8 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     preprocessing.setTaper( taper=particle.sizeX()/10.)
     particle = preprocessing.apply(volume=particle, bypassFlag=True)  # filter particle to some resolution
     particleCopy.copyVolume(particle)
-    # compute standard veviation volume really only if needed
-    if mask and (scoreObject._type=='FLCFScore'):
+
+    if mask:
         from pytom_volume import sum
         from pytom.basic.correlation import meanUnderMask, stdUnderMask
         p = sum(m)
@@ -963,10 +968,9 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
             particleCopy = r[0]
         
         scoringResult = scoreObject.score(particleCopy, simulatedVol, m, stdV)
-        
         pk = peak(scoringResult)
 
-        #with subPixelPeak
+        # with subPixelPeak
         [peakValue,peakPosition] = subPixelPeak(scoreVolume=scoringResult, coordinates=pk,
                                                interpolation='Quadratic', verbose=False)
         #[peakValue,peakPosition] = subPixelPeakParabolic(scoreVolume=scoringResult, coordinates=pk, verbose=False)
@@ -987,14 +991,17 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
 
         if bestPeak is None:
             bestPeak = newPeak
+
             if verbose:
                 scoringResult.write('BestScore.em')
         if bestPeak < newPeak:
             bestPeak = newPeak
+
             if verbose:
                 scoringResult.write('BestScore.em')
 
         currentRotation = rotations.nextRotation()
+
     # repeat ccf for binned sampling to get translation accurately
     if binning != 1:
         m = mask.getVolume(bestPeak.getRotation())

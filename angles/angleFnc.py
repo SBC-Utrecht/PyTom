@@ -49,7 +49,6 @@ def zyzToMat(z1,z2,y,isRad = False):
     zm2= ZRotationMatrix(z2,isRad)
     
     return (zm2 * (xm * zm1))
-    
 
 def angleFromResolutionDeprecated(band,cubeSize,pixelSize=-1,particleDiameter=-1,shrinkFactor=1):
     """
@@ -87,7 +86,6 @@ def angleFromResolutionDeprecated(band,cubeSize,pixelSize=-1,particleDiameter=-1
     angle = rad2deg * (cubeSize*pixelSize*shrinkFactor) / (band * particleDiameter)
     
     return angle
-    
 
 def zxzToMat(z1,z2=None,x=None,isRad=False):
     """
@@ -194,7 +192,6 @@ def matToZXZ(rotMatrix,inRad=False):
     
     return Rotation(z1,z2,x)
 
-
 def arctan(sinX, cosX):
     """
     compute arctan as function of sin(x) and cos(x)
@@ -218,7 +215,6 @@ def arctan(sinX, cosX):
     if x < 0:
         x = x + 2.*pi
     return x
-
 
 def matToAxisAngle(matrix):
     """
@@ -455,7 +451,6 @@ def differenceAngleOfTwoRotations(rotation1, rotation2):
     the = acos(cosAng) * 180./pi
 
     return the
-    
 
 def angleObjectCheckDistance(angleObject):
     """
@@ -498,7 +493,6 @@ def angleObjectCheckDistance(angleObject):
     std = sqrt(std)
     
     return [mean,std]
-    
         
 def z2XFromCenterVector(vector,center=[0,0,0],r = None):       
     """
@@ -523,8 +517,6 @@ def z2XFromCenterVector(vector,center=[0,0,0],r = None):
     #Shift by pi/2 because formula determines left rotated angle
      
     return [rad2deg * z2,rad2deg * x]
-    
-    
         
 def pointRotateZXZ(vector,z1,z2=None,x=None,isDeg = True):
     """
@@ -557,8 +549,7 @@ def pointRotateZXZ(vector,z1,z2=None,x=None,isDeg = True):
     res = rotationMatrix * vector
     
     return res
-    
-    
+
 def rotationDistancesFromAngleList(angleList):
     """
     innerClassRotationDistance: Computes distance of one rotation to any other, for all rotations. 
@@ -617,7 +608,6 @@ def meanAndStdRotationDistance(distances):
         #print 'Warning - no class member here!'
     
     return [mean,std]
-    
 
 def vector2euler(vec, reference_vec=[0,0,1]):
     """Transform a vector to an Euler angle representation.

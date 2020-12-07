@@ -14,7 +14,8 @@ class ExpectationMaximisationJob(ExMaxJob):
     """
     ExpectationMaximisationJob: Class specification refactored to ExMaxAlingment. This class is required for backward compatibility...
     """
-    
+
+
 class MaximisationJob(PyTomClass):
     """
     MaximisationJob : Stores all infos needed for a maximisation job
@@ -497,10 +498,7 @@ class ExpectationResult(PyTomClass):
         result = etree.Element("ExpectationResult", ResultFileName = self.resultFileName, WedgeSumName = self.wedgeSumName)
           
         return result
-    
 
-        
-        
     
 class AlignmentList(PyTomClass):
     """
@@ -831,7 +829,8 @@ class AlignmentList(PyTomClass):
                 
     def clear(self):
         self._alignmentList = []
-    
+
+
 class GrowingAverageJob(PyTomClass):
     """
     GrowingAverageJob:
@@ -945,7 +944,8 @@ class GrowingAverageJob(PyTomClass):
         self.preprocessing = Preprocessing()
         preprocessingXML = job_element.xpath('Preprocessing')[0]
         self.preprocessing.fromXML(preprocessingXML)
-        
+
+
 class GrowingAverageInterimResult(PyTomClass):
     """
     GrowingAverageInterimResult:
