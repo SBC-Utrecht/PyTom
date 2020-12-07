@@ -200,7 +200,6 @@ class Mask(PyTomClass):
         self._isSphere = isSphere
         self._binning = binning
         
-        
     def isSphere(self):
         """
         isSphere: Returns true when this mask is a sphere.
@@ -305,6 +304,11 @@ class Mask(PyTomClass):
         
         if not checkFileExists(self._filename):
             raise IOError('Could not find mask file: ' + str(self._filename))
+
+    def convert2numpy(self):
+        from pytom.tompy.structures import Mask
+        mask = Mask(self._filename, self._isSphere, self._binning)
+        return mask
 
 
 class Reference(PyTomClass):
@@ -905,6 +909,21 @@ class Wedge(PyTomClass):
 
     def setWedgeAngles(self, wedgeangles):
         self._wedgeObject.setWedgeAngles(wedgeangles)
+
+    def convert2numpy(self):
+        from pytom.tompy.structures import Wedge, SingleTiltWedge
+
+        angle = self.getWedgeAngle()
+        print(angle)
+        if angle.__class__ != list:
+            w1 = w2 = angle
+        else:
+            w1, w2 = angle
+
+        cutoff = self._wedgeObject._cutoffRadius
+        smooth = self._wedgeObject._smooth
+        wedge = Wedge([w1, w2], cutoff, smooth=smooth)
+        return wedge
 
 
 class SingleTiltWedge(PyTomClass):

@@ -56,7 +56,8 @@ if __name__ == '__main__':
                                                 arg=False, optional=True),
                                    ScriptOption(['-j','--jobName'], 'Specify job.xml output filename', arg=True,
                                                 optional=False),
-
+                                   ScriptOption(['-g','--gpuID'], 'Specify which gpu to use', arg=True,
+                                                optional=True),
                                    ScriptOption(['-h', '--help'], 'Help.', arg=False, optional=True)])
     
     if len(sys.argv) <= 2:
@@ -67,7 +68,7 @@ if __name__ == '__main__':
         particleList, reference, mask, isSphere, angShells, angleInc, scoreObject, \
         symmetryN, symmetryAxisZ, symmetryAxisX,\
         destination, numberIterations, binning,\
-        pixelSize, diameter, weighting, compound, jobName, help = results
+        pixelSize, diameter, weighting, compound, jobName, gpuIDs, help = results
     except Exception as e:
         print(e)
         sys.exit()
@@ -136,6 +137,8 @@ if __name__ == '__main__':
     else:
         compound = False
 
+    gpuIDs = [] if gpuIDs is None else list(map(int, gpuIDs.split(',')))
+
     ################# fixed parameters #################
     if (scoreObject == None or scoreObject.lower() == 'flcf'):
         score   = FLCFScore()
@@ -153,9 +156,10 @@ if __name__ == '__main__':
                                sample_info=sampleI, rotations=rot,
                                preprocessing=pre,
                                dest=destination, max_iter=int(numberIterations), score=score, binning=int(binning),
-                               weighting=weighting, compoundWedge=compound,
+                               weighting=weighting, compoundWedge=compound, gpuIDs=gpuIDs,
                                symmetries=None, adaptive_res=adaptive_res, fsc_criterion=fsc_criterion)
     locJob.toXMLFile(jobName)
     # run script
     mainAlignmentLoop( alignmentJob=locJob, verbose=False)
+    print('finished')
     

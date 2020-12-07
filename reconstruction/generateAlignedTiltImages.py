@@ -427,8 +427,7 @@ if __name__ == '__main__':
         voldims = [int(tomogramSizeX), int(tomogramSizeY), int(tomogramSizeZ)]
     else:
         onlyWeightedProjections = True
-        voldims = [0, 0,
-                   0]  # offset from center of volume - for example choose z!=0 to shift in z (post-binning coordinates)
+        voldims = [0, 0, 0]       # offset from center of volume - for example choose z!=0 to shift in z (post-binning coordinates)
     if reconstructionCenterX:
         reconstructionCenterX = int(reconstructionCenterX)
     else:
@@ -522,7 +521,7 @@ if __name__ == '__main__':
         query_outfile = '{}/markerLocations_irefmark_{}.txt'
         outfile = query_outfile.format(os.path.dirname(falignedTiltSeriesName), irefmark)
 
-        # Check if output folder exists,using teh variable outdir, as defined above
+        # Check if output folder exists,using the variable outdir, as defined above
         folders = [folder for folder in outdir.split('/') if folder]
         temp_f = ''
         for temp in folders:

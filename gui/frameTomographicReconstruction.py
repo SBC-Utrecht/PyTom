@@ -48,6 +48,9 @@ class TomographReconstruct(GuiTabWidget):
         self.progressBars = {}
         self.queueEvents = self.parent().qEvents
         self.localqID = {}
+        self.activeProcesses = {}
+        self.threadPool = self.parent().threadPool
+        self.workerID = 0
         self.qparams = self.parent().qparams
 
         self.widgets['pytomPath'] = QLineEdit()
@@ -138,7 +141,8 @@ class TomographReconstruct(GuiTabWidget):
 
         processed = sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder)))
         processed_fn = [basename(line) for line in processed]
-        unprocessed = numpy.array(sorted(glob.glob('{}/*.meta'.format(self.rawnanographs_folder))))
+        unprocessed = sorted(glob.glob('{}/*.meta'.format(self.rawnanographs_folder)))
+        unprocessed = numpy.array(unprocessed + sorted(glob.glob('{}/import*/*.meta'.format(self.rawnanographs_folder))))
         unprocessed = unprocessed[[not (basename(u_item) in processed_fn) for u_item in unprocessed]]
 
 
@@ -199,7 +203,7 @@ class TomographReconstruct(GuiTabWidget):
                                   tooltip='Index of reference marker. See previous step.')
         self.insert_label_spinbox(parent, mode + 'RotationTiltAxis', text='Angle Tilt Axis (degrees)',
                                   value=0, minimum=0, maximum=359,
-                                  tooltip='Angle of the tilt axis (degrees). 0 degrees is facing norther, '+
+                                  tooltip='Angle of the tilt axis (degrees). 0 degrees is facing north, '+
                                           '90 degrees is facing east.')
         self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=1, cstep=0,
                                   tooltip='Binning factor used for reconstruction')
@@ -208,7 +212,8 @@ class TomographReconstruct(GuiTabWidget):
         #                 'The point of the arrow indicates the rotation direction, following the left hand rule.')
         #self.widgets[mode + 'tomofolder'] = QLineEdit()
         #self.widgets[mode + 'tomogramNR'] = QLineEdit()
-        for name in ('tomofolder', 'tomogramNR','FirstIndex', 'LastIndex', 'Reduced', 'outFolder'):
+        for name in ('tomofolder', 'tomogramNR','FirstIndex', 'LastIndex', 'Reduced', 'outFolder', 'markerfile',
+                     'tiltSeriesName'):
             self.widgets[mode + name] = QLineEdit()
 
         self.widgets[mode + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
@@ -222,75 +227,18 @@ class TomographReconstruct(GuiTabWidget):
         queue_name = 'Alignment'
         self.queue_job_names.append(queue_name)
         paramsSbatch = guiFunctions.createGenericDict(fname=queue_name,folder=self.logfolder, id='SingleAlignment')
-        paramsCmd    = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex', mode + 'LastIndex',
-                        mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', mode+'RotationTiltAxis',
-                        mode + 'Reduced', templateAlignment]
+        paramsCmd    = [mode + 'tomofolder', self.parent().pytompath, mode + 'tiltSeriesName', mode + 'FirstIndex',
+                        mode + 'LastIndex', mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'markerfile',
+                        mode + 'outFolder', mode + 'BinningFactor', '0', mode+'RotationTiltAxis',
+                        newTemplateAlignment]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch = paramsSbatch,
                                  paramsCmd=paramsCmd, action=self.convert_em, paramsAction=[mode,'alignment','sorted'])
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         self.table_layouts[id].addWidget(label)
-
-    def tab32UI_Old(self, id=''):
-        headers = ["name tomogram", "align", 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Input Folder', '']
-        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'combobox', 'lineedit', 'combobox', 'txt']
-        sizes = [0, 80, 0, 0, 0, 0, 0, 0]
-
-        tooltip = ['Names of existing tomogram folders.',
-                   'Do alignment.',
-                   'First angle of tiltimages.',
-                   'Last angle of tiltimages.',
-                   'Reference image number.',
-                   'Redo the creation of a tomogram file.',
-                   'Select items to delete tomogram folders.',
-                   'Expected Rotation Angle',
-                   'Input Folder for tilt images used in alignment.']
-
-        markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.txt'.format(self.tomogram_folder)))
-        markerfilesEM = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
-        novel = [markerfile for markerfile in markerfilesEM if not markerfile[:-3]+'.txt' in markerfiles]
-        markerfiles += novel
-        markerfiles = sorted(markerfiles)
-        values = []
-        self.mfiles = []
-        for markerfile in markerfiles:
-            qmarkerfile = os.path.join(os.path.dirname(markerfile), '*.meta')
-            qsortedfiles = os.path.join(os.path.dirname(markerfile), 'sorted_*.mrc')
-
-            #qmarkerfile = markerfile.replace('markerfile.txt','*.meta')
-            #qsortedfiles = markerfile.replace('markerfile.txt','sorted_*.mrc')
-            if 1:
-                metafile = glob.glob( qmarkerfile )[0]
-                metadata = loadstar(metafile,dtype=guiFunctions.datatype)
-                tangs = metadata['TiltAngle']
-                sortedfiles = sorted(glob.glob(qsortedfiles))
-                last_frame = len(sortedfiles)
-                index_zero_angle = 0
-                mm = 9999
-
-                for n, sortedfile in enumerate(sortedfiles):
-                    print(sortedfile)
-                    index_s = int(sortedfile.split('_')[-1].split('.')[0])
-                    if abs(tangs[index_s]) < mm:
-                        mm = abs(tangs[index_s])
-                        index_zero_angle = index_s
-
-
-                data = guiFunctions.readMarkerfile(markerfile, len(sortedfiles))
-
-                if len(data.shape) < 3: continue
-                options_reference = list(map(str, range( data.shape[2] ))) + ['all']
-                expect = int(float(metadata['InPlaneRotation'][0]))
-                input_folders = ['sorted', 'ctf/sorted_ctf']
-                values.append( [markerfile.split('/')[-3], True, numpy.floor(tangs.min()), numpy.ceil(tangs.max()),
-                                index_zero_angle, options_reference, expect, input_folders, ''] )
-                self.mfiles.append(markerfile)
-            else:continue
-        if not values:
-            return
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip)
-        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_align(pid, v))
+        self.updateTomoFolder(mode)
+        self.updateIndex(mode)
 
     def tab32UI(self, id=''):
         headers = ["name tomogram", "align", 'First Angle',"Last Angle", 'Ref. Image', 'Ref. Marker', 'Exp. Rot. Angle', 'Input Folder', 'Fix Marker Pos', 'Ref. Marker Tomo', '']
@@ -344,9 +292,6 @@ class TomographReconstruct(GuiTabWidget):
                 options_reference = list(map(str, range( data.shape[2] ))) + ['all']
                 expect = int(float(metadata['InPlaneRotation'][0]))
                 input_folders = ['sorted', 'ctf/sorted_ctf']
-
-
-
                 values.append( [markerfile.split('/')[-3], True, numpy.floor(tangs.min()), numpy.ceil(tangs.max()),
                                 index_zero_angle, options_reference, expect, input_folders, True, options_reference[:-1], ''] )
                 self.mfiles.append(markerfile)
@@ -529,7 +474,7 @@ class TomographReconstruct(GuiTabWidget):
         #                  tooltip='Orientation of the tiltaxis with respect to the orientation of the camera.'+
         #                 'The point of the arrow indicates the rotation direction, following the left hand rule.')
 
-        for name in ('tomofolder', 'tomogramNR', 'FirstIndex', 'LastIndex', 'Reduced'):
+        for name in ('tomofolder', 'tomogramNR', 'FirstIndex', 'LastIndex', 'Reduced', 'tiltSeriesName', 'markerfile'):
             self.widgets[mode + name] = QLineEdit()
 
         self.widgets[mode + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
@@ -597,7 +542,7 @@ class TomographReconstruct(GuiTabWidget):
         self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=8, minimum=1, cstep=0,
                                   tooltip='Binning factor used for reconstruction')
 
-        for name in ('tomofolder', 'tomogramNR','FirstIndex', 'LastIndex', 'Reduced'):
+        for name in ('tomofolder', 'tomogramNR','FirstIndex', 'LastIndex', 'Reduced', 'tiltSeriesName', 'markerfile'):
             self.widgets[mode + name] = QLineEdit()
 
         self.widgets[h + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
@@ -762,7 +707,7 @@ class TomographReconstruct(GuiTabWidget):
                 metafile = values[row][0]
                 folder = self.filepath_tomodata[widgets['widget_{}_{}'.format(row, 3)].currentText()]
 
-                jobs.append([self.create_tomodir_instance, (tomofoldername, metafile,folder)])
+                jobs.append([self.create_tomodir_instance, (tomofoldername, metafile, folder)])
 
                 #self.create_tomodir_instance(tomofoldername,metafile,folder)
 
@@ -832,6 +777,7 @@ class TomographReconstruct(GuiTabWidget):
 
 
         self.rerunid = id
+        self.aa = len(jobs)
         proc = Worker(fn=self.check_run, args=(len(jobs), id))
         proc.signals.result1.connect(self.update_progress_generate_tomogramdir)
         proc.signals.finished_mcor.connect(self.delete_progressbar_tomogramdir)
@@ -847,13 +793,13 @@ class TomographReconstruct(GuiTabWidget):
             num += 1
 
         signals.finished_mcor.emit()
-        self.popup_messagebox("Info", "Completion", 'Successfully generated tomogram directories.')
 
     def update_progress_generate_tomogramdir(self, total):
         self.progressBar.setValue(total)
 
     def delete_progressbar_tomogramdir(self):
         self.statusBar.removeWidget(self.progressBar)
+        if self.aa: self.popup_messagebox("Info", "Completion", 'Successfully generated tomogram directories.')
         self.tab1UI(self.rerunid)
 
     def run_jobs(self, jobs, procid, counters):
@@ -898,9 +844,38 @@ class TomographReconstruct(GuiTabWidget):
 
         for n in range(len(tif_files)):
             tif_files[n] = [line.replace('.tif', '.mrc') for line in repr(tif_files[n]).split('\\') if '.' in line][-1]
+
+        if '/IMODSTACK_' in tif_files[0]:
+            import mrcfile
+            from pytom.bin.mrcs2mrc import extract_single_image
+
+            imodstack = True
+            stack = metafile.replace('.meta', '.st')
+            fid = metafile.replace('.meta', '.fid')
+            if os.path.exists(metafile.replace('.meta', '.prexg')):
+                prexg = metafile.replace(".meta",".prexg")
+                infile = metafile.replace(".meta",".fid")
+                fid = infile[:-4]+'_raw.fid'
+                os.system(f'xfmodel -back -scale {1/4} -prealign {prexg} -input {infile} -o {fid}')
+
+
+            # cmd = "newstack --InputFile {} --OutputFile {} --ModeToOutput 0 --FloatDensities 2 --BinByFactor 4 --ImagesAreBinned 1.0"
+            # stackout = os.path.join(os.path.dirname(os.path.dirname(meta_dst)), 'imod', os.path.basename(stack))
+            # cmd.format(stack, stackout)
+            #
+            # if os.path.exists(metafile.replace('.meta', '.prexg')):
+            #     cmd += f' --TransformFile {metafile.replace(".meta",".prexg") }'
+            # os.system(cmd)
+
+            imoddata = mrcfile.open(stack, permissive=True).data.copy()
+
+        else:
+            imodstack = False
+
         name_angle = list(zip(tif_files, tiltangles))
 
         sort(name_angle, 1)
+        metadata = numpy.sort(metadata , order='TiltAngle')
 
         procs = []
         num_copied = 0
@@ -909,8 +884,13 @@ class TomographReconstruct(GuiTabWidget):
                 time.sleep(0.5)
                 procs = [proc for proc in procs if proc.is_alive()]
 
-            src_mcor = os.path.join(folder, tif[1:-1])
+            # Ugly resetting of origin folder as we are now organising files in 01_Raw_Nanographs by import index to avoid cluttering one folder with 1000s of files,
+            # should happen earlier when creating joblist
 
+            if folder.endswith('01_Raw_Nanographs'):
+                folder = os.path.dirname(metafile)
+
+            src_mcor = os.path.join(folder, tif[1:-1])
             dst_mcor = os.path.join(os.path.dirname(meta_dst), 'sorted_{:02d}.mrc'.format(n))
 
             if os.path.exists(src_mcor):
@@ -921,138 +901,43 @@ class TomographReconstruct(GuiTabWidget):
                 #procs.append(proc)
                 #proc.start()
                 out = square_mrc(dst_mcor)
+            elif imodstack:
+                sid = int(tif.split('_')[-1].split('.')[0])
+                extract_single_image(imoddata[sid,:,:].T, n, '', angle, '', os.path.dirname(meta_dst), 'sorted_')
+                out = square_mrc(dst_mcor)
+                metadata['FileName'][n] = os.path.join(os.path.dirname(meta_dst), f'sorted_{n:02d}')
+                num_copied += 1
+
+        if imodstack:
+            from pytom.gui.guiFunctions import fmt, headerText, savestar
+            from pytom.reconstruction.tiltAlignmentFunctions import getIMODpreshifts
+            from pytom.gui.guiFunctions import read_markerfile, write_markerfile
+            # Save adjusted metadata (new file names pointing to extracted images)
+            savestar(meta_dst, metadata, fmt=fmt, header=headerText)
+
+
+            wimp = meta_dst.replace('.meta', '.wimp')
+            prexg = metafile.replace('.meta', '.prexg')
+
+            if os.path.exists(fid):
+                os.system(f'convertmod {fid} {wimp}')
+
+                markerFileName = os.path.join(os.path.dirname(meta_dst), 'markerfile.txt')
+                markerfile = read_markerfile(wimp, tiltangles)
+                if 0 and os.path.exists(prexg):
+                    print('applying imods preshifts')
+                    shiftx, shifty = getIMODpreshifts(prexg)
+                    for i in range(markerfile.shape[1]):
+                        markerfile[:,i,0] -= shiftx
+                        markerfile[:,i,1] -= shifty
+                print('write markerfile')
+                write_markerfile(markerFileName, markerfile, tiltangles, bin_factor=4)
+
+
         if num_copied < 1:
             shutil.rmtree(dst)
 
         counters[procid] += 1
-
-    def run_multi_align_old(self,id,values):
-        print('multi_align', id)
-        num_procs = 20
-        n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
-        table = self.tables[id].table
-        widgets = self.tables[id].widgets
-
-        for i in range(10000):
-            file_tomoname = os.path.join(self.tomogram_folder, '.multi_alignment_{:04d}.txt'.format(i))
-            if not os.path.exists(file_tomoname):
-                break
-        print('tomoname', file_tomoname)
-        tomofolder_info = []
-        total_number_markers = 0
-        number_tomonames = 0
-        num_procs_per_proc = 0
-        firstindices, lastindices, expectedangles = [], [], []
-        firstangles, lastangles = [], []
-        mode = 'v02_ba_'
-        for name in ('FirstAngle', 'LastAngle','FirstIndex', 'LastIndex', 'Reduced', 'FolderSorted'):
-            self.widgets[mode + name] = QLineEdit()
-        for row in range(table.rowCount()):
-            wname = 'widget_{}_{}'.format(row, 1)
-
-            # Align
-            if wname in widgets.keys() and widgets[wname].isChecked():
-                tomofoldername = values[row][0]
-                firstindex = widgets['widget_{}_{}'.format(row, 2)].text()
-                lastindex  = widgets['widget_{}_{}'.format(row, 3)].text()
-                refindex   = widgets['widget_{}_{}'.format(row, 4)].text() #values[row][4]
-                markindex  = widgets['widget_{}_{}'.format(row, 5)].currentText()
-                expected   = widgets['widget_{}_{}'.format(row, 6)].text()
-                inputfolder= values[row][7][widgets['widget_{}_{}'.format(row, 7)].currentIndex()]
-
-                tiltseriesname = os.path.join(inputfolder, os.path.basename(inputfolder))
-                self.widgets[mode + 'FolderSorted'].setText(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
-                num_procs_per_proc = max(num_procs_per_proc, len(values[row][5]) - 1)
-                number_tomonames += 1
-                folder = os.path.join(self.tomogram_folder, tomofoldername)
-                os.system('cp {} {}/alignment/'.format(self.mfiles[row],folder))
-
-                self.widgets[mode + 'FirstAngle'].setText(firstindex)
-                self.widgets[mode + 'LastAngle'].setText(lastindex)
-                self.updateIndex(mode)
-                fi, li = self.widgets[mode + 'FirstIndex'].text(), self.widgets[mode + 'LastIndex'].text()
-                fa, la = self.widgets[mode + 'FirstAngle'].text(), self.widgets[mode + 'LastAngle'].text()
-                firstindices.append(fi)
-                lastindices.append(li)
-                firstangles.append(fa)
-                lastangles.append(la)
-                expectedangles.append(expected)
-
-                markerfile = '{}/alignment/markerfile.{}'.format(folder,self.mfiles[row].split('.')[-1])
-                l = len(glob.glob(os.path.join(os.path.dirname(self.mfiles[row]), 'sorted_*.mrc')))
-                print('num files: ', l)
-                markerdata = guiFunctions.readMarkerfile(markerfile, l)
-
-                if markindex == 'all':
-                    numMark = markerdata.shape[2]
-                else:
-                    numMark = 1
-
-                total_number_markers += numMark
-                ll = '{} {} {} {} {} {} {} {} {} {} {} {}\n'
-                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0, expected, tiltseriesname, markerfile)
-                tomofolder_info.append([ numMark, ll])
-
-        if not tomofolder_info:
-            return
-
-        new_list = sorted(tomofolder_info, key=lambda l:l[0], reverse=True)
-
-        new_info = []
-        lprocs = [0]
-        taken = [0,]*number_tomonames
-        while number_tomonames - sum(taken):
-            take = []
-            partial_sum = 0
-            for n in range(len(new_list)):
-                if taken[n]: continue
-                if not partial_sum or (partial_sum + new_list[n][0]) < 21:
-                    partial_sum += new_list[n][0] % 20
-                    if not partial_sum: partial_sum += 20
-                    take.append(n)
-            for t in take:
-                taken[t] = 1
-                new_info.append(new_list[t])
-            lprocs.append(sum(taken))
-
-
-        tomofolder_file = open(file_tomoname, 'w')
-        for x,y in new_info:
-            tomofolder_file.write(y)
-        tomofolder_file.close()
-
-        num_submitted_jobs = 0
-        qname, n_nodes, cores, time, modules = self.qparams['BatchAlignment'].values()
-        for n in range(len(lprocs) - 1):
-
-            input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1], num_procs_per_proc,
-                            tiltseriesname, 'markerfile.txt', 'alignment', file_tomoname)
-
-            cmd = multiple_alignment.format( d=input_params )
-
-            if self.checkbox[id].isChecked():
-                jobname = 'Alignment_BatchMode_Job_{:03d}'.format(num_submitted_jobs)
-
-                cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname, time=time,
-                                                    num_nodes=n_nodes, cmd=cmd, modules=modules, num_jobs_per_node=cores)
-
-            guiFunctions.write_text2file(cmd, '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n), 'w')
-
-            if self.checkbox[id].isChecked():
-                exefilename = '{}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n)
-                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
-                text = dd.read()[:-1]
-                ID = text.split()[-1]
-                logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(exefilename)}')
-                os.system(f'cp {exefilename} {logcopy}')
-
-
-                num_submitted_jobs += 1
-            else:
-                os.system('bash {}/jobscripts/alignment_{:03d}.job'.format(self.tomogram_folder, n))
-
-        if num_submitted_jobs > 0:
-            self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
 
     def run_multi_align(self,id,values):
         print('multi_align', id)
@@ -1164,6 +1049,7 @@ class TomographReconstruct(GuiTabWidget):
                             tiltseriesname, 'markerfile.txt', 'alignment', file_tomoname)
 
             cmd = multiple_alignment.format( d=input_params )
+            exefilename = '{}/jobscripts/alignment_{:03d}.sh'.format(self.tomogram_folder, n)
 
             if self.checkbox[id].isChecked():
                 jobname = 'Alignment_BatchMode_Job_{:03d}'.format(num_submitted_jobs)
@@ -1171,12 +1057,9 @@ class TomographReconstruct(GuiTabWidget):
                 cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname, time=time,
                                                     num_nodes=n_nodes, cmd=cmd, modules=modules, num_jobs_per_node=cores)
 
-
-            exefilename = '{}/jobscripts/alignment_{:03d}.sh'.format(self.tomogram_folder, n)
             ID, num = self.submitBatchJob(exefilename, id, cmd)
-            if num:
-                num_submitted_jobs += num
-                submissionIDs.append(ID)
+            num_submitted_jobs += 1
+            submissionIDs.append(ID)
 
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
@@ -1186,10 +1069,12 @@ class TomographReconstruct(GuiTabWidget):
 
         folderSorted = self.widgets[mode+'FolderSorted'].text()
         if not folderSorted: return
+        self.widgets[mode + 'tiltSeriesName'].setText(f'{os.path.basename(folderSorted)}/{os.path.basename(folderSorted)}')
         t = folderSorted.replace('/sorted','')
         t = t.split('/alignment')[0]
         self.widgets[mode+'tomofolder'].setText(t)
         self.widgets[mode+ 'tomogramNR'].setText( os.path.basename(t) )
+        self.updateMarkerFile(folderSorted, mode)
 
         files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')]
         lastIndex = len(files)
@@ -1222,6 +1107,17 @@ class TomographReconstruct(GuiTabWidget):
 
         if 'WBP' in mode: self.updateVoldims(mode)
 
+        self.updateIndex(mode)
+
+    def updateMarkerFile(self, foldername, mode):
+        markerfile = 'alignment/markerfile.txt' if os.path.exists(f'{foldername}/markerfile.txt') else ''
+        if markerfile == '' and os.path.exists(f'{foldername}/markerfile.em'): markerfile = 'alignment/markerfile.em'
+
+        if markerfile:
+            os.system(f'cp {foldername}/{os.path.basename(markerfile)} {os.path.dirname(foldername)}/{markerfile}')
+
+        self.widgets[mode + 'markerfile'].setText(markerfile)
+
     def updateVoldims(self,mode):
         folderSorted = self.widgets[mode+'FolderSorted'].text()
         if not folderSorted: return
@@ -1235,8 +1131,10 @@ class TomographReconstruct(GuiTabWidget):
         if 'INFR' in mode: INFR=1
         else: INFR=0
         sorted_folder = self.widgets[mode + 'FolderSorted'].text()
+        if sorted_folder == '':
+            return
         metafile = [os.path.join(sorted_folder, meta) for meta in os.listdir(sorted_folder) if meta.endswith('meta')][0]
-
+        print(metafile)
         if metafile:
             metadata = loadstar(metafile,dtype=guiFunctions.datatype)
 
@@ -1265,13 +1163,21 @@ class TomographReconstruct(GuiTabWidget):
             else:
                 self.widgets[mode + 'Reduced'].setText('')
 
+            self.widgets[mode + 'Reduced'].setText('_{:.1f}_{:.1f}'.format(firstAngle, lastAngle))
+
             try:
                 tomofolder = self.widgets[mode + 'tomofolder']
-                s = 'unweighted_unbinned_marker_{}{}'
-                uudir = s.format(self.widgets[mode + 'RefMarkerIndex'].text(), self.widgets[mode + 'Reduced'].text())
+                refid = int(self.widgets[mode + 'RefMarkerIndex'].text())
+                angs = self.widgets[mode + 'Reduced'].text()
+                uudir = 'marker_{:04d}{}'.format(refid, angs)
+                #uudir = s.format(self.widgets[mode + 'RefMarkerIndex'].text(), self.widgets[mode + 'Reduced'].text())
 
-                self.widgets[mode + 'outFolder'] = os.path.join('','alignment', uudir)
-            except:
+                self.widgets[mode + 'outFolder'].setText( os.path.join('','alignment', uudir, 'GlobalAlignment',
+                                                                os.path.basename(sorted_folder), ) )
+                print(self.widgets[mode + 'outFolder'].text())
+
+            except Exception as e:
+                print(e)
                 pass
 
     def convert_em(self,params):
@@ -1325,6 +1231,7 @@ class TomographReconstruct(GuiTabWidget):
     def run_multi_reconstruction(self, id, values):
         print('multi_reconstructions', id)
 
+        qIDs = []
         n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables[id].table
         widgets = self.tables[id].widgets
@@ -1408,12 +1315,24 @@ class TomographReconstruct(GuiTabWidget):
                                                                partition=qname)
                         commandText = header + commandText
 
-                    params = [execfilename, commandText]
-                    self.submit_multi_recon_job(params)
+                    ID, num = self.submitBatchJob(execfilename, id, commandText)
                     num_submitted_jobs += 1
+                    qIDs.append(ID)
+
+                    # else:
+                    #     print(f'Submitting job {self.workerID}')
+                    #     proc = Worker(fn=self.submitBatchJob, args=((execfilename, id, commandText)), sig=False, results=True)
+                    #     proc.signals.results.connect(self.retrieveJobID)
+                    #     self.threadPool.start(proc)
+                    #
+                    #     self.workerID += 1
+                    # params = [execfilename, commandText]
+                    # self.submit_multi_recon_job(params)
+                    # num_submitted_jobs += 1
 
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Tom. Reconstr. Batch')
 
     def submit_multi_recon_job(self, params):
 
@@ -1804,10 +1723,12 @@ class TomographReconstruct(GuiTabWidget):
                                                         num_jobs_per_node = cores, modules=modules) + jobscript
 
                     exefilename = os.path.join(outputfolder, 'ctfCorrectionBatch.sh')
+
+
                     ID, num = self.submitBatchJob(exefilename, id, job)
-                    if num:
-                        num_submitted_jobs += num
-                        submissionIDs.append(ID)
+                    num_submitted_jobs += 1
+                    submissionIDs.append(ID)
+
 
                 except Exception as e:
                     print(e)
@@ -1817,80 +1738,3 @@ class TomographReconstruct(GuiTabWidget):
         if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
             self.addProgressBarToStatusBar(submissionIDs, key='QJobs', job_description='CTF Correction Batch')
-
-
-    def run_multi_ctf_correction_old(self, id, values):
-        print('multi_ctf_corrections', id)
-        num_nodes = self.tables[id].table.rowCount()
-        num_submitted_jobs = 0
-        try:
-            num_nodes = self.num_nodes[id].value()
-        except:
-            pass
-        for row in range(self.tables[id].table.rowCount()):
-            widget = 'widget_{}_1'.format(row)
-            if self.tab43_widgets[widget].isChecked():
-                folder = values[row][2][self.tab43_widgets['widget_{}_{}'.format(row, 2)].currentIndex()]
-                if folder == 'all':
-                    folders = values[row][2][:-1]
-                else:
-                    folders = [folder]
-
-                defocusFile = values[row][3][self.tab43_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
-                rotationangle = self.tab43_widgets['widget_{}_{}'.format(row, 4)].text()
-                gridspacing   = self.tab43_widgets['widget_{}_{}'.format(row, 5)].text()
-                fieldsize     = self.tab43_widgets['widget_{}_{}'.format(row, 6)].text()
-                binning       = self.tab43_widgets['widget_{}_{}'.format(row, 7)].text()
-                metafile = glob.glob(os.path.join(values[row][0], 'sorted/*.meta'))
-                tomofolder = os.path.dirname(os.path.dirname(defocusFile))
-
-
-
-                if os.path.basename(folder) == 'sorted':
-                    ctffolder = os.path.join(folder, '{}_ctf'.format(os.path.basename(folder)))
-                    cPrefix = os.path.join(self.tomogram_folder, ctffolder.replace('/sorted/', '/ctf/'), 'sorted_ctf_')
-                    uPrefix = os.path.join(self.tomogram_folder, folder, 'sorted_')
-                else:
-                    ctffolder = os.path.join(os.path.dirname(folder), '{}_ctf'.format(os.path.basename(folder)))
-                    cPrefix = os.path.join(self.tomogram_folder, ctffolder.replace('alignment/','ctf/'), 'sorted_aligned_ctf_')
-                    uPrefix = os.path.join(self.tomogram_folder, folder, 'sorted_aligned_')
-
-                if not os.path.exists(os.path.dirname(cPrefix)):
-                    os.mkdir(os.path.dirname(cPrefix))
-
-                if not metafile: continue
-                else: metafile = metafile[-1]
-
-
-                try:
-                    guiFunctions.update_metadata_from_defocusfile(metafile, defocusFile)
-                except Exception as e:
-                    print(e)
-                    print('submission {} failed due to error in either the metafile or the defocus file.'.format(tomofolder))
-                    continue
-                for folder in folders:
-
-                    qname, n_nodes, cores, time, modules = self.qparams['BatchCTFCorrection'].values()
-                    jobParams = [tomofolder, self.pytompath, uPrefix, cPrefix, metafile, rotationangle, gridspacing,
-                                 fieldsize, binning, str(n_nodes*cores)]
-
-                    jobscript = templateCTFCorrection.format(d=jobParams)
-                    
-                    
-                    fname = 'CTF_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
-                    outDirectory = os.path.dirname(cPrefix) 
-                    suffix = "_" + "_".join([os.path.basename(tomofolder)]+folder.split('/')[-1:])
-
-                    qname,n_nodes,cores,time, modules = self.qparams['BatchCTFCorrection'].values()
-
-                    job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, time=time,
-                                                        partition=qname, num_nodes=n_nodes, singleton=True,
-                                                        num_jobs_per_node = cores, modules=modules) + jobscript
-                    outjob = open(os.path.join(outDirectory, 'ctfCorrectionBatch.sh'), 'w')
-                    outjob.write(job)
-                    outjob.close()
-                    os.system('{} {}/{}'.format(self.qcommand, outDirectory, 'ctfCorrectionBatch.sh'))
-                    num_submitted_jobs += 1
-
-        if num_submitted_jobs > 0:
-            self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')

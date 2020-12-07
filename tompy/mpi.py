@@ -16,7 +16,8 @@ class MPI:
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
-
+        self.DOUBLE = MPI.DOUBLE
+        self.Win = MPI.Win
         self._begun = False
 
         #User termination on Ctrl-C will be caught and send to workers.

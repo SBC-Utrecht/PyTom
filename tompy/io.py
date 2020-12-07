@@ -1,11 +1,10 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from pytom.gpu.initialize import xp, device
 import numpy as np
-import scipy
 
-
-def read(filename,ndarray=True):
+def read(filename, ndarray=True, order='F', keepnumpy=False, deviceID=None):
     """Read EM file. Now only support read the type float32 on little-endian machines.
 
     @param filename: file name to read.
@@ -16,9 +15,9 @@ def read(filename,ndarray=True):
     assert filename.split('.')[-1].lower() in ('em', 'mrc')
 
     if filename.endswith('.em'):
-        data = read_em(filename)
+        data = read_em(filename, order=order, keepnumpy=keepnumpy, deviceID=deviceID)
     elif filename.endswith('.mrc'):
-        data = read_mrc(filename)
+        data = read_mrc(filename, order=order, keepnumpy=keepnumpy, deviceID=deviceID)
     else:
         raise Exception('Invalid filetype. Please provide a *.em or a *.mrc file.')
 
@@ -27,7 +26,8 @@ def read(filename,ndarray=True):
     else:
         return n2v(data)
 
-def read_mrc(filename):
+def read_mrc(filename, order='F', keepnumpy=False, deviceID=None):
+    import numpy as np
     f = open(filename, 'r')
     try:
         dt_header = np.dtype('int32')
@@ -60,14 +60,18 @@ def read_mrc(filename):
     finally:
         f.close()
 
-    if default_type:
-        volume = v.reshape((x, y, z), order='F')  # fortran-order array
-    else:  # if the input data is not the default type, convert
-        volume = np.array(v.reshape((x, y, z), order='F'), dtype='float32')  # fortran-order array
+
+    if keepnumpy:
+        volume = np.array(v.reshape((x, y, z), order=order), dtype='float32').copy()  # fortran-order array
+    else:
+        if not deviceID == None:
+            id = int(deviceID.split(":")[1])
+            xp.cuda.Device(id).use()
+        volume = xp.array(v.reshape((x, y, z), order=order), dtype=xp.float32).copy()  # fortran-order array
 
     return volume
 
-def read_em(filename):
+def read_em(filename, order='F', keepnumpy=False, deviceID=None):
     """Read EM file. Now only support read the type float32 on little-endian machines.
 
     @param filename: file name to read.
@@ -75,8 +79,9 @@ def read_em(filename):
     @return The data from the EM file in ndarray
     """
     f = open(filename, 'r')
+
     try:
-        dt_header = np.dtype('int32')
+        dt_header =np.dtype('int32')
         header = np.fromfile(f, dt_header, 128)
         x = header[1]
         y = header[2]
@@ -108,14 +113,18 @@ def read_em(filename):
     finally:
         f.close()
 
-    if default_type:
-        volume = v.reshape((x, y, z), order='F') # fortran-order array
+
+    if keepnumpy:
+        volume = np.array(v.reshape((x, y, z), order=order), dtype='float32').copy() # fortran-order array
     else: # if the input data is not the default type, convert
-        volume = np.array(v.reshape((x, y, z), order='F'), dtype='float32') # fortran-order array
-    
+        if not deviceID == None:
+            id = int(deviceID.split(":")[1])
+            xp.cuda.Device(id).use()
+        volume = xp.array(v.reshape((x, y, z), order=order), dtype='float32').copy() # fortran-order array
+
     return volume
 
-def write(filename, data, tilt_angle=0, pixel_size=1):
+def write(filename, data, tilt_angle=0, pixel_size=1, order='F'):
     """Write EM or MRC file. Now only support written in type float32 on little-endian machines.
 
     @param filename: file name.
@@ -127,6 +136,12 @@ def write(filename, data, tilt_angle=0, pixel_size=1):
     assert filename
     assert filename.split('.')[-1].lower() in ('em', 'mrc')
 
+
+    try:
+        data = data.get()
+    except:
+        pass
+
     if not type(data) == type(np.array((1))):
         from pytom_numpy import vol2npy
         try: data = vol2npy(data).copy()
@@ -135,20 +150,31 @@ def write(filename, data, tilt_angle=0, pixel_size=1):
     if data.dtype != np.dtype("float32"):
         data = data.astype(np.float32)
 
+    try:
+        data = data.get()
+    except:
+        pass
+
     if filename.endswith('.em'):
-        write_em(filename, data, tilt_angle)
+        write_em(filename, data, tilt_angle, order=order)
     elif filename.endswith('.mrc'):
-        write_mrc(filename, data, tilt_angle, pixel_size=pixel_size)
+        write_mrc(filename, data, tilt_angle, pixel_size=pixel_size, order=order)
     else:
         raise Exception('Unsupported file format, cannot write an {}-file'.format(filename.split('.')[-1]))
 
 def binary_string(values, type):
-
+    import numpy as np
     return np.array(values, type).tostring()
 
-def write_mrc(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnification=1., dx=0., dy=0., current_tilt_angle=999):
+def write_mrc(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnification=1., dx=0., dy=0., current_tilt_angle=999,
+              order='F'):
+    import numpy as np
+    try:
+        data = data.get()
+    except:
+        pass
     if data.dtype != np.dtype('float32'): # if the origin data type is not float32, convert
-        data = np.array(data, dtype='float32')
+        data = data.astype(np.float32)
 
     assert len(data.shape) < 4 and len(data.shape) > 0
 
@@ -197,11 +223,11 @@ def write_mrc(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnific
     f = open(filename, 'wb')
     try:
         f.write(header)
-        f.write(data.tostring(order='F')) # fortran-order array
+        f.write(data.tostring(order=order)) # fortran-order array
     finally:
         f.close()
 
-def write_em(filename, data, tilt_angle=0):
+def write_em(filename, data, tilt_angle=0,order='F'):
     """Write EM file. Now only support written in type float32 on little-endian machines.
 
     @param filename: file name.
@@ -225,7 +251,7 @@ def write_em(filename, data, tilt_angle=0):
     f = open(filename, 'wb')
     try:
         f.write(header.tostring())
-        f.write(data.tostring(order='F')) # fortran-order array
+        f.write(data.tostring(order=order)) # fortran-order array
     finally:
         f.close()
 
@@ -382,3 +408,43 @@ def n2v(data):
 
     return v
 
+def readSubvolumeFromFourierspaceFile(filename, sizeX, sizeY, sizeZ):
+    """
+    readSubvolumeFromFourierspaceFile: This function is required when data \
+    (in real space) is read in binned mode and a related fourier space file
+    like a wedge needs to be read alongside.
+    Works only if fourier file is reduced complex without any shift applied.
+    @param filename: The fourier space file name
+    @param sizeX: X final size of subvolume if it was complete
+    (what L{pytom.basic.structures.Wedge.returnWedgeVolume} with
+    humanUnderstandable == True returns)
+    @param sizeY: Y final size of subvolume if it was complete
+    (what L{pytom.basic.structures.Wedge.returnWedgeVolume}
+    with humanUnderstandable == True returns)
+    @param sizeZ: Z final size of subvolume if it was complete
+    (what L{pytom.basic.structures.Wedge.returnWedgeVolume}
+    with humanUnderstandable == True returns)
+    @return: A subvolume
+    @author: Thomas Hrabe
+    """
+    from pytom.tompy.io import read
+    from pytom.basic.fourier import fourierSizeOperation
+    [newX, newY, newZ] = fourierSizeOperation(sizeX, sizeY, sizeZ,
+                                              reducedToFull=False)
+
+
+    if filename.__class__ == str:
+        originalVolume = read(filename)
+    elif filename.__class__ == xp.array:
+        # open a backdoor for this function to take volumes, but
+        # this should be rather an exception -> not fully documented
+        originalVolume = filename
+    else:
+        raise TypeError('Filename must be a string')
+
+    originalVolume = xp.fft.fftshift(originalVolume,axes=(0,1))
+    newVolume = originalVolume[sizeX//2-newX//2:sizeX//2+newX//2, sizeY//2-newY//2:sizeY//2+newY//2,:newZ]
+    newVolume = xp.fft.fftshift(newVolume,axes=(0,1))
+
+
+    return newVolume

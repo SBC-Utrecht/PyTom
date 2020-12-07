@@ -61,7 +61,6 @@ if __name__=='__main__':
 
     if os.path.exists(filename):
         data = mrcfile.open(filename, permissive=True).data.copy()
-        print(data.shape)
     else:
         print(helper)
         sys.exit()

@@ -123,7 +123,9 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
             self.symmetries.fromXML(syms)
         except:
             self.symmetries = MultiSymmetries()
-        
+
+        print(jobDescription)
+
         self.peak_offset = int(jobDescription.get('PeakOffset'))
         self.bw_range = [int(i) for i in jobDescription.get('BandwidthRange')[1:-1].split(',')]
         self.freq = int(jobDescription.get('Frequency'))
@@ -132,7 +134,7 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
         self.r_score = jobDescription.get('RScore')=='True'
         self.weighting = jobDescription.get('WeightedAverage')=='True'
         self.bfactor = jobDescription.get('BFactor')
-        self.binning = int(jobDescription.get('binning'))
+        self.binning = int(jobDescription.get('Binning'))
         if jobDescription.get('AdaptiveResolution'):
             adaptive_resolution = jobDescription.get('AdaptiveResolution')
             if adaptive_resolution == '+1':
@@ -677,7 +679,8 @@ if __name__ == '__main__':
     if bHelp is True:
         print(helper)
         sys.exit()
-    
+
+    print(job_filename)
     # check the job
     job = FRMJob()
     job.fromXMLFile(job_filename)

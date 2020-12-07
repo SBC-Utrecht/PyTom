@@ -404,6 +404,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, til
         zmod = markCoord[2]
         [xmod, ymod] = rotate_vector2d([markCoord[0],markCoord[1]], cmeanpsi, smeanpsi)
 
+
         # tilt loop
         for iproj in range(0, ntilt):
             # check for not-clicked Markers (have coordinates -1,-1)
@@ -417,7 +418,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, til
                 [x_meas, y_meas] = rotate_vector2d([xmark,ymark], cpsi[iproj], spsi[iproj])
                 # additional variable magnification
                 try:
-                    if isoMag:
+                    if not (isoMag is None):
                         x_meas = x_meas * isoMag[iproj]
                         y_meas = y_meas * isoMag[iproj]
                 
@@ -439,7 +440,9 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, til
                         x_proj      = (1+.5*tmp)*x_proj
                         y_proj_dmag = (1+tmp)*y_proj
                         y_proj      = y_proj_dmag
-                except:
+                except Exception as e:
+                    print('error')
+                    print(e, dMagnFocus, dBeam, isoMag)
                     continue
                 # score
                 deltaX = x_meas-x_proj
@@ -470,6 +473,8 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, til
     #print error, residual
     if equationSet:
         return Dev
+    elif returnErrors:
+        return errors
     else:
         return residual
 

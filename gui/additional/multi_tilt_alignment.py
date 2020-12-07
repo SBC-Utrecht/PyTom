@@ -204,7 +204,6 @@ pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
 # pytompath = '/data/gijsvds/pytom-develop/pytom_python3/pytom'
 import time
 
-
 def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, lastIndex, refIndex, markerFileName,
                               targets, weightingType, tomogramFolder, fnames, projIndices=True,
                               expectedRotationAngle=0):
@@ -230,8 +229,6 @@ def tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstIndex, las
         if not os.path.exists(os.path.join(t, 'alignment')):
             os.mkdir(os.path.join(t, 'alignment'))
 
-    print(fixMarkers)
-    print(refMarkIdFlag)
 
     procs = []
 

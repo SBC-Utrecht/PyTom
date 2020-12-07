@@ -11,7 +11,7 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage import median_filter
 
 
-def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2):
+def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2, maskD=None):
     '''This script generates a structured mask around the particle.
     @:param data: 3d array that constitutes the particle
     @:type data: ndarray of float32/64
@@ -27,19 +27,23 @@ def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2):
     @:rtype ndarray of float32'''
 
     mask = zeros_like(data, dtype=int)
-    mask[data < data.mean() - num_stds * data.std()] = 1
+    print(data.std(), num_stds)
+    mask[data < data.mean() - float(num_stds) * data.std()] = 1
     mask = remove_small_objects(mask.astype(bool))
     mask = binary_fill_holes(mask)
 
     l, n = label(mask)
 
-    part, total = 0,0
-    for i in range(1, n):
-        if total < (l==i).sum():
+    part, total = 0, 0
+    for i in range(1, n+1):
+        if total < (l == i).sum():
             part = i
-            total = (l==i).sum()
-            
+            total = (l == i).sum()
+
     mask = (l == part)
+    if not maskD is None:
+        mask *= maskD > 0
+
     mask = binary_dilation(mask)
     mask = median_filter(mask, 6)
 
@@ -55,6 +59,9 @@ def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2):
     else:
         write(outname, mask.astype(float32))
         return mask
+
+
+
 
 if __name__=='__main__':
 

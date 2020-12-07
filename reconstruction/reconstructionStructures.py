@@ -341,13 +341,14 @@ class ProjectionList(PyTomClass):
         from pytom.tools.files import checkDirExists
         from pytom.gui.guiFunctions import datatype, loadstar
         import numpy
+        import os
 
-        metadata = loadstar(metafile, dtype=datatype)
-        tiltAngles = metadata['TiltAngle']
+        if metafile:
+            metadata = loadstar(metafile, dtype=datatype)
+            tiltAngles = metadata['TiltAngle']
+
         if not checkDirExists(directory):
             raise RuntimeError('Directory ' + directory + ' does not exist!')
-
-        import os
 
         if directory[-1] != os.sep:
             # append / to dir

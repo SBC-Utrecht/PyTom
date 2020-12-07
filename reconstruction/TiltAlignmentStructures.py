@@ -65,8 +65,6 @@ class TiltSeries(PyTomClass):
             self._projIndices.sort(key=int)
             self._lenPI = len(self._projIndices)
 
-
-
             self._projIndices = numpy.array(self._projIndices)
             self._tiltSeriesFormat = tiltSeriesFormat
             self._TiltAlignmentParas = TiltAlignmentParas
@@ -284,6 +282,7 @@ class TiltSeries(PyTomClass):
         @author: FF
         """
         from math import pi
+
         if markerFileName.endswith('.em') or markerFileName.endswith('.mrc'):
             markerFileVol = read(markerFileName)
             nproj = markerFileVol.sizeY()
@@ -605,7 +604,7 @@ class TiltAlignment:
         if cent[0] != imdimX//2+1 or cent[1] != imdimY//2+1:
             #rint "Centers do not match: cent="+str(cent)+", imdim="+str(imdim)
             self.TiltSeries_._TiltAlignmentParas.cent = [imdimX//2+1, imdimY//2+1]
-        print('cent: ', self.TiltSeries_._TiltAlignmentParas.cent)
+
     def getMarkersFromTiltSeries(self, TiltSeries_):
         """
         get marker coordinates from TiltSeries and update in TiltAlignment
@@ -966,9 +965,6 @@ class TiltAlignment:
         # marker 3D coords
 
         ivar = 0
-
-
-
         for (imark, Marker) in enumerate(self._Markers):
             # reference marker irefmark is fixed to standard value
             if ((imark ) != TiltAlignmentParameters_.irefmark):

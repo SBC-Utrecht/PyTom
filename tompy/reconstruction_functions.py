@@ -1,8 +1,8 @@
-from pytom.gpu.initialize import xp, gpu
-import voltools
+from pytom.gpu.initialize import xp, device
+from pytom.voltools import transform
+import numpy
 
-
-def backProjectGPU(projections, vol_bp, vol_phi, proj_angles, recPosVol=[0,0,0], vol_offsetProjections=[0,0,0], interpolation=None):
+def backProjectGPU(projections, vol_bp, vol_phi, proj_angles, recPosVol=[0,0,0], vol_offsetProjections=[0,0,0], interpolation='filt_bspline'):
 
     assert len(proj_angles) == projections.shape[2] #'Number of angles and projections should match'
 
@@ -24,14 +24,17 @@ def back_projection(image, angle, interpolation=None):
     '''
 
     dimx, dimy = image.shape
-    dims = [dimx, dimy, dimy]
+    dims = [dimx, dimy, dimx]
 
-    out = xp.dstack([image] * (dims[2]*2))
-    bp  = voltools.transform(out, rotation=(0, angle, 0), rotation_order='sxyz', interpolation=interpolation,
-                             center=numpy.array([dims[0] // 2, dims[1] // 2, dims[2]]), gpu=gpu)
+    ndim = (dimx*3)//2
 
-    return bp[:,:,dims[2]//2+dims[2]%2:-dims[2]//2+dims[2]%2].copy()
+    out = xp.dstack([image] * (ndim))
 
+    bp = xp.zeros_like(out)
+    transform(out, output=bp, rotation=(0, angle, 0), rotation_order='sxyz', interpolation=interpolation,
+              center=numpy.array([dims[0] // 2, dims[1] // 2, ndim//2]), device=device)
+
+    return bp[:,:,ndim//2-dimx//2:ndim//2+dimx//2].copy()
 
 def backProjectGPU2(vol_img, vol_bp, vol_phi, vol_the, recPosVol=[0,0,0], vol_offsetProjections=[0,0,0]):
     from pytom_numpy import vol2npy
@@ -145,7 +148,6 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     wfunc[sX // 2 - crowtherFreq:sX // 2 + min(sX // 2, crowtherFreq + 1), :, 0] = column_stack(
         ([(wfuncCrowther), ] * (sY))).astype(float32)
     return wfunc
-
 
 def fourierReconstructGPU(vol_img, vol_bp, vol_phi, vol_the, recPosVol=[0,0,0], vol_offsetProjections=[0,0,0]):
     from pytom_numpy import vol2npy

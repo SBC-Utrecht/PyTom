@@ -40,13 +40,21 @@ class ParticlePick(GuiTabWidget):
         self.projectname = self.parent().projectname
         self.logfolder = self.parent().logfolder
         self.templatematchfolder = os.path.join( self.projectname, '04_Particle_Picking/Template_Matching' )
+        self.ccfolder = os.path.join(self.templatematchfolder, 'cross_correlation')
         self.pickpartfolder = os.path.join(self.projectname, '04_Particle_Picking/Picked_Particles')
         self.subtomofolder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
         self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
         self.qtype = self.parent().qtype
         self.qcommand = self.parent().qcommand
-
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
+        self.localqID = {}
+        self.localJobs = {}
+        self.activeProcesses ={}
+        self.threadPool = self.parent().threadPool
         self.tabs_dict, self.tab_actions = {}, {}
+        self.workerID = 0
 
 
         headers = ["Manual Picking","Template Matching", "Create Particle List", "Alter Particle List"]
@@ -168,7 +176,7 @@ class ParticlePick(GuiTabWidget):
         except:
             self.jobFilesExtract = QLineEdit()
 
-        self.batchEC = SelectFiles(self, initdir=self.tomogramfolder, search='file', filter=['xml'],
+        self.batchEC = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['xml'],
                                    outputline=self.jobFilesExtract, run_upon_complete=self.populate_batch_extract_cand,
                                    id=key, title='Select job files.')
 
@@ -342,7 +350,7 @@ class ParticlePick(GuiTabWidget):
             return
 
         if len(id) > 0:
-            for key, value in zip(['numCores', 'numX', 'numY', 'numZ', 'gpuString'], [1, 1, 1, 1, f'--gpu {id}']):
+            for key, value in zip(['numCores', 'numX', 'numY', 'numZ', 'gpuString'], [1, 1, 1, 1, f'--gpuID {id}']):
                 self.widgets[mode + key].setText(str(value))
         else:
             for key, value in zip(['numCores', 'numX', 'numY', 'numZ', 'gpuString'], [16, 4, 4, 1, '']):
@@ -542,9 +550,9 @@ class ParticlePick(GuiTabWidget):
             return
 
         headers = ["Filename Tomogram", "Run", "Mirrored", "Optional Templates", 'Optional Masks', 'Wedge Angle 1',
-                   "Wedge Angle 2", 'Angle List', 'Start Z', 'End Z', '']
-        types = ['txt', 'checkbox', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox','lineedit', 'lineedit', 'txt']
-        sizes = [0, 0, 0, 80, 80, 0, 0, 0, 0 ,0]
+                   "Wedge Angle 2", 'Angle List', 'Start Z', 'End Z', 'GPU ID', '']
+        types = ['txt', 'checkbox', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox','lineedit', 'lineedit', 'lineedit', 'txt']
+        sizes = [0, 0, 0, 80, 80, 0, 0, 0, 0 ,0 ,0]
 
         tooltip = ['Name of tomogram files.',
                    'Check this box if you want to do template matching using the optional settings.',
@@ -553,13 +561,26 @@ class ParticlePick(GuiTabWidget):
                    'Optional masks.',
                    'Angle between 90 and the highest tilt angle.',
                    'Angle between the lowest tilt angle and -90.',
-                   'Optional angle lists.']
+                   'Optional angle lists.',
+                   'At which Z-slice does your object start?', 'At which Z-slice does your object end?', 'GPU ID' ]
 
         values = []
 
         angleLists = os.listdir(os.path.join(self.pytompath, 'angles/angleLists'))
         for n, tomogramFile in enumerate(tomogramFiles):
-            values.append([tomogramFile, 1, 1, templateFiles, maskFiles, 30, 30, angleLists, 0, 0, ''])
+            try:
+                folder = os.path.dirname(os.popen(f'ls -alrt {tomogramFile}').read()[:-1].split(' ')[-1])
+                print(folder)
+                widthfile = os.path.join(folder, 'z_limits.txt')
+                if os.path.exists( widthfile):
+
+                    start, end = map(int, list(numpy.loadtxt(widthfile)))
+                else:
+                    start, end = 0,0
+            except Exception as e:
+                print(e)
+                start, end = 0, 0
+            values.append([tomogramFile, 1, 1, templateFiles, maskFiles, 30, 30, angleLists, start, end, '', ''])
 
         try:
             self.num_nodes[id].setParent(None)
@@ -577,16 +598,21 @@ class ParticlePick(GuiTabWidget):
     def populate_batch_extract_cand(self,id='tab23'):
         self.batchEC.close()
         jobfiles = sorted(self.jobFilesExtract.text().split('\n'))
+
+        jobfiles += glob.glob(os.path.join(self.ccfolder, '*/job*flipped.xml'))
+        jobfiles = numpy.unique(jobfiles)
+
         if len(jobfiles) == 0:
             print('\n\nPlease select at least one job file template and mask file.\n\n')
             return
 
-        headers = ["Job name", "File Name Particle List", "Ouput Dir Subtomograms", "Size (px)",
+        headers = ["Job name", "Extract", "File Name Particle List", "Ouput Dir Subtomograms", "Size (px)",
                    "# Candidates", 'Min. Score', '']
-        types = ['txt', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
-        sizes = [0, 80, 150, 0, 0, 0, 0]
+        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
+        sizes = [0, 0, 80, 150, 0, 0, 0, 0]
 
         tooltip = ['Name of job files.',
+                   'Select if you want to extract particles using this job file.',
                    'File name of particle list in which a number of candidates are written.',
                    'Prefix indicating in which folder particles will be saved when subtomograms are extracted',
                    'Particle Size in pixels',
@@ -596,12 +622,13 @@ class ParticlePick(GuiTabWidget):
         values = []
 
         for n, jobFile in enumerate(jobfiles):
+            if not jobFile: continue
             folder = os.path.basename(os.path.dirname(jobFile))
             particleList = os.path.join(self.pickpartfolder, 'particleList_TM_{}.xml'.format(folder))
             if not os.path.exists(os.path.dirname(particleList)): os.mkdir(os.path.dirname(particleList))
             p = os.path.basename(particleList)[:-4]
             prefix = 'Subtomograms/{}'.format(p)
-            values.append([jobFile, particleList, prefix, 16, 1000, 0.001, ''])
+            values.append([jobFile, True, particleList, prefix, 16, 1000, 0.001, ''])
 
         try:
             self.num_nodes[id].setParent(None)
@@ -617,129 +644,179 @@ class ParticlePick(GuiTabWidget):
     def mass_submitEC(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = 0
+        qIDs = []
 
         for row in range(self.tables[pid].table.rowCount()):
+            try:
+                if self.tab23_widgets['widget_{}_{}'.format(row, 1)].isChecked():
+                    jobFile       = values[row][0]
+                    suffix        = os.path.basename(jobFile)[3:-4]
+                    scoresFile    = os.path.join(os.path.dirname(jobFile), f'scores{suffix}.em')
+                    anglesFile    = os.path.join(os.path.dirname(jobFile), f'angles{suffix}.em')
+                    particleList  = os.path.join(self.pickpartfolder, self.tab23_widgets['widget_{}_{}'.format(row, 2)].text())
+                    particlePath  = self.tab23_widgets['widget_{}_{}'.format(row, 3)].text()
+                    particleSize  = self.tab23_widgets['widget_{}_{}'.format(row, 4)].text()
+                    numCandidates = self.tab23_widgets['widget_{}_{}'.format(row, 5)].text()
+                    minCCScore    = self.tab23_widgets['widget_{}_{}'.format(row, 6)].text()
 
-            jobFile       = values[row][0]
-            suffix        = os.path.basename(jobFile)[3:-4]
-            scoresFile    = os.path.join(os.path.dirname(jobFile), f'scores{suffix}.em')
-            anglesFile    = os.path.join(os.path.dirname(jobFile), f'angles{suffix}.em')
-            particleList  = os.path.join(self.pickpartfolder, self.tab23_widgets['widget_{}_{}'.format(row, 1)].text())
-            particlePath  = self.tab23_widgets['widget_{}_{}'.format(row, 2)].text()
-            particleSize  = self.tab23_widgets['widget_{}_{}'.format(row, 3)].text()
-            numCandidates = self.tab23_widgets['widget_{}_{}'.format(row, 4)].text()
-            minCCScore    = self.tab23_widgets['widget_{}_{}'.format(row, 5)].text()
+                    paramsCmd     = [self.templatematchfolder, self.pytompath, jobFile, scoresFile, anglesFile,
+                                    particleList, particlePath, particleSize, numCandidates, minCCScore, '']
 
-            paramsCmd     = [self.templatematchfolder, self.pytompath, jobFile, scoresFile, anglesFile,
-                            particleList, particlePath, particleSize, numCandidates, minCCScore, '']
+                    fname         = 'EC_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
+                    cmd           = templateExtractCandidates.format(d=paramsCmd)
+                    qname, n_nodes, cores, time, modules = self.qparams['BatchExtractCandidates'].values()
+                    job           = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, singleton=True,
+                                                                  time=time, num_nodes=n_nodes, partition=qname,
+                                                                  modules=modules, num_jobs_per_node=cores) + cmd
 
-            fname         = 'EC_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
-            cmd           = templateExtractCandidates.format(d=paramsCmd)
-            qname, n_nodes, cores, time, modules = self.qparams['BatchExtractCandidates'].values()
-            job           = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, singleton=True, time=time,
-                                                          num_nodes=n_nodes, partition=qname, modules=modules,
-                                                          num_jobs_per_node=cores) + cmd
 
-            outDirectory = os.path.dirname(jobFile)
-            outjob = open(os.path.join(outDirectory, 'extractCandidatesBatch.sh'), 'w')
-            outjob.write(job)
-            outjob.close()
-            os.system('sbatch {}/{}'.format(outDirectory, 'extractCandidatesBatch.sh'))
-            num_submitted_jobs += 1
+                    execfilename = os.path.join(os.path.dirname(jobFile), 'extractCandidatesBatch.sh')
+                    ID, num = self.submitBatchJob(execfilename, pid, job)
+                    num_submitted_jobs += 1
+                    qIDs.append(ID)
 
-        self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            except Exception as e:
+                print('Error: ', e)
+                print(f'Failed to setup job for {os.path.basename(values[row][0])}')
+
+        if num_submitted_jobs:
+            self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Extract Cand. Batch')
 
     def mass_submitTM(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
         num_submitted_jobs = 0
+        qIDs = []
 
+        todoList = {}
         for row in range(self.tables[pid].table.rowCount()):
-            normal = self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked()
-            mirrored = self.tab22_widgets['widget_{}_{}'.format(row, 2)].isChecked()
-            if not normal and not mirrored:
-                continue
-
-            tomogramFile = values[row][0]
-            templateFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
-            maskFile = values[row][4][self.tab22_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
-            w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
-            w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 6)].text())
-            angleList = self.tab22_widgets['widget_{}_{}'.format(row, 7)].currentText()
-            start = self.tab22_widgets['widget_{}_{}'.format(row, 8)].text()
-            end = self.tab22_widgets['widget_{}_{}'.format(row, 9)].text()
-            widthX, widthY, widthZ = 0, 0 ,0
             try:
-                start, end = int(start), int(end)
-                widthZ = end-start
-                if widthZ < 1:
-                    widthZ = 0
-                    start = 0
-                if widthZ:
-                    from pytom_volume import read
-                    v = read(tomogramFile)
-                    widthX = v.sizeX()
-                    widthY = v.sizeY()
-                    del v
+                normal = self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked()
+                mirrored = self.tab22_widgets['widget_{}_{}'.format(row, 2)].isChecked()
+                if not normal and not mirrored:
+                    continue
 
-            except:
-                continue
+                tomogramFile = values[row][0]
+                templateFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
+                maskFile = values[row][4][self.tab22_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
+                w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
+                w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 6)].text())
+                angleList = self.tab22_widgets['widget_{}_{}'.format(row, 7)].currentText()
+                start = self.tab22_widgets['widget_{}_{}'.format(row, 8)].text()
+                end = self.tab22_widgets['widget_{}_{}'.format(row, 9)].text()
+                gpuID = self.tab22_widgets['widget_{}_{}'.format(row, 10)].text()
+                if not gpuID in todoList.keys():
+                    todoList[gpuID] = []
 
-            tomofile, ext = os.path.splitext(tomogramFile)
-            suffices = []
-            if normal:
-                suffices.append('')
-            if mirrored:
-                suffices.append('_Mirrored')
-                outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
-                if not os.path.exists(outDirectory): os.mkdir(outDirectory)
+                if gpuID:
+                    gpuIDFlag = f'--gpuID {gpuID}'
+                else:
+                    gpuIDFlag = ''
 
-                from pytom_volume import read, vol, mirrorVolume
-                for n, input_filename in enumerate([templateFile, maskFile]):
-                    v = read(input_filename)
-                    res = vol(v)
-                    mirrorVolume(v, res)
+                widthX, widthY, widthZ = 0, 0 ,0
+                try:
+                    start, end = int(start), int(end)
+                    widthZ = end-start
+                    if widthZ < 1:
+                        widthZ = 0
+                        start = 0
+                    if widthZ:
+                        from pytom_volume import read
+                        v = read(tomogramFile)
+                        widthX = v.sizeX()
+                        widthY = v.sizeY()
+                        del v
 
-                    i = os.path.basename(input_filename)
-                    base,ext = os.path.splitext(i)
-                    i = base+'_Mirrored'+ext
-                    output_filename = os.path.join(outDirectory, i)
-                    if n == 0: templateFileMirrored = output_filename
-                    if n == 1: maskFileMirrored = output_filename
+                except:
+                    continue
 
-                    res.write(output_filename)
+                tomofile, ext = os.path.splitext(tomogramFile)
+                suffices = []
+                if normal:
+                    suffices.append('')
+                if mirrored:
+                    suffices.append('_Mirrored')
+                    outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
+                    if not os.path.exists(outDirectory): os.mkdir(outDirectory)
 
-            for n, suffix in enumerate(suffices):
-                outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
-                if not os.path.exists(outDirectory): os.mkdir(outDirectory)
-                if 'Mirror' in suffix:
-                    templateFile = templateFileMirrored
-                    maskFile = maskFileMirrored
+                    from pytom_volume import read, vol, mirrorVolume
+                    for n, input_filename in enumerate([templateFile, maskFile]):
+                        v = read(input_filename)
+                        res = vol(v)
+                        mirrorVolume(v, res)
 
-                XMLParams = [tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory,
-                             start, widthX, widthY, widthZ]
+                        i = os.path.basename(input_filename)
+                        base,ext = os.path.splitext(i)
+                        i = base+'_Mirrored'+ext
+                        output_filename = os.path.join(outDirectory, i)
+                        if n == 0: templateFileMirrored = output_filename
+                        if n == 1: maskFileMirrored = output_filename
 
-                jobxml = templateXML.format(d=XMLParams)
-                template = os.path.basename(templateFile).split('.')[0]
-                jobname = 'job_{}.xml'.format(template)
-                outjob = open(os.path.join(outDirectory, jobname), 'w')
-                outjob.write(jobxml)
-                outjob.close()
+                        res.write(output_filename)
+
+                for n, suffix in enumerate(suffices):
+                    outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
+                    if not os.path.exists(outDirectory): os.mkdir(outDirectory)
+                    if 'Mirror' in suffix:
+                        templateFile = templateFileMirrored
+                        maskFile = maskFileMirrored
 
 
-                fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
-                folder = outDirectory
-                cmd = templateTM.format(d=[outDirectory, 16, self.pytompath, jobname, 4, 4, 1, ''])
-                suffix = "_" + os.path.basename(outDirectory)
-                qname, n_nodes, cores, time, modules = self.qparams['BatchTemplateMatch'].values()
-                job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
-                                                    time=time, num_nodes=n_nodes, partition=qname, modules=modules,
-                                                    num_jobs_per_node=cores) + cmd
-                outjob2 = open(os.path.join(outDirectory, 'templateMatchingBatch.sh'), 'w')
-                outjob2.write(job)
-                outjob2.close()
-                os.system('sbatch {}/{}'.format(outDirectory, 'templateMatchingBatch.sh'))
-                num_submitted_jobs += 1
-        self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+
+
+                    XMLParams = [tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory,
+                                 start, widthX, widthY, widthZ]
+
+                    jobxml = templateXML.format(d=XMLParams)
+                    template = os.path.basename(templateFile).split('.')[0]
+                    jobname = 'job_{}.xml'.format(template)
+                    outjob = open(os.path.join(outDirectory, jobname), 'w')
+                    outjob.write(jobxml)
+                    outjob.close()
+
+                    x,y,z = 4,4,1
+                    if gpuIDFlag:
+                        x,y,z = 1,1,1
+
+                    fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
+                    folder = outDirectory
+                    cmd = templateTM.format(d=[outDirectory, x*y*z, self.pytompath, jobname, x, y, z, gpuIDFlag])
+                    suffix = "_" + os.path.basename(outDirectory)
+                    qname, n_nodes, cores, timed, modules = self.qparams['BatchTemplateMatch'].values()
+                    job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
+                                                        time=timed, num_nodes=n_nodes, partition=qname, modules=modules,
+                                                        num_jobs_per_node=cores) + cmd
+                    execfilename = os.path.join(outDirectory, 'templateMatchingBatch.sh')
+
+                    todoList[gpuID].append([execfilename, pid, job])
+                    num_submitted_jobs += 1
+                    # ID, num = self.submitBatchJob(execfilename, pid, job)
+                    # QtGui.QApplication.processEvents()
+
+                    # if num:
+                    #     num_submitted_jobs += num
+                    #     qIDs.append(ID)
+
+            except Exception as e:
+                print(e)
+
+        wid=[]
+        from time import sleep
+        for key in todoList.keys():
+            print(f'starting {len(todoList[key])} jobs on device {key}')
+            self.localJobs[self.workerID] = []
+            wid.append(self.workerID)
+            proc = Worker(fn=self.multiSeq, args=((self.submitBatchJob, todoList[key], self.workerID)))
+            self.threadPool.start(proc)
+            self.workerID += 1
+            sleep(1)
+
+
+        if num_submitted_jobs:
+            print(wid)
+            self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+            self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Templ. Match',
+                                           num_submitted_jobs=num_submitted_jobs)
 
     def createParticleList(self, mode=''):
         title = "Create Particle List"
@@ -902,7 +979,10 @@ class ParticlePick(GuiTabWidget):
                     w1      = self.tab32_widgets['widget_{}_{}'.format(row, 2)].text()
                     w2      = self.tab32_widgets['widget_{}_{}'.format(row, 3)].text()
                     outname = self.tab32_widgets['widget_{}_{}'.format(row, 4)].text()
-                    r       = self.tab32_widgets['widget_{}_{}'.format(row, 5)].isChecked()
+                    try:
+                        r   = self.tab32_widgets['widget_{}_{}'.format(row, 5)].isChecked()
+                    except:
+                        r   = None
 
                     outname = os.path.join(os.path.dirname(c), outname)
                     wedges = '{},{},'.format(w1,w2)
@@ -958,12 +1038,14 @@ class ParticlePick(GuiTabWidget):
 
         convertCoords2PL(conf[0], fname, subtomoPrefix=conf[2], wedgeAngles=conf[3], angleList=AL)
 
-        fnamesPL = fnamesPL + [fname]
+        fnamesPL2 = fnamesPL + [fname]
 
         if wedges: wedges = wedges[:-1]
 
-        if len(fnamesPL) > 1:
-            os.system('combineParticleLists.py -f {} -o {} '.format(",".join(fnamesPL), fname))
+        if len(fnamesPL2) > 1:
+            os.system('combineParticleLists.py -f {} -o {} '.format(",".join(fnamesPL2), fname))
+            for remove_fname in fnamesPL:
+                os.remove(remove_fname)
 
     def changeXMLParameters(self, mode='', title=''):
         tooltip = 'Tick this box to update specific fields in an particle list (XML format).'
@@ -983,7 +1065,7 @@ class ParticlePick(GuiTabWidget):
         self.insert_checkbox_label_spinbox(parent, mode + 'adjustBinning', 'Multiply Pick Positions', mode + 'binning',
                                            value=1, stepsize=1, minimum=0, maximum=32, wtype=QDoubleSpinBox)
         self.insert_checkbox_label_spinbox(parent, mode + 'multiplyShifts', 'Multiply Shifts',
-                                           mode + 'factorMultiplyShifts', value=1, stepsize=1, wtype=QSpinBox,
+                                           mode + 'factorMultiplyShifts', value=1, stepsize=1, wtype=QDoubleSpinBox,
                                            minimum=0, rstep=0, cstep=4)
         self.insert_label(parent,'', sizepolicy=self.sizePolicyA, cstep=-6,rstep=1)
 
@@ -1106,8 +1188,10 @@ class ParticlePick(GuiTabWidget):
             suffix, dir, w, bin, fm = values
 
             if bin == '': bin = 1
-            if fm == '': fm = -1
-            else: fm = int(fm)
+            if fm == '' or self.widgets[mode + 'multiplyShift'].isChecked() == False:
+                fm = None
+            else:
+                fm = int(fm)
 
 
             if outputName:
@@ -1157,7 +1241,6 @@ class ParticlePick(GuiTabWidget):
             if recenter or reorient or mirror or randomize or moveShift:
                 outputName = self.requestOutputName(folder=self.pickpartfolder)
                 if outputName:
-                    print(mirror, new_center, rotation, moveShift, binRecon, binSubtomo, sizeSubtomo)
                     updatePL(particleList, outputName, new_center=new_center, rotation=rotation, mirror=mirror,
                              anglelist=angleListDefaultData, move_shift=moveShift, tomogram_dir=self.tomogramfolder,
                              binSubtomo=binSubtomo, binRecon=binRecon, sizeSubtomo=sizeSubtomo)

@@ -1,7 +1,7 @@
 import numpy
 import os
 from pytom.reconstruction.tiltAlignmentFunctions import markerResidual
-from pytom.reconstruction.imageStructures import ImageStack
+from pytom.image2D.imageStructures import ImageStack
 from pytom.reconstruction.TiltAlignmentStructures import TiltAlignmentParameters, TiltSeries, TiltAlignment
 from pytom.basic.functions import initSphere, taper_edges
 
@@ -92,7 +92,7 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
     #     shiftVarX, shiftVarY) = MyTiltAlignment.computeCoarseAlignment( MyTiltSeries)
 
     #for i in range(len(MyTiltSeries._Markers)):
-    errors = MyTiltAlignment.alignmentResidual()
+    errors = MyTiltAlignment.alignmentResidual(returnErrors=True)
     transX = MyTiltAlignment._alignmentTransY - MyTiltAlignment.TiltSeries_._TiltAlignmentParas.cent[0]
     transY = MyTiltAlignment._alignmentTransX - MyTiltAlignment.TiltSeries_._TiltAlignmentParas.cent[1]
 

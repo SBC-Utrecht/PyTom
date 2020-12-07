@@ -70,7 +70,7 @@ def SVD_analysis(ccc):
     coeff, eigvalues, v = np.linalg.svd(ccc)
     #rescale vectors so they include variance
     for ii in range(0,len(eigvalues)):
-        coeff[:,ii] = sqrt(abs(eigvalues[ii]))*coeff[:,ii]
+        coeff[:,ii] = np.sqrt(np.abs(eigvalues[ii]))*coeff[:,ii]
     return coeff, eigvalues
 
 def kmeansCluster(coeff, neig, nclass):
@@ -92,7 +92,7 @@ def kmeansCluster(coeff, neig, nclass):
     centroids,labels = scipy.cluster.vq.kmeans2(data=coeff[:,0:neig],k=nclass,iter=50)
     return labels
 
-def averageClasses(particleListFilename, avName):
+def averageClasses(particleListFilename, avName, gpuIDs=None):
     """
     write class averages of classified particles
     @param particleListFilename: particle list filename
@@ -104,6 +104,9 @@ def averageClasses(particleListFilename, avName):
     @date: Jan 2013
     """
     from pytom.basic.structures import ParticleList
+    if gpuIDs:
+        from pytom.tompy.structures import ParticleList
+
     pl = ParticleList()
     pl.fromXMLFile(particleListFilename)
     pl.sortByClassLabel()
