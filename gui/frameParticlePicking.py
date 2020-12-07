@@ -1187,12 +1187,21 @@ class ParticlePick(GuiTabWidget):
                     values[n] *= 0
             suffix, dir, w, bin, fm = values
 
+            if dir:
+                folders = dir.split('/')
+                tempfolder = '' if dir.startswith('/') else self.subtomofolder
+                for folder in folders:
+                    tempfolder = os.path.join(tempfolder, folder)
+                    if tempfolder == '':
+                        tempfolder = '/'
+                        continue
+                    if not os.path.exists(tempfolder): os.mkdir(tempfolder)
+
             if bin == '': bin = 1
             if fm == '' or self.widgets[mode + 'multiplyShift'].isChecked() == False:
                 fm = None
             else:
                 fm = int(fm)
-
 
             if outputName:
                 print('Update {}. Output saved as {}.'.format(os.path.basename(particleList), outputName) )
