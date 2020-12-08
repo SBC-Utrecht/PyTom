@@ -784,7 +784,7 @@ class CommonFunctions():
 
     def insert_label_line_push(self, parent, textlabel, wname, tooltip='', text='', cstep=-2, rstep=1, validator=None,
                                mode='folder', remote=False, pushtext='Browse', width=150, filetype='',action='',
-                               initdir='', enabled=False):
+                               initdir='', enabled=False, action2=None, pushtext2='# Particles'):
 
         if action == '':
             action = self.browse
@@ -798,8 +798,14 @@ class CommonFunctions():
         else:
             params = [mode, self.widgets[wname], filetype, remote]
 
-        self.insert_pushbutton(parent, cstep=cstep, rstep=rstep, text=pushtext,width=100,
-                               action=action, params=params)
+        if not action2 is None:
+            self.insert_pushbutton(parent, cstep=1, rstep=0, text=pushtext,width=100,
+                                   action=action, params=params)
+            self.insert_pushbutton(parent, cstep=cstep, rstep=rstep, text=pushtext2, width=100,
+                                   action=action2, params=wname)
+        else:
+            self.insert_pushbutton(parent, cstep=cstep, rstep=rstep, text=pushtext,width=100,
+                                   action=action, params=params)
 
     def insert_label_line(self, parent, textlabel, wname, tooltip='', value='', cstep=-1, rstep=1, validator=None,
                           width=150,logvar=True, enabled=True):
@@ -985,6 +991,12 @@ class CommonFunctions():
         self.localqID[ID] = 1
     '''
 
+    def countNumberOfParticles(self, wname):
+        filename = self.widgets[wname].text()
+        if filename and os.path.exists(filename):
+            numberParticles = os.popen(f'grep Shift {filename} | wc -l').read()[:-1]
+            self.popup_messagebox('Info', 'Number of Particles in ParticleList', f'Number of particles in {os.path.basename(filename)}: {numberParticles}')
+
     def checkLocalJob(self, ID):
         import time
         while self.localqID[ID] == 0:
@@ -1011,7 +1023,16 @@ class CommonFunctions():
 
         for key in params[1][1:-1]:
             if 'numberMpiCores' in key and params[2]['id']:
-                self.widgets[key].setText(str(num_nodes*cores))
+                try:
+                    ss = self.widgets[mode + 'gpuString'].text()
+                    if ss == '':
+                        update = True
+                    else:
+                        update = False
+                except:
+                    update = False
+                if update:
+                    self.widgets[key].setText(str(num_nodes*cores))
 
         for i in range(2):
             if params[i][0] in self.widgets.keys():

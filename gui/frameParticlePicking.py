@@ -1056,7 +1056,8 @@ class ParticlePick(GuiTabWidget):
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
         self.insert_label_line_push(parent, 'Particle List', 'particleList0', 'Select your particleList (XML) file.',
-                                    initdir=self.projectname, mode='file', cstep=-3, filetype=['xml'])
+                                    initdir=self.projectname, mode='file', cstep=-4, filetype=['xml'],
+                                    action2=self.countNumberOfParticles)
         self.insert_checkbox_label_line(parent, mode+'adjustSuffix', 'Suffix', mode+'suffix', width=0, enabled=True)
         self.insert_checkbox_label_line(parent, mode + 'adjustDir', 'Change Directory', mode + 'directory',enabled=True)
         self.insert_checkbox_label_spinbox(parent, mode + 'adjustWedgeAngles', 'Adjust Wedge Angle 1', mode + 'wedgeAngle1',
@@ -1092,7 +1093,8 @@ class ParticlePick(GuiTabWidget):
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
         self.insert_label_line_push(parent, 'Particle List', 'particleList1', 'Select your particleList (XML) file.',
-                                    initdir=self.projectname, mode='file', cstep=-3, filetype=['xml'])
+                                    initdir=self.projectname, mode='file', cstep=-4, filetype=['xml'],
+                                    action2=self.countNumberOfParticles)
         self.insert_checkbox_label_line(parent, mode + 'extractByTomoName', 'By Tomogram Name', mode + 'tomoname',
                                         value='all', width=0, enabled=True)
         self.insert_checkbox_label_line(parent, mode + 'extractByClass', 'By Class', mode + 'classes', cstep=4, rstep=0,
@@ -1113,7 +1115,8 @@ class ParticlePick(GuiTabWidget):
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
         self.insert_label_line_push(parent, 'Particle List', 'particleList2', 'Select your particleList (XML) file.',
-                                    initdir=self.projectname, mode='file', cstep=-3, filetype=['xml'])
+                                    initdir=self.projectname, mode='file', cstep=-4, filetype=['xml'],
+                                    action2=self.countNumberOfParticles)
         self.insert_label(parent,'', rstep=1)
         self.insert_checkbox_label(parent, mode + 'moveShiftToPickPos', 'Shift To Pick Position', width=200,
                                    rstep=0, cstep=5)
@@ -1149,6 +1152,8 @@ class ParticlePick(GuiTabWidget):
     def updatePLs(self, name):
         for key in ('particleList0', 'particleList1', 'particleList2'):
             if not key == name: self.widgets[key].setText(self.widgets[name].text())
+
+
 
     def requestOutputName(self, ext='xml', folder='', title='Save particle list.'):
         fname = str(QFileDialog.getSaveFileName(self, title, folder, filter='*.'+ext)[0])

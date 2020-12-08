@@ -945,6 +945,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
                                  paramsSbatch=paramsSbatch)
+        self.updateGpuString(mode)
 
         setattr(self, mode + 'gb_CCC', groupbox)
         return groupbox
@@ -1371,7 +1372,7 @@ class SubtomoAnalysis(GuiTabWidget):
     def updateGpuString(self, mode):
         id = self.widgets[mode + 'gpuID'].text()
         try:
-            a = map(int,[el for el in id.split(',') if el != ''])
+            a = list(map(int,[el for el in id.split(',') if el != '']))
         except:
             self.widgets[mode + 'gpuID'].setText('')
             self.popup_messagebox('Warning', 'Invalid value in field', 'Impossible to parse gpu IDs, field has been cleared.')
@@ -1379,9 +1380,21 @@ class SubtomoAnalysis(GuiTabWidget):
 
         if len(id) > 0:
             self.widgets[mode + 'gpuString'].setText(f' --gpuID {id}')
+            self.widgets[mode + 'numberMpiCores'].setText(f'{len(a)+1}')
         else:
             self.widgets[mode + 'gpuString'].setText('')
 
+            if 'gLocal'in mode:
+                qname, n_nodes, cores, time, modules = self.qparams['GLocalAlignment'].values()
+            elif 'CCC' in mode:
+                qname, n_nodes, cores, time, modules = self.qparams['PairwiseCrossCorrelation'].values()
+            elif 'FSC' in mode:
+                qname, n_nodes, cores, time, modules = self.qparams['FSCValidation'].values()
+            else:
+                cores = 20
+            self.widgets[mode + 'numberMpiCores'].setText(f'{cores}')
+
+        print(mode, self.widgets[mode + 'numberMpiCores'].text())
 
     def updatePixelSize(self, mode):
         from pytom.basic.structures import ParticleList
