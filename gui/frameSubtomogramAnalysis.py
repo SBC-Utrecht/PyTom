@@ -886,8 +886,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_line(parent, 'Prefix', mode + 'prefix', rstep=1, cstep=0,
                                tooltip='Root for generated averages of the corresponding classes. The files will be called "Prefix"_iclass.em.')
 
-        self.widgets[mode + 'particleList'].textChanged.connect(
-            lambda d, m=mode, p=self.cpcadir: self.updateOutFolder(mode, p))
+        # self.widgets[mode + 'particleList'].textChanged.connect(
+        #     lambda d, m=mode, p=self.cpcadir: self.updateOutFolder(mode, p))
         self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
 
         exefilename = [mode + 'outFolder', 'CPCA_Classification.sh']
@@ -932,7 +932,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
         self.widgets[mode + 'gpuString'] = QLineEdit('')
 
-        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.cpcadir: self.updateOutFolder(mode,p))
+        # self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.cpcadir: self.updateOutFolder(mode,p))
         self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
         self.widgets[mode + 'gpuID'].textChanged.connect(lambda d, m=mode: self.updateGpuString(m))
 
@@ -1009,7 +1009,7 @@ class SubtomoAnalysis(GuiTabWidget):
             lambda d, m=mode: self.updateAlignmentMaskFlag(m))
         self.widgets[mode + 'filenameClassificationMask'].textChanged.connect(
             lambda d, m=mode: self.updateClassificationMaskFlag(m))
-        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.acpath: self.updateOutFolder(mode, p))
+        # self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.acpath: self.updateOutFolder(mode, p))
         self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
 
         # Widgets Updated When Other Widgets Are Updated
