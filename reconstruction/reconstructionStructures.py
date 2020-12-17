@@ -1039,6 +1039,7 @@ class ProjectionList(PyTomClass):
 
         # design lowpass filter
         if lowpassFilter:
+            print(f'Creating low-pass filter for projections. Fraction of Nyquist {lowpassFilter}')  # TODO remove
             if lowpassFilter > 1.:
                 lowpassFilter = 1.
                 print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")

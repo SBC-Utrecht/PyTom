@@ -189,12 +189,12 @@ def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=
         return gold_real
 
 
-def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixel_size = 1, binning=1, size=1024, thickness=200,
+def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixel_size = 1E-10, binning=1, size=1024, thickness=200,
                    solvent_potential=4.5301, solvent_factor=1.0, numberOfParticles=1000,
                    placement_size=512, retries=5000, number_of_markers=0,
                    absorption_contrast=False, voltage=300E3, number_of_membranes=0):
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
-
+    from scipy.ndimage import gaussian_filter
     from voltools import transform
 
     # outputs
@@ -559,10 +559,11 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, pixel_size
     # noisy_cell = cell #+ xp.random.normal(0, sigma_structural, cell.shape)
     # pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree_original.mrc', cell)
 
-    # motion blur
-    # from scipy.ndimage import gaussian_filter
-    # gaussian_filter(cell, sigma=1/(pixel_size*1E9), output=cell)
-    # gaussian_filter(cell_imag, sigma=1/(pixel_size*1E9), output=cell_imag)
+    # motion blur is simply a gaussian in fourier space to the required frequency component
+    # sigma motion is roughly 8A
+    sigma_motion = 8
+    gaussian_filter(cell, sigma = (sigma_motion/(2 * (pixel_size * 1E10)))/2.35, output=cell)
+    gaussian_filter(cell_imag, sigma=(40 / (2 * (pixel_size * 1E10))) / 2.35, output=cell_imag)
 
     # save grandmodels
     print('Saving grandmodels')
@@ -983,7 +984,7 @@ def create_complex_CTF_ext(image_shape, pixel_size, defocus, voltage=300E3, Cs=2
         ax.plot(r1, m1, label='real')
         ax.plot(r2, m2, label='imaginary')
         ax.legend()
-        fig.show()
+        plt.savefig('ctf.png')
 
     return CTF
 
@@ -1187,7 +1188,7 @@ def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel
     # create a 3d array for the exit wave of each image
     noisefree_projections = xp.zeros((image_size, image_size, len(angles)))
     # get the contrast transfer function
-    complex_CTF = create_complex_CTF_ext((image_size, image_size), pixel_size, defocus, voltage=voltage,
+    complex_CTF, alt_ctf = create_complex_CTF_ext((image_size, image_size), pixel_size, defocus, voltage=voltage,
                                          Cs=spherical_aberration, display_CTF=False)
 
     # Check if msdz is viable, else correct it
@@ -1387,18 +1388,21 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
 
     # Apply poissonian noise
     # poisson_mean = projection * dose_per_pixel
-    sigma_motion = 0 / (pixel_size*1E9)
+    sigma_motion = 1 / (pixel_size*1E9)
     projection_poisson = xp.zeros(projection.shape)
     for _ in range(binning**2):
         translation = (xp.random.normal(0, sigma_motion), xp.random.normal(0, sigma_motion))
-        projection_poisson += (
-                xp.random.poisson(lam=shift(projection, translation, mode='nearest') * dose_per_pixel) / binning**2 )
+        # projection_poisson += (
+        #         xp.random.poisson(lam=shift(projection, translation, mode='nearest') * dose_per_pixel) / binning ** 2)
+        poisson_intermediate = xp.random.poisson(lam=shift(projection, translation, mode='nearest') * dose_per_pixel)
+        projection_poisson += xp.real(xp.fft.fftshift(xp.fft.ifftn(xp.fft.fftn(xp.fft.ifftshift(poisson_intermediate))
+                                                                   * ntf_shift))) / binning**2
         # imshow(projection_poisson)
         # show()
 
     # Image values are now in ADU
     # Apply the camera's noise transfer function to the noisy image
-    projection_fourier = xp.fft.fftn(xp.fft.ifftshift(projection_poisson)) * ntf_shift
+    # projection_fourier = xp.fft.fftn(xp.fft.ifftshift(projection_poisson)) * ntf_shift
 
     # Add additional noise from digitization process, less relevant for modern day cameras.
     # readout noise standard deviation can be 7 ADUs, from Vulovic et al., 2010
@@ -1408,7 +1412,8 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
     #                 # readout noise and can hence be neglected
 
     # Add readout noise and dark noise in real space
-    return xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier))) # + readsim + darksim
+    # return xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier))) # + readsim + darksim
+    return projection_poisson
 
 
 def parallel_project(grandcell, folder, frame, image_size, pixel_size, msdz, n_slices, ctf, dose, dqe, mtf, voltage,
@@ -1428,20 +1433,29 @@ def parallel_project(grandcell, folder, frame, image_size, pixel_size, msdz, n_s
 
     sample = grandcell.copy()
 
+    max_tilt_radians = abs(rotation[1]) * xp.pi / 180
+    max_tilt_radians_opp = (90 - abs(rotation[1])) * xp.pi / 180
+    rotation_height = int(xp.ceil(xp.sin(max_tilt_radians) * image_size +
+                                           xp.sin(max_tilt_radians_opp) * ice_voxels))
+    print(rotation_height)
+    if rotation_height % 2: rotation_height += 1
+    diff = sample.shape[2]-rotation_height
+    i = diff // 2
+
     # model parameter is a complex volume or real volume depending on the addition of absorption contrast
     # first transform the volume
     if sample.dtype == 'complex64':
-        transform(sample.real, translation=translation, rotation=rotation, rotation_order='sxyz',
-                                interpolation='filt_bspline', device='cpu', output=sample.real)
-        transform(sample.imag, translation=translation, rotation=rotation, rotation_order='sxyz',
-                                interpolation='filt_bspline', device='cpu', output=sample.imag)
+        transform(sample[...,i:-i].real, translation=translation, rotation=rotation, rotation_order='sxyz',
+                                interpolation='filt_bspline', device='cpu', output=sample[...,i:-i].real)
+        transform(sample[...,i:-i].imag, translation=translation, rotation=rotation, rotation_order='sxyz',
+                                interpolation='filt_bspline', device='cpu', output=sample[...,i:-i].imag)
         # remove rotation artifacts
         threshold = 0.001
         sample.real[sample.real < threshold] = 0
         sample.imag[sample.imag < threshold] = 0
     elif sample.dtype == 'float32':
-        transform(sample, translation=translation, rotation=rotation, rotation_order='sxyz',
-                                interpolation='filt_bspline', device='cpu', output=sample)
+        transform(sample[...,i:-i], translation=translation, rotation=rotation, rotation_order='sxyz',
+                                interpolation='filt_bspline', device='cpu', output=sample[...,i:-i])
         # remove rotation artifacts
         threshold = 0.001
         sample[sample < threshold] = 0
@@ -1470,7 +1484,7 @@ def parallel_project(grandcell, folder, frame, image_size, pixel_size, msdz, n_s
     if sample.dtype == 'complex64':
         sample.real += ( ice_layer * solvent_potential ) # Maybe we can remove this? Are we only interested in absorption of ice layer?
         # ice_layer *= solvent_absorption
-        sample.imag += (ice_layer *solvent_absorption )
+        sample.imag += (ice_layer * solvent_absorption )
     else:
         sample += ( ice_layer * solvent_potential )
 
@@ -1523,21 +1537,31 @@ def parallel_project(grandcell, folder, frame, image_size, pixel_size, msdz, n_s
         wave_field = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, -1]) )
         psi_multislice = xp.fft.fftshift( xp.fft.ifftn( wave_field * xp.fft.ifftshift(propagator_end) ) )
 
+    # Blur the image at this point for some motion blur?
+    # from scipy.ndimage import gaussian_filter
+    # gaussian_filter(psi_multislice.real, sigma=(20/(2 * (pixel_size * 1E10)))/2.35, output=psi_multislice.real)
+
     # Multiple by CTF for microscope effects on electron wave
     wave_ctf = xp.fft.ifftshift(ctf) * xp.fft.fftn(xp.fft.ifftshift(psi_multislice) )
     # Intensity in image plane is obtained by taking the absolute square of the wave function
     noisefree_projection = xp.abs(xp.fft.fftshift(xp.fft.ifftn(wave_ctf))) ** 2
 
+    # wave_ctf = xp.fft.ifftshift(ctf.imag) * xp.fft.fftn(xp.fft.ifftshift(xp.abs(psi_multislice) ** 2))
+    # noisefree_projection = xp.abs(xp.fft.fftshift(xp.fft.ifftn(wave_ctf)))
+
+    # noisefree_projection = xp.abs(psi_multislice)**2
+
+    # # Blur the image at this point for some motion blur?
+    # from scipy.ndimage import gaussian_filter
+    # gaussian_filter(noisefree_projection, sigma=2, output=noisefree_projection)
+
     # DEBUGGING
-    # imshow(projected_tilt_image)
-    # show()
-    #
-    # test = xp.log(xp.abs(xp.fft.fftshift(xp.fft.fftn(projected_tilt_image))))
-    #
-    # imshow(test)
-    # show()
-    #
-    # _ = radial_average(test)
+    # test = xp.log(xp.abs(xp.fft.fftshift(xp.fft.fftn(noisefree_projection))))
+    # r1, m1 = radial_average(test)
+    # fig, ax = plt.subplots()
+    # ax.plot(r1, m1)
+    # ax.legend()
+    # plt.savefig(f'{folder}/radial.png')
 
     # Apply the microscope function
     projection = microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_size, binning=binning)
@@ -1595,8 +1619,9 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
     else:
         # Calculate maximal box height to contain all the information for the rotation
         max_tilt = max([abs(a) for a in angles])
-        rotation_box_height = int(xp.ceil(xp.tan(max_tilt * xp.pi / 180) * image_size +
-                                          thickness_voxels / xp.cos(max_tilt * xp.pi / 180)))
+        max_tilt_radians = max_tilt * xp.pi / 180
+        rotation_box_height = int(xp.ceil(xp.tan(max_tilt_radians) * image_size +
+                                          thickness_voxels / xp.cos(max_tilt_radians)))
         if rotation_box_height % 2: rotation_box_height += 1
         # Place grandcell in rotation volume
         rotation_volume = xp.zeros((box_size, box_size, rotation_box_height), dtype=xp_type)

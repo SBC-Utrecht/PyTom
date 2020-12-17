@@ -1,7 +1,7 @@
 import numpy as xp
 import math
 import constant_dictionaries as phys
-import os
+import os, sys
 # import pytom.basic.functions
 
 # image display
@@ -125,15 +125,6 @@ def reduce_resolution_2(map, voxel_size, resolution):
     input = xp.fft.fftn(map)
     result = fourier_gaussian(input, sigma=(resolution/(2*voxel_size))/2.35)
     return xp.fft.ifftn(result).real
-
-
-# def create_gaussian_blur(shape, sigma_motion, voxel_size):
-#
-#
-# def motion_blur(volume, sigma_motion, voxel_size):
-#
-#     filter = create_gaussian_blur(volume.shape, sigma_motion, voxel_size)
-#     return fourier_filter(volume, filter)
 
 
 def scale(volume, factor):
@@ -647,19 +638,19 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
         # Correct for solvent and convert both the solvent and potential array to the correct units.
         real = (potential / dV * C) - (solvent / dV * (V_sol * solvent_factor))
     elif solvent_masking: # only if voxel size is small enough for accurate determination of mask
-        solvent_mask = (potential > 0.00001) * 1.0
+        solvent_mask = (potential > 1E-5) * 1.0
         # construct solvent mask
         # gaussian decay of mask
-        # cutoff = potential[potential > 0].mean()
-        # solvent_mask = (potential > 0.7 * cutoff) * 1.6
-        smoothed_mask = reduce_resolution(solvent_mask, voxel_size, voxel_size * 2)
-        smoothed_mask[smoothed_mask < 0.001] = 0
-        fig, (ax1, ax2) = plt.subplots(1, 2)
-        slice = int(solvent_mask.shape[2] // 2)
-        ax1.imshow(potential[:, :, slice])
-        ax2.imshow(smoothed_mask[:, :, slice])
-        show()
-        real = (potential / dV * C) - (smoothed_mask * (V_sol * solvent_factor))
+        if oversampling == 1:
+            smoothed_mask = reduce_resolution(solvent_mask, voxel_size, voxel_size * 2)
+            smoothed_mask[smoothed_mask < 0.001] = 0
+            solvent_mask = smoothed_mask
+        # fig, (ax1, ax2) = plt.subplots(1, 2)
+        # slice = int(solvent_mask.shape[2] // 2)
+        # ax1.imshow(potential[:, :, slice])
+        # ax2.imshow(solvent_mask[:, :, slice])
+        # show()
+        real = (potential / dV * C) - (solvent_mask * (V_sol * solvent_factor))
     else:
         real = potential / dV * C
 
@@ -672,7 +663,14 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
         print(f'molecule absorption = {molecule_absorption:.3f}')
         print(f'solvent absorption = {solvent_absorption:.3f}')
 
-        imaginary = solvent/dV * (molecule_absorption - solvent_absorption)
+        if solvent_masking:
+            imaginary = solvent_mask * (molecule_absorption - solvent_absorption)
+        elif solvent_exclusion:
+            imaginary = solvent/dV * (molecule_absorption - solvent_absorption)
+        else:
+            print('ERROR: Absorption contrast cannot be generated if the solvent masking or solvent exclusion method '
+                  'are not used.')
+            sys.exit(0)
 
         # if solvent_masking:
         #     imaginary = smoothed_mask * (molecule_absorption - solvent_absorption)
@@ -1039,7 +1037,7 @@ def wrapper(file, input_folder, output_folder, voxel_size, oversampling=1, binni
 
     # Id does not makes sense to apply absorption contrast if solvent exclusion is not turned on
     if absorption_contrast:
-        assert exclude_solvent, print('absorption contrast can only be applied if solvent exclusion is used.')
+        assert exclude_solvent or solvent_masking, print('absorption contrast can only be applied if solvent exclusion is used.')
 
     pdb_id = file.split('.')[0]
 
@@ -1182,6 +1180,11 @@ if __name__ == '__main__':
     if not os.path.exists(output_folder):
         print('Output folder does not exist!')
         sys.exit()
+    else:
+        output_folder = f'{output_folder}/{file.split(".")[0]}'
+        if not os.path.exists(output_folder):
+            print(f'Making folder {output_folder}...')
+            os.mkdir(output_folder)
 
     wrapper(file, input_folder, output_folder, voxel_size, oversampling=oversampling, binning=binning,
             exclude_solvent=exclude_solvent, solvent_masking=solvent_masking, solvent_potential=solvent_potential,

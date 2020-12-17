@@ -374,35 +374,42 @@ if __name__ == '__main__':
 
     folder = '/data2/mchaillet/structures'
 
-    N = 300
-    alpha = 2000
-    voxel = 2.62 # A
+    size_factor = 4
+
+    # automatically scale these points
+    N = 300 * size_factor^3# number of points
+    a, b, c = (x*size_factor for x in (xp.random.randint(180, 280), xp.random.randint(180, 280),
+                                       xp.random.randint(180, 280)))
+    alpha = 2000 * size_factor
+    voxel = 2.62 * 4 # A
     pdb = f'{folder}/pdb/lipid/dppc128_dehydrated.pdb'
     solvent = 4.5301
     voltage = 300E3
 
-    points = sample_points_ellipsoid(N, a=225, b=250, c=240)
+    # generate an ellipsoid and triangulate it
+    points = sample_points_ellipsoid(N, a=a, b=b, c=c)
     surface = triangulate(points, alpha)
 
+    # fill the triangles with lipid molecules and calculate potential for it
     volume = membrane_potential(surface, voxel, pdb, solvent, voltage)
     real = volume[0]
     imag = volume[1]
 
-    from potential import reduce_resolution_2, bin
+    from potential import reduce_resolution, bin
 
     name = 'bilayer'
-    size = '45x50x48nm' # double the values of the ellipsoid radii
+    size = f'{a*2/10:.0f}x{b*2/10:.0f}x{c*2/10:.0f}nm' # double the values of the ellipsoid radii for actual size
 
-    real_fil = reduce_resolution_2(real, voxel, 2 * voxel)
-    imag_fil = reduce_resolution_2(imag, voxel, 2 * voxel)
+    real_fil = reduce_resolution(real, voxel, 2 * voxel)
+    imag_fil = reduce_resolution(imag, voxel, 2 * voxel)
 
     write(f'{folder}/potential/membrane/{name}_{voxel:.2f}A_{size}_4.53V_real.mrc', real)
     write(f'{folder}/potential/membrane/{name}_{voxel:.2f}A_{size}_4.53V_imag_300V.mrc', imag)
 
     binning = 2
 
-    real_bin = bin(reduce_resolution_2(real, voxel, binning * voxel * 2), binning) # *2 still?
-    imag_bin = bin(reduce_resolution_2(imag, voxel, binning * voxel * 2), binning)
+    real_bin = bin(reduce_resolution(real, voxel, binning * voxel * 2), binning) # *2 still?
+    imag_bin = bin(reduce_resolution(imag, voxel, binning * voxel * 2), binning)
 
     write(f'{folder}/potential/membrane/{name}_{voxel*binning:.2f}A_{size}_4.53V_real.mrc', real_bin)
     write(f'{folder}/potential/membrane/{name}_{voxel*binning:.2f}A_{size}_4.53V_imag_300V.mrc', imag_bin)
