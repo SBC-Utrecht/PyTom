@@ -374,7 +374,7 @@ if __name__ == '__main__':
 
     folder = '/data2/mchaillet/structures'
 
-    size_factor = 4
+    size_factor = 3
 
     # automatically scale these points
     N = 300 * size_factor^3# number of points
