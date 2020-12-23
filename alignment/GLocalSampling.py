@@ -4,7 +4,6 @@ Created July/Aug 2014
 
 @author: FF
 '''
-
 from pytom.basic.structures import PyTomClass
 from pytom.gpu.initialize import xp, device
 from pytom.angles.localSampling import LocalSampling
@@ -76,6 +75,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         useExternalRef = True
 
     for ii in range(0, alignmentJob.max_iter):
+        print(f'running iteration {ii}/{alignmentJob.max_iter}')
         if 'gpu' in device:
             alignmentJob.scoringParameters.mask = alignmentJob.scoringParameters.mask.convert2numpy()
 
@@ -200,9 +200,9 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         oddSplitList  = splitParticleList(particleList=odd, setParticleNodesRatio=setParticleNodesRatio)
         print(">>>>>>>>> Aligning Even ....")
 
-
+        
         if alignmentJob.gpu is None or alignmentJob.gpu == []:
-            print('regular')
+            print('regular', neven, nodd)
             bestPeaksEvenSplit = mpi.parfor( alignParticleList,
                                     list(zip(evenSplitList, [currentReferenceEven]*len(evenSplitList),
                                         [evenCompoundWedgeFile]*len(evenSplitList),
@@ -1183,7 +1183,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     splitFactor = len(splitLists)
     assert splitFactor > 0, "splitFactor == 0, issue with parallelization"
 
-    if not gpuIDs is None:
+    if 'gpu' in device:
         from pytom.bin.average import averageGPU as average
         from pytom.tompy.structures import Reference
         from pytom.tompy.io import read, write
@@ -1270,6 +1270,7 @@ def splitParticleList(particleList, setParticleNodesRatio=3):
         splitFactor = len(particleList) / int(setParticleNodesRatio)
     assert splitFactor > 0, \
         "splitFactor == 0, too few particles for parallelization - decrease number of processors"
+    print(f'splitFactor = {splitFactor}')
     splitLists = particleList.splitNSublists(splitFactor-1)  # somehow better to not include master...
     return splitLists
 
