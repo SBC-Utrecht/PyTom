@@ -35,10 +35,10 @@ if __name__ == '__main__':
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
 
-    options = [ScriptOption(['-e','--edgeSize'], 'Particle List', True, False),
-               ScriptOption(['-m','--major'],  'Length of the major axis of the ellipse', True, False),
-               ScriptOption(['-n','--minor1'], 'Length of the first minor axis of the ellipse',True, True),
-               ScriptOption(['-l','--minor2'], 'Length of the smallest asis ellipse',True, True),
+    options = [ScriptOption(['-e','--edgeSize'], 'Size of edge of box (pixels)', True, False),
+               ScriptOption(['-m','--major'],  'Length of the major axis of the ellipse (pixels).', True, False),
+               ScriptOption(['-n','--minor1'], 'Length of the first minor axis of the ellipse (pixels).',True, True),
+               ScriptOption(['-l','--minor2'], 'Length of the smallest asis ellipse (pixels).',True, True),
                ScriptOption(['-o', '--outputFileName'], 'Name of output file.', True, False),
                ScriptOption(['-s', '--sigma'], 'SD of gaussian dropoff of smoothing kernel',True,True),
                ScriptOption(['-c', '--cuttoff'], 'Cutoff SD.', True, True),
