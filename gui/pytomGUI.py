@@ -10,8 +10,7 @@ if sys.version_info[0] < 3:
 
 global pytompath
 pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
-
-print(pytompath)
+import webbrowser
 
 if not pytompath: pytompath = '/Users/gijs/Documents/pytom_private'
 
@@ -195,7 +194,7 @@ class View2d(QMainWindow, CommonFunctions):
         self.setCentralWidget(self.cwidget)
 
     def insert_image(self, will):
-        self.viewer = View2D(self)
+        self.viewer = Viewer2D(self)
         if not self.viewer.failed:
             self.viewer.show()
 
@@ -256,8 +255,10 @@ class PyTomGui(QMainWindow, CommonFunctions):
         log = QAction(QIcon("{}/gui/Icons/LogFileTray.png".format(self.pytompath)), "Queue", self)
         view2d = QAction(QIcon("{}/gui/Icons/2d-viewing.png".format(self.pytompath)), "View2D", self)
         view3d = QAction(QIcon("{}/gui/Icons/3d-viewing.png".format(self.pytompath)), "View3D", self)
+        help = QAction(QIcon("{}/gui/Icons/HelpLink.png".format(self.pytompath)), "Help", self)
 
-        for action in (plot, log, view2d, view3d):
+
+        for action in (plot, log, view2d, view3d, help):
             tb.addAction(action)
 
         # ADD SEPARATOR
@@ -267,7 +268,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         tb.actionTriggered[QAction].connect(self.processtrigger)
 
 
-        self.targets =  ( (  'CollectPreprocess',  "Data Transfer" ),
+        self.targets =  ( ('CollectPreprocess',  "Data Transfer" ),
                           ('TomographReconstruct', "Tomographic Reconstruction"),
                           ('ParticlePick',         "Particle Picking" ),
                           ('SubtomoAnalysis',      "Subtomogram Analysis"))
@@ -370,6 +371,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         elif q.text() == 'Queue':        self.show_logfiles()
         elif q.text() == 'View3D':       self.open3DImage()
         elif q.text() == 'View2D':       self.open2DImage()
+        elif q.text() == 'Help':         webbrowser.open('https://github.com/FridoF/PyTom/wiki', new=2)
         else:
             for n, subname in enumerate(self.drs[1]):
                 if q.text() == subname and len(self.stage_buttons) > n+1:

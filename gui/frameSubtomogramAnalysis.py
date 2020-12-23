@@ -54,7 +54,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.activeProcesses = {}
         self.threadPool = self.parent().threadPool
         self.workerID = 0
-
+        self.qparams = {}
         self.tabs_dict = {}
         self.tab_actions = {}
 
@@ -445,7 +445,7 @@ class SubtomoAnalysis(GuiTabWidget):
                     from lxml import etree
                     xmlObj = etree.parse(particleFile)
                     particles = xmlObj.xpath('Particle')
-                    binning = int(particles[0].xpath('InfoTomogram')[0].get('BinningFactor'))
+                    binning = 8 #int(particles[0].xpath('InfoTomogram')[0].get('BinningFactor'))
                     refmarkindex = int(particles[0].xpath('InfoTomogram')[0].get('RefMarkIndex'))
                 except:
                     print('Default values used for {}:\n\tbin recon = 8\n\t ref mark index = 1'.format(
@@ -457,6 +457,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                 closest_options = []
                 for c in choices:
+                    print(c)
                     align_folder = os.path.dirname(c)
                     mm, markID, angles = os.path.basename(c).split('_')
                     closestTemp = f'{align_folder}/{mm}_CLOSEST_{angles}'
@@ -1384,17 +1385,16 @@ class SubtomoAnalysis(GuiTabWidget):
         else:
             self.widgets[mode + 'gpuString'].setText('')
 
-            if 'gLocal'in mode:
+            if 'gLocal'in mode and 'GLocalAlignment' in self.qparams.keys():
                 qname, n_nodes, cores, time, modules = self.qparams['GLocalAlignment'].values()
-            elif 'CCC' in mode:
+            elif 'CCC' in mode and 'PairwiseCrossCorrelation' in self.qparams.keys():
                 qname, n_nodes, cores, time, modules = self.qparams['PairwiseCrossCorrelation'].values()
-            elif 'FSC' in mode:
+            elif 'FSC' in mode and 'FSCValidation' in self.qparams.keys():
                 qname, n_nodes, cores, time, modules = self.qparams['FSCValidation'].values()
             else:
                 cores = 20
             self.widgets[mode + 'numberMpiCores'].setText(f'{cores}')
 
-        print(mode, self.widgets[mode + 'numberMpiCores'].text())
 
     def updatePixelSize(self, mode):
         from pytom.basic.structures import ParticleList

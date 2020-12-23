@@ -283,6 +283,7 @@ class WorkerSignals(QObject):
     results = pyqtSignal(object)
     startMessage = pyqtSignal(object)
 
+
 class Worker(QRunnable):
 
     def __init__(self, fn=None, args=[], sig=True, results=False):
@@ -308,7 +309,6 @@ class Worker(QRunnable):
 
     def start(self):
         QThreadPool.globalInstance().start(self)
-
 
 
 class TimedMessageBox(QMessageBox):
@@ -1030,7 +1030,7 @@ class CommonFunctions():
                     else:
                         update = False
                 except:
-                    update = False
+                    update = True
                 if update:
                     self.widgets[key].setText(str(num_nodes*cores))
 
@@ -1439,7 +1439,6 @@ class CommonFunctions():
         ID, num = results
         print(f'finished job {ID}')
         self.popup_messagebox('TimedInfo', 'Finished Job', f'Finished job {ID}')
-
 
 
 class CreateMaskFile(QMainWindow, CommonFunctions):
@@ -5319,14 +5318,14 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def tab1UI(self, id=''):
 
-        self.row, self.column = 0, 0
+        self.row, self.column = 0, 4
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
         parent = self.table_layouts[id]
         mode = 'v00_PlotTM'
         w = 150
         last, reftilt = 10, 5
-        self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w)
+        self.insert_label(parent, cstep=-4, rstep=1, sizepolicy=self.sizePolicyB, width=w)
         self.insert_label_line_push(parent, 'particleList ', mode + 'particleListNormal', width=w, mode='file',
                                     filetype='xml', enabled=True,
                                     tooltip='Select a particleList which you want to plot.\n')
@@ -5345,14 +5344,14 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         plotTMResults([normal, mirrored], labels=['Normal', 'Mirrored'])
 
     def tab2UI(self, id=''):
-        self.row, self.column = 0, 0
+        self.row, self.column = 0, 4
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
         parent = self.table_layouts[id]
         mode = 'v00_PlotFSC'
         w = 150
         last, reftilt = 10, 5
-        self.insert_label(parent, rstep=1, cstep=0, sizepolicy=self.sizePolicyB, width=w)
+        self.insert_label(parent, rstep=1, cstep=-4, sizepolicy=self.sizePolicyB, width=w)
         self.insert_label_line_push(parent, 'FSC File (ascii)', mode + 'FSCFilename', mode='file', width=w,
                                     initdir=self.projectname,
                                     filetype='dat', tooltip='Select a particleList which you want to plot.\n')

@@ -1186,10 +1186,12 @@ class ParticlePick(GuiTabWidget):
             outputName = self.requestOutputName(folder=self.pickpartfolder)
 
             values = [suffix, dir, w, bin, fmShifts]
-
+            print(values)
             for n, adj in enumerate( ('adjustSuffix','adjustDir','adjustWedgeAngles','adjustBinning','multiplyShifts')):
                 if not self.widgets[mode + adj].isChecked():
                     values[n] *= 0
+
+            print(values)
             suffix, dir, w, bin, fm = values
 
             if dir:
@@ -1203,13 +1205,14 @@ class ParticlePick(GuiTabWidget):
                     if not os.path.exists(tempfolder): os.mkdir(tempfolder)
 
             if bin == '': bin = 1
-            if fm == '' or self.widgets[mode + 'multiplyShift'].isChecked() == False:
+            if fm == '' or self.widgets[mode + 'multiplyShifts'].isChecked() == False:
                 fm = None
             else:
-                fm = int(fm)
+                fm = float(fm)
 
             if outputName:
                 print('Update {}. Output saved as {}.'.format(os.path.basename(particleList), outputName) )
+                print(fm)
                 updatePL(particleList, outputName, directory=dir, wedgeangles=w, suffix=suffix, multiplypickpos=float(bin), multiplyshift=fm)
             else:
                 self.popup_messagebox('Warning', '', 'No valid output filename provided. No file saved.')

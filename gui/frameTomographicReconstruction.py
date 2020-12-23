@@ -123,7 +123,7 @@ class TomographReconstruct(GuiTabWidget):
                 tab.setLayout(self.table_layouts[tt])
 
     def tab1UI(self,  id=''):
-        print(f'batch id: {id}')
+        #print(f'batch id: {id}')
         self.filepath_tomodata = {}
         self.filepath_tomodata['Motion Corrected'] = self.motioncor_folder
         self.filepath_tomodata['Raw Nanographs']  = self.rawnanographs_folder
@@ -279,7 +279,7 @@ class TomographReconstruct(GuiTabWidget):
                 mm = 9999
 
                 for n, sortedfile in enumerate(sortedfiles):
-                    print(sortedfile)
+                    #print(sortedfile)
                     index_s = int(sortedfile.split('_')[-1].split('.')[0])
                     if abs(tangs[index_s]) < mm:
                         mm = abs(tangs[index_s])
@@ -1134,7 +1134,7 @@ class TomographReconstruct(GuiTabWidget):
         if sorted_folder == '':
             return
         metafile = [os.path.join(sorted_folder, meta) for meta in os.listdir(sorted_folder) if meta.endswith('meta')][0]
-        print(metafile)
+        #print(metafile)
         if metafile:
             metadata = loadstar(metafile,dtype=guiFunctions.datatype)
 
@@ -1159,11 +1159,11 @@ class TomographReconstruct(GuiTabWidget):
             fi, li = int(self.widgets[mode+'FirstIndex'].text()), int(self.widgets[mode+'LastIndex'].text())
 
             if fi > 0 or li-INFR < len(files)-1:
-                self.widgets[mode + 'Reduced'].setText('_reduced_{}_{}'.format(firstAngle, lastAngle))
+                self.widgets[mode + 'Reduced'].setText('_reduced_{},{}'.format(firstAngle, lastAngle))
             else:
                 self.widgets[mode + 'Reduced'].setText('')
 
-            self.widgets[mode + 'Reduced'].setText('_{:.1f}_{:.1f}'.format(firstAngle, lastAngle))
+            self.widgets[mode + 'Reduced'].setText('_{:.1f},{:.1f}'.format(firstAngle, lastAngle))
 
             try:
                 tomofolder = self.widgets[mode + 'tomofolder']
@@ -1174,7 +1174,7 @@ class TomographReconstruct(GuiTabWidget):
 
                 self.widgets[mode + 'outFolder'].setText( os.path.join('','alignment', uudir, 'GlobalAlignment',
                                                                 os.path.basename(sorted_folder), ) )
-                print(self.widgets[mode + 'outFolder'].text())
+                #print(self.widgets[mode + 'outFolder'].text())
 
             except Exception as e:
                 print(e)
