@@ -133,7 +133,7 @@ class CMWorkerGPU():
                 plan.ccc_go(subparts)
                 elapsed2 = (time.time()-tt)*1000
                 elapsed += elapsed2
-                print(f'finished {len(subparts)} comparisons for job {nn+1}/{num_jobs} on {device} in {elapsed2/1000:10.3f} sec ({elapsed2/max(1,len(subparts)):7.3f})')
+                # print(f'finished {len(subparts)} comparisons for job {nn+1}/{num_jobs} on {device} in {elapsed2/1000:10.3f} sec ({elapsed2/max(1,len(subparts)):7.3f})')
                 print(f'finished {len(subparts)} comparisons for job {nn+1}/{num_jobs} on {device} in {elapsed/1000:10.3f} sec ({elapsed/max(1,len(subparts)):7.3f})')
             # send back the result
 

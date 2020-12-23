@@ -115,14 +115,14 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
 
 def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binning, iteration, sigma, threshold, outdir='./'):
     from pytom_volume import read, vol, pasteCenter
-    from pytom.basic.structures import Particle
+    from pytom.basic.structures import Particle, Mask
     import os
     from pytom.basic.transformations import resize
 
     v1 = r1.getVolume()
     v2 = r2.getVolume()
     if mask:
-        maskBin = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        maskBin = read(mask, 0,0,0,0,0,0,0,0,0, binning, binning, binning)
         if v1.sizeX() != maskBin.sizeX() or v1.sizeY() != maskBin.sizeY() or v1.sizeZ() != maskBin.sizeZ():
             mask = vol(v1.sizeX(), v1.sizeY(), v1.sizeZ())
             mask.setAll(0)
@@ -134,7 +134,7 @@ def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binni
         mask = None
 
     if focus_mask:
-        focusBin = read(focus_mask, 0,0,0,0,0,0,0,0,0,binning,binning,binning)
+        focusBin = read(focus_mask, 0,0,0,0,0,0,0,0,0, binning, binning, binning)
         if v1.sizeX() != focusBin.sizeX() or v1.sizeY() != focusBin.sizeY() or v1.sizeZ() != focusBin.sizeZ():
             focus_mask = vol(v1.sizeX(), v1.sizeY(), v1.sizeZ())
             focus_mask.setAll(0)
@@ -413,7 +413,6 @@ def calculate_scores(pl, references, freqs, offset, binning, mask, noalign=False
 def calculate_prob(s, scores):
     i = 0
     n = len(scores)
-    print('n: ', n)
     if n < 1:
         raise Exception('len scores == 0: for probability calculation scores must be larger than 0')
     for item in scores:
@@ -653,7 +652,7 @@ def distance(p, ref, freq, mask, binning):
         else:
             mask = maskBin
 
-
+    print(a.sizeX(), b.sizeX(), mask.sizeX())
     s = nxcc(a, b, mask)
 
     d2 = 2*(1-s)
@@ -677,7 +676,6 @@ def initialize(pl, settings):
     kn = len(pl)//K 
     references = {}
     frequencies = {}
-    print(K)
     # get the first class centroid
     pp = pl[:kn]
     # avg, fsc = average2(pp, norm=True, verbose=False)
@@ -801,8 +799,6 @@ def classify(pl, settings):
         # start the alignments
         print("Start alignments ...")
         scores = calculate_scores(pl, references, frequencies, offset, binning, mask, settings["noalign"])
-
-        print('len scores: ', len(scores))
 
         # determine the class labels & track the class changes
         pl = determine_class_labels(pl, references, frequencies, scores, dmaps, binning, settings["noise"])
