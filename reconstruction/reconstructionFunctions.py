@@ -444,3 +444,442 @@ def rotate_vector3D(point3D, centerPoint3D, shift3D, inPlaneRotAngle, tiltAngle)
         transformedPoint.append(p+c)
 
     return transformedPoint
+
+
+def alignImageUsingAlignmentResultFile(alignmentResultsFile, indexImage, weighting=None, lowpassFilter=0.9, binning=1,
+                                       circleFilter=False):
+    import pytom_freqweight
+    from pytom_numpy import vol2npy
+    from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
+    from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
+    from pytom.tompy.io import read, write, read_size
+    from pytom.tompy.tools import taper_edges, create_circle
+    from pytom.tompy.filter import circle_filter, ramp_filter, exact_filter, ellipse_filter
+    import pytom.voltools as vt
+    from pytom.gpu.initialize import xp, device
+
+    # print("Create aligned images from alignResults.txt")
+
+    alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
+    imageList = alignmentResults['FileName']
+    tilt_angles = alignmentResults['TiltAngle']
+
+    imdimX = read_size(imageList[0], 'x')
+    imdimY = read_size(imageList[0], 'y')
+
+    if binning > 1:
+        imdimX = int(float(imdimX) / float(binning) + .5)
+        imdimY = int(float(imdimY) / float(binning) + .5)
+
+    sliceWidth = imdimX
+
+    if (weighting != None) and (float(weighting) < -0.001):
+        weightSlice = xp.fft.fftshift(ramp_filter(imdimY, imdimX))
+
+    if circleFilter:
+        circleFilterRadiusX = imdimX // 2
+        circleFilterRadiusY = imdimY // 2
+
+        circleSlice = xp.fft.fftshift(ellipse_filter(imdimX, imdimY, circleFilterRadiusX, circleFilterRadiusY))
+    else:
+        circleSlice = xp.ones((imdimX, imdimY))
+
+    # design lowpass filter
+    if lowpassFilter:
+        if lowpassFilter > 1.:
+            lowpassFilter = 1.
+            print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
+
+        # weighting filter: arguments: (()dimx, dimy), cutoff radius, sigma
+        # lpf = xp.fft.fftshift(create_circle((imdimX,imdimY),lowpassFilter*(imdim//2), sigma=0.4*lowpassFilter*(imdim//2)))
+
+    projectionList = ProjectionList()
+    for n, image in enumerate(imageList):
+        atx = alignmentResults['AlignmentTransX'][n]
+        aty = alignmentResults['AlignmentTransY'][n]
+        rot = alignmentResults['InPlaneRotation'][n]
+        mag = 1 / (alignmentResults['Magnification'][n] )
+        projection = Projection(imageList[n], tiltAngle=tilt_angles[n], alignmentTransX=atx, alignmentTransY=aty,
+                                alignmentRotation=rot, alignmentMagnification=mag)
+        projectionList.append(projection)
+
+    imdim = min(imdimY, imdimX)
+
+    for (ii, projection) in enumerate(projectionList):
+        if not ii == indexImage:
+            continue
+        from pytom.tompy.transform import resize
+
+        # print(f'read {projection._filename}')
+        image = read(str(projection._filename)).squeeze()
+
+        if binning > 1:
+            image = resize(image, 1 / binning)
+
+        #write(f'test/image_{ii}.mrc', image, tilt_angle=tilt_angles[ii])
+
+
+        tiltAngle = projection._tiltAngle
+
+        # 1 -- normalize to contrast - subtract mean and norm to mean
+        immean = image.mean()
+        image = (image - immean) / immean
+
+        # 2 -- smoothen borders to prevent high contrast oscillations
+        image = taper_edges(image, imdim // 30)[0]
+
+        # 3 -- square if needed
+        if 0 and imdimY != imdimX:
+            newImage = xp.zeros((imdim, imdim, 1), dtype=xp.float32)
+            pasteCenter(image, newImage)
+            image = newImage
+
+
+        # 4 -- transform projection according to tilt alignment
+        transX = projection._alignmentTransX / binning
+        transY = projection._alignmentTransY / binning
+        rot = float(projection._alignmentRotation)
+        mag = float(projection._alignmentMagnification)
+
+        inputImage = xp.expand_dims(image, 2).copy()
+        outputImage = xp.zeros_like(inputImage, dtype=xp.float32)
+
+        vt.transform(inputImage.astype(xp.float32), rotation=[ 0, 0, rot], rotation_order='rxyz', output=outputImage,
+                     center=[inputImage.shape[0]//2,inputImage.shape[1]//2,0],
+                     device=device, translation=[transX, transY, 0], scale=[mag, mag, 1], interpolation='filt_bspline')
+
+        del image
+        image = outputImage.squeeze()
+
+        # 5 -- Optional Low Pass Filter
+        if lowpassFilter:
+            from pytom.tompy.filter import bandpass_circle
+
+            image = bandpass_circle(image, high=lowpassFilter * (min(imdimX, imdimY) // 2),
+                                    sigma=0.4 * lowpassFilter * (min(imdimX, imdimY) // 2))
+            # image = xp.abs((xp.fft.ifftn(xp.fft.fftn(image) * lpf)))
+
+        # 6 -- smoothen once more to avoid edges
+        image = taper_edges(image, imdim // 30)[0]
+
+        # 7 -- analytical weighting
+        if (weighting != None) and (weighting < 0):
+
+            # image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
+            image = xp.fft.ifftn(xp.fft.fftn(image) * weightSlice.T * circleSlice).real
+
+
+        elif (weighting != None) and (weighting > 0):
+            weightSlice = xp.fft.fftshift(exact_filter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
+            image = xp.fft.ifftn(xp.fft.fftn(image) * weightSlice * circleSlice).real
+
+        del inputImage, outputImage, circleSlice
+
+        write(f'inputImage_{ii}.mrc', image)
+
+        return image.astype(xp.float32)
+
+
+def alignImagesUsingAlignmentResultFile(alignmentResultsFile, weighting=None, lowpassFilter=0.9, binning=1,
+                                        circleFilter=False):
+    import os
+    from pytom.basic.files import read as readCVol
+    from pytom_numpy import vol2npy, npy2vol
+    from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
+    from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
+    from pytom.tompy.io import read, write, read_size
+    from pytom.tompy.tools import taper_edges, create_circle
+    from pytom.tompy.filter import circle_filter, ramp_filter, exact_filter
+    import pytom.voltools as vt
+    from pytom.gpu.initialize import xp, device
+    print("Create aligned images from alignResults.txt")
+
+    alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
+    imageList = alignmentResults['FileName']
+    tilt_angles = alignmentResults['TiltAngle']
+
+    imdim = read_size(imageList[0], 'x')
+
+    if binning > 1:
+        imdim = int(float(imdim) / float(binning) + .5)
+    else:
+        imdim = imdim
+
+    sliceWidth = imdim
+
+    if (weighting != None) and (float(weighting) < -0.001):
+        weightSlice = xp.fft.fftshift(ramp_filter(imdim, imdim))
+
+    if circleFilter:
+        circleFilterRadius = imdim // 2
+        circleSlice = xp.fft.fftshift(circle_filter(imdim, imdim, circleFilterRadius))
+    else:
+        circleSlice = xp.ones((imdim, imdim))
+
+    # design lowpass filter
+    if lowpassFilter:
+        if lowpassFilter > 1.:
+            lowpassFilter = 1.
+            print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
+
+        # weighting filter: arguments: (()dimx, dimy), cutoff radius, sigma
+        lpf = xp.fft.fftshift(
+            create_circle((imdim, imdim), lowpassFilter * (imdim // 2), sigma=0.4 * lowpassFilter * (imdim // 2)))
+
+    projectionList = ProjectionList()
+    for n, image in enumerate(imageList):
+        atx = alignmentResults['AlignmentTransX'][n] / binning
+        aty = alignmentResults['AlignmentTransY'][n] / binning
+        rot = alignmentResults['InPlaneRotation'][n]
+        mag = 1 / alignmentResults['Magnification'][n]
+        projection = Projection(imageList[n], tiltAngle=tilt_angles[n], alignmentTransX=atx, alignmentTransY=aty,
+                                alignmentRotation=rot, alignmentMagnification=mag)
+        projectionList.append(projection)
+
+    stack = xp.zeros((imdim, imdim, len(imageList)), dtype=xp.float32)
+    phiStack = xp.zeros((1, 1, len(imageList)), dtype=xp.float32)
+    thetaStack = xp.zeros((1, 1, len(imageList)), dtype=xp.float32)
+    offsetStack = xp.zeros((1, 2, len(imageList)), dtype=xp.float32)
+
+    for (ii, projection) in enumerate(projectionList):
+        print(f'Align {projection._filename}')
+        image = read(str(projection._filename))[::binning, ::binning].squeeze()
+
+        if lowpassFilter:
+            image = xp.abs((xp.fft.ifftn(xp.fft.fftn(image) * lpf)))
+
+        tiltAngle = projection._tiltAngle
+
+        # normalize to contrast - subtract mean and norm to mean
+        immean = image.mean()
+        image = (image - immean) / immean
+
+        # smoothen borders to prevent high contrast oscillations
+        image = taper_edges(image, imdim // 30)[0]
+
+        # transform projection according to tilt alignment
+        transX = projection._alignmentTransX / binning
+        transY = projection._alignmentTransY / binning
+        rot = float(projection._alignmentRotation)
+        mag = float(projection._alignmentMagnification)
+
+        inputImage = xp.expand_dims(image, 2).copy()
+        outputImage = xp.zeros_like(inputImage, dtype=xp.float32)
+
+        vt.transform(inputImage.astype(xp.float32), rotation=[0, 0, rot], rotation_order='rxyz', output=outputImage,
+                     device=device, translation=[transX, transY, 0], scale=[mag, mag, 1], interpolation='filt_bspline')
+
+        image = outputImage.squeeze()
+
+        # smoothen once more to avoid edges
+        image = taper_edges(image, imdim // 30)[0]
+
+        # analytical weighting
+        if (weighting != None) and (weighting < 0):
+            # image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
+            image = xp.fft.ifftn(xp.fft.fftn(image) * weightSlice * circleSlice)
+
+
+        elif (weighting != None) and (weighting > 0):
+            weightSlice = xp.fft.fftshift(exact_filter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
+            image = xp.fft.ifftn(xp.fft.fftn(image) * weightSlice * circleSlice)
+
+        thetaStack[0, 0, ii] = int(round(projection.getTiltAngle()))
+        offsetStack[0, :, ii] = xp.array([int(round(projection.getOffsetX())), int(round(projection.getOffsetY()))])
+
+        stack[:, :, ii] = image
+
+    arrays = []
+
+    for fname, arr in (
+    ('stack.mrc', stack), ('offsetStack.mrc', offsetStack), ('thetaStack.mrc', thetaStack), ('phiStack.mrc', phiStack)):
+        if 'gpu' in device:
+            arr = arr.get()
+        import numpy as np
+        res = npy2vol(np.array(arr, dtype='float32', order='F'), 3)
+        arrays.append(res)
+
+    #
+    #     write('stack.mrc', stack)
+    #     stack = readCVol('stack.mrc')
+    # write('offsetstack.mrc', offsetStack)
+    # offsetStack = readCVol('offsetstack.mrc')
+    # write('thetastack.mrc', thetaStack)
+    # thetaStack = readCVol('thetastack.mrc')
+    # write('phistack.mrc', phiStack)
+    # phiStack = readCVol('phistack.mrc')
+    #
+    # os.remove('stack.mrc')
+    # os.remove('offsetstack.mrc')
+    # os.remove('thetastack.mrc')
+    # os.remove('psistack.mrc')
+
+    return arrays
+
+
+def toProjectionStackFromAlignmentResultsFile(alignmentResultsFile, weighting=None, lowpassFilter=0.9,
+                                              binning=1, circleFilter=False, num_procs=1, outdir='',
+                                              prefix='sorted_aligned'):
+    """read image and create aligned projection stack, based on the results described in the alignmentResultFile.
+
+       @param alignmentResultsFile: result file generate by the alignment script.
+       @type datatypeAR: gui.guiFunction.datatypeAR
+       @param weighting: weighting (<0: analytical weighting, >1: exact weighting, 0/None: no weighting )
+       @type weighting: float
+       @param lowpassFilter: lowpass filter (in Nyquist)
+       @type lowpassFilter: float
+       @param binning: binning (default: 1 = no binning). binning=2: 2x2 pixels -> 1 pixel, binning=3: 3x3 pixels -> 1 pixel, etc.
+
+       @author: GvdS
+    """
+    print('weighting: ', weighting)
+    import numpy
+    from pytom_numpy import vol2npy
+    from pytom.basic.files import read_em, write_em
+    from pytom.basic.functions import taper_edges
+    from pytom.basic.transformations import general_transform2d
+    from pytom.basic.fourier import ifft, fft
+    from pytom.basic.filter import filter as filterFunction, bandpassFilter
+    from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, \
+        fourierFilterShift_ReducedComplex
+    from pytom_volume import complexRealMult, vol, paste
+    import pytom_freqweight
+    from pytom.basic.transformations import resize, rotate
+    from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
+    from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
+    from pytom_numpy import vol2npy
+    import mrcfile
+    from pytom.tompy.io import write, read_size
+    import os
+
+    print("Create aligned images from alignResults.txt")
+
+    alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
+    imageList = alignmentResults['FileName']
+    tilt_angles = alignmentResults['TiltAngle']
+
+    imdim = int(read_size(imageList[0], 'x'))
+
+    if binning > 1:
+        imdim = int(float(imdim) / float(binning) + .5)
+    else:
+        imdim = imdim
+
+    sliceWidth = imdim
+
+    # pre-determine analytical weighting function and lowpass for speedup
+    if (weighting != None) and (float(weighting) < -0.001):
+        weightSlice = fourierFilterShift(rampFilter(imdim, imdim))
+
+    if circleFilter:
+        circleFilterRadius = imdim // 2
+        circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imdim, imdim, circleFilterRadius))
+    else:
+        circleSlice = vol(imdim, imdim // 2 + 1, 1)
+        circleSlice.setAll(1.0)
+
+    # design lowpass filter
+    if lowpassFilter:
+        if lowpassFilter > 1.:
+            lowpassFilter = 1.
+            print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
+        # weighting filter: arguments: (angle, cutoff radius, dimx, dimy,
+        lpf = pytom_freqweight.weight(0.0, lowpassFilter * imdim // 2, imdim, imdim // 2 + 1, 1,
+                                      lowpassFilter / 5. * imdim)
+        # lpf = bandpassFilter(volume=vol(imdim, imdim,1),lowestFrequency=0,highestFrequency=int(lowpassFilter*imdim/2),
+        #                     bpf=None,smooth=lowpassFilter/5.*imdim,fourierOnly=False)[1]
+
+    projectionList = ProjectionList()
+    imageList = []
+    tilt_angles = []
+    for n, image in enumerate(alignmentResults['FileName']):
+        atx = alignmentResults['AlignmentTransX'][n]
+        aty = alignmentResults['AlignmentTransY'][n]
+        rot = alignmentResults['InPlaneRotation'][n]
+        mag = alignmentResults['Magnification'][n]
+        # print(image, alignmentResults['TiltAngle'][n])
+        # if abs(alignmentResults['TiltAngle'][n]) > 20:
+        #     continue
+        tilt_angles.append(alignmentResults['TiltAngle'][n])
+        imageList.append(image)
+        projection = Projection(imageList[-1], tiltAngle=tilt_angles[-1], alignmentTransX=atx, alignmentTransY=aty,
+                                alignmentRotation=rot, alignmentMagnification=mag)
+        projectionList.append(projection)
+
+    stack = vol(imdim, imdim, len(imageList))
+    stack.setAll(0.0)
+
+    phiStack = vol(1, 1, len(imageList))
+    phiStack.setAll(0.0)
+
+    thetaStack = vol(1, 1, len(imageList))
+    thetaStack.setAll(0.0)
+
+    offsetStack = vol(1, 2, len(imageList))
+    offsetStack.setAll(0.0)
+
+    for (ii, projection) in enumerate(projectionList):
+        if projection._filename.split('.')[-1] == 'st':
+            from pytom.basic.files import EMHeader, read
+            idx = projection._index
+            image = read(file=projection._filename,
+                         subregion=[0, 0, idx - 1, imdim, imdim, 1],
+                         sampling=[0, 0, 0], binning=[0, 0, 0])
+            if not (binning == 1) or (binning == None):
+                image = resize(volume=image, factor=1 / float(binning))[0]
+        else:
+            # read projection files
+            from pytom.basic.files import EMHeader, read, read_em_header
+            image = read(str(projection._filename))
+            # image = rotate(image,180.,0.,0.)
+            image = resize(volume=image, factor=1 / float(binning))[0]
+
+        if lowpassFilter:
+            filtered = filterFunction(volume=image, filterObject=lpf, fourierOnly=False)
+            image = filtered[0]
+
+        tiltAngle = projection._tiltAngle
+
+        # normalize to contrast - subtract mean and norm to mean
+        immean = vol2npy(image).mean()
+        image = (image - immean) / immean
+
+        print(ii, immean, projection._filename)
+
+        # smoothen borders to prevent high contrast oscillations
+        image = taper_edges(image, imdim // 30)[0]
+
+        # transform projection according to tilt alignment
+        transX = projection._alignmentTransX / binning
+        transY = projection._alignmentTransY / binning
+        rot = float(projection._alignmentRotation)
+        mag = float(projection._alignmentMagnification)
+
+        image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=[2, 1, 0], crop=True)
+
+        # smoothen once more to avoid edges
+        image = taper_edges(image, imdim // 30)[0]
+
+        # analytical weighting
+        if (weighting != None) and (weighting < 0):
+            # image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
+            image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
+
+
+        elif (weighting != None) and (weighting > 0):
+            weightSlice = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
+            # image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
+            image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
+
+        thetaStack(int(round(projection.getTiltAngle())), 0, 0, ii)
+        offsetStack(int(round(projection.getOffsetX())), 0, 0, ii)
+        offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
+        paste(image, stack, 0, 0, ii)
+        fname = '{}_{:02d}.mrc'.format(prefix, int(imageList[ii].split('_')[-1].split('.')[0]))
+        if outdir:
+            import mrcfile
+            # write_em(os.path.join(outdir, fname.replace('mrc', 'em')), image)
+            write(os.path.join(outdir, fname), vol2npy(image).copy().astype('float32'))
+            print('written file: ', fname)
+
+    return [stack, phiStack, thetaStack, offsetStack]

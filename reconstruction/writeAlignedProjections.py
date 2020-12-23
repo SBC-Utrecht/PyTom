@@ -102,7 +102,6 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
                 from pytom.basic.files import EMHeader, read, read_em_header
                 image = read(projection._filename)
                 image = resize(volume=image, factor=1 / float(binning))[0]
-
                 if projection._filename[-3:] == '.em':
                     header = read_em_header(projection._filename)
                 else:
@@ -145,13 +144,19 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
 
             # 3 -- square if needed
             if imdimY != imdimX:
+                print('Squared image to larger dimension')
                 newImage = vol(imdim, imdim,1)
                 newImage.setAll(0)
                 pasteCenter(image, newImage)
                 image = newImage
 
+
+
+
             # 4 -- Rotate
+            print(transX, transY)
             image = general_transform2d(v=image, rot=rot, shift=[transX,transY], scale=mag, order=[2, 1, 0], crop=True)
+            image.write(f'resized_{ii}.em')
 
             # 5 -- Optional Low Pass Filter
             if lowpassFilter:

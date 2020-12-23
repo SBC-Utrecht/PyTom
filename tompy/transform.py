@@ -285,10 +285,10 @@ def resize(volume, factor, interpolation='Fourier'):
         return scale(volume, factor, interpolation='Spline')
     else:
         fvol = xp.fft.rfftn(volume)
-        newfvol = resizeFourier(fvol=fvol, factor=factor, isodd=volume.shape[2]%2)
+        newfvol = resizeFourier(fvol=fvol, factor=factor, isodd=volume.shape[-1]%2)
         newvol = (xp.fft.irfftn(newfvol, s=[newfvol.shape[0],]*len(newfvol.shape)))
 
-        return newvol, newfvol
+        return newvol
 
 def resizeFourier(fvol, factor, isodd=False):
     """
@@ -312,6 +312,7 @@ def resizeFourier(fvol, factor, isodd=False):
     # new dims in real and Fourier space
     newNx = newFNx = int(xp.floor(oldFNx * factor + 0.5))
     newNy = newFNy = int(xp.floor(oldFNy * factor + 0.5 ))
+
     # check 3D images
     if len(fvol.shape) == 3:
         oldNz = int((fvol.shape[2] - 1)*2 + 1*isodd)
@@ -342,7 +343,7 @@ def resizeFourier(fvol, factor, isodd=False):
         newNz = 1
         scf = 1. / (newNx * newNy * newNz)
         newFNz = 1
-        newFNy = newNy // 2 + 1
+        newFNy = newNy #// 2 + 1
         fvol_center_scaled = xp.fft.fftshift(fvol,axes=(0))
         newfvol = xp.zeros((newFNx, newFNy), dtype=fvol.dtype) *scf
 
@@ -352,7 +353,8 @@ def resizeFourier(fvol, factor, isodd=False):
             newfvol = fvol_center_scaled[oldFNx // 2 - newFNx // 2: oldFNx // 2 + newFNx // 2 + isodd, :newFNy]
 
         newfvol = xp.fft.fftshift(newfvol, axes=(0))
-        newfvol = xp.expand_dims(newfvol,2)
+        #newfvol = xp.expand_dims(newfvol,2)
+
     return newfvol
 
 def projTiltY(vol, tiltangle, projSize=None, center=None):

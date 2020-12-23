@@ -63,18 +63,19 @@ if __name__ == '__main__':
     helper = ScriptHelper(sys.argv[0].split('/')[-1],  # script name
                           description='Reconstruct a tomogram on a GPU based on a alignment Results alignment.',
                           authors='Gvds',
-                          options=[ScriptOption(['--projectionDirectory'], 'Projection Directory', True, False ),
-                                   ScriptOption(['--outputDirectory'], 'Results are written to this directory',
+                          options=[ScriptOption(['-p', '--projectionDirectory'], 'Projection Directory', True, False ),
+                                   ScriptOption(['-o', '--outputDirectory'], 'Results are written to this directory',
                                                 True, False),
                                    ScriptOption(['-b', '--coordinateBinning'],
                                                 'Binning factor of the particle list.', True, True),
                                    ScriptOption(['-g', '--gpuID'], 'Which gpu do you want to use?', True, True),
-                                   ScriptOption(['--metaFile'], 'Metafile containing tiltangles.', True,True),
-                                   ScriptOption(['--alignmentResultsFile'], 'Alignment ResultsFile', True, True),
+                                   ScriptOption(['-m', '--metaFile'], 'Metafile containing tiltangles.', True,True),
+                                   ScriptOption(['-a', '--alignmentResultsFile'], 'Alignment ResultsFile', True, True),
+                                   ScriptOption(['-s', '--sizeReconstruction'], 'Size Reconstruction in pixels. Three numbers separated by a comma.', True, True),
                                    ScriptOption(['-v', '--verbose'], 'print intermediate output', False, True)
                                    ])
     try:
-        proj_dir, outdir, coordinateBinning, gpu, metafile, alignmentfile, verbose = ll = parse_script_options(sys.argv[1:], helper)
+        proj_dir, outdir, coordinateBinning, gpu, metafile, alignmentfile, size, verbose = ll = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         print(helper)
@@ -83,8 +84,8 @@ if __name__ == '__main__':
     coordinateBinning = int(coordinateBinning) if coordinateBinning else 1
     metadata = loadstar(metafile,dtype=DATATYPE_METAFILE)
     tilt_angles = metadata['TiltAngle']
-
-    patches = xp.zeros((512,720, len(tilt_angles)),dtype=xp.float32)
+    size = [464, 464, 464] if size is None else list(map(int,size.split(',')))
+    patches = xp.zeros((size[0], size[1], len(tilt_angles)),dtype=xp.float32)
 
     images = []
 
@@ -97,9 +98,11 @@ if __name__ == '__main__':
         temp_image = alignImageUsingAlignmentResultFile(alignmentfile, i, weighting=-1, circleFilter=True, binning=coordinateBinning)
         patches[:,:,i] = temp_image[:,:]
         del temp_image
-
-    vol_bp = xp.zeros((512, 720, 512), dtype=xp.float32)
-    bp = backProjectGPU(patches, vol_bp, 0, tilt_angles)
+    print(time() - tt)
+    vol_bp = xp.zeros((size[0], size[1], size[2]), dtype=xp.float32)
+    tt = time()
+    s = 100
+    bp = backProjectGPU(patches[:s,:s,:], vol_bp[:s,:s,:s], 0, tilt_angles)
 
     print(time()-tt)
     write(f'{outdir}/reconstruction.mrc', bp)#[ndim//2-vol_size//2:ndim//2+vol_size//2 + vol_size%2,
