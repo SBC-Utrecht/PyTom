@@ -1118,7 +1118,7 @@ class PeakLeader(PeakWorker):
                     os.remove(self.dstDir+'/'+name)
 
             if self.gpuID:
-                gpuflag = '_gpu'
+                gpuflag = ''
             else:
                 gpuflag = ''
             # rename the result files name

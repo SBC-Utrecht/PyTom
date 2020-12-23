@@ -97,8 +97,9 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         sumV = None
         sqrV = None
 
-
-    volume = wedgeInfo.apply(volume)
+    if wedgeInfo.__class__ == WedgeInfo or wedgeInfo.__class__ == Wedge:
+        print('Applied wedge to volume')
+        volume = wedgeInfo.apply(volume)
 
     while currentRotation != [None,None,None]:
         if verbose == True:
@@ -111,15 +112,6 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         # apply wedge
         if wedgeInfo.__class__ == WedgeInfo or wedgeInfo.__class__ == Wedge:
             ref = wedgeInfo.apply(ref)
-
-            from pytom.tompy.io import write
-            import numpy as np
-            from pytom_numpy import vol2npy
-            r = vol2npy(volume)
-            #write('testwedge.em', np.fft.fftshift(np.abs(np.fft.fftn(r))**2))
-
-
-
 
         # rotate the mask if it is asymmetric
         if scoreFnc == FLCF:
@@ -186,6 +178,9 @@ def extractPeaksGPU(volume, reference, rotations, scoreFnc=None, mask=None, mask
     import numpy as np
     from pytom_freqweight import weight
 
+
+
+
     angles = rotations[:]
     #volume = wedgeInfo.apply(volume)
 
@@ -198,8 +193,9 @@ def extractPeaksGPU(volume, reference, rotations, scoreFnc=None, mask=None, mask
         w1 = w2 = angle
     else:
         w1,w1 = angle
-    print(w1,w2)
+
     if w1 > 1E-3 or w2 > 1E-3:
+        print('Wedge applied to volume')
         cutoff = wedgeInfo._wedgeObject._cutoffRadius if wedgeInfo._wedgeObject._cutoffRadius > 1E-3 else sx//2
         smooth = wedgeInfo._wedgeObject._smooth
         wedge = create_wedge(w1, w2, cutoff, sx, sy, sz, smooth).astype(np.complex64)
