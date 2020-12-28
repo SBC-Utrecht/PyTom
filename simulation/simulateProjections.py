@@ -49,6 +49,27 @@ class ConfigLogger(object):
         self.__log.info(line)
 
 
+def bin_class_mask(volume, binning=2):
+    """
+    Bin class mask for oversampled simulation. Grandmodel is generated oversampled and needs to be readjusted to the
+    reconstruction.
+    """
+    from potential import bin
+
+    assert not any([size % 2 for size in volume.shape]), "volume sizes are not divisable by 2 for binning of class mask"
+
+    nvolume = xp.zeros((size//binning for size in volume.shape))
+
+    classid = int(xp.max(volume))
+    while classid > 0:
+        tmp = (volume == classid) * 1.0
+        tmp = xp.ceil(bin(tmp, binning)).astype(int)
+        nvolume[tmp>0] = tmp[tmp>0] * classid
+        classid -= 1
+
+    return nvolume
+
+
 def draw_range(range, datatype, name):
     if type(range) == list and len(range) == 2:
         xp.random.seed(seed)
@@ -244,6 +265,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
 
     # attributes
     number_of_classes = len(listpdbs)
+    names_of_classes = listpdbs
     save_path = f'{output_folder}/model_{model_ID}'
     dims = [v.shape for v in volumes] # TODO this parameter is not needed, shapes can be extracted later
     particles_by_class = [0, ] * number_of_classes
@@ -262,6 +284,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
     # Add large cell structures, such as membranes first!
     if number_of_membranes:
         number_of_classes += 1
+        names_of_classes.append('vesicles')
         particles_by_class += [0]
 
         # class id of cell structures is always the same
@@ -382,13 +405,14 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
             particles_by_class[cls_id] += 1
 
             # update text
-            ground_truth_txt_file += f'fiducial {int(loc_x - loc_x_start)} {int(loc_y - loc_y_start)} {int(loc_z)} ' \
+            ground_truth_txt_file += f'vesicle {int(loc_x - loc_x_start)} {int(loc_y - loc_y_start)} {int(loc_z)} ' \
                                      f'NaN NaN NaN\n'
 
     # GOLD MARKERS WILL ALSO BE COUNTER TOWARDS TOTAL PARTICLE NUMBER
     # There are also added as an additional class
     if number_of_markers:
         number_of_classes += 1
+        names_of_classes.append('fiducials')
         particles_by_class += [0]
 
         # class id of gold markers is always the same
@@ -614,6 +638,12 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
     with open(f'{save_path}/particle_locations.txt', 'w') as f:
         f.write(ground_truth_txt_file)
 
+    with open(f'{save_path}/class_conversion_table.txt') as f:
+        conversion_table = 'background 0\n'
+        for i in number_of_classes:
+            conversion_table += f'{names_of_classes[i]} {i+1}\n'
+        f.write(conversion_table)
+
     # reporting
     print(f'Total number of particles in the tomogram: {particle_nr - 1}\n'
           f'Skipped {skipped_particles} particles ({default_tries_left} random location retries)\n'
@@ -756,7 +786,7 @@ def potential_amplitude(rho, molecular_weight, voltage):
     elif molecular_weight == 12: # carbon film
         ZC = 6
         sigma_inelastic = 1.5 * 1E-6 * ZC ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-    elif molecular_weight == 7.2 or molecular_weight == 734.1: # protein or lipid
+    elif molecular_weight == 7.2: # protein or lipid
         # rho for proteins is assumed to be 1.35 g/cm^3
         # fractional composition is 0.492, 0.313, 0.094, and 0.101 for elements H, C, N, and O, respectively
         sigma_inelastic = (0.82 * 1E-4 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
@@ -764,21 +794,21 @@ def potential_amplitude(rho, molecular_weight, voltage):
     elif molecular_weight == 197: # gold particles
         ZAu = 79
         sigma_inelastic = 1.5 * 1E-6 * ZAu ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-    # elif molecular_weight == 734.1:
-    #     # DPPC lipid composition C40H80NO8P, molar mass 734.053 g/mol
-    #     # rho is 0.92 g/cm^3 for most vegetable oils, find a better reference!
-    #     ZC = 6
-    #     ZN = 7
-    #     ZO = 8
-    #     ZP = 15
-    #     sigma_inelastic_H = (8.8E-6 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
-    #                          (beta2 * xp.log(beta2_100 * (100E3 + E0) / (E_loss / 2))))
-    #     sigma_inelastic_C = 1.5 * 1E-6 * ZC ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-    #     sigma_inelastic_N = 1.5 * 1E-6 * ZN ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-    #     sigma_inelastic_O = 1.5 * 1E-6 * ZO ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-    #     sigma_inelastic_P = 1.5 * 1E-6 * ZP ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-    #     sigma_inelastic = 40 * sigma_inelastic_C + 80 * sigma_inelastic_H + sigma_inelastic_N + 8 * sigma_inelastic_O + \
-    #         sigma_inelastic_P
+    elif molecular_weight == 734.1:
+        # DPPC lipid composition C40H80NO8P, molar mass 734.053 g/mol
+        # rho is 0.92 g/cm^3 for most vegetable oils, find a better reference!
+        ZC = 6
+        ZN = 7
+        ZO = 8
+        ZP = 15
+        sigma_inelastic_H = (8.8E-6 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
+                             (beta2 * xp.log(beta2_100 * (100E3 + E0) / (E_loss / 2))))
+        sigma_inelastic_C = 1.5 * 1E-6 * ZC ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic_N = 1.5 * 1E-6 * ZN ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic_O = 1.5 * 1E-6 * ZO ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic_P = 1.5 * 1E-6 * ZP ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic = 40 * sigma_inelastic_C + 80 * sigma_inelastic_H + sigma_inelastic_N + 8 * sigma_inelastic_O + \
+            sigma_inelastic_P
 
     concentration = rho * 1000 * phys.constants['na'] / (molecular_weight / 1000)
     lamda_inelastic = ( 1. / (concentration * sigma_inelastic * 1E-18) )

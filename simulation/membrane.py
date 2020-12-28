@@ -272,6 +272,13 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
     """
     from potential import read_structure, iasa_integration
 
+    # READ THE STRUCTURE AND EXTEND IT ONLY ONCE
+    # membrane pdb should have solvent deleted at this point
+    x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(membrane_pdb)
+    z_coordinates = list(xp.array(z_coordinates) - sum(z_coordinates) / len(z_coordinates))
+    # get the periodice boundary box from the pdb file
+    x_bound, y_bound, z_bound = boundary_box_from_pdb(membrane_pdb)
+
     reference = Vector(.0, .0, 1.0)
 
     membrane_x, membrane_y, membrane_z, membrane_e, membrane_b, membrane_o = [], [], [], [], [], []
@@ -300,13 +307,6 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
         shift = xp.array([xp.min(triangle3[:, 0]), xp.min(triangle3[:, 1]), 0])
         triangle_sample = shift_triangle(triangle3, -shift)
         # print(xp.round(triangle_sample, decimals=2))
-
-        # READ THE STRUCTURE AND EXTEND IT ONLY ONCE
-        # membrane pdb should have solvent deleted at this point
-        x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(membrane_pdb)
-        z_coordinates = list(xp.array(z_coordinates) - sum(z_coordinates)/len(z_coordinates))
-        # get the periodice boundary box from the pdb file
-        x_bound, y_bound, z_bound = boundary_box_from_pdb(membrane_pdb)
 
         xmax = xp.max(triangle_sample[:,0])
         ymax = xp.max(triangle_sample[:,1])
@@ -340,21 +340,36 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
         # lets first rotate the atoms to the original orientation of the triangle
 
         # applying the rotation to each atom individually might me a bit slow...
-        n_atoms = len(newe)
-        matrix1_t = matrix1.T
-        matrix2_t = matrix2.T
-        for i in range(n_atoms):
-            atom = xp.array([newx[i], newy[i], newz[i]])
-            catom = rotate_point(shift_point(atom, shift), matrix2_t)
-            atom_surface = shift_point(rotate_point(catom, matrix1_t), center)
-            newx[i] = atom_surface[0]
-            newy[i] = atom_surface[1]
-            newz[i] = atom_surface[2]
+        # n_atoms = len(newe)
+        # matrix1_t = matrix1.T
+        # matrix2_t = matrix2.T
+
+        atoms = xp.array([newx, newy, newz])
+        atoms[0,:] += shift[0]
+        atoms[1,:] += shift[1]
+        atoms[2,:] += shift[2]
+        # inverse of rotation matrix for the rotating the points back to original triangle position
+        # inverse of atoms for correct order of applying rotation matrices
+        ratoms = (matrix1.T @ (matrix2.T @ atoms))
+        ratoms[0,:] += center[0]
+        ratoms[1,:] += center[1]
+        ratoms[2,:] += center[2]
+        # newx = list(ratoms[0, :])
+        # newy = list(ratoms[1, :])
+        # newz = list(ratoms[2, :])
+
+        # for i in range(n_atoms):
+        #     atom = xp.array([newx[i], newy[i], newz[i]])
+        #     catom = rotate_point(shift_point(atom, shift), matrix2_t)
+        #     atom_surface = shift_point(rotate_point(catom, matrix1_t), center)
+        #     newx[i] = atom_surface[0]
+        #     newy[i] = atom_surface[1]
+        #     newz[i] = atom_surface[2]
 
         # add positions to larger array that describes atom coordinates on the full surface
-        membrane_x += newx
-        membrane_y += newy
-        membrane_z += newz
+        membrane_x += list(ratoms[0, :])
+        membrane_y += list(ratoms[1, :])
+        membrane_z += list(ratoms[2, :])
         membrane_e += newe
         membrane_b += newb
         membrane_o += newo
@@ -374,10 +389,10 @@ if __name__ == '__main__':
 
     folder = '/data2/mchaillet/structures'
 
-    size_factor = 3
+    size_factor = 7
 
     # automatically scale these points
-    N = 300 * size_factor^3# number of points
+    N = int(100 * size_factor**2.2)  # number of points
     a, b, c = (x*size_factor for x in (xp.random.randint(180, 280), xp.random.randint(180, 280),
                                        xp.random.randint(180, 280)))
     alpha = 2000 * size_factor
