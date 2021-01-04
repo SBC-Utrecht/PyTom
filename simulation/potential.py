@@ -154,16 +154,24 @@ def bin(potential, factor):
     if factor == 1:
         return potential
 
-    s = (potential.shape[0] % factor) // 2
-    d = (potential.shape[0] % factor) % 2
+    size = potential.shape
+    s = [(x % factor) // 2 for x in size]
+    d = [(x % factor)  % 2 for x in size]
+    # print(size, s, d)
+    # s = (potential.shape[0] % factor) // 2
+    # d = (potential.shape[0] % factor) % 2
 
-    potential = potential[s:potential.shape[0] - s - d, s:potential.shape[0] - s - d, s:potential.shape[0] - s - d]
+    potential = potential[s[0]:size[0] - s[0] - d[0], s[1]:size[1] - s[1] - d[1], s[2]:size[2] - s[2] - d[2]]
+    # potential = potential[s:potential.shape[0] - s - d, s:potential.shape[0] - s - d, s:potential.shape[0] - s - d]
 
-    ds = int(potential.shape[0] // factor)
-    image_size = potential.shape[0]
+    size = potential.shape if potential.shape != size else size
+    # ds = int(potential.shape[0]//factor)
+    ds = [int(x // factor) for x in size]
+    # image_size = potential.shape[0]
 
-    binned = potential.reshape(ds, image_size // ds,
-                               ds, image_size // ds, ds, image_size // ds).mean(-1).mean(1).mean(-2)
+    # binned = potential.reshape(ds, image_size // ds,
+    #                            ds, image_size // ds, ds, image_size // ds).mean(-1).mean(1).mean(-2)
+    binned = potential.reshape(ds[0], size[0] // ds[0], ds[1], size[1] // ds[1], ds[2], size[2] // ds[2]).mean(-1).mean(1).mean(-2)
 
     return binned
 

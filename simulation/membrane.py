@@ -380,7 +380,7 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
     structure = (membrane_x, membrane_y, membrane_z, membrane_e, membrane_b, membrane_o)
     # pass directly to iasa_integration
     potential = iasa_integration('', voxel_size, solvent_exclusion=True, V_sol=solvent,
-                                 absorption_contrast=True, voltage=voltage, density=0.92, molecular_weight=734.1,
+                                 absorption_contrast=True, voltage=voltage, density=1.35, molecular_weight=7.2,
                                  structure_tuple=structure)
     return potential
 
@@ -389,7 +389,7 @@ if __name__ == '__main__':
 
     folder = '/data2/mchaillet/structures'
 
-    size_factor = 7
+    size_factor = 2.1
 
     # automatically scale these points
     N = int(100 * size_factor**2.2)  # number of points

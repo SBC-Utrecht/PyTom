@@ -51,14 +51,14 @@ class ConfigLogger(object):
 
 def bin_class_mask(volume, binning=2):
     """
-    Bin class mask for oversampled simulation. Grandmodel is generated oversampled and needs to be readjusted to the
-    reconstruction.
+    Bin class mask for oversampled simulation. Class mask is generated oversampled (same as grandmodel) and needs to be
+    readjusted to the reconstruction.
     """
     from potential import bin
 
     assert not any([size % 2 for size in volume.shape]), "volume sizes are not divisable by 2 for binning of class mask"
 
-    nvolume = xp.zeros((size//binning for size in volume.shape))
+    nvolume = xp.zeros(tuple([size//binning for size in volume.shape]))
 
     classid = int(xp.max(volume))
     while classid > 0:
@@ -137,7 +137,7 @@ def addNoise(noise_size, dim):
     return 1 + (noise - noise.mean())
 
 
-def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=1.0, imaginary=False, voltage=300E3):
+def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_factor=1.0, imaginary=False, voltage=300E3):
     """
     From Rahman 2018 (International Journal of Biosensors and Bioelectronics).
     Volume of unit cell gold is 0.0679 nm^3 with 4 atoms per unit cell.
@@ -147,7 +147,7 @@ def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=
     from potential import reduce_resolution, bin
     # from pytom.tompy.filter import gaussian3d
 
-    assert (type(binning) is int) and (binning >= 1), print('Stop gold marker creation binning factor is not a positive'
+    assert (type(oversampling) is int) and (oversampling >= 1), print('Stop gold marker creation oversampling factor is not a positive'
                                                             ' integer.')
 
     # select a random size for the gold marker in nm
@@ -157,7 +157,7 @@ def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=
     unit_cell_volume = 0.0679 # nm^3
     atoms_per_unit_cell = 4
     C = 2 * xp.pi * phys.constants['h_bar']**2 / (phys.constants['el'] * phys.constants['me']) * 1E20  # nm^2
-    voxel_size_nm = voxel_size*1E9 / binning
+    voxel_size_nm = voxel_size*1E9 / oversampling
     voxel_volume = voxel_size_nm**3
 
     # dimension of gold box, always add 5 nm to the sides
@@ -186,8 +186,8 @@ def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=
         gold_amplitude = potential_amplitude(19.3, 197, voltage)
         gold_imaginary = bead * (gold_amplitude - solvent_amplitude)
         # filter and bin
-        gold_imaginary = bin(gold_imaginary, binning)
-        # gold_imaginary = bin(reduce_resolution(gold_imaginary, voxel_size_nm, voxel_size_nm*2), binning)
+        gold_imaginary = bin(gold_imaginary, oversampling)
+        # gold_imaginary = bin(reduce_resolution(gold_imaginary, voxel_size_nm, voxel_size_nm*2), oversampling)
 
     # values transformed to occupied volume per voxel from 1 nm**3 per voxel to actual voxel size
     solvent_correction = bead * (solvent_potential * solvent_factor)
@@ -201,8 +201,8 @@ def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=
     gold_potential = gold_atoms * gold_scattering_factors[0:5].sum() * C / voxel_volume / 1000
     gold_real = gold_potential - solvent_correction
     # filter and bin
-    # gold_real = bin(reduce_resolution(gold_real, voxel_size_nm, voxel_size_nm * 2), binning)
-    gold_real = bin(gold_real, binning)
+    # gold_real = bin(reduce_resolution(gold_real, voxel_size_nm, voxel_size_nm * 2), oversampling)
+    gold_real = bin(gold_real, oversampling)
 
     if imaginary:
         return gold_real, gold_imaginary
@@ -210,7 +210,7 @@ def create_gold_marker(voxel_size, solvent_potential, binning=1, solvent_factor=
         return gold_real
 
 
-def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembranes, pixel_size = 1E-10, binning=1,
+def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembranes, pixel_size = 1E-10,
                    size=1024, thickness=200,
                    solvent_potential=4.5301, solvent_factor=1.0, numberOfParticles=1000,
                    placement_size=512, retries=5000, number_of_markers=0,
@@ -224,9 +224,9 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
     cell = xp.zeros((X, Y, Z))
     if absorption_contrast: cell_imag = xp.zeros_like(cell)
 
-    occupancy_bbox_mask = xp.zeros_like(cell)
+    # occupancy_bbox_mask = xp.zeros_like(cell)
     occupancy_accurate_mask = xp.zeros_like(cell)
-    class_bbox_mask = xp.zeros_like(cell)
+    # class_bbox_mask = xp.zeros_like(cell)
     class_accurate_mask = xp.zeros_like(cell)
     ground_truth_txt_file = ''
 
@@ -267,7 +267,6 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
     number_of_classes = len(listpdbs)
     names_of_classes = listpdbs
     save_path = f'{output_folder}/model_{model_ID}'
-    dims = [v.shape for v in volumes] # TODO this parameter is not needed, shapes can be extracted later
     particles_by_class = [0, ] * number_of_classes
     particle_nr = 1
     default_tries_left = retries
@@ -332,8 +331,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
 
             # find random location for the particle
             # allow membranes to be placed half outside of the grandcell
-            dimensions = membrane_vol.shape
-            xx, yy, zz = dimensions
+            xx, yy, zz = membrane_vol.shape
             tries_left = default_tries_left
             # x_cut_left, x_cut_right = 0,0
             y_cut_left, y_cut_right, z_cut_low, z_cut_high = 0,0,0,0
@@ -349,12 +347,11 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
 
                 # adjust for bbox indexing for membrane sticking out of box
                 # for x limit between x_start and x_end
-                # if loc_x - xx//2 < 0: x_cut_left = abs(loc_x - xx//2)
-                if loc_y - yy//2 < 0: y_cut_left = abs(loc_y - yy//2)
-                if loc_z - zz//2 < 0: z_cut_low = abs(loc_z - zz//2)
-                # if loc_x + xx//2 + xx%2 > loc_x_end: x_cut_right = loc_x - (loc_x + xx//2 + xx%2)
-                if loc_y + yy//2 + yy%2 > Y: y_cut_right = abs(Y - (loc_y + yy//2 + yy%2))
-                if loc_z + zz//2 + zz%2 > Z: z_cut_high = abs(Z - (loc_z + zz//2 + zz%2))
+                y_cut_left = abs(loc_y - yy//2) if (loc_y - yy//2) < 0 else 0
+                y_cut_right = abs(Y - (loc_y + yy//2 + yy%2)) if (loc_y + yy//2 + yy%2) > Y else 0
+
+                z_cut_low = abs(loc_z - zz//2) if (loc_z - zz//2) < 0 else 0
+                z_cut_high = abs(Z - (loc_z + zz//2 + zz%2)) if (loc_z + zz//2 + zz%2) > Z else 0
 
                 # crop the occupancy by removing overhang
                 accurate_particle_occupancy_crop = accurate_particle_occupancy[:,
@@ -385,12 +382,12 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
                 continue
 
             # populate occupancy volumes
-            occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = particle_nr
+            # occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = particle_nr
             occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
                 accurate_particle_occupancy_crop * particle_nr
 
             # populate class masks
-            class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = (cls_id + 1)
+            # class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = (cls_id + 1)
             class_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
                 accurate_particle_occupancy_crop * (cls_id + 1)
 
@@ -422,11 +419,11 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
 
             # create the gold marker in other function
             if absorption_contrast:
-                gold_marker, gold_imag = create_gold_marker(pixel_size, solvent_potential, binning=binning,
+                gold_marker, gold_imag = create_gold_marker(pixel_size, solvent_potential, oversampling=2,
                                                             solvent_factor=solvent_factor,
                                                             imaginary=True, voltage=voltage)
             else:
-                gold_marker = create_gold_marker(pixel_size, solvent_potential, binning=binning,
+                gold_marker = create_gold_marker(pixel_size, solvent_potential, oversampling=2,
                                                  solvent_factor=solvent_factor)
 
             u = xp.random.uniform(0.0, 1.0, (2,))
@@ -455,8 +452,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
             accurate_particle_occupancy = gold_marker > 0
 
             # find random location for the particle
-            dimensions = gold_marker.shape
-            xx, yy, zz = dimensions
+            xx, yy, zz = gold_marker.shape
             tries_left = default_tries_left
             while tries_left > 0:
                 loc_x = xp.random.randint(loc_x_start + xx // 2 + 1, loc_x_end - xx // 2 - 1)
@@ -466,9 +462,9 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
                 tries_left -= 1
 
                 # calculate coordinates of bbox for the newly rotated particle
-                bbox_x = [loc_x - dimensions[0] // 2, loc_x + dimensions[0] // 2 + dimensions[0] % 2]
-                bbox_y = [loc_y - dimensions[1] // 2, loc_y + dimensions[1] // 2 + dimensions[1] % 2]
-                bbox_z = [loc_z - dimensions[2] // 2, loc_z + dimensions[2] // 2 + dimensions[2] % 2]
+                bbox_x = [loc_x - xx // 2, loc_x + xx // 2 + xx % 2]
+                bbox_y = [loc_y - yy // 2, loc_y + yy // 2 + yy % 2]
+                bbox_z = [loc_z - zz // 2, loc_z + zz // 2 + zz % 2]
 
                 # create masked occupancy mask
                 masked_occupancy_mask = occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1],
@@ -486,12 +482,12 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
                 continue
 
             # populate occupancy volumes
-            occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = particle_nr
+            # occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = particle_nr
             occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
                 accurate_particle_occupancy * particle_nr
 
             # populate class masks
-            class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = (cls_id + 1)
+            # class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = (cls_id + 1)
             class_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
                 accurate_particle_occupancy * (cls_id + 1)
 
@@ -545,7 +541,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
         # remove particle rotation artifacts
         # threshold = min(volumes[cls_id][volumes[cls_id] > 0]) / 10
         # the approach above doesn't work well with PDB particles, there are often voxels with values of ^-11
-        threshold = 0.001
+        threshold = 0.01
         rotated_particle[rotated_particle < threshold] = 0
         if absorption_contrast: rotated_particle_imag[rotated_particle_imag < threshold]
 
@@ -562,11 +558,13 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
 
             tries_left -= 1
 
-            # TODO is the dims variable needed here? Could just use xx,yy,zz because the shape did not change
             # calculate coordinates of bbox for the newly rotated particle
-            bbox_x = [loc_x - dims[cls_id][0] // 2, loc_x + dims[cls_id][0] // 2 + dims[cls_id][0] % 2]
-            bbox_y = [loc_y - dims[cls_id][1] // 2, loc_y + dims[cls_id][1] // 2 + dims[cls_id][1] % 2]
-            bbox_z = [loc_z - dims[cls_id][2] // 2, loc_z + dims[cls_id][2] // 2 + dims[cls_id][2] % 2]
+            # bbox_x = [loc_x - dims[cls_id][0] // 2, loc_x + dims[cls_id][0] // 2 + dims[cls_id][0] % 2]
+            # bbox_y = [loc_y - dims[cls_id][1] // 2, loc_y + dims[cls_id][1] // 2 + dims[cls_id][1] % 2]
+            # bbox_z = [loc_z - dims[cls_id][2] // 2, loc_z + dims[cls_id][2] // 2 + dims[cls_id][2] % 2]
+            bbox_x = [loc_x - xx // 2, loc_x + xx // 2 + xx % 2]
+            bbox_y = [loc_y - yy // 2, loc_y + yy // 2 + yy % 2]
+            bbox_z = [loc_z - zz // 2, loc_z + zz // 2 + zz % 2]
 
             # create masked occupancy mask
             masked_occupancy_mask = occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]]
@@ -582,12 +580,12 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
             continue
 
         # populate occupancy volumes
-        occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = particle_nr
+        # occupancy_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = particle_nr
         occupancy_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
             accurate_particle_occupancy * particle_nr
 
         # populate class masks
-        class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = (cls_id + 1)
+        # class_bbox_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] = (cls_id + 1)
         class_accurate_mask[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
             accurate_particle_occupancy * (cls_id + 1)
 
@@ -621,26 +619,26 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
 
     # save grandmodels
     print('Saving grandmodels')
-    pytom.tompy.io.write(f'{save_path}/grandmodel_original.mrc', cell)
-    if absorption_contrast: pytom.tompy.io.write(f'{save_path}/grandmodel_original_imag.mrc', cell_imag)
+    pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', cell)
+    if absorption_contrast: pytom.tompy.io.write(f'{save_path}/grandmodel_imag.mrc', cell_imag)
 
     # save class masks
     print('Saving class volumes')
-    pytom.tompy.io.write(f'{save_path}/class_bbox_original.mrc', class_bbox_mask)
-    pytom.tompy.io.write(f'{save_path}/class_mask_original.mrc', class_accurate_mask)
+    # pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', class_bbox_mask)
+    pytom.tompy.io.write(f'{save_path}/class_mask.mrc', class_accurate_mask)
 
     # save occupancy masks
     print('Saving occupancy volumes')
-    pytom.tompy.io.write(f'{save_path}/occupancy_bbox_original.mrc', occupancy_bbox_mask)
-    pytom.tompy.io.write(f'{save_path}/occupancy_mask_original.mrc', occupancy_accurate_mask)
+    # pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', occupancy_bbox_mask)
+    pytom.tompy.io.write(f'{save_path}/occupancy_mask.mrc', occupancy_accurate_mask)
 
     # save particle text file
     with open(f'{save_path}/particle_locations.txt', 'w') as f:
         f.write(ground_truth_txt_file)
 
-    with open(f'{save_path}/class_conversion_table.txt') as f:
+    with open(f'{save_path}/class_conversion_table.txt', 'w') as f:
         conversion_table = 'background 0\n'
-        for i in number_of_classes:
+        for i in range(number_of_classes):
             conversion_table += f'{names_of_classes[i]} {i+1}\n'
         f.write(conversion_table)
 
@@ -660,7 +658,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
     #     viewer.add_image(cell, name='cell', interpolation='bicubic')
 
     # trying to reduce intermediate memory usage
-    del cell, class_accurate_mask, class_bbox_mask, occupancy_accurate_mask, occupancy_bbox_mask
+    del cell, class_accurate_mask, occupancy_accurate_mask  # , class_bbox_mask, occupancy_bbox_mask
     if absorption_contrast: del cell_imag
     return
 
@@ -1650,11 +1648,11 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
         os.mkdir(projection_folder)
 
     # grab model
-    grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original.mrc')
+    grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
     if absorption_contrast:
         xp_type = xp.complex64
         grandcell = grandcell.astype(xp_type)
-        grandcell.imag = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original_imag.mrc')
+        grandcell.imag = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_imag.mrc')
         # calculate the absorption for amorphous ice at the specified voltage
         solvent_amplitude = potential_amplitude(0.93, 18, voltage)
         print(f'solvent absorption = {solvent_amplitude:.3f}')
@@ -1839,10 +1837,10 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
         os.mkdir(projection_folder)
 
     # grab model
-    grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original.mrc')
+    grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
     if absorption_contrast:
         grandcell = grandcell.astype(xp.complex64)
-        grandcell.imag = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original_imag.mrc')
+        grandcell.imag = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_imag.mrc')
         # calculate the absorption for amorphous ice at the specified voltage
         solvent_amplitude = potential_amplitude(0.93, 18, voltage)
         print(f'solvent absorption = {solvent_amplitude:.3f}')
@@ -2022,13 +2020,43 @@ def reconstruct_tomogram(size_reconstruction, output_folder, model_ID, weighting
     #     # p = Projection(f'{save_path}/projections/synthetic_{i+1}.mrc', tiltAngle=-1 * angles[i - 1])
     #     projections.append(p)
 
-    outputname = f'{save_path}/reconstruction.em'
+    outputname = f'{save_path}/reconstruction.em' if binning==1 else f'{save_path}/reconstruction_bin{binning}.em'
     # IF EM alignment file provided, filters applied and reconstruction will be identical.
     vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=binning,
                                         applyWeighting=weighting, alignResultFile=alignment_file)
     vol.write(outputname)
     os.system(f'em2mrc.py -f {outputname} -t {os.path.dirname(outputname)}')
     os.system(f'rm {outputname}')
+
+    if binning:
+        from potential import bin
+        from scipy.ndimage import gaussian_filter
+        cell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
+        gaussian_filter(cell, sigma=(binning / 2.35), output=cell)
+        pytom.tompy.io.write(f'{save_path}/grandmodel_bin{binning}.mrc', bin(cell, binning))
+
+        # bin class mask and bbox needed for training
+        # cell = pytom.tompy.io.read_mrc(f'{save_path}/class_bbox_original.mrc')
+        # pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', bin_class_mask(cell, binning=binning))
+        cell = pytom.tompy.io.read_mrc(f'{save_path}/class_mask.mrc')
+        pytom.tompy.io.write(f'{save_path}/class_mask_bin{binning}.mrc', bin_class_mask(cell, binning=binning))
+        # TODO bin occupancy mask as well??
+        # cell = pytom.tompy.io.read_mrc(f'{save_path}/occupancy_mask.mrc')
+        # pytom.tompy.io.write(f'{save_path}/occupancy_mask_bin{2}x.mrc', bin_class_mask(cell, binning=binning))
+
+        # create particle locations bin2 file
+        binned_ground_truth = ''
+        with open(f'{save_path}/particle_locations.txt', 'r') as fin:
+            line = fin.readline()
+            while line:
+                data = line.split()
+                data[1] = str(int(data[1]) // 2)
+                data[2] = str(int(data[2]) // 2)
+                data[3] = str(int(data[3]) // 2)
+                binned_ground_truth += ' '.join(data) + '\n'
+                line = fin.readline()
+        with open(f'{save_path}/particle_locations_bin{binning}.txt', 'w') as fout:
+            fout.write(binned_ground_truth)
 
     # Flag for checking cropping?!
     if crop:
@@ -2046,20 +2074,20 @@ def reconstruct_tomogram(size_reconstruction, output_folder, model_ID, weighting
             pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', cell[ileft:iright, ileft:iright, :])
             # cell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_noisefree_original.mrc')
             # pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree.mrc', cell[ileft:iright, ileft:iright, :])
-            cell = pytom.tompy.io.read_mrc(f'{save_path}/class_bbox_original.mrc')
-            pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', cell[ileft:iright, ileft:iright, :])
+            # cell = pytom.tompy.io.read_mrc(f'{save_path}/class_bbox_original.mrc')
+            # pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', cell[ileft:iright, ileft:iright, :])
             cell = pytom.tompy.io.read_mrc(f'{save_path}/class_mask_original.mrc')
             pytom.tompy.io.write(f'{save_path}/class_mask.mrc', cell[ileft:iright, ileft:iright, :])
-            cell = pytom.tompy.io.read_mrc(f'{save_path}/occupancy_bbox_original.mrc')
-            pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', cell[ileft:iright, ileft:iright, :])
+            # cell = pytom.tompy.io.read_mrc(f'{save_path}/occupancy_bbox_original.mrc')
+            # pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', cell[ileft:iright, ileft:iright, :])
             cell = pytom.tompy.io.read_mrc(f'{save_path}/occupancy_mask_original.mrc')
             pytom.tompy.io.write(f'{save_path}/occupancy_mask.mrc', cell[ileft:iright, ileft:iright, :])
         else:
             pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', cell[:, :, :])
             # os.system(f'cp {save_path}/grandmodel_noisefree_original.mrc {save_path}/grandmodel_noisefree.mrc')
-            os.system(f'cp {save_path}/class_bbox_original.mrc {save_path}/class_bbox.mrc')
+            # os.system(f'cp {save_path}/class_bbox_original.mrc {save_path}/class_bbox.mrc')
             os.system(f'cp {save_path}/class_mask_original.mrc {save_path}/class_mask.mrc')
-            os.system(f'cp {save_path}/occupancy_bbox_original.mrc {save_path}/occupancy_bbox.mrc')
+            # os.system(f'cp {save_path}/occupancy_bbox_original.mrc {save_path}/occupancy_bbox.mrc')
             os.system(f'cp {save_path}/occupancy_mask_original.mrc {save_path}/occupancy_mask.mrc')
 
         del cell
@@ -2105,7 +2133,7 @@ if __name__ == '__main__':
         # voltage and pixelsize are needed for model generation and projection, thus general parameters
         # ensure simulator mode and device are valid options
         if (simulator_mode in ['TiltSeries', 'FrameSeries']) or (device in ['CPU', 'GPU']):
-            print(f'Generating model {model_ID} in folder {output_folder}')
+            print(f'Generating model {model_ID} on {device} in folder {output_folder}')
         else:
             print('Invalid entry for simulator mode or device in config.')
             sys.exit(0)
@@ -2209,7 +2237,6 @@ if __name__ == '__main__':
         print('\n- Generating grand model')
         generate_model(particle_folder, output_folder, model_ID, listpdbs, listmembranes,
                        pixel_size           =pixel_size,
-                       binning              =binning,
                        size                 =size,
                        thickness            =thickness_voxels,
                        placement_size       =placement_size,
@@ -2220,7 +2247,7 @@ if __name__ == '__main__':
                        voltage              =voltage,
                        number_of_membranes  =number_of_membranes)
 
-    if simulator_mode == 'TiltSeries':
+    if simulator_mode in config.sections() and simulator_mode == 'TiltSeries':
         # set seed for random number generation
         xp.random.seed(seed)
         random.seed(seed)
@@ -2256,7 +2283,7 @@ if __name__ == '__main__':
         else:
             print('Invalid device type.')
             sys.exit(0)
-    elif simulator_mode == 'FrameSeries':
+    elif simulator_mode in config.sections() and simulator_mode == 'FrameSeries':
         xp.random.seed(seed)
         random.seed(seed)
         print('\n- Generate frame series projections')
@@ -2290,9 +2317,9 @@ if __name__ == '__main__':
         else:
             print('Invalid device type.')
             sys.exit(0)
-    else:
-        print('Invalid simulation mode specified in config file.')
-        sys.exit(0)
+    # else:
+    #     print('Invalid simulation mode specified in config file.')
+    #     sys.exit(0)
 
     if 'TomogramReconstruction' in config.sections():
         print('\n- Reconstructing tomogram')
