@@ -1119,7 +1119,7 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
         currentRotation = rotations.nextRotation()
 
     # Update respective averages, saves time as one does not have to allocate particles to gpu again.
-    plan.addParticleAndWedgeToSum(particle, bestPeak, centerCoordinates)
+    # plan.addParticleAndWedgeToSum(particle, bestPeak, centerCoordinates)
 
     return bestPeak
 

@@ -202,7 +202,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
 
         
         if alignmentJob.gpu is None or alignmentJob.gpu == []:
-            print('regular', neven, nodd)
+            print('CPU variant is running')
             bestPeaksEvenSplit = mpi.parfor( alignParticleList,
                                     list(zip(evenSplitList, [currentReferenceEven]*len(evenSplitList),
                                         [evenCompoundWedgeFile]*len(evenSplitList),
@@ -359,24 +359,42 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             cvols = {}
 
             for name in ('Even', 'Odd'):
-
                 if name == 'Even':
-                    for plan in plansEven:
-                        average += xp.array(plan.sumParticles.get(),dtype=xp.float32)
-                        weight += xp.array(plan.sumWeights.get(),dtype=xp.float32)
-
+                    evenAverage = averageParallel(particleList=even,
+                                              averageName=alignmentJob.destination + "/average-Final-Even.em",
+                                              showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
+                                              weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                              setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
                     del plansEven
-
-                if name == 'Odd':
-                    for plan in plansOdd:
-                        average += xp.array(plan.sumParticles.get(),dtype=xp.float32)
-                        weight += xp.array(plan.sumWeights.get(),dtype=xp.float32)
+                else:
+                    oddAverage = averageParallel(particleList=odd,
+                                             averageName=alignmentJob.destination + "/average-Final-Odd.em",
+                                             showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
+                                             weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                             setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
                     del plansOdd
-
-                fname = alignmentJob.destination + f"/average-Final-{name}.em"
-                write(fname, applyFourierFilter(average, weight))
-                average *= 0
-                weight *= 0
+                # if name == 'Even':
+                #     for plan in plansEven:
+                #         average += xp.array(plan.sumParticles.get(),dtype=xp.float32)
+                #         weight += xp.array(plan.sumWeights.get(),dtype=xp.float32)
+                #
+                #     del plansEven
+                #
+                # if name == 'Odd':
+                #     for plan in plansOdd:
+                #         average += xp.array(plan.sumParticles.get(),dtype=xp.float32)
+                #         weight += xp.array(plan.sumWeights.get(),dtype=xp.float32)
+                #     del plansOdd
+                #
+                fname = f"{alignmentJob.destination}/average-Final-{name}.em"
+                # # fname2 = f"{alignmentJob.destination}/average-FinalWeight-{name}.em"
+                # # fname3 = f"{alignmentJob.destination}/average-FinalSum-{name}.em"
+                # # write(fname3, average)
+                # # write(fname2, weight)
+                #
+                #write(fname, applyFourierFilter(average, weight))
+                # average *= 0
+                # weight *= 0
                 cvols[name] = read(fname)
 
             # filter both volumes by sqrt(FSC)
@@ -390,7 +408,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             # apply rotations also to odd particle list
             if (differenceAngleOfTwoRotations(rotation1=optiRot, rotation2=Rotation(0, 0, 0)) >
                     alignmentJob.samplingParameters.rotations.getIncrement()):
-                print(optiTrans.invert())
+
                 odd.addRotation(rot=optiRot.invert())
                 odd.addShift(translation=optiTrans.invert().convert2pytomc())
                 alignmentJob.particleList.updateFromOddEven(odd, even)

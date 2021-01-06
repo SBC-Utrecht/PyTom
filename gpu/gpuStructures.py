@@ -303,7 +303,7 @@ class GLocalAlignmentPlan():
         from cupyx.scipy.fftpack.fft import get_fft_plan
         from cupyx.scipy.fftpack.fft import fftn as fftnP
         from cupyx.scipy.fftpack.fft import ifftn as ifftnP
-        from pytom.tompy.io import read_size
+        from pytom.tompy.io import read_size, write
 
         # Allocate volume and volume_fft
         self.volume        = cp.zeros(read_size(particle.getFilename()), dtype=cp.float32)
@@ -328,6 +328,7 @@ class GLocalAlignmentPlan():
         wedgePart          = wedge.returnWedgeVolume(*self.volume.shape,humanUnderstandable=True).get()
         self.rotatedWedge  = cp.array(wedgePart, dtype=cp.float32)
         self.wedgePart     = cp.fft.fftshift(wedgePart)
+        write('wwedge.mrc', self.rotatedWedge.get())
         self.wedgeTex      = StaticVolume(self.rotatedWedge.copy(), device=self.device, interpolation=interpolation)
         del wedgePart
 

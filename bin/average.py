@@ -563,7 +563,7 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
         cstream.synchronize()
         n+=1
 
-    print('averaed particles')
+    print('averaged particles')
     ###apply spectral weighting to sum
 
     result = lowpassFilter(result, high=sx / 2 - 1, sigma=0)
