@@ -179,6 +179,11 @@ class CollectPreprocess(GuiTabWidget):
         self.activeProcesses = {}
         self.workerID = 0
         self.threadPool = self.parent().threadPool
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
+        self.localqID = {}
+        self.activeProcesses = {}
 
         self.widgets['pytomPath'] = QLineEdit()
         self.widgets['pytomPath'].setText(self.parent().pytompath)
@@ -509,7 +514,7 @@ class CollectPreprocess(GuiTabWidget):
                                                       id='MotionCorrection')
         paramsCmd = [self.motioncor_folder, mode + 'fileTypeCapitalized', mode + 'folder_nanographs',
                      self.motioncor_folder, mode + 'gainFileFlag', mode + 'patchSizeFlag', mode + 'ftBinFlag',
-                     mode + 'gpuIdFlag', templateMotionCorrection]
+                     mode + 'gpuIdFlag', mode + 'filetype_nanographs', templateMotionCorrection]
 
         self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename, paramsSbatch=paramsSbatch,
                                  cs=3, queue=True)

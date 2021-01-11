@@ -154,9 +154,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
 
 
             # 4 -- Rotate
-            print(transX, transY)
             image = general_transform2d(v=image, rot=rot, shift=[transX,transY], scale=mag, order=[2, 1, 0], crop=True)
-            image.write(f'resized_{ii}.em')
 
             # 5 -- Optional Low Pass Filter
             if lowpassFilter:

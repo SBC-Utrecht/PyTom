@@ -962,7 +962,8 @@ class CommonFunctions():
                 #     time.sleep(1)
                 # self.popup_messagebox('Info', 'Local Job Finished', f'Finished Job {ID}')
                 # os.system('sh {}'.format(params[0]))
-        except:
+        except Exception as e:
+            print(e)
             print ('Please check your input parameters. They might be incomplete.')
     '''
     def getLocalID(self):

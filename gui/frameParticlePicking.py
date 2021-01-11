@@ -606,7 +606,7 @@ class ParticlePick(GuiTabWidget):
             print('\n\nPlease select at least one job file template and mask file.\n\n')
             return
 
-        headers = ["Job name", "Extract", "File Name Particle List", "Ouput Dir Subtomograms", "Size (px)",
+        headers = ["Job name", "Extract", "File Name Particle List", "Ouput Dir Subtomograms", "Radius (px)",
                    "# Candidates", 'Min. Score', '']
         types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
         sizes = [0, 0, 80, 150, 0, 0, 0, 0]
@@ -615,7 +615,7 @@ class ParticlePick(GuiTabWidget):
                    'Select if you want to extract particles using this job file.',
                    'File name of particle list in which a number of candidates are written.',
                    'Prefix indicating in which folder particles will be saved when subtomograms are extracted',
-                   'Particle Size in pixels',
+                   'Radius of Particle of interest in pixels',
                    'Number of candidates extracted from tomogram.',
                    'Minimum cross-correlation coefficient for a particle to be selected.']
 
