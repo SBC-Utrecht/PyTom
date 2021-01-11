@@ -184,11 +184,31 @@ def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None,python_version
     generatePyTomGuiScript(pytomDirectory, python_version)
 
 def generatePyTomScript(pytomDirectory,python_version):
-    pytomCommand = '#!/usr/bin/env csh\n'
-    pytomCommand += 'cat ' + pytomDirectory + os.sep + 'LICENSE.txt\n'
-    pytomCommand += 'source ' + pytomDirectory + os.sep + 'bin' + os.sep + 'paths.csh\n'
-    pytomCommand += 'python{} -O $*\n'.format(python_version)
     
+    pytomCommand = f"""#!/usr/bin/env csh
+cat {pytomDirectory}/LICENSE.txt
+source {pytomDirectory}/bin/paths.csh
+
+set FID=0
+setenv PYTOM_GPU -1
+
+foreach a ($*)
+    if ($FID == 1) then
+        set FID=0
+        setenv PYTOM_GPU "$a"
+    endif
+
+    if (("$a" == '-g') || ("$a" == '--gpuID')) then
+        setenv PYTOM_GPU 1
+        set FID=1
+    endif
+
+
+end
+
+python{python_version} -O $*
+"""
+
     f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'pytom','w')
     f.write(pytomCommand)
     f.close()
