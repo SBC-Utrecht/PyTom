@@ -5739,7 +5739,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
 
 
 class PlotterSubPlots(QMainWindow,CommonFunctions):
-    def __init__(self, parent=None, width=400, size_subplot=80, size_subtomo=40, height=1000, offset_x=0, offset_y=0):
+    def __init__(self, parent=None, width=800, size_subplot=80, size_subtomo=40, height=1000, offset_x=0, offset_y=0):
         super(PlotterSubPlots,self).__init__(parent)
         self.width = width
         self.height = height
