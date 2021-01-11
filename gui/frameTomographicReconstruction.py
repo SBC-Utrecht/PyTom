@@ -1707,8 +1707,11 @@ class TomographReconstruct(GuiTabWidget):
 
                     outputfile = 'ctfCorrected.st'
 
+                    metafile = glob.glob(f'{os.path.dirname(inputstack)}/*.meta')
+                    if len(metafile) > 0: metaFlag = f' --metaFile {metafile[0]}'
+                    else: metaFlag = ''
                     jobParams = [ctffolder, inputstack, outputfile, anglefile, defocusfile, defocustol, interpolation,
-                                 pixelsize, cs, ac, voltage, axisangle, outputfolder, prefix, origdir]
+                                 pixelsize, cs, ac, voltage, axisangle, outputfolder, prefix, origdir, metaFlag]
 
                     jobscript = templateCTFCorrectionImod.format(d=jobParams)
 
