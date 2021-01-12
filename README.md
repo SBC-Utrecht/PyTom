@@ -85,7 +85,7 @@ See also the list of [contributors](https://gschot@bitbucket.org/gschot/pytom/co
 
 ## License
 
-Copyright (c) 2019
+Copyright (c) 2021
 
 Utrecht University
 
