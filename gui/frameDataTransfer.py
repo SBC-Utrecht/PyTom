@@ -250,7 +250,6 @@ class CollectPreprocess(GuiTabWidget):
 
     def tab1UI(self, key):
         '''Fill out the second tab of the collect & preprocess widget.'''
-        print('tabb1UI')
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -275,7 +274,6 @@ class CollectPreprocess(GuiTabWidget):
 
     def tab2UI(self, key=''):
         '''Fill out the second tab of the collect & preprocess widget.'''
-        print('tabb2UI')
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -396,7 +394,6 @@ class CollectPreprocess(GuiTabWidget):
         self.tab2.setLayout(gridLayout)
 
     def createCollectGroup(self,mode='v01_DataCollection_'):
-        print('InsertDataCollectionGB', mode)
         title = "Data Collection"
         tooltip = ''
         sizepol = self.sizePolicyB
@@ -981,6 +978,7 @@ class CollectPreprocess(GuiTabWidget):
 
             if total >= len(flist):
                 signals.finished_collect.emit()
+                self.activate_stage(1)
                 break
             time.sleep(0.1)
 
@@ -1050,7 +1048,6 @@ class CollectPreprocess(GuiTabWidget):
         self.widget[mode + 'fileTypeCapitalized'].setText(text.capitalize())
 
     def updateCredentials(self, mode):
-        print(self.modes.keys())
         for name in ('servername', 'username', 'password'):
             setattr(self, name, self.widgets[mode + name].text())
             self.widgets[self.modes[self.modes[mode]] + name].setText(self.widgets[mode + name].text())

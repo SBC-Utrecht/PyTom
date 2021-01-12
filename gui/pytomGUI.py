@@ -329,10 +329,11 @@ class PyTomGui(QMainWindow, CommonFunctions):
                 scrollarea.resize(w-280-frame.scrolloffset[n]/2,h-80-frame.scrolloffset[n])
 
     def save_logfile(self):
-        print('save  logfile')
         if not self.projectname: return
         with open(os.path.join(self.projectname, 'logfile.js'),'w') as f:
                 json.dump(self.logbook, f, indent=4, sort_keys=True)
+        print('saved  logfile')
+
         #np.save('logfile.npy', self.logbook)
 
     def load_logfile(self,logfile):

@@ -98,7 +98,7 @@ class ParticlePick(GuiTabWidget):
                 self.checkbox[tt] = QCheckBox('queue')
 
                 if not static_tabs[i][j]:
-                    print(tt)#tt in ('tab22', 'tab32'):
+                    #print(tt)#tt in ('tab22', 'tab32'):
                     button = QPushButton('Refresh Tab')
                     button.setSizePolicy(self.sizePolicyC)
                     button.clicked.connect(lambda d, k=tt, a=self.tab_actions[tt]: a(key=k))
@@ -446,7 +446,7 @@ class ParticlePick(GuiTabWidget):
         self.insert_label_line(parent, 'Prefix', mode + 'particlePath', width=w,
                                tooltip='Path prepended to each particle.')
 
-        self.insert_label_spinbox(parent, mode + 'Size', 'Size particle (px)', width=w, cstep=-1,
+        self.insert_label_spinbox(parent, mode + 'Size', 'Radius particle (px)', width=w, cstep=-1,
                                   value=10, stepsize=1, minimum=0, maximum=90,
                                   tooltip='Radius around potential candidate that will be ignored during further processing.')
         self.insert_label_spinbox(parent, mode + 'NumberOfCandidates', 'Number of Candidates', width=w, cstep=-1,
@@ -468,7 +468,7 @@ class ParticlePick(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'ExtractCandidates'
         paramsSbatch[ 'folder' ] = self.logfolder #self.templatematchfolder
-        paramsSbatch['partition'] = 'fastq'
+        #paramsSbatch['partition'] = 'fastq'
         paramsSbatch['time'] = 1
         paramsSbatch['num_jobs_per_node'] = 1
 
@@ -477,11 +477,11 @@ class ParticlePick(GuiTabWidget):
                    mode+'MinimalScoreValue', mode+'maskGenerate', templateExtractCandidates]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch=paramsSbatch,
-                                 paramsCmd=paramsCmd)
+                                 paramsCmd=paramsCmd, action=self.activate_stage, paramsAction=3)
 
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
 
-        setattr(self, mode + 'gb_TMatch', groupbox)
+        setattr(self, mode + 'gb_extractCandidates', groupbox)
         return groupbox
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
         setattr(self, mode + 'gb_extractCandidates', groupbox)
@@ -680,6 +680,8 @@ class ParticlePick(GuiTabWidget):
                 print(f'Failed to setup job for {os.path.basename(values[row][0])}')
 
         if num_submitted_jobs:
+            self.activate_stage(3)
+
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
             self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Extract Cand. Batch')
 

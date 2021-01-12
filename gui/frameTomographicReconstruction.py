@@ -1228,6 +1228,8 @@ class TomographReconstruct(GuiTabWidget):
         else:
             pass
 
+        self.activate_stage(2)
+
     def run_multi_reconstruction(self, id, values):
         print('multi_reconstructions', id)
 
@@ -1450,7 +1452,7 @@ class TomographReconstruct(GuiTabWidget):
     def updateCTFPlotter(self, mode, newstack=True):
         folder = self.widgets[mode + 'FolderSortedAligned'].text()
         if not folder:
-            print('No Folder Selected.')
+            # print('No Folder Selected.')
             return
         try:
             tomogramID = folder.split('tomogram_')[-1][:3]

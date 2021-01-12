@@ -934,8 +934,6 @@ class CommonFunctions():
                 self.popup_messagebox('Info','Submitted job to the queue', text)
 
                 logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
-                os.system('squeue')
-                print([int(id)])
                 self.addProgressBarToStatusBar([id], key='QJobs',
                                                job_description=os.path.basename(exefilename)[:-3])
                 try: os.system(f'cp {exefilename} {logcopy}')
@@ -1053,7 +1051,6 @@ class CommonFunctions():
                             d.append(a)
                         else: pass
 
-                    print(d)
                     text = text.format( d=d )
                 if i==0: self.widgets[params[i][0]].setPlainText(text)
         # Check if user wants to submit to queue. If so, add queue header.
@@ -1205,7 +1202,7 @@ class CommonFunctions():
             TimedMessageBox(self, timeout=4, info=(self, title, message, QMessageBox.Ok), type=messagetype)
 
     def update_pb(self, pb, value):
-        print ( 'update: ', value.text() )
+        print( 'update: ', value.text() )
         pb.setValue( int(value.text()) )
 
     def fill_tab(self, id, headers, types, values, sizes, tooltip=[], wname='v02_batch_aligntable_', connect=0,
@@ -1341,26 +1338,30 @@ class CommonFunctions():
             print ('Please check your input parameters. They might be incomplete.')
 
     def addProgressBarToStatusBar(self, qids=[], key='', job_description='Queue', num_submitted_jobs=0):
-        if not key or not len(qids): return
+        try:
+            if not key or not len(qids): return
 
-        if num_submitted_jobs > 0:
-            counters = [0,] * num_submitted_jobs
-        else:
-            counters = [0, ] * len(qids)
+            if num_submitted_jobs > 0:
+                counters = [0,] * num_submitted_jobs
+            else:
+                counters = [0, ] * len(qids)
 
-        manager = Manager()
+            manager = Manager()
 
-        ID = qids[0]
+            ID = qids[0]
 
-        self.progressBarCounters[ID] = manager.list(counters)
-        self.generateStatusBar(len(counters), ID, job_description)
+            self.progressBarCounters[ID] = manager.list(counters)
+            self.generateStatusBar(len(counters), ID, job_description)
 
-        proc = Worker(fn=self.checkRun, args=(ID, qids, job_description, num_submitted_jobs))
-        proc.signals.result1.connect(self.updateProgressBar)
-        proc.signals.finished_queue.connect(self.deleteProgressBar)
-        proc.start()
-        event = Event()
-        self.queueEvents[job_description] = event
+            proc = Worker(fn=self.checkRun, args=(ID, qids, job_description, num_submitted_jobs))
+            proc.signals.result1.connect(self.updateProgressBar)
+            proc.signals.finished_queue.connect(self.deleteProgressBar)
+            proc.start()
+            event = Event()
+            self.queueEvents[job_description] = event
+        except Exception as e:
+            print(e)
+            print('''No statusbar created.''')
 
     def generateStatusBar(self, nrJobs, key, job_description):
         widget = QWidget(self)
@@ -1430,7 +1431,6 @@ class CommonFunctions():
     def deleteProgressBar(self, keys):
         key, job_description, qids = keys
         self.statusBar.removeWidget(self.progressBars[key])
-        print(qids)
         if len(qids)>1:
             self.popup_messagebox("Info", "Completion", f'Finished {job_description} Jobs {qids[0]}-{qids[-1]}')
         elif len(qids) > 0:
@@ -1441,6 +1441,11 @@ class CommonFunctions():
         print(f'finished job {ID}')
         self.popup_messagebox('TimedInfo', 'Finished Job', f'Finished job {ID}')
 
+    def activate_stage(self, stage_id):
+        if not self.parent().parent().parent().stage_buttons[stage_id].isEnabled():
+            self.parent().parent().parent().stage_buttons[stage_id].setEnabled(True)
+            self.parent().parent().parent().logbook['00_framebutton_{}'.format(self.parent().parent().parent().targets[stage_id][0])] = True
+            self.parent().parent().parent().save_logfile()
 
 class CreateMaskFile(QMainWindow, CommonFunctions):
     def __init__(self,parent=None,maskfname=''):
@@ -1670,7 +1675,6 @@ class SimpleTable(QMainWindow, CommonFunctions):
         options= []
         for i in range(len(headers)):
             options.append([])
-        print(options, len(options))
         # Set the alignment to the headers
         for i in range(len(headers)):
 
@@ -1766,7 +1770,6 @@ class SimpleTable(QMainWindow, CommonFunctions):
                         else:
                             val = value.split('/')[-1]
                         if not val in options[i]:
-                            print(v, i, options[i])
                             options[i] +=[val]
 
                         cb.addItem(val)
@@ -4240,7 +4243,6 @@ class Viewer3D(QMainWindow, CommonFunctions):
     def replot_all(self):
         self.replot()
         volA, volB = self.getSideWindowsIndices()
-        print(self.vol.shape)
         self.img1a.setImage(image=volA)
         self.img1b.setImage(image=volB)
 
@@ -5456,13 +5458,10 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         except:
             for key in self.alignmentResulsDict.keys():
                 results, refmarkers = self.alignmentResulsDict[key].values()
-                print(results)
                 for i in results.keys():
-                    print(i, results[i])
                     for j in range(len(results[i])):
                         for k in range(1, 4):
                             results[i][j][k] = float(results[i][j][k])
-                        print(results[i][j])
                         outfile.write('{:15s} {:10.3f} {:10.1f} {:10.1f}    {:4s} {:4s} {:3s}   {:3s}\n'.format(
                             *(results[i][j][:-1])))
 
@@ -5691,12 +5690,10 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         num_columns = len(columns)
         row = [widget for widget in list(self.tables[ID].widgets.keys()) if '0' == widget.split('_')[-1]]
         num_rows = len(row)
-        print(row)
         for column in range(num_columns):
             gw = self.tables[ID].general_widgets[column]
             if column not in (2,3,4,5,7):
                 continue
-            print(column)
             current_items = [gw.itemText(index) for index in range(gw.count())]
 
             for row in range(num_rows):
