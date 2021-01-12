@@ -1234,7 +1234,6 @@ class SubtomoAnalysis(GuiTabWidget):
                         if not to in origin:
                             origin.append(to)
 
-        print(origin)
         self.valuesBatchSubtomoReconstruction[rowID][4] = origin
         for item in origin:
             self.tab12_widgets['widget_{}_4'.format(rowID)].addItem(os.path.basename(item))
@@ -1247,9 +1246,12 @@ class SubtomoAnalysis(GuiTabWidget):
         self.tab12_widgets['widget_{}_4'.format(rowID)].clear()
 
         current_index = self.tab12_widgets['widget_{}_2'.format(rowID)].currentIndex()
-        print(rowID, current_index)
-        print(values)
-        folder = values[rowID][2][current_index]
+
+        try:
+           folder = values[rowID][2][current_index]
+        except:
+            return
+
         particleFile = values[rowID][0]
         a = 'tomogram_' + particleFile.split('_tomogram_')[1][:3]
 

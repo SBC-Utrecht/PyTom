@@ -328,7 +328,6 @@ class GLocalAlignmentPlan():
         wedgePart          = wedge.returnWedgeVolume(*self.volume.shape,humanUnderstandable=True).get()
         self.rotatedWedge  = cp.array(wedgePart, dtype=cp.float32)
         self.wedgePart     = cp.fft.fftshift(wedgePart)
-        write('wwedge.mrc', self.rotatedWedge.get())
         self.wedgeTex      = StaticVolume(self.rotatedWedge.copy(), device=self.device, interpolation=interpolation)
         del wedgePart
 
