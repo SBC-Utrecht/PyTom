@@ -437,7 +437,7 @@ class ProjectionList(PyTomClass):
                 verbose=False)
         else:
             [vol_img, vol_phi, vol_the, vol_offsetProjections] = self.toProjectionStackFromAlignmentResultsFile(
-                alignResultFile, binning=binning, weighting=applyWeighting)
+                alignResultFile, binning=binning, weighting=applyWeighting, circleFilter=True)
 
         # volume storing reconstruction offset from center (x,y,z)
         recPosVol = vol(3, vol_img.sizeZ(), 1)
