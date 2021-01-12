@@ -7,7 +7,7 @@ from pytom.tompy.mpi import MPI
 
 #mpi = MPI()
 
-def extract_single_image(dataSlice, sliceId, out_name, tiltangle, origdir, outdir, prefix):
+def extract_single_image(dataSlice, sliceId, out_name, origdir, outdir, prefix):
     if origdir:
         outname = os.path.join(outdir, out_name.replace('sorted_', prefix))
     else:
@@ -90,7 +90,7 @@ if __name__=='__main__':
     x,y,z = data.shape
     sliceNR = min(x,y,z)
 
-    if len(angles) != sliceNR:
+    if len(angles) != sliceNR and mdoc:
         raise Exception('Angles and number of images do not coincide.')
 
     if mdoc:
@@ -116,7 +116,7 @@ SubFramePath = X:\{}
 
     out = []
     for sliceId in range(sliceNR):
-        out.append((data[sliceId,:,:], sliceId, out_names[sliceId], angles[sliceId], origdir, outdir, prefix))
+        out.append((data[sliceId,:,:], sliceId, out_names[sliceId], origdir, outdir, prefix))
         #tiltangle = angles[sliceId]
         #if origdir:
         #    outname = os.path.join(outdir, out_names[sliceId].replace('sorted_', prefix))
