@@ -604,6 +604,9 @@ class PeakLeader(PeakWorker):
         self.suffix=suffix
         self.mpi_id = pytom_mpi.rank()
         self.name = 'node_' + str(self.mpi_id)
+
+        self.size = pytom_mpi.size()
+
         self.clean()
         
     def clean(self):
@@ -1061,6 +1064,7 @@ class PeakLeader(PeakWorker):
 #                pytom_mpi.init()
             job.members = pytom_mpi.size()
             print('job members', job.members)
+
             job.send(0, 0)
             print("\n")
 
