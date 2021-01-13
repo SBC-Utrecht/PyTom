@@ -453,7 +453,9 @@ if __name__ == '__main__':
                                     ScriptOption(['-b'], 'Binning factor.', True, True),
                                     ScriptOption(['-v'], 'Verbose mode.', False, True),
                                     ScriptOption(['-o'], 'Output directory.', True, True),
-                                    ScriptOption(['-g', '--gpuID'], 'Gpu ID(s) to use.', True, True),
+                                    ScriptOption(['-g', '--gpuID'], "Index or indices of the gpu's one wants to use. CCC can run on multiple gpu's simultaneously. The indices "
+                                                                    "of multiple gpu's are separated by a comma (no space). For example 0,2,3,5 **Please note that the number "
+                                                                    "of mpi cores should be one more than the number of GPUs you are using.**", True, True),
                                     ScriptOption(['--help'], 'Help info.', False, True)])
     
     if len(sys.argv) == 1:

@@ -56,7 +56,12 @@ if __name__ == '__main__':
                                                 arg=False, optional=True),
                                    ScriptOption(['-j','--jobName'], 'Specify job.xml output filename', arg=True,
                                                 optional=False),
-                                   ScriptOption(['-g','--gpuID'], 'Specify which gpu to use', arg=True,
+                                   ScriptOption(['-g','--gpuID'], "Specify which gpu('s) to use. GLocal can run on "
+                                                                  "multiple gpu's simultaneously. The indices of "
+                                                                  "multiple gpu's are separated by a comma (no space). "
+                                                                  "For example 0,2,3,4. Please note that the number"
+                                                                  " of mpi cores should be one more than the number of "
+                                                                  "GPUs you are using.", arg=True,
                                                 optional=True),
                                    ScriptOption(['-h', '--help'], 'Help.', arg=False, optional=True)])
     
