@@ -29,8 +29,11 @@ import matplotlib.pylab as plt
 from pytom.basic.files import *
 import numpy as xp
 import random
-import constant_dictionaries as phys
+import pytom.simulation.constant_dictionaries as phys
+from scipy import ndimage
 
+
+# TODO Use os.path.join instead of f strings for file pahts!
 
 class ConfigLogger(object):
     """
@@ -216,7 +219,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
                    placement_size=512, retries=5000, number_of_markers=0,
                    absorption_contrast=False, voltage=300E3, number_of_membranes=0):
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
-    from scipy.ndimage import gaussian_filter
+
     from voltools import transform
 
     # outputs
@@ -242,7 +245,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
                 vol_real = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixel_size*1E10:.2f}A_solvent-'
                                               f'{solvent_potential*solvent_factor:.3f}V_real.mrc')
                 vol_imag = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixel_size*1E10:.2f}A_solvent-'
-                                                   f'{solvent_potential*solvent_factor:.3f}V_imag.mrc')
+                                                   f'{solvent_potential*solvent_factor:.3f}V_imag_{voltage*1E-3:.0f}V.mrc')
                 assert vol_real.shape == vol_imag.shape, print(f'real and imaginary interaction potential not the same '
                                                                f'shape for {pdb}')
                 # dx, dy, dz = vol_real.shape
@@ -394,7 +397,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
             # populate density volume
             cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
                 membrane_vol[:, y_cut_left:yy-y_cut_right, z_cut_low:zz-z_cut_high]
-            cell_imag[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
+            if absorption_contrast: cell_imag[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
                 membrane_vol_imag[:, y_cut_left:yy-y_cut_right, z_cut_low:zz-z_cut_high]
 
             # update stats
@@ -613,9 +616,10 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
 
     # motion blur is simply a gaussian in fourier space to the required frequency component
     # sigma motion is roughly 8A
+    # TODO add motion blur as a parameter in the config file
     sigma_motion = 8
-    gaussian_filter(cell, sigma = (sigma_motion/(2 * (pixel_size * 1E10)))/2.35, output=cell)
-    gaussian_filter(cell_imag, sigma=(40 / (2 * (pixel_size * 1E10))) / 2.35, output=cell_imag)
+    ndimage.gaussian_filter(cell, sigma = (sigma_motion/(2 * (pixel_size * 1E10)))/2.35, output=cell)
+    if absorption_contrast: ndimage.gaussian_filter(cell_imag, sigma=(sigma_motion / (2 * (pixel_size * 1E10))) / 2.35, output=cell_imag)
 
     # save grandmodels
     print('Saving grandmodels')
@@ -1474,7 +1478,7 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
     return projection_poisson
 
 
-def parallel_project(grandcell, folder, frame, image_size, pixel_size, msdz, n_slices, ctf, dose, dqe, mtf, voltage,
+def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, ctf, dose, dqe, mtf, voltage,
                      binning=1, translation=(.0,.0,.0), rotation=(.0,.0,.0), solvent_potential=.0,
                      solvent_absorption=.0, sigma_damage=.0, ice_voxels=None):
     """
@@ -1624,7 +1628,7 @@ def parallel_project(grandcell, folder, frame, image_size, pixel_size, msdz, n_s
     # Apply the microscope function
     projection = microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_size, binning=binning)
     # Write the projection to the projection folder
-    pytom.tompy.io.write(f'{folder}/synthetic_{frame+1}.mrc', projection)
+    # pytom.tompy.io.write(f'{folder}/synthetic_{frame+1}.mrc', projection)
     # Return noisefree and projection as tuple for writing as mrc stack in higher function
     return (noisefree_projection, projection)
 
@@ -1642,10 +1646,6 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
     from joblib import Parallel, delayed
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
     save_path = f'{output_folder}/model_{model_ID}'
-    # create folder for individual projections
-    projection_folder = f'{save_path}/projections'
-    if not os.path.exists(projection_folder):
-        os.mkdir(projection_folder)
 
     # grab model
     grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
@@ -1758,7 +1758,7 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
 
     verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
-        (delayed(parallel_project)(rotation_volume, projection_folder, i, image_size, pixel_size, msdz, n_slices, ctf,
+        (delayed(parallel_project)(rotation_volume, i, image_size, pixel_size, msdz, n_slices, ctf,
                                    dose_per_tilt, dqe, mtf, voltage, binning=binning, translation=translation,
                                    rotation=(.0, angle, .0), solvent_potential=solvent_potential,
                                    solvent_absorption=solvent_amplitude, sigma_damage=sigma_damage,
@@ -1766,6 +1766,7 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
          for i, (angle, translation, ctf) in enumerate(zip(angles, translations, ctf_series)))
 
     sys.stdout.flush()
+
     if results.count(None) == 0:
         print('All projection processes finished successfully')
     else:
@@ -1778,13 +1779,13 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
     # store alignment information
     # len(angles) is the number of files that we have
     alignment = xp.zeros(len(angles), dtype=dar)
-    # correct angle by -1 to get the right reconstruction
+    # IMPORTANT: correct angles by -1 to get the right reconstruction
     alignment['TiltAngle'] = -1.0 * xp.array(angles)
     alignment['Magnification'] = xp.repeat(1.0, len(angles))
     for i in range(len(angles)):
         alignment['FileName'][i] = f'{save_path}/projections/synthetic_{i+1}.mrc'
     # write the alignment file
-    alignment_file = f'{save_path}/projections/alignment_simulated.txt'
+    alignment_file = f'{save_path}/alignment_simulated.txt'
     savestar(alignment_file, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
     return
 
@@ -1831,10 +1832,6 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
     save_path = f'{output_folder}/model_{model_ID}'
 
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
-    # create folder for individual projections
-    projection_folder = f'{save_path}/projections'
-    if not os.path.exists(projection_folder):
-        os.mkdir(projection_folder)
 
     # grab model
     grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
@@ -1942,7 +1939,7 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
 
     verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
-        (delayed(parallel_project)(grandcell, projection_folder, frame, image_size, pixel_size, msdz, n_slices, ctf,
+        (delayed(parallel_project)(grandcell, frame, image_size, pixel_size, msdz, n_slices, ctf,
                                    dose_per_frame, dqe, mtf, voltage, binning=binning, translation=shift, rotation=(.0,.0,.0),
                                    solvent_potential=solvent_potential, solvent_absorption=solvent_amplitude,
                                    sigma_damage=sigma_damage, ice_voxels=None)
@@ -1965,15 +1962,283 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
     alignment['AlignmentTransY'] = xp.array([y for (x,y,z) in cumulative_translations])
     alignment['Magnification'] = xp.repeat(1.0, n_frames)
     for i in range(n_frames):
-        alignment['FileName'][i] = f'{projection_folder}/synthetic_{i+1}.mrc'
+        alignment['FileName'][i] = f'{save_path}/projections/synthetic_{i+1}.mrc'
 
     # Write the alignment file as a text file
-    alignment_file = f'{projection_folder}/alignment_simulated.txt'
+    alignment_file = f'{save_path}/alignment_simulated.txt'
     savestar(alignment_file, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
     return
 
 
-def reconstruct_tomogram(size_reconstruction, output_folder, model_ID, weighting=-1, crop=False, binning=1):
+def meanUnderMask(volume, mask=None, p=None):
+    """
+    Return mean value under mask.
+    """
+    return (volume * mask).sum() / mask.sum()
+
+
+def create_sphere(size, radius=-1, sigma=0, center=None):
+    """
+    Create a sphere in volume of size with radius.
+    """
+    if len(size) == 1:
+        size = (size, size)
+    assert len(size) == 2
+
+    if center is None:
+        center = [size[0] / 2, size[1] / 2]
+    if radius == -1:
+        radius = xp.min(size) / 2
+
+    sphere = xp.zeros(size)
+    [x, y] = xp.mgrid[0:size[0], 0:size[1]]
+    r = xp.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
+    sphere[r <= radius] = 1
+
+    if sigma > 0:
+        ind = xp.logical_and(r > radius, r < radius + 2 * sigma)
+        sphere[ind] = xp.exp(-((r[ind] - radius) / sigma) ** 2 / 2)
+
+    return sphere
+
+
+def bandpass_mask(shape, low=0, high=-1):
+    """
+    Return a bandpass mask.
+    """
+    assert low >= 0, "lower limit must be >= 0"
+
+    if high == -1:
+        high = xp.min(shape) / 2
+    assert low < high, "upper bandpass must be > than lower limit"
+
+    if low == 0:
+        mask = create_sphere(shape, high, sigma=0)
+    else:
+        mask = create_sphere(shape, high, sigma=0) - create_sphere(shape, low, sigma=0)
+
+    return mask
+
+
+def FSS(fvolume1, fvolume2, numberBands, verbose=False):
+    """
+    Scale the values of fvolume1 to the values in fvolume2 per band in fourier space.
+    """
+    assert fvolume1.shape == fvolume2.shape, "volumes not of same size"
+    assert len(set(fvolume1.shape)) == 1, "volumes are not perfect cubes"
+
+    increment = int(fvolume1.shape[0] / 2 * 1 / numberBands)
+    band = [-1, -1]
+
+    output = xp.zeros(fvolume1.shape)
+
+    for i in range(0, fvolume1.shape[0] // 2, increment):
+
+        band[0] = i
+        band[1] = i + increment
+
+        if verbose:
+            print('Band : ', band)
+
+        bandpass = bandpass_mask(fvolume1.shape, band[0], band[1])
+
+        if i == 0:
+            # remove center point from mask
+            c = bandpass.shape[0] // 2
+            bandpass[c, c] = 0
+            # scale center separately as center adjustment has large influence on the image
+            output[c, c] = fvolume1[c, c] / (fvolume1[c, c] / fvolume2[c, c])
+
+        # get mean amplitude of each band
+        m1 = meanUnderMask(fvolume1, bandpass)
+        m2 = meanUnderMask(fvolume2, bandpass)
+
+        # scale the values inside the band of volume1
+        outband = fvolume1 * bandpass / (m1 / m2)
+
+        output += outband
+
+    del outband, bandpass
+    return output
+
+
+def scale_image(volume1, volume2, numberBands):
+    """
+    Scale amplitudes in fourier space of volume1 to those of volume2 using fourier shells.
+    Output is the real space result of scaled volume1.
+    """
+    assert volume1.shape == volume2.shape, "volumes not of same size"
+    assert len(set(volume1.shape)) == 1, "volumes are not perfect cubes"
+
+    # scale the amplitudes of 1 to those of 2 using fourier shells
+    scaled_amp = FSS(xp.abs(xp.fft.fftshift(xp.fft.fftn(volume1))), xp.abs(xp.fft.fftshift(xp.fft.fftn(volume2))),
+                     numberBands)
+    # construct the output volume with the scaled amplitudes and phase infomation of volume 1
+    fout = xp.fft.ifftn(xp.fft.ifftshift(scaled_amp) * xp.exp(1j * xp.angle(xp.fft.fftn(volume1))))
+
+    return fout.real
+
+
+def create_gaussian_low_pass(size, cutoff, center=None):
+    """
+    NOTE: MOVE FUNCTION TO TOMPY.FILTER
+    Create a 3D mask with gaussian edges.
+
+    @param size: size of the resulting volume.
+    @param hwhm: fourier space cutoff value for the filter in pixels from center.
+    @param center: center of the Gaussian. If not provided will be calculated.
+
+    @return: sphere inside a volume.
+    """
+    import numpy as np
+
+    assert len(size) == 2
+
+    # full width at half maximum is two times the half width at half maximum (or cutoff)
+    c = 2  # or can be set to np.sqrt(2) for butterworth filter
+    #     c = np.sqrt(2)
+    sigma_cutoff = cutoff / np.sqrt(2 * np.log(c))
+    # print(f'sigma cutoff = {sigma_cutoff}')
+
+    if center is None:
+        center = [(size[0] - 1) / 2, (size[1] - 1) / 2]
+
+    [x, y] = np.mgrid[0:size[0], 0:size[1]]
+    r = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
+
+    filter = np.exp(-r ** 2 / (2 * sigma_cutoff ** 2))
+
+    return filter
+
+
+def reduce_resolution(map, voxel_size, resolution):
+    """
+    NOTE: MOVE FUNCTION TO TOMPY.FILTER. Tompy does not contain gaussian low pass in fourier space.
+    Accepts only square input maps to easy low-pass filtering
+
+    @param map: Volume
+    @type map: 3d numpy array
+    @param voxel_size: Voxel size of the volume in A
+    @type voxel_size: float
+    @param to_resolution: Desired resolution after applying low-pass filter
+    @type to_resolution: float
+    @param sharpness: ratio
+    @type sharpness: float
+
+    @return: Filtered volume
+    @rtype: 3d numpy array
+
+    @author: Marten Chaillet
+    """
+    import numpy as np
+    # from pytom.tompy.transform import fourier_filter
+
+    assert resolution >= voxel_size, "the requested resolution is non-valid as it is smaller than the voxel size"
+    assert len(set(map.shape)) == 1, "dimensions of input are not equal"
+
+    # resolution reduction factor
+    nr_pixels_cutoff = (map.shape[0] * voxel_size) / resolution
+    # NOTE: if resolution == 2*voxel_size, filter radius will be 0.5 * map.shape[0]. I.E. no filtering. This is correct
+    # because the highest possible resolution (nyquist) equals 2*voxel_size.
+    # create full gaussian mask
+    mask = create_gaussian_low_pass(map.shape, nr_pixels_cutoff)
+    # apply mask in fourier space
+    # result = fourier_filter(map, mask, human=True)
+    ft_map = np.fft.fftn(np.fft.ifftshift(map))  # shift center to origin
+    result = np.fft.fftshift(np.fft.ifftn(ft_map * np.fft.ifftshift(mask)))  # shift center of mask to origin
+    return result.real
+
+
+def bin_image(potential, factor):
+    """
+
+    @param potential:
+    @param factor: integer value
+    @return:
+    """
+    assert type(factor) is int and factor >= 1, print('non-valid binning factor, should be integer above 1')
+    assert len(set(potential.shape)) == 1, print('image is not a square')
+
+    if factor == 1:
+        return potential
+
+    potential_new = reduce_resolution(potential, 1, factor * 2)
+
+    s = (potential_new.shape[0] % factor) // 2
+    d = (potential_new.shape[0] % factor) % 2
+
+    potential_new = potential[s:potential_new.shape[0] - s - d, s:potential_new.shape[0] - s - d]
+
+    ds = int(potential_new.shape[0] // factor)
+    image_size = potential_new.shape[0]
+
+    binned = potential_new.reshape(ds, image_size // ds, ds, image_size // ds).mean(-1).mean(1)
+
+    return binned
+
+
+def parallel_scale(number, projection, example, pixel_size, example_pixel_size, binning):
+    print(f' -- scaling projection {number+1}')
+    if pixel_size < (example_pixel_size * binning):
+        example = ndimage.zoom(example, (example_pixel_size * binning) / pixel_size)
+    elif pixel_size > (example_pixel_size * binning):
+        example = ndimage.zoom(example, pixel_size / (example_pixel_size * binning))
+
+    # prevent issues later on with binning, TODO ugly solution
+    if example.shape[0] % 4:
+        example = example[:-(example.shape[0] % 4), :-(example.shape[0] % 4)]
+
+    if projection.shape != example.shape:
+        # crop the largest
+        if projection.shape[0] > example.shape[0]:
+            cut = (projection.shape[0] - example.shape[0]) // 2
+            projection = projection[cut:-cut, cut:-cut]
+        else:
+            cut = (example.shape[0] - projection.shape[0]) // 2
+            example = example[cut:-cut, cut:-cut]
+
+    return (number, scale_image(projection, example, projection.shape[0] // 4))
+
+
+def scale_projections(output_folder, model_ID, pixel_size, example_folder, example_pixel_size, binning, nodes):
+    from joblib import Parallel, delayed
+
+    save_path= f'{output_folder}/model_{model_ID}'
+    files = [f for f in os.listdir(example_folder) if os.path.isfile(os.path.join(example_folder, f))]
+    random_file = xp.random.randint(0, len(files))
+    print(f'Selected {files[random_file]} for experimental amplitude scaling.')
+
+    projections = pytom.tompy.io.read_mrc(f'{save_path}/projections.mrc')
+
+    example_projections = pytom.tompy.io.read_mrc(f'{example_folder}/{files[random_file]}')
+
+    assert projections.shape[2] == example_projections.shape[2], 'not enough or too many example projections'
+
+    # joblib automatically memory maps a numpy array to child processes
+    print(f'Scaling projections with {nodes} processes')
+
+    verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
+    results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
+        (delayed(parallel_scale)(i, projections[:, :, i].squeeze(), bin_image(example_projections[:, :, i].squeeze(), binning),
+                                 pixel_size, example_pixel_size, binning)
+         for i in range(projections.shape[2]))
+
+    sys.stdout.flush()
+
+    if results.count(None) == 0:
+        print('All scaling processes finished successfully')
+    else:
+        print(f'{results.count(None)} scaling processes did not finish successfully')
+
+    new_projections = xp.dstack(tuple([r for (i,r) in results]))
+
+    pytom.tompy.io.write(f'{save_path}/projections_scaled.mrc', new_projections)
+
+    return
+
+
+def reconstruct_tomogram(output_folder, model_ID, weighting=-1, crop=False, reconstruction_bin=1,
+                         filter_projections=False, use_scaled_projections=False):
     """
     Reconstruction of simulated tilt series into a tomogram. First creates an alignemnt file, then uses weighted back
     projection to make a reconstruction.
@@ -2003,94 +2268,81 @@ def reconstruct_tomogram(size_reconstruction, output_folder, model_ID, weighting
     @author: Gijs van der Schot, Marten Chaillet
     """
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
-    from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS as dar
-    from pytom.gui.guiFunctions import loadstar
+    from potential import bin
+    from scipy.ndimage import gaussian_filter
 
     save_path = f'{output_folder}/model_{model_ID}'
-    alignment_file = f'{save_path}/projections/alignment_simulated.txt'
-    alignment_data = loadstar(alignment_file, dtype=dar)
+    alignment_file = f'{save_path}/alignment_simulated.txt'
+
+    # create folder for individual projections
+    projection_folder = f'{save_path}/projections'
+    if not os.path.exists(projection_folder):
+        os.mkdir(projection_folder)
+
+    # Possibly apply low pass filter at this point
+    if use_scaled_projections:
+        projections = pytom.tompy.io.read_mrc(f'{save_path}/projections_scaled.mrc')
+    else:
+        projections = pytom.tompy.io.read_mrc(f'{save_path}/projections.mrc')
+
+    if filter_projections:
+        for i in range(projections.shape[2]):
+            # 2.3 corresponds to circular filter with width 0.9 of half of the image
+            projection_scaled = reduce_resolution(projections[:,:,i].squeeze(), 1.0, 2.3 * reconstruction_bin)
+            pytom.tompy.io.write(f'{save_path}/projections/synthetic_{i+1}.mrc', projection_scaled)
+    else:
+        for i in range(projections.shape[2]):
+            pytom.tompy.io.write(f'{save_path}/projections/synthetic_{i+1}.mrc', projections[:,:,i])
+
+    size_reconstruction = projections.shape[0] // reconstruction_bin
     vol_size = [size_reconstruction, ] * 3
 
-    projections = ProjectionList()
-    # IMPORTANT: angles *-1 to get the right reconstrunction relative to the orignal model!
-    # for d in alignment_data:
-    #     # In the alignment file the angles were already multiplied by -1
-    #     p = Projection(d[5], tiltAngle= d[2])
-    #     # Old method: here we multiply by -1 to get right angles
-    #     # p = Projection(f'{save_path}/projections/synthetic_{i+1}.mrc', tiltAngle=-1 * angles[i - 1])
-    #     projections.append(p)
-
-    outputname = f'{save_path}/reconstruction.em' if binning==1 else f'{save_path}/reconstruction_bin{binning}.em'
+    outputname = f'{save_path}/reconstruction.em' if reconstruction_bin==1 else f'{save_path}/reconstruction_bin{reconstruction_bin}.em'
     # IF EM alignment file provided, filters applied and reconstruction will be identical.
-    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=binning,
+    projections = ProjectionList()
+    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=reconstruction_bin,
                                         applyWeighting=weighting, alignResultFile=alignment_file)
     vol.write(outputname)
     os.system(f'em2mrc.py -f {outputname} -t {os.path.dirname(outputname)}')
     os.system(f'rm {outputname}')
 
-    if binning:
-        from potential import bin
-        from scipy.ndimage import gaussian_filter
-        cell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
-        gaussian_filter(cell, sigma=(binning / 2.35), output=cell)
-        pytom.tompy.io.write(f'{save_path}/grandmodel_bin{binning}.mrc', bin(cell, binning))
+    # Adjust ground truth data to match cuts after scaling or after binning for reconstruction
+    cell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
+    lind = (cell.shape[0] // reconstruction_bin - size_reconstruction)//2
+    rind = cell.shape[0] - lind
+    cell = bin(gaussian_filter(cell[lind:rind,lind:rind,lind:rind],
+                               sigma=(reconstruction_bin / 2.35)), reconstruction_bin)
+    pytom.tompy.io.write(f'{save_path}/grandmodel_bin{reconstruction_bin}.mrc', cell)
 
-        # bin class mask and bbox needed for training
-        # cell = pytom.tompy.io.read_mrc(f'{save_path}/class_bbox_original.mrc')
-        # pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', bin_class_mask(cell, binning=binning))
-        cell = pytom.tompy.io.read_mrc(f'{save_path}/class_mask.mrc')
-        pytom.tompy.io.write(f'{save_path}/class_mask_bin{binning}.mrc', bin_class_mask(cell, binning=binning))
-        # TODO bin occupancy mask as well??
-        # cell = pytom.tompy.io.read_mrc(f'{save_path}/occupancy_mask.mrc')
-        # pytom.tompy.io.write(f'{save_path}/occupancy_mask_bin{2}x.mrc', bin_class_mask(cell, binning=binning))
+    # bin class mask and bbox needed for training
+    # cell = pytom.tompy.io.read_mrc(f'{save_path}/class_bbox_original.mrc')
+    # pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', bin_class_mask(cell, binning=reconstruction_bin))
+    cell = pytom.tompy.io.read_mrc(f'{save_path}/class_mask.mrc')
+    pytom.tompy.io.write(f'{save_path}/class_mask_bin{reconstruction_bin}.mrc',
+                         bin_class_mask(cell[lind:rind,lind:rind,lind:rind], binning=reconstruction_bin))
+    # TODO bin occupancy mask as well??
+    # cell = pytom.tompy.io.read_mrc(f'{save_path}/occupancy_mask.mrc')
+    # pytom.tompy.io.write(f'{save_path}/occupancy_mask_bin{2}x.mrc', bin_class_mask(cell, binning=reconstruction_bin))
 
-        # create particle locations bin2 file
-        binned_ground_truth = ''
-        with open(f'{save_path}/particle_locations.txt', 'r') as fin:
+    # create particle locations bin2 file
+    adjusted_ground_truth = ''
+    with open(f'{save_path}/particle_locations.txt', 'r') as fin:
+        line = fin.readline()
+        while line:
+            data = line.split()
+            data[1] = int(data[1]) // reconstruction_bin - lind
+            data[2] = int(data[2]) // reconstruction_bin - lind
+            data[3] = int(data[3]) // reconstruction_bin - lind
+            # only add the location back if the center of particle is still inside the box after binning
+            if 0 <= data[1] < rind and 0 <= data[2] < rind and 0 <= data[3] < rind:
+                data[1] = str(data[1])
+                data[2] = str(data[2])
+                data[3] = str(data[3])
+                adjusted_ground_truth += ' '.join(data) + '\n'
             line = fin.readline()
-            while line:
-                data = line.split()
-                data[1] = str(int(data[1]) // 2)
-                data[2] = str(int(data[2]) // 2)
-                data[3] = str(int(data[3]) // 2)
-                binned_ground_truth += ' '.join(data) + '\n'
-                line = fin.readline()
-        with open(f'{save_path}/particle_locations_bin{binning}.txt', 'w') as fout:
-            fout.write(binned_ground_truth)
+    with open(f'{save_path}/particle_locations_bin{reconstruction_bin}.txt', 'w') as fout:
+        fout.write(adjusted_ground_truth)
 
-    # Flag for checking cropping?!
-    if crop:
-        # Crop the models to the ouput reconstruction for training data annotation
-        cell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_original.mrc')
-        reconstruction = pytom.tompy.io.read_mrc(f'{save_path}/reconstruction.mrc')
-
-        difference = cell.shape[0] - reconstruction.shape[0]
-        del reconstruction
-
-        if difference:
-            ileft = difference // 2
-            iright = - int(xp.ceil(difference/2))
-            print('-- Cropping models')
-            pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', cell[ileft:iright, ileft:iright, :])
-            # cell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_noisefree_original.mrc')
-            # pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree.mrc', cell[ileft:iright, ileft:iright, :])
-            # cell = pytom.tompy.io.read_mrc(f'{save_path}/class_bbox_original.mrc')
-            # pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', cell[ileft:iright, ileft:iright, :])
-            cell = pytom.tompy.io.read_mrc(f'{save_path}/class_mask_original.mrc')
-            pytom.tompy.io.write(f'{save_path}/class_mask.mrc', cell[ileft:iright, ileft:iright, :])
-            # cell = pytom.tompy.io.read_mrc(f'{save_path}/occupancy_bbox_original.mrc')
-            # pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', cell[ileft:iright, ileft:iright, :])
-            cell = pytom.tompy.io.read_mrc(f'{save_path}/occupancy_mask_original.mrc')
-            pytom.tompy.io.write(f'{save_path}/occupancy_mask.mrc', cell[ileft:iright, ileft:iright, :])
-        else:
-            pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', cell[:, :, :])
-            # os.system(f'cp {save_path}/grandmodel_noisefree_original.mrc {save_path}/grandmodel_noisefree.mrc')
-            # os.system(f'cp {save_path}/class_bbox_original.mrc {save_path}/class_bbox.mrc')
-            os.system(f'cp {save_path}/class_mask_original.mrc {save_path}/class_mask.mrc')
-            # os.system(f'cp {save_path}/occupancy_bbox_original.mrc {save_path}/occupancy_bbox.mrc')
-            os.system(f'cp {save_path}/occupancy_mask_original.mrc {save_path}/occupancy_mask.mrc')
-
-        del cell
     return
 
 
@@ -2200,11 +2452,20 @@ if __name__ == '__main__':
             print(e)
             raise Exception(f'Missing {simulator_mode} parameters in config file.')
 
+    if 'ScaleProjections' in config.sections():
+        try:
+            example_folder      = config['ScaleProjections']['ExampleFolder']
+            example_pixel_size  = config['ScaleProjections'].getfloat('ExamplePixelSize')
+        except Exception as e:
+            print(e)
+            raise Exception('Missing experimental projection scaling parameters.')
+
     if 'TomogramReconstruction' in config.sections():
         try:
-            weighting           = config['TomogramReconstruction'].getint('Weighting')
-            reconstruction_size = config['TomogramReconstruction'].getint('ReconstructionSize')
-            reconstruction_bin  = config['TomogramReconstruction'].getint('Binning')
+            weighting               = config['TomogramReconstruction'].getint('Weighting')
+            reconstruction_bin      = config['TomogramReconstruction'].getint('Binning')
+            filter_projections      = config['TomogramReconstruction'].getboolean('FilterProjections')
+            use_scaled_projections  = config['TomogramReconstruction'].getboolean('UseScaledProjections')
         except Exception as e:
             print(e)
             raise Exception('Missing tomogram reconstruction parameters in config file.')
@@ -2317,13 +2578,20 @@ if __name__ == '__main__':
         else:
             print('Invalid device type.')
             sys.exit(0)
-    # else:
-    #     print('Invalid simulation mode specified in config file.')
-    #     sys.exit(0)
+
+    if 'ScaleProjections' in config.sections():
+        # set seed for random number generation
+        xp.random.seed(seed)
+        random.seed(seed)
+        print('\n- Scaling projections with experimental data')
+        scale_projections(output_folder, model_ID, pixel_size * 1E9, example_folder,
+                                            example_pixel_size, binning, nodes)
 
     if 'TomogramReconstruction' in config.sections():
         print('\n- Reconstructing tomogram')
-        reconstruct_tomogram(reconstruction_size, output_folder, model_ID, weighting=weighting, binning=reconstruction_bin)
+        reconstruct_tomogram(output_folder, model_ID, weighting=weighting,
+                             reconstruction_bin=reconstruction_bin, filter_projections=filter_projections,
+                             use_scaled_projections=use_scaled_projections)
 
     current, peak = tracemalloc.get_traced_memory()
     print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")

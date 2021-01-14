@@ -57,7 +57,7 @@ def create_detector_response(detector, response_function, image, voltage=300E3, 
 
     @param detector: eg. 'FALCONII'
     @type detector: string
-    @param response_function: eg. 'DQE'
+    @param response_function: eg. 'DQE' or 'MTF'
     @type response_function: string
     @param voltage: Voltage of detector operation (in V not kV)
     @type voltage: float

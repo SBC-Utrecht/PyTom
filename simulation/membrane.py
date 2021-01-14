@@ -389,14 +389,14 @@ if __name__ == '__main__':
 
     folder = '/data2/mchaillet/structures'
 
-    size_factor = 2.1
+    size_factor = 0.5
 
     # automatically scale these points
     N = int(100 * size_factor**2.2)  # number of points
     a, b, c = (x*size_factor for x in (xp.random.randint(180, 280), xp.random.randint(180, 280),
                                        xp.random.randint(180, 280)))
     alpha = 2000 * size_factor
-    voxel = 2.62 * 4 # A
+    voxel = 2.62 * 1 # A
     pdb = f'{folder}/pdb/lipid/dppc128_dehydrated.pdb'
     solvent = 4.5301
     voltage = 300E3
@@ -421,7 +421,7 @@ if __name__ == '__main__':
     write(f'{folder}/potential/membrane/{name}_{voxel:.2f}A_{size}_4.53V_real.mrc', real)
     write(f'{folder}/potential/membrane/{name}_{voxel:.2f}A_{size}_4.53V_imag_300V.mrc', imag)
 
-    binning = 2
+    binning = 4
 
     real_bin = bin(reduce_resolution(real, voxel, binning * voxel * 2), binning) # *2 still?
     imag_bin = bin(reduce_resolution(imag, voxel, binning * voxel * 2), binning)
