@@ -1532,13 +1532,13 @@ class ConvertEM2PDB(QMainWindow, CommonFunctions):
                                   wtype=QDoubleSpinBox, stepsize=0.1, minimum=1.0, maximum=100,
                                   tooltip='Pixel size of output volume (in Angstrom)')
 
-        self.insert_pushbutton(parent, 'Create', action=self.pdb2em,
+        self.insert_pushbutton(parent, 'Create', action=self.pdb2emr,
                                params=['size_template', 'radius', 'smooth_factor', emfname])
 
         self.setCentralWidget(w)
         self.show()
 
-    def pdb2em(self,params):
+    def pdb2emr(self,params):
         pdbid = self.widgets['pdb_id'].text()
         if not pdbid: return
         chain = self.widgets['chain'].text()
@@ -1548,8 +1548,13 @@ class ConvertEM2PDB(QMainWindow, CommonFunctions):
         out_fname = str(QFileDialog.getSaveFileName(self, 'Save EM model.', self.folder, filter='*.em')[0])
         if not out_fname: return
         if not out_fname.endswith('.em'): out_fname += '.em'
-        pdb2em('{}/{}.pdb'.format(self.folder,pdbid), pixel_size, cube_size, chain=chain, fname=out_fname,
-               densityNegative=True)
+        fname_pdb = f'{self.folder}/{pdbid}.pdb'
+
+        try:
+            pdb2em(fname_pdb, pixel_size, cube_size, chain=chain, fname=out_fname, densityNegative=True)
+        except Exception as e:
+            print(e)
+            return
 
         self.parent().widgets[params[-1]].setText(out_fname)
         self.close()
