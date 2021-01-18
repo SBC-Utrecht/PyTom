@@ -27,7 +27,7 @@ if __name__=='__main__':
 
     options = [ScriptOption(['-f', '--fileName'], 'Filename of mrc stack.', True, False),
                ScriptOption(['-t', '--targetDir'], 'Folder in which the output files are saved', True, False),
-               ScriptOption(['-p', '--prefix'], 'Prefix to filename. Default name of file.', True, False),
+               ScriptOption(['-p', '--prefix'], 'Prefix to filename. Default name of file.', True, True),
                ScriptOption(['-o', '--origDir'], 'Directory from which images in the stack originate. '
                                                 'It will use the prefix "sorted" to select the output file names.',
                             True, True),
