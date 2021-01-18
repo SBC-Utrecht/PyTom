@@ -1081,9 +1081,9 @@ def plotCurve(data, num_rows=1, num_cols=1, s=5, e=None, h=None):
                 import numpy as np
                 x = np.random.normal(size=50000)
                 y = x * 3 + np.random.normal(size=50000)
-                print(len(h[1]), len(h[0]))
+                #print(len(h[1]), len(h[0]))
                 a = ax.hist2d(np.array(h[0]), np.array(h[1]), range=[[-20,20],[-20,20]], bins=(81,81))
-                print(a[0].shape, a[2].max(), a[1].min())
+                #print(a[0].shape, a[2].max(), a[1].min())
 
             else:
                 ax.errorbar(range(len(d)), d, e[n], linestyle='None')
