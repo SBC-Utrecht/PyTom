@@ -1,4 +1,4 @@
-PyTom v0.992
+PyTom v0.993
 
 This license affects the software package PyTom and all the herein distributed source / data files.
 Authors: 
