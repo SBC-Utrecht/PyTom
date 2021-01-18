@@ -548,7 +548,7 @@ def ellipse_filter(sizeX, sizeY, radiusCutoffX, radiusCutoffY):
     R = xp.sqrt((X/radiusCutoffX)**2 + (Y/radiusCutoffY)**2)
 
     filter = xp.zeros((sizeX, sizeY), dtype=xp.float32)
-    print(filter.shape, R.shape)
+    #print(filter.shape, R.shape)
     filter[R <= 1] = 1
 
     return filter

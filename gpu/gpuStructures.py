@@ -58,7 +58,7 @@ class TemplateMatchingGPU(threading.Thread):
 
         from cupy import sqrt, float32
         from cupy.fft import fftshift, rfftn, irfftn, ifftn, fftn
-        import voltools as vt
+        import pytom.voltools as vt
         from pytom.tompy.io import write
         from cupyx.scipy.ndimage import map_coordinates
 
@@ -132,7 +132,7 @@ class TemplateMatchingGPU(threading.Thread):
 
         self.Device(self.deviceid).use()
 
-        import voltools as vt
+        import pytom.voltools as vt
         from pytom.tompy.io import write
         sx, sy, sz = self.plan.template.shape
         SX, SY, SZ = self.plan.templatePadded.shape
@@ -852,7 +852,7 @@ class GLocalAlignmentGPU(threading.Thread):
 
         from cupy import sqrt, float32
         from cupy.fft import fftshift, rfftn, irfftn, ifftn, fftn
-        import voltools as vt
+        import pytom.voltools as vt
         from pytom.tompy.io import write
         from cupyx.scipy.ndimage import map_coordinates
 
