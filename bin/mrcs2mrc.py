@@ -133,5 +133,12 @@ SubFramePath = X:\{}
     #mpi.parfor(extract_single_image, out)
     #mpi.end()
 
-    if mdoc: mdocfile.close()
+    if mdoc:
+        mdocfile.close()
+        try:
+            os.system(f'mdoc2meta.py -f {mdocname} -t {outdir}')
+        except Exception as e:
+            print(e )
+
+
     
