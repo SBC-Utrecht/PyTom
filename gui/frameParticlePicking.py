@@ -55,6 +55,7 @@ class ParticlePick(GuiTabWidget):
         self.threadPool = self.parent().threadPool
         self.tabs_dict, self.tab_actions = {}, {}
         self.workerID = 0
+        self.TMCounter = 0
 
 
         headers = ["Manual Picking","Template Matching", "Create Particle List", "Alter Particle List"]
@@ -687,7 +688,7 @@ class ParticlePick(GuiTabWidget):
                                                                   modules=modules, num_jobs_per_node=cores) + cmd
 
 
-                    execfilename = os.path.join(os.path.dirname(jobFile), 'extractCandidatesBatch.sh')
+                    execfilename = os.path.join(os.path.dirname(jobFile), f'extractCandidatesBatch.sh')
                     ID, num = self.submitBatchJob(execfilename, pid, job)
                     num_submitted_jobs += 1
                     qIDs.append(ID)
@@ -805,10 +806,11 @@ class ParticlePick(GuiTabWidget):
                     job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname, suffix=suffix, singleton=True,
                                                         time=timed, num_nodes=n_nodes, partition=qname, modules=modules,
                                                         num_jobs_per_node=cores) + cmd
-                    execfilename = os.path.join(outDirectory, 'templateMatchingBatch.sh')
+                    execfilename = os.path.join(outDirectory, f'templateMatchingBatch_{num_submitted_jobs}.sh')
 
                     todoList[gpuID].append([execfilename, pid, job])
                     num_submitted_jobs += 1
+
                     # ID, num = self.submitBatchJob(execfilename, pid, job)
                     # QtGui.QApplication.processEvents()
 
