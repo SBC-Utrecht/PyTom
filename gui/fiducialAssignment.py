@@ -162,7 +162,10 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.selectMarkers = SelectAndSaveMarkers(self)
         self.manual_adjust_marker = ManuallyAdjustMarkers(self)
         self.error_window = ErrorWindow(self,'test.txt')
+        self.markerAdjust = False
+        self.markerHotKeys = {Qt.Key_4: 4, Qt.Key_5: 5, Qt.Key_6: 6, Qt.Key_7: 7, Qt.Key_8: 8, Qt.Key_9: 9, Qt.Key_0: 0}
 
+        self.idReferenceImage = -1
         self.dim = 0
         self.radius = 8
         self.sizeCut = 200
@@ -192,13 +195,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.insert_pushbutton(parent,text='Find Fiducials',rstep=1,tooltip='Automatically detect fiducials.',
                                action=self.find_fid,params=0, wname='findButton', state=False)
 
-        self.insert_pushbutton(parent,text='Detect Frame Shifts',rstep=1, wname='detectButton',state=True,
+        self.insert_pushbutton(parent,text='Detect Frame Shifts',rstep=1, wname='detectButton',
                                tooltip='Detect global x-y shifts between tilt images.',
-                               action=self.detect_frameshift,params=0)
+                               action=self.detect_frameshift,params=0, state=False)
         self.insert_pushbutton(parent,text='Index Fiducials',rstep=1,tooltip='Group Fiducials into marker sets.',
                                action=self.index_fid,params=0, wname='indexButton',state=False)
         self.insert_pushbutton(parent, text='Check Align Errors', rstep=1, tooltip='Check Alignment Errors.',
-                               action=self.raise_window, params=self.error_window, wname='errorButton', state=True)
+                               action=self.raise_window, params=self.error_window, wname='errorButton', state=False)
         self.insert_label(parent, rstep=1)
         self.insert_pushbutton(parent,text='Manually Adjust Markers',rstep=1,tooltip='Manually adjust marker sets.',
                                action=self.raise_window, params=self.manual_adjust_marker, wname='adjustManually',
@@ -311,32 +314,63 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             self.imnr += step
             self.replot()
 
+    def markerHotKeyPressed(self, id):
+        if self.selected_marker != id:
+            self.selected_marker = id
+            print(f'Marker_{id:03d} selected')
+        else:
+            print(f'Marker_{id:03d} deselected')
+            self.selected_marker = -1
+
     def keyPressEvent(self, evt):
         if Qt.Key_F == evt.key():
+            if self.idReferenceImage == -1: return
+
             print ('Find Fiducials')
             self.find_fid()
 
         elif Qt.Key_D == evt.key():
+            if self.idReferenceImage == -1: return
+
             print ('Detect Frame Offsets')
             self.detect_frameshift()
 
         elif Qt.Key_I == evt.key():
+            if self.idReferenceImage == -1: return
+
             print ('Index Fiducials')
             self.index_fid()
 
         elif Qt.Key_1 == evt.key():
-            self.imnr = 0
-            self.replot2()
+            if not self.markerAdjust:
+                self.imnr = 0
+                self.replot2()
+            else:
+                self.markerHotKeyPressed(1)
 
         elif Qt.Key_2 == evt.key():
-            self.imnr = len(self.fnames)//2
-            self.replot2()
+            if not self.markerAdjust:
+                self.imnr = self.idReferenceImage
+                self.replot2()
+            else:
+                self.markerHotKeyPressed(2)
 
         elif Qt.Key_3 == evt.key():
-            self.imnr = len(self.fnames) -1
-            self.replot2()
+            if self.idReferenceImage == -1: return
+            if not self.markerAdjust:
+                self.imnr = len(self.fnames) -1
+                self.replot2()
+            else:
+                self.markerHotKeyPressed(3)
+
+        elif evt.key() in self.markerHotKeys.keys():
+            if self.idReferenceImage == -1: return
+
+            if self.markerAdjust:
+                self.markerHotKeyPressed(self.markerHotKeys[evt.key()])
 
         elif Qt.Key_L == evt.key():
+            if self.idReferenceImage == -1: return
 
             for i in range(len(self.fnames)):
                 self.imnr = i
@@ -351,6 +385,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                 time.sleep(0.04)
 
         elif Qt.Key_P == evt.key():
+            if self.idReferenceImage == -1: return
+
             save_index = self.imnr
             for i in range(len(self.fnames)):
                 self.imnr = i
@@ -363,6 +399,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             self.replot2()
 
         elif Qt.Key_E == evt.key():
+            if self.idReferenceImage == -1: return
+
             self.exclude_status_change()
 
         elif Qt.Key_R == evt.key():
@@ -374,6 +412,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                 self.replot2()
 
         elif Qt.Key_Left == evt.key():
+            if self.idReferenceImage == -1: return
+
             if self.imnr - 1 >= 0:
 
                 self.imnr -= 1
@@ -383,10 +423,23 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             self.close()
 
         elif Qt.Key_Comma == evt.key():
+            if self.idReferenceImage == -1: return
+
             self.manual_adjust_marker.prev_missing()
 
         elif Qt.Key_Period == evt.key():
+            if self.idReferenceImage == -1: return
+
             self.manual_adjust_marker.next_missing()
+
+        elif Qt.Key_M == evt.key():
+            if self.idReferenceImage == -1: return
+
+            if self.widgets['adjustManually'].isEnabled():
+                self.markerAdjust = (self.markerAdjust != True)
+                mah = 'activated' if self.markerAdjust else 'deactivated'
+                print(f'Marker Adjustment Hotkeys are {mah}.')
+
 
     def exclude_status_change(self):
         i = self.imnr
@@ -431,6 +484,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                 self.bottom_image.addItem(self.bottom_circles[-1])
 
     def replot2(self):
+        if self.idReferenceImage == -1: return
         self.img1a.setImage(image=self.frames_full[self.imnr])
         #self.img1b.setImage(image=self.frames_full[self.imnr])
         xmax,ymax = self.xmin+self.sizeCut,self.ymin+self.sizeCut
@@ -485,8 +539,10 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.bottom_circles = []
 
     def load_images(self,folder='', bin_read=8, bin_alg=12):
-        self.selected_marker = -1
-        for name in ('findButton','indexButton'):
+        self.disableMarkerAdjustment()
+        self.idReferenceImage = -1
+
+        for name in ('findButton','indexButton', 'detectButton', 'adjustManually', 'errorButton'):
             self.widgets[name].setEnabled(False)
         pg.QtGui.QApplication.processEvents()
 
@@ -506,7 +562,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             for key, value in datatype0:
                 print(key, value)
                 self.metadata[key] = metadata_old[key]
-            
+
+
         ps,fs = float(self.metadata['PixelSpacing'][0]), int(self.metadata['MarkerDiameter'][0])
         self.settings.widgets['tilt_axis'].setValue(int(self.metadata['InPlaneRotation'][0]))
         self.settings.widgets['pixel_size'].setValue(ps)
@@ -550,6 +607,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.loaded_data = True
 
         self.mark_frames = [[], ] * len(self.fnames)
+
+        self.idReferenceImage = numpy.abs(self.metadata['TiltAngle']).argmin()
 
         self.widgets['findButton'].setEnabled(True)
         self.widgets['createMarkerfile'].setEnabled(True)
@@ -668,6 +727,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         print(time.time() - start)
         #self.update()
 
+
+    def disableMarkerAdjustment(self):
+        if self.markerAdjust:
+            print(f'Marker Adjustment and Hotkeys are deactivated.')
+        self.selected_marker = -1
+        self.markerAdjust = False
+
     def find_fid(self):
         #if not self.mf:
         #    self.find_fiducials()
@@ -675,7 +741,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         #else:
         #    if askokcancel(title="Overwrite existing fiducial list",
         #               message="Are you sure you want to overwrite the existing fiducial list by an automatd search? User changes will be lost."):
-
+        self.disableMarkerAdjustment()
         if self.widgets['findButton'].isEnabled()==True:
             self.find_fiducials()
             self.replot2()
@@ -729,8 +795,12 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         return marker
 
     def find_fiducials(self):
+
         self.selected_marker = -1
         if self.widgets['findButton'].isEnabled()==False: return
+
+        self.disableMarkerAdjustment()
+
         print ('find potential fiducials time: ',)
         procs = []
         self.algorithm = self.settings.widgets['algorithm'].currentText()
@@ -831,7 +901,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
     def detect_frameshift(self):
         if self.widgets['detectButton'].isEnabled()==False: return
-
+        self.disableMarkerAdjustment()
         self.update_mark()
         detect_shifts = self.detect_shifts_few
         if len(self.mark_frames[0]) > 5:
@@ -844,6 +914,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
     def index_fid(self):
         self.selected_marker = -1
         if self.widgets['indexButton'].isEnabled()==False: return
+        self.disableMarkerAdjustment()
 
         self.deleteAllMarkers()
         self.update_mark()
@@ -1157,10 +1228,10 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
                                    tooltip='Algorithm used for automatic fiducial detection.')
 
         self.insert_label_spinbox(self.grid,'bin_read', text='Binning Factor Reading', rstep=1, minimum=1, maximum=16,
-                                  stepsize=2,tooltip='Binning factor for reading.',value=2,wtype=QSpinBox,cstep=-1)
+                                  stepsize=2,tooltip='Binning factor for reading.',value=4,wtype=QSpinBox,cstep=-1)
 
         self.insert_label_spinbox(self.grid,'bin_alg', text='Binning Factor Finding Fiducials',rstep=1,
-                                  minimum=1,maximum=16,stepsize=2,value=8,wtype=QSpinBox,cstep=0,
+                                  minimum=1,maximum=16,stepsize=2,value=12,wtype=QSpinBox,cstep=0,
                                   tooltip='Binning factor for finding fiducials, used to improve contrast.\n'
                                           'Must be a multiple of the binning factor for reading.')
 
