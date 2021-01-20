@@ -336,6 +336,8 @@ class ParticlePick(GuiTabWidget):
 
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
 
+        self.updateTM(mode)
+
         setattr(self, mode + 'gb_TMatch', groupbox)
         return groupbox
 
@@ -370,6 +372,21 @@ class ParticlePick(GuiTabWidget):
         self.xmlfilename = os.path.join(self.templatematchfolder, 'cross_correlation', filename, 'job.xml')
         self.widgets[mode + 'outfolderTM'].setText(os.path.dirname(self.xmlfilename))
         self.widgets[mode + 'jobName'].setText(self.xmlfilename)
+
+        try:
+            folder = os.path.dirname(os.popen(f'ls -alrt {self.widgets[mode+"tomoFname"].text()}').read()[:-1].split(' ')[-1])
+            widthfile = os.path.join(folder, 'z_limits.txt')
+            if os.path.exists(widthfile):
+
+                start, end = map(int, list(numpy.loadtxt(widthfile)))
+            else:
+                start, end = 0, 0
+        except Exception as e:
+            print(e)
+            start, end = 0, 0
+
+        self.widgets[mode + 'endZ'].setValue(end)
+        self.widgets[mode + 'startZ'].setValue(start)
         self.updateZWidth(mode)
 
     def updateZWidth(self, mode):
