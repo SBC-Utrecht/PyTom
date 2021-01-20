@@ -4404,11 +4404,13 @@ class Viewer2D(QMainWindow, CommonFunctions):
         if Qt.Key_Right == evt.key():
             if self.slice + self.step_size < self.dim:
                 self.slice += self.step_size
+                self.setWindowTitle(f"Slice: {self.slice}")
                 self.replot()
 
         if Qt.Key_Left == evt.key():
             if self.slice > self.step_size - 1:
                 self.slice -= self.step_size
+                self.setWindowTitle(f"Slice: {self.slice}")
                 self.replot()
 
         if evt.key() == Qt.Key_Escape:
@@ -4988,6 +4990,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                          'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch','BatchExtractCandidates',
                          'SingleSubtomoReconstruct', 'BatchSubtomoReconstruct',
                          'SingleParticlePolish', 'BatchParticlePolish',
+                         'AverageParticleList',
                          'FRMAlignment','GLocalAlignment',
                          'PairwiseCrossCorrelation', 'CPCA', 'AutoFocusClassification', 'FSCValidation']
         self.setQNames()
@@ -5259,10 +5262,10 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.setGeometry(0, 0, 1050, 490)
 
         headers = ['Alignment Errors', 'Template Matching Results', 'FSC Curve']
-        subheaders = [['Reconstruction', 'Alignment'], [], []] * len(headers)
+        subheaders = [['Alignment', 'Reconstruction'], [], []] * len(headers)
         static_tabs = [[False, False], [True], [True]]
 
-        tabUIs = [[self.tab31UI, self.tab32UI],
+        tabUIs = [[self.tab32UI, self.tab31UI],
                   self.tab1UI,
                   self.tab2UI]
         self.tabs_dict, self.tab_actions = {}, {}
@@ -5388,63 +5391,66 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
             plot_FSC(filename, pixel_size, boxsize=box_size, show_image=show_image, c=cut_off)
 
     def tab31UI(self, id=''):
-        import glob
-        headers = ["Name Tomogram", 'Score', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker',
-                   'Enp. Rot. Angle', 'Det. Rot. Angle', '']
-        types = ['txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt']
-        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
+        try:
+            import glob
+            headers = ["Name Tomogram", 'Score', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker',
+                       'Enp. Rot. Angle', 'Det. Rot. Angle', '']
+            types = ['txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt']
+            sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
 
-        tooltip = ['Names of existing tomogram folders.',
-                   'Alignment Score.',
-                   'First angle of tiltimages.',
-                   'Last angle of tiltimages.',
-                   'Reference image number.',
-                   'Reference Marker',
-                   'Expected Rotation Angle',
-                   'Retrieved Rotation Angle']
+            tooltip = ['Names of existing tomogram folders.',
+                       'Alignment Score.',
+                       'First angle of tiltimages.',
+                       'Last angle of tiltimages.',
+                       'Reference image number.',
+                       'Reference Marker',
+                       'Expected Rotation Angle',
+                       'Retrieved Rotation Angle']
 
-        logfiles = sorted(glob.glob('{}/LogFiles/*construction*.out'.format(self.projectname)))
+            logfiles = sorted(glob.glob('{}/LogFiles/*construction*.out'.format(self.projectname)))
 
-        values = []
-        tomograms = {}
-        for logfile in logfiles[::-1]:
-            # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
-            dir = os.path.dirname(logfile)
-            ids = os.path.basename(logfile).split('-')[0]
-            infile = glob.glob(f"{dir}/{ids}_*.sh")
-            if not infile:
-                continue
-            logdata = open(logfile, 'r').read()
-            indata = open(infile[0], 'r').read()
+            values = []
+            tomograms = {}
+            for logfile in logfiles[::-1]:
+                # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
+                dir = os.path.dirname(logfile)
+                ids = os.path.basename(logfile).split('-')[0]
+                infile = glob.glob(f"{dir}/{ids}_*.sh")
+                if not infile:
+                    continue
+                logdata = open(logfile, 'r').read()
+                indata = open(infile[0], 'r').read()
 
-            tomogram = os.path.basename(indata.split('cd ')[1].split('\n')[0])
-            if tomogram in tomograms: continue
-            tomograms[tomogram] = 1
-            alignmentscore = str(numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
-            firstangle = logdata.split('tiltAngle=')[1].split(')')[0]
-            lastangle = logdata.split('tiltAngle=')[-1].split(')')[0]
-            refindex = indata.split('--referenceIndex ')[1].split(' ')[0]
-            refmarker = indata.split('--referenceMarkerIndex ')[1].split(' ')[0]
-            expected = indata.split('--expectedRotationAngle ')[1].split(' ')[0]
+                tomogram = os.path.basename(indata.split('cd ')[1].split('\n')[0])
+                if tomogram in tomograms: continue
+                tomograms[tomogram] = 1
+                alignmentscore = str(numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
+                firstangle = logdata.split('tiltAngle=')[1].split(')')[0]
+                lastangle = logdata.split('tiltAngle=')[-1].split(')')[0]
+                refindex = indata.split('--referenceIndex ')[1].split(' ')[0]
+                refmarker = indata.split('--referenceMarkerIndex ')[1].split(' ')[0]
+                expected = indata.split('--expectedRotationAngle ')[1].split(' ')[0]
 
-            angles = [float(i.split(',')[0]) for i in logdata.split('rot=')[1:]]
-            det_angle = str(int(round(sum(angles) / len(angles))) % 360)
-            values = [[tomogram, alignmentscore, firstangle, lastangle, refindex, refmarker, expected, det_angle,
-                       '']] + values
-        if not values:
-            return
+                angles = [float(i.split(',')[0]) for i in logdata.split('rot=')[1:]]
+                det_angle = str(int(round(sum(angles) / len(angles))) % 360)
+                values = [[tomogram, alignmentscore, firstangle, lastangle, refindex, refmarker, expected, det_angle,
+                           '']] + values
+            if not values:
+                return
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save', addQCheckBox=False)
-        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
+            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save', addQCheckBox=False)
+            self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
 
-        for i in range(len(values)):
-            if float(values[i][1]) < 3:
-                color = 'green'
-            elif float(values[i][1]) < 4.5:
-                color = 'orange'
-            else:
-                color = 'red'
-            self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : " + color + "}")
+            for i in range(len(values)):
+                if float(values[i][1]) < 3:
+                    color = 'green'
+                elif float(values[i][1]) < 4.5:
+                    color = 'orange'
+                else:
+                    color = 'red'
+                self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : " + color + "}")
+        except:
+            pass
 
     def save2file(self, id, values):
         outname = str(QFileDialog.getSaveFileName(self, 'Save alignment scores.', self.projectname, filter='*.txt')[0])
@@ -5473,146 +5479,149 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         outfile.close()
 
     def tab32UI(self, id=''):
-        import glob, numpy
-        from pytom.gui.guiFunctions import loadstar, datatype
-        dname = os.path.dirname
-        bname = os.path.basename
-        headers = ["name tomogram", 'Score', 'First Angle', "Last Angle", 'Alignment Type', 'Origin', 'Ref. Image', 'Ref. Marker',
-                   'Exp. Rot. Angle', 'Det. Rot. Angle', '']
-        types = ['txt', 'txt', 'combobox', 'combobox', 'combobox', 'combobox',  'txt', 'combobox', 'txt', 'txt', 'txt']
-        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        try:
+            import glob, numpy
+            from pytom.gui.guiFunctions import loadstar, datatype
+            dname = os.path.dirname
+            bname = os.path.basename
+            headers = ["name tomogram", 'Score', 'First Angle', "Last Angle", 'Alignment Type', 'Origin', 'Ref. Image', 'Ref. Marker',
+                       'Exp. Rot. Angle', 'Det. Rot. Angle', '']
+            types = ['txt', 'txt', 'combobox', 'combobox', 'combobox', 'combobox',  'txt', 'combobox', 'txt', 'txt', 'txt']
+            sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-        tooltip = ['Names of existing tomogram folders.',
-                   'Alignment Score.',
-                   'First angle of tiltimages.',
-                   'Last angle of tiltimages.',
-                   'Alignment type: Global or based on fixed Local Marker',
-                   'Have you aligned sorted or sorted_ctf corrected images?',
-                   'Reference image number.',
-                   'Reference Marker',
-                   'Expected Rotation Angle', 'Determined Rotation Angle']
+            tooltip = ['Names of existing tomogram folders.',
+                       'Alignment Score.',
+                       'First angle of tiltimages.',
+                       'Last angle of tiltimages.',
+                       'Alignment type: Global or based on fixed Local Marker',
+                       'Have you aligned sorted or sorted_ctf corrected images?',
+                       'Reference image number.',
+                       'Reference Marker',
+                       'Expected Rotation Angle', 'Determined Rotation Angle']
 
-        tomofolders = sorted(
-            [f for f in os.listdir(f'{self.projectname}/03_Tomographic_Reconstruction/') if f.startswith('tomogram_')])
+            tomofolders = sorted(
+                [f for f in os.listdir(f'{self.projectname}/03_Tomographic_Reconstruction/') if f.startswith('tomogram_')])
 
-        values = []
-        tomograms = {}
-        self.alignmentResulsDict = {}
-        for tomofolder in tomofolders:
+            values = []
+            tomograms = {}
+            self.alignmentResulsDict = {}
+            for tomofolder in tomofolders:
 
-            first = True
-            try:
-                metafile = \
-                [f for f in glob.glob(f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/sorted/*.meta')][
-                    0]
-                metadata = loadstar(metafile, dtype=datatype)
-            except Exception as e:
-                print(e)
-                continue
-            for logfile in sorted(glob.glob(
-                    f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/alignment/marker*/*/*/logfile*.txt')):
-                # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
-                logdata = open(logfile, 'r').read()
+                first = True
                 try:
-                    ctffolder = f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/ctf/sorted_ctf/'
-                    if os.path.exists(ctffolder):
-                        ctfcorr = [f for f in os.listdir(ctffolder) if '_ctf_' in f and f.endswith('.mrc')]
-                    else:
-                        ctfcorr = []
-                    if len(ctfcorr) > 4:
-                        ctf = 16
-                    else:
-                        ctf = False
-
-                    d = eval(logdata.split("Spawned job")[1].split('\n')[1])
-                    first, last = os.path.basename(dname(dname(dname(logfile)))).split('_')[-1].split(',')
-                    if not d: continue
-                    alignmentscore = str(
-                        numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
-                    firstangle = str(numpy.around(metadata['TiltAngle'][d['firstProj']], 1))
-                    lastangle = str(numpy.around(metadata['TiltAngle'][d['lastProj']], 1))
-                    refindex = str(d['ireftilt'])
-                    refmarker = str(d['irefmark'])
-                    expected = str(int(numpy.around(180 * float(d['handflip'] / numpy.pi))))
-                    logfal = logdata.split('Alignment successful. See ')[1].split(' ')[0]
-                    path = os.path.join(self.projectname, '03_Tomographic_Reconstruction', tomofolder, logfal)
-                    angles = guiFunctions.loadstar(path, dtype=guiFunctions.datatypeAR)['InPlaneRotation'].mean()
-                    detangle = str(int(round(angles)) % 360)
-                    markerPath = dname(dname(dname(logfile)))
-                    alignType  = bname(dname(dname(logfile)))
-                    origin     = bname(dname(logfile))
-                    try:
-                        self.alignmentResulsDict[tomofolder]
-                    except:
-                        self.alignmentResulsDict[tomofolder] = {}
-                    try:
-                        self.alignmentResulsDict[tomofolder][refmarker]
-                    except:
-                        self.alignmentResulsDict[tomofolder][refmarker] = {}
-                    try:
-                        self.alignmentResulsDict[tomofolder][refmarker][first]
-                    except:
-                        self.alignmentResulsDict[tomofolder][refmarker][first] = {}
-                    try:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last]
-                    except:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last] = {}
-                    try:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType]
-                    except:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType] = {}
-                    try:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin]
-                    except:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin] = {}
-
-                    results = [tomofolder, alignmentscore, firstangle, lastangle, alignType, origin, refindex, refmarker, expected,
-                               detangle]
-
-                    self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin] = results
-
-
+                    metafile = \
+                    [f for f in glob.glob(f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/sorted/*.meta')][
+                        0]
+                    metadata = loadstar(metafile, dtype=datatype)
                 except Exception as e:
-                    print('Error in alignment table: ', e)
+                    print(e)
                     continue
+                for logfile in sorted(glob.glob(
+                        f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/alignment/marker*/*/*/logfile*.txt')):
+                    # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
+                    logdata = open(logfile, 'r').read()
+                    try:
+                        ctffolder = f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/ctf/sorted_ctf/'
+                        if os.path.exists(ctffolder):
+                            ctfcorr = [f for f in os.listdir(ctffolder) if '_ctf_' in f and f.endswith('.mrc')]
+                        else:
+                            ctfcorr = []
+                        if len(ctfcorr) > 4:
+                            ctf = 16
+                        else:
+                            ctf = False
 
-            try:
-                rrr = list(self.alignmentResulsDict[tomofolder].keys())
-                fff = list(self.alignmentResulsDict[tomofolder][rrr[0]].keys())
-                lll = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]].keys())
-                aaa = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]].keys())
-                ooo = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]][aaa[0]].keys())
+                        d = eval(logdata.split("Spawned job")[1].split('\n')[1])
+                        first, last = os.path.basename(dname(dname(dname(logfile)))).split('_')[-1].split(',')
+                        if not d: continue
+                        alignmentscore = str(
+                            numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
+                        firstangle = str(numpy.around(metadata['TiltAngle'][d['firstProj']], 1))
+                        lastangle = str(numpy.around(metadata['TiltAngle'][d['lastProj']], 1))
+                        refindex = str(d['ireftilt'])
+                        refmarker = str(d['irefmark'])
+                        expected = str(int(numpy.around(180 * float(d['handflip'] / numpy.pi))))
+                        logfal = logdata.split('Alignment successful. See ')[1].split(' ')[0]
+                        path = os.path.join(self.projectname, '03_Tomographic_Reconstruction', tomofolder, logfal)
+                        angles = guiFunctions.loadstar(path, dtype=guiFunctions.datatypeAR)['InPlaneRotation'].mean()
+                        detangle = str(int(round(angles)) % 360)
+                        markerPath = dname(dname(dname(logfile)))
+                        alignType  = bname(dname(dname(logfile)))
+                        origin     = bname(dname(logfile))
+                        try:
+                            self.alignmentResulsDict[tomofolder]
+                        except:
+                            self.alignmentResulsDict[tomofolder] = {}
+                        try:
+                            self.alignmentResulsDict[tomofolder][refmarker]
+                        except:
+                            self.alignmentResulsDict[tomofolder][refmarker] = {}
+                        try:
+                            self.alignmentResulsDict[tomofolder][refmarker][first]
+                        except:
+                            self.alignmentResulsDict[tomofolder][refmarker][first] = {}
+                        try:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last]
+                        except:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last] = {}
+                        try:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType]
+                        except:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType] = {}
+                        try:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin]
+                        except:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin] = {}
 
-                tt, ss, ff, ll, aa, oo, rr, mm, ee, dd = self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]][aaa[0]][ooo[0]]
-                values.append([tt, ss, fff, lll, aaa, ooo, rr, rrr, ee, dd, ''])
-            except Exception as e:
-                print(f'No alignment done for {e}')
+                        results = [tomofolder, alignmentscore, firstangle, lastangle, alignType, origin, refindex, refmarker, expected,
+                                   detangle]
 
-        if not values:
-            return
+                        self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin] = results
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save', addQCheckBox=False)
-        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
 
-        for i in range(len(values)):
-            if float(values[i][1]) < 3:
-                color = 'green'
-            elif float(values[i][1]) < 4.5:
-                color = 'orange'
-            else:
-                color = 'red'
-            self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : " + color + "}")
-            tom = values[i][0]
-            self.tables[id].widgets[f'widget_{i}_2'].currentIndexChanged.connect(
-                lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 2))
-            self.tables[id].widgets[f'widget_{i}_3'].currentIndexChanged.connect(
-                lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 3))
-            self.tables[id].widgets[f'widget_{i}_4'].currentIndexChanged.connect(
-                lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 4))
-            self.tables[id].widgets[f'widget_{i}_5'].currentIndexChanged.connect(
-                lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 5))
-            self.tables[id].widgets[f'widget_{i}_7'].currentIndexChanged.connect(
-                lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 1))
+                    except Exception as e:
+                        print('Error in alignment table: ', e)
+                        continue
+
+                try:
+                    rrr = list(self.alignmentResulsDict[tomofolder].keys())
+                    fff = list(self.alignmentResulsDict[tomofolder][rrr[0]].keys())
+                    lll = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]].keys())
+                    aaa = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]].keys())
+                    ooo = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]][aaa[0]].keys())
+
+                    tt, ss, ff, ll, aa, oo, rr, mm, ee, dd = self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]][aaa[0]][ooo[0]]
+                    values.append([tt, ss, fff, lll, aaa, ooo, rr, rrr, ee, dd, ''])
+                except Exception as e:
+                    print(f'No alignment done for {e}')
+
+            if not values:
+                return
+
+            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save', addQCheckBox=False)
+            self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
+
+            for i in range(len(values)):
+                if float(values[i][1]) < 3:
+                    color = 'green'
+                elif float(values[i][1]) < 4.5:
+                    color = 'orange'
+                else:
+                    color = 'red'
+                self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : " + color + "}")
+                tom = values[i][0]
+                self.tables[id].widgets[f'widget_{i}_2'].currentIndexChanged.connect(
+                    lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 2))
+                self.tables[id].widgets[f'widget_{i}_3'].currentIndexChanged.connect(
+                    lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 3))
+                self.tables[id].widgets[f'widget_{i}_4'].currentIndexChanged.connect(
+                    lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 4))
+                self.tables[id].widgets[f'widget_{i}_5'].currentIndexChanged.connect(
+                    lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 5))
+                self.tables[id].widgets[f'widget_{i}_7'].currentIndexChanged.connect(
+                    lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 1))
+        except:
+            pass
 
     def update(self, row, ID, tomofolder, priority):
         try:
