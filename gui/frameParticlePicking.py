@@ -519,7 +519,11 @@ class ParticlePick(GuiTabWidget):
         scores = os.path.join( os.path.dirname(jobXML), f'scores{suffix}.em')
         angles = os.path.join( os.path.dirname(jobXML), f'angles{suffix}.em')
 
-        particleList = os.path.join(self.pickpartfolder, 'particleList_TM_{}.xml'.format(folder))
+        if '_Mirrored' in os.path.basename(jobXML):
+            s = '_Mirrored'
+        else:
+            s = ''
+        particleList = os.path.join(self.pickpartfolder, f'particleList_TM_{folder}{s}.xml')
         if not os.path.exists(os.path.dirname(particleList)): os.mkdir(os.path.dirname(particleList))
         self.widgets[mode + 'particleList'].setText(particleList)
         if os.path.exists(scores): self.widgets[mode + 'scoreFile'].setText(scores)
@@ -642,7 +646,10 @@ class ParticlePick(GuiTabWidget):
         for n, jobFile in enumerate(jobfiles):
             if not jobFile: continue
             folder = os.path.basename(os.path.dirname(jobFile))
-            particleList = os.path.join(self.pickpartfolder, 'particleList_TM_{}.xml'.format(folder))
+            if '_Mirrored' in os.path.basename(jobFile):
+                suffix = '_Mirrored'
+            else: suffix = ''
+            particleList = os.path.join(self.pickpartfolder, f'particleList_TM_{folder}{suffix}.xml')
             if not os.path.exists(os.path.dirname(particleList)): os.mkdir(os.path.dirname(particleList))
             p = os.path.basename(particleList)[:-4]
             prefix = 'Subtomograms/{}'.format(p)
