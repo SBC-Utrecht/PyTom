@@ -38,6 +38,6 @@ if __name__ == '__main__':
         sys.exit()
         pass
     
-    volume = pdb2em(pdbFile, float(pixelSize), int(cubeSize), chain = chain,densityNegative = densityNegative)
+    volume = pdb2em(pdbFile, float(pixelSize), int(cubeSize), chain=chain, densityNegative=densityNegative)
     
     volume.write(volumePath)

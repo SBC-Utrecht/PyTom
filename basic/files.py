@@ -10,7 +10,7 @@ def readProxy(fileName, subregion1=0, subregion2=0, subregion3=0,
               sampling2=0, sampling3=0, binning1=0, binning2=0, binning3=0):
     """
     readProxy: Proxy function to easily replace pytom_volume calls with read \
-    function below  
+    function below
     """
 
     return read(fileName, subregion=[subregion1, subregion2, subregion3,
@@ -22,18 +22,18 @@ def readProxy(fileName, subregion1=0, subregion2=0, subregion3=0,
 def read(file, subregion=[0, 0, 0, 0, 0, 0], sampling=[0, 0, 0], binning=[0, 0, 0]):
     """
     read: Reads a file
-    @param file: Path to file. Supports EM, MRC and CCP4 files 
+    @param file: Path to file. Supports EM, MRC and CCP4 files
     @type file: str
-    @param subregion: Specifies a subregion to be read. The first three 
-    values specify the upper left coordinates within the large volume, 
-    the last three the length of the subregion along each dimension. 
-    @type subregion: List of 6 integers  
-    @param sampling: Change read sampling. Read every second (2), 
+    @param subregion: Specifies a subregion to be read. The first three
+    values specify the upper left coordinates within the large volume,
+    the last three the length of the subregion along each dimension.
+    @type subregion: List of 6 integers
+    @param sampling: Change read sampling. Read every second (2),
     third (3) pixel along each dimension.
     @type sampling:  List of 3 integers
     @param binning: Bin volume along each dimension. Note, 1 will do nothing,
     2 will bin with a kernelsize of 2 pixels along each dimension, 3 will bin
-    with a kernelsize of 3 pixels along each dimension and so forth. 
+    with a kernelsize of 3 pixels along each dimension and so forth.
     @type binning:  List of 3 integers
     @return: A volume object. L{pytom_volume.vol}
     @author: Thomas Hrabe
@@ -63,20 +63,20 @@ def read(file, subregion=[0, 0, 0, 0, 0, 0], sampling=[0, 0, 0], binning=[0, 0, 
 def readSubvolumeFromFourierspaceFile(filename, sizeX, sizeY, sizeZ):
     """
     readSubvolumeFromFourierspaceFile: This function is required when data \
-    (in real space) is read in binned mode and a related fourier space file 
-    like a wedge needs to be read alongside. 
-    Works only if fourier file is reduced complex without any shift applied.      
+    (in real space) is read in binned mode and a related fourier space file
+    like a wedge needs to be read alongside.
+    Works only if fourier file is reduced complex without any shift applied.
     @param filename: The fourier space file name
-    @param sizeX: X final size of subvolume if it was complete 
-    (what L{pytom.basic.structures.Wedge.returnWedgeVolume} with 
+    @param sizeX: X final size of subvolume if it was complete
+    (what L{pytom.basic.structures.Wedge.returnWedgeVolume} with
     humanUnderstandable == True returns)
-    @param sizeY: Y final size of subvolume if it was complete 
-    (what L{pytom.basic.structures.Wedge.returnWedgeVolume} 
+    @param sizeY: Y final size of subvolume if it was complete
+    (what L{pytom.basic.structures.Wedge.returnWedgeVolume}
     with humanUnderstandable == True returns)
-    @param sizeZ: Z final size of subvolume if it was complete 
-    (what L{pytom.basic.structures.Wedge.returnWedgeVolume} 
+    @param sizeZ: Z final size of subvolume if it was complete
+    (what L{pytom.basic.structures.Wedge.returnWedgeVolume}
     with humanUnderstandable == True returns)
-    @return: A subvolume 
+    @return: A subvolume
     @author: Thomas Hrabe
     """
     from pytom_volume import vol, subvolume, paste
@@ -252,7 +252,7 @@ def mmCIFParser(filePath, chainName=None):
     mmCIFParser: Parses mmCIF files from PDB and returns a list of Atom coordinates
     @param filePath: Path to the file
     @param chainName: Focus on one specific chain. Optional, if not specified, the whole file will be used. (This is the oposite to L{pytom.files.naivePDBParser}).
-    @return: List of L{pytom.files.NaiveAtom}s. 
+    @return: List of L{pytom.files.NaiveAtom}s.
     """
     import re
 
@@ -293,7 +293,7 @@ def atomList2em(atomList, pixelSize, cubeSize, densityNegative=False):
     @param pixelSize:
     @param cubeSize:
     @param densityNegative:
-    @return:    
+    @return:
     """
     from math import floor
     from pytom_volume import vol
@@ -374,31 +374,6 @@ def atomList2em(atomList, pixelSize, cubeSize, densityNegative=False):
     return volume
 
 
-def pdb2em(pdbPath, pixelSize, cubeSize, chain=None, densityNegative=False, fname='', recenter=True):
-    """
-    pdb2em: Creates an volume out of a PDB file
-    @param pdbPath: Path to PDB file or PDB id for online download
-    @param pixelSize: The pixel size to convert to 
-    @param cubeSize: Resulting cube size
-    @return: A volume
-    @author: Thomas Hrabe & Luis Kuhn
-    """
-    from math import floor
-    from pytom_volume import vol
-
-    atomList = naivePDBParser(pdbPath, chain)
-
-    vol = atomList2em(atomList, pixelSize, cubeSize, densityNegative)
-
-    if recenter:
-        vol = recenterVolume(vol, densityNegative)
-
-    if fname:
-        vol.write(fname)
-
-    else:
-        return vol
-
 def recenterVolume(volume, densityNegative=False):
     from scipy.ndimage import center_of_mass
     from pytom.tompy.io import read, write
@@ -442,24 +417,6 @@ def recenterVolume(volume, densityNegative=False):
 
 
 
-
-def mmCIF2em(mmCIFPath, pixelSize, cubeSize, chain=None, densityNegative=False):
-    """
-    pdb2em: Creates an volume out of a mmCIF file
-    @param mmCIFPath: Path to mmCIF file 
-    @param pixelSize: The pixel size to convert to 
-    @param cubeSize: Resulting cube size
-    @return: A volume
-    @author: Thomas Hrabe 
-    """
-    from math import floor
-    from pytom_volume import vol
-
-    atomList = mmCIFParser(mmCIFPath, chain)
-
-    return atomList2em(atomList, pixelSize, cubeSize, densityNegative)
-
-
 def initSphere(cubeSize, radius, smoothing=0, centerX=None, centerY=None, centerZ=None):
     """
     initSphere: Initilizes a volume with a sphere
@@ -468,7 +425,7 @@ def initSphere(cubeSize, radius, smoothing=0, centerX=None, centerY=None, center
     @param smoothing: Smoothing at the edges of the sphere
     @param centerX: Center of shpere along X axis
     @param centerY: Center of shpere along Y axis
-    @param centerZ: Center of shpere along Z axis  
+    @param centerZ: Center of shpere along Z axis
     """
     from pytom_volume import vol, initSphere
 
@@ -492,12 +449,12 @@ def initSphere(cubeSize, radius, smoothing=0, centerX=None, centerY=None, center
 def cutParticlesFromTomogram(particleList, cubeSize, sourceTomogram, coordinateBinning=0, binningFactorOut=0):
     """
     cutParticlesFromTomogram: Cuts out particles from source tomogram. Source tomograms set for each particle will be used. If they dont exist, sourceTomogram will be set otherwise from Particle.getSource() .
-    @param particleList: 
+    @param particleList:
     @type particleList: L{pytom.basic.structures.ParticleList}
     @param cubeSize: Size of cut out cubes
-    @type cubeSize: int 
-    @param sourceTomogram: The source tomogram (either file name or volume). 
-    @type sourceTomogram: L{str} or L{pytom_volume.vol}  
+    @type cubeSize: int
+    @param sourceTomogram: The source tomogram (either file name or volume).
+    @type sourceTomogram: L{str} or L{pytom_volume.vol}
     @param coordinateBinning: binning factor affecting coordinates. was template matching processed on binned data? use fractions (1/2 , 1/4) if tomogram is binned and coordinates are from unbinned...
     @param binningFactorOut: binning factor for final cubes
     @author: Thomas Hrabe
@@ -605,12 +562,12 @@ class EMHeader():
 
     def set_1st4bytes(self, datatype=None, machinetype=None, verbose=False):
         """
-	set 1st 4 bytes of header and alter values for datatype and 
+	set 1st 4 bytes of header and alter values for datatype and
 	machinetype if required
 
-	@param datatype: 
+	@param datatype:
 	@type datatype: numpy type
-	@param machinetype: 
+	@param machinetype:
 	@type machinetype: string
         """
         inibytes = self.get_1st4bytes()
@@ -831,3 +788,296 @@ def write_em_header(filename, header):
         f.write(header.to_binary())
     finally:
         f.close()
+
+
+# Conversion scripts and helper functions
+
+
+def pdb2em(pdbPath, pixelSize, cubeSize, chain=None, invertDensity=False, fname='', recenter=True):
+    """
+    pdb2em: Creates an volume out of a PDB file
+    @param pdbPath: Path to PDB file or PDB id for online download
+    @param pixelSize: The pixel size to convert to
+    @param cubeSize: Resulting cube size
+    @return: A volume
+    @author: Thomas Hrabe & Luis Kuhn
+    """
+    from math import floor
+    from pytom_volume import vol
+
+    atomList = naivePDBParser(pdbPath, chain)
+
+    vol = atomList2em(atomList, pixelSize, cubeSize, invertDensity)
+
+    if recenter:
+        vol = recenterVolume(vol, invertDensity)
+
+    if fname:
+        vol.write(fname)
+
+    else:
+        return vol
+
+def pdb2mrc(pdbPath, pixelSize, cubeSize, chain=None, invertDensity=False, fname='', recenter=True):
+    """
+    pdb2em: Creates an volume out of a PDB file
+    @param pdbPath: Path to PDB file or PDB id for online download
+    @param pixelSize: The pixel size to convert to
+    @param cubeSize: Resulting cube size
+    @return: A volume
+    @author: Thomas Hrabe & Luis Kuhn
+    """
+
+    vol = pdb2em(pdbPath, pixelSize, cubeSize, chain=chain, invertDensity=invertDensity, recenter=recenter)
+
+    if fname:
+        from pytom.tompy.io import write as writeNPY
+        from pytom_numpy import vol2npy
+
+        writeNPY(fname, vol2npy(vol))
+
+    else:
+        return vol
+
+def mmCIF2em(mmCIFPath, pixelSize, cubeSize, chain=None, densityNegative=False, fname='', recenter=True):
+    """
+    pdb2em: Creates an volume out of a mmCIF file
+    @param mmCIFPath: Path to mmCIF file
+    @param pixelSize: The pixel size to convert to
+    @param cubeSize: Resulting cube size
+    @return: A volume
+    @author: Thomas Hrabe
+    """
+    from math import floor
+    from pytom_volume import vol
+
+    atomList = mmCIFParser(mmCIFPath, chain)
+
+    vol = atomList2em(atomList, pixelSize, cubeSize, densityNegative)
+
+    if recenter:
+        vol = recenterVolume(vol, densityNegative)
+
+    if fname:
+        vol.write(fname)
+
+    else:
+        return vol
+
+def mmCIF2mrc(mmCIFPath, pixelSize, cubeSize, chain=None, densityNegative=False, fname='', recenter=True):
+    """
+    pdb2em: Creates an volume out of a mmCIF file
+    @param mmCIFPath: Path to mmCIF file
+    @param pixelSize: The pixel size to convert to
+    @param cubeSize: Resulting cube size
+    @return: A volume
+    @author: Thomas Hrabe
+    """
+    from math import floor
+    from pytom_volume import vol
+
+    atomList = mmCIFParser(mmCIFPath, chain)
+
+    vol = atomList2em(atomList, pixelSize, cubeSize, densityNegative)
+
+    if recenter:
+        vol = recenterVolume(vol, densityNegative)
+
+    if fname:
+        from pytom.tompy.io import write as writeNPY
+        from pytom_numpy import vol2npy
+
+        writeNPY(fname, vol2npy(vol))
+
+    else:
+        return vol
+
+def txt2pl(coordinate_file, particleList_file, subtomoPrefix=None, wedgeAngle=None):
+    pl = ParticleList()
+    pl.loadCoordinateFile( filename=coordinate_file, name_prefix=subtomoPrefix,
+        wedgeAngle=wedgeAngle)
+    pl.toXMLFile(particleList_file)
+
+def mdoc2meta(filename, target, prefix=None):
+    import numpy
+    from pytom.gui.guiFunctions import datatype, headerText as header, fmt
+    from pytom.tompy.io import read, write, read_tilt_angle
+    from pytom.tools.files import checkFileExists, checkDirExists
+    import os
+    if not checkFileExists(filename):
+        raise RuntimeError('MDOC file not found! ', filename)
+
+    if not checkDirExists(target):
+        raise RuntimeError('Destination directory not found! ', target)
+
+
+    newFilename = name_to_format(filename, target, "meta")
+
+    mdocEntries = open(filename, 'r').read().split('ZValue')[1:]
+    metadata = numpy.zeros((len(mdocEntries)), dtype=datatype)
+    metadata['Magnification'] = 1
+
+    datadict = {'TiltAngle': 0, 'Magnification': 79000, 'Intensity': 1.0, 'PixelSpacing': 1.75,
+                'DefocusV': 3, 'DefocusU': 3, 'InPlaneRotation': 0, 'FileName': '', 'Voltage': 300, 'MarkerDiameter': 100,
+                'SphericalAberration': 2.7, 'AmplitudeContrast': 0.08 }
+
+    for k in datadict.keys():
+        metadata[k] = datadict[k]
+
+    queries = ['TiltAngle', 'PixelSpacing', 'Magnification', 'Defocus', 'SubFramePath', 'Voltage']
+    metaname = {'TiltAngle':['TiltAngle'], 'PixelSpacing': ['PixelSpacing'], 'Magnification':['Magnification'],
+                'Defocus':['DefocusU', 'DefocusV'], 'SubFramePath':['FileName'], 'Voltage': ['Voltage']}
+
+    for n, entry in enumerate(mdocEntries):
+        metadata['AcquisitionOrder'][n] = n
+        lines = entry.split('\n')
+        for line in lines:
+            point = [[q, line.split(' ')[-1]] for q in queries if line.startswith(q)]
+            for q,p in point:
+                for mname in metaname[q]:
+                    try:
+                        metadata[mname][n] = float(p)
+                    except:
+                        metadata[mname][n] = p
+
+    metadata['DefocusU'] *= -1
+    metadata['DefocusV'] *= -1
+
+    metadata = numpy.sort(metadata, order='TiltAngle')
+
+    for n, fname in enumerate(metadata['FileName']):
+        metadata['FileName'][n] =os.path.basename(metadata['FileName'][n].replace('\\', '/'))
+
+    if not prefix is None:
+        for n, fname in enumerate(metadata['FileName']):
+            metadata['FileName'][n] = f'{prefix}{n:02d}.mrc'
+
+    numpy.savetxt(newFilename, metadata, fmt=fmt, header=header)
+
+def ccp42em(filename, target, prefix='sorted_'):
+    from pytom_volume import read
+    from pytom.tools.files import checkFileExists, checkDirExists
+    import os
+
+    if not checkFileExists(filename):
+        raise RuntimeError('CCP4 file not found! ', filename)
+
+    if not checkDirExists(target):
+        raise RuntimeError('Destination directory not found! ', target)
+
+    emfile = read(filename)
+
+    newFilename = name_to_format(filename, target, "em")
+
+    emfile.write(newFilename, 'em')
+
+def ccp42mrc(filename, target, prefix='sorted_'):
+    from pytom_volume import read
+    from pytom.tools.files import checkFileExists, checkDirExists
+    import os
+
+    if not checkFileExists(filename):
+        raise RuntimeError('CCP4 file not found! ', filename)
+
+    if not checkDirExists(target):
+        raise RuntimeError('Destination directory not found! ', target)
+
+    emfile = read(filename)
+
+    newFilename = name_to_format(filename, target, "mrc")
+
+    emfile.write(newFilename, 'mrc')
+
+def em2mrc(filename, target, prefix='sorted_'):
+    from pytom.tompy.io import read, write, read_tilt_angle
+    from pytom.tools.files import checkFileExists, checkDirExists
+    import os
+
+    if not checkFileExists(filename):
+        raise RuntimeError('EM file not found! ', filename)
+
+    if not checkDirExists(target):
+        raise RuntimeError('Destination directory not found! ', target)
+
+    data = read(filename)
+    tilt_angle = read_tilt_angle(filename)
+
+    newFilename = name_to_format(filename, target, "mrc")
+
+    write(newFilename, data, tilt_angle=tilt_angle)
+
+def em2ccp4(filename, target, prefix='sorted_'):
+    from pytom_volume import read
+    from pytom.tools.files import checkFileExists, checkDirExists
+    import os
+
+    if not checkFileExists(filename):
+        raise RuntimeError('EM file not found! ', filename)
+
+    if not checkDirExists(target):
+        raise RuntimeError('Destination directory not found! ', target)
+
+    emfile = read(filename)
+
+    newFilename = name_to_format(filename, target, "ccp4")
+
+    emfile.write(newFilename, 'ccp4')
+
+def mrc2ccp4(filename, target, prefix='sorted_'):
+    from pytom_volume import read
+    from pytom.tools.files import checkFileExists, checkDirExists
+    import os
+
+    if not checkFileExists(filename):
+        raise RuntimeError('MRC file not found! ', filename)
+
+    if not checkDirExists(target):
+        raise RuntimeError('Destination directory not found! ', target)
+
+    emfile = read(filename)
+
+    newFilename = name_to_format(filename, target, "ccp4")
+
+    emfile.write(newFilename, 'ccp4')
+
+def mrc2em(filename, target, prefix='sorted_'):
+    from pytom.tompy.io import read, write, read_tilt_angle
+    from pytom.tools.files import checkFileExists, checkDirExists
+    import os
+    if not checkFileExists(filename):
+        raise RuntimeError('MRC file not found! ', filename)
+
+    if not checkDirExists(target):
+        raise RuntimeError('Destination directory not found! ', target)
+
+    data = read(filename)
+    tilt_angle = read_tilt_angle(filename)
+
+    newFilename = name_to_format(filename, target, "em")
+
+    write(newFilename, data, tilt_angle=tilt_angle)
+
+def mrcs2mrc(filename, target, prefix='sorted_'):
+    import mrcfile
+
+    data = mrcfile.open(filename, permissive=True).data.copy()
+
+    for sliceID in range(data.shape[0]):
+        outname = os.path.join(target, f'{prefix}{sliceID:02d}.mrc')
+        mrcfile.new(outname, data[sliceID,:,:].astype('float32'), overwrite=True)
+
+def files2mrcs(folder, target, prefix='sorted_'):
+    import mrcfile
+    files = [os.path.join(folder, fname) for fname in os.listdir(folder) if fname.startswith(prefix)]
+    data = mrcfile.open(filename, permissive=True).data.copy().squeeze()
+    if len(files):
+        stack = numpy.zeros((len(files), *data.shape), dtype=numpy.float32)
+        for n, filename in enumerate(files):
+            stack[n, :, :] = mrcfile.open(filename, permissive=True).data.copy().squeeze()
+        mrcfile.new(target, stack, overwrite=True)
+
+
+def name_to_format(filename, target, extension):
+    import os
+    basename = os.path.basename(filename)
+    return target + ("" if target.endswith(os.sep) else os.sep) + ".".join(basename.split(".")[:-1]) + '.' + extension

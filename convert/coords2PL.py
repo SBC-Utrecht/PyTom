@@ -58,7 +58,7 @@ if __name__ == '__main__':
         sys.exit()
     try:
         plName, coordName, subtomoPrefix, w, r, angleList, help = parse_script_options(sys.argv[1:], helper)
-        print(plName, coordName, subtomoPrefix, w, r, angleList)
+        #print(plName, coordName, subtomoPrefix, w, r, angleList)
     except Exception as e:
         print(e)
         sys.exit()
