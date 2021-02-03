@@ -37,8 +37,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.tomoanalysis   = self.parent().tomogram_folder
         self.fscdir         = os.path.join(self.subtomodir, 'Validation')
         self.polishfolder   = os.path.join(self.subtomodir, 'ParticlePolishing')
-        self.frmdir         = os.path.join(self.subtomodir,'Alignment/FRM')
-        self.glocaldir      = os.path.join(self.subtomodir, 'GLocal/FRM')
+        self.frmdir         = os.path.join(self.subtomodir, 'Alignment/FRM')
+        self.glocaldir      = os.path.join(self.subtomodir, 'Alignment/GLocal')
         self.cpcadir        = os.path.join(self.subtomodir, 'Classification/CPCA')
         self.acdir          = os.path.join(self.subtomodir, 'Classification/AutoFocus')
         self.pickpartdir    = self.parent().particlepick_folder+'/Picked_Particles'
@@ -64,14 +64,15 @@ class SubtomoAnalysis(GuiTabWidget):
         #           2) FUNCTION TO FILL DROP DOWN MENU / FILL THE TABLE
         #           3) HELPER FUNCTIONS TO AUTOFILL OR UPDATE FIELDS BASED ON USER INPUT
 
-        headers = ["Reconstruct Subtomograms", "Particle Polishing", "Align Subtomograms", "Classify Subtomograms", "Validation"]
-        subheaders = [['Single Reconstruction','Batch Reconstruction'],['Single', 'Batch'], ['FRM Alignment','GLocal'],['CPCA','Auto Focus'], [] ]
+        headers = ["Reconstruct Subtomograms", "Particle Polishing", "Average", "Align Subtomograms", "Classify Subtomograms", "Validation"]
+        subheaders = [['Single Reconstruction','Batch Reconstruction'],['Single', 'Batch'], [], ['FRM Alignment','GLocal'],['CPCA','Auto Focus'], [] ]
         tabUIs = [[self.SubtomoReconstrSingleUI, self.SubtomoReconstrBatchUI],
                   [self.PolishSingleUI, self.PolishBatchUI],
+                  self.AveragePL,
                   [self.FRMUI,self.GLocalUI],
                   [self.CPCAUI,self.AC3DUI],
                   self.FSCUI]
-        static_tabs = [[True, False], [True, False], [True, True], [True, True], [True, True]]
+        static_tabs = [[True, False], [True, False], [True],[True, True], [True, True], [True, True]]
 
 
 
@@ -126,7 +127,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         items = []
 
-        t0 = self.stage + 'SingleReconstruction_'
+        t0 = self.stage + 'SingleSubtomoReconstruct_'
 
         items += list(self.create_expandable_group(self.addSubtomogramReconstructionFields, self.sizePolicyB,
                                                    'Single Reconstruction', mode=t0))
@@ -182,13 +183,32 @@ class SubtomoAnalysis(GuiTabWidget):
                                           run_upon_complete=self.selectTemplates,
                                           title='Select particlLists')
 
+    def AveragePL(self,key=''):
+        grid = self.table_layouts[key]
+        grid.setAlignment(self, Qt.AlignTop)
+
+        items = []
+
+        t0 = self.stage + 'AverageParticleList_'
+
+        items += list(self.create_expandable_group(self.addAverageFields, self.sizePolicyB, 'Calculate Average from Particle List',
+                                                   mode=t0))
+        items[-1].setVisible(False)
+
+        for n, item in enumerate(items):
+            grid.addWidget(item, n, 0, 1, 3)
+
+        label = QLabel()
+        label.setSizePolicy(self.sizePolicyA)
+        grid.addWidget(label, n + 1, 0, Qt.AlignRight)
+
     def FRMUI(self, key=''):
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
         items = []
 
-        t0, t1, t2 =  self.stage + 'inputFiles_', self.stage + 'frmSetttings_',self.stage + 'sampleInformation_'
+        t0 =  self.stage + 'FRMAlignment_'
 
         items += list(self.create_expandable_group(self.addFRMAlignmentFields, self.sizePolicyB, 'FRM Alignment',
                                                    mode=t0))
@@ -211,7 +231,7 @@ class SubtomoAnalysis(GuiTabWidget):
         items = []
 
         items += list(self.create_expandable_group(self.addGLocalAlignmentFields, self.sizePolicyB, 'GLocal Alignment',
-                                                   mode=self.stage + 'gLocal_'))
+                                                   mode=self.stage + 'GLocalAlignment_'))
         items[-1].setVisible(False)
         # items += list( self.create_expandable_group(self.createSubtomograms, self.sizePolicyB, 'Extract Subtomograms',
         #                                            mode=self.stage+'extract_') )
@@ -231,7 +251,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         items = []
 
-        t0, t1 = self.stage + 'CCC_', self.stage + 'CPCA_'
+        t0, t1 = self.stage + 'PairwiseCrossCorrelation_', self.stage + 'CPCA_'
 
         items += list(self.create_expandable_group(self.addCCCFields, self.sizePolicyB, 'Pairwise Cross Correlation',
                                                    mode=t0))
@@ -257,9 +277,9 @@ class SubtomoAnalysis(GuiTabWidget):
 
         items = []
 
-        t0, t1 = self.stage + 'AC_', self.stage + 'CPCA_'
+        t0 = self.stage + 'AutoFocusClassification_'
 
-        items += list(self.create_expandable_group(self.addAC3DFields, self.sizePolicyB, 'Autofocussed Classification',
+        items += list(self.create_expandable_group(self.addAC3DFields, self.sizePolicyB, 'Auto Focus Classification',
                                                    mode=t0))
         items[-1].setVisible(False)
 
@@ -276,7 +296,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         items = []
 
-        t0 = self.stage + 'FSC_'
+        t0 = self.stage + 'FourierShellCorrelation_'
 
         items += list(self.create_expandable_group(self.addFSCFields, self.sizePolicyB, 'Fourier Shell Correlation',
                                                    mode=t0))
@@ -305,16 +325,16 @@ class SubtomoAnalysis(GuiTabWidget):
         w = 170
 
         self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB)
-        self.insert_label_line_push(parent, 'Particle List', mode + 'particlelist',
-                                    'Select the particle list.', mode='file', filetype='xml')
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particlelist',initdir=self.pickpartdir,
+                                    tooltip='Select the particle list.', mode='file', filetype='xml')
         self.insert_label_line_push(parent, 'Folder with aligned tilt images', mode + 'AlignedTiltDir',
                                     'Select the folder with the aligned tilt images.')
-        self.insert_label_line_push(parent, 'Meta file with tilt angles', mode + 'MetaFile', mode='file',
+        self.insert_label_line_push(parent, 'Meta file with tilt angles', mode + 'MetaFile', mode='file',initdir=self.tomoanalysis,
                                     filetype='meta',
                                     tooltip='Select the corresponding metafile.')
         self.insert_label_line_push(parent, 'Result file particle polishing', mode + 'polishFile', mode='file',
                                     filetype='txt',initdir=self.polishfolder,
-                                    tooltip='Select a resultfile from particle polishing.')
+                                    tooltip='Select a resultfile from particle polishing (Optional).')
         self.insert_label_spinbox(parent, mode + 'BinFactorReconstruction',
                                   'Binning factor used in the reconstruction.',
                                   'Defines the binning factor used in the reconstruction of the tomogram from which' +
@@ -362,10 +382,13 @@ class SubtomoAnalysis(GuiTabWidget):
                      mode + 'SizeSubtomos', mode + 'BinFactorSubtomos', mode + 'OffsetX', mode + 'OffsetY',
                      mode + 'OffsetZ', self.subtomodir, mode + 'WeightingFactor', mode + 'MetaFile', '20',
                      mode + 'polishFlag', extractParticles]
+        mandatory_fill = [mode + 'particlelist', mode + 'AlignedTiltDir', mode+'MetaFile']
+
 
         self.updatePolishFlag(mode)
 
-        self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename, paramsSbatch=paramsSbatch)
+        self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename, paramsSbatch=paramsSbatch,
+                                 mandatory_fill=mandatory_fill)
         setattr(self, mode + 'gb_inputFiles', groupbox)
         return groupbox
 
@@ -485,7 +508,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         if values:
             self.valuesBatchSubtomoReconstruction = values
-            self.fill_tab(key, headers, types, values, sizes, tooltip=tooltip, nn=True)
+            self.fill_tab(key, headers, types, values, sizes, tooltip=tooltip, nn=True, wname=self.stage + 'BatchSubtomoReconstruct_')
             self.tab12_widgets = self.tables[key].widgets
             for n, index in enumerate(refmarkindices):
                 self.tab12_widgets['widget_{}_3'.format(n)].setCurrentIndex(index)
@@ -525,11 +548,11 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_line_push(parent, 'Template File', mode + 'Template',mode='file',filetype=['em', 'mrc'],
                                     tooltip='Select a template file.')
         self.insert_label_line_push(parent, 'FSC File', mode + 'FSCPath', mode='file', filetype=['dat'],
-                                    tooltip='Select a FSC file.')
+                                    tooltip='Select a FSC file (Optional).')
         self.insert_label_line_push(parent, 'Meta File', mode + 'MetaFile', mode='file', filetype=['meta'],
                                     tooltip='Select the corresponding meta file (in tomogram_???/sorted)')
         self.insert_label_line_push(parent, 'Alignment Results File', mode + 'AlignmentResultsFile', mode='file', filetype=['txt'],
-                                    tooltip='Select the alignment results file (in alignment/???/)')
+                                    tooltip='Select the alignment results file (in alignment/???/???/)')
         self.insert_label_line_push(parent, 'Output Directory', mode + 'destination', mode='folder',
                                     tooltip='Select the destination directory.')
 
@@ -577,10 +600,15 @@ class SubtomoAnalysis(GuiTabWidget):
                      mode + 'AlignedTiltDir', mode + 'Template', mode + 'destination', mode + 'BinFactorReconstruction',
                      mode + 'maxParticleShift', mode + 'OffsetX', mode + 'OffsetY', mode + 'OffsetZ', mode + 'FSCFlag',
                      mode + 'MetaFileFlag', mode + 'AlignmentResultsFileFlag',polishParticles]
+        mandatory_fill = [mode + 'particleList', mode + 'AlignedTiltDir', mode+'Template', mode + 'MetaFile',
+                          mode + 'AlignmentResultsFile', mode + 'destination']
+
+
 
         [func(mode) for func in (self.updateMeta, self.updateFSCFlag, self.updateMetaFileFlag, self.updateAlignmentResultsFlag)]
 
-        self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename, paramsSbatch=paramsSbatch)
+        self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename, paramsSbatch=paramsSbatch,
+                                 mandatory_fill=mandatory_fill)
         setattr(self, mode + 'gb_inputFiles', groupbox)
         return groupbox
 
@@ -689,7 +717,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         if values:
             self.valuesBatchParticlePolishing = values
-            self.fill_tab(key, headers, types, values, sizes, tooltip=tooltip, nn=True)
+            self.fill_tab(key, headers, types, values, sizes, tooltip=tooltip, nn=True,wname=self.stage + 'BatchParticlePolish_')
             self.tabPolish_widgets = self.tables[key].widgets
             for n, index in enumerate(refmarkindices):
                 self.tabPolish_widgets['widget_{}_3'.format(n)].setCurrentIndex(index)
@@ -705,6 +733,68 @@ class SubtomoAnalysis(GuiTabWidget):
 
         for i in range(len(values)):
             self.updateChoicesPP(i, values)
+
+    def addAverageFields(self, mode):
+        title = "Calculate Average from Particle List"
+        tooltip = 'Calculate the average of the particles described in a particle list.'
+        sizepol = self.sizePolicyB
+        groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
+
+        self.row, self.column = 0, 1
+        rows, columns = 20, 20
+        self.items = [['', ] * columns, ] * rows
+
+
+        # Insert Parameter Widgets
+
+
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
+                                    'Select the particle list if v1 and v2 are not available.', mode='file',
+                                    filetype='xml')
+        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
+                                    tooltip='Select/Create an output folder.')
+        self.insert_label_line(parent, "Outname", mode + 'outName', cstep=-1,
+                               tooltip="What name should the output file have (.mrc and .em extentions are allowed)")
+        self.insert_label_line(parent, "GPU's", mode + 'gpuID', cstep=0,rstep=1,
+                                  tooltip="Which GPU's do you want to reserve. If you want to use multiple GPUs separate them using a comma, e.g. 0,1,2 ")
+
+
+
+
+
+        # Connected Widgets
+        self.widgets[mode + 'outFolder'].textChanged.connect(
+            lambda d, m=mode: self.updateOutFileName(m))
+        self.widgets[mode + 'outName'].textChanged.connect(
+            lambda d, m=mode: self.updateOutFileName(m))
+
+        self.widgets[mode + 'gpuID'].textChanged.connect(lambda d, m=mode: self.updateGpuString(m))
+
+        # Widgets Updated When Other Widgets Are Updated
+        self.widgets[mode + 'outFileName'] = QLineEdit('')
+        self.widgets[mode + 'gpuString'] = QLineEdit('')
+        self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
+
+        # Parameters for execution
+
+        exefilename = [mode + 'outFolder', 'AverageParticleList.sh'] #os.path.join(acpath, 'AC_Classification.sh')
+        paramsSbatch = guiFunctions.createGenericDict(fname='APL', folder=self.logfolder,
+                                                      id='AverageParticleList')
+        paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode+ 'outFileName', mode + 'numberMpiCores',
+                     mode + 'gpuString', templateAverageParticleList]
+        mandatory_fill = [mode + 'particleList', mode + 'outName', mode + 'outFolder']
+
+
+        # Generation of textboxes and pushbuttons related to submission
+        self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
+                                 paramsSbatch=paramsSbatch, mandatory_fill=mandatory_fill)
+
+        # Run Update With Data From Logfile
+        self.updateOutFileName(mode)
+
+
+        setattr(self, mode + 'gb_APL', groupbox)
+        return groupbox
 
     def addFRMAlignmentFields(self, mode=None):
         title = "FRM Alignment"
@@ -723,15 +813,15 @@ class SubtomoAnalysis(GuiTabWidget):
                                     tooltip='Select the mask file.', mode='file', filetype=['em', 'mrc'], cstep=1,
                                     rstep=0)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_mask,
-                               params=[mode + 'filenameMask'])
+                               params=[mode + 'filenameMask', self.frmdir])
         self.insert_label_line_push(parent, 'Filename Average', mode + 'filenameAverage', initdir=self.frmdir,
                                     tooltip='Choose a filename for the average of all particles.', mode='file',
                                     filetype=['em', 'mrc'], cstep=1, rstep=0)
         self.insert_pushbutton(parent, 'Average', rstep=1, cstep=-3, action=self.gen_average,
                                params=[mode + 'particleList', mode + 'filenameAverage', mode + 'outputDir'])
 
-        self.insert_label_line_push(parent, 'Output Directory', mode + 'outputDir',
-                                    'Folder in which the output will be written.')
+        self.insert_label_line_push(parent, 'Output Directory', mode + 'outputDir',initdir=self.frmdir,
+                                    tooltip='Folder in which the output will be written.')
         self.insert_label(parent, rstep=1, cstep=0)
         self.insert_label_spinbox(parent, mode + 'bwMin', 'Min Order SH Polynomial',
                                   value=8, minimum=0, stepsize=1,
@@ -775,10 +865,11 @@ class SubtomoAnalysis(GuiTabWidget):
                      sphere,
                      mode + 'pixelSize', mode + 'particleDiameter', mode + 'particleList', mode + 'outputDir']
         paramsCmd = [self.subtomodir, self.pytompath, jobfilename, mode + 'numberMpiCores', templateFRMSlurm]
+        mandatory_fill = [mode + 'particleList', mode + 'filenameMask', mode+'filenameAverage', mode + 'outputDir']
 
-        self.insert_gen_text_exe(parent, self.stage, xmlfilename=jobfilename, jobfield=True, exefilename=exefilename,
+        self.insert_gen_text_exe(parent, mode, xmlfilename=jobfilename, jobfield=True, exefilename=exefilename,
                                  paramsXML=paramsJob + [templateFRMJob], paramsCmd=paramsCmd,
-                                 paramsSbatch=paramsSbatch)
+                                 paramsSbatch=paramsSbatch, mandatory_fill=mandatory_fill)
 
         setattr(self, mode + 'gb_inputFiles', groupbox)
         return groupbox
@@ -794,16 +885,16 @@ class SubtomoAnalysis(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
         w = 170
 
-        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
-                                    'Select the particle list.', mode='file', filetype='xml')
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList', initdir=self.pickpartdir,
+                                    tooltip='Select the particle list.', mode='file', filetype='xml')
         self.insert_label_line_push(parent, 'Initial reference model', mode + 'referenceModel', mode='file',
                                     filetype=['em','mrc'], enabled=True,
                                     tooltip='Reference : the initial reference - if none provided average of particle list')
         self.insert_label_line_push(parent, 'Filename Mask', mode + 'filenameMask',mode='file', filetype=['em', 'mrc'],
                                     tooltip='Select the mask file.', cstep=1, rstep=0)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_mask,
-                               params=[mode + 'filenameMask'])
-        self.insert_label_line_push(parent, 'Output Directory', mode + 'destination', mode='folder',
+                               params=[mode + 'filenameMask',self.glocaldir])
+        self.insert_label_line_push(parent, 'Output Directory', mode + 'destination', mode='folder',initdir=self.glocaldir,
                                     tooltip='Select the destination directory.')
         self.insert_label_spinbox(parent, mode + 'numIterations', 'Number of Iterations',
                                   minimum=1, value=4, stepsize=1,
@@ -847,8 +938,10 @@ class SubtomoAnalysis(GuiTabWidget):
                      mode+'binning', mode+'jobName', mode+'destination', mode + 'angleShells',
                      mode + 'angleIncrement', mode + 'numberMpiCores', mode + 'gpuString',  templateGLocal]
 
+        mandatory_fill=[mode+'particleList', mode+'filenameMask', mode+'destination' ]
+
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
-                                 paramsSbatch=paramsSbatch)
+                                 paramsSbatch=paramsSbatch, mandatory_fill=mandatory_fill)
 
         self.updateGpuString(mode)
         self.updateReference(mode)
@@ -870,14 +963,14 @@ class SubtomoAnalysis(GuiTabWidget):
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
 
-        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
-                                    'Select the particle list.', mode='file', filetype='xml')
-        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',initdir=self.glocaldir,
+                                    tooltip='Select the particle list.', mode='file', filetype='xml')
+        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',initdir=self.cpcadir,
                                     tooltip='Select/Create an output folder.')
         self.insert_label_line(parent, 'Filename Output particleList', mode + 'outputFilename',
                                tooltip='Filename for generated XML file that includes the assigned classes for each particle. No full path needed.')
-        self.insert_label_line_push(parent, 'CCC File', mode + 'cccFile',
-                                    'Select the constrained correlation matrix file from the previous step.', mode='file', filetype='csv')
+        self.insert_label_line_push(parent, 'CCC File', mode + 'cccFile',initdir=self.cpcadir,
+                                    tooltip='Select the constrained correlation matrix file from the previous step.', mode='file', filetype='csv')
         self.insert_label_spinbox(parent, mode + 'numEig', text='Number of Eigenvectors',
                                   value=4, minimum=1, stepsize=1, maximum=100,
                                   tooltip='Sets the number of eigenvectors (corresponding to largest eigenvectors) used for clustering.')
@@ -895,9 +988,10 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict(fname='CPCA', folder=self.logfolder, id='CPCA')
         paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'outputFilename',
                      mode + 'cccFile', mode + 'numEig', mode+'numClasses', mode + 'outFolder', mode+'prefix',  templateCPCA]
+        mandatory_fill = [mode + 'particleList', mode+'outputFilename', mode + 'outFolder', mode + 'cccFile']
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
-                                 paramsSbatch=paramsSbatch)
+                                 paramsSbatch=paramsSbatch, mandatory_fill=mandatory_fill)
 
         setattr(self, mode + 'gb_CPCA', groupbox)
         return groupbox
@@ -913,13 +1007,13 @@ class SubtomoAnalysis(GuiTabWidget):
         self.items = [['', ] * columns, ] * rows
         w = 170
 
-        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
-                                    'Select the particle list.', mode='file', filetype='xml')
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',initdir=self.glocaldir,
+                                    tooltip='Select the particle list.', mode='file', filetype='xml')
         self.insert_label_line_push(parent, 'Filename Mask', mode + 'filenameMask',mode='file', filetype=['em', 'mrc'],
-                                    tooltip='Select the mask file.', cstep=1, rstep=0)
+                                    tooltip='Select the mask file.', cstep=1, rstep=0, initdir=self.cpcadir)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_mask,
-                               params=[mode + 'filenameMask'])
-        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
+                               params=[mode + 'filenameMask', self.cpcadir])
+        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',initdir=self.cpcadir,
                                     tooltip='Select/Create an output folder.')
         self.insert_label_spinbox(parent, mode + 'lowpass', 'Lowpass filter (px)',
                                   minimum=0, maximum=1024, stepsize=1, value=20,
@@ -943,16 +1037,18 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsCmd = [self.subtomodir, self.pytompath, mode + 'particleList', mode + 'filenameMask',
                      mode + 'lowpass', mode + 'binning', mode + 'outFolder', mode + 'numberMpiCores', mode + 'gpuString',
                      templateCCC]
+        mandatory_fill = [mode + 'particleList', mode + 'filenameMask', mode + 'outFolder']
+
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
-                                 paramsSbatch=paramsSbatch)
+                                 paramsSbatch=paramsSbatch, mandatory_fill=mandatory_fill)
         self.updateGpuString(mode)
 
         setattr(self, mode + 'gb_CCC', groupbox)
         return groupbox
 
     def addAC3DFields(self,mode):
-        title = "Autofocussed Classification"
+        title = "Auto Focus Classification"
         tooltip = 'Run autofocussed classification.'
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
@@ -963,18 +1059,19 @@ class SubtomoAnalysis(GuiTabWidget):
 
 
         # Insert Parameter Widgets
-        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
-                                    'Select the particle list.', mode='file', filetype='xml')
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',initdir=self.glocaldir,
+                                    tooltip='Select the particle list.', mode='file', filetype='xml')
         self.insert_label_line_push(parent, 'Classification Mask', mode + 'filenameClassificationMask', mode='file',
-                                    filetype=['em', 'mrc'], enabled=True,
+                                    filetype=['em', 'mrc'], enabled=True,initdir=self.acdir,
                                     tooltip='This mask is used for constraining the calculation of the focused mask. (Optional)', cstep=1, rstep=0)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_mask,
-                               params=[mode + 'filenameClassificationMask'])
-        self.insert_label_line_push(parent, 'Alignment Mask', mode + 'filenameAlignmentMask', mode='file', filetype=['em', 'mrc'], enabled=True,
-                                    tooltip='This mask is only used for the alignment purpose. Only specify it if the particle list is not aligned.', cstep=1, rstep=0)
+                               params=[mode + 'filenameClassificationMask', self.acdir])
+        self.insert_label_line_push(parent, 'Alignment Mask', mode + 'filenameAlignmentMask', mode='file',
+                                    filetype=['mrc', 'em'], enabled=True, initdir=self.acdir,
+                                    tooltip='This mask is only used for the alignment purpose. Only specify it if the particle list is not aligned (Optional).', cstep=1, rstep=0)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_mask,
-                               params=[mode + 'filenameAlignmentMask'])
-        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
+                               params=[mode + 'filenameAlignmentMask', self.acdir])
+        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder', initdir=self.acdir,
                                     tooltip='Select/Create an output folder.')
         self.insert_label_spinbox(parent, mode + 'numClasses', 'Number of Classes', stepsize=1, value=4, minimum=2,
                                   tooltip='Number of classes used for kmeans classification.')
@@ -1026,11 +1123,12 @@ class SubtomoAnalysis(GuiTabWidget):
                      mode + 'flagClassificationMask', mode + 'numClasses', mode + 'bwMax', mode + 'maxIterations',
                      mode + 'peakOffset', mode + 'noisePercentage', mode + 'partDensThresh', mode + 'stdDiffMap',
                      mode + 'outFolder', mode + 'numberMpiCores', mode + 'binningFactor', templateAC]
+        mandatory_fill = [mode + 'particleList', mode + 'outFolder']
 
 
         # Generation of textboxes and pushbuttons related to submission
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
-                                 paramsSbatch=paramsSbatch)
+                                 paramsSbatch=paramsSbatch, mandatory_fill=mandatory_fill)
 
         # Run Update With Data From Logfile
         self.updateAlignmentMaskFlag(mode)
@@ -1053,21 +1151,21 @@ class SubtomoAnalysis(GuiTabWidget):
 
         # Insert Parameter Widgets
 
-        self.insert_label_line_push(parent, 'Volume 1', mode + 'volume1', mode='file',
+        self.insert_label_line_push(parent, 'Volume 1', mode + 'volume1', mode='file', initdir=self.glocaldir,
                                     filetype=['em', 'mrc'], enabled=True,
                                     tooltip='The first volume path. (Optional)')
-        self.insert_label_line_push(parent, 'Volume 2', mode + 'volume2', mode='file',
+        self.insert_label_line_push(parent, 'Volume 2', mode + 'volume2', mode='file', initdir=self.glocaldir,
                                     filetype=['em', 'mrc'], enabled=True,
                                     tooltip='The second volume path. (Optional)')
-        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList',
-                                    'Select the particle list if v1 and v2 are not available.', mode='file',
+        self.insert_label_line_push(parent, 'Particle List', mode + 'particleList', initdir=self.glocaldir,
+                                    tooltip='Select the particle list if v1 and v2 are not available.', mode='file',
                                     filetype='xml')
-        self.insert_label_line_push(parent, 'Mask', mode + 'mask',
-                                    'Mask (optional, but recomended).', mode='file',
+        self.insert_label_line_push(parent, 'Mask', mode + 'mask',initdir=self.fscdir,
+                                    tooltip='Mask (optional, but recomended).', mode='file',
                                     filetype=['em', 'mrc'],cstep=1,rstep=0)
         self.insert_pushbutton(parent, 'Create', rstep=1, cstep=-3, action=self.gen_fsc_mask,
-                               params=[mode + 'mask'])
-        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder',
+                               params=[mode + 'mask', self.fscdir])
+        self.insert_label_line_push(parent, 'Output Folder', mode + 'outFolder', mode='folder', initdir=self.fscdir,
                                     tooltip='Select/Create an output folder.')
         self.insert_label_spinbox(parent, mode + 'fsc', 'FSC cutoff', stepsize=1, value=0.143, minimum=0, maximum=1.,
                                   wtype=QDoubleSpinBox,decimals=3,
@@ -1127,7 +1225,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         # Generation of textboxes and pushbuttons related to submission
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=exefilename, paramsCmd=paramsCmd,
-                                 paramsSbatch=paramsSbatch)
+                                 paramsSbatch=paramsSbatch, mandatory_fill=[mode+'outFolder'])
 
         self.widgets[mode+'queue'].stateChanged.connect(lambda d, m=mode: self.updateLog(m))
 
@@ -1137,11 +1235,20 @@ class SubtomoAnalysis(GuiTabWidget):
         self.updateLog(mode)
         self.updateFSCCombResFlag(mode)
         self.updateGpuString(mode)
+        self.redoPixelSize(mode)
 
         setattr(self, mode + 'gb_FSC', groupbox)
         return groupbox
 
     # Helper functions
+
+    def updateOutFileName(self, mode):
+        try:
+            folder = self.widgets[mode + 'outFolder'].text()
+            fname = self.widgets[mode + 'outName'].text()
+            self.widgets[mode + 'outFileName'].setText(os.path.join(folder, fname))
+        except Exception as e:
+            print(e)
 
     def updatePolishFlag(self, mode):
         fname = self.widgets[mode + 'polishFile'].text()
@@ -1187,7 +1294,9 @@ class SubtomoAnalysis(GuiTabWidget):
             if not a: print('No meta file found. auto update stopped.')
             a = a[-1]
             self.widgets[mode+'MetaFile'].setText(a)
-        except:
+            #self.widgets[mode + 'AlignedTiltDir'].setText(os.path.dirname(a))
+        except Exception as e:
+            print(e)
             pass
 
     def updateHeaderChoices(self, rowID, key):
@@ -1355,7 +1464,8 @@ class SubtomoAnalysis(GuiTabWidget):
             return
         folder, ext = os.path.splitext( os.path.basename(item))
         outputDir = os.path.join(self.frmdir, folder.replace('particleList_', ''))
-        if not os.path.exists(outputDir): os.mkdir(outputDir)
+        if not os.path.exists(outputDir):
+            os.mkdir(outputDir)
         else:
             for i in range(1000):
                 if not os.path.exists(outputDir+'_{:03d}'.format(i)):
@@ -1397,7 +1507,6 @@ class SubtomoAnalysis(GuiTabWidget):
                 cores = 20
             self.widgets[mode + 'numberMpiCores'].setText(f'{cores}')
 
-
     def updatePixelSize(self, mode):
         from pytom.basic.structures import ParticleList
         try:
@@ -1410,8 +1519,8 @@ class SubtomoAnalysis(GuiTabWidget):
             if len(a):
                 pixelsize = guiFunctions.loadstar(a[0], dtype=guiFunctions.datatype)['PixelSpacing'][0]
                 self.widgets[mode + 'pixelSize'].setValue(pixelsize)
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
     def updateJobname(self, mode):
         dest = self.widgets[mode+'destination'].text()
@@ -1650,7 +1759,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[key_filename_average].setText(output_name)
 
     def gen_mask(self,params):
-        maskfilename = CreateMaskFile(self, maskfname=params[-1])
+        maskfilename = CreateMaskFile(self, maskfname=params[0],folder=params[1])
         maskfilename.show()
 
     def selectTemplates(self, key):
@@ -1674,6 +1783,7 @@ class SubtomoAnalysis(GuiTabWidget):
                                                  title='Select FSC File for filtering cross-correlation (optional)')
 
     def updateFSCFlags(self, mode, id='all'):
+
         for n, (name, flag) in enumerate((('particleList', '--pl'), ('volume1','--v1'), ('volume2', '--v2'),
                                           ('mask', '--mask'))):
             if n != id and id != 'all': continue
@@ -1692,7 +1802,29 @@ class SubtomoAnalysis(GuiTabWidget):
                 #print(otherHalfMap == self.widgets[mode + f'volume{3-id}'].text(), otherHalfMap, self.widgets[mode + f'volume{3-id}'].text())
                 if os.path.exists(otherHalfMap) and self.widgets[mode + f'volume{3-id}'].text() != otherHalfMap:
                     self.widgets[mode + f'volume{3-id}'].setText(otherHalfMap)
-                    return
+                    break
+
+            self.redoPixelSize(mode)
+
+    def redoPixelSize(self, mode):
+        from pytom.alignment.alignmentStructures import GLocalSamplingJob
+
+        t = self.widgets[mode + 'volume2'].text()
+        if not t: return
+        try:
+            folder = os.path.dirname(t)
+            files = [os.path.join(folder, f) for f in os.listdir(folder) if f.endswith('xml')]
+            job = GLocalSamplingJob()
+            for f in files:
+                try:
+                    job.fromXMLFile(f)
+                    break
+                except Exception as e:
+                    pass
+            self.widgets[mode + 'pixelsize'].setValue(
+                float(job.samplingParameters.sampleInformation.getPixelSize()))
+        except Exception as e:
+            print(e)
 
     def updateFSCPlotFlag(self, mode):
         t = self.widgets[mode + 'plot'].isChecked()
@@ -1712,8 +1844,11 @@ class SubtomoAnalysis(GuiTabWidget):
             self.widgets[mode + 'flagCombinedResolution'].setText('')
 
     def gen_fsc_mask(self,params):
-        maskfilename = CreateFSCMaskFile(self, params[-1])
-        maskfilename.show()
+        try:
+            maskfilename = CreateFSCMaskFile(self, params[0], params[1])
+            maskfilename.show()
+        except Exception as e:
+            print(e)
 
     def updateLog(self, mode):
         if self.widgets[mode + 'queue'].isChecked():

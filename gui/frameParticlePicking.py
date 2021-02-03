@@ -56,6 +56,7 @@ class ParticlePick(GuiTabWidget):
         self.tabs_dict, self.tab_actions = {}, {}
         self.workerID = 0
         self.TMCounter = 0
+        self.ECCounter = 0
 
 
         headers = ["Manual Picking","Template Matching", "Create Particle List", "Alter Particle List"]
@@ -132,7 +133,7 @@ class ParticlePick(GuiTabWidget):
 
     def tab21UI(self, key=''):
 
-        mode, mode2, mode3 = self.stage + 'TemplateMatch_', self.stage + 'ExtractCandidates_', self.stage + 'CreateMask_'
+        mode, mode2, mode3 = self.stage + 'SingleTemplateMatch_', self.stage + 'SingleExtractCandidates_', self.stage + 'CreateMask_'
 
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
@@ -263,15 +264,15 @@ class ParticlePick(GuiTabWidget):
 
         self.ccfolder = os.path.join(self.templatematchfolder,'cross_correlation')
 
-        self.insert_label_line_push(parent, 'Tomogram file', wname=mode+'tomoFname',width=w,
+        self.insert_label_line_push(parent, 'Tomogram file', wname=mode+'tomoFname',width=w, initdir=self.tomogramfolder,
                                     tooltip='Select the tomogram file used for template matching.',
-                                    filetype=['em','mrc'], mode='file')
-        self.insert_label_line_push(parent, 'Template file', wname=mode + 'templateFname',width=w,
+                                    filetype=['mrc', 'em'], mode='file')
+        self.insert_label_line_push(parent, 'Template file', wname=mode + 'templateFname',width=w,initdir=self.ccfolder,
                                     tooltip='Select the tomogram file used for template matching.',
                                     filetype=['em', 'mrc'], mode='file', rstep=0,cstep=1)
         #self.insert_label(parent, 'PDB2EM', cstep=2, alignment=Qt.AlignRight)
         self.insert_pushbutton(parent, 'Create', action=self.pdb2em, params=[mode + 'templateFname', mode], cstep=-3, rstep=1)
-        self.insert_label_line_push(parent, 'Mask file', wname=mode+'maskFname',width=w,
+        self.insert_label_line_push(parent, 'Mask file', wname=mode+'maskFname',width=w,initdir=self.ccfolder,
                                     tooltip='Select the tomogram file used for template matching.',
                                     filetype=['em', 'mrc'], mode='file',cstep=1,rstep=0)
         #self.insert_label(parent,'Create Mask',cstep=2, alignment=Qt.AlignRight)
@@ -293,7 +294,7 @@ class ParticlePick(GuiTabWidget):
                                    labels=os.listdir(os.path.join( self.parent().pytompath, 'angles/angleLists') ),
                                    tooltip='Select the file that describes the angular sampling of the template model',
                                    width=w,cstep=-1)
-        self.insert_label_line(parent, "GPU's", mode + 'gpuID', width=w, cstep=0,
+        self.insert_label_line(parent, "GPU's", mode + 'gpuID', width=w, cstep=0, validator=QIntValidator(),
                                   tooltip="Which GPU's do you want to reserve. If you want to use multiple GPUs separate them using a comma, e.g. 0,1,2 ")
 
         self.widgets[mode + 'widthZ'] = QLineEdit('0')
@@ -303,10 +304,10 @@ class ParticlePick(GuiTabWidget):
         self.widgets[mode + 'numX'] = QLineEdit('4')
         self.widgets[mode + 'numY'] = QLineEdit('4')
         self.widgets[mode + 'numCores'] = QLineEdit('16')
-
         self.widgets[mode + 'gpuString'] = QLineEdit('')
-
         self.widgets[mode + 'jobName'] = QLineEdit()
+        self.widgets[mode + 'outfolderTM'] = QLineEdit(self.ccfolder)
+
         self.widgets[mode + 'tomoFname'].textChanged.connect(lambda d, m=mode: self.updateTM(m))
         self.widgets[mode + 'startZ'].valueChanged.connect(lambda d, m=mode: self.updateZWidth(m))
         self.widgets[mode + 'endZ'].valueChanged.connect(lambda d, m=mode: self.updateZWidth(m))
@@ -315,13 +316,16 @@ class ParticlePick(GuiTabWidget):
 
         self.execfilenameTM = os.path.join( self.templatematchfolder, 'templateMatch.sh')
         self.xmlfilename  = os.path.join( self.templatematchfolder, 'job.xml')
-        self.widgets[mode + 'outfolderTM'] = QLineEdit()
-        self.widgets[mode + 'outfolderTM'].setText(self.ccfolder)
+
 
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'TemplateMatching'
         paramsSbatch[ 'folder' ] = self.logfolder #[mode + 'outfolderTM']
         paramsSbatch['id'] = 'SingleTemplateMatch'
+        paramsSbatch['gpu'] = self.widgets[mode + 'gpuID']
+
+        mandatory_fill = [mode + 'templateFname', mode + 'tomoFname', mode+'maskFname']
+
 
         self.updateTM(mode)
 
@@ -332,8 +336,7 @@ class ParticlePick(GuiTabWidget):
                                  paramsCmd=[mode + 'outfolderTM', mode + 'numCores', self.pytompath, mode + 'jobName' ,
                                             mode + 'numX', mode + 'numY', mode + 'numZ',
                                             mode + 'gpuString', templateTM],
-                                 xmlfilename=[mode+'outfolderTM', mode + 'jobName'],
-                                 gpu=True)
+                                 xmlfilename=[mode+'outfolderTM', mode + 'jobName'], mandatory_fill=mandatory_fill)
 
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
 
@@ -609,7 +612,7 @@ class ParticlePick(GuiTabWidget):
         except:
             pass
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True)
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True, wname=self.stage + 'BatchTemplateMatch_')
 
 
         self.tab22_widgets = self.tables[id].widgets
@@ -660,7 +663,7 @@ class ParticlePick(GuiTabWidget):
         except:
             pass
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True)
+        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True, wname=self.stage + 'BatchExtractCandidates_')
 
         self.tab23_widgets = self.tables[id].widgets
 
@@ -695,9 +698,10 @@ class ParticlePick(GuiTabWidget):
                                                                   modules=modules, num_jobs_per_node=cores) + cmd
 
 
-                    execfilename = os.path.join(os.path.dirname(jobFile), f'extractCandidatesBatch.sh')
+                    execfilename = os.path.join(os.path.dirname(jobFile), f'extractCandidatesBatch_{self.ECCounter}.sh')
                     ID, num = self.submitBatchJob(execfilename, pid, job)
                     num_submitted_jobs += 1
+                    self.ECCounter += 1
                     qIDs.append(ID)
 
             except Exception as e:

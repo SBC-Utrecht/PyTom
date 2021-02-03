@@ -172,10 +172,10 @@ class View2d(QMainWindow, CommonFunctions):
         self.items = [['', ] * columns, ] * rows
 
         self.insert_label(parent, cstep=0, rstep=1)
-        self.insert_label_line_push(parent, '2D Image', mode + 'Filename', initdir=initdir, filetype=['mrc', 'em'],
-                                    tooltip='Select the particle list.', mode='file', cstep=-2, rstep=1)
-        self.insert_label_line_push(parent, 'Folder with 2d Images', mode + 'Foldername', initdir=initdir,
-                                    tooltip='Select the particle list.', mode='folder', cstep=-2, rstep=1)
+        self.insert_label_line_push(parent, 'Image', mode + 'Filename', initdir=initdir, filetype=['mrc', 'em'],
+                                    tooltip='Select an image (2D and 3D are possible).', mode='file', cstep=-2, rstep=1)
+        self.insert_label_line_push(parent, 'Folder with 2D/3D Images', mode + 'Foldername', initdir=initdir,
+                                    tooltip='Select a folder with 2D or 3D images.', mode='folder', cstep=-2, rstep=1)
         self.insert_label(parent, cstep=0, rstep=1)
         self.insert_label_spinbox(parent, mode + 'binningFactor', 'Binning Factor', value=1, stepsize=1, minimum=1, maximum=10)
         self.insert_label_line(parent, 'Prefix', mode + 'prefix', value='sorted_')
@@ -183,7 +183,7 @@ class View2d(QMainWindow, CommonFunctions):
 
         self.widgets[mode + 'Filename'].textChanged.connect(lambda d, m=mode, f='Filename': self.clearChoice(m, f))
         self.widgets[mode + 'Foldername'].textChanged.connect(lambda d, m=mode, f='Foldername': self.clearChoice(m, f))
-        self.insert_pushbutton(parent, 'View!', tooltip='Select 3D mrc or em file.',
+        self.insert_pushbutton(parent, 'View!', tooltip='Select 3D mrc or em file.', wname=mode+'pushButtonView2D',
                                rstep=1, cstep=2, action=self.insert_image, params=[parent])
 
         self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA, rstep=1)
@@ -628,6 +628,14 @@ def main():
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
+    import sys
+
+    sys._excepthook = sys.excepthook
+    def exception_hook(exctype, value, traceback):
+        print(exctype, value, traceback)
+        sys._excepthook(exctype, value, traceback)
+        sys.exit(1)
+    sys.excepthook = exception_hook
 
 
     for fname,module in [( 'motioncor2','motioncor2/1.2.1' ),('header','imod/4.10.25')]:
