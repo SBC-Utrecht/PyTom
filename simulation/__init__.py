@@ -1,1 +1,2 @@
-__all__ = ["constant_dictionaries","detector", "simulateProjections", "membrane", "potential", "whiteNoise"]
+__all__ = ["constants", "detector", "simulateProjections", "membrane", "potential", "whiteNoise",
+           "microscope", "support"]

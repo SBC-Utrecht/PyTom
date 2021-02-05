@@ -1,111 +1,247 @@
 
-import numpy as np
+import numpy as xp
+import os
+
+V_WATER = 4.5301  # potential value of low density amorphous ice (from Vulovic et al., 2013)
+AMORPHOUS_ICE_DENSITY = 0.93  # with density of 0.93 g/cm^3
+PROTEIN_DENSITY = 1.35  # g/cm^3
 
 
-def ctf_array(shape, nyquist):
+def generate_template(structure_file_path, spacing, binning=1, modify_structure=False, apply_solvent_correction=False,
+                      solvent_density=AMORPHOUS_ICE_DENSITY, apply_ctf_correction=False, defocus=3E-6, amplitude_contrast=0.07,
+                      voltage=300E3, Cs=2.7E-3, ctf_decay=0.4, display_ctf=False, apply_lpf=False, resolution=30,
+                      box_size=None, output_folder=''):
     """
-    @param shape: tuple with the size on each dimension
-    @param shape: tuple of ints
-    @param spacing: pixel or voxel spacing
+
+    @param structure_file_path:
+    @type structure_file_path: string
+    @param spacing:
     @type spacing: float
-    @return: fourier space frequencies
-    @rtype: numpy.ndarray
+    @param binning:
+    @type binning: int
+    @param modify_structure:
+    @type modify_structure: bool
+    @param solvent_correction:
+    @type solvent_correction: bool
+    @param solvent_density:
+    @type solvent_density: float
+    @param apply_ctf_correction:
+    @type apply_ctf_correction: bool
+    @param defocus:
+    @type defocus: float
+    @param amplitude_contrast:
+    @type amplitude_contrast: float
+    @param voltage:
+    @type voltage: float
+    @param Cs:
+    @type Cs: float
+    @param ctf_decay:
+    @type ctf_decay: float
+    @param display_ctf:
+    @type display_ctf: bool
+    @param apply_lpf:
+    @type apply_lpf: bool
+    @param resolution:
+    @type resolution: float
+    @param box_size:
+    @type box_size: int
+    @return:
+    @rtype:
     """
-    assert type(shape) == tuple, "shape needs to be a tuple of dimenion sizes, dimenions need to be equal"
-    assert len(set(shape)) == 1, "dimensions are not identical"
-    assert len(shape) <= 3, "too many dimensions, 3 is max"
+    from pytom.simulation.microscope import create_ctf, display_microscope_function
+    from pytom.tompy.transform import resize, fourier_filter
+    from pytom.tompy.tools import paste_in_center
+    from pytom.simulation.support import create_gaussian_low_pass
+    from pytom.simulation.potential import iasa_integration, call_chimera
 
-    size = shape[0]
+    assert binning >= 1, 'binning factor smaller than 1 is invalid'
+    if solvent_correction:
+        assert solvent_density > 0, 'solvent density smaller or equal to 0 is invalid'
+        if solvent_density > PROTEIN_DENSITY:
+            print(f'WARNING: Solvent density larger than protein density {PROTEIN_DENSITY}')
 
-    d = np.arange(-nyquist, nyquist, 2. * nyquist / size)
+    if modify_structure:
+        print('Adding symmetry, removing water, and adding hydrogen to pdb for template generation.')
+        # extract file name, file type, and folder from structure_file_path
+        head_tail   = os.path.split(structure_file_path)
+        extension   = head_tail[1].split('.')[-1]
+        # call chimera to modify the input structure
+        updated_structure   = call_chimera(head_tail[1], head_tail[0], output_folder)
+        # update structure file path with the modified structure file name
+        # output structure file has the pdb extension
+        structure_file_path = os.path.join(output_folder, f'{updated_structure}.pdb')
 
-    if len(shape) == 2:
-        grids = np.meshgrid(d,d)
-    else:
-        grids = np.meshgrid(d, d, d)
+    # generate electrostatic_potential
+    # iasa_generation returns a list of the real (and imaginary) part
+    template = iasa_integration(structure_file_path, voxel_size=spacing, solvent_exclusion=apply_solvent_correction,
+                                 V_sol = V_WATER * (solvent_density/AMORPHOUS_ICE_DENSITY))[0]
 
-    # Wave vector and direction
-    k = np.sqrt(sum([d**2 for d in grids]))  # xz ** 2 + yz ** 2 + zz ** 2)
-    # k2 = k ** 2
-    # k4 = k2 ** 2
-    return k  # , k2, k4
+    # extend volume to the desired input size before applying convolutions!
+    if box_size is not None:
+        if box_size > template.shape[0]//binning:
+            new_box     = xp.zeros((box_size*binning,)*3)
+            template    = paste_in_center(template, new_box)
+        elif box_size < template.shape[0]//binning:
+            print(f'Box size from electrostatic potential generation is {template.shape[0]//binning} px, which is larger than '
+                  f'the requested box size of {box_size} px. We will not reduce the box size with the risk of cutting'
+                  f'parts of the molecule.')
+
+    # create ctf function and low pass gaussian if desired
+    # for ctf the spacing of pixels/voxels needs to be in meters (not angstrom)
+    ctf = create_ctf(template.shape, spacing*1E-10, defocus, amplitude_contrast, voltage, Cs,
+                     sigma_decay=ctf_decay) if apply_ctf_correction else 1
+    lpf = create_gaussian_low_pass(template.shape, (template.shape[0]*spacing)/resolution) if apply_lpf else 1
+
+    # print information back to user
+    if apply_ctf_correction: print(f'Applying ctf correction with defocus {defocus*1e6} um')
+    if apply_lpf: print(f'Applying low pass filter to {resolution}A resolution')
+    # apply ctf and low pass in fourier space
+    filter = lpf * ctf
+    if display_ctf:
+        print('Displaying combined ctf and lpf frequency modulation.')
+        display_microscope_function(filter[...,filter.shape[2]//2], form='ctf*lpf')
+    if type(filter) != int: template = fourier_filter(template, filter, human=True)
+
+    # binning
+    if binning > 1:
+        print(f'Binning volume {binning} times')
+        template = resize(template, template.shape[0]//binning, template.shape[1]//binning, template.shape[2]//binning)
+        # TODO change to resize of pytom 0.991
+        # template = resize(template, 1/binning, interpolation='Spline')  # factor between 0 and 1 de-magnifies
+        # resize has options 'Fourier' (default), 'Spline', 'Cubic', 'Linear'
+        # the latter 3 are all real space methods implemented in voltools, fourier is implemented in pytom and should
+        # give a better result
+
+    return template
 
 
-def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, spherical_abberration, sigma_decay=0.4):
-    """
-    Models a CTF.
-    INPUT
-    @param Dz: defocus value in m
-    @type Dz: C{float}
-    @param A: Amplitude contrast fraction (e.g., 0.1)
-    @type A: C{float}
-    @param Voltage: acceleration voltage in eV
-    @type Voltage: C{float}
-    @param Cs: sphertical abberation in m
-    @type Cs: C{float}
-    @param k4: frequencies in fourier space to power 4
-    @type k4: L{numpy.ndarray}
-    @param k2: frequencies in fourier space squared
-    @type k2: L{numpy.ndarray}
-    @return: CTF in Fourier space
-    @rtype: L{numpy.ndarray}
-    """
-    from pytom.simulation.simulateProjections import wavelength_eV2m
-    # k4, k2, k,
-    nyquist = 1 / (2 * spacing)
-    k = ctf_array(shape, nyquist)
+if __name__ == '__main__':
+    # parameters: file_path, destination, spacing, binning (optional, default is 1), solvent_correction (optional),
+    # solvent_density (optional, default 0.93),
+    # apply_ctf_correction (optional), defocus (optional, default is 3 um, negative is overfocus),
+    # amplitude contrast (optional, default 0.07), voltage (optional, default is 300 keV),
+    # Cs (optional, default is 2.7 mm), ctf_decay (optional, default is 0.4), display_ctf (optional),
+    # apply_low_pass (optional), resolution_filter (optional, default is 2*spacing*binning), box_size (optional)
 
-    # lmbd = np.sqrt(150.4 / ((voltage * (1 + voltage / 1022000.)))) * 1E-10
-    lmbd = wavelength_eV2m(voltage)
+    # IN ORDER TO FUNCTION, SCRIPT REQUIRES INSTALLATION OF PYTOM (and dependencies), CHIMERA
 
-    chi = np.pi * lmbd * defocus * k**2 - 0.5 * np.pi * spherical_abberration * lmbd ** 3 * k ** 4
+    import sys
+    from pytom.tools.script_helper import ScriptHelper, ScriptOption
+    from pytom.tools.parse_script_options import parse_script_options
+    from pytom.tompy.io import write
 
-    ctf = -np.sqrt(1. - amplitude_contrast ** 2) * np.sin(chi) + amplitude_contrast * np.cos(chi)
+    # syntax is ScriptOption([short, long], description, requires argument, is optional)
+    options = [ScriptOption(['-f', '--file'], 'Protein structure file, either pdb or cif.', True, False),
+               ScriptOption(['-d', '--destination'], 'Folder where output should be stored.', True, False),
+               ScriptOption(['-s', '--spacing'], 'The pixel spacing of original projections of the dataset in A,'
+                                                 ' e.g. 2.62', True, False),
+               ScriptOption(['-b', '--binning'], 'Number of times to bin the template. Default is 1 (no binning). If '
+                                                 'set to 2 with a spacing of 2.62 the resulting voxel size will '
+                                                 'be 5.24', True, True),
+               ScriptOption(['-m', '--modify_structure'], 'Activate to call Chimera for adding hydrogen, symmetry and'
+                                                          'removing water molecules from the structure.', False, True),
+               ScriptOption(['-w', '--solvent_correction'], 'Whether to exclude solvent around each atom as a '
+                                                            'correction of the potential.', False, True),
+               ScriptOption(['-r', '--solvent_density'], 'Density of solvent, value should not be higher than 1.35 as'
+                                                         ' that is the density of proteins. Default is 0.93 g/cm^3.',
+                            True, True),
+               ScriptOption(['-c', '--ctf_correction'], 'Correct the volume by applying a CTF. Default parameters are '
+                                                      'defocus 3 um, amplitude contrast 0.07, voltage 300 keV, '
+                                                      'spherical abberation (Cs) 2.7 mm, sigma of gaussian decay 0.4, '
+                                                      'optionally plot the CTF to inspect.', False, True),
+               ScriptOption(['-z', '--defocus'], 'Defocus in um (negative value is overfocus).', True, True),
+               ScriptOption(['-a', '--amplitude_contrast'], 'Amplitude contrast fraction.', True, True),
+               ScriptOption(['-v', '--voltage'], 'Acceleration voltage in keV', True, True),
+               ScriptOption(['-o', '--Cs'], 'Spherical abberration in mm.', True, True),
+               ScriptOption(['-g', '--decay'], 'Sigma of gaussian CTF decay function, 0.4 default.', True, True),
+               ScriptOption(['-p', '--plot'], 'Give this option for plotting the CTF for visual inspection.', False,
+                            True),
+               ScriptOption(['-l', '--lpf_resolution'], 'Specify the resolution of the low pass filter that is applied.'
+                                                        'The default value is 2 x spacing x binning (in angstrom), a '
+                                                        'smaller resolution than this cannot be selected.', True, True),
+               ScriptOption(['-x', '--xyz'], 'Specify a desired size for the output box of the template in number of '
+                                          'pixels. By default the molecule is placed in a box with 30A overhang. This '
+                                          'usually does not offer enough room to apply a spherical mask.', True, True),
+               ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
-    if sigma_decay > 0:
-        decay = np.exp(-(k / (sigma_decay * nyquist)) ** 2)
-    else:
-        decay = 1
+    helper = ScriptHelper(sys.argv[0].split('/')[-1], description='Create a template from the specified structure file '
+                                                                  'with options for ctf correction and filtering. \n'
+                                                                  'Script has dependencies on pytom and chimera.',
+                          authors='Marten Chaillet', options=options)
+    if len(sys.argv) == 2:
+        print(helper)
+        sys.exit()
+    try:
+        file, output_folder, spacing, binning, modify_structure, solvent_correction, solvent_density, \
+            ctf_correction, defocus, amplitude_contrast, voltage, Cs, sigma_decay, \
+            display_ctf, resolution, box_size, help = parse_script_options(sys.argv[1:], helper)
+    except Exception as e:
+        print(e)
+        sys.exit()
 
-    return ctf * decay
+    if help:
+        print(helper)
+        sys.exit()
 
-#     # Electron wavelength
-#
-#     lmbd = np.sqrt(150.4 / ((voltage * (1 + voltage / 1022000.)))) * 1E-10
-#
-#     # Phase shift due to lens aberrations and defocus
-#     chi = np.pi * lmbd * k2 * Dz - 0.5 * np.pi * lmbd ** 3 * Cs * k4
-#
-#     # Contrast transfer function
-#     ctf = -np.sqrt(1. - A ** 2) * np.sin(chi) + A * np.cos(chi)
-#     # TODO what is the point of sqrt(1-A^2)? approximately equal to for 1 for A=0.08
-#
-#     # CHANGED sign for amplitude contrast to fix phase flip for low frequencies -- SP 7.9.16
-#     # originally: ctf = -np.sqrt(1-A**2)*np.sin(chi)-A*np.cos(chi)
-#     # Decay function
-#     Ny = 1 / (2 * spacing)
-#     decay = np.exp(-(k / (sigma_decay_CTF * Ny)) ** 2)
-#
-#     return ctf * decay
-#
-#
-# def generate_template(structure, pixel_size, solvent_correction=False, ctf_correction=False, lpf=False):
-#
-#     # electrostatic_potential
-#     structure
-#     pixel_size
-#
-#     solvent_correction # with solvent masking (requires oversampling?)
-#     solvent_density = 0.93 # default
-#
-#
-#
-#     ctf_correction
-#     defocus = 3  # default
-#     voltage = 300  # default
-#
-#
-#     lpf
-#     resolution = 2 * pixel_size * binning # default
-#
-#     binning
+    if spacing: spacing = float(spacing)
+
+    if binning: binning = int(binning)
+    else: binning = 1
+
+    if solvent_density: solvent_density = float(solvent_density)
+    else: solvent_density = AMORPHOUS_ICE_DENSITY
+
+    if defocus: defocus = float(defocus)*1E-6
+    else: defocus = 3E-6
+
+    if amplitude_contrast: amplitude_contrast = float(amplitude_contrast)
+    else: amplitude_contrast = 0.07
+
+    if voltage: voltage = float(voltage)*1E3
+    else: voltage = 300E3
+
+    if Cs: Cs = float(Cs)*1E-3
+    else: Cs = 2.7E-3
+
+    if sigma_decay: sigma_decay = float(sigma_decay)
+    else: sigma_decay = 0.4
+
+    if resolution:
+        resolution = float(resolution)
+        if not resolution >= (2 * spacing * binning):
+            print(f'invalid resolution specified, changing to {2*spacing*binning}A')
+            resolution = 2 * spacing * binning
+    else: resolution = 2 * spacing * binning
+
+    if box_size: box_size=int(box_size)
+
+    if not os.path.exists(file):
+        print('Protein structure file does not exist!')
+        sys.exit()
+    if not os.path.exists(output_folder):
+        print('Output folder does not exist!')
+        sys.exit()
+
+    template = generate_template(file,
+                                 spacing,
+                                 binning=binning,
+                                 modify_structure=modify_structure,
+                                 apply_solvent_correction=solvent_correction,
+                                 solvent_density=solvent_density,
+                                 apply_ctf_correction=ctf_correction,
+                                 defocus=defocus,
+                                 amplitude_contrast=amplitude_contrast,
+                                 voltage=voltage,
+                                 Cs=Cs,
+                                 ctf_decay=sigma_decay,
+                                 display_ctf=display_ctf,
+                                 apply_lpf=True,
+                                 resolution=resolution,
+                                 box_size=box_size,
+                                 output_folder=output_folder)
+
+    # output structure
+    id = os.path.split(file)[1].split('.')[0] # split the path, than split the file name and extension
+    output_name = f'template_{id}_{spacing*binning:.2f}A_{template.shape[0]}px.mrc'
+    print(f'Writing file in {output_folder} with name {output_name}')
+    write(os.path.join(output_folder, output_name), template)

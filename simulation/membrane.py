@@ -387,17 +387,48 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
 
 if __name__ == '__main__':
 
-    folder = '/data2/mchaillet/structures'
+    import os
+    import sys
+    from pytom.tools.script_helper import ScriptHelper, ScriptOption
+    from pytom.tools.parse_script_options import parse_script_options
 
-    size_factor = 0.5
+    # syntax is ScriptOption([short, long], description, requires argument, is optional)
+    options = [ScriptOption(['-s', '--size_factor'], '1 corresponds to a vesicle which has an average diameter of'
+                                                     '45 nm across.', True, False),
+               ScriptOption(['-d', '--destination'], 'Folder where output should be stored.', True, False),
+               ScriptOption(['-m', '--membrane_pdb'], 'Membrane file, default '
+                                                      '/data2/mchaillet/structures/pdb/lipid/dppc128_dehydrated.pdb'
+                            , True, True),
+               ScriptOption(['-h', '--help'], 'Help.', False, True)]
+
+    helper = ScriptHelper(sys.argv[0].split('/')[-1], description='Create a template from the specified structure file '
+                                                                  'with options for ctf correction and filtering. \n'
+                                                                  'Script has dependencies on pytom and chimera.',
+                          authors='Marten Chaillet', options=options)
+    if len(sys.argv) == 2:
+        print(helper)
+        sys.exit()
+    try:
+        size_factor, folder, input_membrane, help = parse_script_options(sys.argv[1:], helper)
+    except Exception as e:
+        print(e)
+        sys.exit()
+
+    if help:
+        print(helper)
+        sys.exit()
+
+    if size_factor: size_factor = float(size_factor)
+    if input_membrane: pdb = input_membrane
+    else: pdb = '/data2/mchaillet/structures/pdb/lipid/dppc128_dehydrated.pdb'
 
     # automatically scale these points
     N = int(100 * size_factor**2.2)  # number of points
     a, b, c = (x*size_factor for x in (xp.random.randint(180, 280), xp.random.randint(180, 280),
                                        xp.random.randint(180, 280)))
     alpha = 2000 * size_factor
-    voxel = 2.62 * 1 # A
-    pdb = f'{folder}/pdb/lipid/dppc128_dehydrated.pdb'
+    voxel = 5 # A
+
     solvent = 4.5301
     voltage = 300E3
 
@@ -410,7 +441,8 @@ if __name__ == '__main__':
     real = volume[0]
     imag = volume[1]
 
-    from potential import reduce_resolution, bin
+    from pytom.simulation.support import reduce_resolution
+    from pytom.tompy.transform import resize
 
     name = 'bilayer'
     size = f'{a*2/10:.0f}x{b*2/10:.0f}x{c*2/10:.0f}nm' # double the values of the ellipsoid radii for actual size
@@ -418,14 +450,16 @@ if __name__ == '__main__':
     real_fil = reduce_resolution(real, voxel, 2 * voxel)
     imag_fil = reduce_resolution(imag, voxel, 2 * voxel)
 
-    write(f'{folder}/potential/membrane/{name}_{voxel:.2f}A_{size}_4.53V_real.mrc', real)
-    write(f'{folder}/potential/membrane/{name}_{voxel:.2f}A_{size}_4.53V_imag_300V.mrc', imag)
+    write(os.path.join(folder, f'{name}_{voxel:.2f}A_{size}_solvent-4.530V_real.mrc'), real)
+    write(os.path.join(folder, f'{name}_{voxel:.2f}A_{size}_solvent-4.530V_imag_300V.mrc'), imag)
 
-    binning = 4
+    binning = 2
 
-    real_bin = bin(reduce_resolution(real, voxel, binning * voxel * 2), binning) # *2 still?
-    imag_bin = bin(reduce_resolution(imag, voxel, binning * voxel * 2), binning)
+    real_bin = resize(reduce_resolution(real, voxel, binning * voxel * 2), real.shape[0]//binning,
+                      real.shape[1]//binning, real.shape[2]//binning) # *2 still?
+    imag_bin = resize(reduce_resolution(imag, voxel, binning * voxel * 2), imag.shape[0]//binning,
+                      imag.shape[1]//binning, imag.shape[2]//binning)
 
-    write(f'{folder}/potential/membrane/{name}_{voxel*binning:.2f}A_{size}_4.53V_real.mrc', real_bin)
-    write(f'{folder}/potential/membrane/{name}_{voxel*binning:.2f}A_{size}_4.53V_imag_300V.mrc', imag_bin)
+    write(os.path.join(folder, f'{name}_{voxel*binning:.2f}A_{size}_solvent-4.530V_real.mrc'), real_bin)
+    write(os.path.join(folder, f'{name}_{voxel*binning:.2f}A_{size}_solvent-4.530V_imag_300V.mrc'), imag_bin)
 

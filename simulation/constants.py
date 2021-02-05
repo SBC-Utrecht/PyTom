@@ -14,36 +14,42 @@ coefficients of scattering factors and the atomic mass, respectively. g is in a 
 
 constants = {
     # Dictionary of physical constants required for calculation.
-    "c": 299792458, # m/s
-    "el": 1.60217646e-19, # C
-    "h": 6.62606896e-34, # J*S
-    "h_ev": 4.13566733e-15, # eV*s
-    "h_bar": 1.054571628e-34, # J*s
-    "h_bar_ev": 6.58211899e-16, # eV*s
+    "c": 299792458,  # m/s
+    "el": 1.60217646e-19,  # C
+    "h": 6.62606896e-34,  # J*S
+    "h_ev": 4.13566733e-15,  # eV*s
+    "h_bar": 1.054571628e-34,  # J*s
+    "h_bar_ev": 6.58211899e-16,  # eV*s
 
-    "na": 6.02214179e23, # mol-1
-    "re": 2.817940289458e-15, # m
-    "rw": 2.976e-10, # m
+    "na": 6.02214179e23,  # mol-1
+    "re": 2.817940289458e-15,  # m
+    "rw": 2.976e-10,  # m
 
-    "me": 9.10938215e-31, # kg
-    "me_ev": 0.510998910e6, # ev/c^2
-    "kb": 1.3806503e-23, # m^2 kgs^-2 K^-1
+    "me": 9.10938215e-31,  # kg
+    "me_ev": 0.510998910e6,  # ev/c^2
+    "kb": 1.3806503e-23,  # m^2 kgs^-2 K^-1
 
-    "eps0": 8.854187817620e-12 # F/m
+    "eps0": 8.854187817620e-12  # F/m
 }
 
 
 volume_displaced = {
-        'H': 5.15, # volume (A^3), Gaussian radius (A)
+        'H': 5.15,  # volume (A^3), Gaussian radius (A)
         'C': 16.44,
         'N': 2.49,
-        'O': 9.13 }
+        'O': 9.13
+}
 
 
 mean_free_path = {
         120E3: 200 * 1E-9,
-        300E3: 350 * 1E-9# 300 keV corresponds to inelastic mean free path 350 nm
+        300E3: 350 * 1E-9  # 300 keV corresponds to inelastic mean free path 350 nm
 }
+
+# TODO
+# TODO add voltage to wavelength
+# TODO add amplitude contrast calculation
+
 
 scattering_factors = {
     'H': {
@@ -339,5 +345,6 @@ scattering_factors = {
         'm': 247 },
      'CF': {
         'g': [1.2089, 2.7391, 4.3482, 4.0047, 4.6497, 0.2421, 1.7487, 6.7262, 23.2153, 80.3108],
-        'm': 251 } }
+        'm': 251 }
+}
 

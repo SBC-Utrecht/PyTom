@@ -1,6 +1,6 @@
 import numpy as xp
 import math
-import constant_dictionaries as phys
+import pytom.simulation.constants as const
 import os, sys
 # import pytom.basic.functions
 
@@ -9,7 +9,7 @@ import matplotlib as plt
 plt.use('Qt5Agg')
 from pylab import *
 
-V_WATER = 4.5301 # potential value of low density amorphous ice (from Vulovic et al., 2013)
+V_WATER = 4.5301  # potential value of low density amorphous ice (from Vulovic et al., 2013)
 
 def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=False):
     """
@@ -74,7 +74,7 @@ def create_gaussian_low_pass(size, cutoff, center=None):
     sigma_cutoff = cutoff / xp.sqrt(2 * xp.log(c))
 
     if center is None:
-        center = [(size[0]-1)/2, (size[1]-1)/2, (size[2]-1)/2]
+        center = [s//2 for s in size]
 
     [x,y,z] = xp.mgrid[0:size[0], 0:size[1], 0:size[2]]
     r = xp.sqrt((x-center[0])**2+(y-center[1])**2+(z-center[2])**2)
@@ -144,7 +144,7 @@ def scale(volume, factor):
 
 def bin(potential, factor):
     """
-
+    TODO change name to bin_volume instead of bin
     @param potential:
     @param factor: integer value
     @return:
@@ -499,8 +499,7 @@ def read_structure(filename):
 
 
 def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=False, solvent_masking=False, V_sol=4.5301,
-                     absorption_contrast=False, voltage=300E3, density=1.35, molecular_weight=7.2, solvent_factor=1.0,
-                     structure_tuple=None):
+                     absorption_contrast=False, voltage=300E3, density=1.35, molecular_weight=7.2, structure_tuple=None):
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
@@ -562,16 +561,16 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
         b_factor = b_factors[i]
         occupancy = occupancies[i]
 
-        sf = xp.array(phys.scattering_factors[atom]['g'])
+        sf = xp.array(const.scattering_factors[atom]['g'])
         a = sf[0:5]
         b = sf[5:10]
 
         # b += (b_factor) # units in A
 
-        if atom in list(phys.volume_displaced):
-            r_0 = xp.cbrt(phys.volume_displaced[atom] / (xp.pi ** (3 / 2)))
+        if atom in list(const.volume_displaced):
+            r_0 = xp.cbrt(const.volume_displaced[atom] / (xp.pi ** (3 / 2)))
         else:  # If not H,C,O,N we assume the same volume displacement as for carbon
-            r_0 = xp.cbrt(phys.volume_displaced['C'] / (xp.pi ** (3 / 2)))
+            r_0 = xp.cbrt(const.volume_displaced['C'] / (xp.pi ** (3 / 2)))
 
         r2 = 15 / (1 / r_0 ** 2)
         for j in range(5):
@@ -640,11 +639,11 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
     # Voxel volume
     dV = voxel_size ** 3
     # Convert to correct units
-    C = 4 * xp.sqrt(xp.pi) * phys.constants['h'] ** 2 / (phys.constants['el'] * phys.constants['me']) * 1E20  # angstrom**2
+    C = 4 * xp.sqrt(xp.pi) * const.constants['h'] ** 2 / (const.constants['el'] * const.constants['me']) * 1E20  # angstrom**2
 
     if solvent_exclusion:
         # Correct for solvent and convert both the solvent and potential array to the correct units.
-        real = (potential / dV * C) - (solvent / dV * (V_sol * solvent_factor))
+        real = (potential / dV * C) - (solvent / dV * V_sol)
     elif solvent_masking: # only if voxel size is small enough for accurate determination of mask
         solvent_mask = (potential > 1E-5) * 1.0
         # construct solvent mask
@@ -658,7 +657,7 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
         # ax1.imshow(potential[:, :, slice])
         # ax2.imshow(solvent_mask[:, :, slice])
         # show()
-        real = (potential / dV * C) - (solvent_mask * (V_sol * solvent_factor))
+        real = (potential / dV * C) - (solvent_mask * V_sol)
     else:
         real = potential / dV * C
 
@@ -666,7 +665,7 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
         from simulateProjections import potential_amplitude
         # voltage by default 300 keV
         molecule_absorption = potential_amplitude(density, molecular_weight, voltage)
-        solvent_absorption = potential_amplitude(0.93, 18, voltage) * solvent_factor
+        solvent_absorption = potential_amplitude(0.93, 18, voltage) * (V_sol / 4.5301)
         # gold_amplitude = potential_amplitude(19.3, 197, voltage)
         print(f'molecule absorption = {molecule_absorption:.3f}')
         print(f'solvent absorption = {solvent_absorption:.3f}')
@@ -760,7 +759,7 @@ def iasa_rough(filename, voxel_size=10, solvent_exclusion=False, V_sol=4.5301):
 
     potential = xp.zeros(sz)
 
-    C = 2 * xp.pi * phys.constants['h_bar'] ** 2 / (phys.constants['el'] * phys.constants['me']) * 1E20  # angstrom**2
+    C = 2 * xp.pi * const.constants['h_bar'] ** 2 / (const.constants['el'] * const.constants['me']) * 1E20  # angstrom**2
     dV = (voxel_size/oversampling) ** 3
 
     for i in range(len(elements)):
@@ -772,13 +771,13 @@ def iasa_rough(filename, voxel_size=10, solvent_exclusion=False, V_sol=4.5301):
         rc = [x_coordinates[i], y_coordinates[i], z_coordinates[i]]  # atom center
         ind = tuple([int((c) // (voxel_size/oversampling)) for c in rc])  # Indexes to contain the potential
 
-        potential[ind] += (xp.array(phys.scattering_factors[atom]['g'])[0:5].sum() * C / dV)
+        potential[ind] += (xp.array(const.scattering_factors[atom]['g'])[0:5].sum() * C / dV)
 
         if solvent_exclusion:
-            if atom in list(phys.volume_displaced):
-                potential[ind] -= phys.volume_displaced[atom] * V_sol / dV
+            if atom in list(const.volume_displaced):
+                potential[ind] -= const.volume_displaced[atom] * V_sol / dV
             else:  # If not H,C,O,N we assume the same volume displacement as for carbon
-                potential[ind] -= phys.volume_displaced['C'] * V_sol / dV
+                potential[ind] -= const.volume_displaced['C'] * V_sol / dV
     # Apply Gaussian filter
     potential = reduce_resolution(potential, (voxel_size/oversampling), voxel_size)
     # Bin the volume
@@ -840,7 +839,7 @@ def iasa_potential(filename, voxel_size=1., oversampling=0, low_pass_filter=True
     sz = [ s / spacing for s in shape] # increase for oversampling
     # C = 2132.8 A^2 * V; 1E20 is a conversion factor for Angstrom^2,
     # h and not h_bar, which is why we multiply with 4 * sqrt(pi) instead of 16*pi^(5/2)
-    C = 4 * xp.sqrt(xp.pi) * phys.constants['h']**2 / (phys.constants['el'] * phys.constants['me']) * 1E20
+    C = 4 * xp.sqrt(xp.pi) * const.constants['h']**2 / (const.constants['el'] * const.constants['me']) * 1E20
 
     potential = xp.zeros(tuple(xp.round(sz).astype(int)))
     print(f'#atoms to go over is {len(x_coordinates)}.')
@@ -853,7 +852,7 @@ def iasa_potential(filename, voxel_size=1., oversampling=0, low_pass_filter=True
         b_factor = b_factors[i]
         occupancy = occupancies[i]
 
-        sf = xp.array(phys.scattering_factors[atom]['g'])
+        sf = xp.array(const.scattering_factors[atom]['g'])
         a = sf[0:5]
         b = sf[5:10]
 
@@ -1002,7 +1001,7 @@ def resample_apbs(filename, voxel_size=1.0, low_pass_filter=False):
 
     # Convert to from kT/e to volts
     temperature = 291 # [K] = 18 C (room temperature)
-    convert_to_volts = phys.constants['kb'] * temperature / phys.constants['el']
+    convert_to_volts = const.constants['kb'] * temperature / const.constants['el']
     potential = convert_to_volts * potential
     return potential
 
@@ -1060,8 +1059,8 @@ def wrapper(file, input_folder, output_folder, voxel_size, oversampling=1, binni
     # Could be {structure}.{extension}, but currently chimera is only able to produce .pdb files, so the extended
     # structure file created by call chimera has a .pdb extension.
     v_atom = iasa_integration(f'{output_folder}/{structure}.pdb', voxel_size=voxel_size, oversampling=oversampling,
-                              solvent_exclusion=exclude_solvent, solvent_masking=solvent_masking, V_sol=solvent_potential,
-                              absorption_contrast= absorption_contrast, voltage=voltage, solvent_factor=solvent_factor)
+                              solvent_exclusion=exclude_solvent, solvent_masking=solvent_masking, V_sol=solvent_potential * solvent_factor,
+                              absorption_contrast= absorption_contrast, voltage=voltage)
     # Absorption contrast map generated here will look blocky when generated at 2.5A and above!
     if absorption_contrast:
         print(' - Filtering volume')
@@ -1070,7 +1069,7 @@ def wrapper(file, input_folder, output_folder, voxel_size, oversampling=1, binni
                     reduce_resolution(v_atom[1], voxel_size, 2*voxel_size)]
         output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
         pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', filtered[0])
-        pytom.tompy.io.write(f'{output_folder}/{output_name}_imag.mrc', filtered[1])
+        pytom.tompy.io.write(f'{output_folder}/{output_name}_imag_{voltage*1E-3:.0f}V.mrc', filtered[1])
     else:
         print(' - Filtering volume')
         filtered = reduce_resolution(v_atom[0], voxel_size, 2*voxel_size)
@@ -1093,7 +1092,7 @@ def wrapper(file, input_folder, output_folder, voxel_size, oversampling=1, binni
 
             output_name = f'{pdb_id}_{voxel_size*binning:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
             pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', binned[0])
-            pytom.tompy.io.write(f'{output_folder}/{output_name}_imag.mrc', binned[1])
+            pytom.tompy.io.write(f'{output_folder}/{output_name}_imag_{voltage*1E-3:.0f}V.mrc', binned[1])
 
         else:
             print(' - Filtering volume')
@@ -1109,12 +1108,6 @@ def wrapper(file, input_folder, output_folder, voxel_size, oversampling=1, binni
 
 
 if __name__ == '__main__':
-    # Make into script with command line options, following options should suffice
-    # pdb_id, mandatory
-    # voxel_size, optional, default is 1 A?
-    # resolution, optional, default is 2*voxel_size
-    # pH, optional, default is 7
-
     # parameters: folder, pdb_id, ph, voxel_size, resolution?
 
     # IN ORDER TO FUNCTION, SCRIPT REQUIRES INSTALLATION OF PYTOM (and dependencies), CHIMERA, PDB2PQR (modified), APBS
@@ -1137,7 +1130,7 @@ if __name__ == '__main__':
                             'Value for the solvent potential. By default amorphous ice, 4.5301 V.', True, True),
                ScriptOption(['-c', '--percentile'], 'Multiplication for solvent potential and absorption contrast of '
                                                     'solvent to decrease/increase contrast. Value between 0 and 3 (could'
-                                                    ' be higher but would no make sense).', True, True),
+                                                    ' be higher but would not make sense).', True, True),
                ScriptOption(['-a', '--absorption_contrast'],
                             'Whether to add imaginary part of absorption contrast, can only be done if solvent'
                             'is excluded.', False, True),
@@ -1150,12 +1143,7 @@ if __name__ == '__main__':
                                                                   'Script has dependencies on pytom, chimera. (pdb2pqr apbs)',
                           authors='Marten Chaillet', options=options)
 
-    if len(sys.argv) == 1:
-        print(helper)
-        sys.exit()
-    elif ('-h' in str(sys.argv)) or ('--help' in str(sys.argv)):
-        # This needs to be added to correctly parse the help options. ScriptHelper does not do it correctly.
-        # Better make a change to ScriptHelper.
+    if len(sys.argv) == 2:
         print(helper)
         sys.exit()
     try:
@@ -1163,6 +1151,10 @@ if __name__ == '__main__':
                     solvent_factor, absorption_contrast, voltage, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
+        sys.exit()
+
+    if help:
+        print(helper)
         sys.exit()
 
     if not voxel_size: voxel_size=1
