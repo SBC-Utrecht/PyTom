@@ -23,6 +23,10 @@ from pytom.basic.files import write_em
 def kill_proc(runner):
     runner.terminate()
 
+def terminateWorker(killEvent):
+    killEvent.set()
+    print('Please exit: ', killEvent.is_set())
+
 def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, filename='', cutoff_SD=3):
     from scipy.ndimage import gaussian_filter
     if cent_x < 0 or cent_x > x: cent_x = x // 2
@@ -61,6 +65,27 @@ def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, fi
     else:
         return sphere
 
+def write_markerfile(markerFileName, markerfile, tiltangles, bin_factor=1):
+    from pytom.basic.datatypes import HEADER_MARKERFILE, FMT_MARKERFILE as fmtMarkerfile
+    import numpy as np
+    num_projs, num_markers, c = markerfile.shape
+
+    markerFile = numpy.ones((num_markers, num_projs, 4)) * -1
+    for iMark, Marker in enumerate(list(range(num_markers))):
+        markerFile[iMark, :, 0] = iMark
+
+        for (itilt, TiltIndex) in enumerate(list(range(num_projs))):
+            markerFile[iMark, itilt, 1] = tiltangles[TiltIndex]
+            if markerfile[TiltIndex][Marker][1] < 1 and markerfile[TiltIndex][Marker][0] < 1:
+                continue
+            markerFile[iMark, itilt, 2:] = markerfile[TiltIndex][Marker][::-1] * bin_factor
+
+    with open(markerFileName, 'w') as outfile:
+        np.savetxt(outfile, [], header=HEADER_MARKERFILE)
+
+        for data_slice in markerFile:
+            np.savetxt(outfile, data_slice, fmt=fmtMarkerfile)
+
 def read_markerfile(filename,tiltangles):
     if filename[-4:] == '.mrc':
         mark_frames = mrc2markerfile(filename, tiltangles)
@@ -93,13 +118,27 @@ def readMarkerfile(filename, num_tilt_images=0):
         markerdata = data.reshape(x, y, 4)[:, :, 1:].transpose(2, 1, 0)
         return markerdata
 
-def txt2markerfile(filename,tiltangles):
+def txt2markerfile(filename, tiltangles):
     data = loadstar(filename)
     datalen = data.shape[0]
-    x, y = datalen // len(tiltangles), len(tiltangles)
-    mark_frames = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
-    print(mark_frames.shape)
-    return mark_frames
+    num_angles = (data[:, 0] < 1E-6).sum()
+    if num_angles == len(tiltangles):
+        x, y = datalen // len(tiltangles), len(tiltangles)
+        mark_frames = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
+        print(mark_frames.shape)
+        return mark_frames
+    else:
+        x,y = datalen // num_angles, num_angles
+        mark_frames_small = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
+        mark_frames = -1*numpy.ones((len(tiltangles), x, 2), dtype=numpy.float32)
+        ang_selected = data[:num_angles, 1]
+        runner = 0
+        for n, angle in enumerate(tiltangles):
+            if numpy.abs(ang_selected-angle).min() < 1E-5:
+                mark_frames[n,:,:] = mark_frames_small[runner,:,:]
+                runner += 1
+
+        return mark_frames
 
 def npy2markerfile(filename,tiltangles):
     return numpy.load(filename)
@@ -246,6 +285,8 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
                      qtype='slurm', num_jobs_per_node=20, time=12, partition='defq', singleton=False, gpus=''):
     module_load = ''
     queue_command = ''
+
+    modules = list(numpy.unique(numpy.array(modules)))
     if modules:
         module_load = 'module load '
     for module in modules:
@@ -263,7 +304,7 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
 
     if gpus:
         numgpus = len(gpus.split(','))
-        numgpus = int(gpus)+1
+        #numgpus = int(gpus)+1
         gpus = f'\n#SBATCH --gres=gpu:{numgpus}\n\nexport CUDA_VISIBLE_DEVICES={gpus}'
 
     if qtype == 'slurm':
@@ -329,7 +370,7 @@ def avail_gpu(cutoff_busy=.25, cutoff_space = 0.5):
     comb = list(zip(available_gpu,busy_list))
 
     sort(comb,1)
-
+    print(comb)
     try:
         av, b = zip(*comb)
     except:
@@ -456,6 +497,7 @@ def create_project_filestructure(projectdir='.'):
     # with open('config.json') as json_data_file:
     #    folderstructure = json.load(json_data_file)
 
+
     folderstructure = {
         "01_Raw_Nanographs": {
             "copy_files": ["/Users/gijs/Documents/PostDocUtrecht/ExperimentalData/180221_CPXV12_Strep/em-fscollect"],
@@ -493,6 +535,7 @@ def create_project_filestructure(projectdir='.'):
                 },
                 "copy_files": [""]
             },
+            "jobscripts": "",
             "copy_files": ["em_tomoprep", "em_prepbatch_utrecht.sh", "validate_generated_tomograms.py",
                            "reconstruction_batch.py"],
             "run_scripts": [""]
@@ -518,7 +561,7 @@ def create_project_filestructure(projectdir='.'):
             },
             "Classification": {
                 "CPCA": "",
-                "AutoFocus":""
+                "AutoFocus": ""
             },
             "Validation": "",
             "copy_files": [""],
@@ -528,9 +571,11 @@ def create_project_filestructure(projectdir='.'):
             "copy_files": [""],
             "run_scripts": [""]
         },
-        "LogFiles": ""
+        "LogFiles": {
+            "Local": ""
+        },
+        "Images": ''
     }
-
     if not os.path.exists(projectdir):
         os.mkdir(projectdir)
     create_folderstructure(folderstructure, projectdir)
@@ -629,9 +674,23 @@ LOCAL_ALIGNMENT_RESULTS = [('ParticleIndex', 'i4'),
 
 headerLocalAlignmentResults = ''
 unitsLAR = ['', 'px', 'px', 'degrees', 'degrees', '', '']
-fmtLAR = '%7d %15.10f %15.10f %15.10f %15.10f %15.10f %s'
+fmtLAR = '%7d %15.2f %15.2f %15.3f %15.3f %15.10f %s'
 for n, h in enumerate(LOCAL_ALIGNMENT_RESULTS):
     headerLocalAlignmentResults += '{} {}\n'.format(h[0], '({})'.format(unitsLAR[n]) * (unitsLAR[n] != ''))
+
+ALIGNMENT_ERRORS = [('MarkerIndex', 'i4'),
+                           ('TiltAngle', 'f4'),
+                           ('AlignmentError', 'f4'),
+                           ('XMeasured', 'f4'),
+                           ('YMeasuerd', 'f4'),
+                           ('XProjected', 'f4'),
+                           ('YProjected', 'f4')]
+
+headerAlignmentErrors = ''
+unitsAE = ['', 'deg', 'px', 'px', 'px', 'px', 'px']
+fmtAE = '%7d %15.2f %15.3f %15.3f %15.3f %15.3f %15.3f'
+for n, h in enumerate(ALIGNMENT_ERRORS):
+    headerAlignmentErrors += '{} {}\n'.format(h[0], '({})'.format(unitsAE[n]) * (unitsAE[n] != ''))
 
 
 def headerline(line):
@@ -649,7 +708,7 @@ def loadstar(filename, dtype='float32', usecols=None, skip_header=0):
     return arr
 
 def savestar(filename, arr, header='', fmt='', comments='#'):
-    numpy.savetxt(filename, arr, comments=comments, header=header,fmt=fmt)
+    numpy.savetxt(filename, arr, comments=comments, header=header, fmt=fmt)
 
 def update_metafile(filename, columnID, values ):
     metadata= loadstar(filename,dtype=datatype)
@@ -660,14 +719,17 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
     if not mdocfiles:
         mdocfiles = [mdocfile for mdocfile in os.listdir(nanographfolder) if mdocfile.endswith('.mdoc')]
-    datafiles = [fname for fname in os.listdir(nanographfolder) if fname.split('.')[-1] in ('tif','mrc','em') and not (fname[0] in '0123456789')]
+    datafiles = [fname for fname in os.listdir(nanographfolder) if fname.split('.')[-1] in ('tif','mrc','em', 'st') and not (fname[0] in '0123456789')]
 
     annotated = {}
 
     tomo_from_filename = {}
+    tomo_from_stack = {}
 
     for df in datafiles:
         annotated[os.path.basename(df)] = 0
+        if os.path.basename(df).endswith('.st'):
+            annotated[os.path.basename(df)] = 'st'
 
     tiltAxis = 180
     pixelSpacing = 1.5
@@ -739,7 +801,7 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
     size = {}
 
     for k, v in annotated.items():
-        if v ==0:
+        if v == 0:
             tomoname = k.split('_')[0]
             if not tomoname in tomo_from_filename.keys():
                 tomo_from_filename[tomoname] = []
@@ -771,6 +833,49 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
 
             tomo_from_filename[tomoname].append([k.replace('[','_').replace(']','_').split('_'), tiltangle, k])
+
+        if v == 'st':
+            from pytom.tompy.io import read as readNPY, read_size, read_pixelsize
+            from numpy import loadtxt
+
+
+            stackfile  = os.path.join(nanographfolder,k)
+            tltfile = stackfile.replace('.st', '.tlt')
+
+            x,y,z = read_size(os.path.join(nanographfolder,k))
+            pixelsize = read_pixelsize(stackfile, 'x')
+
+            print(f'\n\n\n{tltfile}')
+
+            if not os.path.exists(tltfile):
+                print(f'failed for {tltfile}')
+                continue
+
+            tiltangles = loadtxt(tltfile)
+
+            tomoname = k[:-3]
+
+            metadata = numpy.zeros((len(tiltangles)),dtype=datatype)
+
+            for i, tiltangle in enumerate(tiltangles):
+
+                metadata['TiltAngle'][i] = tiltangle
+                metadata['FileName'][i] = f'{nanographfolder}/IMODSTACK_{tomoname}_{i:02d}.mrc'
+                metadata['ImageSize'][i] = min(x,y)
+                metadata['PixelSpacing'][i] = pixelsize
+                metadata['DefocusU'][i] = 3
+                metadata['DefocusV'][i] = 3
+                metadata['Voltage'][i] = 200
+                metadata['SphericalAberration'][i] = 2.7
+                metadata['AmplitudeContrast'][i] = 0.8
+                metadata['MarkerDiameter'][i] = 100
+
+            a = numpy.sort(metadata, order='TiltAngle')
+
+            outname = '{}/{}.meta'.format(nanographfolder, tomoname)
+            print(outname)
+            savestar(outname, a, fmt=fmt, header=headerText)
+
 
     for NR, (k, v) in enumerate(tomo_from_filename.items()):
 
@@ -906,7 +1011,7 @@ def addShiftToMarkFrames(mark_frames, shifts, metadata, excluded):
 def convert_markerfile(filename, outname):
     from pytom.tompy.io import read
     import numpy as np
-    from pytom.basic.datatypes import HEADER_MARKERFILE, fmtMarkerfile
+    from pytom.basic.datatypes import HEADER_MARKERFILE, FMT_MARKERFILE as fmtMarkerfile
 
     a = read(filename)
 
@@ -922,3 +1027,67 @@ def convert_markerfile(filename, outname):
 
         for data_slice in markerFile:
             np.savetxt(outfile, data_slice, fmt=fmtMarkerfile)
+
+def readPolishResultFile(filename, tilt_angles=None, non_stacked=False):
+    try:
+        from pytom.gui.guiFunctions import LOCAL_ALIGNMENT_RESULTS, loadstar
+
+        ppf = loadstar(filename, dtype=LOCAL_ALIGNMENT_RESULTS)
+        if non_stacked:
+            return ppf
+        num = ppf['ParticleIndex'][-1] + 1
+        rppf = ppf.reshape(num, ppf.shape[0] // num)
+
+        if not tilt_angles is None:
+            polishangles = rppf[0]['TiltAngle']
+            polishIndices = []
+            for angle in tilt_angles:
+                for n, pangle in enumerate(polishangles):
+                    if abs(pangle - angle) < 0.01:
+                        polishIndices.append(n)
+                        break
+
+            if len(polishIndices) != len(self):
+                print(self.tilt_angles)
+                print(polishIndices)
+                raise Exception('data from polishfile does not contain the same angles as the angles from tiltimages')
+
+        polishResults = rppf
+
+    except Exception as e:
+        print(e)
+        raise Exception('data from polishfile does not contain the same angles as the angles from tiltimages')
+
+    return polishResults
+
+def plotCurve(data, num_rows=1, num_cols=1, s=5, e=None, h=None):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    from pylab import subplots, show, savefig
+
+    fig, ax = subplots(num_rows, num_cols, figsize=(num_cols*s, num_rows*s))
+
+    for n, d in enumerate(data):
+        if num_rows > 1 and num_cols> 1:
+            ax[n//num_cols][n%num_cols].plot(d)
+        elif num_rows > 1:
+            ax[n][0].plot(d)
+        elif num_cols > 1:
+            ax[n].plot(d)
+        else:
+            if e is None and (h is None):
+                ax.scatter(range(len(d)), d)
+            elif not (h is None):
+                import numpy as np
+                x = np.random.normal(size=50000)
+                y = x * 3 + np.random.normal(size=50000)
+                #print(len(h[1]), len(h[0]))
+                a = ax.hist2d(np.array(h[0]), np.array(h[1]), range=[[-20,20],[-20,20]], bins=(81,81))
+                #print(a[0].shape, a[2].max(), a[1].min())
+
+            else:
+                ax.errorbar(range(len(d)), d, e[n], linestyle='None')
+
+    show()
+    try: return(a)
+    except: pass

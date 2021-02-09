@@ -1,25 +1,34 @@
 #!/usr/bin/env pytom
 
 def em2mrc(filename,target):
-	from pytom_volume import read
-	from pytom.tools.files import checkFileExists,checkDirExists
-	import os
-	
-	if not checkFileExists(filename):
-		raise RuntimeError('EM file not found! ',filename)
+    from pytom_volume import read
+    from pytom.tools.files import checkFileExists,checkDirExists
+    import os
 
-	if not checkDirExists(target):
-		raise RuntimeError('Destination directory not found! ', target)
+    if not checkFileExists(filename):
+        raise RuntimeError('EM file not found! ',filename)
+    if not checkDirExists(target):
+        raise RuntimeError('Destination directory not found! ', target)
 
-	emfile = read(filename)
+    emfile = read(filename)
 	
-	splitName = filename.split(os.sep)
-	filename = splitName[len(splitName)-1]
-	
-	
-	newFilename = target + os.sep + filename[0:len(filename)-3] + '.mrc'
+    splitName = filename.split(os.sep)
+    filename = splitName[len(splitName)-1]
 
-	emfile.write(newFilename,'mrc')
+    ff = filename[0:len(filename)-3]
+    try:
+        ff = ff.split('_')
+        print(ff[-1])
+        ff = [f'sorted_{int(ff[-1])-1:02d}']
+        print(ff)
+    except Exception as e:
+        print('\n\n\n')
+        print(e)
+        pass
+    ff = '_'.join(ff)
+    newFilename = target + os.sep + ff + '.mrc'
+
+    emfile.write(newFilename,'mrc')
 
 
 if __name__ == '__main__':
@@ -59,6 +68,4 @@ if __name__ == '__main__':
             if file[len(file)-3:len(file)] == '.em':
                 #print(directory + os.sep + file , target)
                 em2mrc(directory + os.sep + file,target)
-				
-						
-		
+

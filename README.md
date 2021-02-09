@@ -28,7 +28,7 @@ PyTomGUI is designed to run on linux systems, but can also be installed on MacOS
 
 ### Installing
 
-To install PyTomGUI please clone the erice version by executing the following command 
+To install PyTomGUI please clone the most recent version by executing the following command 
 
 ```
 git clone --recursive https://github.com/FridoF/PyTomPrivate.git pytom
@@ -85,7 +85,7 @@ See also the list of [contributors](https://gschot@bitbucket.org/gschot/pytom/co
 
 ## License
 
-Copyright (c) 2019
+Copyright (c) 2021
 
 Utrecht University
 

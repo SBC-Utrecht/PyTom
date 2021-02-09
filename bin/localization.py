@@ -20,6 +20,8 @@ def startLocalizationJob(filename, splitX=0, splitY=0, splitZ=0, doSplitAngles=F
     else:
         from pytom.localization.parallel_extract_peaks import PeakLeader
         leader = PeakLeader(suffix=suffix)
+        if leader.size != splitX * splitY * splitZ:
+            raise Exception('Number of mpi cores is not compatible with settings')
         leader.parallelRun(job, splitX, splitY, splitZ, verbose, gpuID=gpuID)
 
 if __name__ == '__main__':
@@ -35,16 +37,14 @@ if __name__ == '__main__':
                                    ScriptOption(['-x','--splitX'], 'Parts you want to split the volume in X dimension', arg=True, optional=True),
                                    ScriptOption(['-y','--splitY'], 'Parts you want to split the volume in Y dimension', arg=True, optional=True),
                                    ScriptOption(['-z','--splitZ'], 'Parts you want to split the volume in Z dimension', arg=True, optional=True),
-                                   ScriptOption(['-g', '--gpuID'], 'gpu index for running job',
-                                                arg=True, optional=True),
-
+                                   ScriptOption(['-g', '--gpuID'], 'gpu index for running job', arg=True, optional=True),
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     
     if len(sys.argv) == 1:
         print(helper)
         sys.exit()
     
-    if 1:
+    try:
         jobName, splitX, splitY, splitZ, gpuID, b_help = parse_script_options(sys.argv[1:], helper)
         
         if b_help is True:
@@ -72,20 +72,25 @@ if __name__ == '__main__':
         else:
             gpuID = list(map(int,gpuID.split(',')))
 
-    else: # backward compatibility
+
+
+    except: # backward compatibility
+
+
         if len(sys.argv) == 2 or len(sys.argv) == 5:
             pass
         else:
             print(helper)
-        
+            sys.exit()
+
         jobName = sys.argv[1]
         
         if len(sys.argv) == 5:
             splitX = int(sys.argv[2])
             splitY = int(sys.argv[3])
             splitZ = int(sys.argv[4])
+            gpuID = None
 
-    
     from pytom.tools.timing import Timing
     t = Timing(); t.start()
     

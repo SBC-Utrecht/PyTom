@@ -549,8 +549,8 @@ class PeakManager():
                     os.remove(name)
             
             # rename the result files name
-            os.rename('node_0_res.em', 'scores{}.em'.format(suffix))
-            os.rename('node_0_orient.em', 'angles{}.em'.format(suffix))
+            os.rename('node_0_res.em', 'scores{}{}.em'.format(suffix))
+            os.rename('node_0_orient.em', 'angles{}{}.em'.format(suffix))
             
             # finishing, stop all workers
             self.parallelEnd(verbose)
@@ -604,6 +604,9 @@ class PeakLeader(PeakWorker):
         self.suffix=suffix
         self.mpi_id = pytom_mpi.rank()
         self.name = 'node_' + str(self.mpi_id)
+
+        self.size = pytom_mpi.size()
+
         self.clean()
         
     def clean(self):
@@ -1061,9 +1064,11 @@ class PeakLeader(PeakWorker):
 #                pytom_mpi.init()
             job.members = pytom_mpi.size()
             print('job members', job.members)
+
             job.send(0, 0)
             print("\n")
-        
+
+        self.gpuID = gpuID
         end = False
         while not end:
             # get the message string
@@ -1115,10 +1120,14 @@ class PeakLeader(PeakWorker):
             for name in files:
                 if 'job' in name and '.em' in name and not 'sum' in name and not 'sqr' in name:
                     os.remove(self.dstDir+'/'+name)
-            
+
+            if self.gpuID:
+                gpuflag = ''
+            else:
+                gpuflag = ''
             # rename the result files name
-            os.rename(self.dstDir+'/'+'node_0_res.em', self.dstDir+'/'+'scores_{}.em'.format(self.suffix))
-            os.rename(self.dstDir+'/'+'node_0_orient.em', self.dstDir+'/'+'angles_{}.em'.format(self.suffix))
+            os.rename(self.dstDir+'/'+'node_0_res.em', self.dstDir+'/'+'scores_{}{}.em'.format(self.suffix, gpuflag))
+            os.rename(self.dstDir+'/'+'node_0_orient.em', self.dstDir+'/'+'angles_{}{}.em'.format(self.suffix, gpuflag))
         
         self.clean() # clean itself
         pytom_mpi.finalise()

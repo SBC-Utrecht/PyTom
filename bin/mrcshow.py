@@ -35,9 +35,17 @@ if __name__=='__main__':
         print(helper)
         sys.exit()
     
-    if 1:
+    try:
         fname, ps, sliceId, f_ds, sliceDir, phases, b_help = parse_script_options(sys.argv[1:], helper)
-        
+    except:
+        print(helper)
+        sys.exit()
+
+    if b_help:
+        print(helper)
+        sys.exit()
+
+
     if fname.endswith('.em'):
         vol = read(fname)
         data = copy.deepcopy(vol2npy(vol)).T

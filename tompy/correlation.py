@@ -1,7 +1,6 @@
 from pytom.tompy.tools import paste_in_center, create_sphere
 from pytom.gpu.initialize import xp, device
 
-
 def meanUnderMask(volume, mask=None, p=1, gpu=False):
     """
     meanValueUnderMask: Determines the mean value under a mask
@@ -16,8 +15,7 @@ def meanUnderMask(volume, mask=None, p=1, gpu=False):
     @change: support None as mask, FF 08.07.2014
     """
 
-    return (volume * mask).sum() / p
-
+    return (volume*mask).sum() / p
 
 def stdUnderMask(volume, mask, meanValue, p=1, gpu=False):
     """
@@ -33,8 +31,8 @@ def stdUnderMask(volume, mask, meanValue, p=1, gpu=False):
     @rtype: L{float}
     @change: support None as mask, FF 08.07.2014
     """
-    return (meanUnderMask(volume ** 2, mask, p) - meanValue ** 2) ** 0.5
 
+    return (meanUnderMask(volume**2, mask, p) - meanValue**2)**0.5
 
 def meanVolUnderMask(volume, mask):
     """
@@ -53,7 +51,6 @@ def meanVolUnderMask(volume, mask):
     """
     res = xp.fft.fftshift(xp.fft.irfftn(xp.fft.rfftn(volume) * xp.conj(xp.fft.rfftn(mask)))) / mask.sum()
     return res.real
-
 
 def stdVolUnderMask(volume, mask, meanV):
     """
@@ -74,10 +71,9 @@ def stdVolUnderMask(volume, mask, meanV):
     meanV2 = meanV * meanV
     vol2 = volume * volume
     var = meanVolUnderMask(vol2, mask) - meanV2
-    var[var < 1E-09] = 1
+    var[var<1E-09] = 1
 
-    return var ** 0.5
-
+    return var**0.5
 
 def meanVolUnderMaskPlanned(volume, mask, ifftnP, fftnP, plan):
     """
@@ -98,7 +94,6 @@ def meanVolUnderMaskPlanned(volume, mask, ifftnP, fftnP, plan):
     mask_fft = fftnP(mask.astype(xp.complex64), plan=plan)
     res = xp.fft.fftshift(ifftnP(volume_fft * xp.conj(mask_fft), plan=plan)) / mask.sum()
     return res.real
-
 
 def stdVolUnderMaskPlanned(volume, mask, meanV, ifftnP, fftnP, plan):
     """
@@ -122,7 +117,6 @@ def stdVolUnderMaskPlanned(volume, mask, meanV, ifftnP, fftnP, plan):
     var[var < 1E-09] = 1
 
     return var ** 0.5
-
 
 def FLCF(volume, template, mask=None, stdV=None, gpu=False, mempool=None, pinned_mempool=None):
     '''Fast local correlation function
@@ -201,7 +195,7 @@ def nxcc(volume, template, mask=None, volumeIsNormalized=False):
         raise RuntimeError('Volume and template must have same size!')
 
     if mask is None:
-        # from pytom.tompy.normalise import mean0std1
+        from pytom.tompy.normalise import mean0std1
         if not volumeIsNormalized:
             v = mean0std1(volume, True)
         else:
@@ -226,7 +220,6 @@ def nxcc(volume, template, mask=None, volumeIsNormalized=False):
 
     return float(ncc)
 
-
 def mean0std1(volume, copyFlag=False):
     """
     mean0std1: normalises input volume to mean 0 and std 1. Procedure is performed inplace if copyFlag is unspecified!!!
@@ -234,64 +227,22 @@ def mean0std1(volume, copyFlag=False):
     @param copyFlag: If True a copy of volume will be returned. False unless specified otherwise.
     @return: If copyFlag == True, then return a normalised copy.
     @author: Thomas Hrabe
+    #todo This function can be removed, and instead imported from pytom.tompy.normalise, where it is correct
     """
     from pytom.tools.maths import epsilon
 
-    # volume = xp.fft.fftshift(xp.fft.ifftn(volume))
-    volume = xp.fft.fftn(volume)
+
+    volume = xp.fft.fftshift(xp.fft.ifftn(volume))
 
     volumeMean = volume.mean()
     volume -= volumeMean
     volumeStd = volume.std()
+
     volume /= volumeStd if volumeStd > epsilon else 1
 
     return volume
 
-
 def xcf(volume, template, mask=None, stdV=None, ):
-    """
-    XCF: returns the non-normalised cross correlation function. The xcf
-    result is scaled only by the square of the number of elements.
-
-    @param volume : The search volume
-    @type volume: L{pytom_volume.vol}
-    @param template : The template searched (this one will be used for conjugate complex multiplication)
-    @type template: L{pytom_volume.vol}
-    @param mask: Will be unused, only for compatibility reasons with FLCF
-    @param stdV: Will be unused, only for compatibility reasons with FLCF
-    @return: XCF volume
-    @rtype: L{pytom_volume.vol}
-    @author: Thomas Hrabe
-    """
-
-    # if mask:
-    #    volume = volume * mask
-    #	 template = template * mask
-
-    # determine fourier transforms of volumes
-    if template.dtype in (xp.float64, xp.float32):
-        fvolume = xp.fft.fftn(volume)
-    else:
-        fvolume = volume
-
-    if template.dtype in (xp.float32, xp.float64):
-        ftemplate = xp.fft.fftn(template)
-    else:
-        ftemplate = template
-
-    # perform element wise - conjugate multiplication
-    ftemplate = xp.conj(ftemplate)
-    fresult = fvolume * ftemplate
-
-    # transform back to real space
-    result = abs(xp.fft.ifftn(fresult))
-
-    # xp.fft.iftshift(result)
-
-    return result
-
-
-def xcf_mult(volume, template, mask, stdV=None, ):
     """
     XCF: returns the non-normalised cross correlation function. The xcf
     result is scaled only by the square of the number of elements.
@@ -333,6 +284,40 @@ def xcf_mult(volume, template, mask, stdV=None, ):
 
     return result
 
+def xcf_mult(volume, template, mask, stdV=None, ):
+    """
+    XCF: returns the non-normalised cross correlation function. The xcf
+    result is scaled only by the square of the number of elements.
+
+    @param volume : The search volume
+    @type volume: L{pytom_volume.vol}
+    @param template : The template searched (this one will be used for conjugate complex multiplication)
+    @type template: L{pytom_volume.vol}
+    @param mask: Will be unused, only for compatibility reasons with FLCF
+    @param stdV: Will be unused, only for compatibility reasons with FLCF
+    @return: XCF volume
+    @rtype: L{pytom_volume.vol}
+    @author: Thomas Hrabe
+    """
+
+    # if mask:
+    #    volume = volume * mask
+    #	 template = template * mask
+
+    # determine fourier transforms of volumes
+    fvolume = xp.fft.fftn(volume)
+    ftemplate = xp.fft.fftn(template)
+
+    # perform element wise - conjugate multiplication
+    ftemplate = xp.conj(ftemplate)
+    fresult = fvolume * ftemplate
+
+    # transform back to real space
+    result = abs(xp.fft.ifftn(fresult))
+
+    #xp.fft.iftshift(result)
+
+    return result
 
 def nXcf(volume, template, mask=None, stdV=None, gpu=False):
     """
@@ -355,6 +340,7 @@ def nXcf(volume, template, mask=None, stdV=None, gpu=False):
         result = xcf_mult(normaliseUnderMask(volume=volume, mask=mask, p=None),
                           normaliseUnderMask(volume=template, mask=mask, p=None), mask)
     else:
+        from pytom.tompy.normalise import mean0std1
         result = xcf_mult(mean0std1(volume), mean0std1(template), mask)
 
     # n = result.size
@@ -362,7 +348,6 @@ def nXcf(volume, template, mask=None, stdV=None, gpu=False):
     # result /= float(n * n)
 
     return result
-
 
 def normaliseUnderMask(volume, mask, p=None):
     """
@@ -379,24 +364,25 @@ def normaliseUnderMask(volume, mask, p=None):
     @author: FF
     """
 
-    # from math import sqrt
+    #from math import sqrt
     if not p:
         p = mask.sum()
-    # meanT = sum(volume) / p
+    #meanT = sum(volume) / p
     ## subtract mean and mask
-    # res = mask * (volume - meanT)
-    # stdT = sum(res*res) / p
-    # stdT = sqrt(stdT)
-    # res = res / stdT
+    #res = mask * (volume - meanT)
+    #stdT = sum(res*res) / p
+    #stdT = sqrt(stdT)
+    #res = res / stdT
 
     meanT = meanUnderMask(volume, mask, p)
 
     stdT = stdUnderMask(volume, mask, meanT, p)
-    res = (volume - meanT) / stdT
-    return (res, p)
 
+    res = (volume - meanT) / stdT
+    return res
 
 def bandCC(volume, reference, band, verbose=False, shared=None, index=None):
+
     """
     bandCC: Determines the normalised correlation coefficient within a band
     @param volume: The volume
@@ -417,18 +403,18 @@ def bandCC(volume, reference, band, verbose=False, shared=None, index=None):
     # from pytom.tompy.filter import vol_comp
 
     if verbose:
-        print('lowest freq : ', band[0], ' highest freq', band[1])
-
-    vf, m = bandpass(volume, band[0], band[1], returnMask=True, fourierOnly=True)
-    rf = bandpass(reference, band[0], band[1], mask=m, fourierOnly=True)  # ,vf[1])
-    # ccVolume = vol_comp(rf[0].shape[0],rf[0].shape[1],rf[0].shape[2])
-    # ccVolume.copyVolume(rf[0])
+        print('lowest freq : ', band[0],' highest freq' , band[1])
+        
+    vf, m = bandpass(volume,band[0],band[1],returnMask=True, fourierOnly=True)
+    rf = bandpass(reference,band[0],band[1], mask=m, fourierOnly=True)#,vf[1])
+    #ccVolume = vol_comp(rf[0].shape[0],rf[0].shape[1],rf[0].shape[2])
+    #ccVolume.copyVolume(rf[0])
 
     vf = vf.astype(xp.complex128)
     ccVolume = rf.astype(vf.dtype)
 
     ccVolume = ccVolume * xp.conj(vf)
-    # pytom_volume.conj_mult(ccVolume,vf[0])
+    #pytom_volume.conj_mult(ccVolume,vf[0])
 
     cc = ccVolume.sum()
 
@@ -449,17 +435,17 @@ def bandCC(volume, reference, band, verbose=False, shared=None, index=None):
         sumV = 1
 
     if sumR == 0:
-        sumR = 1
+        sumR =1
 
-    cc = cc / (xp.sqrt(sumV * sumR))
-    # numerical errors will be punished with nan
-    if abs(cc) > 1.1:
+    cc = cc / (xp.sqrt(sumV*sumR))
+    
+    #numerical errors will be punished with nan
+    if abs(cc) > 1.1 :
         cc = float('nan')
 
     return float(cc)
-
-
-def weightedXCC(volume, reference, numberOfBands, wedgeAngle=-1, gpu=False):
+    
+def weightedXCC(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
     """
     weightedXCC: Determines the band weighted correlation coefficient for a volume and reference. Notation according Steward/Grigorieff paper
     @param volume: A volume
@@ -567,6 +553,7 @@ def FSCSum(volume, reference, numberOfBands, wedgeAngle=-1, gpu=False):
     freference = xp.fft.fftn(reference)
     numelem = volume.size
 
+    #todo Function is defined nowhere and not imported from anywhere
     fvolume = shiftscale(fvolume, 0, 1 / float(numelem))
     freference = shiftscale(fvolume, 0, 1 / float(numelem))
 
@@ -724,7 +711,6 @@ def weightedXCF(volume, reference, numberOfBands, wedgeAngle=-1, gpu=False):
 
     return result
 
-
 def FSC(volume1, volume2, numberBands=None, mask=None, verbose=False, filename=None, num_procs=1):
     """
     FSC - Calculates the Fourier Shell Correlation for two volumes
@@ -744,7 +730,7 @@ def FSC(volume1, volume2, numberBands=None, mask=None, verbose=False, filename=N
 
     from pytom.tompy.correlation import bandCC
     from pytom.basic.structures import Mask
-    from pytom.tompy.io import read, write
+    from pytom.tompy.io import read,write
     from pytom.tompy.tools import volumesSameSize
     import time
     t = time.time()
@@ -752,7 +738,7 @@ def FSC(volume1, volume2, numberBands=None, mask=None, verbose=False, filename=N
     if not volumesSameSize(volume1, volume2):
         raise RuntimeError('Volumes must have the same size!')
 
-    numberBands = volume1.shape[0] // 2 if numberBands is None else numberBands
+    numberBands = volume1.shape[0]//2 if numberBands is None else numberBands
 
     if not mask is None:
         if mask.__class__ == xp.array([0]).__class__:
@@ -773,15 +759,16 @@ def FSC(volume1, volume2, numberBands=None, mask=None, verbose=False, filename=N
             raise RuntimeError('FSC: Mask must be a volume OR a Mask object OR a string path to a mask!')
 
     fscResult = []
-    band = [-1, -1]
+    band = [-1,-1]
+    
+    increment = int(volume1.shape[0]/2 * 1/numberBands)
 
-    increment = int(volume1.shape[0] / 2 * 1 / numberBands)
     import time
 
     fvolume1 = xp.fft.fftn(volume1)
     fvolume2 = xp.fft.fftn(volume2)
 
-    for n, i in enumerate(range(0, volume1.shape[0] // 2, increment)):
+    for n, i in enumerate(range(0,volume1.shape[0]//2, increment)):
 
         band[0] = i
         band[1] = i + increment
@@ -808,7 +795,6 @@ def FSC(volume1, volume2, numberBands=None, mask=None, verbose=False, filename=N
     print('total time: ', time.time() - t)
 
     return fscResult
-
 
 def determineResolution(fsc, resolutionCriterion, verbose=False, randomizedFSC=None, gpu=False):
     """
@@ -1196,6 +1182,7 @@ def randomizePhaseBeyondFreq(volume, frequency):
     else:
         X, Y, Z = xp.meshgrid(xp.arange(-dx // 2, dx // 2), xp.arange(-dy // 2, dy // 2),
                               xp.arange(-dz // 2, dz // 2))
+
         RF = xp.sqrt(X ** 2 + Y ** 2 + Z ** 2)  # .astype(int)
         R = xp.fft.fftshift(RF)[:, :, :dz // 2 + 1]
         # centralslice = fftshift(rnda[:,:,0])
@@ -1214,7 +1201,6 @@ def randomizePhaseBeyondFreq(volume, frequency):
         raise Exception('Imaginary part is non-zero. Failed to centro-summetrize the phases.')
 
     return image.real
-
 
 def calc_FSC_true(FSC_t, FSC_n, ring_thickness=1):
     '''Calculates the true FSC as defined in Henderson
@@ -1241,14 +1227,13 @@ def calc_FSC_true(FSC_t, FSC_n, ring_thickness=1):
             FSC_true[i] = FSC_t[i]
             steps += 1
         else:
-            FSC_true[i] = (FSC_t[i] - max(0, FSC_n[i])) / (1 - max(0, FSC_n[i]))
+            FSC_true[i] = (FSC_t[i] - max(0,FSC_n[i])) / (1 - max(0,FSC_n[i]))
 
     return FSC_true
 
-
 if 'gpu' in device:
     argmax = xp.RawKernel(r'''
-
+    
         extern "C"  __device__ void warpReduce(volatile float* sdata, volatile int* maxid, int tid, int blockSize) {
             if (blockSize >= 64 && sdata[tid] < sdata[tid + 32]){ sdata[tid] = sdata[tid + 32]; maxid[tid] = maxid[tid+32];} 
             if (blockSize >= 32 && sdata[tid] < sdata[tid + 16]){ sdata[tid] = sdata[tid + 16]; maxid[tid] = maxid[tid+16];}
@@ -1309,7 +1294,6 @@ def maxIndex(volume, num_threads=1024):
     indices = xp.unravel_index(mm, volume.shape)
     return indices
 
-
 def subPixelMax3D(volume, k=.01, ignore_border=50, interpolation='filt_bspline', plan=None, profile=True,
                   num_threads=1024, zoomed=None, fast_sum=None, max_id=None):
     """
@@ -1327,9 +1311,13 @@ def subPixelMax3D(volume, k=.01, ignore_border=50, interpolation='filt_bspline',
     from pytom.voltools import transform
     from pytom.tompy.io import write
 
-    ox, oy, oz = volume.shape
+
+
+
+
+    ox,oy,oz = volume.shape
     ib = ignore_border
-    cropped_volume = volume[ib:ox - ib, ib:oy - ib, ib:oz - ib].astype(xp.float32)
+    cropped_volume = volume[ib:ox-ib, ib:oy-ib, ib:oz-ib].astype(xp.float32)
 
     if profile:
         stream = xp.cuda.Stream.null
@@ -1338,8 +1326,9 @@ def subPixelMax3D(volume, k=.01, ignore_border=50, interpolation='filt_bspline',
     # x,y,z = xp.array(maxIndex(cropped_volume)) + ignore_border
     x, y, z = xp.array(xp.unravel_index(cropped_volume.argmax(), cropped_volume.shape)) + ignore_border
 
-    dx, dy, dz = volume.shape
-    translation = [dx // 2 - x, dy // 2 - y, dz // 2 - z]
+    dx,dy,dz=volume.shape
+    translation = [dx//2-x, dy//2-y, dz//2-z]
+
 
     if profile:
         t_end = stream.record()
@@ -1349,11 +1338,14 @@ def subPixelMax3D(volume, k=.01, ignore_border=50, interpolation='filt_bspline',
         print(f'initial find max time: \t{time_took:.3f}ms')
         t_start = stream.record()
 
-    b = border = max(0, int(volume.shape[0] // 2 - 4 / k))
-    zx, zy, zz = volume.shape
-    out = volume[b:zx - b, b:zy - b, b:zz - b]
 
-    transform(out, output=zoomed, scale=(k, k, k), device=device, translation=translation, interpolation=interpolation)
+
+    b = border = max(0,int(volume.shape[0]//2- 4 / k))
+    zx,zy,zz = volume.shape
+    out = volume[b:zx-b,b:zy-b,b:zz-b]
+
+
+    transform(out, output=zoomed, scale=(k,k,k), device=device, translation=translation, interpolation=interpolation)
 
     if profile:
         t_end = stream.record()
@@ -1363,14 +1355,15 @@ def subPixelMax3D(volume, k=.01, ignore_border=50, interpolation='filt_bspline',
         print(f'transform finished in \t{time_took:.3f}ms')
         t_start = stream.record()
 
+
     nblocks = int(xp.ceil(zoomed.size / num_threads / 2))
-    argmax((nblocks, 1,), (num_threads, 1, 1), (zoomed, fast_sum, max_id, zoomed.size), shared_mem=8 * num_threads)
-    x2, y2, z2 = xp.unravel_index(max_id[fast_sum.argmax()], zoomed.shape)
+    argmax((nblocks, 1,), (num_threads, 1, 1), (zoomed, fast_sum, max_id, zoomed.size), shared_mem=8*num_threads)
+    x2,y2,z2 = xp.unravel_index(max_id[fast_sum.argmax()], zoomed.shape)
 
     peakValue = zoomed[x2][y2][z2]
-    peakShift = [x + (x2 - zoomed.shape[0] // 2) * k - volume.shape[0] // 2,
-                 y + (y2 - zoomed.shape[1] // 2) * k - volume.shape[1] // 2,
-                 z + (z2 - zoomed.shape[2] // 2) * k - volume.shape[2] // 2]
+    peakShift = [x + (x2-zoomed.shape[0]//2)*k - volume.shape[0]//2,
+                 y + (y2-zoomed.shape[1]//2)*k - volume.shape[1]//2,
+                 z + (z2-zoomed.shape[2]//2)*k - volume.shape[2]//2]
 
     if profile:
         t_end = stream.record()

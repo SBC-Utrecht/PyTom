@@ -30,6 +30,23 @@ old = '''
  
 '''
 
+newTemplateAlignment = '''cd {d[0]}; 
+
+{d[1]}/bin/pytom {d[1]}/reconstruction/generateAlignedTiltImages.py \\
+    --tiltSeriesName {d[2]}  \\
+	--firstIndex {d[3]} \\
+	--lastIndex {d[4]} \\
+	--referenceIndex {d[5]} \\
+	--referenceMarkerIndex {d[6]} \\
+	--markerFile {d[7]} \\
+	--projectionTargets {d[8]} \\
+	--projectionBinning {d[9]} \\
+	--lowpassFilter 0.9 \\
+	--weightingType {d[10]} \\
+	--expectedRotationAngle {d[11]} \\
+    --numberProcesses 1 '''
+
+
 templateAlignment = '''cd {d[0]}
 
 {d[1]}/bin/pytom {d[1]}/bin/reconstructTomogram.py \\
@@ -37,11 +54,11 @@ templateAlignment = '''cd {d[0]}
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\
     --referenceIndex {d[4]} \\
-    --markerFile alignment/markerfile.em \\
     --referenceMarkerIndex {d[5]} \\
-    --expectedRotationAngle {d[7]} \\
-    --projectionTargets alignment/unweighted_unbinned_marker_{d[5]}{d[8]}/sorted_aligned \\
     --projectionBinning {d[6]} \\
+    --expectedRotationAngle {d[7]} \\
+    --projectionTargets alignment/marker_{d[5]}{d[8]}/sorted_aligned \\
+    --markerFile {d[9]} \\
     --lowpassFilter 0.9 \\
     --tiltSeriesFormat mrc \\
     --weightingType 0 '''
@@ -100,7 +117,7 @@ ln -s {d[0]}/reconstruction/INFR/{d[8]}_INFR.em ../../04_Particle_Picking/Tomogr
 
 
 
-templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[1]}]' Frequency='{d[2]}' MaxIterations='{d[3]}' PeakOffset='{d[4]}' RScore='{d[5]}' WeightedAverage='{d[6]}'>
+templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[1]}]' Frequency='{d[2]}' MaxIterations='{d[3]}' PeakOffset='{d[4]}' RScore='{d[5]}' WeightedAverage='{d[6]}' Binning='1'>
     <Reference PreWedge="" File="{d[7]}" Weighting="{d[8]}"/>
     <Mask Filename="{d[9]}" Binning="{d[10]}" isSphere="{d[11]}"/>
     <SampleInformation PixelSize="{d[12]}" ParticleDiameter="{d[13]}"/>
@@ -129,16 +146,16 @@ mpiexec -n {d[14]} {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
 --angleShells {d[12]} \\
 --angleIncrement {d[13]} \\
 --jobName {d[10]} \\
-{d[4]}'''
+{d[4]}{d[15]}'''
 
 templateCCC       = """cd {d[0]}
 
-mpiexec --tag-output -n {d[7]} pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]} -o {d[6]}
+mpiexec --tag-output -n {d[7]} pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]} -o {d[6]} {d[8]}
 """
 
 templateCPCA      = """cd {d[0]}
 
-classifyCPCA.py -p {d[2]} -o {d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[7]}
+classifyCPCA.py -p {d[2]} -o {d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[7]}/{d[8]}
 """
 
 templateAC        = '''cd {d[0]}
@@ -177,7 +194,7 @@ reconstructWB.py --particleList {d[0]} \\
 
 polishParticles = '''cd {d[0]}
 
-mpiexec -n {d[1]} {d[2]}/bin/pytom {d[2]}/polishing/particlePolishing.py \\
+mpiexec -n {d[1]} particlePolishingOrig.py \\
 --particleList {d[3]} \\
 --projectionDirectory {d[4]} \\
 --template {d[5]} \\
@@ -185,7 +202,7 @@ mpiexec -n {d[1]} {d[2]}/bin/pytom {d[2]}/polishing/particlePolishing.py \\
 --coordinateBinning {d[7]} \\
 --maxParticleShift {d[8]} \\
 --recOffset {d[9]},{d[10]},{d[11]} \\
-{d[12]}
+{d[12]} {d[13]} {d[14]}
 '''
 
 extractParticlesClosestMarker = '''cd {d[8]}
@@ -273,14 +290,37 @@ fsc.py {d[2]} \\
 --fsc {d[7]} \\
 --pixelsize {d[8]} \\
 --randomizePhases {d[9]} \\
-{d[10]}'''
+{d[10]}{d[11]} {d[12]}'''
+
+
+
+templateFSC2 = '''cd {d[0]}
+
+fsc.py {d[2]} \\
+{d[3]} \\
+{d[4]} \\
+{d[5]} \\
+--outputFolder {d[6]} \\
+--fsc {d[7]} \\
+--pixelsize {d[8]} \\
+--randomizePhases {d[9]} \\
+{d[10]}{d[11]} {d[12]}'''
+
+templateCTFCorrectionImod = '''cd {d[0]}                                                                                                                                                                                      
+
+ctfphaseflip -inp {d[1]} -o {d[2]} -an {d[3]} -defF {d[4]} \\
+-defT {d[5]} -iW {d[6]} -pi {d[7]} -cs {d[8]} \\
+-am {d[9]} -vo {d[10]} -AxisAngle {d[11]}
+
+mrcs2mrc.py -f {d[2]} -t {d[12]} -p {d[13]} -o {d[14]}'''
 
 templateMotionCorrection = '''cd {d[0]}
 
-motioncor2 -In{d[1]} {d[2]} \\
--OutMrc {d[3]} \\
+motioncor2 -In{d[1]} {d[2]}/ \\
+-InSuffix .{d[8]} \\
+-OutMrc {d[3]}/ \\
 -Serial 1 \\
 {d[7]} \\
-{d[4]} \\
-{d[5]} {d[6]}
+{d[4]} {d[5]} {d[6]}
 '''
+

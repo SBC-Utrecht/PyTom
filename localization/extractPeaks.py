@@ -1,3 +1,4 @@
+
 #def updateResult(resVol, newVol, orientVol, index):
 #    '''
 #    Created on May 17, 2010
@@ -95,7 +96,11 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     else:
         sumV = None
         sqrV = None
-    
+
+    if wedgeInfo.__class__ == WedgeInfo or wedgeInfo.__class__ == Wedge:
+        print('Applied wedge to volume')
+        volume = wedgeInfo.apply(volume)
+
     while currentRotation != [None,None,None]:
         if verbose == True:
             prog.update(index)
@@ -130,10 +135,12 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
             from pytom.basic.correlation import meanUnderMask, stdUnderMask
             meanV = meanUnderMask(volume, maskV, p);
             stdV = stdUnderMask(volume, maskV, p, meanV);
-        
+
+        # ref.write('template_cpu.em')
+
         if scoreFnc == FLCF:
             if maskIsSphere == True:
-                score = scoreFnc(volume, ref, m, stdV)
+                score = scoreFnc(volume, ref, m, stdV, wedge=1)
             else:
                 score = scoreFnc(volume, ref, m)
         else: # not FLCF, so doesn't need mask as parameter and perhaps the reference should have the same size
@@ -142,7 +149,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
             pasteCenter(ref, _ref)
             
             score = scoreFnc(volume, _ref)
-        
+
         # update the result volume and the orientation volume
         updateResFromIdx(result, score, orientation, index)
         
@@ -163,31 +170,53 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
 
 def extractPeaksGPU(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, padding=True, **kwargs):
     from pytom_numpy import vol2npy
+    from pytom.tompy.filter import create_wedge, applyFourierFilter
+    from pytom.tompy.io import write
     from pytom.gpu.gpuStructures import TemplateMatchingGPU
     from pytom.tools.calcFactors import calc_fast_gpu_dimensions
     import time
     import numpy as np
     from pytom_freqweight import weight
 
-    angles = rotations[:]
-    volume, ref, mask = [vol2npy(vol) for vol in (volume, reference, mask)]
 
-    wedgeAngle = 30
-    wedgeFilter = weight(wedgeAngle, wedgeAngle, ref.shape[0] // 2, ref.shape[0], ref.shape[1], ref.shape[2], 0)
-    wedgeVolume = wedgeFilter.getWeightVolume(True)
-    wedge = vol2npy(wedgeVolume).copy()
+
+
+    angles = rotations[:]
+    #volume = wedgeInfo.apply(volume)
+
+    volume, ref, mask = [vol2npy(vol) for vol in (volume, reference, mask)]
+    SX,SY,SZ = volume.shape
+    sx,sy,sz = ref.shape
+    angle = wedgeInfo.getWedgeAngle()
+
+    if angle.__class__ != list:
+        w1 = w2 = angle
+    else:
+        w1,w1 = angle
+
+    if w1 > 1E-3 or w2 > 1E-3:
+        print('Wedge applied to volume')
+        cutoff = wedgeInfo._wedgeObject._cutoffRadius if wedgeInfo._wedgeObject._cutoffRadius > 1E-3 else sx//2
+        smooth = wedgeInfo._wedgeObject._smooth
+        wedge = create_wedge(w1, w2, cutoff, sx, sy, sz, smooth).astype(np.complex64)
+        wedgeVolume = create_wedge(w1, w2, SX//2-2, SX, SY, SZ, smooth).astype(np.float32)
+        volume = np.real(np.fft.irfftn(np.fft.rfftn(volume) * wedgeVolume.get()))
+
+    else:
+        wedge = np.ones((sx,sy,sz//2+1),dtype='float32')
+        #wedgeVolume = np.ones_like(volume,dtype='float32')
 
     if padding:
         dimx, dimy, dimz = volume.shape
 
-        cx = calc_fast_gpu_dimensions(dimx - 2, 4000)[0]
-        cy = calc_fast_gpu_dimensions(dimy - 2, 4000)[0]
-        cz = calc_fast_gpu_dimensions(dimz - 2, 4000)[0]
+        cx = max(ref.shape[0], calc_fast_gpu_dimensions(dimx - 2, 4000)[0])
+        cy = max(ref.shape[1], calc_fast_gpu_dimensions(dimy - 2, 4000)[0])
+        cz = max(ref.shape[2], calc_fast_gpu_dimensions(dimz - 2, 4000)[0])
         voluNDAs = np.zeros([cx, cy, cz], dtype=np.float32)
         voluNDAs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = volume[:min(cx, dimx), :min(cy, dimy),
                                                                    :min(cz, dimz)]
         volume = voluNDAs
-        print(f'dimensions of volume: {ref.shape}')
+        print(f'dimensions of volume: {ref.shape} {mask.shape} ')
 
     input = (volume, ref, mask, wedge, angles, volume.shape)
 

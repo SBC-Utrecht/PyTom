@@ -35,6 +35,7 @@ class BrowseWindowRemote(QMainWindow):
         self.topleft = QListWidget()
         self.topleft.itemDoubleClicked.connect(self.repopulate_folder_list)
         self.topright = QListWidget()
+
         if search == 'file': self.topright.itemDoubleClicked.connect(self.select_file)
         splitter1 = QSplitter(Qt.Horizontal)
         splitter1.addWidget(self.topleft)
@@ -64,6 +65,7 @@ class BrowseWindowRemote(QMainWindow):
         self.filters = filter
         self.search = search
         self.outputline = outputline
+        self.activeProcesses = {}
 
         try:
             self.servername = str(credentials[0])
@@ -173,6 +175,15 @@ class CollectPreprocess(GuiTabWidget):
         self.qcommand = self.parent().qcommand
         self.widgets = {}
         self.qparams = self.parent().qparams
+        self.localqID = {}
+        self.activeProcesses = {}
+        self.workerID = 0
+        self.threadPool = self.parent().threadPool
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
+        self.localqID = {}
+        self.activeProcesses = {}
 
         self.widgets['pytomPath'] = QLineEdit()
         self.widgets['pytomPath'].setText(self.parent().pytompath)
@@ -194,7 +205,7 @@ class CollectPreprocess(GuiTabWidget):
         self.ends = {}
         self.num_nodes = {}
         self.modes = {}
-
+        self.checkbox= {}
 
         for i in range(len(headers)):
             t = 'tab{}'.format(i + 1)
@@ -239,7 +250,6 @@ class CollectPreprocess(GuiTabWidget):
 
     def tab1UI(self, key):
         '''Fill out the second tab of the collect & preprocess widget.'''
-        print('tabb1UI')
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -262,10 +272,8 @@ class CollectPreprocess(GuiTabWidget):
 
         return
 
-
     def tab2UI(self, key=''):
         '''Fill out the second tab of the collect & preprocess widget.'''
-        print('tabb2UI')
         grid = self.table_layouts[key]
         grid.setAlignment(self, Qt.AlignTop)
 
@@ -285,7 +293,6 @@ class CollectPreprocess(GuiTabWidget):
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
-
 
     def tab3UI(self):
         '''Fill out the second tab of the collect & preprocess widget.'''
@@ -387,7 +394,6 @@ class CollectPreprocess(GuiTabWidget):
         self.tab2.setLayout(gridLayout)
 
     def createCollectGroup(self,mode='v01_DataCollection_'):
-        print('InsertDataCollectionGB', mode)
         title = "Data Collection"
         tooltip = ''
         sizepol = self.sizePolicyB
@@ -406,7 +412,7 @@ class CollectPreprocess(GuiTabWidget):
         self.insert_label(parent, text=' - Nanograph Folder', cstep=1, width=160,
                           tooltip='Select the folder and the data format in which the nanographs are stored.')
         self.widgets[mode+'remote_nanograph'] = QCheckBox()
-        self.insert_combobox(parent, mode+'filetype_nanographs', ['tif', 'mrc'], cstep=1, logvar=True)
+        self.insert_combobox(parent, mode+'filetype_nanographs', ['tif', 'mrc', 'st'], cstep=1, logvar=True)
         self.insert_lineedit(parent, mode+'folder_nanographs', cstep=1, logvar=True)
         self.insert_pushbutton(parent, cstep=self.column * -1 , rstep=1, text='Browse',
                                action=self.browse, width=100,
@@ -490,7 +496,7 @@ class CollectPreprocess(GuiTabWidget):
         self.insert_lineedit(parent, mode+'ftBin', cstep=2 , rstep=1, columnspan=3,
                              validator=QIntValidator(), logvar=True)
 
-        self.widgets[mode + 'fileTypeCapitalized'] = QLineEdit('Tif')
+        self.widgets[mode + 'fileTypeCapitalized'] = QLineEdit('Tiff')
         self.widgets[mode + 'gainFileFlag'] = QLineEdit('')
         self.widgets[mode + 'patchSizeFlag'] = QLineEdit('')
         self.widgets[mode + 'ftBinFlag'] = QLineEdit('')
@@ -505,7 +511,7 @@ class CollectPreprocess(GuiTabWidget):
                                                       id='MotionCorrection')
         paramsCmd = [self.motioncor_folder, mode + 'fileTypeCapitalized', mode + 'folder_nanographs',
                      self.motioncor_folder, mode + 'gainFileFlag', mode + 'patchSizeFlag', mode + 'ftBinFlag',
-                     mode + 'gpuIdFlag', templateMotionCorrection]
+                     mode + 'gpuIdFlag', mode + 'filetype_nanographs', templateMotionCorrection]
 
         self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename, paramsSbatch=paramsSbatch,
                                  cs=3, queue=True)
@@ -590,6 +596,25 @@ class CollectPreprocess(GuiTabWidget):
                         except:
                             os.system('cp -f {} {}'.format(fname, outname))
 
+                    elif outname[-3:] == '.st':
+
+
+                        for end in ('.tlt', '.prexg', '.fid'):
+                            outname_temp = outname.replace('.st', end)
+                            fname_temp = fname.replace('.st', end)
+
+                            if os.path.exists(fname_temp):
+                                try:
+                                    os.link(fname_temp, outname_temp)
+                                except:
+                                    os.system('cp -f {} {}'.format(fname_temp, outname_temp))
+
+                        try:
+                            os.link(fname, outname)
+                        except:
+                            os.system('cp -f {} {}'.format(fname, outname))
+
+
                     else:
                         try:
                             os.link(fname, outname)
@@ -631,7 +656,7 @@ class CollectPreprocess(GuiTabWidget):
         for mdoc in mdocs:
             os.system("mv {} {}".format(mdoc, mdoc[:-5]))
 
-        guiFunctions.createMetaDataFiles(self.rawnanographs_folder, '')
+        guiFunctions.createMetaDataFiles(self.running_folder, '')
         self.popup_messagebox("Info", "Completion", 'Successfully finished data transfer')
         #self.widgets['CandP'].setEnabled(True)
 
@@ -674,7 +699,7 @@ class CollectPreprocess(GuiTabWidget):
                     flist_all = ftps.nlst(self.remote_data_folder)
                 else:
                     flist_all = [self.remote_data_folder]
-                flist = [tiffile for tiffile in flist_all if tiffile[-3:] == self.data_file_type[-3:]]
+                flist = [tiffile for tiffile in flist_all if tiffile.endswith(self.data_file_type)]
             except:
                 self.popup_messagebox("Error", "Error", "Remote data folder does not exist.")
                 return
@@ -686,7 +711,8 @@ class CollectPreprocess(GuiTabWidget):
                 else:
                     flist_all = [self.remote_data_folder]
                 flist = [os.path.join(self.remote_data_folder, tiffile) for tiffile in flist_all if
-                         tiffile[-3:] == self.data_file_type[-3:]]
+                         tiffile.endswith(self.data_file_type)]
+
             except:
                 self.popup_messagebox("Error", "Error", "Data folder does not exist.")
                 return
@@ -723,17 +749,25 @@ class CollectPreprocess(GuiTabWidget):
                 if ftps: ftps.close()
                 return
         self.progressBar_Collect.setMaximum(len(mdoc_list+flist))
+
+
+        for ni in range(10000):
+            ff = f'{self.rawnanographs_folder}/import_{ni:05d}'
+            if not os.path.exists(ff):
+                os.mkdir(ff)
+                break
+        self.running_folder = ff
         # Download or copy selected files.
         for i in range(self.number_collection_subprocesses):
             proc = Process(target=self.meta_retrieve,
                            args=(ftps, flist, mdoc_list[i::self.number_collection_subprocesses],
                                  self.remote_data_folder[i::self.number_collection_subprocesses],
-                                 self.local_data_folder, e, 1))
+                                 self.running_folder, e, 1))
             procs.append(proc)
             proc.start()
             atexit.register(guiFunctions.kill_proc, proc)
         self.flist = flist
-        proc = Worker( fn=self.check_run, args=([e], self.flist, self.rawnanographs_folder) )
+        proc = Worker( fn=self.check_run, args=([e], self.flist, self.running_folder) )
 
         proc.signals.result1.connect(self.update_progress_collect)
         proc.signals.finished_collect.connect(self.delete_progressbar_collect)
@@ -936,12 +970,15 @@ class CollectPreprocess(GuiTabWidget):
             a = [os.path.basename(line) for line in glob.glob( os.path.join(folder1, '*')) ]
 
             total = 0
+
+            # Check if filename f is in the downloaded folder
             for f in flist:
                 if os.path.basename(f) in a: total += 1
             signals.result1.emit(total)
 
             if total >= len(flist):
                 signals.finished_collect.emit()
+                self.activate_stage(1)
                 break
             time.sleep(0.1)
 
@@ -1007,10 +1044,10 @@ class CollectPreprocess(GuiTabWidget):
 
     def updateFileType(self, mode):
         text = self.widgets[mode + 'filetype_nanograph'].currentText()
+        if text == 'tif': text = 'tiff'
         self.widget[mode + 'fileTypeCapitalized'].setText(text.capitalize())
 
     def updateCredentials(self, mode):
-        print(self.modes.keys())
         for name in ('servername', 'username', 'password'):
             setattr(self, name, self.widgets[mode + name].text())
             self.widgets[self.modes[self.modes[mode]] + name].setText(self.widgets[mode + name].text())

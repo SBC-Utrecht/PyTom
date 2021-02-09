@@ -3,6 +3,7 @@ create jobs for Fast Rotational Matching (FRM) alignment interactively
 Created on Apr 2, 2013
 
 @author: yuxiangchen
+@lastchange: FF, May 2020
 '''
 
 from pytom.tools.files import checkFileExists
@@ -13,7 +14,7 @@ def create_job_frm():
     """
     # Task 0
     # particle list
-    print("1/9. Please enter the particle list(s) to be aligned. Multiple lists should be separated by a space.")
+    print("1/10. Please enter the particle list(s) to be aligned. Multiple lists should be separated by a space.")
     print("(Note the wedge situation of the particles should be set.)")
     print("(It is strongly recommended that the absolute path should be given for all the particles.)")
     while True:
@@ -27,7 +28,7 @@ def create_job_frm():
             break
     
     # reference
-    print("2/9. Please enter the file name of the reference.")
+    print("2/10. Please enter the file name of the reference.")
     print("(Note it should be the same size as the particles.)")
     while True:
         ref_filename = input('--> ')
@@ -37,7 +38,7 @@ def create_job_frm():
             print("Reference does not exist. Please enter again.")
     
     # mask
-    print("3/9. Please enter the file name of the mask.")
+    print("3/10. Please enter the file name of the mask.")
     print("(Note it should be the same size as the reference.)")
     while True:
         mask_filename = input('--> ')
@@ -47,7 +48,7 @@ def create_job_frm():
             print("Mask does not exist. Please enter again.")
     
     # starting frequency
-    print("4/9. Please enter the starting frequency (in pixel) of the alignment procedure.")
+    print("4/10. Please enter the starting frequency (in pixel) of the alignment procedure.")
     print("(This is equal to apply the low-pass filter to the reference.)")
     while True:
         freq = input('--> ')
@@ -62,7 +63,7 @@ def create_job_frm():
             print("The starting frequency should be a positive integer. Please enter again.")
     
     # peak offset
-    print("5/9. Please enter the maximal distance allowed (in pixel) to shift the reference.")
+    print("5/10. Please enter the maximal distance allowed (in pixel) to shift the reference.")
     print("(This field is used to prevent shifting the volume out-of-frame and reduce the search space.)")
     while True:
         peak_offset = input('--> ')
@@ -77,7 +78,7 @@ def create_job_frm():
             print("The peak offset should be a positive integer. Please enter again.")
     
     # number of iterations
-    print("6/9. Please enter the number of iterations to run.")
+    print("6/10. Please enter the number of iterations to run.")
     while True:
         niter = input('--> ')
         
@@ -89,9 +90,27 @@ def create_job_frm():
                 raise Exception()
         except:
             print("The number of iterations should be a positive integer. Please enter again.")
+
+    # binning
+    print("7/10. Please enter the binning factor (>=1, default is 1).")
+    while True:
+        binning = input('--> ')
+        
+        try:
+            if len(binning) == 0:
+                binning = 1
+            else:
+                binning = int(binning)
+            if binning >= 1:
+                break
+            else:
+                raise Exception()
+        except:
+            print("The Binning factor should be 1 or greater. Please enter again.")
+            
     
     # pixel size
-    print("7/9. Please enter the pixel size (in Angstrom).")
+    print("8/10. Please enter the pixel size (in Angstrom).")
     while True:
         pixel_size = input('--> ')
         
@@ -105,7 +124,7 @@ def create_job_frm():
             print("The pixel size should be a positive number. Please enter again.")
     
     # adaptive resolution
-    print("8/9. Please enter the adaptive resolution to be included (in percentage, default is 0).")
+    print("9/10. Please enter the adaptive resolution to be included (in percentage, default is 0).")
     while True:
         adaptive_res = input('--> ')
         
@@ -122,7 +141,7 @@ def create_job_frm():
             print("The adaptive resolution should be a number in the range 0-1. Please enter again.")
             
     # FSC criterion
-    print("9/9. Please enter the FSC criterion to use (default is 0.5).")
+    print("10/10. Please enter the FSC criterion to use (default is 0.5).")
     while True:
         fsc = input('--> ')
         
@@ -143,10 +162,11 @@ def create_job_frm():
     while True:
         output = input('--> ')
         try:
-            f = open(output, 'wb')
-            f.write("<FRMJob Destination='.' BandwidthRange='[4, 64]' Frequency='%d' MaxIterations='%d' PeakOffset='%d' AdaptiveResolution='%.2f' FSC='%.2f'>\n" % (freq, niter, peak_offset, adaptive_res, fsc))
-            f.write("    <Reference PreWedge='' File='%s' Weighting=''>\n      <ParticleList Path='/'/>\n    </Reference>\n" % ref_filename)
-            f.write("    <Mask Filename='%s' Binning='1' isSphere='True'/>\n" % mask_filename)
+            f = open(output, 'w')
+            f.write(f"<FRMJob Destination='.' BandwidthRange='[4, 64]' Frequency='{freq:d}' MaxIterations='{niter:d}' PeakOffset='{peak_offset:d}' AdaptiveResolution='{adaptive_res:.2f}' FSC='{fsc:.2f}' binning='{binning:d}'>\n")
+            #f.write("    <Reference PreWedge='' File='%s' Weighting=''>\n      <ParticleList Path='/'/>\n    </Reference>\n" % ref_filename)
+            f.write("    <Reference PreWedge='' File='%s' Weighting=''>\n          </Reference>\n" % ref_filename)
+            f.write("    <Mask Filename='%s' isSphere='True'/>\n" % mask_filename)
             f.write("    <SampleInformation PixelSize='%.2f' ParticleDiameter='1'/>\n" % pixel_size)
             for pl_filename in pl_filenames:
                 f.write("    <ParticleListLocation Path='%s'/>\n" % pl_filename)

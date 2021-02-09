@@ -10,21 +10,27 @@ def mean0std1(volume, copyFlag=False):
     @author: Thomas Hrabe
     """
     from pytom.tools.maths import epsilon
+
     if volume.dtype == xp.complex64:
-        volume = xp.fft.ifftshift(xp.fft.ifftn(volume))
+        volume = xp.fft.ifftshift(ifftn(volume))
+
     if not copyFlag:
         volume -= volume.mean()
         volumeStd = volume.std()
+
         if volumeStd < epsilon:
             raise ValueError(
                 'pytom_normalise.mean0std1 : The standard deviation is too low for division! ' + str(volumeStd))
+
         volume /= volumeStd
     else:
         volumeCopy = volume.copy()
         volumeStd = volume.std()
+
         if volumeStd < epsilon:
             raise ValueError(
                 'pytom_normalise.mean0std1 : The standard deviation is too low for division! ' + str(volumeStd))
+
         # volumeCopy.shiftscale(-1.*volumeMean,1)
         return (volumeCopy - volume.mean()) / volumeStd
 
@@ -32,6 +38,7 @@ def mean0std1(volume, copyFlag=False):
 def normaliseUnderMask(volume, mask, p=None):
     """
     normalize volume within a mask - take care: only normalization, but NOT multiplication with mask!
+
     @param volume: volume for normalization
     @type volume: pytom volume
     @param mask: mask
@@ -46,14 +53,18 @@ def normaliseUnderMask(volume, mask, p=None):
     # from math import sqrt
     if not p:
         p = xp.sum(mask)
+        print(p)
     # meanT = sum(volume) / p
     ## subtract mean and mask
     # res = mask * (volume - meanT)
     # stdT = sum(res*res) / p
     # stdT = sqrt(stdT)
     # res = res / stdT
+
     meanT = meanUnderMask(volume, mask, p)
+
     stdT = stdUnderMask(volume, mask, meanT, p)
+    print(meanT, stdT)
     res = (volume - meanT) / stdT
     return (res, p)
 
@@ -61,6 +72,7 @@ def normaliseUnderMask(volume, mask, p=None):
 def subtractMeanUnderMask(volume, mask):
     """
     subtract mean from volume/image under mask
+
     @param volume: volume/image
     @type volume: L{pytom_volume.vol}
     @param mask: mask

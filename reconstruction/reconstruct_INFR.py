@@ -21,7 +21,7 @@ if __name__ == '__main__':
                           options=[ScriptOption('-d', 'Unbinned projection directory. Note the projections should be aligned but not weighted!', True, False),
                                    ScriptOption('-o', 'Output filename.', True, False),
                                    ScriptOption('-i', 'Number of iterations to run.', True, True),
-                                   ScriptOption('-m', 'Meta file including tiltangles.', True, False),
+                                   ScriptOption('-m', 'Meta file including tiltangles.', True, True),
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     if len(sys.argv) == 1:
         print(helper)
@@ -46,12 +46,15 @@ if __name__ == '__main__':
         tiltAngles = metadata['TiltAngle']
     else:
         tiltAngles = []
+
+    metafile = '' if metafile is None or not os.path.exists(metafile) else metafile
+
     # start reconstruction
     from pytom.tompy.io import read, write
     from nufft.reconstruction import fourier_2d1d_iter_reconstruct
     from pytom.reconstruction.reconstructionStructures import ProjectionList
     projections = ProjectionList()
-    projections.loadDirectory(proj_dir, tiltAngles=tiltAngles)
+    projections.loadDirectory(proj_dir, metafile=metafile)
     projections.sort()
     
     projs = []

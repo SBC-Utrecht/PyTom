@@ -4,6 +4,8 @@ Created on Jun 29, 2011
 @author: yuxiangchen
 '''
 
+import sys
+
 def parse_script_options(args, helper):
     """
     parse script options
@@ -15,6 +17,10 @@ def parse_script_options(args, helper):
     @rtype: L{list}
     """
     import getopt
+
+    if '--help' in args or '-h' in args:
+        print(helper)
+        sys.exit()
     
     res = [] # the result of parsing
     opt_str = ""

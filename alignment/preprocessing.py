@@ -285,6 +285,12 @@ class Preprocessing(PyTomClass):
             preObj.append(weighting)
         
         return preObj
+
+    def convert2numpy(self):
+        from pytom.tompy.structures import Preprocessing
+
+        return Preprocessing(self._lowestFrequency, self._highestFrequency, self._bandpassSmooth, self._prerotate,
+                             self._weightingFile, self._substractParticle, self._taper)
     
     
 class Prerotation(PyTomClass):    
@@ -357,3 +363,4 @@ class Prerotation(PyTomClass):
         worker.fromJob(job)
         
         worker.run()
+

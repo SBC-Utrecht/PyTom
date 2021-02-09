@@ -6,6 +6,7 @@ Created July/Aug 2014
 
 from pytom.basic.correlation import nxcc
 import scipy.optimize
+
 class Alignment:
     def __init__(self, vol1, vol2, score, mask=None, iniRot=None, iniTrans=None,
                  opti='fmin_powell', interpolation='linear', verbose=False):
@@ -52,9 +53,9 @@ class Alignment:
         self.rotvol2 = vol(self.vol1.sizeX(), self.vol2.sizeY(), self.vol2.sizeZ())
         self.mask = mask
         
-        if not iniRot:
+        if iniRot is None:
             iniRot=Rotation()
-        if not iniTrans:
+        if iniTrans is None:
             iniTrans=Shift()
         self.rot_trans = self.transRot2vector( rot=iniRot, trans=iniTrans)
 
@@ -291,7 +292,7 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
     assert isinstance(object=vol2, class_or_type_or_tuple=vol), "alignVolumesAndFilterByFSC: vol2 must be of type vol"
     # filter volumes prior to alignment according to SNR
     fsc = FSC(volume1=vol1, volume2=vol2, numberBands=nband)
-    fil = design_fsc_filter(fsc=fsc, fildim=int(vol2.sizeX()/2))
+    fil = design_fsc_filter(fsc=fsc, fildim=int(vol2.sizeX()//2))
     #filter only one volume so that resulting CCC is weighted by SNR only once
     filvol2 = filter_volume_by_profile(volume=vol2, profile=fil)
     # align vol2 to vol1

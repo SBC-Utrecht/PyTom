@@ -127,10 +127,19 @@ if __name__ == '__main__':
         
     else:
         # transform the cropping offset
-        #tmp = projections[0]
-        #sx = tmp.getXSize() # here should be the size of original projection!
-        #sy = tmp.getYSize()
-        sx, sy = 3710, 3710
+        try:
+            tmp = projections[0]
+            sx = tmp.getXSize()  # here should be the size of original projection!
+            sy = tmp.getYSize()
+        except:
+            from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS
+            from pytom.tompy.io import read_size
+            from pytom.gui.guiFunctions import loadstar
+
+            lar = loadstar(alignResultFile, dtype=DATATYPE_ALIGNMENT_RESULTS)
+            sx,sy,sz = read_size(lar['FileName'][0])
+
+        # sx, sy = 1024, 1024
         recOffset[0] = -sx/2 + recOffset[0]*coordinateBinning
         recOffset[1] = -sy/2 + recOffset[1]*coordinateBinning
         recOffset[2] = -sx/2 + recOffset[2]*coordinateBinning
@@ -152,6 +161,8 @@ if __name__ == '__main__':
             z = (pickPosition.getZ()*coordinateBinning+ recOffset[2])#/projBinning
 
             particle.setPickPosition( PickPosition(x=x, y=y, z=z))
+
+        print(particlePolishResultFile)
 
         projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \
                                        binning=projBinning, applyWeighting = aw, \

@@ -385,13 +385,14 @@ def atomList2em(atomList, pixelSize, cubeSize, densityNegative=False):
             elif atomList[i].getAtomType()[0] == 'S':
                 volume.setV(currentValue + 16.0, x, y, z)
 
+
     if densityNegative:
         volume = volume * -1
 
     return volume
 
 
-def pdb2em(pdbPath, pixelSize, cubeSize, chain=None, densityNegative=False, fname=''):
+def pdb2em(pdbPath, pixelSize, cubeSize, chain=None, densityNegative=False, fname='', recenter=True):
     """
     pdb2em: Creates an volume out of a PDB file
     @param pdbPath: Path to PDB file or PDB id for online download
@@ -407,8 +408,57 @@ def pdb2em(pdbPath, pixelSize, cubeSize, chain=None, densityNegative=False, fnam
 
     vol = atomList2em(atomList, pixelSize, cubeSize, densityNegative)
 
-    if fname: vol.write(fname)
-    else: return vol
+    if recenter:
+        vol = recenterVolume(vol, densityNegative)
+
+    if fname:
+        vol.write(fname)
+
+    else:
+        return vol
+
+def recenterVolume(volume, densityNegative=False):
+    from scipy.ndimage import center_of_mass
+    from pytom.tompy.io import read, write
+    from pytom.tompy.tools import paste_in_center
+    from pytom.gpu.initialize import xp
+    from pytom_numpy import vol2npy
+    import os
+
+    try:
+        a = vol2npy(volume).copy()
+        vol =True
+    except:
+        a = volume
+        vol = False
+
+    if densityNegative:
+        a *= -1
+
+    x, y, z = list(map(int, center_of_mass(a)))
+    cx, cy, cz = a.shape[0] // 2, a.shape[1] // 2, a.shape[2] // 2
+
+    sx = min(x, a.shape[0] - x)
+    sy = min(y, a.shape[0] - y)
+    sz = min(z, a.shape[0] - z)
+
+    ac = a[x - sx:x + sx, y - sy:y + sy, z - sz:z + sz]
+    b = xp.zeros_like(a)
+
+    b = paste_in_center(ac, b)
+
+    if densityNegative: b *= -1
+
+    if vol:
+        write('recenteredDBV21.em', b)
+        from pytom.basic.files import read
+        vol = read('recenteredDBV21.em')
+        os.system('rm recenteredDBV21.em')
+        return vol
+    else:
+        return b
+
+
 
 
 def mmCIF2em(mmCIFPath, pixelSize, cubeSize, chain=None, densityNegative=False):

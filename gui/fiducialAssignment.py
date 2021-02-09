@@ -24,14 +24,15 @@ from pytom.gui.guiFunctions import loadstar, savestar, kill_proc
 global mf_write
 
 try:
-    from pytom.gui.additional.markerPositionRefinement import refineMarkerPositions
-    from pytom.gui.additional.tiltAlignmentFunctions import alignmentFixMagRot
-    from pytom.gui.additional.TiltAlignmentStructures import Marker
+    from pytom.reconstruction.markerPositionRefinement import refineMarkerPositions
+    from pytom.reconstruction.tiltAlignmentFunctions import alignmentFixMagRot
+    from pytom.reconstruction.TiltAlignmentStructures import Marker
     from pytom.basic.files import write_em
     from pytom_volume import vol, read, transform
     from pytom_numpy import vol2npy
     mf_write=1
-except:
+except Exception as e:
+    print(e)
     print ('marker file refinement is not possible')
     mf_write = 0
 
@@ -133,6 +134,7 @@ class TiltImage():
                     self.labels[n] = "{:03d}".format(m)
                     break
 
+import pyqtgraph as pg
 
 class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
     def __init__(self, parent=None, fname=''):
@@ -159,6 +161,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.settings = SettingsFiducialAssignment(self)
         self.selectMarkers = SelectAndSaveMarkers(self)
         self.manual_adjust_marker = ManuallyAdjustMarkers(self)
+        self.error_window = ErrorWindow(self,'test.txt')
 
         self.dim = 0
         self.radius = 8
@@ -194,6 +197,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                                action=self.detect_frameshift,params=0)
         self.insert_pushbutton(parent,text='Index Fiducials',rstep=1,tooltip='Group Fiducials into marker sets.',
                                action=self.index_fid,params=0, wname='indexButton',state=False)
+        self.insert_pushbutton(parent, text='Check Align Errors', rstep=1, tooltip='Check Alignment Errors.',
+                               action=self.raise_window, params=self.error_window, wname='errorButton', state=True)
         self.insert_label(parent, rstep=1)
         self.insert_pushbutton(parent,text='Manually Adjust Markers',rstep=1,tooltip='Manually adjust marker sets.',
                                action=self.raise_window, params=self.manual_adjust_marker, wname='adjustManually',
@@ -243,6 +248,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.raise_window(self.settings)
         pg.QtGui.QApplication.processEvents()
         self.loaded_data = False
+
 
     def raise_window(self,window):
         window.close()
@@ -564,7 +570,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
             dataf = self.frames_adj[nr*nr_procs + proc_id, :,:]
 
-            dataf = downsample(dataf,self.bin_read)
+            dataf = downsample(dataf, self.bin_read)
 
             w = wiener(dataf)
             hpf = dataf #- gaussian_filter(dataf, 10) * 0
@@ -628,6 +634,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
 
         procs = []
+
+        self.error_window.logfile = os.path.join(os.path.dirname(fnames[0]), 'alignmentErrors.txt')
 
         for proc_id in range(nr_procs):
             proc = Process(target=self.read_list,
@@ -890,10 +898,12 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
     def add_markers(self, data):
         self.selectMarkers.addMarker(self.selectMarkers.model, data)
         self.manual_adjust_marker.addMarker(self.manual_adjust_marker.MRMmodel, data)
+        self.error_window.addMarker(self.error_window.EWmodel, data)
 
     def deleteAllMarkers(self):
         self.selectMarkers.deleteAll()
         self.manual_adjust_marker.deleteAll()
+        self.error_window.deleteAll()
 
     def deleteSelectedMarkers(self,ids, names=[]):
         self.selectMarkers.deleteMarkers(ids, names)
@@ -1063,7 +1073,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             write_em(markerFileName, markerFileVol)
 
         elif output_type == 'txt':
-            from pytom.basic.datatypes import HEADER_MARKERFILE, fmtMarkerfile
+            from pytom.basic.datatypes import HEADER_MARKERFILE, FMT_MARKERFILE as fmtMarkerfile
             markerFile = numpy.ones((num_markers,len(projIndices),4))*-1
             for iMark, Marker in enumerate(markIndices):
                 markerFile[iMark,:,0] = iMark
@@ -1151,7 +1161,8 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
 
         self.insert_label_spinbox(self.grid,'bin_alg', text='Binning Factor Finding Fiducials',rstep=1,
                                   minimum=1,maximum=16,stepsize=2,value=8,wtype=QSpinBox,cstep=0,
-                                  tooltip='Binning factor for finding fiducials, used to improve contrast.')
+                                  tooltip='Binning factor for finding fiducials, used to improve contrast.\n'
+                                          'Must be a multiple of the binning factor for reading.')
 
         self.insert_pushbutton(self.grid, text='Load Tilt Images', rstep=1, action=self.parent().load_images,params='',
                                tooltip='Load tilt images of tomogram set in settings.', cstep=-1)
@@ -1196,6 +1207,22 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         self.widgets['fiducial_size'].valueChanged.connect(self.update_radius)
         self.widgets['ref_frame'].valueChanged.connect(self.update_ref_frame)
         self.update_radius()
+
+        self.widgets['bin_read'].valueChanged.connect(self.keepMultiple)
+        self.widgets['bin_alg'].valueChanged.connect(self.keepMultiple)
+
+    def keepMultiple(self):
+        v = self.widgets['bin_read'].value()
+        w = self.widgets['bin_alg'].value()
+
+        if v % w != 0:
+            w = numpy.around(((w+v-1)//v)*v,0)
+
+        self.widgets['bin_read'].setValue(v)
+        self.widgets['bin_alg'].setValue(w)
+
+
+
 
     def update_ref_frame(self):
         self.parent().ref_frame = int(self.widgets['ref_frame'].text())
@@ -1355,9 +1382,9 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
 
         self.insert_label(self.grid, rstep=1, cstep=0)
         self.insert_label(self.grid, rstep=1, cstep=0)
-        self.insert_pushbutton(self.grid, text='Add Marker', rstep=1, action=self.add_marker, cstep=0)
-        self.insert_pushbutton(self.grid, text='Delete Marker', rstep=1, action=self.delete_marker, cstep=0)
-        self.insert_label(self.grid, rstep=1, cstep=0)
+        #self.insert_pushbutton(self.grid, text='Add Marker', rstep=1, action=self.add_marker, cstep=0)
+        #self.insert_pushbutton(self.grid, text='Delete Marker', rstep=1, action=self.delete_marker, cstep=0)
+        #self.insert_label(self.grid, rstep=1, cstep=0)
         self.insert_pushbutton(self.grid, text='Select Marker', rstep=1, action=self.select_marker, cstep=0)
         self.insert_pushbutton(self.grid, text='Deselect Marker', rstep=1, action=self.deselect_marker, cstep=0)
         self.insert_label(self.grid, rstep=1, cstep=0)
@@ -1409,7 +1436,7 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
 
     def select_marker(self, params=None):
         try:
-            print (self.dataView.selectedIndexes()[0].data()    , ' selected')
+            print(self.dataView.selectedIndexes()[0].data()    , ' selected')
             self.parent().selected_marker = int( self.dataView.selectedIndexes()[0].data().split("_")[-1] )
         except: pass
 
@@ -1495,6 +1522,109 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
 
 
         pass
+
+
+class ErrorWindow(QMainWindow, CommonFunctions):
+    def __init__(self, parent=None, logfile=''):
+        super(ErrorWindow, self).__init__(parent)
+        self.setGeometry(670, 0, 1000, 300)
+        self.layout = self.grid = QGridLayout(self)
+        self.general = QWidget(self)
+        self.general.setLayout(self.layout)
+        self.setWindowTitle('Show Alignment Errors')
+        self.header_names = ['Name','#Markers']
+        self.logfile = logfile
+        self.row, self.column = 0, 1
+        self.logbook = {}
+        self.widgets = {}
+        rows, columns = 20, 20
+        self.num_rows, self.num_columns = rows, columns
+        self.items = [['', ] * columns, ] * rows
+
+        self.dataGroupBox = QGroupBox("All Marker Sets")
+        self.dataView = QTreeView()
+        self.dataView.setRootIsDecorated(False)
+        self.dataView.setAlternatingRowColors(True)
+        self.dataView.setSortingEnabled(True)
+        self.dataView.setSelectionMode(3)
+        self.dataView.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+        dataLayout = QHBoxLayout()
+        dataLayout.addWidget(self.dataView)
+        self.dataGroupBox.setLayout(dataLayout)
+        self.EWmodel = self.model = self.createErrorWindowModel(self)
+        self.dataView.setModel(self.EWmodel)
+
+        self.layout.addWidget(self.dataGroupBox, 0, 0, 20, 1)
+        self.setCentralWidget(self.general)
+
+        self.view = pg.GraphicsLayoutWidget()
+        self.scatterPlot = self.view.addPlot()
+        n = 61
+        self.s1 = pg.ScatterPlotItem(size=10, pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 90), identical=True)
+        self.s1.sigClicked.connect(self.mouseHasMoved)
+        import numpy as np
+        pos = np.zeros((2,n),dtype=np.float32)
+        pos[0,:] = range(-60,61,2)
+        spots = [{'pos': pos[:, i], 'data': 1} for i in range(n)]
+        self.s1.addPoints(spots)
+        self.scatterPlot.addItem(self.s1)
+        self.layout.addWidget(self.view, 0, 1, 20, 15)
+        self.replot()
+
+        self.dataView.selectionModel().selectionChanged.connect(self.replot)
+
+    def mouseHasMoved(self, plot, position):
+        try:
+            aa = position[0].pos().x()
+            #self.mousePoint = self.scatterPlot.mapSceneToView(position)
+            #print(self.mousePoint.toTuple())
+        except Exception as e:
+            print(e)
+
+    def replot(self):
+        fname = self.logfile
+        id = -1
+        try:
+            print (self.dataView.selectedIndexes()[0].data(), ' selected for error')
+            id = int( self.dataView.selectedIndexes()[0].data().split("_")[-1] )
+        except Exception as e:
+            print(e)
+            return
+        if not os.path.exists(fname) or id < 0: return
+
+        from pytom.gui.guiFunctions import ALIGNMENT_ERRORS, loadstar
+        data = loadstar(fname,dtype=ALIGNMENT_ERRORS)
+
+        markID = data['MarkerIndex']
+        angles = data['TiltAngle']
+        errors = data['AlignmentError']
+
+        pos = numpy.array(list(zip(list(angles[markID == id]), list(errors[markID==id]))))
+        self.s1.clear()
+        spots = [{'pos': pos[i, :], 'data': 1} for i in range(len(pos))]
+        self.s1.addPoints(spots)
+
+
+    def createErrorWindowModel(self, parent):
+        model = QStandardItemModel(0, len(self.header_names), parent)
+        for i in range(len(self.header_names)):
+            model.setHeaderData(i, Qt.Horizontal, self.header_names[i])
+        return model
+
+    def addMarker(self, model, data):
+        self.EWmodel.insertRow(self.EWmodel.rowCount())
+        for i in range(min(len(data), self.num_columns)):
+            self.EWmodel.setData(model.index(self.EWmodel.rowCount() - 1, i), data[i])
+            self.dataView.resizeColumnToContents(i)
+
+    def deleteMarkers(self, ids):
+        for id in reversed(ids):
+            print(id)
+            self.EWmodel.removeRows(id, id + 1)
+
+    def deleteAll(self):
+        self.EWmodel.removeRows(0,self.EWmodel.rowCount())
 
 def main():
     app = QApplication(sys.argv)

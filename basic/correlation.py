@@ -221,16 +221,15 @@ def stdValueUnderMask(volume, mask, meanValue, p=None):
     squareV = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
     squareV.copyVolume(volume)
     power(squareV, 2)
-    
     res = meanValueUnderMask(squareV, mask, p)
-
     res = res - squareM
-    try:
+    if res >= 0:
         res = res**0.5
-    except ValueError:
+    else:
         print("Res = %.6f < 0 => standard deviation determination fails :(")
         print("   something went terribly wrong and program has to stop")
         raise ValueError('Program stopped in stdValueUnderMask')
+
     return res
 
 def meanUnderMask(volume, mask, p):
@@ -293,7 +292,7 @@ def stdUnderMask(volume, mask, p, meanV):
 
     return result
 
-def FLCF(volume, template, mask=None, stdV=None):
+def FLCF(volume, template, mask=None, stdV=None, wedge=1):
     '''
     Created on Apr 13, 2010
     FLCF: compute the fast local correlation function
@@ -342,7 +341,6 @@ def FLCF(volume, template, mask=None, stdV=None):
     meanT = meanValueUnderMask(template, mask, p)
     stdT = stdValueUnderMask(template, mask, meanT, p)
 
-
     temp = (template - meanT)/stdT
     temp = temp * mask
 
@@ -363,7 +361,6 @@ def FLCF(volume, template, mask=None, stdV=None):
     if stdV.__class__ != vol:
         meanV = meanUnderMask(volume, maskV, p)
         stdV = stdUnderMask(volume, maskV, p, meanV)
-
 
 
     size = volume.numelem()
@@ -734,6 +731,8 @@ def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
         
     fscResult = []
     band = [-1,-1]
+    if type(numberBands) == tuple:
+        numberBands = tuple[0]
     
     increment = int(volume1.sizeX()/2 * 1/numberBands)
     

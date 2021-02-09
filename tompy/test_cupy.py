@@ -24,9 +24,9 @@ if __name__=='__main__':
     from cupyx.scipy.ndimage import rotate
     num_angles, size = map(int, sys.argv[1:3])
     
-    template = np.zeros((size, size, size), dtype=np.float32)
+    template = xp.zeros((size, size, size), dtype=xp.float32)
 
-    temp = np.zeros((64,64,64))
+    temp = xp.zeros((64,64,64))
     temp[16:-16,16:-16,16:-16] = 1.
     
     for i in range(3):
@@ -35,8 +35,8 @@ if __name__=='__main__':
         z,y,x = 150, 150, ii*75
         template[z-32:z+32, y-32:y+32, x-32:x+32] = temp
 
-    volume = np.random.rand(size, size, size)
-    volume = volume.astype(np.float32)
+    volume = xp.random.rand(size, size, size)
+    volume = volume.astype(xp.float32)
   
     import time
 

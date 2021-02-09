@@ -326,7 +326,6 @@ def convolute(v, k, kernel_in_fourier=False):
     
     return out
 
-
 def fourierSizeOperation(sizeX=0,sizeY=0,sizeZ=0,reducedToFull = True):
     """
     fourierSizeOperation: determines the fourier size given the three real-space size parameters and real-space size given three fourier-size parameters

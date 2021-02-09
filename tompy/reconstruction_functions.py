@@ -1,8 +1,8 @@
-from pytom.gpu.initialize import xp, gpu
-import voltools
+from pytom.gpu.initialize import xp, device
+from pytom.voltools import transform
+import numpy
 
-
-def backProjectGPU(projections, vol_bp, vol_phi, proj_angles, recPosVol=[0,0,0], vol_offsetProjections=[0,0,0], interpolation=None):
+def backProjectGPU(projections, vol_bp, vol_phi, proj_angles, recPosVol=[0,0,0], vol_offsetProjections=[0,0,0], interpolation='filt_bspline'):
 
     assert len(proj_angles) == projections.shape[2] #'Number of angles and projections should match'
 
@@ -24,20 +24,23 @@ def back_projection(image, angle, interpolation=None):
     '''
 
     dimx, dimy = image.shape
-    dims = [dimx, dimy, dimy]
+    dims = [dimx, dimy, dimx]
 
-    out = xp.dstack([image] * (dims[2]*2))
-    bp  = voltools.transform(out, rotation=(0, angle, 0), rotation_order='sxyz', interpolation=interpolation,
-                             center=numpy.array([dims[0] // 2, dims[1] // 2, dims[2]]), gpu=gpu)
+    ndim = (dimx*3)//2
 
-    return bp[:,:,dims[2]//2+dims[2]%2:-dims[2]//2+dims[2]%2].copy()
+    out = xp.dstack([image] * (ndim))
 
+    bp = xp.zeros_like(out)
+    transform(out, output=bp, rotation=(0, angle, 0), rotation_order='sxyz', interpolation=interpolation,
+              center=numpy.array([dims[0] // 2, dims[1] // 2, ndim//2]), device=device)
+
+    return bp[:,:,ndim//2-dimx//2:ndim//2+dimx//2].copy()
 
 def backProjectGPU2(vol_img, vol_bp, vol_phi, vol_the, recPosVol=[0,0,0], vol_offsetProjections=[0,0,0]):
     from pytom_numpy import vol2npy
     import cupy as cp
     from cupy import cos, sin
-    import voltools
+    import pytom.voltools
 
     projections = vol2npy(vol_img)
     proj_angles = vol2npy(vol_the)[0,0,:]
@@ -146,15 +149,14 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
         ([(wfuncCrowther), ] * (sY))).astype(float32)
     return wfunc
 
-
 def fourierReconstructGPU(vol_img, vol_bp, vol_phi, vol_the, recPosVol=[0,0,0], vol_offsetProjections=[0,0,0]):
     from pytom_numpy import vol2npy
     import cupy as cp
-    import voltools
+    from pytom.voltools import transform
     from cupy.fft import fftshift, ifftn, fftn
     import numpy
     from cupyx.scipy.ndimage import rotate
-    interpolation = voltools.Interpolations.FILT_BSPLINE
+    interpolation = 'filt_bspline'
     projections = vol2npy(vol_img)
     projections = cp.array(projections)
     proj_angles = vol2npy(vol_the)[0, 0, :]
@@ -173,8 +175,8 @@ def fourierReconstructGPU(vol_img, vol_bp, vol_phi, vol_the, recPosVol=[0,0,0], 
             rot.real = rotate(org.real, proj_angles[n], axes=(2, 0), reshape=False)
             rot.imag = rotate(org.imag, proj_angles[n], axes=(2, 0), reshape=False)
         else:
-            rot.real =voltools.transform(org.real, rotation=(0, proj_angles[n],0), rotation_order='sxyz',interpolation=interpolation)
-            rot.imag =voltools.transform(org.imag, rotation=(0, proj_angles[n],0), rotation_order='sxyz',interpolation=interpolation)
+            rot.real = transform(org.real, rotation=(0, proj_angles[n],0), rotation_order='sxyz',interpolation=interpolation)
+            rot.imag = transform(org.imag, rotation=(0, proj_angles[n],0), rotation_order='sxyz',interpolation=interpolation)
         tot += rot
         del org, rot
     

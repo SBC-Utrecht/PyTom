@@ -48,16 +48,19 @@ if __name__=='__main__':
 
 
     
-    todo = [line.split()[0] for line in open(filename).readlines()]
+    todo = [line.split()[0] for line in open(filename).readlines() if line]
 
     n = 0
 
     for folder in todo:
-        print(folder)
-        a = [[os.path.join(folder, '03_Tomographic_Reconstruction', f, 'ctf/'),f] for f in os.listdir(os.path.join(folder, '03_Tomographic_Reconstruction')) if f.startswith('tomogram') and os.path.exists(os.path.join(folder, '03_Tomographic_Reconstruction', f, 'ctf/resultsCTFPlotter.defocus'))]
+        if os.path.exists(os.path.join(folder, 'logfile.js')):
+            a = [[os.path.join(folder, '03_Tomographic_Reconstruction', f, 'ctf/'),f] for f in os.listdir(os.path.join(folder, '03_Tomographic_Reconstruction')) if f.startswith('tomogram') and os.path.exists(os.path.join(folder, '03_Tomographic_Reconstruction', f, 'ctf/resultsCTFPlotter.defocus'))]
+        else:
+            a = [[os.path.join(folder,'ctf/'), os.path.basename(folder)]]
+            folder = os.path.dirname(os.path.dirname(folder))
 
         for n, (ff, tom) in enumerate(a):
-            print(ff)
+            print(ff, folder, tom)
             cmd = d.format(n%20, folder, tom, ff, tom, tom)
             outname = os.path.join(ff, 'ctfCorrImod.sh')
             out = open(outname, 'w')

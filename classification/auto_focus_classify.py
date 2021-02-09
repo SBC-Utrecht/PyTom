@@ -115,14 +115,14 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
 
 def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binning, iteration, sigma, threshold, outdir='./'):
     from pytom_volume import read, vol, pasteCenter
-    from pytom.basic.structures import Particle
+    from pytom.basic.structures import Particle, Mask
     import os
     from pytom.basic.transformations import resize
 
     v1 = r1.getVolume()
     v2 = r2.getVolume()
     if mask:
-        maskBin = read(mask, 0,0,0,0,0,0,0,0,0, binning,binning,binning)
+        maskBin = read(mask, 0,0,0,0,0,0,0,0,0, binning, binning, binning)
         if v1.sizeX() != maskBin.sizeX() or v1.sizeY() != maskBin.sizeY() or v1.sizeZ() != maskBin.sizeZ():
             mask = vol(v1.sizeX(), v1.sizeY(), v1.sizeZ())
             mask.setAll(0)
@@ -134,7 +134,7 @@ def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binni
         mask = None
 
     if focus_mask:
-        focusBin = read(focus_mask, 0,0,0,0,0,0,0,0,0,binning,binning,binning)
+        focusBin = read(focus_mask, 0,0,0,0,0,0,0,0,0, binning, binning, binning)
         if v1.sizeX() != focusBin.sizeX() or v1.sizeY() != focusBin.sizeY() or v1.sizeZ() != focusBin.sizeZ():
             focus_mask = vol(v1.sizeX(), v1.sizeY(), v1.sizeZ())
             focus_mask.setAll(0)
@@ -413,12 +413,14 @@ def calculate_scores(pl, references, freqs, offset, binning, mask, noalign=False
 def calculate_prob(s, scores):
     i = 0
     n = len(scores)
+    if n < 1:
+        raise Exception('len scores == 0: for probability calculation scores must be larger than 0')
     for item in scores:
         sc = item[2]
         if sc >= s:
             i += 1
 
-    return float(i)/n
+    return float(i) / n
 
 
 def voting(p, i, scores, references, frequencies, dmaps, binning, noise):
@@ -476,6 +478,7 @@ def voting(p, i, scores, references, frequencies, dmaps, binning, noise):
 
 
 def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, noise_percentage=None):
+    print('particle List', len(pl))
     # make sure the particle list and scores have the same order
     for i, p in enumerate(pl):
         fname1 = p.getFilename()
@@ -610,6 +613,7 @@ def split_topn_classes(pls, n):
 
 def compare_pl(old_pl, new_pl):
     n = len(old_pl)
+    print(f'len particlelist, {n}, {len(new_pl)}')
     assert n == len(new_pl)
 
     ndiff = 0
@@ -648,7 +652,7 @@ def distance(p, ref, freq, mask, binning):
         else:
             mask = maskBin
 
-
+    print(a.sizeX(), b.sizeX(), mask.sizeX())
     s = nxcc(a, b, mask)
 
     d2 = 2*(1-s)
@@ -672,7 +676,6 @@ def initialize(pl, settings):
     kn = len(pl)//K 
     references = {}
     frequencies = {}
-
     # get the first class centroid
     pp = pl[:kn]
     # avg, fsc = average2(pp, norm=True, verbose=False)
@@ -696,6 +699,7 @@ def initialize(pl, settings):
                     distances[i] = dist[i]
         
         distances = np.asarray(distances)
+        print('sum distances: ', distances.sum())
         distances = distances/np.sum(distances)
         idx = np.random.choice(len(pl), kn, replace=False, p=distances)
         pp = ParticleList()
