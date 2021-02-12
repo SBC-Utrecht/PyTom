@@ -947,7 +947,7 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     alignment['TiltAngle']          = -1.0 * xp.array(angles)
     alignment['Magnification']      = xp.repeat(1.0, len(angles))
     for i in range(len(angles)):
-        alignment['FileName'][i]    = os.path.join(save_path, 'projections', 'synthetic_{i+1}.mrc')
+        alignment['FileName'][i]    = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
 
     # write the alignment file
     filename_align                      = os.path.join(save_path, 'alignment_simulated.txt')
@@ -1130,7 +1130,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     alignment['AlignmentTransY']    = xp.array([y for (x,y,z) in cumulative_translations])
     alignment['Magnification']      = xp.repeat(1.0, n_frames)
     for i in range(n_frames):
-        alignment['FileName'][i]    = os.path.join(save_path, 'projections', 'synthetic_{i+1}.mrc')
+        alignment['FileName'][i]    = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
 
     # Write the alignment file as a text file
     filename_align                      = os.path.join(save_path, 'alignment_simulated.txt')

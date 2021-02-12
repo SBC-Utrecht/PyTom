@@ -227,7 +227,6 @@ def mean0std1(volume, copyFlag=False):
     @param copyFlag: If True a copy of volume will be returned. False unless specified otherwise.
     @return: If copyFlag == True, then return a normalised copy.
     @author: Thomas Hrabe
-    #todo This function can be removed, and instead imported from pytom.tompy.normalise, where it is correct
     """
     from pytom.tools.maths import epsilon
 
@@ -337,11 +336,12 @@ def nXcf(volume, template, mask=None, stdV=None, gpu=False):
     """
 
     if not (mask is None):
-        result = xcf_mult(normaliseUnderMask(volume=volume, mask=mask, p=None),
-                          normaliseUnderMask(volume=template, mask=mask, p=None), mask)
+        from pytom.tompy.normalise import normaliseUnderMask
+        result = xcf_mult(normaliseUnderMask(volume=volume, mask=mask, p=None)[0],
+                          normaliseUnderMask(volume=template, mask=mask, p=None)[0], mask)
     else:
         from pytom.tompy.normalise import mean0std1
-        result = xcf_mult(mean0std1(volume), mean0std1(template), mask)
+        result = xcf_mult(mean0std1(volume, True), mean0std1(template, True), mask)
 
     # n = result.size
 
