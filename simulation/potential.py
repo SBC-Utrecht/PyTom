@@ -1,17 +1,17 @@
+#!/usr/bin/env pytom
+
 import numpy as xp
 import math
-import pytom.simulation.constants as const
+import pytom.simulation.physics as physics
 import os, sys
-# import pytom.basic.functions
 
 # image display
 import matplotlib as plt
 plt.use('Qt5Agg')
 from pylab import *
 
-V_WATER = 4.5301  # potential value of low density amorphous ice (from Vulovic et al., 2013)
 
-def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=False):
+def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=False, interpolation='filt_bspline'):
     """
     Increase volume by parameter increment ([x,y,z]). Options for changing the padding value, extending symmetrically on
     both sides of the input volume, shifting the original volume to the true new center if the increment/2 is
@@ -27,6 +27,8 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
     @type symmetrically: Bool
     @param true_center: If True interpolate to true center
     @type true_center: Bool
+    @param interpolation: voltools options ('filt_bspline', 'linear'), needed when shift is done to true_center
+    @type interpolation: string
 
     @return: Extended volume
     @rtype: numpy ndarray
@@ -36,11 +38,9 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
     if symmetrically:
         # condition = any([x%2 for x in increment])
         if true_center:
-            import scipy.ndimage
-            vol = xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
-            # TODO Use voltools for this as well!
-            # Filter removes potential artifacts from the interpolation
-            return scipy.ndimage.interpolation.shift(vol, tuple([x / 2 for x in increment]), order=3)
+            from pytom.voltools import transform
+            new = xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
+            return transform(new, translation=tuple([x/2 for x in increment]), interpolation=interpolation)
         else:
             from pytom.tompy.tools import paste_in_center
             new = xp.zeros([a + b for a, b in zip(vol.shape, increment)])
@@ -51,132 +51,7 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
         return xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
 
 
-def fourier_filter(volume, filter):
-    ft = xp.fft.fftn(xp.fft.ifftshift(volume))
-    return xp.fft.fftshift(xp.fft.ifftn(ft * xp.fft.ifftshift(filter))).real  # shift center to origin
-
-
-def create_gaussian_low_pass(size, cutoff, center=None):
-    """
-    NOTE: MOVE FUNCTION TO TOMPY.FILTER
-    Create a 3D mask with gaussian edges.
-
-    @param size: size of the resulting volume.
-    @param hwhm: cutoff value for the filter.
-    @param center: center of the Gaussian. If not provided will be calculated.
-
-    @return: sphere inside a volume.
-    """
-    assert len(size) == 3
-
-    # full width at half maximum is two times the half width at half maximum (or cutoff)
-    c = 2  # or can be set to np.sqrt(2) for butterworth filter
-    sigma_cutoff = cutoff / xp.sqrt(2 * xp.log(c))
-
-    if center is None:
-        center = [s//2 for s in size]
-
-    [x,y,z] = xp.mgrid[0:size[0], 0:size[1], 0:size[2]]
-    r = xp.sqrt((x-center[0])**2+(y-center[1])**2+(z-center[2])**2)
-
-    filter = xp.exp(-r ** 2 / (2 * sigma_cutoff ** 2))
-
-    return filter
-
-
-def reduce_resolution(map, voxel_size, resolution):
-    """
-    NOTE: MOVE FUNCTION TO TOMPY.FILTER. Tompy does not contain gaussian low pass in fourier space.
-    Accepts only square input maps to easy low-pass filtering
-
-    @param map: Volume
-    @type map: 3d numpy array
-    @param voxel_size: Voxel size of the volume in A
-    @type voxel_size: float
-    @param to_resolution: Desired resolution after applying low-pass filter
-    @type to_resolution: float
-    @param sharpness: ratio
-    @type sharpness: float
-
-    @return: Filtered volume
-    @rtype: 3d numpy array
-
-    @author: Marten Chaillet
-    """
-    # from pytom.tompy.transform import fourier_filter
-
-    assert resolution >= voxel_size, "the requested resolution is non-valid as it is smaller than the voxel size"
-    assert len(set(map.shape)) == 1, "dimensions of input are not equal"
-
-    # resolution reduction factor
-    nr_pixels_cutoff = ( map.shape[0] * voxel_size ) / resolution
-    # NOTE: if resolution == 2*voxel_size, filter radius will be 0.5 * map.shape[0]. I.E. no filtering. This is correct
-    # because the highest possible resolution (nyquist) equals 2*voxel_size.
-    # create full gaussian mask
-    filter = create_gaussian_low_pass( map.shape, nr_pixels_cutoff )
-    # apply mask in fourier space
-    return fourier_filter(map, filter)
-
-
-def reduce_resolution_2(map, voxel_size, resolution):
-
-    from scipy.ndimage import fourier_gaussian
-
-    input = xp.fft.fftn(map)
-    result = fourier_gaussian(input, sigma=(resolution/(2*voxel_size))/2.35)
-    return xp.fft.ifftn(result).real
-
-
-def scale(volume, factor):
-    """
-    Scale volumes with skimage.
-    @param potential: ndimage, numpy array
-    @param factor: float, tuple of floats. Single float for same scaling in each dimension. Tuple for different factors
-    @return: scaled multidimensional array (numpy)
-    """
-    # Skimage scale could be better for downsampling than scipy zoom
-    import skimage
-    # order 1 would be bi-linear, maybe better?
-    # order 3 for bi-cubic (splines), preserve_range otherwise image is returned as float between -1 and 1
-    return skimage.transform.rescale(volume, factor, mode='constant', order=3, preserve_range=True, multichannel=False,
-                                     anti_aliasing=False)
-
-
-def bin(potential, factor):
-    """
-    TODO change name to bin_volume instead of bin
-    @param potential:
-    @param factor: integer value
-    @return:
-    """
-    assert type(factor) is int and factor >= 1, print('non-valid binning factor, should be integer above 1')
-
-    if factor == 1:
-        return potential
-
-    size = potential.shape
-    s = [(x % factor) // 2 for x in size]
-    d = [(x % factor)  % 2 for x in size]
-    # print(size, s, d)
-    # s = (potential.shape[0] % factor) // 2
-    # d = (potential.shape[0] % factor) % 2
-
-    potential = potential[s[0]:size[0] - s[0] - d[0], s[1]:size[1] - s[1] - d[1], s[2]:size[2] - s[2] - d[2]]
-    # potential = potential[s:potential.shape[0] - s - d, s:potential.shape[0] - s - d, s:potential.shape[0] - s - d]
-
-    size = potential.shape if potential.shape != size else size
-    # ds = int(potential.shape[0]//factor)
-    ds = [int(x // factor) for x in size]
-    # image_size = potential.shape[0]
-
-    # binned = potential.reshape(ds, image_size // ds,
-    #                            ds, image_size // ds, ds, image_size // ds).mean(-1).mean(1).mean(-2)
-    binned = potential.reshape(ds[0], size[0] // ds[0], ds[1], size[1] // ds[1], ds[2], size[2] // ds[2]).mean(-1).mean(1).mean(-2)
-
-    return binned
-
-
-def call_chimera(file, input_folder, output_folder):
+def call_chimera(filepath, output_folder):
     """
     Run chimera for pdb file in order to add hydrogens and add symmetry units. The resulting structure is stored as a
     new pdb file with the extension {id}_symmetry.pdb
@@ -192,25 +67,31 @@ def call_chimera(file, input_folder, output_folder):
 
     @author: Marten Chaillet
     """
-    print(f' - Calling chimera for {file}')
+    print(f' - Calling chimera for {filepath}')
 
-    pdb_id = file.split('.')[0]
-    extension = file.split('.')[-1]
+    input_folder, file = os.path.split(filepath)
+    pdb_id, extension = os.path.splitext(file)
+    # pdb_id = file.split('.')[0]
+    # extension = file.split('.')[-1]
 
     # Skip if output files from this function already exist
-    if os.path.exists(f'{output_folder}/{pdb_id}_rem-solvent_sym_addh.pdb'):
-        print(f'File already exists: {pdb_id}_rem-solvent_sym_addh.pdb')
-        return f'{pdb_id}_rem-solvent_sym_addh'
-    elif os.path.exists(f'{output_folder}/{pdb_id}_rem-solvent_addh.pdb'):
-        print(f'File already exists: {pdb_id}_rem-solvent_addh.pdb')
-        return  f'{pdb_id}_rem-solvent_addh'
+    if os.path.exists(os.path.join(output_folder, f'{pdb_id}_rem-solvent_sym_addh.pdb')):
+        output_filepath = os.path.join(output_folder, f'{pdb_id}_rem-solvent_sym_addh.pdb')
+        print(f'File already exists: {output_filepath}')
+        # return f'{pdb_id}_rem-solvent_sym_addh'
+        return output_filepath
+    elif os.path.exists(os.path.join(output_folder, f'{pdb_id}_rem-solvent_addh.pdb')):
+        output_filepath = os.path.join(output_folder, f'{pdb_id}_rem-solvent_addh.pdb')
+        print(f'File already exists: {output_filepath}')
+        # return  f'{pdb_id}_rem-solvent_addh'
+        return output_filepath
 
-    if extension == 'pdb':
+    if extension == '.pdb':
         # Command 'sym' in chimera crashes when there is no BIOMT symmetry in the pdb file. We need to make sure sym is only
         # executed when the BIOMT information specifies symmetrical units.
         symmetry = []
         try:
-            with open(f'{input_folder}/{file}','r') as pdb:
+            with open(filepath,'r') as pdb:
                 line = pdb.readline().split()
                 while line[0] != 'REMARK':
                     line = pdb.readline().split()
@@ -226,90 +107,96 @@ def call_chimera(file, input_folder, output_folder):
         print(f'{pdb_id} has {len(set(symmetry))} symmetrical {"unit" if len(set(symmetry)) == 1 else "units"}.')
 
         if len(set(symmetry)) > 1:
-            scriptname = f'_rem-solvent_sym_addh_{pdb_id}'
+            scriptpath = os.path.join(output_folder, f'_rem-solvent_sym_addh_{pdb_id}.py')
+            output_filepath = os.path.join(output_folder, f'{pdb_id}_rem-solvent_sym_addh.pdb')
             try:
-                with open(f'{output_folder}/{scriptname}.py', 'w') as chimera_script:
+                with open(scriptpath, 'w') as chimera_script:
                     chimera_script.write(f'# Open chimera for {pdb_id} then execute following command:\n'
                                          f'# (i) remove solvent (ii) add hydrogens (iii) add symmetry units\n'
                                          f'from chimera import runCommand as rc\n'
-                                         f'rc("open {input_folder}/{file}")\n'
+                                         f'rc("open {filepath}")\n'
                                          f'rc("delete solvent")\n'
                                          f'rc("delete ions")\n'
                                          f'rc("addh")\n' # If using pdb2pqr do not add hydrogens here.
                                          f'rc("sym group biomt")\n'             # group biomt is also the default
                                          f'rc("combine all modelId 10")\n'
-                                         f'rc("write format pdb #10 {output_folder}/{pdb_id}_rem-solvent_sym_addh.pdb")\n'
+                                         f'rc("write format pdb #10 {output_filepath}")\n'
                                          f'rc("stop")\n')
             except Exception as e:
                 print(e)
                 raise Exception('Could not create chimera script.')
         else:
-            scriptname = f'_rem-solvent_addh_{pdb_id}'
+            scriptpath = os.path.join(output_folder, f'_rem-solvent_addh_{pdb_id}.py')
+            output_filepath = os.path.join(output_folder, f'{pdb_id}_rem-solvent_addh.pdb')
             try:
-                with open(f'{output_folder}/{scriptname}.py', 'w') as chimera_script:
+                with open(scriptpath, 'w') as chimera_script:
                     chimera_script.write(f'# Open chimera for {pdb_id} then execute following command:\n'
                                          f'# (i) remove solvent (ii) add hydrogens (iii) add symmetry units\n'
                                          f'from chimera import runCommand as rc\n'
-                                         f'rc("open {input_folder}/{file}")\n'
+                                         f'rc("open {filepath}")\n'
                                          f'rc("delete solvent")\n'
                                          f'rc("delete ions")\n'
                                          f'rc("addh")\n' # If using pdb2pqr do not add hydrogens here.
-                                         f'rc("write format pdb #0 {output_folder}/{pdb_id}_rem-solvent_addh.pdb")\n'
+                                         f'rc("write format pdb #0 {output_filepath}")\n'
                                          f'rc("stop")\n')
             except Exception as e:
                 print(e)
                 raise Exception('Could not create chimera script.')
         # module chimera should be loaded here...
         try:
-            os.system(f'chimera --nogui --script {output_folder}/{scriptname}.py')
+            os.system(f'chimera --nogui --script {scriptpath}')
         except Exception as e:
             print(e)
             raise Exception('Chimera is likely not on your current path.')
 
         if len(set(symmetry)) > 1:
-            return f'{pdb_id}_rem-solvent_sym_addh' # returns new pdb name
+            return output_filepath
+            # return f'{pdb_id}_rem-solvent_sym_addh' # returns new pdb name
         else:
-            return f'{pdb_id}_rem-solvent_addh'
+            return output_filepath
+            # return f'{pdb_id}_rem-solvent_addh'
 
-    elif extension == 'cif':
+    elif extension == '.cif':
         # If cif, assume the file does not contain any structural symmetry information as this is usually not the case
         # for large complexes.
         # Do transformations with chimera, and store as pdb. Chimera cannot write mmCIF files. ChimeraX can.
         # Also not that opening mmCIF files in chimera takes significantly longer.
-        scriptname = f'_rem-solvent_addh_{pdb_id}'
+        scriptpath = os.path.join(output_folder,f'_rem-solvent_addh_{pdb_id}.py')
+        output_filepath = os.path.join(output_folder, f'{pdb_id}_rem-solvent_addh.pdb')
         try:
-            with open(f'{output_folder}/{scriptname}.py', 'w') as chimera_script:
+            with open(scriptpath, 'w') as chimera_script:
                 chimera_script.write(f'# Open chimera for {pdb_id} then execute following command:\n'
                                      f'# (i) remove solvent (ii) add hydrogens (iii) add symmetry units\n'
                                      f'from chimera import runCommand as rc\n'
-                                     f'rc("open {input_folder}/{file}")\n'
+                                     f'rc("open {filepath}")\n'
                                      f'rc("delete solvent")\n'
                                      f'rc("delete ions")\n'
                                      f'rc("addh")\n' # If using pdb2pqr do not add hydrogens here.
-                                     f'rc("write format pdb #0 {output_folder}/{pdb_id}_rem-solvent_addh.pdb")\n'
+                                     f'rc("write format pdb #0 {output_filepath}")\n'
                                      f'rc("stop")\n')
         except Exception as e:
             print(e)
             raise Exception('Could not create chimera script.')
         # module chimera should be loaded here...
         try:
-            os.system(f'chimera --nogui --script {output_folder}/{scriptname}.py')
+            os.system(f'chimera --nogui --script {scriptpath}')
         except Exception as e:
             print(e)
             raise Exception('Chimera is likely not on your current path.')
-        return f'{pdb_id}_rem-solvent_addh'
+        # return f'{pdb_id}_rem-solvent_addh'
+        return output_filepath
     else:
         print('non-valid structure file extension')
         return 0
 
 
-def modify_structure_file(filename, pattern, replacement, line_start=''):
+def modify_structure_file(filepath, pattern, replacement, line_start=''):
     """
     Function required to make pqr files with large negative coordinates readible for APBS. APBS can only parse
     columns in the file when they are properly separated by white spaces. Input file will be overwritten.
 
-    @param filename: File path of pqr type file (with extension)
-    @type filename: string
+    @param filepath: File path of pqr type file (with extension)
+    @type filepath: string
     @param pattern: Pattern to be replaced
     @type pattern: string
     @param replacement: Replacement string for pattern
@@ -329,7 +216,7 @@ def modify_structure_file(filename, pattern, replacement, line_start=''):
         # Create temp file
         fh, abs_path = mkstemp()
         with os.fdopen(fh, 'w') as new_file:
-            with open(filename) as old_file:
+            with open(filepath) as old_file:
                 for line in old_file:
                     if line_start=='':
                         new_file.write(line.replace(pattern,replacement))
@@ -338,18 +225,18 @@ def modify_structure_file(filename, pattern, replacement, line_start=''):
                     else:
                         new_file.write(line)
         # Copy the file permissions from the old file to the new file
-        copymode(filename, abs_path)
+        copymode(filepath, abs_path)
         # Remove original file
-        os.remove(filename)
+        os.remove(filepath)
         # Move new file
-        move(abs_path, filename)
+        move(abs_path, filepath)
     except Exception as e:
         print(e)
         raise Exception('Unsuccessful in modifying pqr file with white space delimiters.')
     return
 
 
-def call_apbs(folder, structure, force_field='amber', ph=7.):
+def call_apbs(pdb_filepath, force_field='amber', ph=7.):
     """
     Calls external programs pdb2pqr and apbs to execute on pdb structure. References:
 
@@ -370,20 +257,23 @@ def call_apbs(folder, structure, force_field='amber', ph=7.):
     @author: Marten Chaillet
     """
     # pdb2pqr and apbs should be on path for this function to run
-    print(f' - Running pdb2pqr and APBS on {folder}/{structure}.pdb')
-    cwd = os.getcwd()
-    input_file = f'{folder}/{structure}.pdb'
 
-    output_file = f'{folder}/{structure}.pqr'
-    apbs_in = f'{folder}/{structure}.in'
+    folder, file = os.path.split(pdb_filepath)
+    pdb_id, _ = os.path.splitext(file)
+
+    print(f' - Running pdb2pqr and APBS on {pdb_filepath}')
+    cwd = os.getcwd()
+
+    pqr_filepath = os.path.join(folder,f'{pdb_id}.pqr')
+    apbs_config = os.path.join(folder, f'{pdb_id}.in')
     try:
         # Also PDB2PKA ph calculation method. Requires PARSE force field, can take very long for large proteins.
-        os.system(f'pdb2pqr.py --ff={force_field} --ph-calc-method=propka --with-ph={ph} --apbs-input {input_file} {output_file}')
+        os.system(f'pdb2pqr.py --ff={force_field} --ph-calc-method=propka --with-ph={ph} --apbs-input {pdb_filepath} {pqr_filepath}')
         print(' - Add white space delimiters to pqr file.')
-        modify_structure_file(output_file, '-', ' -', line_start='ATOM')
+        modify_structure_file(pqr_filepath, '-', ' -', line_start='ATOM')
         # APBS needs to execute from the folder where the structure is present
         os.chdir(folder)
-        os.system(f'apbs {apbs_in}')
+        os.system(f'apbs {apbs_config}')
         # os.system(f'module load apbs_mc/1.5; apbs {apbs_in}')
         # ? subprocess.run(['apbs', f'{structure}.in'], cwd=output_folder) # executes in cwd
     except Exception as e:
@@ -395,19 +285,19 @@ def call_apbs(folder, structure, force_field='amber', ph=7.):
     return
 
 
-def read_structure(filename):
+def read_structure(filepath):
     """
     Read pdb, cif, or pqr file and return atom data in lists.
-    @param filename:
+    @param filepath:
     @return:
     """
     x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = [], [], [], [], [], []
 
-    filetype = filename.split('.')[-1]
+    _, extension = os.path.splitext(filepath)
 
-    if filetype == 'pdb':
+    if extension == '.pdb':
         try:
-            with open(filename, 'r') as pdb:
+            with open(filepath, 'r') as pdb:
                 lines = pdb.readlines()
                 atoms = [line for line in lines if line[:4] == 'ATOM']
                 for line in atoms:
@@ -437,9 +327,9 @@ def read_structure(filename):
         except Exception as e:
             print(e)
             raise Exception('Could not read pdb file.')
-    elif filetype == 'cif':
+    elif extension == '.cif':
         try:
-            with open(filename, 'r') as pdb:
+            with open(filepath, 'r') as pdb:
                 lines = pdb.readlines()
                 for line in lines:
                     split_line = line.split()
@@ -467,10 +357,10 @@ def read_structure(filename):
                         occupancies.append(float(split_line[13]))
         except Exception as e:
             print(e)
-            raise Exception('Could not read pdb file.')
-    elif filetype == 'pqr':
+            raise Exception('Could not read cif file.')
+    elif extension == '.pqr':
         try:
-            with open(filename, 'r') as pqr:
+            with open(filepath, 'r') as pqr:
                 lines = pqr.readlines()
                 for line in lines:
                     split_line = line.split()
@@ -490,23 +380,97 @@ def read_structure(filename):
                     # not work properly. Should be tested though.
         except Exception as e:
             print(e)
-            raise Exception('Could not read pdb file.')
+            raise Exception('Could not read pqr file.')
     else:
-        print('invalid filetype in iasa_potential, return 0')
+        print(f'invalid filetype in read_structure() for {filepath}, return 0')
         return 0
 
     return x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies
 
 
-def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=False, solvent_masking=False, V_sol=4.5301,
-                     absorption_contrast=False, voltage=300E3, density=1.35, molecular_weight=7.2, structure_tuple=None):
+def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_factor=1.0, imaginary=False, voltage=300E3):
+    """
+    From Rahman 2018 (International Journal of Biosensors and Bioelectronics).
+    Volume of unit cell gold is 0.0679 nm^3 with 4 atoms per unit cell.
+    Volume of gold bead is 4/3 pi r^3.
+    """
+    from pytom.tompy.tools import create_sphere
+    from pytom.simulation.support import reduce_resolution, create_ellipse, add_correlated_noise
+    from pytom.tompy.transform import resize
+
+    assert (type(oversampling) is int) and (oversampling >= 1), print('Stop gold marker creation oversampling factor is not a positive'
+                                                            ' integer.')
+
+    # select a random size for the gold marker in nm
+    diameter = xp.random.uniform(low=4.0, high=10.0)
+
+    # constants
+    unit_cell_volume = 0.0679 # nm^3
+    atoms_per_unit_cell = 4
+    C = 2 * xp.pi * physics.constants['h_bar']**2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # nm^2
+    voxel_size_nm = voxel_size*1E9 / oversampling
+    voxel_volume = voxel_size_nm**3
+
+    # dimension of gold box, always add 5 nm to the sides
+    dimension = int(xp.ceil(diameter / voxel_size_nm)) * 3
+    # sigma half of radius?
+    r = 0.8 * ((diameter * 0.5) / voxel_size_nm) # fraction of radius due to extension with exponential smoothing
+    ellipse = True
+    if ellipse:
+        r2 = r * xp.random.uniform(0.8, 1.2)
+        r3 = r * xp.random.uniform(0.8, 1.2)
+        bead = create_ellipse(dimension, r, r2, r3, smooth=2)
+    else:
+        bead = create_sphere((dimension,)*3, radius=r)
+
+    bead *= add_correlated_noise(int(r*0.75), dimension) * add_correlated_noise(int(r*0.25), dimension)
+    # SIGMA DEPENDENT ON VOXEL SIZE
+    # rounded_sphere = gaussian3d(sphere, sigma=(1 * 0.25 / voxel_size_nm))
+    bead[bead < 0.9] = 0 # remove too small values
+    # add random noise to gold particle to prevent perfect CTF ringing around the particle.
+    # random noise also dependent on voxel size maybe?
+    # rounded_sphere = (rounded_sphere > 0) * (rounded_sphere * xp.random.normal(1, 0.3, rounded_sphere.shape))
+    # rounded_sphere[rounded_sphere < 0] = 0
+
+    if imaginary:
+        solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY,
+                                                        physics.WATER_MW, voltage) * solvent_factor
+        gold_amplitude = physics.potential_amplitude(physics.GOLD_DENSITY, physics.GOLD_MW, voltage)
+        gold_imaginary = bead * (gold_amplitude - solvent_amplitude)
+        # filter and bin
+        gold_imaginary = resize(reduce_resolution(gold_imaginary, 1, 2*oversampling), 1/oversampling,
+                                interpolation='Spline')
+
+    # values transformed to occupied volume per voxel from 1 nm**3 per voxel to actual voxel size
+    solvent_correction = bead * (solvent_potential * solvent_factor)
+    unit_cells_per_voxel = (bead * voxel_volume / unit_cell_volume)
+    gold_atoms = unit_cells_per_voxel * atoms_per_unit_cell
+
+    # interaction potential
+    gold_scattering_factors = xp.array(physics.scattering_factors['AU']['g'])
+    # gold_scattering_factors[0:5].sum() == 10.57
+    # C and scattering factor are in A units thus divided by 1000 A^3 = 1 nm^3 to convert
+    gold_potential = gold_atoms * gold_scattering_factors[0:5].sum() * C / voxel_volume / 1000
+    gold_real = gold_potential - solvent_correction
+    # filter and bin
+    gold_real = resize(reduce_resolution(gold_real, 1, 2*oversampling), 1/oversampling, interpolation='Spline')
+
+    if imaginary:
+        return gold_real, gold_imaginary
+    else:
+        return gold_real
+
+
+def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=False, solvent_masking=False,
+                     V_sol=physics.V_WATER, absorption_contrast=False, voltage=300E3, density=physics.PROTEIN_DENSITY,
+                     molecular_weight=physics.PROTEIN_MW, structure_tuple=None):
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
     This function applies averaging of the potential over the voxels to obtain precise results without oversampling.
 
-    @param filename: ID of pdb file as present in pdb folder
-    @type filename: string
+    @param filepath: ID of pdb file as present in pdb folder
+    @type filepath: string
     @param voxel_size: Size (A) of voxel in output map, default 1 A
     @type voxel_size: float
     @param solvent_exclusion: model the potential taking into account solvent exclusion
@@ -519,17 +483,20 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
 
     @author: Marten Chaillet
     """
+    from pytom.tompy.transform import resize
+    from pytom.simulation.support import reduce_resolution_fourier
     from scipy.special import erf
 
+    assert (type(oversampling) is int) and (oversampling >= 1), print('oversampling parameter is not an integer')
     if oversampling > 1:
         voxel_size /= oversampling
 
     extra_space = 30  # extend volume by 30 A in all directions
 
-    print(f' - Calculating IASA potential from {filename}')
+    print(f' - Calculating IASA potential from {filepath}')
 
     if structure_tuple is None:
-        x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(filename)
+        x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(filepath)
     else:
         x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = structure_tuple
 
@@ -553,6 +520,8 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
     if solvent_exclusion:
         solvent = xp.zeros(sz)
 
+    print(f'#atoms to go over is {len(x_coordinates)}.')
+
     for i in range(len(elements)):
         if xp.mod(i, 5000) == 0:
             print(f'Calculating atom {i}.')
@@ -561,16 +530,16 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
         b_factor = b_factors[i]
         occupancy = occupancies[i]
 
-        sf = xp.array(const.scattering_factors[atom]['g'])
+        sf = xp.array(physics.scattering_factors[atom]['g'])
         a = sf[0:5]
         b = sf[5:10]
 
         # b += (b_factor) # units in A
 
-        if atom in list(const.volume_displaced):
-            r_0 = xp.cbrt(const.volume_displaced[atom] / (xp.pi ** (3 / 2)))
+        if atom in list(physics.volume_displaced):
+            r_0 = xp.cbrt(physics.volume_displaced[atom] / (xp.pi ** (3 / 2)))
         else:  # If not H,C,O,N we assume the same volume displacement as for carbon
-            r_0 = xp.cbrt(const.volume_displaced['C'] / (xp.pi ** (3 / 2)))
+            r_0 = xp.cbrt(physics.volume_displaced['C'] / (xp.pi ** (3 / 2)))
 
         r2 = 15 / (1 / r_0 ** 2)
         for j in range(5):
@@ -639,7 +608,7 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
     # Voxel volume
     dV = voxel_size ** 3
     # Convert to correct units
-    C = 4 * xp.sqrt(xp.pi) * const.constants['h'] ** 2 / (const.constants['el'] * const.constants['me']) * 1E20  # angstrom**2
+    C = 4 * xp.sqrt(xp.pi) * physics.constants['h'] ** 2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # angstrom**2
 
     if solvent_exclusion:
         # Correct for solvent and convert both the solvent and potential array to the correct units.
@@ -649,7 +618,7 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
         # construct solvent mask
         # gaussian decay of mask
         if oversampling == 1:
-            smoothed_mask = reduce_resolution(solvent_mask, voxel_size, voxel_size * 2)
+            smoothed_mask = reduce_resolution_fourier(solvent_mask, voxel_size, voxel_size * 2)
             smoothed_mask[smoothed_mask < 0.001] = 0
             solvent_mask = smoothed_mask
         # fig, (ax1, ax2) = plt.subplots(1, 2)
@@ -662,11 +631,10 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
         real = potential / dV * C
 
     if absorption_contrast:
-        from simulateProjections import potential_amplitude
         # voltage by default 300 keV
-        molecule_absorption = potential_amplitude(density, molecular_weight, voltage)
-        solvent_absorption = potential_amplitude(0.93, 18, voltage) * (V_sol / 4.5301)
-        # gold_amplitude = potential_amplitude(19.3, 197, voltage)
+        molecule_absorption = physics.potential_amplitude(density, molecular_weight, voltage)
+        solvent_absorption = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY,
+                                                         physics.WATER_MW, voltage) * (V_sol / physics.V_WATER)
         print(f'molecule absorption = {molecule_absorption:.3f}')
         print(f'solvent absorption = {solvent_absorption:.3f}')
 
@@ -679,49 +647,25 @@ def iasa_integration(filename, voxel_size=1., oversampling=1, solvent_exclusion=
                   'are not used.')
             sys.exit(0)
 
-        # if solvent_masking:
-        #     imaginary = smoothed_mask * (molecule_absorption - solvent_absorption)
-        # else:
-        #     if voxel_size > 7: # At too large spacings this becomes incorrect again....
-        #         # Only do this for large voxel spacing and large macromolecule. The max value should then represent
-        #         # average protein potential in a voxel 'fully filled' with protein atoms. We then use that to scale
-        #         # all values between 0 and 1 so that we get a gradient between solvent (0.0) and protein (1.0),
-        #         # representing relative occupation.
-        #         if voxel_size>15:
-        #             print('Warning: assignment of imaginary part of molecules potential can become incorrect at'
-        #                   'voxel spacing >15A.')
-        #         imaginary = (molecule_absorption - solvent_absorption) * (real / real.max())
-        #     elif voxel_size < 2: # for tiny voxels create a binary mask, here we can 'safely' assume the potential
-        #         # overlaps with the occupied space of the protein.
-        #         imaginary = (molecule_absorption - solvent_absorption) * (potential > 0.001) # threshold of 0.01 is occupied
-        #         # and filter to remove hard edges?
-        #     else:
-        #         cutoff = 0.5 * potential[potential > 0.001].mean()
-        #         imaginary = (potential > cutoff) * 1.0 * (molecule_absorption - solvent_absorption)
-
-        if oversampling > 1:
-            real = reduce_resolution(real, voxel_size, voxel_size*2*oversampling)
-            real = bin(real, oversampling)
-            imaginary = reduce_resolution(imaginary, voxel_size, voxel_size*2*oversampling)
-            imaginary = bin(imaginary, oversampling)
-
-        return [real, imaginary]
+        real = reduce_resolution_fourier(real, voxel_size, voxel_size*2*oversampling)
+        real = resize(real, 1/oversampling, interpolation='Spline')
+        imaginary = reduce_resolution_fourier(imaginary, voxel_size, voxel_size*2*oversampling)
+        imaginary = resize(imaginary, 1/oversampling, interpolation='Spline')
+        return (real, imaginary)
     else:
-        if oversampling > 1:
-            real = reduce_resolution(real, voxel_size, voxel_size*2*oversampling)
-            real = bin(real, oversampling)
-        return [real]
+        real = reduce_resolution_fourier(real, voxel_size, voxel_size*2*oversampling)
+        return resize(real, 1/oversampling, interpolation='Spline')
 
 
-def iasa_rough(filename, voxel_size=10, solvent_exclusion=False, V_sol=4.5301):
+def iasa_rough(filepath, voxel_size=10, oversampling=1, solvent_exclusion=False, V_sol=physics.V_WATER):
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
     This function applies averaging of the potential over the voxels BUT in a coarse way. Use only for desired foxel
     spacing of 10 A.
 
-    @param filename: ID of pdb file as present in pdb folder
-    @type filename: string
+    @param filepath: ID of pdb file as present in pdb folder
+    @type filepath: string
     @param voxel_size: Size (A) of voxel in output map, default 1 A
     @type voxel_size: float
     @param solvent_exclusion: model the potential taking into account solvent exclusion
@@ -734,12 +678,18 @@ def iasa_rough(filename, voxel_size=10, solvent_exclusion=False, V_sol=4.5301):
 
     @author: Marten Chaillet
     """
-    oversampling = 2 # Adjust if neccesary. Voxel size of this function should never be below 5A.
-    extra_space = 10  # extend volume by 10 A in all directions
+    from pytom.tompy.transform import resize
+    from pytom.simulation.support import reduce_resolution_fourier
 
-    print(f' - Calculating IASA potential from {filename}')
+    assert (type(oversampling) is int) and (oversampling >= 1), print('oversampling parameter is not an integer')
+    if oversampling > 1:
+        voxel_size /= oversampling
 
-    x_coordinates, y_coordinates, z_coordinates, elements, _, _ = read_structure(filename)
+    extra_space = 30  # extend volume by 10 A in all directions
+
+    print(f' - Calculating IASA potential from {filepath}')
+
+    x_coordinates, y_coordinates, z_coordinates, elements, _, _ = read_structure(filepath)
 
     x_max = xp.max(x_coordinates - xp.min(x_coordinates))
     y_max = xp.max(y_coordinates - xp.min(y_coordinates))
@@ -755,12 +705,14 @@ def iasa_rough(filename, voxel_size=10, solvent_exclusion=False, V_sol=4.5301):
     szx = xp.abs(xp.max(x_coordinates) - xp.min(x_coordinates)) + 2 * extra_space + difference[0]
     szy = xp.abs(xp.max(y_coordinates) - xp.min(y_coordinates)) + 2 * extra_space + difference[1]
     szz = xp.abs(xp.max(z_coordinates) - xp.min(z_coordinates)) + 2 * extra_space + difference[2]
-    sz = xp.round(xp.array([szx, szy, szz]) / (voxel_size/oversampling)).astype(int)
+    sz = xp.round(xp.array([szx, szy, szz]) / voxel_size).astype(int)
 
     potential = xp.zeros(sz)
 
-    C = 2 * xp.pi * const.constants['h_bar'] ** 2 / (const.constants['el'] * const.constants['me']) * 1E20  # angstrom**2
-    dV = (voxel_size/oversampling) ** 3
+    C = 2 * xp.pi * physics.constants['h_bar'] ** 2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # angstrom**2
+    dV = voxel_size ** 3
+
+    print(f'#atoms to go over is {len(x_coordinates)}.')
 
     for i in range(len(elements)):
         if xp.mod(i, 5000) == 0:
@@ -771,29 +723,29 @@ def iasa_rough(filename, voxel_size=10, solvent_exclusion=False, V_sol=4.5301):
         rc = [x_coordinates[i], y_coordinates[i], z_coordinates[i]]  # atom center
         ind = tuple([int((c) // (voxel_size/oversampling)) for c in rc])  # Indexes to contain the potential
 
-        potential[ind] += (xp.array(const.scattering_factors[atom]['g'])[0:5].sum() * C / dV)
+        potential[ind] += (xp.array(physics.scattering_factors[atom]['g'])[0:5].sum() * C / dV)
 
         if solvent_exclusion:
-            if atom in list(const.volume_displaced):
-                potential[ind] -= const.volume_displaced[atom] * V_sol / dV
+            if atom in list(physics.volume_displaced):
+                potential[ind] -= physics.volume_displaced[atom] * V_sol / dV
             else:  # If not H,C,O,N we assume the same volume displacement as for carbon
-                potential[ind] -= const.volume_displaced['C'] * V_sol / dV
+                potential[ind] -= physics.volume_displaced['C'] * V_sol / dV
     # Apply Gaussian filter
-    potential = reduce_resolution(potential, (voxel_size/oversampling), voxel_size)
+    potential = reduce_resolution_fourier(potential, 1, 2*oversampling)
     # Bin the volume
-    potential = bin(potential, oversampling)
+    potential = resize(potential, 1/oversampling, interpolation='Spline')
 
     return potential
 
 
-def iasa_potential(filename, voxel_size=1., oversampling=0, low_pass_filter=True): # add params voxel_size, oversampling?
+def iasa_potential(filepath, voxel_size=1., oversampling=1): # add params voxel_size, oversampling?
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
     This function using sampling to determine the potential.
 
-    @param filename: ID of pdb file as present in pdb folder
-    @type filename: string
+    @param filepath: ID of pdb file as present in pdb folder
+    @type filepath: string
     @param voxel_size: Size (A) of voxel in output map, default 1 A
     @type voxel_size: float
     @param oversampling: Increased sampling of potential (multiple of 1), default 1 i.e. no oversampling
@@ -804,44 +756,43 @@ def iasa_potential(filename, voxel_size=1., oversampling=0, low_pass_filter=True
 
     @author: Marten Chaillet
     """
-    extra_pixels = 40  # extend volume by 10 A
+    from pytom.tompy.transform import resize
+    from pytom.simulation.support import reduce_resolution_fourier
 
-    print(f' - Calculating IASA potential from {filename}')
-
-    x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(filename)
-
-    x_coordinates = x_coordinates - xp.min(x_coordinates) + extra_pixels
-    y_coordinates = y_coordinates - xp.min(y_coordinates) + extra_pixels
-    z_coordinates = z_coordinates - xp.min(z_coordinates) + extra_pixels
-    # Define the volume of the protein
-    szx = xp.abs(xp.max(x_coordinates) - xp.min(x_coordinates)) + 2 * extra_pixels
-    szy = xp.abs(xp.max(y_coordinates) - xp.min(y_coordinates)) + 2 * extra_pixels
-    szz = xp.abs(xp.max(z_coordinates) - xp.min(z_coordinates)) + 2 * extra_pixels
-    shape = [szx,szy,szz]
-    print(f'pre adjustment shape = {shape}')
-    # Make the size of the box a result of 2^n to make fourier transforms more efficient.
-    exponent = math.log(max(shape),2)
-    if (exponent % 1) != 0:
-        new_size = 2**xp.round(exponent)
-        difference = [new_size - s for s in shape]
-        x_coordinates += (difference[0] / 2)
-        y_coordinates += (difference[1] / 2)
-        z_coordinates += (difference[2] / 2)
-        shape = [s+d for s,d in zip(shape,difference)]
-    print(f'after adjustment = {shape}')
-
-    if (oversampling > 1) and ( type(oversampling) is int ):
-        spacing = voxel_size / oversampling
-    else:
-        spacing = voxel_size
+    assert (type(oversampling) is int) and (oversampling >= 1), print('oversampling parameter is not an integer')
+    if oversampling > 1:
+        voxel_size /= oversampling
     print(f'IASA: volume will be sampled at {spacing}A')
 
-    sz = [ s / spacing for s in shape] # increase for oversampling
+    extra_space = 30  # extend volume by 10 A
+
+    print(f' - Calculating IASA potential from {filepath}')
+
+    x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(filepath)
+
+    x_max = xp.max(x_coordinates - xp.min(x_coordinates))
+    y_max = xp.max(y_coordinates - xp.min(y_coordinates))
+    z_max = xp.max(z_coordinates - xp.min(z_coordinates))
+    dimensions = [x_max, y_max, z_max]
+    largest_dimension = max(dimensions)
+    difference = [largest_dimension - a for a in dimensions]
+
+    x_coordinates = x_coordinates - xp.min(x_coordinates) + extra_space + difference[0] / 2
+    y_coordinates = y_coordinates - xp.min(y_coordinates) + extra_space + difference[1] / 2
+    z_coordinates = z_coordinates - xp.min(z_coordinates) + extra_space + difference[2] / 2
+    # Define the volume of the protein
+    szx = xp.abs(xp.max(x_coordinates) - xp.min(x_coordinates)) + 2 * extra_space + difference[0]
+    szy = xp.abs(xp.max(y_coordinates) - xp.min(y_coordinates)) + 2 * extra_space + difference[1]
+    szz = xp.abs(xp.max(z_coordinates) - xp.min(z_coordinates)) + 2 * extra_space + difference[2]
+
+    sz = xp.round(xp.array([szx, szy, szz]) / voxel_size).astype(int)
+
+    potential = xp.zeros(sz)
+
     # C = 2132.8 A^2 * V; 1E20 is a conversion factor for Angstrom^2,
     # h and not h_bar, which is why we multiply with 4 * sqrt(pi) instead of 16*pi^(5/2)
-    C = 4 * xp.sqrt(xp.pi) * const.constants['h']**2 / (const.constants['el'] * const.constants['me']) * 1E20
+    C = 4 * xp.sqrt(xp.pi) * physics.constants['h']**2 / (physics.constants['el'] * physics.constants['me']) * 1E20
 
-    potential = xp.zeros(tuple(xp.round(sz).astype(int)))
     print(f'#atoms to go over is {len(x_coordinates)}.')
 
     for i in range(len(elements)):
@@ -852,7 +803,7 @@ def iasa_potential(filename, voxel_size=1., oversampling=0, low_pass_filter=True
         b_factor = b_factors[i]
         occupancy = occupancies[i]
 
-        sf = xp.array(const.scattering_factors[atom]['g'])
+        sf = xp.array(physics.scattering_factors[atom]['g'])
         a = sf[0:5]
         b = sf[5:10]
 
@@ -865,11 +816,11 @@ def iasa_potential(filename, voxel_size=1., oversampling=0, low_pass_filter=True
         for j in range(5):
             # Find the max radius over all gaussians (assuming symmetrical potential to 4.5 sigma truncation
             # (corresponds to 10).
-            b1[j] = 4 * xp.pi ** 2 / b[j] * spacing ** 2
+            b1[j] = 4 * xp.pi ** 2 / b[j] * voxel_size ** 2
             r2 = xp.maximum(r2, 10/b1[j])
         # Radius of gaussian sphere
         r = xp.sqrt(r2 / 3)
-        xc1, yc1, zc1 = x_coordinates[i] / spacing, y_coordinates[i] / spacing, z_coordinates[i] / spacing
+        xc1, yc1, zc1 = x_coordinates[i] / voxel_size, y_coordinates[i] / voxel_size, z_coordinates[i] / voxel_size
         # Center of the gaussian sphere.
         rc = [xc1, yc1, zc1]
         # Calculate the absolute indexes for the potential matrix.
@@ -893,36 +844,26 @@ def iasa_potential(filename, voxel_size=1., oversampling=0, low_pass_filter=True
         potential[kmin[0]:kmin[0]+kmm+1, kmin[1]:kmin[1]+kmm+1, kmin[2]:kmin[2]+kmm+1] = \
             potential[kmin[0]:kmin[0]+kmm+1, kmin[1]:kmin[1]+kmm+1, kmin[2]:kmin[2]+kmm+1] + atom_potential
 
-    # potential = subtract_solvent(potential)
-    print(f'oversampled potential shape {potential.shape}')
-    # Only need to downscale if the volume was oversampled.
-    if spacing != voxel_size:
-        # Volume needs to be cubic before applying a low pass filter and binning (??)
-        # size = max(potential.shape)
-        # increment = [size - a for a in potential.shape]
-        # # using spline interpolation here does not decrease our accuracy as the volume is already oversampled!
-        # potential = extend_volume(potential, increment, pad_value=0, symmetrically=True, true_center=True)
-        print('low pass filter')
-        if low_pass_filter:
-            potential = reduce_resolution(potential, spacing, voxel_size)
-        print('binning')
-        potential = bin(potential, oversampling)
-        # Other option is to use scale instead of binning, which is proper downsampling.
-        # potential = scale(potential, 1/oversampling)
+    # subtract the average background of amorphous ice
+    potential -= physics.V_WATER
+
+    # using spline interpolation here does not decrease our accuracy as the volume is already oversampled!
+    potential = reduce_resolution_fourier(potential, 1, 2*oversampling)
+    potential = resize(potential, 1/oversampling, interpolation='Spline')
 
     return potential
 
 
-def parse_apbs_output(filename):
+def parse_apbs_output(filepath):
     """
     parse_apbs_output: Parses output file from APBS.
-    @param filename: Path and name of .pqr.dx file produced by APBS software
+    @param filepath: Path and name of .pqr.dx file produced by APBS software
     @return: data, dxnew, dynew, dznew are in A, thickness in m, data is the reshaped apbs output
     @author: Marten Chaillet
     """
     # Read file header
     try:
-        with open(filename, 'r') as apbs_file:
+        with open(filepath, 'r') as apbs_file:
             grid, origin, spacing = [],[],[]
             delta_count = 0
             for i in range(11):
@@ -957,56 +898,54 @@ def parse_apbs_output(filename):
     return data, dx, dy, dz
 
 
-def resample_apbs(filename, voxel_size=1.0, low_pass_filter=False):
+def resample_apbs(filepath, voxel_size=1.0):
     """
     resample_APBS: First calls parse_abps_output to read an apbs output file, then scales voxels to 1 A voxels and
     refactors the values to volts.
 
-    @param filename: Full filenamepath
-    @type filename: string
+    @param filepath: Full filepath
+    @type filepath: string
 
     @return: Resampled and scaled V_bond potential
     @rtype: 3d numpy/cupy array[x,y,z], float
 
     @author: Marten Chaillet
     """
-    # from pytom_volume import vol
-    # from pytom_numpy import vol2npy
-    from voltools import transform
+    from skimage.transform import rescale
+    from pytom.tompy.transform import resize
+    from pytom.simulation.support import reduce_resolution_fourier
 
-    print(f' - Parsing and resampling APBS file {filename}')
+    print(f' - Parsing and resampling APBS file {filepath}')
 
     # Parse APBS data file
-    potential, dxnew, dynew, dznew = parse_apbs_output(filename)
+    potential, dxnew, dynew, dznew = parse_apbs_output(filepath)
     # Check if the voxel size is allowed, and adjust if neccessary
     smallest_possible = max([dxnew, dynew, dznew])
     if not(voxel_size >= smallest_possible):
-        print(f'Requested voxel size is smaller than voxel size of the apbs map. Adjust to smallest possible voxel size '
-              f'of {smallest_possible}.')
+        print(f'Requested voxel size is smaller than voxel size of the apbs map. Adjust to smallest possible voxel size'
+              f' of {smallest_possible}.')
         voxel_size = smallest_possible
     # Make voxels same size by scaling to dx
     factor = (dxnew/dxnew, dynew/dxnew, dznew/dxnew)
-    potential = scale(potential, factor)
-    if low_pass_filter:
-        size = max(potential.shape)
-        increment = [size-a for a in potential.shape]
-        potential = extend_volume(potential, increment, pad_value=0, symmetrically=True, true_center=True)
-        potential = reduce_resolution(potential, dxnew, voxel_size)
+    # Use skimage rescale for different factors along x, y, and z
+    # order 3 for bi-cubic (splines), preserve_range otherwise image is returned as float between -1 and 1
+    potential = rescale(potential, factor, mode='constant', order=3, preserve_range=True, multichannel=False,
+                        anti_aliasing=False)
+    # filter volume before downsampling to voxel_size
+    potential = reduce_resolution_fourier(potential, dxnew, 2*voxel_size)
     # Scale the volume to voxels with voxel_size
-    potential = scale(potential, dxnew/voxel_size)
-
-    # TODO use voltools
+    potential = resize(potential, dxnew/voxel_size, interpolation='Spline')
 
     print(f'Data after reshaping to {voxel_size} A voxels: {potential.shape}')
 
     # Convert to from kT/e to volts
     temperature = 291 # [K] = 18 C (room temperature)
-    convert_to_volts = const.constants['kb'] * temperature / const.constants['el']
+    convert_to_volts = physics.constants['kb'] * temperature / physics.constants['el']
     potential = convert_to_volts * potential
     return potential
 
 
-def combine_potential(iasa_potential, bond_potential, voxel_size):
+def combine_potential(potential1, potential2):
     """
     Combine isolated atom and bond potential.
 
@@ -1020,90 +959,100 @@ def combine_potential(iasa_potential, bond_potential, voxel_size):
 
     @author: Marten Chaillet
     """
+    from pytom.simulation.support import reduce_resolution_fourier
+
     print(' - Combining iasa and bond potential')
-    # Reduce interpolation! Only shift one of the volumes to true center. Preferably V_bond.
-    # This code could be more elegant.
-    assert max(iasa_potential.shape) >= max(bond_potential.shape), print('Break! Attempting to extend IASA volume.')
-    try:
-        # Because volumes are shifted to true center (by interpolation) the precision is reduced slightly.
-        difference = [max(iasa_potential.shape) - x for x in bond_potential.shape]
-        bond_potential = extend_volume(bond_potential, difference, symmetrically=True, true_center=True)
-        # Apply filter to remove the artifacts from interpolating
-        bond_potential = reduce_resolution(bond_potential, voxel_size, voxel_size)
-        full_potential = iasa_potential + bond_potential
-    except Exception as e:
-        print(e)
-        raise Exception('Could not fit atom and bond potential together.')
-    return iasa_potential, bond_potential, full_potential
+
+    size1 = potential1.shape
+    size2 = potential2.shape
+
+    # determine the extension for both volumes
+    ext1 = [(s2 - s1 if s2 > s1 else 0) for s1, s2 in zip(size1, size2)]
+    ext2 = [(s1 - s2 if s1 > s2 else 0) for s1, s2 in zip(size1, size2)]
+
+    # extend volumes and filter before interpolating
+    potential1_ext = extend_volume(reduce_resolution_fourier(potential1, 1, 2),
+                                   ext1, symmetrically=True, true_center=True)
+    potential2_ext = extend_volume(reduce_resolution_fourier(potential2, 1, 2),
+                                   ext2, symmetrically=True, true_center=True)
+
+    potential_combined = potential1_ext + potential2_ext
+
+    return potential1_ext, potential2_ext, potential_combined
 
 
-def wrapper(file, input_folder, output_folder, voxel_size, oversampling=1, binning=None, exclude_solvent=False, solvent_masking=False,
-            solvent_potential=4.5301, absorption_contrast=False, voltage=300E3, solvent_factor=1.0):
-    import pytom.tompy.io
-    # TODO function can be executed in parallel for multiple structures
+def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=None, exclude_solvent=False, solvent_masking=False,
+            solvent_potential=physics.V_WATER, absorption_contrast=False, voltage=300E3, solvent_factor=1.0):
+    from pytom.tompy.io import write
+    from pytom.tompy.transform import resize
+    from pytom.simulation.support import reduce_resolution_fourier
 
     # Id does not makes sense to apply absorption contrast if solvent exclusion is not turned on
     if absorption_contrast:
         assert exclude_solvent or solvent_masking, print('absorption contrast can only be applied if solvent exclusion is used.')
 
-    pdb_id = file.split('.')[0]
+    _, file = os.path.split(filepath)
+    pdb_id, _ = os.path.splitext(file)
+
+    output_folder = os.path.join(output_folder, pdb_id)
+    if not os.path.exists(output_folder):
+        print(f'Making folder {output_folder}...')
+        os.mkdir(output_folder)
 
     # Call external programs for structure preparation and PB-solver
-    structure = call_chimera(file, input_folder, output_folder) # output structure name is dependent on modification by chimera
+    filepath = call_chimera(filepath, output_folder) # output structure name is dependent on modification by chimera
     # call_apbs(folder, structure, ph=ph)
 
-    assert structure != 0, 'something went wrong with chimera'
+    assert filepath != 0, 'something went wrong with chimera'
 
     # Calculate atom and bond potential, and store them
     # 4 times oversampling of IASA yields accurate potentials
     # Could be {structure}.{extension}, but currently chimera is only able to produce .pdb files, so the extended
     # structure file created by call chimera has a .pdb extension.
-    v_atom = iasa_integration(f'{output_folder}/{structure}.pdb', voxel_size=voxel_size, oversampling=oversampling,
+    v_atom = iasa_integration(filepath, voxel_size=voxel_size, oversampling=oversampling,
                               solvent_exclusion=exclude_solvent, solvent_masking=solvent_masking, V_sol=solvent_potential * solvent_factor,
                               absorption_contrast= absorption_contrast, voltage=voltage)
+
     # Absorption contrast map generated here will look blocky when generated at 2.5A and above!
     if absorption_contrast:
-        print(' - Filtering volume')
-        # print(v_atom[0].shape, v_atom[1].shape)
-        filtered = [reduce_resolution(v_atom[0], voxel_size, 2*voxel_size),
-                    reduce_resolution(v_atom[1], voxel_size, 2*voxel_size)]
         output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
-        pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', filtered[0])
-        pytom.tompy.io.write(f'{output_folder}/{output_name}_imag_{voltage*1E-3:.0f}V.mrc', filtered[1])
+        print(f'writing real and imaginary part with name {output_name}')
+        write(os.path.join(output_folder, f'{output_name}_real.mrc'), v_atom[0])
+        write(os.path.join(output_folder, f'{output_name}_imag_{voltage*1E-3:.0f}V.mrc'), v_atom[1])
     else:
-        print(' - Filtering volume')
-        filtered = reduce_resolution(v_atom[0], voxel_size, 2*voxel_size)
         if exclude_solvent or solvent_masking:
             output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
         else:
             output_name = f'{pdb_id}_{voxel_size:.2f}A'
-        pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', filtered)
+        print(f'writing real part with name {output_name}')
+        write(os.path.join(output_folder, f'{output_name}_real.mrc'), v_atom)
 
     if binning is not None:
         # v_atom_binned = iasa_integration(f'{output_folder}/{structure}.pdb', voxel_size=voxel_size*binning,
         #                       solvent_exclusion=exclude_solvent, V_sol=solvent_potential)
         # first filter the volume!
         if absorption_contrast:
-            print(' - Filtering volume')
-            filtered = [reduce_resolution(v_atom[0], voxel_size, voxel_size * 2 * binning),
-                        reduce_resolution(v_atom[1], voxel_size, voxel_size * 2 * binning)]
             print(' - Binning volume')
-            binned = [bin(filtered[0], binning), bin(filtered[1], binning)]
+            filtered = [reduce_resolution_fourier(v_atom[0], voxel_size, voxel_size * 2 * binning),
+                        reduce_resolution_fourier(v_atom[1], voxel_size, voxel_size * 2 * binning)]
+            binned = [resize(filtered[0], 1/binning, interpolation='Spline'),
+                      resize(filtered[1], 1/binning, interpolation='Spline')]
 
             output_name = f'{pdb_id}_{voxel_size*binning:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
-            pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', binned[0])
-            pytom.tompy.io.write(f'{output_folder}/{output_name}_imag_{voltage*1E-3:.0f}V.mrc', binned[1])
+            print(f'writing real and imaginary part with name {output_name}')
+            write(os.path.join(output_folder, f'{output_name}_real.mrc'), binned[0])
+            write(os.path.join(output_folder, f'{output_name}_imag_{voltage*1E-3:.0f}V.mrc'), binned[1])
 
         else:
-            print(' - Filtering volume')
-            filtered = reduce_resolution(v_atom[0], voxel_size, voxel_size * 2 * binning)
             print(' - Binning volume')
-            binned = bin(filtered, binning)
+            filtered = reduce_resolution_fourier(v_atom, voxel_size, voxel_size * 2 * binning)
+            binned = resize(filtered, 1/binning, interpolation='Spline')
             if exclude_solvent or solvent_masking:
                 output_name = f'{pdb_id}_{voxel_size*binning:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
             else:
                 output_name = f'{pdb_id}_{voxel_size*binning:.2f}A'
-            pytom.tompy.io.write(f'{output_folder}/{output_name}_real.mrc', binned)
+            print(f'writing real part with name {output_name}')
+            write(os.path.join(output_folder, f'{output_name}_real.mrc'), binned)
     return
 
 
@@ -1117,9 +1066,8 @@ if __name__ == '__main__':
     from pytom.tools.parse_script_options import parse_script_options
 
     # syntax is ScriptOption([short, long], description, requires argument, is optional)
-    options = [ScriptOption(['-f', '--file'], 'Protein structure file, either pdb or cif.', True, False),
-               ScriptOption(['-d', '--folder'], 'Folder where the structure file is located.', True, False),
-               ScriptOption(['-o', '--outputfolder'], 'Folder to store the files produced by potential.py.', True, False),
+    options = [ScriptOption(['-f', '--file'], 'File path with protein structure, either pdb or cif.', True, False),
+               ScriptOption(['-d', '--destination'], 'Folder to store the files produced by potential.py.', True, False),
                ScriptOption(['-s', '--spacing'], 'The size of the voxels of the output volume. 1A by default.', True, True),
                ScriptOption(['-n', '--oversampling'], 'n times pixel size oversampling.', True, True),
                ScriptOption(['-b', '--binning'], 'Number of times to bin. Additional storage of binned volume.', True, True),
@@ -1127,7 +1075,7 @@ if __name__ == '__main__':
                             'Whether to exclude solvent around each atom as a correction of the potential.', False, True),
                ScriptOption(['-m', '--mask_solvent'], 'Whether to exclude solvent by masking.', False, True),
                ScriptOption(['-p', '--solvent_potential'],
-                            'Value for the solvent potential. By default amorphous ice, 4.5301 V.', True, True),
+                            f'Value for the solvent potential. By default amorphous ice, {physics.V_WATER} V.', True, True),
                ScriptOption(['-c', '--percentile'], 'Multiplication for solvent potential and absorption contrast of '
                                                     'solvent to decrease/increase contrast. Value between 0 and 3 (could'
                                                     ' be higher but would not make sense).', True, True),
@@ -1147,7 +1095,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        file, input_folder, output_folder, voxel_size, oversampling, binning, exclude_solvent, solvent_masking, solvent_potential, \
+        filepath, output_folder, voxel_size, oversampling, binning, exclude_solvent, solvent_masking, solvent_potential, \
                     solvent_factor, absorption_contrast, voltage, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
@@ -1163,7 +1111,7 @@ if __name__ == '__main__':
     if not oversampling: oversampling=1
     else: oversampling = int(oversampling)
 
-    if not solvent_potential: solvent_potential = 4.5301
+    if not solvent_potential: solvent_potential = physics.V_WATER
     else: solvent_potential = float(solvent_potential)
 
     if not solvent_factor: solvent_factor = 1
@@ -1174,19 +1122,14 @@ if __name__ == '__main__':
 
     if binning: binning = int(binning)
 
-    if not os.path.exists(f'{input_folder}/{file}'):
+    if not os.path.exists(filepath):
         print('Protein structure file does not exist!')
         sys.exit()
     if not os.path.exists(output_folder):
         print('Output folder does not exist!')
         sys.exit()
-    else:
-        output_folder = f'{output_folder}/{file.split(".")[0]}'
-        if not os.path.exists(output_folder):
-            print(f'Making folder {output_folder}...')
-            os.mkdir(output_folder)
 
-    wrapper(file, input_folder, output_folder, voxel_size, oversampling=oversampling, binning=binning,
+    wrapper(filepath, output_folder, voxel_size, oversampling=oversampling, binning=binning,
             exclude_solvent=exclude_solvent, solvent_masking=solvent_masking, solvent_potential=solvent_potential,
             absorption_contrast=absorption_contrast, voltage=voltage, solvent_factor=solvent_factor)
 

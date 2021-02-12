@@ -11,6 +11,115 @@ Dict containing the scattering factors of each atom type. Atoms can be retrieved
 captitals with one or two letter. Each element has a g and m assigned as a nested dictionary which specify gaussian
 coefficients of scattering factors and the atomic mass, respectively. g is in a 2x5 format?
 """
+import numpy as xp
+
+V_WATER = 4.5301  # potential value of low density amorphous ice (from Vulovic et al., 2013)
+
+AMORPHOUS_ICE_DENSITY   = 0.93  # with density of 0.93 g/cm^3
+PROTEIN_DENSITY         = 1.35  # g/cm^3
+GOLD_DENSITY            = 19.3
+PROTEIN_MW  = 7.2
+WATER_MW    = 18
+GOLD_MW     = 197
+CARBON_MW   = 12
+
+
+def wavelength_eV2m(V):
+    # OLD FUNCTION
+    # h / sqrt( 2 * me * el * ev * 1)
+    # return 6.625 * 10 ** (-34) / ((2 * 9.1 * 10 ** (-31)) * 1.6 * (10 ** (-19)) * ev * 1) ** 0.5
+
+    # NEW FUNCTION
+    # function calculates the electron wavelength given a certain accelaration voltage V
+    h = constants["h"]
+    e = constants["el"]
+    m = constants["me"]
+    c = constants["c"]
+
+    # matlab original: lambda = h/sqrt(e*V*m*(e/m*V/c^2 + 2 ));
+    Lambda = h/xp.sqrt(e*V*m*(e/m*V/c**2 + 2 ))
+
+    return Lambda
+
+
+def potential_amplitude(rho, molecular_weight, voltage):
+    """
+    Calculate the inelastic Mean Free Path for different environments.
+    @param rho:
+    @param molecular_weight:
+    @param voltage:
+    @return:
+    """
+
+    # if Mw == 18 % water
+    #     ZO = 8;
+    #     sigma_inH = 8.8e-6 * beta2_100. * log(beta2. * (U0 + E0) / (E_loss / 2)) / (
+    #                 beta2. * log(beta2_100. * (100e3 + E0) / (E_loss / 2)));
+    #     sigma_inO = 1.5 * 1e-6 * ZO ^ 0.5. / beta2. * log(beta2. * (U0 + E0) / (E_loss / 2));
+    #     sigma_in = 2 * sigma_inH + sigma_inO;
+    #
+    # elseif
+    # Mw == 12 % carbon
+    # ZC = 6;
+    # sigma_in = 1.5 * 1e-6 * ZC ^ 0.5. / beta2. * log(beta2. * (U0 + E0) / (E_loss / 2));
+    #
+    # elseif
+    # Mw == 7.2 % protein
+    # sigma_in = 0.82 * 1e-4 * beta2_100. * log(beta2. * (U0 + E0) / (E_loss / 2)) / (
+    #             beta2. * log(beta2_100. * (100e3 + E0) / (E_loss / 2)));
+    # end
+    #
+    # Nconc = rho * 1000 * nc.Na / (Mw / 1000);
+    # Lambda_in = 1. / (Nconc * sigma_in * 1e-18);
+
+    Lambda = wavelength_eV2m(voltage)
+    relative_mass = constants["me"] + constants["el"] * voltage / (constants["c"] ** 2)
+    sigma_transfer = 2 * xp.pi * relative_mass * constants["el"] * Lambda / (constants["h"] ** 2)
+    E0 = constants['me'] * constants['c'] ** 2 / constants['el'] # rest mass energy
+    E_loss = 20 # eV mean plasmon loss
+
+    beta2 = 1 - (E0 / (voltage + E0)) ** 2
+    beta2_100 = 1 - (E0 / (100E3 + E0)) ** 2
+
+    if molecular_weight == WATER_MW: # water molecule
+        # rho for amorphous ice is 0.93 g/cm^3
+        ZO = 8
+        sigma_inelastic_H = ( 8.8E-6 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
+                              (beta2 * xp.log(beta2_100 * (100E3 + E0) / (E_loss / 2))) )
+        sigma_inelastic_O = 1.5 * 1E-6 * ZO ** 0.5 / beta2 * xp.log(beta2 * (voltage+E0) / (E_loss/2))
+        sigma_inelastic = 2 * sigma_inelastic_H + sigma_inelastic_O
+    elif molecular_weight == CARBON_MW: # carbon film
+        ZC = 6
+        sigma_inelastic = 1.5 * 1E-6 * ZC ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+    elif molecular_weight == PROTEIN_MW: # protein or lipid
+        # rho for proteins is assumed to be 1.35 g/cm^3
+        # fractional composition is 0.492, 0.313, 0.094, and 0.101 for elements H, C, N, and O, respectively
+        sigma_inelastic = (0.82 * 1E-4 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
+                           (beta2 * xp.log(beta2_100 * (100E3 + E0) / (E_loss / 2))) )
+    elif molecular_weight == GOLD_MW: # gold particles
+        ZAu = 79
+        sigma_inelastic = 1.5 * 1E-6 * ZAu ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+    elif molecular_weight == 734.1:
+        # DPPC lipid composition C40H80NO8P, molar mass 734.053 g/mol
+        # rho is 0.92 g/cm^3 for most vegetable oils, find a better reference!
+        ZC = 6
+        ZN = 7
+        ZO = 8
+        ZP = 15
+        sigma_inelastic_H = (8.8E-6 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
+                             (beta2 * xp.log(beta2_100 * (100E3 + E0) / (E_loss / 2))))
+        sigma_inelastic_C = 1.5 * 1E-6 * ZC ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic_N = 1.5 * 1E-6 * ZN ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic_O = 1.5 * 1E-6 * ZO ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic_P = 1.5 * 1E-6 * ZP ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
+        sigma_inelastic = 40 * sigma_inelastic_C + 80 * sigma_inelastic_H + sigma_inelastic_N + 8 * sigma_inelastic_O + \
+            sigma_inelastic_P
+
+    concentration = rho * 1000 * constants['na'] / (molecular_weight / 1000)
+    lamda_inelastic = ( 1. / (concentration * sigma_inelastic * 1E-18) )
+
+    return 1.0 / (2 * sigma_transfer * lamda_inelastic)
+
 
 constants = {
     # Dictionary of physical constants required for calculation.
@@ -45,10 +154,6 @@ mean_free_path = {
         120E3: 200 * 1E-9,
         300E3: 350 * 1E-9  # 300 keV corresponds to inelastic mean free path 350 nm
 }
-
-# TODO
-# TODO add voltage to wavelength
-# TODO add amplitude contrast calculation
 
 
 scattering_factors = {

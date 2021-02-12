@@ -8,7 +8,7 @@ Author: Marten Chaillet
 # essential
 import numpy as xp
 import pyvista
-from pytom.tompy.io import write
+import pytom.simulation.physics as physics
 
 # plotting
 import matplotlib
@@ -270,6 +270,8 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
     @param solvent_potential:
     @return:
     """
+    #todo function is very slow
+
     from potential import read_structure, iasa_integration
 
     # READ THE STRUCTURE AND EXTEND IT ONLY ONCE
@@ -380,8 +382,8 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
     structure = (membrane_x, membrane_y, membrane_z, membrane_e, membrane_b, membrane_o)
     # pass directly to iasa_integration
     potential = iasa_integration('', voxel_size, solvent_exclusion=True, V_sol=solvent,
-                                 absorption_contrast=True, voltage=voltage, density=1.35, molecular_weight=7.2,
-                                 structure_tuple=structure)
+                                 absorption_contrast=True, voltage=voltage, density=physics.PROTEIN_DENSITY,
+                                 molecular_weight=physics.PROTEIN_MW, structure_tuple=structure)
     return potential
 
 
@@ -391,6 +393,9 @@ if __name__ == '__main__':
     import sys
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
+    from pytom.tompy.io import write
+    from pytom.simulation.support import reduce_resolution
+    from pytom.tompy.transform import resize
 
     # syntax is ScriptOption([short, long], description, requires argument, is optional)
     options = [ScriptOption(['-s', '--size_factor'], '1 corresponds to a vesicle which has an average diameter of'
@@ -441,9 +446,6 @@ if __name__ == '__main__':
     real = volume[0]
     imag = volume[1]
 
-    from pytom.simulation.support import reduce_resolution
-    from pytom.tompy.transform import resize
-
     name = 'bilayer'
     size = f'{a*2/10:.0f}x{b*2/10:.0f}x{c*2/10:.0f}nm' # double the values of the ellipsoid radii for actual size
 
@@ -455,10 +457,8 @@ if __name__ == '__main__':
 
     binning = 2
 
-    real_bin = resize(reduce_resolution(real, voxel, binning * voxel * 2), real.shape[0]//binning,
-                      real.shape[1]//binning, real.shape[2]//binning) # *2 still?
-    imag_bin = resize(reduce_resolution(imag, voxel, binning * voxel * 2), imag.shape[0]//binning,
-                      imag.shape[1]//binning, imag.shape[2]//binning)
+    real_bin = resize(reduce_resolution(real, voxel, binning * voxel * 2), 1/binning, interpolation='Spline')
+    imag_bin = resize(reduce_resolution(imag, voxel, binning * voxel * 2), 1/binning, interpolation='Spline')
 
     write(os.path.join(folder, f'{name}_{voxel*binning:.2f}A_{size}_solvent-4.530V_real.mrc'), real_bin)
     write(os.path.join(folder, f'{name}_{voxel*binning:.2f}A_{size}_solvent-4.530V_imag_300V.mrc'), imag_bin)

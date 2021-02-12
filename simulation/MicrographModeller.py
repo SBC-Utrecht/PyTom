@@ -6,8 +6,7 @@ TOM toolbox for matlab.
 """
 
 # IO related modules
-from pytom.gui.mrcOperations import *
-import pytom.tompy.io
+# from pytom.gui.mrcOperations import *
 import configparser
 import tracemalloc
 import logging
@@ -15,25 +14,18 @@ import os
 import datetime
 import sys
 from tqdm import tqdm
-import time
-
-# Plotting
-import matplotlib
-# use Qt5Agg to prevent conflict with tkinter in pylab.
-matplotlib.use('Qt5Agg')
-# use Agg for plotting without display, while only writing to files
-# matplotlib.use('Agg')
-import matplotlib.pylab as plt
 
 # math
-from pytom.basic.files import *
+# from pytom.basic.files import *
 import numpy as xp
 import random
-import pytom.simulation.constants as const
-from scipy import ndimage
+import pytom.simulation.physics as physics
 
+# Plotting, use Qt5Agg to prevent conflict with tkinter in pylab on cluster
+# import matplotlib
+# matplotlib.use('Qt5Agg')
+# import matplotlib.pylab as plt
 
-# TODO Use os.path.join instead of f strings for file pahts!
 
 class ConfigLogger(object):
     """
@@ -53,7 +45,9 @@ class ConfigLogger(object):
 
 
 def downscale_class_mask(volume, binning, order=0):
-
+    """
+    Downscale class mask for binned reconstructions.
+    """
     from scipy.ndimage import zoom
 
     if binning==1:
@@ -66,29 +60,10 @@ def downscale_class_mask(volume, binning, order=0):
     return zoom(volume, 1/binning, order=order)
 
 
-def bin_class_mask(volume, binning=2):
-    """
-    Bin class mask for oversampled simulation. Class mask is generated oversampled (same as grandmodel) and needs to be
-    readjusted to the reconstruction.
-    """
-
-    from pytom.simulation.potential import bin
-
-    assert not any([s % 2 for s in volume.shape]), "volume sizes are not divisable by 2 for binning of class mask"
-
-    nvolume = xp.zeros(tuple([size//binning for size in volume.shape]))
-
-    classid = int(xp.max(volume))
-    while classid > 0:
-        tmp = (volume == classid) * 1.0
-        tmp = xp.ceil(bin(tmp, binning)).astype(int)
-        nvolume[tmp>0] = tmp[tmp>0] * classid
-        classid -= 1
-
-    return nvolume
-
-
 def draw_range(range, datatype, name):
+    """
+    Input parsing from config file.
+    """
     if type(range) == list and len(range) == 2:
         xp.random.seed(seed)
         random.seed(seed)
@@ -111,180 +86,54 @@ def draw_range(range, datatype, name):
         sys.exit(0)
 
 
-def create_ellipse(size, mj, mn1, mn2, smooth=0, cutoff_SD=3):
-    """
-    Generate an ellipse defined by 3 radii along x,y,z - parameters mj, mn1, mn2.
-    """
-    X,Y,Z = xp.meshgrid(xp.arange(size/1), xp.arange(size/1), xp.arange(size/1))
-
-    X -= size/2-0.5
-    Y -= size/2-0.5
-    Z -= size/2-0.5
-
-    R = xp.sqrt( (X/mj)**2 + (Y/mn1)**2 + (Z/mn2)**2)
-
-    # print(R.max(), R.min())
-
-    out = xp.zeros((size,size,size),dtype=xp.float32)
-    out[ R <= 1] = 1
-
-    if smooth:
-        R2 = R.copy()
-        R2[R <= 1] = 1
-        sphere = xp.exp(-1 * ((R2-1)/smooth)**2)
-        sphere[sphere <= xp.exp(-cutoff_SD**2/2.)] = 0
-        out = sphere
-
-    return out
-
-
-def addNoise(noise_size, dim):
-    """
-    Correlated noise to create density deformations.
-    """
-    from numpy.fft import ifftn, fftn, fftshift
-    from numpy.random import random
-
-    if noise_size == 0:
-        # 0 value will not work
-        noise_size = 1
-
-    noise_no_norm = abs(ifftn(fftshift(fftn(random((noise_size, noise_size, noise_size)))), [dim] * 3))
-    noise = 0.2 * noise_no_norm / abs(noise_no_norm).max()
-
-    return 1 + (noise - noise.mean())
-
-
-def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_factor=1.0, imaginary=False, voltage=300E3):
-    """
-    From Rahman 2018 (International Journal of Biosensors and Bioelectronics).
-    Volume of unit cell gold is 0.0679 nm^3 with 4 atoms per unit cell.
-    Volume of gold bead is 4/3 pi r^3.
-    """
-    from pytom.tompy.tools import create_sphere
-    from potential import reduce_resolution, bin
-    # from pytom.tompy.filter import gaussian3d
-
-    assert (type(oversampling) is int) and (oversampling >= 1), print('Stop gold marker creation oversampling factor is not a positive'
-                                                            ' integer.')
-
-    # select a random size for the gold marker in nm
-    diameter = xp.random.uniform(low=4.0, high=10.0)
-
-    # constants
-    unit_cell_volume = 0.0679 # nm^3
-    atoms_per_unit_cell = 4
-    C = 2 * xp.pi * const.constants['h_bar']**2 / (const.constants['el'] * const.constants['me']) * 1E20  # nm^2
-    voxel_size_nm = voxel_size*1E9 / oversampling
-    voxel_volume = voxel_size_nm**3
-
-    # dimension of gold box, always add 5 nm to the sides
-    dimension = int(xp.ceil(diameter / voxel_size_nm)) * 3
-    # sigma half of radius?
-    r = 0.8 * ((diameter * 0.5) / voxel_size_nm) # fraction of radius due to extension with exponential smoothing
-    ellipse = True
-    if ellipse:
-        r2 = r * xp.random.uniform(0.8, 1.2)
-        r3 = r * xp.random.uniform(0.8, 1.2)
-        bead = create_ellipse(dimension, r, r2, r3, smooth=2)
-    else:
-        bead = create_sphere((dimension,)*3, radius=r)
-
-    bead *= addNoise(int(r*0.75), dimension) * addNoise(int(r*0.25), dimension)
-    # SIGMA DEPENDENT ON VOXEL SIZE
-    # rounded_sphere = gaussian3d(sphere, sigma=(1 * 0.25 / voxel_size_nm))
-    bead[bead < 0.9] = 0 # remove too small values
-    # add random noise to gold particle to prevent perfect CTF ringing around the particle.
-    # random noise also dependent on voxel size maybe?
-    # rounded_sphere = (rounded_sphere > 0) * (rounded_sphere * xp.random.normal(1, 0.3, rounded_sphere.shape))
-    # rounded_sphere[rounded_sphere < 0] = 0
-
-    if imaginary:
-        solvent_amplitude = potential_amplitude(0.93, 18, voltage) * solvent_factor
-        gold_amplitude = potential_amplitude(19.3, 197, voltage)
-        gold_imaginary = bead * (gold_amplitude - solvent_amplitude)
-        # filter and bin
-        gold_imaginary = bin(gold_imaginary, oversampling)
-        # gold_imaginary = bin(reduce_resolution(gold_imaginary, voxel_size_nm, voxel_size_nm*2), oversampling)
-
-    # values transformed to occupied volume per voxel from 1 nm**3 per voxel to actual voxel size
-    solvent_correction = bead * (solvent_potential * solvent_factor)
-    unit_cells_per_voxel = (bead * voxel_volume / unit_cell_volume)
-    gold_atoms = unit_cells_per_voxel * atoms_per_unit_cell
-
-    # interaction potential
-    gold_scattering_factors = xp.array(const.scattering_factors['AU']['g'])
-    # gold_scattering_factors[0:5].sum() == 10.57
-    # C and scattering factor are in A units thus divided by 1000 A^3 = 1 nm^3 to convert
-    gold_potential = gold_atoms * gold_scattering_factors[0:5].sum() * C / voxel_volume / 1000
-    gold_real = gold_potential - solvent_correction
-    # filter and bin
-    # gold_real = bin(reduce_resolution(gold_real, voxel_size_nm, voxel_size_nm * 2), oversampling)
-    gold_real = bin(gold_real, oversampling)
-
-    if imaginary:
-        return gold_real, gold_imaginary
-    else:
-        return gold_real
-
-
-def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembranes, pixel_size = 1E-10,
+def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_size = 1E-10,
                    size=1024, thickness=200,
-                   solvent_potential=4.5301, solvent_factor=1.0, numberOfParticles=1000,
+                   solvent_potential=physics.V_WATER, solvent_factor=1.0, number_of_particles=1000,
                    placement_size=512, retries=5000, number_of_markers=0,
                    absorption_contrast=False, voltage=300E3, number_of_membranes=0):
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
-
-    from voltools import transform
+    from pytom.simulation.potential import create_gold_marker
+    from pytom.voltools import transform
+    from pytom.tompy.io import read_mrc, write
+    from pytom.simulation.support import reduce_resolution
 
     # outputs
     X, Y, Z = size, size, thickness
-    cell = xp.zeros((X, Y, Z))
-    if absorption_contrast: cell_imag = xp.zeros_like(cell)
+    cell_real = xp.zeros((X, Y, Z))
+    if absorption_contrast: cell_imag = xp.zeros_like(cell_real)
 
-    # occupancy_bbox_mask = xp.zeros_like(cell)
-    occupancy_accurate_mask = xp.zeros_like(cell)
-    # class_bbox_mask = xp.zeros_like(cell)
-    class_accurate_mask = xp.zeros_like(cell)
+    # occupancy_bbox_mask = xp.zeros_like(cell_real)
+    occupancy_accurate_mask = xp.zeros_like(cell_real)
+    # class_bbox_mask = xp.zeros_like(cell_real)
+    class_accurate_mask = xp.zeros_like(cell_real)
     ground_truth_txt_file = ''
 
     # load pdb volumes and pad them
-    volumes = []
+    volumes_real = []
     if absorption_contrast: volumes_imag = []
     for pdb in listpdbs:
         try:
-            # First find the voxel size of the map...
-            # rotate
-            # then bin
+            # file paths for particles
+            vol_base_name   = f'{pdb}_{pixel_size*1E10:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
+            filename_real       = os.path.join(particle_folder, f'{vol_base_name}_real.mrc')
+            filename_imag       = os.path.join(particle_folder, f'{vol_base_name}_imag_{voltage*1E-3:.0f}V.mrc')
+            # load the particle
+            vol_real = read_mrc(filename_real)
             if absorption_contrast:
-                vol_real = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixel_size*1E10:.2f}A_solvent-'
-                                              f'{solvent_potential*solvent_factor:.3f}V_real.mrc')
-                vol_imag = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixel_size*1E10:.2f}A_solvent-'
-                                                   f'{solvent_potential*solvent_factor:.3f}V_imag_{voltage*1E-3:.0f}V.mrc')
-                assert vol_real.shape == vol_imag.shape, print(f'real and imaginary interaction potential not the same '
-                                                               f'shape for {pdb}')
-                # dx, dy, dz = vol_real.shape
-                # vol2_real = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32) # do not double
-                # vol2_imag = xp.zeros_like(vol2_real)
-                # vol2_real[dx // 2:-dx // 2, dy // 2:-dy // 2, dz // 2:-dz // 2] = vol_real
-                # vol2_imag[dx // 2:-dx // 2, dy // 2:-dy // 2, dz // 2:-dz // 2] = vol_imag
-                volumes.append(vol_real)
+                vol_imag = read_mrc(filename_imag)
+                # make sure real and imaginary part are the same size
+                if vol_real.shape != vol_imag.shape:
+                    print(f'real and imaginary interaction potential not the same shape for {pdb}, skipping model')
+                    continue
                 volumes_imag.append(vol_imag)
-            else:
-                vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{pdb}_{pixel_size*1E10:.2f}A_solvent-'
-                                              f'{solvent_potential*solvent_factor:.3f}V_real.mrc')
-                # dx, dy, dz = vol.shape
-                # vol2 = xp.zeros((dx*2, dy*2, dz*2), dtype=xp.float32)
-                # vol2[dx//2:-dx//2, dy//2:-dy//2, dz//2:-dz//2] = vol
-                volumes.append(vol)
+            volumes_real.append(vol_real)
         except Exception as ee:
             print(ee)
-            raise Exception('Could not open pdb ', pdb)
+            raise Exception(f'Could not open pdb {pdb}, skipping the model')
 
     # attributes
     number_of_classes = len(listpdbs)
     names_of_classes = listpdbs
-    save_path = f'{output_folder}/model_{model_ID}'
     particles_by_class = [0, ] * number_of_classes
     particle_nr = 1
     default_tries_left = retries
@@ -312,15 +161,17 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
             # Give membranes a numbered names to randomly index them
             membrane_model = listmembranes[xp.random.randint(0, len(listmembranes))]
 
-            # create the gold marker in other function
+            # file names membranes
+            vol_base_name   = f'{membrane_model}_{pixel_size*1E10:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
+            filename_real       = os.path.join(particle_folder, f'{vol_base_name}_real.mrc')
+            filename_imag       = os.path.join(particle_folder, f'{vol_base_name}_imag_{voltage*1E-3:.0f}V.mrc')
+            # load the vesicle
+            membrane_vol_real = read_mrc(filename_real)
             if absorption_contrast:
-                membrane_vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{membrane_model}_{pixel_size*1E10:.2f}A_'
-                                                   f'solvent-{solvent_potential*solvent_factor:.3f}V_real.mrc')
-                membrane_vol_imag = pytom.tompy.io.read_mrc(f'{particleFolder}/{membrane_model}_{pixel_size*1E10:.2f}A_'
-                                        f'solvent-{solvent_potential*solvent_factor:.3f}V_imag_{voltage*1E-3:.0f}V.mrc')
-            else:
-                membrane_vol = pytom.tompy.io.read_mrc(f'{particleFolder}/{membrane_model}_{pixel_size*1E10:.2f}A_'
-                                                   f'solvent-{solvent_potential*solvent_factor:.3f}V_real.mrc')
+                membrane_vol_imag = read_mrc(filename_imag)
+                if membrane_vol_real.shape != membrane_vol_imag.shape:
+                    print(f'skipped mebrane model {membrane_model} due to real and imaginary shape not matching')
+                    continue
 
             u = xp.random.uniform(0.0, 1.0, (2,))
             theta = xp.arccos(2 * u[0] - 1)
@@ -330,7 +181,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
 
             # randomly mirror and rotate particle
             try:
-                membrane_vol = transform(membrane_vol, rotation=p_angles,
+                membrane_vol_real = transform(membrane_vol_real, rotation=p_angles,
                                         rotation_order='szxz', interpolation='linear', device='cpu')
                 if absorption_contrast: membrane_vol_imag = transform(membrane_vol_imag, rotation=p_angles,
                                         rotation_order='szxz', interpolation='linear', device='cpu')
@@ -341,15 +192,15 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
                 continue
 
             threshold = 0.001
-            membrane_vol[membrane_vol < threshold] = 0
+            membrane_vol_real[membrane_vol_real < threshold] = 0
             if absorption_contrast: membrane_vol_imag[membrane_vol_imag < threshold] = 0
 
             # thresholded particle
-            accurate_particle_occupancy = membrane_vol > 0
+            accurate_particle_occupancy = membrane_vol_real > 0
 
             # find random location for the particle
             # allow membranes to be placed half outside of the grandcell
-            xx, yy, zz = membrane_vol.shape
+            xx, yy, zz = membrane_vol_real.shape
             tries_left = default_tries_left
             # x_cut_left, x_cut_right = 0,0
             x_cut_left, x_cut_right, y_cut_left, y_cut_right, z_cut_low, z_cut_high = 0,0,0,0,0,0
@@ -411,8 +262,8 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
                 accurate_particle_occupancy_crop * (cls_id + 1)
 
             # populate density volume
-            cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
-                membrane_vol[x_cut_left:xx-x_cut_right, y_cut_left:yy-y_cut_right, z_cut_low:zz-z_cut_high]
+            cell_real[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
+                membrane_vol_real[x_cut_left:xx-x_cut_right, y_cut_left:yy-y_cut_right, z_cut_low:zz-z_cut_high]
             if absorption_contrast: cell_imag[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
                 membrane_vol_imag[x_cut_left:xx-x_cut_right, y_cut_left:yy-y_cut_right, z_cut_low:zz-z_cut_high]
 
@@ -424,7 +275,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
             ground_truth_txt_file += f'vesicle {int(loc_x - loc_x_start)} {int(loc_y - loc_y_start)} {int(loc_z)} ' \
                                      f'NaN NaN NaN\n'
 
-    # GOLD MARKERS WILL ALSO BE COUNTER TOWARDS TOTAL PARTICLE NUMBER
+    # GOLD MARKERS WILL ALSO BE COUNTED TOWARDS TOTAL PARTICLE NUMBER
     # There are also added as an additional class
     if number_of_markers:
         number_of_classes += 1
@@ -438,11 +289,11 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
 
             # create the gold marker in other function
             if absorption_contrast:
-                gold_marker, gold_imag = create_gold_marker(pixel_size, solvent_potential, oversampling=2,
+                gold_real, gold_imag = create_gold_marker(pixel_size, solvent_potential, oversampling=2,
                                                             solvent_factor=solvent_factor,
                                                             imaginary=True, voltage=voltage)
             else:
-                gold_marker = create_gold_marker(pixel_size, solvent_potential, oversampling=2,
+                gold_real = create_gold_marker(pixel_size, solvent_potential, oversampling=2,
                                                  solvent_factor=solvent_factor)
 
             u = xp.random.uniform(0.0, 1.0, (2,))
@@ -453,7 +304,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
 
             # randomly mirror and rotate particle
             try:
-                gold_marker = transform(gold_marker, rotation=p_angles,
+                gold_real = transform(gold_real, rotation=p_angles,
                                         rotation_order='szxz', interpolation='linear', device='cpu')
                 if absorption_contrast: gold_imag = transform(gold_imag, rotation=p_angles,
                                         rotation_order='szxz', interpolation='linear', device='cpu')
@@ -464,14 +315,14 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
                 continue
 
             threshold = 0.001
-            gold_marker[gold_marker < threshold] = 0
+            gold_real[gold_real < threshold] = 0
             if absorption_contrast: gold_imag[gold_imag < threshold] = 0
 
             # thresholded particle
-            accurate_particle_occupancy = gold_marker > 0
+            accurate_particle_occupancy = gold_real > 0
 
             # find random location for the particle
-            xx, yy, zz = gold_marker.shape
+            xx, yy, zz = gold_real.shape
             tries_left = default_tries_left
             while tries_left > 0:
                 loc_x = xp.random.randint(loc_x_start + xx // 2 + 1, loc_x_end - xx // 2 - 1)
@@ -511,7 +362,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
                 accurate_particle_occupancy * (cls_id + 1)
 
             # populate density volume
-            cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += gold_marker
+            cell_real[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += gold_real
             if absorption_contrast: cell_imag[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += gold_imag
 
             # update stats
@@ -522,7 +373,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
             ground_truth_txt_file += f'fiducial {int(loc_x - loc_x_start)} {int(loc_y - loc_y_start)} {int(loc_z)} ' \
                                      f'NaN NaN NaN\n'
 
-    for _ in tqdm(range(numberOfParticles), desc='Placing particles'):
+    for _ in tqdm(range(number_of_particles), desc='Placing particles'):
 
         # select random class but correct for artifact class if adding gold particles
 
@@ -541,14 +392,14 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
 
         # randomly mirror and rotate particle
         try:
-            particle = volumes[cls_id]
+            particle_real = volumes_real[cls_id]
             if absorption_contrast: particle_imag = volumes_imag[cls_id]
             if xp.random.randint(2): # Generate true/false randomly
                 # Mirror the particle to cover both left and right handedness of the proteins
                 ax = xp.random.randint(3)
-                particle = xp.flip(particle, axis=ax)
+                particle_real = xp.flip(particle_real, axis=ax)
                 if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=ax)
-            rotated_particle = transform(particle, rotation=p_angles,
+            rotated_particle_real = transform(particle_real, rotation=p_angles,
                                          rotation_order='szxz', interpolation='filt_bspline', device='cpu')
             if absorption_contrast: rotated_particle_imag = transform(particle_imag, rotation=p_angles,
                                          rotation_order='szxz', interpolation='filt_bspline', device='cpu')
@@ -561,14 +412,14 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
         # threshold = min(volumes[cls_id][volumes[cls_id] > 0]) / 10
         # the approach above doesn't work well with PDB particles, there are often voxels with values of ^-11
         threshold = 0.01
-        rotated_particle[rotated_particle < threshold] = 0
+        rotated_particle_real[rotated_particle_real < threshold] = 0
         if absorption_contrast: rotated_particle_imag[rotated_particle_imag < threshold]
 
         # thresholded rotated particle
-        accurate_particle_occupancy = rotated_particle > 0
+        accurate_particle_occupancy = rotated_particle_real > 0
 
         # find random location for the particle
-        xx, yy, zz = rotated_particle.shape
+        xx, yy, zz = rotated_particle_real.shape
         tries_left = default_tries_left
         while tries_left > 0:
             loc_x = xp.random.randint(loc_x_start + xx // 2 + 1, loc_x_end - xx // 2 - 1)
@@ -609,7 +460,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
             accurate_particle_occupancy * (cls_id + 1)
 
         # populate density volume
-        cell[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += rotated_particle
+        cell_real[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += rotated_particle_real
         if absorption_contrast: cell_imag[bbox_x[0]:bbox_x[1], bbox_y[0]:bbox_y[1], bbox_z[0]:bbox_z[1]] += \
                                                     rotated_particle_imag
 
@@ -621,11 +472,7 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
         ground_truth_txt_file += f'{listpdbs[cls_id]} {int(loc_x - loc_x_start)} {int(loc_y - loc_y_start)} {int(loc_z)} ' \
                                  f'{p_angles[0]:.4f} {p_angles[1]:.4f} {p_angles[2]:.4f}\n'
 
-    # # add solvent background potential
-    # print('Adding background solvent potential')
-    # cell += solvent_potential
-    #
-    # # Add structural nois
+    # # Add structural noise
     # print('Adding structural noise to grand model cell')
     # noisy_cell = cell #+ xp.random.normal(0, sigma_structural, cell.shape)
     # pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree_original.mrc', cell)
@@ -634,29 +481,34 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
     # sigma motion is roughly 8A
     # TODO add motion blur as a parameter in the config file
     sigma_motion = 8
-    ndimage.gaussian_filter(cell, sigma = (sigma_motion/(2 * (pixel_size * 1E10)))/2.35, output=cell)
-    if absorption_contrast: ndimage.gaussian_filter(cell_imag, sigma=(sigma_motion / (2 * (pixel_size * 1E10))) / 2.35, output=cell_imag)
+    cell_real = reduce_resolution(cell_real, pixel_size * 1E10, sigma_motion)
+    if absorption_contrast: cell_imag = reduce_resolution(cell_imag, pixel_size * 1E10, sigma_motion)
+
+    # grandmodel names
+    filename_gm_real    = os.path.join(save_path, 'grandmodel.mrc')
+    filename_gm_imag    = os.path.join(save_path, 'grandmodel_imag.mrc')
+    filename_cm         = os.path.join(save_path, 'class_mask.mrc')
+    filename_om         = os.path.join(save_path, 'occupancy_mask.mrc')
+    filename_loc        = os.path.join(save_path, 'particle_locations.txt')
+    filename_con        = os.path.join(save_path, 'class_conversion_table.txt')
 
     # save grandmodels
     print('Saving grandmodels')
-    pytom.tompy.io.write(f'{save_path}/grandmodel.mrc', cell)
-    if absorption_contrast: pytom.tompy.io.write(f'{save_path}/grandmodel_imag.mrc', cell_imag)
-
+    write(filename_gm_real, cell_real)
+    if absorption_contrast: write(filename_gm_imag, cell_imag)
     # save class masks
     print('Saving class volumes')
     # pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', class_bbox_mask)
-    pytom.tompy.io.write(f'{save_path}/class_mask.mrc', class_accurate_mask)
-
+    write(filename_cm, class_accurate_mask)
     # save occupancy masks
     print('Saving occupancy volumes')
     # pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', occupancy_bbox_mask)
-    pytom.tompy.io.write(f'{save_path}/occupancy_mask.mrc', occupancy_accurate_mask)
-
+    write(filename_om, occupancy_accurate_mask)
     # save particle text file
-    with open(f'{save_path}/particle_locations.txt', 'w') as f:
+    with open(filename_loc, 'w') as f:
         f.write(ground_truth_txt_file)
-
-    with open(f'{save_path}/class_conversion_table.txt', 'w') as f:
+    # save conversion table from pdb to class
+    with open(filename_con, 'w') as f:
         conversion_table = 'background 0\n'
         for i in range(number_of_classes):
             conversion_table += f'{names_of_classes[i]} {i+1}\n'
@@ -675,163 +527,12 @@ def generate_model(particleFolder, output_folder, model_ID, listpdbs, listmembra
     #     viewer.add_image(occupancy_accurate_mask, name='occupancy accurate mask', interpolation='bicubic')
     #     viewer.add_image(class_bbox_mask, name='class bbox mask', interpolation='bicubic')
     #     viewer.add_image(class_accurate_mask, name='class accurate mask', interpolation='bicubic')
-    #     viewer.add_image(cell, name='cell', interpolation='bicubic')
+    #     viewer.add_image(cell_real, name='cell_real', interpolation='bicubic')
 
     # trying to reduce intermediate memory usage
-    del cell, class_accurate_mask, occupancy_accurate_mask  # , class_bbox_mask, occupancy_bbox_mask
+    del cell_real, class_accurate_mask, occupancy_accurate_mask  # , class_bbox_mask, occupancy_bbox_mask
     if absorption_contrast: del cell_imag
     return
-
-
-def parallel_rotate_model(volume, outname, angle):
-    print(f'Starting rotation process for angle {angle}')
-    sys.stdout.flush()
-    from voltools import transform
-    # volume = pytom.tompy.io.read_mrc(filename)
-    rotated_volume = transform(volume, rotation=(0, angle, 0), rotation_order='sxyz', interpolation='filt_bspline', device='cpu')
-    threshold = 0.001
-    rotated_volume[rotated_volume < threshold] = 0
-    pytom.tompy.io.write(outname, rotated_volume)
-    print(f'Process for angle {angle} is finished ({outname})')
-    sys.stdout.flush()
-    return True
-
-
-def create_rotation_model(output_folder, model_ID, heightBox, imaginary=False):
-
-    # Load grandmodel
-    save_path = f'{output_folder}/model_{model_ID}'
-    if imaginary:
-        file = f'{save_path}/grandmodel_original_imag.mrc'
-    else:
-        file = f'{save_path}/grandmodel_original.mrc'
-
-    if os.path.exists(file):
-        grandcell = pytom.tompy.io.read_mrc(file)
-    else:
-        raise Exception(f'create_rotation_model expects grandmodel be created before ({save_path}/grandmodel_original.mrc)')
-
-    print(f'Successfully loaded grandcell (shape: {grandcell.shape})')
-
-    size = grandcell.shape[0]
-    height = grandcell.shape[2]
-    if grandcell.shape[2] >= heightBox:
-        raise Exception('Your model is larger than than the box that we will rotate (heightBox parameter)')
-
-    volume = xp.zeros((size, size, heightBox), dtype=xp.float32)
-    offset = (heightBox - height) // 2
-
-    if (heightBox - height) % 2:
-        volume[:, :, offset + 1:-offset] = grandcell[:, :, :]
-    else:
-        volume[:, :, offset:-offset] = grandcell[:, :, :]
-
-    dir = f'{save_path}/rotations'
-    if imaginary:
-        filename = f'{dir}/rotated_volume_0_imag.mrc'
-    else:
-        filename = f'{dir}/rotated_volume_0.mrc'
-    pytom.tompy.io.write(filename, volume)
-
-    print(f'Saved initial rotation volume at {filename}')
-    return volume
-
-
-def wavelength_eV2m(V):
-    # OLD FUNCTION
-    # h / sqrt( 2 * me * el * ev * 1)
-    # return 6.625 * 10 ** (-34) / ((2 * 9.1 * 10 ** (-31)) * 1.6 * (10 ** (-19)) * ev * 1) ** 0.5
-
-    # NEW FUNCTION
-    # function calculates the electron wavelength given a certain accelaration voltage V
-    h = const.constants["h"]
-    e = const.constants["el"]
-    m = const.constants["me"]
-    c = const.constants["c"]
-
-    # matlab original: lambda = h/sqrt(e*V*m*(e/m*V/c^2 + 2 ));
-    Lambda = h/xp.sqrt(e*V*m*(e/m*V/c**2 + 2 ))
-
-    return Lambda
-
-
-def potential_amplitude(rho, molecular_weight, voltage):
-    """
-    Calculate the inelastic Mean Free Path for different environments.
-    @param rho:
-    @param molecular_weight:
-    @param voltage:
-    @return:
-    """
-
-    # if Mw == 18 % water
-    #     ZO = 8;
-    #     sigma_inH = 8.8e-6 * beta2_100. * log(beta2. * (U0 + E0) / (E_loss / 2)) / (
-    #                 beta2. * log(beta2_100. * (100e3 + E0) / (E_loss / 2)));
-    #     sigma_inO = 1.5 * 1e-6 * ZO ^ 0.5. / beta2. * log(beta2. * (U0 + E0) / (E_loss / 2));
-    #     sigma_in = 2 * sigma_inH + sigma_inO;
-    #
-    # elseif
-    # Mw == 12 % carbon
-    # ZC = 6;
-    # sigma_in = 1.5 * 1e-6 * ZC ^ 0.5. / beta2. * log(beta2. * (U0 + E0) / (E_loss / 2));
-    #
-    # elseif
-    # Mw == 7.2 % protein
-    # sigma_in = 0.82 * 1e-4 * beta2_100. * log(beta2. * (U0 + E0) / (E_loss / 2)) / (
-    #             beta2. * log(beta2_100. * (100e3 + E0) / (E_loss / 2)));
-    # end
-    #
-    # Nconc = rho * 1000 * nc.Na / (Mw / 1000);
-    # Lambda_in = 1. / (Nconc * sigma_in * 1e-18);
-
-    Lambda = wavelength_eV2m(voltage)
-    relative_mass = const.constants["me"] + const.constants["el"] * voltage / (const.constants["c"] ** 2)
-    sigma_transfer = 2 * xp.pi * relative_mass * const.constants["el"] * Lambda / (const.constants["h"] ** 2)
-    E0 = const.constants['me'] * const.constants['c'] ** 2 / const.constants['el'] # rest mass energy
-    E_loss = 20 # eV mean plasmon loss
-
-    beta2 = 1 - (E0 / (voltage + E0)) ** 2
-    beta2_100 = 1 - (E0 / (100E3 + E0)) ** 2
-
-    if molecular_weight == 18: # water molecule
-        # rho for amorphous ice is 0.93 g/cm^3
-        ZO = 8
-        sigma_inelastic_H = ( 8.8E-6 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
-                              (beta2 * xp.log(beta2_100 * (100E3 + E0) / (E_loss / 2))) )
-        sigma_inelastic_O = 1.5 * 1E-6 * ZO ** 0.5 / beta2 * xp.log(beta2 * (voltage+E0) / (E_loss/2))
-        sigma_inelastic = 2 * sigma_inelastic_H + sigma_inelastic_O
-    elif molecular_weight == 12: # carbon film
-        ZC = 6
-        sigma_inelastic = 1.5 * 1E-6 * ZC ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-    elif molecular_weight == 7.2: # protein or lipid
-        # rho for proteins is assumed to be 1.35 g/cm^3
-        # fractional composition is 0.492, 0.313, 0.094, and 0.101 for elements H, C, N, and O, respectively
-        sigma_inelastic = (0.82 * 1E-4 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
-                           (beta2 * xp.log(beta2_100 * (100E3 + E0) / (E_loss / 2))) )
-    elif molecular_weight == 197: # gold particles
-        ZAu = 79
-        sigma_inelastic = 1.5 * 1E-6 * ZAu ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-    elif molecular_weight == 734.1:
-        # DPPC lipid composition C40H80NO8P, molar mass 734.053 g/mol
-        # rho is 0.92 g/cm^3 for most vegetable oils, find a better reference!
-        ZC = 6
-        ZN = 7
-        ZO = 8
-        ZP = 15
-        sigma_inelastic_H = (8.8E-6 * beta2_100 * xp.log(beta2 * (voltage + E0) / (E_loss / 2)) /
-                             (beta2 * xp.log(beta2_100 * (100E3 + E0) / (E_loss / 2))))
-        sigma_inelastic_C = 1.5 * 1E-6 * ZC ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-        sigma_inelastic_N = 1.5 * 1E-6 * ZN ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-        sigma_inelastic_O = 1.5 * 1E-6 * ZO ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-        sigma_inelastic_P = 1.5 * 1E-6 * ZP ** 0.5 / beta2 * xp.log(beta2 * (voltage + E0) / (E_loss / 2))
-        sigma_inelastic = 40 * sigma_inelastic_C + 80 * sigma_inelastic_H + sigma_inelastic_N + 8 * sigma_inelastic_O + \
-            sigma_inelastic_P
-
-    concentration = rho * 1000 * const.constants['na'] / (molecular_weight / 1000)
-    lamda_inelastic = ( 1. / (concentration * sigma_inelastic * 1E-18) )
-
-    return 1.0 / (2 * sigma_transfer * lamda_inelastic)
 
 
 def create_ice_layer(shape, angle, width, value=1.0, sigma=0.0):
@@ -891,560 +592,12 @@ def create_ice_layer(shape, angle, width, value=1.0, sigma=0.0):
     return xp.tile(layer[:, xp.newaxis, :], [1, ysize, 1])
 
 
-def radial_average(image):
-    assert len(set(image.shape)) == 1, 'differently size dimension, cannot perform radial averaging'
-    size = image.shape[0]
-    center = (size - 1) / 2
-    x, y = xp.meshgrid(xp.arange(size), xp.arange(size))
-    R = xp.sqrt((x - center) ** 2 + (y - center) ** 2)
-
-    f = lambda r: image[(R >= r - .5) & (R < r + .5)].mean()
-    r = xp.linspace(1, size // 2, num=size // 2)
-    mean = xp.vectorize(f)(r)
-
-    # plot it
-    # fig, ax = plt.subplots()
-    # ax.plot(r, mean)
-    # plt.show()
-    return r, mean
-
-
-def create_complex_CTF(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, sigma_decay_CTF=0.4, display_CTF=False):
-    """
-    Adapated from Vulovic et al., 2013. Returns a complex contrast transfer function. Dimensions of input image or
-    volume should be equal. Only phase part of CTF.
-
-    @param vol:
-    @type vol:
-    @param pix_size:
-    @type pix_size:
-    @param Dz:
-    @type Dz:
-    @param voltage:
-    @type voltage:
-    @param Cs:
-    @type Cs:
-    @param sigma_decay_ctf:
-    @type sigma_decay_ctf:
-    @param amplitude_contrast:
-    @type amplitude_contrast:
-
-    @return:
-    @rtype:
-
-    @author: Marten Chaillet
-    """
-
-    Lambda = wavelength_eV2m(voltage)
-
-    Ny = 1 / (2 * pix_size)
-
-    if len(image_shape) > 2:
-        R, Y, Z = xp.meshgrid(xp.arange(-Ny, Ny, 2 * Ny / image_shape[0]), xp.arange(-Ny, Ny, 2 * Ny / image_shape[1]),
-                              xp.arange(-Ny, Ny, 2 * Ny / image_shape[2]))
-        r = xp.sqrt(R ** 2 + Y ** 2 + Z ** 2)
-    else:
-        R, Y = xp.meshgrid(xp.arange(-Ny, Ny, 2. * Ny / (image_shape[0])), xp.arange(-Ny, Ny, 2. * Ny / (image_shape[1])))
-        r = xp.sqrt(R ** 2 + Y ** 2)
-
-    # print(r)
-    complex_CTF = xp.exp( -1j * xp.pi / 2 * (Cs * (Lambda ** 3) * (r ** 4) - 2 * Dz * Lambda * (r ** 2)) )
-
-    # Decay function
-    if sigma_decay_CTF:
-        decay = xp.exp(-(r / (sigma_decay_CTF * Ny)) ** 2)
-        CTF = complex_CTF * decay
-    else:
-        CTF = complex_CTF
-
-    # visual inspection of CTF
-    if display_CTF:
-        r1, m1 = radial_average(CTF.real)
-        r2, m2 = radial_average(CTF.imag)
-        fig, ax = plt.subplots()
-
-        ax.plot(r1, m1, label='real')
-        ax.plot(r2, m2, label='imaginary')
-        ax.legend()
-        show()
-
-    return CTF
-
-
-def create_complex_CTF_ext(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-3, Cc=2.7E-3,
-                           energy_spread=0.7, illumination_aperture=0.030E-3, objective_diameter=100E-6,
-                           focus_length=4.7E-3, astigmatism=0.0, astigmatism_angle=0.0, display_CTF=False):
-    """
-        # parameters for extended CTF function (InSilicoTEM)
-    chromatic_abberation    = 2.7E-3 # C_c
-    energy_spread           = 0.7 # deltaE
-    illumination_aperture   = 0.030E-3 # a_i
-    objective_diameter      = 100E-6 #
-    focus_length            = 4.7E-3 # focal distance
-    astigmatism in 0.0E-9
-    astigmatism angle in degrees
-
-    Adapated from Vulovic et al., 2013. Returns a complex contrast transfer function. Dimensions of input image or
-    volume should be equal. Only phase part of CTF.
-
-    @param vol:
-    @type vol:
-    @param pix_size:
-    @type pix_size:
-    @param Dz:
-    @type Dz:
-    @param voltage:
-    @type voltage:
-    @param Cs:
-    @type Cs:
-    @param sigma_decay_ctf:
-    @type sigma_decay_ctf:
-    @param amplitude_contrast:
-    @type amplitude_contrast:
-
-    @return:
-    @rtype:
-
-    @author: Marten Chaillet
-    """
-    from scipy.ndimage import gaussian_filter
-
-    assert len(set(image_shape)) == 1, print('invalid input image/volume for create CTF, dimensions need to be equal.')
-
-    image_size = image_shape[0]
-
-    Lambda = wavelength_eV2m(voltage)
-
-    q_true = 1 / (image_size * pixel_size)
-
-    dfsh = defocus + astigmatism
-    dfln = defocus - astigmatism
-    inratioqqs = xp.sqrt(dfsh/defocus)
-    inratioqlq = xp.sqrt(defocus/dfln)
-
-    x = xp.arange(-(image_size//2), abs(-image_size//2), 1)
-    xx, yy = xp.meshgrid(x, x)
-    xdot = xx * xp.cos(astigmatism_angle*xp.pi/180) - yy * xp.sin(astigmatism_angle*xp.pi/180)
-    ydot = xx * xp.sin(astigmatism_angle*xp.pi/180) - yy * xp.cos(astigmatism_angle*xp.pi/180)
-    q = xp.sqrt((xdot / inratioqlq) ** 2 + (ydot * inratioqqs) ** 2) * q_true
-    qsym = xp.sqrt(xdot ** 2 + ydot ** 2) * q_true
-
-    # print(r)
-    c = 0.5 * xp.pi * (Cs * (Lambda ** 3) * (qsym ** 4) - 2 * defocus * Lambda * (q ** 2))
-    complex_CTF = xp.cos(c) - 1j * xp.sin(c)
-
-    # chromatic envelope
-    H = Cc * energy_spread / voltage
-    nom_chrom = xp.pi * Lambda * q ** 2 * H
-    denom_chrom = 4 * xp.sqrt(xp.log(2))
-    Kc = xp.exp(- (nom_chrom / denom_chrom) ** 2)
-    # spatial envelope
-    nums = (xp.pi * Cs * Lambda ** 2 * q ** 3 - xp.pi * defocus * q) ** 2 * illumination_aperture ** 2
-    Ks = xp.exp(- nums / xp.log(2))
-    # full envelope
-    K = Kc * Ks
-
-    # aperture function
-    A = xp.ones(image_shape)
-    qmax = 2 * xp.pi * objective_diameter / (Lambda * focus_length)
-    A[q > qmax] = 0
-    A = gaussian_filter(A, sigma=3)
-
-    CTF = complex_CTF * K * A
-
-    # print(complex_CTF.shape, K.shape, A.shape)
-    # visual inspection of CTF
-    if display_CTF:
-        r1, m1 = radial_average(CTF.real)
-        r2, m2 = radial_average(CTF.imag)
-        fig, ax = plt.subplots()
-
-        ax.plot(r1, m1, label='real')
-        ax.plot(r2, m2, label='imaginary')
-        ax.legend()
-        plt.savefig('ctf.png')
-
-    return CTF
-
-
-def transmission_function(sliced_potential, voltage, dz):
-    # wavelength
-    Lambda = wavelength_eV2m(voltage)
-    # relative mass
-    relative_mass = const.constants["me"] + const.constants["el"] * voltage / (const.constants["c"] ** 2)
-    # sigma_transfer
-    sigma_transfer = 2 * xp.pi * relative_mass * const.constants["el"] * Lambda / (const.constants["h"] ** 2)
-
-    return xp.exp(1j * sigma_transfer * sliced_potential * dz)
-
-
-def fresnel_propagator(imageSize, pixel_size, voltage, dz):
-    Lambda = wavelength_eV2m(voltage)
-
-    xwm = pixel_size * (imageSize)  # pixelsize for multislice * size sample
-    q_true_pix_m = 1 / xwm  # spacing in Fourier space
-    x_line = xp.arange(-(imageSize - 1) / 2, (imageSize - 1) / 2 + 1, 1)
-    [xv, yv] = xp.meshgrid(x_line, x_line)
-    q_m = xp.sqrt(xv**2 + yv**2) * q_true_pix_m  # frequencies in Fourier domain
-
-    return xp.exp(-1j * xp.pi * Lambda * (q_m ** 2) * dz)
-
-
-def gradient_image(size, factor, angle=0, center_shift=0):
-    """
-    Creates an image with a gradient of values rotated along angle. Factor determines the strength of the gradient.
-    @param size:
-    @param factor:
-    @param angle:
-    @param shift:
-    @return:
-    """
-    from scipy.ndimage import rotate
-    max_rotation_radius = (size/2) / xp.cos(45 * xp.pi / 180)
-    extension = int(xp.ceil(max_rotation_radius - size/2))
-    left = 1 - factor
-    right = 1 + factor
-    step = (right-left) / size
-    values = xp.arange(left - extension * step + center_shift * step,
-                       right + extension * step + center_shift * step, step)
-    image = xp.repeat(values[xp.newaxis, :], size + 2*extension, axis=0)
-    return rotate(image, angle, reshape=False)[extension:size+extension, extension:size+extension]
-
-
-def microscope(noisefree_projections, angles, ice_thickness=200, dose=80, pixel_size=1E-9,
-               binning=1, voltage=300E3, camera_type='K2SUMMIT', camera_folder='', correction=False):
-    """
-    TODO add parameters for camera type and folder with detector data
-    Inspired by InSilicoTEM (Vulovic et al., 2013)
-    @author: Marten Chaillet
-    """
-    import detector
-    # noisefree_projections is a stack of images
-    # Assuming images are same size in x and y
-    size = noisefree_projections.shape[0]
-    n_images = noisefree_projections.shape[2]
-
-    print('number of projections is ', n_images)
-
-    projections = xp.zeros((size, size, n_images), dtype=xp.float32)
-
-    dqe = detector.create_detector_response(camera_type, 'DQE', xp.zeros((size, size)), voltage=voltage,
-                                            folder=camera_folder)
-    mtf = detector.create_detector_response(camera_type, 'MTF', xp.zeros((size, size)), voltage=voltage,
-                                            folder=camera_folder)
-    ntf = xp.sqrt(mtf ** 2 / dqe) # square root because dqe = mtf^2 / ntf^2
-    mtf_shift = xp.fft.ifftshift(mtf)
-    ntf_shift = xp.fft.ifftshift(ntf)
-
-    # NUMBER OF ELECTRONS PER PIXEL
-    dose_per_tilt = dose / n_images  # electrons per square A per tilt
-    dose_per_pixel = dose_per_tilt * (pixel_size*1E10)**2 / binning**2 # from square A to square nm (10A pixels)
-    print(f'number of electrons per pixel (before binning and absorption): {dose_per_pixel}')
-
-    for n, angle in enumerate(angles):
-        projection = noisefree_projections[:, :, n]
-        # Fourier transform and multiply with sqrt(dqe) = mtf/ntf
-        projection_fourier = xp.fft.fftn(xp.fft.ifftshift(projection))
-        projection_fourier = projection_fourier * mtf_shift / ntf_shift
-        # Convert back to real space
-        projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier)))
-        projection[projection<0] = 0
-        # Draw from poisson distribution and scale by camera's conversion factor
-        # conversion_factor = 100  # in ADU/e- , this is an arbitrary unit. Value taken from Vulovic et al., 2010
-        # Absorption factor by sample
-        if correction:
-            absorption_factor = xp.exp( - (ice_thickness / const.mean_free_path[voltage]) / xp.cos(angle * xp.pi / 180) )
-        else:
-            absorption_factor = 1
-        print(f'number of electrons per pixel for tilt angle {angle:.2f} degrees (before binning): {dose_per_pixel * absorption_factor:.2f}')
-
-        # Apply poissonian noise
-        poisson_mean = projection * ( dose_per_pixel * absorption_factor )
-        projection_poisson = xp.zeros(projection.shape)
-        for _ in range(binning**2):
-            projection_poisson += ( xp.random.poisson(lam=poisson_mean) / binning**2 )
-            # imshow(projection_poisson)
-            # show()
-        # projection_poisson = xp.random.poisson(lam=poisson_mean)
-
-        # Image values are now in ADU
-        # Apply the camera's noise transfer function to the noisy image
-        projection_fourier = xp.fft.fftn(xp.fft.ifftshift(projection_poisson)) * ntf_shift
-
-        # Add additional noise from digitization process, less relevant for modern day cameras.
-        # readout noise standard deviation can be 7 ADUs, from Vulovic et al., 2010
-        # sigma_readout = 7
-        # readsim = xp.random.normal(0, sigma_readout, projection.shape) # readout noise has a gaussian distribution
-        # darksim = 0     # dark current noise has a poisson distribution, usually an order of magnitude smaller than
-        #                 # readout noise and can hence be neglected
-
-        # Add readout noise and dark noise in real space
-        projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier))) # + readsim + darksim
-
-        projections[:,:,n] = projection
-
-    return projections
-
-
-def generate_projections(angles, output_folder, model_ID, image_size= 512, pixel_size=1E-9, binning=1, ice_thickness=200E-9,
-                         dose=80, voltage=300E3, spherical_aberration=2.7E-3, multislice=False, msdz=5E-9,
-                         defocus=2E-6, sigma_damage=0.0, camera_type='K2SUMMIT',
-                         camera_folder='', random_gradient=False, random_rotation=False, solvent_potential=4.5301,
-                         solvent_factor=1.0, absorption_contrast=False):
-    """
-
-    @param angles:
-    @type angles:
-    @param output_folder:
-    @type output_folder:
-    @param model_ID:
-    @type model_ID
-    @param image_size:
-    @type image_size:
-    @param pixel_size:
-    @type pixel_size:
-    @param binning:
-    @type binning:
-    @param ice_thickness:
-    @type ice_thickness:
-    @param dose:
-    @type dose:
-    @param voltage:
-    @type voltage:
-    @param sphericalAberration:
-    @type sphericalAberration:
-    @param multislice:
-    @type multislice
-    @param msdz:
-    @type msdz:
-    @param amplitudeContrast:
-    @type amplitudeContrast
-    @param defocus:
-    @type defocus:
-    @param sigma_damage:
-    @type sigma_damage:
-    @param camera_type:
-    @type camera_type:
-    @param camera_folder:
-    @type camera_folder:
-    @param random_gradient:
-    @type random_gradient:
-    @param random_rotation:
-    @type random_rotation:
-
-    @return:
-    @rtype:
-
-    @author: Marten Chaillet
-    """
-    from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS as dar
-    from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
-    from pytom.gui.guiFunctions import savestar
-    from scipy.ndimage import rotate
-    # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
-
-    # grab model
-    save_path = f'{output_folder}/model_{model_ID}'
-    grandcell = pytom.tompy.io.read_mrc(f'{save_path}/rotations/rotated_volume_{0}.mrc')
-
-    # imageSize = grandcell.shape[0]//2
-    box_size = grandcell.shape[0]
-    box_height = grandcell.shape[2]
-
-    del grandcell # delete volume here?
-
-    zheight = box_height * pixel_size  # thickness of rotation volume in nm
-    defocus -= (zheight / 2) # center defocus value at tilt angle
-
-    ileft = (box_size - image_size)//2
-    iright = -int(xp.ceil((box_size - image_size)/2))
-
-    if absorption_contrast:
-        solvent_amplitude = potential_amplitude(0.93, 18, voltage) * solvent_factor
-        print(f'solvent absorption = {solvent_amplitude:.3f}')
-
-    # create a 3d array for the exit wave of each image
-    noisefree_projections = xp.zeros((image_size, image_size, len(angles)))
-    # get the contrast transfer function
-    complex_CTF, alt_ctf = create_complex_CTF_ext((image_size, image_size), pixel_size, defocus, voltage=voltage,
-                                         Cs=spherical_aberration, display_CTF=False)
-
-    # Check if msdz is viable, else correct it
-    if msdz % pixel_size != 0:
-        # Round the msdz to the closest integer mutltiple of the pixel size
-        round_up = xp.round(msdz % pixel_size / pixel_size)
-        if round_up:
-            msdz += (pixel_size - msdz % pixel_size)
-        else:
-            msdz -= (msdz % pixel_size)
-        print(f'We adjusted msdz to {msdz*1E9:.3f} nm to make it an integer multiple of pixel size.')
-
-    for n, angle in enumerate(angles):
-
-        filename = f'{save_path}/rotations/rotated_volume_{int(angle)}'
-        rotated_volume = pytom.tompy.io.read_mrc(f'{filename}.mrc')  #* 1E1
-        if absorption_contrast: rotated_volume_imag = pytom.tompy.io.read_mrc(f'{filename}_imag.mrc')
-
-        if not multislice:
-            print('Simulating projection (without ms) from tilt angle ', angle)
-            # remove .get() if fully cupy
-            projected_tilt_image = rotated_volume[ileft:iright, ileft:iright, :].sum(axis=2)#.get()
-            projected_tilt_image = xp.abs(xp.fft.ifftn(xp.fft.fftn(projected_tilt_image)*complex_CTF))**2
-            #TODO is abs()**2 the way to go for exit wave field of simple projection?
-
-        else:
-            print('Simulating projection (with ms) from tilt angle ', angle)
-
-            # Rotation artifacts are removed in rotate_model() !
-
-            add_ice_layer=True
-            if add_ice_layer:
-                # add ice layer with some smoothing to prevent sharp edges
-                ice = create_ice_layer(rotated_volume.shape, angle, ice_thickness//pixel_size,
-                                       value=1.0, sigma=0.0)
-                rotated_volume += (ice * (solvent_potential * solvent_factor))
-                if absorption_contrast:
-                    rotated_volume_imag += (ice * solvent_amplitude)
-                del ice # remove to free up memory
-            else: # might be good to also have an option for not adding the ice layer, purely simulation of rotation and projection
-                if absorption_contrast:
-                    rotated_volume_imag += solvent_amplitude
-
-            if absorption_contrast:
-                rotated_volume = rotated_volume.astype(complex)
-                rotated_volume = rotated_volume.real + 1j * rotated_volume_imag
-
-            # Determine the number of slices
-            if msdz > zheight:
-                n_slices = 1
-                msdz = zheight
-                print('The multislice step can not be larger than volume thickness. Use only one slice.\n')
-            elif msdz < pixel_size:
-                n_slices = box_height
-                msdz = pixel_size
-                print('The multislice steps can not be smaller than the pixel size. Use the pixel size instead for the step size.\n')
-            else:
-                n_slices = int(xp.ceil(xp.around(zheight/msdz,3)))
-
-            print('Number of slices: ', n_slices)
-            # Allocate space for multislice projection
-            projected_potent_ms = xp.zeros((image_size, image_size, n_slices), dtype=complex)
-
-            px_per_slice = int(msdz/pixel_size)
-            num_px_last_slice = box_height % px_per_slice  # consider last slice might have a different number of pixels
-
-            # Project potential for each slice (phase grating)
-            for ii in range(n_slices):
-                if ileft==0 and iright==0:
-                    projected_potent_ms[:, :, ii] = rotated_volume[:,:,
-                                                    ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2)  # .get()
-                else:
-                    projected_potent_ms[:, :, ii] = rotated_volume[ileft:iright, ileft:iright,
-                                                    ii * px_per_slice: (ii + 1) * px_per_slice].mean(axis=2)  # .get()
-
-            # calculate the transmission function for each slice
-            psi_t = transmission_function(projected_potent_ms, voltage, msdz)
-
-            # calculate the fresnel propagator (identical for same dz)
-            propagator = fresnel_propagator(image_size, pixel_size, voltage, msdz)
-
-            # Wave propagation with MULTISLICE method
-            psi_multislice = xp.zeros((image_size,image_size), dtype=complex) + 1 # should be complex datatype
-
-            for ii in range(n_slices-min(1,num_px_last_slice)):
-                waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, ii]) )
-                psi_multislice = xp.fft.fftshift( xp.fft.ifftn((waveField * xp.fft.ifftshift(propagator) )) )
-
-            # Calculate propagation through last slice in case the last slice contains a different number of pixels
-            if num_px_last_slice:
-                msdz_end = num_px_last_slice * pixel_size
-                psi_t[:, :, -1] = transmission_function(projected_potent_ms[:, :, -1], voltage, msdz_end)
-                propagator_end = fresnel_propagator(image_size, pixel_size, voltage, msdz_end)
-                waveField = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, -1]) )
-                psi_multislice = xp.fft.fftshift( xp.fft.ifftn( waveField * xp.fft.ifftshift(propagator_end) ) )
-
-            # Multiple by CTF for microscope effects on electron wave
-            wave_CTF = xp.fft.ifftshift(complex_CTF) * xp.fft.fftn(xp.fft.ifftshift(psi_multislice) )
-            # Intensity in image plane is obtained by taking the absolute square of the wave function
-            projected_tilt_image = xp.abs(xp.fft.fftshift(xp.fft.ifftn(wave_CTF))) ** 2
-
-        # imshow(projected_tilt_image)
-        # show()
-        #
-        # test = xp.log(xp.abs(xp.fft.fftshift(xp.fft.fftn(projected_tilt_image))))
-        #
-        # imshow(test)
-        # show()
-        #
-        # _ = radial_average(test)
-
-        noisefree_projections[:,:,n] = projected_tilt_image
-
-    # Add random gradient (artifact) to all projected intensities
-    if random_gradient:
-        random_factor = xp.random.uniform(.0, .2)
-        random_angle = xp.random.uniform(-180, 180)
-        random_shift = xp.random.uniform(-image_size/2, image_size/2)
-        intensity_gradient = gradient_image(image_size, random_factor, angle=random_angle, center_shift=random_shift)
-        # Apply the gradient to each projections
-        for i in range(len(angles)):
-            noisefree_projections[:,:,i] *= intensity_gradient
-
-    # Add random rotations if desired
-    if random_rotation:
-        random_angles = xp.random.uniform(-2, 2, size=len(angles))
-        for i in range(len(angles)):
-            noisefree_projections[:, :, i] = rotate(noisefree_projections[:, :, i],
-                                                    -random_angles[i], reshape=False)
-            # remove rotation artifacts smaller than 0
-            noisefree_projections[:, :, i][noisefree_projections[:, :, i] < 0] = 0
-
-    # First save the noisefree projections
-    pytom.tompy.io.write(f'{save_path}/projections_noisefree.mrc',
-                         noisefree_projections)  # noisefree_projections.astype(xp.float32)?
-
-    # Now add microscope effects to the projections
-    if absorption_contrast:
-        projections = microscope(noisefree_projections, angles, ice_thickness=ice_thickness, dose=dose,
-                                 pixel_size=pixel_size, binning=binning, voltage=voltage, camera_type=camera_type,
-                                 camera_folder=camera_folder, correction=False)
-    else:
-        projections = microscope(noisefree_projections, angles, ice_thickness=ice_thickness, dose=dose,
-                                 pixel_size=pixel_size, binning=binning, voltage=voltage, camera_type=camera_type,
-                                 camera_folder=camera_folder, correction=True)
-    pytom.tompy.io.write(f'{save_path}/projections.mrc', projections)
-
-    # Create a folder for individual noisy projections (needed for reconstruction algorithm)
-    if not os.path.exists(f'{save_path}/projections/'):
-        os.mkdir(f'{save_path}/projections/')
-    for i in range(len(angles)):
-        # These files are needed for the reconstruction
-        pytom.tompy.io.write(f'{save_path}/projections/synthetic_{i+1}.mrc',
-                             projections[:, :, i].squeeze())
-
-    # len(angles) is the number of files that we have
-    alignment = xp.zeros(len(angles), dtype=dar)
-    # correct angle by -1 to get the right reconstruction
-    alignment['TiltAngle'] = -1.0 * xp.array(angles)
-    alignment['Magnification'] = xp.repeat(1.0, len(angles))
-    if random_rotation:
-        alignment['InPlaneRotation'] = random_angles
-
-    for i in range(len(angles)):
-        alignment['FileName'][i] = f'{save_path}/projections/synthetic_{i+1}.mrc'
-
-    # Then the alignment file, because the noisyProjections folder needs to have been created
-    alignment_file = f'{save_path}/projections/alignment_simulated.txt'
-    savestar(alignment_file, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
-    return
-
-
 def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_size, binning=1):
     """
     Inspired by InSilicoTEM (Vulovic et al., 2013)
     @author: Marten Chaillet
     """
-    from scipy.ndimage import shift
+    # from scipy.ndimage import shift
 
     ntf = xp.sqrt(mtf ** 2 / dqe) # square root because dqe = mtf^2 / ntf^2
     ntf = xp.maximum(ntf, 1E-7) # ensure we do not divide by zero
@@ -1466,13 +619,13 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
 
     # Apply poissonian noise
     # poisson_mean = projection * dose_per_pixel
-    sigma_motion = 1 / (pixel_size*1E9)
+    # sigma_motion = 1 / (pixel_size*1E9)
     projection_poisson = xp.zeros(projection.shape)
     for _ in range(binning**2):
-        translation = (xp.random.normal(0, sigma_motion), xp.random.normal(0, sigma_motion))
-        # projection_poisson += (
-        #         xp.random.poisson(lam=shift(projection, translation, mode='nearest') * dose_per_pixel) / binning ** 2)
-        poisson_intermediate = xp.random.poisson(lam=shift(projection, translation, mode='nearest') * dose_per_pixel)
+        # generate shifts per projection to add motion blur
+        # translation = (xp.random.normal(0, sigma_motion), xp.random.normal(0, sigma_motion))
+        # poisson_intermediate = xp.random.poisson(lam=shift(projection, translation, mode='nearest') * dose_per_pixel)
+        poisson_intermediate = xp.random.poisson(lam=projection * dose_per_pixel)
         projection_poisson += xp.real(xp.fft.fftshift(xp.fft.ifftn(xp.fft.fftn(xp.fft.ifftshift(poisson_intermediate))
                                                                    * ntf_shift))) / binning**2
         # imshow(projection_poisson)
@@ -1495,7 +648,7 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
 
 
 def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, ctf, dose, dqe, mtf, voltage,
-                     binning=1, translation=(.0,.0,.0), rotation=(.0,.0,.0), solvent_potential=.0,
+                     binning=1, translation=(.0,.0,.0), rotation=(.0,.0,.0), solvent_potential=physics.V_WATER,
                      solvent_absorption=.0, sigma_damage=.0, ice_voxels=None):
     """
     Only use multislice for this.
@@ -1505,7 +658,8 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     @param rotation:
     @return:
     """
-    from voltools import transform
+    from pytom.voltools import transform
+    from pytom.simulation.microscope import transmission_function, fresnel_propagator
 
     print('Transforming sample for tilt/frame ', frame)
 
@@ -1617,23 +771,10 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
         wave_field = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, -1]) )
         psi_multislice = xp.fft.fftshift( xp.fft.ifftn( wave_field * xp.fft.ifftshift(propagator_end) ) )
 
-    # Blur the image at this point for some motion blur?
-    # from scipy.ndimage import gaussian_filter
-    # gaussian_filter(psi_multislice.real, sigma=(20/(2 * (pixel_size * 1E10)))/2.35, output=psi_multislice.real)
-
     # Multiple by CTF for microscope effects on electron wave
     wave_ctf = xp.fft.ifftshift(ctf) * xp.fft.fftn(xp.fft.ifftshift(psi_multislice) )
     # Intensity in image plane is obtained by taking the absolute square of the wave function
     noisefree_projection = xp.abs(xp.fft.fftshift(xp.fft.ifftn(wave_ctf))) ** 2
-
-    # wave_ctf = xp.fft.ifftshift(ctf.imag) * xp.fft.fftn(xp.fft.ifftshift(xp.abs(psi_multislice) ** 2))
-    # noisefree_projection = xp.abs(xp.fft.fftshift(xp.fft.ifftn(wave_ctf)))
-
-    # noisefree_projection = xp.abs(psi_multislice)**2
-
-    # # Blur the image at this point for some motion blur?
-    # from scipy.ndimage import gaussian_filter
-    # gaussian_filter(noisefree_projection, sigma=2, output=noisefree_projection)
 
     # DEBUGGING
     # test = xp.log(xp.abs(xp.fft.fftshift(xp.fft.fftn(noisefree_projection))))
@@ -1651,28 +792,30 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     return (noisefree_projection, projection)
 
 
-def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_size=None, rotation_box_height=None,
+def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotation_box_height=None,
                              pixel_size=1E-9, binning=1, dose=80, voltage=300E3, spherical_aberration=2.7E-3,
                              chromatic_aberration=2.7E-3, energy_spread=0.7, illumination_aperture=0.030E-3,
                              objective_diameter=100E-6, focus_length=4.7E-3, astigmatism=0.0E-9, astigmatism_angle=0,
                              msdz=1E-9, defocus=2E-6, sigma_damage=0.0, camera_type='K2SUMMIT', camera_folder='',
-                             solvent_potential=4.5301, absorption_contrast=False):
+                             solvent_potential=physics.V_WATER, absorption_contrast=False):
     from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS as dar
     from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
     from pytom.gui.guiFunctions import savestar
-    import detector
+    from pytom.simulation.microscope import create_detector_response, create_complex_ctf
+    from pytom.tompy.io import read_mrc, write
     from joblib import Parallel, delayed
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
-    save_path = f'{output_folder}/model_{model_ID}'
 
     # grab model
-    grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
+    filename_gm_real = os.path.join(save_path, 'grandmodel.mrc')
+    filename_gm_imag = os.path.join(save_path, 'grandmodel_imag.mrc')
+    grandcell = read_mrc(filename_gm_real)
     if absorption_contrast:
         xp_type = xp.complex64
         grandcell = grandcell.astype(xp_type)
-        grandcell.imag = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_imag.mrc')
+        grandcell.imag = read_mrc(filename_gm_imag)
         # calculate the absorption for amorphous ice at the specified voltage
-        solvent_amplitude = potential_amplitude(0.93, 18, voltage)
+        solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
         print(f'solvent absorption = {solvent_amplitude:.3f}')
     else:
         xp_type = xp.float32
@@ -1715,7 +858,8 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
     # confirm image_size is valid
     assert image_size <= box_size, 'Specified projection image size is invalid as it is larger than the model dimension.'
 
-    # adjust defocus
+    # adjust defocus because the value specifies defocus at the bottom of the box. the input expects defocus at the
+    # center of the sample, therefore subtract half the box size.
     zheight = rotation_box_height * pixel_size  # thickness of rotation volume in nm
     defocus -= (zheight / 2)  # center defocus value at tilt angle
 
@@ -1759,16 +903,16 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
     ctf_series = []
     for i in angles:
         dz = xp.random.normal(defocus, 0.2E-6)
-        ctf = create_complex_CTF_ext((image_size, image_size), pixel_size, dz, voltage=voltage,
+        ctf = create_complex_ctf((image_size, image_size), pixel_size, dz, voltage=voltage,
                                      Cs=spherical_aberration, Cc=chromatic_aberration, energy_spread=energy_spread,
                                      illumination_aperture=illumination_aperture, objective_diameter=objective_diameter,
                                      focus_length=focus_length, astigmatism=astigmatism,
-                                     astigmatism_angle=astigmatism_angle, display_CTF=False)
+                                     astigmatism_angle=astigmatism_angle, display=False)
         ctf_series.append(ctf)
 
-    dqe = detector.create_detector_response(camera_type, 'DQE', xp.zeros((image_size, image_size)), voltage=voltage,
+    dqe = create_detector_response(camera_type, 'DQE', xp.zeros((image_size, image_size)), voltage=voltage,
                                             folder=camera_folder)
-    mtf = detector.create_detector_response(camera_type, 'MTF', xp.zeros((image_size, image_size)), voltage=voltage,
+    mtf = create_detector_response(camera_type, 'MTF', xp.zeros((image_size, image_size)), voltage=voltage,
                                             folder=camera_folder)
 
     # joblib automatically memory maps a numpy array to child processes
@@ -1791,37 +935,40 @@ def generate_tilt_series_cpu(output_folder, model_ID, angles, nodes=1, image_siz
         print(f'{results.count(None)} rotation processes did not finish successfully')
 
     # write (noisefree) projections as mrc stacks
-    pytom.tompy.io.write(f'{save_path}/noisefree_projections.mrc', xp.stack([n for (n, p) in results], axis=2))
-    pytom.tompy.io.write(f'{save_path}/projections.mrc', xp.stack([p for (n, p) in results], axis=2))
+    filename_nf = os.path.join(save_path, 'noisefree_projections.mrc')
+    filename_pr = os.path.join(save_path, 'projections.mrc')
+    write(filename_nf, xp.stack([n for (n, p) in results], axis=2))
+    write(filename_pr, xp.stack([p for (n, p) in results], axis=2))
 
     # store alignment information
     # len(angles) is the number of files that we have
-    alignment = xp.zeros(len(angles), dtype=dar)
+    alignment                       = xp.zeros(len(angles), dtype=dar)
     # IMPORTANT: correct angles by -1 to get the right reconstruction
-    alignment['TiltAngle'] = -1.0 * xp.array(angles)
-    alignment['Magnification'] = xp.repeat(1.0, len(angles))
+    alignment['TiltAngle']          = -1.0 * xp.array(angles)
+    alignment['Magnification']      = xp.repeat(1.0, len(angles))
     for i in range(len(angles)):
-        alignment['FileName'][i] = f'{save_path}/projections/synthetic_{i+1}.mrc'
+        alignment['FileName'][i]    = os.path.join(save_path, 'projections', 'synthetic_{i+1}.mrc')
+
     # write the alignment file
-    alignment_file = f'{save_path}/alignment_simulated.txt'
-    savestar(alignment_file, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
+    filename_align                      = os.path.join(save_path, 'alignment_simulated.txt')
+    savestar(filename_align, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
+
     return
 
 
-def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, image_size=None, pixel_size=1E-9,
+def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, pixel_size=1E-9,
                               binning=1, dose=80, voltage=300E3, spherical_aberration=2.7E-3,
                               chromatic_aberration=2.7E-3, energy_spread=0.7, illumination_aperture=0.030E-3,
                               objective_diameter=100E-6, focus_length=4.7E-3, astigmatism=0.0E-9, astigmatism_angle=0,
                               msdz=1E-9, defocus=2E-6, sigma_damage=0.0, camera_type='K2SUMMIT', camera_folder='',
-                              solvent_potential=4.5301, absorption_contrast=False):
+                              solvent_potential=physics.V_WATER, absorption_contrast=False):
     """
     Creating a frame series for the initial grand model by applying stage drift (translation) and some rotations for
     each frame, and the calculating the sample projection in the microscope. Additionally apply increasing random noise
     to the images to imitate particle degradation through beam interaction. I cannot do this incremental as I want
     to parallelize the rotation+projection, but the overall effect on signal should be identical.
 
-    @param output_folder:
-    @param model_ID:
+    @param save_path
     @param n_frames:
     @param image_size:
     @param pixel_size:
@@ -1844,20 +991,21 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
     from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS as dar
     from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
     from pytom.gui.guiFunctions import savestar
-    import detector
+    from pytom.simulation.microscope import create_detector_response, create_complex_ctf
+    from pytom.tompy.io import read_mrc, write
     from joblib import Parallel, delayed
-
-    save_path = f'{output_folder}/model_{model_ID}'
 
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
 
     # grab model
-    grandcell = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel.mrc')
+    filename_gm_real = os.path.join(save_path, 'grandmodel.mrc')
+    filename_gm_imag = os.path.join(save_path, 'grandmodel_imag.mrc')
+    grandcell = read_mrc(filename_gm_real)
     if absorption_contrast:
         grandcell = grandcell.astype(xp.complex64)
-        grandcell.imag = pytom.tompy.io.read_mrc(f'{save_path}/grandmodel_imag.mrc')
+        grandcell.imag = read_mrc(filename_gm_imag)
         # calculate the absorption for amorphous ice at the specified voltage
-        solvent_amplitude = potential_amplitude(0.93, 18, voltage)
+        solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
         print(f'solvent absorption = {solvent_amplitude:.3f}')
     else:
         grandcell = grandcell.astype(xp.float32)
@@ -1920,7 +1068,7 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
         # decompose motion into x and y translation
         y_i = xp.sin(angle_i * xp.pi / 180) * motion_i
         x_i = xp.cos(angle_i * xp.pi / 180) * motion_i
-        # TODO decide if translations can be removed, only seem to need cumulative_translations
+        # only seem to need cumulative_translations
         translations.append((x_i, y_i, 0)) # append the translation for the frame as a tuple
         y += y_i
         x += x_i
@@ -1941,15 +1089,15 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
     # plt.close()
 
     # get the contrast transfer function
-    ctf = create_complex_CTF_ext((image_size, image_size), pixel_size, defocus, voltage=voltage,
+    ctf = create_complex_ctf((image_size, image_size), pixel_size, defocus, voltage=voltage,
                                    Cs=spherical_aberration, Cc=chromatic_aberration, energy_spread=energy_spread,
                                    illumination_aperture=illumination_aperture, objective_diameter=objective_diameter,
                                    focus_length=focus_length, astigmatism=astigmatism,
-                                   astigmatism_angle=astigmatism_angle, display_CTF=False)
+                                   astigmatism_angle=astigmatism_angle, display=False)
 
-    dqe = detector.create_detector_response(camera_type, 'DQE', xp.zeros((image_size, image_size)), voltage=voltage,
+    dqe = create_detector_response(camera_type, 'DQE', xp.zeros((image_size, image_size)), voltage=voltage,
                                             folder=camera_folder)
-    mtf = detector.create_detector_response(camera_type, 'MTF', xp.zeros((image_size, image_size)), voltage=voltage,
+    mtf = create_detector_response(camera_type, 'MTF', xp.zeros((image_size, image_size)), voltage=voltage,
                                             folder=camera_folder)
 
     # joblib automatically memory maps a numpy array to child processes
@@ -1970,78 +1118,34 @@ def generate_frame_series_cpu(output_folder, model_ID, n_frames=20, nodes=1, ima
         print(f'{results.count(None)} rotation processes did not finish successfully')
 
     # write (noisefree) projections as mrc stacks
-    pytom.tompy.io.write(f'{save_path}/noisefree_projections.mrc', xp.stack([n for (n,p) in results], axis=2))
-    pytom.tompy.io.write(f'{save_path}/projections.mrc', xp.stack([p for (n, p) in results], axis=2))
+    filename_nf = os.path.join(save_path, 'noisefree_projections.mrc')
+    filename_pr = os.path.join(save_path, 'projections.mrc')
+    write(filename_nf, xp.stack([n for (n,p) in results], axis=2))
+    write(filename_pr, xp.stack([p for (n, p) in results], axis=2))
 
     # Store translations as reference for model
     # len(angles) is the number of files that we have
-    alignment = xp.zeros(n_frames, dtype=dar)
-    alignment['AlignmentTransX'] = xp.array([x for (x,y,z) in cumulative_translations])
-    alignment['AlignmentTransY'] = xp.array([y for (x,y,z) in cumulative_translations])
-    alignment['Magnification'] = xp.repeat(1.0, n_frames)
+    alignment                       = xp.zeros(n_frames, dtype=dar)
+    alignment['AlignmentTransX']    = xp.array([x for (x,y,z) in cumulative_translations])
+    alignment['AlignmentTransY']    = xp.array([y for (x,y,z) in cumulative_translations])
+    alignment['Magnification']      = xp.repeat(1.0, n_frames)
     for i in range(n_frames):
-        alignment['FileName'][i] = f'{save_path}/projections/synthetic_{i+1}.mrc'
+        alignment['FileName'][i]    = os.path.join(save_path, 'projections', 'synthetic_{i+1}.mrc')
 
     # Write the alignment file as a text file
-    alignment_file = f'{save_path}/alignment_simulated.txt'
-    savestar(alignment_file, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
+    filename_align                      = os.path.join(save_path, 'alignment_simulated.txt')
+    savestar(filename_align, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
     return
-
-
-def meanUnderMask(volume, mask=None, p=None):
-    """
-    Return mean value under mask.
-    """
-    return (volume * mask).sum() / mask.sum()
-
-
-def create_sphere(size, radius=-1, sigma=0, center=None):
-    """
-    Create a sphere in volume of size with radius.
-    """
-    if len(size) == 1:
-        size = (size, size)
-    assert len(size) == 2
-
-    if center is None:
-        center = [size[0] / 2, size[1] / 2]
-    if radius == -1:
-        radius = xp.min(size) / 2
-
-    sphere = xp.zeros(size)
-    [x, y] = xp.mgrid[0:size[0], 0:size[1]]
-    r = xp.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
-    sphere[r <= radius] = 1
-
-    if sigma > 0:
-        ind = xp.logical_and(r > radius, r < radius + 2 * sigma)
-        sphere[ind] = xp.exp(-((r[ind] - radius) / sigma) ** 2 / 2)
-
-    return sphere
-
-
-def bandpass_mask(shape, low=0, high=-1):
-    """
-    Return a bandpass mask.
-    """
-    assert low >= 0, "lower limit must be >= 0"
-
-    if high == -1:
-        high = xp.min(shape) / 2
-    assert low < high, "upper bandpass must be > than lower limit"
-
-    if low == 0:
-        mask = create_sphere(shape, high, sigma=0)
-    else:
-        mask = create_sphere(shape, high, sigma=0) - create_sphere(shape, low, sigma=0)
-
-    return mask
 
 
 def FSS(fvolume1, fvolume2, numberBands, verbose=False):
     """
+    algorithm FSS = Fourier Shell Scaling
     Scale the values of fvolume1 to the values in fvolume2 per band in fourier space.
     """
+    from pytom.tompy.correlation import meanUnderMask
+    from pytom.simulation.support import bandpass_mask
+
     assert fvolume1.shape == fvolume2.shape, "volumes not of same size"
     assert len(set(fvolume1.shape)) == 1, "volumes are not perfect cubes"
 
@@ -2072,8 +1176,8 @@ def FSS(fvolume1, fvolume2, numberBands, verbose=False):
             output[c, c] = fvolume1[c, c] / (fvolume1[c, c] / fvolume2[c, c])
 
         # get mean amplitude of each band
-        m1 = meanUnderMask(fvolume1, bandpass)
-        m2 = meanUnderMask(fvolume2, bandpass)
+        m1 = meanUnderMask(fvolume1, bandpass, p=bandpass.sum())
+        m2 = meanUnderMask(fvolume2, bandpass, p=bandpass.sum())
 
         # scale the values inside the band of volume1
         outband = fvolume1 * bandpass / (m1 / m2)
@@ -2101,111 +1205,13 @@ def scale_image(volume1, volume2, numberBands):
     return fout.real
 
 
-def create_gaussian_low_pass(size, cutoff, center=None):
-    """
-    NOTE: MOVE FUNCTION TO TOMPY.FILTER
-    Create a 3D mask with gaussian edges.
-
-    @param size: size of the resulting volume.
-    @param hwhm: fourier space cutoff value for the filter in pixels from center.
-    @param center: center of the Gaussian. If not provided will be calculated.
-
-    @return: sphere inside a volume.
-    """
-    import numpy as np
-
-    assert len(size) == 2
-
-    # full width at half maximum is two times the half width at half maximum (or cutoff)
-    c = 2  # or can be set to np.sqrt(2) for butterworth filter
-    #     c = np.sqrt(2)
-    sigma_cutoff = cutoff / np.sqrt(2 * np.log(c))
-    # print(f'sigma cutoff = {sigma_cutoff}')
-
-    if center is None:
-        center = [(size[0] - 1) / 2, (size[1] - 1) / 2]
-
-    [x, y] = np.mgrid[0:size[0], 0:size[1]]
-    r = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
-
-    filter = np.exp(-r ** 2 / (2 * sigma_cutoff ** 2))
-
-    return filter
-
-
-def reduce_resolution(map, voxel_size, resolution):
-    """
-    NOTE: MOVE FUNCTION TO TOMPY.FILTER. Tompy does not contain gaussian low pass in fourier space.
-    Accepts only square input maps to easy low-pass filtering
-
-    @param map: Volume
-    @type map: 3d numpy array
-    @param voxel_size: Voxel size of the volume in A
-    @type voxel_size: float
-    @param to_resolution: Desired resolution after applying low-pass filter
-    @type to_resolution: float
-    @param sharpness: ratio
-    @type sharpness: float
-
-    @return: Filtered volume
-    @rtype: 3d numpy array
-
-    @author: Marten Chaillet
-    """
-    import numpy as np
-    # from pytom.tompy.transform import fourier_filter
-
-    assert resolution >= voxel_size, "the requested resolution is non-valid as it is smaller than the voxel size"
-    assert len(set(map.shape)) == 1, "dimensions of input are not equal"
-
-    # resolution reduction factor
-    nr_pixels_cutoff = (map.shape[0] * voxel_size) / resolution
-    # NOTE: if resolution == 2*voxel_size, filter radius will be 0.5 * map.shape[0]. I.E. no filtering. This is correct
-    # because the highest possible resolution (nyquist) equals 2*voxel_size.
-    # create full gaussian mask
-    mask = create_gaussian_low_pass(map.shape, nr_pixels_cutoff)
-    # apply mask in fourier space
-    # result = fourier_filter(map, mask, human=True)
-    ft_map = np.fft.fftn(np.fft.ifftshift(map))  # shift center to origin
-    result = np.fft.fftshift(np.fft.ifftn(ft_map * np.fft.ifftshift(mask)))  # shift center of mask to origin
-    return result.real
-
-
-def bin_image(potential, factor):
-    """
-
-    @param potential:
-    @param factor: integer value
-    @return:
-    """
-    assert type(factor) is int and factor >= 1, print('non-valid binning factor, should be integer above 1')
-    assert len(set(potential.shape)) == 1, print('image is not a square')
-
-    if factor == 1:
-        return potential
-
-    potential_new = reduce_resolution(potential, 1, factor * 2)
-
-    s = (potential_new.shape[0] % factor) // 2
-    d = (potential_new.shape[0] % factor) % 2
-
-    potential_new = potential[s:potential_new.shape[0] - s - d, s:potential_new.shape[0] - s - d]
-
-    ds = int(potential_new.shape[0] // factor)
-    image_size = potential_new.shape[0]
-
-    binned = potential_new.reshape(ds, image_size // ds, ds, image_size // ds).mean(-1).mean(1)
-
-    return binned
-
-
 def parallel_scale(number, projection, example, pixel_size, example_pixel_size, binning, make_even_factor):
+    from pytom.tompy.transform import resize
+
     print(f' -- scaling projection {number+1}')
-    if pixel_size < (example_pixel_size * binning):
-        # TODO use resize!
-        example = ndimage.zoom(example, (example_pixel_size * binning) / pixel_size)
-    elif pixel_size > (example_pixel_size * binning):
-        example = ndimage.zoom(example, pixel_size / (example_pixel_size * binning))
+    if pixel_size != (example_pixel_size * binning):
+        # magnify or de-magnify if the pixel size does not match yet
+        example = resize(example, (example_pixel_size * binning) / pixel_size, interpolation='Spline')
 
     # prevent issues later on with binning
     if example.shape[0] % (2*make_even_factor):
@@ -2223,18 +1229,22 @@ def parallel_scale(number, projection, example, pixel_size, example_pixel_size, 
     return (number, scale_image(projection, example, projection.shape[0] // 4))
 
 
-def scale_projections(output_folder, model_ID, pixel_size, example_folder, example_pixel_size, binning, nodes,
+def scale_projections(save_path, pixel_size, example_folder, example_pixel_size, binning, nodes,
                       make_even_factor):
+    from pytom.tompy.transform import resize
+    from pytom.simulation.support import reduce_resolution_fourier
+    from pytom.tompy.io import read_mrc, write
     from joblib import Parallel, delayed
 
-    save_path= f'{output_folder}/model_{model_ID}'
+    # generate list of all the possible example projections in the provided parameter example_folder
     files = [f for f in os.listdir(example_folder) if os.path.isfile(os.path.join(example_folder, f))]
     random_file = xp.random.randint(0, len(files))
     print(f'Selected {files[random_file]} for experimental amplitude scaling.')
 
-    projections = pytom.tompy.io.read_mrc(f'{save_path}/projections.mrc')
-
-    example_projections = pytom.tompy.io.read_mrc(f'{example_folder}/{files[random_file]}')
+    filename_pr = os.path.join(save_path, 'projections.mrc')
+    filename_ex = os.path.join(example_folder, files[random_file])
+    projections         = read_mrc(filename_pr)
+    example_projections = read_mrc(filename_ex)
 
     # assert projections.shape[2] == example_projections.shape[2], 'not enough or too many example projections'
     sim_size = projections.shape
@@ -2255,7 +1265,9 @@ def scale_projections(output_folder, model_ID, pixel_size, example_folder, examp
 
     verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
-        (delayed(parallel_scale)(i, projections[:, :, i].squeeze(), bin_image(example_projections[:, :, i].squeeze(), binning),
+        (delayed(parallel_scale)(i, projections[:, :, i].squeeze(),
+                                 resize(reduce_resolution_fourier(example_projections[:, :, i].squeeze(), 1, 2*binning),
+                                        1/binning, interpolation='Spline'),
                                  pixel_size, example_pixel_size, binning, make_even_factor)
          for i in range(projections.shape[2]))
 
@@ -2268,12 +1280,13 @@ def scale_projections(output_folder, model_ID, pixel_size, example_folder, examp
 
     new_projections = xp.dstack(tuple([r for (i,r) in results]))
 
-    pytom.tompy.io.write(f'{save_path}/projections_scaled.mrc', new_projections)
+    filename_scaled = os.path.join(save_path, 'projections_scaled.mrc')
+    write(filename_scaled, new_projections)
 
     return
 
 
-def reconstruct_tomogram(output_folder, model_ID, weighting=-1, crop=False, reconstruction_bin=1,
+def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
                          filter_projections=False, use_scaled_projections=False):
     """
     Reconstruction of simulated tilt series into a tomogram. First creates an alignemnt file, then uses weighted back
@@ -2293,8 +1306,6 @@ def reconstruct_tomogram(output_folder, model_ID, weighting=-1, crop=False, reco
     @type angles: [float, float, ...]
     @param output_folder: output directory path
     @type output_folder: string
-    @param model_ID: number of the model
-    @type model_ID: int
     @param weighting: weighting factor, either -1, 0, or 1
     @type weighting: int
 
@@ -2304,11 +1315,9 @@ def reconstruct_tomogram(output_folder, model_ID, weighting=-1, crop=False, reco
     @author: Gijs van der Schot, Marten Chaillet
     """
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
-    from potential import bin
-    from scipy.ndimage import gaussian_filter
-
-    save_path = os.path.join(output_folder, f'model_{model_ID}')
-    alignment_file = os.path.join(save_path, 'alignment_simulated.txt')
+    from pytom.tompy.transform import resize
+    from pytom.simulation.support import reduce_resolution
+    from pytom.tompy.io import read_mrc, write
 
     # create folder for individual projections
     projection_folder = os.path.join(save_path, 'projections')
@@ -2317,56 +1326,68 @@ def reconstruct_tomogram(output_folder, model_ID, weighting=-1, crop=False, reco
 
     # Possibly apply low pass filter at this point
     if use_scaled_projections:
-        projections = pytom.tompy.io.read_mrc(os.path.join(save_path, 'projections_scaled.mrc'))
+        filename_sc = os.path.join(save_path, 'projections_scaled.mrc')
+        projections = read_mrc(filename_sc)
     else:
-        projections = pytom.tompy.io.read_mrc(os.path.join(save_path, 'projections.mrc'))
+        filename_pr = os.path.join(save_path, 'projections.mrc')
+        projections = read_mrc(filename_pr)
 
     if filter_projections:
         for i in range(projections.shape[2]):
             # 2.3 corresponds to circular filter with width 0.9 of half of the image
             projection_scaled = reduce_resolution(projections[:,:,i].squeeze(), 1.0, 2.3 * reconstruction_bin)
-            pytom.tompy.io.write(os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc'), projection_scaled)
+            filename_single = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
+            write(filename_single, projection_scaled)
     else:
         for i in range(projections.shape[2]):
-            pytom.tompy.io.write(os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc'), projections[:,:,i])
+            filename_single = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
+            write(filename_single, projections[:,:,i])
 
+    # size and volume shape of the reconstruction
     size_reconstruction = projections.shape[0] // reconstruction_bin
     vol_size = [size_reconstruction, ] * 3
+    # alignment file name for reconstruction
+    filename_align = os.path.join(save_path, 'alignment_simulated.txt')
 
     if reconstruction_bin == 1:
-        outputname = os.path.join(save_path, 'reconstruction.em')
+        filename_output = os.path.join(save_path, 'reconstruction.em')
     else:
-        outputname = os.path.join(save_path, f'reconstruction_bin{reconstruction_bin}.em')
+        filename_output = os.path.join(save_path, f'reconstruction_bin{reconstruction_bin}.em')
     # IF EM alignment file provided, filters applied and reconstruction will be identical.
     projections = ProjectionList()
     vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=reconstruction_bin,
-                                        applyWeighting=weighting, alignResultFile=alignment_file)
-    vol.write(outputname)
-    os.system(f'em2mrc.py -f {outputname} -t {os.path.dirname(outputname)}')
-    os.system(f'rm {outputname}')
+                                        applyWeighting=weighting, alignResultFile=filename_align)
+    vol.write(filename_output)
+    os.system(f'em2mrc.py -f {filename_output} -t {os.path.dirname(filename_output)}')
+    os.system(f'rm {filename_output}')
 
     # Adjust ground truth data to match cuts after scaling or after binning for reconstruction
-    cell = pytom.tompy.io.read_mrc(os.path.join(save_path,'grandmodel.mrc'))
+    filename_gm = os.path.join(save_path, 'grandmodel.mrc')
+    filename_cm = os.path.join(save_path, 'class_mask.mrc')
+    filename_om = os.path.join(save_path, 'occupancy_mask.mrc')
+    filename_gm_bin = os.path.join(save_path, f'grandmodel_bin{reconstruction_bin}.mrc')
+    filename_cm_bin = os.path.join(save_path, f'class_mask_bin{reconstruction_bin}.mrc')
+    filename_om_bin = os.path.join(save_path, f'occupancy_mask_bin{reconstruction_bin}.mrc')
+
+    cell = read_mrc(filename_gm)
+    # find cropping indices
     lind = (cell.shape[0] - reconstruction_bin * size_reconstruction)//2
     rind = cell.shape[0] - lind
-    cell = bin(gaussian_filter(cell[lind:rind,lind:rind,:],
-                               sigma=(reconstruction_bin / 2.35)), reconstruction_bin)
-    pytom.tompy.io.write(os.path.join(save_path,f'grandmodel_bin{reconstruction_bin}.mrc'), cell)
-
+    cell = resize(reduce_resolution(cell[lind:rind,lind:rind,:], 1, 2*reconstruction_bin), 1/reconstruction_bin,
+                  interpolation='Spline')
+    write(filename_gm_bin, cell)
     # bin class mask and bbox needed for training
-    # cell = pytom.tompy.io.read_mrc(f'{save_path}/class_bbox_original.mrc')
-    # pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', bin_class_mask(cell, binning=reconstruction_bin))
-    cell = pytom.tompy.io.read_mrc(os.path.join(save_path,'class_mask.mrc'))
-    pytom.tompy.io.write(os.path.join(save_path, f'class_mask_bin{reconstruction_bin}.mrc'),
-                         downscale_class_mask(cell[lind:rind,lind:rind,:], reconstruction_bin))
+    cell = read_mrc(filename_cm)
+    write(filename_cm_bin, downscale_class_mask(cell[lind:rind,lind:rind,:], reconstruction_bin))
     # bin occupancy mask as well
-    cell = pytom.tompy.io.read_mrc(os.path.join(save_path,'occupancy_mask.mrc'))
-    pytom.tompy.io.write(os.path.join(save_path, f'occupancy_mask_bin{reconstruction_bin}.mrc'),
-                         downscale_class_mask(cell[lind:rind,lind:rind,:], reconstruction_bin))
+    cell = read_mrc(filename_om)
+    write(filename_om_bin, downscale_class_mask(cell[lind:rind,lind:rind,:], reconstruction_bin))
 
     # create particle locations bin2 file
     adjusted_ground_truth = ''
-    with open(os.path.join(save_path,'particle_locations.txt'), 'r') as fin:
+    filename_loc = os.path.join(save_path,'particle_locations.txt')
+    filename_loc_bin = os.path.join(save_path, f'particle_locations_bin{reconstruction_bin}.txt')
+    with open(filename_loc, 'r') as fin:
         line = fin.readline()
         while line:
             data = line.split()
@@ -2380,7 +1401,7 @@ def reconstruct_tomogram(output_folder, model_ID, weighting=-1, crop=False, reco
                 data[3] = str(data[3])
                 adjusted_ground_truth += ' '.join(data) + '\n'
             line = fin.readline()
-    with open(os.path.join(save_path, f'particle_locations_bin{reconstruction_bin}.txt'), 'w') as fout:
+    with open(filename_loc_bin, 'w') as fout:
         fout.write(adjusted_ground_truth)
 
     return
@@ -2516,11 +1537,12 @@ if __name__ == '__main__':
             raise Exception('Missing tomogram reconstruction parameters in config file.')
 
     # Create directories and logger
-    if not os.path.exists(os.path.join(output_folder, f'model_{model_ID}')):
-        os.mkdir(os.path.join(output_folder, f'model_{model_ID}'))
+    save_path = os.path.join(output_folder, f'model_{model_ID}')
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
 
-    logging.basicConfig(filename='{}/model_{}/simulator-{date:%Y-%m-%d_%H:%M:%S}.log'.format(output_folder, model_ID,
-                                                                                             date=datetime.datetime.now()), level=logging.INFO)
+    logging.basicConfig(filename='{}/simulator-{date:%Y-%m-%d_%H:%M:%S}.log'.format(save_path,
+                                                                date=datetime.datetime.now()), level=logging.INFO)
     config_logger = ConfigLogger(logging)
     config_logger(config)
 
@@ -2541,13 +1563,13 @@ if __name__ == '__main__':
         random.seed(seed)
 
         print('\n- Generating grand model')
-        generate_model(particle_folder, output_folder, model_ID, listpdbs, listmembranes,
+        generate_model(particle_folder, save_path, listpdbs, listmembranes,
                        pixel_size           =pixel_size,
                        size                 =size,
                        thickness            =thickness_voxels,
                        placement_size       =placement_size,
                        solvent_potential    =solvent_potential,
-                       numberOfParticles    =number_of_particles,
+                       number_of_particles  =number_of_particles,
                        number_of_markers    =number_of_markers,
                        absorption_contrast  =absorption_contrast,
                        voltage              =voltage,
@@ -2560,7 +1582,7 @@ if __name__ == '__main__':
         # Grab the ice thickness from the initial model in case program is only executed for projections
         print('\n- Generating projections')
         if device == 'CPU':
-            generate_tilt_series_cpu(output_folder, model_ID, angles,
+            generate_tilt_series_cpu(save_path, angles,
                                       nodes                 =nodes,
                                       image_size            =image_size,
                                       rotation_box_height   =None, # will automatically calculate fitting size if None
@@ -2594,7 +1616,7 @@ if __name__ == '__main__':
         random.seed(seed)
         print('\n- Generate frame series projections')
         if device == 'CPU':
-            generate_frame_series_cpu(output_folder, model_ID,
+            generate_frame_series_cpu(save_path,
                                       n_frames              =number_of_frames,
                                       nodes                 =nodes,
                                       image_size            =image_size,
@@ -2629,13 +1651,15 @@ if __name__ == '__main__':
         xp.random.seed(seed)
         random.seed(seed)
         print('\n- Scaling projections with experimental data')
-        scale_projections(output_folder, model_ID, pixel_size * 1E9, example_folder,
+        scale_projections(save_path, pixel_size * 1E9, example_folder,
                                             example_pixel_size, binning, nodes, make_even_factor)
 
     if 'TomogramReconstruction' in config.sections():
         print('\n- Reconstructing tomogram')
-        reconstruct_tomogram(output_folder, model_ID, weighting=weighting,
-                             reconstruction_bin=reconstruction_bin, filter_projections=filter_projections,
+        reconstruct_tomogram(save_path,
+                             weighting=weighting,
+                             reconstruction_bin=reconstruction_bin,
+                             filter_projections=filter_projections,
                              use_scaled_projections=use_scaled_projections)
 
     current, peak = tracemalloc.get_traced_memory()

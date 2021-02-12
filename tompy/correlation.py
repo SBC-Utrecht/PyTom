@@ -204,7 +204,7 @@ def nxcc(volume, template, mask=None, volumeIsNormalized=False):
         p = volume.size
         result = v * t
     else:
-        # from pytom.tompy.normalise import normaliseUnderMask
+        from pytom.tompy.normalise import normaliseUnderMask
         if not volumeIsNormalized:
             (v, p) = normaliseUnderMask(volume, mask)
             (t, p) = normaliseUnderMask(template, mask, p)
@@ -379,7 +379,7 @@ def normaliseUnderMask(volume, mask, p=None):
     stdT = stdUnderMask(volume, mask, meanT, p)
 
     res = (volume - meanT) / stdT
-    return res
+    return (res, p)
 
 def bandCC(volume, reference, band, verbose=False, shared=None, index=None):
 

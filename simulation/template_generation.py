@@ -1,16 +1,14 @@
+#!/usr/bin/env pytom
 
 import numpy as xp
 import os
-
-V_WATER = 4.5301  # potential value of low density amorphous ice (from Vulovic et al., 2013)
-AMORPHOUS_ICE_DENSITY = 0.93  # with density of 0.93 g/cm^3
-PROTEIN_DENSITY = 1.35  # g/cm^3
+import pytom.simulation.physics as physics
 
 
 def generate_template(structure_file_path, spacing, binning=1, modify_structure=False, apply_solvent_correction=False,
-                      solvent_density=AMORPHOUS_ICE_DENSITY, apply_ctf_correction=False, defocus=3E-6, amplitude_contrast=0.07,
-                      voltage=300E3, Cs=2.7E-3, ctf_decay=0.4, display_ctf=False, apply_lpf=False, resolution=30,
-                      box_size=None, output_folder=''):
+                      solvent_density=physics.AMORPHOUS_ICE_DENSITY, apply_ctf_correction=False, defocus=3E-6,
+                      amplitude_contrast=0.07, voltage=300E3, Cs=2.7E-3, ctf_decay=0.4, display_ctf=False,
+                      resolution=30, box_size=None, output_folder=''):
     """
 
     @param structure_file_path:
@@ -57,24 +55,22 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
     assert binning >= 1, 'binning factor smaller than 1 is invalid'
     if solvent_correction:
         assert solvent_density > 0, 'solvent density smaller or equal to 0 is invalid'
-        if solvent_density > PROTEIN_DENSITY:
-            print(f'WARNING: Solvent density larger than protein density {PROTEIN_DENSITY}')
+        if solvent_density > physics.PROTEIN_DENSITY:
+            print(f'WARNING: Solvent density larger than protein density {physics.PROTEIN_DENSITY}')
+
+    if not resolution >= (2 * spacing * binning):
+        print(f'Invalid resolution specified, changing to {2*spacing*binning}A')
+        resolution = 2 * spacing * binning
 
     if modify_structure:
-        print('Adding symmetry, removing water, and adding hydrogen to pdb for template generation.')
-        # extract file name, file type, and folder from structure_file_path
-        head_tail   = os.path.split(structure_file_path)
-        extension   = head_tail[1].split('.')[-1]
-        # call chimera to modify the input structure
-        updated_structure   = call_chimera(head_tail[1], head_tail[0], output_folder)
-        # update structure file path with the modified structure file name
-        # output structure file has the pdb extension
-        structure_file_path = os.path.join(output_folder, f'{updated_structure}.pdb')
+        print('Adding symmetry, removing water, and adding hydrogen to pdb for template generation')
+        # call chimera to modify the input structure, call_chimera returns the path to the updated structure
+        structure_file_path  = call_chimera(structure_file_path, output_folder)
 
     # generate electrostatic_potential
     # iasa_generation returns a list of the real (and imaginary) part
     template = iasa_integration(structure_file_path, voxel_size=spacing, solvent_exclusion=apply_solvent_correction,
-                                 V_sol = V_WATER * (solvent_density/AMORPHOUS_ICE_DENSITY))[0]
+                                 V_sol = physics.V_WATER * (solvent_density/physics.AMORPHOUS_ICE_DENSITY))
 
     # extend volume to the desired input size before applying convolutions!
     if box_size is not None:
@@ -90,27 +86,22 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
     # for ctf the spacing of pixels/voxels needs to be in meters (not angstrom)
     ctf = create_ctf(template.shape, spacing*1E-10, defocus, amplitude_contrast, voltage, Cs,
                      sigma_decay=ctf_decay) if apply_ctf_correction else 1
-    lpf = create_gaussian_low_pass(template.shape, (template.shape[0]*spacing)/resolution) if apply_lpf else 1
+    lpf = create_gaussian_low_pass(template.shape, (template.shape[0]*spacing)/resolution)
 
     # print information back to user
     if apply_ctf_correction: print(f'Applying ctf correction with defocus {defocus*1e6} um')
-    if apply_lpf: print(f'Applying low pass filter to {resolution}A resolution')
+    print(f'Applying low pass filter to {resolution}A resolution')
     # apply ctf and low pass in fourier space
     filter = lpf * ctf
     if display_ctf:
-        print('Displaying combined ctf and lpf frequency modulation.')
+        print('Displaying combined ctf and lpf frequency modulation')
         display_microscope_function(filter[...,filter.shape[2]//2], form='ctf*lpf')
-    if type(filter) != int: template = fourier_filter(template, filter, human=True)
+    template = fourier_filter(template, filter, human=True)
 
     # binning
     if binning > 1:
         print(f'Binning volume {binning} times')
-        template = resize(template, template.shape[0]//binning, template.shape[1]//binning, template.shape[2]//binning)
-        # TODO change to resize of pytom 0.991
-        # template = resize(template, 1/binning, interpolation='Spline')  # factor between 0 and 1 de-magnifies
-        # resize has options 'Fourier' (default), 'Spline', 'Cubic', 'Linear'
-        # the latter 3 are all real space methods implemented in voltools, fourier is implemented in pytom and should
-        # give a better result
+        template = resize(template, 1/binning, interpolation='Spline')
 
     return template
 
@@ -172,7 +163,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        file, output_folder, spacing, binning, modify_structure, solvent_correction, solvent_density, \
+        filepath, output_folder, spacing, binning, modify_structure, solvent_correction, solvent_density, \
             ctf_correction, defocus, amplitude_contrast, voltage, Cs, sigma_decay, \
             display_ctf, resolution, box_size, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
@@ -189,7 +180,7 @@ if __name__ == '__main__':
     else: binning = 1
 
     if solvent_density: solvent_density = float(solvent_density)
-    else: solvent_density = AMORPHOUS_ICE_DENSITY
+    else: solvent_density = physics.AMORPHOUS_ICE_DENSITY
 
     if defocus: defocus = float(defocus)*1E-6
     else: defocus = 3E-6
@@ -206,24 +197,19 @@ if __name__ == '__main__':
     if sigma_decay: sigma_decay = float(sigma_decay)
     else: sigma_decay = 0.4
 
-    if resolution:
-        resolution = float(resolution)
-        if not resolution >= (2 * spacing * binning):
-            print(f'invalid resolution specified, changing to {2*spacing*binning}A')
-            resolution = 2 * spacing * binning
+    if resolution: resolution = float(resolution)
     else: resolution = 2 * spacing * binning
 
     if box_size: box_size=int(box_size)
 
-    if not os.path.exists(file):
+    if not os.path.exists(filepath):
         print('Protein structure file does not exist!')
         sys.exit()
     if not os.path.exists(output_folder):
         print('Output folder does not exist!')
         sys.exit()
 
-    template = generate_template(file,
-                                 spacing,
+    template = generate_template(filepath, spacing,
                                  binning=binning,
                                  modify_structure=modify_structure,
                                  apply_solvent_correction=solvent_correction,
@@ -235,13 +221,13 @@ if __name__ == '__main__':
                                  Cs=Cs,
                                  ctf_decay=sigma_decay,
                                  display_ctf=display_ctf,
-                                 apply_lpf=True,
                                  resolution=resolution,
                                  box_size=box_size,
                                  output_folder=output_folder)
 
     # output structure
-    id = os.path.split(file)[1].split('.')[0] # split the path, than split the file name and extension
-    output_name = f'template_{id}_{spacing*binning:.2f}A_{template.shape[0]}px.mrc'
-    print(f'Writing file in {output_folder} with name {output_name}')
-    write(os.path.join(output_folder, output_name), template)
+    _, file = os.path.split(filepath)
+    id, _ = os.path.splitext(file)
+    output_filepath = os.path.join(output_folder, f'template_{id}_{spacing*binning:.2f}A_{template.shape[0]}px.mrc')
+    print(f'Writing template as {output_filepath}')
+    write(output_filepath, template)

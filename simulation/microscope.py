@@ -1,25 +1,7 @@
 import os
 import numpy as xp
-import pytom.simulation.constants as const
+import pytom.simulation.physics as physics
 from scipy.optimize import curve_fit
-
-
-def wavelength_eV2m(V):
-    # OLD FUNCTION
-    # h / sqrt( 2 * me * el * ev * 1)
-    # return 6.625 * 10 ** (-34) / ((2 * 9.1 * 10 ** (-31)) * 1.6 * (10 ** (-19)) * ev * 1) ** 0.5
-
-    # NEW FUNCTION
-    # function calculates the electron wavelength given a certain accelaration voltage V
-    h = const.constants["h"]
-    e = const.constants["el"]
-    m = const.constants["me"]
-    c = const.constants["c"]
-
-    # matlab original: lambda = h/sqrt(e*V*m*(e/m*V/c^2 + 2 ));
-    Lambda = h/xp.sqrt(e*V*m*(e/m*V/c**2 + 2 ))
-
-    return Lambda
 
 
 def fourier_array(shape, nyquist):
@@ -183,6 +165,33 @@ def create_detector_response(detector, response_function, image, voltage=300E3, 
     return detector_response
 
 
+def transmission_function(sliced_potential, voltage, dz):
+    # wavelength
+    Lambda = physics.wavelength_eV2m(voltage)
+    # relative mass
+    relative_mass = physics.constants["me"] + physics.constants["el"] * voltage / (physics.constants["c"] ** 2)
+    # sigma_transfer
+    sigma_transfer = 2 * xp.pi * relative_mass * physics.constants["el"] * Lambda / (physics.constants["h"] ** 2)
+
+    return xp.exp(1j * sigma_transfer * sliced_potential * dz)
+
+
+def fresnel_propagator(image_size, pixel_size, voltage, dz):
+    Lambda = physics.wavelength_eV2m(voltage)
+
+    #todo Up for removal, but test simulator first
+    # xwm = pixel_size * (image_size)  # pixelsize for multislice * size sample
+    # q_true_pix_m = 1 / xwm  # spacing in Fourier space
+    # x_line = xp.arange(-(image_size - 1) / 2, (image_size - 1) / 2 + 1, 1)
+    # [xv, yv] = xp.meshgrid(x_line, x_line)
+    # q_m = xp.sqrt(xv ** 2 + yv ** 2) * q_true_pix_m  # frequencies in Fourier domain
+
+    nyquist = 1 / (2 * pixel_size)
+    k = fourier_array((image_size,)*2, nyquist)
+
+    return xp.exp(-1j * xp.pi * Lambda * (k ** 2) * dz)
+
+
 def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, Cs, sigma_decay=0.4,
                display=False):
     """
@@ -206,7 +215,7 @@ def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, Cs, sigma_d
     """
     nyquist = 1 / (2 * spacing)
     k = fourier_array(shape, nyquist)
-    lmbd = wavelength_eV2m(voltage)
+    lmbd = physics.wavelength_eV2m(voltage)
 
     chi = xp.pi * lmbd * defocus * k**2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k ** 4
 
@@ -224,7 +233,7 @@ def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, Cs, sigma_d
     return ctf
 
 
-def create_simplified_complex_ctf(image_shape, pix_size, Dz, voltage=300E3, Cs=2.7E-3, sigma_decay=0.4, display=False):
+def create_simple_complex_ctf(image_shape, pixel_size, Dz, voltage=300E3, Cs=2.7E-3, sigma_decay=0.4, display=False):
     """
     Adapated from Vulovic et al., 2013. Returns a complex contrast transfer function. Dimensions of input image or
     volume should be equal. Only phase part of CTF.
@@ -252,9 +261,9 @@ def create_simplified_complex_ctf(image_shape, pix_size, Dz, voltage=300E3, Cs=2
     assert len(image_shape) == 2, print('image shape should be a tuple of length 2')
     assert len(set(image_shape)) == 1, print('invalid input image/volume for create CTF, dimensions need to be equal.')
 
-    lmbd = wavelength_eV2m(voltage)
+    lmbd = physics.wavelength_eV2m(voltage)
 
-    nyquist = 1 / (2 * pix_size)
+    nyquist = 1 / (2 * pixel_size)
 
     k = fourier_array(image_shape, nyquist)
 
@@ -314,7 +323,7 @@ def create_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-
 
     image_size = image_shape[0]
 
-    lmbd = wavelength_eV2m(voltage)
+    lmbd = physics.wavelength_eV2m(voltage)
 
     q_true = 1 / (image_size * pixel_size)
 
@@ -349,7 +358,7 @@ def create_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-
     aperture = xp.ones(image_shape)
     qmax = 2 * xp.pi * objective_diameter / (lmbd * focus_length)
     aperture[q > qmax] = 0
-    gaussian_filter(aperture, sigma=3, out=aperture)
+    gaussian_filter(aperture, sigma=3, output=aperture)
 
     complex_ctf *= (envelope * aperture)
 
