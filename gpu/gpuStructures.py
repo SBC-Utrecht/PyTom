@@ -393,8 +393,11 @@ class GLocalAlignmentPlan():
         stdv[tid] = 0.;
         
         while (i < n) {
-            mean[tid] += g_idata[i] * mask[i] + g_idata[i + blockSize] * mask[i+blockSize];  
-            stdv[tid] += g_idata[i] * g_idata[i] * mask[i] + g_idata[i + blockSize] * g_idata[i + blockSize] * mask[i+blockSize];
+            mean[tid] += g_idata[i] * mask[i] ; 
+            stdv[tid] += g_idata[i] * g_idata[i] * mask[i];
+            if (i + blockSize < n){
+                mean[tid] += g_idata[i + blockSize] * mask[i+blockSize];
+                stdv[tid] += g_idata[i + blockSize] * g_idata[i + blockSize] * mask[i+blockSize];}
             i += gridSize;}
          __syncthreads();                                                                                                                                                       
 
@@ -436,12 +439,14 @@ class GLocalAlignmentPlan():
 
                     while (i < n) {
                         //if (sdata[tid] < g_idata[i]){
-                            sdata[tid] = g_idata[i];
-                            maxid[tid] = i;
+                        sdata[tid] = g_idata[i];
+                        maxid[tid] = i;
                         //}
-                        if (sdata[tid] < g_idata[i+blockSize]){
-                            sdata[tid] = g_idata[i+blockSize];
-                            maxid[tid] = i + blockSize; 
+                        if (i+blockSize < n){
+                            if (sdata[tid] < g_idata[i+blockSize]){
+                                sdata[tid] = g_idata[i+blockSize];
+                                maxid[tid] = i + blockSize; 
+                            }
                         }
                         i += gridSize; 
                     };

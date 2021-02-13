@@ -5,6 +5,9 @@ from pytom.angles.localSampling import LocalSampling
 from pytom.tompy.mpi import MPI
 import os
 import sys
+from pytom.alignment.alignmentFunctions import averageGPU
+
+
 analytWedge=False
 
 from pytom.gpu.initialize import xp, device
@@ -371,7 +374,7 @@ def allocateProcess(pl, shared_array, n=0, total=1, size=200):
     procs.append(p)
     return procs
 
-def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
+def averageGPU2(particleList, averageName, showProgressBar=False, verbose=False,
             createInfoVolumes=False, weighting=False, norm=False, gpuId=None, profile=True):
     """
     average : Creates new average from a particleList
@@ -437,10 +440,15 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
             weighting = False
             print("Warning: all scores have been zero - weighting not applied")
     import time
+
+
     sx,sy,sz = read_size(particleList[0].getFilename())
     wedgeInfo = particleList[0].getWedge().convert2numpy()
+
     print('angle: ', wedgeInfo.getWedgeAngle())
+
     wedgeZero = xp.fft.fftshift(xp.array(wedgeInfo.returnWedgeVolume(sx, sy, sz, True).get(), dtype=xp.float32))
+
     # wedgeZeroReduced = fourier_full2reduced(wedgeZero)
     wedge     = xp.zeros_like(wedgeZero,dtype=xp.float32)
     wedgeSum  = xp.zeros_like(wedge,dtype=xp.float32)
@@ -663,7 +671,7 @@ def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
 
 def averageParallel(particleList,averageName, showProgressBar=False, verbose=False,
                     createInfoVolumes=False, weighting=None, norm=False,
-                    setParticleNodesRatio=3,cores=6):
+                    setParticleNodesRatio=3,cores=6, gpuID=None):
     """
     compute average using parfor
     @param particleList: The particles
@@ -752,14 +760,24 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     # low pass filter to remove artifacts at fringes
     unweiAv = lowpassFilter(volume=unweiAv, band=unweiAv.sizeX()/2-2, smooth=(unweiAv.sizeX()/2-1)/10.)[0]
 
-    unweiAv.write(averageName)
+
+    if averageName.endswith("mrc"):
+        from pytom.basic.files import em2mrc
+        import os
+        averageNameEM = averageName[:-3]+'em'
+        unweiAv.write(averageNameEM)
+        em2mrc(averageNameEM, './' if not os.path.dirname(averageName) else os.path.dirname(averageName))
+        os.remove(averageNameEM)
+
+    else:
+        unweiAv.write(averageName)
 
     return Reference(averageName, particleList)
 
 
 def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose=False,
                     createInfoVolumes=False, weighting=None, norm=False,
-                    setParticleNodesRatio=3, cores=6):
+                    setParticleNodesRatio=3, cores=6, gpuID=None):
     """
     compute average using parfor
     @param particleList: The particles
@@ -798,7 +816,7 @@ def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose
         wedgeList.append(averageName + '_dist' + str(ii) + '-WedgeSumUnscaled.em')
 
     #####
-    averageGPU(splitLists[0],avgNameList[0], showProgressBar,verbose,createInfoVolumes, weighting, norm)
+    averageGPU2(splitLists[0],avgNameList[0], showProgressBar,verbose,createInfoVolumes, weighting, norm, gpuID)
 #averageList = mpi.parfor( average, list(zip(splitLists, avgNameList, [showProgressBar]*splitFactor,
 #                                       [verbose]*splitFactor, [createInfoVolumes]*splitFactor,
 #                                            [weighting]*splitFactor, [norm]*splitFactor)), verbose=True)
@@ -816,8 +834,8 @@ def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose
         os.system('rm ' + preList[ii])
         w = read(wedgeList[ii])
         wedgeSum += w
-        os.system('rm ' + wedgeList[ii])
-        os.system('rm ' + avgNameList[ii])
+        #os.system('rm ' + wedgeList[ii])
+        #os.system('rm ' + avgNameList[ii])
 
     if createInfoVolumes:
         write(averageName[:len(averageName) - 3] + '-PreWedge.em', unweiAv)
@@ -925,5 +943,5 @@ if __name__=='__main__':
                            averageName=outname,
                            showProgressBar=showProgressBar, verbose=verbose, createInfoVolumes=createInfoVol,
                            weighting=weighting, norm=norm,
-                           setParticleNodesRatio=pnr, cores=1)
+                           setParticleNodesRatio=pnr, cores=1, gpuID=gpuID)
     
