@@ -89,12 +89,35 @@ def gradient_image(size, factor, angle=0, center_shift=0):
     return rotate(image, angle, reshape=False)[extension:size+extension, extension:size+extension]
 
 
+def create_circle(size, radius=-1, sigma=0, center=None):
+    """
+    Create a sphere in image of size with radius.
+    """
+    if len(size) == 1:
+        size = (size, size)
+    assert len(size) == 2
+
+    if center is None:
+        center = [size[0] / 2, size[1] / 2]
+    if radius == -1:
+        radius = xp.min(size) / 2
+
+    sphere = xp.zeros(size)
+    [x, y] = xp.mgrid[0:size[0], 0:size[1]]
+    r = xp.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
+    sphere[r <= radius] = 1
+
+    if sigma > 0:
+        ind = xp.logical_and(r > radius, r < radius + 2 * sigma)
+        sphere[ind] = xp.exp(-((r[ind] - radius) / sigma) ** 2 / 2)
+
+    return sphere
+
+
 def bandpass_mask(shape, low=0, high=-1):
     """
     Return 2d bandpass mask.
     """
-    from pytom.tompy.tools import create_circle
-
     assert low >= 0, "lower limit must be >= 0"
 
     if high == -1:

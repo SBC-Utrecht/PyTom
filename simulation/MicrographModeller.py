@@ -1149,6 +1149,9 @@ def FSS(fvolume1, fvolume2, numberBands, verbose=False):
     assert fvolume1.shape == fvolume2.shape, "volumes not of same size"
     assert len(set(fvolume1.shape)) == 1, "volumes are not perfect cubes"
 
+    if verbose:
+        print(f'shape of images is: {fvolume1.shape}')
+
     increment = int(fvolume1.shape[0] / 2 * 1 / numberBands)
     band = [-1, -1]
 
@@ -1175,9 +1178,10 @@ def FSS(fvolume1, fvolume2, numberBands, verbose=False):
             # scale center separately as center adjustment has large influence on the image
             output[c, c] = fvolume1[c, c] / (fvolume1[c, c] / fvolume2[c, c])
 
+        n = bandpass.sum()
         # get mean amplitude of each band
-        m1 = meanUnderMask(fvolume1, bandpass, p=bandpass.sum())
-        m2 = meanUnderMask(fvolume2, bandpass, p=bandpass.sum())
+        m1 = meanUnderMask(fvolume1, bandpass, p=n)
+        m2 = meanUnderMask(fvolume2, bandpass, p=n)
 
         # scale the values inside the band of volume1
         outband = fvolume1 * bandpass / (m1 / m2)
@@ -1198,7 +1202,7 @@ def scale_image(volume1, volume2, numberBands):
 
     # scale the amplitudes of 1 to those of 2 using fourier shells
     scaled_amp = FSS(xp.abs(xp.fft.fftshift(xp.fft.fftn(volume1))), xp.abs(xp.fft.fftshift(xp.fft.fftn(volume2))),
-                     numberBands)
+                     numberBands, verbose=True)
     # construct the output volume with the scaled amplitudes and phase infomation of volume 1
     fout = xp.fft.ifftn(xp.fft.ifftshift(scaled_amp) * xp.exp(1j * xp.angle(xp.fft.fftn(volume1))))
 
@@ -1208,9 +1212,12 @@ def scale_image(volume1, volume2, numberBands):
 def parallel_scale(number, projection, example, pixel_size, example_pixel_size, binning, make_even_factor):
     from pytom.tompy.transform import resize
 
+    print(projection.shape, example.shape)
+
     print(f' -- scaling projection {number+1}')
     if pixel_size != (example_pixel_size * binning):
         # magnify or de-magnify if the pixel size does not match yet
+        print('(de)magnifying pixel size')
         example = resize(example, (example_pixel_size * binning) / pixel_size, interpolation='Spline')
 
     # prevent issues later on with binning
@@ -1226,13 +1233,14 @@ def parallel_scale(number, projection, example, pixel_size, example_pixel_size, 
             cut = (example.shape[0] - projection.shape[0]) // 2
             example = example[cut:-cut, cut:-cut]
 
-    return (number, scale_image(projection, example, projection.shape[0] // 4))
+    print('using FSS to scale amplitudes')
+    return number, scale_image(projection, example, projection.shape[0] // 4)
 
 
 def scale_projections(save_path, pixel_size, example_folder, example_pixel_size, binning, nodes,
                       make_even_factor):
     from pytom.tompy.transform import resize
-    from pytom.simulation.support import reduce_resolution_fourier
+    from pytom.simulation.support import reduce_resolution
     from pytom.tompy.io import read_mrc, write
     from joblib import Parallel, delayed
 
@@ -1249,14 +1257,14 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
     # assert projections.shape[2] == example_projections.shape[2], 'not enough or too many example projections'
     sim_size = projections.shape
     exp_size = example_projections.shape
-    if sim_size[2] > exp_size[2]:  # crop simulated projections to experimental projection size
+    if sim_size[2] > exp_size[2]:  # make sure number of poejection angles match
         diff = sim_size[2] - exp_size[2]
         new = xp.zeros((exp_size[0], exp_size[1], sim_size[2]))
         new[..., diff//2: - (diff//2+diff%2)] = example_projections
         new[..., :diff//2] = example_projections[..., :diff//2]
         new[..., -(diff//2+diff%2):] = example_projections[..., -(diff//2+diff%2):]
         example_projections = new
-    elif sim_size[2] < exp_size[2]:  # crop experimental projections to simulation projection size
+    elif sim_size[2] < exp_size[2]:
         diff = exp_size[2] - sim_size[2]
         example_projections = example_projections[..., diff//2: -(diff//2 + diff%2)]
 
@@ -1266,8 +1274,8 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
     verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
         (delayed(parallel_scale)(i, projections[:, :, i].squeeze(),
-                                 resize(reduce_resolution_fourier(example_projections[:, :, i].squeeze(), 1, 2*binning),
-                                        1/binning, interpolation='Spline'),
+                                 resize(reduce_resolution(example_projections[:, :, i], 1, 2*binning),
+                                        1/binning, interpolation='Spline').squeeze(),
                                  pixel_size, example_pixel_size, binning, make_even_factor)
          for i in range(projections.shape[2]))
 
