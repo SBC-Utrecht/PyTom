@@ -90,7 +90,7 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
                    size=1024, thickness=200,
                    solvent_potential=physics.V_WATER, solvent_factor=1.0, number_of_particles=1000,
                    placement_size=512, retries=5000, number_of_markers=0,
-                   absorption_contrast=False, voltage=300E3, number_of_membranes=0):
+                   absorption_contrast=False, voltage=300E3, number_of_membranes=0, sigma_motion=8):
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
     from pytom.simulation.potential import create_gold_marker
     from pytom.voltools import transform
@@ -478,9 +478,6 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
     # pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree_original.mrc', cell)
 
     # motion blur is simply a gaussian in fourier space to the required frequency component
-    # sigma motion is roughly 8A
-    # TODO add motion blur as a parameter in the config file
-    sigma_motion = 8
     cell_real = reduce_resolution(cell_real, pixel_size * 1E10, sigma_motion)
     if absorption_contrast: cell_imag = reduce_resolution(cell_imag, pixel_size * 1E10, sigma_motion)
 
@@ -1202,7 +1199,7 @@ def scale_image(volume1, volume2, numberBands):
 
     # scale the amplitudes of 1 to those of 2 using fourier shells
     scaled_amp = FSS(xp.abs(xp.fft.fftshift(xp.fft.fftn(volume1))), xp.abs(xp.fft.fftshift(xp.fft.fftn(volume2))),
-                     numberBands, verbose=True)
+                     numberBands, verbose=False)
     # construct the output volume with the scaled amplitudes and phase infomation of volume 1
     fout = xp.fft.ifftn(xp.fft.ifftshift(scaled_amp) * xp.exp(1j * xp.angle(xp.fft.fftn(volume1))))
 
@@ -1220,7 +1217,7 @@ def parallel_scale(number, projection, example, pixel_size, example_pixel_size, 
         print('(de)magnifying pixel size')
         example = resize(example, (example_pixel_size * binning) / pixel_size, interpolation='Spline')
 
-    # prevent issues later on with binning
+    # prevent issues later on with binning in case experimental and simulated pixel size do not match
     if example.shape[0] % (2*make_even_factor):
         example = example[:-(example.shape[0] % (2*make_even_factor)), :-(example.shape[0] % (2*make_even_factor))]
 
@@ -1446,12 +1443,16 @@ if __name__ == '__main__':
         nodes                   = config['General'].getint('Nodes')
         model_ID                = config['General'].getint('ModelID')
         seed                    = config['General'].getint('Seed')
-        pixel_size              = config['General'].getfloat('PixelSize') * 1E-9 # pixel_size in nm
+        pixel_size              = config['General'].getfloat('PixelSize') * 1E-10 # pixel_size in nm
         binning                 = config['General'].getint('Binning')
         solvent_potential       = config['General'].getfloat('SolventConstant')
         absorption_contrast     = config['General'].getboolean('AbsorptionContrast')
         voltage                 = config['General'].getfloat('Voltage') * 1E3  # voltage in keV
         # voltage and pixelsize are needed for model generation and projection, thus general parameters
+
+        # adjust pixel size with binning factor
+        pixel_size *= binning
+
         # ensure simulator mode and device are valid options
         if (simulator_mode in ['TiltSeries', 'FrameSeries']) or (device in ['CPU', 'GPU']):
             print(f'Generating model {model_ID} on {device} in folder {output_folder}')
@@ -1483,6 +1484,10 @@ if __name__ == '__main__':
                                              'NumberOfParticles')
             number_of_membranes = draw_range(literal_eval(config['GenerateModel']['NumberOfMembranes']), int,
                                              'NumberOfMembranes')
+            # pass motion blur in angstrom units
+            # motion_blur         = config['GenerateModel'].get_float('MotionBlurResolution')
+            motion_blur         = draw_range(literal_eval(config['GenerateModel']['MotionBlurResolution']), float,
+                                             'MotionBlurResolution')
         except Exception as e:
             print(e)
             raise Exception('Missing generate model parameters in config file.')
@@ -1581,7 +1586,8 @@ if __name__ == '__main__':
                        number_of_markers    =number_of_markers,
                        absorption_contrast  =absorption_contrast,
                        voltage              =voltage,
-                       number_of_membranes  =number_of_membranes)
+                       number_of_membranes  =number_of_membranes,
+                       sigma_motion         =motion_blur)
 
     if simulator_mode in config.sections() and simulator_mode == 'TiltSeries':
         # set seed for random number generation
@@ -1659,7 +1665,7 @@ if __name__ == '__main__':
         xp.random.seed(seed)
         random.seed(seed)
         print('\n- Scaling projections with experimental data')
-        scale_projections(save_path, pixel_size * 1E9, example_folder,
+        scale_projections(save_path, pixel_size * 1E10, example_folder,
                                             example_pixel_size, binning, nodes, make_even_factor)
 
     if 'TomogramReconstruction' in config.sections():
