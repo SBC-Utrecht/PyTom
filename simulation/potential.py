@@ -332,29 +332,30 @@ def read_structure(filepath):
             with open(filepath, 'r') as pdb:
                 lines = pdb.readlines()
                 for line in lines:
-                    split_line = line.split()
-                    if split_line[0] == 'ATOM':
-                        '''
-        PDBx/mmCIF example
-        ATOM   171293 O  OP1   . G   WB 75 255  ? 252.783 279.861 251.593 1.00 50.94  ? 255  G   aa OP1   1
-                        '''
-                        x_coordinates.append(float(split_line[10]))
-                        y_coordinates.append(float(split_line[11]))
-                        z_coordinates.append(float(split_line[12]))
-                        elements.append(split_line[2].strip())
-                        b_factors.append(float(split_line[14]))
-                        occupancies.append(float(split_line[13]))
-                    elif split_line[0] == 'HETATM':
-                        '''
-        PDBx/mmCIF example
-        HETATM 201164 MG MG    . MG  FD 79 .    ? 290.730 254.190 214.591 1.00 30.13  ? 3332 MG  A  MG    1
-                        '''
-                        x_coordinates.append(float(split_line[10]))
-                        y_coordinates.append(float(split_line[11]))
-                        z_coordinates.append(float(split_line[12]))
-                        elements.append(split_line[2].strip())
-                        b_factors.append(float(split_line[14]))
-                        occupancies.append(float(split_line[13]))
+                    if not line.strip():
+                        split_line = line.split()
+                        if split_line[0] == 'ATOM':
+                            '''
+            PDBx/mmCIF example
+            ATOM   171293 O  OP1   . G   WB 75 255  ? 252.783 279.861 251.593 1.00 50.94  ? 255  G   aa OP1   1
+                            '''
+                            x_coordinates.append(float(split_line[10]))
+                            y_coordinates.append(float(split_line[11]))
+                            z_coordinates.append(float(split_line[12]))
+                            elements.append(split_line[2].strip())
+                            b_factors.append(float(split_line[14]))
+                            occupancies.append(float(split_line[13]))
+                        elif split_line[0] == 'HETATM':
+                            '''
+            PDBx/mmCIF example
+            HETATM 201164 MG MG    . MG  FD 79 .    ? 290.730 254.190 214.591 1.00 30.13  ? 3332 MG  A  MG    1
+                            '''
+                            x_coordinates.append(float(split_line[10]))
+                            y_coordinates.append(float(split_line[11]))
+                            z_coordinates.append(float(split_line[12]))
+                            elements.append(split_line[2].strip())
+                            b_factors.append(float(split_line[14]))
+                            occupancies.append(float(split_line[13]))
         except Exception as e:
             print(e)
             raise Exception('Could not read cif file.')
@@ -363,21 +364,22 @@ def read_structure(filepath):
             with open(filepath, 'r') as pqr:
                 lines = pqr.readlines()
                 for line in lines:
-                    split_line = line.split()
-                    # TODO Whay about HETATM lines?
-                    if split_line[0] == 'ATOM':
-                        '''
-            PQR example
-            ATOM   5860  HA  ILE   379      26.536  13.128  -3.443  0.0869 1.3870
-                        '''
-                        x_coordinates.append(float(split_line[5]))
-                        y_coordinates.append(float(split_line[6]))
-                        z_coordinates.append(float(split_line[7]))
-                        elements.append(split_line[2][0])  # first letter of long atom id is the element
-                        b_factors.append(0.0) # not avalaible in PQR format
-                        occupancies.append(1.0) # not avalaible in PQR format
-                    # HETATM not working here because extracting element type from double letter elements, like MG, does
-                    # not work properly. Should be tested though.
+                    if not line.strip():
+                        split_line = line.split()
+                        # TODO Whay about HETATM lines?
+                        if split_line[0] == 'ATOM':
+                            '''
+                PQR example
+                ATOM   5860  HA  ILE   379      26.536  13.128  -3.443  0.0869 1.3870
+                            '''
+                            x_coordinates.append(float(split_line[5]))
+                            y_coordinates.append(float(split_line[6]))
+                            z_coordinates.append(float(split_line[7]))
+                            elements.append(split_line[2][0])  # first letter of long atom id is the element
+                            b_factors.append(0.0) # not avalaible in PQR format
+                            occupancies.append(1.0) # not avalaible in PQR format
+                        # HETATM not working here because extracting element type from double letter elements, like MG, does
+                        # not work properly. Should be tested though.
         except Exception as e:
             print(e)
             raise Exception('Could not read pqr file.')
