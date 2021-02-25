@@ -416,7 +416,6 @@ def recenterVolume(volume, densityNegative=False):
         return b
 
 
-
 def initSphere(cubeSize, radius, smoothing=0, centerX=None, centerY=None, centerZ=None):
     """
     initSphere: Initilizes a volume with a sphere
