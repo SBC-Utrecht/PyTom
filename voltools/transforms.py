@@ -37,6 +37,9 @@ def transform(volume: np.ndarray,
               profile: bool = False,
               output = None, device: str = 'cpu', matrix: np.ndarray = None):
 
+    if len(volume.shape) == 2:
+        volume = cp.expand_dims(volume, 2)
+
     if center is None:
         center = np.divide(volume.shape, 2, dtype=np.float32)
 
@@ -58,6 +61,9 @@ def translate(volume: np.ndarray,
               profile: bool = False,
               output = None, device: str = 'cpu'):
 
+    if len(volume.shape) == 2:
+        volume = cp.expand_dims(volume, 2)
+
     m = translation_matrix(translation)
     return affine(volume, m, interpolation, profile, output, device)
 
@@ -67,6 +73,9 @@ def shear(volume: np.ndarray,
           interpolation: str = 'linear',
           profile: bool = False,
           output = None, device: str = 'cpu'):
+
+    if len(volume.shape) == 2:
+        volume = cp.expand_dims(volume, 2)
 
     # passing just one float is uniform scaling
     if isinstance(coefficients, float):
@@ -81,6 +90,9 @@ def scale(volume: np.ndarray,
           interpolation: str = 'linear',
           profile: bool = False,
           output = None, device: str = 'cpu'):
+
+    if len(volume.shape) == 2:
+        volume = cp.expand_dims(volume, 2)
 
     # passing just one float is uniform scaling
     if isinstance(coefficients, float):
@@ -98,6 +110,9 @@ def rotate(volume: np.ndarray,
            profile: bool = False,
            output = None, device: str = 'cpu'):
 
+    if len(volume.shape) == 2:
+        volume = cp.expand_dims(volume, 2)
+
     m = rotation_matrix(rotation=rotation, rotation_units=rotation_units, rotation_order=rotation_order)
     return affine(volume, m, interpolation, profile, output, device)
 
@@ -108,6 +123,9 @@ def affine(volume: np.ndarray,
            profile: bool = False,
            output = None,
            device: str = 'cpu'):
+
+    if len(volume.shape) == 2:
+        volume = cp.expand_dims(volume, 2)
 
     if device not in AVAILABLE_DEVICES:
         raise ValueError(f'Unknown device ({device}), must be one of {AVAILABLE_DEVICES}')

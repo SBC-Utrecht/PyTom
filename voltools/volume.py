@@ -14,6 +14,9 @@ class StaticVolume:
 
     def __init__(self, data: np.ndarray, interpolation: str = 'linear', device: str = 'gpu'):
 
+        if len(data.shape) == 2:
+            data = cp.expand_dims(data, 2)
+
         if data.ndim != 3:
             raise ValueError('Expected a 3D array')
         if device not in get_available_devices():

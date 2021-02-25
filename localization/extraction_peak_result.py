@@ -29,6 +29,10 @@ class ExPeakResult:
         self.orientFilename = orientFilename
         self.angleListFilename = angleListFilename
         self.score = score
+
+        if self.score is None:
+            from pytom.score.score import FLCFScore
+            self.score = FLCFScore
         
         self.result = None
         self.orient = None
@@ -235,7 +239,10 @@ class ExPeakResult:
         
         # find the particles
         resList = []
+
+
         for i in range(maxNumParticle):
+
             prog.update(i)
             
             try:
@@ -252,7 +259,7 @@ class ExPeakResult:
                     l = write2disk
                     v = read(self.volFilename, posV[0]-l/2, posV[1]-l/2, posV[2]-l/2, l, l, l, 0,0,0,0,0,0)
                     v.write(particleFilename)
-                
+
                 score = self.score()
                 score.setValue(scoreV)
                 from pytom.basic.structures import PickPosition, Rotation

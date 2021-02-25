@@ -104,12 +104,17 @@ class PeakWorker(object):
         if gpuID is None:
             from pytom.localization.extractPeaks import extractPeaks
         else:
-            from pytom.localization.extractPeaks import extractPeaksGPU as extractPeaks
+            from pytom.localization.extractPeaks import templateMatchingGPU as extractPeaks
+            from pytom_numpy import vol2npy
+
+            v, ref, m = [vol2npy(vol).copy() for vol in (v, ref, m)]
 
         if verbose==True:
-            print(self.name + ': starting to calculate %d rotations' % rot.numberRotations())
+            print(self.name + ': starting to calculate %d rotations' % rot.numberRotations() + f' om {gpuID[self.mpi_id]}')
         [resV, orientV, sumV, sqrV] = extractPeaks(v, ref, rot, scoreFnc, m, mIsSphere, wedg, nodeName=self.name,
-                                                   verboseMode=verbose, moreInfo=moreInfo, gpuID=gpuID)
+                                                   verboseMode=verbose, moreInfo=moreInfo, gpuID=gpuID[self.mpi_id],
+                                                   jobid=self.mpi_id)
+
         
         self.runtimes = self.runtimes + 1
         
@@ -145,6 +150,8 @@ class PeakWorker(object):
                 # write the result volume back to the disk
                 resFilename = self.name + '_job' + str(self.jobID) + '_res.em'
                 orientFilename = self.name + '_job' + str(self.jobID) + '_orient.em'
+
+
                 resV.write(resFilename)
                 orientV.write(orientFilename)
                 
@@ -940,7 +947,6 @@ class PeakLeader(PeakWorker):
             resV.write(resFilename)
             orientV.write(orientFilename)
         except:
-            print(resFilename, orientFilename)
             write(resFilename, resV)
             write(orientFilename, orientV)
 
@@ -986,7 +992,7 @@ class PeakLeader(PeakWorker):
 #            print self.name + ': JobID ' + str(jobID) + ' Offset ' + str(offset)
             orientV = orientV + offset
             
-            if self.resVolA==None or self.resOrientA==None:
+            if self.resVolA is None or self.resOrientA is None:
                 from pytom_volume import vol
                 self.resVolA = vol(resV.sizeX(), resV.sizeY(), resV.sizeZ())
                 self.resOrientA = vol(orientV.sizeX(), orientV.sizeY(), orientV.sizeZ())
@@ -1002,14 +1008,20 @@ class PeakLeader(PeakWorker):
         elif self.jobInfoPool[jobID].splitType == "Vol":
             self.jobInfoPool["numDoneJobsV"] = self.jobInfoPool["numDoneJobsV"] + 1
             [originX, originY, originZ] = self.jobInfoPool[jobID].origin
-            if self.resVol==None or self.resOrient==None:
+            if self.resVol is None or self.resOrient is None:
                 from pytom_volume import vol
                 [vsizeX, vsizeY, vsizeZ] = self.jobInfoPool[jobID].originalSize
 
-                self.resVol = vol(vsizeX, vsizeY, vsizeZ)
-                self.resVol.setAll(0)
-                self.resOrient = vol(vsizeX, vsizeY, vsizeZ)
-                self.resOrient.setAll(0)
+                try:
+                    resV.shape
+                    import numpy as np
+                    self.resVol = np.zeros((vsizeX, vsizeY, vsizeZ), dtype=np.float32)
+                    self.resOrient = np.zeros((vsizeX, vsizeY, vsizeZ), dtype=np.float32)
+                except:
+                    self.resVol = vol(vsizeX, vsizeY, vsizeZ)
+                    self.resVol.setAll(0)
+                    self.resOrient = vol(vsizeX, vsizeY, vsizeZ)
+                    self.resOrient.setAll(0)
             
             [vsizeX, vsizeY, vsizeZ] = self.jobInfoPool[jobID].originalSize
             [sizeX ,sizeY, sizeZ] = self.jobInfoPool[jobID].splitSize
@@ -1020,12 +1032,15 @@ class PeakLeader(PeakWorker):
             stepSizeY = min(vsizeY-sub_start[1], sizeY)
             stepSizeZ = min(vsizeZ-sub_start[2], sizeZ)
 
-            from pytom_volume import subvolume, putSubVolume
+            from pytom.tompy.tools import subvolume, putSubVolume
             sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
             sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
 
-            putSubVolume(sub_resV, self.resVol, start[0]-originX,start[1]-originY,start[2]-originZ)
+            # print('aaa:  ', self.resVol.__class__, self.resVol.sum(), sub_resV.shape, sub_resV.sum(),  start[0]-originX, start[1]-originY,start[2]-originZ)
+
+            putSubVolume(sub_resV, self.resVol, start[0]-originX, start[1]-originY,start[2]-originZ)
             putSubVolume(sub_resO, self.resOrient, start[0]-originX,start[1]-originY,start[2]-originZ)
+
         else:
             raise RuntimeError("Unclear split type!")
         

@@ -11,7 +11,8 @@ if 'PYTOM_GPU' in os.environ.keys() and str(os.environ['PYTOM_GPU']) != '-1':
         from cupyx.scipy.ndimage import map_coordinates
         device = f'gpu:{ID[0]}'
 
-    except:
+    except Exception as e:
+        print(e)
         import numpy as xp
         from scipy.ndimage import map_coordinates
 

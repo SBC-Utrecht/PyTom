@@ -45,6 +45,8 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
 #    t = timing(); t.start()
     
     # parse the parameters
+
+
     nodeName = kwargs.get('nodeName', '')
     verbose = kwargs.get('verboseMode', True)
     if verbose not in [True, False]:
@@ -168,7 +170,30 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
 
     return [result, orientation, sumV, sqrV]
 
-def extractPeaksGPU(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, padding=True, **kwargs):
+def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, padding=True, jobid=0, **kwargs):
+    '''
+    Created on May 17, 2020
+    @param volume: target volume
+    @type volume: numpy ndarray
+    @param reference: reference
+    @type reference: numpy ndarray
+    @param rotations: rotation angle list
+    @type rotations: L{pytom.angles.globalSampling.GlobalSampling}
+    @param scoreFnc: score function that is used (currently not used)
+    @type scoreFnc: L{pytom.basic.correlation}
+    @param mask: mask volume
+    @type mask: numpy ndarray
+    @param maskIsSphere: flag to indicate whether the mask is sphere or not. (currently assumed to be true)
+    @type maskIsSphere: boolean
+    @param wedgeInfo: wedge information
+    @type wedgeInfo: L{pytom.basic.structures.WedgeInfo}
+    @param padding: pad the volume to a size that is fast for fft's. Example: 127 should be padded to 128.
+    @type padding: boolean
+    @return: both the score volume and the corresponding rotation index volume
+    @rtype: two numpy ndarray's
+    @author: GvdS
+    '''
+
     from pytom_numpy import vol2npy
     from pytom.tompy.filter import create_wedge, applyFourierFilter
     from pytom.tompy.io import write
@@ -176,57 +201,76 @@ def extractPeaksGPU(volume, reference, rotations, scoreFnc=None, mask=None, mask
     from pytom.tools.calcFactors import calc_fast_gpu_dimensions
     import time
     import numpy as np
-    from pytom_freqweight import weight
+    from pytom.gpu.initialize import xp
 
-
-
+    xp.cuda.Device(kwargs['gpuID']).use()
 
     angles = rotations[:]
     #volume = wedgeInfo.apply(volume)
-
-    volume, ref, mask = [vol2npy(vol) for vol in (volume, reference, mask)]
     SX,SY,SZ = volume.shape
-    sx,sy,sz = ref.shape
+    sx,sy,sz = reference.shape
     angle = wedgeInfo.getWedgeAngle()
 
     if angle.__class__ != list:
-        w1 = w2 = angle
+        w1 = angle
+        w2 = angle
     else:
-        w1,w1 = angle
+        w1, w2 = angle
 
     if w1 > 1E-3 or w2 > 1E-3:
         print('Wedge applied to volume')
         cutoff = wedgeInfo._wedgeObject._cutoffRadius if wedgeInfo._wedgeObject._cutoffRadius > 1E-3 else sx//2
         smooth = wedgeInfo._wedgeObject._smooth
-        wedge = create_wedge(w1, w2, cutoff, sx, sy, sz, smooth).astype(np.complex64)
-        wedgeVolume = create_wedge(w1, w2, SX//2-2, SX, SY, SZ, smooth).astype(np.float32)
-        volume = np.real(np.fft.irfftn(np.fft.rfftn(volume) * wedgeVolume.get()))
+        wedge = create_wedge(w1, w2, cutoff, sx, sy, sz, smooth).astype(np.complex64).get()
 
+        wedgeVolume = create_wedge(w1, w2, (SX//2)-2, SX, SY, SZ, smooth).astype(np.float32)
+        volume = np.real(np.fft.irfftn(np.fft.rfftn(volume)* wedgeVolume.get() ))
+        del wedgeVolume
     else:
         wedge = np.ones((sx,sy,sz//2+1),dtype='float32')
-        #wedgeVolume = np.ones_like(volume,dtype='float32')
 
     if padding:
         dimx, dimy, dimz = volume.shape
 
-        cx = max(ref.shape[0], calc_fast_gpu_dimensions(dimx - 2, 4000)[0])
-        cy = max(ref.shape[1], calc_fast_gpu_dimensions(dimy - 2, 4000)[0])
-        cz = max(ref.shape[2], calc_fast_gpu_dimensions(dimz - 2, 4000)[0])
+        cx = max(reference.shape[0], calc_fast_gpu_dimensions(dimx - 2, 4000)[0])
+        cy = max(reference.shape[1], calc_fast_gpu_dimensions(dimy - 2, 4000)[0])
+        cz = max(reference.shape[2], calc_fast_gpu_dimensions(dimz - 2, 4000)[0])
         voluNDAs = np.zeros([cx, cy, cz], dtype=np.float32)
         voluNDAs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = volume[:min(cx, dimx), :min(cy, dimy),
                                                                    :min(cz, dimz)]
+
+        scrs = np.zeros_like(volume,dtype=np.float32)
+
+
         volume = voluNDAs
-        print(f'dimensions of volume: {ref.shape} {mask.shape} ')
+        print(f'dimensions of volume: {reference.shape} {mask.shape} ')
 
-    input = (volume, ref, mask, wedge, angles, volume.shape)
 
-    tm_process = TemplateMatchingGPU(0, kwargs['gpuID'][0], input=input)
+
+    input = (volume, reference, mask, wedge, angles, volume.shape)
+
+    tm_process = TemplateMatchingGPU(jobid, kwargs['gpuID'], input=input)
     tm_process.start()
-    while tm_process.is_alive():
+
+    import time
+    sleep_time, max_sleep_time = 0, 1800
+    while tm_process.is_alive() and sleep_time < max_sleep_time:
         time.sleep(1)
+        sleep_time += 1
 
     if tm_process.completed:
-        print('Templated matching completed successfully')
-        return [tm_process.plan.scores.get(), tm_process.plan.angles.get(), None, None]
+        print(f'Templated matching completed successfully on {kwargs["gpuID"]}')
+        if padding:
+            angs = np.zeros_like(scrs,dtype=np.float32)
+            scrs[:min(cx, dimx), :min(cy, dimy),:min(cz, dimz)] = tm_process.plan.scores.get()[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)]
+            angs[:min(cx, dimx), :min(cy, dimy),:min(cz, dimz)] = tm_process.plan.angles.get()[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)]
+            return [scrs, angs, None, None]
+        else:
+            return [tm_process.plan.scores.get(), tm_process.plan.angles.get(), None, None]
     else:
+        if sleep_time >= max_sleep_time:
+            print(f'Job terminated on {kwargs["gpuID"]} due to time limit (exceeded {max_sleep_time} sec).')
+
+
+
         raise Exception('failed template matching')
