@@ -59,7 +59,7 @@ if __name__ == '__main__':
                  ScriptOption2(['--extractPeaks'], 'Extract peaks', 'no arguments', 'optional'),
                  ScriptOption2(['--particleList'], 'Filename of output particleList', 'string', 'optional', 'particleList.xml'),
                  ScriptOption2(['--particlePath'], 'Path of particles', 'string', 'optional', './'),
-                 ScriptOption2(['-r', '--radiusParticle'], 'Radius of the particle', 'float', 'optional', 8),
+                 ScriptOption2(['-r', '--radiusParticle'], 'Radius of the particle', 'int', 'optional', 8),
                  ScriptOption2(['-n', '--numberOfParticles'], 'Number of particles', 'int', 'optional', 1),
                  ScriptOption2(['--minScore'], 'Minimum correlation score', 'float', 'optional', 0.1),
                  ScriptOption2(['--projectDir'], 'Project Directory (GUI)', 'directory', 'optional'),
@@ -85,7 +85,7 @@ if __name__ == '__main__':
         wedge = Wedge(wedge_angles)
 
         [scoreVolume, angleVolume, a,b] = templateMatchingGPU(volume, template, rotations, scoreFunction, mask,
-                                                       wedgeInfo=wedge, gpuID=[gpu])
+                                                              wedgeInfo=wedge, gpuID=gpu)
 
         if not no_output:
             write(scores, scoreVolume)
@@ -96,7 +96,7 @@ if __name__ == '__main__':
         binning, ref = getBinningFactorAndReferenceMarker(volumeFileName)
 
         res = extractCandidatesWithoutJobFile(volumeFileName, scores, rots, angles, radius, num_particles,
-                                        min_score, scoringFunction=FLCFScore, offset=start_end[::2])
+                                              min_score, scoringFunction=FLCFScore, offset=start_end[:3])
 
         if plFilename:
 
@@ -113,7 +113,7 @@ if __name__ == '__main__':
                 if not proj_dir is None:
                     newParticle.getInfoGUI().setProjectDir(proj_dir)
                 newParticle.getPickPosition().setBinningFactor(binning)
-                newParticle.getPickPosition().setRefMarkIndex(ref)
+                newParticle.getPickPosition().setRefMarkerIndex(ref)
                 pl.append(newParticle)
 
             pl.toXMLFile(plFilename)
