@@ -234,7 +234,7 @@ def volumesSameSize(v0, v1):
         return False
     return xp.array([abs(v0.shape[pos] - v1.shape[pos]) == 0 for pos in range(len(v0.shape))]).sum() == len(v0.shape)
 
-def taper_edges(image, width):
+def taper_edges(image, width, taper_mask=None):
     """
     taper edges of image (or volume) with cos function
 
@@ -249,23 +249,25 @@ def taper_edges(image, width):
     @author: GvdS
     """
 
-    dims = list(image.shape) + [0]
-    val = xp.cos(xp.arange(1, width + 1) * xp.pi / (2. * (width)))
-    taperX = xp.ones((dims[0]), dtype=xp.float32)
-    taperY = xp.ones((dims[1]))
-    taperX[:width] = val[::-1]
-    taperX[-width:] = val
-    taperY[:width] = val[::-1]
-    taperY[-width:] = val
-    if dims[2] > 1:
-        taperZ = xp.ones((dims[2]))
-        taperZ[:width] = val[::-1]
-        taperZ[-width:] = val
-        Z, X, Y = xp.meshgrid(taperX, taperY, taperZ)
-        taper_mask = X * (X < Y) * (X < Z) + Y * (Y <= X) * (Y < Z) + Z * (Z <= Y) * (Z <= X)
-    else:
-        X, Y = xp.meshgrid(taperY, taperX)
-        taper_mask = X * (X < Y) + Y * (Y <= X)
+    if taper_mask is None:
+        width = int(round(width))
+        dims = list(image.shape) + [0]
+        val = xp.cos(xp.arange(1, width + 1) * xp.pi / (2. * (width)))
+        taperX = xp.ones((dims[0]), dtype=xp.float32)
+        taperY = xp.ones((dims[1]))
+        taperX[:width] = val[::-1]
+        taperX[-width:] = val
+        taperY[:width] = val[::-1]
+        taperY[-width:] = val
+        if dims[2] > 1:
+            taperZ = xp.ones((dims[2]))
+            taperZ[:width] = val[::-1]
+            taperZ[-width:] = val
+            Z, X, Y = xp.meshgrid(taperX, taperY, taperZ)
+            taper_mask = X * (X < Y) * (X < Z) + Y * (Y <= X) * (Y < Z) + Z * (Z <= Y) * (Z <= X)
+        else:
+            X, Y = xp.meshgrid(taperY, taperX)
+            taper_mask = X * (X < Y) + Y * (Y <= X)
 
     return image * taper_mask, taper_mask
 
@@ -459,3 +461,32 @@ def design_fsc_filter(fsc, fildim=None, fsc_criterion=0.143):
         else:
             fil[ii] = fsc_fil[ii]
     return fil
+
+
+
+def subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, stepSizeZ):
+    from pytom_volume import vol, subvolume
+
+    if volume.__class__ != vol:
+        return volume[sub_startX:sub_startX+stepSizeX, sub_startY:sub_startY+stepSizeY, sub_startZ:sub_startZ+stepSizeZ]
+    else:
+        return subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, stepSizeZ)
+
+def putSubVolume(subvolume, volume, startX, startY, startZ):
+    from pytom_volume import vol, putSubVolume
+    from pytom_numpy import vol2npy
+
+    if volume.__class__ == vol and subvolume.__class__ == vol:
+        putSubVolume(subvolume, volume, startX, startY, startZ)
+    elif volume.__class__ == vol:
+        volume = vol2npy(volume).copy()
+        sx,sy,sz = subvolume.shape
+        volume[startX:startX+sx, startY:startY+sy, startZ:startZ+sz] = subvolume[:,:,:]
+    elif subvolume.__class__ == vol:
+        subvolume = vol2npy(subvolume).copy()
+        sx,sy,sz = subvolume.shape
+        volume[startX:startX+sx, startY:startY+sy, startZ:startZ+sz] = subvolume[:,:,:]
+    else:
+        sx, sy, sz = subvolume.shape
+        volume[startX:startX + sx, startY:startY + sy, startZ:startZ + sz] = subvolume[:, :, :]
+
