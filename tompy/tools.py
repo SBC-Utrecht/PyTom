@@ -9,12 +9,10 @@ from numpy.random import standard_normal
 
 def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False):
     """Create a 3D sphere volume.
-
     @param size: size of the resulting volume.
     @param radius: radius of the sphere inside the volume.
     @param sigma: sigma of the Gaussian.
     @param center: center of the sphere.
-
     @return: sphere inside a volume.
     """
 
@@ -22,7 +20,6 @@ def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False)
     if size.__class__ == float or len(size) == 1:
         size = (size, size, size)
     assert len(size) == 3
-
     if center is None:
         center = [size[0]//2, size[1]//2, size[2]//2]
     if radius == -1:

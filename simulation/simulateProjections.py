@@ -1,11 +1,12 @@
 """
-Gijs' tilt series simulation - used for Ilja's contest paper
+Gijs' tilt series simulation - used for Ilja's contest paper: SHREC19
 """
 import numpy
 import sys
 # from chimera import runCommand
 from pytom.gui.mrcOperations import *
 import matplotlib
+
 matplotlib.use('Qt5Agg')
 from pylab import *
 from pytom.basic.transformations import rotate
@@ -26,6 +27,8 @@ from pytom.reconstruction.reconstructionFunctions import alignWeightReconstruct
 from pytom.reconstruction.reconstructionStructures import *
 from pytom.basic.files import *
 import mrcfile
+
+
 # from scipy.ndimage import rotate
 
 
@@ -143,9 +146,7 @@ def create_ctf(Dz, vol, pix_size, voltage=200E3, Cs=2.7, sigma=0):
     %   Dept. Molecular Structural Biology
     %   82152 Martinsried, Germany
     %   http://www.biochem.mpg.de/tom
-
     error(nargchk(2,6,nargin));
-
     if nargin<5
       Cs=2*10^(-3);
     else
@@ -156,7 +157,6 @@ def create_ctf(Dz, vol, pix_size, voltage=200E3, Cs=2.7, sigma=0):
     else
         voltage = voltage * 1000;
     end;
-
     if nargin <3
         pix_size=0.72*10^(-9);
     else
@@ -184,7 +184,7 @@ def create_ctf(Dz, vol, pix_size, voltage=200E3, Cs=2.7, sigma=0):
         vol = vol * exp(-(r / (sigma * Ny)) ** 2)
         amplitude = amplitude * exp(-(r / (sigma * Ny)) ** 2)
 
-    print (vol.shape, amplitude.shape)
+    print(vol.shape, amplitude.shape)
     return vol, amplitude
 
 
@@ -192,7 +192,8 @@ def tom_dev(image):
     return image.mean(), image.max(), image.min(), image.std(), image.std() ** 2
 
 
-def simutomo(dens, defocus, pixelsize, tiltrange, tiltincr, SNR, the, psi, phi, globalsigma=0, gpu=False, pytom=False, outputFolder='./', modelID=0):
+def simutomo(dens, defocus, pixelsize, tiltrange, tiltincr, SNR, the, psi, phi, globalsigma=0, gpu=False, pytom=False,
+             outputFolder='./', modelID=0):
     '''%
     %   simtomo = av3_simutomo(dens, tiltrange, tiltincr, SNR, the, psi, phi, globalsigma)
     %
@@ -345,10 +346,8 @@ def simutomo(dens, defocus, pixelsize, tiltrange, tiltincr, SNR, the, psi, phi, 
 def quat_mult(q1, q2):
     r"""
     Return the product of two quaternions
-
     Args:
        :q1 (array): Length-4 array [:math:`w_1`, :math:`x_1`, :math:`y_1`, :math:`z_1`] that represents the first quaternion
-
        :q2 (array): Length-4 array [:math:`w_2`, :math:`x_2`, :math:`y_2`, :math:`z_2`] that represents the second quaternion
     """
     w1, x1, y1, z1 = q1
@@ -363,10 +362,8 @@ def quat_mult(q1, q2):
 def quat_vec_mult(q, v):
     r"""
     Return the product of a quaternion and a vector
-
     Args:
        :q (array): Length-4 array [:math:`w`, :math:`x`, :math:`y`, :math:`z`] that represents the quaternion
-
        :v (array): Length-3 array [:math:`v_x`, :math:`v_y`, :math:`v_z`] that represents the vector
     """
     q2 = numpy.array([0., v[0], v[1], v[2]])
@@ -376,7 +373,6 @@ def quat_vec_mult(q, v):
 def quat_conj(q):
     r"""
     Return the conjugate quaternion as a length-4 array [w,-ix,-jy,-kz]
-
     Args:
        :q (array): Numpy array :math:`[w,x,y,z]` that represents the quaternion
     """
@@ -388,10 +384,8 @@ def quat_conj(q):
 def rotate_quat(v, q):
     r"""
     Return rotated version of a given vector by a given quaternion
-
     Args:
        :v (array): Length-3 array :math:`[v_x,v_y,v_z]` that represents the vector
-
        :q (array): Length-4 array [:math:`w`, :math:`x`, :math:`y`, :math:`z`] that represents the quaternion
     """
     return quat_vec_mult(q, v)
@@ -588,7 +582,7 @@ def generate_model(outputFolder, modelID, listpdbs, waterdensity=1, numberOfPart
 
     mask = numpy.zeros_like(cell)
 
-    #if addStructNoise:
+    # if addStructNoise:
     #    cell = addStructuralNoise(cell)
     volumes = []
     for i in range(len(models)):
@@ -656,6 +650,7 @@ def generate_model(outputFolder, modelID, listpdbs, waterdensity=1, numberOfPart
 
     return grandcell
 
+
 def generate_projections(outputFolder, modelID, SIZE, angles, grandcell):
     from voltools.volume import Volume
 
@@ -666,7 +661,7 @@ def generate_projections(outputFolder, modelID, SIZE, angles, grandcell):
     dx, dy, dz = grandcell.shape
     angles = numpy.arange(angles[0], int(angles[1]) + angleIncrement / 2, angleIncrement)
 
-    noisefree_projections = zeros((len(angles), SIZE//2, SIZE//2), dtype=float32)
+    noisefree_projections = zeros((len(angles), SIZE // 2, SIZE // 2), dtype=float32)
 
     for n, angle in enumerate(angles):
         gpu_proj = d_vol.transform(rotation=(0, angle, 0), rotation_order='szyx', rotation_units='deg',
@@ -686,34 +681,37 @@ def generate_projections(outputFolder, modelID, SIZE, angles, grandcell):
     del d_vol
     return noisefree_projections
 
+
 def add_effects_microscope(outputFolder, modelID, grandcell, noisefree_projections):
     iter = 20
 
     for n in range(len(noisefree_projections)):
         noisefree_projections[n] = rot90(noisefree_projections[n], 3)
 
-    
     diff = (grandcell.shape[-1] - noisefree_projections.shape[-1])
     simtomo = simutomo(grandcell[:, diff // 2:-diff // 2, diff // 2:-diff // 2], defocus, pixelSize,
-                       [angles[0], angles[1]], angleIncrement, SNR, 
-                       0, 0, 0, outputFolder=outputFolder,modelID=modelID)
+                       [angles[0], angles[1]], angleIncrement, SNR,
+                       0, 0, 0, outputFolder=outputFolder, modelID=modelID)
     if simtomo:
         convert_numpy_array3d_mrc(simtomo, f"{outputFolder}/simutomo_{modelID}.mrc")
+
 
 def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, volsize, angles, outputFolder, modelID, weighting=-1):
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
     projections = ProjectionList()
 
-    for i in range(start_idx, end_idx+1):
-        p = Projection(prefix+str(i)+suffix,tiltAngle=angles[i-1])
+    for i in range(start_idx, end_idx + 1):
+        p = Projection(prefix + str(i) + suffix, tiltAngle=angles[i - 1])
         projections.append(p)
 
-    outputname = os.path.join(outputFolder, f'tomogram_model_{modelID}.em') 
+    outputname = os.path.join(outputFolder, f'tomogram_model_{modelID}.em')
 
-    vol = projections.reconstructVolume( dims=vol_size, reconstructionPosition=[0,0,0], binning=1, applyWeighting=weighting)
+    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0, 0, 0], binning=1,
+                                        applyWeighting=weighting)
     vol.write(outputname)
-    os.system('em2mrc.py -f {} -t {}'.format(outputname, os.path.dirname(outputname)) ) 
+    os.system('em2mrc.py -f {} -t {}'.format(outputname, os.path.dirname(outputname)))
     os.system(f'rm {outputname}')
+
 
 if __name__ == '__main__':
 
@@ -728,7 +726,7 @@ if __name__ == '__main__':
                ScriptOption(['--reconstructTomogram'], 'Reconstruct a tomogram from projections', False, True),
 
                ScriptOption(['-s', '--size'], 'Size of the model. Default 1024', True, True),
-               ScriptOption(['--sizeRecon'],'Size of the reconstruction. Default 512', True,True),
+               ScriptOption(['--sizeRecon'], 'Size of the reconstruction. Default 512', True, True),
                ScriptOption(['-m', '--models'], 'PDBIDs, seperated by a comma', True, True),
                ScriptOption(['-w', '--waterdensity'], 'Water density. 1 by default.', True, True),
                ScriptOption(['-m', '--modelID'], 'Model ID.', True, True),
@@ -741,8 +739,10 @@ if __name__ == '__main__':
                ScriptOption(['--SNR'], 'Signal to Noise Ratio, 0.02 by default.', True, True),
                ScriptOption(['-d', '--defocus'], 'Defocus (um), "-2" by default.', True, True),
                ScriptOption(['-p', '--pixelSize'], 'Size of a detector pixel (A), "10" by default.', True, True),
-               ScriptOption(['--start'], 'Start index of projections used for reconstruction, "2" by default.', True, True),
-               ScriptOption(['--end'], 'End index of projections used for reconstruction, "40" by default.', True, True),
+               ScriptOption(['--start'], 'Start index of projections used for reconstruction, "2" by default.', True,
+                            True),
+               ScriptOption(['--end'], 'End index of projections used for reconstruction, "40" by default.', True,
+                            True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
     helper = ScriptHelper(sys.argv[0].split('/')[-1],  # script name
@@ -819,8 +819,8 @@ if __name__ == '__main__':
     if outputFolder is None:
         outputFolder = './'
 
-    if start is None: 
-        start  =2
+    if start is None:
+        start = 2
     else:
         start = int(start)
 
@@ -828,7 +828,6 @@ if __name__ == '__main__':
         end = 40
     else:
         end = int(start)
-
 
     if not os.path.exists(outputFolder):
         raise Exception('Please make sure the output directory exists.')
@@ -857,8 +856,8 @@ if __name__ == '__main__':
         add_effects_microscope(outputFolder, modelID, grandcell, noisefree_projections)
 
     if reconstructTomogram:
-        prefix  = os.path.join(outputFolder, f'model_{modelID}/noisyProjections/simulated_proj_model{modelID}_')
-        suffix  = '.mrc'
-        vol_size = [sizeRecon,sizeRecon,sizeRecon]
-        angles  = range(angles[0],angles[1]+1,angleIncrement)
+        prefix = os.path.join(outputFolder, f'model_{modelID}/noisyProjections/simulated_proj_model{modelID}_')
+        suffix = '.mrc'
+        vol_size = [sizeRecon, sizeRecon, sizeRecon]
+        angles = range(angles[0], angles[1] + 1, angleIncrement)
         reconstruct_tomogram(prefix, suffix, start, end, vol_size, angles, outputFolder, modelID, weighting=True)

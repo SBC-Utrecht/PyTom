@@ -52,7 +52,6 @@ def xcc(volume, template, mask=None, volumeIsNormalized=False, gpu=False):
     @author: Thomas Hrabe
     """
 
-
     from pytom.tompy.macros import volumesSameSize
 
     if not volumesSameSize(volume, template):
@@ -214,7 +213,7 @@ def nXcf(volume, template, mask=None, stdV=None, gpu=False):
         result = xcf_mult(normaliseUnderMask(volume=volume, mask=mask, p=None),
                      normaliseUnderMask(volume=template, mask=mask, p=None), mask)
     else:
-        result = xcf_mult(mean0std1(volume, True), mean0std1(template), mask,True)
+        result = xcf_mult(mean0std1(volume, True), mean0std1(template, True), mask, True)
 
     return result
 
@@ -243,16 +242,12 @@ def weightedXCC(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
     result = 0
     numberVoxels = 0
 
-    #volume.write('vol.em');
-    #reference.write('ref.em');
-
-
     wedge = WedgeInfo(wedgeAngle)
-    wedgeVolume = wedge.returnWedgeVolume(volume.shape[0],volume.shape[1],volume.shape[2])
+    wedgeVolume = wedge.returnWedgeVolume(volume.shape[0], volume.shape[1], volume.shape[2])
 
-    increment = int(volume.shape[0]/2 * 1/numberOfBands)
-    band = [0,100]
-    for i in range(0,volume.shape[0]/2, increment):
+    increment = int(volume.shape[0] / 2 * 1 / numberOfBands)
+    band = [0, 100]
+    for i in range(0, volume.shape[0] / 2, increment):
 
         band[0] = i
         band[1] = i + increment
@@ -260,41 +255,41 @@ def weightedXCC(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
         r = bandCC(volume, reference, band, gpu=gpu)
         cc = r[0]
 
-        #print cc;
+        # print cc;
         filter = r[1]
 
-        #get bandVolume
+        # get bandVolume
         bandVolume = filter.getWeightVolume(True)
 
         filterVolumeReduced = bandVolume * wedgeVolume
         filterVolume = fourier_reduced2full(filterVolumeReduced)
 
-        #determine number of voxels != 0
+        # determine number of voxels != 0
         N = (filterVolume != 0).sum()
 
-        w = xp.sqrt(1/float(N))
+        w = xp.sqrt(1 / float(N))
 
-        #add to number of total voxels
-        numberVoxels=numberVoxels + N
-        #print 'w',w;
-        #print 'cc',cc;
-        #print 'N',N;
+        # add to number of total voxels
+        numberVoxels = numberVoxels + N
+        # print 'w',w;
+        # print 'cc',cc;
+        # print 'N',N;
 
-        cc2 = cc*cc
-        #print 'cc2',cc2;
+        cc2 = cc * cc
+        # print 'cc2',cc2;
         if cc <= 0.0:
             cc = cc2
         else:
-            cc = cc2/(cc+w)
+            cc = cc2 / (cc + w)
 
-        #print 'cc',cc;
-        cc = cc *cc *cc; #no abs
-        #print 'cc',cc;
+        # print 'cc',cc;
+        cc = cc * cc * cc;  # no abs
+        # print 'cc',cc;
 
-        #add up result
-        result = result + cc*N
+        # add up result
+        result = result + cc * N
 
-    return result*(1/float(numberVoxels))
+    return result * (1 / float(numberVoxels))
 
 def weightedXCF(volume, reference, numberOfBands, wedgeAngle=-1, gpu=False):
     """
@@ -448,10 +443,10 @@ def bandCC(volume,reference,band,verbose = False, shared=None, index=None):
     @param reference: The reference
     @type reference: L{pytom_volume.vol}
     @param band: [a,b] - specify the lower and upper end of band.
-    @return: First parameter - The correlation of the two volumes in the specified band. 
+    @return: First parameter - The correlation of the two volumes in the specified band.
              Second parameter - The bandpass filter used.
     @rtype: List - [float,L{pytom_freqweight.weight}]
-    @author: Thomas Hrabe    
+    @author: Thomas Hrabe
     """
 
     if not index is None: print(index)
@@ -459,10 +454,10 @@ def bandCC(volume,reference,band,verbose = False, shared=None, index=None):
     from pytom.tompy.filter import bandpass
     from pytom.tompy.correlation import xcf
     #from pytom.tompy.filter import vol_comp
-    
+
     if verbose:
         print('lowest freq : ', band[0],' highest freq' , band[1])
-        
+
     vf, m = bandpass(volume,band[0],band[1],returnMask=True, fourierOnly=True)
     rf = bandpass(reference,band[0],band[1], mask=m, fourierOnly=True)#,vf[1])
     #ccVolume = vol_comp(rf[0].shape[0],rf[0].shape[1],rf[0].shape[2])
@@ -473,30 +468,30 @@ def bandCC(volume,reference,band,verbose = False, shared=None, index=None):
 
     ccVolume = ccVolume * xp.conj(vf)
     #pytom_volume.conj_mult(ccVolume,vf[0])
-    
+
     cc = ccVolume.sum()
 
     cc = cc.real
     v = vf
     r = rf
-    
+
     absV = xp.abs(v)
     absR = xp.abs(r)
 
     sumV = xp.sum(absV**2)
     sumR = xp.sum(absR**2)
-    
+
     sumV = xp.abs(sumV)
     sumR = xp.abs(sumR)
-    
+
     if sumV == 0:
         sumV =1
-        
+
     if sumR == 0:
         sumR =1
 
     cc = cc / (xp.sqrt(sumV*sumR))
-    
+
     #numerical errors will be punished with nan
     if abs(cc) > 1.1 :
         cc = float('nan')
@@ -649,7 +644,7 @@ def FSC(volume1, volume2, numberBands=None, mask=None, verbose=False, filename=N
 
 def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
     """
-    FSCSum: Determines the sum of the Fourier Shell Correlation coefficient for a volume and reference. 
+    FSCSum: Determines the sum of the Fourier Shell Correlation coefficient for a volume and reference.
     @param volume: A volume
     @type volume: L{pytom_volume.vol}
     @param reference: A reference of same size as volume
@@ -657,9 +652,9 @@ def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
     @param numberOfBands: Number of bands
     @param wedgeAngle: A optional wedge angle
     @return: The sum FSC coefficient
-    @rtype: float  
-    @author: Thomas Hrabe   
-    """    
+    @rtype: float
+    @author: Thomas Hrabe
+    """
 
     if gpu:
         import cupy as xp
@@ -671,13 +666,13 @@ def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
 
     result = 0
     numberVoxels = 0
-    
+
     #volume.write('vol.em');
     #reference.write('ref.em');
     fvolume = xp.fft.fftn(volume)
     freference = xp.fft.fftn(reference)
     numelem = volume.size
-    
+
     fvolume = shiftscale(fvolume, 0, 1/float(numelem))
     freference = shiftscale(fvolume, 0, 1/float(numelem))
 
@@ -687,13 +682,13 @@ def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
         band = []
         band[0] = i*volume.shape[0]/numberOfBands
         band[1] = (i+1)*volume.shape[0]/numberOfBands
-        
+
         r = bandCC(fvolume, freference, band, gpu=gpu)
         cc = r[0]
         #print cc
         result = result + cc
     #print '-----'
-    
+
     return result*(1/float(numberOfBands))
 
 def determineResolution(fsc, resolutionCriterion, verbose=False, randomizedFSC=None, gpu=False):
@@ -701,9 +696,9 @@ def determineResolution(fsc, resolutionCriterion, verbose=False, randomizedFSC=N
     determineResolution: Determines frequency and band where correlation drops below the resolutionCriterion. Uses linear interpolation between two positions
     @param fsc: The fsc list determined by L{pytom.basic.correlation.FSC}
     @param resolutionCriterion: A value between 0 and 1
-    @return: [resolution,interpolatedBand,numberBands] 
-    @author: Thomas Hrabe 
-    @todo: Add test! 
+    @return: [resolution,interpolatedBand,numberBands]
+    @author: Thomas Hrabe
+    @todo: Add test!
     """
 
     fsc = xp.array(fsc)
@@ -712,39 +707,39 @@ def determineResolution(fsc, resolutionCriterion, verbose=False, randomizedFSC=N
     band = numberBands
 
     if randomizedFSC is None:
-        randomizedFSC = xp.ones_like(fsc)*(fsc.min()-0.1)
+        randomizedFSC = xp.ones_like(fsc) * (fsc.min() - 0.1)
 
     for i in range(numberBands):
         if fsc[i] < resolutionCriterion and fsc[i] > randomizedFSC[i]:
-            band = i-1  #select the band that is still larger than criterion
+            band = i - 1  # select the band that is still larger than criterion
             break
-    
+
     if verbose:
         print('Band detected at ', band)
-    
+
     if band == -1:
         raise RuntimeError("Please check your resolution criterion or you FSC!")
-            
+
     elif band < numberBands:
         fsc1 = fsc[band]
-        fsc2 = fsc[band+1]
+        fsc2 = fsc[band + 1]
 
         rfsc1 = randomizedFSC[band]
-        rfsc2 = randomizedFSC[band+1]
+        rfsc2 = randomizedFSC[band + 1]
 
         try:
             if fsc2 < rfsc2:
-                interpolatedBand = (fsc1-rfsc1)/(rfsc2-rfsc1+fsc1-fsc2)
+                interpolatedBand = (fsc1 - rfsc1) / (rfsc2 - rfsc1 + fsc1 - fsc2)
                 pass
             else:
-                interpolatedBand = (resolutionCriterion-fsc1)/(fsc2-fsc1)+band
-        
+                interpolatedBand = (resolutionCriterion - fsc1) / (fsc2 - fsc1) + band
+
         except ZeroDivisionError:
             interpolatedBand = band
-        
+
     else:
         interpolatedBand = band
-        
+
     if verbose:
         print('Band interpolated to ', interpolatedBand)
         
@@ -889,10 +884,11 @@ def subPixelPeakParabolic(scoreVolume, coordinates, verbose=False, gpu=False):
     """
     quadratic interpolation of three adjacent samples
     @param scoreVolume: The score volume
-    @param coordinates: [x,y,z] coordinates where the sub pixel peak will be determined
+    @param coordinates: (x,y,z) coordinates as tuple (!) where the sub pixel peak will be determined
     @param verbose: be talkative
     @type verbose: bool
     @return: Returns [peakValue,peakCoordinates] with sub pixel accuracy
+    @rtype: float, tuple
     """
     if gpu:
         import cupy as xp
@@ -906,26 +902,27 @@ def subPixelPeakParabolic(scoreVolume, coordinates, verbose=False, gpu=False):
 
     peakCoordinates = coordinates
     l = len(coordinates)
-    (x, p1, a1) = qint(ym1=scoreVolume[coordinates-[1,0,0][:l]],
-                     y0=scoreVolume[coordinates],
-                     yp1=scoreVolume[coordinates+[1,0,0][:l]])
-    (y, p2, a2) = qint(ym1=scoreVolume[coordinates - [0,1,0][:l]],
-                     y0=scoreVolume[coordinates],
-                     yp1=scoreVolume[coordinates+ [0,1,0][:l] ])
+    (x, a1, b1) = qint(ym1=scoreVolume[tuple(xp.array(coordinates) - xp.array([1, 0, 0][:l]))],
+                       y0=scoreVolume[coordinates],
+                       yp1=scoreVolume[tuple(xp.array(coordinates) + xp.array([1, 0, 0][:l]))])
+    (y, a2, b2) = qint(ym1=scoreVolume[tuple(xp.array(coordinates) - xp.array([0, 1, 0][:l]))],
+                       y0=scoreVolume[coordinates],
+                       yp1=scoreVolume[tuple(xp.array(coordinates) + xp.array([0, 1, 0][:l]))])
     if l > 2:
-        (z, p3, a3) = qint(ym1=scoreVolume.getV(coordinates-[0,0,1]),
-                         y0=scoreVolume.getV(coordinates),
-                         yp1=scoreVolume.getV(coordinates+[0,0,1]))
+        (z, a3, b3) = qint(ym1=scoreVolume[tuple(xp.array(coordinates) - xp.array([0, 0, 1]))],
+                           y0=scoreVolume[coordinates],
+                           yp1=scoreVolume[tuple(xp.array(coordinates) + xp.array([0, 0, 1]))])
         peakCoordinates[0] += x
         peakCoordinates[1] += y
         peakCoordinates[2] += z
-        peakValue = p1 + a2*y**2 + a3*z**2
+        peakValue = scoreVolume[coordinates] + a1 * x**2 + b1 * x + a2 * y**2 + b2 * y + a3 * z**2 + b3 * z
     else:
         peakCoordinates[0] += x
         peakCoordinates[1] += y
-        peakValue = p1 + a2*y**2
+        peakValue = scoreVolume[coordinates] + a1 * x**2 + b1 * x + a2 * y**2 + b2 * y
+    # return coordinates as tuple for indexing
+    return [peakValue, tuple(peakCoordinates)]
 
-    return [peakValue,peakCoordinates]
 
 def subPixelPeak(scoreVolume, coordinates, cubeLength=8, interpolation='Spline', verbose=False):
     """
@@ -945,79 +942,82 @@ def subPixelPeak(scoreVolume, coordinates, cubeLength=8, interpolation='Spline',
     """
     assert type(interpolation) == str, 'subPixelPeak: interpolation must be str'
     if (interpolation.lower() == 'quadratic') or (interpolation.lower() == 'parabolic'):
-        (peakValue,peakCoordinates) = subPixelPeakParabolic(scoreVolume=scoreVolume, coordinates=coordinates, verbose=verbose)
-        return [peakValue,peakCoordinates]
+        (peakValue, peakCoordinates) = subPixelPeakParabolic(scoreVolume=scoreVolume, coordinates=coordinates,
+                                                             verbose=verbose)
+        return [peakValue, peakCoordinates]
 
     if gpu:
         import cupy as xp
     else:
         import numpy as xp
 
-    from pytom_volume import vol,subvolume,rescaleSpline,peak
+    from pytom_volume import vol, subvolume, rescaleSpline, peak
     from pytom.basic.transformations import resize
-  
-    #extend function for 2D
+
+    # extend function for 2D
     twoD = (scoreVolume.shape) == 2
 
-    cubeStart = cubeLength//2
+    cubeStart = cubeLength // 2
     sizeX = scoreVolume.sizeX()
     sizeY = scoreVolume.sizeY()
     sizeZ = scoreVolume.sizeZ()
-    
+
     if twoD:
-        if (coordinates[0]-cubeStart < 1 or coordinates[1]-cubeStart < 1) or\
-            (coordinates[0]-cubeStart + cubeLength >= sizeX or coordinates[1]-cubeStart + cubeLength >= sizeY):
+        if (coordinates[0] - cubeStart < 1 or coordinates[1] - cubeStart < 1) or \
+                (coordinates[0] - cubeStart + cubeLength >= sizeX or coordinates[1] - cubeStart + cubeLength >= sizeY):
             if verbose:
-                print ("SubPixelPeak: position too close to border for sub-pixel")
-            return [scoreVolume(coordinates[0],coordinates[1],coordinates[2]),coordinates]
+                print("SubPixelPeak: position too close to border for sub-pixel")
+            return [scoreVolume(coordinates[0], coordinates[1], coordinates[2]), coordinates]
 
-        subVolume = subvolume(scoreVolume,coordinates[0]-cubeStart,coordinates[1]-cubeStart,0,cubeLength,cubeLength,1)
+        subVolume = subvolume(scoreVolume, coordinates[0] - cubeStart, coordinates[1] - cubeStart, 0, cubeLength,
+                              cubeLength, 1)
     else:
-        if (coordinates[0]-cubeStart < 1 or coordinates[1]-cubeStart < 1 or coordinates[2]-cubeStart < 1) or \
-                (coordinates[0]-cubeStart + cubeLength >= sizeX or coordinates[1]-cubeStart + cubeLength >= sizeY or \
-                 coordinates[2]-cubeStart + cubeLength >= sizeZ):
+        if (coordinates[0] - cubeStart < 1 or coordinates[1] - cubeStart < 1 or coordinates[2] - cubeStart < 1) or \
+                (coordinates[0] - cubeStart + cubeLength >= sizeX or coordinates[1] - cubeStart + cubeLength >= sizeY or \
+                 coordinates[2] - cubeStart + cubeLength >= sizeZ):
             if verbose:
-                print ("SubPixelPeak: position too close to border for sub-pixel")
-            return [scoreVolume(coordinates[0],coordinates[1],coordinates[2]),coordinates]
+                print("SubPixelPeak: position too close to border for sub-pixel")
+            return [scoreVolume(coordinates[0], coordinates[1], coordinates[2]), coordinates]
 
-        subVolume = subvolume(scoreVolume,coordinates[0]-cubeStart,coordinates[1]-cubeStart,coordinates[2]-cubeStart,
-                              cubeLength,cubeLength,cubeLength)
-    
-    #size of interpolated volume
-    scaleSize = 10*cubeLength
+        subVolume = subvolume(scoreVolume, coordinates[0] - cubeStart, coordinates[1] - cubeStart,
+                              coordinates[2] - cubeStart,
+                              cubeLength, cubeLength, cubeLength)
 
-    #ratio between interpolation area and large volume
+    # size of interpolated volume
+    scaleSize = 10 * cubeLength
+
+    # ratio between interpolation area and large volume
     scaleRatio = 1.0 * cubeLength / scaleSize
-    
-    #resize into bigger volume
-    if interpolation=='Spline':
+
+    # resize into bigger volume
+    if interpolation == 'Spline':
         if twoD:
-            subVolumeScaled = vol(scaleSize,scaleSize,1)
+            subVolumeScaled = vol(scaleSize, scaleSize, 1)
         else:
-            subVolumeScaled = vol(scaleSize,scaleSize,scaleSize)
-        rescaleSpline(subVolume,subVolumeScaled)
+            subVolumeScaled = vol(scaleSize, scaleSize, scaleSize)
+        rescaleSpline(subVolume, subVolumeScaled)
     else:
         subVolumeScaled = resize(volume=subVolume, factor=10)[0]
-    
+
     peakCoordinates = peak(subVolumeScaled)
-    
-    peakValue = subVolumeScaled(peakCoordinates[0],peakCoordinates[1],peakCoordinates[2])
-    
-    #calculate sub pixel coordinates of interpolated peak
-    peakCoordinates[0] = peakCoordinates[0]*scaleRatio - cubeStart + coordinates[0]
-    peakCoordinates[1] = peakCoordinates[1]*scaleRatio - cubeStart + coordinates[1]
+
+    peakValue = subVolumeScaled(peakCoordinates[0], peakCoordinates[1], peakCoordinates[2])
+
+    # calculate sub pixel coordinates of interpolated peak
+    peakCoordinates[0] = peakCoordinates[0] * scaleRatio - cubeStart + coordinates[0]
+    peakCoordinates[1] = peakCoordinates[1] * scaleRatio - cubeStart + coordinates[1]
     if twoD:
         peakCoordinates[2] = 0
     else:
-        peakCoordinates[2] = peakCoordinates[2]*scaleRatio - cubeStart + coordinates[2]
-    if ( peakCoordinates[0] > scoreVolume.sizeX() or peakCoordinates[1] > scoreVolume.sizeY() or
-            peakCoordinates[2] > scoreVolume.sizeZ() ):
+        peakCoordinates[2] = peakCoordinates[2] * scaleRatio - cubeStart + coordinates[2]
+    if (peakCoordinates[0] > scoreVolume.sizeX() or peakCoordinates[1] > scoreVolume.sizeY() or
+            peakCoordinates[2] > scoreVolume.sizeZ()):
         if verbose:
-            print ("SubPixelPeak: peak position too large :( return input value")
-        #something went awfully wrong here. return regular value 
-        return [scoreVolume(coordinates[0],coordinates[1],coordinates[2]),coordinates]
-    
-    return [peakValue,peakCoordinates]
+            print("SubPixelPeak: peak position too large :( return input value")
+        # something went awfully wrong here. return regular value
+        return [scoreVolume(coordinates[0], coordinates[1], coordinates[2]), coordinates]
+
+    return [peakValue, peakCoordinates]
 
 def subPixelMax3D(volume, k=.01, ignore_border=50, interpolation='filt_bspline', plan=None, profile=True,
                   num_threads=1024, zoomed=None, fast_sum=None, max_id=None):

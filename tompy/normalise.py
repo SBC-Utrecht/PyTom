@@ -11,7 +11,7 @@ def mean0std1(volume, copyFlag=False):
     from pytom.tools.maths import epsilon
 
     if volume.dtype == xp.complex64:
-        volume = xp.fft.ifftshift(ifftn(volume))
+        volume = xp.fft.ifftshift(xp.fft.ifftn(volume))
 
     if not copyFlag:
         volume -= volume.mean()

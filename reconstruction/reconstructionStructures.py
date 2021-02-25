@@ -408,6 +408,7 @@ class ProjectionList(PyTomClass):
         self.reconstructVolumes(particles, cubeSize, binning, applyWeighting,
 	        showProgressBar ,verbose,preScale,postScale)
 
+
     def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0],
                           binning=1, applyWeighting=False, alignResultFile='', gpu=-1, specimen_angle=0):
 
@@ -1192,6 +1193,7 @@ class ProjectionList(PyTomClass):
 
         # design lowpass filter
         if lowpassFilter:
+            print(f'Creating low-pass filter for projections. Fraction of Nyquist {lowpassFilter}')  # TODO remove
             if lowpassFilter > 1.:
                 lowpassFilter = 1.
                 print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")

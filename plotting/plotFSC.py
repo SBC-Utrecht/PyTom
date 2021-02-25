@@ -1,3 +1,4 @@
+#!/usr/bin/env pytom
 import matplotlib
 matplotlib.use('Qt5Agg')
 from pylab import subplots, savefig, show
@@ -86,8 +87,6 @@ if __name__ == '__main__':
     except Exception as e:
         print(e)
         sys.exit()
-
-    print(directory)
 
     if help is True:
         print(helper)
