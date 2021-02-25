@@ -325,6 +325,7 @@ class ProjectionList(PyTomClass):
     """
     def __init__(self, list = None):
         self._list = list or []
+        self.angle_specimen = 0
 
     def info(self):
         tline = ""
@@ -408,7 +409,71 @@ class ProjectionList(PyTomClass):
 	        showProgressBar ,verbose,preScale,postScale)
 
     def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0],
-                          binning=1, applyWeighting=False, alignResultFile='', gpu=-1):
+                          binning=1, applyWeighting=False, alignResultFile='', gpu=-1, specimen_angle=0):
+
+        from pytom.gpu.initialize import device
+
+        if 1 and 'gpu' in device:
+            vol = self.reconstructVolumeGPU(dims=dims, reconstructionPosition=reconstructionPosition, binning=binning,
+                                      applyWeighting=applyWeighting, alignResultFile=alignResultFile, gpu=gpu, specimen_angle=specimen_angle)
+
+        else:
+            vol = self.reconstructVolumeCPU(dims=dims, reconstructionPosition=reconstructionPosition, binning=binning,
+                                      applyWeighting=applyWeighting, alignResultFile=alignResultFile, gpu=gpu, specimen_angle=specimen_angle)
+        return vol
+
+    def reconstructVolumeGPU(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0], interpolation='filt_bspline',
+                          binning=1, applyWeighting=False, alignResultFile='', gpu=-1, specimen_angle=0):
+        """
+        reconstruct a single 3D volume from weighted and aligned projections
+
+        @param dims: 3D Size of reconstructed volume
+        @type dims: 3d list
+        @param binning: down-sizing of projections prior to 3d rec
+        @type binning: int
+        @param reconstructionPosition: offset center of reconstruction (BEFORE possible binning)
+        @type reconstructionPosition: 3-dim list
+        @param applyWeighting: apply weighting
+        @type applyWeighting: bool
+        @param gpu: run reconstruction on gpu
+        @type gpu: int
+        @author: FF
+        last change: include binning in reconstructionPosition
+        """
+        from pytom_volume import vol, backProject
+        from pytom.gpu.initialize import device, xp
+        from pytom.reconstruction.reconstructionFunctions import alignImagesUsingAlignmentResultFile as align
+        from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
+        from pytom.tompy.io import write
+
+        import time
+        s = time.time()
+
+        reconstruction = xp.zeros((dims[0], dims[1], dims[2]), dtype=xp.float32)
+
+        # stacks for images, projections angles etc.
+        arrays = align( alignResultFile, binning=binning, weighting=applyWeighting, circleFilter=True, angle_specimen=specimen_angle)
+        [projections, vol_phi, proj_angles, vol_offsetProjections] = arrays
+
+        # volume storing reconstruction offset from center (x,y,z)
+        recPosVol = xp.zeros((projections.shape[2], 3), dtype=xp.int32)
+
+        for ii in range(0,3):
+            recPosVol[:, ii] = float(reconstructionPosition[ii] // binning)
+
+        print(time.time()-s)
+        s = time.time()
+        # finally backproject into volume
+        vol_bp = backProject(projections, reconstruction, vol_phi, proj_angles, recPosVol, vol_offsetProjections,
+                             interpolation).get()
+
+        print(f'backproject time: {time.time()-s}')
+
+        return vol_bp
+
+
+    def reconstructVolumeCPU(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0],
+                          binning=1, applyWeighting=False, alignResultFile='', gpu=-1, specimen_angle=0):
         """
         reconstruct a single 3D volume from weighted and aligned projections
 
@@ -427,8 +492,11 @@ class ProjectionList(PyTomClass):
         """
         from pytom_volume import vol, backProject
 
+        print(dims)
         vol_bp = vol(dims[0], dims[1], dims[2])
         vol_bp.setAll(0.0)
+
+        self.angle_specimen = specimen_angle
 
         # stacks for images, projections angles etc.
         if not alignResultFile:
@@ -449,20 +517,28 @@ class ProjectionList(PyTomClass):
         # finally backproject into volume
         import time
         s = time.time()
-
-        if gpu > -1:
+        from pytom.gpu.initialize import xp as cp, device
+        if gpu >-1:
+            print('gpu reconstruction')
             from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
-            import cupy as cp
-            import voltools
+            from pytom.gpu.initialize import xp as cp
+            from pytom.tompy.io import write
 
-            interpolation = voltools.Interpolations.FILT_BSPLINE
+            interpolation = 'filt_bspline'
             projections = vol2npy(vol_img)
             projections = cp.array(projections)
+            for projection in range(projections.shape[-1]):
+                projections[:,:,projection] = projections[:,:,projection].T
+
             proj_angles = vol2npy(vol_the)[0, 0, :]
             vol_bp = cp.zeros((vol_bp.sizeX(), vol_bp.sizeY(), vol_bp.sizeZ()), dtype=cp.float32)
+            print(time.time()-s)
+            s = time.time()
             vol_bp = backProject(projections, vol_bp, vol_phi, proj_angles, recPosVol, vol_offsetProjections, interpolation).get()
         else: 
             from pytom_volume import backProject
+            print('cpu reconstruction')
+            s = time.time()
             backProject(vol_img, vol_bp, vol_phi, vol_the, recPosVol, vol_offsetProjections)
         print(f'backproject time: {time.time()-s}')
 
@@ -470,7 +546,7 @@ class ProjectionList(PyTomClass):
 
     def reconstructVolumes(self, particles, cubeSize, binning=1, applyWeighting=False,
                            showProgressBar=False, verbose=False, preScale=1, postScale=1, num_procs=5,
-                           alignResultFile='', polishResultFile=''):
+                           alignResultFile='', polishResultFile='', scaleFactorParticle=1, gpuIDs=None, specimen_angle=0):
         """
         reconstructVolumes: reconstruct a subtomogram given a particle object.
 
@@ -495,7 +571,9 @@ class ProjectionList(PyTomClass):
         from pytom.basic.files import write_em
         from multiprocessing import Process
         print('start')
+        import time
 
+        t = time.time()
         if len(particles) == 0:
             raise RuntimeError('ParticleList is empty!')
 
@@ -508,44 +586,56 @@ class ProjectionList(PyTomClass):
             numberParticleVolumes = 0
 
         # stacks for images, projections angles etc.
-        if not alignResultFile:
-            resultProjstack = self.toProjectionStack(binning=binning, applyWeighting=applyWeighting,
-                                                     showProgressBar=False,
-                                                     verbose=False, num_procs=num_procs)
+        if gpuIDs is None:
+            if not alignResultFile:
+                resultProjstack = self.toProjectionStack(binning=binning, applyWeighting=applyWeighting,
+                                                         showProgressBar=False,
+                                                         verbose=False, num_procs=num_procs, scaleFactorParticle=scaleFactorParticle)
+            else:
+                resultProjstack = self.toProjectionStackFromAlignmentResultsFile(alignResultFile, weighting=applyWeighting,
+                                                                                 num_procs=num_procs, binning=binning,
+                                                                                 circleFilter=True, scaleFactorParticle=scaleFactorParticle)
         else:
-            resultProjstack = self.toProjectionStackFromAlignmentResultsFile(alignResultFile, weighting=applyWeighting,
-                                                                             num_procs=num_procs, binning=binning,
-                                                                             circleFilter=True)
+            from pytom.reconstruction.reconstructionFunctions import alignImagesUsingAlignmentResultFile as align
+            from pytom.tompy.io import write as write_em
+
+            resultProjstack = align( alignResultFile, binning=binning, weighting=applyWeighting, circleFilter=True, angle_specimen=specimen_angle)
+            [projections, vol_phi, proj_angles, vol_offsetProjections] = resultProjstack
+
         # if verbose: return
 
         procs = []
         num_finished, num_started = 0, 0
-
+        print(time.time()-t)
         submitted = 0
         if num_procs:
             for n, result in enumerate(resultProjstack):
                 if not os.path.exists(os.path.dirname(particles[0].getFilename())): os.mkdir(
                     os.path.dirname(particles[0].getFilename()))
-                write_em(os.path.dirname(particles[0].getFilename()) + '/.temp_{}.em'.format(n), result)
+                write_em(f'{os.path.dirname(particles[0].getFilename())}/.temp_{n}.mrc', result)
+                results = resultProjstack
+            if gpuIDs is None:
+                results = 1
 
-            for particleIndex in range(len(particles)):
-                p = particles[particleIndex]
+            extract = self.extract_particles_on_gpu if not gpuIDs is None else self.extract_single_particle
 
-                while len(procs) >= num_procs:
-                    time.sleep(0.1)
-                    procs = [proc for proc in procs if proc.is_alive()]
-                    num_finished += num_started - num_finished - len(procs)
-                proc = Process(target=self.extract_single_particle, args=(p, particleIndex, verbose, binning, postScale,
-                                                                          cubeSize, polishResultFile))
-                procs.append(proc)
-                proc.start()
-                submitted += 1
-                num_started += 1
-                time.sleep(0.3)
+            if gpuIDs is None: gpuIDs=[None,]*num_procs
+
+            for procIndex in range(num_procs):
+                ps = particles[procIndex::num_procs]
+                print(len(ps))
+                extract(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results)
+                # proc = Process(target=extract, args=(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], resultProjstack))
+                # procs.append(proc)
+                # proc.start()
+
             # print('Subtomogram reconstruction for particle {} has started (batch mode).'.format(particleIndex))
         else:
             vol_bp = vol(cubeSize, cubeSize, cubeSize)
+            [vol_img, vol_phi, vol_the, vol_offsetProjections] = resultProjstack
+
             for particleIndex in range(len(particles)):
+                t = time.time()
                 p = particles[particleIndex]
                 # self.extract_single_particle(p, particleIndex, verbose, binning, postScale, cubeSize)
                 # print('Subtomogram reconstruction for particle {} has started.'.format(particleIndex))
@@ -557,23 +647,166 @@ class ProjectionList(PyTomClass):
 
                 vol_bp.setAll(0.0)
 
-                reconstructionPosition = vol(3, len(self), 1)
+                reconstructionPosition = vol(3, vol_img.sizeZ(), 1)
                 reconstructionPosition.setAll(0.0)
 
                 # adjust coordinates of subvolumes to binned reconstruction
-                for i in range(len(self)):
+                for i in range(vol_img.sizeZ()):
                     reconstructionPosition(float(p.getPickPosition().getX() / binning), 0, i, 0)
                     reconstructionPosition(float(p.getPickPosition().getY() / binning), 1, i, 0)
                     reconstructionPosition(float(p.getPickPosition().getZ() / binning), 2, i, 0)
 
-                if verbose:
+                if 1:
                     print((p.getPickPosition().getX() / binning, p.getPickPosition().getY() / binning,
                            p.getPickPosition().getZ() / binning))
 
-                folder = os.path.dirname(p.getFilename())
+                backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition, vol_offsetProjections)
 
-                [vol_img, vol_phi, vol_the, vol_offsetProjections] = resultProjstack
-                print(vol2npy(reconstructionPosition))
+                if postScale > 1:
+                    volumeRescaled = vol(cubeSize / postScale, cubeSize / postScale, cubeSize / postScale)
+                    rescaleSpline(vol_bp, volumeRescaled)
+                    volumeRescaled.write(p.getFilename())
+                else:
+                    vol_bp.write(p.getFilename())
+                print(time.time()-t)
+
+        while len(procs):
+            time.sleep(0.1)
+            procs = [proc for proc in procs if proc.is_alive()]
+        # for n, result in enumerate(resultProjstack):
+
+        #os.system('rm -f {}'.format(os.path.dirname(particles[0].getFilename()) + '/.temp_*.em'))
+        #progressBar.update(len(particles))
+        print('\n Subtomogram reconstructions have finished.\n\n')
+
+    def extract_particles_on_gpu(self, particles, procID, verbose, binning, postScale, cubeSize, filename_ppr='', gpuID=None, results=0):
+        import os
+        from pytom.tompy.io import read, write
+        from pytom.gpu.initialize import xp, device
+        import numpy as np
+        import time
+        from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
+
+        #xp.cuda.Device(gpuID).use()
+
+        ts = time.time()
+
+        if 1:
+            folder = os.path.dirname(particles[0].getFilename())
+
+            if not results:
+                results = []
+
+                for index in range(4):
+                    results.append(read('{}/.temp_{}.mrc'.format(folder, index)))
+
+            [projections, vol_phi, vol_the, vol_offsetProjections] = results
+            num_projections = projections.shape[2]
+
+            vol_bp = xp.zeros((cubeSize, cubeSize, cubeSize), dtype=xp.float32)
+            reconstructionPosition = xp.zeros((num_projections,3), dtype=xp.float32)
+
+            interpolation = 'filt_bspline'
+
+            for projection in range(projections.shape[-1]):
+                projections[:, :, projection] = projections[:, :, projection].T
+
+            proj_angles = vol_the.squeeze()
+
+            for p in particles:
+                reconstructionPosition *= 0
+                vol_bp *=0
+
+                print(p.getPickPosition(), binning)
+                # adjust coordinates of subvolumes to binned reconstruction
+
+                for i in range(num_projections):
+                    reconstructionPosition[i,0] = float(p.getPickPosition().getX() / binning)
+                    reconstructionPosition[i,1] = float(p.getPickPosition().getY() / binning)
+                    reconstructionPosition[i,2] = float(p.getPickPosition().getZ() / binning)
+
+                vol_bp = backProject(projections, vol_bp, vol_phi.squeeze(), proj_angles, reconstructionPosition,
+                                     vol_offsetProjections, interpolation).get()
+                write(p.getFilename(), vol_bp)
+
+
+            #for a in [vol_img, vol_phi, vol_the, vol_offsetProjections]: del a
+            #del results
+
+
+        # except Exception as e:
+        #     print('Caught exception in worker thread (x = %d):' % pid)
+        #     print()
+        #     raise e
+
+        print(f'recon time: {time.time()-ts:.3f} sec')
+
+    def extract_single_particle(self, particles, pid, verbose, binning, postScale, cubeSize, filename_ppr='', gpuID=None, rr=0):
+        import os
+        from pytom.basic.files import read
+        from pytom_volume import vol, backProject, rescaleSpline
+        import numpy as np
+        import time
+
+        ts = time.time()
+
+        if 1:
+            folder = os.path.dirname(particles[0].getFilename())
+
+            results = []
+            for index in range(4):
+                results.append(read('{}/.temp_{}.mrc'.format(folder, index)))
+
+            [vol_img, vol_phi, vol_the, vol_offsetProjections] = results
+            num_projections = vol_img.sizeZ()
+
+            vol_bp = vol(cubeSize, cubeSize, cubeSize)
+            vol_bp.setAll(0.0)
+
+            reconstructionPosition = vol(3, num_projections, 1)
+            reconstructionPosition.setAll(0.0)
+            start_index = pid * len(self)
+
+            for p in particles:
+                reconstructionPosition.setAll(0.0)
+                vol_bp.setAll(0.0)
+                # adjust coordinates of subvolumes to binned reconstruction
+                if not filename_ppr:
+                    for i in range(num_projections):
+                        reconstructionPosition(float(p.getPickPosition().getX() / binning), 0, i, 0)
+                        reconstructionPosition(float(p.getPickPosition().getY() / binning), 1, i, 0)
+                        reconstructionPosition(float(p.getPickPosition().getZ() / binning), 2, i, 0)
+                else:
+
+                    x, y, z = float(p.getPickPosition().getX() / binning), float(
+                        p.getPickPosition().getY() / binning), float(p.getPickPosition().getZ() / binning)
+
+                    for i in range(len(self)):
+                        from pytom.gui.guiFunctions import LOCAL_ALIGNMENT_RESULTS, loadstar
+                        import pytom.basic.combine_transformations as ct
+
+                        particle_polish_file = loadstar(filename_ppr, dtype=LOCAL_ALIGNMENT_RESULTS)
+
+                        offsetX = float(particle_polish_file['AlignmentTransX'][start_index + i])
+                        offsetY = float(particle_polish_file['AlignmentTransY'][start_index + i])
+
+                        pick_position = np.matrix([x, y, z]).T
+
+                        rotation = ct.matrix_rotate_3d_y(self._list[i].getTiltAngle())
+
+                        shift = np.matrix([offsetX, offsetY, 0]).T
+
+                        new_position = rotation * pick_position
+
+                        new_position_shifted = new_position + shift
+                        reposition = np.linalg.inv(rotation) * new_position_shifted
+                        reposition = np.array(reposition.T)[0]
+
+                        reconstructionPosition(float(reposition[0] / binning), 0, i, 0)
+                        reconstructionPosition(float(reposition[1] / binning), 1, i, 0)
+                        reconstructionPosition(float(reposition[2] / binning), 2, i, 0)
+
+
                 backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition, vol_offsetProjections)
 
                 if postScale > 1:
@@ -583,98 +816,16 @@ class ProjectionList(PyTomClass):
                 else:
                     vol_bp.write(p.getFilename())
 
-        while len(procs):
-            time.sleep(0.01)
-            procs = [proc for proc in procs if proc.is_alive()]
-        # for n, result in enumerate(resultProjstack):
-
-        os.system('rm -f {}'.format(os.path.dirname(particles[0].getFilename()) + '/.temp_*.em'))
-        progressBar.update(len(particles))
-        print('\n Subtomogram reconstructions have finished.\n\n')
-
-    def extract_single_particle(self, p, pid, verbose, binning, postScale, cubeSize, filename_ppr=''):
-        import os
-        from pytom.basic.files import read
-        from pytom_volume import vol, backProject, rescaleSpline
-        from pytom_numpy import vol2npy
-        import numpy as np
-
-        try:
-            folder = os.path.dirname(p.getFilename())
-
-            results = []
-            for index in range(4):
-                results.append(read('{}/.temp_{}.em'.format(folder, index)))
-
-            [vol_img, vol_phi, vol_the, vol_offsetProjections] = results
-            num_projections = vol_img.sizeZ()
-
-            if verbose:
-                print(p)
-
-            vol_bp = vol(cubeSize, cubeSize, cubeSize)
-            vol_bp.setAll(0.0)
-
-            reconstructionPosition = vol(3, num_projections, 1)
-            reconstructionPosition.setAll(0.0)
-            start_index = pid * len(self)
-            # adjust coordinates of subvolumes to binned reconstruction
-            if not filename_ppr:
-                for i in range(num_projections):
-                    reconstructionPosition(float(p.getPickPosition().getX() / binning), 0, i, 0)
-                    reconstructionPosition(float(p.getPickPosition().getY() / binning), 1, i, 0)
-                    reconstructionPosition(float(p.getPickPosition().getZ() / binning), 2, i, 0)
-            else:
-
-                x, y, z = float(p.getPickPosition().getX() / binning), float(
-                    p.getPickPosition().getY() / binning), float(p.getPickPosition().getZ() / binning)
-
-                for i in range(len(self)):
-                    from pytom.gui.guiFunctions import LOCAL_ALIGNMENT_RESULTS, loadstar
-                    import pytom.basic.combine_transformations as ct
-
-                    particle_polish_file = loadstar(filename_ppr, dtype=LOCAL_ALIGNMENT_RESULTS)
-
-                    offsetX = float(particle_polish_file['AlignmentTransX'][start_index + i])
-                    offsetY = float(particle_polish_file['AlignmentTransY'][start_index + i])
-
-                    pick_position = np.matrix([x, y, z]).T
-
-                    rotation = ct.matrix_rotate_3d_y(self._list[i].getTiltAngle())
-
-                    shift = np.matrix([offsetX, offsetY, 0]).T
-
-                    new_position = rotation * pick_position
-
-                    new_position_shifted = new_position + shift
-                    reposition = np.linalg.inv(rotation) * new_position_shifted
-                    reposition = np.array(reposition.T)[0]
-
-                    reconstructionPosition(float(reposition[0] / binning), 0, i, 0)
-                    reconstructionPosition(float(reposition[1] / binning), 1, i, 0)
-                    reconstructionPosition(float(reposition[2] / binning), 2, i, 0)
-
-            if 1:
-                print((p.getPickPosition().getX() / binning, p.getPickPosition().getY() / binning,
-                       p.getPickPosition().getZ() / binning))
-
-            backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition, vol_offsetProjections)
-
-            if postScale > 1:
-                volumeRescaled = vol(cubeSize / postScale, cubeSize / postScale, cubeSize / postScale)
-                rescaleSpline(vol_bp, volumeRescaled)
-                volumeRescaled.write(p.getFilename())
-            else:
-                vol_bp.write(p.getFilename())
-
             for a in [vol_img, vol_phi, vol_the, vol_offsetProjections]: del a
             del results
 
 
-        except Exception as e:
-            print('Caught exception in worker thread (x = %d):' % pid)
-            print()
-            raise e
+        # except Exception as e:
+        #     print('Caught exception in worker thread (x = %d):' % pid)
+        #     print()
+        #     raise e
+
+        print(f'recon time: {time.time()-ts:.3f} sec')
 
     def saveParticleProjections(self, particles, projectionSize, binning=1,
                                 applyWeighting=False, showProgressBar=False, verbose=False, outputScale=1):
@@ -869,7 +1020,7 @@ class ProjectionList(PyTomClass):
         self._list = sorted(self._list, key=lambda Projection: Projection._tiltAngle)
 
     def toProjectionStack(self, binning=1, applyWeighting=False, tiltAngle=None, showProgressBar=False, verbose=False,
-                          num_procs=1):
+                          num_procs=1, scaleFactorParticle=1):
         """
         toProjectionStack:
 
@@ -950,7 +1101,7 @@ class ProjectionList(PyTomClass):
                 if verbose:
                     print(projection.getTiltAngle(), projection.getOffsetX(), projection.getOffsetY())
                 
-                thetaStack(int(round(projection.getTiltAngle())), 0, 0, i)
+                thetaStack(int(round(projection.getTiltAngle() - self.angle_specimen)), 0, 0, i)
                 offsetStack(projection.getOffsetX(), 0, 0, i)
                 offsetStack(projection.getOffsetY(), 0, 1, i)
                 paste(image, stack, 0, 0, i)
@@ -979,7 +1130,8 @@ class ProjectionList(PyTomClass):
         return [stack, phiStack, thetaStack, offsetStack]
 
     def toProjectionStackFromAlignmentResultsFile(self, alignmentResultsFile, weighting=None, lowpassFilter=0.9,
-                                                  binning=1, circleFilter=False, num_procs=1):
+                                                  binning=1, circleFilter=False, num_procs=1, verbose=False,
+                                                  scaleFactorParticle=1):
         """read image and create aligned projection stack, based on the results described in the alignmentResultFile.
 
            @param alignmentResultsFile: result file generate by the alignment script.
@@ -992,7 +1144,6 @@ class ProjectionList(PyTomClass):
 
            @author: GS
         """
-        print('weighting: ', weighting)
         import numpy
         from pytom_numpy import vol2npy
         from pytom.basic.files import read_em, write_em
@@ -1000,7 +1151,7 @@ class ProjectionList(PyTomClass):
         from pytom.basic.transformations import general_transform2d
         from pytom.basic.fourier import ifft, fft
         from pytom.basic.filter import filter as filterFunction, bandpassFilter
-        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
+        from pytom.basic.filter import circleFilter as cf, rampFilter, exactFilter, fourierFilterShift, fourierFilterShift_ReducedComplex
         from pytom_volume import complexRealMult, vol, paste, pasteCenter
         import pytom_freqweight
         from pytom.basic.transformations import resize, rotate
@@ -1008,7 +1159,7 @@ class ProjectionList(PyTomClass):
         from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
         from pytom_numpy import vol2npy
 
-        print("Create aligned images from alignResults.txt")
+        if 1: print(f"Create aligned images from {alignmentResultsFile}")
 
         alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
         imageList = alignmentResults['FileName']
@@ -1034,7 +1185,7 @@ class ProjectionList(PyTomClass):
 
         if circleFilter:
             circleFilterRadius = imdim // 2
-            circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imdim, imdim, circleFilterRadius))
+            circleSlice = fourierFilterShift_ReducedComplex(cf(imdim, imdim, circleFilterRadius))
         else:
             circleSlice = vol(imdim, imdim // 2 + 1, 1)
             circleSlice.setAll(1.0)
@@ -1056,7 +1207,6 @@ class ProjectionList(PyTomClass):
             aty = alignmentResults['AlignmentTransY'][n]
             rot = alignmentResults['InPlaneRotation'][n]
             mag = alignmentResults['Magnification'][n]
-            print(imageList[n], tilt_angles[n], atx, aty, rot, mag)
             projection = Projection(imageList[n], tiltAngle=tilt_angles[n], alignmentTransX=atx, alignmentTransY=aty,
                                     alignmentRotation=rot, alignmentMagnification=mag)
             projectionList.append(projection)
@@ -1104,9 +1254,7 @@ class ProjectionList(PyTomClass):
             transX = projection._alignmentTransX / binning
             transY = projection._alignmentTransY / binning
             rot = float(projection._alignmentRotation)
-            mag = float(projection._alignmentMagnification)
-
-            print(imdimX, imdimY)
+            mag = float(projection._alignmentMagnification) * scaleFactorParticle
 
             # 3 -- square if needed
             if imdimY != imdimX:
@@ -1115,28 +1263,26 @@ class ProjectionList(PyTomClass):
                 pasteCenter(image, newImage)
                 image = newImage
 
+
+
             image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=[2, 1, 0], crop=True)
 
             if lowpassFilter:
                 filtered = filterFunction(volume=image, filterObject=lpf, fourierOnly=False)
                 image = filtered[0]
 
-
             # smoothen once more to avoid edges
             image = taper_edges(image, imdim // 30)[0]
 
             # analytical weighting
             if (weighting != None) and (weighting < 0):
-                #image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
                 image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
-
 
             elif (weighting != None) and (weighting > 0):
                 weightSlice = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
-                #image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
                 image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
 
-            thetaStack(int(round(projection.getTiltAngle())), 0, 0, ii)
+            thetaStack(int(round(projection.getTiltAngle()))-self.angle_specimen, 0, 0, ii)
             offsetStack(int(round(projection.getOffsetX())), 0, 0, ii)
             offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
             paste(image, stack, 0, 0, ii)
