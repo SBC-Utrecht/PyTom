@@ -103,16 +103,18 @@ class PeakWorker(object):
         # calculate the result volume
         if gpuID is None:
             from pytom.localization.extractPeaks import extractPeaks
+            g=None
         else:
             from pytom.localization.extractPeaks import templateMatchingGPU as extractPeaks
             from pytom_numpy import vol2npy
 
             v, ref, m = [vol2npy(vol).copy() for vol in (v, ref, m)]
+            g = gpuID[self.mpi_id]
 
         if verbose==True:
-            print(self.name + ': starting to calculate %d rotations' % rot.numberRotations() + f' om {gpuID[self.mpi_id]}')
+            print(self.name + ': starting to calculate %d rotations' % rot.numberRotations() )
         [resV, orientV, sumV, sqrV] = extractPeaks(v, ref, rot, scoreFnc, m, mIsSphere, wedg, nodeName=self.name,
-                                                   verboseMode=verbose, moreInfo=moreInfo, gpuID=gpuID[self.mpi_id],
+                                                   verboseMode=verbose, moreInfo=moreInfo, gpuID=g,
                                                    jobid=self.mpi_id)
 
         

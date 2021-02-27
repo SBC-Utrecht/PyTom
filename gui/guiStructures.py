@@ -382,11 +382,11 @@ class CommonFunctions():
             tb.addAction(new)
 
         if open:
-            load = QAction(QIcon("{}/gui/Icons/open_project4.png".format(self.pytompath)), openText, self)
+            load = QAction(QIcon("{}/gui/Icons/OpenProject.png".format(self.pytompath)), openText, self)
             tb.addAction(load)
 
         if save:
-            s = QAction(QIcon("{}/gui/Icons/save_project4.png".format(self.pytompath)), saveText, self)
+            s = QAction(QIcon("{}/gui/Icons/SaveProject.png".format(self.pytompath)), saveText, self)
             tb.addAction(s)
             #tb.actionTriggered[QAction].connect(self.save_particleList)
 
@@ -444,7 +444,7 @@ class CommonFunctions():
         self.column += cstep
 
     def insert_label(self, parent, text='', rowspan=1, columnspan=1, rstep=0, cstep=0,transparent=True,
-                     tooltip='', alignment=Qt.AlignVCenter, value=None, width=0, sizepolicy=''):
+                     tooltip='', alignment=Qt.AlignLeft, value=None, width=0, sizepolicy=''):
         widget = QtWidgets.QLabel(self)
 
         if transparent:
@@ -462,7 +462,7 @@ class CommonFunctions():
         if sizepolicy:widget.setSizePolicy(sizepolicy)
         if width: widget.setFixedWidth(width)
         parent.addWidget(widget, self.row, self.column, rowspan, columnspan, alignment)
-        if alignment: widget.setAlignment(Qt.AlignVCenter)
+        if alignment: widget.setAlignment(alignment)
 
         self.items[self.row][self.column] = widget
         self.row += rstep
@@ -1234,13 +1234,22 @@ class CommonFunctions():
                 self.threadPool.start(self.activeProcesses[ID])
             else:
                 self.submit_local_job(execfilename, ID)
+
+
             #self.popup_messagebox('Info', 'Local Job Finished', f'Finished Job {ID}')
             return 'Local_'+ID, 0
 
     def multiSeq(self, func, params, wID=0, threaded=False):
+        import time
+        maxtime = 600
         for execfilename, pid, job in params:
+            sleeptime = 0
             ID, num = func(execfilename, pid, job, threaded=threaded)
-            self.localJobs[wID].append(ID)
+            if '_' in ID:
+                self.localJobs[wID].append(ID)
+                while self.localqID[ID.split('_')[-1]] == 0 and sleeptime < maxtime:
+                    time.sleep(5)
+                    sleeptime += 5
 
     def getLocalID(self):
         import os
@@ -1704,8 +1713,9 @@ class MyCircleOverlay(pg.EllipseROI):
             #self.label = pg.TextItem(text=label,anchor=(),angle=180)
 
 
-def circle(pos, size = 2, label='',color=Qt.blue):
-    pensize = 0.02*40./size
+
+def circle(pos, size = 2, label='',color=Qt.blue, pensize=16):
+    pensize = 0.02*40./pensize
     return MyCircleOverlay(pos=pos, pen=QtGui.QPen(color, pensize), size=size, movable=False, label=label)
 
 
@@ -2068,10 +2078,49 @@ class KeyPressGraphicsWindow(pg.GraphicsWindow):
 
     def __init__(self, *args, **kwargs):
         super(KeyPressGraphicsWindow,self).__init__(*args, **kwargs)
+        print('\n\nkkk')
 
     def keyPressEvent(self, ev):
         self.scene().keyPressEvent(ev)
         self.sigKeyPress.emit(ev)
+
+    def addViewBox2(self, row=None, col=None, rowspan=1, colspan=1, **kargs):
+        """
+        Create a ViewBox and place it in the next available cell (or in the cell specified)
+        All extra keyword arguments are passed to :func:`ViewBox.__init__ <pyqtgraph.ViewBox.__init__>`
+        Returns the created item.
+        """
+        print('\n\n\ng')
+        vb = ViewBoxItems(**kargs)
+        self.addItem(vb, row, col, rowspan, colspan)
+        return vb
+
+
+class ViewBoxItems(pg.graphicsItems.ViewBox.ViewBox):
+
+    def __init__(self, *args, **kwargs):
+        super(ViewBoxItems, self).__init__(*args, **kwargs)
+
+    def addItems(self, items, ignoreBounds=False):
+        """
+        Add a QGraphicsItem to this view. The view will include this item when determining how to set its range
+        automatically unless *ignoreBounds* is True.
+        """
+
+        scene = self.scene()
+        for i, item in enumerate(items):
+            if item.zValue() < self.zValue():
+                item.setZValue(self.zValue() + 1)
+
+            if scene is not None and scene is not item.scene():
+                scene.addItem(item)  ## Necessary due to Qt bug: https://bugreports.qt-project.org/browse/QTBUG-18616
+
+            item.setParentItem(self.childGroup)
+
+        if not ignoreBounds:
+            self.addedItems += items
+
+        self.updateAutoRange()
 
 
 class CreateMaskTMOld(QMainWindow, CommonFunctions):
@@ -2878,10 +2927,11 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
 
         pos.setX(cx - radius)
         pos.setY(cy - radius)
-        self.circles_cent.append(circle(pos, size=(radius) * 2))
+
 
         if abs(cz - self.slice) < self.radius:
-            self.centimage.addItem(self.circles_cent[-1])
+            self.circles_cent.append(circle(pos, size=(radius) * 2))
+            #self.centimage.addItem(self.circles_cent[-1])
 
         if new:
             pos.setX(cx - self.radius)
@@ -2980,6 +3030,9 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
             add = False
             self.add_points(self.pos, cx, cy, cz, cs, radius, add=add, score=cs, new=False)
 
+        self.centimage.addItems(self.circles_cent)
+
+
 class InfiniteLinePlotter(pg.InfiniteLine):
     pass
 
@@ -3001,6 +3054,34 @@ class LinearRegionItem(pg.LinearRegionItem):
         self.other.lines[0].setValue(self.lines[0].value())
         self.other.lines[1].setValue(self.lines[1].value())
         self.sigRegionChangeFinished.emit(self)
+
+
+class PointsItem(QtGui.QGraphicsItem):
+    def __init__(self, x=None, y=None):
+        QtGui.QGraphicsItem.__init__(self)
+        self.setData(x, y)
+
+    def setData(self, x, y):
+        if x is None:
+            x = np.array([])
+            y = np.array([])
+        self.data = np.empty((len(x), 2), dtype=np.float)
+        self.data[:, 0] = x
+        self.data[:, 1] = y
+        xmin = x.min()
+        xmax = x.max()
+        ymin = y.min()
+        ymax = y.max()
+        self.bounds = QtCore.QRectF(xmin, ymin, xmax - xmin, ymax - ymin)
+        self.prepareGeometryChange()
+
+    def boundingRect(self):
+        return self.bounds
+
+    def paint(self, p, *args):
+        p.setPen(pg.mkPen((255, 255, 255, 80)))
+        ptr = ctypes.c_void_p(sip.unwrapinstance(p))
+        drawPoints(ptr, self.data.ctypes, self.data.shape[0])
 
 
 class ParticlePicker(QMainWindow, CommonFunctions):
@@ -3031,6 +3112,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.activate = 0
         self.activateLine = 0
         self.angleLine = 0
+        self.red_circle = 0
+
 
         self.circles_left = []
         self.circles_cent = []
@@ -3045,9 +3128,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.centcanvas = w = KeyPressGraphicsWindow(size=(600, 600), border=True)
         self.datalabel = pg.LabelItem(justify='right')
         self.centcanvas.addItem(self.datalabel)
-        self.centimage  = w.addViewBox(row=1, col=0, lockAspect=True)
+        self.centimage  = w.addViewBox2(row=1, col=0, lockAspect=True)
         self.centimage.setMenuEnabled(False)
-
 
         self.target = w3 = pg.ImageView()
         self.title = parent.widgets['v03_manualpp_tomogramFname'].text()
@@ -3063,6 +3145,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.layout.addWidget(w2,1,1)
         self.layout.addWidget(self.operationbox,1,0)
         self.title = parent.widgets['v03_manualpp_tomogramFname'].text()
+        self.TOMNAME = self.title
         if not self.title: self.title = 'Dummy Data'
 
         self.folder = os.path.dirname(self.title)
@@ -3075,6 +3158,12 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         self.centcanvas.sigMouseReleased.connect(self.empty)
 
+        self.slice =0
+        self.pen = pg.mkPen(color='#117a42', width=2)
+        self.lineB = InfiniteLinePlotter([self.slice, self.slice], angle=0, movable=False, pen=self.pen)
+        self.lineL = InfiniteLinePlotter([self.slice, self.slice], angle=90, movable=False, pen=self.pen)
+
+
         self.load_image()
         self.leftimage.setXRange(0, self.vol.shape[0])
 
@@ -3086,8 +3175,27 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         self.centimage.scene().sigMouseMoved.connect(self.updateLabel)
 
+
+        self.bottomimage.addItem(self.lineB)
+        self.leftimage.addItem(self.lineL)
+
         self.replot()
         pg.QtGui.QApplication.processEvents()
+
+    def closeEvent(self, event):
+
+        close = QMessageBox()
+        close.setText("Are you sure you want to close the particle picking windows?")
+        close.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+        close = close.exec()
+
+        if close == QMessageBox.Yes:
+            self.subtomo_plots.destroy()
+            event.accept()
+
+        else:
+            event.ignore()
+
 
     def wheelEvent(self, event):
         try:
@@ -3101,6 +3209,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 self.line.setAngle(self.angleLine)
 
             elif self.slice+increment < self.vol.shape[0] and self.slice+increment > -1:
+                self.slice += increment
                 self.update_circles(increment)
                 self.replot()
         except Exception as e:
@@ -3118,19 +3227,18 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         if Qt.Key_Right == evt.key():
             if self.slice + int(self.widgets['step_size'].text()) < self.dim:
                 update = int(self.widgets['step_size'].text())
+                self.slice += update
                 self.replot()
-                self.update_circles(update)
-
+                self.update_circles()
 
         if Qt.Key_Left == evt.key():
             if self.slice > int(self.widgets['step_size'].text()) - 1:
-                update = -1*int(self.widgets['step_size'].text())
+                update = int(self.widgets['step_size'].text())
+                self.slice -= update
                 self.replot()
-                self.update_circles(update)
-
+                self.update_circles()
 
         if evt.key() == Qt.Key_Escape:
-            self.subtomo_plots.close()
             self.close()
 
         if evt.key() == Qt.Key_A:
@@ -3261,21 +3369,17 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
             inputJobName = "cat {}/{}_reconstruction.sh | grep '{}' | {}"
 
-            headerInfo = []
-            for i in ('referenceMarkerIndex', 'projectionBinning'):
-                if 1:
 
-                    d = os.popen(inputJobName.format(folder,key, i, "awk '{print $2}'")).read()[:-1]
-                else:
-                    d = 1
-                headerInfo.append(d)
+            from pytom.bin.templateMatchingCandidateExtractionSingleGPU import getBinningFactorAndReferenceMarker
+
+            binning, refmark = getBinningFactorAndReferenceMarker(self.title)
 
 
             out = open(fname, 'w')
             out.write('#\n')
-            out.write('#TOMONAME \t{}\n'.format(os.path.basename(self.title)))
-            out.write('#MARKERINDEX \t{}\n'.format(headerInfo[0]))
-            out.write('#BINNINGFACTOR \t{}\n'.format(headerInfo[1]))
+            out.write('#TOMONAME \t{}\n'.format(self.TOMNAME))
+            out.write(f'#MARKERINDEX \t{binning}\n')
+            out.write(f'#BINNINGFACTOR \t{refmark}\n')
             out.write('#\n')
 
             for x, y, z, s in self.particleList:
@@ -3286,7 +3390,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         filetype = 'txt'
         initdir = self.parent().pickpartfolder
 
-        filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "Coordinate files (*.txt);; Particle List (*.xml)")[0])
+        filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "PyTom ParticleList(*.xml);; Coordinate File (*.txt)")[0])
         if not filename: return
 
         if filename.endswith('.txt'):
@@ -3349,9 +3453,9 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         xmlObj = etree.parse(filename)
         particles = xmlObj.xpath('Particle')
 
-        self.remove_all()
+        self.particleList = []
         self.slice = int(self.vol.shape[0] / 2)
-
+        QApplication.processEvents()
         for p in particles:
             try:    score = float( p.xpath('Score')[0].get('Value') )
             except: score = 0.5
@@ -3372,28 +3476,29 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                     continue
 
                 radius = self.radius
-                if abs(z - self.slice) < 2:
+                if abs(z - self.slice) < self.radius:
                     radius = sqrt(self.radius ** 2 - (z - self.slice) ** 2)
-                    self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), score, radius, score=score)
+                    #self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), score, radius, score=score)
 
                 self.particleList.append([int(round(x)), int(round(y)), int(round(z)), score])
 
+        if len(self.particleList): self.update_circles()
+
         self.widgets['numSelected'].setText(str(len(self.particleList)))
         self.replot()
+        QApplication.processEvents()
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
-
-        particlePos = [line.split() for line in open(filename).readlines() if 'PickPosition' in line]
 
     def load_txtFile(self, filename):
         particlePos = [map(float, line.split()) for line in open(filename).readlines() if line != '' and not '#' in line]
 
-        self.remove_all()
+        self.particleList = []
         self.slice = int(self.vol.shape[0]/2)
 
         for x,y,z in particlePos:
             self.particleList.append([int(round(x)), int(round(y)), int(round(z)), self.radius])
-            self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), 0., self.radius, add=True)
 
+        if len(self.particleList): self.update_circles()
         self.replot()
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
 
@@ -3423,19 +3528,20 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         if not a: return
 
 
-        plist = copy.deepcopy(self.particleList)
-        self.remove_all()
+        #plist = copy.deepcopy(self.particleList)
+        #self.remove_all(keepPL=True)
 
         self.radius = int(self.widgets['size_selection: '].text()) / 2
 
 
-        for nn, (x,y,z,s) in enumerate(plist):
-            add= True
-            if self.xmlfile and len(self.particleList) > 100: add=False
-            self.add_points(QPoint(0,0), x, y, z, s, self.radius, add=add, score=s)
+        # for nn, (x,y,z,s) in enumerate(plist):
+        #     add= True
+        #     if self.xmlfile and len(self.particleList) > 100: add=False
+        #     self.add_points(QPoint(0,0), x, y, z, s, self.radius, add=add, score=s)
+
+        self.update_circles()
 
         self.subtomo_plots.size_subtomo = self.radius*2
-
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
 
     def stateScoreChanged(self):
@@ -3452,12 +3558,18 @@ class ParticlePicker(QMainWindow, CommonFunctions):
     def replot(self):
         crop = self.vol[int(self.slice), :, :]
         self.img1m.clear()
-        self.img1m.setImage(image=crop.T)
+        self.img1m.setImage(image=crop.T, autoDownsample=True)
 
         #self.centcanvas.removeItem(self.hist)
         #self.hist = pg.HistogramLUTItem()
         self.hist.setImageItem(self.img1m)
         self.hist.setLevels(numpy.median(crop)-crop.std()*3,numpy.median(crop)+crop.std()*3)
+        self.writeLabelText(z=self.slice)
+
+        if self.activateLine == 0 and self.activate == 0:
+            self.lineB.setValue(self.slice)
+            self.lineL.setValue(self.slice)
+
         #self.centcanvas.addItem(self.hist)
 
     def mouseHasMoved(self, evt):
@@ -3481,13 +3593,15 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 if remove:
                     self.remove_point(n-num_deleted_items,z)
                     self.subtomo_plots.delete_subplot([x,y,z])
+                    self.update_circles()
+
                     num_deleted_items += 1
 
         if add and not remove:
             X, Y = pos.x(), pos.y()
             self.particleList.append([int(round(X)), int(round(Y)), int(round(self.slice)), self.radius])
-
-            self.add_points(pos, X, Y, self.slice, 0, self.radius,add=add)
+            self.update_circles()
+            #self.add_points(pos, X, Y, self.slice, 0, self.radius,add=add)
             self.subtomo_plots.add_subplot(self.vol, self.particleList[-1])
 
         self.widgets['numSelected'].setText(str(len(self.particleList)))
@@ -3497,14 +3611,20 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
           ## using signal proxy turns original arguments into a tuple
         pos = self.centimage.mapSceneToView(pos)
-        if pos.x() >= 0 and pos.y() >= 0 and pos.x() < self.vol.shape[1] and pos.y() < self.vol.shape[2]:
+        if pos.x() >= 0 and pos.y() >= 0 and pos.x() < self.vol.shape[2] and pos.y() < self.vol.shape[1]:
+
             self.datalabel.setText(f"value = {self.vol[int(self.slice)][int(pos.y())][int(pos.x())]:7.3f} x = {pos.x():6.0f} y={pos.y():6.0f} z = {self.slice:4.0f}")
+
+    def writeLabelText(self,v=0, x=0,y=0,z=0):
+        self.datalabel.setText(f"value = {v:7.3f} x = {x:6.0f} y={y:6.0f} z = {z:4.0f}")
 
     def mouseHasMovedBottom(self, evt):
         pos = self.bottomimage.mapSceneToView( evt.scenePos() )
-        if pos.y() < 0 or pos.y() >= self.vol.shape[2]: return
+        if pos.y() < 0 or pos.y() >= self.vol.shape[2]:
+            return
         step = pos.y() - self.slice
-        self.update_circles(step)
+        self.slice += step
+        self.update_circles()
         self.replot()
 
     def mouseHasMovedLeft(self, evt):
@@ -3512,10 +3632,11 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         if pos.x() < 0 or pos.x() >= self.vol.shape[1]: return
 
         step = pos.x()-self.slice
-        self.update_circles(step)
+        self.slice += step
+        self.update_circles()
         self.replot()
 
-    def remove_from_coords(self,coords):
+    def remove_from_coords(self, coords):
         cx,cy,cz = coords[:3]
         for n, (x,y,z,s) in enumerate(self.particleList):
             if sqrt( (x-cx)**2 + (y-cy)**2 + (z-cz)**2 ) < self.radius:
@@ -3527,11 +3648,12 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
 
 
-        if abs(cz - self.slice) < self.radius:
+        if 1:# abs(cz - self.slice) < self.radius:
             pos.setX(cx - radius)
             pos.setY(cy - radius)
             self.circles_cent += [circle(pos, size=(radius) * 2)]
-            self.centimage.addItem(self.circles_cent[-1])
+            #self.centimage.addItem(self.circles_cent[-1])
+
 
         if add:
             pos.setX(cx - self.radius)
@@ -3548,16 +3670,17 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         if from_particleList:
             self.particleList = self.particleList[:n] + self.particleList[n + 1:]
 
-        if abs(z - self.slice) <= self.radius:
-            self.centimage.removeItem(self.circles_cent[n])
-        self.circles_cent = self.circles_cent[:n] + self.circles_cent[n + 1:]
-
-        self.leftimage.removeItem(self.circles_left[n])
-        self.circles_left = self.circles_left[:n] + self.circles_left[n + 1:]
-
-        self.bottomimage.removeItem(self.circles_bottom[n])
-
-        self.circles_bottom = self.circles_bottom[:n] + self.circles_bottom[n + 1:]
+        # if abs(z - self.slice) <= self.radius:
+        #     self.centimage.removeItem(self.circles_cent[n])
+        #
+        # self.circles_cent = self.circles_cent[:n] + self.circles_cent[n + 1:]
+        #
+        # self.leftimage.removeItem(self.circles_left[n])
+        # self.circles_left = self.circles_left[:n] + self.circles_left[n + 1:]
+        #
+        # self.bottomimage.removeItem(self.circles_bottom[n])
+        #
+        # self.circles_bottom = self.circles_bottom[:n] + self.circles_bottom[n + 1:]
 
     def remove_all(self, keepPL=False):
         [self.centimage.removeItem(child) for child in self.circles_cent]
@@ -3635,7 +3758,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             print(e)
             angle=0
         folder = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
-        if os.path.exists(folder, 'WBP_Reconstruction.sh'):
+        if os.path.exists(os.path.join(folder, 'WBP_Reconstruction.sh')):
             d = open(os.path.join(folder, 'WBP_Reconstruction.sh'), 'r').read()[:-1]
             try:
                 used_angle = float(d.split('specimenAngle ')[-1].split()[0])
@@ -3651,15 +3774,22 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         import time
         s = time.time()
         plist = copy.deepcopy(self.particleList)
-        self.remove_all(keepPL=True)
-        print('removal time: ', time.time()-s)
+        #self.remove_all(keepPL=True)
+        if type(self.red_circle) == MyCircleOverlay:
+            self.centimage.removeItem(self.red_circle)
+            self.red_circle = 0
+
+        #self.centimage.clear()
+
 
         nn = 0
+        added = 0
+        num_circles = len(self.circles_cent)
         for n, (cx, cy, cz, cs) in enumerate(plist):
             #t = time.time()
             radius = self.radius
-
-            if abs(cz - self.slice) >= 2:
+            if n%100 == 0: print(n)
+            if abs(cz - self.slice) >= self.radius:
                 #print(radius, cz, self.slice)
                 continue
 
@@ -3670,12 +3800,29 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 add = False
             else:
                 add = True
-            self.add_points(self.pos, cx, cy, cz, cs, radius, add=add)
+
+            if nn < num_circles:
+                self.circles_cent[nn].setPos(cx-radius, cy-radius, update=False)
+                self.circles_cent[nn].setSize(radius*2)
+            else:
+                self.add_points(self.pos, cx, cy, cz, cs, radius, add=add)
+                added += 1
             #print(f'added point {nn}: {(time.time()-t)*1000:.2f}')
             nn += 1
 
-        print(f'added {nn} points: {(time.time()-s)*1000:.2f}')
-        self.slice += update
+        self.centimage.addItems(self.circles_cent[-added:])
+
+        remove= 0
+        if nn < num_circles:
+            #remove = self.remove if self.remove < num_circles-nn-1
+            #[self.centimage.removeItem(child) for child in self.circles_cent[nn:]]
+            #self.circles_cent = self.circles_cent[:nn]
+            for circle in self.circles_cent[nn:]:
+                circle.setSize(0.001)
+
+        print(f'added {added} points: {(time.time()-s)*1000:.2f}')
+        print(f'removed {remove} points')
+        #self.slice += update
 
     def adjustZLimits(self):
         self.replot_all()
@@ -3688,9 +3835,13 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         for image in [self.leftimage, self.bottomimage]:
             for child in image.allChildren():
-                if type(child) == LinearRegionItem:
+                if type(child) == LinearRegionItem or type(child) == InfiniteLinePlotter:
                     image.removeItem(child)
         if not insert:
+            self.lineB = InfiniteLinePlotter([self.slice, self.slice], angle=0, movable=False, pen=self.pen)
+            self.lineL = InfiniteLinePlotter([self.slice, self.slice], angle=90, movable=False, pen=self.pen)
+            self.bottomimage.addItem(self.lineB)
+            self.leftimage.addItem(self.lineL)
             return
         try:
             tt = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
@@ -3723,6 +3874,13 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 if type(child) == InfiniteLinePlotter:
                     image.removeItem(child)
         if not insert:
+            self.lineB = InfiniteLinePlotter([self.slice, self.slice], angle=0, movable=False, pen=pg.mkPen(color='#117a42', width=2))
+            self.lineL = InfiniteLinePlotter([self.slice, self.slice], angle=90, movable=False,
+                                             pen=pg.mkPen(color='#117a42', width=2))
+
+            self.bottomimage.addItem(self.lineB)
+            self.leftimage.addItem(self.lineL)
+
             return
         try:
 
@@ -4372,9 +4530,11 @@ class Viewer3D(QMainWindow, CommonFunctions):
         self.leftimage.setMouseEnabled(False, False)
 
         self.centcanvas = w = KeyPressGraphicsWindow(size=(600, 600), border=True)
-        self.centimage = w.addViewBox(row=0, col=0, lockAspect=True)
+        self.centimage = w.addViewBox(row=1, col=0, lockAspect=True)
         self.centimage.setMenuEnabled(False)
         self.target = w3 = pg.ImageView()
+        self.datalabel = pg.LabelItem(justify='right')
+        self.centcanvas.addItem(self.datalabel, row=0, col=0,)
 
         self.bottomcanvas = w2 = pg.GraphicsWindow(size=(600, 200), border=True)
         self.bottomimage = w2.addViewBox(row=0, col=0)
@@ -4397,6 +4557,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
 
         # self.centcanvas.sigKeyPress.connect(self.keyPress)
         self.centcanvas.sigMouseReleased.connect(self.empty)
+        self.centimage.scene().sigMouseMoved.connect(self.updateLabel)
 
         self.load_image()
         if not self.failed:
@@ -4408,7 +4569,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
     def wheelEvent(self, event):
 
         step = event.angleDelta().y() / 120
-        increment = int(self.widgets['step_size'].text()) * step
+        increment = int(int(self.widgets['step_size'].value()) * step)
         if self.slice + increment < self.vol.shape[0] and self.slice + increment > -1:
             self.slice += increment
             self.replot()
@@ -4433,6 +4594,26 @@ class Viewer3D(QMainWindow, CommonFunctions):
         if evt.key() == Qt.Key_Escape:
             self.subtomo_plots.close()
             self.close()
+
+    def updateLabel(self, pos):
+
+          ## using signal proxy turns original arguments into a tuple
+        pos = self.centimage.mapSceneToView(pos)
+        x, y = pos.x(), pos.y()
+        if pos.x() >= 0 and pos.y() >= 0 and pos.x() < self.vol.shape[(self.currID+2)%3] and pos.y() < self.vol.shape[(self.currID+1)%3]:
+
+            if self.currID == 0:
+                self.writeLabelText( self.vol[int(self.slice)][int(y)][int(x)], x, y, self.slice)
+
+            if self.currID == 1:
+                self.writeLabelText( self.vol[int(x)][int(self.slice)][int(y)], self.slice, x, y)
+
+            if self.currID == 2:
+                self.writeLabelText( self.vol[int(y)][int(x)][int(self.slice)], y, self.slice, x)
+
+
+    def writeLabelText(self, v=0, x=0, y=0, z=0):
+        self.datalabel.setText(f"value = {v:7.3f} x = {x:6.0f} y={y:6.0f} z = {z:4.0f}")
 
     def add_controls(self, prnt):
         vDouble = QtGui.QDoubleValidator()
@@ -4500,20 +4681,21 @@ class Viewer3D(QMainWindow, CommonFunctions):
         self.img1m.setImage(image=crop.T)
         self.hist.setImageItem(self.img1m)
         self.hist.setLevels(numpy.median(crop) - crop.std() * 3, numpy.median(crop) + crop.std() * 3)
+        self.writeLabelText(z=self.slice)
 
     def mouseHasMoved(self, evt):
         pass
 
     def mouseHasMovedBottom(self, evt):
         pos = self.bottomimage.mapSceneToView(evt.scenePos())
-        if pos.y() < 0 or pos.y() >= self.vol.shape[2]: return
+        if pos.y() < 0 or pos.y() >= self.vol.shape[self.currID]: return
         step = pos.y() - self.slice
         self.slice += step
         self.replot()
 
     def mouseHasMovedLeft(self, evt):
         pos = self.leftimage.mapSceneToView(evt.scenePos())
-        if pos.x() < 0 or pos.x() >= self.vol.shape[1]: return
+        if pos.x() < 0 or pos.x() >= self.vol.shape[self.currID]: return
 
         step = pos.x() - self.slice
         self.slice += step
@@ -4533,9 +4715,10 @@ class Viewer3D(QMainWindow, CommonFunctions):
                 from pytom_numpy import vol2npy
                 self.vol = read(self.title)
                 self.vol = self.vol.T
+                #self.vol = numpy.fft.fftshift(numpy.abs(numpy.fft.fftn(self.vol))**2)
+
             elif self.title.split('.')[-1] in ('mrc', 'mrcs', 'rec', 'st', 'map'):
                 self.vol = read_mrc(self.title)
-
 
             self.mask = numpy.ones_like(self.vol)
             # self.vol[self.vol < -4.] = -4.
@@ -4546,6 +4729,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
 
             id = 2 - self.dirId
 
+            self.currID = id
             self.dim = self.vol.shape[id]
             self.slice = self.d = int(self.dim / 2)
 
@@ -4563,7 +4747,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
 
             self.hist = pg.HistogramLUTItem()
             self.hist.setImageItem(self.img1m)
-            self.centcanvas.addItem(self.hist)
+            self.centcanvas.addItem(self.hist, row=1,col=1)
 
             self.replot_all()
         except Exception as e:
@@ -4599,9 +4783,11 @@ class Viewer2D(QMainWindow, CommonFunctions):
         self.failed = False
 
         self.centcanvas = w = KeyPressGraphicsWindow(size=(600, 600), border=True)
-        self.centimage = w.addViewBox(row=0, col=0, lockAspect=True)
+        self.centimage = w.addViewBox(row=1, col=0, lockAspect=True)
         self.centimage.setMenuEnabled(False)
         self.target = w3 = pg.ImageView()
+        self.datalabel = pg.LabelItem(justify='right')
+        self.centcanvas.addItem(self.datalabel, row=0, col=0)
 
         self.image_list = [self.centimage]
 
@@ -4614,6 +4800,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
         self.centcanvas.wheelEvent = self.wheelEvent
 
         # self.centcanvas.sigKeyPress.connect(self.keyPress)
+        self.centimage.scene().sigMouseMoved.connect(self.updateLabel)
 
 
         self.add_controls(self.layout_operationbox)
@@ -4624,7 +4811,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
     def wheelEvent(self, event):
 
         step = event.angleDelta().y() / 120
-        increment = self.step_size * step
+        increment = int(self.step_size * step)
         if self.slice + increment < self.vol.shape[0] and self.slice + increment > -1:
             self.slice += increment
             self.replot()
@@ -4647,6 +4834,17 @@ class Viewer2D(QMainWindow, CommonFunctions):
 
         if evt.key() == Qt.Key_Escape:
             self.close()
+
+    def updateLabel(self, pos):
+
+          ## using signal proxy turns original arguments into a tuple
+        pos = self.centimage.mapSceneToView(pos)
+        x, y = pos.x(), pos.y()
+        if pos.x() >= 0 and pos.y() >= 0 and pos.x() < self.vol.shape[1] and pos.y() < self.vol.shape[2]:
+            self.writeLabelText( self.vol[int(self.slice)][int(y)][int(x)], x, y, self.slice)
+
+    def writeLabelText(self, v=0, x=0, y=0, z=0):
+        self.datalabel.setText(f"value = {v:7.3f} x = {x:6.0f} y={y:6.0f} z = {z:4.0f}")
 
     def add_controls(self, prnt):
         vDouble = QtGui.QDoubleValidator()
@@ -4715,7 +4913,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
                 self.vol = self.ps.copy()
         else:
             self.vol = self.backup.copy()
-            self.widgets['show_phases'].setChecked(False)
+            self.widgets['show_power_spectrum'].setChecked(False)
             self.widgets['apply_gaussian_filter'].setChecked(False)
 
         self.replot()
@@ -4755,6 +4953,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
         self.hist.setImageItem(self.img1m)
         self.hist.setLevels(numpy.median(crop) - crop.std() * 3, numpy.median(crop) + crop.std() * 3)
         # self.centcanvas.addItem(self.hist)
+        self.writeLabelText(z=self.slice)
 
     def mouseHasMoved(self, evt):
         pass
@@ -4806,7 +5005,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
 
             self.hist = pg.HistogramLUTItem()
             self.hist.setImageItem(self.img1m)
-            self.centcanvas.addItem(self.hist)
+            self.centcanvas.addItem(self.hist, row=1, col=1)
 
             self.replot()
         except Exception as e:
@@ -4958,7 +5157,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         tooltip = []
         values = []
         added_jobs = []
-        for n, logfile in enumerate(self.jobFilesLocal):
+        for n, logfile in enumerate(reversed(self.jobFilesLocal)):
             queueId = os.path.basename(logfile).split('-')[0]
             jobname = glob.glob(os.path.join(self.logfolder, 'Local', f'{queueId}*.sh'))
             if len(jobname) < 1:
@@ -5637,12 +5836,19 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         w = 150
         last, reftilt = 10, 5
         self.insert_label(parent, cstep=-4, rstep=1, sizepolicy=self.sizePolicyB, width=w)
-        self.insert_label_line_push(parent, 'particleList ', mode + 'particleListNormal', width=w, mode='file',
+        self.insert_label_line_push(parent, 'particleList 1', mode + 'particleListNormal', width=w, mode='file',
                                     filetype='xml', enabled=True,
                                     tooltip='Select a particleList which you want to plot.\n')
-        self.insert_label_line_push(parent, 'particleList Mirrored', mode + 'particleListMirrored', width=w,
+        self.insert_label_line_push(parent, 'particleList 2 (mirrored)', mode + 'particleListMirrored', width=w,
                                     mode='file', filetype='xml', enabled=True,
-                                    tooltip='Select a particleList which you want to plot.\n', cstep=-1)
+                                    tooltip='Select a particleList which you want to plot.\n', cstep=-2)
+        self.insert_label_line(parent, 'Label 1', mode + 'label1', width=w,value='Normal',
+                                    tooltip='Label for the first particle list.\n', cstep=-1)
+        self.insert_label_line(parent, 'Label 2', mode + 'label2', width=w, value='Mirrored',
+                               tooltip='Label for the first particle list.\n', cstep=-1)
+        self.insert_label_checkbox(parent, mode + 'plotCrossings', 'Plot crossings of curves',
+                               tooltip='Do you want to display the locations where two curves cross?\n', cstep=-0)
+
         self.insert_pushbutton(parent, 'Plot', action=self.showTMPlot, params=mode, rstep=1, cstep=0)
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
 
@@ -5652,7 +5858,8 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         normal = self.widgets[mode + 'particleListNormal'].text()
         mirrored = self.widgets[mode + 'particleListMirrored'].text()
 
-        plotTMResults([normal, mirrored], labels=['Normal', 'Mirrored'])
+        plotTMResults([normal, mirrored], plot_cross=self.widgets[mode + 'plotCrossings'].isChecked(),
+                      labels=[self.widgets[mode + 'label1'].text(), self.widgets[mode + 'label2'].text()])
 
     def tab2UI(self, id=''):
         self.row, self.column = 0, 4
@@ -6149,7 +6356,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         subtomo[:xmax-xmin,:ymax-ymin] = (tomo[position[2]-4:position[2]+4].sum(axis=0).T)[xmin:xmax, ymin:ymax]
 
         self.position = position
-        if self.index[1] == 0:
+        if self.index[1] == 0 or self.index[0]+1 >= len(self.vBoxList):
 
             self.newViewBox()
             self.iItemList.append( pg.ImageItem(subtomo))
@@ -6165,10 +6372,41 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
             self.num_assigned += 1
             self.coordinates[self.index[0]] = self.position + [self.index[0]]
             self.index = [self.num_assigned, 0]
+            self.vBoxList[self.index[0]].setRange(xRange=[0, self.size_subtomo], yRange=[0, self.size_subtomo], padding=0)
             for n, a in enumerate(self.assigned):
                 if a == 0:
                     self.index = [n,1]
                     break
+
+    def reset_display_subtomograms(self, particleList, volume):
+
+        self.index = [0,0]
+        self.num_assigned = 0
+        for n, (x,y,z,s) in enumerate(particleList):
+            position = [x,y,z,s]
+            xmin = max(0, x - int(self.size_subtomo / 2))
+            xmax = min(volume.shape[1], x + int(self.size_subtomo / 2))
+            ymin = max(0, y - int(self.size_subtomo / 2))
+            ymax = min(volume.shape[2], y + int(self.size_subtomo / 2))
+
+            subtomo = zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
+            subtomo[:xmax-xmin,:ymax-ymin] = (volume[z-4:z+4].sum(axis=0).T)[xmin:xmax, ymin:ymax]
+
+            if n < len(self.iItemList):
+                self.position = [x,y,z,s]
+                self.iItemList[self.index[0]].setImage(image=subtomo)
+                self.assigned[self.index[0]] = 1
+                self.num_assigned += 1
+                self.coordinates[self.index[0]] = self.position + [self.index[0]]
+                self.vBoxList[self.index[0]].setRange(xRange=[0, self.size_subtomo], yRange=[0, self.size_subtomo], padding=0)
+                self.index = [self.num_assigned, 0]
+            else:
+                self.index = [n,0]
+                self.add_subplot(volume, [x,y,z,s])
+
+        for nn in range(len(particleList), len(self.iItemList)):
+            self.delete_subplot(self.coordinates[nn])
+
 
     def delete_subplot(self, position):
         for x,y,z,s, index in self.coordinates:
@@ -6219,35 +6457,118 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
 
         elif self.coordinates[ID][2] > -1:
 
-            import time
             #self.parent().pos.setX(self.coordinates[ID][0] - self.parent().radius)
             #self.parent().pos.setY(self.coordinates[ID][1] - self.parent().radius)
             #self.parent().centimage.addItem(circle(self.parent().pos, size=(self.parent().radius)*1.5, color=Qt.yellow))
             self.setWindowTitle("Error Score: {:6.3f}".format( self.coordinates[ID][3]))
             self.parent().slice = self.coordinates[ID][2]
-            s = time.time()
             self.parent().replot()
-            print(time.time()-s)
-            #self.parent().update_circles()
-            self.parent().remove_all(keepPL=True)
+            self.parent().update_circles()
+            #self.parent().remove_all(keepPL=True)
 
-            print(time.time()-s)
             self.parent().pos.setX(self.coordinates[ID][0] - self.parent().radius)
             self.parent().pos.setY(self.coordinates[ID][1] - self.parent().radius)
-            self.parent().centimage.addItem(circle(self.parent().pos, size=(self.parent().radius) * 2, color=Qt.red))
+            try:
+                self.parent().red_circle.setPos(self.parent().pos)
+            except:
+                self.parent().red_circle = circle(self.parent().pos, size=(self.parent().radius) * 2, color=Qt.red)
+                self.parent().centimage.addItem(self.parent().red_circle)
 
-    def reset_display_subtomograms(self, particleList, volume ):
+    def reset_display_subtomograms_old(self, particleList, volume ):
+        import time
+        t = time.time()
+
         for child in self.vBoxList:
-            self.canvas.removeItem(child)
+           self.canvas.removeItem(child)
+
+        print(f'Removal time: {(time.time()-t)*1000:.1f"}')
 
         self.init_variables()
+        import atexit
+        from multiprocessing import Process
+        from pytom.gui.guiFunctions import loadstar, savestar, kill_proc
 
-        self.num_subtomo_per_row = int(self.width/self.size_subplot)
+        self.num_subtomo_per_row = int(self.width / self.size_subplot)
+        #self.index = [0,self.index[1]]
 
-        for n, (x,y,z,s) in enumerate(particleList):
-            self.add_subplot( volume, [x,y,z,s] )
+        nr_procs = 0
+        procs=[]
+        for proc_id in range(nr_procs):
+            manager = Manager()
+            vb = manager.list([[],]*nr_procs)
+            ass = manager.list([[],]*nr_procs)
+            coords =  manager.list([[],]*nr_procs)
+            ilist =  manager.list([[],]*nr_procs)
+            num_ass = manager.list([0,]*nr_procs)
+            proc = Process(target=self.update_do,
+                           args=(volume, particleList[proc_id::nr_procs]))
+            procs.append(proc)
+            proc.start()
+            atexit.register(kill_proc, proc)
+
+        while procs:
+            procs = [proc for proc in procs if proc.is_alive()]
+
+        if nr_procs == 0:
+            for n, (x,y,z,s) in enumerate(particleList):
+                self.add_subplot( volume, [x,y,z,s] )
+
+            #self.update_subplot(tomo, particleList)
+            #self.update_do(volume, particleList,procid, self.size_subtomo, vb, self.canvas, ass, coords, ilist, self.num_subtomo_per_row, num_ass )
+
         self.show()
 
+    def update_do(self, volume, particleList, procid, size_subtomo, vb, canvas, ass, coords, ilist, num_subtomo_per_row, num_ass ):
+        for n, (x,y,z,s) in enumerate(particleList):
+            self.add_subplot( volume, [x,y,z,s], procid, size_subtomo, vb, canvas, ass, coords, ilist, num_subtomo_per_row, num_ass )
+
+    def add_subplot_parallel(self, tomo, position, procid, size_subtomo, vBoxList, canvas, assigned, coordinates, iItemList, num_subtomo_per_row, num_assigned):
+        [x,y,z,s]  = position
+        xmin = max(0, x - int(size_subtomo / 2))
+        xmax = min(tomo.shape[1], x + int(size_subtomo / 2))
+        ymin = max(0, y - int(size_subtomo / 2))
+        ymax = min(tomo.shape[2], y + int(size_subtomo / 2))
+
+        subtomo = zeros((int(size_subtomo),int(size_subtomo)),dtype=float)
+        subtomo[:xmax-xmin,:ymax-ymin] = (tomo[z-size_subtomo//2:z+size_subtomo//2].sum(axis=0).T)[xmin:xmax, ymin:ymax]
+
+
+        if self.index[1] == 0 or self.index[0]+1 >= len(vBoxList):
+
+            row = int(self.index[0] / num_subtomo_per_row)
+            col = int(self.index[0] % num_subtomo_per_row)
+            # if row*self.size_subplot > self.height:
+            #     self.scrollarea.setGeometry(self.dx,self.dy,self.width,row*self.size_subplot)
+            vBoxList[procid].append( canvas.addViewBox(row=row, col=col) )
+            vBoxList[procid][-1].setMenuEnabled(False)
+            vBoxList[procid][-1].setMouseEnabled(False, False)
+            #    self.vBoxList[-1].scene().sigMouseClicked.connect(self.mouseClicked)
+
+            vBoxList[procid][-1].setGeometry(0, 0, self.size_subplot, self.size_subplot)
+
+            #
+            assigned[procid].append(1)
+            coordinates[procid].append(position+[self.index[0]])
+            num_assigned += 1
+
+            iItemList.append( pg.ImageItem(subtomo))
+            vBoxList[procid][-1].addItem(iItemList[-1])
+            vBoxList[procid][-1].setRange(xRange=[0, size_subtomo], yRange=[0, size_subtomo], padding=0)
+            vBoxList[procid][-1].setAspectLocked(True)
+
+            self.index = [self.index[0] + 1, 0]
+        else:
+
+            iItemList[procid][self.index[0]].setImage(image=subtomo)
+            assigned[procid][self.index[0]] = 1
+            num_assigned[procid] += 1
+            coordinates[self.index[0]] = position + [self.index[0]]
+            self.index = [num_assigned[procid], 0]
+            vBoxList[self.index[0]].setRange(xRange=[0, size_subtomo], yRange=[0, size_subtomo], padding=0)
+            for n, a in enumerate(assigned[procid]):
+                if a == 0:
+                    self.index = [n,1]
+                    break
 
 if __name__ == "__main__":
     import sys
