@@ -118,19 +118,19 @@ def read_detector_csv(filename):
     return x,y
 
 
-def create_detector_response(detector, response_function, image, voltage=300E3, folder='', display=False):
+def create_detector_response(detector, response_function, image_size, voltage=300E3, binning=1, folder='', display=False):
     """
     CSV file containing the detector curve should on the x-axis be expressed as fraction of Nyquist (between 0 and 1)
     and on the y-axis as the MTF or DQE value (also between 0 and 1).
 
-    @param detector: eg. 'FALCONII'
+    @param detector: eg. 'K2SUMMIT', 'FALCONII'
     @type detector: string
     @param response_function: eg. 'DQE' or 'MTF'
     @type response_function: string
     @param voltage: Voltage of detector operation (in V not kV)
     @type voltage: float
-    @param image: Image is passed for determining the size of the response # TODO image could be just the shape
-    @type image: 2d array (numpy
+    @param image: image size
+    @type image: int
     @param folder: Folder where csv file with detector functions are stored. If not provided assume they are present
     in the current directory. eg. '/data2/mchaillet/simulation/detectors'
     @type folder: string
@@ -150,14 +150,19 @@ def create_detector_response(detector, response_function, image, voltage=300E3, 
     qdata,ydata = read_detector_csv(filename)
     params = fit_sinc_square(qdata,ydata)
 
-    shape = image.shape
+    sampling_image_size = image_size * binning
     # fraction of nyquist maximum
     # Ny = 1
     # R, Y = xp.meshgrid(xp.arange(-Ny, Ny, 2. * Ny / (shape[0])), xp.arange(-Ny, Ny, 2. * Ny / (shape[1])))
     # r = xp.sqrt(R ** 2 + Y ** 2)
-    r = fourier_array(shape, 1)  # nyquist is 1, as the fraction of nyquist maximum
+    r = fourier_array((sampling_image_size,)*2, 1)  # nyquist is 1, as the fraction of nyquist maximum
 
     detector_response = sinc_square(r, params[0], params[1], params[2], params[3])
+
+    if binning > 1:
+        # crop the detector function
+        cut = sampling_image_size // 2 - image_size // 2
+        detector_response = detector_response[cut:-cut, cut:-cut]
 
     if display:
         display_microscope_function(detector_response, form=response_function, complex=False)

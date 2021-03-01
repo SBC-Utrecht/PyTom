@@ -90,12 +90,11 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
                    size=1024, thickness=200,
                    solvent_potential=physics.V_WATER, solvent_factor=1.0, number_of_particles=1000,
                    placement_size=512, retries=5000, number_of_markers=0,
-                   absorption_contrast=False, voltage=300E3, number_of_membranes=0, sigma_motion=8):
+                   absorption_contrast=False, voltage=300E3, number_of_membranes=0, beam_damage_snr=0):
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
     from pytom.simulation.potential import create_gold_marker
     from pytom.voltools import transform
     from pytom.tompy.io import read_mrc, write
-    from pytom.simulation.support import reduce_resolution
 
     # outputs
     X, Y, Z = size, size, thickness
@@ -472,14 +471,20 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
         ground_truth_txt_file += f'{listpdbs[cls_id]} {int(loc_x - loc_x_start)} {int(loc_y - loc_y_start)} {int(loc_z)} ' \
                                  f'{p_angles[0]:.4f} {p_angles[1]:.4f} {p_angles[2]:.4f}\n'
 
-    # # Add structural noise
-    # print('Adding structural noise to grand model cell')
-    # noisy_cell = cell #+ xp.random.normal(0, sigma_structural, cell.shape)
-    # pytom.tompy.io.write(f'{save_path}/grandmodel_noisefree_original.mrc', cell)
-
-    # motion blur is simply a gaussian in fourier space to the required frequency component
-    cell_real = reduce_resolution(cell_real, pixel_size * 1E10, sigma_motion)
-    if absorption_contrast: cell_imag = reduce_resolution(cell_imag, pixel_size * 1E10, sigma_motion)
+    # Add beam damage normal noise
+    # get the mean signal
+    if beam_damage_snr > 0.0:
+        mean_signal_real = cell_real[cell_real>0.01].mean()
+        # snr = mu**2 / sigma**2
+        sigma_damage = xp.sqrt( mean_signal_real**2 / beam_damage_snr)
+        noise = xp.random.normal(0, scale=sigma_damage, size=cell_real.shape)
+        # beam damage is applied as a normal distributed noise, degrading the information
+        cell_real += noise
+        if absorption_contrast:
+            # apply the same noise to the imaginary part as we assume atoms for phase and absorption contrast are damaged
+            # equally
+            mean_signal_imag = cell_imag[cell_imag >0.01].mean()
+            cell_imag += (noise * (mean_signal_imag/mean_signal_real))  # scale the noise by the ratio of mean signal
 
     # grandmodel names
     filename_gm_real    = os.path.join(save_path, 'grandmodel.mrc')
@@ -606,27 +611,20 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
     print(f'Number of electrons per pixel (before binning and sample absorption): {dose_per_pixel}')
 
     # Fourier transform and multiply with sqrt(dqe) = mtf/ntf
-    projection_fourier = xp.fft.fftn(xp.fft.ifftshift(noisefree_projection)) * mtf_shift / ntf_shift
+    projection_fourier = xp.fft.fftn(noisefree_projection) * mtf_shift / ntf_shift
     # projection_fourier = projection_fourier
     # Convert back to real space
-    projection = xp.real(xp.fft.fftshift(xp.fft.ifftn(projection_fourier)))
+    projection = xp.real(xp.fft.ifftn(projection_fourier))
     projection[projection<0] = 0
-    # Draw from poisson distribution and scale by camera's conversion factor
-    # conversion_factor = 100  # in ADU/e- , this is an arbitrary unit. Value taken from Vulovic et al., 2010
 
     # Apply poissonian noise
-    # poisson_mean = projection * dose_per_pixel
-    # sigma_motion = 1 / (pixel_size*1E9)
     projection_poisson = xp.zeros(projection.shape)
     for _ in range(binning**2):
-        # generate shifts per projection to add motion blur
-        # translation = (xp.random.normal(0, sigma_motion), xp.random.normal(0, sigma_motion))
-        # poisson_intermediate = xp.random.poisson(lam=shift(projection, translation, mode='nearest') * dose_per_pixel)
+        # Sample from the poisson distribution for binning^2 to account for the coarse graining of the simulation.
+        # Normally in binning multiple pixels are averaged, obtaining a mean value of multiple poisson distributed
+        # variables.
         poisson_intermediate = xp.random.poisson(lam=projection * dose_per_pixel)
-        projection_poisson += xp.real(xp.fft.fftshift(xp.fft.ifftn(xp.fft.fftn(xp.fft.ifftshift(poisson_intermediate))
-                                                                   * ntf_shift))) / binning**2
-        # imshow(projection_poisson)
-        # show()
+        projection_poisson += xp.real(xp.fft.ifftn(xp.fft.fftn(poisson_intermediate) * ntf_shift)) / binning**2
 
     # Image values are now in ADU
     # Apply the camera's noise transfer function to the noisy image
@@ -646,7 +644,7 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
 
 def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, ctf, dose, dqe, mtf, voltage,
                      binning=1, translation=(.0,.0,.0), rotation=(.0,.0,.0), solvent_potential=physics.V_WATER,
-                     solvent_absorption=.0, sigma_damage=.0, ice_voxels=None):
+                     solvent_absorption=.0, ice_voxels=None):
     """
     Only use multislice for this.
     @param model:
@@ -704,11 +702,6 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
         ice_layer = create_ice_layer(sample.shape, rotation[1], ice_voxels, value=1.0, sigma=0.0)
         # ice layer datatype at this point should be np.float32
         # print(f'data type of ice: {ice_layer.dtype}')
-    # apply structural deterioration due to beam damage via random noise with increment based on frame number
-    # incremental damage based on frame number
-    # if not (sigma_damage == 0.0):
-    #     # this does not add noise to imaginary part, but maybe not needed
-    #     sample += ( ice_layer * xp.random.normal(0, sigma_damage, sample.shape) )
 
     if sample.dtype == 'complex64':
         ice_layer *= solvent_potential
@@ -793,7 +786,7 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
                              pixel_size=1E-9, binning=1, dose=80, voltage=300E3, spherical_aberration=2.7E-3,
                              chromatic_aberration=2.7E-3, energy_spread=0.7, illumination_aperture=0.030E-3,
                              objective_diameter=100E-6, focus_length=4.7E-3, astigmatism=0.0E-9, astigmatism_angle=0,
-                             msdz=1E-9, defocus=2E-6, sigma_damage=0.0, camera_type='K2SUMMIT', camera_folder='',
+                             msdz=1E-9, defocus=2E-6, sigma_shift=0.0, camera_type='K2SUMMIT', camera_folder='',
                              solvent_potential=physics.V_WATER, absorption_contrast=False):
     from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS as dar
     from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
@@ -888,11 +881,10 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     dose_per_tilt = dose / len(angles)
 
     # create motion blur by introducing random  x,y translation for each tilt
-    sigma_motion = 0.0 # nm
     translations = []
     for i in angles:
-        x = xp.random.normal(0, sigma_motion) / (pixel_size*1E9)
-        y = xp.random.normal(0, sigma_motion) / (pixel_size*1E9)
+        x = xp.random.normal(0, sigma_shift) / (pixel_size*1E10)
+        y = xp.random.normal(0, sigma_shift) / (pixel_size*1E10)
         # print((x,y,0.0))
         translations.append((x,y,0.0))
 
@@ -907,10 +899,10 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
                                      astigmatism_angle=astigmatism_angle, display=False)
         ctf_series.append(ctf)
 
-    dqe = create_detector_response(camera_type, 'DQE', xp.zeros((image_size, image_size)), voltage=voltage,
-                                            folder=camera_folder)
-    mtf = create_detector_response(camera_type, 'MTF', xp.zeros((image_size, image_size)), voltage=voltage,
-                                            folder=camera_folder)
+    dqe = create_detector_response(camera_type, 'DQE', image_size, voltage=voltage,
+                                            folder=camera_folder, binning=binning)
+    mtf = create_detector_response(camera_type, 'MTF', image_size, voltage=voltage,
+                                            folder=camera_folder, binning=binning)
 
     # joblib automatically memory maps a numpy array to child processes
     print(f'Projecting the model with {nodes} processes')
@@ -920,8 +912,7 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
         (delayed(parallel_project)(rotation_volume, i, image_size, pixel_size, msdz, n_slices, ctf,
                                    dose_per_tilt, dqe, mtf, voltage, binning=binning, translation=translation,
                                    rotation=(.0, angle, .0), solvent_potential=solvent_potential,
-                                   solvent_absorption=solvent_amplitude, sigma_damage=sigma_damage,
-                                   ice_voxels=box_height)
+                                   solvent_absorption=solvent_amplitude, ice_voxels=box_height)
          for i, (angle, translation, ctf) in enumerate(zip(angles, translations, ctf_series)))
 
     sys.stdout.flush()
@@ -957,7 +948,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
                               binning=1, dose=80, voltage=300E3, spherical_aberration=2.7E-3,
                               chromatic_aberration=2.7E-3, energy_spread=0.7, illumination_aperture=0.030E-3,
                               objective_diameter=100E-6, focus_length=4.7E-3, astigmatism=0.0E-9, astigmatism_angle=0,
-                              msdz=1E-9, defocus=2E-6, sigma_damage=0.0, camera_type='K2SUMMIT', camera_folder='',
+                              msdz=1E-9, defocus=2E-6, sigma_shift=0.0, camera_type='K2SUMMIT', camera_folder='',
                               solvent_potential=physics.V_WATER, absorption_contrast=False):
     """
     Creating a frame series for the initial grand model by applying stage drift (translation) and some rotations for
@@ -1053,7 +1044,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     # number of frames. In MotionCorr2 paper accumulated motion for 20S proteasome dataset is 11A across the whole
     # frame series.
     # First generate global motion and global direction of motion.
-    global_motion = xp.random.normal(10, 3) # normal around mean 10 A and std 3A
+    global_motion = xp.random.normal(sigma_shift, 3) # normal around mean 10 A and std 3A
     average_motion_per_frame = global_motion / n_frames
     global_angle = xp.random.uniform(0,360) # random angle from uniform
     translations, cumulative_translations, translations_voxel = [], [], []
@@ -1092,10 +1083,10 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
                                    focus_length=focus_length, astigmatism=astigmatism,
                                    astigmatism_angle=astigmatism_angle, display=False)
 
-    dqe = create_detector_response(camera_type, 'DQE', xp.zeros((image_size, image_size)), voltage=voltage,
-                                            folder=camera_folder)
-    mtf = create_detector_response(camera_type, 'MTF', xp.zeros((image_size, image_size)), voltage=voltage,
-                                            folder=camera_folder)
+    dqe = create_detector_response(camera_type, 'DQE', image_size, voltage=voltage,
+                                            folder=camera_folder, binning=binning)
+    mtf = create_detector_response(camera_type, 'MTF', image_size, voltage=voltage,
+                                            folder=camera_folder, binning=binning)
 
     # joblib automatically memory maps a numpy array to child processes
     print(f'Projecting the model with {nodes} processes')
@@ -1105,7 +1096,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
         (delayed(parallel_project)(grandcell, frame, image_size, pixel_size, msdz, n_slices, ctf,
                                    dose_per_frame, dqe, mtf, voltage, binning=binning, translation=shift, rotation=(.0,.0,.0),
                                    solvent_potential=solvent_potential, solvent_absorption=solvent_amplitude,
-                                   sigma_damage=sigma_damage, ice_voxels=None)
+                                   ice_voxels=None)
          for frame, shift in enumerate(translations_voxel))
 
     sys.stdout.flush()
@@ -1209,13 +1200,14 @@ def scale_image(volume1, volume2, numberBands):
 def parallel_scale(number, projection, example, pixel_size, example_pixel_size, binning, make_even_factor):
     from pytom.tompy.transform import resize
 
-    print(projection.shape, example.shape)
+    # print(projection.shape, example.shape)
 
     print(f' -- scaling projection {number+1}')
     if pixel_size != (example_pixel_size * binning):
         # magnify or de-magnify if the pixel size does not match yet
         print('(de)magnifying pixel size')
-        example = resize(example, (example_pixel_size * binning) / pixel_size, interpolation='Spline')
+        example = resize(example, (example_pixel_size * binning) / pixel_size, interpolation='Spline').squeeze()
+        #todo squeeze() can be removed after updating pytom
 
     # prevent issues later on with binning in case experimental and simulated pixel size do not match
     if example.shape[0] % (2*make_even_factor):
@@ -1275,6 +1267,7 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
                                         1/binning, interpolation='Spline').squeeze(),
                                  pixel_size, example_pixel_size, binning, make_even_factor)
          for i in range(projections.shape[2]))
+    # todo squeeze() can be removed after updating pytom
 
     sys.stdout.flush()
 
@@ -1340,7 +1333,7 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
     if filter_projections:
         for i in range(projections.shape[2]):
             # 2.3 corresponds to circular filter with width 0.9 of half of the image
-            projection_scaled = reduce_resolution(projections[:,:,i].squeeze(), 1.0, 2.3 * reconstruction_bin)
+            projection_scaled = reduce_resolution(projections[:,:,i].squeeze(), 1.0, 2.0 * reconstruction_bin)
             filename_single = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
             write(filename_single, projection_scaled)
     else:
@@ -1484,10 +1477,9 @@ if __name__ == '__main__':
                                              'NumberOfParticles')
             number_of_membranes = draw_range(literal_eval(config['GenerateModel']['NumberOfMembranes']), int,
                                              'NumberOfMembranes')
-            # pass motion blur in angstrom units
-            # motion_blur         = config['GenerateModel'].get_float('MotionBlurResolution')
-            motion_blur         = draw_range(literal_eval(config['GenerateModel']['MotionBlurResolution']), float,
-                                             'MotionBlurResolution')
+            # beam damage SNR
+            beam_damage_snr     = draw_range(literal_eval(config['GenerateModel']['BeamDamageSNR']), float,
+                                             'BeamDamageSNR')
         except Exception as e:
             print(e)
             raise Exception('Missing generate model parameters in config file.')
@@ -1513,9 +1505,11 @@ if __name__ == '__main__':
     if simulator_mode in config.sections():
         try:
             # first read common parameters between tilt and frame series
-            image_size      = config[simulator_mode].getint('ImageSize')
-            msdz            = config[simulator_mode].getfloat('MultisliceStep') * 1E-9
-            beam_damage     = config[simulator_mode].getfloat('BeamDamage')
+            image_size              = config[simulator_mode].getint('ImageSize')
+            msdz                    = config[simulator_mode].getfloat('MultisliceStep') * 1E-9
+            # random translations between frames/tilts in A
+            translation_shift       = draw_range(literal_eval(config[simulator_mode]['TranslationalShift']), float,
+                                                 'TranslationalShift')
             # mode specific parameters
             if simulator_mode == 'TiltSeries':
                 metadata            = loadstar(config['TiltSeries']['MetaFile'], dtype=datatype)
@@ -1587,7 +1581,7 @@ if __name__ == '__main__':
                        absorption_contrast  =absorption_contrast,
                        voltage              =voltage,
                        number_of_membranes  =number_of_membranes,
-                       sigma_motion         =motion_blur)
+                       beam_damage_snr      =beam_damage_snr)
 
     if simulator_mode in config.sections() and simulator_mode == 'TiltSeries':
         # set seed for random number generation
@@ -1614,7 +1608,7 @@ if __name__ == '__main__':
                                       astigmatism_angle     =astigmatism_angle,
                                       msdz                  =msdz,
                                       defocus               =defocus,
-                                      sigma_damage          =beam_damage,
+                                      sigma_shift           =translation_shift,
                                       camera_type           =camera,
                                       camera_folder         =camera_folder,
                                       solvent_potential     =solvent_potential,
@@ -1648,7 +1642,7 @@ if __name__ == '__main__':
                                       astigmatism_angle     =astigmatism_angle,
                                       msdz                  =msdz,
                                       defocus               =defocus,
-                                      sigma_damage          =beam_damage,
+                                      sigma_shift           =translation_shift,
                                       camera_type           =camera,
                                       camera_folder         =camera_folder,
                                       solvent_potential     =solvent_potential,
