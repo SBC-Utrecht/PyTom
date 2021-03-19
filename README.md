@@ -72,7 +72,7 @@ python3.7 compile.py --pythonVersion 3.7 --target all --includeDir /usr/local/Ce
 
 ## Versioning
 
-For the versions available, see the [tags on this repository](https://gschot@bitbucket.org/gschot/pytom/tags). 
+For the versions available, see the [tags on this repository]. 
 
 ## Authors
 
@@ -81,7 +81,7 @@ For the versions available, see the [tags on this repository](https://gschot@bit
 * **Yuxiang Chen**       - *PyTom*
 * **Friedrich Forster**  - *PyTom* 
 
-See also the list of [contributors](https://gschot@bitbucket.org/gschot/pytom/contributors) who participated in this project.
+See also the list of [contributors] who participated in this project.
 
 ## License
 
@@ -89,7 +89,7 @@ Copyright (c) 2021
 
 Utrecht University
 
-http://www.pytom.org
+http://pytom.sites.uu.nl
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
