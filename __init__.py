@@ -2,7 +2,7 @@
 
 __all__ = ["alignment","angles","basic","classification","cluster","frm","frontend","image2D","localization","parallel",
            "plotting","reconstruction","score","simulation",'tompy', "tools", "unittests", "visualization", 'voltools']
-__version__ = "0.993"
+__version__ = "0.994"
 
 import pytom_volume
 import pytom_numpy
