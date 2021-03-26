@@ -99,7 +99,6 @@ if __name__ == '__main__':
                                                        wedgeInfo=wedge, gpuID=gpu)
 
         if not no_output:
-            print(scoreVolume.max())
             write(scores, scoreVolume)
             write(rots, angleVolume)
 
