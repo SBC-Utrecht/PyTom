@@ -31,6 +31,8 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         from pytom.angles.angleFnc import differenceAngleOfTwoRotations
         from pytom.tompy.io import write, read_size
 
+        filetype = 'mrc'
+
     else:
         from pytom.alignment.preprocessing import Preprocessing
         from pytom.alignment.localOptimization import alignVolumesAndFilterByFSC
@@ -38,6 +40,8 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         from pytom.basic.resolution import bandToAngstrom, getResolutionBandFromFSC, angleFromResolution, write_fsc2Ascii
         from time import time
         from pytom.angles.angleFnc import differenceAngleOfTwoRotations
+
+        filetype='mrc'
 
     assert isinstance(object=alignmentJob, class_or_type_or_tuple=GLocalSamplingJob), \
         "mainAlignmentLoop: alignmentJob must be of type GLocalSamplingJob"
@@ -90,25 +94,24 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         t1 = time()
         if useExternalRef == False:
             evenAverage = averageParallel(particleList=even,
-                                          averageName=alignmentJob.destination+"/"+str(ii)+'-EvenFiltered.em',
+                                          averageName=alignmentJob.destination+"/"+str(ii)+f'-EvenFiltered.{filetype}',
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                           weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                           setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
             oddAverage = averageParallel(particleList=odd,
-                                          averageName=alignmentJob.destination+"/"+str(ii)+'-OddFiltered.em',
+                                          averageName=alignmentJob.destination+"/"+str(ii)+f'-OddFiltered.{filetype}',
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                           weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                           setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
             #write un-filtered averages for info
             if 'gpu' in device:
-                print(evenAverage.__class__)
-                write(alignmentJob.destination + "/" + str(ii) + '-Even.em', evenAverage.getVolume())
-                write(alignmentJob.destination + "/" + str(ii) + '-Odd.em', oddAverage.getVolume())
-                nband=read_size(alignmentJob.destination + "/" + str(ii) + '-Even.em','x') //2
+                write(alignmentJob.destination + "/" + str(ii) + f'-Even.{filetype}', evenAverage.getVolume())
+                write(alignmentJob.destination + "/" + str(ii) + f'-Odd.{filetype}', oddAverage.getVolume())
+                nband=read_size(alignmentJob.destination + "/" + str(ii) + f'-Even.{filetype}','x') //2
                 temp_mask = alignmentJob.scoringParameters.mask.getVolume()
             else:
-                evenAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+'-Even.em')
-                oddAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+'-Odd.em')
+                evenAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+f'-Even.{filetype}')
+                oddAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+f'-Odd.{filetype}')
                 nband= evenAverage.getVolume().sizeX()/2
                 temp_mask = alignmentJob.scoringParameters.mask.getVolume()
 
@@ -125,9 +128,9 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             # write average from all particle with correctly rotated odd average
             averageAllVolume = evenAverage.getVolume() + oddAverage.getVolume()
             if 'gpu' in device:
-                write(alignmentJob.destination+"/"+str(ii)+'-All.em', averageAllVolume)
+                write(alignmentJob.destination+"/"+str(ii)+'-All.mrc', averageAllVolume)
             else:
-                averageAllVolume.write(alignmentJob.destination+"/"+str(ii)+'-All.em')
+                averageAllVolume.write(alignmentJob.destination+"/"+str(ii)+f'-All.{filetype}')
 
             t1 = time()
             print(">>>>>>>>> even and odd averages aligned ... took %3.2f seconds" % (t1-t2))
@@ -144,10 +147,10 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             # read un-corrected averages back in for compoundWedge
             if alignmentJob.scoringParameters.compoundWedge:
                 from pytom_volume import read
-                averageEven = read(alignmentJob.destination+"/"+str(ii)+'-EvenFiltered-PreWedge.em')
-                averageOdd  = read(alignmentJob.destination+"/"+str(ii)+'-OddFiltered-PreWedge.em')
-                evenCompoundWedgeFile = alignmentJob.destination+"/"+str(ii)+"-EvenFiltered-WedgeSumUnscaled.em"
-                oddCompoundWedgeFile = alignmentJob.destination+"/"+str(ii)+"-OddFiltered-WedgeSumUnscaled.em"
+                averageEven = read(alignmentJob.destination+"/"+str(ii)+f'-EvenFiltered-PreWedge.{filetype}')
+                averageOdd  = read(alignmentJob.destination+"/"+str(ii)+f'-OddFiltered-PreWedge.{filetype}')
+                evenCompoundWedgeFile = alignmentJob.destination+"/"+str(ii)+f"-EvenFiltered-WedgeSumUnscaled.{filetype}"
+                oddCompoundWedgeFile = alignmentJob.destination+"/"+str(ii)+f"-OddFiltered-WedgeSumUnscaled.{filetype}"
 
             # adjust rotational sampling
             if (type(alignmentJob.samplingParameters.rotations) == LocalSampling) and \
@@ -173,21 +176,21 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         useExternalRef = False
         averageAllVolume = averageEven + averageOdd
 
-        resolution = f'_{float(resolutionAngstrom):.3f}' if not (resolutionAngstrom is None) else ''
+        resolution = f'_{float(resolutionAngstrom):.2f}' if not (resolutionAngstrom is None) else ''
 
         if 'gpu' in device:
-            write(f'{alignmentJob.destination}/{ii}-AllFiltered{resolution}.em', averageAllVolume)
-            write(alignmentJob.destination + "/" + str(ii) + "-EvenFiltered.em", averageEven)
-            write(alignmentJob.destination + "/" + str(ii) + "-OddFiltered.em", averageOdd)
+            write(f'{alignmentJob.destination}/{ii}-AllFiltered{resolution}.{filetype}', averageAllVolume)
+            write(alignmentJob.destination + "/" + str(ii) + f"-EvenFiltered.{filetype}", averageEven)
+            write(alignmentJob.destination + "/" + str(ii) + f"-OddFiltered.{filetype}", averageOdd)
         else:
-            averageAllVolume.write(f'{alignmentJob.destination}/{ii}-AllFiltered{resolution}.em')
-            averageEven.write(alignmentJob.destination + "/" + str(ii) + "-EvenFiltered.em")
-            averageOdd.write(alignmentJob.destination + "/" + str(ii) + "-OddFiltered.em")
+            averageAllVolume.write(f'{alignmentJob.destination}/{ii}-AllFiltered{resolution}.{filetype}')
+            averageEven.write(f"{alignmentJob.destination}/{ii}-EvenFiltered.{filetype}")
+            averageOdd.write(f"{alignmentJob.destination}/{ii}-OddFiltered.{filetype}")
 
 
-        currentReferenceEven = Reference( referenceFile=alignmentJob.destination+"/"+str(ii)+"-EvenFiltered.em",
+        currentReferenceEven = Reference( referenceFile=alignmentJob.destination+"/"+str(ii)+f"-EvenFiltered.{filetype}",
                                           generatedByParticleList=even)
-        currentReferenceOdd  = Reference( referenceFile=alignmentJob.destination+"/"+str(ii)+"-OddFiltered.em",
+        currentReferenceOdd  = Reference( referenceFile=alignmentJob.destination+"/"+str(ii)+f"-OddFiltered.{filetype}",
                                           generatedByParticleList=odd)
         # align particleLists
         if verbose:
@@ -244,12 +247,12 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
 
             ## finally average ALL particles in ONE average and determine FSC
             evenAverage = averageParallel(particleList=even,
-                                          averageName=alignmentJob.destination+"/average-Final-Even.em",
+                                          averageName=alignmentJob.destination+f"/average-Final-Even.{filetype}",
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                           weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                           setParticleNodesRatio=setParticleNodesRatio)
             oddAverage = averageParallel(particleList=odd,
-                                         averageName=alignmentJob.destination+"/average-Final-Odd.em",
+                                         averageName=alignmentJob.destination+f"/average-Final-Odd.{filetype}",
                                          showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                          weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                          setParticleNodesRatio=setParticleNodesRatio)
@@ -269,12 +272,12 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                 alignmentJob.particleList.updateFromOddEven(odd, even)
                 print("rotation between averages > increment .... applying rotation and shift to odd particles")
                 oddAverage = averageParallel(particleList=odd,
-                                             averageName=alignmentJob.destination+"/average-Final-Odd.em",
+                                             averageName=alignmentJob.destination+f"/average-Final-Odd.{filetype}",
                                              showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                              weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                              setParticleNodesRatio=setParticleNodesRatio)
             final_average = averageParallel(particleList=alignmentJob.particleList,
-                                            averageName=alignmentJob.destination+"/average-Final.em",
+                                            averageName=alignmentJob.destination+f"/average-Final.{filetype}",
                                             showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                             weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                             setParticleNodesRatio=setParticleNodesRatio)
@@ -296,7 +299,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             from pytom.basic.filter import lowpassFilter
             filtered_final = lowpassFilter(volume=final_average.getVolume(), band=resolutionBand, smooth=resolutionBand/10,
                                            fourierOnly=False)[0]
-            filtered_final.write(alignmentJob.destination+"/average-FinalFiltered_"+str(resolutionAngstrom)+".em")
+            filtered_final.write(f"{alignmentJob.destination}/average-FinalFiltered_{resolutionAngstrom:.2f}.{filetype}")
             # clean up temporary files
             from os import remove
             remove(alignmentJob.destination+"/"+'CurrentRotations.xml')
@@ -363,14 +366,14 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             for name in ('Even', 'Odd'):
                 if name == 'Even':
                     evenAverage = averageParallel(particleList=even,
-                                              averageName=alignmentJob.destination + "/average-Final-Even.em",
+                                              averageName=alignmentJob.destination + "/average-Final-Even.mrc",
                                               showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                               weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                               setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
                     del plansEven
                 else:
                     oddAverage = averageParallel(particleList=odd,
-                                             averageName=alignmentJob.destination + "/average-Final-Odd.em",
+                                             averageName=alignmentJob.destination + "/average-Final-Odd.mrc",
                                              showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                              weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                              setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
@@ -388,7 +391,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                 #         weight += xp.array(plan.sumWeights.get(),dtype=xp.float32)
                 #     del plansOdd
                 #
-                fname = f"{alignmentJob.destination}/average-Final-{name}.em"
+                fname = f"{alignmentJob.destination}/average-Final-{name}.mrc"
                 # # fname2 = f"{alignmentJob.destination}/average-FinalWeight-{name}.em"
                 # # fname3 = f"{alignmentJob.destination}/average-FinalSum-{name}.em"
                 # # write(fname3, average)
@@ -416,7 +419,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                 alignmentJob.particleList.updateFromOddEven(odd, even)
                 print("rotation between averages > increment .... applying rotation and shift to odd particles")
                 oddAverage = averageParallel(particleList=odd,
-                                             averageName=alignmentJob.destination + "/average-Final-Odd.em",
+                                             averageName=alignmentJob.destination + f"/average-Final-Odd.{filetype}",
                                              showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                              weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                              setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
@@ -426,7 +429,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                 oddAverage = cvols['Odd']
 
             final_average = averageParallel(particleList=alignmentJob.particleList,
-                                            averageName=alignmentJob.destination + "/average-Final.em",
+                                            averageName=alignmentJob.destination + "/average-Final.mrc",
                                             showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                             weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                             setParticleNodesRatio=setParticleNodesRatio,gpuIDs=alignmentJob.gpu)
@@ -456,7 +459,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             # filter final average according to resolution
             from pytom.tompy.filter import bandpass as lowpassFilter
             filtered_final = lowpassFilter(final_average.getVolume(), high=resolutionBand, sigma=resolutionBand / 10)
-            write(alignmentJob.destination + f"/average-FinalFiltered_{resolutionAngstrom:.3f}.em", filtered_final)
+            write(alignmentJob.destination + f"/average-FinalFiltered_{resolutionAngstrom:.2f}.mrc", filtered_final)
             # clean up temporary files
             from os import remove
             remove(alignmentJob.destination + "/" + 'CurrentRotations.xml')
@@ -464,9 +467,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             remove(alignmentJob.destination + "/" + 'CurrentMask.xml')
         print(time()-tt)
 
-    print('destroy mpi!')
     mpi.end()
-    print('destroyed mpi')
 
 def alignParticleListWrapper(plFilename, reference, referenceWeighting, rotationsFilename,
                       scoreXMLFilename, maskFilename, preprocessing,
@@ -573,6 +574,7 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     from pytom.alignment.alignmentFunctions import bestAlignmentGPU
     from pytom.gpu.gpuStructures import GLocalAlignmentPlan
     from time import time
+    import os
     from pytom.angles.angleFnc import differenceAngleOfTwoRotations
     from pytom.tompy.io import read, read_size
     import numpy as np
@@ -604,7 +606,7 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
         print("alignParticleList: mask:        "+str(mask))
 
     bestPeaks = []
-    for particle in pl:
+    for n, particle in enumerate(pl):
         fname = particle.getFilename()
         t1 = time()
         oldRot = particle.getRotation()
@@ -619,10 +621,10 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
         t2 = time()
         # print(bestPeak.getRotation())
         # print(bestPeak.getShift())
-        print(fname + ": Angular Difference before and after alignment: %2.2f ... took %3.1f seconds ..." % (angDiff, t2 - t1))
+        if verbose:
+            print(fname + ": Angular Difference before and after alignment: %2.2f ... took %3.1f seconds ..." % (angDiff, t2 - t1))
 
     plan.clean()
-
     return [bestPeaks, plan]
 
 def alignOneParticleWrapper(particle, reference, referenceWeighting=None, rotationsFilename='',
@@ -753,15 +755,13 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
                                  progressBar=progressBar, binning=binning, bestPeak=None, verbose=verbose)
     angDiff = differenceAngleOfTwoRotations(rotation1=bestPeak.getRotation(), rotation2=oldRot)
     t2 = time()
-    print(bestPeak.getRotation())
-    #print(fname+": Angular Difference before and after alignment: %2.2f ... took %3.1f seconds ..." % (angDiff, t2-t1))
+    # print(bestPeak.getRotation())
+    print(fname+": Angular Difference before and after alignment: %2.2f ... took %3.1f seconds ..." % (angDiff, t2-t1))
     rotations.reset()
 
     particle.setRotation(bestPeak.getRotation())
     particle.setShift(bestPeak.getShift())
     return bestPeak
-
-
 
 
 def averageParallel(particleList,averageName, showProgressBar=False, verbose=False,
@@ -786,17 +786,20 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     from pytom.basic.fourier import fft,ifft
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Reference
-    from pytom.alignment.alignmentFunctions import average, invert_WedgeSum
+    from pytom.bin.average import average, invert_WedgeSum
 
     import os
     splitLists = splitParticleList(particleList, setParticleNodesRatio=setParticleNodesRatio)
     splitFactor = len(splitLists)
     assert splitFactor > 0, "splitFactor == 0, issue with parallelization"
-
+    print(f'Device = {device}')
     if 'gpu' in device:
         from pytom.bin.average import averageGPU2 as average
         from pytom.tompy.structures import Reference
         from pytom.tompy.io import read, write
+
+        print('Averaging volumes on gpu.')
+
     else:
         gpuIDs = [None,]*splitFactor
 
@@ -805,10 +808,10 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     preList = []
     wedgeList = []
     for ii in range(splitFactor):
-        avgName = averageName + '_dist' + str(ii) + '.em'
+        avgName = f"{averageName}_dist{ii}.mrc"
         avgNameList.append(avgName)
-        preList.append(averageName + '_dist' + str(ii) + '-PreWedge.em')
-        wedgeList.append(averageName + '_dist' + str(ii) + '-WedgeSumUnscaled.em')
+        preList.append(averageName + '_dist' + str(ii) + '-PreWedge.mrc')
+        wedgeList.append(averageName + '_dist' + str(ii) + '-WedgeSumUnscaled.mrc')
 
     #reference = average(particleList=plist, averageName=xxx, showProgressBar=True, verbose=False,
     # createInfoVolumes=False, weighting=weighting, norm=False)
@@ -837,16 +840,16 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     if 'gpu' in device:
         from pytom.tompy.tools import invert_WedgeSum
         from pytom.tompy.filter import applyFourierFilter, bandpass
-        write(averageName[:len(averageName) - 3] + '-PreWedge.em', unweiAv)
-        write(averageName[:len(averageName) - 3] + '-WedgeSumUnscaled.em', wedgeSum)
+        write(averageName[:len(averageName) - 3] + '-PreWedge.mrc', unweiAv)
+        write(averageName[:len(averageName) - 3] + '-WedgeSumUnscaled.mrc', wedgeSum)
         wedgeSum = invert_WedgeSum(invol=wedgeSum, r_max=unweiAv.shape[0] / 2 - 2., lowlimit=.05 * len(particleList),
                         lowval=.05 * len(particleList))
         unweiAv = applyFourierFilter(unweiAv, wedgeSum)
         unweiAv = bandpass(unweiAv, high=unweiAv.shape[0]//2-2, sigma=(unweiAv.shape[0]//2-1)/10.)
         write(averageName, unweiAv)
     else:
-        unweiAv.write(averageName[:len(averageName)-3]+'-PreWedge.em')
-        wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumUnscaled.em')
+        unweiAv.write(averageName[:len(averageName)-3]+'-PreWedge.mrc')
+        wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumUnscaled.mrc')
 
         # convolute unweighted average with inverse of wedge sum
         invert_WedgeSum( invol=wedgeSum, r_max=unweiAv.sizeX()/2-2., lowlimit=.05*len(particleList),
@@ -880,7 +883,6 @@ def splitParticleList(particleList, setParticleNodesRatio=3):
         splitFactor = len(particleList) / int(setParticleNodesRatio)
     assert splitFactor > 0, \
         "splitFactor == 0, too few particles for parallelization - decrease number of processors"
-    print(f'splitFactor = {splitFactor}')
     splitLists = particleList.splitNSublists(splitFactor-1)  # somehow better to not include master...
     return splitLists
 
