@@ -837,19 +837,22 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
         os.system('rm ' + wedgeList[ii])
         os.system('rm ' + avgNameList[ii])
 
+    root, ext = os.path.splitext(averageName)
+
+
     if 'gpu' in device:
         from pytom.tompy.tools import invert_WedgeSum
         from pytom.tompy.filter import applyFourierFilter, bandpass
-        write(averageName[:len(averageName) - 3] + '-PreWedge.mrc', unweiAv)
-        write(averageName[:len(averageName) - 3] + '-WedgeSumUnscaled.mrc', wedgeSum)
+        write(f'{root}-PreWedge{ext}', unweiAv)
+        write(f'{root}-WedgeSumUnscaled{ext}', wedgeSum)
         wedgeSum = invert_WedgeSum(invol=wedgeSum, r_max=unweiAv.shape[0] / 2 - 2., lowlimit=.05 * len(particleList),
                         lowval=.05 * len(particleList))
         unweiAv = applyFourierFilter(unweiAv, wedgeSum)
         unweiAv = bandpass(unweiAv, high=unweiAv.shape[0]//2-2, sigma=(unweiAv.shape[0]//2-1)/10.)
         write(averageName, unweiAv)
     else:
-        unweiAv.write(averageName[:len(averageName)-3]+'-PreWedge.mrc')
-        wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumUnscaled.mrc')
+        unweiAv.write(f'{root}-PreWedge{ext}')
+        wedgeSum.write(f'{root}-WedgeSumUnscaled{ext}')
 
         # convolute unweighted average with inverse of wedge sum
         invert_WedgeSum( invol=wedgeSum, r_max=unweiAv.sizeX()/2-2., lowlimit=.05*len(particleList),
