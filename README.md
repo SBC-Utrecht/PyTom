@@ -11,19 +11,27 @@ PyTom is a toolbox developed for interpreting cryo electron tomography data. All
 PyTomGUI is designed to run on linux systems, but can also be installed on MacOSX.It requires the following software package to be installed:
 
 ```
+# General packages 
 - python (>= 3.7 )
 - openmpi 
 - fftw3
 - gcc (version 5-7) 
+- libxml2
+- libxstl
+- swig (>= 3.0.12)
+
+# Python Packages
 - numpy
 - boost
-- lxml, libxml2, libxstl. 
-- swig (>= 3.0.12)
-- PyQt5
+- lxml 
 - pyqtgraph
-- motioncor2 ( >=1.2.1)
-- imod (>=4.10.25)
 - mrcfile
+
+# Optional Software Packages used by GUI
+- PyQt5
+- motioncor2 ( >=1.2.1)
+- imod (=4.10.25)
+
 ```
 
 ### Installing
@@ -36,7 +44,7 @@ git clone --recursive https://github.com/FridoF/PyTomPrivate.git pytom
 
 After a succesful clone enter the new directory and go to pytomc
 ```
-cd PyTomPrivate/pytomc
+cd pytom/pytomc
 ```
 
 Here you will find an installation script name compile.py. Please run this script with python3. 
