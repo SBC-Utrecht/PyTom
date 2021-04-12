@@ -101,18 +101,33 @@ if include_python is None:
     print('Python include path not found!')
     exit(1)
 
+
+print(pythonVersion)
+
 if pythonVersion == '':
-    [lib_python, lib_pythonFlag] = adjustLibraryVersions("libpython",['2.6','2.5','2.7'],'lpython',dynamicExtension,libPaths)
+    [lib_python, lib_pythonFlag] = adjustLibraryVersions("libpython",['2.6','2.5','2.7', '3.7'],'lpython',dynamicExtension,libPaths)
 else:
     libraryFile,lib_python      = find("libpython" + pythonVersion + dynamicExtension,libPaths)
     lib_pythonFlag  = 'lpython' + pythonVersion
     
-includeFile,include_fftw = find("fftw3.h",includePaths)
+if include_fftw is None:    
+    includeNew = os.path.dirname(os.popen('locate fftw3.h').read().split()[0])
+    if includeNew:
+        includePaths = [includeNew] + includePaths
+        includeFile,include_fftw = find("fftw3.h",includePaths)
+    
 if include_fftw is None:
     print('FFTW include path not found!')
     exit(1)
 
 libraryFile,lib_fftw = find("libfftw3" + dynamicExtension,libPaths)
+
+if lib_fftw is None:    
+    libPathsNew = os.path.dirname(os.popen('locate libfftw3'+dynamicExtension).read().split()[0])
+    if libPathsNew:
+        libPaths = [libPathsNew] + libPaths
+        libraryFile, lib_fftw = find("libfftw3"+ dynamicExtension, libPaths)
+
 if lib_fftw is None:
     print('FFTW library path not found!')
     exit(1)
@@ -125,7 +140,21 @@ if include_boost is None:
 if include_boost:
     include_boost = os.path.abspath(os.path.join(include_boost, os.pardir)) + os.sep
 
-includeFile,include_numpy = find("ndarrayobject.h",includePaths)
+includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
+if include_numpy is None:
+    includePathsNew = [p for p in os.popen('locate ndarrayobject.h').read().split() if pythonVersion in p]
+    if includePathsNew:
+        includePaths = [includePathsNew] + libPaths
+        includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
+    if include_numpy is None:
+        try:
+            import numpy
+            path = os.path.join(numpy.__path__[0], 'core/include/numpy')
+            includePaths = [path] + libPaths
+            includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
+        except Exception as e:
+            print(e)
+            pass
 if include_numpy is None:
     print('Numpy include path not found!')
     exit(1)
@@ -196,7 +225,7 @@ print('')
 nosh = False # you can choose not to compile the SH Alignment library
 nompi4py = False # you can choose not to compile the mpi4py library
 nonfft = False # you can choose not to compile the NFFT library
-novoltools = False
+novoltools = True
 
 
 if phony_target == "swig":
