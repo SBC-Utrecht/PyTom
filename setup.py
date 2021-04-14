@@ -12,7 +12,7 @@ def find_executables():
 class CustomInstall(install):
     def run(self):
         commandPullSubmodules = 'git submodule update --recursive --remote; git submodule update --recursive'
-        process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="pytom")
+        process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="./")
         process.wait()
 
         commandInstall = 'python3.7 compile.py --target all --pythonVersion 3.7 > logfile.installation.txt'
