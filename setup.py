@@ -2,7 +2,7 @@ from setuptools import setup, Extension, find_packages
 from setuptools.command.install import install
 import subprocess
 import os
-
+from pytom import __version__
 
 def find_executables():
     folder = 'pytom/bin'
@@ -11,7 +11,7 @@ def find_executables():
 
 class CustomInstall(install):
     def run(self):
-        commandPullSubmodules = 'git submodule update --recursive --remote; git submodule update --recursive'
+        commandPullSubmodules = 'git submodule update --init --recursive'
         process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="./")
         process.wait()
 
@@ -39,7 +39,7 @@ class CustomInstall(install):
 
 setup(
     name='pytom',
-    version='0.994',
+    version=__version__,
     packages=find_packages(),
     package_dir={'pytom':'pytom'},
     # package_data={'pytom':["alignment"]},
