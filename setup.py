@@ -43,7 +43,7 @@ setup(
     name='pytom',
     version=__version__,
     packages=find_packages(),
-    package_dir={'pytom':'pytom'},
+    #package_dir={'pytom':'pytom'},
     # package_data={'pytom':["alignment"]},
     author='`FridoF',
     author_email='gijsschot@gmail.com',
