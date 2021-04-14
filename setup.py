@@ -11,11 +11,13 @@ def find_executables():
 
 class CustomInstall(install):
     def run(self):
+        import sys
         commandPullSubmodules = 'git submodule update --init --recursive'
         process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="./")
         process.wait()
 
-        commandInstall = 'python3.7 compile.py --target all --pythonVersion 3.7 > logfile.installation.txt'
+        version = f'{sys.version_info[0]}.{sys.version_info[1]}'
+        commandInstall = f'python{version} compile.py --target all'
         process = subprocess.Popen(commandInstall, shell=True, cwd="pytom/pytomc")
         process.wait()
 
