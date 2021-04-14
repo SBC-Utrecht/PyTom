@@ -82,6 +82,9 @@ def parseArguments(args):
     pythonVersion = ''
     if pythonIndex  != None:     
         pythonVersion = args[pythonIndex + 1]
+    else:
+        import sys
+        pythonVersion = f'{sys.version_info[0]}.{sys.version_info[1]}'
     
     target = ''
     if targetIndex != None:
@@ -90,12 +93,12 @@ def parseArguments(args):
     return [libPaths,incPaths,exePaths,pythonVersion,target]
     
 # find the file recursively, return the dir
-def find_file(name, dir):
+def find_file(name, dir, required=''):
     """
     find a file within a directory
     """
     for root, dirnames, filenames in os.walk(dir):
-        if name in filenames:
+        if name in filenames and required in root:
             return root
 
     return None
@@ -118,7 +121,7 @@ def findDir(dirname,dirs):
         if return_dir:
             return return_dir
 
-def find(obj, searchDir):
+def find(obj, searchDir, required=''):
     """
     findObj: find a file within a list of directories
     @param obj: One or list of objects 
@@ -131,14 +134,14 @@ def find(obj, searchDir):
         
     returnValue = None,None
     for o in obj:
-        dir = findObj(o,searchDir)
+        dir = findObj(o,searchDir, required=required)
         
         if dir is not None:
             returnValue = [o,dir]
 
     return returnValue
 
-def findObj(obj, searchDir):
+def findObj(obj, searchDir, required=''):
     """
     findObj: find a file within a list of directories
     @param obj: One object 
@@ -147,7 +150,7 @@ def findObj(obj, searchDir):
     """
     
     for dir in searchDir:
-        parentDir = find_file(obj, dir)
+        parentDir = find_file(obj, dir, required=required)
         if parentDir:
             print('Searching : ' , obj, '\t\t Found : ', True)
             return parentDir
@@ -334,4 +337,13 @@ def checkSwigVersion():
     versionString = txts[-1].split('\n')[0]
     
     return versionString < '3.0.12'
-    
+
+
+def checkPythonVersion():
+    """
+    checkSwigVersion: Returns true if swig version is below 3.0.12
+    """
+    import sys
+    versionString = f'{sys.version_info[0]}.{sys.version_info[1]}'
+
+    return versionString < '3.0.12'

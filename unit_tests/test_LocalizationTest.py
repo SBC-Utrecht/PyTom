@@ -11,7 +11,8 @@ class pytom_LocalTest(unittest.TestCase):
     """
     def setUp(self):
         """set up"""
-        self.testfilename = './testData/emd_1480.map.em_bin_4.em'
+        from helper_functions import create_RandomParticleList, installdir
+        self.testfilename = f'{installdir}/testData/emd_1480.map.em_bin_4.em'
 
     # Module Structures---------------------------------
     def Volume_Test(self):

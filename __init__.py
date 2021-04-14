@@ -1,8 +1,8 @@
 #list of modules that will be available when from pytom import * is called
 
-__all__ = ["alignment","angles","basic","classification","cluster","frm","frontend","image2D","localization","parallel",
-           "plotting","reconstruction","score","simulation",'tompy', "tools", "unittests", "visualization", 'voltools']
-__version__ = "0.993"
+__all__ = ["alignment", "angles", "basic", "bin", "classification","cluster","frm","frontend","gui", "gpu", "image2D","localization","parallel","pytomc",
+           "plotting","reconstruction","score","simulation",'tompy', "tools", "unit_tests", "visualization", 'voltools']
+__version__ = "0.994"
 
 import pytom_volume
 import pytom_numpy

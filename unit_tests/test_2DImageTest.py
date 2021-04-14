@@ -8,7 +8,7 @@ class pytom_2DImageTest(unittest.TestCase):
         from pytom.basic.functions import initSphere
         from pytom.image2D.imageStructures import ImageStack, Image
         from pytom.basic.transformations import general_transform2d
-        import pytom.simulation.whiteNoise
+        from pytom.simulation.support import add_white_noise
         import random
 
         random.seed(0)
@@ -44,7 +44,7 @@ class pytom_2DImageTest(unittest.TestCase):
             tmp = general_transform2d( v=self.sph, rot=0., 
                     shift=[self.shiftX[ii], self.shiftY[ii]], 
                     scale=1., order=[2, 1, 0], crop=True)
-            image.data = pytom.simulation.whiteNoise.add(volume=tmp,SNR=self.snr)
+            image.data = add_white_noise(volume=tmp,SNR=self.snr)
             self.imageStack.append(image=image)
     
         self.imageStack.normalize( normtype="StdMean")

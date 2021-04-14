@@ -1,4 +1,5 @@
-
+import os
+installdir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testparticles', nparticles=10):
     """
@@ -18,7 +19,7 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
     from pytom_volume import vol, rotate, shift, read
     from pytom.basic.transformations import general_transform_crop
     from pytom.basic.functions import initSphere
-    from pytom.simulation.whiteNoise import add as addNoise
+    from pytom.simulation.support import add_white_noise as addNoise
     import random
     from os import mkdir
     from pytom.score.score import FLCFScore as score
@@ -58,7 +59,7 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
 
         #noisy.write( fname)
         p = Particle(filename=fname, rotation=rot, shift=shift, wedge=wedge,
-                     className=0, pickPosition=None, score=score, sourceInfo=None)
+                     className=0, pickPosition=None, score=score, infoGUI=None)
         p.setScoreValue(0.0)
 
         wg = p.getWedge().getWedgeObject()

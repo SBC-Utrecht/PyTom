@@ -7,13 +7,12 @@ import os
 class pytom_MyFunctionTest(unittest.TestCase):
 
     def setUp(self):
-        from helper_functions import create_RandomParticleList
+        from pytom.unit_tests.helper_functions import create_RandomParticleList, installdir
 
-        self.reffile = './testData/ribo.em'
-        self.pl_filename = 'pl.xml'
-        self.pdir = './testparticles' 
-        self.pl = create_RandomParticleList( reffile=self.reffile, pl_filename=self.pl_filename, 
-                  pdir=self.pdir, nparticles=10)
+        self.installdir = installdir
+        self.reffile = f'{installdir}/unit_tests/testData/ribo.em'
+        self.pdir = f'{installdir}/unit_tests/testparticles'
+
 
         # set parameters for ACL
         self.settings = {}
@@ -21,11 +20,16 @@ class pytom_MyFunctionTest(unittest.TestCase):
         self.settings["outputDirectory"] = 'outputCCC/'
         if not os.path.exists(self.settings["outputDirectory"]):
             os.mkdir(self.settings["outputDirectory"])
+
+        self.pl_filename = os.path.join(self.settings['outputDirectory'], 'pl.xml')
+
+        self.pl = create_RandomParticleList(reffile=self.reffile, pl_filename=self.pl_filename,
+                                            pdir=self.pdir, nparticles=10)
         #self.settings["fixed_frequency"] = True
         #self.settings["offset"] = None
         #self.settings["mask"] = options.mask
 
-        self.settings["mask"] = './testData/mask_45.em'
+        self.settings["mask"] = f'{installdir}/unit_tests/testData/mask_45.em'
 
 
         #self.settings["fmask"] = None
@@ -48,7 +52,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         """
         check that files are written and remove them
         """
-        from helper_functions import cleanUp_RandomParticleList
+        from pytom.unit_tests.helper_functions import cleanUp_RandomParticleList
 
         for iclass in range(0, self.settings["ncluster"]):
             tline = 'initial_'+str(iclass)+'.em'
@@ -89,29 +93,34 @@ class pytom_MyFunctionTest(unittest.TestCase):
         """
         import os
 
-        cmd = 'mpirun -np 2 ../bin/pytom ../classification/calculate_correlation_matrix.py'
+        cmd = f'mpirun -np 2 pytom {self.installdir}/classification/calculate_correlation_matrix.py'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -f ' + str(self.settings["frequency"])
         cmd = cmd + ' -m ' + str(self.settings["mask"])
         cmd = cmd + ' -o ' + str(self.settings["outputDirectory"])
         print(cmd)
         os.system(cmd)
-        self.CCC_GPU()
+        try:
+            import cupy
+            self.CCC_GPU()
+        except:
+            print('CuPy not installed thus not testing CCC on GPU')
 
     def CCC_GPU(self):
         """
-        test implementation of binning functionality
+        test gpu implementation
         """
         import os
 
-        cmd = 'mpirun -np 2 ../bin/pytom ../classification/calculate_correlation_matrix.py'
+        cmd = f'mpirun -np 2 pytom {self.installdir}/classification/calculate_correlation_matrix.py'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -f ' + str(self.settings["frequency"])
         cmd = cmd + ' -m ' + str(self.settings["mask"])
         cmd = cmd + ' -o ' + str(self.settings["outputDirectory"])
-        cmd += ' -g 1'
+        cmd += ' -g 0'
         print(cmd)
         os.system(cmd)
+        os.system(f'rm -rf {self.settings["outputDirectory"]}')
 
 
 

@@ -40,9 +40,12 @@ def compile(include_path=None, library_path=None,python_version='python3.7'):
         for header_file in to_find_headers:
             if to_find_headers[header_file] == "":
                 dir = find_file(header_file, path)
-                
+
                 if header_file == 'arrayobject.h' and not 'numpy' in path and dir:
                     continue
+
+                if header_file == 'Python.h':
+                    dir = find_file(header_file, path, required=python_version)
                 
                 if dir:
                     to_find_headers[header_file] = dir
@@ -128,9 +131,9 @@ def compile(include_path=None, library_path=None,python_version='python3.7'):
         print("Failed!")
         return None, None
 
-def find_file(filename, dir):
+def find_file(filename, dir, required=''):
     for dirpath, dirnames, filenames in os.walk(dir):
-        if filename in filenames:
+        if filename in filenames and required in dirpath:
             return dirpath
     else:
         return None
