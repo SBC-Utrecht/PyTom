@@ -5,18 +5,18 @@ import os
 
 
 def find_executables():
-
-    a =  [f'bin/{e}' for e in os.listdir('bin') if os.path.isfile(f'bin/{e}') and not '__' in e]
+    folder = 'pytom/bin'
+    a =  [f'{folder}/{e}' for e in os.listdir(folder) if os.path.isfile(f'{folder}/{e}') and not '__' in e]
     return a
 
 class CustomInstall(install):
     def run(self):
         commandPullSubmodules = 'git submodule update --recursive --remote; git submodule update --recursive'
-        process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="./")
+        process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="pytom")
         process.wait()
 
         commandInstall = 'python3.7 compile.py --target all --pythonVersion 3.7 > logfile.installation.txt'
-        process = subprocess.Popen(commandInstall, shell=True, cwd="pytomc")
+        process = subprocess.Popen(commandInstall, shell=True, cwd="pytom/pytomc")
         process.wait()
 
         install.run(self)
