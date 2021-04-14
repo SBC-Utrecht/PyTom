@@ -11,6 +11,10 @@ def find_executables():
 
 class CustomInstall(install):
     def run(self):
+        commandPullSubmodules = 'git submodule update --recursive --remote; git submodule update --recursive'
+        process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="./")
+        process.wait()
+
         commandInstall = 'python3.7 compile.py --target all --pythonVersion 3.7 > logfile.installation.txt'
         process = subprocess.Popen(commandInstall, shell=True, cwd="pytomc")
         process.wait()
@@ -37,7 +41,7 @@ setup(
     name='pytom',
     version='0.994',
     packages=find_packages(),
-    package_dir={'pytom':'./'},
+    package_dir={'pytom':'pytom'},
     # package_data={'pytom':["alignment"]},
     author='`FridoF',
     author_email='gijsschot@gmail.com',
