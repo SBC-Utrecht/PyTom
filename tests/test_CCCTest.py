@@ -53,24 +53,28 @@ class pytom_MyFunctionTest(unittest.TestCase):
         check that files are written and remove them
         """
         from helper_functions import cleanUp_RandomParticleList
+        import os
+        # for iclass in range(0, self.settings["ncluster"]):
+        #     tline = 'initial_'+str(iclass)+'.em'
+        #     self.remove_file( filename=tline)
+        # for ii in range(0,self.settings["niteration"]):
+        #     tline=('classified_pl_iter'+str(ii)+'.xml')
+        #     self.remove_file( filename=tline)
+        #     for iclass in range(0, self.settings["ncluster"]):
+        #         tline=('iter'+str(ii)+'_class'+str(iclass)+'.em')
+        #         self.remove_file( filename=tline)
+        #         tline=('iter'+str(ii)+'_class'+str(iclass)+'_wedge.em')
+        #         self.remove_file( filename=tline)
+        #         for jclass in range(iclass+1, self.settings["ncluster"]):
+        #             tline=('iter'+str(ii)+'_dmap_'+str(jclass)+'_'+str(iclass)+'.em')
+        #             self.remove_file( filename=tline)
+        #             tline=('iter'+str(ii)+'_dmap_'+str(iclass)+'_'+str(jclass)+'.em')
+        #             self.remove_file( filename=tline)
 
-        for iclass in range(0, self.settings["ncluster"]):
-            tline = 'initial_'+str(iclass)+'.em'
-            self.remove_file( filename=tline)
-        for ii in range(0,self.settings["niteration"]):
-            tline=('classified_pl_iter'+str(ii)+'.xml')
-            self.remove_file( filename=tline)
-            for iclass in range(0, self.settings["ncluster"]):
-                tline=('iter'+str(ii)+'_class'+str(iclass)+'.em')
-                self.remove_file( filename=tline)
-                tline=('iter'+str(ii)+'_class'+str(iclass)+'_wedge.em')
-                self.remove_file( filename=tline)
-                for jclass in range(iclass+1, self.settings["ncluster"]):
-                    tline=('iter'+str(ii)+'_dmap_'+str(jclass)+'_'+str(iclass)+'.em')
-                    self.remove_file( filename=tline)
-                    tline=('iter'+str(ii)+'_dmap_'+str(iclass)+'_'+str(jclass)+'.em')
-                    self.remove_file( filename=tline)
+        self.remove_file( filename=f'{self.settings["outputDirectory"]}/correlation_matrix.csv')
+
         cleanUp_RandomParticleList( pl_filename=self.pl_filename, pdir=self.pdir)
+        os.removedirs(self.settings["outputDirectory"])
 
     def remove_file(self, filename):
         """
@@ -100,6 +104,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         cmd = cmd + ' -o ' + str(self.settings["outputDirectory"])
         print(cmd)
         os.system(cmd)
+        self.cleanUp()
 
     def CCC_GPU(self):
         """
