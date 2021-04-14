@@ -1,5 +1,5 @@
 import os
-installdir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+installdir = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + '/pytom'
 
 def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testparticles', nparticles=10):
     """

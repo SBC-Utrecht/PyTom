@@ -189,7 +189,7 @@ def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None,python_version
 def generatePyTomScript(pytomDirectory,python_version):
     
     pytomCommand = f"""#!/usr/bin/env csh
-cat {pytomDirectory}/LICENSE.txt
+cat {pytomDirectory}/../LICENSE.txt
 source {pytomDirectory}/bin/paths.csh
 
 set FID=0
@@ -231,7 +231,7 @@ def generatePyTomGuiScript(pytomDirectory, python_version):
 def generateIPyTomScript(pytomDirectory):
 
     ipytomCommand = '#!/usr/bin/env csh\n'
-    ipytomCommand += 'cat ' + pytomDirectory + os.sep + 'LICENSE.txt\n'
+    ipytomCommand += 'cat ' + pytomDirectory + os.sep + '../LICENSE.txt\n'
     ipytomCommand += 'source ' + pytomDirectory + os.sep + 'bin' + os.sep + 'paths.csh\n'
     ipytomCommand += 'ipython $* -i\n'
     
