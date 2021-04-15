@@ -8,7 +8,7 @@ import pytom.basic.fourier as fourier
 import pytom.basic.files as files
 import pytom.tools.files as fileTools
 import pytom.basic.structures as structures
-import pytom.tompy.io as io
+
 
 try:
     import pytom_volume
