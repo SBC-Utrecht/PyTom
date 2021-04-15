@@ -535,7 +535,7 @@ def int32toint8(n):
     return bytearr
 
 
-import numpy as np
+
 
 
 def int8toint32(bytearr):
@@ -543,6 +543,7 @@ def int8toint32(bytearr):
     @param bytearr: list of bytes
     @rtype: int32
     """
+    import numpy as np
     n = np.int32(0)
     n = bytearr[3] * (256 ** 3) + bytearr[2] * (256 ** 2) + bytearr[1] * 256 + bytearr[0]
     return n
@@ -550,6 +551,7 @@ def int8toint32(bytearr):
 
 class EMHeader():
     def __init__(self):
+        import numpy as np
         self.raw_data = np.zeros(128, dtype='int32')
         self.raw_data[0] = 83886086  # '0x5000006', TODO: hard-coded, to be changed!
 
@@ -587,6 +589,7 @@ class EMHeader():
 	@param machinetype:
 	@type machinetype: string
         """
+        import numpy as np
         inibytes = self.get_1st4bytes()
         if datatype:
             if datatype == float:
@@ -663,6 +666,7 @@ class EMHeader():
 	    get type of data from header
 	    @return: numpy type
         """
+        import numpy as np
         inibytes = self.get_1st4bytes()
         dtype = inibytes[3]
         if dtype == 1:
@@ -710,6 +714,7 @@ class EMHeader():
         """
         @param angle: tilt angle in deg
         """
+        import numpy as np
         self.raw_data[24 + 18] = np.int32(angle * 1000)  # 19th
 
     def get_tiltangle(self):
@@ -740,6 +745,7 @@ def read_em_header(filename):
 
     f = open(filename, 'r')
     try:
+        import numpy as np
         header_data = np.fromfile(f, np.dtype('int32'), 128)
         header = EMHeader()
         header.from_binary(header_data)
