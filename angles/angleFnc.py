@@ -122,7 +122,9 @@ def matToZXZ(rotMatrix,inRad=False):
     @return: [z1,z2,x] 
     @author: Friedrich Forster
     """
-    if not (rotMatrix.getSizeX() == 3 and rotMatrix.getSizeY() == 3):
+    from pytom_volume import vol
+
+    if rotMatrix.__class__ == vol and not (rotMatrix.getSizeX() == 3 and rotMatrix.getSizeY() == 3):
         raise RuntimeError('Input matrix must have a shape of (3x3).')
 
     import math
@@ -131,7 +133,7 @@ def matToZXZ(rotMatrix,inRad=False):
     from numpy import sign
     #from pytom.tools.maths import epsilon
     epsilon = .001
-    if rotMatrix.isIdentity():
+    if (rotMatrix.__class__ == vol and rotMatrix.isIdentity()):
         return Rotation(0,0,0)
 
     # determine X-rotation angle
