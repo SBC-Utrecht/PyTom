@@ -138,7 +138,9 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
             meanV = meanUnderMask(volume, maskV, p);
             stdV = stdUnderMask(volume, maskV, p, meanV);
 
-        # ref.write('template_cpu.em')
+
+
+
 
         if scoreFnc == FLCF:
             if maskIsSphere == True:
@@ -169,6 +171,29 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
 #    time = t.end(); print 'The overall execution time: %f' % time
 
     return [result, orientation, sumV, sqrV]
+
+def create_structured_wedge(tilt_angles, angle2=None, cutoffRadius=10, sizeX=10, sizeY=10, sizeZ=10, smooth=0, rotation=None, c=1):
+    from pytom.gpu.initialize import xp
+    print(tilt_angles)
+    z, y, x = xp.meshgrid(xp.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2),
+                          xp.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2),
+                          xp.arange(0, sizeZ // 2 + 1))
+
+    r = xp.sqrt((x*sizeX/sizeZ) ** 2 + (y) ** 2 + (z*sizeX/sizeY) ** 2)
+
+    tot = xp.zeros_like(z)
+
+    for i in tilt_angles:
+        alpha = (i+90)*xp.pi/180
+        if abs(i) < 0.001:
+            tot += 1*(abs(x) < c)
+        else:
+            tot += (abs(xp.sin(alpha)*(x-y/xp.tan(alpha))) <= c)*1
+
+    tot[tot>1] = 1
+    tot[r > cutoffRadius] = 0
+    return xp.fft.fftshift(tot, axes=(0, 1))
+
 
 def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, padding=True, jobid=0, **kwargs):
     '''
@@ -203,6 +228,9 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     import numpy as np
     from pytom.gpu.initialize import xp
 
+    if not kwargs['gpuID'] is None:
+        import cupy as xp
+
     xp.cuda.Device(kwargs['gpuID']).use()
 
     angles = rotations[:]
@@ -211,6 +239,8 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     sx,sy,sz = reference.shape
     angle = wedgeInfo.getWedgeAngle()
 
+    # reference -= reference.max()
+    print('\n\nWEDGEANGLE', angle)
     if angle.__class__ != list:
         w1 = angle
         w2 = angle
@@ -218,16 +248,24 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
         w1, w2 = angle
 
     if w1 > 1E-3 or w2 > 1E-3:
-        print('Wedge applied to volume')
-        cutoff = wedgeInfo._wedgeObject._cutoffRadius if wedgeInfo._wedgeObject._cutoffRadius > 1E-3 else sx//2
+        cutoff = wedgeInfo._wedgeObject._cutoffRadius if wedgeInfo._wedgeObject._cutoffRadius > 1E-3 else sx//2-1
         smooth = wedgeInfo._wedgeObject._smooth
         wedge = create_wedge(w1, w2, cutoff, sx, sy, sz, smooth).astype(np.complex64).get()
 
-        wedgeVolume = create_wedge(w1, w2, (SX//2)-2, SX, SY, SZ, smooth).astype(np.float32)
-        volume = np.real(np.fft.irfftn(np.fft.rfftn(volume)* wedgeVolume.get() ))
+        wedgeVolume = create_wedge(w1, w2, (SX//2)-1, SX, SY, SZ, smooth).astype(np.float32)
+        #wedgeVolume2 = create_structured_wedge(xp.arange(-w2,w1,2), w2, (SX//2)-2, SX, SY, SZ, smooth).astype(np.float32)
+
+        #write('/data/gijsvds/Benchmark/Images/ww.mrc', wedgeVolume2)
+        volume = np.real(np.fft.irfftn(np.fft.rfftn(volume)* wedgeVolume.get()))
         del wedgeVolume
+        #del wedgeVolume2
+        print('Wedge applied to volume')
     else:
         wedge = np.ones((sx,sy,sz//2+1),dtype='float32')
+
+    scrs = np.zeros_like(volume,dtype=np.float32)
+
+    padding=False
 
     if padding:
         dimx, dimy, dimz = volume.shape
@@ -236,15 +274,13 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
         cy = max(reference.shape[1], calc_fast_gpu_dimensions(dimy - 2, 4000)[0])
         cz = max(reference.shape[2], calc_fast_gpu_dimensions(dimz - 2, 4000)[0])
         voluNDAs = np.zeros([cx, cy, cz], dtype=np.float32)
-        voluNDAs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = volume[:min(cx, dimx), :min(cy, dimy),
-                                                                   :min(cz, dimz)]
-
-        scrs = np.zeros_like(volume,dtype=np.float32)
-
-
+        voluNDAs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = volume[:min(cx, dimx), :min(cy, dimy),:min(cz, dimz)]
         volume = voluNDAs
-        print(f'dimensions of volume: {reference.shape} {mask.shape} ')
 
+
+
+
+    print(f'dimensions of template and mask: {reference.shape} {mask.shape} ')
 
 
     input = (volume, reference, mask, wedge, angles, volume.shape)
@@ -253,7 +289,7 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     tm_process.start()
 
     import time
-    sleep_time, max_sleep_time = 0, 1800
+    sleep_time, max_sleep_time = 0, 3600
     while tm_process.is_alive() and sleep_time < max_sleep_time:
         time.sleep(1)
         sleep_time += 1
