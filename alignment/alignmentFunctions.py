@@ -1042,7 +1042,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     scoreObject._peakPrior.reset_weight()
     return bestPeak
 
-def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=None, isSphere=True, rotation_order='rzxz', max_shift=25,
+def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=None, isSphere=True, rotation_order='rzxz', max_shift=40,
                      profile=False, interpolation_factor=0.1):
     """
     bestAlignment: Determines best alignment of particle relative to the reference
@@ -1082,14 +1082,12 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
 
     centerCoordinates = [size//2 for size in plan.volume.shape]
     border = max(1,centerCoordinates[0]-max_shift)
-    print(border)
 
     # create buffer volume for transformed particle
     plan.volume = plan.cp.array(particle, dtype=plan.cp.float32) * plan.taperMask
     plan.updateWedge(wedgeInfo)
     plan.wedgeParticle()
     plan.calc_stdV()
-
     currentRotation = rotations.nextRotation()
     if currentRotation == [None, None, None]:
         raise Exception('bestAlignment: No rotations are sampled! Something is wrong with input rotations')

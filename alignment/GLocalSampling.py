@@ -309,7 +309,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         else:
             from pytom.gpu.gpuFunctions import applyFourierFilter
             from pytom.tompy.io import read
-
+            print(len(evenSplitList))
             resultsEven = mpi.parfor(alignParticleListGPU, list(zip(evenSplitList,
                                         [currentReferenceEven] * len(evenSplitList),
                                         [evenCompoundWedgeFile] * len(evenSplitList),
