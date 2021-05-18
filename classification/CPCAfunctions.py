@@ -4,7 +4,7 @@ functions for Constrained PCA
 import numpy as np
 
 def subTomoClust(particleListFilename, classifiedParticleListFilename, 
-        cccName, neig, nclass, verbose=False):
+        cccName, neig, nclass, verbose=True):
     """
     subtomogram clustering using CCC and kmeans
     @param particleListFilename: particle list filename
