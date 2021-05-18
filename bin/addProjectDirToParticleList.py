@@ -8,7 +8,7 @@ def addProjectDir(filename, projectDir, outname):
     pl.fromXMLFile(filename)
 
     for particle in pl:
-        s = particle.getSourceInfo()
+        s = particle.getInfoGUI()
         s.setProjectDir(projectDir)
 
 

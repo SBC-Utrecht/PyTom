@@ -14,7 +14,7 @@ def create_ellipse(size, mj, mn1, mn2, outname, smooth, cutoff_SD=3):
 
     R = sqrt( (X/mj)**2 + (Y/mn1)**2 + (Z/mn2)**2)
 
-    print(R.max(), R.min())
+    #print(R.max(), R.min())
 
     out = zeros((size,size,size),dtype=float32)
     out[ R <= 1] = 1

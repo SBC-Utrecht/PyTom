@@ -746,8 +746,10 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
 
     
     if createInfoVolumes:
-        unweiAv.write(averageName[:len(averageName)-3]+'-PreWedge.em')
-        wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumUnscaled.em')
+        root, ext = os.path.splitext(averageName)
+
+        unweiAv.write(f'{root}-PreWedge{ext}')
+        wedgeSum.write(f'{root}-WedgeSumUnscaled{ext}')
 
     # convolute unweighted average with inverse of wedge sum
     invert_WedgeSum( invol=wedgeSum, r_max=unweiAv.sizeX()/2-2., lowlimit=.05*len(particleList),
@@ -840,8 +842,10 @@ def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose
         #os.system('rm ' + avgNameList[ii])
 
     if createInfoVolumes:
-        write(averageName[:len(averageName) - 3] + '-PreWedge.em', unweiAv)
-        write(averageName[:len(averageName) - 3] + '-WedgeSumUnscaled.em', wedgeSum)
+        root, ext = os.path.splitext(averageName)
+
+        write(f'{root}-PreWedge{ext}', unweiAv)
+        write(f'{root}-WedgeSumUnscaled{ext}', wedgeSum)
 
     # convolute unweighted average with inverse of wedge sum
     wedgeINV = invert_WedgeSum((wedgeSum), r_max=unweiAv.shape[0] / 2 - 2., lowlimit=.05 * len(particleList),

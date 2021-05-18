@@ -68,6 +68,9 @@ if __name__ == '__main__':
              ScriptOption(['--weightingType'], 'Type of weighting (-1 default r-weighting, 0 no weighting)', arg=True,
                           optional=True),
              ScriptOption(['--noOutputImages'], 'When specified, not output images are saved.', arg=False, optional=True),
+             ScriptOption(['--specimenAngle'], 'When specified, the reconstruction compensates for this angle, such that the reconstruction will have the specimen horizontal.',
+                          arg=True, optional=True),
+             ScriptOption(['-g', '--gpuID'], 'Enable gpu mode', arg=True, optional=True),
              ScriptOption(['--verbose'], 'Enable verbose mode', arg=False, optional=True),
              ScriptOption(['-h', '--help'], 'Help.', False, True)]
     
@@ -87,7 +90,7 @@ if __name__ == '__main__':
         volumeName, filetype, \
         tomogramSizeX, tomogramSizeY, tomogramSizeZ, \
         reconstructionCenterX, reconstructionCenterY, reconstructionCenterZ, \
-        weightingType, noOutputImages, verbose, help = parse_script_options(sys.argv[1:], helper)
+        weightingType, noOutputImages, specimen_angle, gpu, verbose, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(sys.version_info)
         print(e)
@@ -183,10 +186,13 @@ if __name__ == '__main__':
     if preBin:
         preBin=int(preBin)
 
+    print(noOutputImages)
     if noOutputImages is None:
         write_images = True
     else:
         write_images = False
+
+    specimen_angle = 0 if specimen_angle is None else float(specimen_angle)
 
     outMarkerFileName = 'MyMarkerFile.em'
 
@@ -203,6 +209,8 @@ if __name__ == '__main__':
     reconstructionAlgorithm = os.path.basename(outfolder)
     tomogramID = os.path.basename(os.getcwd())
     outfile = os.path.join(outfolder, 'markerLocations_{}_irefmark_{}.txt'.format(tomogramID, referenceMarkerIndex))
+
+    gpuID = -1 if gpu is None else int(gpu)
 
     if 1:
         print("Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj))
@@ -230,6 +238,6 @@ if __name__ == '__main__':
                            weightingType=weightingType, alignResultFile=alignResultFile,
                            lowpassFilter=lowpassFilter, projBinning=projBinning,
                            outMarkerFileName=outMarkerFileName, outfile=outfile, verbose=True,
-                           write_images=write_images)
+                           write_images=write_images, specimen_angle=specimen_angle, gpuID=gpuID)
 
 

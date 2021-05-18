@@ -73,8 +73,8 @@ if __name__ == '__main__':
 
 
 
-    except: # backward compatibility
-
+    except Exception as e: # backward compatibility
+        print(e)
 
         if len(sys.argv) == 2 or len(sys.argv) == 5:
             pass

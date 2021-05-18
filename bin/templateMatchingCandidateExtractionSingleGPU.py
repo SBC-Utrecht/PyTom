@@ -77,14 +77,13 @@ if __name__ == '__main__':
         volume = read(volumeFileName, keepnumpy=False)
         if start_end.sum():
             volume = volume[start_end[0]:start_end[3], start_end[1]:start_end[4], start_end[2]:start_end[5]]
-            print(volume.shape)
 
         template = read(template, keepnumpy=False)
         mask = read(mask, keepnumpy=False)
 
         wedge = Wedge(wedge_angles)
 
-        if 0:
+        if 1:
             from pytom.tompy.transform import resize
             volume = resize(volume, 1/2)
             template = resize(template, 1/2)

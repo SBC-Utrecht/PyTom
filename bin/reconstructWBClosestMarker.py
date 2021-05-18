@@ -111,7 +111,7 @@ if __name__ == '__main__':
         vol.write(tomogram)
         
     else:
-        print(xmlsBasedOnClosestMarker)
+        # print(xmlsBasedOnClosestMarker)
         for markerIndex, particleListXMLPath in xmlsBasedOnClosestMarker:
             markerIndex = int(markerIndex)
             projections = ProjectionList()
@@ -134,7 +134,7 @@ if __name__ == '__main__':
 
             # transform the cropping offset
             if len(projections) == 0:
-                print(markerIndex, projectionDirectory, metafile, prefix)
+                #print(markerIndex, projectionDirectory, metafile, prefix)
                 continue
 
             tmp = projections[0]

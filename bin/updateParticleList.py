@@ -20,7 +20,7 @@ def get_size(particleList, directory):
 
 
 
-    tomoName = tempPL[0].getPickPosition().getOriginFilename() if tempPL[0].getPickPosition().getOriginFilename() else tempPL[0].getSourceInfo().getTomoName()
+    tomoName = tempPL[0].getPickPosition().getOriginFilename() #if tempPL[0].getPickPosition().getOriginFilename() else tempPL[0].getSourceInfo().getTomoName()
 
     if not os.path.exists(tomoName):
         tomoName = os.path.join(directory, tomoName)
@@ -82,7 +82,7 @@ def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='
 
 def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiplypickpos=1, multiplyshift=None,
              new_center=[], sizeSubtomo=64, move_shift=False, binSubtomo=1, binRecon=1, rotation=[],
-             anglelist='', mirror=False,  tomogram_dir='./', convention='zxz'):
+             anglelist='', mirror=False,  tomogram_dir='./', convention='zxz', scalePP=None):
     if type(fnames) == str:
         fnames = [fnames]
     if type(outnames) == str:
@@ -95,8 +95,17 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
         tempPL = ParticleList()
         tempPL.fromXMLFile(xmlfile)
 
-        for particle in tempPL:
+        for pid, particle in enumerate(tempPL):
 
+            if pid == 0:
+                tomoName = tempPL[0].getPickPosition().getOriginFilename() #if tempPL[
+                    # 0].getPickPosition().getOriginFilename() else tempPL[0].getSourceInfo().getTomoName()
+
+                if os.path.exists(tomoName):
+                    shape = read_size(tomoName)
+                else:
+                    scalePP = None
+                    print('no rescaling of Pick Positions is done')
 
 
             # Update directory to particle
@@ -121,6 +130,13 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
             if abs(multiplypickpos - 1) > 1E-3:
                 pp = particle.getPickPosition()
                 pp.scale(multiplypickpos)
+
+            if not scalePP is None:
+                pp = particle.getPickPosition()
+                pos = pp.toVector()
+                posnew = [(pos[0] - shape[0] // 2) * scalePP + shape[0] // 2,
+                          (pos[1] - shape[1] // 2) * scalePP + shape[1] // 2,
+                          (pos[2] - shape[2] // 2) * scalePP + shape[2] // 2]
 
             # Shift is multiply by the respective binning factor.
             if not (multiplyshift is None):

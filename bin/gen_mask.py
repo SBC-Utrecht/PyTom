@@ -77,7 +77,7 @@ if __name__=='__main__':
                ScriptOption(['-s', '--smooth'],
                             'Smooth factor used to soften the edges of the mask (pixels). Default = 2', True, True),
                ScriptOption(['-c', '--numDilationCycles'], 'Number of binary dilation cycles. Default = 2', True, True),
-               ScriptOption(['-m', '--mask'], 'Number of binary dilation cycles. Default = 2', True, True),
+               ScriptOption(['-m', '--mask'], 'Filename binary mask to select part of the model', True, True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
     helper = ScriptHelper(sys.argv[0].split('/')[-1],  # script name

@@ -24,10 +24,9 @@ def extractProjectDirFromPL(pl_name, output_dir):
 
     if output:
         for plist in pls:
-            d = os.path.basename(plist[0].getSourceInfo().getProjectDir())
-            if d[-1] == '/':
+            d = os.path.basename(plist[0].getInfoGUI().getProjectDir())
+            if d and d[-1] == '/':
                 d = d[:-1]
-            print(d)
             plist.toXMLFile(os.path.join(outputdir, f'{d}_{os.path.basename(pl_name)}'))
     else:
         return pls
