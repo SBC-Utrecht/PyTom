@@ -280,13 +280,25 @@ def resize(volume, factor, interpolation='Fourier'):
     @rtype: L{pytom_volume.vol}
     @author: FF
     """
+    import numpy
+    ss = len(volume.shape)
+    org_shape = volume.shape
+    org_size = volume.size
+    volume = volume.squeeze()
 
     if (interpolation == 'Spline') or (interpolation == 'Cubic') or (interpolation == 'Linear'):
         return scale(volume, factor, interpolation='Spline')
     else:
         fvol = xp.fft.rfftn(volume)
+        outsize= tuple((numpy.around(numpy.array(volume.shape)*factor,0)).astype(numpy.int))
         newfvol = resizeFourier(fvol=fvol, factor=factor, isodd=volume.shape[-1]%2)
-        newvol = (xp.fft.irfftn(newfvol, s=[newfvol.shape[0],]*len(newfvol.shape)))
+
+        newvol = xp.fft.irfftn(newfvol, s=outsize)
+
+        if ss != len(newvol.shape):
+            newvol = xp.expand_dims(newvol,2)
+
+        newvol *=  newvol.size/org_size
 
         return newvol
 
@@ -341,16 +353,23 @@ def resizeFourier(fvol, factor, isodd=False):
 
     else:
         newNz = 1
-        scf = 1. / (newNx * newNy * newNz)
+        scf = 1. # / (newNx * newNy * newNz)
         newFNz = 1
-        newFNy = newNy #// 2 + 1
+        oldNy = int((fvol.shape[1] - 1)*2 + 1*isodd)
+        newNy = int(xp.floor(oldNy * factor + 0.5))
+        newFNy = newNy // 2 + 1
+
         fvol_center_scaled = xp.fft.fftshift(fvol,axes=(0))
         newfvol = xp.zeros((newFNx, newFNy), dtype=fvol.dtype) *scf
 
+        newxIsEven = newFNx % 2
+        newyIsEven = newFNy % 2
+
+
         if factor >= 1:
-            newfvol[newFNx // 2 - oldFNx // 2:newFNx // 2 + oldFNx // 2 + isodd, :oldFNx] = fvol_center_scaled
+            newfvol[newFNx // 2 - oldFNx // 2 + newxIsEven :newFNx // 2 + oldFNx // 2 + isodd + newxIsEven, :oldFNy] = fvol_center_scaled
         else:
-            newfvol = fvol_center_scaled[oldFNx // 2 - newFNx // 2: oldFNx // 2 + newFNx // 2 + isodd, :newFNy]
+            newfvol = fvol_center_scaled[oldFNx // 2 - newFNx // 2 - newxIsEven: oldFNx // 2 + newFNx // 2 + isodd, :newFNy  ]
 
         newfvol = xp.fft.fftshift(newfvol, axes=(0))
         #newfvol = xp.expand_dims(newfvol,2)
@@ -447,7 +466,75 @@ def projTiltY(vol, tiltangle, projSize=None, center=None):
 
     return projection
 
+def shiftFourier(volume, shift=None, grid=None):
+    PI = xp.pi
+    sizex, sizey, sizez = volume.shape
+    shift_x, shift_y, shift_z = shift
 
+    if grid is None:
+        Y,X,Z = xp.meshgrid(xp.arange(volume.shape[0]*1.),xp.arange(volume.shape[1]*1.),xp.arange(volume.shape[2]*1.))
+        X -= volume.shape[0] // 2 - 0.
+        Y -= volume.shape[1] // 2 - 0.
+        Z -= volume.shape[2] // 2 - 0.
+        print(X.min(), X.max())
+    else:
+        X,Y,Z,R = grid
+
+
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    from pylab import imshow, show
+
+
+
+    fshift  = (xp.cos(2 * PI / sizex * X * shift_x) - xp.sin(2 * PI / sizex * X * shift_x)*1j).astype(xp.complex64)
+    # fshift *= (xp.cos(2 * PI / sizey * Y * shift_y) - xp.sin(2 * PI / sizey * Y * shift_y)*1j)
+    # fshift *= (xp.cos(2 * PI / sizez * Z * shift_z) - xp.sin(2 * PI / sizez * Z * shift_z)*1j)
+
+    # f2shift = (xp.cos(2 * PI / sizex * X * -shift_x) - xp.sin(2 * PI / sizex * X * -shift_x) * 1j)
+    # f2shift *= (xp.cos(2 * PI / sizey * Y * -shift_y) - xp.sin(2 * PI / sizey * Y * -shift_y) * 1j)
+    # f2shift *= (xp.cos(2 * PI / sizez * Z * -shift_z) - xp.sin(2 * PI / sizez * Z * -shift_z) * 1j)
+
+    if 0:
+        ff = xp.abs(fshift).real[:, 2, :]
+        imshow(ff)
+        show()
+
+    return volume*fshift
+
+def shift(volume, shiftX, shiftY, shiftZ, imethod='fourier', twice=False, grid=None):
+    """
+    shift: Performs a shift on a volume
+    @param volume: the volume
+    @param shiftX: shift in x direction
+    @param shiftY: shift in y direction
+    @param shiftZ: shift in z direction
+    @param imethod: Select interpolation method. Real space : linear, cubic, spline . Fourier space: fourier
+    @param twice: Zero pad volume into a twice sized volume and perform calculation there.
+    @return: The shifted volume.
+    @author: Yuxiang Chen and Thomas Hrabe
+    """
+    if imethod == 'fourier':
+        fvolume = xp.fft.fftshift(xp.fft.fftn(volume))
+        destFourier = shiftFourier(fvolume, shift=[shiftX, shiftY, shiftZ], grid=grid)
+
+        v2 = (xp.fft.ifftn(xp.fft.fftshift(destFourier)))
+        print(v2.imag.max())
+        return (v2.real)
+
+    else:
+        from pytom.voltools import transform
+
+        # now results should be consistent with python2
+        centerX = int(volume.shape[0] // 2)
+        centerY = int(volume.shape[1] // 2)
+        centerZ = int(volume.shape[2] // 2)
+
+        res = xp.zeros_like(volume, dtype=xp.float32)
+        transform(volume, output=res, center=[centerX, centerY, centerZ], translation=[shiftX, shiftY, shiftZ],
+                  interpolation='filt_bspline', device=device)
+
+        return res
 
 ################################
 #    Fourier Relevant Stuff    #
@@ -571,3 +658,27 @@ def resiz2e(volume, factor, interpolation='Fourier'):
         newvol = (xp.fft.irfftn(newfvol, s=[newfvol.shape[0],]*len(newfvol.shape)))
 
         return newvol, newfvol
+
+def npyTOsf(data, r, b, m_x, m_y, m_z):
+    from pytom.tompy.interpolation import splineInterpolation
+    import time
+
+    t = time.time()
+
+    res = xp.zeros([4*b*b])
+
+
+    for i in range(4*b*b):
+        jj = i//(4*b)
+        kk = i % (4*b)
+    #for jj in range(0, 2*b):
+    #    for kk in range(0,2*b):
+        the = xp.pi * (2 * jj+1) / (4 * b)
+        phi = xp.pi * kk / b
+        x = r * xp.cos(phi) * xp.sin(the)
+        y = r * xp.sin(phi) * xp.sin(the)
+        z = r * xp.cos(the)
+        res[jj * 2 * b + kk] = splineInterpolation(data, x+m_x, y+m_y, z+m_z)
+
+    print(time.time()-t)
+    return res

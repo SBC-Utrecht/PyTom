@@ -1383,6 +1383,7 @@ class SingleTiltWedge(PyTomClass):
         @param radius: Radius in frequency. Not used for SingleTiltWedge.
         @return: a spherical function in numpy.array
         """
+        from pytom.tompy.interpolation import splineInterpolation
         assert (b <= 128)
         r = 45  # this radius and the volume size should be sufficient for sampling b <= 128
         if self._wedge_vol is None:
@@ -1394,7 +1395,7 @@ class SingleTiltWedge(PyTomClass):
             self._bw = b
 
         # start sampling
-        from np import pi, sin, cos
+        from numpy import pi, sin, cos
         res = []
 
         for j in range(2 * b):
@@ -1402,12 +1403,13 @@ class SingleTiltWedge(PyTomClass):
                 the = pi * (2 * j + 1) / (4 * b)  # (0,pi)
                 phi = pi * k / b  # [0,2*pi)
 
-                # this part actually needs interpolation
-                x = int(cos(phi) * sin(the) * r + 50)
-                y = int(sin(phi) * sin(the) * r + 50)
-                z = int(cos(the) * r + 50)
+                # this part actually has interpolation, opposed to basic.structures wedge
+                x = cos(phi) * sin(the) * r + 50
+                y = sin(phi) * sin(the) * r + 50
+                z = cos(the) * r + 50
+                v = splineInterpolation(self._wedge_vol, x,y,z)
 
-                if self._wedge_vol[x, y, z] > 0.5:  # if the value is bigger than 0.5, we include it
+                if v > 0.5:  # if the value is bigger than 0.5, we include it
                     res.append(1.0)
                 else:
                     res.append(0.0)

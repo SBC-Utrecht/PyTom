@@ -6,6 +6,7 @@ from pytom.gpu.initialize import xp, device
 from pytom.tompy.filter import gaussian3d
 from numpy.random import standard_normal
 
+from pytom.tompy.transform import resize as RESIZE
 
 def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False):
     """Create a 3D sphere volume.
@@ -67,6 +68,17 @@ def create_circle(size, radius=-1, sigma=0, num_sigma=3, center=None):
         circle[ind] = xp.exp(-((r[ind] - radius)/sigma)**2/2)
 
     return circle
+
+
+def create_grid(shape, center=None):
+    cx,cy,cz = [shape[0]//2, shape[1]//2, shape[2]//2] if center is None else center
+
+    Y, X, Z = xp.meshgrid(xp.arange(shape[0]), xp.arange(shape[1]), xp.arange(shape[2]))
+    X -= cx
+    Y -= cy
+    Z -= cz
+
+    return (X,Y,Z)
 
 def prepare_mask(v, threshold, smooth):
     """Prepare a mask according to the given volume.
@@ -269,7 +281,8 @@ def taper_edges(image, width, taper_mask=None):
     return image * taper_mask, taper_mask
 
 def resize(*args, **kwargs):
-    pass
+    return RESIZE(*args, **kwargs)
+
 
 def determineRotationCenter(particle, binning):
     """

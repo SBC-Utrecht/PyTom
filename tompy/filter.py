@@ -20,8 +20,7 @@ def normalize(v):
     v = v/s
     return v
 
-
-def bandpass_circle(image, low=0, high=-1, sigma=0):
+def bandpass_circle(image, low=0, high=-1, sigma=0, ff=1):
     """Do a bandpass filter on a given volume.
 
     @param volume: input volume.
@@ -47,11 +46,12 @@ def bandpass_circle(image, low=0, high=-1, sigma=0):
         # the sigma
         mask = create_circle(image.shape, high, sigma, 2) - create_circle(image.shape, max(0,low-sigma*2), sigma, 2)
 
-
-    res = applyFourierFilterFull(image, xp.fft.fftshift(mask))
+    if ff is None:
+        res = applyFourierFilterFull(image, xp.fft.fftshift(mask))
+    else:
+        res = applyFourierFilterFull(image, xp.fft.fftshift(mask) * ff)
 
     return res
-
 
 def bandpass(volume, low=0, high=-1, sigma=0, returnMask=False, mask=None, fourierOnly=False):
     """Do a bandpass filter on a given volume.
@@ -334,7 +334,8 @@ def create_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, sm
     @type smooth: float
     @return: 3D array determining the wedge object.
     @rtype: ndarray of np.float64'''
-    import numpy
+    import numpy as np
+
     if wedgeAngle1 == wedgeAngle2:
         return create_symmetric_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth, rotation).astype(np.float32)
     else:
@@ -360,8 +361,8 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
     @rtype: ndarray of np.float64'''
     wedge = xp.zeros((sizeX, sizeY, sizeZ // 2 + 1), dtype=xp.float64)
     if rotation is None:
-        z, y, x = xp.meshgrid(xp.abs(xp.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2, 1.)),
-                              xp.abs(xp.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2, 1.)),
+        z, y, x = xp.meshgrid(xp.abs(xp.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2, 1.)),
+                              xp.abs(xp.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2, 1.)),
                               xp.arange(0, sizeZ // 2 + 1, 1.))
 
     else:
@@ -407,11 +408,12 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
         z = abs(grid[1, :, :, :])
         x = abs(grid[2, :, :, :])
 
-    r = xp.sqrt(x ** 2 + y ** 2 + z ** 2)
+    r = xp.sqrt((x*sizeX/sizeZ) ** 2 + (y) ** 2 + (z*sizeX/sizeY) ** 2)
     if angle1 > 1E-3:
         range_angle1Smooth = smooth / xp.sin(angle1 * xp.pi / 180.)
+
         with np.errstate(all='ignore'):
-            wedge[xp.tan(angle1 * xp.pi / xp.float32(180.)) <= y / x] = 1
+            wedge[xp.tan(xp.float32(angle1) * xp.pi / xp.float32(180.)) <= y / x] = 1
 
         if rotation is None:
             wedge[sizeX // 2, :, 0] = 1
@@ -450,14 +452,14 @@ def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, s
     @type smooth: float
     @return: 3D array determining the wedge object.
     @rtype: ndarray of xp.float64'''
-
     range_angle1Smooth = smooth / xp.sin(angle1 * xp.pi / 180.)
     range_angle2Smooth = smooth / xp.sin(angle2 * xp.pi / 180.)
     wedge = xp.zeros((sizeX, sizeY, sizeZ // 2 + 1))
 
     if rotation is None:
-        z, y, x = xp.meshgrid(xp.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2),
-                              xp.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2), xp.arange(0, sizeZ // 2 + 1))
+        z, y, x = xp.meshgrid(xp.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2),
+                              xp.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2),
+                              xp.arange(0, sizeZ // 2 + 1))
 
     else:
         cx, cy, cz = [s // 2 for s in (sizeX, sizeY, sizeZ)]
@@ -502,11 +504,12 @@ def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, s
         z = grid[1, :, :, :]
         x = grid[2, :, :, :]
 
+    r = xp.sqrt((x*sizeX/sizeZ) ** 2 + (y) ** 2 + (z*sizeX/sizeY) ** 2)
 
-    r = xp.sqrt(x ** 2 + y ** 2 + z ** 2)
 
-    wedge[xp.tan(angle1 * xp.pi / 180) < y / x] = 1
-    wedge[xp.tan(-angle2 * xp.pi / 180) > y / x] = 1
+    with np.errstate(all='ignore'):
+        wedge[xp.tan(angle1 * xp.pi / 180) < y / x] = 1
+        wedge[xp.tan(-angle2 * xp.pi / 180) > y / x] = 1
     wedge[sizeX // 2, :, 0] = 1
 
     if smooth:
@@ -553,7 +556,7 @@ def ellipse_filter(sizeX, sizeY, radiusCutoffX, radiusCutoffY):
 
     return filter
 
-def ramp_filter(sizeX, sizeY, crowtherFreq=None):
+def ramp_filter(sizeX, sizeY, crowtherFreq=None, N=None):
     """
     rampFilter: Generates the weighting function required for weighted backprojection - y-axis is tilt axis
 
@@ -566,9 +569,12 @@ def ramp_filter(sizeX, sizeY, crowtherFreq=None):
 
 
     if crowtherFreq is None: crowtherFreq = sizeX//2
-    rampLine = xp.abs(xp.arange(-sizeX//2, sizeX//2)) / crowtherFreq
+    N = 0 if N is None else 1/N
+
+    rampLine = (xp.abs(xp.arange(-sizeX//2, sizeX//2)) + N) / crowtherFreq
     rampLine[rampLine > 1] = 1
-    rampfilter = xp.column_stack(([(rampLine), ] * (sizeY))).T
+
+    rampfilter = xp.column_stack(([(rampLine), ] * (sizeY)))
 
     return rampfilter
 
