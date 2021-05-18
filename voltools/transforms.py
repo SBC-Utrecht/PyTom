@@ -106,7 +106,7 @@ def rotate(volume: np.ndarray,
            rotation: Tuple[float, float, float],
            rotation_units: str = 'deg',
            rotation_order: str = 'rzxz',
-           interpolation: str = 'linear',
+           interpolation: str = 'filt_bspline',
            profile: bool = False,
            output = None, device: str = 'cpu'):
 
@@ -254,12 +254,12 @@ def _get_transform_kernel(interpolation: str = 'linear'):
                     int y = get_y_idx(i, dims);
                     int x = get_z_idx(i, dims);
                     
-                    float4 voxf = make_float4(((float)x), ((float)y), ((float)z), 1.0f);
-                    
+                    float4 voxf = make_float4(((float)x) + .5f, ((float)y) + .5f, ((float)z) + .5f, 1.0f);
+
                     float3 ndx;
-                    ndx.z = dot(voxf, xform[0]) + .5f;
-                    ndx.y = dot(voxf, xform[1]) + .5f;
-                    ndx.x = dot(voxf, xform[2]) + .5f;
+                    ndx.z = dot(voxf, xform[0]);
+                    ndx.y = dot(voxf, xform[1]);
+                    ndx.x = dot(voxf, xform[2]);
                     
                     if (ndx.x < 0 || ndx.y < 0 || ndx.z < 0 || ndx.x >= dims[0].z || ndx.y >= dims[0].y || ndx.z >= dims[0].x) {{
                         continue;
