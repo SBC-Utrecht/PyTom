@@ -275,7 +275,7 @@ class FiducialLessAlignment():
 
         rec = xp.zeros_like(self.backProjRef,dtype=xp.float32)
 
-        rec = rec[:,:,:int(50+sin(Y)*rec.shape[2]//2)]
+        #rec = rec[:,:,:int(50+sin(Y)*rec.shape[2]//2)]
 
 
         rec2 = xp.zeros_like(self.backProjRef, dtype=xp.float32)
@@ -293,13 +293,11 @@ class FiducialLessAlignment():
         image = xp.fft.ifftn(xp.fft.fftn(image) * self.weightSlice ).real
 
 
-
         self.reconstruction_wbp((self.Nblocks, 1, 1,), (self.Nthreads, 1, 1), (image.astype(xp.float32), center_proj, xp.array(list(self.src.shape),dtype=xp.int32), rec, cent_rec, dims, tr, rec.size))
 
+        sx,ex,sy,ey = 10, 60,240,-20
 
-        sx,ex,sy,ey = 65, -170,50,-90
-
-        nccVal = nxcc(self.refImage[sx:ex,sy:ey], (self.reconstruction.sum(axis=2)+rec.sum(axis=2))[sx:ex,sy:ey], volumeIsNormalized=False)
+        nccVal = nxcc((self.maskWBP*self.refImage)[sx-1:ex-1,sy-1:ey-1], (self.maskWBP*(self.reconstruction.sum(axis=2)+rec.sum(axis=2)))[sx:ex,sy:ey], volumeIsNormalized=False)
 
         if show and 1:
             print(params)
@@ -310,9 +308,9 @@ class FiducialLessAlignment():
             fig, ax = subplots(2, 1, figsize=(5, 10))
             ax[0].set_title(nccVal)
             #ax[0].imshow( (reconstruction).sum(axis=2)[50:-50,50:-50].get())
-            ax[0].imshow((self.reconstruction.sum(axis=2)+rec.sum(axis=2)).get()[sx:ex,sy:ey])
+            ax[0].imshow((self.reconstruction.sum(axis=2)+rec.sum(axis=2)*1).get()[sx:ex,sy:ey])
             #ax[0].imshow(src.get()[50:-50,50:-50])
-            ax[1].imshow(self.refImage.get()[sx:ex,sy:ey])
+            ax[1].imshow(self.refImage.get()[sx-1:ex-1,sy-1:ey-1])
             show()
 
         # print(nccVal, float(params[0]), float(params[1]))
@@ -389,7 +387,9 @@ class FiducialLessAlignment():
 
         outname=alignResultsFile
 
-        startCoor = [ 52,0, 52]
+        startCoor = [ 104,0, 104]
+
+        imdim = max(recVolume.sizeX(), recVolume.sizeY())
 
         self.low_score = 9999
 
@@ -412,6 +412,15 @@ class FiducialLessAlignment():
         self.weightSlice = xp.fft.fftshift(ramp_filter(sx, sx, cfreq, 2))
 
 
+        x,y = xp.meshgrid(xp.arange(voldims[0]), xp.arange(voldims[2]))
+        x -= voldims[0]//2
+        y -= voldims[1]//2
+
+        r = xp.sqrt(x**2+y**2)
+
+
+        self.maskWBP = xp.ones_like(reconstruction[:,:,0])
+        #self.maskWBP[r <= voldims[0]//2-2] = 1
 
         for i in range(ntilts):
             image = resize(read(alignmentResults['FileName'][i]),1/projBinning).squeeze()
@@ -475,7 +484,7 @@ class FiducialLessAlignment():
 
         self.outputImage = outputImage.copy()
 
-        self.refImage = self.outputImage[52:-52,:]
+        self.refImage = self.outputImage[104:-104,:]
 
         src = xp.fft.ifftn(xp.fft.fftn(outputImage.squeeze()) * self.weightSlice ).real
 
@@ -583,7 +592,7 @@ class FiducialLessAlignment():
             for i in range(0,ntilts):
                 cfreq = abs(alignmentResults['TiltAngle'][refid] - alignmentResults['TiltAngle'][i])
                 self.cfreq = float(1 / xp.sin(cfreq.min() * xp.pi / 180)) // 1
-                self.weightSlice = xp.fft.fftshift(ramp_filter(360, 360, self.cfreq, 2))
+                self.weightSlice = xp.fft.fftshift(ramp_filter(imdim, imdim, self.cfreq, 2))
                 self.reconstruction = xp.zeros_like(self.backProjRef, dtype=xp.float32)
 
                 src = xp.fft.ifftn(xp.fft.fftn(self.outputImage.squeeze()) * self.weightSlice).real
@@ -608,7 +617,7 @@ class FiducialLessAlignment():
 
                 else:
 
-                    x,y = np.meshgrid(np.arange(-1,1.05,0.1), np.arange(-1,1.05,0.1))
+                    x,y = np.meshgrid(np.arange(-12,12.05,12), np.arange(-12,12.05,12))
                     ks = x.flatten()
                     js = y.flatten()
                     for jj in range(len(js)):
@@ -635,9 +644,9 @@ class FiducialLessAlignment():
             print(params[0::4]*projBinning)
 
             # Update alignment parameters and save results
-            alignmentResults['AlignmentTransX'] = self.params[0::4]*projBinning
-            alignmentResults['AlignmentTransY'] = self.params[1::4]*projBinning
-            alignmentResults['InPlaneRotation'] = self.params[2::4]
+            alignmentResults['AlignmentTransX'] = (self.params[0::4]+1)*projBinning
+            alignmentResults['AlignmentTransY'] = (self.params[1::4]+1)*projBinning
+            alignmentResults['InPlaneRotation'] = (self.params[2::4])
             # alignmentResults['Magnification']   = self.params[3::4]
 
             outname = os.path.join(outdir, f'alignmentResultsFile_it{t:03d}.txt')

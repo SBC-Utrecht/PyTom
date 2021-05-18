@@ -150,9 +150,6 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
                 pasteCenter(image, newImage)
                 image = newImage
 
-
-
-
             # 4 -- Rotate
             image = general_transform2d(v=image, rot=rot, shift=[transX,transY], scale=mag, order=[2, 1, 0], crop=True)
 
