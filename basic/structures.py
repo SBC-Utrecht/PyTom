@@ -1873,10 +1873,10 @@ class Particle(PyTomClass):
         source_element = particle_element.xpath('InfoGUI')
         if len(source_element) > 0:
             source_element = source_element[0]
-            self._infoGUI = InformationGUI([''])
+            self._infoGUI = InformationGUI('')
             self._infoGUI.fromXML(source_element)
         else:
-            self._infoGUI = InformationGUI([''])
+            self._infoGUI = InformationGUI('')
 
         position_element = particle_element.xpath('PickPosition')
         if len(position_element) > 0:
@@ -3258,7 +3258,7 @@ class ParticleList(PyTomClass):
                 try: x, y, z = [float(n) for n in line.split('\t')]
                 except: x, y, z = [float(n) for n in line.split()]
                 p = Particle(name_prefix+str(i)+'.em', rotation=None, shift=None,
-                        wedge=None, className=0, pickPosition=PickPosition(x,y,z, infoGUI[0], infoGUI[1], infoGUI[2]),
+                        wedge=None, className=0, pickPosition=PickPosition(x,y,z),
                         score=None, infoGUI=[projDir])
                 if wedgeAngle:
                     p.setWedge(wedge)
@@ -3392,7 +3392,6 @@ class InformationGUI(PyTomClass):
 
     def toXML(self):
         from lxml import etree
-
         info_element = etree.Element('InfoGUI', ProjectDir=str(self._projectDir))
         return info_element
 
@@ -3409,7 +3408,6 @@ class InformationGUI(PyTomClass):
 
         self._projectDir = str(info_element.get('ProjectDir'))
         self._projectDir = '' if self._projectDir == str(None) else self._projectDir
-
 
 
 class Rotation(PyTomClass):
