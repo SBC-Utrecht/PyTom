@@ -306,7 +306,6 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
         try:
             gpus = gpus.text()
         except Exception as e:
-            print(e)
             pass
         numgpus = len(gpus.split(','))
         #numgpus = int(gpus)+1

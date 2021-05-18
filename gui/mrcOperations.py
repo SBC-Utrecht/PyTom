@@ -50,7 +50,7 @@ def square_mrc(mrc_fname):
         raise Exception('no valid dimension mrcfile')
 
 
-    o = remove_hot_pixels(o)
+    #o = remove_hot_pixels(o)
     mrcfile.new(mrc_fname,o,overwrite=True)
     #convert_numpy_array3d_mrc(o[newaxis,:,:],mrc_fname)
 

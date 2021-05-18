@@ -58,7 +58,7 @@ class ParticlePick(GuiTabWidget):
         self.workerID = 0
         self.TMCounter = 0
         self.ECCounter = 0
-
+        self.localJobStrings = {}
 
         headers = ["Manual Picking","Template Matching", "Create Particle List", "Alter Particle List"]
         subheaders  = [[],['Single', 'Batch Template Match', 'Batch Extract'], ['Single','Batch'], []]

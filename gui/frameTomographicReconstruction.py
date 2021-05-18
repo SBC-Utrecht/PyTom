@@ -52,6 +52,7 @@ class TomographReconstruct(GuiTabWidget):
         self.threadPool = self.parent().threadPool
         self.workerID = 0
         self.qparams = self.parent().qparams
+        self.localJobStrings = {}
 
         self.widgets['pytomPath'] = QLineEdit()
         self.widgets['pytomPath'].setText(self.parent().pytompath)
@@ -130,17 +131,20 @@ class TomographReconstruct(GuiTabWidget):
         self.filepath_tomodata['Motion Corrected'] = self.motioncor_folder
         self.filepath_tomodata['Raw Nanographs']  = self.rawnanographs_folder
 
-        headers = ["meta file", "create", 'square', 'pututive name',"input files", 'Name tomogram', 'redo', 'delete']
-        types = ['txt', 'checkbox','checkbox', 'txt', 'combobox', 'txt', 'checkbox', 'checkbox']
+        headers = ["meta file", "create", 'square', 'pututive name',"input files", 'Name tomogram', 'delete', 'Bin Factor IMOD']
+        types = ['txt', 'checkbox','checkbox', 'txt', 'combobox', 'txt', 'checkbox', 'lineedit', 'txt']
         sizes = [0, 80, 80, 500, 0, 200, 80, 80]
 
         tooltip = ['Name of meta files. This file indicates which images belong together, as well as the tiltangles.',
                    'Create new tomogram folders.',
                    'Crop the images such that they become square',
                    'Putative name of tomogram',
+                   'Which files do you want to use',
                    'Names of existing tomogram folder.',
-                   'Redo the creation of a tomogram file.',
-                   'Select items to delete tomogram folders.']
+                   'Select items to delete tomogram folders.',
+                   'OPTIONAL: If your meta file originates from an imod stack, this binning factor can be used to create\n'
+                   ' pytoms markerfile from imod defined alignment points. Binning used in IMOD should be given here.\n'
+                   'Binning factor is ignored for other meta files.']
 
         processed = sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder)))
         processed_fn = [basename(line) for line in processed]
@@ -153,9 +157,9 @@ class TomographReconstruct(GuiTabWidget):
         values = []
 
         for t in processed:
-            values.append([t, False, False, '', ['Raw Nanographs', 'Motion Corrected'], t.split('/')[-3], True, True])
+            values.append([t, False, False, '', ['Raw Nanographs', 'Motion Corrected'], t.split('/')[-3], True, self.binningFactorIMOD])
         for t in unprocessed:
-            values.append([t, True, True, '', ['Raw Nanographs','Motion Corrected'], '', False, False])
+            values.append([t, True, True, '', ['Raw Nanographs','Motion Corrected'], '', False, self.binningFactorIMOD])
 
         if values:
             self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, connect=self.update_create_tomoname)
@@ -236,7 +240,8 @@ class TomographReconstruct(GuiTabWidget):
                         newTemplateAlignment]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch = paramsSbatch,
-                                 paramsCmd=paramsCmd, action=self.convert_em, paramsAction=[mode,'alignment','sorted'])
+                                 paramsCmd=paramsCmd, action=self.convert_em, paramsAction=[mode,'alignment','sorted'],
+                                 mandatory_fill = [mode + 'FolderSorted'])
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
         self.table_layouts[id].addWidget(label)
@@ -478,7 +483,9 @@ class TomographReconstruct(GuiTabWidget):
         #                 'The point of the arrow indicates the rotation direction, following the left hand rule.')
 
         for name in ('tomofolder', 'tomogramNR', 'FirstIndex', 'LastIndex', 'Reduced', 'tiltSeriesName', 'markerfile',
-                     'specimenAngleFlag'):
+                     'specimenAngleFlag', 'DimY'):
+            if mode + name in self.widgets.keys():
+                continue
             self.widgets[mode + name] = QLineEdit()
 
         self.widgets[mode + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
@@ -502,7 +509,7 @@ class TomographReconstruct(GuiTabWidget):
                                             mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor',
                                             self.parent().pytompath, mode + 'tomogramNR', mode + 'RotationTiltAxis',
                                             mode + 'specimenAngleFlag',
-                                            templateINFR])
+                                            templateINFR], mandatory_fill=[mode+'FolderSorted'])
 
         # self.insert_label_action_label(parent,'Generate command',cstep=-2, sizepolicy=self.sizePolicyB)
         # self.insert_textfield(parent, h+'CommandText', columnspan=3, rstep=1, cstep=2)
@@ -548,7 +555,7 @@ class TomographReconstruct(GuiTabWidget):
                                   tooltip='Binning factor used for reconstruction')
 
         for name in ('tomofolder', 'tomogramNR','FirstIndex', 'LastIndex', 'Reduced', 'tiltSeriesName', 'markerfile',
-                     'specimenAngleFlag'):
+                     'specimenAngleFlag', 'DimY'):
             self.widgets[mode + name] = QLineEdit()
 
         self.widgets[h + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
@@ -573,12 +580,12 @@ class TomographReconstruct(GuiTabWidget):
 
         paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex', mode + 'LastIndex',
                      mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', mode + 'tomogramNR', 'mrc',
-                     mode + 'Voldims', mode + 'WeightingType', mode+'RotationTiltAxis', mode + 'specimenAngleFlag',
+                     mode + 'Voldims', mode + 'WeightingType', mode+'RotationTiltAxis', mode + 'specimenAngleFlag', mode + 'DimY',
                      templateWBP]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, action=self.convert_em, exefilename=execfilename,
                                  paramsAction=[mode,'reconstruction/WBP','sorted'],paramsSbatch=paramsSbatch,
-                                 paramsCmd=paramsCmd)
+                                 paramsCmd=paramsCmd, mandatory_fill=[h+'FolderSorted'])
 
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
@@ -761,7 +768,8 @@ class TomographReconstruct(GuiTabWidget):
         paramsCmd = [mode + 'tomofolder', 'ctf/ctfplotter.com', templateCTFPlotter]
 
         self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=exefilename, paramsSbatch=paramsSbatch,
-                                 paramsCmd=paramsCmd, paramsXML=paramsXML, xmlfilename=xmlfilename)
+                                 paramsCmd=paramsCmd, paramsXML=paramsXML, xmlfilename=xmlfilename,
+                                 mandatory_fill=[mode + 'FolderSortedAligned', mode+'AngleFile', mode + 'DefocusFile'])
 
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
@@ -847,7 +855,8 @@ class TomographReconstruct(GuiTabWidget):
                      templateCTFCorrectionImod]
 
         self.insert_gen_text_exe(parent, mode, exefilename=exefilename, paramsSbatch=paramsSbatch,
-                                 paramsCmd=paramsCmd, paramsAction=[mode])
+                                 paramsCmd=paramsCmd, paramsAction=[mode],
+                                 mandatory_fill=[mode+'DefocusFile', mode+'AngleFile', mode+'OutputFile', mode+'InputStack'])
 
         self.updateGpuString(mode)
         self.updateCTFCorrectionImod(mode)
@@ -863,21 +872,21 @@ class TomographReconstruct(GuiTabWidget):
         n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables['tab1'].table
         widgets = self.tables['tab1'].widgets
-
+        print('Creating dirs')
         jobs = []
 
         num_folders_to_be_deleted = 0
 
         for row in range(table.rowCount()):
-            wname1 = 'widget_{}_{}'.format(row, 6)
-            wname2= 'widget_{}_{}'.format(row, 7)
-            for wname in (wname1, wname2):
-                if wname in widgets.keys() and widgets[wname].isChecked():
-                    reply = QMessageBox.question(self, 'Delete Folders', 'Are you sure you want to permanantly delete the selected folders?',
-                            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-                    if reply == QMessageBox.No:
-                        self.tab1UI(id)
-                        return
+            wname = 'widget_{}_{}'.format(row, 6)
+            #wname2= 'widget_{}_{}'.format(row, 7)
+            #for wname in (wname1, wname2):
+            if wname in widgets.keys() and widgets[wname].isChecked():
+                reply = QMessageBox.question(self, 'Delete Folders', 'Are you sure you want to permanantly delete the selected folders?',
+                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if reply == QMessageBox.No:
+                    self.tab1UI(id)
+                    return
 
         for row in range(table.rowCount()):
             wname = 'widget_{}_{}'.format(row, 1)
@@ -888,46 +897,47 @@ class TomographReconstruct(GuiTabWidget):
                 metafile = values[row][0]
                 crop = widgets['widget_{}_{}'.format(row, 2)].isChecked()
                 folder = self.filepath_tomodata[widgets['widget_{}_{}'.format(row, 4)].currentText()]
-
-                jobs.append([self.create_tomodir_instance, (tomofoldername, metafile, folder, crop)])
+                binning = float(widgets[f'widget_{row}_{7}'].text())
+                print(binning)
+                jobs.append([self.create_tomodir_instance, (tomofoldername, metafile, folder, crop, binning)])
 
                 #self.create_tomodir_instance(tomofoldername,metafile,folder)
 
             # Redo
-            wname = 'widget_{}_{}'.format(row, 6)
-            if wname in widgets.keys() and widgets[wname].isChecked():
-                tomofoldername = widgets['widget_{}_{}'.format(row, 5)].text()
-                metafile = os.path.basename(values[row][0])
-                folder = self.filepath_tomodata[widgets['widget_{}_{}'.format(row, 4)].currentText()]
-                crop = widgets['widget_{}_{}'.format(row, 2)].isChecked()
-
-                error = False
-                metaf = glob.glob(os.path.join(self.rawnanographs_folder, '*', metafile))
-                if metaf:
-                    metafile = metaf[0]
-                elif os.path.join(self.rawnanographs_folder, metafile):
-                    metafile = os.path.join(self.rawnanographs_folder, metafile)
-                else:
-                    error = True
-
-                if os.path.exists(metafile) and not error:
-                    sfolder = os.listdir(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
-                    sfolder = [os.path.join(self.tomogram_folder, tomofoldername, 'sorted', f) for f in sfolder]
-                    try:
-                        [os.system('unlink {}'.format(f)) for f in sfolder if f.endswith('.mrc') and f.startswith('sorted_')]
-                    except:
-                        pass
-                    if os.path.exists(os.path.join(self.tomogram_folder, tomofoldername)):
-                        shutil.rmtree(os.path.join(self.tomogram_folder, tomofoldername))
-
-                    jobs.append( [self.create_tomodir_instance, (tomofoldername, metafile, folder, crop)])
-
-                    num_folders_to_be_deleted += 1
-                else:
-                    print(f'{metafile} not found, skipping redo')
+            # wname = 'widget_{}_{}'.format(row, 6)
+            # if wname in widgets.keys() and widgets[wname].isChecked():
+            #     tomofoldername = widgets['widget_{}_{}'.format(row, 5)].text()
+            #     metafile = os.path.basename(values[row][0])
+            #     folder = self.filepath_tomodata[widgets['widget_{}_{}'.format(row, 4)].currentText()]
+            #     crop = widgets['widget_{}_{}'.format(row, 2)].isChecked()
+            #
+            #     error = False
+            #     metaf = glob.glob(os.path.join(self.rawnanographs_folder, '*', metafile))
+            #     if metaf:
+            #         metafile = metaf[0]
+            #     elif os.path.join(self.rawnanographs_folder, metafile):
+            #         metafile = os.path.join(self.rawnanographs_folder, metafile)
+            #     else:
+            #         error = True
+            #
+            #     if os.path.exists(metafile) and not error:
+            #         sfolder = os.listdir(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
+            #         sfolder = [os.path.join(self.tomogram_folder, tomofoldername, 'sorted', f) for f in sfolder]
+            #         try:
+            #             [os.system('unlink {}'.format(f)) for f in sfolder if f.endswith('.mrc') and f.startswith('sorted_')]
+            #         except:
+            #             pass
+            #         if os.path.exists(os.path.join(self.tomogram_folder, tomofoldername)):
+            #             shutil.rmtree(os.path.join(self.tomogram_folder, tomofoldername))
+            #
+            #         jobs.append( [self.create_tomodir_instance, (tomofoldername, metafile, folder, crop)])
+            #
+            #         num_folders_to_be_deleted += 1
+            #     else:
+            #         print(f'{metafile} not found, skipping redo')
 
             # Delete
-            wname = 'widget_{}_{}'.format(row, 7)
+            wname = 'widget_{}_{}'.format(row, 6)
             if wname in widgets.keys() and widgets[wname].isChecked():
                 tomofoldername = widgets['widget_{}_{}'.format(row, 5)].text()
                 sfolder = os.listdir(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
@@ -1002,8 +1012,8 @@ class TomographReconstruct(GuiTabWidget):
     def run_jobs(self, jobs, procid, counters):
 
         for n, (target, args) in enumerate(jobs):
-            tomofoldername, metafile, folder, crop = args
-            target(tomofoldername, metafile, folder, crop, procid, counters)
+            tomofoldername, metafile, folder, crop, binning = args
+            target(tomofoldername, metafile, folder, crop, binning, procid, counters)
 
     def generate_statusbar(self, nrJobs):
         widget = QWidget(self)
@@ -1020,7 +1030,6 @@ class TomographReconstruct(GuiTabWidget):
         layout.addWidget(self.progressBar)
         self.statusBar.addPermanentWidget(self.progressBar, stretch=1)
 
-
     def preprocdata(self, dst_mcor, crop):
         from pytom.tompy.io import read as readNPY, write
         data = readNPY(dst_mcor)
@@ -1030,8 +1039,7 @@ class TomographReconstruct(GuiTabWidget):
             data = data[:size, :size]
         write(dst_mcor, remove_hot_pixels(data))
 
-
-    def create_tomodir_instance(self, tomofoldername, metafile, folder, crop, procid=0, counters=[]):
+    def create_tomodir_instance(self, tomofoldername, metafile, folder, crop, binning=4, procid=0, counters=[]):
         src = os.path.join(self.tomogram_folder, '.tomoname')
         num_subprocesses = 5
         dst = os.path.join(self.tomogram_folder, tomofoldername)
@@ -1067,7 +1075,7 @@ class TomographReconstruct(GuiTabWidget):
                 prexg = metafile.replace(".meta",".prexg")
                 infile = metafile.replace(".meta",".fid")
                 fid = infile[:-4]+'_raw.fid'
-                os.system(f'xfmodel -back -scale {1/self.binningFactorIMOD} -prealign {prexg} -input {infile} -o {fid}')
+                os.system(f'xfmodel -back -scale {1/binning} -prealign {prexg} -input {infile} -o {fid}')
 
 
             # cmd = "newstack --InputFile {} --OutputFile {} --ModeToOutput 0 --FloatDensities 2 --BinByFactor 4 --ImagesAreBinned 1.0"
@@ -1103,7 +1111,7 @@ class TomographReconstruct(GuiTabWidget):
 
             src_mcor = os.path.join(folder, tif[1:-1])
             dst_mcor = os.path.join(os.path.dirname(meta_dst), 'sorted_{:02d}.mrc'.format(n))
-
+            print('debug', src_mcor)
             if os.path.exists(src_mcor):
                 # print('test', src_mcor)
                 num_copied += 1
@@ -1144,7 +1152,7 @@ class TomographReconstruct(GuiTabWidget):
                         markerfile[:,i,0] -= shiftx
                         markerfile[:,i,1] -= shifty
                 print('write markerfile')
-                write_markerfile(markerFileName, markerfile, tiltangles, bin_factor=4)
+                write_markerfile(markerFileName, markerfile, tiltangles, bin_factor=binning)
 
 
         if num_copied < 1:
@@ -1214,8 +1222,14 @@ class TomographReconstruct(GuiTabWidget):
         files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')]
         if not files: return
         files = files[0]
-        imdim = read_size(os.path.join(folderSorted, files))[0]
-        self.widgets[mode+'Voldims'].setText(str(int(float(imdim)/float(self.widgets[mode+'BinningFactor'].text())+.5)))
+        imdims = read_size(os.path.join(folderSorted, files))
+
+        dimx = str(int(float(imdims[0])/float(self.widgets[mode+'BinningFactor'].text())+.5))
+        dimy = str(int(float(imdims[1])/float(self.widgets[mode+'BinningFactor'].text())+.5))
+
+
+        self.widgets[mode+'Voldims'].setText(f'{dimx}')
+        self.widgets[mode + 'DimY'].setText(f'{dimy}')
 
     def updateIndex(self, mode):
         if 'INFR' in mode: INFR=1
@@ -1717,7 +1731,9 @@ class TomographReconstruct(GuiTabWidget):
         mode = 'batch_recon_'
         dd = {1:'reconstruction/INFR',2:'reconstruction/WBP'}
 
-        for name in ('FirstAngle', 'LastAngle','FirstIndex', 'LastIndex', 'Reduced'):
+        for name in ('FirstAngle', 'LastAngle','FirstIndex', 'LastIndex', 'Reduced', 'DimY'):
+            if mode + name in self.widgets.keys():
+                continue
             self.widgets[mode + name] = QLineEdit()
 
 
@@ -1779,9 +1795,16 @@ class TomographReconstruct(GuiTabWidget):
                         specimenAngleFlag = '' if specimenAngle == 0 or specimenAngle == '' else f'--specimenAngle {specimenAngle} '
                         self.updateVoldims(mode)
                         voldims = self.widgets[mode + 'Voldims'].text()
+                        dimy = self.widgets[mode + 'DimY'].text()
+
+                        if abs(90-(expectedRotation%180)) < 45:
+                            dx,dy,dz = dimy,voldims, dimy
+                        else:
+                            dx,dy,dz  = voldims, dimy, voldims
+
                         paramsCmd = [tomofolder, self.pytompath, firstIndex, lastIndex, refTiltImage, refmarkindex,
-                                     binningFactor, os.path.basename(tomofolder), 'mrc', voldims, weightingType,
-                                     expectedRotation, specimenAngleFlag]
+                                     binningFactor, os.path.basename(tomofolder), 'mrc', dx, weightingType,
+                                     expectedRotation, specimenAngleFlag, dy, dz]
 
 
                         commandText= templateWBP.format(d=paramsCmd)

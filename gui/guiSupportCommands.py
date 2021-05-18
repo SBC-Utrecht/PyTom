@@ -81,8 +81,8 @@ templateWBP       = '''cd {d[0]}
     --tiltSeriesFormat {d[8]} \\
     --fileType {d[8]}  \\
     --tomogramSizeX {d[9]}  \\
-    --tomogramSizeY {d[9]} \\
-    --tomogramSizeZ {d[9]} \\
+    --tomogramSizeY {d[13]} \\
+    --tomogramSizeZ {d[14]} \\
     --reconstructionCenterX 0 \\
     --reconstructionCenterY 0 \\
     --reconstructionCenterZ 0 \\

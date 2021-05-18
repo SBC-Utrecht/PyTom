@@ -4,6 +4,12 @@ import os
 import pickle, json
 import numpy as np
 
+
+global PID
+
+
+PID = str(os.getpid())
+
 if sys.version_info[0] < 3:
     print(sys.version_info[0])
     raise Exception("The GUI requires Python 3")
@@ -242,11 +248,15 @@ class PyTomGui(QMainWindow, CommonFunctions):
         tb.setStyleSheet('background: #{};'.format(self.bars))
         self.addToolBar(tb)
 
+
+        # Add window Icon
+        #self.setWindowIcon(QtGui.QIcon(f"{pytompath}/gui/Icons/SubtomogramAnalysis.jpg"))
+
         # ADD ICONS FOR NEW, OPEN, SAVE, AND SETTINGS.
-        new  = QAction(QIcon("{}/gui/Icons/new_project4.png".format(self.pytompath)),"New",self)
-        load = QAction(QIcon("{}/gui/Icons/open_project4.png".format(self.pytompath)),"Open",self)
-        save = QAction(QIcon("{}/gui/Icons/save_project4.png".format(self.pytompath)), "Save", self)
-        settings = QAction(QIcon("{}/gui/Icons/cogwheel.png".format(self.pytompath)), "Settings", self)
+        new  = QAction(QIcon("{}/gui/Icons/NewProject.png".format(self.pytompath)),"New",self)
+        load = QAction(QIcon("{}/gui/Icons/OpenProject.png".format(self.pytompath)),"Open",self)
+        save = QAction(QIcon("{}/gui/Icons/SaveProject.png".format(self.pytompath)), "Save", self)
+        settings = QAction(QIcon("{}/gui/Icons/Settings.png".format(self.pytompath)), "Settings", self)
         for action in (new, load, save, settings):
             tb.addAction(action)
 
@@ -293,6 +303,8 @@ class PyTomGui(QMainWindow, CommonFunctions):
         # self.statusBar.setLayout(QHBoxLayout())
         self.setStatusBar(self.sbar)
         self.sbar.setSizeGripEnabled(False)
+
+        self.killProcs()
 
         try:
 
@@ -513,6 +525,9 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.TR = TomographReconstruct(self)
         self.PP = ParticlePick(self)
         self.SA = SubtomoAnalysis(self)
+
+        self.frames = [self.CD, self.TR, self.PP, self.SA]
+
         self.topright.addWidget(self.CD)
         self.topright.addWidget(self.TR)
         self.topright.addWidget(self.PP)
@@ -535,10 +550,10 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
         self.open_settings(show_menu=False, new_project=True)
 
-        self.iconnames = [os.path.join(self.pytompath, 'gui/Icons/td.png'),
-                          os.path.join(self.pytompath, 'gui/Icons/recon.png'),
-                          os.path.join(self.pytompath, 'gui/Icons/sa3.png'),
-                          os.path.join(self.pytompath, 'gui/Icons/pp.jpg')]
+        self.iconnames = [os.path.join(self.pytompath, 'gui/Icons/TransferData.png'),
+                          os.path.join(self.pytompath, 'gui/Icons/TomographicReconstruction.png'),
+                          os.path.join(self.pytompath, 'gui/Icons/ParticlePicking.png'),
+                          os.path.join(self.pytompath, 'gui/Icons/SubtomogramAnalysis.jpg')]
 
         for nn,(i,n) in enumerate(self.targets):
             widget = QPushButton(n)
@@ -613,10 +628,46 @@ class PyTomGui(QMainWindow, CommonFunctions):
             self.view2d = View2d(self)
             self.view2d.show()
 
+    def killProcs(self, query='pytomGUI.py', ask=True):
+        import getpass
+        uid = str(getpass.getuser())
+
+
+        pids = []
+
+        for line in [pid for pid in os.popen(f"""ps -ef""").read().split('\n') if pid]:
+            p = line.split()
+            if p[0] == uid and query in line and p[1] != PID:
+                pids.append(p[1])
+
+        if pids:
+            if ask:
+                close = QMessageBox()
+                close.setText("Do you want to terminate existing GUI processes?\nThis either means you already have a GUI running or the previous GUI did not terminate properly.")
+                close.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+                close = close.exec()
+            else:
+                close = QMessageBox.Yes
+            if close == QMessageBox.Yes:
+                for pid in pids:
+                    os.system(f'kill -9 {pid} >& /dev/null')
+
+
     def closeEvent(self, event):
-        for e in self.qEvents.values():
-            e.set()
-        event.accept()
+
+
+        close = QMessageBox()
+        close.setText("Are you sure you want to close the PyTomGUI?")
+        close.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+        close = close.exec()
+
+        if close == QMessageBox.Yes:
+
+            for e in self.qEvents.values():
+                e.set()
+            event.accept()
+        else:
+            event.ignore()
 
 def main():
 

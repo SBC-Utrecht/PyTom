@@ -184,6 +184,7 @@ class CollectPreprocess(GuiTabWidget):
         self.queueEvents = self.parent().qEvents
         self.localqID = {}
         self.activeProcesses = {}
+        self.localJobStrings = {}
 
         self.widgets['pytomPath'] = QLineEdit()
         self.widgets['pytomPath'].setText(self.parent().pytompath)

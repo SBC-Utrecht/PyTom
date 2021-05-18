@@ -25,6 +25,8 @@ from pytom.bin.extractTomoNameFromXML import *
 from pytom.gui.guiFunctions import readMarkerfile
 from pytom.tompy.io import read_size
 
+
+
 class SubtomoAnalysis(GuiTabWidget):
     '''Collect Preprocess Widget'''
     def __init__(self, parent=None):
@@ -57,8 +59,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.qparams = {}
         self.tabs_dict = {}
         self.tab_actions = {}
-
-
+        self.localJobs = {}
+        self.localJobStrings = {}
         # CHANGE THE NEXT FOUR VARIABLES WHEN ADDING OR REMOVING TABS
         # ONE NEEDS 1) UI FUNCTION TO SET UP THE GENERAL TAB (NUMBER OF DROPDOWN FIELDS VS DYNAMIC TABLE)
         #           2) FUNCTION TO FILL DROP DOWN MENU / FILL THE TABLE
@@ -401,28 +403,49 @@ class SubtomoAnalysis(GuiTabWidget):
             if '_tomogram_' in particleFile:
                 particleFiles.append(particleFile)
             else:
-                output_folder = os.path.join(self.pickpartdir, os.path.splitext(os.path.basename(particleFile))[0])
-                pLs = extractParticleListsByTomoNameFromXML(particleFile, directory=output_folder)
-                for pl in pLs:
-                    particleFiles.append(pl)
+                pl = ParticleList()
+                pl.fromXMLFile(particleFile)
+                pls = pl.splitByProjectDir()
+
+                for pp in pls:
+                    if len(pp) == 0: continue
+                    projdir = pp[0].getInfoGUI().getProjectDir()
+                    print(projdir)
+                    projdir = os.path.basename(self.projectname) if projdir == '' else projdir
+                    print(projdir)
+
+                    if projdir[-1] == '/': projdir = projdir[:-1]
+                    if projdir: projdir+='_'
+                    dirname = os.path.splitext(os.path.basename(particleFile))[0]
+                    output_folder = os.path.join(self.pickpartdir, dirname)
+                    if not os.path.exists(output_folder):
+                        os.mkdir(output_folder)
+
+                    ppts = pp.splitByTomoName()
+                    for ppt in ppts:
+                        tomogram_name = os.path.splitext(os.path.basename(ppt[0].getPickPosition().getOriginFilename()))[0]
+                        ppt.toXMLFile(f'{output_folder}/particleList_{projdir}{tomogram_name}.xml')
+                        particleFiles.append(f'{output_folder}/particleList_{projdir}{tomogram_name}.xml')
 
         particleFiles = sorted(particleFiles)
 
         headers = ["Filename particleList", "Run", "Tilt Images", "Alignment Type", "Origin", 'Bin factor recon', 'Weighting',
-                   "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Z", 'Polish Result', '']
-        types = ['txt', 'checkbox', 'combobox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit',
-                 'lineedit', 'lineedit', 'comboboxF', 'txt']
+                   "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Z", 'Scale Factor', 'GPU IDs', 'Polish Result', '']
+        types = ['txt', 'checkbox', 'combobox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit',
+                 'lineedit', 'lineedit', 'lineedit',  'comboboxF', 'txt']
         a = 40
-        sizes = [0, 0, 80, 80, 90, a, a, a, a, a, a, a, a, 80, a]
+        sizes = [0, 0, 80, 80, 90, a, a, a, a, a, a, a, a, a, 80, a, a]
 
         tooltip = ['Names of the particleList files',
                    'Check this box to run subtomogram reconstruction.',
-                   'Which folder contains the tilt-images you want to use for subtomo reconstruction?',
-                   'Aligned Images',
+                   'Which Marker is used as reference marker',
+                   'Which Alignment protocol has been used','Folder in which the alignment results are stored',
                    'Binning factor used for the reconstruction.',
                    'Weighting Type.\n0: No Weighting,\n1: Analytical Weighting.\n-1: Ramp Weighting',
                    'Size Subtomograms', 'Binning factor for subtomograms (--projBinning)', 'Offset in X-dimension',
-                   'Offset in Y-dimension', 'Offset in Z-dimension', 'Results files from particle polishing.']
+                   'Offset in Y-dimension', 'Offset in Z-dimension', 'Scaling factor to compensate for magnification differences between datasets',
+                   'One or more GPU IDs (separated by a comma: 0,4,5)'
+                   'Results files from particle polishing.']
 
         values = []
         refmarkindices = []
@@ -430,8 +453,8 @@ class SubtomoAnalysis(GuiTabWidget):
         for n, particleFile in enumerate(particleFiles):
             if not particleFile: continue
             base, ext = os.path.splitext(
-                os.path.basename(particleFile).replace('particleList_', '').replace('coords_', '').replace('_flipped',
-                                                                                                           ''))
+                os.path.basename(particleFile).replace('particleList_', '').replace('coords_', '').replace('_flipped',''))
+
             if '_tomogram_' in base:
                 base = 'tomogram_' + base.split('_tomogram_')[1]
 
@@ -468,8 +491,8 @@ class SubtomoAnalysis(GuiTabWidget):
                     from lxml import etree
                     xmlObj = etree.parse(particleFile)
                     particles = xmlObj.xpath('Particle')
-                    binning = 8 #int(particles[0].xpath('InfoTomogram')[0].get('BinningFactor'))
-                    refmarkindex = int(particles[0].xpath('InfoTomogram')[0].get('RefMarkIndex'))
+                    binning = int(particles[0].xpath('PickPosition')[0].get('Binning'))
+                    refmarkindex = int(particles[0].xpath('PickPosition')[0].get('RefMarkIndex'))
                 except:
                     print('Default values used for {}:\n\tbin recon = 8\n\t ref mark index = 1'.format(
                         os.path.basename(particleFile)))
@@ -498,7 +521,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                 choices += closest_options
 
-                values.append([particleFile, True, choices, aligntype, origin, binning, -1, 128, 1, 0, 0, 0, polishfiles, ''])
+                values.append([particleFile, True, choices, aligntype, origin, binning, -1, 128, 1, 0, 0, 0, 1, '', polishfiles, ''])
                 refmarkindices.append(refmarkindex)
 
         try:
@@ -791,7 +814,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         # Run Update With Data From Logfile
         self.updateOutFileName(mode)
-
+        self.updateGpuString(mode)
 
         setattr(self, mode + 'gb_APL', groupbox)
         return groupbox
@@ -1590,6 +1613,8 @@ class SubtomoAnalysis(GuiTabWidget):
     def massExtractParticles(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
         qIDs = []
+        jobCode = {}
+        execfilenames = {}
         num_submitted_jobs = nsj = 0
         values = self.valuesBatchSubtomoReconstruction
         try:
@@ -1613,13 +1638,22 @@ class SubtomoAnalysis(GuiTabWidget):
                     offx = self.tab12_widgets['widget_{}_{}'.format(row, 9)].text()
                     offy = self.tab12_widgets['widget_{}_{}'.format(row, 10)].text()
                     offz = self.tab12_widgets['widget_{}_{}'.format(row, 11)].text()
-                    ppfile = values[row][12][self.tab12_widgets['widget_{}_{}'.format(row, 12)].currentIndex()]
+                    scale = self.tab12_widgets['widget_{}_{}'.format(row, 12)].text()
+                    scale = None if (scale == '1' or scale == '') else float(scale)
+                    gpuIDs = self.tab12_widgets['widget_{}_{}'.format(row, 13)].text()
+                    gpuIDflag = '' if not gpuIDs else f' --gpuID {gpuIDs}'
+                    ppfile = values[row][14][self.tab12_widgets['widget_{}_{}'.format(row, 14)].currentIndex()]
                     ppflag = f'--particlePolishResultFile {ppfile}' if ppfile else ''
+
+                    ppflag +=  '' if scale is None else f' --scaleFactorParticle {scale}'
+
+                    ppflag += gpuIDflag
+
                     refid = os.path.basename(markerPath).split('_')[1]
 
                     if refid.lower() != 'closest':
 
-                        outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'.format(int(tomoindex),refid)
+                        outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_Refmarker_{}.sh'.format(int(tomoindex),refid)
                         execfilename = os.path.join(self.subtomodir, outname)
                         qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
 
@@ -1672,14 +1706,58 @@ class SubtomoAnalysis(GuiTabWidget):
                                                                partition=qname,num_jobs_per_node=cores, time=time,
                                                                modules=modules) + txt
 
+                    fname = 'SubtomoRecon_{}'.format(nsj % num_nodes)
+                    timed = time
+                    cmd = txt
 
-                    ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
-                    nsj += 1
-                    qIDs.append(ID)
+                    if gpuIDs and not gpuIDs in jobCode.keys():
+                        job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname,
+                                                            time=timed, num_nodes=n_nodes, partition=qname, modules=modules,
+                                                            num_jobs_per_node=cores, gpus=gpuIDs)*self.checkbox[pid].isChecked() + cmd
+                        execfilenames[gpuIDs] = execfilename
+                        jobCode[gpuIDs] = job
+                        nsj += 1
+
+                    elif gpuIDs and gpuIDs in jobCode.keys():
+                        jobCode[gpuIDs] += f'\nwait\n\n{cmd}\n'
+
+                    elif not f'noGPU_{nsj % num_nodes}' in jobCode.keys():
+                        job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname,
+                                                            time=timed, num_nodes=n_nodes, partition=qname,
+                                                            modules=modules, num_jobs_per_node=cores) + cmd
+                        execfilenames[f'noGPU_{nsj % num_nodes}'] = execfilename
+                        jobCode[f'noGPU_{nsj % num_nodes}'] = job
+                        nsj += 1
+
+                    else:
+                        jobCode[f'noGPU_{nsj % num_nodes}'] += f'\nwait\n\n{cmd}\n'
+
+
+                    # ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
+                    # nsj += 1
+                    # qIDs.append(ID)
+
+            wid = []
+            todoList = {}
+
+            for key in jobCode.keys():
+                if not key in todoList:
+                    todoList[key] = []
+                todoList[key].append([execfilenames[key], pid, jobCode[key]])
+
+            from time import sleep
+            for key in todoList.keys():
+                print(f'starting {len(todoList[key])} jobs on device {key}')
+                self.localJobs[self.workerID] = []
+                wid.append(self.workerID)
+                proc = Worker(fn=self.multiSeq, args=((self.submitBatchJob, todoList[key], self.workerID)))
+                self.threadPool.start(proc)
+                self.workerID += 1
+                sleep(.01)
 
             if nsj:
                 self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
-                self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Subtom Recon Batch')
+                self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Subtom Recon Batch')
 
         except Exception as e:
             print('Submission failed due to following error: ')

@@ -6,6 +6,8 @@ import atexit
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import multiprocessing
+import getpass
+
 # import pyqtgraph.opengl as gl
 
 from PyQt5.QtWidgets import *
@@ -1221,7 +1223,10 @@ class CommonFunctions():
         if self.checkbox[id].isChecked():
             dd = os.popen('{} {}'.format(self.qcommand, execfilename))
             text = dd.read()[:-1]
-            ID = text.split()[-1]
+            try:
+                ID = text.split()[-1]
+            except:
+                return None, -1
             logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(execfilename)}')
             os.system(f'cp {execfilename} {logcopy}')
             return ID, 1
@@ -1245,11 +1250,11 @@ class CommonFunctions():
         for execfilename, pid, job in params:
             sleeptime = 0
             ID, num = func(execfilename, pid, job, threaded=threaded)
-            if '_' in ID:
+            if num == 0:
                 self.localJobs[wID].append(ID)
-                while self.localqID[ID.split('_')[-1]] == 0 and sleeptime < maxtime:
-                    time.sleep(5)
-                    sleeptime += 5
+                # while self.localqID[ID.split('_')[-1]] == 0 and sleeptime < maxtime:
+                #     time.sleep(5)
+                #     sleeptime += 5
 
     def getLocalID(self):
         import os
@@ -1273,7 +1278,9 @@ class CommonFunctions():
         try:
             logcopy = os.path.join(self.logfolder, f'Local/{ID}-{os.path.basename(execfilename)}')
             os.system(f'cp {execfilename} {logcopy}')
-            os.system(f'sh {execfilename} >> {os.path.splitext(logcopy)[0]}.out')
+            jobstring = f'sh {execfilename} >> {os.path.splitext(logcopy)[0]}.out'
+            self.localJobStrings[ID] = jobstring
+            os.system(jobstring)
 
             self.localqID[ID] = 1
         except:
@@ -3196,7 +3203,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         else:
             event.ignore()
 
-
     def wheelEvent(self, event):
         try:
             step = event.angleDelta().y()/120
@@ -3346,6 +3352,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.save_particleList_txt()
 
     def save_particleList_xml(self):
+
         try:
             self.remove_deselected_particles_from_XML()
         except Exception as e:
@@ -3416,7 +3423,81 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         parent.remove(el)
 
     def remove_deselected_particles_from_XML(self):
+        from pytom.basic.structures import ParticleList, Particle, PickPosition
+        from pytom.score.score import FLCFScore
+        from pytom.tompy.io import read
+        import numpy
+        import random
+
+        asked = False
+
+        cc = 180./ numpy.pi
+
+        plOld = ParticleList()
+        plOld.fromXMLFile(self.xmlfile)
+
+        folder = os.path.dirname(plOld[0].getFilename())
+        wedge = plOld[0].getWedge()
+        origin = plOld[0].getPickPosition().getOriginFilename()
+
+        plNew = ParticleList()
+
+        tempPL = []
+
+        prefix = 'man_slct_'
+        id = 0
+
+        anglelist = read(f'{self.pytompath}/angles/angleLists/angles_11_15192.em')
+
+        for p in plOld:
+            fname = os.path.basename(p.getFilename())
+            if prefix in fname:
+                tid = int(fname.split('.')[0][len(prefix):])
+                id = id if tid < id else tid
+
+            x,y,z = p.getPickPosition().toVector()
+            print(x, x.__class__)
+            s = p.getScore().getValue()
+            tempPL.append([x,y,z,s])
+
+        for x,y,z,s in self.particleList:
+            found =False
+
+            for n,[cx,cy,cz,s0] in enumerate(tempPL):
+                if abs(x - cx) < 1 and abs(y - cy) < 1 and abs(z - cz) < 1:
+                    print(n)
+                    plNew.append(plOld[n])
+                    found = True
+                    break
+
+
+            if not asked and not found:
+                close = QMessageBox()
+                close.setText("Do you want to save the manually added particles to your particleList?")
+                close.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+                close = close.exec()
+
+                if close == QMessageBox.Yes:
+                    add = True
+                else:
+                    add = False
+
+                asked = True
+
+            if not found and add:
+                print(id)
+                rot = list(random.choice(anglelist) * cc)
+                particle = Particle(filename=f'{folder}/{prefix}{id}.em', rotation=rot, shift=[0,0,0], wedge=wedge,
+                                    className = 0, pickPosition=PickPosition(x=x,y=y,z=z, originFilename=origin),
+                                    score=FLCFScore(1E-6))
+                plNew.append(particle)
+                id += 1
+
+
+        '''
         tree = et.parse(self.xmlfile)
+
+
 
 
         for particle in tree.xpath("Particle"):
@@ -3436,13 +3517,14 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                     break
             if remove:
                 self.remove_element(particle)
-
+        '''
         fname = str(QFileDialog.getSaveFileName(self, 'Save particle list.', self.xmlfile, filter='*.xml')[0])
         if not fname.endswith('.xml'): fname += '.xml'
         if fname:
             try:
-                tree.write(fname, pretty_print=True)
-            except:
+                plNew.toXMLFile(fname)
+            except Exception as e:
+                print(e)
                 print('writing {} failed.'.format(fname))
         else:
             print('No file written.')
@@ -3456,30 +3538,31 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.particleList = []
         self.slice = int(self.vol.shape[0] / 2)
         QApplication.processEvents()
+        dz, dy, dx = self.vol.shape
         for p in particles:
             try:    score = float( p.xpath('Score')[0].get('Value') )
             except: score = 0.5
             
 
-            if score < self.max_score and score > self.min_score:
+            if score <= self.max_score and score >= self.min_score:
                 
                 x,y,z = map(float, (p.xpath('PickPosition')[0].get('X'), p.xpath('PickPosition')[0].get('Y'), p.xpath('PickPosition')[0].get('Z')))
-                dx,dy,dz = self.vol.shape
+
 
                 include = True
                 #if self.mask[int(x),int(y),int(z)] or not self.widgets['apply_mask'].isChecked(): include =True
                 #else: include = False
                 if not include: continue
 
-                if abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 :
-                    print('particle not added: ', x,y,z)
+                if abs(dx/2-x) > dx/2 or abs(dy/2-y) > dy/2 or abs(dz/2-z) > dz/2 :
+                    print('particle not added: ', x,y,z, self.vol.shape)
                     continue
 
                 radius = self.radius
                 if abs(z - self.slice) < self.radius:
                     radius = sqrt(self.radius ** 2 - (z - self.slice) ** 2)
                     #self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), score, radius, score=score)
-
+                #if z < 5 or y < 5 or x < 5: continue
                 self.particleList.append([int(round(x)), int(round(y)), int(round(z)), score])
 
         if len(self.particleList): self.update_circles()
@@ -3583,7 +3666,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         remove = evt.button()==2
         self.pos = pos
 
-        if pos.x() < 0 or pos.y() < 0 or pos.x() >= self.vol.shape[1] or pos.y() >= self.vol.shape[2]:
+        if pos.x() < 0 or pos.y() < 0 or pos.x() >= self.vol.shape[2] or pos.y() >= self.vol.shape[1]:
+            #print(pos.x(), pos.y())
             return
 
         num_deleted_items = 0
@@ -3605,7 +3689,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.subtomo_plots.add_subplot(self.vol, self.particleList[-1])
 
         self.widgets['numSelected'].setText(str(len(self.particleList)))
-
 
     def updateLabel(self, pos):
 
@@ -3866,7 +3949,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         except Exception as e:
             print('\n\n\n', e)
-
 
     def drawLine(self, id=0, insert=True):
         for image in [self.leftimage, self.bottomimage]:
@@ -4606,7 +4688,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
                 self.writeLabelText( self.vol[int(self.slice)][int(y)][int(x)], x, y, self.slice)
 
             if self.currID == 1:
-                self.writeLabelText( self.vol[int(x)][int(self.slice)][int(y)], self.slice, x, y)
+                self.writeLabelText( self.vol[int(y)][int(self.slice)][int(x)], self.slice, x, y)
 
             if self.currID == 2:
                 self.writeLabelText( self.vol[int(y)][int(x)][int(self.slice)], y, self.slice, x)
@@ -4840,7 +4922,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
           ## using signal proxy turns original arguments into a tuple
         pos = self.centimage.mapSceneToView(pos)
         x, y = pos.x(), pos.y()
-        if pos.x() >= 0 and pos.y() >= 0 and pos.x() < self.vol.shape[1] and pos.y() < self.vol.shape[2]:
+        if pos.x() >= 0 and pos.y() >= 0 and pos.x() < self.vol.shape[2] and pos.y() < self.vol.shape[1]:
             self.writeLabelText( self.vol[int(self.slice)][int(y)][int(x)], x, y, self.slice)
 
     def writeLabelText(self, v=0, x=0, y=0, z=0):
@@ -5131,18 +5213,11 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def tab1UI(self):
         self.buttons['tab1'].setEnabled(False)
-        self.buttons['tab2'].setEnabled(False)
-
-        jobfiles = [line for line in sorted(os.listdir(self.logfolder)) if line.endswith('.out')]
         jobfilesLocal = [line for line in sorted(os.listdir(self.logfolder+'/Local')) if line.endswith('.out')]
-
         self.jobFilesLocal = [os.path.join(self.logfolder, 'Local', job) for job in jobfilesLocal ]
-        self.jobFilesQueue = [os.path.join(self.logfolder, job) for job in jobfiles if not job.startswith('local_')]
         self.populate_local()
-        self.populate_queue()
-
         self.buttons['tab1'].setEnabled(True)
-        self.buttons['tab2'].setEnabled(True)
+
 
     def populate_local(self):
 
@@ -5150,13 +5225,20 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
             return
 
         id = 'tab1'
-        headers = ["Type", "QueueId", "Open Job", "Open Log", "Filename Jobfile Queue", 'Filename Logfile', '']
-        types = ['sort_txt', 'sort_txt', 'checkbox', 'checkbox', 'txt', 'txt', 'txt']
-        sizes = [0, 0, 0, 0, 0, 0, 0]
+        headers = ["Type", "QueueId", "Open Job", "Open Log", "Teminate", "Filename Jobfile Queue", 'Filename Logfile', '']
+        types = ['sort_txt', 'sort_txt', 'checkbox', 'checkbox', 'checkbox', 'txt', 'txt', 'txt']
+        sizes = [0, 0, 0, 0, 0, 0, 0, 0]
 
         tooltip = []
         values = []
         added_jobs = []
+        processes = [pid for pid in os.popen(f'''ps -u {getpass.getuser()} -f ''').read().split('\n') if pid]
+
+        self.localJobStrings = {}
+        self.pids = []
+        for frame in self.parent().frames:
+            self.localJobStrings.update(frame.localJobStrings)
+
         for n, logfile in enumerate(reversed(self.jobFilesLocal)):
             queueId = os.path.basename(logfile).split('-')[0]
             jobname = glob.glob(os.path.join(self.logfolder, 'Local', f'{queueId}*.sh'))
@@ -5165,7 +5247,23 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
             jobname = jobname[0]
             added_jobs.append(queueId)
             name = os.path.splitext(os.path.basename(logfile).split('-')[1])[0]
-            values.append([name, queueId, 1, 1, jobname, logfile, ''])
+
+            try:
+                pids = [l.split()[1] for l in processes if queueId in self.localJobStrings and  self.localJobStrings[queueId] in l]
+                if len(pids) == 1:
+                    terminate = 1
+                    self.pids.append([pids[0]])
+                    for i in range(4):
+                        [self.pids[-1].append(l.split()[1]) for l in processes if l.split()[2] in self.pids[-1]]
+
+                else:
+                    terminate = 0
+                    self.pids.append([])
+            except Exception as e:
+                terminate = 0
+                self.pids.append([])
+
+            values.append([name, queueId, 1, 1, terminate, jobname, logfile, ''])
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, sorting=True,connect=self.checkboxUpdate,
                       addQCheckBox=False)
@@ -5199,7 +5297,11 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         #self.tab2_widgets[f'widget_{i}_2'].setChecked(status)
 
     def tab2UI(self):
-        self.tab1UI()
+        self.buttons['tab2'].setEnabled(False)
+        jobfiles = [line for line in sorted(os.listdir(self.logfolder)) if line.endswith('.out')]
+        self.jobFilesQueue = [os.path.join(self.logfolder, job) for job in jobfiles if not job.startswith('local_')]
+        self.populate_queue()
+        self.buttons['tab2'].setEnabled(True)
 
     def nthElem(self, elem, n=1):
         return elem[n]
@@ -5248,14 +5350,24 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.do_something(pid, v))
 
     def do_something(self, pid, values):
+        term = 0
         if pid == 'tab1':
             for row in range(self.tables[pid].table.rowCount()):
-                logfile = values[row][5]
-                exefile = values[row][4]
+                logfile = values[row][6]
+                exefile = values[row][5]
                 if self.tab1_widgets[f'widget_{row}_3'].isChecked():
                     self.open_resultfile(logfile)
                 if self.tab1_widgets[f'widget_{row}_2'].isChecked():
                     self.open_resultfile(exefile)
+
+                if f'widget_{row}_4' in self.tab1_widgets.keys() and self.tab1_widgets[f'widget_{row}_4'].isChecked():
+                    if self.pids[row]:
+                        for pid in reversed(self.pids[row]):
+                            term += 1
+                            os.system(f'kill -9 {pid} >& /dev/null')
+
+            if term: self.tab1UI()
+
 
         if pid == 'tab2':
             for row in range(self.tables[pid].table.rowCount()):
@@ -6348,10 +6460,10 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
     def add_subplot(self, tomo, position):
         [x,y,z,s]  = position
         xmin = max(0, x - int(self.size_subtomo / 2))
-        xmax = min(tomo.shape[1], x + int(self.size_subtomo / 2))
+        xmax = min(tomo.shape[2], x + int(self.size_subtomo / 2))
         ymin = max(0, y - int(self.size_subtomo / 2))
-        ymax = min(tomo.shape[2], y + int(self.size_subtomo / 2))
-
+        ymax = min(tomo.shape[1], y + int(self.size_subtomo / 2))
+        print(position[2], xmin, xmax, ymin, ymax)
         subtomo = zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
         subtomo[:xmax-xmin,:ymax-ymin] = (tomo[position[2]-4:position[2]+4].sum(axis=0).T)[xmin:xmax, ymin:ymax]
 
@@ -6385,13 +6497,13 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         for n, (x,y,z,s) in enumerate(particleList):
             position = [x,y,z,s]
             xmin = max(0, x - int(self.size_subtomo / 2))
-            xmax = min(volume.shape[1], x + int(self.size_subtomo / 2))
+            xmax = min(volume.shape[2], x + int(self.size_subtomo / 2))
             ymin = max(0, y - int(self.size_subtomo / 2))
-            ymax = min(volume.shape[2], y + int(self.size_subtomo / 2))
+            ymax = min(volume.shape[1], y + int(self.size_subtomo / 2))
 
             subtomo = zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
-            subtomo[:xmax-xmin,:ymax-ymin] = (volume[z-4:z+4].sum(axis=0).T)[xmin:xmax, ymin:ymax]
-
+            try:subtomo[:xmax-xmin,:ymax-ymin] = (volume[z-4:z+4].sum(axis=0).T)[xmin:xmax, ymin:ymax]
+            except: pass
             if n < len(self.iItemList):
                 self.position = [x,y,z,s]
                 self.iItemList[self.index[0]].setImage(image=subtomo)
@@ -6405,14 +6517,17 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
                 self.add_subplot(volume, [x,y,z,s])
 
         for nn in range(len(particleList), len(self.iItemList)):
-            self.delete_subplot(self.coordinates[nn])
+            self.delete_subplot(self.coordinates[nn], start=len(particleList))
 
 
-    def delete_subplot(self, position):
-        for x,y,z,s, index in self.coordinates:
+    def delete_subplot(self, position, start=0):
+        for x,y,z,s, index in self.coordinates[start:]:
             if x == position[0] and y == position[1] and z == position[2]:
                 blank = zeros((int(self.size_subtomo), int(self.size_subtomo)), dtype=float)
-                self.iItemList[index].setImage(image=blank)
+                try:
+                    self.iItemList[index].setImage(image=blank)
+                except:
+                    continue
                 if index < self.index[0]:
                     self.index = [index,1]
                 self.assigned[index] = 0
@@ -6570,32 +6685,4 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
                     self.index = [n,1]
                     break
 
-if __name__ == "__main__":
-    import sys
-    import numpy
-    import glob
-    import os
 
-    headers = ["mdoc file", "create", "input files", 'redo', 'delete']
-    types = ['txt', 'checkbox', 'combobox', 'checkbox', 'checkbox']
-    sizes = [QHeaderView.ResizeToContents, 20, QHeaderView.ResizeToContents,]
-
-
-    tomodir = 'Juliette/03_Tomographic_Reconstruction'
-    rawdir = 'Juliette/01_Raw_Nanographs'
-
-    processed = sorted(glob.glob('{}/tomogram_*/sorted/*.mdoc'.format(tomodir)))
-    unprocessed = sorted(glob.glob('{}/*.mdoc'.format(rawdir)))
-    values = []
-
-    for t in processed:
-        values.append([t, False, [1, 2, 3], True, True])
-    for t in unprocessed:
-        values.append([t, True, [1, 2, 3], False, False])
-
-    # values = [[1,1,[1,3]],[1,1,[1,2]],[1,1,[1,2,3]]]*10
-
-    app = QApplication(sys.argv)
-    mw = SimpleTable(headers, types, values)
-    mw.show()
-    sys.exit(app.exec_())
