@@ -1,4 +1,4 @@
-spmv_kernel_text = r"""
+spmvh_kernel_text = r"""
 
 __device__ void atomic_add_float_twosum(float * address, float val, float * residue)
 {
@@ -31,10 +31,8 @@ __device__ void atomic_add_float2( float2 * ptr, const float2 temp, float2 *res)
 };  
 
 extern "C" __global__
-void spmvh(const unsigned int Reps, const unsigned int nRow, const unsigned int prodJd, 
-                      const unsigned int sumJd, const unsigned int dim, const unsigned int *Jd,
-                      const unsigned int *meshindex, const unsigned int *kindx, const float2 *udata,
-                      float2 *k, float2 *res, const float2 *input)
+void spmvh(unsigned int Reps, unsigned int nRow, unsigned int prodJd, unsigned int sumJd, unsigned int dim, int *Jd, int *meshindex, int *kindx, 
+           float2 *udata, float2 *k, float2 *res, float2 *input)
 {
 
     int blockSize = blockDim.x; 
@@ -46,19 +44,20 @@ void spmvh(const unsigned int Reps, const unsigned int nRow, const unsigned int 
     float2 zero;
     zero.x = 0.0;
     zero.y = 0.0;
-    
+    //printf("%i %i %i\n", myRow, nRow, prodJd);
     if (myRow < nRow){ 
         for (unsigned int j = 0;  j  <  prodJd; j ++){
             float2 u = zero;
 
             // now doing the first dimension
             unsigned int index_shift = myRow * sumJd;
-            
+            //printf("rr: %i\n", index_shift);
             unsigned int J = Jd[0];
             unsigned int index =    index_shift +  meshindex[dim*j + 0];
             unsigned int col = kindx[index] ;
             float2 spdata = udata[index];
             index_shift += J; 
+            //printf("rr2: %i\n", Jd[0]);
             for (unsigned int dimid = 1; dimid < dim; dimid ++ ){
                     J = Jd[dimid];
                     index =   index_shift + meshindex[dim*j + dimid];   // the index of the partial ELL arrays *kindx and *udata
@@ -69,16 +68,116 @@ void spmvh(const unsigned int Reps, const unsigned int nRow, const unsigned int 
                     spdata.y = tmp_x * tmp_udata.y + spdata.y * tmp_udata.x; 
                     index_shift  += J;
             }; // Iterate over dimensions 1 -> Nd - 1
+            //printf("rr3: %i\n", index_shift);
 
-            float2 ydata=input[myRow*Reps + nc]; // kout[col];
-            u.x =  spdata.x*ydata.x + spdata.y*ydata.y;
-            u.y =  - spdata.y*ydata.x + spdata.x*ydata.y;
+            float2 ydata = input[myRow*Reps + nc]; // kout[col];
+            u.x =   spdata.x * ydata.x + spdata.y * ydata.y;
+            u.y =  -spdata.y * ydata.x + spdata.x * ydata.y;
+            //printf("tt: %i %f %f %i %i\n", myRow*Reps + nc, input[0].x, input[0].y, col, nc);
             atomic_add_float2((k + col*Reps + nc), u, (res + col*Reps + nc));
 
         }; // Iterate for (unsigned int j = 0;  j  <  prodJd; j ++)
     };  // if (m < nRow)
 };    // End of pELL_spmvh_mCoil          
 """
+
+spmv_kernel_text = r"""
+extern "C" __global__ void spmv(    
+        const    unsigned int   Reps,            // Number of coils
+        const    unsigned int    nRow,        // number of rows
+        const    unsigned int    prodJd,     // product of Jd
+        const    unsigned int    sumJd,     // sum of Jd
+        const    unsigned int    dim,           // dimensionality
+        const unsigned int *Jd,            // Jd, length = dim
+        const unsigned int *meshindex,            // meshindex, prodJd * dim
+        const unsigned int *kindx,    // unmixed column indexes of all dimensions
+        const float2 *udata,// interpolation data before Kronecker product
+        float2 *vec,     // multi-channel kspace data, prodKd * Reps
+        float2 *out)   // multi-channel output, nRow * Reps
+{   
+    int blockSize = blockDim.x; 
+    unsigned int tid = threadIdx.x;
+    
+    const unsigned int t = threadIdx.x; //blockIdx.x*(blockSize) + tid;
+    const unsigned int vecWidth = 1024; //${LL}
+    
+    // Thread ID within wavefront
+    const unsigned int id = t & (vecWidth-1);
+    
+    
+    // One row per wavefront
+    unsigned int vecsPerBlock = blockSize/vecWidth;
+    unsigned int myRow = (blockIdx.x * vecsPerBlock) + (t/ vecWidth); // the myRow-th non-Cartesian sample
+    unsigned int m = myRow / Reps;
+    unsigned int nc = myRow - m * Reps;
+    __shared__ float2 partialSums[1024]; // ${LL}
+    float2 zero;
+    zero.x = 0.0;
+    zero.y = 0.0;
+    partialSums[t] = zero;
+    
+    if (myRow < nRow * Reps)
+    {
+        const unsigned int vecStart = 0; 
+        const unsigned int vecEnd = prodJd;             
+        float2  y;//=zero;
+        //printf("%i %i\n", id, vecEnd);
+        for (unsigned int j = vecStart+id;  j < vecEnd; j += vecWidth)
+        {    // now doing the first dimension
+            unsigned int J = Jd[0];
+            unsigned int index_shift = m * sumJd ;
+            unsigned int index =    index_shift +  meshindex[dim*j + 0];
+            unsigned int col = kindx[index] ;
+            float2 spdata = udata[index];
+            
+            index_shift += J; 
+            
+            for (unsigned int dimid = 1; dimid < dim; dimid ++ )
+            {
+                unsigned int J = Jd[dimid];
+                unsigned int index =  index_shift + meshindex[dim*j + dimid];   // the index of the partial ELL arrays *kindx and *udata
+                col += kindx[index] ;//+ 1;                                            // the column index of the current j
+                float tmp_x= spdata.x;
+                float2 tmp_udata = udata[index];
+                spdata.x = spdata.x * tmp_udata.x - spdata.y * tmp_udata.y;                            // the spdata of the current j
+                spdata.y = tmp_x * tmp_udata.y + spdata.y * tmp_udata.x; 
+                index_shift  += J;
+            }
+            //printf("%i ", col*Reps + nc);
+            float2 vecdata = vec[col * Reps + nc];
+            y.x =  spdata.x*vecdata.x - spdata.y*vecdata.y;
+            y.y =  spdata.y*vecdata.x + spdata.x*vecdata.y;
+            partialSums[t].x = y.x + partialSums[t].x;
+            partialSums[t].y = y.y + partialSums[t].y;
+            
+        }
+    
+        __syncthreads(); 
+    
+        // Reduce partial sums
+        unsigned int bar = vecWidth / 2;
+        while(bar > 0)
+        {
+            if (id < bar)
+            {
+                partialSums[t].x = partialSums[t].x + partialSums[t+bar].x;
+                partialSums[t].y = partialSums[t].y + partialSums[t+bar].y;
+            }
+            __syncthreads();
+            
+            bar = bar / 2;
+        }            
+        
+        // Write result 
+        if (id == 0)
+        {
+        out[myRow]=partialSums[t]; 
+        }
+    }
+};  // End of pELL_spmv_mCoil
+"""
+
+
 
 sum_weighted_norm_complex_array_text = r'''
 __device__ void warpReduceSum(volatile float* sdata, int tid, int blockSize) {
@@ -92,7 +191,7 @@ __device__ void warpReduceSum(volatile float* sdata, int tid, int blockSize) {
 
 
 extern "C" __global__ 
-void sumKernel(float2 *g_idata, float *weight, float * g_odata, int n) {
+void sum_weighted_norm_complex_array(float2 *g_idata, float *weight, float * g_odata, int n) {
 
     __shared__ float mean[1024];
     int blockSize = blockDim.x; 
@@ -108,7 +207,7 @@ void sumKernel(float2 *g_idata, float *weight, float * g_odata, int n) {
                 mean[tid] += weight[i+blockSize] * (g_idata[i + blockSize].x * g_idata[i + blockSize].x);
                 mean[tid] += weight[i+blockSize] * (g_idata[i + blockSize].y * g_idata[i + blockSize].y);}
         i += gridSize;}
-     __syncthreads();                                                                                                                                                       
+    __syncthreads();                                                                                                                                                       
 
     if (blockSize >= 1024){ if (tid < 512) { mean[tid] += mean[tid + 512];} __syncthreads(); }                                                                                                    
     if (blockSize >= 512) { if (tid < 256) { mean[tid] += mean[tid + 256];} __syncthreads(); }                                                                          
@@ -116,7 +215,7 @@ void sumKernel(float2 *g_idata, float *weight, float * g_odata, int n) {
     if (blockSize >= 128) { if (tid <  64) { mean[tid] += mean[tid +  64];} __syncthreads(); }                                                                          
     if (tid < 32){ warpReduceSum(mean, tid, blockSize);}                                                                                                                                                                      
     if (tid == 0) {g_odata[blockIdx.x] = mean[0];} 
-   __syncthreads(); 
+    __syncthreads(); 
 
 }'''
 
@@ -132,7 +231,7 @@ __device__ void warpReduceSum(volatile float* sdata, int tid, int blockSize) {
 
 
 extern "C" __global__ 
-void sumKernel(float2 *g_idata, float * g_odata, int n) {
+void sum_norm_complex_array(float2 *g_idata, float * g_odata, int n) {
 
     __shared__ float mean[1024];
     int blockSize = blockDim.x; 
@@ -408,6 +507,56 @@ void reconstruction_wbp(float * projection, float* proj_center, int * proj_dims,
                 float v3 = v1 + (v2-v1)*yoff;
                 
                 atomicAdd( reconstruction + i, v3);
+                //atomicAdd( weights + i, 1);
+            };
+        };
+        //i++;
+    //};
+};
+'''
+
+projection_text = '''
+
+extern "C" __global__ 
+void reconstruction_wbp_calc(float * projection, float* proj_center, int * proj_dims, 
+                        float * reconstruction, int * recon_center, int * recon_dims,
+                        float * tr, int m, int n) {
+
+    int blockSize = blockDim.x; 
+    unsigned int tid = threadIdx.x;                                                                                                                                        
+    int i = (blockIdx.x*(blockSize) + tid);
+
+    int x;
+    int y;
+    int z;
+
+    //for(int d=0; d < recon_dims[2]; d++){
+        if (i < n) {
+            x = i  / (recon_dims[1] * recon_dims[2]) - recon_center[0]; 
+            y = (i % (recon_dims[1] * recon_dims[2])) / recon_dims[2] - recon_center[1]; 
+            z = (i % (recon_dims[1] * recon_dims[2])) % recon_dims[2] - recon_center[2];
+
+            float ix = tr[0] * float(x) + tr[2] * float(z) + float(proj_center[0]) +0.5;
+            float iy = tr[1] * float(y) + float(proj_center[1]) + 0.5;
+
+            int px = int(ix); 
+            int py = int(iy);
+
+            float xoff = ix - float(px); 
+            float yoff = iy - float(py);
+
+            if (px >= 0 && px < proj_dims[0] && py > 0 && py < proj_dims[1]){
+                atomicAdd( projection + px * proj_dims[1] + py, xoff*yoff*reconstruction[i]);
+
+            if (px-1 >= 0 && px-1 < proj_dims[0] && py > 0 && py < proj_dims[1]){
+                atomicAdd( projection + (px-1) * proj_dims[1] + py, (1-xoff)*yoff*reconstruction[i]);
+
+            if (px-1 >= 0 && px-1 < proj_dims[0] && py-1 > 0 && py-1 < proj_dims[1]){
+                atomicAdd( projection + (px-1)* proj_dims[1] + py-1, (1-xoff)*(1-yoff)*reconstruction[i]);
+
+            if (px >= 0 && px < proj_dims[0] && py-1 > 0 && py-1 < proj_dims[1]){
+                atomicAdd( projection + px * proj_dims[1] + py-1, xoff*(1-yoff)*reconstruction[i]);
+
             };
         };
         //i++;

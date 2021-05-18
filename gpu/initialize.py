@@ -23,3 +23,10 @@ else:
     from scipy.ndimage import map_coordinates
 
     device = 'cpu'
+
+def initialize_gpu(id):
+    import cupy as xp
+    xp.cuda.Device(int(id)).use()
+    from cupyx.scipy.ndimage import map_coordinates
+    global device
+    device = f'gpu:{id}'
