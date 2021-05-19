@@ -29,6 +29,7 @@ import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.mrcOperations import square_mrc, remove_hot_pixels
 from pytom.tompy.io import read_size
 from pytom.gui.guiFunctions import loadstar
+from pytom.basic.datatypes import DATATYPE_METAFILE
 
 class TomographReconstruct(GuiTabWidget):
     '''Collect Preprocess Widget'''
@@ -132,7 +133,7 @@ class TomographReconstruct(GuiTabWidget):
         self.filepath_tomodata['Raw Nanographs']  = self.rawnanographs_folder
 
         headers = ["meta file", "create", 'square', 'pututive name',"input files", 'Name tomogram', 'delete', 'Bin Factor IMOD']
-        types = ['txt', 'checkbox','checkbox', 'txt', 'combobox', 'txt', 'checkbox', 'lineedit', 'txt']
+        types = ['txt2', 'checkbox','checkbox', 'txt', 'combobox', 'txt', 'checkbox', 'lineedit', 'txt']
         sizes = [0, 80, 80, 500, 0, 200, 80, 80]
 
         tooltip = ['Name of meta files. This file indicates which images belong together, as well as the tiltangles.',
@@ -147,13 +148,38 @@ class TomographReconstruct(GuiTabWidget):
                    'Binning factor is ignored for other meta files.']
 
         processed = sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder)))
+        processed_dict = {}
+        metadata_dict = {}
+
+        for i in processed:
+            processed_dict[basename(i)] = i
+
         processed_fn = [basename(line) for line in processed]
         unprocessed = sorted(glob.glob('{}/*.meta'.format(self.rawnanographs_folder)))
         unprocessed = numpy.array(unprocessed + sorted(glob.glob('{}/import*/*.meta'.format(self.rawnanographs_folder))))
-        unprocessed = unprocessed[[not (basename(u_item) in processed_fn) for u_item in unprocessed]]
 
+        ff = []
 
+        for u_item in unprocessed:
+            bn = basename(u_item)
+            if bn in processed_fn:
+                if not bn in metadata_dict.keys():
+                    metadata_dict[bn] = loadstar(processed_dict[basename(u_item)],dtype=DATATYPE_METAFILE)
+                c = loadstar(u_item,dtype=DATATYPE_METAFILE)
 
+                if len(metadata_dict[bn]['TiltAngle']) != len(c['TiltAngle']):
+                    print('double accepted', u_item)
+                    ff.append(u_item)
+                    continue
+
+                if not abs(metadata_dict[bn]['TiltAngle'] - c['TiltAngle']).sum() < 0.001:
+                    print('double accepted', u_item)
+                    ff.append(u_item)
+            else:
+                ff.append(u_item)
+                print('singlet accepted', u_item)
+
+        unprocessed = ff
         values = []
 
         for t in processed:

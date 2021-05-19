@@ -1792,6 +1792,27 @@ class SimpleTable(QMainWindow, CommonFunctions):
                     self.widgets['widget_{}_{}'.format(v, i)] = cb
                     widget.setStyleSheet('background: white;')
 
+                elif types[i] == 'txt2':
+                    widget = QWidget()
+
+                    try:
+                        a = values[v][i].split('/')[-2]
+                        if 'import_' in a:
+                            data = f"{a}/{values[v][i].split('/')[-1]}"
+                        else:
+                            data= "{}".format(values[v][i].split('/')[-1]) if '/' in values[v][i] else values[v][i]
+                    except:
+                        data= "{}".format(values[v][i].split('/')[-1]) if '/' in values[v][i] else values[v][i]
+
+                    cb = QLabel( data )
+                    layoutCheckBox = QHBoxLayout(widget)
+                    layoutCheckBox.addWidget(cb)
+                    layoutCheckBox.setAlignment(Qt.AlignCenter)
+                    layoutCheckBox.setContentsMargins(10, 0, 10, 0)
+                    table.setCellWidget(v, i, widget)
+                    self.widgets['widget_{}_{}'.format(v, i)] = cb
+                    widget.setStyleSheet('background: white;')
+
                 elif types[i] == 'sort_txt':
                     table.setSortingEnabled(True)
                     item = QTableWidgetItem()
