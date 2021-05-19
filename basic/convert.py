@@ -356,7 +356,7 @@ def cutParticlesFromTomogram(particleList,cubeSize,sourceTomogram,coordinateBinn
                            z - cubeRadius,cubeSize,cubeSize,cubeSize,0,0,0, 
                            binningFactorOut,binningFactorOut,binningFactorOut)
         except Exception:
-            print particle
+            print(particle)
             assert False
         
         subcube.write(particle.getFilename())
@@ -457,8 +457,8 @@ class EMHeader():
                 if verbose:
                     print("datatype set to " + str(datatype))
             else:
-                print "datatype not implemented for EM file"
-                print datatype
+                print("datatype not implemented for EM file")
+                print(datatype)
                 raise ValueError
 
         if machinetype:
@@ -491,59 +491,59 @@ class EMHeader():
                 if verbose:
                     print("machinetype set to " + machinetype)
             else:
-                print "machinetype not implemented for EM file"
-                print machinetype
+                print("machinetype not implemented for EM file")
+                print(machinetype)
                 raise ValueError
 
         self.raw_data[0] = int8toint32(inibytes)
 
     def get_datatype(self):
         """
-	get type of data from header
-	@return: numpy type
-        """
-	inibytes = self.get_1st4bytes()
-	dtype = inibytes[3]
-	if dtype == 1:
-	    return np.int8
+        get type of data from header
+        @return: numpy type
+            """
+        inibytes = self.get_1st4bytes()
+        dtype = inibytes[3]
+        if dtype == 1:
+            return np.int8
         if dtype == 2:
-	    return np.int16
-	if dtype == 4:
-	    return np.int32
-	if dtype == 5:
-	    return np.float
-	if dtype == 8:
-	    return np.complex
-	if dtype == 9:
-	    return np.double
-	if dtype == 10:
-	    return np.complex64
-	else:
-	    raise ValueError
+            return np.int16
+        if dtype == 4:
+            return np.int32
+        if dtype == 5:
+            return np.float
+        if dtype == 8:
+            return np.complex
+        if dtype == 9:
+            return np.double
+        if dtype == 10:
+            return np.complex64
+        else:
+            raise ValueError
     
     def get_machinetype(self):
         """
-	get type of data from header
-	@return: numpy type
+        get type of data from header
+        @return: numpy type
         """
-	inibytes = self.get_1st4bytes()
-	mtype = inibytes[0]
-	if mtype == 0:
-	    return 'OS-9'
-	if mtype == 1:
-	    return 'VAX'
-	if mtype == 2:
-	    return 'Convex'
-	if mtype == 3:
-	    return 'SGI'
-	if mtype == 4:
-	    return 'SUN'
-	if mtype == 5:
-	    return 'Mac'
-	if mtype == 6:
-	    return 'PC'
-	else:
-	    raise ValueError
+        inibytes = self.get_1st4bytes()
+        mtype = inibytes[0]
+        if mtype == 0:
+            return 'OS-9'
+        if mtype == 1:
+            return 'VAX'
+        if mtype == 2:
+            return 'Convex'
+        if mtype == 3:
+            return 'SGI'
+        if mtype == 4:
+            return 'SUN'
+        if mtype == 5:
+            return 'Mac'
+        if mtype == 6:
+            return 'PC'
+        else:
+            raise ValueError
 
     def set_tiltangle(self, angle):
         """

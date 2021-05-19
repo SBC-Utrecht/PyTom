@@ -6,11 +6,12 @@ import unittest
 class pytom_MyFunctionTest(unittest.TestCase):
 
     def setUp(self):
-        from helper_functions import create_RandomParticleList
+        from pytom.unit_tests.helper_functions import create_RandomParticleList, installdir
 
-        self.reffile = './testData/ribo.em'
+        self.installdir = installdir
+        self.reffile = f'{installdir}/unit_tests/testData/ribo.em'
         self.pl_filename = 'pl.xml'
-        self.pdir = './testparticles' 
+        self.pdir = f'{installdir}/unit_tests/testparticles'
         self.pl = create_RandomParticleList( reffile=self.reffile, pl_filename=self.pl_filename, 
                   pdir=self.pdir, nparticles=10)
 
@@ -24,10 +25,10 @@ class pytom_MyFunctionTest(unittest.TestCase):
         #self.settings["offset"] = None
         #self.settings["mask"] = options.mask
 
-        self.settings["fmask"] = './testData/focussed_classification_mask_ribo.mrc'
-        self.settings["mask"] = './testData/mask_ribo.mrc'
-        self.settings["fmask"] = './testData/focussed_classification_mask_ribo.mrc'
-        self.settings["mask"] = './testData/mask_ribo.mrc'
+        self.settings["fmask"] = f'{installdir}/unit_tests/testData/focussed_classification_mask_ribo.mrc'
+        self.settings["mask"]  = f'{installdir}/unit_tests/testData/ribo_mask.em'
+        self.settings["fmask"] = f'{installdir}/unit_tests/testData/focussed_classification_mask_ribo.mrc'
+        self.settings["mask"]  = f'{installdir}/unit_tests/testData/ribo_mask.em'
 
         #self.settings["fmask"] = None
         #self.settings["dispersion"] = None
@@ -49,7 +50,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         """
         check that files are written and remove them
         """
-        from helper_functions import cleanUp_RandomParticleList
+        from pytom.unit_tests.helper_functions import cleanUp_RandomParticleList
 
         for iclass in range(0, self.settings["ncluster"]):
             tline = 'initial_'+str(iclass)+'.em'
@@ -89,7 +90,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         """
         import os
 
-        cmd = 'mpirun -np 2 ../bin/pytom ../classification/auto_focus_classify.py'
+        cmd = f'mpirun -np 2 pytom {self.installdir}/classification/auto_focus_classify.py'
         cmd = cmd + ' -p ' + self.pl_filename
         #cmd = cmd + ' -k ' + str(self.settings["ncluster"])
         #cmd = cmd + ' -f ' + str(self.settings["frequency"])
@@ -105,7 +106,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         """
         import os
 
-        cmd = 'mpirun -np 2 ../bin/pytom ../classification/auto_focus_classify.py'
+        cmd = f'mpirun -np 2 {self.installdir}/bin/pytom {self.installdir}/classification/auto_focus_classify.py'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -k ' + str(self.settings["ncluster"])
         cmd = cmd + ' -f ' + str(self.settings["frequency"])
@@ -129,7 +130,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         print('testing masks')
         import os
 
-        cmd = 'mpirun -np 2 ../bin/pytom ../classification/auto_focus_classify.py'
+        cmd = f'mpirun -np 2 {self.installdir}/bin/pytom {self.installdir}/classification/auto_focus_classify.py'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -k ' + str(self.settings["ncluster"])
         cmd = cmd + ' -f ' + str(self.settings["frequency"])

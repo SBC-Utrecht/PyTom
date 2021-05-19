@@ -6,7 +6,7 @@ class pytom_ScoreTest(unittest.TestCase):
         """set up"""
         from pytom_volume import vol, initSphere
         from pytom.basic.structures import WedgeInfo
-        from pytom.simulation.EMSimulation import simpleSimulation
+        from pytom.simulation.SimpleSubtomogram import simpleSimulation
 
         self.wedge = 0.
         self.shift = [-1, 2, 3]

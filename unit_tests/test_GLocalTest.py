@@ -6,13 +6,14 @@ import unittest
 class pytom_GLocalTest(unittest.TestCase):
 
     def setUp(self):
-        from helper_functions import create_RandomParticleList
+        from pytom.unit_tests.helper_functions import create_RandomParticleList, installdir
         from pytom.tompy.io import read_size
         from pytom_volume import vol, initSphere
 
-        self.reffile = './testData/ribo.em'
+        self.installdir = installdir
+        self.reffile = f'{installdir}/unit_tests/testData/ribo.em'
         self.pl_filename = 'pl.xml'
-        self.pdir = './testparticles' 
+        self.pdir = f'{installdir}/testparticles'
         self.pl = create_RandomParticleList( reffile=self.reffile, pl_filename=self.pl_filename, 
                   pdir=self.pdir, nparticles=10)
 
@@ -20,7 +21,7 @@ class pytom_GLocalTest(unittest.TestCase):
         self.settings = {}
         self.settings["binning"] = 4
         self.settings["niteration"] = 1
-        self.settings["mask"] = './testData/ribo_mask.em'
+        self.settings["mask"] = f'{installdir}/unit_tests/testData/ribo_mask.em'
         dims = read_size(self.reffile)
         maskvol = vol(int(dims[0]), int(dims[1]), int(dims[2]))
         initSphere(maskvol, 30,5, 0, int(dims[0]/2), int(dims[1]/2), int(dims[2]/2))
@@ -39,29 +40,29 @@ class pytom_GLocalTest(unittest.TestCase):
         """
         check that files are written and remove them
         """
-        from helper_functions import cleanUp_RandomParticleList
+        from pytom.unit_tests.helper_functions import cleanUp_RandomParticleList
         from os import system
 
-        for ii in range(0, self.settings["niteration"]+1):
-            fname = str(ii)+'-All.em'
+        for ii in range(0, self.settings["niteration"]):
+            fname = str(ii)+'-All.mrc'
             self.remove_file( filename=fname)
-            fname = str(ii)+'-AllFiltered*.em'
+            fname = str(ii)+'-AllFiltered*.mrc'
             system('rm '+fname)
-            fname = str(ii)+'-Even.em'
+            fname = str(ii)+'-Even.mrc'
             self.remove_file( filename=fname)
-            fname = str(ii)+'-EvenFiltered.em'
+            fname = str(ii)+'-EvenFiltered.mrc'
             self.remove_file( filename=fname)
-            fname = str(ii)+'-EvenFiltered-PreWedge.em'
+            fname = str(ii)+'-EvenFiltered-PreWedge.mrc'
             self.remove_file( filename=fname)
-            fname = str(ii)+'-EvenFiltered-WedgeSumUnscaled.em'
+            fname = str(ii)+'-EvenFiltered-WedgeSumUnscaled.mrc'
             self.remove_file( filename=fname)
-            fname = str(ii)+'-Odd.em'
+            fname = str(ii)+'-Odd.mrc'
             self.remove_file( filename=fname)
-            fname = str(ii)+'-OddFiltered.em'
+            fname = str(ii)+'-OddFiltered.mrc'
             self.remove_file( filename=fname)
-            fname = str(ii)+'-OddFiltered-PreWedge.em'
+            fname = str(ii)+'-OddFiltered-PreWedge.mrc'
             self.remove_file( filename=fname)
-            fname = str(ii)+'-OddFiltered-WedgeSumUnscaled.em'
+            fname = str(ii)+'-OddFiltered-WedgeSumUnscaled.mrc'
             self.remove_file( filename=fname)
             fname = str(ii)+'-FSC.dat'
             self.remove_file( filename=fname)
@@ -75,18 +76,18 @@ class pytom_GLocalTest(unittest.TestCase):
             self.remove_file( filename=fname)
             fname = str(ii)+'-ParticleList.xml'
             self.remove_file( filename=fname)
-        self.remove_file( filename='average-Final.em')
-        self.remove_file( filename='average-Final-PreWedge.em')
-        self.remove_file( filename='average-Final-WedgeSumUnscaled.em')
+        self.remove_file( filename='average-Final.mrc')
+        self.remove_file( filename='average-Final-PreWedge.mrc')
+        self.remove_file( filename='average-Final-WedgeSumUnscaled.mrc')
         self.remove_file( filename='FSC-Final.dat')
         self.remove_file( filename='myGLocal.xml')
-        self.remove_file( filename='average-Final-Even.em')
-        self.remove_file( filename='average-Final-Even-PreWedge.em')
-        self.remove_file( filename='average-Final-Even-WedgeSumUnscaled.em')
-        self.remove_file( filename='average-Final-Odd.em')
-        self.remove_file( filename='average-Final-Odd-PreWedge.em')
-        self.remove_file( filename='average-Final-Odd-WedgeSumUnscaled.em')
-        fname='average-FinalFiltered_*.em'
+        self.remove_file( filename='average-Final-Even.mrc')
+        self.remove_file( filename='average-Final-Even-PreWedge.mrc')
+        self.remove_file( filename='average-Final-Even-WedgeSumUnscaled.mrc')
+        self.remove_file( filename='average-Final-Odd.mrc')
+        self.remove_file( filename='average-Final-Odd-PreWedge.mrc')
+        self.remove_file( filename='average-Final-Odd-WedgeSumUnscaled.mrc')
+        fname='average-FinalFiltered_*.mrc'
         system('rm '+fname)
 
         #cleanUp_RandomParticleList( pl_filename=self.pl_filename, pdir=self.pdir)
@@ -112,7 +113,7 @@ class pytom_GLocalTest(unittest.TestCase):
         """
         import os
 
-        cmd = 'mpirun -np 2 ../bin/pytom ../bin/GLocalJob.py'
+        cmd = f'mpirun -np 2 {self.installdir}/bin/pytom {self.installdir}/bin/GLocalJob.py'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -m ' + str(self.settings["mask"])
         cmd = cmd + ' -b ' + str(self.settings["binning"])
@@ -135,7 +136,7 @@ class pytom_GLocalTest(unittest.TestCase):
 
         self.settings["score"] = 'nxcf'
 
-        cmd = 'mpirun -np 2 ../bin/pytom ../bin/GLocalJob.py'
+        cmd = f'mpirun -np 2 {self.installdir}/bin/pytom {self.installdir}/bin/GLocalJob.py'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -m ' + str(self.settings["mask"])
         cmd = cmd + ' -b ' + str(self.settings["binning"])

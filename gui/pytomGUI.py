@@ -15,10 +15,8 @@ if sys.version_info[0] < 3:
     raise Exception("The GUI requires Python 3")
 
 global pytompath
-pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
+pytompath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 import webbrowser
-
-if not pytompath: pytompath = '/Users/gijs/Documents/pytom_private'
 
 if not pytompath:
     print('Pytom package is not available. Please load, or install Pytom.')

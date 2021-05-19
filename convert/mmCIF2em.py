@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
 
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         mmCIF, chain, pixelSize, cubeSize, volumePath ,densityNegative , helpme = parse_script_options(sys.argv[1:], helper)
@@ -34,7 +34,7 @@ if __name__ == '__main__':
         sys.exit()
         
     if helpme is True:
-        print helper
+        print(helper)
         sys.exit()
         pass
     

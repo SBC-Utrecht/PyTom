@@ -1,7 +1,7 @@
 #!/usr/bin/env pytom
 
 from pytom.tompy.mpi import MPI
-
+global mpi
 mpi = None
 
 def initialise_MPI():
@@ -12,6 +12,5 @@ def initialise_MPI():
         pass
 
     if not has_begun:
-        global mpi
         mpi = MPI()
         mpi.begin()

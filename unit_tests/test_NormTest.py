@@ -8,7 +8,9 @@ class pytom_NormTest(unittest.TestCase):
 
         import pytom_volume
         from pytom.basic.normalise import mean0std1
-        v = pytom_volume.read('./testData/ribo.em')
+        from pytom.unit_tests.helper_functions import create_RandomParticleList, installdir
+
+        v = pytom_volume.read(f'{installdir}/unit_tests/testData/ribo.em')
         
         m = mean0std1(v,True)
         
