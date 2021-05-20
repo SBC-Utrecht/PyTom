@@ -184,6 +184,11 @@ class vol(_object):
         write(vol self, std::string fileName)
         write(vol self, std::string fileName, std::string fileType)
         """
+        if len(args) == 1:
+            try:
+                args= [args[0], args[0].split('.')[-1]]
+            except:
+                pass
         return _pytom_volume.vol_write(self, *args)
 
 
