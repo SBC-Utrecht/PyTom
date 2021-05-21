@@ -1728,7 +1728,7 @@ class TomographReconstruct(GuiTabWidget):
 
                     job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, time=time,
                                                         partition=qname, num_nodes=n_nodes, singleton=True,
-                                                        num_jobs_per_node = cores, modules=modules, gpus=gpu) + jobscript
+                                                        num_jobs_per_node = cores, modules=modules, gpus=gpu)*self.checkbox[id].isChecked() + jobscript
 
                     exefilename = os.path.join(outputfolder, 'ctfCorrectionBatch.sh')
 
