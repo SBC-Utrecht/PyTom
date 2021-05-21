@@ -52,9 +52,9 @@ def read(file, subregion=[0, 0, 0, 0, 0, 0], sampling=[0, 0, 0], binning=[0, 0, 
                  subregion[4], subregion[5], sampling[0], sampling[1], sampling[2],
                  binning[0], binning[1], binning[2])
         return f
-    except (RuntimeError, errorNumber, errorString):
+    except Exception as e:
         # redundant to code above, but just in case it goes through
-        if "Wrong file format or file doesn't exist!" in errorString:
+        if "Wrong file format or file doesn't exist!" in e:
             raise IOError('File not found or path is wrong: ' + file)
         else:
             raise
