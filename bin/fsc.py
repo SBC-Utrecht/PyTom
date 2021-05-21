@@ -188,7 +188,7 @@ if __name__ == '__main__':
             files += [outdir+"/FSCRand.dat",outdir+"/FSCCorr.dat"]
         plot_FSC(files, pixelSize, boxsize=v1.shape[0],
                  outname=os.path.join(outdir, 'FSCOrig_FSCRand_FSCTrue.png'), show_image=True, c=fscCriterion,
-                 resolution=resolution)
+                 resolution=resolution, rand=randomize)
 
         # import matplotlib
         # import numpy
