@@ -169,7 +169,7 @@ mpiexec --tag-output -n {d[13]} {d[1]}/bin/pytom {d[1]}/classification/auto_focu
 -i {d[7]} \\
 -s {d[8]} \\
 -b {d[14]} \\
--n {d[9]} -g {d[10]} -t {d[11]} \\
+-n {d[9]} --sig {d[10]} -t {d[11]} \\
 -o {d[12]}'''
 
 templateTM        = '''cd {d[0]}
