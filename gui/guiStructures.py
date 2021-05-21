@@ -1235,6 +1235,7 @@ class CommonFunctions():
             self.localqID[ID] = 0
 
             if threaded:
+                print('submitting threaded job')
                 self.activeProcesses[ID] = Worker(fn=self.submit_local_job, args=[execfilename, ID], sig=False, results=True)
                 self.threadPool.start(self.activeProcesses[ID])
             else:
