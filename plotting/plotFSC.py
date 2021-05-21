@@ -7,7 +7,7 @@ import os
 def plot_FSC(FSCFile, pixelsize, boxsize=0, outname='', show_image=True, c=0.143, directory='', resolution=None, rand=True):
     import numpy, os
     from pytom.gui.guiFunctions import loadstar
-    print(directory)
+
     if directory:
         FSCFiles = sorted([os.path.join(directory, fsc) for fsc in os.listdir(directory) if
                            fsc.endswith('.dat') and not 'Filter' in fsc])
@@ -33,7 +33,8 @@ def plot_FSC(FSCFile, pixelsize, boxsize=0, outname='', show_image=True, c=0.143
     data = numpy.array(list(map(float, loadstar(FSCFile))))
     newax.plot(x+1, data, lw=2)
     for FSCFile in FSCFiles:
-        if not rand and 'FSCCorr.dat' in FSCFile or 'FSCRand.dat' in FSCFile: continue
+        if not rand and ('FSCCorr.dat' in FSCFile or 'FSCRand.dat' in FSCFile):
+            continue
         data = numpy.array(list(map(float, loadstar(FSCFile))))
         ax.plot(x, data, lw=2, label=os.path.basename(FSCFile))
 
