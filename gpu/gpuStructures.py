@@ -179,7 +179,6 @@ class TemplateMatchingGPU(threading.Thread):
             self.updateResFromIdx(self.plan.scores, self.plan.angles, self.plan.ccc_map, angleId, self.plan.scores, self.plan.angles)
             #self.cp.cuda.stream.get_current_stream().synchronize()
 
-            if angleId % 100 == 0: print(angleId, angles, self.plan.scores.max(), angle_list[int(self.plan.angles[self.cp.unravel_index(self.plan.scores.argmax(), self.plan.scores.shape)].get())])
 
     def is_alive(self):
         return self.active
