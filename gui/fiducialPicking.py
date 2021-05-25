@@ -619,7 +619,7 @@ class PickingFunctions():
             if excluded[i]:
                 coordinates_sorted[i,:,:] *= 0
 
-        self.assignedFiducials[self.assignedFiducials > -0.5] = 0
+        # self.assignedFiducials[self.assignedFiducials > -0.5] = 0
 
         for nr in range(coordinates_sorted.shape[1]):
             if nr+1 > 0.5:# and (index_map == nr).sum() > 2:
@@ -654,7 +654,7 @@ class PickingFunctions():
                     printline +=  "\tindex {:4d}: {}/{}\n".format(int(cntr), cur, r-sum(excluded))
                     listdx.append('{:02d}/{}'.format(cur,r-sum(excluded)))
                     outc[:,imark,:] = coordinates_sorted[:,nr,:]
-                    for j,mcnt in ids_assigned: self.assignedFiducials[j][mcnt] = 1
+                    # for j,mcnt in ids_assigned: self.assignedFiducials[j][mcnt] = 1
                     try: add_marker(['Marker_{:03d}'.format(imark), '{:02d}/{:02d}'.format(cur,r-sum(excluded))])
                     except: pass
                     imark += 1
@@ -668,7 +668,7 @@ class PickingFunctions():
                             listdx.append('{:02d}/{}'.format(cur,r-sum(excluded)))
 
                         outc[:,imark,:] = coordinates_sorted[:,nr,:]
-                        for j, mcnt in ids_assigned: self.assignedFiducials[j][mcnt] = 2
+                        # for j, mcnt in ids_assigned: self.assignedFiducials[j][mcnt] = 2
                         try: add_marker(['Marker_{:03d}'.format(imark), '{:02d}/{:02d}'.format(cur,r-sum(excluded))])
                         except: pass
                         imark += 1
@@ -1458,7 +1458,7 @@ class PickingFunctions():
                             markers[imark].set_xProj(v0[0])
                             markers[imark].set_yProj(v0[1])
                             self.coordinates[itilt,imark,:] = v0
-                            self.assignedFiducials[itilt][imark] = 1
+                            # self.assignedFiducials[itilt][imark] = 1
 
         return markers
 
