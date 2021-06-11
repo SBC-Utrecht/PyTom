@@ -711,20 +711,22 @@ def iasa_rough(filepath, voxel_size=10, oversampling=1, solvent_exclusion=False,
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
-    This function applies averaging of the potential over the voxels BUT in a coarse way. Use only for desired foxel
+    This function applies averaging of the potential over the voxels BUT in a coarse way. Use only for a desired voxel
     spacing of 10 A.
 
-    @param filepath: ID of pdb file as present in pdb folder
-    @type filepath: string
-    @param voxel_size: Size (A) of voxel in output map, default 1 A
-    @type voxel_size: float
-    @param solvent_exclusion: model the potential taking into account solvent exclusion
-    @type solvent_exclusion: Bool
+    @param filepath: full path to pdb file
+    @type  filepath: L{string}
+    @param voxel_size: size (A) of voxel in output map, default 10 A
+    @type  voxel_size: L{float}
+    @param oversampling: number of times to oversample voxel size
+    @type  oversampling: L{int}
+    @param solvent_exclusion: flag to correct potential on each atom for solvent exclusion
+    @type  solvent_exclusion: L{bool}
     @param V_sol: average solvent background potential (V/A^3)
-    @type V_sol: float
+    @type  V_sol: L{float}
 
-    @return: A volume with interaction potentials
-    @rtype: 3d numpy/cupy array[x,y,z], float
+    @return: a volume with electrostatic potential, 3d array of floats
+    @rtype:  L{np.ndarray}
 
     @author: Marten Chaillet
     """
@@ -792,17 +794,19 @@ def iasa_potential(filepath, voxel_size=1., oversampling=1): # add params voxel_
     """
     interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
     Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
-    This function using sampling to determine the potential.
+    In this algorithm the electrostatic potential is sampled from the sum of Gaussians function described on
+    each atom. Can lead to incorrect sampling for large voxel sizes, requires voxel spacings of 0.25 A and smaller
+    for correct result.
 
-    @param filepath: ID of pdb file as present in pdb folder
-    @type filepath: string
-    @param voxel_size: Size (A) of voxel in output map, default 1 A
-    @type voxel_size: float
-    @param oversampling: Increased sampling of potential (multiple of 1), default 1 i.e. no oversampling
-    @type oversampling: int
+    @param filepath: full path to pdb file
+    @type  filepath: L{string}
+    @param voxel_size: size (A) of voxel in output map, default 1 A
+    @type  voxel_size: L{float}
+    @param oversampling: oversample potential function (multiple of 1), default 1 i.e. no oversampling
+    @type  oversampling: L{int}
 
-    @return: A volume with interaction potentials
-    @rtype: 3d numpy/cupy array[x,y,z], float
+    @return: A volume with the electrostatic potential, 3d array
+    @rtype:  L{np.ndarray}
 
     @author: Marten Chaillet
     """
@@ -906,9 +910,14 @@ def iasa_potential(filepath, voxel_size=1., oversampling=1): # add params voxel_
 
 def parse_apbs_output(filepath):
     """
-    parse_apbs_output: Parses output file from APBS.
-    @param filepath: Path and name of .pqr.dx file produced by APBS software
-    @return: data, dxnew, dynew, dznew are in A, thickness in m, data is the reshaped apbs output
+    Parses output file from APBS to a 3d volume, and returns the volume along the voxel spacing in x, y, and z.
+
+    @param filepath: full path to .pqr.dx file produced by APBS software
+    @type  filepath: L{str}
+
+    @return: electrostatic shifts calculated by APBS as a 3d array, and the voxel spacing dx, dy, dz in A
+    @rtype:  L{tuple} - (L{np.ndarray}, L{float}, L{float}, L{float})
+
     @author: Marten Chaillet
     """
     # Read file header
@@ -950,14 +959,16 @@ def parse_apbs_output(filepath):
 
 def resample_apbs(filepath, voxel_size=1.0):
     """
-    resample_APBS: First calls parse_abps_output to read an apbs output file, then scales voxels to 1 A voxels and
-    refactors the values to volts.
+    First calls parse_abps_output to read an apbs output file, then scales voxels to voxel_size and
+    refactors the values to volt.
 
-    @param filepath: Full filepath
-    @type filepath: string
+    @param filepath: full filepath
+    @type  filepath: L{str}
+    @param voxel_size: desired voxel size after resampling in A, default is 1 A
+    @type  voxel_size: L{float}
 
-    @return: Resampled and scaled V_bond potential
-    @rtype: 3d numpy/cupy array[x,y,z], float
+    @return: Resampled and scaled V_bond potential, 3d array
+    @rtype:  L{np.ndarray}
 
     @author: Marten Chaillet
     """
@@ -997,15 +1008,16 @@ def resample_apbs(filepath, voxel_size=1.0):
 
 def combine_potential(potential1, potential2):
     """
-    Combine isolated atom and bond potential.
+    Combine V_atom and V_bond potential. Potentials do not need to have the same shape, but do need to have the same
+    voxel spacing. Also the potential should be centered in the volume identically.
 
-    @param iasa_potential:
-    @type iasa_potential: 3d numpy/cupy array[x,y,z], float
-    @param bond_potential:
-    @type bond_potential: 3d numpy/cupy array[x,y,z], float
+    @param potential1: first potential, 3d array
+    @type  potential1: L{np.ndarray}
+    @param potential2: second potential, 3d array
+    @type  potential2: L{np.ndarray}
 
-    @return: Combined IASA and bond potential (APBS)
-    @rtype: 3d numpy/cupy array[x,y,z], float
+    @return: Combined V_atom and V_bond, 3d array
+    @rtype:  L{np.ndarray}
 
     @author: Marten Chaillet
     """
@@ -1033,6 +1045,40 @@ def combine_potential(potential1, potential2):
 
 def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=None, exclude_solvent=False, solvent_masking=False,
             solvent_potential=physics.V_WATER, absorption_contrast=False, voltage=300E3, solvent_factor=1.0):
+    """
+    Execution of generating an electrostatic potential (and absorption potential) from a pdb/cif file. Process
+    includes preprocessing with chimera to add hydrogens and symmetry, then passing to IASA_intergration method to
+    correctly sample the electrostatic potential to a 3d array. Two options can be provided for solvent correction.
+
+    @param filepath: full path to pdb or cif filed
+    @type  filepath: L{str}
+    @param output_folder: folder to write all output to
+    @type  output_folder: L{str}
+    @param voxel_size: voxel size in A to sample the interaction potential to.
+    @type  voxel_size: L{float}
+    @param oversampling: number of times to oversample the interaction potential for better accuracy, multiple of 1
+    @type  oversampling: L{int}
+    @param binning: number of times to bin the volume after sampling, this file will be saved separately
+    @type  binning: L{int}
+    todo combine exclude_solvent and mask_solvent in one parameter with multiple options
+    @param exclude_solvent: flag to exclude solvent with a Gaussian sphere
+    @type  exclude_solvent: L{bool}
+    @param solvent_masking: flag to excluded solvent by masking (thresholding method)
+    @type  solvent_masking: L{bool}
+    @param solvent_potential: background solvent potential, default 4.5301
+    @type  solvent_potential: L{float}
+    @param absorption_contrast: flag for generating absorption potential
+    @type  absorption_contrast: L{bool}
+    @param voltage: electron beam voltage in eV, parameter for absorption contrast, default 300e3
+    @type  voltage: L{float}
+    @param solvent_factor: solvent factor to increase background potential
+    @type  solvent_factor: L{float}
+
+    @return: - (files are written to output_folder)
+    @rtype:  Nonee
+
+    @author: Marten Chaillet
+    """
     from pytom.tompy.io import write
     from pytom.tompy.transform import resize
     from pytom.simulation.support import reduce_resolution_fourier
