@@ -407,16 +407,16 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
     diameter = xp.random.uniform(low=4.0, high=10.0)
 
     # constants
-    unit_cell_volume = 0.0679 # nm^3
+    unit_cell_volume = 0.0679  # nm^3
     atoms_per_unit_cell = 4
     C = 2 * xp.pi * physics.constants['h_bar']**2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # nm^2
-    voxel_size_nm = voxel_size*1E9 / oversampling
+    voxel_size_nm = (voxel_size/10) / oversampling
     voxel_volume = voxel_size_nm**3
 
     # dimension of gold box, always add 5 nm to the sides
     dimension = int(xp.ceil(diameter / voxel_size_nm)) * 3
     # sigma half of radius?
-    r = 0.8 * ((diameter * 0.5) / voxel_size_nm) # fraction of radius due to extension with exponential smoothing
+    r = 0.8 * ((diameter * 0.5) / voxel_size_nm)  # fraction of radius due to extension with exponential smoothing
     ellipse = True
     if ellipse:
         r2 = r * xp.random.uniform(0.8, 1.2)
