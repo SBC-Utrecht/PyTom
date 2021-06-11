@@ -17,21 +17,21 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
     both sides of the input volume, shifting the original volume to the true new center if the increment/2 is
     non-integer.
 
-    @param vol: 3D matrix
-    @type vol: numpy ndarray
-    @param increment: list with increment value for each dimension, only integers
-    @type increment: [int, int, int]
+    @param vol: input volume to be extended, 3d array
+    @type  vol: L{np.ndarray}
+    @param increment: list with increment value for each dimension
+    @type  increment: L{list} - [L{int},] * 3
     @param pad_value: value to use as padding
-    @type pad_value: float
-    @param symmetrically: If False (default) the volume is just padded with zeros.
-    @type symmetrically: Bool
-    @param true_center: If True interpolate to true center
-    @type true_center: Bool
+    @type  pad_value: L{float}
+    @param symmetrically: If False (default) the volume is just padded at the end of each dimension.
+    @type  symmetrically: L{bool}
+    @param true_center: If True interpolate the volume to true center in case increment is uneven in one direction.
+    @type  true_center: L{bool}
     @param interpolation: voltools options ('filt_bspline', 'linear'), needed when shift is done to true_center
-    @type interpolation: string
+    @type  interpolation: L{string}
 
-    @return: Extended volume
-    @rtype: numpy ndarray
+    @return: Extended volume, 3d array
+    @rtype:  L{np.ndarray}
 
     @author: Marten Chaillet
     """
@@ -54,16 +54,19 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
 def call_chimera(filepath, output_folder):
     """
     Run chimera for pdb file in order to add hydrogens and add symmetry units. The resulting structure is stored as a
-    new pdb file with the extension {id}_symmetry.pdb
+    new pdb file with the extension {id}_symmetry.pdb. The function calls chimera on command line to execute.
 
-    @param pdb_folder: Path to a folder where pdb files are stored
-    @type pdb_folder: string
+    Reference Chimera: UCSF Chimera--a visualization system for exploratory research and analysis. Pettersen EF,
+    Goddard TD, Huang CC, Couch GS, Greenblatt DM, Meng EC, Ferrin TE. J Comput Chem. 2004 Oct;25(13):1605-12.
+
+    @param pdb_folder: path to a folder where pdb files are stored
+    @type  pdb_folder: L{string}
     @param pdb_id: ID of pdb file
-    @type pdb_id: string
+    @type  pdb_id: L{string}
 
-    @return: Returns the name of file where the new pdb stucture is stored in. This can differ for pdb depending on
-    symmetry thus we need to return it.
-    @rtype: string
+    @return: name of file where the new pdb stucture is stored in, this can differ for pdb depending on
+    symmetry thus we need to return it
+    @rtype: L{string}
 
     @author: Marten Chaillet
     """
@@ -195,17 +198,17 @@ def modify_structure_file(filepath, pattern, replacement, line_start=''):
     Function required to make pqr files with large negative coordinates readible for APBS. APBS can only parse
     columns in the file when they are properly separated by white spaces. Input file will be overwritten.
 
-    @param filepath: File path of pqr type file (with extension)
-    @type filepath: string
-    @param pattern: Pattern to be replaced
-    @type pattern: string
-    @param replacement: Replacement string for pattern
-    @type replacement: string
-    @param line_start: Keyword argument, only modify line starting with line_start
-    #type line_start: string
+    @param filepath: file path of pqr type file (with extension)
+    @type  filepath: L{string}
+    @param pattern: pattern to be replaced
+    @type  pattern: L{string}
+    @param replacement: replacement string for pattern
+    @type  replacement: L{string}
+    @param line_start: keyword argument, only modify line starting with line_start string
+    @type  line_start: L{string}
 
-    @return: empty
-    @rtype:
+    @return: - (input file overwritten)
+    @rtype:  None
 
     @author: Marten Chaillet
     """
@@ -238,34 +241,36 @@ def modify_structure_file(filepath, pattern, replacement, line_start=''):
 
 def call_apbs(pdb_filepath, force_field='amber', ph=7.):
     """
-    Calls external programs pdb2pqr and apbs to execute on pdb structure. References:
+    Calls external programs pdb2pqr and apbs to execute on pdb structure. Both programs need to be on the path for this
+    function to run. This function puts commands to the terminal to execute both programs.
 
-    @param pdb_folder: Folder where pdb structures are stored
-    @type pdb_folder: string
-    @param structure: Name of pdb file with coordinates of the protein structure
-    @type structure: string
-    @param apbs_folder: Folder to store output of pdb2pqr and apbs
-    @type apbs_folder: string
-    @param force_field: Force field for parameterizing atoms (option: amber, ...)
-    @type force_field: string
+    References
+      - PDB2PQR: Dolinsky TJ, Nielsen JE, McCammon JA, Baker NA. PDB2PQR: an automated pipeline for the setup,
+        execution, and analysis of Poisson-Boltzmann electrostatics calculations. Nucleic Acids Research 32 W665-W667
+        (2004).
+      - APBS: Baker NA, Sept D, Joseph S, Holst MJ, McCammon JA. Electrostatics of nanosystems: application to
+        microtubules and the ribosome. Proc. Natl. Acad. Sci. USA 98, 10037-10041 2001.
+
+    @param pdb_filepath: path to pdb file, this will be the folder where .pqr and .in file are stored
+    @type  pdb_filepath: L{string}
+    @param force_field: force field for parameterizing atoms (option: amber, ...)
+    @type  force_field: L{string}
     @param ph: pH value of solvent surrounding the protein
-    @type ph: float
+    @type  ph: L{float}
 
-    @return: empty, output of programs called is stored in apbs_folder
-    @rtype:
+    @return: - (output of programs called is stored folder of pdb_filepath)
+    @rtype:  None
 
     @author: Marten Chaillet
     """
-    # pdb2pqr and apbs should be on path for this function to run
-
     folder, file = os.path.split(pdb_filepath)
     pdb_id, _ = os.path.splitext(file)
 
     print(f' - Running pdb2pqr and APBS on {pdb_filepath}')
     cwd = os.getcwd()
 
-    pqr_filepath = os.path.join(folder,f'{pdb_id}.pqr')
-    apbs_config = os.path.join(folder, f'{pdb_id}.in')
+    pqr_filepath = os.path.join(folder, f'{pdb_id}.pqr')
+    apbs_config  = os.path.join(folder, f'{pdb_id}.in')
     try:
         # Also PDB2PKA ph calculation method. Requires PARSE force field, can take very long for large proteins.
         os.system(f'pdb2pqr.py --ff={force_field} --ph-calc-method=propka --with-ph={ph} --apbs-input {pdb_filepath} {pqr_filepath}')
@@ -288,8 +293,14 @@ def call_apbs(pdb_filepath, force_field='amber', ph=7.):
 def read_structure(filepath):
     """
     Read pdb, cif, or pqr file and return atom data in lists.
-    @param filepath:
-    @return:
+
+    @param filepath: full path to the file, either .pdb, .cif, or .pqr
+    @type  filepath: L{str}
+
+    @return: a tuple of 6 lists (x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies)
+    @rtype: L{tuple} - (L{list},) * 6 with types (float, float, float, str, float, float)
+
+    @author: Marten Chaillet
     """
     x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = [], [], [], [], [], []
 
@@ -395,6 +406,25 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
     From Rahman 2018 (International Journal of Biosensors and Bioelectronics).
     Volume of unit cell gold is 0.0679 nm^3 with 4 atoms per unit cell.
     Volume of gold bead is 4/3 pi r^3.
+
+    @param voxel_size: voxel size of the box where gold marker is generated, in A
+    @type  voxel_size: L{float}
+    @param solvent_potential: solvent background potential
+    @type  solvent_potential: L{float}
+    @param oversampling: number of times to oversample the voxel size for more accurate generation
+    @type  oversampling: L{int}
+    @param solvent_factor: factor for denser solvent
+    @type  solvent_factor: L{float}
+    @param imaginary: flag for generating imaginary part of the potential
+    @type  imaginary: L{bool}
+    @param voltage: voltage of electron beam in eV, default 300E3
+    @type  voltage: L{float}
+
+    @return: if imaginary is True, return tuple (real, imaginary), if false return only real. boxes real and imag are
+    3d arrays.
+    @rtype: L{tuple} - (L{np.ndarray},) * 2 or L{np.ndarray}
+
+    @author: Marten Chaillet
     """
     from pytom.tompy.tools import create_sphere
     from pytom.simulation.support import reduce_resolution, create_ellipse, add_correlated_noise
@@ -467,21 +497,39 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
                      V_sol=physics.V_WATER, absorption_contrast=False, voltage=300E3, density=physics.PROTEIN_DENSITY,
                      molecular_weight=physics.PROTEIN_MW, structure_tuple=None):
     """
-    interaction_potential: Calculates interaction potential map to 1 A volume as described initially by
-    Rullgard et al. (2011) in TEM simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013).
-    This function applies averaging of the potential over the voxels to obtain precise results without oversampling.
+    Calculates interaction potential map to 1 A volume as described initially by Rullgard et al. (2011) in TEM
+    simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013). This function applies averaging of
+    the potential over the voxels to obtain precise results without oversampling.
 
-    @param filepath: ID of pdb file as present in pdb folder
-    @type filepath: string
-    @param voxel_size: Size (A) of voxel in output map, default 1 A
-    @type voxel_size: float
-    @param solvent_exclusion: model the potential taking into account solvent exclusion
-    @type solvent_exclusion: Bool
+    @param filepath: full filepath to pdb file
+    @type  filepath: L{string}
+    @param voxel_size: size of voxel in output map, default 1 A
+    @type  voxel_size: L{float}
+    @param oversampling: number of times to oversample final voxel size
+    @type  oversampling: L{int}
+    todo combine solvent exclusion and masking to one parameter, exclusion={'gaussian' or 'mask' or None}
+    @param solvent_exclusion: flag to execute solvent exclusion using gaussian spheres. this option overrides
+    solvent_masking if set.
+    @type  solvent_exclusion: L{bool}
+    @param solvent_masking: flag to do solvent exclusion using smoothed occupation mask (considered more accurate)
+    @type  solvent_masking: L{bool}
     @param V_sol: average solvent background potential (V/A^3)
-    @type V_sol: float
+    @type  V_sol: L{float}
+    @param absorption_contrast: flag to generate absorption factor for imaginary part of potential
+    @type  absorption_contrast: L{bool}
+    @param voltage: electron beam voltage, absorption factor depends on voltage, default 300e3
+    @type  voltage: L{float}
+    @param density: average density of molecule that is generated, default 1.35 (protein)
+    @type  density: L{float}
+    @param molecular_weight: average molecular weight of the molecule that is generated, default protein MW
+    @type  molecular_weight: L{float}
+    @param structure_tuple: structure information as a tuple (x_coordinates, y_coordinates, z_coordinates, elements,
+    b_factors, occupancies), if provided this overrides file reading
+    @type  structure_tuple: L{tuple} - (L{list},) * 6 with types (float, float, float, str, float, float)
 
-    @return: A volume with interaction potentials
-    @rtype: 3d numpy/cupy array[x,y,z], float
+    @return: A volume with interaction potentials, either tuple of (real, imag) or single real, both real and imag
+    are 3d arrays.
+    @rtype: L{tuple} - (L{np.ndarray},) * 2 or L{np.ndarray}
 
     @author: Marten Chaillet
     """
