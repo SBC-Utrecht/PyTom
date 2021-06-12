@@ -298,7 +298,7 @@ def read_structure(filepath):
     @type  filepath: L{str}
 
     @return: a tuple of 6 lists (x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies)
-    @rtype: L{tuple} - (L{list},) * 6 with types (float, float, float, str, float, float)
+    @rtype: L{tuple} -> (L{list},) * 6 with types (float, float, float, str, float, float)
 
     @author: Marten Chaillet
     """
@@ -422,7 +422,7 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
 
     @return: if imaginary is True, return tuple (real, imaginary), if false return only real. boxes real and imag are
     3d arrays.
-    @rtype: L{tuple} - (L{np.ndarray},) * 2 or L{np.ndarray}
+    @rtype: L{tuple} -> (L{np.ndarray},) * 2 or L{np.ndarray}
 
     @author: Marten Chaillet
     """
@@ -527,9 +527,10 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
     b_factors, occupancies), if provided this overrides file reading
     @type  structure_tuple: L{tuple} - (L{list},) * 6 with types (float, float, float, str, float, float)
 
+    todo makes more sense if real and imag potential are returned as array with complex values instead of tuple
     @return: A volume with interaction potentials, either tuple of (real, imag) or single real, both real and imag
     are 3d arrays.
-    @rtype: L{tuple} - (L{np.ndarray},) * 2 or L{np.ndarray}
+    @rtype: L{tuple} -> (L{np.ndarray},) * 2 or L{np.ndarray}
 
     @author: Marten Chaillet
     """
