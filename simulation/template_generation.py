@@ -11,40 +11,56 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
                       resolution=30, box_size=None, output_folder=''):
     """
 
-    @param structure_file_path:
-    @type structure_file_path: string
-    @param spacing:
-    @type spacing: float
-    @param binning:
-    @type binning: int
-    @param modify_structure:
-    @type modify_structure: bool
-    @param solvent_correction:
-    @type solvent_correction: bool
-    @param solvent_density:
-    @type solvent_density: float
-    @param apply_ctf_correction:
-    @type apply_ctf_correction: bool
-    @param defocus:
-    @type defocus: float
-    @param amplitude_contrast:
-    @type amplitude_contrast: float
-    @param voltage:
-    @type voltage: float
-    @param Cs:
-    @type Cs: float
-    @param ctf_decay:
-    @type ctf_decay: float
-    @param display_ctf:
-    @type display_ctf: bool
-    @param apply_lpf:
-    @type apply_lpf: bool
-    @param resolution:
-    @type resolution: float
-    @param box_size:
-    @type box_size: int
-    @return:
-    @rtype:
+    Generating a template for template matching in a set of tomograms. Spacing provided should correspond to original
+    spacing of the projections of the dataset. The binning factor can be applied identical to the binning factor used
+    for reconstructing the tomograms. It is better to do this because the template will be sampled at higher
+    resolution and should therefore be more accurate.
+
+        default values for ctf correction
+    defocus                 = 3e-6 m
+    amplitude contrast      = 0.07
+    voltage                 = 300e3
+    spherical aberration    = 2.7e-3
+    ctf decay               = 0.4
+
+    @param structure_file_path: full path to file specifying structure in pdb or cif format
+    todo some issues with cif format have been reported
+    @type  structure_file_path: L{str}
+    @param spacing: spacing of voxels in A
+    @type  spacing: L{float}
+    @param binning: binning factor to apply after generating template first at specified spacing
+    @type  binning: L{int}
+    @param modify_structure: flag to modify structure by adding hydrogen and adding symmetry using UCSF Chimera.
+    Chimera needs to be on PATH in terminal to execute this option.
+    @type  modify_structure: L{bool}
+    @param apply_solvent_correction: flag to apply solvent correction
+    @type  apply_solvent_correction: L{bool}
+    @param solvent_density: solvent density to use for the correction, default is amorphous ice density 0.93 g/cm^3
+    @type  solvent_density: L{float}
+    @param apply_ctf_correction: flag to apply ctf correction to template
+    @type  apply_ctf_correction: L{bool}
+    @param defocus: defocus value in m, dz > 0 is defocus, dz < 0  is overfocus
+    @type  defocus: L{float}
+    @param amplitude_contrast: fraction of amplitude contrast
+    @type  amplitude_contrast: L{float}
+    @param voltage: electron beam acceleration voltage in eV
+    @type  voltage: L{float}
+    @param Cs: spherical aberration in m
+    @type  Cs: L{float}
+    @param ctf_decay: sigma of Gaussian ctf decay
+    @type  ctf_decay: L{float}
+    @param display_ctf: flag to display a plot of the ctf
+    @type  display_ctf: L{bool}
+    @param resolution: resolution to apply low-pass filter to in A, default is 2 * spacing * binning. values lower
+    than the default will be overridden by default value because low-pass filtering the template is always better.
+    @type  resolution: L{float}
+    @param box_size: force box size of template to be larger than default generation
+    @type  box_size: L{int}
+
+    @return: template containg volume, 3d array of floats
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
     """
     from pytom.simulation.microscope import create_ctf, display_microscope_function
     from pytom.tompy.transform import resize, fourier_filter
