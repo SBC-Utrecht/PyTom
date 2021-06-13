@@ -1107,9 +1107,9 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
         ctf_series.append(ctf)
 
     dqe = create_detector_response(camera_type, 'DQE', image_size, voltage=voltage,
-                                            folder=camera_folder, binning=binning)
+                                            folder=camera_folder, oversampling=binning)
     mtf = create_detector_response(camera_type, 'MTF', image_size, voltage=voltage,
-                                            folder=camera_folder, binning=binning)
+                                            folder=camera_folder, oversampling=binning)
 
     # joblib automatically memory maps a numpy array to child processes
     print(f'Projecting the model with {nodes} processes')
@@ -1325,9 +1325,9 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
                                    astigmatism_angle=astigmatism_angle, display=False)
 
     dqe = create_detector_response(camera_type, 'DQE', image_size, voltage=voltage,
-                                            folder=camera_folder, binning=binning)
+                                            folder=camera_folder, oversampling=binning)
     mtf = create_detector_response(camera_type, 'MTF', image_size, voltage=voltage,
-                                            folder=camera_folder, binning=binning)
+                                            folder=camera_folder, oversampling=binning)
 
     # joblib automatically memory maps a numpy array to child processes
     print(f'Projecting the model with {nodes} processes')
