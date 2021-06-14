@@ -933,7 +933,7 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
                              chromatic_aberration=2.7E-3, energy_spread=0.7, illumination_aperture=0.030E-3,
                              objective_diameter=100E-6, focus_length=4.7E-3, astigmatism=0.0E-9, astigmatism_angle=0,
                              msdz=1E-9, defocus=2E-6, sigma_shift=0.0, camera_type='K2SUMMIT', camera_folder='',
-                             solvent_potential=physics.V_WATER, absorption_contrast=False):
+                             solvent_potential=physics.V_WATER, absorption_contrast=False, grandcell=None):
     """
     Creating a tilt series for the initial grand model by rotating the sample along a set of tilt angles. For each angle
     the projection process of the microscope will be simulated. Calculation of each projection will be done on CPU
@@ -989,6 +989,9 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     todo solvent potential should be a boolean similar to absorption contrast??
     @param absorption_contrast: flag for including absorption contrast, grandmodel should have been generated with absorption contrast
     @type  absorption_contrast: L{bool}
+    @param grandcell: optional parameter for passing grandcell directly to function, 3d array of floats or complex
+    values
+    @type  grandcell: L{np.ndarray}
 
     @return: - (projection are stored in save_path)
     @rtype:  None
@@ -1003,22 +1006,34 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     from joblib import Parallel, delayed
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
 
-    # grab model
-    filename_gm_real = os.path.join(save_path, 'grandmodel.mrc')
-    filename_gm_imag = os.path.join(save_path, 'grandmodel_imag.mrc')
-    grandcell = read_mrc(filename_gm_real)
-    if absorption_contrast:
-        xp_type = xp.complex64
-        grandcell = grandcell.astype(xp_type)
-        grandcell.imag = read_mrc(filename_gm_imag)
-        # calculate the absorption for amorphous ice at the specified voltage
-        solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
-        print(f'solvent absorption = {solvent_amplitude:.3f}')
+    if grandcell is None:
+        # grab model
+        filename_gm_real = os.path.join(save_path, 'grandmodel.mrc')
+        filename_gm_imag = os.path.join(save_path, 'grandmodel_imag.mrc')
+        grandcell = read_mrc(filename_gm_real)
+        if absorption_contrast:
+            # set dtype to be complex64 to save memory
+            xp_type = xp.complex64
+            grandcell = grandcell.astype(xp_type)
+            grandcell.imag = read_mrc(filename_gm_imag)
+            # calculate the absorption for amorphous ice at the specified voltage
+            solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
+            print(f'solvent absorption = {solvent_amplitude:.3f}')
+        else:
+            # set dtype as float32 to save memory
+            xp_type = xp.float32
+            grandcell = grandcell.astype(xp_type)
+            solvent_amplitude = 0.0
     else:
-        xp_type = xp.float32
-        grandcell = grandcell.astype(xp_type)
-        solvent_amplitude = 0.0
+        if grandcell.dtype == complex:
+            solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
+            # set dtype to be complex64 to save memory
+            grandcell = grandcell.astype(xp.complex64)
+        else:
+            # set dtype as float32 to save memory
+            grandcell = grandcell.astype(xp.float32)
 
+    # extract variables of grandcell shape
     box_size = grandcell.shape[0]
     box_height = grandcell.shape[2]
 
@@ -1156,7 +1171,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
                               chromatic_aberration=2.7E-3, energy_spread=0.7, illumination_aperture=0.030E-3,
                               objective_diameter=100E-6, focus_length=4.7E-3, astigmatism=0.0E-9, astigmatism_angle=0,
                               msdz=5E-9, defocus=2E-6, mean_shift=0.0, camera_type='K2SUMMIT', camera_folder='',
-                              solvent_potential=physics.V_WATER, absorption_contrast=False):
+                              solvent_potential=physics.V_WATER, absorption_contrast=False, grandcell=None):
     """
     Creating a frame series for the initial grand model by applying stage drift (translation) for each frame, and
     calculating the sample projection in the microscope. Calculation of each projection will be done on CPU nodes, as
@@ -1211,6 +1226,9 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     todo solvent potential should be a boolean similar to absorption contrast??
     @param absorption_contrast: flag for including absorption contrast, grandmodel should have been generated with absorption contrast
     @type  absorption_contrast: L{bool}
+    @param grandcell: optional parameter for passing grandcell directly to function, 3d array of floats or complex
+    values
+    @type  grandcell: L{np.ndarray}
 
     @return: - (projection are stored in save_path)
     @rtype:  None
@@ -1225,20 +1243,30 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     from joblib import Parallel, delayed
 
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
-
-    # grab model
-    filename_gm_real = os.path.join(save_path, 'grandmodel.mrc')
-    filename_gm_imag = os.path.join(save_path, 'grandmodel_imag.mrc')
-    grandcell = read_mrc(filename_gm_real)
-    if absorption_contrast:
-        grandcell = grandcell.astype(xp.complex64)
-        grandcell.imag = read_mrc(filename_gm_imag)
-        # calculate the absorption for amorphous ice at the specified voltage
-        solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
-        print(f'solvent absorption = {solvent_amplitude:.3f}')
+    if grandcell is None:
+        # grab model
+        filename_gm_real = os.path.join(save_path, 'grandmodel.mrc')
+        filename_gm_imag = os.path.join(save_path, 'grandmodel_imag.mrc')
+        grandcell = read_mrc(filename_gm_real)
+        if absorption_contrast:
+            # set dtype to be complex64 to save memory
+            grandcell = grandcell.astype(xp.complex64)
+            grandcell.imag = read_mrc(filename_gm_imag)
+            # calculate the absorption for amorphous ice at the specified voltage
+            solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
+            print(f'solvent absorption = {solvent_amplitude:.3f}')
+        else:
+            # set dtype as float32 to save memory
+            grandcell = grandcell.astype(xp.float32)
+            solvent_amplitude = 0.0
     else:
-        grandcell = grandcell.astype(xp.float32)
-        solvent_amplitude = 0.0
+        if grandcell.dtype == complex:
+            solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
+            # set dtype to be complex64 to save memory
+            grandcell = grandcell.astype(xp.complex64)
+        else:
+            # set dtype as float32 to save memory
+            grandcell = grandcell.astype(xp.float32)
 
     # extract size
     box_size = grandcell.shape[0]
@@ -1659,13 +1687,13 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
     if filter_projections:
         for i in range(projections.shape[2]):
             # 2.3 corresponds to circular filter with width 0.9 of half of the image
-            projection_scaled = reduce_resolution(projections[:,:,i].squeeze(), 1.0, 2.0 * reconstruction_bin)
+            projection_scaled = reduce_resolution(projections[:, :, i].squeeze(), 1.0, 2.0 * reconstruction_bin)
             filename_single = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
             write(filename_single, projection_scaled)
     else:
         for i in range(projections.shape[2]):
             filename_single = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
-            write(filename_single, projections[:,:,i])
+            write(filename_single, projections[:, :, i])
 
     # size and volume shape of the reconstruction
     size_reconstruction = projections.shape[0] // reconstruction_bin
@@ -1679,54 +1707,60 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
         filename_output = os.path.join(save_path, f'reconstruction_bin{reconstruction_bin}.em')
     # IF EM alignment file provided, filters applied and reconstruction will be identical.
     projections = ProjectionList()
-    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=reconstruction_bin,
+    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0, 0, 0], binning=reconstruction_bin,
                                         applyWeighting=weighting, alignResultFile=filename_align)
     vol.write(filename_output)
     os.system(f'em2mrc.py -f {filename_output} -t {os.path.dirname(filename_output)}')
     os.system(f'rm {filename_output}')
 
-    # Adjust ground truth data to match cuts after scaling or after binning for reconstruction
-    filename_gm = os.path.join(save_path, 'grandmodel.mrc')
-    filename_cm = os.path.join(save_path, 'class_mask.mrc')
-    filename_om = os.path.join(save_path, 'occupancy_mask.mrc')
-    filename_gm_bin = os.path.join(save_path, f'grandmodel_bin{reconstruction_bin}.mrc')
-    filename_cm_bin = os.path.join(save_path, f'class_mask_bin{reconstruction_bin}.mrc')
-    filename_om_bin = os.path.join(save_path, f'occupancy_mask_bin{reconstruction_bin}.mrc')
+    # only if binning during reconstruction is used or the scaled projections are used, ground truth annotation needs
+    # to be updated
+    if reconstruction_bin > 1 or use_scaled_projections:
 
-    cell = read_mrc(filename_gm)
-    # find cropping indices
-    lind = (cell.shape[0] - reconstruction_bin * size_reconstruction)//2
-    rind = cell.shape[0] - lind
-    cell = resize(reduce_resolution(cell[lind:rind,lind:rind,:], 1, 2*reconstruction_bin), 1/reconstruction_bin,
-                  interpolation='Spline')
-    write(filename_gm_bin, cell)
-    # bin class mask and bbox needed for training
-    cell = read_mrc(filename_cm)
-    write(filename_cm_bin, downscale_class_mask(cell[lind:rind,lind:rind,:], reconstruction_bin))
-    # bin occupancy mask as well
-    cell = read_mrc(filename_om)
-    write(filename_om_bin, downscale_class_mask(cell[lind:rind,lind:rind,:], reconstruction_bin))
+        # Adjust ground truth data to match cuts after scaling or after binning for reconstruction
+        filename_gm = os.path.join(save_path, 'grandmodel.mrc')
+        filename_cm = os.path.join(save_path, 'class_mask.mrc')
+        filename_om = os.path.join(save_path, 'occupancy_mask.mrc')
+        # todo| New names of grandmodel and class masks should not contain the word bin if they are only fourier
+        #  shell scaled. In that case use different identifier (e.g. _scaled)
+        filename_gm_bin = os.path.join(save_path, f'grandmodel_bin{reconstruction_bin}.mrc')
+        filename_cm_bin = os.path.join(save_path, f'class_mask_bin{reconstruction_bin}.mrc')
+        filename_om_bin = os.path.join(save_path, f'occupancy_mask_bin{reconstruction_bin}.mrc')
 
-    # create particle locations binned file
-    adjusted_ground_truth = ''
-    filename_loc = os.path.join(save_path,'particle_locations.txt')
-    filename_loc_bin = os.path.join(save_path, f'particle_locations_bin{reconstruction_bin}.txt')
-    with open(filename_loc, 'r') as fin:
-        line = fin.readline()
-        while line:
-            data = line.split()
-            data[1] = int(data[1]) // reconstruction_bin - lind
-            data[2] = int(data[2]) // reconstruction_bin - lind
-            data[3] = int(data[3]) // reconstruction_bin - lind
-            # only add the location back if the center of particle is still inside the box after binning
-            if 0 <= data[1] < rind and 0 <= data[2] < rind and 0 <= data[3] < rind:
-                data[1] = str(data[1])
-                data[2] = str(data[2])
-                data[3] = str(data[3])
-                adjusted_ground_truth += ' '.join(data) + '\n'
+        cell = read_mrc(filename_gm)
+        # find cropping indices
+        lind = (cell.shape[0] - reconstruction_bin * size_reconstruction)//2
+        rind = cell.shape[0] - lind
+        cell = resize(reduce_resolution(cell[lind:rind, lind:rind, :], 1, 2*reconstruction_bin), 1/reconstruction_bin,
+                      interpolation='Spline')
+        write(filename_gm_bin, cell)
+        # bin class mask and bbox needed for training
+        cell = read_mrc(filename_cm)
+        write(filename_cm_bin, downscale_class_mask(cell[lind:rind,lind:rind,:], reconstruction_bin))
+        # bin occupancy mask as well
+        cell = read_mrc(filename_om)
+        write(filename_om_bin, downscale_class_mask(cell[lind:rind,lind:rind,:], reconstruction_bin))
+
+        # create particle locations binned file
+        adjusted_ground_truth = ''
+        filename_loc = os.path.join(save_path, 'particle_locations.txt')
+        filename_loc_bin = os.path.join(save_path, f'particle_locations_bin{reconstruction_bin}.txt')
+        with open(filename_loc, 'r') as fin:
             line = fin.readline()
-    with open(filename_loc_bin, 'w') as fout:
-        fout.write(adjusted_ground_truth)
+            while line:
+                data = line.split()
+                data[1] = int(data[1]) // reconstruction_bin - lind
+                data[2] = int(data[2]) // reconstruction_bin - lind
+                data[3] = int(data[3]) // reconstruction_bin - lind
+                # only add the location back if the center of particle is still inside the box after binning
+                if 0 <= data[1] < rind and 0 <= data[2] < rind and 0 <= data[3] < rind:
+                    data[1] = str(data[1])
+                    data[2] = str(data[2])
+                    data[3] = str(data[3])
+                    adjusted_ground_truth += ' '.join(data) + '\n'
+                line = fin.readline()
+        with open(filename_loc_bin, 'w') as fout:
+            fout.write(adjusted_ground_truth)
 
     return
 

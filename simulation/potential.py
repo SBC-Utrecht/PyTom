@@ -613,7 +613,6 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
 
         atom_potential = 0
 
-
         for j in range(5):
             sqrt_b = xp.sqrt(b[j])  # calculate only once
             # Difference of error function == integrate over Gaussian
