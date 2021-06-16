@@ -104,7 +104,7 @@ class MicrographModellerTest(unittest.TestCase):
 
         return read(path.join(self.param_rec['save_path'], 'reconstruction.mrc'))
 
-    def testSimulation(self):
+    def test_Simulation(self):
         """Run two simulations and test their correlation. Both will have a different realization of noise and will
         slightly differ."""
         from pytom.tompy.correlation import xcc
@@ -116,7 +116,8 @@ class MicrographModellerTest(unittest.TestCase):
         # calculate cross-correlation coefficient of the two tomograms
         cc = xcc(tomo_1, tomo_2)
 
-        self.assertAlmostEqual(first=1.0, second=cc, places=1)
+        # self.assertAlmostEqual(first=1.0, second=cc, places=1)
+        self.assertGreater(cc, 0.95, msg='correlation is not sufficient between simulations')
 
 
 if __name__ == '__main__':
