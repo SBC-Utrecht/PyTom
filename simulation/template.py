@@ -66,7 +66,7 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
     from pytom.simulation.potential import iasa_integration, call_chimera
 
     assert binning >= 1, 'binning factor smaller than 1 is invalid'
-    if solvent_correction:
+    if apply_solvent_correction:
         assert solvent_density > 0, 'solvent density smaller or equal to 0 is invalid'
         if solvent_density > physics.PROTEIN_DENSITY:
             print(f'WARNING: Solvent density larger than protein density {physics.PROTEIN_DENSITY}')

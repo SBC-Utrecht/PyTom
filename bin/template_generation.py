@@ -1,5 +1,6 @@
 #!/usr/bin/env pytom
 
+import os
 import sys
 import pytom.simulation.physics as physics
 from pytom.tools.script_helper import ScriptHelper, ScriptOption
