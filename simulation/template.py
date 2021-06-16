@@ -1,3 +1,4 @@
+
 import numpy as xp
 import pytom.simulation.physics as physics
 
@@ -53,6 +54,8 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
     @type  resolution: L{float}
     @param box_size: force box size of template to be larger than default generation
     @type  box_size: L{int}
+    @param output_folder: folder to write output volumes to, default is current folder
+    @type  output_folder: L{str}
 
     @return: template containg volume, 3d array of floats
     @rtype:  L{np.ndarray}

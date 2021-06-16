@@ -10,6 +10,8 @@ from pytom.simulation.template import generate_template
 
 
 if __name__ == '__main__':
+    # todo template generation could be updated with an option for spherical mask generation
+
     # parameters: file_path, destination, spacing, binning (optional, default is 1), solvent_correction (optional),
     # solvent_density (optional, default 0.93),
     # apply_ctf_correction (optional), defocus (optional, default is 3 um, negative is overfocus),
