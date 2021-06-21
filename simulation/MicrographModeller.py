@@ -475,11 +475,11 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
 
             # Code for randomly flipping particles to add both handedness to the model, useful for generalizing
             # training datasets
-            # if xp.random.randint(2): # Generate true/false randomly
-            #     # Mirror the particle to cover both left and right handedness of the proteins
-            #     ax = xp.random.randint(3)
-            #     particle_real = xp.flip(particle_real, axis=ax)
-            #     if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=ax)
+            if xp.random.randint(2): # Generate true/false randomly
+                # Mirror the particle to cover both left and right handedness of the proteins
+                ax = xp.random.randint(3)
+                particle_real = xp.flip(particle_real, axis=ax)
+                if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=ax)
 
             # Rotate particle to the specified orientation
             rotated_particle_real = transform(particle_real, rotation=p_angles,
