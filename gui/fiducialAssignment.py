@@ -60,7 +60,7 @@ from multiprocessing import Process, Event, Manager, Pool, cpu_count
 
 from pytom.gui.guiStructures import *
 from pytom.gui.guiFunctions import *
-
+from pytom.tompy.io import read_size
 def sort_str( obj, nrcol ):
     obj.sort(key=lambda i: str(i[nrcol]))
 
@@ -144,6 +144,10 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.pytompath = self.parent().pytompath
         self.projectname = self.parent().projectname
 
+        self.threadPool = self.parent().threadPool
+        self.threadPool.setMaxThreadCount(1)
+        self.activeProcesses = {}
+        self.ID = 0
 
         self.tomofolder = os.path.join(self.projectname, '03_Tomographic_Reconstruction')
         self.tomogram_names = sorted( [line.split()[0] for line in os.listdir(self.tomofolder) if line.startswith('tomogram_')] )
@@ -161,8 +165,11 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.settings = SettingsFiducialAssignment(self)
         self.selectMarkers = SelectAndSaveMarkers(self)
         self.manual_adjust_marker = ManuallyAdjustMarkers(self)
-        self.error_window = ErrorWindow(self,'test.txt')
+        self.error_window = ErrorWindow(self,'alignmentErrors.txt')
+        self.markerAdjust = False
+        self.markerHotKeys = {Qt.Key_4: 4, Qt.Key_5: 5, Qt.Key_6: 6, Qt.Key_7: 7, Qt.Key_8: 8, Qt.Key_9: 9, Qt.Key_0: 0}
 
+        self.idReferenceImage = -1
         self.dim = 0
         self.radius = 8
         self.sizeCut = 200
@@ -192,13 +199,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.insert_pushbutton(parent,text='Find Fiducials',rstep=1,tooltip='Automatically detect fiducials.',
                                action=self.find_fid,params=0, wname='findButton', state=False)
 
-        self.insert_pushbutton(parent,text='Detect Frame Shifts',rstep=1, wname='detectButton',state=True,
+        self.insert_pushbutton(parent,text='Detect Frame Shifts',rstep=1, wname='detectButton',
                                tooltip='Detect global x-y shifts between tilt images.',
-                               action=self.detect_frameshift,params=0)
+                               action=self.detect_frameshift,params=0, state=False)
         self.insert_pushbutton(parent,text='Index Fiducials',rstep=1,tooltip='Group Fiducials into marker sets.',
                                action=self.index_fid,params=0, wname='indexButton',state=False)
         self.insert_pushbutton(parent, text='Check Align Errors', rstep=1, tooltip='Check Alignment Errors.',
-                               action=self.raise_window, params=self.error_window, wname='errorButton', state=True)
+                               action=self.raise_window, params=self.error_window, wname='errorButton', state=False)
         self.insert_label(parent, rstep=1)
         self.insert_pushbutton(parent,text='Manually Adjust Markers',rstep=1,tooltip='Manually adjust marker sets.',
                                action=self.raise_window, params=self.manual_adjust_marker, wname='adjustManually',
@@ -246,15 +253,21 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.bottom_circles = []
         self.main_circles = []
         self.raise_window(self.settings)
+        self.settings.show()
         pg.QtGui.QApplication.processEvents()
         self.loaded_data = False
 
 
     def raise_window(self,window):
-        window.close()
-        window.show()
+        try:
+            window.close()
+            window.show()
+        except Exception as e:
+            print(e)
+        pass
 
     def selectPartTiltImage(self,event):
+        if self.idReferenceImage == -1: return
 
         pos = self.main_image.mapSceneToView( event.scenePos() )
 
@@ -276,7 +289,18 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         pg.QtGui.QApplication.processEvents()
 
+    def updatePartTiltImageGuess(self, x, y):
+
+        self.bottom_circles.append(
+            circle(QPoint(x - self.xmin - self.radius, y - self.ymin - self.radius), size=self.radius * 2,
+                   color=Qt.yellow))
+        self.bottom_image.addItem(self.bottom_circles[-1])
+
     def manuallyAdjustFiducials(self,event):
+        if self.idReferenceImage == -1:
+            return
+
+
         if not self.dim: return
         pos = self.bottom_image.mapSceneToView(event.scenePos())
         x, y = int(round(pos.x())), int(round(pos.y()))
@@ -304,39 +328,70 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                 self.add_circles_new_frame()
 
     def wheelEvent(self, event):
-
+        if self.idReferenceImage == -1: return
         step = event.angleDelta().y() // 120
 
         if self.imnr + step < len(self.fnames) and self.imnr + step > -1:
             self.imnr += step
             self.replot()
 
+    def markerHotKeyPressed(self, id):
+        if self.selected_marker != id:
+            self.selected_marker = id
+            print(f'Marker_{id:03d} selected')
+        else:
+            print(f'Marker_{id:03d} deselected')
+            self.selected_marker = -1
+
     def keyPressEvent(self, evt):
         if Qt.Key_F == evt.key():
+            if self.idReferenceImage == -1: return
+
             print ('Find Fiducials')
             self.find_fid()
 
         elif Qt.Key_D == evt.key():
+            if self.idReferenceImage == -1: return
+
             print ('Detect Frame Offsets')
             self.detect_frameshift()
 
         elif Qt.Key_I == evt.key():
+            if self.idReferenceImage == -1: return
+
             print ('Index Fiducials')
             self.index_fid()
 
         elif Qt.Key_1 == evt.key():
-            self.imnr = 0
-            self.replot2()
+            if not self.markerAdjust:
+                self.imnr = 0
+                self.replot2()
+            else:
+                self.markerHotKeyPressed(1)
 
         elif Qt.Key_2 == evt.key():
-            self.imnr = len(self.fnames)//2
-            self.replot2()
+            if not self.markerAdjust:
+                self.imnr = self.idReferenceImage
+                self.replot2()
+            else:
+                self.markerHotKeyPressed(2)
 
         elif Qt.Key_3 == evt.key():
-            self.imnr = len(self.fnames) -1
-            self.replot2()
+            if self.idReferenceImage == -1: return
+            if not self.markerAdjust:
+                self.imnr = len(self.fnames) -1
+                self.replot2()
+            else:
+                self.markerHotKeyPressed(3)
+
+        elif evt.key() in self.markerHotKeys.keys():
+            if self.idReferenceImage == -1: return
+
+            if self.markerAdjust:
+                self.markerHotKeyPressed(self.markerHotKeys[evt.key()])
 
         elif Qt.Key_L == evt.key():
+            if self.idReferenceImage == -1: return
 
             for i in range(len(self.fnames)):
                 self.imnr = i
@@ -351,6 +406,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                 time.sleep(0.04)
 
         elif Qt.Key_P == evt.key():
+            if self.idReferenceImage == -1: return
+
             save_index = self.imnr
             for i in range(len(self.fnames)):
                 self.imnr = i
@@ -363,17 +420,23 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             self.replot2()
 
         elif Qt.Key_E == evt.key():
+            if self.idReferenceImage == -1: return
+
             self.exclude_status_change()
 
         elif Qt.Key_R == evt.key():
             print ('Refine Marker Positions')
 
         elif Qt.Key_Right == evt.key():
+            if self.idReferenceImage == -1: return
+
             if self.imnr + 1 < len(self.fnames):
                 self.imnr += 1
                 self.replot2()
 
         elif Qt.Key_Left == evt.key():
+            if self.idReferenceImage == -1: return
+
             if self.imnr - 1 >= 0:
 
                 self.imnr -= 1
@@ -383,10 +446,25 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             self.close()
 
         elif Qt.Key_Comma == evt.key():
+            if self.idReferenceImage == -1: return
+
             self.manual_adjust_marker.prev_missing()
 
         elif Qt.Key_Period == evt.key():
-            self.manual_adjust_marker.next_missing()
+            if self.idReferenceImage == -1: return
+            try:
+                self.manual_adjust_marker.next_missing()
+            except:
+                pass
+
+        elif Qt.Key_M == evt.key():
+            if self.idReferenceImage == -1: return
+
+            if self.widgets['adjustManually'].isEnabled():
+                self.markerAdjust = (self.markerAdjust != True)
+                mah = 'activated' if self.markerAdjust else 'deactivated'
+                print(f'Marker Adjustment Hotkeys are {mah}.')
+                if mah == 'deactivated': self.disableMarkerAdjustment()
 
     def exclude_status_change(self):
         i = self.imnr
@@ -431,6 +509,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                 self.bottom_image.addItem(self.bottom_circles[-1])
 
     def replot2(self):
+        if self.idReferenceImage == -1: return
         self.img1a.setImage(image=self.frames_full[self.imnr])
         #self.img1b.setImage(image=self.frames_full[self.imnr])
         xmax,ymax = self.xmin+self.sizeCut,self.ymin+self.sizeCut
@@ -485,8 +564,10 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.bottom_circles = []
 
     def load_images(self,folder='', bin_read=8, bin_alg=12):
-        self.selected_marker = -1
-        for name in ('findButton','indexButton'):
+        self.disableMarkerAdjustment()
+        self.idReferenceImage = -1
+
+        for name in ('findButton','indexButton', 'detectButton', 'adjustManually', 'errorButton'):
             self.widgets[name].setEnabled(False)
         pg.QtGui.QApplication.processEvents()
 
@@ -506,7 +587,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             for key, value in datatype0:
                 print(key, value)
                 self.metadata[key] = metadata_old[key]
-            
+
+        self.tilt_angles = self.metadata['TiltAngle']
         ps,fs = float(self.metadata['PixelSpacing'][0]), int(self.metadata['MarkerDiameter'][0])
         self.settings.widgets['tilt_axis'].setValue(int(self.metadata['InPlaneRotation'][0]))
         self.settings.widgets['pixel_size'].setValue(ps)
@@ -545,20 +627,14 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         for n, excl in enumerate(fnames):
             if 'excluded' == excl.split('/')[-2]:
                 self.excluded[n] = 1
+
         self.read_data(fnames)
 
-        self.loaded_data = True
-
-        self.mark_frames = [[], ] * len(self.fnames)
-
-        self.widgets['findButton'].setEnabled(True)
-        self.widgets['createMarkerfile'].setEnabled(True)
-        self.replot2()
-
-    def read_list(self, fnames, proc_id, nr_procs, frames, frames_full, dummy):
+    def read_list(self, fnames, proc_id, nr_procs, frames, frames_full, dataRaw, dummy):
 
         print ("Start reading files process {}/{}".format(proc_id + 1, nr_procs))
         from copy import deepcopy
+        from pytom.tompy.io import read as readNPY
         for nr, fname in enumerate(fnames):
 
             #m = mrcfile.open(fname, permissive=True)
@@ -568,7 +644,15 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             #dataf = read_mrc('{}'.format(str(fname)), binning=[1, 1, 1])
             #frames_adj[nr_procs * nr + proc_id] = mrcfile.open(fname,permissive=True)
 
-            dataf = self.frames_adj[nr*nr_procs + proc_id, :,:]
+            i = nr*nr_procs + proc_id
+            datafile = readNPY(self.fnames[i]).squeeze()
+
+            dataRaw[i] = deepcopy(datafile)
+            #datafile = read_mrc('{}'.format(self.fnames[i]), binning=[1, 1, 1])
+            fa = deepcopy(datafile)
+            fa[fa > fa.mean() + 5 * fa.std()] = np.median(fa)
+            self.frames_adj[i, :, :] = fa
+            dataf = self.frames_adj[nr*nr_procs + proc_id, :,:].copy()
 
             dataf = downsample(dataf, self.bin_read)
 
@@ -585,10 +669,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
     def read_data(self, fnames):
         self.selected_marker = -1
-        start = time.time()
         from copy import deepcopy
 
-        s = time.time()
         self.fnames = fnames
 
         try:
@@ -597,7 +679,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             del self.frames_adj
         except:
             pass
-        nr_procs = min(len(self.fnames), cpu_count() * 2)
+        nr_procs = min(len(self.fnames), cpu_count() )
+
         frames = ['', ] * len(fnames)
         frames_full = ['', ] * len(fnames)
         frames_full_adj = ['', ] * len(fnames)
@@ -611,17 +694,17 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         manager = Manager()
         f = manager.list(frames)
         ff = manager.list(frames_full)
-        ffa = manager.list(frames_full_adj)
+        raw = manager.list(frames_full_adj)
 
-        start = time.time()
 
         temp = mrcfile.open(fnames[0], permissive=True)
         dimx, dimy = temp.data.shape
         temp.close()
-        self.frames_adj = zeros((len(self.fnames), dimx, dimy))
+        self.frames_adj = zeros((len(self.fnames), dimy, dimx))
+        self.dataRaw = zeros_like(self.frames_adj)
 
         for i in range(len(fnames)):
-            if 1:
+            if 0:
 
                 #datafile = mrcfile.open(self.fnames[i], permissive=True)
                 datafile = read_mrc('{}'.format(self.fnames[i]), binning=[1, 1, 1])
@@ -629,6 +712,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
                 fa[fa > fa.mean() + 5 * fa.std()] = fa.mean()
                 self.frames_adj[i, :, :] = fa
+                print(f'read {self.fnames[i]}')
                 #datafile.close()
 
 
@@ -639,7 +723,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         for proc_id in range(nr_procs):
             proc = Process(target=self.read_list,
-                           args=(fnames[proc_id::nr_procs], proc_id, nr_procs, f, ff, True))
+                           args=(fnames[proc_id::nr_procs], proc_id, nr_procs, f, ff, raw, True))
             procs.append(proc)
             proc.start()
             atexit.register(kill_proc, proc)
@@ -655,6 +739,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         for i in range(len(fnames)):
             self.frames[i, :, :] = f[i]
             self.frames_full[i, :, :] = ff[i]
+            self.dataRaw[i,:,:] = raw[i]
 
         for n in range(len(self.fnames)):
             self.tiltimages.append(TiltImage(self, n, excluded=self.excluded[n]))
@@ -665,8 +750,30 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.markermove = numpy.zeros_like(self.frames_full[self.imnr])
 
         self.dim = self.frames_full[0].shape[0]
-        print(time.time() - start)
         #self.update()
+
+
+        # finsihg
+        self.loaded_data = True
+
+        self.mark_frames = [[], ] * len(self.fnames)
+
+        self.idReferenceImage = numpy.abs(self.metadata['TiltAngle']).argmin()
+
+        self.widgets['findButton'].setEnabled(True)
+        self.widgets['createMarkerfile'].setEnabled(True)
+        self.replot2()
+
+    def submitJob(self, job, args=[]):
+        self.activeProcesses[self.ID] = Worker(fn=job, args=args, sig=False)
+        self.threadPool.start(self.activeProcesses[self.ID])
+        self.ID += 1
+
+    def disableMarkerAdjustment(self):
+        if self.markerAdjust:
+            print(f'Marker Adjustment and Hotkeys are deactivated.')
+        self.selected_marker = -1
+        self.markerAdjust = False
 
     def find_fid(self):
         #if not self.mf:
@@ -675,10 +782,12 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         #else:
         #    if askokcancel(title="Overwrite existing fiducial list",
         #               message="Are you sure you want to overwrite the existing fiducial list by an automatd search? User changes will be lost."):
-
+        self.disableMarkerAdjustment()
         if self.widgets['findButton'].isEnabled()==True:
+            # self.activeProcesses[self.ID] = Worker(fn=self.find_fiducials, args=[], sig=False)
+            # self.threadPool.start(self.activeProcesses[self.ID])
+            # self.ID += 1
             self.find_fiducials()
-            self.replot2()
 
     def create_average_markers(self, start_frame, end_frame, display=False, markersize=128):
         r = markersize // 2
@@ -729,20 +838,27 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         return marker
 
     def find_fiducials(self):
+        print('Active Threads: ', self.threadPool.activeThreadCount())
+
+        self.idReferenceImage = -1
         self.selected_marker = -1
         if self.widgets['findButton'].isEnabled()==False: return
-        print ('find potential fiducials time: ',)
+
+        self.disableMarkerAdjustment()
+
+        print ('find potential fiducials ',)
         procs = []
         self.algorithm = self.settings.widgets['algorithm'].currentText()
         num_procs = min(len(self.fnames), cpu_count() * 2)
 
-        self.list_cx_cy_imnr = []
+
+        if self.settings.widgets['applyToAll'].isChecked():
+            self.list_cx_cy_imnr = []
 
         self.cent = numpy.zeros_like(self.frames_full[self.imnr])
         self.bin = 4
         self.mf = True
 
-        s = time.time()
 
         fid_list = []
         manager = Manager()
@@ -750,11 +866,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         for i in range(num_procs): out[i] = manager.list(fid_list)
         ref_frame = int(self.settings.widgets['ref_frame'].value())
         threshold = float(self.settings.widgets['threshold'].value())
+        radius = float(self.settings.widgets['radius_watershed'].value())
         average_marker = None
+        self.mark_frames = -1 * numpy.ones((len(self.fnames), 3000, 2), dtype=float)
+        self.assignedFiducials = -1 * numpy.ones((len(self.fnames), 3000), dtype=int)
 
         if len(self.mark_frames[ref_frame]) > 2 and self.algorithm == 'cross_correlation':
             average_marker = self.create_average_markers(ref_frame - 5, ref_frame + 6)
-        print('average marker time: ', time.time()-s)
         for proc_id in range(num_procs):
 
             if self.algorithm == 'cross_correlation':
@@ -769,54 +887,80 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             elif self.algorithm == 'normal':
                 level = self.find_potential_fiducials
 
+            elif self.algorithm == 'watershed':
+                level = self.find_potential_fiducial_stdv
+
+            elif self.algorithm == 'LoG':
+                level = self.find_potential_fiducial_log
+
             else: return
 
 
-            proc = Process(target=level, args=( self.frames[proc_id::num_procs], self.frames_full[proc_id::num_procs],
-                                                self.bin_alg, self.bin_read, 50, self.imnr, out[proc_id], proc_id,
-                                                num_procs, average_marker, threshold ))
-            procs.append(proc)
-            proc.start()
-            atexit.register(kill_proc, proc)
+            if not self.settings.widgets['applyToAll'].isChecked():
+                frame = self.frames[self.imnr:self.imnr+1, :,:]
+                frame_full = self.frames_full[self.imnr:self.imnr+1,:,:]
+                raw = self.dataRaw[self.imnr:self.imnr+1,:,:]
+                level( frame, frame_full, raw, self.bin_alg, self.bin_read, 50, self.imnr, out[0], self.imnr, 1, average_marker, threshold, radius )
+                additional = [[el[0], el[1],self.imnr] for el in out[0]]
+                print((additional))
+                self.tiltimages[self.imnr].clear()
+                for cx, cy, imnr in self.list_cx_cy_imnr:
+                    if imnr != self.imnr:
+                        additional.append([cx,cy,imnr])
+                self.list_cx_cy_imnr = additional
+                break
 
-        time.sleep(0.1)
-        while len(procs):
-            procs = [proc for proc in procs if proc.is_alive()]
+            else:
+                proc = Process(target=level, args=( self.frames[proc_id::num_procs], self.frames_full[proc_id::num_procs],
+                                                    self.dataRaw[proc_id::num_procs],
+                                                    self.bin_alg, self.bin_read, 50, self.imnr, out[proc_id], proc_id,
+                                                    num_procs, average_marker, threshold, radius ))
+                procs.append(proc)
+                proc.start()
+                atexit.register(kill_proc, proc)
 
-        for i in range(num_procs):
-            self.list_cx_cy_imnr += [el for el in out[i]]
+        #time.sleep(0.1)
 
-        self.mark_frames = -1 * numpy.ones((len(self.fnames), 3000, 2), dtype=float)
+        if self.settings.widgets['applyToAll'].isChecked():
+            while len(procs):
+                procs = [proc for proc in procs if proc.is_alive()]
+
+            for i in range(num_procs):
+                self.list_cx_cy_imnr += [el for el in out[i]]
+
 
         sort(self.list_cx_cy_imnr, 1)
 
         cntr = numpy.zeros((200), dtype=int)
-
 
         # Clear existing fiducials in tiltimages
         for n in range(len(self.tiltimages)):
             self.tiltimages[n].clear()
 
         for cx, cy, imnr in self.list_cx_cy_imnr:
-
             CX,CY =cx*self.bin_alg*1./self.bin_read,cy*self.bin_alg*1./self.bin_read
             self.tiltimages[imnr].add_fiducial(CX-self.xmin,CY-self.ymin,CX,CY, check=False,draw=self.imnr==imnr)
             self.mark_frames[imnr][cntr[imnr]][:] = numpy.array((cy, cx))
+            self.assignedFiducials[imnr][cntr[imnr]] = 0
             cntr[imnr] += 1
 
         self.mark_frames = self.mark_frames[:, :cntr.max(), :]
+        self.assignedFiducials = self.assignedFiducials[:, :cntr.max()]
 
         self.coordinates = numpy.zeros_like(self.mark_frames)
         self.user_coordinates = numpy.zeros_like(self.mark_frames)
 
         self.bin = 0
-        print (time.time()-s)
         self.widgets['detectButton'].setEnabled(True)
         self.widgets['createMarkerfile'].setEnabled(True)
+        print('fid finding jobs finished')
+        self.idReferenceImage = numpy.abs(self.metadata['TiltAngle']).argmin()
+
+        self.replot2()
 
     def update_mark(self):
 
-        self.mark_frames = -1 * numpy.ones((len(self.fnames), 300, 2), dtype=float)
+        self.mark_frames = -1 * numpy.ones((len(self.fnames), 3000, 2), dtype=float)
         cntr = numpy.zeros((200), dtype=int)
         for tiltNr in range(len(self.fnames)):
             #print(numpy.array(self.tiltimages[tiltNr].fiducials))
@@ -830,8 +974,9 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.mark_frames = self.mark_frames[:, :cntr.max(), :]/(1.*self.bin_alg/self.bin_read)
 
     def detect_frameshift(self):
+        print('Activce Threads: ', self.threadPool.activeThreadCount())
         if self.widgets['detectButton'].isEnabled()==False: return
-
+        self.disableMarkerAdjustment()
         self.update_mark()
         detect_shifts = self.detect_shifts_few
         if len(self.mark_frames[0]) > 5:
@@ -844,6 +989,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
     def index_fid(self):
         self.selected_marker = -1
         if self.widgets['indexButton'].isEnabled()==False: return
+        self.disableMarkerAdjustment()
 
         self.deleteAllMarkers()
         self.update_mark()
@@ -862,16 +1008,44 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.frame_shifts = temp
         ref_frame = int(self.settings.widgets['ref_frame'].value())
         tiltaxis = int(self.settings.widgets['tilt_axis'].value())
-        max_shift = self.radius*2.*self.bin_read/self.bin_alg
+        max_shift = 40#self.radius*2.*self.bin_read/self.bin_alg
         print(max_shift)
+
+        reference_marker = int(self.settings.widgets['ref_marker'].text())
+
         self.coordinates, self.index_map, \
-        self.frame_shifts_sorted, self.listdx = self.index_potential_fiducials(self.fnames, self.mark_frames,
-                                                                          self.frame_shifts, tiltangles=self.tiltangles,
+        self.frame_shifts_sorted, self.listdx = self.index_potential_fiducials(self.fnames, self.mark_frames, self.frame_shifts, tiltangles=self.tiltangles,
                                                                           plot=False, user_coords=self.user_coordinates,
                                                                           zero_angle=ref_frame, excluded=self.excluded,
                                                                           diag=True, add_marker=self.add_markers,
                                                                           cut=max_shift, tiltaxis=tiltaxis)
-        numpy.save(os.path.join(self.projectname,'mark_frames.npy'), self.mark_frames)
+        #numpy.save(os.path.join(self.projectname,'mark_frames.npy'), self.mark_frames)
+
+        projIndices = np.array(list(range(self.coordinates.shape[0])))[(1-np.array(self.excluded)) > 0.5]
+
+        imdimX, imdimY, z = read_size(self.fnames[0])
+
+        cc = self.coordinates * self.bin_alg
+        cc[cc < 0] = -1
+
+        a = self.calculate_error(self.coordinates*self.bin_alg, self.tiltangles, projIndices, imdimX, imdimY,
+                             fname=os.path.join(os.path.dirname(self.metafile), 'alignmentErrors.txt'), reference_marker=reference_marker)
+
+        self.errorsModel, self.shiftXModel, self.shiftYModel, self.diffXModel, self.diffYModel, x,y,z, psi = a
+
+
+        self.frame_shifts = numpy.array(list(zip(self.shiftXModel, self.shiftYModel)))
+
+        self.centersModel = list(zip(x,y,z))
+        self.psiindeg = psi
+
+        try:
+            self.deleteAllMarkers()
+            self.update_mark()
+            self.determine_markerdata(self.coordinates, self.errorsModel, self.excluded, self.add_markers)
+        except Exception as e:
+            print(e)
+            pass
 
         for tiltNr in range(len(self.fnames)):
             self.tiltimages[tiltNr].update_indexing(self.coordinates[tiltNr]*1.*self.bin_alg/self.bin_read)
@@ -892,8 +1066,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         #                                  color=dd[:len(self.listdx)])
 
         self.replot2()
+
+        #self.error_window.dataView.selectionModel().setCurrentIndex(self.error_window.EWmodel.index(self.error_window.EWmodel.rowCount() - 1, 0))
+
+
         #self.controller.RecenterFid.config(state='active')
         self.widgets['adjustManually'].setEnabled(True)
+        self.widgets['errorButton'].setEnabled(True)
 
     def add_markers(self, data):
         self.selectMarkers.addMarker(self.selectMarkers.model, data)
@@ -925,10 +1104,12 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         projIndices = list(projIndices[take.astype(bool)])
         prefix = '{}/{}/sorted/sorted'.format(self.tomofolder, self.tomogram_name)
 
+        dimBox = int(round((self.fiducial_size / self.pixel_size) *1.5))
+
         ref_frame = int(self.settings.widgets['ref_frame'].text())
         # Calculate the refined fiducial positions.
         self.ref_coords, self.errors, tX, tY = refineMarkerPositions(prefix, markerFileName, 0,
-                                                                     len(self.frames) - 1, outFileName, dimBox=64,
+                                                                     len(self.frames) - 1, outFileName, dimBox=dimBox,
                                                                      projIndices=projIndices,
                                                                      size=self.frames_full[0].shape[0]*self.bin_read,
                                                                      tiltSeriesFormat=tiltSeriesFormat,
@@ -979,15 +1160,14 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                 for num, imark in enumerate(markIndices):
 
                     (xx, yy) = self.ref_coords[index][num]
-
+                    if xx < 0.001 or yy < 0.001: continue
                     for m, (fx, fy) in enumerate(self.mark_frames[imnr]):
                         if fx < 0.1 or fy < 0.1: continue
-                        if abs(self.coordinates[imnr][imark][0] - fx) + abs(
-                                self.coordinates[imnr][imark][1] - fy) < 0.5:
+                        if abs(self.coordinates[imnr][imark][0] - fx) + abs(self.coordinates[imnr][imark][1] - fy) < 0.5:
                             self.coordinates[imnr][imark] = [xx, yy]
                             self.mark_frames[imnr][m] = [xx, yy]
                             self.old_coords[imnr][imark] = [fx, fy]
-                            print('marker',xx,yy,fx,fy)
+
         for name in (markerFileName, outFileName):
             if os.path.exists(name): os.system('rm {}'.format(name))
 
@@ -1093,47 +1273,51 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         print ('output_type: ', output_type, markerFileName)
 
     def load(self):
+        try:
+            markfilename = QFileDialog.getOpenFileName(self, 'Open file', self.projectname, "Marker files (*.*)")
+            markfilename = markfilename[0]
 
-        markfilename = QFileDialog.getOpenFileName(self, 'Open file', self.projectname, "Marker files (*.*)")
-        markfilename = markfilename[0]
+            if not markfilename or not os.path.exists(markfilename): return
 
-        if not markfilename or not os.path.exists(markfilename): return
+            mark_frames = read_markerfile(markfilename,self.tiltangles)
 
-        mark_frames = read_markerfile(markfilename,self.tiltangles)
+            if markfilename.endswith('.wimp'):
+                imodShiftFile = QFileDialog.getOpenFileName(self, 'Open file', self.projectname, "Imod transf file (*.xf)")[0]
+                if not imodShiftFile: return
+                shifts = parseImodShiftFile(imodShiftFile)
+                mark_frames, shift = addShiftToMarkFrames(mark_frames, shifts, self.metadata, self.excluded)
 
-        if markfilename.endswith('.wimp'):
-            imodShiftFile = QFileDialog.getOpenFileName(self, 'Open file', self.projectname, "Imod transf file (*.xf)")[0]
-            if not imodShiftFile: return
-            shifts = parseImodShiftFile(imodShiftFile)
-            mark_frames, shift = addShiftToMarkFrames(mark_frames, shifts, self.metadata, self.excluded)
+            self.deleteAllMarkers()
 
-        self.deleteAllMarkers()
+            if type(mark_frames) in (int, float):
+                print('loading file failed')
+                return
 
-        if type(mark_frames) in (int, float):
-            print('loading file failed')
-            return
+            self.mark_frames = mark_frames / float(self.bin_read)
+            self.coordinates = copy.deepcopy(self.mark_frames)
+            self.fs = numpy.zeros( (len(self.fnames),2) )
+            self.frame_shifts = numpy.zeros( (len(self.fnames),2) )
 
-        self.mark_frames = mark_frames / float(self.bin_read)
-        self.coordinates = copy.deepcopy(self.mark_frames)
-        self.fs = numpy.zeros( (len(self.fnames),2) )
-        self.frame_shifts = numpy.zeros( (len(self.fnames),2) )
+            for n in range(len(self.tiltimages)):
+                self.tiltimages[n].clear()
 
-        for n in range(len(self.tiltimages)):
-            self.tiltimages[n].clear()
+            itilt, ifid, dummy = self.mark_frames.shape
 
-        itilt, ifid, dummy = self.mark_frames.shape
+            for imnr in range(itilt):
+                for index in range(ifid):
+                    CX,CY = self.mark_frames[imnr][index]
 
-        for imnr in range(itilt):
-            for index in range(ifid):
-                CX,CY = self.mark_frames[imnr][index]
+                    if CX < 0 or CY < 0: continue
 
-                if CX < 0 or CY < 0: continue
+                    self.tiltimages[imnr].add_fiducial(CX - self.xmin, CY - self.ymin, CX, CY, check=False, draw=False)
 
-                self.tiltimages[imnr].add_fiducial(CX - self.xmin, CY - self.ymin, CX, CY, check=False, draw=False)
-
-        self.widgets['detectButton'].setEnabled(True)
-        #self.detect_frameshift()
-        if not markfilename.endswith('.npy'): self.index_fid()
+            self.widgets['detectButton'].setEnabled(True)
+            #self.detect_frameshift()
+            if not markfilename.endswith('.npy'):
+                self.detect_frameshift()
+                self.index_fid()
+        except Exception as e:
+            print(e)
 
 
 class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
@@ -1142,12 +1326,13 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         self.setGeometry(900, 0, 300, 100)
         self.layout = self.grid = QGridLayout(self)
         self.setWindowTitle('Settings')
-        self.settings = QWidget(self)
-        self.settings.setLayout(self.layout)
+        self.settingsWindow = QWidget(self)
+        self.settingsWindow.setLayout(self.layout)
         self.row, self.column = 0, 0
         self.logbook = {}
         self.widgets = {}
         rows, columns = 20, 20
+        self.refscores = { 'LoG': 7, 'normal': 1.75, 'sensitive':1.75, 'watershed': 2}
 
 
 
@@ -1157,10 +1342,10 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
                                    tooltip='Algorithm used for automatic fiducial detection.')
 
         self.insert_label_spinbox(self.grid,'bin_read', text='Binning Factor Reading', rstep=1, minimum=1, maximum=16,
-                                  stepsize=2,tooltip='Binning factor for reading.',value=2,wtype=QSpinBox,cstep=-1)
+                                  stepsize=2,tooltip='Binning factor for reading.',value=4,wtype=QSpinBox,cstep=-1)
 
         self.insert_label_spinbox(self.grid,'bin_alg', text='Binning Factor Finding Fiducials',rstep=1,
-                                  minimum=1,maximum=16,stepsize=2,value=8,wtype=QSpinBox,cstep=0,
+                                  minimum=1,maximum=16,stepsize=2,value=12,wtype=QSpinBox,cstep=0,
                                   tooltip='Binning factor for finding fiducials, used to improve contrast.\n'
                                           'Must be a multiple of the binning factor for reading.')
 
@@ -1175,7 +1360,10 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
 
         self.insert_label_spinbox(self.grid, 'ref_frame', text='Reference Frame', rstep=1,
                                   value=19,minimum=1,maximum=91,stepsize=1,
-                                  tooltip='Fiducial sets are calculated from the reference frame.')
+                                  tooltip='Which marker is the reference marker.')
+        self.insert_label_spinbox(self.grid, 'ref_marker', text='Reference Marker', rstep=1,
+                                  value=1, minimum=1, maximum=91, stepsize=1,
+                                  tooltip='Indexing and saving the markerfile uses the reference marker.')
 
         self.insert_label(self.grid,rstep=1)
 
@@ -1189,23 +1377,34 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
 
         self.insert_label(self.grid,rstep=1)
 
-        self.insert_label_combobox(self.grid, 'Accuracy level', 'algorithm', ['normal', 'sensitive'], rstep=1,cstep=-1,
+        self.insert_label_checkbox(self.grid, 'applyToAll', 'Search All Frames',
+                                   tooltip='Set algorithm to find fiducials in all frames.\nUnchecking means only the '
+                                           'current frame is updated.')
+        self.insert_label_combobox(self.grid, 'Algorithm', 'algorithm', self.refscores.keys(), rstep=1,cstep=-1,
                                    tooltip='Algorithm used for automatic fiducial detection.')
 
-        self.insert_label_spinbox(self.grid, 'threshold', text='Threshold cc_map.', rstep=1,
-                                  value=1.75,maximum=10, stepsize=0.1, wtype=QDoubleSpinBox,
-                                  tooltip='Threshold detecting a peak in cross correlation map.')
+        self.insert_label_spinbox(self.grid, 'threshold', text='Threshold', rstep=1,
+                                  value=7,maximum=10, stepsize=0.1, wtype=QDoubleSpinBox,
+                                  tooltip='Threshold detecting a peak in  correlation map.')
+        self.insert_label_spinbox(self.grid, 'radius_watershed', text='Radius', rstep=1,
+                                  value=3, minimum=1, maximum=100, stepsize=0.5, wtype=QDoubleSpinBox,
+                                  tooltip='Radius of particle')
+
+
+
         self.insert_label(self.grid,rstep=1, cstep=1)
 
 
-
-        self.setCentralWidget(self.settings)
+        self.widgets['applyToAll'].setChecked(True)
+        self.setCentralWidget(self.settingsWindow)
 
         #CONNECT
         self.widgets['tilt_axis'].valueChanged.connect(self.update_tilt_axis)
         self.widgets['pixel_size'].valueChanged.connect(self.update_radius)
         self.widgets['fiducial_size'].valueChanged.connect(self.update_radius)
         self.widgets['ref_frame'].valueChanged.connect(self.update_ref_frame)
+        self.widgets['threshold'].valueChanged.connect(self.update_refscores)
+        self.widgets['algorithm'].currentIndexChanged.connect(self.update_baseVValue)
         self.update_radius()
 
         self.widgets['bin_read'].valueChanged.connect(self.keepMultiple)
@@ -1221,8 +1420,11 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         self.widgets['bin_read'].setValue(v)
         self.widgets['bin_alg'].setValue(w)
 
+    def update_baseVValue(self):
+        self.widgets['threshold'].setValue(self.refscores[self.widgets['algorithm'].currentText()])
 
-
+    def update_refscores(self):
+        self.refscores[self.widgets['algorithm'].currentText()] = self.widgets['threshold'].value()
 
     def update_ref_frame(self):
         self.parent().ref_frame = int(self.widgets['ref_frame'].text())
@@ -1242,7 +1444,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
                                                        w['bin_read'].text()) )
 
         self.parent().radius = fiducial_size/(pixel_size*bin_read*2.)
-
+        w['radius_watershed'].setValue(fiducial_size/pixel_size/w['bin_alg'].value())
         metafile = self.parent().metafile
         if metafile:
             metadata = self.parent().metadata
@@ -1256,7 +1458,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
 class SelectAndSaveMarkers(QMainWindow,CommonFunctions):
     def __init__(self,parent=None):
         super(SelectAndSaveMarkers,self).__init__(parent)
-        self.setGeometry(670, 438, 600, 225)
+        self.setGeometry(570, 438, 700, 225)
         self.layout = self.grid = QGridLayout(self)
         self.general = QWidget(self)
         self.general.setLayout(self.layout)
@@ -1266,6 +1468,7 @@ class SelectAndSaveMarkers(QMainWindow,CommonFunctions):
         self.widgets = {}
         rows, columns = 15,5
         self.header_names = ['Name','#Markers','Rscore']
+        self.dtypes = [str, str, float]
         self.num_rows, self.num_columns = rows, len(self.header_names)
         self.items = [['', ] * columns, ] * rows
 
@@ -1323,6 +1526,7 @@ class SelectAndSaveMarkers(QMainWindow,CommonFunctions):
         for row in sorted(tbr,reverse=True):
             model.model().removeRow(row)
 
+
     def createMailModel(self,parent):
         model = QStandardItemModel(0, self.num_columns, parent)
         for i in range(len(self.header_names)):
@@ -1333,7 +1537,7 @@ class SelectAndSaveMarkers(QMainWindow,CommonFunctions):
         model.insertRow(model.rowCount())
         for i in range(min(len(data),len(self.header_names) )):
 
-            model.setData(model.index(model.rowCount()-1, i), data[i])
+            model.setData(model.index(model.rowCount()-1, i), self.dtypes[i](data[i]))
             for view in (self.dataView,self.selectView):
             #for i in range(self.num_columns):
                 view.resizeColumnToContents(i)
@@ -1357,7 +1561,8 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
         self.general = QWidget(self)
         self.general.setLayout(self.layout)
         self.setWindowTitle('Manually Adjust Marker Sets')
-        self.header_names = ['Name','#Markers']
+        self.header_names = ['Name', '#Markers', 'RScore']
+        self.dtypes = [str, str, float]
         self.row, self.column = 0, 1
         self.logbook = {}
         self.widgets = {}
@@ -1524,6 +1729,224 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
         pass
 
 
+
+def addLegendGUI(self, offset=(30,30), **kwargs):
+    """
+    Create a new :class:`~pyqtgraph.LegendItem` and anchor it over the
+    internal ViewBox. Plots will be automatically displayed in the legend
+    if they are created with the 'name' argument.
+
+    If a LegendItem has already been created using this method, that
+    item will be returned rather than creating a new one.
+
+    Accepts the same arguments as :meth:`~pyqtgraph.LegendItem`.
+    """
+
+    if self.legend is None:
+        self.legend = LegendItemGUI(offset=offset, **kwargs)
+        self.legend.setParentItem(self.vb)
+    return self.legend
+
+import pyqtgraph as pg
+
+from pyqtgraph.graphicsItems.GraphicsWidget import GraphicsWidget
+from pyqtgraph.graphicsItems.LabelItem import LabelItem
+from pyqtgraph.Qt import QtGui, QtCore
+import pyqtgraph.functions as fn
+from pyqtgraph.Point import Point
+from pyqtgraph.graphicsItems.GraphicsWidgetAnchor import GraphicsWidgetAnchor
+
+
+
+class LegendItemGUI(GraphicsWidget, GraphicsWidgetAnchor):
+    """
+    Displays a legend used for describing the contents of a plot.
+    LegendItems are most commonly created by calling PlotItem.addLegend().
+
+    Note that this item should not be added directly to a PlotItem. Instead,
+    Make it a direct descendant of the PlotItem::
+
+        legend.setParentItem(plotItem)
+
+    """
+
+    def __init__(self, size=None, offset=None):
+        """
+        ==========  ===============================================================
+        Arguments
+        size        Specifies the fixed size (width, height) of the legend. If
+                    this argument is omitted, the legend will autimatically resize
+                    to fit its contents.
+        offset      Specifies the offset position relative to the legend's parent.
+                    Positive values offset from the left or top; negative values
+                    offset from the right or bottom. If offset is None, the
+                    legend must be anchored manually by calling anchor() or
+                    positioned by calling setPos().
+        ==========  ===============================================================
+
+        """
+
+        GraphicsWidget.__init__(self)
+        GraphicsWidgetAnchor.__init__(self)
+        self.setFlag(self.ItemIgnoresTransformations)
+        self.layout = QtGui.QGraphicsGridLayout()
+        self.setLayout(self.layout)
+        self.items = []
+        self.size = size
+        self.offset = offset
+        if size is not None:
+            self.setGeometry(QtCore.QRectF(0, 0, self.size[0], self.size[1]))
+
+    def setParentItem(self, p):
+        ret = GraphicsWidget.setParentItem(self, p)
+        if self.offset is not None:
+            offset = Point(self.offset)
+            anchorx = 1 if offset[0] <= 0 else 0
+            anchory = 1 if offset[1] <= 0 else 0
+            anchor = (anchorx, anchory)
+            self.anchor(itemPos=anchor, parentPos=anchor, offset=offset)
+        return ret
+
+    def addItem(self, item, name):
+        """
+        Add a new entry to the legend.
+
+        =========== ========================================================
+        Arguments
+        item        A PlotDataItem from which the line and point style
+                    of the item will be determined or an instance of
+                    ItemSample (or a subclass), allowing the item display
+                    to be customized.
+        title       The title to display for this item. Simple HTML allowed.
+        =========== ========================================================
+        """
+        label = LabelItem(name)
+        if isinstance(item, ItemSample):
+            sample = item
+        else:
+            sample = ItemSample(item)
+        row = len(self.items)
+        self.items.append((sample, label))
+        self.layout.addItem(sample, row, 0)
+        self.layout.addItem(label, row, 1)
+        self.updateSize()
+
+    def removeItem(self, name):
+        """
+        Removes one item from the legend.
+
+        =========== ========================================================
+        Arguments
+        title       The title displayed for this item.
+        =========== ========================================================
+        """
+        # Thanks, Ulrich!
+        # cycle for a match
+        for sample, label in self.items:
+            if label.text == name:  # hit
+                self.items.remove((sample, label))  # remove from itemlist
+                self.layout.removeItem(sample)  # remove from layout
+                sample.close()  # remove from drawing
+                self.layout.removeItem(label)
+                label.close()
+                self.updateSize()  # redraq box
+
+    def updateSize(self):
+        if self.size is not None:
+            return
+
+        height = 0
+        width = 0
+        # print("-------")
+        for sample, label in self.items:
+            height += max(sample.height(), label.height()) + 3
+            width = max(width, sample.width() + label.width())
+            # print(width, height)
+        # print width, height
+        self.setGeometry(0, 0, width + 25, height)
+
+    def boundingRect(self):
+        return QtCore.QRectF(0, 0, self.width(), self.height())
+
+    def paint(self, p, *args):
+        p.setPen(fn.mkPen(255, 255, 255, 100))
+        p.setBrush(fn.mkBrush(100, 100, 100, 50))
+        p.drawRect(self.boundingRect())
+
+    def hoverEvent(self, ev):
+        ev.acceptDrags(QtCore.Qt.LeftButton)
+
+    def mouseDragEvent(self, ev):
+        if ev.button() == QtCore.Qt.LeftButton:
+            dpos = ev.pos() - ev.lastPos()
+            self.autoAnchor(self.pos() + dpos)
+
+
+class ItemSample(GraphicsWidget):
+    """ Class responsible for drawing a single item in a LegendItem (sans label).
+
+    This may be subclassed to draw custom graphics in a Legend.
+    """
+
+    def __init__(self, item):
+        GraphicsWidget.__init__(self)
+        self.item = item
+
+    def boundingRect(self):
+        return QtCore.QRectF(0, 0, 20, 20)
+
+    def paint(self, p, *args):
+        # p.setRenderHint(p.Antialiasing)  # only if the data is antialiased.
+        opts = self.item.opts
+
+        if opts.get('fillLevel', None) is not None and opts.get('fillBrush', None) is not None:
+            p.setBrush(fn.mkBrush(opts['fillBrush']))
+            p.setPen(fn.mkPen(None))
+            p.drawPolygon(QtGui.QPolygonF([QtCore.QPointF(2, 18), QtCore.QPointF(18, 2), QtCore.QPointF(18, 18)]))
+
+        if not isinstance(self.item, pg.ScatterPlotItem):
+            p.setPen(fn.mkPen(opts['pen']))
+            p.drawLine(2, 18, 18, 2)
+
+        symbol = opts.get('symbol', None)
+        if symbol is not None:
+            if isinstance(self.item, pg.PlotDataItem):
+                opts = self.item.scatter.opts
+
+            pen = pg.mkPen(opts['pen'])
+            brush = pg.mkBrush(opts['brush'])
+            size = opts['size']
+
+            p.translate(10, 10)
+            path = pg.graphicsItems.ScatterPlotItem.drawSymbol(p, symbol, size, pen, brush)
+
+
+
+def projectMarkerToFrame(center, tiltangleindeg, psiindeg, shift0, shift1):
+    import numpy
+    from numpy import sin, cos, pi
+
+    cpsi, spsi = cos(psiindeg * numpy.pi / 180), sin(psiindeg * numpy.pi / 180)
+    ctlt, stlt = cos(tiltangleindeg * numpy.pi / 180), sin(tiltangleindeg * numpy.pi / 180)
+    cx, cy, cz = center
+
+    cx -= shift0[0]
+    cy -= shift0[1]
+
+    cy1 = cy * cpsi - cx * spsi
+    cx1 = cy * spsi + cx * cpsi
+
+    cy2 = cy1 * ctlt  - cz * stlt
+
+    cx = cx1 * cpsi - cy2 * spsi
+    cy = cx1 * spsi + cy2 * cpsi
+
+    cx += shift1[0]
+    cy += shift1[1]
+
+    return numpy.array((cx, cy))
+
+
 class ErrorWindow(QMainWindow, CommonFunctions):
     def __init__(self, parent=None, logfile=''):
         super(ErrorWindow, self).__init__(parent)
@@ -1532,7 +1955,8 @@ class ErrorWindow(QMainWindow, CommonFunctions):
         self.general = QWidget(self)
         self.general.setLayout(self.layout)
         self.setWindowTitle('Show Alignment Errors')
-        self.header_names = ['Name','#Markers']
+        self.header_names = ['Name','#Markers', 'RScore']
+        self.dtypes = [str, str,float]
         self.logfile = logfile
         self.row, self.column = 0, 1
         self.logbook = {}
@@ -1559,28 +1983,83 @@ class ErrorWindow(QMainWindow, CommonFunctions):
         self.setCentralWidget(self.general)
 
         self.view = pg.GraphicsLayoutWidget()
+
         self.scatterPlot = self.view.addPlot()
+
+        self.scatterPlot.addLegend = addLegendGUI
+        self.scatterPlot.addLegend(self.scatterPlot)
+
+
         n = 61
-        self.s1 = pg.ScatterPlotItem(size=10, pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 90), identical=True)
+        self.s1 = pg.ScatterPlotItem(size=10, pen=pg.mkPen(color='y'), brush=pg.mkBrush(255, 255, 255, 90), identical=True, name='   assigned')
         self.s1.sigClicked.connect(self.mouseHasMoved)
+        self.s2 = pg.ScatterPlotItem(size=10, pen=pg.mkPen(color='r'), brush=pg.mkBrush(255, 255, 255, 90), identical=True, name='   unassigned')
+        self.s2.sigClicked.connect(self.mouseHasMoved)
         import numpy as np
         pos = np.zeros((2,n),dtype=np.float32)
         pos[0,:] = range(-60,61,2)
         spots = [{'pos': pos[:, i], 'data': 1} for i in range(n)]
         self.s1.addPoints(spots)
         self.scatterPlot.addItem(self.s1)
+        #self.s2.addPoints(spots)
+        self.scatterPlot.addItem(self.s2)
         self.layout.addWidget(self.view, 0, 1, 20, 15)
-        self.replot()
 
+        self.scatterPlot.legend.addItem(self.s1, '   assigned')
+        self.scatterPlot.legend.addItem(self.s2, '   unassigned')
+
+        self.scatterPlot.setLabels(
+            bottom='Tilt Angle (deg)',
+            left='Error (pixel)')
+        self.scatterPlot.setTitle('Error between expected location fiducial vs assigned location, per tilt image.')
+        self.replot()
         self.dataView.selectionModel().selectionChanged.connect(self.replot)
 
-    def mouseHasMoved(self, plot, position):
+    def mouseHasMoved(self, plot, points):
+
         try:
-            aa = position[0].pos().x()
-            #self.mousePoint = self.scatterPlot.mapSceneToView(position)
-            #print(self.mousePoint.toTuple())
+            d = points[0].viewPos()
+            x, y = d.x(), d.y()
+
+            incl = 1 - numpy.array(self.parent().excluded)
+
+            itiltFull = numpy.abs(self.parent().tilt_angles - float(x)).argmin()
+            id = numpy.abs(self.parent().tilt_angles[incl > 0.5] - float(x)).argmin()
+            ireftilt = numpy.abs(self.parent().tilt_angles[incl > 0.5]).argmin()
+            itilt = int(numpy.around(id))
+            smallest_difference_angle = numpy.abs(self.parent().tilt_angles[incl > 0.5] - float(x)).min()
+            imark = int(self.dataView.selectedIndexes()[0].data().split("_")[-1])
+
+            bin_read, bin_alg = self.parent().bin_read, self.parent().bin_alg
+            # cx, cy = self.parent().coordinates[itiltFull][imark]
+
+            if 1:
+                psi, shape = self.parent().psiindeg[imark], read_size(self.parent().fnames[itiltFull])
+                shift0 = [self.parent().shiftXModel[ireftilt], self.parent().shiftYModel[ireftilt]]
+                shift1 = [self.parent().shiftXModel[itilt], self.parent().shiftYModel[itilt]]
+
+                ccx, ccy = projectMarkerToFrame(self.parent().centersModel[imark], x, psi, shift0, shift1)
+                ccx = (ccx + shape[0]//2) / bin_read
+                ccy = (ccy + shape[1]//2) / bin_read
+
+            # diffX, diffY = self.parent().diffXModel[itilt][imark], self.parent().diffYModel[itilt][imark]
+            # shiftX, shiftY = self.parent().shiftXModel[itilt], self.parent().shiftYModel[itilt]
+            sizeCut, (sizeX, sizeY) = self.parent().sizeCut, self.parent().frames_full[0,:,:].shape
+            # gx = int(numpy.around(cx*bin_alg/bin_read + (diffX-shiftX)*bin_read/bin_alg))
+            # gy = int(numpy.around(cy*bin_alg/bin_read + (diffY-shiftY)*bin_read/bin_alg))
+
+
+
+            if smallest_difference_angle < 0.2:
+                self.parent().imnr = itiltFull
+                self.parent().xmin = min(max(0, int(round(ccx)) - sizeCut//2),sizeY-sizeCut//2)
+                self.parent().ymin = min(max(0, int(round(ccy)) - sizeCut//2),sizeX-sizeCut//2)
+                self.parent().replot2()
+                self.parent().updatePartTiltImageGuess(ccx, ccy)
+
         except Exception as e:
             print(e)
+            pass
 
     def replot(self):
         fname = self.logfile
@@ -1602,9 +2081,11 @@ class ErrorWindow(QMainWindow, CommonFunctions):
 
         pos = numpy.array(list(zip(list(angles[markID == id]), list(errors[markID==id]))))
         self.s1.clear()
-        spots = [{'pos': pos[i, :], 'data': 1} for i in range(len(pos))]
+        spots = [{'pos': pos[i, :], 'data': 1} for i in range(len(pos)) if pos[i,1] > -0.001]
         self.s1.addPoints(spots)
-
+        self.s2.clear()
+        spots = [{'pos': [pos[i, 0], 0], 'data': 1} for i in range(len(pos)) if pos[i, 1] <= -0.001]
+        self.s2.addPoints(spots)
 
     def createErrorWindowModel(self, parent):
         model = QStandardItemModel(0, len(self.header_names), parent)
@@ -1615,7 +2096,7 @@ class ErrorWindow(QMainWindow, CommonFunctions):
     def addMarker(self, model, data):
         self.EWmodel.insertRow(self.EWmodel.rowCount())
         for i in range(min(len(data), self.num_columns)):
-            self.EWmodel.setData(model.index(self.EWmodel.rowCount() - 1, i), data[i])
+            self.EWmodel.setData(model.index(self.EWmodel.rowCount() - 1, i), self.dtypes[i](data[i]))
             self.dataView.resizeColumnToContents(i)
 
     def deleteMarkers(self, ids):

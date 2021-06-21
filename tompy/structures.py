@@ -597,6 +597,7 @@ class Mask(PyTomClass):
     def convert2numpy(self):
         return self
 
+
 class Reference(PyTomClass):
     """
     Reference: Stores information about the current reference.
@@ -1382,6 +1383,7 @@ class SingleTiltWedge(PyTomClass):
         @param radius: Radius in frequency. Not used for SingleTiltWedge.
         @return: a spherical function in numpy.array
         """
+        from pytom.tompy.interpolation import splineInterpolation
         assert (b <= 128)
         r = 45  # this radius and the volume size should be sufficient for sampling b <= 128
         if self._wedge_vol is None:
@@ -1393,7 +1395,7 @@ class SingleTiltWedge(PyTomClass):
             self._bw = b
 
         # start sampling
-        from np import pi, sin, cos
+        from numpy import pi, sin, cos
         res = []
 
         for j in range(2 * b):
@@ -1401,12 +1403,13 @@ class SingleTiltWedge(PyTomClass):
                 the = pi * (2 * j + 1) / (4 * b)  # (0,pi)
                 phi = pi * k / b  # [0,2*pi)
 
-                # this part actually needs interpolation
-                x = int(cos(phi) * sin(the) * r + 50)
-                y = int(sin(phi) * sin(the) * r + 50)
-                z = int(cos(the) * r + 50)
+                # this part actually has interpolation, opposed to basic.structures wedge
+                x = cos(phi) * sin(the) * r + 50
+                y = sin(phi) * sin(the) * r + 50
+                z = cos(the) * r + 50
+                v = splineInterpolation(self._wedge_vol, x,y,z)
 
-                if self._wedge_vol[x, y, z] > 0.5:  # if the value is bigger than 0.5, we include it
+                if v > 0.5:  # if the value is bigger than 0.5, we include it
                     res.append(1.0)
                 else:
                     res.append(0.0)
@@ -1820,7 +1823,7 @@ class Particle(PyTomClass):
     """
 
     def __init__(self, filename='', rotation=None, shift=None, wedge=None, className=0,
-                 pickPosition=None, score=None, sourceInfo=None):
+                 pickPosition=None, score=None, infoGUI=None):
         """
         @param filename: name of particle volume file (.em or .mrc file)
         @type filename: L{str}
@@ -1859,14 +1862,14 @@ class Particle(PyTomClass):
         else:
             raise TypeError('Unknown type for shift parameter!')
 
-        if not sourceInfo:
-            self._sourceInfo = SourceInformation('', 0, 1)
-        elif sourceInfo.__class__ == list:
-            self._sourceInfo = SourceInformation(sourceInfo[0], sourceInfo[1], sourceInfo[2])
-        elif sourceInfo.__class__ == SourceInformation:
-            self._sourceInfo = sourceInfo
+        if not infoGUI:
+            self._infoGUI = InformationGUI('')
+        elif infoGUI.__class__ == list:
+            self._infoGUI = InformationGUI(infoGUI[0])
+        elif infoGUI.__class__ == InformationGUI:
+            self._infoGUI = infoGUI
         else:
-            raise TypeError('Unknown type for sourceInfo parameter')
+            raise TypeError('Unknown type for InformationGUI parameter')
 
         if not pickPosition:
             from pytom.tompy.structures import PickPosition
@@ -1924,8 +1927,8 @@ class Particle(PyTomClass):
     def getScore(self):
         return self._score
 
-    def getSourceInfo(self):
-        return self._sourceInfo
+    def getInfoGUI(self):
+        return self._infoGUI
 
     def getVolume(self, binning=1):
         """
@@ -2065,7 +2068,7 @@ class Particle(PyTomClass):
         particle_element.append(self._shift.toXML())
         particle_element.append(self._pickPosition.toXML())
         particle_element.append(self._wedge.toXML())
-        particle_element.append(self._sourceInfo.toXML())
+        particle_element.append(self._infoGUI.toXML())
 
         if self._score != None:
             particle_element.append(self._score.toXML())
@@ -2114,13 +2117,13 @@ class Particle(PyTomClass):
         else:
             self._shift = Shift([0.0, 0.0, 0.0])
 
-        source_element = particle_element.xpath('InfoTomogram')
+        source_element = particle_element.xpath('InfoGUI')
         if len(source_element) > 0:
             source_element = source_element[0]
-            self._sourceInfo = SourceInformation(['', 1, 1])
-            self._sourceInfo.fromXML(source_element)
+            self._infoGUI = InformationGUI([''])
+            self._infoGUI.fromXML(source_element)
         else:
-            self._sourceInfo = SourceInformation(['', 1, 1])
+            self._infoGUI = InformationGUI([''])
 
         position_element = particle_element.xpath('PickPosition')
         if len(position_element) > 0:
@@ -3352,7 +3355,7 @@ class ParticleList(PyTomClass):
 
         return res
 
-    def loadCoordinateFile(self, filename, name_prefix=None, wedgeAngle=None, sourceInfo=None):
+    def loadCoordinateFile(self, filename, name_prefix=None, wedgeAngle=None, infoGUI=None):
         """
         Initialize the particle list using the given coordinate file.
         The coordinate file simply contains three columns of X, Y and Z separated
@@ -3385,7 +3388,7 @@ class ParticleList(PyTomClass):
                     x, y, z = [float(n) for n in line.split()]
                 p = Particle(name_prefix + str(i) + '.em', rotation=None, shift=None,
                              wedge=None, className=0, pickPosition=PickPosition(x, y, z),
-                             score=None, sourceInfo=sourceInfo)
+                             score=None, infoGUI=infoGUI)
                 if wedgeAngle:
                     p.setWedge(wedge)
                 self._particleList.append(p)
@@ -3484,10 +3487,9 @@ class ParticleList(PyTomClass):
             particle.setShift(shift=ttrans + translation.rotate(rot=trot))
 
 
-class SourceInformation(PyTomClass):
+class InformationGUI(PyTomClass):
     """
-    SourceInformation: Stores information used for the generation of the tomogram from which the particle originates.
-    Information that is stored: tomogram name, reference marker index, and binning factor.
+    InformationGUI: Stores information used by GUI: project directory.
     """
 
     def __init__(self, tomogramName='', refMarkIndex=0, binningFactor=1):
@@ -3526,10 +3528,10 @@ class SourceInformation(PyTomClass):
         if xmlObj.__class__ != _Element:
             raise TypeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
 
-        if xmlObj.tag == 'InfoTomogram':
+        if xmlObj.tag == 'InfoGUI':
             info_element = xmlObj
         else:
-            TypeError('InfoTomogram: You must provide a valid SourceInformation XML object.')
+            TypeError('InfoTomogram: You must provide a valid InformationGUI XML object.')
 
         self._tomoname = str(info_element.get('TomoName'))
         self._refMarkIndex = int(info_element.get('RefMarkIndex'))

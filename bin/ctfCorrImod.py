@@ -60,7 +60,7 @@ if __name__=='__main__':
             folder = os.path.dirname(os.path.dirname(folder))
 
         for n, (ff, tom) in enumerate(a):
-            print(ff, folder, tom)
+            #print(ff, folder, tom)
             cmd = d.format(n%20, folder, tom, ff, tom, tom)
             outname = os.path.join(ff, 'ctfCorrImod.sh')
             out = open(outname, 'w')

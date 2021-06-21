@@ -5,6 +5,9 @@ import glob
 import atexit
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
+import multiprocessing
+import getpass
+
 # import pyqtgraph.opengl as gl
 
 from PyQt5.QtWidgets import *
@@ -15,7 +18,7 @@ from pytom.tompy.io import read, write
 from pytom_numpy import vol2npy
 
 #from pytom.basic.functions import initSphere
-from pytom.basic.files import pdb2em
+from pytom.basic.files import pdb2em, pdb2mrc
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.mrcOperations import *
 from pytom.gui.guiFunctions import initSphere
@@ -170,89 +173,6 @@ class BrowseWindowRemote(QMainWindow):
 
         elif len(self.folderpath) >1:
             self.folderpath = os.path.dirname(self.folderpath)
-        self.pathdisplay.setText(self.folderpath)
-        self.add_folders()
-
-
-class SelectFiles(BrowseWindowRemote):
-    def __init__(self,parent=None, initdir='/',filter=[''],search='file',credentials=['','',''],outputline='',
-                 validate=False, run_upon_complete=print, title='', id=''):
-        self.finished = False
-        super(SelectFiles,self).__init__(parent,initdir=initdir,filter=[''],search='file',credentials=['','',''],
-                                         outputline=outputline, validate=validate)
-        self.setWindowTitle(title)
-        self.run_upon_complete = run_upon_complete
-        self.filters = filter
-        self.id = id
-        self.matchingfiles = []
-        self.selectedfiles = []
-        if self.outputline.text(): self.selectedfiles += [ll for ll in self.outputline.text().split('\n')]
-        self.setCentralWidget(self.splitter0)
-        self.add_folders()
-        self.show()
-
-    def select_item(self):
-        self.outputline.setText('\n'.join(self.selectedfiles))
-        self.finished = True
-        self.run_upon_complete(self.id)
-
-    def select_file(self):
-        item = self.topright.currentItem().text()
-
-        for n, file in enumerate(self.selectedfiles):
-            if file == item:
-                self.selectedfiles = self.selectedfiles[:n]+self.selectedfiles[n+1:]
-                break
-        self.add_folders()
-
-    def data(self):
-        self.subdirs = [os.pardir]
-        self.matchingfiles = []
-        self.append(os.listdir(self.folderpath))
-
-        matchingfiles = []
-        for pat in self.filters:
-            matchingfiles += [line for line in self.matchingfiles if line.endswith(pat.split('.')[-1])]
-        self.matchingfiles = matchingfiles
-
-    def append(self,line):
-        for filename in line:
-            folder = os.path.isdir(os.path.join(self.folderpath,filename))
-
-            if folder:
-                self.subdirs.append(filename)
-            else:
-                selected = False
-                for file in self.selectedfiles:
-                    if os.path.join(self.folderpath, filename) == file:
-                        selected = True
-                        break
-                if not selected: self.matchingfiles.append(filename)
-
-        self.matchingfiles = sorted(self.matchingfiles)
-        self.subdirs = sorted(self.subdirs)
-
-    def add_folders(self, folders=[]):
-        self.data()
-
-        self.topleft.clear()
-        self.topright.clear()
-
-        self.topleft.insertItems(0,self.subdirs+self.matchingfiles)
-        self.topright.insertItems(0,self.selectedfiles)
-
-    def repopulate_folder_list(self):
-
-        extra = self.topleft.currentItem().text()
-        potential = os.path.join(self.folderpath, extra)
-        if extra != '..' and os.path.isdir(potential):
-            self.folderpath = potential
-
-        elif len(self.folderpath) >1 and extra == '..':
-            self.folderpath = os.path.dirname(self.folderpath)
-        else:
-            self.selectedfiles.append(potential)
-
         self.pathdisplay.setText(self.folderpath)
         self.add_folders()
 
@@ -464,11 +384,11 @@ class CommonFunctions():
             tb.addAction(new)
 
         if open:
-            load = QAction(QIcon("{}/gui/Icons/open_project4.png".format(self.pytompath)), openText, self)
+            load = QAction(QIcon("{}/gui/Icons/OpenProject.png".format(self.pytompath)), openText, self)
             tb.addAction(load)
 
         if save:
-            s = QAction(QIcon("{}/gui/Icons/save_project4.png".format(self.pytompath)), saveText, self)
+            s = QAction(QIcon("{}/gui/Icons/SaveProject.png".format(self.pytompath)), saveText, self)
             tb.addAction(s)
             #tb.actionTriggered[QAction].connect(self.save_particleList)
 
@@ -807,6 +727,14 @@ class CommonFunctions():
             self.insert_pushbutton(parent, cstep=cstep, rstep=rstep, text=pushtext,width=100,
                                    action=action, params=params)
 
+    def insert_label_push(self, parent, textlabel, wname, tooltip='', cstep=-1, rstep=1, pushtext='Surprise Me!', action='',
+                          width=100, params=[]):
+
+        if action == '':
+            return
+        self.insert_label(parent, text=textlabel, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
+        self.insert_pushbutton(parent, cstep=cstep, rstep=rstep, text=pushtext, width=width, action=action, params=params, wname=wname)
+
     def insert_label_line(self, parent, textlabel, wname, tooltip='', value='', cstep=-1, rstep=1, validator=None,
                           width=150,logvar=True, enabled=True):
         self.insert_label(parent, text=textlabel, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
@@ -858,8 +786,8 @@ class CommonFunctions():
                                width=width)
 
     def insert_gen_text_exe(self, parent, mode, gen_action='', action='', paramsAction=[], paramsXML=[], paramsCmd=[],
-                            paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, id='', gpu=True,
-                            queue=True, cs=3):
+                            paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, id='', gpu=False,
+                            queue=True, cs=3, mandatory_fill=[]):
 
         if not queue:
             self.insert_label_action(parent, 'Generate command', cstep=1, rstep=-1, sizepolicy=self.sizePolicyB,
@@ -875,7 +803,7 @@ class CommonFunctions():
                                            action=self.gen_action, wname=mode + 'GeneratePushButton',
                                            params=[[mode + 'XMLText'] + paramsXML,
                                                    [mode + 'CommandText'] + paramsCmd,
-                                                   paramsSbatch])
+                                                   paramsSbatch, mandatory_fill])
             self.insert_checkbox(parent,mode + 'queue',text='queue',cstep=-cs,rstep=1,logvar=True,alignment=Qt.AlignLeft)
         else:
             self.column -= cs
@@ -883,21 +811,29 @@ class CommonFunctions():
 
         if jobfield:
             self.insert_textfield(parent, mode + 'XMLText', columnspan=cs, rstep=0, cstep=3, width=600,logvar=False)
-            if gpu: self.insert_checkbox(parent,mode + 'gpuRun',text='gpu',cstep=-1,rstep=1,logvar=True, alignment=Qt.AlignTop | Qt.AlignLeft)
-            self.insert_label(parent, alignment=Qt.AlignRight, rstep=1, cstep=-2, sizepolicy=self.sizePolicyB)
+            if gpu:
+                self.insert_checkbox(parent,mode + 'gpuRun',text='gpu',cstep=-1,rstep=1,logvar=True, alignment=Qt.AlignTop | Qt.AlignLeft)
+
+            self.insert_label(parent, alignment=Qt.AlignRight, rstep=1, cstep=-3, sizepolicy=self.sizePolicyB)
         self.insert_textfield(parent, mode + 'CommandText', columnspan=cs, rstep=1, cstep=cs-1, width=600, logvar=False)
 
         if queue:
-            self.insert_label_action_label(parent, 'Execute command', rstep=1, action=self.exe_action,
+            self.insert_label_action_label(parent, 'Execute command', rstep=1, action=self.exe_action, wname=mode+'ExecutePushButton',
                                        params=[exefilename, mode+'CommandText', xmlfilename, mode+'XMLText', action,
-                                               paramsAction])
+                                               paramsAction, mode])
         else:
-            self.insert_label_action(parent, 'Execute command', rstep=1, action=self.exe_action,
+            self.insert_label_action(parent, 'Execute command', rstep=1, action=self.exe_action, wname=mode+'ExecutePushButton',
                                            params=[exefilename, mode + 'CommandText', xmlfilename, mode + 'XMLText',
-                                                   action,
-                                                   paramsAction])
+                                                   action, paramsAction, mode])
 
     def exe_action(self, params):
+
+        mode = params[6]
+        if not self.widgets[mode + 'ExecutePushButton'].isEnabled():
+            return
+
+        self.widgets[mode + 'ExecutePushButton'].setEnabled(False)
+        QApplication.processEvents()
 
         if params[4]: params[4](params[5])
 
@@ -921,12 +857,13 @@ class CommonFunctions():
                 exefilename = os.path.join(self.widgets[params[0][0]].text(), params[0][1])
             else:
                 exefilename = params[0]
+
             exefile = open(exefilename, 'w')
 
             exefile.write(self.widgets[params[1]].toPlainText())
             exefile.close()
 
-            if len(self.widgets[params[1]].toPlainText().split('SBATCH') ) > 2:
+            if self.widgets[mode+'queue'].isChecked():
                 dd = os.popen('{} {}'.format(self.qcommand, exefilename))
                 print('Submitted')
                 text = dd.read()[:-1]
@@ -963,6 +900,11 @@ class CommonFunctions():
         except Exception as e:
             print(e)
             print ('Please check your input parameters. They might be incomplete.')
+
+
+
+        self.widgets[mode + 'ExecutePushButton'].setEnabled(True)
+
     '''
     def getLocalID(self):
         import os
@@ -1013,6 +955,16 @@ class CommonFunctions():
         signals.finished_mcor.emit()
 
     def gen_action(self, params):
+        print(params)
+        try:
+            if params[3]:
+                for field in params[3]:
+                    if self.widgets[field].text() == '':
+                        self.popup_messagebox('Warning', 'Required field is empty', 'One of the required paramaters has not been supplied, please supply it and regenerate script before pressing execute.')
+                        return
+        except Exception as e:
+            print(e)
+
         mode = params[1][0][:-len('CommandText')]
 
 
@@ -1231,8 +1183,10 @@ class CommonFunctions():
             self.num_nodes = {}
             self.num_nodes[id] = 0
         if runbutton:
+            print(f'Generating PB {wname}ExecutePushButton')
             self.pbs[id] = QPushButton(runtitle)
             self.pbs[id].setSizePolicy(self.sizePolicyC)
+            self.widgets[f'{wname}ExecutePushButton'] = self.pbs[id]
         self.ends[id] = QWidget()
         self.ends[id].setSizePolicy(self.sizePolicyA)
 
@@ -1269,7 +1223,10 @@ class CommonFunctions():
         if self.checkbox[id].isChecked():
             dd = os.popen('{} {}'.format(self.qcommand, execfilename))
             text = dd.read()[:-1]
-            ID = text.split()[-1]
+            try:
+                ID = text.split()[-1]
+            except:
+                return None, -1
             logcopy = os.path.join(self.projectname, f'LogFiles/{ID}_{os.path.basename(execfilename)}')
             os.system(f'cp {execfilename} {logcopy}')
             return ID, 1
@@ -1278,17 +1235,27 @@ class CommonFunctions():
             self.localqID[ID] = 0
 
             if threaded:
+                print('submitting threaded job')
                 self.activeProcesses[ID] = Worker(fn=self.submit_local_job, args=[execfilename, ID], sig=False, results=True)
                 self.threadPool.start(self.activeProcesses[ID])
             else:
                 self.submit_local_job(execfilename, ID)
+
+
             #self.popup_messagebox('Info', 'Local Job Finished', f'Finished Job {ID}')
             return 'Local_'+ID, 0
 
     def multiSeq(self, func, params, wID=0, threaded=False):
+        import time
+        maxtime = 600
         for execfilename, pid, job in params:
+            sleeptime = 0
             ID, num = func(execfilename, pid, job, threaded=threaded)
-            self.localJobs[wID].append(ID)
+            if num == 0:
+                self.localJobs[wID].append(ID)
+                # while self.localqID[ID.split('_')[-1]] == 0 and sleeptime < maxtime:
+                #     time.sleep(5)
+                #     sleeptime += 5
 
     def getLocalID(self):
         import os
@@ -1312,7 +1279,9 @@ class CommonFunctions():
         try:
             logcopy = os.path.join(self.logfolder, f'Local/{ID}-{os.path.basename(execfilename)}')
             os.system(f'cp {execfilename} {logcopy}')
-            os.system(f'sh {execfilename} >> {os.path.splitext(logcopy)[0]}.out')
+            jobstring = f'sh {execfilename} >> {os.path.splitext(logcopy)[0]}.out'
+            self.localJobStrings[ID] = jobstring
+            os.system(jobstring)
 
             self.localqID[ID] = 1
         except:
@@ -1408,6 +1377,7 @@ class CommonFunctions():
             signals.result1.emit([id, total])
             time.sleep(1)
             inQueue = self.whichRunning(qids, num_submitted_jobs)
+            # print(f'Number of active threads: {self.threadPool.activeThreadCount()}')
             if self.queueEvents[job_description].is_set():
                 print(f'exit {job_description} loop')
                 return
@@ -1447,8 +1417,95 @@ class CommonFunctions():
             self.parent().parent().parent().logbook['00_framebutton_{}'.format(self.parent().parent().parent().targets[stage_id][0])] = True
             self.parent().parent().parent().save_logfile()
 
+
+class SelectFiles(BrowseWindowRemote, CommonFunctions):
+    def __init__(self, parent=None, initdir='/', filter=[''], search='file', credentials=['', '', ''], outputline='',
+                 validate=False, run_upon_complete=print, title='', id=''):
+        self.finished = False
+        super(SelectFiles, self).__init__(parent, initdir=initdir, filter=[''], search='file', credentials=['', '', ''],
+                                          outputline=outputline, validate=validate)
+        self.setWindowTitle(title)
+        self.run_upon_complete = run_upon_complete
+        self.filters = filter
+        self.id = id
+        self.matchingfiles = []
+        self.selectedfiles = []
+        if self.outputline.text(): self.selectedfiles += [ll for ll in self.outputline.text().split('\n')]
+        self.setCentralWidget(self.splitter0)
+        self.add_folders()
+        self.show()
+
+    def select_item(self):
+        if not self.selectedfiles:
+            self.popup_messagebox('Info', 'No Files Selected', 'You did not select any files. Please double click the file(s) you want to select.\nThe file will move to the right when selected.')
+            return
+        self.outputline.setText('\n'.join(self.selectedfiles))
+        self.finished = True
+        self.run_upon_complete(self.id)
+
+    def select_file(self):
+        item = self.topright.currentItem().text()
+
+        for n, file in enumerate(self.selectedfiles):
+            if file == item:
+                self.selectedfiles = self.selectedfiles[:n] + self.selectedfiles[n + 1:]
+                break
+        self.add_folders()
+
+    def data(self):
+        self.subdirs = [os.pardir]
+        self.matchingfiles = []
+        self.append(os.listdir(self.folderpath))
+
+        matchingfiles = []
+        for pat in self.filters:
+            matchingfiles += [line for line in self.matchingfiles if line.endswith(pat.split('.')[-1])]
+        self.matchingfiles = matchingfiles
+
+    def append(self, line):
+        for filename in line:
+            folder = os.path.isdir(os.path.join(self.folderpath, filename))
+
+            if folder:
+                self.subdirs.append(filename)
+            else:
+                selected = False
+                for file in self.selectedfiles:
+                    if os.path.join(self.folderpath, filename) == file:
+                        selected = True
+                        break
+                if not selected: self.matchingfiles.append(filename)
+
+        self.matchingfiles = sorted(self.matchingfiles)
+        self.subdirs = sorted(self.subdirs)
+
+    def add_folders(self, folders=[]):
+        self.data()
+
+        self.topleft.clear()
+        self.topright.clear()
+
+        self.topleft.insertItems(0, self.subdirs + self.matchingfiles)
+        self.topright.insertItems(0, self.selectedfiles)
+
+    def repopulate_folder_list(self):
+
+        extra = self.topleft.currentItem().text()
+        potential = os.path.join(self.folderpath, extra)
+        if extra != '..' and os.path.isdir(potential):
+            self.folderpath = potential
+
+        elif len(self.folderpath) > 1 and extra == '..':
+            self.folderpath = os.path.dirname(self.folderpath)
+        else:
+            self.selectedfiles.append(potential)
+
+        self.pathdisplay.setText(self.folderpath)
+        self.add_folders()
+
+
 class CreateMaskFile(QMainWindow, CommonFunctions):
-    def __init__(self,parent=None,maskfname=''):
+    def __init__(self,parent=None,maskfname='',folder=''):
         super(CreateMaskFile,self).__init__(parent)
         w = QWidget(self)
         l = QGridLayout()
@@ -1471,39 +1528,58 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
         self.insert_label_spinbox(parent, 'smooth_factor', text='Smoothing Factor', rstep=1, cstep=0, value=0,
                                   wtype=QDoubleSpinBox,stepsize=0.1)
         self.insert_pushbutton(parent, 'Create', action=self.generate_mask,
-                               params=['size_template', 'radius','smooth_factor',maskfname])
+                               params=['size_template', 'radius','smooth_factor',maskfname, folder])
         self.setCentralWidget(w)
+
+
+        self.widgets['size_template_x'].textChanged.connect(self.set_sizes)
+
         self.show()
 
+    def set_sizes(self):
+        size = self.widgets['size_template_x'].text()
+        for name in ('size_template_y','size_template_z'):
+            self.widgets[name].setText(size)
+
     def generate_mask(self,params):
-        radius = int(self.widgets['radius'].text())
-        smooth = float(self.widgets['smooth_factor'].value())
-        sizeX = int(self.widgets['size_template_x'].text())
-        sizeY = int(self.widgets['size_template_y'].text())
-        sizeZ = int(self.widgets['size_template_z'].text())
         try:
-            fname = os.path.join(self.parent().frmdir, 'FRM_mask.mrc')
-        except:
-            tomoname = os.path.basename(self.parent().widgets['v03_TemplateMatch_tomoFname'].text())
-            filename, file_extension = os.path.splitext(tomoname)
-            if not os.path.exists(os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename)):
-                os.mkdir(os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename))
-            fname = os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename, 'TM_mask.mrc')
+            radius = int(self.widgets['radius'].text())
+            smooth = float(self.widgets['smooth_factor'].value())
+            sizeX = int(self.widgets['size_template_x'].text())
+            sizeY = int(self.widgets['size_template_y'].text())
+            sizeZ = int(self.widgets['size_template_z'].text())
+            try:
+                folder = params[4] if params[4] else self.parent().projectname
+                print(folder)
+                fname = os.path.join(folder, f'Mask_{sizeX}_{radius}_{smooth:.2f}.mrc')
+            except Exception as e:
+                print(e)
+                tomoname = os.path.basename(self.parent().widgets['v03_TemplateMatch_tomoFname'].text())
+                filename, file_extension = os.path.splitext(tomoname)
+                if not os.path.exists(os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename)):
+                    os.mkdir(os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename))
+                fname = os.path.join(self.parent().templatematchfolder, 'cross_correlation', filename, 'TM_mask.mrc')
 
-        maskfilename = str(QFileDialog.getSaveFileName( self, 'Save particle list.', fname, filter='*.mrc')[0])
-        if maskfilename and not maskfilename.endswith('.mrc'): maskfilename += '.mrc'
-        try:
-            success = initSphere(sizeX, sizeY, sizeZ, radius=radius, smooth=smooth, filename=maskfilename)
-            if success:
-                self.parent().widgets[params[-1]].setText(maskfilename)
-            else:
-                self.popup_messagebox('Error', 'Mask Generation Failed',
-                                      'Generation of the mask failed. Please select an existing mask, or generate a mask yourself.')
+            maskfilename = str(QFileDialog.getSaveFileName( self, 'Save particle list.', fname, filter='*.mrc')[0])
+            if not maskfilename:
+                return
 
-        except:
-            self.popup_messagebox('Error','Mask Generation Failed', 'Generation of the mask failed. Please select an existing mask, or generate a mask yourself.')
+            if maskfilename and not maskfilename.endswith('.mrc'): maskfilename += '.mrc'
+            try:
+                success = initSphere(sizeX, sizeY, sizeZ, radius=radius, smooth=smooth, filename=maskfilename)
+                if success:
+                    self.parent().widgets[params[3]].setText(maskfilename)
+                else:
+                    self.popup_messagebox('Error', 'Mask Generation Failed',
+                                          'Generation of the mask failed. Please select an existing mask, or generate a mask yourself.')
 
-        self.close()
+            except:
+                self.popup_messagebox('Error','Mask Generation Failed', 'Generation of the mask failed. Please select an existing mask, or generate a mask yourself.')
+
+            self.close()
+        except Exception as e:
+            print(e)
+            print('Mask generation failed.')
 
 
 class ConvertEM2PDB(QMainWindow, CommonFunctions):
@@ -1545,13 +1621,13 @@ class ConvertEM2PDB(QMainWindow, CommonFunctions):
         cube_size = int(self.widgets['volume_size'].text())
         pixel_size = float(self.widgets['pixel_size'].value())
         os.system('getpdb {} {}'.format(pdbid, self.folder))
-        out_fname = str(QFileDialog.getSaveFileName(self, 'Save EM model.', self.folder, filter='*.em')[0])
+        out_fname = str(QFileDialog.getSaveFileName(self, 'Save EM model.', self.folder, filter='*.mrc')[0])
         if not out_fname: return
-        if not out_fname.endswith('.em'): out_fname += '.em'
+        if not out_fname.endswith('.mrc'): out_fname += '.mrc'
         fname_pdb = f'{self.folder}/{pdbid}.pdb'
 
         try:
-            pdb2em(fname_pdb, pixel_size, cube_size, chain=chain, fname=out_fname, densityNegative=True)
+            pdb2mrc(fname_pdb, pixel_size, cube_size, chain=chain, fname=out_fname, invertDensity=True)
         except Exception as e:
             print(e)
             return
@@ -1561,7 +1637,7 @@ class ConvertEM2PDB(QMainWindow, CommonFunctions):
 
 
 class CreateFSCMaskFile(QMainWindow, CommonFunctions):
-    def __init__(self,parent, emfname='',folder='./'):
+    def __init__(self, parent, emfname='',folder='./'):
         super(CreateFSCMaskFile, self).__init__(parent)
         self.folder = folder
         w = QWidget(self)
@@ -1590,7 +1666,7 @@ class CreateFSCMaskFile(QMainWindow, CommonFunctions):
                                   minimum=0, maximum=100, value=2,
                                   text='Smoothing Edges')
         self.insert_label_spinbox(parent, 'cycles', text='Number of Dilation Cycles', rstep=1, cstep=0,
-                                  stepsize=1,minimum=0,maximum=100,value=2,
+                                  stepsize=1,minimum=0,maximum=100,value=3,
                                   tooltip='Number of dilation cycles. Creates a less structured mask')
 
         self.insert_pushbutton(parent, 'Create', action=self.generate,
@@ -1602,9 +1678,8 @@ class CreateFSCMaskFile(QMainWindow, CommonFunctions):
     def generate(self,params):
         from pytom.bin.gen_mask import gen_mask_fsc
         from pytom.tompy.io import read
-        out_fname = str(QFileDialog.getSaveFileName(self, 'Save model as.', self.folder, filter='*.mrc')[0])
-        if not out_fname: return
-        if not out_fname.endswith('.mrc'): out_fname += '.mrc'
+
+
 
         data = read(self.widgets[params[0]].text())
         if self.widgets[params[1]].text():
@@ -1615,9 +1690,14 @@ class CreateFSCMaskFile(QMainWindow, CommonFunctions):
         smooth = float(self.widgets[params[3]].value())
         cycles = int(self.widgets[params[4]].value())
 
+        fname = os.path.join(self.folder, f'mask_{numstd:.2f}_{smooth:.2f}_{cycles}.mrc')
+        out_fname = str(QFileDialog.getSaveFileName(self, 'Save model as.', fname, filter='*.mrc')[0])
+        if not out_fname: return
+        if not out_fname.endswith('.mrc'): out_fname += '.mrc'
+
         gen_mask_fsc(data, cycles, out_fname, numstd, smooth, maskD=mask)
 
-        self.parent().widgets[params[-1]].setText(out_fname)
+        self.parent().widgets[params[5]].setText(out_fname)
         self.close()
 
 
@@ -1641,8 +1721,9 @@ class MyCircleOverlay(pg.EllipseROI):
             #self.label = pg.TextItem(text=label,anchor=(),angle=180)
 
 
-def circle(pos, size = 2, label='',color=Qt.blue):
-    pensize = 0.02*40./size
+
+def circle(pos, size = 2, label='',color=Qt.blue, pensize=16):
+    pensize = 0.02*40./pensize
     return MyCircleOverlay(pos=pos, pen=QtGui.QPen(color, pensize), size=size, movable=False, label=label)
 
 
@@ -1703,6 +1784,27 @@ class SimpleTable(QMainWindow, CommonFunctions):
                 if types[i] == 'txt':
                     widget = QWidget()
                     data= "{}".format(values[v][i].split('/')[-1]) if '/' in values[v][i] else values[v][i]
+                    cb = QLabel( data )
+                    layoutCheckBox = QHBoxLayout(widget)
+                    layoutCheckBox.addWidget(cb)
+                    layoutCheckBox.setAlignment(Qt.AlignCenter)
+                    layoutCheckBox.setContentsMargins(10, 0, 10, 0)
+                    table.setCellWidget(v, i, widget)
+                    self.widgets['widget_{}_{}'.format(v, i)] = cb
+                    widget.setStyleSheet('background: white;')
+
+                elif types[i] == 'txt2':
+                    widget = QWidget()
+
+                    try:
+                        a = values[v][i].split('/')[-2]
+                        if 'import_' in a:
+                            data = f"{a}/{values[v][i].split('/')[-1]}"
+                        else:
+                            data= "{}".format(values[v][i].split('/')[-1]) if '/' in values[v][i] else values[v][i]
+                    except:
+                        data= "{}".format(values[v][i].split('/')[-1]) if '/' in values[v][i] else values[v][i]
+
                     cb = QLabel( data )
                     layoutCheckBox = QHBoxLayout(widget)
                     layoutCheckBox.addWidget(cb)
@@ -2005,10 +2107,49 @@ class KeyPressGraphicsWindow(pg.GraphicsWindow):
 
     def __init__(self, *args, **kwargs):
         super(KeyPressGraphicsWindow,self).__init__(*args, **kwargs)
+        print('\n\nkkk')
 
     def keyPressEvent(self, ev):
         self.scene().keyPressEvent(ev)
         self.sigKeyPress.emit(ev)
+
+    def addViewBox2(self, row=None, col=None, rowspan=1, colspan=1, **kargs):
+        """
+        Create a ViewBox and place it in the next available cell (or in the cell specified)
+        All extra keyword arguments are passed to :func:`ViewBox.__init__ <pyqtgraph.ViewBox.__init__>`
+        Returns the created item.
+        """
+        print('\n\n\ng')
+        vb = ViewBoxItems(**kargs)
+        self.addItem(vb, row, col, rowspan, colspan)
+        return vb
+
+
+class ViewBoxItems(pg.graphicsItems.ViewBox.ViewBox):
+
+    def __init__(self, *args, **kwargs):
+        super(ViewBoxItems, self).__init__(*args, **kwargs)
+
+    def addItems(self, items, ignoreBounds=False):
+        """
+        Add a QGraphicsItem to this view. The view will include this item when determining how to set its range
+        automatically unless *ignoreBounds* is True.
+        """
+
+        scene = self.scene()
+        for i, item in enumerate(items):
+            if item.zValue() < self.zValue():
+                item.setZValue(self.zValue() + 1)
+
+            if scene is not None and scene is not item.scene():
+                scene.addItem(item)  ## Necessary due to Qt bug: https://bugreports.qt-project.org/browse/QTBUG-18616
+
+            item.setParentItem(self.childGroup)
+
+        if not ignoreBounds:
+            self.addedItems += items
+
+        self.updateAutoRange()
 
 
 class CreateMaskTMOld(QMainWindow, CommonFunctions):
@@ -2792,6 +2933,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
 
         if add and not remove:
             X, Y = pos.x(), pos.y()
+            self.particleList.append([int(round(X)), int(round(Y)), int(round(self.slice)), self.radius])
 
             self.add_points(pos, X, Y, self.slice, self.radius, self.radius, add=add, score=self.radius)
 
@@ -2814,10 +2956,11 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
 
         pos.setX(cx - radius)
         pos.setY(cy - radius)
-        self.circles_cent.append(circle(pos, size=(radius) * 2))
+
 
         if abs(cz - self.slice) < self.radius:
-            self.centimage.addItem(self.circles_cent[-1])
+            self.circles_cent.append(circle(pos, size=(radius) * 2))
+            #self.centimage.addItem(self.circles_cent[-1])
 
         if new:
             pos.setX(cx - self.radius)
@@ -2916,6 +3059,12 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
             add = False
             self.add_points(self.pos, cx, cy, cz, cs, radius, add=add, score=cs, new=False)
 
+        self.centimage.addItems(self.circles_cent)
+
+
+class InfiniteLinePlotter(pg.InfiniteLine):
+    pass
+
 
 class LinearRegionItem(pg.LinearRegionItem):
     def lineMoveFinished(self):
@@ -2923,7 +3072,8 @@ class LinearRegionItem(pg.LinearRegionItem):
         try:
             if self.saveZLimits:
                 outfile = open(self.filename, 'w')
-                outfile.write(f'{int(self.lines[0].value())} {int(self.lines[1].value())}')
+                a, b = int(self.lines[0].value()), int(self.lines[1].value())
+                outfile.write(f'{min(a,b)} {max(a,b)}')
                 outfile.close()
                 print(f'written {self.filename}')
         except Exception as e:
@@ -2933,6 +3083,34 @@ class LinearRegionItem(pg.LinearRegionItem):
         self.other.lines[0].setValue(self.lines[0].value())
         self.other.lines[1].setValue(self.lines[1].value())
         self.sigRegionChangeFinished.emit(self)
+
+
+class PointsItem(QtGui.QGraphicsItem):
+    def __init__(self, x=None, y=None):
+        QtGui.QGraphicsItem.__init__(self)
+        self.setData(x, y)
+
+    def setData(self, x, y):
+        if x is None:
+            x = np.array([])
+            y = np.array([])
+        self.data = np.empty((len(x), 2), dtype=np.float)
+        self.data[:, 0] = x
+        self.data[:, 1] = y
+        xmin = x.min()
+        xmax = x.max()
+        ymin = y.min()
+        ymax = y.max()
+        self.bounds = QtCore.QRectF(xmin, ymin, xmax - xmin, ymax - ymin)
+        self.prepareGeometryChange()
+
+    def boundingRect(self):
+        return self.bounds
+
+    def paint(self, p, *args):
+        p.setPen(pg.mkPen((255, 255, 255, 80)))
+        ptr = ctypes.c_void_p(sip.unwrapinstance(p))
+        drawPoints(ptr, self.data.ctypes, self.data.shape[0])
 
 
 class ParticlePicker(QMainWindow, CommonFunctions):
@@ -2961,6 +3139,10 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.xmlfile = ''
         self.filetype = 'txt'
         self.activate = 0
+        self.activateLine = 0
+        self.angleLine = 0
+        self.red_circle = 0
+
 
         self.circles_left = []
         self.circles_cent = []
@@ -2973,8 +3155,11 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.leftimage.setMouseEnabled(False, False)
 
         self.centcanvas = w = KeyPressGraphicsWindow(size=(600, 600), border=True)
-        self.centimage  = w.addViewBox(row=0, col=0, lockAspect=True)
+        self.datalabel = pg.LabelItem(justify='right')
+        self.centcanvas.addItem(self.datalabel)
+        self.centimage  = w.addViewBox2(row=1, col=0, lockAspect=True)
         self.centimage.setMenuEnabled(False)
+
         self.target = w3 = pg.ImageView()
         self.title = parent.widgets['v03_manualpp_tomogramFname'].text()
 
@@ -2989,6 +3174,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.layout.addWidget(w2,1,1)
         self.layout.addWidget(self.operationbox,1,0)
         self.title = parent.widgets['v03_manualpp_tomogramFname'].text()
+        self.TOMNAME = self.title
         if not self.title: self.title = 'Dummy Data'
 
         self.folder = os.path.dirname(self.title)
@@ -3001,6 +3187,12 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         self.centcanvas.sigMouseReleased.connect(self.empty)
 
+        self.slice =0
+        self.pen = pg.mkPen(color='#117a42', width=2)
+        self.lineB = InfiniteLinePlotter([self.slice, self.slice], angle=0, movable=False, pen=self.pen)
+        self.lineL = InfiniteLinePlotter([self.slice, self.slice], angle=90, movable=False, pen=self.pen)
+
+
         self.load_image()
         self.leftimage.setXRange(0, self.vol.shape[0])
 
@@ -3008,15 +3200,48 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         self.subtomo_plots = PlotterSubPlots(self, size_subtomo=self.radius*2)
         self.subtomo_plots.show()
+        self.subtomo_plots.hide()
+
+        self.centimage.scene().sigMouseMoved.connect(self.updateLabel)
+
+
+        self.bottomimage.addItem(self.lineB)
+        self.leftimage.addItem(self.lineL)
+
+        self.replot()
         pg.QtGui.QApplication.processEvents()
 
-    def wheelEvent(self, event):
+    def closeEvent(self, event):
 
-        step = event.angleDelta().y()/120
-        increment = int(self.widgets['step_size'].text())*step
-        if self.slice+increment < self.vol.shape[0] and self.slice+increment > -1:
-            self.update_circles(increment)
-            self.replot()
+        close = QMessageBox()
+        close.setText("Are you sure you want to close the particle picking windows?")
+        close.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+        close = close.exec()
+
+        if close == QMessageBox.Yes:
+            self.subtomo_plots.destroy()
+            event.accept()
+
+        else:
+            event.ignore()
+
+    def wheelEvent(self, event):
+        try:
+            step = event.angleDelta().y()/120
+            increment = int(self.widgets['step_size'].text())*step
+            if self.activateLine:
+                self.angleLine = (self.angleLine + step)
+                if (self.angleLine) > 90: self.angleLine -= 180
+                if (self.angleLine) < -90: self.angleLine += 180
+
+                self.line.setAngle(self.angleLine)
+
+            elif self.slice+increment < self.vol.shape[0] and self.slice+increment > -1:
+                self.slice += increment
+                self.update_circles(increment)
+                self.replot()
+        except Exception as e:
+            print(e)
 
     def keyPressEvent(self, evt):
         if Qt.Key_P == evt.key():
@@ -3030,17 +3255,18 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         if Qt.Key_Right == evt.key():
             if self.slice + int(self.widgets['step_size'].text()) < self.dim:
                 update = int(self.widgets['step_size'].text())
-                self.update_circles(update)
+                self.slice += update
                 self.replot()
+                self.update_circles()
 
         if Qt.Key_Left == evt.key():
             if self.slice > int(self.widgets['step_size'].text()) - 1:
-                update = -1*int(self.widgets['step_size'].text())
-                self.update_circles(update)
+                update = int(self.widgets['step_size'].text())
+                self.slice -= update
                 self.replot()
+                self.update_circles()
 
         if evt.key() == Qt.Key_Escape:
-            self.subtomo_plots.close()
             self.close()
 
         if evt.key() == Qt.Key_A:
@@ -3050,6 +3276,26 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             else:
                 self.resetZLimits()
                 self.replot_all()
+
+        if evt.key() == Qt.Key_L:
+            try:
+                self.activateLine = 1 - self.activateLine
+                if self.activateLine:
+                    self.drawLine()
+                else:
+                    self.drawLine(insert=False)
+            except Exception as e:
+                print(e)
+
+        # if evt.key() == Qt.Key_K:
+        #     try:
+        #         self.activateLine = 1 - self.activateLine
+        #         if self.activateLine:
+        #             self.drawLine(id=1)
+        #         else:
+        #             self.drawLine(insert=False)
+        #     except Exception as e:
+        #         print(e)
 
     def add_controls(self,prnt):
         vDouble = QtGui.QDoubleValidator()
@@ -3117,12 +3363,18 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         elif q.text() == 'Open Particle List': self.load_particleList()
 
     def save_particleList(self):
+
+        if self.activateLine == 1:
+            self.save_angle()
+            return
+
         if self.filetype == 'xml':
             self.save_particleList_xml()
         else:
             self.save_particleList_txt()
 
     def save_particleList_xml(self):
+
         try:
             self.remove_deselected_particles_from_XML()
         except Exception as e:
@@ -3146,21 +3398,17 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
             inputJobName = "cat {}/{}_reconstruction.sh | grep '{}' | {}"
 
-            headerInfo = []
-            for i in ('referenceMarkerIndex', 'projectionBinning'):
-                if 1:
 
-                    d = os.popen(inputJobName.format(folder,key, i, "awk '{print $2}'")).read()[:-1]
-                else:
-                    d = 1
-                headerInfo.append(d)
+            from pytom.bin.templateMatchingCandidateExtractionSingleGPU import getBinningFactorAndReferenceMarker
+
+            binning, refmark = getBinningFactorAndReferenceMarker(self.title)
 
 
             out = open(fname, 'w')
             out.write('#\n')
-            out.write('#TOMONAME \t{}\n'.format(os.path.basename(self.title)))
-            out.write('#MARKERINDEX \t{}\n'.format(headerInfo[0]))
-            out.write('#BINNINGFACTOR \t{}\n'.format(headerInfo[1]))
+            out.write('#TOMONAME \t{}\n'.format(self.TOMNAME))
+            out.write(f'#MARKERINDEX \t{binning}\n')
+            out.write(f'#BINNINGFACTOR \t{refmark}\n')
             out.write('#\n')
 
             for x, y, z, s in self.particleList:
@@ -3171,7 +3419,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         filetype = 'txt'
         initdir = self.parent().pickpartfolder
 
-        filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "Coordinate files (*.txt);; Particle List (*.xml)")[0])
+        filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "PyTom ParticleList(*.xml);; Coordinate File (*.txt)")[0])
         if not filename: return
 
         if filename.endswith('.txt'):
@@ -3197,7 +3445,81 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         parent.remove(el)
 
     def remove_deselected_particles_from_XML(self):
+        from pytom.basic.structures import ParticleList, Particle, PickPosition
+        from pytom.score.score import FLCFScore
+        from pytom.tompy.io import read
+        import numpy
+        import random
+
+        asked = False
+
+        cc = 180./ numpy.pi
+
+        plOld = ParticleList()
+        plOld.fromXMLFile(self.xmlfile)
+
+        folder = os.path.dirname(plOld[0].getFilename())
+        wedge = plOld[0].getWedge()
+        origin = plOld[0].getPickPosition().getOriginFilename()
+
+        plNew = ParticleList()
+
+        tempPL = []
+
+        prefix = 'man_slct_'
+        id = 0
+
+        anglelist = read(f'{self.pytompath}/angles/angleLists/angles_11_15192.em')
+
+        for p in plOld:
+            fname = os.path.basename(p.getFilename())
+            if prefix in fname:
+                tid = int(fname.split('.')[0][len(prefix):])
+                id = id if tid < id else tid
+
+            x,y,z = p.getPickPosition().toVector()
+            print(x, x.__class__)
+            s = p.getScore().getValue()
+            tempPL.append([x,y,z,s])
+
+        for x,y,z,s in self.particleList:
+            found =False
+
+            for n,[cx,cy,cz,s0] in enumerate(tempPL):
+                if abs(x - cx) < 1 and abs(y - cy) < 1 and abs(z - cz) < 1:
+                    print(n)
+                    plNew.append(plOld[n])
+                    found = True
+                    break
+
+
+            if not asked and not found:
+                close = QMessageBox()
+                close.setText("Do you want to save the manually added particles to your particleList?")
+                close.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+                close = close.exec()
+
+                if close == QMessageBox.Yes:
+                    add = True
+                else:
+                    add = False
+
+                asked = True
+
+            if not found and add:
+                print(id)
+                rot = list(random.choice(anglelist) * cc)
+                particle = Particle(filename=f'{folder}/{prefix}{id}.em', rotation=rot, shift=[0,0,0], wedge=wedge,
+                                    className = 0, pickPosition=PickPosition(x=x,y=y,z=z, originFilename=origin),
+                                    score=FLCFScore(1E-6))
+                plNew.append(particle)
+                id += 1
+
+
+        '''
         tree = et.parse(self.xmlfile)
+
+
 
 
         for particle in tree.xpath("Particle"):
@@ -3217,13 +3539,14 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                     break
             if remove:
                 self.remove_element(particle)
-
+        '''
         fname = str(QFileDialog.getSaveFileName(self, 'Save particle list.', self.xmlfile, filter='*.xml')[0])
         if not fname.endswith('.xml'): fname += '.xml'
         if fname:
             try:
-                tree.write(fname, pretty_print=True)
-            except:
+                plNew.toXMLFile(fname)
+            except Exception as e:
+                print(e)
                 print('writing {} failed.'.format(fname))
         else:
             print('No file written.')
@@ -3234,44 +3557,53 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         xmlObj = etree.parse(filename)
         particles = xmlObj.xpath('Particle')
 
-        self.remove_all()
+        self.particleList = []
         self.slice = int(self.vol.shape[0] / 2)
-
+        QApplication.processEvents()
+        dz, dy, dx = self.vol.shape
         for p in particles:
             try:    score = float( p.xpath('Score')[0].get('Value') )
             except: score = 0.5
             
 
-            if score < self.max_score and score > self.min_score:
+            if score <= self.max_score and score >= self.min_score:
                 
                 x,y,z = map(float, (p.xpath('PickPosition')[0].get('X'), p.xpath('PickPosition')[0].get('Y'), p.xpath('PickPosition')[0].get('Z')))
-                dx,dy,dz = self.vol.shape
+
 
                 include = True
                 #if self.mask[int(x),int(y),int(z)] or not self.widgets['apply_mask'].isChecked(): include =True
                 #else: include = False
                 if not include: continue
 
-                if abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 or abs(dx/2-x) > dx/2 :
-                    print('particle not added: ', x,y,z)
+                if abs(dx/2-x) > dx/2 or abs(dy/2-y) > dy/2 or abs(dz/2-z) > dz/2 :
+                    print('particle not added: ', x,y,z, self.vol.shape)
                     continue
-                self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), score, self.radius, score=score)
+
+                radius = self.radius
+                if abs(z - self.slice) < self.radius:
+                    radius = sqrt(self.radius ** 2 - (z - self.slice) ** 2)
+                    #self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), score, radius, score=score)
+                #if z < 5 or y < 5 or x < 5: continue
+                self.particleList.append([int(round(x)), int(round(y)), int(round(z)), score])
+
+        if len(self.particleList): self.update_circles()
 
         self.widgets['numSelected'].setText(str(len(self.particleList)))
         self.replot()
+        QApplication.processEvents()
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
-
-        particlePos = [line.split() for line in open(filename).readlines() if 'PickPosition' in line]
 
     def load_txtFile(self, filename):
         particlePos = [map(float, line.split()) for line in open(filename).readlines() if line != '' and not '#' in line]
 
-        self.remove_all()
+        self.particleList = []
         self.slice = int(self.vol.shape[0]/2)
 
         for x,y,z in particlePos:
-            self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), 0., self.radius, add=True)
+            self.particleList.append([int(round(x)), int(round(y)), int(round(z)), self.radius])
 
+        if len(self.particleList): self.update_circles()
         self.replot()
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
 
@@ -3301,19 +3633,20 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         if not a: return
 
 
-        plist = copy.deepcopy(self.particleList)
-        self.remove_all()
+        #plist = copy.deepcopy(self.particleList)
+        #self.remove_all(keepPL=True)
 
         self.radius = int(self.widgets['size_selection: '].text()) / 2
 
 
-        for nn, (x,y,z,s) in enumerate(plist):
-            add= True
-            if self.xmlfile and len(self.particleList) > 100: add=False
-            self.add_points(QPoint(0,0), x, y, z, s, self.radius, add=add, score=s)
+        # for nn, (x,y,z,s) in enumerate(plist):
+        #     add= True
+        #     if self.xmlfile and len(self.particleList) > 100: add=False
+        #     self.add_points(QPoint(0,0), x, y, z, s, self.radius, add=add, score=s)
+
+        self.update_circles()
 
         self.subtomo_plots.size_subtomo = self.radius*2
-
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
 
     def stateScoreChanged(self):
@@ -3329,12 +3662,19 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
     def replot(self):
         crop = self.vol[int(self.slice), :, :]
-        self.img1m.setImage(image=crop.T)
+        self.img1m.clear()
+        self.img1m.setImage(image=crop.T, autoDownsample=True)
 
         #self.centcanvas.removeItem(self.hist)
         #self.hist = pg.HistogramLUTItem()
         self.hist.setImageItem(self.img1m)
         self.hist.setLevels(numpy.median(crop)-crop.std()*3,numpy.median(crop)+crop.std()*3)
+        self.writeLabelText(z=self.slice)
+
+        if self.activateLine == 0 and self.activate == 0:
+            self.lineB.setValue(self.slice)
+            self.lineL.setValue(self.slice)
+
         #self.centcanvas.addItem(self.hist)
 
     def mouseHasMoved(self, evt):
@@ -3348,7 +3688,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         remove = evt.button()==2
         self.pos = pos
 
-        if pos.x() < 0 or pos.y() < 0 or pos.x() >= self.vol.shape[1] or pos.y() >= self.vol.shape[2]:
+        if pos.x() < 0 or pos.y() < 0 or pos.x() >= self.vol.shape[2] or pos.y() >= self.vol.shape[1]:
+            #print(pos.x(), pos.y())
             return
 
         num_deleted_items = 0
@@ -3358,21 +3699,37 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 if remove:
                     self.remove_point(n-num_deleted_items,z)
                     self.subtomo_plots.delete_subplot([x,y,z])
+                    self.update_circles()
+
                     num_deleted_items += 1
 
         if add and not remove:
             X, Y = pos.x(), pos.y()
-
-            self.add_points(pos, X, Y, self.slice, 0, self.radius,add=add)
+            self.particleList.append([int(round(X)), int(round(Y)), int(round(self.slice)), self.radius])
+            self.update_circles()
+            #self.add_points(pos, X, Y, self.slice, 0, self.radius,add=add)
             self.subtomo_plots.add_subplot(self.vol, self.particleList[-1])
 
         self.widgets['numSelected'].setText(str(len(self.particleList)))
 
+    def updateLabel(self, pos):
+
+          ## using signal proxy turns original arguments into a tuple
+        pos = self.centimage.mapSceneToView(pos)
+        if pos.x() >= 0 and pos.y() >= 0 and pos.x() < self.vol.shape[2] and pos.y() < self.vol.shape[1]:
+
+            self.datalabel.setText(f"value = {self.vol[int(self.slice)][int(pos.y())][int(pos.x())]:7.3f} x = {pos.x():6.0f} y={pos.y():6.0f} z = {self.slice:4.0f}")
+
+    def writeLabelText(self,v=0, x=0,y=0,z=0):
+        self.datalabel.setText(f"value = {v:7.3f} x = {x:6.0f} y={y:6.0f} z = {z:4.0f}")
+
     def mouseHasMovedBottom(self, evt):
         pos = self.bottomimage.mapSceneToView( evt.scenePos() )
-        if pos.y() < 0 or pos.y() >= self.vol.shape[2]: return
+        if pos.y() < 0 or pos.y() >= self.vol.shape[2]:
+            return
         step = pos.y() - self.slice
-        self.update_circles(step)
+        self.slice += step
+        self.update_circles()
         self.replot()
 
     def mouseHasMovedLeft(self, evt):
@@ -3380,10 +3737,11 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         if pos.x() < 0 or pos.x() >= self.vol.shape[1]: return
 
         step = pos.x()-self.slice
-        self.update_circles(step)
+        self.slice += step
+        self.update_circles()
         self.replot()
 
-    def remove_from_coords(self,coords):
+    def remove_from_coords(self, coords):
         cx,cy,cz = coords[:3]
         for n, (x,y,z,s) in enumerate(self.particleList):
             if sqrt( (x-cx)**2 + (y-cy)**2 + (z-cz)**2 ) < self.radius:
@@ -3392,107 +3750,184 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 break
 
     def add_points(self, pos, cx, cy, cz, cs, radius, add=False, score=0.):
-        self.particleList.append([int(round(cx)), int(round(cy)), int(round(cz)), score])
 
-        pos.setX( cx-radius)
-        pos.setY( cy-radius)
-        self.circles_cent.append(circle(pos, size=(radius)*2))
 
-        if abs(cz - self.slice) < self.radius:
-            self.centimage.addItem(self.circles_cent[-1])
 
-        pos.setX(cx - self.radius)
-        pos.setY(cz - self.radius)
-        self.circles_bottom.append(circle(pos, size=self.radius * 2))
+        if 1:# abs(cz - self.slice) < self.radius:
+            pos.setX(cx - radius)
+            pos.setY(cy - radius)
+            self.circles_cent += [circle(pos, size=(radius) * 2)]
+            #self.centimage.addItem(self.circles_cent[-1])
+
+
         if add:
+            pos.setX(cx - self.radius)
+            pos.setY(cz - self.radius)
+            self.circles_bottom.append(circle(pos, size=self.radius * 2))
             self.bottomimage.addItem(self.circles_bottom[-1])
 
-        pos.setX(cz - self.radius)
-        pos.setY(cy - self.radius)
-        self.circles_left.append(circle(pos, size=self.radius * 2))
-        if add:
+            pos.setX(cz - self.radius)
+            pos.setY(cy - self.radius)
+            self.circles_left.append(circle(pos, size=self.radius * 2))
             self.leftimage.addItem(self.circles_left[-1])
 
     def remove_point(self, n, z, from_particleList=True):
         if from_particleList:
             self.particleList = self.particleList[:n] + self.particleList[n + 1:]
 
-        if abs(z - self.slice) <= self.radius:
-            self.centimage.removeItem(self.circles_cent[n])
-        self.circles_cent = self.circles_cent[:n] + self.circles_cent[n + 1:]
+        # if abs(z - self.slice) <= self.radius:
+        #     self.centimage.removeItem(self.circles_cent[n])
+        #
+        # self.circles_cent = self.circles_cent[:n] + self.circles_cent[n + 1:]
+        #
+        # self.leftimage.removeItem(self.circles_left[n])
+        # self.circles_left = self.circles_left[:n] + self.circles_left[n + 1:]
+        #
+        # self.bottomimage.removeItem(self.circles_bottom[n])
+        #
+        # self.circles_bottom = self.circles_bottom[:n] + self.circles_bottom[n + 1:]
 
-        self.leftimage.removeItem(self.circles_left[n])
-        self.circles_left = self.circles_left[:n] + self.circles_left[n + 1:]
-
-        self.bottomimage.removeItem(self.circles_bottom[n])
-
-        self.circles_bottom = self.circles_bottom[:n] + self.circles_bottom[n + 1:]
-
-    def remove_all(self):
-        for image in self.image_list:
-            for child in image.allChildren():
-                if type(child) == MyCircleOverlay:
-                    image.removeItem(child)
+    def remove_all(self, keepPL=False):
+        [self.centimage.removeItem(child) for child in self.circles_cent]
+        [self.bottomimage.removeItem(child) for child in self.circles_bottom]
+        [self.leftimage.removeItem(child) for child in self.circles_left]
+        #[self.leftimage.removeItem(child) for child in self.leftimage.allChildren() if type(child) == MyCircleOverlay]
+        #[self.bottomimage.removeItem(child) for child in self.bottomimage.allChildren() if type(child) == MyCircleOverlay]
+        #[self.centimage.removeItem(child) for child in self.centimage.allChildren() if type(child) == MyCircleOverlay]
 
         self.circles_left = []
         self.circles_cent = []
         self.circles_bottom = []
-        self.particleList = []
+        if not keepPL:
+            self.particleList = []
 
     def load_image(self):
         if not self.title: return
+        self.tomogram_name = self.title
 
-        if self.title.endswith('em'):
-            from pytom.basic.files import read
-            from pytom_numpy import vol2npy
-            vol  = read(self.title)
-            self.vol = copy.deepcopy( vol2npy(vol) )
-            self.vol = self.vol.T
-        elif self.title.endswith('mrc'):
-            self.vol = read_mrc(self.title)
+        try:
+            if self.title.endswith('em'):
+                from pytom.basic.files import read
+                from pytom_numpy import vol2npy
+                vol  = read(self.title)
+                self.vol = copy.deepcopy( vol2npy(vol) )
+                self.vol = self.vol.T
+            elif self.title.split('.')[-1] in ('mrc', 'mrcs', 'rec', 'st', 'map'):
+                self.vol = read_mrc(self.title)
 
-        self.mask = numpy.ones_like(self.vol)
-        #self.vol[self.vol < -4.] = -4.
-        self.backup = self.vol.copy()
-        self.origin = self.vol.copy()
+            self.mask = numpy.ones_like(self.vol)
+            #self.vol[self.vol < -4.] = -4.
+            self.backup = self.vol.copy()
+            self.origin = self.vol.copy()
 
-        self.vol[ self.vol < self.vol.min()] = self.vol.min()
+            self.vol[ self.vol < self.vol.min()] = self.vol.min()
 
-        self.dim = self.vol.shape[0]
-        self.slice = self.d = int(self.dim / 2)
+            self.dim = self.vol.shape[0]
+            self.slice = self.d = int(self.dim / 2)
 
 
-        self.img1a = pg.ImageItem(self.vol.sum(axis=1))
-        self.img1b = pg.ImageItem(self.vol.sum(axis=2))
-        self.img1m = pg.ImageItem(self.vol[int(self.slice), :, :])
+            self.img1a = pg.ImageItem(self.vol.sum(axis=2))
+            self.img1b = pg.ImageItem(self.vol.sum(axis=1).T)
+            self.img1m = pg.ImageItem(self.vol[int(self.slice), :, :])
 
-        self.resetZLimits(True)
-        self.leftimage.addItem(self.img1a)
-        self.centimage.addItem(self.img1m)
-        self.bottomimage.addItem(self.img1b)
+            self.resetZLimits(True)
+            self.leftimage.addItem(self.img1a)
+            self.centimage.addItem(self.img1m)
+            self.bottomimage.addItem(self.img1b)
 
-        self.leftcanvas.setAspectLocked(True)
-        self.bottomcanvas.setAspectLocked(True)
+            self.leftcanvas.setAspectLocked(True)
+            self.bottomcanvas.setAspectLocked(True)
 
-        self.hist = pg.HistogramLUTItem()
-        self.hist.setImageItem(self.img1m)
-        self.centcanvas.addItem(self.hist)
+            self.hist = pg.HistogramLUTItem()
+            self.hist.setImageItem(self.img1m)
+            self.centcanvas.addItem(self.hist, row=1, col=1)
 
-        self.replot_all()
+            self.setAngle()
+
+            self.replot_all()
+
+        except Exception as e:
+            print(f'ERROR: {e}')
+            self.close()
+
+    def setAngle(self):
+        try:
+            folder = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
+
+            specimen_angle_file = os.path.join(folder, 'specimen_rotation_angle.txt')
+            if os.path.exists(specimen_angle_file):
+                angle = float(open(specimen_angle_file,'r').read()[:-1])
+            else:
+                angle=0
+        except Exception as e:
+            print(e)
+            angle=0
+        folder = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
+        if os.path.exists(os.path.join(folder, 'WBP_Reconstruction.sh')):
+            d = open(os.path.join(folder, 'WBP_Reconstruction.sh'), 'r').read()[:-1]
+            try:
+                used_angle = float(d.split('specimenAngle ')[-1].split()[0])
+            except Exception as e:
+                print('Error: ', e)
+                used_angle = 0
+        else:
+            used_angle = 0
+
+        self.angleLine = (angle-used_angle)*-1
 
     def update_circles(self, update=0):
+        import time
+        s = time.time()
         plist = copy.deepcopy(self.particleList)
-        self.remove_all()
+        #self.remove_all(keepPL=True)
+        if type(self.red_circle) == MyCircleOverlay:
+            self.centimage.removeItem(self.red_circle)
+            self.red_circle = 0
 
+        #self.centimage.clear()
+
+
+        nn = 0
+        added = 0
+        num_circles = len(self.circles_cent)
         for n, (cx, cy, cz, cs) in enumerate(plist):
+            #t = time.time()
             radius = self.radius
+            if n%100 == 0: print(n)
+            if abs(cz - self.slice) >= self.radius:
+                #print(radius, cz, self.slice)
+                continue
+
             if abs(cz - self.slice) < self.radius:
                 radius = sqrt(self.radius ** 2 - (cz - self.slice)**2)
+
             if self.xmlfile and len(plist) > 100:
                 add = False
-            else: add = True
-            self.add_points(self.pos, cx, cy, cz, cs, radius,add=add)
-        self.slice += update
+            else:
+                add = True
+
+            if nn < num_circles:
+                self.circles_cent[nn].setPos(cx-radius, cy-radius, update=False)
+                self.circles_cent[nn].setSize(radius*2)
+            else:
+                self.add_points(self.pos, cx, cy, cz, cs, radius, add=add)
+                added += 1
+            #print(f'added point {nn}: {(time.time()-t)*1000:.2f}')
+            nn += 1
+
+        self.centimage.addItems(self.circles_cent[-added:])
+
+        remove= 0
+        if nn < num_circles:
+            #remove = self.remove if self.remove < num_circles-nn-1
+            #[self.centimage.removeItem(child) for child in self.circles_cent[nn:]]
+            #self.circles_cent = self.circles_cent[:nn]
+            for circle in self.circles_cent[nn:]:
+                circle.setSize(0.001)
+
+        print(f'added {added} points: {(time.time()-s)*1000:.2f}')
+        print(f'removed {remove} points')
+        #self.slice += update
 
     def adjustZLimits(self):
         self.replot_all()
@@ -3505,12 +3940,16 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         for image in [self.leftimage, self.bottomimage]:
             for child in image.allChildren():
-                if type(child) == LinearRegionItem:
+                if type(child) == LinearRegionItem or type(child) == InfiniteLinePlotter:
                     image.removeItem(child)
         if not insert:
+            self.lineB = InfiniteLinePlotter([self.slice, self.slice], angle=0, movable=False, pen=self.pen)
+            self.lineL = InfiniteLinePlotter([self.slice, self.slice], angle=90, movable=False, pen=self.pen)
+            self.bottomimage.addItem(self.lineB)
+            self.leftimage.addItem(self.lineL)
             return
         try:
-            tt = os.path.dirname(os.popen(f'ls -alrt {self.title}').read().split()[-1])
+            tt = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
             self.folder = tt
             zlimitfile = os.path.join(tt, 'z_limits.txt')
 
@@ -3528,10 +3967,60 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.leftimage.addItem(self.rgnleft)
             self.bottomimage.addItem(self.rgnbott)
 
+
+
         except Exception as e:
             print('\n\n\n', e)
 
+    def drawLine(self, id=0, insert=True):
+        for image in [self.leftimage, self.bottomimage]:
+            for child in image.allChildren():
+                if type(child) == InfiniteLinePlotter:
+                    image.removeItem(child)
+        if not insert:
+            self.lineB = InfiniteLinePlotter([self.slice, self.slice], angle=0, movable=False, pen=pg.mkPen(color='#117a42', width=2))
+            self.lineL = InfiniteLinePlotter([self.slice, self.slice], angle=90, movable=False,
+                                             pen=pg.mkPen(color='#117a42', width=2))
 
+            self.bottomimage.addItem(self.lineB)
+            self.leftimage.addItem(self.lineL)
+
+            return
+        try:
+
+            self.line =  InfiniteLinePlotter([int(self.dim / 2),int(self.dim / 2)], angle=self.angleLine, movable=True )
+
+            if 0 == id:
+                self.bottomimage.addItem(self.line)
+
+            else:
+                self.leftimage.addItem(self.line)
+
+        except Exception as e:
+            print('\n\n\n', e)
+
+    def save_angle(self):
+        tt = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
+        self.folder = tt
+        sra_file = os.path.join(tt, 'specimen_rotation_angle.txt')
+        if os.path.exists(os.path.join(os.path.dirname(sra_file), 'WBP_Reconstruction.sh')):
+            d = open(os.path.join(os.path.dirname(sra_file), 'WBP_Reconstruction.sh'), 'r').read()[:-1]
+            try:
+                used_angle = float(d.split('specimenAngle ')[-1].split()[0])
+            except Exception as e:
+                print(e)
+                used_angle = 0
+        else:
+            used_angle = 0
+
+        f = open(sra_file, 'w')
+        f.write(f'{(used_angle + self.angleLine * -1):.1f}\n')
+
+        f.close()
+
+        self.popup_messagebox('Info', 'Angle file written', f'Specimen Angle {self.angleLine*-1 + used_angle} '
+                                                            f'written in {os.path.basename(sra_file)}.\n'
+                                                            f'This includes the specimen angle {used_angle} used for the reconstruction.' )
 
 
 '''
@@ -4145,9 +4634,11 @@ class Viewer3D(QMainWindow, CommonFunctions):
         self.leftimage.setMouseEnabled(False, False)
 
         self.centcanvas = w = KeyPressGraphicsWindow(size=(600, 600), border=True)
-        self.centimage = w.addViewBox(row=0, col=0, lockAspect=True)
+        self.centimage = w.addViewBox(row=1, col=0, lockAspect=True)
         self.centimage.setMenuEnabled(False)
         self.target = w3 = pg.ImageView()
+        self.datalabel = pg.LabelItem(justify='right')
+        self.centcanvas.addItem(self.datalabel, row=0, col=0,)
 
         self.bottomcanvas = w2 = pg.GraphicsWindow(size=(600, 200), border=True)
         self.bottomimage = w2.addViewBox(row=0, col=0)
@@ -4170,6 +4661,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
 
         # self.centcanvas.sigKeyPress.connect(self.keyPress)
         self.centcanvas.sigMouseReleased.connect(self.empty)
+        self.centimage.scene().sigMouseMoved.connect(self.updateLabel)
 
         self.load_image()
         if not self.failed:
@@ -4181,7 +4673,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
     def wheelEvent(self, event):
 
         step = event.angleDelta().y() / 120
-        increment = int(self.widgets['step_size'].text()) * step
+        increment = int(int(self.widgets['step_size'].value()) * step)
         if self.slice + increment < self.vol.shape[0] and self.slice + increment > -1:
             self.slice += increment
             self.replot()
@@ -4206,6 +4698,26 @@ class Viewer3D(QMainWindow, CommonFunctions):
         if evt.key() == Qt.Key_Escape:
             self.subtomo_plots.close()
             self.close()
+
+    def updateLabel(self, pos):
+
+          ## using signal proxy turns original arguments into a tuple
+        pos = self.centimage.mapSceneToView(pos)
+        x, y = pos.x(), pos.y()
+        if pos.x() >= 0 and pos.y() >= 0 and pos.x() < self.vol.shape[(self.currID+2)%3] and pos.y() < self.vol.shape[(self.currID+1)%3]:
+
+            if self.currID == 0:
+                self.writeLabelText( self.vol[int(self.slice)][int(y)][int(x)], x, y, self.slice)
+
+            if self.currID == 1:
+                self.writeLabelText( self.vol[int(y)][int(self.slice)][int(x)], self.slice, x, y)
+
+            if self.currID == 2:
+                self.writeLabelText( self.vol[int(y)][int(x)][int(self.slice)], y, self.slice, x)
+
+
+    def writeLabelText(self, v=0, x=0, y=0, z=0):
+        self.datalabel.setText(f"value = {v:7.3f} x = {x:6.0f} y={y:6.0f} z = {z:4.0f}")
 
     def add_controls(self, prnt):
         vDouble = QtGui.QDoubleValidator()
@@ -4273,20 +4785,21 @@ class Viewer3D(QMainWindow, CommonFunctions):
         self.img1m.setImage(image=crop.T)
         self.hist.setImageItem(self.img1m)
         self.hist.setLevels(numpy.median(crop) - crop.std() * 3, numpy.median(crop) + crop.std() * 3)
+        self.writeLabelText(z=self.slice)
 
     def mouseHasMoved(self, evt):
         pass
 
     def mouseHasMovedBottom(self, evt):
         pos = self.bottomimage.mapSceneToView(evt.scenePos())
-        if pos.y() < 0 or pos.y() >= self.vol.shape[2]: return
+        if pos.y() < 0 or pos.y() >= self.vol.shape[self.currID]: return
         step = pos.y() - self.slice
         self.slice += step
         self.replot()
 
     def mouseHasMovedLeft(self, evt):
         pos = self.leftimage.mapSceneToView(evt.scenePos())
-        if pos.x() < 0 or pos.x() >= self.vol.shape[1]: return
+        if pos.x() < 0 or pos.x() >= self.vol.shape[self.currID]: return
 
         step = pos.x() - self.slice
         self.slice += step
@@ -4294,48 +4807,55 @@ class Viewer3D(QMainWindow, CommonFunctions):
 
     def load_image(self):
         if not self.title: return
+
         if not os.path.exists(self.title):
             self.popup_messagebox('Error', 'File does not exist', 'File does not exist. Please provide a valid filename.')
             self.failed = True
             return
 
-        if self.title.endswith('em'):
-            from pytom.tompy.io import read
-            from pytom_numpy import vol2npy
-            self.vol = read(self.title)
-            self.vol = self.vol.T
-        elif self.title.endswith('mrc'):
-            self.vol = read_mrc(self.title)
+        try:
+            if self.title.endswith('em'):
+                from pytom.tompy.io import read
+                from pytom_numpy import vol2npy
+                self.vol = read(self.title)
+                self.vol = self.vol.T
+                #self.vol = numpy.fft.fftshift(numpy.abs(numpy.fft.fftn(self.vol))**2)
 
-        self.mask = numpy.ones_like(self.vol)
-        # self.vol[self.vol < -4.] = -4.
-        self.backup = self.vol.copy()
+            elif self.title.split('.')[-1] in ('mrc', 'mrcs', 'rec', 'st', 'map'):
+                self.vol = read_mrc(self.title)
+
+            self.mask = numpy.ones_like(self.vol)
+            # self.vol[self.vol < -4.] = -4.
+            self.backup = self.vol.copy()
 
 
-        self.vol[self.vol < self.vol.min()] = self.vol.min()
+            self.vol[self.vol < self.vol.min()] = self.vol.min()
 
-        id = 2 - self.dirId
+            id = 2 - self.dirId
 
-        self.dim = self.vol.shape[id]
-        self.slice = self.d = int(self.dim / 2)
+            self.currID = id
+            self.dim = self.vol.shape[id]
+            self.slice = self.d = int(self.dim / 2)
 
-        volA, volB = self.getSideWindowsIndices()
-        self.img1a = pg.ImageItem(volA)
-        self.img1b = pg.ImageItem(volB)
-        self.img1m = pg.ImageItem(self.sliceVol().T)
+            volA, volB = self.getSideWindowsIndices()
+            self.img1a = pg.ImageItem(volA)
+            self.img1b = pg.ImageItem(volB)
+            self.img1m = pg.ImageItem(self.sliceVol().T)
 
-        self.leftimage.addItem(self.img1a)
-        self.centimage.addItem(self.img1m)
-        self.bottomimage.addItem(self.img1b)
+            self.leftimage.addItem(self.img1a)
+            self.centimage.addItem(self.img1m)
+            self.bottomimage.addItem(self.img1b)
 
-        self.leftcanvas.setAspectLocked(True)
-        self.bottomcanvas.setAspectLocked(True)
+            self.leftcanvas.setAspectLocked(True)
+            self.bottomcanvas.setAspectLocked(True)
 
-        self.hist = pg.HistogramLUTItem()
-        self.hist.setImageItem(self.img1m)
-        self.centcanvas.addItem(self.hist)
+            self.hist = pg.HistogramLUTItem()
+            self.hist.setImageItem(self.img1m)
+            self.centcanvas.addItem(self.hist, row=1,col=1)
 
-        self.replot_all()
+            self.replot_all()
+        except Exception as e:
+            print(f'Error: {e}')
 
 
 class Viewer2D(QMainWindow, CommonFunctions):
@@ -4367,20 +4887,24 @@ class Viewer2D(QMainWindow, CommonFunctions):
         self.failed = False
 
         self.centcanvas = w = KeyPressGraphicsWindow(size=(600, 600), border=True)
-        self.centimage = w.addViewBox(row=0, col=0, lockAspect=True)
+        self.centimage = w.addViewBox(row=1, col=0, lockAspect=True)
         self.centimage.setMenuEnabled(False)
         self.target = w3 = pg.ImageView()
+        self.datalabel = pg.LabelItem(justify='right')
+        self.centcanvas.addItem(self.datalabel, row=0, col=0)
 
         self.image_list = [self.centimage]
 
         self.layout.addWidget(w, 0, 1)
         self.layout.addWidget(self.operationbox, 1, 1)
         self.title = parent.widgets['Viewer2D_Filename'].text()
+
         if not self.title: self.title = '2D Viewer'
         self.setWindowTitle("2D Image Viewer: {}".format(os.path.basename(self.title)))
         self.centcanvas.wheelEvent = self.wheelEvent
 
         # self.centcanvas.sigKeyPress.connect(self.keyPress)
+        self.centimage.scene().sigMouseMoved.connect(self.updateLabel)
 
 
         self.add_controls(self.layout_operationbox)
@@ -4391,7 +4915,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
     def wheelEvent(self, event):
 
         step = event.angleDelta().y() / 120
-        increment = self.step_size * step
+        increment = int(self.step_size * step)
         if self.slice + increment < self.vol.shape[0] and self.slice + increment > -1:
             self.slice += increment
             self.replot()
@@ -4409,10 +4933,22 @@ class Viewer2D(QMainWindow, CommonFunctions):
         if Qt.Key_Left == evt.key():
             if self.slice > self.step_size - 1:
                 self.slice -= self.step_size
+                self.setWindowTitle(f"Slice: {self.slice}")
                 self.replot()
 
         if evt.key() == Qt.Key_Escape:
             self.close()
+
+    def updateLabel(self, pos):
+
+          ## using signal proxy turns original arguments into a tuple
+        pos = self.centimage.mapSceneToView(pos)
+        x, y = pos.x(), pos.y()
+        if pos.x() >= 0 and pos.y() >= 0 and pos.x() < self.vol.shape[2] and pos.y() < self.vol.shape[1]:
+            self.writeLabelText( self.vol[int(self.slice)][int(y)][int(x)], x, y, self.slice)
+
+    def writeLabelText(self, v=0, x=0, y=0, z=0):
+        self.datalabel.setText(f"value = {v:7.3f} x = {x:6.0f} y={y:6.0f} z = {z:4.0f}")
 
     def add_controls(self, prnt):
         vDouble = QtGui.QDoubleValidator()
@@ -4481,7 +5017,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
                 self.vol = self.ps.copy()
         else:
             self.vol = self.backup.copy()
-            self.widgets['show_phases'].setChecked(False)
+            self.widgets['show_power_spectrum'].setChecked(False)
             self.widgets['apply_gaussian_filter'].setChecked(False)
 
         self.replot()
@@ -4512,6 +5048,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
         self.replot()
 
     def replot(self):
+        self.setWindowTitle(os.path.basename(self.fnames[self.slice]))
         crop = self.vol[int(self.slice), :, :]
         self.img1m.setImage(image=crop.T)
 
@@ -4520,13 +5057,23 @@ class Viewer2D(QMainWindow, CommonFunctions):
         self.hist.setImageItem(self.img1m)
         self.hist.setLevels(numpy.median(crop) - crop.std() * 3, numpy.median(crop) + crop.std() * 3)
         # self.centcanvas.addItem(self.hist)
+        self.writeLabelText(z=self.slice)
 
     def mouseHasMoved(self, evt):
         pass
 
     def load_image(self):
+
         from pytom.tompy.io import read, read_size
+        from pytom.gui.mrcOperations import downsample
         mode = 'Viewer2D_'
+
+        if not self.parent().widgets[mode + 'pushButtonView2D'].isEnabled():
+            return
+
+        self.parent().widgets[mode + 'pushButtonView2D'].setEnabled(False)
+        QApplication.processEvents()
+
         folder   = self.parent().widgets[mode + 'Foldername'].text()
         file     = self.parent().widgets[mode + 'Filename'].text()
         prefix   = self.parent().widgets[mode + 'prefix'].text()
@@ -4538,11 +5085,19 @@ class Viewer2D(QMainWindow, CommonFunctions):
         elif file:
             files = [file]
 
+        self.fnames = files
+
         try:
             dx, dy, dz = read_size(files[0])
             self.vol = numpy.zeros((len(files), dx//bin, dy//bin))
             for n, fname in enumerate(files):
-                self.vol[n, :, :] = read(fname).squeeze()[bin-1::bin,bin-1::bin]
+                data = read(fname).squeeze()
+                if len(data.shape) >2:
+                    data = data.sum(axis=2)
+
+                if bin> 1:
+                    data = downsample(data,bin)
+                self.vol[n, :, :] = data
 
             self.backup = self.vol.copy()
 
@@ -4554,7 +5109,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
 
             self.hist = pg.HistogramLUTItem()
             self.hist.setImageItem(self.img1m)
-            self.centcanvas.addItem(self.hist)
+            self.centcanvas.addItem(self.hist, row=1, col=1)
 
             self.replot()
         except Exception as e:
@@ -4562,6 +5117,8 @@ class Viewer2D(QMainWindow, CommonFunctions):
             self.popup_messagebox('Error', 'Reading has failed', 'The reading of the file(s) has failed.')
             self.close()
             self.failed = True
+
+        self.parent().widgets[mode + 'pushButtonView2D'].setEnabled(True)
 
 
 class QParams():
@@ -4678,18 +5235,11 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def tab1UI(self):
         self.buttons['tab1'].setEnabled(False)
-        self.buttons['tab2'].setEnabled(False)
-
-        jobfiles = [line for line in sorted(os.listdir(self.logfolder)) if line.endswith('.out')]
         jobfilesLocal = [line for line in sorted(os.listdir(self.logfolder+'/Local')) if line.endswith('.out')]
-
         self.jobFilesLocal = [os.path.join(self.logfolder, 'Local', job) for job in jobfilesLocal ]
-        self.jobFilesQueue = [os.path.join(self.logfolder, job) for job in jobfiles if not job.startswith('local_')]
         self.populate_local()
-        self.populate_queue()
-
         self.buttons['tab1'].setEnabled(True)
-        self.buttons['tab2'].setEnabled(True)
+
 
     def populate_local(self):
 
@@ -4697,14 +5247,21 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
             return
 
         id = 'tab1'
-        headers = ["Type", "QueueId", "Open Job", "Open Log", "Filename Jobfile Queue", 'Filename Logfile', '']
-        types = ['sort_txt', 'sort_txt', 'checkbox', 'checkbox', 'txt', 'txt', 'txt']
-        sizes = [0, 0, 0, 0, 0, 0, 0]
+        headers = ["Type", "QueueId", "Open Job", "Open Log", "Teminate", "Filename Jobfile Queue", 'Filename Logfile', '']
+        types = ['sort_txt', 'sort_txt', 'checkbox', 'checkbox', 'checkbox', 'txt', 'txt', 'txt']
+        sizes = [0, 0, 0, 0, 0, 0, 0, 0]
 
         tooltip = []
         values = []
         added_jobs = []
-        for n, logfile in enumerate(self.jobFilesLocal):
+        processes = [pid for pid in os.popen(f'''ps -u {getpass.getuser()} -f ''').read().split('\n') if pid]
+
+        self.localJobStrings = {}
+        self.pids = []
+        for frame in self.parent().frames:
+            self.localJobStrings.update(frame.localJobStrings)
+
+        for n, logfile in enumerate(reversed(self.jobFilesLocal)):
             queueId = os.path.basename(logfile).split('-')[0]
             jobname = glob.glob(os.path.join(self.logfolder, 'Local', f'{queueId}*.sh'))
             if len(jobname) < 1:
@@ -4712,7 +5269,23 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
             jobname = jobname[0]
             added_jobs.append(queueId)
             name = os.path.splitext(os.path.basename(logfile).split('-')[1])[0]
-            values.append([name, queueId, 1, 1, jobname, logfile, ''])
+
+            try:
+                pids = [l.split()[1] for l in processes if queueId in self.localJobStrings and  self.localJobStrings[queueId] in l]
+                if len(pids) == 1:
+                    terminate = 1
+                    self.pids.append([pids[0]])
+                    for i in range(4):
+                        [self.pids[-1].append(l.split()[1]) for l in processes if l.split()[2] in self.pids[-1]]
+
+                else:
+                    terminate = 0
+                    self.pids.append([])
+            except Exception as e:
+                terminate = 0
+                self.pids.append([])
+
+            values.append([name, queueId, 1, 1, terminate, jobname, logfile, ''])
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, sorting=True,connect=self.checkboxUpdate,
                       addQCheckBox=False)
@@ -4746,7 +5319,11 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         #self.tab2_widgets[f'widget_{i}_2'].setChecked(status)
 
     def tab2UI(self):
-        self.tab1UI()
+        self.buttons['tab2'].setEnabled(False)
+        jobfiles = [line for line in sorted(os.listdir(self.logfolder)) if line.endswith('.out')]
+        self.jobFilesQueue = [os.path.join(self.logfolder, job) for job in jobfiles if not job.startswith('local_')]
+        self.populate_queue()
+        self.buttons['tab2'].setEnabled(True)
 
     def nthElem(self, elem, n=1):
         return elem[n]
@@ -4795,14 +5372,24 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.do_something(pid, v))
 
     def do_something(self, pid, values):
+        term = 0
         if pid == 'tab1':
             for row in range(self.tables[pid].table.rowCount()):
-                logfile = values[row][5]
-                exefile = values[row][4]
+                logfile = values[row][6]
+                exefile = values[row][5]
                 if self.tab1_widgets[f'widget_{row}_3'].isChecked():
                     self.open_resultfile(logfile)
                 if self.tab1_widgets[f'widget_{row}_2'].isChecked():
                     self.open_resultfile(exefile)
+
+                if f'widget_{row}_4' in self.tab1_widgets.keys() and self.tab1_widgets[f'widget_{row}_4'].isChecked():
+                    if self.pids[row]:
+                        for pid in reversed(self.pids[row]):
+                            term += 1
+                            os.system(f'kill -9 {pid} >& /dev/null')
+
+            if term: self.tab1UI()
+
 
         if pid == 'tab2':
             for row in range(self.tables[pid].table.rowCount()):
@@ -4904,8 +5491,30 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.pytompath = self.parent().pytompath
         self.projectname = self.parent().projectname
         self.logbook = self.parent().logbook
-        self.setGeometry(0, 0, 800, 500)
-        self.qcommanddict = {'slurm': 'sbatch', 'sge': 'qsub', 'torque': 'qsub', 'none': 'none'}\
+        self.setGeometry(0, 0, 900, 500)
+        self.qcommanddict = {'slurm': 'sbatch', 'sge': 'qsub', 'torque': 'qsub', 'none': 'none'}
+
+        try:
+            num_cores = int(self.logbook[self.stage + 'num_cores'])
+            time = int(self.logbook[f'{self.stage}time'])
+            queue = self.logbook[f'{self.stage}default_queue']
+        except:
+            queue_system, done4 = QtWidgets.QInputDialog.getItem(self, 'Name Queuing system', 'Queuing system you are using:', self.qcommanddict.keys())
+            print(queue_system)
+            if queue_system != 'none':
+                queue, done1 = QtWidgets.QInputDialog.getText(self, 'Name default queue', 'Enter the name of default queue:', text='defq')
+                time, done2 = QtWidgets.QInputDialog.getInt(self, 'Default Time-out time', 'After how many hours does a queued job time out:', 24)
+                num_cores, done3 = QtWidgets.QInputDialog.getInt(self, 'Default number of cores per node', 'How many cores does one node have:',max(1,multiprocessing.cpu_count()-4))
+                if num_cores and done3: self.logbook[self.stage + 'num_cores'] = num_cores
+                if time and done2: self.logbook[f'{self.stage}time'] = time
+                if queue and done1: self.logbook[f'{self.stage}default_queue'] = queue
+                self.parent().save_logfile()
+            else:
+                queue, time, num_cores = 'defq','24','24'
+
+        self.qnames = [queue] if queue else ['defq']
+        self.expTime = time if time else 12
+        self.num_cores = num_cores if num_cores else 20
 
         headers = ['Queuing Parameters', 'Data Transfer', 'Tomographic Reconstruction', 'Particle Picking', 'Subtomogram Analysis']
         subheaders = [[], ] * len(headers)
@@ -4981,16 +5590,17 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def tab1UI(self):
         self.jobnames = ['All',
-                         'CollectData', 'MotionCorrection',
+                         'DataCollection', 'MotionCorrection',
                          'SingleAlignment', 'BatchAlignment',
                          'ReconstructWBP', 'ReconstructINFR', 'BatchReconstruct',
                          'CTFDetermination', 'SingleCTFCorrection', 'BatchCTFCorrection',
                          'SingleTemplateMatch','SingleExtractCandidates','BatchTemplateMatch','BatchExtractCandidates',
                          'SingleSubtomoReconstruct', 'BatchSubtomoReconstruct',
                          'SingleParticlePolish', 'BatchParticlePolish',
+                         'AverageParticleList',
                          'FRMAlignment','GLocalAlignment',
                          'PairwiseCrossCorrelation', 'CPCA', 'AutoFocusClassification', 'FSCValidation']
-        self.setQNames()
+        #self.setQNames()
         self.currentJobName = self.jobnames[0]
 
         if os.path.exists(os.path.join(self.projectname, '.qparams.pickle')):
@@ -5002,7 +5612,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         for jobname in self.jobnames:
             if not jobname in self.qparams.keys():
                 try:
-                    self.qparams[jobname] = QParams(queue=self.qnames[0], modules=self.parent().modules)
+                    self.qparams[jobname] = QParams(queue=self.qnames[0], time=self.expTime, cores=self.num_cores, modules=self.parent().modules)
                 except:
                     self.qparams[jobname] = QParams(modules=self.parent().modules)
         id = 'tab1'
@@ -5019,7 +5629,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                                     tooltip='Select a particleList which you want to plot.\n', logvar=True)
         self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
         self.insert_label_combobox(parent, 'Job Submission Parameters', mode + 'jobName', self.jobnames, logvar=True,
-                                   tooltip='Select the jon for which you want to adjust the queuing parameters.\n')
+                                   tooltip='Select the job for which you want to adjust the queuing parameters.\n')
         self.insert_label_line(parent, 'Submit to: ', mode+'queueName', value=self.qparams[self.currentJobName].queue)
         self.insert_label_spinbox(parent,mode+'numberOfNodes', 'Number of Nodes',
                                   value=self.qparams[self.currentJobName].nodes, minimum=1, stepsize=1,
@@ -5031,8 +5641,12 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                                   value=self.qparams[self.currentJobName].time, minimum=1, stepsize=1,
                                   wtype=QSpinBox)
 
-        self.insert_label_modules(parent, mode + 'modules', text='Select Modules', options=self.parent().modules, rstep=0, cstep=1, mode=mode)
-        self.insert_label(parent, cstep=-2, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
+        self.insert_label_modules(parent, mode + 'modules', text='Select Modules', options=self.parent().modules, rstep=1, cstep=-1, mode=mode)
+        self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
+        self.insert_label_push(parent, 'Re-activate Pushbuttons', mode + 'activatePushButtons',rstep=1,cstep=-1,width=w,
+                               tooltip='Re-activate the pushbuttons of specific or all stages.\nStage is set above.',
+                               pushtext='Reactivate!', action=self.reactivatePushButtons, params=mode+'jobName')
+        self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
 
 
         self.insert_checkbox(parent, mode + 'CustomHeader', 'use custom header for queue', cstep=0, rstep=1,
@@ -5133,28 +5747,50 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def tab3UI(self):
         id = 'tab3'
-        self.row, self.column = 0, 0
+        self.row, self.column = 0, 2
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
         parent = self.table_layouts[id]
         mode = 'v00_DT'
         w = 150
-        
+
+        self.insert_label(parent, cstep=-2, rstep=2, sizepolicy=self.sizePolicyB, width=w, columnspan=2, rowspan=2)
+        self.insert_label_spinbox(parent, mode + 'fidBinning', tooltip='Binning factor used for creating fiducial model in IMOD',
+                                  text='Binning Factor IMOD.',cstep=-1,
+                                  minimum=1, value=4, maximum=20, width=w)
         self.insert_label_spinbox(parent, mode+'numberOfCores', text='Number of cores',
                                   tooltip='Number of cores used for creation of tomogram directories.',
-                                  minimum=1, value=5, maximum=20, width=w)
+                                  minimum=1, value=5, maximum=20, width=w, cstep=0, rstep=1)
+        self.insert_label(parent, cstep=-1, rstep=1, sizepolicy=self.sizePolicyA, width=w, columnspan=2)
 
         self.widgets[mode + 'numberOfCores'].valueChanged.connect(lambda d, m=mode: self.updateNumberOfCores(mode))
+        self.widgets[mode + 'fidBinning'].valueChanged.connect(lambda d, m=mode: self.updateBinningFactorIMOD(mode))
+
         self.updateNumberOfCores(mode)
 
     def updateNumberOfCores(self, mode):
-        self.parent().TR.num_parallel_procs = int(self.widgets[mode+'numberOfCores'].value())
+        self.parent().TR.num_parallel_procs = int(self.widgets[mode + 'numberOfCores'].value())
+
+
+    def updateBinningFactorIMOD(self, mode):
+        self.parent().TR.binningFactorIMOD = int(self.widgets[mode + 'fidBinning'].value())
 
     def tab4UI(self):
         pass
 
     def tab5UI(self):
         pass
+
+    def reactivatePushButtons(self, id):
+        name = self.jobnames[self.widgets[id].currentIndex()]
+        if name == 'All': name = ''
+        frameID = ['CD', 'TR', 'PP', 'SA']
+
+        for n , frame in enumerate([self.parent().CD, self.parent().TR, self.parent().PP, self.parent().SA]):
+            for key in frame.widgets.keys():
+                if key.endswith(f'{name}_ExecutePushButton'):
+                    frame.widgets[key].setEnabled(True)
+                    print(f'{frameID[n]}: {key} has been reactivated')
 
 
 class SelectModules(QWidget):
@@ -5259,10 +5895,10 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.setGeometry(0, 0, 1050, 490)
 
         headers = ['Alignment Errors', 'Template Matching Results', 'FSC Curve']
-        subheaders = [['Reconstruction', 'Alignment'], [], []] * len(headers)
+        subheaders = [['Alignment', 'Reconstruction'], [], []] * len(headers)
         static_tabs = [[False, False], [True], [True]]
 
-        tabUIs = [[self.tab31UI, self.tab32UI],
+        tabUIs = [[self.tab32UI, self.tab31UI],
                   self.tab1UI,
                   self.tab2UI]
         self.tabs_dict, self.tab_actions = {}, {}
@@ -5334,12 +5970,19 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         w = 150
         last, reftilt = 10, 5
         self.insert_label(parent, cstep=-4, rstep=1, sizepolicy=self.sizePolicyB, width=w)
-        self.insert_label_line_push(parent, 'particleList ', mode + 'particleListNormal', width=w, mode='file',
+        self.insert_label_line_push(parent, 'particleList 1', mode + 'particleListNormal', width=w, mode='file',
                                     filetype='xml', enabled=True,
                                     tooltip='Select a particleList which you want to plot.\n')
-        self.insert_label_line_push(parent, 'particleList Mirrored', mode + 'particleListMirrored', width=w,
+        self.insert_label_line_push(parent, 'particleList 2 (mirrored)', mode + 'particleListMirrored', width=w,
                                     mode='file', filetype='xml', enabled=True,
-                                    tooltip='Select a particleList which you want to plot.\n', cstep=-1)
+                                    tooltip='Select a particleList which you want to plot.\n', cstep=-2)
+        self.insert_label_line(parent, 'Label 1', mode + 'label1', width=w,value='Normal',
+                                    tooltip='Label for the first particle list.\n', cstep=-1)
+        self.insert_label_line(parent, 'Label 2', mode + 'label2', width=w, value='Mirrored',
+                               tooltip='Label for the first particle list.\n', cstep=-1)
+        self.insert_label_checkbox(parent, mode + 'plotCrossings', 'Plot crossings of curves',
+                               tooltip='Do you want to display the locations where two curves cross?\n', cstep=-0)
+
         self.insert_pushbutton(parent, 'Plot', action=self.showTMPlot, params=mode, rstep=1, cstep=0)
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
 
@@ -5349,7 +5992,8 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         normal = self.widgets[mode + 'particleListNormal'].text()
         mirrored = self.widgets[mode + 'particleListMirrored'].text()
 
-        plotTMResults([normal, mirrored], labels=['Normal', 'Mirrored'])
+        plotTMResults([normal, mirrored], plot_cross=self.widgets[mode + 'plotCrossings'].isChecked(),
+                      labels=[self.widgets[mode + 'label1'].text(), self.widgets[mode + 'label2'].text()])
 
     def tab2UI(self, id=''):
         self.row, self.column = 0, 4
@@ -5363,6 +6007,9 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.insert_label_line_push(parent, 'FSC File (ascii)', mode + 'FSCFilename', mode='file', width=w,
                                     initdir=self.projectname,
                                     filetype='dat', tooltip='Select a particleList which you want to plot.\n')
+        self.insert_label_line_push(parent, 'Folder with FSC Files', mode + 'FSCFolder', mode='folder', width=w,
+                                    initdir=self.projectname,
+                                    filetype='dat', tooltip='Select a particleList which you want to plot.\n')
         self.insert_label_spinbox(parent, mode + 'BoxSize', text='Dimension of Subtomogram',
                                   tooltip='Box size of 3D object',
                                   value=64, minimum=1, maximum=4000, stepsize=1, width=w)
@@ -5373,6 +6020,10 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                                   wtype=QDoubleSpinBox, decimals=3, width=w, cstep=0,
                                   tooltip='Cut-off used to determine the resolution of your object from the FSC curve. \nTypical values are 0.5 or 0.143')
 
+
+        self.widgets[mode + 'FSCFilename'].textChanged.connect(lambda d, m=mode: self.updateBoxsizeAndPixelsize(m))
+        self.widgets[mode + 'FSCFolder'].textChanged.connect(lambda d, m=mode: self.updateBoxsizeAndPixelsize(m))
+
         self.insert_pushbutton(parent, 'Plot!', action=self.showFSCPlot, params=mode, rstep=1, cstep=0)
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
 
@@ -5382,69 +6033,108 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         pixel_size = self.widgets[mode + 'PixelSize'].value()
         box_size = self.widgets[mode + 'BoxSize'].value()
         cut_off = self.widgets[mode + 'CutOff'].value()
+        directory = self.widgets[mode + 'FSCFolder'].text()
         show_image = True
-        outFname = 'temp.png'
-        if filename and outFname:
-            plot_FSC(filename, pixel_size, boxsize=box_size, show_image=show_image, c=cut_off)
+        outFname = os.path.join(self.projectname, 'Images/temp.png')
+        if (filename or directory) and outFname:
+            plot_FSC(filename, pixel_size, boxsize=box_size, show_image=show_image, c=cut_off, directory=directory)
+
+    def updateBoxsizeAndPixelsize(self, mode):
+        from pytom.alignment.alignmentStructures import GLocalSamplingJob
+        from pytom.tompy.io import read_size
+        fscfile = self.widgets[mode+'FSCFilename'].text()
+        folder =  self.widgets[mode+'FSCFolder'].text()
+        if not fscfile and not folder: return
+
+        try:
+            if not folder:
+                folder = os.path.dirname(fscfile)
+            extensions = ['em', 'mrc']
+
+            files = [os.path.join(folder, f) for f in os.listdir(folder) if f.endswith('em') or f.endswith('mrc')]
+            if files:
+                x,y,z = read_size(files[0])
+                self.widgets[mode + 'BoxSize'].setValue(float(x))
+        except Exception as e:
+            print(e)
+
+        try:
+            if not folder:
+                folder = os.path.dirname(fscfile)
+            files = [os.path.join(folder, f) for f in os.listdir(folder) if f.endswith('xml') ]
+            job = GLocalSamplingJob()
+            for f in files:
+                try:
+                    job.fromXMLFile(f)
+                    break
+                except Exception as e:
+                    pass
+            self.widgets[mode + 'PixelSize'].setValue(float(job.samplingParameters.sampleInformation.getPixelSize()))
+        except Exception as e:
+            print(e)
+
 
     def tab31UI(self, id=''):
-        import glob
-        headers = ["Name Tomogram", 'Score', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker',
-                   'Enp. Rot. Angle', 'Det. Rot. Angle', '']
-        types = ['txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt']
-        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
+        try:
+            import glob
+            headers = ["Name Tomogram", 'Score', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker',
+                       'Enp. Rot. Angle', 'Det. Rot. Angle', '']
+            types = ['txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt', 'txt']
+            sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0]
 
-        tooltip = ['Names of existing tomogram folders.',
-                   'Alignment Score.',
-                   'First angle of tiltimages.',
-                   'Last angle of tiltimages.',
-                   'Reference image number.',
-                   'Reference Marker',
-                   'Expected Rotation Angle',
-                   'Retrieved Rotation Angle']
+            tooltip = ['Names of existing tomogram folders.',
+                       'Alignment Score.',
+                       'First angle of tiltimages.',
+                       'Last angle of tiltimages.',
+                       'Reference image number.',
+                       'Reference Marker',
+                       'Expected Rotation Angle',
+                       'Retrieved Rotation Angle']
 
-        logfiles = sorted(glob.glob('{}/LogFiles/*construction*.out'.format(self.projectname)))
+            logfiles = sorted(glob.glob('{}/LogFiles/*construction*.out'.format(self.projectname)))
 
-        values = []
-        tomograms = {}
-        for logfile in logfiles[::-1]:
-            # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
-            dir = os.path.dirname(logfile)
-            ids = os.path.basename(logfile).split('-')[0]
-            infile = glob.glob(f"{dir}/{ids}_*.sh")
-            if not infile:
-                continue
-            logdata = open(logfile, 'r').read()
-            indata = open(infile[0], 'r').read()
+            values = []
+            tomograms = {}
+            for logfile in logfiles[::-1]:
+                # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
+                dir = os.path.dirname(logfile)
+                ids = os.path.basename(logfile).split('-')[0]
+                infile = glob.glob(f"{dir}/{ids}_*.sh")
+                if not infile:
+                    continue
+                logdata = open(logfile, 'r').read()
+                indata = open(infile[0], 'r').read()
 
-            tomogram = os.path.basename(indata.split('cd ')[1].split('\n')[0])
-            if tomogram in tomograms: continue
-            tomograms[tomogram] = 1
-            alignmentscore = str(numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
-            firstangle = logdata.split('tiltAngle=')[1].split(')')[0]
-            lastangle = logdata.split('tiltAngle=')[-1].split(')')[0]
-            refindex = indata.split('--referenceIndex ')[1].split(' ')[0]
-            refmarker = indata.split('--referenceMarkerIndex ')[1].split(' ')[0]
-            expected = indata.split('--expectedRotationAngle ')[1].split(' ')[0]
+                tomogram = os.path.basename(indata.split('cd ')[1].split('\n')[0])
+                if tomogram in tomograms: continue
+                tomograms[tomogram] = 1
+                alignmentscore = str(numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
+                firstangle = logdata.split('tiltAngle=')[1].split(')')[0]
+                lastangle = logdata.split('tiltAngle=')[-1].split(')')[0]
+                refindex = indata.split('--referenceIndex ')[1].split(' ')[0]
+                refmarker = indata.split('--referenceMarkerIndex ')[1].split(' ')[0]
+                expected = indata.split('--expectedRotationAngle ')[1].split(' ')[0]
 
-            angles = [float(i.split(',')[0]) for i in logdata.split('rot=')[1:]]
-            det_angle = str(int(round(sum(angles) / len(angles))) % 360)
-            values = [[tomogram, alignmentscore, firstangle, lastangle, refindex, refmarker, expected, det_angle,
-                       '']] + values
-        if not values:
-            return
+                angles = [float(i.split(',')[0]) for i in logdata.split('rot=')[1:]]
+                det_angle = str(int(round(sum(angles) / len(angles))) % 360)
+                values = [[tomogram, alignmentscore, firstangle, lastangle, refindex, refmarker, expected, det_angle,
+                           '']] + values
+            if not values:
+                return
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save', addQCheckBox=False)
-        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
+            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save', addQCheckBox=False)
+            self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
 
-        for i in range(len(values)):
-            if float(values[i][1]) < 3:
-                color = 'green'
-            elif float(values[i][1]) < 4.5:
-                color = 'orange'
-            else:
-                color = 'red'
-            self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : " + color + "}")
+            for i in range(len(values)):
+                if float(values[i][1]) < 3:
+                    color = 'green'
+                elif float(values[i][1]) < 4.5:
+                    color = 'orange'
+                else:
+                    color = 'red'
+                self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : " + color + "}")
+        except:
+            pass
 
     def save2file(self, id, values):
         outname = str(QFileDialog.getSaveFileName(self, 'Save alignment scores.', self.projectname, filter='*.txt')[0])
@@ -5473,146 +6163,149 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         outfile.close()
 
     def tab32UI(self, id=''):
-        import glob, numpy
-        from pytom.gui.guiFunctions import loadstar, datatype
-        dname = os.path.dirname
-        bname = os.path.basename
-        headers = ["name tomogram", 'Score', 'First Angle', "Last Angle", 'Alignment Type', 'Origin', 'Ref. Image', 'Ref. Marker',
-                   'Exp. Rot. Angle', 'Det. Rot. Angle', '']
-        types = ['txt', 'txt', 'combobox', 'combobox', 'combobox', 'combobox',  'txt', 'combobox', 'txt', 'txt', 'txt']
-        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        try:
+            import glob, numpy
+            from pytom.gui.guiFunctions import loadstar, datatype
+            dname = os.path.dirname
+            bname = os.path.basename
+            headers = ["name tomogram", 'Score', 'First Angle', "Last Angle", 'Alignment Type', 'Origin', 'Ref. Image', 'Ref. Marker',
+                       'Exp. Rot. Angle', 'Det. Rot. Angle', '']
+            types = ['txt', 'txt', 'combobox', 'combobox', 'combobox', 'combobox',  'txt', 'combobox', 'txt', 'txt', 'txt']
+            sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-        tooltip = ['Names of existing tomogram folders.',
-                   'Alignment Score.',
-                   'First angle of tiltimages.',
-                   'Last angle of tiltimages.',
-                   'Alignment type: Global or based on fixed Local Marker',
-                   'Have you aligned sorted or sorted_ctf corrected images?',
-                   'Reference image number.',
-                   'Reference Marker',
-                   'Expected Rotation Angle', 'Determined Rotation Angle']
+            tooltip = ['Names of existing tomogram folders.',
+                       'Alignment Score.',
+                       'First angle of tiltimages.',
+                       'Last angle of tiltimages.',
+                       'Alignment type: Global or based on fixed Local Marker',
+                       'Have you aligned sorted or sorted_ctf corrected images?',
+                       'Reference image number.',
+                       'Reference Marker',
+                       'Expected Rotation Angle', 'Determined Rotation Angle']
 
-        tomofolders = sorted(
-            [f for f in os.listdir(f'{self.projectname}/03_Tomographic_Reconstruction/') if f.startswith('tomogram_')])
+            tomofolders = sorted(
+                [f for f in os.listdir(f'{self.projectname}/03_Tomographic_Reconstruction/') if f.startswith('tomogram_')])
 
-        values = []
-        tomograms = {}
-        self.alignmentResulsDict = {}
-        for tomofolder in tomofolders:
+            values = []
+            tomograms = {}
+            self.alignmentResulsDict = {}
+            for tomofolder in tomofolders:
 
-            first = True
-            try:
-                metafile = \
-                [f for f in glob.glob(f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/sorted/*.meta')][
-                    0]
-                metadata = loadstar(metafile, dtype=datatype)
-            except Exception as e:
-                print(e)
-                continue
-            for logfile in sorted(glob.glob(
-                    f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/alignment/marker*/*/*/logfile*.txt')):
-                # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
-                logdata = open(logfile, 'r').read()
+                first = True
                 try:
-                    ctffolder = f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/ctf/sorted_ctf/'
-                    if os.path.exists(ctffolder):
-                        ctfcorr = [f for f in os.listdir(ctffolder) if '_ctf_' in f and f.endswith('.mrc')]
-                    else:
-                        ctfcorr = []
-                    if len(ctfcorr) > 4:
-                        ctf = 16
-                    else:
-                        ctf = False
-
-                    d = eval(logdata.split("Spawned job")[1].split('\n')[1])
-                    first, last = os.path.basename(dname(dname(dname(logfile)))).split('_')[-1].split(',')
-                    if not d: continue
-                    alignmentscore = str(
-                        numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
-                    firstangle = str(numpy.around(metadata['TiltAngle'][d['firstProj']], 1))
-                    lastangle = str(numpy.around(metadata['TiltAngle'][d['lastProj']], 1))
-                    refindex = str(d['ireftilt'])
-                    refmarker = str(d['irefmark'])
-                    expected = str(int(numpy.around(180 * float(d['handflip'] / numpy.pi))))
-                    logfal = logdata.split('Alignment successful. See ')[1].split(' ')[0]
-                    path = os.path.join(self.projectname, '03_Tomographic_Reconstruction', tomofolder, logfal)
-                    angles = guiFunctions.loadstar(path, dtype=guiFunctions.datatypeAR)['InPlaneRotation'].mean()
-                    detangle = str(int(round(angles)) % 360)
-                    markerPath = dname(dname(dname(logfile)))
-                    alignType  = bname(dname(dname(logfile)))
-                    origin     = bname(dname(logfile))
-                    try:
-                        self.alignmentResulsDict[tomofolder]
-                    except:
-                        self.alignmentResulsDict[tomofolder] = {}
-                    try:
-                        self.alignmentResulsDict[tomofolder][refmarker]
-                    except:
-                        self.alignmentResulsDict[tomofolder][refmarker] = {}
-                    try:
-                        self.alignmentResulsDict[tomofolder][refmarker][first]
-                    except:
-                        self.alignmentResulsDict[tomofolder][refmarker][first] = {}
-                    try:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last]
-                    except:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last] = {}
-                    try:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType]
-                    except:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType] = {}
-                    try:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin]
-                    except:
-                        self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin] = {}
-
-                    results = [tomofolder, alignmentscore, firstangle, lastangle, alignType, origin, refindex, refmarker, expected,
-                               detangle]
-
-                    self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin] = results
-
-
+                    metafile = \
+                    [f for f in glob.glob(f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/sorted/*.meta')][
+                        0]
+                    metadata = loadstar(metafile, dtype=datatype)
                 except Exception as e:
-                    print('Error in alignment table: ', e)
+                    print(e)
                     continue
+                for logfile in sorted(glob.glob(
+                        f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/alignment/marker*/*/*/logfile*.txt')):
+                    # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
+                    logdata = open(logfile, 'r').read()
+                    try:
+                        ctffolder = f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/ctf/sorted_ctf/'
+                        if os.path.exists(ctffolder):
+                            ctfcorr = [f for f in os.listdir(ctffolder) if '_ctf_' in f and f.endswith('.mrc')]
+                        else:
+                            ctfcorr = []
+                        if len(ctfcorr) > 4:
+                            ctf = 16
+                        else:
+                            ctf = False
 
-            try:
-                rrr = list(self.alignmentResulsDict[tomofolder].keys())
-                fff = list(self.alignmentResulsDict[tomofolder][rrr[0]].keys())
-                lll = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]].keys())
-                aaa = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]].keys())
-                ooo = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]][aaa[0]].keys())
+                        d = eval(logdata.split("Spawned job")[1].split('\n')[1])
+                        first, last = os.path.basename(dname(dname(dname(logfile)))).split('_')[-1].split(',')
+                        if not d: continue
+                        alignmentscore = str(
+                            numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
+                        firstangle = str(numpy.around(metadata['TiltAngle'][d['firstProj']], 1))
+                        lastangle = str(numpy.around(metadata['TiltAngle'][d['lastProj']], 1))
+                        refindex = str(d['ireftilt'])
+                        refmarker = str(d['irefmark'])
+                        expected = str(int(numpy.around(180 * float(d['handflip'] / numpy.pi))))
+                        logfal = logdata.split('Alignment successful. See ')[1].split(' ')[0]
+                        path = os.path.join(self.projectname, '03_Tomographic_Reconstruction', tomofolder, logfal)
+                        angles = guiFunctions.loadstar(path, dtype=guiFunctions.datatypeAR)['InPlaneRotation'].mean()
+                        detangle = str(int(round(angles)) % 360)
+                        markerPath = dname(dname(dname(logfile)))
+                        alignType  = bname(dname(dname(logfile)))
+                        origin     = bname(dname(logfile))
+                        try:
+                            self.alignmentResulsDict[tomofolder]
+                        except:
+                            self.alignmentResulsDict[tomofolder] = {}
+                        try:
+                            self.alignmentResulsDict[tomofolder][refmarker]
+                        except:
+                            self.alignmentResulsDict[tomofolder][refmarker] = {}
+                        try:
+                            self.alignmentResulsDict[tomofolder][refmarker][first]
+                        except:
+                            self.alignmentResulsDict[tomofolder][refmarker][first] = {}
+                        try:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last]
+                        except:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last] = {}
+                        try:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType]
+                        except:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType] = {}
+                        try:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin]
+                        except:
+                            self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin] = {}
 
-                tt, ss, ff, ll, aa, oo, rr, mm, ee, dd = self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]][aaa[0]][ooo[0]]
-                values.append([tt, ss, fff, lll, aaa, ooo, rr, rrr, ee, dd, ''])
-            except Exception as e:
-                print(f'No alignment done for {e}')
+                        results = [tomofolder, alignmentscore, firstangle, lastangle, alignType, origin, refindex, refmarker, expected,
+                                   detangle]
 
-        if not values:
-            return
+                        self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin] = results
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save', addQCheckBox=False)
-        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
 
-        for i in range(len(values)):
-            if float(values[i][1]) < 3:
-                color = 'green'
-            elif float(values[i][1]) < 4.5:
-                color = 'orange'
-            else:
-                color = 'red'
-            self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : " + color + "}")
-            tom = values[i][0]
-            self.tables[id].widgets[f'widget_{i}_2'].currentIndexChanged.connect(
-                lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 2))
-            self.tables[id].widgets[f'widget_{i}_3'].currentIndexChanged.connect(
-                lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 3))
-            self.tables[id].widgets[f'widget_{i}_4'].currentIndexChanged.connect(
-                lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 4))
-            self.tables[id].widgets[f'widget_{i}_5'].currentIndexChanged.connect(
-                lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 5))
-            self.tables[id].widgets[f'widget_{i}_7'].currentIndexChanged.connect(
-                lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 1))
+                    except Exception as e:
+                        print('Error in alignment table: ', e)
+                        continue
+
+                try:
+                    rrr = list(self.alignmentResulsDict[tomofolder].keys())
+                    fff = list(self.alignmentResulsDict[tomofolder][rrr[0]].keys())
+                    lll = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]].keys())
+                    aaa = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]].keys())
+                    ooo = list(self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]][aaa[0]].keys())
+
+                    tt, ss, ff, ll, aa, oo, rr, mm, ee, dd = self.alignmentResulsDict[tomofolder][rrr[0]][fff[0]][lll[0]][aaa[0]][ooo[0]]
+                    values.append([tt, ss, fff, lll, aaa, ooo, rr, rrr, ee, dd, ''])
+                except Exception as e:
+                    print(f'No alignment done for {e}')
+
+            if not values:
+                return
+
+            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, runtitle='Save', addQCheckBox=False)
+            self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.save2file(pid, v))
+
+            for i in range(len(values)):
+                if float(values[i][1]) < 3:
+                    color = 'green'
+                elif float(values[i][1]) < 4.5:
+                    color = 'orange'
+                else:
+                    color = 'red'
+                self.tables[id].widgets['widget_{}_{}'.format(i, 1)].setStyleSheet("QLabel { color : " + color + "}")
+                tom = values[i][0]
+                self.tables[id].widgets[f'widget_{i}_2'].currentIndexChanged.connect(
+                    lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 2))
+                self.tables[id].widgets[f'widget_{i}_3'].currentIndexChanged.connect(
+                    lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 3))
+                self.tables[id].widgets[f'widget_{i}_4'].currentIndexChanged.connect(
+                    lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 4))
+                self.tables[id].widgets[f'widget_{i}_5'].currentIndexChanged.connect(
+                    lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 5))
+                self.tables[id].widgets[f'widget_{i}_7'].currentIndexChanged.connect(
+                    lambda d, index=i, ID=id, t=tom: self.update(index, ID, t, 1))
+        except:
+            pass
 
     def update(self, row, ID, tomofolder, priority):
         try:
@@ -5789,15 +6482,15 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
     def add_subplot(self, tomo, position):
         [x,y,z,s]  = position
         xmin = max(0, x - int(self.size_subtomo / 2))
-        xmax = min(tomo.shape[1], x + int(self.size_subtomo / 2))
+        xmax = min(tomo.shape[2], x + int(self.size_subtomo / 2))
         ymin = max(0, y - int(self.size_subtomo / 2))
-        ymax = min(tomo.shape[2], y + int(self.size_subtomo / 2))
-
+        ymax = min(tomo.shape[1], y + int(self.size_subtomo / 2))
+        print(position[2], xmin, xmax, ymin, ymax)
         subtomo = zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
         subtomo[:xmax-xmin,:ymax-ymin] = (tomo[position[2]-4:position[2]+4].sum(axis=0).T)[xmin:xmax, ymin:ymax]
 
         self.position = position
-        if self.index[1] == 0:
+        if self.index[1] == 0 or self.index[0]+1 >= len(self.vBoxList):
 
             self.newViewBox()
             self.iItemList.append( pg.ImageItem(subtomo))
@@ -5813,16 +6506,50 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
             self.num_assigned += 1
             self.coordinates[self.index[0]] = self.position + [self.index[0]]
             self.index = [self.num_assigned, 0]
+            self.vBoxList[self.index[0]].setRange(xRange=[0, self.size_subtomo], yRange=[0, self.size_subtomo], padding=0)
             for n, a in enumerate(self.assigned):
                 if a == 0:
                     self.index = [n,1]
                     break
 
-    def delete_subplot(self, position):
-        for x,y,z,s, index in self.coordinates:
+    def reset_display_subtomograms(self, particleList, volume):
+
+        self.index = [0,0]
+        self.num_assigned = 0
+        for n, (x,y,z,s) in enumerate(particleList):
+            position = [x,y,z,s]
+            xmin = max(0, x - int(self.size_subtomo / 2))
+            xmax = min(volume.shape[2], x + int(self.size_subtomo / 2))
+            ymin = max(0, y - int(self.size_subtomo / 2))
+            ymax = min(volume.shape[1], y + int(self.size_subtomo / 2))
+
+            subtomo = zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
+            try:subtomo[:xmax-xmin,:ymax-ymin] = (volume[z-4:z+4].sum(axis=0).T)[xmin:xmax, ymin:ymax]
+            except: pass
+            if n < len(self.iItemList):
+                self.position = [x,y,z,s]
+                self.iItemList[self.index[0]].setImage(image=subtomo)
+                self.assigned[self.index[0]] = 1
+                self.num_assigned += 1
+                self.coordinates[self.index[0]] = self.position + [self.index[0]]
+                self.vBoxList[self.index[0]].setRange(xRange=[0, self.size_subtomo], yRange=[0, self.size_subtomo], padding=0)
+                self.index = [self.num_assigned, 0]
+            else:
+                self.index = [n,0]
+                self.add_subplot(volume, [x,y,z,s])
+
+        for nn in range(len(particleList), len(self.iItemList)):
+            self.delete_subplot(self.coordinates[nn], start=len(particleList))
+
+
+    def delete_subplot(self, position, start=0):
+        for x,y,z,s, index in self.coordinates[start:]:
             if x == position[0] and y == position[1] and z == position[2]:
                 blank = zeros((int(self.size_subtomo), int(self.size_subtomo)), dtype=float)
-                self.iItemList[index].setImage(image=blank)
+                try:
+                    self.iItemList[index].setImage(image=blank)
+                except:
+                    continue
                 if index < self.index[0]:
                     self.index = [index,1]
                 self.assigned[index] = 0
@@ -5867,7 +6594,6 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
 
         elif self.coordinates[ID][2] > -1:
 
-
             #self.parent().pos.setX(self.coordinates[ID][0] - self.parent().radius)
             #self.parent().pos.setY(self.coordinates[ID][1] - self.parent().radius)
             #self.parent().centimage.addItem(circle(self.parent().pos, size=(self.parent().radius)*1.5, color=Qt.yellow))
@@ -5875,50 +6601,110 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
             self.parent().slice = self.coordinates[ID][2]
             self.parent().replot()
             self.parent().update_circles()
+            #self.parent().remove_all(keepPL=True)
 
             self.parent().pos.setX(self.coordinates[ID][0] - self.parent().radius)
             self.parent().pos.setY(self.coordinates[ID][1] - self.parent().radius)
-            self.parent().centimage.addItem(circle(self.parent().pos, size=(self.parent().radius) * 2, color=Qt.red))
+            try:
+                self.parent().red_circle.setPos(self.parent().pos)
+            except:
+                self.parent().red_circle = circle(self.parent().pos, size=(self.parent().radius) * 2, color=Qt.red)
+                self.parent().centimage.addItem(self.parent().red_circle)
 
-    def reset_display_subtomograms(self, particleList, volume ):
+    def reset_display_subtomograms_old(self, particleList, volume ):
+        import time
+        t = time.time()
+
         for child in self.vBoxList:
-            self.canvas.removeItem(child)
+           self.canvas.removeItem(child)
+
+        print(f'Removal time: {(time.time()-t)*1000:.1f"}')
 
         self.init_variables()
+        import atexit
+        from multiprocessing import Process
+        from pytom.gui.guiFunctions import loadstar, savestar, kill_proc
 
-        self.num_subtomo_per_row = int(self.width/self.size_subplot)
+        self.num_subtomo_per_row = int(self.width / self.size_subplot)
+        #self.index = [0,self.index[1]]
 
-        for n, (x,y,z,s) in enumerate(particleList):
-            self.add_subplot( volume, [x,y,z,s] )
+        nr_procs = 0
+        procs=[]
+        for proc_id in range(nr_procs):
+            manager = Manager()
+            vb = manager.list([[],]*nr_procs)
+            ass = manager.list([[],]*nr_procs)
+            coords =  manager.list([[],]*nr_procs)
+            ilist =  manager.list([[],]*nr_procs)
+            num_ass = manager.list([0,]*nr_procs)
+            proc = Process(target=self.update_do,
+                           args=(volume, particleList[proc_id::nr_procs]))
+            procs.append(proc)
+            proc.start()
+            atexit.register(kill_proc, proc)
+
+        while procs:
+            procs = [proc for proc in procs if proc.is_alive()]
+
+        if nr_procs == 0:
+            for n, (x,y,z,s) in enumerate(particleList):
+                self.add_subplot( volume, [x,y,z,s] )
+
+            #self.update_subplot(tomo, particleList)
+            #self.update_do(volume, particleList,procid, self.size_subtomo, vb, self.canvas, ass, coords, ilist, self.num_subtomo_per_row, num_ass )
+
         self.show()
 
+    def update_do(self, volume, particleList, procid, size_subtomo, vb, canvas, ass, coords, ilist, num_subtomo_per_row, num_ass ):
+        for n, (x,y,z,s) in enumerate(particleList):
+            self.add_subplot( volume, [x,y,z,s], procid, size_subtomo, vb, canvas, ass, coords, ilist, num_subtomo_per_row, num_ass )
 
-if __name__ == "__main__":
-    import sys
-    import numpy
-    import glob
-    import os
+    def add_subplot_parallel(self, tomo, position, procid, size_subtomo, vBoxList, canvas, assigned, coordinates, iItemList, num_subtomo_per_row, num_assigned):
+        [x,y,z,s]  = position
+        xmin = max(0, x - int(size_subtomo / 2))
+        xmax = min(tomo.shape[1], x + int(size_subtomo / 2))
+        ymin = max(0, y - int(size_subtomo / 2))
+        ymax = min(tomo.shape[2], y + int(size_subtomo / 2))
 
-    headers = ["mdoc file", "create", "input files", 'redo', 'delete']
-    types = ['txt', 'checkbox', 'combobox', 'checkbox', 'checkbox']
-    sizes = [QHeaderView.ResizeToContents, 20, QHeaderView.ResizeToContents,]
+        subtomo = zeros((int(size_subtomo),int(size_subtomo)),dtype=float)
+        subtomo[:xmax-xmin,:ymax-ymin] = (tomo[z-size_subtomo//2:z+size_subtomo//2].sum(axis=0).T)[xmin:xmax, ymin:ymax]
 
 
-    tomodir = 'Juliette/03_Tomographic_Reconstruction'
-    rawdir = 'Juliette/01_Raw_Nanographs'
+        if self.index[1] == 0 or self.index[0]+1 >= len(vBoxList):
 
-    processed = sorted(glob.glob('{}/tomogram_*/sorted/*.mdoc'.format(tomodir)))
-    unprocessed = sorted(glob.glob('{}/*.mdoc'.format(rawdir)))
-    values = []
+            row = int(self.index[0] / num_subtomo_per_row)
+            col = int(self.index[0] % num_subtomo_per_row)
+            # if row*self.size_subplot > self.height:
+            #     self.scrollarea.setGeometry(self.dx,self.dy,self.width,row*self.size_subplot)
+            vBoxList[procid].append( canvas.addViewBox(row=row, col=col) )
+            vBoxList[procid][-1].setMenuEnabled(False)
+            vBoxList[procid][-1].setMouseEnabled(False, False)
+            #    self.vBoxList[-1].scene().sigMouseClicked.connect(self.mouseClicked)
 
-    for t in processed:
-        values.append([t, False, [1, 2, 3], True, True])
-    for t in unprocessed:
-        values.append([t, True, [1, 2, 3], False, False])
+            vBoxList[procid][-1].setGeometry(0, 0, self.size_subplot, self.size_subplot)
 
-    # values = [[1,1,[1,3]],[1,1,[1,2]],[1,1,[1,2,3]]]*10
+            #
+            assigned[procid].append(1)
+            coordinates[procid].append(position+[self.index[0]])
+            num_assigned += 1
 
-    app = QApplication(sys.argv)
-    mw = SimpleTable(headers, types, values)
-    mw.show()
-    sys.exit(app.exec_())
+            iItemList.append( pg.ImageItem(subtomo))
+            vBoxList[procid][-1].addItem(iItemList[-1])
+            vBoxList[procid][-1].setRange(xRange=[0, size_subtomo], yRange=[0, size_subtomo], padding=0)
+            vBoxList[procid][-1].setAspectLocked(True)
+
+            self.index = [self.index[0] + 1, 0]
+        else:
+
+            iItemList[procid][self.index[0]].setImage(image=subtomo)
+            assigned[procid][self.index[0]] = 1
+            num_assigned[procid] += 1
+            coordinates[self.index[0]] = position + [self.index[0]]
+            self.index = [num_assigned[procid], 0]
+            vBoxList[self.index[0]].setRange(xRange=[0, size_subtomo], yRange=[0, size_subtomo], padding=0)
+            for n, a in enumerate(assigned[procid]):
+                if a == 0:
+                    self.index = [n,1]
+                    break
+
+

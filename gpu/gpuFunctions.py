@@ -85,7 +85,7 @@ def subPixelShiftsImage(volume, scale=[1,1,1], cutout=20, shifts=True):
     import numpy as np
 
 
-    if shifts: volC = xp.array([vol.shape[0]//2, volume.shape[1]//2, vol.shape[2]//2])
+    if shifts: volC = xp.array([volume.shape[0]//2, volume.shape[1]//2, volume.shape[2]//2])
     else: volC = xp.array([0,0,0],dtype=xp.int32)
 
 
@@ -157,8 +157,8 @@ def stdVolUnderMaskPlanned(volume, mask, meanV, ifftnP, fftnP, plan):
 
     return var**0.5
 
-
-argmax = xp.RawKernel(r'''
+if 'gpu' in device:
+    argmax = xp.RawKernel(r'''
 
     extern "C"  __device__ void warpReduce(volatile float* sdata, volatile int* maxid, int tid, int blockSize) {
         if (blockSize >= 64 && sdata[tid] < sdata[tid + 32]){ sdata[tid] = sdata[tid + 32]; maxid[tid] = maxid[tid+32];} 
@@ -207,3 +207,5 @@ argmax = xp.RawKernel(r'''
         
 
     }''', 'argmax')
+else:
+    argmax = xp.argmax()

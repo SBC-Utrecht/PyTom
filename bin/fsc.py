@@ -172,41 +172,66 @@ if __name__ == '__main__':
     else:
         print('XML')
 
+    from pytom.basic.resolution import write_fsc2Ascii
+
+    write_fsc2Ascii(fsc=f, filename=outdir+"/FSCOrig.dat")
+    if randomize:
+        write_fsc2Ascii(fsc=fsc_rand, filename=outdir + "/FSCRand.dat")
+        write_fsc2Ascii(fsc=fsc_corr, filename=outdir + "/FSCCorr.dat")
+
+
+
     if plot and v1Filename and v2Filename:
-        import matplotlib
-        import numpy
-        matplotlib.use('Qt5Agg')
-        from pylab import subplots, savefig, show
-
-
-        fig,ax = subplots(1,1,figsize=(10,5))
-
-        ax.plot(f, label='FSC orig')
-
-        l = len(f)
-        size = len(f)*2
-
+        from pytom.plotting.plotFSC import plot_FSC
+        files = [outdir+"/FSCOrig.dat"]
         if randomize:
-            ax.plot(fsc_rand, label='FSC rand')
-            ax.plot(fsc_corr, label='FSC corrected')
+            files += [outdir+"/FSCRand.dat",outdir+"/FSCCorr.dat"]
+        plot_FSC(files, pixelSize, boxsize=v1.shape[0],
+                 outname=os.path.join(outdir, 'FSCOrig_FSCRand_FSCTrue.png'), show_image=True, c=fscCriterion,
+                 resolution=resolution, rand=randomize)
 
-        # xticklabels = [max(2,(r*size))//2 for r in numpy.arange(0,1.1,0.2)]
-        # ax.set_xticks(xticklabels)
-        # ax.set_xticklabels(xticklabels)
-
-        try: ax.vlines(r[1], 0, fscCriterion, linestyles='dashed', label=f'resolution = {float(resolution):8.3f}', )
-        except Exception as e: print(e)# ax2 = ax.twiny()
-        # ax2.set_xticks(xticklabels)
-        # ax2.set_xticklabels([size*pixelSize/xtick for xtick in xticklabels])
-
-        ax.hlines(fscCriterion,0,l,label=f'cutoff = {fscCriterion}')
-        ax.set_title(f'resolution: {float(resolution):8.3f} A')
-        #fig, ax = subplots(1, 1, figsize=(7, 7))
-        #ax.plot(f, label='FSC orig')
-        #if randomize:
-        #    ax.plot(fsc_rand, label='FSC rand')
-        #    ax.plot(fsc_corr, label='FSC corrected')
-        ax.legend()
-        savefig(os.path.join(outdir, 'FSCOrig_FSCRand_FSCTrue.png'))
-        show()
-    
+        # import matplotlib
+        # import numpy
+        # matplotlib.use('Qt5Agg')
+        # from pylab import subplots, savefig, show
+        #
+        #
+        # fig,ax = subplots(1,1,figsize=(10,5))
+        # size = len(f)
+        # newax = ax.twiny()
+        # x1 = numpy.arange(1, size + 1) * (1 / (float(pixelSize) * int(size*2)))
+        # x = numpy.arange(size)
+        #
+        # newax.plot(x, f, lw=2)
+        # ax.plot(x, f, label='FSC orig', lw=2)
+        #
+        # l = len(f)
+        # #size = len(f)*2
+        #
+        # if randomize:
+        #     ax.plot(x, fsc_rand, label='FSC rand')
+        #     ax.plot(x, fsc_corr, label='FSC corrected')
+        #
+        # # xticklabels = [max(2,(r*size))//2 for r in numpy.arange(0,1.1,0.2)]
+        # # ax.set_xticks(xticklabels)
+        # # ax.set_xticklabels(xticklabels)
+        #
+        # try: ax.vlines(r[1], 0, fscCriterion, linestyles='dashed', label=f'resolution = {float(resolution):8.3f}', )
+        # except Exception as e: print(e)# ax2 = ax.twiny()
+        # # ax2.set_xticks(xticklabels)
+        # # ax2.set_xticklabels([size*pixelSize/xtick for xtick in xticklabels])
+        # ax.set_xticks([0, x[size // 4], x[size // 2], x[3 * size // 4], x[-1]])
+        # ax.set_xticklabels([f'{(1/x1[0]):.1f}', f'{1 / x1[size // 4 -1]:.1f}', f'{1 / x1[size // 2-1]:.1f}',
+        #                     f'{1 / x1[3 * size // 4-1]:.1f}', f'{1 / x1[-1]:.1f}'])
+        #
+        # ax.hlines(fscCriterion,0, l,label=f'cutoff = {fscCriterion}')
+        # ax.set_title(f'resolution: {float(resolution):8.3f} A')
+        # #fig, ax = subplots(1, 1, figsize=(7, 7))
+        # #ax.plot(f, label='FSC orig')
+        # #if randomize:
+        # #    ax.plot(fsc_rand, label='FSC rand')
+        # #    ax.plot(fsc_corr, label='FSC corrected')
+        # ax.legend()
+        # savefig(os.path.join(outdir, 'FSCOrig_FSCRand_FSCTrue.png'))
+        # show()
+        #

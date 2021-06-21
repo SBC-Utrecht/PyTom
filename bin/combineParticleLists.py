@@ -35,7 +35,7 @@ if __name__ == '__main__':
         sys.exit()
     try:
         directory, outname, XMLfnames, wedgeangles, help = parse_script_options(sys.argv[1:], helper)
-        print(directory, outname, XMLfnames, wedgeangles)
+        #print(directory, outname, XMLfnames, wedgeangles)
     except Exception as e:
         print(e)
         sys.exit()
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         fnames = [line for line in glob.glob(os.path.join(directory, '*.xml')) if line.endswith('.xml')]
 
     if XMLfnames:
-        print(XMLfnames)
+        #print(XMLfnames)
         fnames = XMLfnames.split(',' )
 
     pl = ParticleList()

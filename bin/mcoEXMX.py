@@ -16,7 +16,7 @@ if __name__ == '__main__':
                                    ScriptOption(['-h', '--help'], 'Help.', arg=False, optional=True)])
 
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         jobFile, verbose ,helpme = parse_script_options(sys.argv[1:], helper)
@@ -24,7 +24,7 @@ if __name__ == '__main__':
 #        print e
         sys.exit()
     if helpme is True:
-        print helper
+        print(helper)
         sys.exit()
 
     verbose = verbose == 'True'

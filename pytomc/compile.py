@@ -10,6 +10,12 @@ if checkSwigVersion():
     print('Compilation of PyTom will fail otherwise!')
     sys.exit(1)
 
+if checkPythonVersion():
+    print('Your Python Version is less than 3.6.')
+    print('Please install 3.6 or newer.')
+    print('Compilation of PyTom will fail otherwise!')
+    sys.exit(1)
+
 args = sys.argv[1:]
 
 if len(args) == 0:
@@ -17,6 +23,8 @@ if len(args) == 0:
     sys.exit(1)
 
 [libPaths , includePaths , exePaths, pythonVersion , phony_target] = parseArguments(args)
+
+print(includePaths)
 
 if 'LD_LIBRARY_PATH' in os.environ:
     for path in os.environ['LD_LIBRARY_PATH'].split(':'):
@@ -95,24 +103,59 @@ includeFile,include_mpi = find("mpi.h",includePaths)
 if include_mpi is None:
     print('MPI include path not found!')
     exit(1)
-    
-includeFile,include_python = find("Python.h",includePaths)
+
+if 0 and include_python is None:
+    try:
+        import numpy
+        p = numpy.__path__[0].split('lib')[0]
+        for a in range(3):
+
+            if [os.path.join(p,d) for d in os.listdir(p) if d == 'include' and os.path.isdir(d)]:
+                import glob
+                inc = os.path.join(p,'include')
+                a = glob.glob(f'{inc}/Python.h') + glob.glob(f'{inc}/*/Python.h')
+
+                if a:
+                    inc = os.path.dirname(a[0])
+                    includePaths = [inc] + includePaths
+                    print(includePaths)
+                    break
+
+            p = os.path.dirname(p)
+
+        includeFile, include_python = find("Python.h", includePaths, required=f'python{pythonVersion}')
+    except:
+        pass
+
+includeFile,include_python = find("Python.h",includePaths, required=f'python{pythonVersion}')
 if include_python is None:
     print('Python include path not found!')
     exit(1)
 
 if pythonVersion == '':
-    [lib_python, lib_pythonFlag] = adjustLibraryVersions("libpython",['2.6','2.5','2.7'],'lpython',dynamicExtension,libPaths)
+    [lib_python, lib_pythonFlag] = adjustLibraryVersions("libpython",['2.6','2.5','2.7', '3.7'],'lpython',dynamicExtension,libPaths)
 else:
     libraryFile,lib_python      = find("libpython" + pythonVersion + dynamicExtension,libPaths)
     lib_pythonFlag  = 'lpython' + pythonVersion
     
-includeFile,include_fftw = find("fftw3.h",includePaths)
+if include_fftw is None:    
+    includeNew = os.path.dirname(os.popen('locate fftw3.h').read().split()[0])
+    if includeNew:
+        includePaths = [includeNew] + includePaths
+        includeFile,include_fftw = find("fftw3.h",includePaths)
+    
 if include_fftw is None:
     print('FFTW include path not found!')
     exit(1)
 
 libraryFile,lib_fftw = find("libfftw3" + dynamicExtension,libPaths)
+
+if lib_fftw is None:    
+    libPathsNew = os.path.dirname(os.popen('locate libfftw3'+dynamicExtension).read().split()[0])
+    if libPathsNew:
+        libPaths = [libPathsNew] + libPaths
+        libraryFile, lib_fftw = find("libfftw3"+ dynamicExtension, libPaths)
+
 if lib_fftw is None:
     print('FFTW library path not found!')
     exit(1)
@@ -125,11 +168,25 @@ if include_boost is None:
 if include_boost:
     include_boost = os.path.abspath(os.path.join(include_boost, os.pardir)) + os.sep
 
-includeFile,include_numpy = find("ndarrayobject.h",includePaths)
+includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
+if include_numpy is None:
+    includePathsNew = [p for p in os.popen('locate ndarrayobject.h').read().split() if pythonVersion in p]
+    if includePathsNew:
+        includePaths = [includePathsNew] + includePaths
+        includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
+    if include_numpy is None:
+        try:
+            import numpy
+            path = os.path.join(numpy.__path__[0], 'core/include/numpy')
+            includePaths = [path] + includePaths
+            includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
+        except Exception as e:
+            print(e)
+            pass
 if include_numpy is None:
     print('Numpy include path not found!')
     exit(1)
-    
+
 setenv_line     = ""
 setflags_line   = "export PYTOMC_DIR='" + os.getcwd() +"'" 
 setflags_line   += " && export LDFLAGS_ADDITIONAL='-D_GLIBCXX_DEBUG'"
@@ -196,7 +253,7 @@ print('')
 nosh = False # you can choose not to compile the SH Alignment library
 nompi4py = False # you can choose not to compile the mpi4py library
 nonfft = False # you can choose not to compile the NFFT library
-novoltools = False
+novoltools = True
 
 
 if phony_target == "swig":
@@ -358,7 +415,7 @@ if os.path.isfile("./swigModules/_pytom_fftplan.so") \
     print('Generating executables:')
     print('../bin/pytom')
     print('../bin/ipytom')
-    print('../bin/pytomGUI.py')
+    print('../bin/pytomGUI')
 
     generateExecuteables([lib_mpi,lib_fftw,lib_python]+sh_ld_library_paths,exePaths,sh_python_paths,python_version=pythonVersion)
 

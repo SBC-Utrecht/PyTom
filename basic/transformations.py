@@ -20,17 +20,19 @@ def shift(volume,shiftX,shiftY,shiftZ,imethod='fourier',twice=False):
     if imethod == 'fourier':
         from pytom_volume import vol_comp,reducedToFull,fullToReduced,shiftFourier
         from pytom.basic.fourier import fft,ifft,ftshift, iftshift
-        
+
         fvolume = fft(volume)
         fullFVolume = reducedToFull(fvolume)
 
         destFourier = vol_comp(fullFVolume.sizeX(),fullFVolume.sizeY(),fullFVolume.sizeZ())
-        
+
         shiftFourier(fullFVolume,destFourier,shiftX,shiftY,shiftZ)
         
         resFourier = fullToReduced(destFourier)
         
-        return ifft(resFourier)/volume.numelem()
+        v = ifft(resFourier)/volume.numelem()
+
+        return v
         
     else:
         from pytom_volume import vol
@@ -41,9 +43,9 @@ def shift(volume,shiftX,shiftY,shiftZ,imethod='fourier',twice=False):
         elif imethod == 'spline':
             from pytom_volume import transformSpline as transform
         # now results should be consistent with python2
-        centerX = int(volume.sizeX()/2)
-        centerY = int(volume.sizeY()/2)
-        centerZ = int(volume.sizeZ()/2)
+        centerX = int(volume.sizeX()//2)
+        centerY = int(volume.sizeY()//2)
+        centerZ = int(volume.sizeZ()//2)
         
         res = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
         transform(volume,res,0,0,0,centerX,centerY,centerZ,shiftX,shiftY,shiftZ,0,0,0)

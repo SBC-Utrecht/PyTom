@@ -69,10 +69,35 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
     
     return particleList
 
+
+def extractCandidatesWithoutJobFile(volumeFilename='', resultFilename='', orientFilename='', angleListFilename='', sizeParticle=None, maxNumParticle=0,
+                      minScore=-1, write2disk=0, margin=None, mask=None, structuredMask=None, scoringFunction=None, offset=0):
+    # construct the original job from the xml file
+
+    from pytom.localization.extraction_peak_result import ExPeakResult
+
+    res = ExPeakResult(volFilename=volumeFilename, resultFilename=resultFilename, orientFilename=orientFilename,
+                       angleListFilename=angleListFilename, score=scoringFunction)
+
+    if maxNumParticle <= 0:
+        return None
+
+    res.readAll()
+
+    if sizeParticle == None:
+        return None
+
+    particleList = res.findParticles(sizeParticle, maxNumParticle, minScore, write2disk, margin,
+                                     offset=offset, structured_mask=structuredMask)
+
+    return particleList
+
+
 if __name__ == '__main__':
     import sys, os
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
+    import os
      
     helper = ScriptHelper(sys.argv[0].split('/')[-1],
                           description='Extract candidate molecules from localization result.',
@@ -92,6 +117,7 @@ if __name__ == '__main__':
                                     ScriptOption(['--scale'], 'Scale coordinates by a factor. Set > 1 to adjust to larger volumes. Use 2 if the localization tomo was 1x binned.', arg=True, optional=True),
                                     ScriptOption(['--structuredMask'], 'Use structured mask for specific exclusion.',
                                                  arg=True, optional=True),
+                                    ScriptOption(['--projectDir'], 'Project Directory', True, True),
                                     ScriptOption(['--help'], 'Print this help.', arg=False,optional= True)])
     
     if len(sys.argv) ==1:
@@ -100,7 +126,8 @@ if __name__ == '__main__':
     
     
     try:
-        jobFilename, maskFile, resultFilename, orientFilename, maxNumParticle, sizeParticle, plFilename, particlePath, minScore, motlFilename, margin, write2disk, scale, structuredMask, help = parse_script_options(sys.argv[1:], helper)
+        jobFilename, maskFile, resultFilename, orientFilename, maxNumParticle, sizeParticle, plFilename, particlePath, \
+        minScore, motlFilename, margin, write2disk, scale, structuredMask, proj_dir, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -132,11 +159,17 @@ if __name__ == '__main__':
     
     if plFilename:
         from pytom.basic.structures import ParticleList
+        from pytom.bin.templateMatchingCandidateExtractionSingleGPU import getBinningFactorAndReferenceMarker
+
+
+
         pl = ParticleList()
         
         from pytom.localization.peak_job import PeakJob
         job = PeakJob()
         job.fromXMLFile(jobFilename)
+
+        binning, ref = getBinningFactorAndReferenceMarker(job.volume.getFilename())
 
         wedge = job.wedge
 
@@ -147,6 +180,12 @@ if __name__ == '__main__':
             newParticle = particle.toParticle()
             newParticle.setWedge(wedge)
             newParticle.setFilename(particlePath + newParticle.getFilename())
+
+            if not proj_dir is None:
+                newParticle.getInfoGUI().setProjectDir(proj_dir)
+
+            newParticle.getPickPosition().setBinningFactor(binning)
+            newParticle.getPickPosition().setRefMarkerIndex(ref)
 
             if scale != 1.0:
                 pi = newParticle.getPickPosition()

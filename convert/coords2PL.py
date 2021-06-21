@@ -13,14 +13,14 @@ from pytom_numpy import vol2npy
 import os
 
 
-def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None, angleList=False):
+def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None, angleList=False, projDir=''):
     pl = ParticleList()
     for n, coordinate_file in enumerate(coordinate_files):
         wedgeAngle = wedgeAngles[2*n:2*(n+1)]
-        sourceInfo = pl.loadCoordinateFileHeader(coordinate_file)
+        infoGUI = pl.loadCoordinateFileHeader(coordinate_file)
         l2 = len(pl)
         pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle,
-                              sourceInfo=sourceInfo)
+                              infoGUI=infoGUI, projDir=projDir)
 
         try:
             cc = 180./numpy.pi
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         sys.exit()
     try:
         plName, coordName, subtomoPrefix, w, r, angleList, help = parse_script_options(sys.argv[1:], helper)
-        print(plName, coordName, subtomoPrefix, w, r, angleList)
+        #print(plName, coordName, subtomoPrefix, w, r, angleList)
     except Exception as e:
         print(e)
         sys.exit()

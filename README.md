@@ -8,35 +8,54 @@ PyTom is a toolbox developed for interpreting cryo electron tomography data. All
 
 ### Prerequisites
 
-PyTomGUI is designed to run on linux systems, but can also be installed on MacOSX.It requires the following software package to be installed:
+PyTomGUI is designed to run on linux systems, but can also be installed on MacOSX. It requires the following software package to be installed:
 
 ```
+# General packages 
 - python (>= 3.7 )
 - openmpi 
 - fftw3
 - gcc (version 5-7) 
+- libxml2
+- swig (>= 3.0.12)
+
+# Python Packages
 - numpy
 - boost
-- lxml, libxml2, libxstl. 
-- swig (>= 3.0.12)
-- PyQt5
+- lxml 
 - pyqtgraph
-- motioncor2 ( >=1.2.1)
-- imod (>=4.10.25)
 - mrcfile
+
+# Optional Software Packages used by GUI
+- PyQt5
+- motioncor2 ( >=1.2.1)
+- imod (=4.10.25)
+
 ```
 
 ### Installing
 
-To install PyTomGUI please clone the most recent version by executing the following command 
+Please use the following command to install the General Packages on RedHat or CentOS:
+
+```
+sudo yum install python3.x86_64
+sudo yum install openmpi.x86_64
+sudo yum install openmpi-devel.x86_64
+sudo yum install fftw-devel.x86_64
+sudo yum install gcc.x86_64
+sudo yum install libxml2.x86_64
+sudo yum install swig3.x86_64
+```
+
+To install PyTom, please clone the most recent version by executing the following command: 
 
 ```
 git clone --recursive https://github.com/FridoF/PyTomPrivate.git pytom
 ```
 
-After a succesful clone enter the new directory and go to pytomc
+After a successful clone enter the new directory and go to pytomc
 ```
-cd PyTomPrivate/pytomc
+cd pytom/pytomc
 ```
 
 Here you will find an installation script name compile.py. Please run this script with python3. 
@@ -72,7 +91,7 @@ python3.7 compile.py --pythonVersion 3.7 --target all --includeDir /usr/local/Ce
 
 ## Versioning
 
-For the versions available, see the [tags on this repository](https://gschot@bitbucket.org/gschot/pytom/tags). 
+For the versions available, see the [tags on this repository]. 
 
 ## Authors
 
@@ -81,7 +100,7 @@ For the versions available, see the [tags on this repository](https://gschot@bit
 * **Yuxiang Chen**       - *PyTom*
 * **Friedrich Forster**  - *PyTom* 
 
-See also the list of [contributors](https://gschot@bitbucket.org/gschot/pytom/contributors) who participated in this project.
+See also the list of [contributors] who participated in this project.
 
 ## License
 
@@ -89,7 +108,7 @@ Copyright (c) 2021
 
 Utrecht University
 
-http://www.pytom.org
+http://pytom.sites.uu.nl
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

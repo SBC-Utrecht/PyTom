@@ -625,7 +625,7 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
     return (result, fsc)
 
 def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
-            createInfoVolumes=False, weighting=False, norm=False):
+            createInfoVolumes=False, weighting=False, norm=False, gpuID=None, profile=False):
     """
     average : Creates new average from a particleList
     @param particleList: The particles
@@ -651,6 +651,16 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
     from pytom.tompy.tools import invert_WedgeSum
     import os
 
+    showProgressBar = False
+
+
+    if not gpuID is None:
+        device = f'gpu:{gpuID}'
+        xp.cuda.Device(gpuID).use()
+    else:
+        print(gpuID)
+        raise Exception('Running gpu code on non-gpu device')
+
     if len(particleList) == 0:
         raise RuntimeError('The particle list is empty. Aborting!')
 
@@ -673,21 +683,19 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
             print("Warning: all scores have been zero - weighting not applied")
 
     for particleObject in particleList:
-
-        if verbose:
-            print(particleObject)
-
         if not os.path.exists(particleObject.getFilename()): continue
-        particle = read(particleObject.getFilename())
 
+        particle = read(particleObject.getFilename())
 
         if norm:  # normalize the particle
             mean0std1(particle)  # happen inplace
 
         wedgeInfo = particleObject.getWedge()
+
         try: wedgeInfo = wedgeInfo.convert2numpy()
         except: pass
         # apply its wedge to itself
+
         particle = wedgeInfo.apply(particle)
 
         if type(result) == list:
@@ -718,6 +726,8 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
         ### create spectral wedge weighting
         rotation = particleObject.getRotation()
         rotinvert = rotation.invert()
+
+
         if analytWedge:
             # > analytical buggy version
             wedge = wedgeInfo.returnWedgeVolume(sizeX, sizeY, sizeZ, False, rotinvert)
@@ -735,9 +745,10 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
         ### shift and rotate particle
         shiftV = particleObject.getShift()
         newParticle *= 0
-        transform(particle, output=newParticle, rotation =[-rotation[1], -rotation[0], -rotation[2]],
+        transform(particle, output=newParticle, rotation =[-rotation[1], -rotation[2], -rotation[0]],
                   rotation_order='rzxz',device=device, center=[centerX, centerY, centerZ],
                   translation=[-shiftV[0], -shiftV[1], -shiftV[2]], interpolation='filt_bspline')
+        continue
         if weighting:
             weight = 1. - particleObject.getScore().getValue()
             # weight = weight**2
@@ -1031,7 +1042,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     scoreObject._peakPrior.reset_weight()
     return bestPeak
 
-def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=None, isSphere=True, rotation_order='rzxz', max_shift=30,
+def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=None, isSphere=True, rotation_order='rzxz', max_shift=40,
                      profile=False, interpolation_factor=0.1):
     """
     bestAlignment: Determines best alignment of particle relative to the reference
@@ -1077,7 +1088,6 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
     plan.updateWedge(wedgeInfo)
     plan.wedgeParticle()
     plan.calc_stdV()
-
     currentRotation = rotations.nextRotation()
     if currentRotation == [None, None, None]:
         raise Exception('bestAlignment: No rotations are sampled! Something is wrong with input rotations')

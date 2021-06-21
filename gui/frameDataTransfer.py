@@ -184,6 +184,7 @@ class CollectPreprocess(GuiTabWidget):
         self.queueEvents = self.parent().qEvents
         self.localqID = {}
         self.activeProcesses = {}
+        self.localJobStrings = {}
 
         self.widgets['pytomPath'] = QLineEdit()
         self.widgets['pytomPath'].setText(self.parent().pytompath)
@@ -279,7 +280,7 @@ class CollectPreprocess(GuiTabWidget):
 
         items = []
 
-        t0, t1 = self.stage + 'MotionCorrection', self.stage + 'InsertCredentialsMC_'
+        t0, t1 = self.stage + 'MotionCorrection_', self.stage + 'InsertCredentialsMC_'
         self.modes[t1] = 1
         self.modes[0] = t1
 
@@ -435,7 +436,8 @@ class CollectPreprocess(GuiTabWidget):
                                                  self.items[self.row][self.column - 2],
                                                  self.widgets[mode + 'remote_mdoc']])
         self.insert_label(parent,rstep=1)
-        self.insert_pushbutton(parent, text='Run', rstep=1, action=self.download, params=mode, width=100)
+        self.insert_pushbutton(parent, text='Run', rstep=1, action=self.download, params=mode, width=100,
+                               wname=mode+'ExecutePushButton')
 
         setattr(self,mode+'gb_collect', groupbox)
         return groupbox
@@ -554,7 +556,7 @@ class CollectPreprocess(GuiTabWidget):
         if not self.widgets[mode + 'folder_nanographs'].text():
             self.popup_messagebox('Info', 'No Folder Selected', 'Please select a nanograph folder')
             return
-
+        self.widgets[mode + 'ExecutePushButton'].setEnabled(False)
         step = 1
         widget = QWidget(self)
         layout = QHBoxLayout()
@@ -649,7 +651,7 @@ class CollectPreprocess(GuiTabWidget):
         self.popup_messagebox("Info", "Completion", 'Successfully finished motion correction')
         self.widgets['CandP'].setEnabled(True)
 
-    def delete_progressbar_collect(self):
+    def delete_progressbar_collect(self, mode=''):
         self.statusBar.removeWidget(self.progressBar_Collect)
 
         mdocs = glob.glob("{}/*.mdoc.temp".format(self.local_data_folder))
@@ -657,6 +659,7 @@ class CollectPreprocess(GuiTabWidget):
             os.system("mv {} {}".format(mdoc, mdoc[:-5]))
 
         guiFunctions.createMetaDataFiles(self.running_folder, '')
+        self.widgets[mode + 'ExecutePushButton'].setEnabled(True)
         self.popup_messagebox("Info", "Completion", 'Successfully finished data transfer')
         #self.widgets['CandP'].setEnabled(True)
 
@@ -767,10 +770,10 @@ class CollectPreprocess(GuiTabWidget):
             proc.start()
             atexit.register(guiFunctions.kill_proc, proc)
         self.flist = flist
-        proc = Worker( fn=self.check_run, args=([e], self.flist, self.running_folder) )
+        proc = Worker( fn=self.check_run, args=([e], self.flist, self.running_folder, mode) )
 
         proc.signals.result1.connect(self.update_progress_collect)
-        proc.signals.finished_collect.connect(self.delete_progressbar_collect)
+        proc.signals.finished_queue.connect(self.delete_progressbar_collect)
 
         proc.start()
 
@@ -961,7 +964,7 @@ class CollectPreprocess(GuiTabWidget):
 
             proc.start()
 
-    def check_run(self, events, flist, folder1, signals):
+    def check_run(self, events, flist, folder1, mode, signals):
 
 
         while len(events):
@@ -977,7 +980,7 @@ class CollectPreprocess(GuiTabWidget):
             signals.result1.emit(total)
 
             if total >= len(flist):
-                signals.finished_collect.emit()
+                signals.finished_queue.emit(mode)
                 self.activate_stage(1)
                 break
             time.sleep(0.1)

@@ -20,8 +20,7 @@ def startLocalizationJob(filename, splitX=0, splitY=0, splitZ=0, doSplitAngles=F
     else:
         from pytom.localization.parallel_extract_peaks import PeakLeader
         leader = PeakLeader(suffix=suffix)
-        if leader.size != splitX * splitY * splitZ:
-            raise Exception('Number of mpi cores is not compatible with settings')
+
         leader.parallelRun(job, splitX, splitY, splitZ, verbose, gpuID=gpuID)
 
 if __name__ == '__main__':
@@ -74,8 +73,8 @@ if __name__ == '__main__':
 
 
 
-    except: # backward compatibility
-
+    except Exception as e: # backward compatibility
+        print(e)
 
         if len(sys.argv) == 2 or len(sys.argv) == 5:
             pass

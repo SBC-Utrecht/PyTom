@@ -20,14 +20,14 @@ if __name__ == '__main__':
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
     
     if len(sys.argv) == 1:
-        print helper
+        print(helper)
         sys.exit()
     try:
         pl_filename, class_label, bHelp = parse_script_options(sys.argv[1:], helper)
     except:
         sys.exit()
     if bHelp is True:
-        print helper
+        print(helper)
         sys.exit()
 
     # load the particle list
@@ -59,7 +59,7 @@ if __name__ == '__main__':
             x = 360-x
             z2 += 180
         else:
-            print 'Ignore particle: ', p.getFilename()
+            print('Ignore particle: ', p.getFilename())
         
         while z2 < 0 or z2 > 360:
             if z2 < 0:
@@ -76,6 +76,8 @@ if __name__ == '__main__':
     
     # start plotting
     import numpy as np
+    import matplotlib
+    matplotlib.use('Qt5Agg')
     import matplotlib.pyplot as plt
     
     ax = plt.subplot(121, polar=True)

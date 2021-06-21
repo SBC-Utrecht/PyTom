@@ -1575,7 +1575,7 @@ class Particle(PyTomClass):
     """
     
     def __init__(self,filename='',rotation=None,shift=None,wedge=None,className = 0,
-                 pickPosition=None,score=None, sourceInfo=None):
+                 pickPosition=None,score=None, infoGUI=None):
         """
         @param filename: name of particle volume file (.em or .mrc file)
         @type filename: L{str}
@@ -1614,14 +1614,14 @@ class Particle(PyTomClass):
         else:
             raise TypeError('Unknown type for shift parameter!')
 
-        if not sourceInfo:
-            self._sourceInfo = SourceInformation('', 0, 1)
-        elif sourceInfo.__class__ == list:
-            self._sourceInfo = SourceInformation(sourceInfo[0],sourceInfo[1],sourceInfo[2])
-        elif sourceInfo.__class__ == SourceInformation:
-            self._sourceInfo = sourceInfo
+        if not infoGUI:
+            self._infoGUI = InformationGUI('')
+        elif infoGUI.__class__ == list:
+            self._infoGUI = InformationGUI(infoGUI[0])
+        elif infoGUI.__class__ == InformationGUI:
+            self._infoGUI = InformationGUI
         else:
-            raise TypeError('Unknown type for sourceInfo parameter')
+            raise TypeError('Unknown type for InformationGUI parameter')
 
         if not pickPosition:
             from pytom.basic.structures import PickPosition
@@ -1679,8 +1679,8 @@ class Particle(PyTomClass):
     def getScore(self):
         return self._score
     
-    def getSourceInfo(self):
-        return self._sourceInfo
+    def getInfoGUI(self):
+        return self._infoGUI
 
     def getVolume(self, binning=1):
         """
@@ -1821,7 +1821,7 @@ class Particle(PyTomClass):
         particle_element.append(self._shift.toXML())
         particle_element.append(self._pickPosition.toXML())
         particle_element.append(self._wedge.toXML())
-        particle_element.append(self._sourceInfo.toXML())
+        particle_element.append(self._infoGUI.toXML())
 
         if self._score != None:
             particle_element.append(self._score.toXML())
@@ -1870,13 +1870,13 @@ class Particle(PyTomClass):
         else:
             self._shift = Shift([0.0,0.0,0.0])
 
-        source_element = particle_element.xpath('InfoTomogram')
+        source_element = particle_element.xpath('InfoGUI')
         if len(source_element) > 0:
             source_element = source_element[0]
-            self._sourceInfo = SourceInformation(['', 1, 1])
-            self._sourceInfo.fromXML(source_element)
+            self._infoGUI = InformationGUI('')
+            self._infoGUI.fromXML(source_element)
         else:
-            self._sourceInfo = SourceInformation(['', 1, 1])
+            self._infoGUI = InformationGUI('')
 
         position_element = particle_element.xpath('PickPosition')
         if len(position_element) > 0:
@@ -1974,6 +1974,12 @@ def keyFunctionForParticleSortingByScore(particle):
 
 def keyFunctionForParticleSortingByClassLabel(particle):
     return str(particle.getClass())
+
+def keyFunctionForParticleSortingByParticleDir(particle):
+    return str(particle.getInfoGUI().getProjectDir())
+
+def keyFunctionForParticleSortingByTomoName(particle):
+    return str(particle.getPickPosition().getOriginFilename())
 
 
 class ParticleList(PyTomClass):
@@ -2367,7 +2373,51 @@ class ParticleList(PyTomClass):
             newParticleList.append(p)
             
         return newParticleList
-        
+
+    def particlesFromProjectDir(self,projectDir):
+        """
+        particlesFromProjectDir: Selects all members of projectDir
+        @param projectDir: Name of particle project dir
+        @type projectDir: str
+        @return: ParticleList
+        """
+        from pytom.basic.structures import ParticleList as ParticleListConstructor
+
+        query = '/ParticleList/Particle[InfoGUI/@ProjectDir="'+str(projectDir)+'"]'
+
+        particles = self.xpath(query)
+
+        newParticleList = ParticleListConstructor(self._directory,[])
+
+        for particle in particles:
+            p = Particle('')
+            p.fromXML(particle)
+            newParticleList.append(p)
+
+        return newParticleList
+
+    def particlesFromTomoName(self, projectDir):
+        """
+        particlesFromProjectDir: Selects all members of projectDir
+        @param projectDir: Name of particle project dir
+        @type projectDir: str
+        @return: ParticleList
+        """
+        from pytom.basic.structures import ParticleList as ParticleListConstructor
+
+        query = '/ParticleList/Particle[PickPosition/@Origin="' + str(projectDir) + '"]'
+
+        particles = self.xpath(query)
+
+        newParticleList = ParticleListConstructor(self._directory, [])
+
+        for particle in particles:
+            p = Particle('')
+            p.fromXML(particle)
+            newParticleList.append(p)
+
+        return newParticleList
+
     def splitByClass(self,verbose = False):
         """
         splitByClass: Splits current self.particleList and returns N ParticleLists if there are N classes.
@@ -2400,7 +2450,79 @@ class ParticleList(PyTomClass):
             particleListList.append(particleList)
         
         return particleListList
-    
+
+    def splitByProjectDir(self, verbose=False):
+
+        self.sortByProjectDir()
+
+        dirs = self.xpath('/ParticleList/Particle/InfoGUI/@ProjectDir')
+
+        dirNames = []
+
+        for i,aClass in enumerate(dirs):
+            if not str(aClass) in dirNames:
+                dirNames.append(str(aClass))
+
+        if verbose:
+            print(dirNames)
+
+        particleListList = []
+
+        for dirName in dirNames:
+
+            particleList = self.particlesFromProjectDir(dirName)
+
+            if verbose:
+                print(particleList)
+
+            particleListList.append(particleList)
+
+        return particleListList
+
+    def splitByTomoName(self, verbose=False):
+
+        self.sortByTomoName()
+
+        dirs = self.xpath('/ParticleList/Particle/PickPosition/@Origin')
+
+        dirNames = []
+
+        for i, aClass in enumerate(dirs):
+            if not str(aClass) in dirNames:
+                dirNames.append(str(aClass))
+
+        if verbose:
+            print(dirNames)
+
+        particleListList = []
+
+        for dirName in dirNames:
+
+            particleList = self.particlesFromTomoName(dirName)
+
+            if verbose:
+                print(particleList)
+
+            particleListList.append(particleList)
+
+        return particleListList
+
+    def sortByProjectDir(self, sortType='ascending'):
+        """
+        sortByClassLabel:
+        @param sortType: can be either 'ascending' (default) or 'descending'
+        @type sortType: str
+        """
+        self._particleList = sorted(self._particleList, key=keyFunctionForParticleSortingByParticleDir, reverse= (sortType == 'descending') )
+
+    def sortByTomoName(self, sortType='ascending'):
+        """
+        sortByClassLabel:
+        @param sortType: can be either 'ascending' (default) or 'descending'
+        @type sortType: str
+        """
+        self._particleList = sorted(self._particleList, key=keyFunctionForParticleSortingByTomoName, reverse= (sortType == 'descending') )
+
     def getParticlesByString(self, string):
         """
         getParticlesByString: Will get all particles whose filename property contain string
@@ -3108,7 +3230,7 @@ class ParticleList(PyTomClass):
         
         return res
     
-    def loadCoordinateFile(self, filename, name_prefix=None, wedgeAngle=None, sourceInfo=None):
+    def loadCoordinateFile(self, filename, name_prefix=None, wedgeAngle=None, infoGUI=None, projDir=''):
         """
         Initialize the particle list using the given coordinate file.
         The coordinate file simply contains three columns of X, Y and Z separated 
@@ -3137,7 +3259,7 @@ class ParticleList(PyTomClass):
                 except: x, y, z = [float(n) for n in line.split()]
                 p = Particle(name_prefix+str(i)+'.em', rotation=None, shift=None,
                         wedge=None, className=0, pickPosition=PickPosition(x,y,z),
-                        score=None, sourceInfo=sourceInfo)
+                        score=None, infoGUI=[projDir])
                 if wedgeAngle:
                     p.setWedge(wedge)
                 self._particleList.append(p)
@@ -3147,7 +3269,7 @@ class ParticleList(PyTomClass):
 
     def loadCoordinateFileHeader(self, filename):
         header = [line.strip('#').split() for line in open(filename, 'r').readlines() if '#' in line]
-        headerInfo = ['', 1, 1]
+        headerInfo = ['', '', '']
 
         for l in header:
             if not l or len(l) < 2:
@@ -3237,21 +3359,24 @@ class ParticleList(PyTomClass):
             particle.setShift(shift=ttrans+translation.rotate(rot=trot))
 
 
-class SourceInformation(PyTomClass):
+class InformationGUI(PyTomClass):
     """
-    SourceInformation: Stores information used for the generation of the tomogram from which the particle originates.
-    Information that is stored: tomogram name, reference marker index, and binning factor.
+    InformationGUI: Stores information used by the GUI (ProjectDirectory).
     """
-    def __init__(self, tomogramName='', refMarkIndex=0, binningFactor=1):
-        self._tomoname = tomogramName
-        self._refMarkIndex = int(refMarkIndex)
-        self._binningFactor = int(binningFactor)
+    def __init__(self, projectDir=''):
+        self._projectDir = projectDir
 
     def getTomoName(self):
         return self._tomoname
 
     def setTomoName(self,tomoname):
         self._tomoname = str(tomoname)
+
+    def getProjectDir(self):
+        return self._projectDir
+
+    def setProjectDir(self, projectdir):
+        self._projectDir = str(projectdir)
 
     def getRefMarkIndex(self):
         return self._refMarkIndex
@@ -3267,9 +3392,7 @@ class SourceInformation(PyTomClass):
 
     def toXML(self):
         from lxml import etree
-
-        info_element = etree.Element('InfoTomogram', TomoName=str(self._tomoname),
-                                         RefMarkIndex=str(self._refMarkIndex), BinningFactor=str(self._binningFactor))
+        info_element = etree.Element('InfoGUI', ProjectDir=str(self._projectDir))
         return info_element
 
     def fromXML(self, xmlObj):
@@ -3278,17 +3401,13 @@ class SourceInformation(PyTomClass):
         if xmlObj.__class__ != _Element:
             raise TypeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
 
-        if xmlObj.tag == 'InfoTomogram':
+        if xmlObj.tag == 'InfoGUI':
             info_element = xmlObj
         else:
-            TypeError('InfoTomogram: You must provide a valid SourceInformation XML object.')
+            TypeError('InfoTomogram: You must provide a valid InformationGUI XML object.')
 
-        self._tomoname = str(info_element.get('TomoName'))
-        self._refMarkIndex = int(info_element.get('RefMarkIndex'))
-        self._binningFactor = int(info_element.get('BinningFactor'))
-
-        if self._binningFactor < 1:
-            self._binningFactor = 1
+        self._projectDir = str(info_element.get('ProjectDir'))
+        self._projectDir = '' if self._projectDir == str(None) else self._projectDir
 
 
 class Rotation(PyTomClass):
@@ -3839,7 +3958,7 @@ class PickPosition(PyTomClass):
     """
     PickPosition: Specifies the position of a particle within a tomogram. 
     """
-    def __init__(self,x=0.0,y=0.0,z=0.0,originFilename=''):
+    def __init__(self,x=0.0,y=0.0,z=0.0,originFilename='', binning=1, refmarker=1):
         
         if x.__class__ == list:
             self._x = x[0]
@@ -3849,7 +3968,9 @@ class PickPosition(PyTomClass):
             self._x = x
             self._y = y
             self._z = z
-            
+
+        self.binning = binning
+        self.refmarker = refmarker
         self._originFilename = originFilename
         
     def getX(self):
@@ -3885,13 +4006,25 @@ class PickPosition(PyTomClass):
 
     def setOriginFilename(self, originFilename):
         self._originFilename = originFilename
+
+    def getBinningFactor(self):
+        return self.binning
+
+    def setBinningFactor(self, binningFactor):
+        self.binning = binningFactor
+
+    def getRefMarkerIndex(self):
+        return self.refmarker
+
+    def setRefMarkerIndex(self, refmark):
+        self.refmarker = refmark
     
     def toXML(self):
         """
         """
         from lxml import etree
 
-        shift_element = etree.Element('PickPosition',X=str(self._x),Y=str(self._y),Z=str(self._z),Origin = str(self._originFilename))
+        shift_element = etree.Element('PickPosition',X=str(self._x),Y=str(self._y),Z=str(self._z),Origin = str(self._originFilename),Binning = str(self.binning), RefMarkIndex = str(self.refmarker))
         
         return shift_element
         

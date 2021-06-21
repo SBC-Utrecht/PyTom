@@ -4,7 +4,8 @@ from pytom.basic.structures import ParticleList
 from pytom.angles.localSampling import LocalSampling
 from pytom.tompy.mpi import MPI
 import os
-import sys
+
+
 analytWedge=False
 
 from pytom.gpu.initialize import xp, device
@@ -323,17 +324,20 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
     ###apply spectral weighting to sum
     result = lowpassFilter(result, sizeX / 2 - 1, 0.)[0]
 
+
+    root, ext = os.path.splitext(averageName)
+
     # if createInfoVolumes:
-    result.write(averageName[:len(averageName) - 3] + '-PreWedge.em')
+    result.write( f'{root}-PreWedge{ext}')
 
     # wedgeSum = wedgeSum*0+len(particleList)
-    wedgeSum.write(averageName[:len(averageName) - 3] + '-WedgeSumUnscaled.em')
+    wedgeSum.write(f'{root}-WedgeSumUnscaled{ext}')
     invert_WedgeSum(invol=wedgeSum, r_max=sizeX / 2 - 2., lowlimit=.05 * len(particleList),
                     lowval=.05 * len(particleList))
 
     if createInfoVolumes:
         w1 = reducedToFull(wedgeSum)
-        w1.write(averageName[:len(averageName) - 3] + '-WedgeSumInverted.em')
+        w1.write(f'{root}-WedgeSumInverted{ext}')
 
     result = convolute(v=result, k=wedgeSum, kernel_in_fourier=True)
 
@@ -344,7 +348,7 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
     if createInfoVolumes:
         resultINV = result * -1
         # write sign inverted result to disk (good for chimera viewing ... )
-        resultINV.write(averageName[:len(averageName) - 3] + '-INV.em')
+        resultINV.write('{root}-INV{ext}')
     newReference = Reference(averageName, particleList)
 
     return newReference
@@ -371,7 +375,7 @@ def allocateProcess(pl, shared_array, n=0, total=1, size=200):
     procs.append(p)
     return procs
 
-def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
+def averageGPU2(particleList, averageName, showProgressBar=False, verbose=False,
             createInfoVolumes=False, weighting=False, norm=False, gpuId=None, profile=True):
     """
     average : Creates new average from a particleList
@@ -437,10 +441,15 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
             weighting = False
             print("Warning: all scores have been zero - weighting not applied")
     import time
+
+
     sx,sy,sz = read_size(particleList[0].getFilename())
     wedgeInfo = particleList[0].getWedge().convert2numpy()
+
     print('angle: ', wedgeInfo.getWedgeAngle())
+
     wedgeZero = xp.fft.fftshift(xp.array(wedgeInfo.returnWedgeVolume(sx, sy, sz, True).get(), dtype=xp.float32))
+
     # wedgeZeroReduced = fourier_full2reduced(wedgeZero)
     wedge     = xp.zeros_like(wedgeZero,dtype=xp.float32)
     wedgeSum  = xp.zeros_like(wedge,dtype=xp.float32)
@@ -566,17 +575,19 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
     print('averaged particles')
     ###apply spectral weighting to sum
 
+    root, ext = os.path.splitext(averageName)
+
     result = lowpassFilter(result, high=sx / 2 - 1, sigma=0)
     # if createInfoVolumes:
-    write(averageName[:len(averageName) - 3] + '-PreWedge.em', result)
-    write(averageName[:len(averageName) - 3] + '-WedgeSumUnscaled.em', fourier_full2reduced(wedgeSum))
+    write(f'{root}-PreWedge{ext}', result)
+    write(f'{root}-WedgeSumUnscaled{ext}', fourier_full2reduced(wedgeSum))
 
     wedgeSumINV = invert_WedgeSum(wedgeSum, r_max=sx // 2 - 2., lowlimit=.05 * len(particleList), lowval=.05 * len(particleList))
     wedgeSumINV = wedgeSumINV
 
     #print(wedgeSum.mean(), wedgeSum.std())
     if createInfoVolumes:
-        write(averageName[:len(averageName) - 3] + '-WedgeSumInverted.em', xp.fft.fftshift(wedgeSumINV))
+        write(f'{root}-WedgeSumInverted{ext}', xp.fft.fftshift(wedgeSumINV))
 
     result = applyFourierFilterFull(result, xp.fft.fftshift(wedgeSumINV))
 
@@ -587,7 +598,7 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
     if createInfoVolumes:
         resultINV = result * -1
         # write sign inverted result to disk (good for chimera viewing ... )
-        write(averageName[:len(averageName) - 3] + '-INV.em', resultINV)
+        write(f'{root}-INV{ext}', resultINV)
 
     newReference = Reference(averageName, particleList)
 
@@ -663,7 +674,7 @@ def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
 
 def averageParallel(particleList,averageName, showProgressBar=False, verbose=False,
                     createInfoVolumes=False, weighting=None, norm=False,
-                    setParticleNodesRatio=3,cores=6):
+                    setParticleNodesRatio=3,cores=6, gpuID=None):
     """
     compute average using parfor
     @param particleList: The particles
@@ -735,8 +746,10 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
 
     
     if createInfoVolumes:
-        unweiAv.write(averageName[:len(averageName)-3]+'-PreWedge.em')
-        wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumUnscaled.em')
+        root, ext = os.path.splitext(averageName)
+
+        unweiAv.write(f'{root}-PreWedge{ext}')
+        wedgeSum.write(f'{root}-WedgeSumUnscaled{ext}')
 
     # convolute unweighted average with inverse of wedge sum
     invert_WedgeSum( invol=wedgeSum, r_max=unweiAv.sizeX()/2-2., lowlimit=.05*len(particleList),
@@ -752,14 +765,24 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     # low pass filter to remove artifacts at fringes
     unweiAv = lowpassFilter(volume=unweiAv, band=unweiAv.sizeX()/2-2, smooth=(unweiAv.sizeX()/2-1)/10.)[0]
 
-    unweiAv.write(averageName)
+
+    if averageName.endswith("mrc"):
+        from pytom.basic.files import em2mrc
+        import os
+        averageNameEM = averageName[:-3]+'em'
+        unweiAv.write(averageNameEM)
+        em2mrc(averageNameEM, './' if not os.path.dirname(averageName) else os.path.dirname(averageName))
+        os.remove(averageNameEM)
+
+    else:
+        unweiAv.write(averageName)
 
     return Reference(averageName, particleList)
 
 
 def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose=False,
                     createInfoVolumes=False, weighting=None, norm=False,
-                    setParticleNodesRatio=3, cores=6):
+                    setParticleNodesRatio=3, cores=6, gpuID=None):
     """
     compute average using parfor
     @param particleList: The particles
@@ -779,7 +802,6 @@ def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose
     from pytom.basic.fourier import fft, ifft
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Reference
-    from pytom.alignment.alignmentFunctions import averageGPU
     from pytom.tompy.tools import invert_WedgeSum
     from pytom_numpy import vol2npy
     from pytom.tompy.io import write, read
@@ -798,7 +820,7 @@ def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose
         wedgeList.append(averageName + '_dist' + str(ii) + '-WedgeSumUnscaled.em')
 
     #####
-    averageGPU(splitLists[0],avgNameList[0], showProgressBar,verbose,createInfoVolumes, weighting, norm)
+    averageGPU2(splitLists[0],avgNameList[0], showProgressBar,verbose,createInfoVolumes, weighting, norm, gpuID)
 #averageList = mpi.parfor( average, list(zip(splitLists, avgNameList, [showProgressBar]*splitFactor,
 #                                       [verbose]*splitFactor, [createInfoVolumes]*splitFactor,
 #                                            [weighting]*splitFactor, [norm]*splitFactor)), verbose=True)
@@ -816,12 +838,14 @@ def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose
         os.system('rm ' + preList[ii])
         w = read(wedgeList[ii])
         wedgeSum += w
-        os.system('rm ' + wedgeList[ii])
-        os.system('rm ' + avgNameList[ii])
+        #os.system('rm ' + wedgeList[ii])
+        #os.system('rm ' + avgNameList[ii])
 
     if createInfoVolumes:
-        write(averageName[:len(averageName) - 3] + '-PreWedge.em', unweiAv)
-        write(averageName[:len(averageName) - 3] + '-WedgeSumUnscaled.em', wedgeSum)
+        root, ext = os.path.splitext(averageName)
+
+        write(f'{root}-PreWedge{ext}', unweiAv)
+        write(f'{root}-WedgeSumUnscaled{ext}', wedgeSum)
 
     # convolute unweighted average with inverse of wedge sum
     wedgeINV = invert_WedgeSum((wedgeSum), r_max=unweiAv.shape[0] / 2 - 2., lowlimit=.05 * len(particleList),
@@ -925,5 +949,5 @@ if __name__=='__main__':
                            averageName=outname,
                            showProgressBar=showProgressBar, verbose=verbose, createInfoVolumes=createInfoVol,
                            weighting=weighting, norm=norm,
-                           setParticleNodesRatio=pnr, cores=1)
+                           setParticleNodesRatio=pnr, cores=1, gpuID=gpuID)
     

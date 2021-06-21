@@ -40,9 +40,11 @@ if __name__ == '__main__':
                                 ScriptOption(['-n', '--numProcesses'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
                                 ScriptOption(['-a', '--alignResultFile'], 'Supply an alignResultFile.', arg=True,
                                              optional=True),
+                                ScriptOption(['--scaleFactorParticle'], 'Scale particles by this factor.', arg=True,
+                                             optional=True),
                                 ScriptOption(['--particlePolishResultFile'], 'Supply a particle polish result file.',
                                              arg=True, optional=True),
-
+                                ScriptOption(['--gpuID'], 'Which GPUs do you want to use?', arg=True, optional=True),
                                 ScriptOption(['--help'], 'Print this help.', arg=False, optional=True)])
     
     if len(sys.argv) == 1:
@@ -55,7 +57,7 @@ if __name__ == '__main__':
     
     try:
         tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, \
-        recOffset, projBinning, metafile, numProcesses, alignResultFile, particlePolishResultFile, help = \
+        recOffset, projBinning, metafile, numProcesses, alignResultFile, scaleFactorParticle, particlePolishResultFile, gpuIDs,  help = \
             parse_script_options(sys.argv[1:], helper)
     
     except Exception as e:
@@ -120,6 +122,10 @@ if __name__ == '__main__':
             raise RuntimeError('particlePolishResultFile does not exist! Abort')
 
 
+    gpuIDs = None if gpuIDs is None else list(map(int,gpuIDs.split(',')))
+    numProcesses = len(gpuIDs) if not gpuIDs is None else numProcesses
+
+
     if tomogram:
         vol = projections.reconstructVolume( dims=size, reconstructionPosition=recOffset,
             binning=projBinning, applyWeighting=aw)
@@ -139,10 +145,19 @@ if __name__ == '__main__':
             lar = loadstar(alignResultFile, dtype=DATATYPE_ALIGNMENT_RESULTS)
             sx,sy,sz = read_size(lar['FileName'][0])
 
+            if abs((lar['InPlaneRotation'][0] % 180) - 90) < 45:
+                t = sx
+                sx = sy
+                sy = t
+                print('Inverted shape of images due to rotation axis being close to horizontal, and the reconstruction having the rotation axis vertically.')
+
+
         # sx, sy = 1024, 1024
         recOffset[0] = -sx/2 + recOffset[0]*coordinateBinning
         recOffset[1] = -sy/2 + recOffset[1]*coordinateBinning
         recOffset[2] = -sx/2 + recOffset[2]*coordinateBinning
+
+        scaleFactorParticle = 1 if scaleFactorParticle is None else float(scaleFactorParticle)
 
         # set particle list in order to reconstruct subtomograms
         particleList = ParticleList()
@@ -156,19 +171,25 @@ if __name__ == '__main__':
         from pytom.basic.structures import PickPosition
         for particle in particleList:
             pickPosition = particle.getPickPosition()
-            x = (pickPosition.getX()*coordinateBinning+ recOffset[0])#/projBinning
-            y = (pickPosition.getY()*coordinateBinning+ recOffset[1])#/projBinning
-            z = (pickPosition.getZ()*coordinateBinning+ recOffset[2])#/projBinning
+            x = (pickPosition.getX()*coordinateBinning+ recOffset[0])
+            y = (pickPosition.getY()*coordinateBinning+ recOffset[1])
+            z = (pickPosition.getZ()*coordinateBinning+ recOffset[2])
+
+            if abs(scaleFactorParticle-1) > 0.000001:
+                x = x * float(scaleFactorParticle)
+                y = y * float(scaleFactorParticle)
+                z = z-80# * float(scaleFactorParticle)
 
             particle.setPickPosition( PickPosition(x=x, y=y, z=z))
 
-        print(particlePolishResultFile)
+        #print(particlePolishResultFile)
 
         projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \
                                        binning=projBinning, applyWeighting = aw, \
                                        showProgressBar = True,verbose=False, \
                                        preScale=projBinning,postScale=1, num_procs=numProcesses,
-                                       alignResultFile=alignResultFile, polishResultFile=particlePolishResultFile)
+                                       alignResultFile=alignResultFile, polishResultFile=particlePolishResultFile,
+                                       scaleFactorParticle=scaleFactorParticle, gpuIDs=gpuIDs)
 
             
 

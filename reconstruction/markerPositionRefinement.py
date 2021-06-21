@@ -13,33 +13,30 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
     mask = None
 
     #read data
-    MyTiltAlignmentParas=TiltAlignmentParameters(
-        dmag=False, drot=False, dbeam=False,
-    finealig=True, finealigfile=finealigfile,
-    grad=False,
-    irefmark=1, ireftilt=ireftilt, r=None, cent= [1025,1025],
-    handflip=False,
-    optimizer='leastsq', maxIter=0)
-    MyTiltSeries= TiltSeries(tiltSeriesName=tiltSeriesName,
-        TiltAlignmentParas=MyTiltAlignmentParas,
-        alignedTiltSeriesName='dummy',
-        markerFileName=markerFileName,
-                             firstProj=firstProj, lastProj=lastProj,projIndices=projIndices,tiltSeriesFormat=tiltSeriesFormat)
+    MyTiltAlignmentParas = TiltAlignmentParameters(dmag=False, drot=False, dbeam=False, finealig=True, handflip=False,
+                                                   finealigfile=finealigfile, grad=False, irefmark=1, ireftilt=ireftilt,
+                                                   r=None, cent=[size,size], optimizer='leastsq', maxIter=0)
+
+    MyTiltSeries = TiltSeries(tiltSeriesName=tiltSeriesName, TiltAlignmentParas=MyTiltAlignmentParas,
+                              alignedTiltSeriesName='dummy', markerFileName=markerFileName, firstProj=firstProj,
+                              lastProj=lastProj,projIndices=projIndices,tiltSeriesFormat=tiltSeriesFormat)
+
     MyTiltAlignment = TiltAlignment(MyTiltSeries)
     MyTiltAlignment.computeCoarseAlignment( MyTiltSeries)
-    #MyTiltAlignment.alignFromFiducials()
+    MyTiltAlignment.alignFromFiducials()
 
     dxdy_markers = numpy.zeros((len(projIndices),len(MyTiltSeries._Markers),2),dtype=float)
     missing = []
     for (imark, marker) in enumerate(MyTiltSeries._Markers):
         markerImageStack = ImageStack(verbose=False)
         len_stack = 0
-        for itilt in range(0,len(marker._projIndices)):
+        for itilt, index in enumerate(marker._projIndices):
             x = round(marker.get_xProj(itilt))
             y = round(marker.get_yProj(itilt))
 
             if (x-dimBox//2 -2 > 0.01) and ( y -dimBox//2 -2  > 0.01) and size-x > dimBox//2+1 and size-y > dimBox//2+1:
-                proj = MyTiltSeries._ProjectionList[itilt]
+                print(index, len(MyTiltSeries._ProjectionList))
+                proj = MyTiltSeries._ProjectionList[int(index)]
                 filename = proj.getFilename()
                 #copy data to ImageStack
 
@@ -55,8 +52,8 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
 
                 len_stack +=1
             else:
-                proj = MyTiltSeries._ProjectionList[itilt]
-                print("marker not clicked in "+proj.getFilename())
+                proj = MyTiltSeries._ProjectionList[int(index)]
+                print(f"Marker {imark} not refined in {os.path.basename(proj.getFilename())}")
         #markerImageStack.normalize( normtype="StdMeanInMask", mask=mask)
         if len_stack == 0:
             continue
@@ -82,7 +79,9 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
                 try:
                     dx = x+markerImageStack.images[irun].shiftX
                     dy = y+markerImageStack.images[irun].shiftY
-                except: continue
+                except Exception as e:
+
+                    continue
                 dxdy_markers[itilt][imark][0] = dy
                 dxdy_markers[itilt][imark][1] = dx
                 marker.set_xProj(itilt, x+ markerImageStack.images[irun].shiftX)
@@ -93,8 +92,8 @@ def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
 
     #for i in range(len(MyTiltSeries._Markers)):
     errors = MyTiltAlignment.alignmentResidual(returnErrors=True)
-    transX = MyTiltAlignment._alignmentTransY - MyTiltAlignment.TiltSeries_._TiltAlignmentParas.cent[0]
-    transY = MyTiltAlignment._alignmentTransX - MyTiltAlignment.TiltSeries_._TiltAlignmentParas.cent[1]
+    transX = numpy.array(MyTiltAlignment._alignmentTransY) - MyTiltAlignment.TiltSeries_._TiltAlignmentParas.cent[0]
+    transY = numpy.array(MyTiltAlignment._alignmentTransX) - MyTiltAlignment.TiltSeries_._TiltAlignmentParas.cent[1]
 
     if ret:
         return dxdy_markers, errors, transX, transY

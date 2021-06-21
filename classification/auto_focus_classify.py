@@ -1,4 +1,5 @@
 
+from pytom.gpu.initialize import device, xp
 import numpy as np
 from pytom.tompy.mpi import MPI
 from pytom.basic.structures import ParticleList
@@ -175,85 +176,173 @@ def focus_score(p, ref, freq, diff_mask, binning):
     return s
 
 
-def paverage(particleList, norm, binning, verbose, outdir='./'):
-    from pytom_volume import read, vol
-    from pytom_volume import transformSpline as transform
-    from pytom.basic.structures import Particle
-    from pytom.basic.normalise import mean0std1
-    from pytom.tools.ProgressBar import FixedProgBar
-    from pytom.basic.transformations import resize
+def paverage(particleList, norm, binning, verbose, outdir='./', gpuID=None):
 
-    if len(particleList) == 0:
-        raise RuntimeError('The particlelist provided is empty. Aborting!')
-    
-    if verbose:
-        progressBar = FixedProgBar(0,len(particleList),'Particles averaged ')
-        progressBar.update(0)
-        numberAlignedParticles = 0
-    
-    result = None
-    wedgeSum = None
-    newParticle = None
-    
-    for particleObject in particleList:
-        particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, 1,1,1)
-        if binning != 1:
-            particle, particlef = resize(volume=particle, factor=1. / binning, interpolation='Fourier')
+    from pytom.gpu.initialize import device, xp
 
-        if norm:
-            mean0std1(particle)
+    device = 'cpu'
 
-        wedgeInfo = particleObject.getWedge()
-        if result is None: # initialization
-            sizeX = particle.sizeX()
-            sizeY = particle.sizeY()
-            sizeZ = particle.sizeZ()
-            
-            newParticle = vol(sizeX,sizeY,sizeZ)
-            
-            centerX = sizeX//2 
-            centerY = sizeY//2 
-            centerZ = sizeZ//2 
-            
-            result = vol(sizeX,sizeY,sizeZ)
-            result.setAll(0.0)
-            wedgeSum = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
-            wedgeSum.setAll(0)
-        
-        # create spectral wedge weighting
-        rotation = particleObject.getRotation()
-        wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False, rotation.invert())
-        
-        wedgeSum += wedge
-        
-        # shift and rotate particle
-        shiftV = particleObject.getShift()
-        newParticle.setAll(0)
-        transform(particle,newParticle,-rotation[1],-rotation[0],-rotation[2],
-            centerX,centerY,centerZ,-shiftV[0]//binning,
-        -shiftV[1]//binning,-shiftV[2]//binning,0,0,0)
-        
-        result += newParticle
-        
+    if 'cpu' in device:
+        # print(f'averaging particles on cpu')
+        from pytom_volume import read, vol
+        from pytom_volume import transformSpline as transform
+        from pytom.basic.structures import Particle
+        from pytom.basic.normalise import mean0std1
+        from pytom.tools.ProgressBar import FixedProgBar
+        from pytom.basic.transformations import resize
+
+        if len(particleList) == 0:
+            raise RuntimeError('The particlelist provided is empty. Aborting!')
+
         if verbose:
-            numberAlignedParticles = numberAlignedParticles + 1
-            progressBar.update(numberAlignedParticles)
+            progressBar = FixedProgBar(0, len(particleList), 'Particles averaged ')
+            progressBar.update(0)
+            numberAlignedParticles = 0
+
+        result = None
+        wedgeSum = None
+        newParticle = None
+
+        for particleObject in particleList:
 
 
-    # write to the disk
 
-    fname_result = os.path.join(outdir, 'avg_{}.em'.format(mpi.rank))
-    fname_wedge = os.path.join(outdir, 'wedge_{}.em'.format(mpi.rank))
+            particle = read(particleObject.getFilename(), 0,0,0,0,0,0,0,0,0, 1,1,1)
+            if binning != 1:
+                particle, particlef = resize(volume=particle, factor=1. / binning, interpolation='Fourier')
 
-    result.write(fname_result)
-    result = Particle(fname_result)
-    wedgeSum.write(fname_wedge)
-    wedgeSum = Particle(fname_wedge)
-    
-    return (result, wedgeSum)
+            if norm:
+                mean0std1(particle)
+
+            wedgeInfo = particleObject.getWedge()
+            if result is None: # initialization
+                sizeX = particle.sizeX()
+                sizeY = particle.sizeY()
+                sizeZ = particle.sizeZ()
+
+                newParticle = vol(sizeX,sizeY,sizeZ)
+
+                centerX = sizeX//2
+                centerY = sizeY//2
+                centerZ = sizeZ//2
+
+                result = vol(sizeX,sizeY,sizeZ)
+                result.setAll(0.0)
+                wedgeSum = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
+                wedgeSum.setAll(0)
+
+            # create spectral wedge weighting
+            rotation = particleObject.getRotation()
+            wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False, rotation.invert())
+
+            wedgeSum += wedge
+
+            # shift and rotate particle
+            shiftV = particleObject.getShift()
+            newParticle.setAll(0)
+            transform(particle,newParticle,-rotation[1],-rotation[0],-rotation[2],
+                centerX,centerY,centerZ,-shiftV[0]//binning,
+            -shiftV[1]//binning,-shiftV[2]//binning,0,0,0)
+
+            result += newParticle
+
+            if verbose:
+                numberAlignedParticles = numberAlignedParticles + 1
+                progressBar.update(numberAlignedParticles)
 
 
-def calculate_averages(pl, binning, mask, outdir='./'):
+        # write to the disk
+
+        fname_result = os.path.join(outdir, 'avg_{}.em'.format(mpi.rank))
+        fname_wedge = os.path.join(outdir, 'wedge_{}.em'.format(mpi.rank))
+
+        result.write(fname_result)
+        result = Particle(fname_result)
+        wedgeSum.write(fname_wedge)
+        wedgeSum = Particle(fname_wedge)
+
+        return (result, wedgeSum)
+
+    elif 'gpu' in device:
+        # print('averaging particles on gpu')
+        from pytom.tompy.io import read, write
+        from pytom.voltools import transform
+        from pytom.basic.structures import Particle
+        from pytom.tompy.normalise import mean0std1
+        from pytom.tompy.transform import resize
+        from pytom.gpu.initialize import xp, device
+
+        if not gpuID is None: xp.cuda.Device(int(gpuID)).use()
+
+        if len(particleList) == 0:
+            raise RuntimeError('The particlelist provided is empty. Aborting!')
+
+
+        result = None
+        wedgeSum = None
+        newParticle = None
+
+        for particleObject in particleList:
+
+            particle = read(particleObject.getFilename())
+            if binning != 1:
+                particle = resize(particle, 1. / binning, interpolation='Fourier')
+
+            if norm:
+                mean0std1(particle, copyFlag=True)
+
+            wedgeInfo = particleObject.getWedge().convert2numpy()
+
+            if result is None:  # initialization
+                sizeX, sizeY, sizeZ = particle.shape
+
+
+                newParticle = xp.zeros((sizeX, sizeY, sizeZ), dtype=xp.float32)
+
+                centerX = sizeX // 2
+                centerY = sizeY // 2
+                centerZ = sizeZ // 2
+
+                result = xp.zeros((sizeX, sizeY, sizeZ),dtype=xp.float32)
+
+                wedgeSum = wedgeInfo.returnWedgeVolume(sizeX, sizeY, sizeZ)
+                wedgeSum *= 0
+
+            # create spectral wedge weighting
+            rotation = particleObject.getRotation()
+            wedge = wedgeInfo.returnWedgeVolume(sizeX, sizeY, sizeZ, False, rotation.invert())
+
+            wedgeSum += wedge
+
+            # shift and rotate particle
+            shiftV = particleObject.getShift()
+            newParticle *= 0
+            transform(particle, output=newParticle, rotation=[-rotation[1], -rotation[0], -rotation[2]],
+                      center =[centerX, centerY, centerZ],
+                      translation=[-shiftV[0] // binning, -shiftV[1] // binning, -shiftV[2] // binning],
+                      interpolation='filt_bspline', device=device)
+
+            result += newParticle
+
+
+
+
+        # write to the disk
+
+        fname_result = os.path.join(outdir, 'avg_{}.em'.format(mpi.rank))
+        fname_wedge = os.path.join(outdir, 'wedge_{}.em'.format(mpi.rank))
+
+
+
+        write(fname_result, result)
+        result = Particle(fname_result)
+        write(fname_wedge, wedgeSum)
+        wedgeSum = Particle(fname_wedge)
+
+        return (result, wedgeSum)
+
+
+def calculate_averages(pl, binning, mask, outdir='./', gpuIDs=None):
     """
     calcuate averages for particle lists
     @param pl: particle list
@@ -286,8 +375,14 @@ def calculate_averages(pl, binning, mask, outdir='./'):
                 spp = [None] * 2
                 spp[0] = pp[:len(pp)//2]
                 spp[1] = pp[len(pp)//2:]
-            
-            args = list(zip(spp, [True]*len(spp), [binning]*len(spp), [False]*len(spp), [outdir]*len(spp)))
+
+
+            if gpuIDs is None:
+                gpuIDs = [None,]*len(spp)
+            else:
+                gpuIDs = (gpuIDs * len(spp))[:len(spp)]
+
+            args = list(zip(spp, [True]*len(spp), [binning]*len(spp), [False]*len(spp), [outdir]*len(spp), gpuIDs))
             avgs = mpi.parfor(paverage, args)
 
             even_a, even_w, odd_a, odd_w = None, None, None, None
@@ -370,7 +465,19 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
         else:
             mask = maskBin
 
-    pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
+    if 'cpu' in device:
+        pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
+
+    else:
+        from pytom_numpy import vol2npy
+        from pytom.tompy.frm import frm_align
+
+        vgpu = xp.array(vol2npy(v).copy())
+        refgpu = xp.array(vol2npy(ref.getVolume()).copy())
+        maskgpu = xp.array(vol2npy(mask).copy())
+
+        print('init gooes')
+        pos, angle, score = frm_align(vgpu, p.getWedge().convert2numpy(), refgpu, None, [4, 64], freq, offset, maskgpu)
 
     return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), 
             Rotation(angle), score, p.getFilename())
@@ -478,7 +585,6 @@ def voting(p, i, scores, references, frequencies, dmaps, binning, noise):
 
 
 def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, noise_percentage=None):
-    print('particle List', len(pl))
     # make sure the particle list and scores have the same order
     for i, p in enumerate(pl):
         fname1 = p.getFilename()
@@ -487,7 +593,7 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
             if fname1 != fname2:
                 raise Exception("Particle list and the scores do not have the same order!")
 
-    
+
     from pytom.frm.FRMAlignment import FRMScore
 
     # track the class changes
@@ -499,7 +605,6 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
     for c1 in class_labels_with_noise:
         for c2 in class_labels_with_noise:
             class_changes[(c1, c2)] = 0
-
     # calculate the probabilities of being noise class
     if noise_percentage:
         noise_prob_distribution = []
@@ -512,7 +617,6 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
         noise = prob_order[-int(noise_percentage*len(pl)):]
     else:
         noise = []
-
     # determine the class labels by voting
     args = list(zip(pl, list(range(len(pl))), [scores]*len(pl), [references]*len(pl), [frequencies]*len(pl), [dmaps]*len(pl), [binning]*len(pl), [noise]*len(pl)))
     new_labels = mpi.parfor(voting, args)
@@ -532,7 +636,6 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
         # track the changes
         if (old_label, new_label) in class_changes:
             class_changes[(old_label, new_label)] += 1
-
 
     # print the changes
     print("Class changes:")
@@ -652,7 +755,6 @@ def distance(p, ref, freq, mask, binning):
         else:
             mask = maskBin
 
-    print(a.sizeX(), b.sizeX(), mask.sizeX())
     s = nxcc(a, b, mask)
 
     d2 = 2*(1-s)
@@ -664,7 +766,8 @@ def initialize(pl, settings):
     from pytom.basic.structures import Particle
     # from pytom.alignment.alignmentFunctions import average2
     from pytom.basic.filter import lowpassFilter
-
+    import time
+    t = time.time()
     print("Initializing the class centroids ...")
     pl = pl.copy()
     pl.sortByScore()
@@ -716,7 +819,7 @@ def initialize(pl, settings):
         p.setClass(str(k))
         references[str(k)] = p
         frequencies[str(k)] = freq
-    
+    print(time.time()-t)
     return references, frequencies
 
 
@@ -740,6 +843,7 @@ def classify(pl, settings):
     mask = settings["mask"]
     sfrequency = settings["frequency"] # starting frequency
     outdir = settings["output_directory"]
+    gpuIDs = settings['gpuIDs']
 
     references = {}
     frequencies = {}
@@ -761,7 +865,7 @@ def classify(pl, settings):
             ncluster = settings["ncluster"]
             references, frequencies = initialize(pl, settings)
         else:
-            avgs, tmp, tmp2 = calculate_averages(pl, binning, mask, outdir=outdir)
+            avgs, tmp, tmp2 = calculate_averages(pl, binning, mask, outdir=outdir, gpuIDs=gpuIDs)
 
             for class_label, r in avgs.items():
                 fname = os.path.join(outdir, 'initial_class'+str(class_label)+'.em')
@@ -773,6 +877,9 @@ def classify(pl, settings):
                 frequencies[str(class_label)] = sfrequency
                 ncluster += 1
 
+
+    from time import time
+
     # start the classification
     for i in range(settings["niteration"]):
         if ncluster < 2:
@@ -782,6 +889,8 @@ def classify(pl, settings):
         print("Starting iteration %d ..." % i)
         old_pl = pl.copy()
 
+
+        ts = time()
         # compute the difference maps
         print("Calculate difference maps ...")
         args = []
@@ -795,9 +904,12 @@ def classify(pl, settings):
         for r in res:
             dmaps[(r[0].getClass(), r[1].getClass())] = r
 
+        print(f'it{i} time: {time()-ts:.1f}')
+
 
         # start the alignments
         print("Start alignments ...")
+        ts = time()
         scores = calculate_scores(pl, references, frequencies, offset, binning, mask, settings["noalign"])
 
         # determine the class labels & track the class changes
@@ -825,10 +937,14 @@ def classify(pl, settings):
 
         # split the top n classes
         pl = split_topn_classes(pls, len(to_delete))
-        
+        print(f'it{i} time: {time()-ts:.1f}')
+
+
+
         # update the references
         print("Calculate averages ...")
-        avgs, freqs, wedgeSum = calculate_averages(pl, binning, mask, outdir=outdir)
+        ts = time()
+        avgs, freqs, wedgeSum = calculate_averages(pl, binning, mask, outdir=outdir, gpuIDs=gpuIDs)
         ncluster = 0
         references = {}
         for class_label, r in avgs.items():
@@ -857,7 +973,7 @@ def classify(pl, settings):
         # check the stopping criterion
         if compare_pl(old_pl, pl):
             break
-
+        print(f'it{i} time: {time()-ts:.1f}')
 
 
 if __name__ == '__main__':
@@ -890,13 +1006,13 @@ if __name__ == '__main__':
                       help="Start with the class assignment stored in particle list (optional)")
     parser.add_option("-n", dest="noise",
                       help="Noise percentage (optional)")
-    parser.add_option("-g", dest="sigma",
+    parser.add_option("--sig", dest="sigma",
                       help="Particle density threshold for difference map (optional)")
     parser.add_option("-t", dest="threshold",
                       help="STD threshold for difference map, by default 0.4 (optional)")
     parser.add_option("-a", dest="noalign", action="store_true",
                       help="Run without alignment (optional)")
-
+    parser.add_option("--gpuID", dest="gpuIDs", help="Run omn single GPU (optional)")
 
     (options, args) = parser.parse_args()
 
@@ -923,6 +1039,8 @@ if __name__ == '__main__':
     settings["noise"] = float(options.noise) if options.noise else None
     settings["noalign"] = options.noalign
     settings['output_directory'] = options.output_directory if options.output_directory else './'
+    settings['gpuIDs'] = None if options.gpuIDs is None else list(map(int, options.gpuIDs.split(',')))
+
     if settings["noise"]:
         assert (settings["noise"] > 0 and settings["noise"] < 1), "noise must be > 0 and < 1"
 

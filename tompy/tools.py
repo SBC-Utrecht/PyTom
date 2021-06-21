@@ -6,6 +6,7 @@ from pytom.gpu.initialize import xp, device
 from pytom.tompy.filter import gaussian3d
 from numpy.random import standard_normal
 
+from pytom.tompy.transform import resize as RESIZE
 
 def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False):
     """Create a 3D sphere volume.
@@ -68,6 +69,17 @@ def create_circle(size, radius=-1, sigma=0, num_sigma=3, center=None):
 
     return circle
 
+
+def create_grid(shape, center=None):
+    cx,cy,cz = [shape[0]//2, shape[1]//2, shape[2]//2] if center is None else center
+
+    Y, X, Z = xp.meshgrid(xp.arange(shape[0]), xp.arange(shape[1]), xp.arange(shape[2]))
+    X -= cx
+    Y -= cy
+    Z -= cz
+
+    return (X,Y,Z)
+
 def prepare_mask(v, threshold, smooth):
     """Prepare a mask according to the given volume.
     Everything above the given threshold will be set to 1.
@@ -126,7 +138,7 @@ def paste_in_center(volume, volume2, gpu=False):
         if len(volume.shape) == 2:
             sx,sy = volume.shape
             SX, SY = volume2.shape
-            volume2[SX//2-sx//2:SX//2+sx//2+sx%2, SY//2-sy//2:SY//2+sy//2+sy%2] = volume
+            volume2[SX//2-sx//2:SX//2+sx//2+sx%2,SY//2-sy//2:SY//2+sy//2+sy%2] = volume
             return volume2
 
 def rotation_matrix_x(angle):
@@ -231,7 +243,7 @@ def volumesSameSize(v0, v1):
         return False
     return xp.array([abs(v0.shape[pos] - v1.shape[pos]) == 0 for pos in range(len(v0.shape))]).sum() == len(v0.shape)
 
-def taper_edges(image, width):
+def taper_edges(image, width, taper_mask=None):
     """
     taper edges of image (or volume) with cos function
 
@@ -246,28 +258,31 @@ def taper_edges(image, width):
     @author: GvdS
     """
 
-    dims = list(image.shape) + [0]
-    val = xp.cos(xp.arange(1, width + 1) * xp.pi / (2. * (width)))
-    taperX = xp.ones((dims[0]), dtype=xp.float32)
-    taperY = xp.ones((dims[1]))
-    taperX[:width] = val[::-1]
-    taperX[-width:] = val
-    taperY[:width] = val[::-1]
-    taperY[-width:] = val
-    if dims[2] > 1:
-        taperZ = xp.ones((dims[2]))
-        taperZ[:width] = val[::-1]
-        taperZ[-width:] = val
-        Z, X, Y = xp.meshgrid(taperX, taperY, taperZ)
-        taper_mask = X * (X < Y) * (X < Z) + Y * (Y <= X) * (Y < Z) + Z * (Z <= Y) * (Z <= X)
-    else:
-        X, Y = xp.meshgrid(taperY, taperX)
-        taper_mask = X * (X < Y) + Y * (Y <= X)
+    if taper_mask is None:
+        width = int(round(width))
+        dims = list(image.shape) + [0]
+        val = xp.cos(xp.arange(1, width + 1) * xp.pi / (2. * (width)))
+        taperX = xp.ones((dims[0]), dtype=xp.float32)
+        taperY = xp.ones((dims[1]))
+        taperX[:width] = val[::-1]
+        taperX[-width:] = val
+        taperY[:width] = val[::-1]
+        taperY[-width:] = val
+        if dims[2] > 1:
+            taperZ = xp.ones((dims[2]))
+            taperZ[:width] = val[::-1]
+            taperZ[-width:] = val
+            Z, X, Y = xp.meshgrid(taperX, taperY, taperZ)
+            taper_mask = X * (X < Y) * (X < Z) + Y * (Y <= X) * (Y < Z) + Z * (Z <= Y) * (Z <= X)
+        else:
+            X, Y = xp.meshgrid(taperY, taperX)
+            taper_mask = X * (X < Y) + Y * (Y <= X)
 
     return image * taper_mask, taper_mask
 
 def resize(*args, **kwargs):
-    pass
+    return RESIZE(*args, **kwargs)
+
 
 def determineRotationCenter(particle, binning):
     """
@@ -456,3 +471,32 @@ def design_fsc_filter(fsc, fildim=None, fsc_criterion=0.143):
         else:
             fil[ii] = fsc_fil[ii]
     return fil
+
+
+
+def subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, stepSizeZ):
+    from pytom_volume import vol, subvolume
+
+    if volume.__class__ != vol:
+        return volume[sub_startX:sub_startX+stepSizeX, sub_startY:sub_startY+stepSizeY, sub_startZ:sub_startZ+stepSizeZ]
+    else:
+        return subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, stepSizeZ)
+
+def putSubVolume(subvolume, volume, startX, startY, startZ):
+    from pytom_volume import vol, putSubVolume
+    from pytom_numpy import vol2npy
+
+    if volume.__class__ == vol and subvolume.__class__ == vol:
+        putSubVolume(subvolume, volume, startX, startY, startZ)
+    elif volume.__class__ == vol:
+        volume = vol2npy(volume).copy()
+        sx,sy,sz = subvolume.shape
+        volume[startX:startX+sx, startY:startY+sy, startZ:startZ+sz] = subvolume[:,:,:]
+    elif subvolume.__class__ == vol:
+        subvolume = vol2npy(subvolume).copy()
+        sx,sy,sz = subvolume.shape
+        volume[startX:startX+sx, startY:startY+sy, startZ:startZ+sz] = subvolume[:,:,:]
+    else:
+        sx, sy, sz = subvolume.shape
+        volume[startX:startX + sx, startY:startY + sy, startZ:startZ + sz] = subvolume[:, :, :]
+

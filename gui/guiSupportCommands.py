@@ -81,11 +81,12 @@ templateWBP       = '''cd {d[0]}
     --tiltSeriesFormat {d[8]} \\
     --fileType {d[8]}  \\
     --tomogramSizeX {d[9]}  \\
-    --tomogramSizeY {d[9]} \\
-    --tomogramSizeZ {d[9]} \\
+    --tomogramSizeY {d[13]} \\
+    --tomogramSizeZ {d[14]} \\
     --reconstructionCenterX 0 \\
     --reconstructionCenterY 0 \\
-    --reconstructionCenterZ 0
+    --reconstructionCenterZ 0 \\
+    {d[12]}
 
 
 unlink ../../04_Particle_Picking/Tomograms/{d[7]}_WBP.{d[8]}
@@ -155,7 +156,7 @@ mpiexec --tag-output -n {d[7]} pytom {d[1]}/classification/calculate_correlation
 
 templateCPCA      = """cd {d[0]}
 
-classifyCPCA.py -p {d[2]} -o {d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[7]}/{d[8]}
+classifyCPCA.py -p {d[2]} -o {d[3]} -c {d[7]}/{d[4]} -e {d[5]} -n {d[6]} -a {d[8]} -t {d[7]}
 """
 
 templateAC        = '''cd {d[0]}
@@ -168,7 +169,7 @@ mpiexec --tag-output -n {d[13]} {d[1]}/bin/pytom {d[1]}/classification/auto_focu
 -i {d[7]} \\
 -s {d[8]} \\
 -b {d[14]} \\
--n {d[9]} -g {d[10]} -t {d[11]} \\
+-n {d[9]} --sig {d[10]} -t {d[11]} \\
 -o {d[12]}'''
 
 templateTM        = '''cd {d[0]}
@@ -310,7 +311,7 @@ templateCTFCorrectionImod = '''cd {d[0]}
 
 ctfphaseflip -inp {d[1]} -o {d[2]} -an {d[3]} -defF {d[4]} \\
 -defT {d[5]} -iW {d[6]} -pi {d[7]} -cs {d[8]} \\
--am {d[9]} -vo {d[10]} -AxisAngle {d[11]}
+-am {d[9]} -vo {d[10]} -AxisAngle {d[11]} {d[15]}
 
 mrcs2mrc.py -f {d[2]} -t {d[12]} -p {d[13]} -o {d[14]}'''
 
@@ -324,3 +325,6 @@ motioncor2 -In{d[1]} {d[2]}/ \\
 {d[4]} {d[5]} {d[6]}
 '''
 
+templateAverageParticleList = '''cd {d[0]}
+
+average.py -p {d[2]} -a {d[3]} -c {d[4]} {d[5]}'''

@@ -76,7 +76,8 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
         @type xmlObj: L{lxml.etree.Element}
         """
         from lxml.etree import _Element
-        
+
+
         if xmlObj.__class__ != _Element:
             raise Exception('You must provide a valid XML object.')
         
@@ -123,8 +124,6 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
             self.symmetries.fromXML(syms)
         except:
             self.symmetries = MultiSymmetries()
-
-        print(jobDescription)
 
         self.peak_offset = int(jobDescription.get('PeakOffset'))
         self.bw_range = [int(i) for i in jobDescription.get('BandwidthRange')[1:-1].split(',')]
@@ -185,7 +184,7 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
         jobElement.set("RScore", str(self.r_score))
         jobElement.set("WeightedAverage", str(self.weighting))
         jobElement.set("BFactor", str(self.bfactor))
-        jobElement.set("binning", str(self.binning))
+        jobElement.set("Binning", str(self.binning))
         if self.adaptive_res is False:
             jobElement.set("AdaptiveResolution", '+1')
         else:
@@ -426,7 +425,9 @@ class FRMWorker():
             # get the job
             try:
                 job = self.get_job()
-            except:
+                print('get job particle')
+            except Exception as e:
+                print("Error: ", e)
                 if verbose:
                     print(self.node_name + ': end')
                 break # get some non-job message, break it

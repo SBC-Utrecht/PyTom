@@ -317,7 +317,7 @@ def circleFilter(sizeX,sizeY, radiusCutoff):
                 
     return filter_vol
 
-def rampFilter( sizeX, sizeY, crowtherFreq=None):
+def rampFilter( sizeX, sizeY, crowtherFreq=None, N=None):
     """
     rampFilter: Generates the weighting function required for weighted backprojection - y-axis is tilt axis
 
@@ -335,6 +335,8 @@ def rampFilter( sizeX, sizeY, crowtherFreq=None):
     centerY = sizeY//2
     sizeY = (sizeY//2) +1
 
+    N = 0 if N is None else 1 / N
+
     if crowtherFreq is None:
         Ny = sizeX//2
     else:
@@ -345,7 +347,7 @@ def rampFilter( sizeX, sizeY, crowtherFreq=None):
     
     for i in range(sizeX):        
         distX = abs(float(i-centerX))
-        ratio = min(1, distX/Ny)
+        ratio = min(1, (distX/Ny)+N)
         for j in range(sizeY):            
             filter_vol.setV(ratio, i, j, 0)
 

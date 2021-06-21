@@ -72,8 +72,8 @@ def extractParticleListsClosestToRefMarker(xmlfile, markerfile, binning_factor=8
 
     for particle in pL:
         tomogram = particle.getPickPosition().getOriginFilename().split('/')[-1].split('.')[0]
-        if not tomogram:
-            tomogram = particle.getSourceInfo().getTomoName().split('.')[0]
+        #if not tomogram:
+        #    tomogram = particle.getSourceInfo().getTomoName().split('.')[0]
         if not tomogram	in dict_particle_lists.keys():
             dict_particle_lists[tomogram] = ParticleList()
         dict_particle_lists[tomogram].append(particle)

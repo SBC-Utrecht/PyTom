@@ -362,7 +362,6 @@ def FLCF(volume, template, mask=None, stdV=None, wedge=1):
         meanV = meanUnderMask(volume, maskV, p)
         stdV = stdUnderMask(volume, maskV, p, meanV)
 
-
     size = volume.numelem()
     fT = fft(tempV)
     conjugate(fT)

@@ -303,6 +303,10 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
 
 
     if gpus:
+        try:
+            gpus = gpus.text()
+        except Exception as e:
+            pass
         numgpus = len(gpus.split(','))
         #numgpus = int(gpus)+1
         gpus = f'\n#SBATCH --gres=gpu:{numgpus}\n\nexport CUDA_VISIBLE_DEVICES={gpus}'
@@ -682,7 +686,7 @@ ALIGNMENT_ERRORS = [('MarkerIndex', 'i4'),
                            ('TiltAngle', 'f4'),
                            ('AlignmentError', 'f4'),
                            ('XMeasured', 'f4'),
-                           ('YMeasuerd', 'f4'),
+                           ('YMeasured', 'f4'),
                            ('XProjected', 'f4'),
                            ('YProjected', 'f4')]
 

@@ -46,6 +46,7 @@ class TiltSeries(PyTomClass):
         @author: FF
         """
         self._tiltSeriesName = tiltSeriesName
+        self._tiltSeriesFormat = tiltSeriesFormat
         self.verbose = verbose
         if TiltAlignmentParas:
             self.init_vars_markerbased_alignment(tiltSeriesName, TiltAlignmentParas, alignedTiltSeriesName,
@@ -71,7 +72,6 @@ class TiltSeries(PyTomClass):
             self._alignedTiltSeriesName = alignedTiltSeriesName
 
             if markerFileName.endswith('.em'): self.mf = vol2npy(read(markerFileName))
-
             elif markerFileName.endswith('.txt'): self.mf = self.txt2markerfile(markerFileName, len(files))
             else: raise Exception('Unknown file type for markerfile.\n Please submit either a .txt file or a .em file')
             #print(self.mf[0,:,0])
@@ -88,7 +88,6 @@ class TiltSeries(PyTomClass):
                     if self._firstIndex < 0: self._firstIndex = cnt
                     self._lastIndex = cnt+1
                     fname = tiltSeriesName + "_" + str( ii ) + "." + tiltSeriesFormat
-
                     if alignedTiltSeriesName:
                         proj = Projection(filename=fname,
                                           alignedFilename=alignedTiltSeriesName + "_" + str(ii) + "." +tiltSeriesFormat,
@@ -158,7 +157,7 @@ class TiltSeries(PyTomClass):
 
             self._projIndices = self._projIndices[self._firstIndex:self._lastIndex]
 
-            print(f'Excluded {self.missing_till_reference} images')
+            if verbose: print(f'Excluded {self.missing_till_reference} images')
 
         self._Markers = []
 
@@ -492,7 +491,8 @@ class TiltSeries(PyTomClass):
             newFilename = (filename + "_" + str(projection.getIndex()) + '.em')
             write_em(filename=newFilename, data=image, header=header)
 
-    def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0], binning=1, alignResultFile=''):
+    def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0], binning=1, alignResultFile='',
+                          applyWeighting=False, gpu=-1, specimen_angle=0, read_only=False):
         """
         reconstruct a single 3D volume from weighted and aligned projections
 
@@ -506,9 +506,28 @@ class TiltSeries(PyTomClass):
         @author: FF
         """
         # set alignedProjectionList
+
+        from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS
+        from pytom.basic.files import readProxy as read
+
         projs = []
+
+        if alignResultFile:
+            ar = loadstar(alignResultFile, dtype=DATATYPE_ALIGNMENT_RESULTS)
+            for (kk, filename) in enumerate(ar['FileName']):
+                filename=str(filename)
+                tiltAngle = ar['TiltAngle'][kk]
+                proj = Projection(filename=filename,
+                                  alignedFilename=filename,
+                                  index=kk, tiltAngle=tiltAngle,
+                                  offsetX=0., offsetY=0.,
+                                  alignmentTransX=0., alignmentTransY=0.,
+                                  alignmentRotation=0., alignmentMagnification=1.)
+                projs.append(proj)
+
         if not alignResultFile:
             for (kk, ii) in enumerate(self._projIndices):
+                print(self._alignedTiltSeriesName + "_" + str(ii) + "." + self._tiltSeriesFormat)
                 tiltAngle = self._ProjectionList[kk]._tiltAngle
                 proj = Projection(filename=self._alignedTiltSeriesName + "_" + str(ii) + "." + self._tiltSeriesFormat,
                                   alignedFilename=self._alignedTiltSeriesName + "_" + str(
@@ -520,11 +539,29 @@ class TiltSeries(PyTomClass):
                 projs.append(proj)
 
         self._alignedProjectionList = ProjectionList(projs)
+
         # reconstruct tomogram
         vol_bp = self._alignedProjectionList.reconstructVolume(dims=dims, alignResultFile=alignResultFile,
                                                                reconstructionPosition=reconstructionPosition,
-                                                               binning=binning)
+                                                               binning=binning, applyWeighting=applyWeighting, gpu=gpu,
+                                                               specimen_angle=specimen_angle, read_only=read_only)
         return vol_bp
+
+    def updateAlignmentParams(self, alignmentResultsFile):
+        from pytom.gui.guiFunctions import datatypeAR, loadstar
+
+        alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
+
+        for n, projection in enumerate(self._ProjectionList):
+            atx = alignmentResults['AlignmentTransX'][n]
+            aty = alignmentResults['AlignmentTransY'][n]
+            rot = alignmentResults['InPlaneRotation'][n]
+            mag = alignmentResults['Magnification'][n]
+
+            self._ProjectionList[n].setAlignmentTransX(atx)
+            self._ProjectionList[n].setAlignmentTransY(aty)
+            self._ProjectionList[n].setAlignmentRotation(rot)
+            self._ProjectionList[n].setAlignmentMagnification(mag)
 
 
 class TiltAlignment:
@@ -1077,6 +1114,9 @@ class TiltAlignment:
                 ivar = ivar + 3
 
 
+
+
+
         if self.optimizeMarkerPositions:
             # translations
             for itilt in range(0, ntilt):
@@ -1184,11 +1224,11 @@ class TiltAlignment:
         from pytom.reconstruction.tiltAlignmentFunctions import markerResidual, refMarkerResidualForTiltImage as refResidual
 
         self.sum_called = 0
-        print('Shift Markers: ', shift_markers)
+        if not mute: print('Shift Markers: ', shift_markers)
         self.optimizeMarkerPositions = shift_markers
         self.irefmark = self.TiltSeries_._TiltAlignmentParas.irefmark
         self.ireftilt = numpy.argwhere( self.TiltSeries_._projIndices.astype(int) == self.TiltSeries_._TiltAlignmentParas.ireftilt)[0][0]
-        print('reftilt: ', self.ireftilt, self.TiltSeries_._TiltAlignmentParas.ireftilt, self._ntilt)
+        if not mute: print('reftilt: ', self.ireftilt, self.TiltSeries_._TiltAlignmentParas.ireftilt, self._ntilt)
         # self._alignmentTransXOrig = numpy.array(self._alignmentTransX)
         # self._alignmentTransYOrig = numpy.array(self._alignmentTransY)
         scoringFunction = self.alignmentScore
@@ -1723,6 +1763,8 @@ class TiltAlignment:
 
         for (imark, Marker) in enumerate(self._Markers):
             Marker.set_r(numpy.array([x[imark], y[imark], z[imark]]))
+
+            print( x[imark], y[imark], z[imark])
             # if not optimizeShift:
             #     Marker.set_r(numpy.array([x[imark] + 6.326546124766944 , y[imark] + 5.187672225662868, z[imark]]))
 

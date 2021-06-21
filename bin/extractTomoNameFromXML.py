@@ -24,7 +24,7 @@ def remove_element(el):
             parent.text = (parent.text or '') + el.tail
     parent.remove(el)
 
-def extractParticleListsByTomoNameFromXML(xmlfile, directory='./', query='all'):
+def extractParticleListsByTomoNameFromXML(xmlfile, directory='./', query='all', prefix='particleList_'):
 
     if not query:
         query_list = []
@@ -54,7 +54,7 @@ def extractParticleListsByTomoNameFromXML(xmlfile, directory='./', query='all'):
             os.mkdir(directory)
         try:
             tomoname = os.path.basename(tomogram).replace('.mrc','').replace('.em','')
-            outfile = "particleList_{}_{}.xml".format(os.path.basename(xmlfile)[:-4], tomoname)
+            outfile = "{}{}_{}.xml".format(prefix, os.path.basename(xmlfile)[:-4], tomoname)
             outfile = os.path.join(directory, outfile)
             if False == (tomoname in query_list or 'all' in query_list or not query_list):
                 tomoname=''
@@ -78,6 +78,8 @@ if __name__ == '__main__':
     from pytom.tools.parse_script_options import parse_script_options
 
     options = [ScriptOption(['-p','--particleList'], 'Particle List', True, False),
+               ScriptOption(['-t', '--directory'], 'Target Directory', True, True),
+               ScriptOption(['--prefix'], 'Prefix that is prepended to your output file name (in the target dir)', True, True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
 
 
@@ -89,7 +91,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        plName, help = parse_script_options(sys.argv[1:], helper)
+        plName, target, prefix, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -100,5 +102,10 @@ if __name__ == '__main__':
     if not os.path.exists(plName):
         sys.exit()
 
+    target = './' if target is None else target
+    prefix = '' if prefix is None else prefix
+    if not os.path.exists(target) or not os.path.isdir(target):
+        sys.exit()
+
     
-    extractParticleListsByTomoNameFromXML(plName)
+    extractParticleListsByTomoNameFromXML(plName, target, prefix=prefix)

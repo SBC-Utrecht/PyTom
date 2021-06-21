@@ -16,7 +16,7 @@ def read(filename, ndarray=True, order='F', keepnumpy=False, deviceID=None):
 
     if filename.endswith('.em'):
         data = read_em(filename, order=order, keepnumpy=keepnumpy, deviceID=deviceID)
-    elif filename.endswith('.mrc'):
+    elif filename.endswith('.mrc') or filename.endswith('.rec'):
         data = read_mrc(filename, order=order, keepnumpy=keepnumpy, deviceID=deviceID)
     else:
         raise Exception('Invalid filetype. Please provide a *.em or a *.mrc file.')
@@ -112,7 +112,6 @@ def read_em(filename, order='F', keepnumpy=False, deviceID=None):
         v = np.fromfile(f, dt_data, x*y*z)
     finally:
         f.close()
-
 
     if keepnumpy:
         volume = np.array(v.reshape((x, y, z), order=order), dtype='float32').copy() # fortran-order array
@@ -245,6 +244,9 @@ def write_em(filename, data, tilt_angle=0,order='F'):
     elif len(data.shape) == 2:
         header[1:3] = data.shape
         header[3] = 1
+    elif len(data.shape) == 1:
+        header[1] = data.shape[0]
+        header[2:4] = 1
     else:
         raise Exception("Input data shape invalid!")
 
@@ -335,6 +337,43 @@ def read_rotation_angles(filename):
         f.close()
 
     return [z1,x,z2]
+
+def read_pixelsize(filename, dim=''):
+    import sys
+    import numpy as np
+
+    f = open(filename, 'rb')
+    try:
+            header_data = []
+
+            header_data += list(np.fromfile(f, np.dtype('int32'), 10))
+            header_data += list(np.fromfile(f, np.dtype('float32'), 3))
+            header_data += list(np.fromfile(f, np.dtype('int32'), 6))
+            header_data += list(np.fromfile(f, np.dtype('float32'), 3))
+            header_data += list(np.fromfile(f, np.dtype('int32'), 2))
+            header_data += list(np.fromfile(f, np.dtype('float32'), 25))
+            header_data += list(np.fromfile(f, np.dtype('int32'), 5))
+            header_data += list(np.fromfile(f, np.dtype('float32'), 1))
+            header_data += list(np.fromfile(f, np.dtype('int32'), 201))
+
+    finally:
+        f.close()
+
+    if filename.endswith('.em'):
+        sx,sy,sz = header_data[1:4]
+    else:
+        sx,sy,sz = header_data[:3]
+
+    x,y,z = np.array(header_data[10:13])/np.array((sx,sy,sz), np.float32)
+    if dim == 'x':
+        return x
+    elif dim == 'y':
+        return y
+    elif dim == 'z':
+        return z
+    else:
+        return [x, y, z]
+
 
 def write_rotation_angles(filename, z1=0, z2=0, x=0):
     assert filename.endswith('.mrc')

@@ -456,13 +456,14 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, til
                 if verbose and irefmark == imark:
                     print(iproj, imark, deltaX, deltaY)
 
-                residual = deltaX**2 + deltaY**2 + residual
+                residual += deltaX**2 + deltaY**2
+
                 if equationSet:
                     Dev.append(deltaX)
                     Dev.append(deltaY)
                 ind_dif += 1
                 errors[-1] +=  numpy.sqrt(deltaX**2 + deltaY**2) 
-        errors[-1] = errors[-1]/float(ind_dif)**2
+        errors[-1] = errors[-1]/float(ind_dif)
     # normalize and prepare output
     normf = 1. /(ndif - nmark)
     # residual = sqrt(residual/(ndif - size(Matrixmark,3)));
@@ -474,6 +475,7 @@ def markerResidual(cent, Markers_, cTilt, sTilt, transX, transY, rotInPlane, til
     if equationSet:
         return Dev
     elif returnErrors:
+        print(residual)
         return errors
     else:
         return residual
@@ -571,7 +573,7 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
     #    psi = (psi + pi)%(2*pi)
     #if psi < 0.: psi += (2*pi)
     psiindeg = psi*180/pi
-    print('angle: ', psi)
+    print('angle: ', psiindeg)
     #  psi 2?!
     #fact = 1 /(1 + (sumxy/sumxx)**2)
     
@@ -690,8 +692,8 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
             z[ii] = 1000000
     
     # determination of shifts
-    projX=numpy.array(ntilt*[0.])
-    projY=numpy.array(ntilt*[0.])
+    projX=numpy.array(ntilt*[nmark*[0.]])
+    projY=numpy.array(ntilt*[nmark*[0.]])
     shiftX=numpy.array(ntilt*[0.])
     shiftY=numpy.array(ntilt*[0.])
     diffX = numpy.array(ntilt*[nmark*[0.]])
@@ -703,17 +705,18 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
         sumyy = 0.
         ndif  = 0
         for (imark,Marker) in enumerate(Markers_):
-            projX[itilt] = (x[imark]*(spsi**2*cTilt[itilt]+cpsi**2) + 
-                             y[imark]*spsi*cpsi*(1-cTilt[itilt]) + 
-                             z[imark]*spsi*sTilt[itilt] + imdimX/2. + 1.)
-            projY[itilt] = (x[imark]*spsi*cpsi*(1-cTilt[itilt]) +
-                             y[imark]*(cpsi**2*cTilt[itilt]+spsi**2) -
-                             z[imark]*cpsi*sTilt[itilt] + imdimY/2. + 1.)
+            projX[itilt][imark] = ( x[imark]*(spsi**2*cTilt[itilt]+cpsi**2) +
+                                    y[imark]*spsi*cpsi*(1-cTilt[itilt]) +
+                                    z[imark]*spsi*sTilt[itilt] + imdimX/2. + 1.)
+            projY[itilt][imark] = ( x[imark]*spsi*cpsi*(1-cTilt[itilt]) +
+                                    y[imark]*(cpsi**2*cTilt[itilt]+spsi**2) -
+                                    z[imark]*cpsi*sTilt[itilt] + imdimY/2. + 1.)
             
-            if ( (Marker.xProj[itilt] > -1.) and (x[imark]!=1000000) ):
+            if ( (Marker.xProj[itilt] > -0.5) and (x[imark]!=1000000) ):
                 ndif = ndif + 1
-                diffX[itilt,imark] = Marker.xProj[itilt] - projX[itilt]
-                diffY[itilt,imark] = Marker.yProj[itilt] - projY[itilt]
+                diffX[itilt,imark] = Marker.xProj[itilt] - projX[itilt][imark]
+                diffY[itilt,imark] = Marker.yProj[itilt] - projY[itilt][imark]
+
             else:
                 diffX[itilt,imark] = 0.
                 diffY[itilt,imark] = 0.
@@ -746,8 +749,8 @@ def alignmentFixMagRot( Markers_, cTilt, sTilt, ireftilt, irefmark=1, r=None, im
             if ( (Marker.xProj[itilt] > -1.) and (x[imark]!=1000000) ):
                 sumxx = sumxx + (diffX[itilt,imark]-shiftX[itilt])**2
                 sumyy = sumyy + (diffY[itilt,imark]-shiftY[itilt])**2
-                if not mute and imark == irefmark:
-                    print(imark, itilt, diffX[itilt,imark]-shiftX[itilt], diffY[itilt,imark]-shiftY[itilt])
+                if not mute and imark == 6:
+                    print(imark, itilt, psiindeg, projX[itilt][imark], projY[itilt][imark], x[imark], y[imark], z[imark], numpy.arcsin(sTilt[itilt])*180/numpy.pi)
         if (ndif > 1):
             shiftVarX[itilt]=sqrt(sumxx/(ndif-1))
             shiftVarY[itilt]=sqrt(sumyy/(ndif-1))
