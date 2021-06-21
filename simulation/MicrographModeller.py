@@ -393,11 +393,16 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
         try:
             particle_real = volumes_real[cls_id]
             if absorption_contrast: particle_imag = volumes_imag[cls_id]
-            if xp.random.randint(2): # Generate true/false randomly
-                # Mirror the particle to cover both left and right handedness of the proteins
-                ax = xp.random.randint(3)
-                particle_real = xp.flip(particle_real, axis=ax)
-                if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=ax)
+
+            # Code for randomly flipping particles to add both handedness to the model, useful for generalizing
+            # training datasets
+            # if xp.random.randint(2): # Generate true/false randomly
+            #     # Mirror the particle to cover both left and right handedness of the proteins
+            #     ax = xp.random.randint(3)
+            #     particle_real = xp.flip(particle_real, axis=ax)
+            #     if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=ax)
+
+            # Rotate particle to the specified orientation
             rotated_particle_real = transform(particle_real, rotation=p_angles,
                                          rotation_order='szxz', interpolation='filt_bspline', device='cpu')
             if absorption_contrast: rotated_particle_imag = transform(particle_imag, rotation=p_angles,
@@ -477,6 +482,7 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
         mean_signal_real = cell_real[cell_real>0.01].mean()
         # snr = mu**2 / sigma**2
         sigma_damage = xp.sqrt( mean_signal_real**2 / beam_damage_snr)
+        print(f'Standard deviation in beam damage SNR set to {sigma_damage} for SNR of {beam_damage_snr}')
         noise = xp.random.normal(0, scale=sigma_damage, size=cell_real.shape)
         # beam damage is applied as a normal distributed noise, degrading the information
         cell_real += noise

@@ -1002,8 +1002,11 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=None, e
         os.mkdir(output_folder)
 
     # Call external programs for structure preparation and PB-solver
-    filepath = call_chimera(filepath, output_folder) # output structure name is dependent on modification by chimera
     # call_apbs(folder, structure, ph=ph)
+    try:
+        filepath = call_chimera(filepath, output_folder) # output structure name is dependent on modification by chimera
+    except Exception as e:
+        print(e)
 
     assert filepath != 0, 'something went wrong with chimera'
 
