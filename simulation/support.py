@@ -4,13 +4,20 @@ import numpy as xp
 def create_gaussian_low_pass(shape, cutoff, center=None):
     """
     NOTE: MOVE FUNCTION TO TOMPY.FILTER
-    Create a 3D mask with gaussian edges.
+    Create a 2D or 3D Gaussian low-pass filter with cutoff (or HWHM). This value will be converted to the proper
+    sigma for the Gaussian function to acquire the desired cutoff.
 
-    @param shape: shape tuple.
-    @param hwhm: cutoff value for the filter.
-    @param center: center of the Gaussian. If not provided will be calculated.
+    @param shape: shape tuple with x,y or x,y,z dimension
+    @type  shape: L{tuple} -> (L{int},) * 3 or L{tuple} -> (L{int},) * 2
+    @param hwhm: half width at half maximum for gaussian low-pass filter, the cutoff value for the filter
+    @type  hwhm: L{int}
+    @param center: center of the Gaussian, will be calculated if not provided
+    @type  center: L{tuple} -> (L{int},) * 3 or L{tuple} -> (L{int},) * 2
 
-    @return: sphere inside a volume.
+    @return: sphere/circle in square volume/image, 3d or 2d array dependent on input shape
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
     """
     assert len(shape) == 2 or len(shape) == 3, "filter can only be created in 2d or 3d"
     assert len(set(shape)) == 1, "shape needs to have equal sizes"
@@ -21,7 +28,7 @@ def create_gaussian_low_pass(shape, cutoff, center=None):
 
     if center is None:
         # center = [(shape[0]-1)/2, (shape[1]-1)/2, (shape[2]-1)/2]
-        center = [s//2 for s in shape]
+        center = tuple([s//2 for s in shape])
 
     grid = xp.mgrid[0:shape[0], 0:shape[1], 0:shape[2]] if len(shape) == 3 else xp.mgrid[0:shape[0], 0:shape[1]]
     # r = xp.sqrt(sum((x-center[0])**2+(y-center[1])**2+(z-center[2])**2)
@@ -37,11 +44,19 @@ def reduce_resolution_fourier(input, spacing, resolution):
     NOTE: MOVE FUNCTION TO TOMPY.FILTER
     Apply scipy gaussian filter in fourier space.
 
-    @param input:
-    @param spacing:
-    @param resolution:
+    @param input: input to be filtered, either 2d or 3d array (however scipy will be able to handle higher
+    dimensionality as well
+    @type  input: L{np.ndarray}
+    @param spacing: spacing of each pixel/voxel in relative units
+    @type  spacing: L{float}
+    @param resolution: desired resolution after filtering. maximal resolution is 2 * spacing, and thus resolution
+    value of 2 * spacing will not filter the image
+    @type  resolution: L{float}
 
-    @return: filtered volume
+    @return: filtered input, 2d or 3d array
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
     """
     from scipy.ndimage import fourier_gaussian
 
@@ -55,11 +70,19 @@ def reduce_resolution(input, spacing, resolution):
     NOTE: MOVE FUNCTION TO TOMPY.FILTER
     Apply scipy gaussian filter in real space.
 
-    @param input:
-    @param spacing:
-    @param resolution:
+    @param input: input to be filtered, either 2d or 3d array (however scipy will be able to handle higher
+    dimensionality as well
+    @type  input: L{np.ndarray}
+    @param spacing: spacing of each pixel/voxel in relative units
+    @type  spacing: L{float}
+    @param resolution: desired resolution after filtering. maximal resolution is 2 * spacing, and thus resolution
+    value of 2 * spacing will not filter the image
+    @type  resolution: L{float}
 
-    @return: filtered volume
+    @return: filtered input, 2d or 3d array
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
     """
     from scipy.ndimage import gaussian_filter
 
@@ -71,11 +94,21 @@ def reduce_resolution(input, spacing, resolution):
 def gradient_image(size, factor, angle=0, center_shift=0):
     """
     Creates an image with a gradient of values rotated along angle. Factor determines the strength of the gradient.
-    @param size:
-    @param factor:
-    @param angle:
-    @param shift:
-    @return:
+
+    @param size: size of the image, x and y size are equal
+    @type  size: L{int}
+    @param factor: strength of gradient, value between 0 and 1, where 0 is no gradient and 1 a gradient from 0 to 2
+    @type  factor L{float}
+    @param angle: angle to rotate the gradient by
+    @type  angle: L{float}
+    @param center_shift: whether to shift the gradient from perfect center, if no shift applied center value will
+    always be equal to 1
+    @type  center_shift: L{float}
+
+    @return: image, a 2d array of floats
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
     """
     from scipy.ndimage import rotate
     max_rotation_radius = (size/2) / xp.cos(45 * xp.pi / 180)
@@ -89,21 +122,33 @@ def gradient_image(size, factor, angle=0, center_shift=0):
     return rotate(image, angle, reshape=False)[extension:size+extension, extension:size+extension]
 
 
-def create_circle(size, radius=-1, sigma=0, center=None):
+def create_circle(shape, radius=-1, sigma=0, center=None):
     """
-    Create a sphere in image of size with radius.
+    Create a circle with radius in an image of shape.
+
+    @param shape: shape of the image
+    @type  shape: L{tuple} -> (L{int},) * 2
+    @param radius: radius of the circle
+    @type  radius: L{float}
+    @param sigma: smooth gaussian edge of circle
+    @type  sigma: L{float}
+    @param center: center of the circle in the image
+    @type  center: L{tuple} -> (L{int},) * 2
+
+    @return: image with circle, 2d array of floats
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
     """
-    if len(size) == 1:
-        size = (size, size)
-    assert len(size) == 2
+    assert len(shape) == 2
 
     if center is None:
-        center = [size[0] / 2, size[1] / 2]
+        center = [shape[0] / 2, shape[1] / 2]
     if radius == -1:
-        radius = xp.min(size) / 2
+        radius = xp.min(shape) / 2
 
-    sphere = xp.zeros(size)
-    [x, y] = xp.mgrid[0:size[0], 0:size[1]]
+    sphere = xp.zeros(shape)
+    [x, y] = xp.mgrid[0:shape[0], 0:shape[1]]
     r = xp.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
     sphere[r <= radius] = 1
 
@@ -116,7 +161,20 @@ def create_circle(size, radius=-1, sigma=0, center=None):
 
 def bandpass_mask(shape, low=0, high=-1):
     """
-    Return 2d bandpass mask.
+    Return 2d bandpass mask in shape. Mask is created by subtracting a circle with radius low from a circle with
+    radius high.
+
+    @param shape: shape of image
+    @type  shape: L{tuple} -> (L{int},) * 2
+    @param low: inner radius of band
+    @type  low: L{float}
+    @param high: outer radius of band
+    @type  high: L{float}
+
+    @return: an image with bandpass, 2d array of ints
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
     """
     assert low >= 0, "lower limit must be >= 0"
 
@@ -134,10 +192,17 @@ def bandpass_mask(shape, low=0, high=-1):
 
 def bin_volume(potential, factor):
     """
-    TODO change name to bin_volume instead of bin
-    @param potential:
-    @param factor: integer value
-    @return:
+    Bin the input volume (potential) factor times.
+
+    @param potential: input volume, 3d array
+    @type  potential: L{np.ndarray}
+    @param factor: integer multiple of 1, number of times to bin (or downsample)
+    @type  factor: L{int}
+
+    @return: downsampled input, 3d array
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
     """
     assert type(factor) is int and factor >= 1, print('non-valid binning factor, should be integer above 1')
 
@@ -168,7 +233,26 @@ def bin_volume(potential, factor):
 
 def create_ellipse(size, mj, mn1, mn2, smooth=0, cutoff_SD=3):
     """
-    Generate an ellipse defined by 3 radii along x,y,z - parameters mj, mn1, mn2.
+    Generate an ellipse defined by 3 radii along x,y,z - parameters mj, mn1, mn2. Ellipse is generated in a square
+    volume with each dimension has same size.
+
+    @param size: length of dimensions
+    @type  size: L{int}
+    @param mj: major radius
+    @type  mj: L{float}
+    @param mn1: minor radius 1
+    @type  mn1: L{float}
+    @param mn2: minor radius 2
+    @type  mn2: L{float}
+    @param smooth: gaussian smoothing of ellips edges, where smooth is the sigma of gaussian function
+    @type  smooth: L{float}
+    @param cutoff_SD: number of standard deviations to determine gaussian smoothing to
+    @type  cutoff_SD: L{int}
+
+    @return: square volume with ellipse, 3d array of floats
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
     """
     X,Y,Z = xp.meshgrid(xp.arange(size/1), xp.arange(size/1), xp.arange(size/1))
 
@@ -195,7 +279,17 @@ def create_ellipse(size, mj, mn1, mn2, smooth=0, cutoff_SD=3):
 
 def add_correlated_noise(noise_size, dim):
     """
-    Correlated noise to create density deformations.
+    Add correlated noise to create density deformations.
+
+    @param noise_size: strength of the correlation in noise, in number of pixels
+    @type  noise_size: L{int}
+    @param dim: dimension of the volume to create the correlated noise in
+    @type  dim: L{int}
+
+    @return: volume with noise, 3d array of floats
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
     """
     from numpy.fft import ifftn, fftn, fftshift
     from numpy.random import random
@@ -212,11 +306,16 @@ def add_correlated_noise(noise_size, dim):
 
 def add_white_noise(volume, SNR=1):
     """
-    add Adds white noise to volume
-    @param volume: A volume
-    @param SNR: Signal to Noise ratio of result
-    @type SNR: int or float > 0
-    @return: Volume containing noise with SNR == SNR
+    Adds white (normal distributed) noise to a volume.
+
+    @param volume: the volume to be noise, 3d array of floats
+    @type  volume: L{np.ndarray}
+    @param SNR: signal to noise ratio of output, assuming input to contain no noise
+    @type  SNR: L{float}
+
+    @return: noisy input volume with specified SNR, 3d array of floats
+    @rtype:  L{np.ndarray}
+
     @author: Thomas Hrabe
     """
 

@@ -25,6 +25,17 @@ CARBON_MW   = 12
 
 
 def wavelength_eV2m(V):
+    """
+    Calculate wavelength of electrons from voltage.
+
+    @param V: voltage of wave in eV
+    @type  V: L{float}
+
+    @return: wavelength of electrons in m
+    @rtype:  L{float}
+
+    @author: Marten Chaillet
+    """
     # OLD FUNCTION
     # h / sqrt( 2 * me * el * ev * 1)
     # return 6.625 * 10 ** (-34) / ((2 * 9.1 * 10 ** (-31)) * 1.6 * (10 ** (-19)) * ev * 1) ** 0.5
@@ -36,19 +47,33 @@ def wavelength_eV2m(V):
     m = constants["me"]
     c = constants["c"]
 
-    # matlab original: lambda = h/sqrt(e*V*m*(e/m*V/c^2 + 2 ));
-    Lambda = h/xp.sqrt(e*V*m*(e/m*V/c**2 + 2 ))
+    # lambda = h/sqrt(e*V*m*(e/m*V/c^2 + 2 ));
+    Lambda = h/xp.sqrt(e*V*m*(e/m*V/c**2 + 2))
 
     return Lambda
 
 
 def potential_amplitude(rho, molecular_weight, voltage):
     """
-    Calculate the inelastic Mean Free Path for different environments.
-    @param rho:
-    @param molecular_weight:
-    @param voltage:
-    @return:
+    Calculate the inelastic Mean Free Path for different environments where the electron wave passes through.
+
+        defined options for MW are:
+    carbon      = 12 u
+    water       = 18 u
+    protein     = 7.2 u
+    gold        = 197 u
+
+    @param rho: density of the material in g/cm^3
+    @type  rho: L{float}
+    @param molecular_weight: MW of material
+    @type  molecular_weight: L{float}
+    @param voltage: electron beam acceleration voltage
+    @type  voltage: L{float}
+
+    @return: absorption contrast factor for material
+    @rtype:  L{float}
+
+    @author: Marten Chaillet
     """
 
     # if Mw == 18 % water
@@ -157,6 +182,9 @@ mean_free_path = {
 
 
 scattering_factors = {
+    # Scattering factors for each atom. Sum of 5 Gaussians is parameterized by a and b and can be extracted as:
+    # a = scattering_factors[element['g']][0:5]
+    # b = scattering_factors[element['g']][5:10]
     'H': {
         'g': [0.0349, 0.1201, 0.1970, 0.0573, 0.1195, 0.5347, 3.5867, 12.3471, 18.9525, 38.6269],
         'm': 	1.00794 },

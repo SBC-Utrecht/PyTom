@@ -6,12 +6,18 @@ from scipy.optimize import curve_fit
 
 def fourier_array(shape, nyquist):
     """
-    @param shape: tuple with the size on each dimension
-    @param shape: tuple of ints
-    @param spacing: pixel or voxel spacing
-    @type spacing: float
-    @return: fourier space frequencies
-    @rtype: numpy.ndarray
+    Generate a fourier space frequency array where values range from -nyquist to +nyquist, with the center equal
+    to zero.
+
+    @param shape: tuple with 2 or 3 elements with the size of each dimension
+    @type  shape: L{tuple} -> (L{int},)
+    @param nyquist: nyquist frequency giving the range of frequencies
+    @type  nyquist: L{float}
+
+    @return: fourier space frequencies, 2d or 3d array of floats
+    @rtype:  L{numpy.ndarray}
+
+    @author: Marten Chaillet
     """
     assert type(shape) == tuple, "shape needs to be a tuple of dimenion sizes, dimenions need to be equal"
     assert len(set(shape)) == 1, "dimensions are not identical"
@@ -22,7 +28,7 @@ def fourier_array(shape, nyquist):
     d = xp.arange(-nyquist, nyquist, 2. * nyquist / size)
 
     if len(shape) == 2:
-        grids = xp.meshgrid(d,d)
+        grids = xp.meshgrid(d, d)
     else:
         grids = xp.meshgrid(d, d, d)
 
@@ -34,25 +40,55 @@ def fourier_array(shape, nyquist):
 
 
 def sinc_square(x, p1, p2, p3, p4):
+    """
+    Sinc square function: M{f(x) = p1 * (sin(S{pi} * (x - p2) * p3) / (S{pi} * (x - p2) * p3))^2 + p4 }
+
+    @param x: coordinate
+    @type  x: L{float}
+    @param p1: parameter 1
+    @type  p1: L{float}
+    @param p2: parameter 2
+    @type  p2: L{float}
+    @param p3: parameter 3
+    @type  p3: L{float}
+    @param p4: parameter 4
+    @type  p4: L{float}
+
+    @return: evaluation of sinc square at x
+    @rtype:  L{float}
+
+    @author: Marten Chaillet
+    """
     return p1 * (xp.sin(xp.pi*(x-p2)*p3) / (xp.pi*(x-p2)*p3))**2 + p4
 
 
-def fit_sinc_square(xdata,ydata):
+def fit_sinc_square(xdata, ydata):
+    """
+    Fit a sinc square function to a set of x,y coordinates provided in xdata and ydata. xdata and ydata should be
+    same length and each index in xdata should correspond to the index in ydata.
+
+    @param xdata: x coordinates, 1d array of floats
+    @type  xdata: L{np.ndarray}
+    @param ydata: y coordinates, 1d array of floats
+    @type  ydata: L{np.ndarray}
+
+    @return: the 4 fitted parameters that can be used in sinc_square()
+    @rtype:  L{tuple} -> (L{float},) * 4
+
+    @author: Marten Chaillet
+    """
+    assert len(xdata) == len(ydata), print("length of x and y coordinates lists of data to fit since square to does "
+                                           "not match")
     # Here you give the initial parameters for p0 which Python then iterates over
     # to find the best fit
-    popt, pcov = curve_fit(sinc_square,xdata,ydata,p0=(1.0, 1.0, 1.0, 1.0)) #THESE PARAMETERS ARE USER DEFINED
-
-    # print(popt) # This contains your two best fit parameters
+    popt, pcov = curve_fit(sinc_square, xdata, ydata, p0=(1.0, 1.0, 1.0, 1.0))  # THESE PARAMETERS ARE USER DEFINED
 
     # Performing sum of squares
-    p1 = popt[0]
-    p2 = popt[1]
-    p3 = popt[2]
-    p4 = popt[3]
-    residuals = ydata - sinc_square(xdata,p1,p2,p3,p4)
+    p1, p2, p3, p4 = popt[0], popt[1], popt[2], popt[3]
+    residuals = ydata - sinc_square(xdata, p1, p2, p3, p4)
     fres = sum(residuals**2)
 
-    print(f'chi-square value for fitting sinc function is {fres}') #THIS IS YOUR CHI-SQUARE VALUE!
+    print(f'chi-square value for fitting sinc function is {fres}')  # THIS IS YOUR CHI-SQUARE VALUE!
 
     # Visually inspect fit of function.
     #
@@ -66,14 +102,21 @@ def fit_sinc_square(xdata,ydata):
     # plt.plot(xaxis,curve_y,'-')
     # plt.show()
 
-    # Return the sin parameters
-    return p1,p2,p3,p4
+    return p1, p2, p3, p4
 
 
 def radial_average(image):
     """
     This calculates the radial average of an image. When used for ctf, dqe, and mtf type display, input should be in
     Fourier space.
+
+    @param image: input to be radially averaged, 2d array of floats
+    @type  image: L{np.ndarray}
+
+    @return: coordinates, values
+    @rtype:  L{tuple} -> (L{np.ndarray},) * 2
+
+    @author: Marten Chaillet
     """
     assert len(image.shape) == 2, "radial average calculation only works for 2d image arrays"
     assert len(set(image.shape)) == 1, 'differently size dimension, cannot perform radial averaging'
@@ -91,6 +134,25 @@ def radial_average(image):
 
 
 def display_microscope_function(image, form='', complex=False):
+    """
+    Display the radial average of a microscope function. If complex flag is set to true the function can also accept
+    complex valued inputs.
+
+    todo radial average of non-square images?
+    todo complex valued curve should maybe be displayed as amplitude and phase instead of real and imaginary part
+
+    @param image: input to display radial average of, 2d array of floats
+    @type  image: L{np.ndarray}
+    @param form: name of the type of function that is displayed, will be used as a label for the plot
+    @type  form: L{str}
+    @param complex: flag for complex valued inputs
+    @type  complex: L{bool}
+
+    @return: - (image will be displayed)
+    @rtype:  None
+
+    @author: Marten Chaillet
+    """
     import matplotlib
     matplotlib.use('Qt5Agg')
     import matplotlib.pyplot as plt
@@ -112,31 +174,57 @@ def display_microscope_function(image, form='', complex=False):
 
 
 def read_detector_csv(filename):
-    data = xp.genfromtxt(filename,delimiter=',',dtype=xp.float32)
-    x = data[:,0]
-    y = data[:,1]
-    return x,y
-
-
-def create_detector_response(detector, response_function, image_size, voltage=300E3, binning=1, folder='', display=False):
     """
-    CSV file containing the detector curve should on the x-axis be expressed as fraction of Nyquist (between 0 and 1)
-    and on the y-axis as the MTF or DQE value (also between 0 and 1).
+    Read a csv file containing detector data. The data should be listed as rows with the first column the x
+    coordinate and the second the y coordinate. Data should also be comma separated.
+
+    @param filename: path to .csv file to read
+    @type  filename: L{str}
+
+    @return: x, y where x and y are both a 1d array with points
+    @rtype:  L{tuple} -> (L{np.ndarray},) * 2
+
+    @author: Marten Chaillet
+    """
+    data = xp.genfromtxt(filename, delimiter=',', dtype=xp.float32)
+    x = data[:, 0]
+    y = data[:, 1]
+    return x, y
+
+
+def create_detector_response(detector, response_function, image_size, voltage=300E3, oversampling=1, folder='',
+                             display=False):
+    """
+    This function will read a CSV file containing a detector response function at a specific voltage, with format
+    {detector}_{response_function}_{int(voltage*1E-3)}kV.csv . This function will be loaded from folder (if provided)
+    and otherwise from the current working directory. The CSV file should contain only x and y coordinates,
+    where each row has x on first column and y on second, and is comma separated. x values range from 0 to 1 and y
+    values range from 0 to 1.
+
+    The function is sampled on the specified image size, assuming a square image. It will be a rotationally symmetrical
+    function originating in the center of the image. If oversampling is provided the image will be sampled onto an
+    image of size: oversampling * image_size. Which is afterwards cropped (to the center) a number of times equal to
+    oversampling. This is required when generating a simulation that is coarse grained, because then the DQE and MTF
+    will be larger due consideration of a binned image.
 
     @param detector: eg. 'K2SUMMIT', 'FALCONII'
-    @type detector: string
+    @type  detector: L{str}
     @param response_function: eg. 'DQE' or 'MTF'
-    @type response_function: string
-    @param voltage: Voltage of detector operation (in V not kV)
-    @type voltage: float
-    @param image: image size
-    @type image: int
+    @type  response_function: L{str}
+    @param image_size: size of the image to sample the function on, equal x and y dimension
+    @type  image_size: L{int}
+    @param voltage: voltage of electron beam in eV, default 300e3
+    @type  voltage: L{float}
+    @param oversampling: number of times function is oversampled, multiple of 1
+    @type  oversampling: L{int}
     @param folder: Folder where csv file with detector functions are stored. If not provided assume they are present
-    in the current directory. eg. '/data2/mchaillet/simulation/detectors'
-    @type folder: string
+    in the current directory. todo add a folder to pytom program where some standard MTF and DQE functions are provided
+    @type  folder: L{str}
+    @param display: flag for displaying detector function to plot window
+    @type  display: L{bool}
 
-    @return: the detector response function
-    @rtype 2d array (numpy)
+    @return: the detector response function, 2d array of floats
+    @rtype:  L{np.ndarray}
 
     @author: Marten Chaillet
     """
@@ -147,10 +235,10 @@ def create_detector_response(detector, response_function, image_size, voltage=30
         filename = os.path.join(folder, f'{name}.csv')
     print(f'Determining {response_function} for {detector}')
     # data is a function of spatial frequency
-    qdata,ydata = read_detector_csv(filename)
+    qdata, ydata = read_detector_csv(filename)
     params = fit_sinc_square(qdata,ydata)
 
-    sampling_image_size = image_size * binning
+    sampling_image_size = image_size * oversampling
     # fraction of nyquist maximum
     # Ny = 1
     # R, Y = xp.meshgrid(xp.arange(-Ny, Ny, 2. * Ny / (shape[0])), xp.arange(-Ny, Ny, 2. * Ny / (shape[1])))
@@ -159,7 +247,7 @@ def create_detector_response(detector, response_function, image_size, voltage=30
 
     detector_response = sinc_square(r, params[0], params[1], params[2], params[3])
 
-    if binning > 1:
+    if oversampling > 1:
         # crop the detector function
         cut = sampling_image_size // 2 - image_size // 2
         detector_response = detector_response[cut:-cut, cut:-cut]
@@ -171,6 +259,23 @@ def create_detector_response(detector, response_function, image_size, voltage=30
 
 
 def transmission_function(sliced_potential, voltage, dz):
+    """
+    Calculate the transmission function from the sliced potential. The sliced potential is the simulation sample but
+    averaged in z dimension per size of the multislice step. Returns:
+    M{exp(i * S{sigma}_transfer * sliced_potential * S{delta}f}
+
+    @param sliced_potential: sample averaged in z per step size, 3d array  of floats or complex values
+    @type  sliced_potential: L{np.ndarray}
+    @param voltage: electron beam voltage in eV, needed for calculating wavelength
+    @type  voltage: L{float}
+    @param dz: defocus value in m, dz > 0 is defocus, dz < 0  is overfocus
+    @type  dz: L{float}
+
+    @return: transmission function, 3d array of complex values
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
+    """
     # wavelength
     Lambda = physics.wavelength_eV2m(voltage)
     # relative mass
@@ -182,14 +287,24 @@ def transmission_function(sliced_potential, voltage, dz):
 
 
 def fresnel_propagator(image_size, pixel_size, voltage, dz):
-    Lambda = physics.wavelength_eV2m(voltage)
+    """
+    The fresnel propagator describing propagation of the electron wave through each slice of the sample.
 
-    #todo Up for removal, but test simulator first
-    # xwm = pixel_size * (image_size)  # pixelsize for multislice * size sample
-    # q_true_pix_m = 1 / xwm  # spacing in Fourier space
-    # x_line = xp.arange(-(image_size - 1) / 2, (image_size - 1) / 2 + 1, 1)
-    # [xv, yv] = xp.meshgrid(x_line, x_line)
-    # q_m = xp.sqrt(xv ** 2 + yv ** 2) * q_true_pix_m  # frequencies in Fourier domain
+    @param image_size: x, y dimension size of square image
+    @type  image_size: L{int}
+    @param pixel_size: pixel size of image in m
+    @type  pixel_size: L{float}
+    @param voltage: voltage of electron bream in eV
+    @type  voltage: L{float}
+    @param dz: defocus value in m, dz > 0 is defocus, dz < 0  is overfocus
+    @type  dz: L{float}
+
+    @return: the fresnel propagator function, 2d array of complex values
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
+    """
+    Lambda = physics.wavelength_eV2m(voltage)
 
     nyquist = 1 / (2 * pixel_size)
     k = fourier_array((image_size,)*2, nyquist)
@@ -200,23 +315,30 @@ def fresnel_propagator(image_size, pixel_size, voltage, dz):
 def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, Cs, sigma_decay=0.4,
                display=False):
     """
-    This function models a non-complex CTF. It can be used for both a 2d or 3d function. It describes a ctf after
+    This function models a non-complex CTF. It can be used for both 2d or 3d function. It describes a ctf after
     detection (and is therefore not complex).
 
-    @param Dz: defocus value in m
-    @type Dz: C{float}
-    @param A: Amplitude contrast fraction (e.g., 0.1)
-    @type A: C{float}
-    @param Voltage: acceleration voltage in eV
-    @type Voltage: C{float}
-    @param Cs: sphertical abberation in m
-    @type Cs: C{float}
-    @param k4: frequencies in fourier space to power 4
-    @type k4: L{numpy.ndarray}
-    @param k2: frequencies in fourier space squared
-    @type k2: L{numpy.ndarray}
-    @return: CTF in Fourier space
-    @rtype: L{numpy.ndarray}
+    @param shape: shape tuple with 2 or 3 elements
+    @type  shape: L{tuple} -> (L{int},)
+    @param spacing: pixel/voxel spacing in m
+    @type  spacing: L{float}
+    @param defocus: defocus value in m, dz > 0 is defocus, dz < 0  is overfocus
+    @type  defocus: L{float}
+    @param amplitude_contrast: Amplitude contrast fraction (e.g., 0.1)
+    @type  amplitude_contrast: L{float}
+    @param voltage: acceleration voltage in eV
+    @type  voltage: L{float}
+    @param Cs: spherical aberration in m
+    @type  Cs: L{float}
+    @param sigma_decay: sigma of Gaussian decay function
+    @type  sigma_decay: L{float}
+    @param display: flag for plotting a radially averaged version of the CTF curve
+    @type  display: L{bool}
+
+    @return: real-valued CTF in Fourier space, 2d or 3d array
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet
     """
     nyquist = 1 / (2 * spacing)
     k = fourier_array(shape, nyquist)
@@ -230,36 +352,40 @@ def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, Cs, sigma_d
     ctf *= decay
 
     if display:
-        if len(shape)==2:
+        if len(shape) == 2:
             display_microscope_function(ctf, form='ctf', complex=False)
         else:
-            display_microscope_function(ctf[:,:,shape[2]//2], form='ctf', complex=False)
+            display_microscope_function(ctf[:, :, shape[2]//2], form='ctf', complex=False)
 
     return ctf
 
 
-def create_simple_complex_ctf(image_shape, pixel_size, Dz, voltage=300E3, Cs=2.7E-3, sigma_decay=0.4, display=False):
+# todo| In function below image shape should have equal length in each dim, in that case it makes more sense to input
+# todo| an image size. But These function could be generated for non square images as well.
+
+def create_simple_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-3, sigma_decay=0.4,
+                              display=False):
     """
-    Adapated from Vulovic et al., 2013. Returns a complex contrast transfer function. Dimensions of input image or
-    volume should be equal. Only phase part of CTF.
+    Create a complex valued contrast transfer function of the phase modulation in a 2d array. Dimensions of input image
+    shape should be equal.
 
-    @param vol:
-    @type vol:
-    @param pix_size:
-    @type pix_size:
-    @param Dz:
-    @type Dz:
-    @param voltage:
-    @type voltage:
-    @param Cs:
-    @type Cs:
-    @param sigma_decay_ctf:
-    @type sigma_decay_ctf:
-    @param amplitude_contrast:
-    @type amplitude_contrast:
+    @param image_shape: x and y should be same size
+    @type  image_shape: L{tuple} -> (L{int},) * 2
+    @param pixel_size: pixel size in m
+    @type  pixel_size: L{float}
+    @param defocus: defocus value in m, dz > 0 is defocus, dz < 0  is overfocus
+    @type  defocus: L{float}
+    @param voltage: electron beam voltage in eV, default 300e3
+    @type  voltage: L{float}
+    @param Cs: spherical aberration in m
+    @type  Cs: L{float}
+    @param sigma_decay: sigma of Gaussian decay function
+    @type  sigma_decay: L{float}
+    @param display: flag for plotting a radially averaged version of the CTF curve
+    @type  display: L{bool}
 
-    @return:
-    @rtype:
+    @return: phase ctf curve, 2d array of complex values
+    @rtype:  L{np.ndarray}
 
     @author: Marten Chaillet
     """
@@ -272,7 +398,7 @@ def create_simple_complex_ctf(image_shape, pixel_size, Dz, voltage=300E3, Cs=2.7
 
     k = fourier_array(image_shape, nyquist)
 
-    complex_ctf = xp.exp( -1j * xp.pi / 2 * (Cs * (lmbd ** 3) * (k ** 4) - 2 * Dz * lmbd * (k ** 2)) )
+    complex_ctf = xp.exp(-1j * xp.pi / 2 * (Cs * (lmbd ** 3) * (k ** 4) - 2 * defocus * lmbd * (k ** 2)))
 
     # Decay function
     decay = 1 if sigma_decay <= 0 else xp.exp(-(k / (sigma_decay * nyquist)) ** 2)
@@ -289,7 +415,11 @@ def create_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-
                            energy_spread=0.7, illumination_aperture=0.030E-3, objective_diameter=100E-6,
                            focus_length=4.7E-3, astigmatism=0.0, astigmatism_angle=0.0, display=False):
     """
-        # parameters for extended CTF function (InSilicoTEM)
+    Create complex valued CTF curve of phase modulation in a 2d array. Adapated from Vulovic et al., 2013.
+
+        # default parameters for extended CTF function (InSilicoTEM, Vulovic, 2013))
+    voltage                 = 300E3
+    spherical aberration    = 2.7E-3
     chromatic_abberation    = 2.7E-3 # C_c
     energy_spread           = 0.7 # deltaE
     illumination_aperture   = 0.030E-3 # a_i
@@ -298,26 +428,35 @@ def create_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-
     astigmatism in 0.0E-9
     astigmatism angle in degrees
 
-    Adapated from Vulovic et al., 2013. Returns a complex contrast transfer function. Dimensions of input image or
-    volume should be equal. Only phase part of CTF.
+    @param image_shape: tuple of image shape with equal x and y dimension
+    @type  image_shape: L{tuple} -> (L{int},) * 2
+    @param pixel_size: pixel size in m
+    @type  pixel_size: L{float}
+    @param defocus: defocus value in m, dz > 0 is defocus, dz < 0  is overfocus
+    @type  defocus: L{float}
+    @param voltage: electron beam voltage in eV, default 300e3
+    @type  voltage: L{float}
+    @param Cs: spherical aberration in m
+    @type  Cs: L{float}
+    @param Cc: chromatic aberration in m
+    @type  Cc: L{float}
+    @param energy_spread: spread of electron beam
+    @type  energy_spread: L{float}
+    @param illumination_aperture: size of aperture in m
+    @type  illumination_aperture: L{float}
+    @param objective_diameter: diameter of objective lens in m
+    @type  objective_diameter: L{float}
+    @param focus_length: focal distance of objective lens in m
+    @type  focus_length: L{float}
+    @param astigmatism: astigmatism in m
+    @type  astigmatism: L{float}
+    @param astigmatism_angle: angle of astigmatism in degrees
+    @type  astigmatism_angle: L{float}
+    @param display: flag for displaying function
+    @type  display: L{bool}
 
-    @param vol:
-    @type vol:
-    @param pix_size:
-    @type pix_size:
-    @param Dz:
-    @type Dz:
-    @param voltage:
-    @type voltage:
-    @param Cs:
-    @type Cs:
-    @param sigma_decay_ctf:
-    @type sigma_decay_ctf:
-    @param amplitude_contrast:
-    @type amplitude_contrast:
-
-    @return:
-    @rtype:
+    @return: fourier space ctf function, 2d array complex valued
+    @rtype:  L{np.ndarray}
 
     @author: Marten Chaillet
     """
