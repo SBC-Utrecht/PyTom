@@ -1,14 +1,26 @@
 #!/usr/bin/env pytom
 
-'''
+"""
 Created on Jun 27, 2011
+Updated on Jun 21, 2021
 
-@author: yuxiangchen
-'''
+@author: yuxiangchen, Marten Chaillet
+"""
+
+# plotting
+import matplotlib
+matplotlib.use('Qt5Agg')
+import matplotlib.pyplot as plt
+
+# main functionality
+import sys
+import numpy as np
+from scipy.optimize import curve_fit
+from pytom.localization.structures import readParticleFile
+
 
 if __name__ == '__main__':
     # parse command line arguments
-    import sys
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
     helper = ScriptHelper(sys.argv[0].split('/')[-1], # script name
@@ -16,7 +28,8 @@ if __name__ == '__main__':
                           authors='Yuxiang Chen',
                           options=[ScriptOption(['-f','--file'], 'Particle list after extracting candidates.', True, False),
                                    ScriptOption(['-n','--numberBins'], 'Number of bins of histogram. Default is 10.', True, True),
-                                   ScriptOption(['-p','--gaussianPeak'], 'The correspondent index of the gaussian peak.', True, False),
+                                   ScriptOption(['-p','--gaussianPeak'], 'Histogram index of estimated particle '
+                                                                         'population peak.', True, True),
                                    ScriptOption(['-c','--numberParticles'], 'Number of particles up to CCC value.', True, True),
                                    ScriptOption(['-i','--imageFile'], 'Save plot to a image file.', True, True),
                                    ScriptOption(['-h', '--help'], 'Help.', False, True)])
@@ -31,107 +44,122 @@ if __name__ == '__main__':
     if help is True:
         print(helper)
         sys.exit()
-    
+
+    # todo add scripthelper 2 parsing
+
     # process the arguments
+    # parse number of bins
     num_steps = int(num_steps)
     if not num_steps:
         num_steps = 10
-    
-    peak_index = int(peak_index)
-    
-    scores = []
+    # parse peak index
+    if peak_index is not None and not(int(peak_index) > num_steps):
+        peak_index = int(peak_index)
+    else:
+        print('fall back to default peak index, nbins / 2')
+        peak_index = num_steps // 2
+
     
     # read out the scores
-    from pytom.localization.structures import readParticleFile
     foundParticles = readParticleFile(pl_filename)
+    scores = []
     for f in foundParticles:
         scores.append(float(f.score.getValue()))
-    
-    # construct x and y array according to the given peak index
-    scores.sort()
-    min = scores[0]
-    max = scores[-1]
-    
-    step = (max-min)/num_steps
-    x = []
-    for i in range(num_steps):
-        x.append(min+i*step)
-    x.append(max)
-    
-    y = []
-    for i in range(num_steps):
-        lower = x[i]; upper = x[i+1]
-        n = len([v for v in scores if lower<=v<=upper])
-        y.append(n)
-        
-    
-    # plot
-    import matplotlib
-    matplotlib.use('Qt5Agg')
-    from matplotlib import pyplot
-    import numpy
-    matplotlib.rc('lines', linewidth=2)
-    matplotlib.rc('font', size=24)
-    fig = pyplot.figure()
-    plt = fig.add_subplot(111)
-    plt.plot(x[1:],y,'ro-')
-    plt.set_xlabel('Score')
-    plt.set_ylabel('Frequency')
-    
-    # do the fitting
-    from pytom.tools.maths import gaussian_fit
-    sigma, mu, a = gaussian_fit(x[peak_index:], y[peak_index-1:])
-    
-    if sigma.__class__ in [complex,numpy.complex128]:
-        sigma = sigma.real
-    if mu.__class__ in [complex,numpy.complex128]:
-        mu = mu.real
-    print('sigma: %f, mu: %f, a: %f' % (sigma, mu, a))
-    
-    # plot the Gaussian fitting
-    from math import exp
-    gaussian_fnc = lambda x: a*exp(-(x-mu)**2/(2*sigma**2))
-    plt.plot(x[1:],list(map(gaussian_fnc, x[1:])),'g--')
-    
-    # print the estimation of number of true positives
-    x.reverse()
-    while True:
-        if x[-1] > 0:
-            x.append(x[-1]-step)
-        else:
-            x = x[:-1]
-            break
-    
-    estimate = 0.
-    for i in x:
-        if i > mu-sigma:
-            estimate += gaussian_fnc(i)
-        else:
-            break
-    print('One sigma position: %f, number of estimation: %f' % (mu-sigma, estimate))
-    
-    estimate = 0.
-    for i in x:
-        if i > mu-2*sigma:
-            estimate += gaussian_fnc(i)
-        else:
-            break
-    print( 'Two sigma position: %f, number of estimation: %f' % (mu-2*sigma, estimate))
-    
-    if ccc_value:
-        ccc_value = float(ccc_value)
+
+    # generate the histogram
+    matplotlib.rc('font', size=18)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    # ax.hist(x[1:],y,'ro-')
+    y, x, _ = ax.hist(scores, bins=num_steps, histtype='step') #, 'ro-')
+    ax.set_xlabel('Score')
+    ax.set_ylabel('Frequency')
+
+    # adjust x to center of each bin so len(x)==len(y)
+    x = (x[1:] + x[:-1]) / 2
+
+    # define gaussian function with parameters to fit
+    def gauss(x, mu, sigma, A):
+        return A * np.exp(-(x - mu) ** 2 / 2 / sigma ** 2)
+
+    def exponential(x, a, b, c):
+        return a * np.exp(-b * x) + c
+
+    # define bimodal function of two gaussians to fit both populations
+    def bimodal(x, mu1, sigma1, A1, mu2, sigma2, A2):
+        return gauss(x, mu1, sigma1, A1) + gauss(x, mu2, sigma2, A2)
+    # def bimodal(x, a, b, c, mu, sigma, A):
+    #     return exponential(x, a, b, c) + gauss(x, mu, sigma, A)
+
+    try:
+        # expected values
+        # left gaussian expectation: mu < x[0] and A > y[0]
+        # right gaussian expectation: mu ~ x[half] and A ~ y[half]
+        expected = (x[0], .1, y[0], x[peak_index], .1, y[peak_index])
+        # expected = (1., 1., 0.0, x[peak_index], .1, y[peak_index])
+        bounds = (0, [0.3, 0.2, np.inf, 1.0, 0.2, 200])
+        # fit function
+        params_names = ['mu_1', 'sigma_1', 'A_1', 'mu_2', 'sigma_2', 'A_2']
+        # params_names = ['a', 'b', 'c', 'mu_2', 'sigma_2', 'A_2']
+        params, cov = curve_fit(bimodal, x, y, p0=expected, bounds=bounds)
+        # give sigma of fit for each parameter
+        sigma = np.sqrt(np.diag(cov))
+
+        # plot bimodal model and the gaussian particle population
+        plt.plot(x, bimodal(x, *params), color='blue', lw=2, label='bimodal model')
+        population = params[:3] if params[0] > params[3] else params[3:6]
+        # population = params[2:5]
+        plt.plot(x, gauss(x, *population), color='red', lw=2, label='particle population')
+        plt.legend()
+
+        # print information about fit of the model
+        print('\nfit of the bimodal model:')
+        print('\testimated\t\tsigma')
+        for n, p, s in zip(params_names, params, sigma):
+            print(f'{n}\t{p:.3f}\t\t{s:.3f}')
+        print('\n')
+
+        # todo add proposed cutoff based on function overlap?
+
+        # print the estimation of number of true positives
+        x = np.flip(x)
+        gaussian_fnc = lambda x: gauss(x, *population)
+        mu, sigma = population[0], abs(population[1])
         estimate = 0.
         for i in x:
-            if i > ccc_value:
+            if i > mu - sigma:
                 estimate += gaussian_fnc(i)
             else:
                 break
-        print('CCC value position: %f, number of estimation: %f' % (ccc_value, estimate))
-    
-    if imageFile is None:      
-        pyplot.show()
+        print('One sigma position: %f, particle number estimation: %f' % (mu - sigma, estimate))
+
+        estimate = 0.
+        for i in x:
+            if i > mu - 2 * sigma:
+                estimate += gaussian_fnc(i)
+            else:
+                break
+        print( 'Two sigma position: %f, particle number estimation: %f' % (mu - 2 * sigma, estimate))
+
+        # if ccc_value:
+        #     ccc_value = float(ccc_value)
+        #     estimate = 0.
+        #     for i in x:
+        #         if i > ccc_value:
+        #             estimate += gaussian_fnc(i)
+        #         else:
+        #             break
+        #     print('CCC value position: %f, number of estimation: %f' % (ccc_value, estimate))
+    except RuntimeError as e:
+        # runtime error is because the model could not be fit, in that case print error and continue with execution
+        print(e)
+
+    if imageFile is None:
+        plt.tight_layout()
+        plt.show()
     else:
         if not ('png' in imageFile or 'PNG' in imageFile):
             imageFile = imageFile + '.png'
-            
-        pyplot.savefig(imageFile)
+
+        plt.tight_layout()
+        plt.savefig(imageFile)
