@@ -6,6 +6,8 @@ Updated on Jun 21, 2021
 
 @author: yuxiangchen, Marten Chaillet
 """
+# todo add option for prividing a ground truth file for the particle list
+# todo increase number of points on roc curve to make more robust?
 
 # plotting
 import matplotlib
@@ -19,6 +21,54 @@ import scipy.interpolate as interpolate
 from scipy.optimize import curve_fit
 from scipy.special import erf
 from pytom.localization.structures import readParticleFile
+
+
+def check_square_FDR(fdr, recall, epsilon=1e-3):
+    """
+    @param fdr: list of fdr values
+    @type  fdr: L{list}
+    @param recall: list of recall values
+    @type  recall: L{list}
+    @param epsilon: tolerance for closeness to 0 and 1
+    @type  epsilon: L{float}
+
+    @return: boolean of whether the FDR is almost square within tolerance
+    @rtype:  L{bool}
+
+    @author: Marten Chaillet
+    """
+
+    # fdr and recall should contain values very close to 0 and 1, respectively, if function is square
+    union = [(f, r) for f, r in zip(fdr, recall) if ((np.abs(0.0 - f) < epsilon) and (np.abs(1.0 - r) < epsilon))]
+
+    # print(union)
+    # using list for True False staments would be more pythonic, but I want to force the function to return a boolean
+    #  for clarity purposes
+    return True if union else False
+
+
+def distance_to_diag(fdr, recall):
+    """
+
+    @param fdr: list of fdr values
+    @type  fdr: L{list}
+    @param recall: list of recall values
+    @type  recall: L{list}
+
+    @return: list of distance of each fdr, recall combination to diagonal line
+    @rtype:  L{list}
+
+    @author: Marten Chaillet
+    """
+    # two point on the diagonal to find the distance to
+    lp1, lp2 = (0, 0), (1, 1)
+    # list to hold distances
+    distance = []
+    for f, r in zip(fdr, recall):
+        d = np.abs((lp2[0] - lp1[0]) * (lp1[1] - r) - (lp1[0] - f) * (lp2[1] - lp1[1])) / \
+            np.sqrt((lp2[0] - lp1[0]) ** 2 + (lp2[1] - lp1[1]) ** 2)
+        distance.append(d)
+    return distance
 
 
 if __name__ == '__main__':
@@ -39,14 +89,14 @@ if __name__ == '__main__':
                                                     'for searching the mean of the particle population', 'int',
                           'optional'),
             ScriptOption2(['--forcePeak'], 'Force the given peak index to be the mean', 'no arguments', 'optional'),
-            ScriptOption2(['-c', '--numberParticles'], 'Return the number of particles up to this correlation score',
-                          'float', 'optional'),
+            ScriptOption2(['--cropPlot'], 'Crops distribution on y-axis to not show full height of nice, '
+                                          'can make particle peak more clearly visible', 'no arguments', 'optional'),
             ScriptOption2(['-i', '--imageFile'], 'Save plot to an image file; if not provided plot will be shown in '
                                                  'window', 'string', 'optional')])
 
     options = parse_script_options2(sys.argv[1:], helper)
 
-    pl_filename, num_bins, peak_index, force_peak, ccc_value, imageFile = options
+    pl_filename, num_bins, peak_index, force_peak, crop_plot, imageFile = options
 
     # parse peak index
     if (peak_index is None) or (peak_index > num_bins):
@@ -62,12 +112,12 @@ if __name__ == '__main__':
     # generate the histogram
     matplotlib.rc('font', size=18)
     fig = plt.figure(figsize=(10, 5))
-    ax = fig.add_subplot(121)
+    ax1 = fig.add_subplot(121)
     # ax.hist(x[1:],y,'ro-')
-    y, x_hist, _ = ax.hist(scores, bins=num_bins, histtype='step') #, 'ro-')
-    ax.set_xlabel('Score')
-    ax.set_xlim(x_hist[0], x_hist[-1])
-    ax.set_ylabel('Frequency')
+    y, x_hist, _ = ax1.hist(scores, bins=num_bins, histtype='step') #, 'ro-')
+    ax1.set_xlabel('Score')
+    ax1.set_xlim(x_hist[0], x_hist[-1])
+    ax1.set_ylabel('Frequency')
 
     # define gaussian function with parameters to fit
     def gauss(x, mu, sigma, A):
@@ -104,7 +154,9 @@ if __name__ == '__main__':
             bounds = ([0, 0, 0, x[peak_index] - 0.01, 0, 0],
                       [.1, 0.2, np.inf, x[peak_index] + 0.01, 0.2, 200])
         else:
-            bounds = (0, [.1, 0.2, np.inf, 1.0, 0.2, 200])  # todo 200 is not a good upper bound for second gaussian
+            bounds = ([0, 0, 0, 0.1, 0, 0],
+                      [.1, 0.2, np.inf, 1.0, 0.2, 200])  # todo 200 is not a good upper bound for
+            # second gaussian
         # parameter names for output
         params_names = ['mu_1', 'sigma_1', 'A_1', 'mu_2', 'sigma_2', 'A_2']
         # params_names = ['a', 'b', 'c', 'mu_2', 'sigma_2', 'A_2']
@@ -120,12 +172,13 @@ if __name__ == '__main__':
         print('\n')
 
         # plot bimodal model and the gaussian particle population
-        ax.plot(x, bimodal(x, *params), color='blue', lw=2, label='bimodal model')
+        ax1.plot(x, bimodal(x, *params), color='blue', lw=2, label='bimodal model')
         population, noise = (params[:3], params[3:6]) if params[0] > params[3] else (params[3:6], params[:3])
         # population = params[2:5]
-        ax.plot(x, gauss(x, *population), color='red', lw=2, label='particle population')
-        ax.set_ylim(0, 3 * population[2])
-        ax.legend()
+        ax1.plot(x, gauss(x, *population), color='red', lw=2, label='particle population')
+        if crop_plot:
+            ax1.set_ylim(0, 3 * population[2])
+        ax1.legend()
 
         # todo add proposed cutoff based on function overlap?
 
@@ -213,23 +266,42 @@ if __name__ == '__main__':
         # y_cum = cumulative_dist(x_cum, *params2)
 
         # ============================= use splines to fit ROC curve ===================================================
-        recall.append(1.)
-        fdr.append(1.)
-        recall.insert(0, .0)
-        fdr.insert(0, .0)
-        # use CubicSpline this fits the (sort of) cumulative dist best)
-        spline = interpolate.CubicSpline(fdr, recall)
-        # scipy CubicSpline can be easily integrated to find area under curve
-        AUC = spline.integrate(0, 1)
-        print('AUC: ', AUC)
+
+        # use trigonometry for finding optimal threshold based on given ROC values
+        distances = distance_to_diag(fdr, recall)
+        id = distances.index(max(distances))
+        # plot the threshold on the distribution plot for visual inspection
+        ax1.vlines(x_roc[id], 0, max(y), linestyle='dashed', label=f'{x_roc[id]}')
+        print(f'optimal correlation coefficient threshold is {x_roc[id]}.')
+        print(f'this threshold approximately selects {recall[id] * population_integral}.')
 
         # points for plotting
         xs = np.linspace(0, 1, 200)
         # plot the fdr curve
         ax2 = fig.add_subplot(122)
         ax2.scatter(fdr, recall, facecolors='none', edgecolors='r', s=25)
-        ax2.plot([0, 1], [0, 1], ls="--", c=".3", lw=1) # transform=ax.transAxes,
-        ax2.plot(xs, spline(xs), label='spline')
+        # add optimal threshold in green
+        ax2.scatter(fdr[id], recall[id], s=25, color='green')
+        ax2.plot([0, 1], [0, 1], ls="--", c=".3", lw=1)  # transform=ax.transAxes,
+
+        if check_square_FDR(fdr, recall):
+            AUC = 1.0
+            print('Area Under Curve (AUC): ', AUC)
+            # in this case just plot a connecting line between all points
+            ax2.plot(fdr, recall, label='spline')
+        else:
+            recall.append(1.)
+            fdr.append(1.)
+            recall.insert(0, .0)
+            fdr.insert(0, .0)
+            # use CubicSpline this fits the (sort of) cumulative dist best)
+            spline = interpolate.CubicSpline(fdr, recall)
+            # scipy CubicSpline can be easily integrated to find area under curve
+            AUC = spline.integrate(0, 1)
+            print('Area Under Curve (AUC): ', AUC)
+            # plot the fitted CubicSpline
+            ax2.plot(xs, spline(xs), label='spline')
+
         # ax2.plot(x_cum, y_cum, label='spline')
         ax2.plot([], [], ' ', label=f'AUC: {AUC:.2f}')
         ax2.legend()
@@ -240,7 +312,7 @@ if __name__ == '__main__':
         ax2.set_ylim(0, 1)
         ax2.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1])
 
-    except RuntimeError as e:
+    except (RuntimeError, ValueError) as e:
         # runtime error is because the model could not be fit, in that case print error and continue with execution
         print(e)
 

@@ -293,6 +293,7 @@ def call_apbs(pdb_filepath, force_field='amber', ph=7.):
 def read_structure(filepath):
     """
     Read pdb, cif, or pqr file and return atom data in lists.
+    todo move to basic.files or tompy.io ??
 
     @param filepath: full path to the file, either .pdb, .cif, or .pqr
     @type  filepath: L{str}
@@ -343,7 +344,7 @@ def read_structure(filepath):
             with open(filepath, 'r') as pdb:
                 lines = pdb.readlines()
                 for line in lines:
-                    if not line.strip():
+                    if line.strip():
                         split_line = line.split()
                         if split_line[0] == 'ATOM':
                             '''
