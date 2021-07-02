@@ -57,6 +57,7 @@ def normaliseUnderMask(volume, mask, p=None):
     @author: FF
     """
     from pytom.basic.correlation import meanValueUnderMask, stdValueUnderMask
+    from pytom.tools.maths import epsilon
     #from math import sqrt
     if not p:
         from pytom_volume import sum
@@ -72,7 +73,11 @@ def normaliseUnderMask(volume, mask, p=None):
     meanT = meanValueUnderMask(volume, mask, p)
     
     stdT = stdValueUnderMask(volume, mask, meanT, p)
-    res = (volume - meanT)/stdT
+    if stdT > epsilon:
+        res = (volume - meanT)/stdT
+    else:
+        print("Volume empty - no normalization done")
+        res = volume
     return (res,p)
 
 
@@ -88,8 +93,12 @@ def subtractMeanUnderMask(volume, mask):
     @rtype: L{pytom_volume.vol}
     """
     from pytom_volume import sum as sumvol
+    from pytom.tools.maths import epsilon
     #npix = volume.sizeX() * volume.sizeY() * volume.sizeZ()
     normvol = volume*mask
-    normvol = sumvol(normvol) / sumvol(mask)
+    if stdT > epsilon:
+        normvol = sumvol(normvol) / sumvol(mask)
+    else:
+        print("Mask empty - no subratction done")
     return normvol
 
