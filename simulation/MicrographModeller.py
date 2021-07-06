@@ -1034,14 +1034,27 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
         if grandcell.dtype == complex:
             solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
             # set dtype to be complex64 to save memory
-            grandcell = grandcell.astype(xp.complex64)
+            xp_type = xp.complex64
+            grandcell = grandcell.astype(xp_type)
         else:
             # set dtype as float32 to save memory
-            grandcell = grandcell.astype(xp.float32)
+            xp_type = xp.float32
+            grandcell = grandcell.astype(xp_type)
 
     # extract variables of grandcell shape
     box_size = grandcell.shape[0]
     box_height = grandcell.shape[2]
+
+    # set the image size, can be smaller than grandcell size
+    if image_size is None:
+        image_size = box_size
+    else:
+        # if provided, assert it is valid
+        assert image_size <= box_size, 'Specified projection image size is invalid as it is larger than the model ' \
+                                       'dimension.'
+
+    assert box_size % 2 == 0 and image_size % 2 == 0, print(' - Simulations work only with even box sizes for easier '
+                                                            'cropping and scaling.')
 
     # For sample set the arrays specifically to np.complex64 datatype to save memory space
     if rotation_box_height is not None:
@@ -1069,12 +1082,6 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
         else:
             rotation_volume[:, :, offset:-offset] = grandcell[:, :, :]
     del grandcell
-
-    if image_size is None:
-        image_size = box_size
-
-    # confirm image_size is valid
-    assert image_size <= box_size, 'Specified projection image size is invalid as it is larger than the model dimension.'
 
     # adjust defocus because the value specifies defocus at the bottom of the box. the input expects defocus at the
     # center of the sample, therefore subtract half the box size.

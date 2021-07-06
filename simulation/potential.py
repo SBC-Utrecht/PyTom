@@ -567,6 +567,8 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
     szy = xp.abs(xp.max(y_coordinates) - xp.min(y_coordinates)) + 2 * extra_space + difference[1]
     szz = xp.abs(xp.max(z_coordinates) - xp.min(z_coordinates)) + 2 * extra_space + difference[2]
     sz = xp.round(xp.array([szx, szy, szz]) / voxel_size).astype(int)
+    # todo is this not just szx == szy == szz == largest_dimension?
+    # sz = (int(largest_dimension + 2 * extra_space), ) * 3
 
     potential = xp.zeros(sz)
     if solvent_exclusion:
