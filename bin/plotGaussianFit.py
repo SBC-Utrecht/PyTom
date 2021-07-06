@@ -8,6 +8,7 @@ Updated on Jun 21, 2021
 """
 # todo add option for prividing a ground truth file for the particle list
 # todo increase number of points on roc curve to make more robust?
+# todo make sure ValueError are printed with output if data cannot be fit
 
 # plotting
 import matplotlib
@@ -18,6 +19,7 @@ import matplotlib.pyplot as plt
 import sys
 import numpy as np
 import scipy.interpolate as interpolate
+import traceback
 from scipy.optimize import curve_fit
 from scipy.special import erf
 from pytom.localization.structures import readParticleFile
@@ -89,19 +91,23 @@ if __name__ == '__main__':
                                                     'for searching the mean of the particle population', 'int',
                           'optional'),
             ScriptOption2(['--forcePeak'], 'Force the given peak index to be the mean', 'no arguments', 'optional'),
-            ScriptOption2(['--cropPlot'], 'Crops distribution on y-axis to not show full height of nice, '
+            ScriptOption2(['--cropPlot'], 'Crops distribution on y-axis to not show full height, '
                                           'can make particle peak more clearly visible', 'no arguments', 'optional'),
             ScriptOption2(['-i', '--imageFile'], 'Save plot to an image file; if not provided plot will be shown in '
-                                                 'window', 'string', 'optional')])
+                                                 'window', 'string', 'optional'),
+            ScriptOption2(['-m', '--max'], 'Maximum number to start shifting', 'float', 'optional')])
 
     options = parse_script_options2(sys.argv[1:], helper)
 
-    pl_filename, num_bins, peak_index, force_peak, crop_plot, imageFile = options
+    pl_filename, num_bins, peak_index, force_peak, crop_plot, imageFile, max_roc_threshold = options
 
     # parse peak index
     if (peak_index is None) or (peak_index > num_bins):
-        print('fall back to default peak index estimate, nbins / 2')
+        print(' - fall back to default peak index estimate, nbins / 2')
         peak_index = num_bins // 2
+        if force_peak:
+            print(' - WARNING: peak is forced without specifying a peak index, the default peak estimate at bin number '
+                  'nbins/2 will be enforced.')
 
     # read out the scores
     foundParticles = readParticleFile(pl_filename)
@@ -109,7 +115,7 @@ if __name__ == '__main__':
     for f in foundParticles:
         scores.append(float(f.score.getValue()))
 
-    # generate the histogram
+    # ================================== generate the histogram ========================================================
     matplotlib.rc('font', size=18)
     fig = plt.figure(figsize=(10, 5))
     ax1 = fig.add_subplot(121)
@@ -119,6 +125,7 @@ if __name__ == '__main__':
     ax1.set_xlim(x_hist[0], x_hist[-1])
     ax1.set_ylabel('Frequency')
 
+    # ==================================== functions for fitting =======================================================
     # define gaussian function with parameters to fit
     def gauss(x, mu, sigma, A):
         return A * np.exp(-(x - mu) ** 2 / 2 / sigma ** 2)
@@ -141,6 +148,7 @@ if __name__ == '__main__':
         return gauss(x, mu1, sigma1, A1) + gauss(x, mu2, sigma2, A2)
 
     try:
+        # ================================== fit bimodal distribution ==================================================
         # adjust x to center of each bin so len(x)==len(y)
         x = (x_hist[1:] + x_hist[:-1]) / 2
 
@@ -180,41 +188,13 @@ if __name__ == '__main__':
             ax1.set_ylim(0, 3 * population[2])
         ax1.legend()
 
-        # todo add proposed cutoff based on function overlap?
-
-        # print the estimation of number of true positives
-        # x = np.flip(x)
-        # gaussian_fnc = lambda x: gauss(x, *population)
-        # mu, sigma = population[0], abs(population[1])
-        # estimate = 0.
-        # for i in x:
-        #     if i > mu - sigma:
-        #         estimate += gaussian_fnc(i)
-        #     else:
-        #         break
-        # print('One sigma position: %f, particle number estimation: %f' % (mu - sigma, estimate))
-        #
-        # estimate = 0.
-        # for i in x:
-        #     if i > mu - 2 * sigma:
-        #         estimate += gaussian_fnc(i)
-        #     else:
-        #         break
-        # print( 'Two sigma position: %f, particle number estimation: %f' % (mu - 2 * sigma, estimate))
-
-        # if ccc_value:
-        #     ccc_value = float(ccc_value)
-        #     estimate = 0.
-        #     for i in x:
-        #         if i > ccc_value:
-        #             estimate += gaussian_fnc(i)
-        #         else:
-        #             break
-        #     print('CCC value position: %f, number of estimation: %f' % (ccc_value, estimate))
-
-        # Generate a ROC curve
+        # ======================================= Generate a ROC curve =================================================
         roc_steps = 50
-        x_roc = np.flip(np.linspace(x[0], x[-1], roc_steps))
+        if max_roc_threshold:
+            x_roc = np.flip(np.linspace(x[0], max_roc_threshold, roc_steps))
+        else:
+            x_roc = np.flip(np.linspace(x[0], x[-1], roc_steps))
+
         # find ratio of hist step vs roc step
         hist_step = (x_hist[-1] - x_hist[0]) / num_bins
         roc_step = (x[-1] - x[0]) / roc_steps
@@ -228,7 +208,7 @@ if __name__ == '__main__':
 
         # find integral of gaussian particle population; NEED TO DIVIDE BY HISTOGRAM BIN STEP
         population_integral = gauss_integral(population[1], population[2]) / hist_step
-        print('estimation total number of true positives: ', population_integral)
+        print(' - estimation total number of true positives: ', population_integral)
 
         # should use CDF (cumulative distribution function) of Gaussian, gives probability from -infinity to x
         CDF = lambda x: 0.5 * (1 + erf((x - population[0])/(np.sqrt(2) * population[1])))
@@ -272,8 +252,8 @@ if __name__ == '__main__':
         id = distances.index(max(distances))
         # plot the threshold on the distribution plot for visual inspection
         ax1.vlines(x_roc[id], 0, max(y), linestyle='dashed', label=f'{x_roc[id]}')
-        print(f'optimal correlation coefficient threshold is {x_roc[id]}.')
-        print(f'this threshold approximately selects {recall[id] * population_integral}.')
+        print(f' - optimal correlation coefficient threshold is {x_roc[id]}.')
+        print(f' - this threshold approximately selects {recall[id] * population_integral} particles.')
 
         # points for plotting
         xs = np.linspace(0, 1, 200)
@@ -298,7 +278,7 @@ if __name__ == '__main__':
             spline = interpolate.CubicSpline(fdr, recall)
             # scipy CubicSpline can be easily integrated to find area under curve
             AUC = spline.integrate(0, 1)
-            print('Area Under Curve (AUC): ', AUC)
+            print(' - Area Under Curve (AUC): ', AUC)
             # plot the fitted CubicSpline
             ax2.plot(xs, spline(xs), label='spline')
 
@@ -314,7 +294,7 @@ if __name__ == '__main__':
 
     except (RuntimeError, ValueError) as e:
         # runtime error is because the model could not be fit, in that case print error and continue with execution
-        print(e)
+        traceback.print_exc()
 
     if imageFile is None:
         plt.tight_layout()
