@@ -5,6 +5,7 @@ todo simulation should also have a unittest for potential generation, Fourier sh
 @author: Marten Chaillet
 """
 import unittest
+import numpy as np
 
 
 class MicrographModellerTest(unittest.TestCase):
@@ -30,13 +31,16 @@ class MicrographModellerTest(unittest.TestCase):
                                       voltage=self.param_pot['voltage'])
         self.potential = real + 1j * imag
 
+        if self.potential.shape[0] % 2:
+            self.potential = np.pad(self.potential, pad_width=(0,1), mode='constant', constant_values=0)
+
         # create temporary dir for storing simulation data
         if not os.path.exists('temp_simulation'):
             os.mkdir('temp_simulation')
 
         # specific defocus and msdz, but otherwise default parameters for ctf function
         self.param_sim = {
-            'save_path':            './temp_simulation',  # todo better place to save than in unit_test ??
+            'save_path':            './temp_simulation',
             'angles':               list(range(-60, 60 + 3, 3)),
             'nodes':                1,  # todo change to multiple if possible ??
             'pixel_size':           5e-10,
@@ -64,6 +68,7 @@ class MicrographModellerTest(unittest.TestCase):
         self.remove_file(path.join(dir, 'noisefree_projections.mrc'))
         self.remove_file(path.join(dir, 'alignment_simulated.txt'))
         self.remove_file(path.join(dir, 'reconstruction.mrc'))
+        self.remove_tree(dir)
 
     def remove_tree(self, foldername):
         """Assert folder exists, then remove its content and itself"""
@@ -73,7 +78,7 @@ class MicrographModellerTest(unittest.TestCase):
         foldercheck = path.exists(foldername)
         if not foldercheck:
             print(foldername + " does not exist")
-        self.assertTrue(foldercheck, msg="file " + foldername + " does not exist")
+        self.assertTrue(foldercheck, msg="folder " + foldername + " does not exist")
         if foldercheck:
             rmtree(foldername)
 
@@ -89,13 +94,17 @@ class MicrographModellerTest(unittest.TestCase):
         if filecheck:
             remove(filename)
 
-    def simulateTomogram(self):
+    def simulateTomogram(self, c=''):
         """Run the simulation, output here will be written to some temp storage"""
         from pytom.simulation.MicrographModeller import generate_tilt_series_cpu, reconstruct_tomogram
         from pytom.tompy.io import read
         from os import path
+        import os
 
-        generate_tilt_series_cpu(self.param_sim['save_path'],
+        if not os.path.exists(self.param_sim['save_path'] + c):
+            os.mkdir(self.param_sim['save_path'] + c)
+
+        generate_tilt_series_cpu(self.param_sim['save_path'] + c,
                                  self.param_sim['angles'],
                                  nodes=self.param_sim['nodes'],
                                  pixel_size=self.param_sim['pixel_size'],
@@ -108,27 +117,36 @@ class MicrographModellerTest(unittest.TestCase):
                                  camera_folder=self.param_sim['camera_folder'],
                                  grandcell=self.potential)
 
-        reconstruct_tomogram(self.param_rec['save_path'],
+        reconstruct_tomogram(self.param_rec['save_path'] + c,
                              weighting=self.param_rec['weighting'],
                              reconstruction_bin=self.param_rec['reconstruction_bin'])
 
-        return read(path.join(self.param_rec['save_path'], 'reconstruction.mrc'))
+        return read(path.join(self.param_rec['save_path'] + c, 'reconstruction.mrc'))
 
     def test_Simulation(self):
         """Run two simulations and test their correlation. Both will have a different realization of noise and will
         slightly differ."""
-        from pytom.tompy.correlation import xcc
+        from pytom.tompy.correlation import nxcc
+        from pytom.tompy.tools import create_sphere
+        from pytom.simulation.support import reduce_resolution
 
         # generate two different realization of tomogram noise
         tomo_1 = self.simulateTomogram()
         tomo_2 = self.simulateTomogram()
 
-        # calculate cross-correlation coefficient of the two tomograms
-        cc = xcc(tomo_1, tomo_2)
+        # mask for correlation
+        r = int(tomo_1.shape[0] / 2 * 0.8)
+        mask = create_sphere(tomo_1.shape, radius=r, sigma=r / 20., num_sigma=2)
 
-        # self.assertAlmostEqual(first=1.0, second=cc, places=1)
-        # self.assertGreater(cc, 0.95, msg='correlation is not sufficient between simulations')
-        print(cc)
+        # calculate cross-correlation coefficient of the two tomograms
+        spacing = self.param_sim['pixel_size'] * 1e10
+        cc = nxcc(reduce_resolution(tomo_1, spacing, 2 * spacing * 8),
+                  reduce_resolution(tomo_2, spacing, 2 * spacing * 8),
+                  mask=mask)
+
+        print('normalized cross correlation of two simulations of identical volume after binning both subtomograms 8 '
+              'times = ', cc)
+        self.assertGreater(cc, 0.80, msg='correlation is not sufficient between simulations')
 
 
 if __name__ == '__main__':
