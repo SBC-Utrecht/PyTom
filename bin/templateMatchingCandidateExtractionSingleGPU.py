@@ -83,13 +83,13 @@ if __name__ == '__main__':
 
         wedge = Wedge(wedge_angles)
 
-        if 1:
+        if 0:  # todo implement binning option
             from pytom.tompy.transform import resize
             volume = resize(volume, 1/2)
             template = resize(template, 1/2)
             #mask = resize(mask, 1/2, 'Spline')
 
-        if 0:
+        if 0:  # todo implement bandpass option
             from pytom.tompy.filter import bandpass
             volume = bandpass(volume,0, 60, 3)
             template = bandpass(template,0, 60, 3)
