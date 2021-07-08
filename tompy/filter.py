@@ -126,6 +126,73 @@ def gaussian3d(data, sigma=0):
     d = gaussian_filter(data, sigma)
     return d
 
+def wiener_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, highpassnyquist, voltage=300e3,
+                  spherical_aberration=2.7e-3, amplitude_contrast=0.07, phaseflipped=False, phaseshift=0):
+    """
+    # todo should defocus input be in m or in um?
+
+    @param shape:
+    @type  shape:
+    @param spacing_angstrom:
+    @type  spacing_angstrom:
+    @param defocus:
+    @type  defocus:
+    @param voltage:
+    @type  voltage:
+    @param spherical_aberration:
+    @type  spherical_aberration:
+    @param amplitude_contrast:
+    @type  amplitude_contrast:
+    @param snrfalloff:
+    @type  snrfalloff:
+    @param deconvstrength:
+    @type  deconvstrength:
+    @param highpassnyquist:
+    @type  highpassnyquist:
+    @param phaseflipped:
+    @type  phaseflipped:
+    @param phaseshift:
+    @type  phaseshift:
+
+    @return:
+    @rtype:
+
+    @author: Marten Chaillet
+    """
+    from pytom.simulation.microscope import create_ctf_1d
+
+    points_hp = xp.arange(0, 1 + 1 / (max(shape) - 1), 1 / (max(shape) - 1))
+    highpass = points_hp / highpassnyquist
+    highpass[highpass > 1] = 1
+    highpass = 1 - xp.cos(highpass * xp.pi)
+
+    points_snr = xp.arange(0, -(1 + 1 / (max(shape) - 1)), -1 / (max(shape) - 1))
+    snr = xp.exp(points_snr * snrfalloff * 100 / spacing_angstrom) * 10 ** (3 * deconvstrength) * highpass
+
+    ctf = - create_ctf_1d(max(shape), spacing_angstrom * 1e-10, defocus, amplitude_contrast=amplitude_contrast,
+                        voltage=voltage, Cs=spherical_aberration, phaseshift=phaseshift / 180 * xp.pi, bfactor=.0)
+
+    if phaseflipped:
+        ctf = abs(ctf)
+
+    wiener = ctf / (ctf * ctf + 1 / snr)
+
+    flt = profile2FourierVol(wiener, dim=shape, reduced=True)
+
+    # now expand the wiener filter to the input shape
+    # x = xp.arange(0, shape[0]) - shape[0] // 2
+    # y = xp.arange(0, shape[1]) - shape[1] // 2
+    # z = xp.arange(0, shape[2]) - shape[2] // 2
+    # xx, yy, zz = xp.meshgrid(x, y, z)
+    # xx /= (shape[0] // 2)
+    # yy /= (shape[1] // 2)
+    # zz /= (shape[2] // 2)
+    # r = xp.sqrt(xx ** 2, yy ** 2, zz ** 2)
+    # r[r > 1] = 1
+    # r = xp.fft.ifftshift(r)
+
+    return flt, highpass, snr, wiener
+
 
 class Wedge(object):
     """Defines the missing wedge filter in Fourier space."""

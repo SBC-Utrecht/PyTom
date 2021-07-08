@@ -4,32 +4,49 @@ import pytom.simulation.physics as physics
 from scipy.optimize import curve_fit
 
 
-def fourier_array(shape, nyquist):
+def fourier_array_radial(size, nyquist):
     """
-    Generate a fourier space frequency array where values range from -nyquist to +nyquist, with the center equal
-    to zero.
+    Generate a 1d fourier space frequency array where values range from 0 to nyquist.
 
-    @param shape: tuple with 2 or 3 elements with the size of each dimension
-    @type  shape: L{tuple} -> (L{int},)
+    @param size: size of array
+    @type  size: L{int}
     @param nyquist: nyquist frequency giving the range of frequencies
     @type  nyquist: L{float}
 
-    @return: fourier space frequencies, 2d or 3d array of floats
+    @return: fourier space frequencies, 1d array of floats
     @rtype:  L{numpy.ndarray}
 
     @author: Marten Chaillet
     """
-    assert type(shape) == tuple, "shape needs to be a tuple of dimenion sizes, dimenions need to be equal"
-    assert len(set(shape)) == 1, "dimensions are not identical"
-    assert len(shape) <= 3, "too many dimensions, 3 is max"
+    return xp.arange(0, nyquist, nyquist/size)
 
-    size = shape[0]
+
+def fourier_array(size, dims, nyquist):
+    """
+    Generate a fourier space frequency array where values range from -nyquist to +nyquist, with the center equal
+    to zero.
+
+    @param size: size of array
+    @type  size: L{int}
+    @param dims: numbers of dimensions of output array, can only equal 1, 2 and 3
+    @type  dims: L{int}
+    @param nyquist: nyquist frequency giving the range of frequencies
+    @type  nyquist: L{float}
+
+    @return: fourier space frequencies, 1d, 2d or 3d array of floats
+    @rtype:  L{numpy.ndarray}
+
+    @author: Marten Chaillet
+    """
+    assert 1 <= dims <= 3, print('invalid argument for number of dimensions of fourier array')
 
     d = xp.arange(-nyquist, nyquist, 2. * nyquist / size)
 
-    if len(shape) == 2:
+    if dims == 1:
+        grids = [d]
+    elif dims == 2:
         grids = xp.meshgrid(d, d)
-    else:
+    elif dims == 3:
         grids = xp.meshgrid(d, d, d)
 
     # Wave vector and direction
@@ -243,7 +260,7 @@ def create_detector_response(detector, response_function, image_size, voltage=30
     # Ny = 1
     # R, Y = xp.meshgrid(xp.arange(-Ny, Ny, 2. * Ny / (shape[0])), xp.arange(-Ny, Ny, 2. * Ny / (shape[1])))
     # r = xp.sqrt(R ** 2 + Y ** 2)
-    r = fourier_array((sampling_image_size,)*2, 1)  # nyquist is 1, as the fraction of nyquist maximum
+    r = fourier_array(sampling_image_size, 2, 1)  # nyquist is 1, as the fraction of nyquist maximum
 
     detector_response = sinc_square(r, params[0], params[1], params[2], params[3])
 
@@ -307,9 +324,100 @@ def fresnel_propagator(image_size, pixel_size, voltage, dz):
     Lambda = physics.wavelength_eV2m(voltage)
 
     nyquist = 1 / (2 * pixel_size)
-    k = fourier_array((image_size,)*2, nyquist)
+    k = fourier_array(image_size, 2, nyquist)
 
     return xp.exp(-1j * xp.pi * Lambda * (k ** 2) * dz)
+
+
+# def create_ctf_1d_orig(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3, Cs=2.7e-3, phaseshift=.0,
+#                    bfactor=.0):
+#     """
+#     Create a 1 dimensional ctf curve.
+#     Based on tom_deconv by Tegunov.
+#
+#     @param size: number of sampling points
+#     @type  size: L{int}
+#     @param spacing: spacing of sampling points in m
+#     @type  spacing: L{float}
+#     @param defocus: defocus of CTF in m
+#     @type  defocus: L{float}
+#     @param amplitude_contrast: fraction amplitude contrast in CTF
+#     @type  amplitude_contrast: L{float}
+#     @param voltage: acceleration voltage in eV
+#     @type  voltage: L{float}
+#     @param Cs: spherical aberration
+#     @type  Cs: L{float}
+#     @param phaseshift: phaseshift CTF in radians
+#     @type  phaseshift: L{float}
+#     @param bfactor: b_factor
+#     @type  bfactor: L{float}
+#
+#     @return: 1d numpy array of floats
+#     @rtype: L{np.ndarray}
+#
+#     @author: Marten Chaillet
+#     """
+#     nyquist = 1 / spacing
+#     lmbd = physics.wavelength_eV2m(voltage)
+#     lmbd2 = lmbd * 2
+#     print('lambda in deconv: ', 12.2643247 / xp.sqrt(voltage * (1.0 + voltage * 0.978466e-6)) * 1e-10)
+#     print('lambda in pytom sim: ', lmbd)
+#
+#     points = xp.arange(0, size)
+#     points = points / (2 * size) * nyquist
+#     # points = fourier_array_radial(size, 1/(2*spacing))
+#
+#     k2 = points ** 2
+#     term1 = lmbd ** 3 * Cs * k2 ** 2
+#
+#     w = xp.pi / 2 * (term1 + lmbd2 * defocus * k2) - phaseshift
+#
+#     acurve = xp.cos(w) * amplitude_contrast
+#     pcurve = - xp.sqrt(1 - amplitude_contrast ** 2) * xp.sin(w)
+#     bfactor = xp.exp(-bfactor * k2 * 0.25)
+#     ctf = (pcurve + acurve) * bfactor
+#
+#     return ctf
+
+
+def create_ctf_1d(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3, Cs=2.7e-3, phaseshift=.0, bfactor=.0):
+    """
+    Create a 1 dimensional ctf curve.
+    Based on tom_deconv by Tegunov.
+
+    @param size: number of sampling points
+    @type  size: L{int}
+    @param spacing: spacing of sampling points in m
+    @type  spacing: L{float}
+    @param defocus: defocus of CTF in m
+    @type  defocus: L{float}
+    @param amplitude_contrast: fraction amplitude contrast in CTF
+    @type  amplitude_contrast: L{float}
+    @param voltage: acceleration voltage in eV
+    @type  voltage: L{float}
+    @param Cs: spherical aberration
+    @type  Cs: L{float}
+    @param phaseshift: phaseshift CTF in radians
+    @type  phaseshift: L{float}
+    @param bfactor: b_factor
+    @type  bfactor: L{float}
+
+    @return: 1d numpy array of floats
+    @rtype: L{np.ndarray}
+
+    @author: Marten Chaillet
+    """
+    nyquist = 1 / (2 * spacing)
+    k = fourier_array_radial(size, nyquist)
+    lmbd = physics.wavelength_eV2m(voltage)
+
+    chi = xp.pi * lmbd * defocus * k ** 2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k ** 4 - phaseshift
+
+    ctf = - xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi) - amplitude_contrast * xp.cos(chi)
+
+    bfactor = xp.exp(-bfactor * k ** 2 * 0.25)
+
+    return ctf * bfactor
 
 
 def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, Cs, sigma_decay=0.4,
@@ -341,7 +449,7 @@ def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, Cs, sigma_d
     @author: Marten Chaillet
     """
     nyquist = 1 / (2 * spacing)
-    k = fourier_array(shape, nyquist)
+    k = fourier_array(shape[0], len(shape), nyquist)
     lmbd = physics.wavelength_eV2m(voltage)
 
     chi = xp.pi * lmbd * defocus * k**2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k ** 4
@@ -396,7 +504,7 @@ def create_simple_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, C
 
     nyquist = 1 / (2 * pixel_size)
 
-    k = fourier_array(image_shape, nyquist)
+    k = fourier_array(image_shape[0], len(image_shape), nyquist)
 
     complex_ctf = xp.exp(-1j * xp.pi / 2 * (Cs * (lmbd ** 3) * (k ** 4) - 2 * defocus * lmbd * (k ** 2)))
 
