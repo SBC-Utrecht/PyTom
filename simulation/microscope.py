@@ -21,7 +21,7 @@ def fourier_array_radial(size, nyquist):
     return xp.arange(0, nyquist, nyquist/size)
 
 
-def fourier_array(size, dims, nyquist):
+def fourier_grids(shape, nyquist):
     """
     Generate a fourier space frequency array where values range from -nyquist to +nyquist, with the center equal
     to zero.
@@ -38,22 +38,27 @@ def fourier_array(size, dims, nyquist):
 
     @author: Marten Chaillet
     """
-    assert 1 <= dims <= 3, print('invalid argument for number of dimensions of fourier array')
+    assert 1 <= len(shape) <= 3, print('invalid argument for number of dimensions of fourier array')
 
-    d = xp.arange(-nyquist, nyquist, 2. * nyquist / size)
 
-    if dims == 1:
-        grids = [d]
-    elif dims == 2:
-        grids = xp.meshgrid(d, d)
-    elif dims == 3:
-        grids = xp.meshgrid(d, d, d)
+    d = [xp.arange(-nyquist, nyquist, 2. * nyquist / size) for size in shape]
+
+    grids = xp.meshgrid(*d)
 
     # Wave vector and direction
-    k = xp.sqrt(sum([d**2 for d in grids]))  # xz ** 2 + yz ** 2 + zz ** 2)
-    # k2 = k ** 2
-    # k4 = k2 ** 2
-    return k  # , k2, k4
+
+    return grids
+
+def genAstigmatisedGrid(k, Y, defocusU=None, defocusV=None, defocusAngle=0.):
+
+    size = k.shape[1]
+    defocusV = defocusU if defocusV is None else defocusV
+    theta = xp.arcsin(Y / k)
+
+    z = defocusU * xp.cos(theta - defocusAngle) ** 2 + defocusV * xp.sin(theta - defocusAngle) ** 2
+    z[:, -int(size // 2):] = xp.flipud(z[:, -int(size // 2):])
+
+    return z
 
 
 def sinc_square(x, p1, p2, p3, p4):
@@ -420,8 +425,8 @@ def create_ctf_1d(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3
     return ctf * bfactor
 
 
-def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, Cs, sigma_decay=0.4,
-               display=False):
+def create_ctf(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_decay=0.4,
+               display=False, defocusV=None, defocusAngle=0., phase_shift=0):
     """
     This function models a non-complex CTF. It can be used for both 2d or 3d function. It describes a ctf after
     detection (and is therefore not complex).
@@ -449,12 +454,22 @@ def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, Cs, sigma_d
     @author: Marten Chaillet
     """
     nyquist = 1 / (2 * spacing)
-    k = fourier_array(shape[0], len(shape), nyquist)
+    grids = fourier_grids(shape, nyquist)
+
+    # Wave vector
+    k = xp.sqrt(sum([d**2 for d in grids]))  # xz ** 2 + yz ** 2 + zz ** 2)
+
+
     lmbd = physics.wavelength_eV2m(voltage)
 
-    chi = xp.pi * lmbd * defocus * k**2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k ** 4
+    if not defocusV is None:
+        defocusGrid = genAstigmatisedGrid(k, grids[1], defocusU=defocusU, defocusV=defocusV, defocusAngle=defocusAngle)
+        chi = xp.pi * lmbd * defocusGrid * k**2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k ** 4
 
-    ctf = - xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi) - amplitude_contrast * xp.cos(chi)
+    else:
+        chi = xp.pi * lmbd * defocusU * k ** 2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k ** 4
+
+    ctf = - xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi+phase_shift) - amplitude_contrast * xp.cos(chi+phase_shift)
 
     decay = 1 if sigma_decay <= 0 else xp.exp(-(k / (sigma_decay * nyquist)) ** 2)
     ctf *= decay
