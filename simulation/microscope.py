@@ -329,55 +329,55 @@ def fresnel_propagator(image_size, pixel_size, voltage, dz):
     return xp.exp(-1j * xp.pi * Lambda * (k ** 2) * dz)
 
 
-# def create_ctf_1d_orig(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3, Cs=2.7e-3, phaseshift=.0,
-#                    bfactor=.0):
-#     """
-#     Create a 1 dimensional ctf curve.
-#     Based on tom_deconv by Tegunov.
-#
-#     @param size: number of sampling points
-#     @type  size: L{int}
-#     @param spacing: spacing of sampling points in m
-#     @type  spacing: L{float}
-#     @param defocus: defocus of CTF in m
-#     @type  defocus: L{float}
-#     @param amplitude_contrast: fraction amplitude contrast in CTF
-#     @type  amplitude_contrast: L{float}
-#     @param voltage: acceleration voltage in eV
-#     @type  voltage: L{float}
-#     @param Cs: spherical aberration
-#     @type  Cs: L{float}
-#     @param phaseshift: phaseshift CTF in radians
-#     @type  phaseshift: L{float}
-#     @param bfactor: b_factor
-#     @type  bfactor: L{float}
-#
-#     @return: 1d numpy array of floats
-#     @rtype: L{np.ndarray}
-#
-#     @author: Marten Chaillet
-#     """
-#     nyquist = 1 / spacing
-#     lmbd = physics.wavelength_eV2m(voltage)
-#     lmbd2 = lmbd * 2
-#     print('lambda in deconv: ', 12.2643247 / xp.sqrt(voltage * (1.0 + voltage * 0.978466e-6)) * 1e-10)
-#     print('lambda in pytom sim: ', lmbd)
-#
-#     points = xp.arange(0, size)
-#     points = points / (2 * size) * nyquist
-#     # points = fourier_array_radial(size, 1/(2*spacing))
-#
-#     k2 = points ** 2
-#     term1 = lmbd ** 3 * Cs * k2 ** 2
-#
-#     w = xp.pi / 2 * (term1 + lmbd2 * defocus * k2) - phaseshift
-#
-#     acurve = xp.cos(w) * amplitude_contrast
-#     pcurve = - xp.sqrt(1 - amplitude_contrast ** 2) * xp.sin(w)
-#     bfactor = xp.exp(-bfactor * k2 * 0.25)
-#     ctf = (pcurve + acurve) * bfactor
-#
-#     return ctf
+def create_ctf_1d_orig(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3, Cs=2.7e-3, phaseshift=.0,
+                   bfactor=.0):
+    """
+    Create a 1 dimensional ctf curve.
+    Based on tom_deconv by Tegunov.
+
+    @param size: number of sampling points
+    @type  size: L{int}
+    @param spacing: spacing of sampling points in m
+    @type  spacing: L{float}
+    @param defocus: defocus of CTF in m
+    @type  defocus: L{float}
+    @param amplitude_contrast: fraction amplitude contrast in CTF
+    @type  amplitude_contrast: L{float}
+    @param voltage: acceleration voltage in eV
+    @type  voltage: L{float}
+    @param Cs: spherical aberration
+    @type  Cs: L{float}
+    @param phaseshift: phaseshift CTF in radians
+    @type  phaseshift: L{float}
+    @param bfactor: b_factor
+    @type  bfactor: L{float}
+
+    @return: 1d numpy array of floats
+    @rtype: L{np.ndarray}
+
+    @author: Marten Chaillet
+    """
+    nyquist = 1 / spacing
+    lmbd = physics.wavelength_eV2m(voltage)
+    lmbd2 = lmbd * 2
+    print('lambda in deconv: ', 12.2643247 / xp.sqrt(voltage * (1.0 + voltage * 0.978466e-6)) * 1e-10)
+    print('lambda in pytom sim: ', lmbd)
+
+    points = xp.arange(0, size)
+    points = points / (2 * size) * nyquist
+    # points = fourier_array_radial(size, 1/(2*spacing))
+
+    k2 = points ** 2
+    term1 = lmbd ** 3 * Cs * k2 ** 2
+
+    w = xp.pi / 2 * (term1 + lmbd2 * defocus * k2) - phaseshift
+
+    acurve = xp.cos(w) * amplitude_contrast
+    pcurve = - xp.sqrt(1 - amplitude_contrast ** 2) * xp.sin(w)
+    bfactor = xp.exp(-bfactor * k2 * 0.25)
+    ctf = (pcurve + acurve) * bfactor
+
+    return ctf
 
 
 def create_ctf_1d(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3, Cs=2.7e-3, phaseshift=.0, bfactor=.0):
