@@ -161,6 +161,9 @@ def wiener_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, 
     """
     from pytom.simulation.microscope import create_ctf_1d
 
+    shape /= 2
+
+    xp.linspace(0, 1, 1/)
     points_hp = xp.arange(0, 1 + 1 / (max(shape) - 1), 1 / (max(shape) - 1))
     highpass = points_hp / highpassnyquist
     highpass[highpass > 1] = 1
