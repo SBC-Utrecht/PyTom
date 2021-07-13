@@ -1,5 +1,5 @@
 import os
-import numpy as xp
+from pytom.gpu.initialize import xp, device
 import pytom.simulation.physics as physics
 from scipy.optimize import curve_fit
 

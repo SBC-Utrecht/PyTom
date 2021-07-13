@@ -126,7 +126,7 @@ def gaussian3d(data, sigma=0):
     d = gaussian_filter(data, sigma)
     return d
 
-def wiener_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, highpassnyquist, voltage=300e3,
+def wiener_like_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, highpassnyquist, voltage=300e3,
                   spherical_aberration=2.7e-3, amplitude_contrast=0.07, phaseflipped=False, phaseshift=0):
     """
     # todo should defocus input be in m or in um?
@@ -151,7 +151,7 @@ def wiener_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, 
     @type  highpassnyquist:
     @param phaseflipped:
     @type  phaseflipped:
-    @param phaseshift:
+    @param phaseshift: phasehift input in degrees
     @type  phaseshift:
 
     @return:
@@ -161,18 +161,19 @@ def wiener_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, 
     """
     from pytom.simulation.microscope import create_ctf_1d
 
-    shape /= 2
+    size = max(shape) // 2
 
-    xp.linspace(0, 1, 1/)
-    points_hp = xp.arange(0, 1 + 1 / (max(shape) - 1), 1 / (max(shape) - 1))
+    points_hp = xp.linspace(.0, 1., num=size)
+    # points_hp = xp.arange(0, 1 + 1 / (max(shape) - 1), 1 / (max(shape) - 1))
     highpass = points_hp / highpassnyquist
     highpass[highpass > 1] = 1
     highpass = 1 - xp.cos(highpass * xp.pi)
 
-    points_snr = xp.arange(0, -(1 + 1 / (max(shape) - 1)), -1 / (max(shape) - 1))
+    points_snr = xp.linspace(.0, -1., num=size)
+    # points_snr = xp.arange(0, -(1 + 1 / (max(shape) - 1)), -1 / (max(shape) - 1))
     snr = xp.exp(points_snr * snrfalloff * 100 / spacing_angstrom) * 10 ** (3 * deconvstrength) * highpass
 
-    ctf = - create_ctf_1d(max(shape), spacing_angstrom * 1e-10, defocus, amplitude_contrast=amplitude_contrast,
+    ctf = - create_ctf_1d(size, spacing_angstrom * 1e-10, defocus, amplitude_contrast=amplitude_contrast,
                         voltage=voltage, Cs=spherical_aberration, phaseshift=phaseshift / 180 * xp.pi, bfactor=.0)
 
     if phaseflipped:
@@ -194,7 +195,7 @@ def wiener_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, 
     # r[r > 1] = 1
     # r = xp.fft.ifftshift(r)
 
-    return flt, highpass, snr, wiener
+    return flt
 
 
 class Wedge(object):
