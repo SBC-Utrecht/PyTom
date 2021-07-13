@@ -127,7 +127,7 @@ def gaussian3d(data, sigma=0):
     return d
 
 def wiener_like_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, highpassnyquist, voltage=300e3,
-                  spherical_aberration=2.7e-3, amplitude_contrast=0.07, phaseflipped=False, phaseshift=0):
+                  spherical_aberration=2.7e-3, amplitude_contrast=0.07, phaseflipped=False, phase_shift=0):
     """
     # todo should defocus input be in m or in um?
 
@@ -173,7 +173,7 @@ def wiener_like_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstren
     snr = xp.exp(points_snr * snrfalloff * 100 / spacing_angstrom) * 10 ** (3 * deconvstrength) * highpass
 
     ctf = - create_ctf_1d(size, spacing_angstrom * 1e-10, defocus, amplitude_contrast=amplitude_contrast,
-                        voltage=voltage, Cs=spherical_aberration, phaseshift=phaseshift / 180 * xp.pi, bfactor=.0)
+                        voltage=voltage, Cs=spherical_aberration, phase_shift_deg=phase_shift, bfactor=.0)
 
     if phaseflipped:
         ctf = abs(ctf)
