@@ -445,7 +445,7 @@ def create_ctf_1d(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3
     return (pcurve + acurve) * bfactor
 
 
-def create_ctf(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_decay=0.4,
+def create_ctf(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_decay=.0,
                display=False, defocusV=None, defocus_angle_deg=.0, phase_shift_deg=.0, precalc=None):
     """
     This function models a non-complex CTF. It can be used for both 2d or 3d function. It describes a ctf after
@@ -459,11 +459,11 @@ def create_ctf(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_
     @type  defocusU: L{float}
     @param amplitude_contrast: Amplitude contrast fraction (e.g., 0.1)
     @type  amplitude_contrast: L{float}
-    @param voltage: acceleration voltage in eV
+    @param voltage: acceleration voltage in eV, e.g. 300e3
     @type  voltage: L{float}
-    @param Cs: spherical aberration in m
+    @param Cs: spherical aberration in m, e.g. 2.7e-3
     @type  Cs: L{float}
-    @param sigma_decay: sigma of Gaussian decay function
+    @param sigma_decay: sigma of Gaussian decay function, e.g. 0.4
     @type  sigma_decay: L{float}
     @param display: flag for plotting a radially averaged version of the CTF curve
     @type  display: L{bool}
