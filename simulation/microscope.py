@@ -4,23 +4,6 @@ import pytom.simulation.physics as physics
 from scipy.optimize import curve_fit
 
 
-def fourier_array_radial(size, nyquist):
-    """
-    Generate a 1d fourier space frequency array where values range from 0 to nyquist.
-
-    @param size: size of array
-    @type  size: L{int}
-    @param nyquist: nyquist frequency giving the range of frequencies
-    @type  nyquist: L{float}
-
-    @return: fourier space frequencies, 1d array of floats
-    @rtype:  L{numpy.ndarray}
-
-    @author: Marten Chaillet
-    """
-    return xp.arange(0, nyquist, nyquist/size)
-
-
 def fourier_grids(shape, nyquist):
     """
     Generate a fourier space frequency array where values range from -nyquist to +nyquist, with the center equal
@@ -49,10 +32,16 @@ def fourier_grids(shape, nyquist):
 
     return grids
 
-def genAstigmatisedGrid(k, Y, defocusU=None, defocusV=None, defocusAngle=0.):
+
+def genAstigmatisedGrid(k, Y=None, defocusU=None, defocusV=None, defocusAngle=0., nyquist=None):
 
     size = k.shape[1]
     defocusV = defocusU if defocusV is None else defocusV
+    if Y is None:
+        if nyquist is None:
+            nyquist = k.min(axis=0)
+        Y = fourier_grids(k.shape, nyquist)[1]
+
     theta = xp.arcsin(Y / k)
 
     z = defocusU * xp.cos(theta - defocusAngle) ** 2 + defocusV * xp.sin(theta - defocusAngle) ** 2
@@ -265,7 +254,10 @@ def create_detector_response(detector, response_function, image_size, voltage=30
     # Ny = 1
     # R, Y = xp.meshgrid(xp.arange(-Ny, Ny, 2. * Ny / (shape[0])), xp.arange(-Ny, Ny, 2. * Ny / (shape[1])))
     # r = xp.sqrt(R ** 2 + Y ** 2)
-    r = fourier_array(sampling_image_size, 2, 1)  # nyquist is 1, as the fraction of nyquist maximum
+    # r = fourier_array(sampling_image_size, 2, 1)
+
+    grids = fourier_grids((sampling_image_size,)*2, 1)  # nyquist is 1, as the fraction of nyquist maximum
+    r = xp.sqrt(sum([d**2 for d in grids]))
 
     detector_response = sinc_square(r, params[0], params[1], params[2], params[3])
 
@@ -329,7 +321,9 @@ def fresnel_propagator(image_size, pixel_size, voltage, dz):
     Lambda = physics.wavelength_eV2m(voltage)
 
     nyquist = 1 / (2 * pixel_size)
-    k = fourier_array(image_size, 2, nyquist)
+    grids = fourier_grids((image_size,) * 2, nyquist)
+    k = xp.sqrt(sum([d ** 2 for d in grids]))
+    # k = fourier_array(image_size, 2, nyquist)
 
     return xp.exp(-1j * xp.pi * Lambda * (k ** 2) * dz)
 
@@ -362,27 +356,23 @@ def create_ctf_1d_orig(size, spacing, defocus, amplitude_contrast=0.07, voltage=
 
     @author: Marten Chaillet
     """
-    nyquist = 1 / spacing
+    nyquist = 1 / (2 * spacing)
     lmbd = physics.wavelength_eV2m(voltage)
-    lmbd2 = lmbd * 2
-    print('lambda in deconv: ', 12.2643247 / xp.sqrt(voltage * (1.0 + voltage * 0.978466e-6)) * 1e-10)
-    print('lambda in pytom sim: ', lmbd)
+    # print('lambda in deconv: ', 12.2643247 / xp.sqrt(voltage * (1.0 + voltage * 0.978466e-6)) * 1e-10)
+    # print('lambda in pytom sim: ', lmbd)
 
-    points = xp.arange(0, size)
-    points = points / (2 * size) * nyquist
-    # points = fourier_array_radial(size, 1/(2*spacing))
+    points = xp.arange(0, nyquist, nyquist / size)
 
     k2 = points ** 2
-    term1 = lmbd ** 3 * Cs * k2 ** 2
 
-    w = xp.pi / 2 * (term1 + lmbd2 * defocus * k2) - phaseshift
+    chi = xp.pi * (lmbd * defocus * k2 + 0.5 * lmbd ** 3 * Cs * k2 ** 2) - phaseshift
 
-    acurve = xp.cos(w) * amplitude_contrast
-    pcurve = - xp.sqrt(1 - amplitude_contrast ** 2) * xp.sin(w)
+    acurve = xp.cos(chi) * amplitude_contrast
+    pcurve = - xp.sqrt(1 - amplitude_contrast ** 2) * xp.sin(chi)
+
     bfactor = xp.exp(-bfactor * k2 * 0.25)
-    ctf = (pcurve + acurve) * bfactor
 
-    return ctf
+    return (pcurve + acurve) * bfactor
 
 
 def create_ctf_1d(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3, Cs=2.7e-3, phaseshift=.0, bfactor=.0):
@@ -413,24 +403,32 @@ def create_ctf_1d(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3
     @author: Marten Chaillet
     """
     nyquist = 1 / (2 * spacing)
-    k = fourier_array_radial(size, nyquist)
+    k = xp.arange(0, nyquist, nyquist / size)
+    k2 = k ** 2
     lmbd = physics.wavelength_eV2m(voltage)
 
-    chi = xp.pi * lmbd * defocus * k ** 2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k ** 4 - phaseshift
+    chi = xp.pi * (lmbd * defocus * k2 - 0.5 * Cs * lmbd ** 3 * k2 ** 2) + phaseshift
 
-    ctf = - xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi) - amplitude_contrast * xp.cos(chi)
+    acurve = - amplitude_contrast * xp.cos(chi)
+    pcurve = - xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi)
 
-    bfactor = xp.exp(-bfactor * k ** 2 * 0.25)
+    # chi = xp.pi * (0.5 * Cs * lmbd ** 3 * k2 ** 2 - lmbd * defocus * k2) - phaseshift
+    #
+    # acurve = - amplitude_contrast * xp.cos(chi)
+    # pcurve = xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi)
 
-    return ctf * bfactor
+    bfactor = xp.exp(-bfactor * k2 * 0.25)
+
+    return (pcurve + acurve) * bfactor
 
 
 def create_ctf(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_decay=0.4,
-               display=False, defocusV=None, defocusAngle=0., phase_shift=0):
+               display=False, defocusV=None, defocusAngle=0., phase_shift=0, precalc=None):
     """
     This function models a non-complex CTF. It can be used for both 2d or 3d function. It describes a ctf after
     detection (and is therefore not complex).
 
+    todo phase shift and defocusangle same convention (degrees)
     @param shape: shape tuple with 2 or 3 elements
     @type  shape: L{tuple} -> (L{int},)
     @param spacing: pixel/voxel spacing in m
@@ -453,23 +451,30 @@ def create_ctf(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_
 
     @author: Marten Chaillet
     """
-    nyquist = 1 / (2 * spacing)
-    grids = fourier_grids(shape, nyquist)
+    if precalc is None:
+        nyquist = 1 / (2 * spacing)
+        grids = fourier_grids(shape, nyquist)
 
-    # Wave vector
-    k = xp.sqrt(sum([d**2 for d in grids]))  # xz ** 2 + yz ** 2 + zz ** 2)
-
+        # Wave vector
+        k = xp.sqrt(sum([d**2 for d in grids]))  # xz ** 2 + yz ** 2 + zz ** 2)
+        Y = grids[1]
+        del grids
+        k2, k4 = k ** 2, k ** 4
+    else:
+        k, k2, k4, Y = precalc
 
     lmbd = physics.wavelength_eV2m(voltage)
 
     if not defocusV is None:
-        defocusGrid = genAstigmatisedGrid(k, grids[1], defocusU=defocusU, defocusV=defocusV, defocusAngle=defocusAngle)
-        chi = xp.pi * lmbd * defocusGrid * k**2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k ** 4
-
+        # in this case we need k, k2, k4 and Y
+        defocusGrid = genAstigmatisedGrid(k, Y, defocusU=defocusU, defocusV=defocusV, defocusAngle=defocusAngle)
+        chi = xp.pi * lmbd * defocusGrid * k2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k4
     else:
-        chi = xp.pi * lmbd * defocusU * k ** 2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k ** 4
+        # in this case we need k2 and k4
+        chi = xp.pi * lmbd * defocusU * k2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k4
 
-    ctf = - xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi+phase_shift) - amplitude_contrast * xp.cos(chi+phase_shift)
+    ctf = - xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi+phase_shift) - \
+          amplitude_contrast * xp.cos(chi+phase_shift)
 
     decay = 1 if sigma_decay <= 0 else xp.exp(-(k / (sigma_decay * nyquist)) ** 2)
     ctf *= decay
@@ -480,6 +485,7 @@ def create_ctf(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_
         else:
             display_microscope_function(ctf[:, :, shape[2]//2], form='ctf', complex=False)
 
+    # return ctf and precalc values
     return ctf
 
 
@@ -519,7 +525,9 @@ def create_simple_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, C
 
     nyquist = 1 / (2 * pixel_size)
 
-    k = fourier_array(image_shape[0], len(image_shape), nyquist)
+    # k = fourier_array(image_shape[0], len(image_shape), nyquist)
+    grids = fourier_grids(image_shape, nyquist)
+    k = xp.sqrt(sum([d ** 2 for d in grids]))
 
     complex_ctf = xp.exp(-1j * xp.pi / 2 * (Cs * (lmbd ** 3) * (k ** 4) - 2 * defocus * lmbd * (k ** 2)))
 

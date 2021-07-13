@@ -168,7 +168,6 @@ def wiener_like_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstren
     highpass = points_hp / highpassnyquist
     highpass[highpass > 1] = 1
     highpass = 1 - xp.cos(highpass * xp.pi)
-
     points_snr = xp.linspace(.0, -1., num=size)
     # points_snr = xp.arange(0, -(1 + 1 / (max(shape) - 1)), -1 / (max(shape) - 1))
     snr = xp.exp(points_snr * snrfalloff * 100 / spacing_angstrom) * 10 ** (3 * deconvstrength) * highpass
