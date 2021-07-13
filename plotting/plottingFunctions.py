@@ -12,8 +12,10 @@ import lxml.etree as et
 def im_show(image):
     try:
         imshow(image.get())
+        show()
     except:
         imshow(image)
+        show()
 
 
 def remove_element(el):
