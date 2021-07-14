@@ -1,6 +1,9 @@
 from setuptools import setup, Extension, find_packages
 from setuptools.command.install import install
+
 import subprocess
+import setuptools.command.build_py
+
 import os
 from pytom import __version__
 
@@ -9,7 +12,9 @@ def find_executables():
     a =  [f'{folder}/{e}' for e in os.listdir(folder) if os.path.isfile(f'{folder}/{e}') and not '__' in e]
     return a
 
-class CustomInstall(install):
+class BuildPyCommand(setuptools.command.build_py.build_py):
+    """Custom build command."""
+
     def run(self):
         import sys
         commandPullSubmodules = 'git submodule update --init --recursive'
@@ -20,6 +25,20 @@ class CustomInstall(install):
         commandInstall = f'python{version} compile.py --target all'
         process = subprocess.Popen(commandInstall, shell=True, cwd="pytom/pytomc")
         process.wait()
+
+
+
+class CustomInstall(install):
+    def run(self):
+        # import sys
+        # commandPullSubmodules = 'git submodule update --init --recursive'
+        # process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="./")
+        # process.wait()
+        #
+        # version = f'{sys.version_info[0]}.{sys.version_info[1]}'
+        # commandInstall = f'python{version} compile.py --target all'
+        # process = subprocess.Popen(commandInstall, shell=True, cwd="pytom/pytomc")
+        # process.wait()
 
         install.run(self)
 
@@ -53,7 +72,7 @@ setup(
         'gpu': ['cupy'],
         'gui': ['PyQt5', 'pyqtgraph', 'mrcfile'],
         'all': ['cupy', 'PyQt5', 'pyqtgraph', 'mrcfile']},
-    cmdclass={'install': CustomInstall},
+    cmdclass={'install': CustomInstall, 'build_py': BuildPyCommand},
     include_package_data=True,
     scripts=find_executables(),
     test_suite='nose.collector',
