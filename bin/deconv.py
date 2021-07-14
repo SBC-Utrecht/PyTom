@@ -52,7 +52,8 @@ if __name__ == '__main__':
 
     filter = wiener_like_filter(input.shape, spacing_angstrom, defocus_um * 1e-6, snrfalloff, deconvstrength,
                                 highpassnyquist, voltage=voltage_kev * 1e3, spherical_aberration=Cs_mm * 1e-3,
-                                amplitude_contrast=amplitude_contrast, phaseflipped=phaseflipped, phaseshift=phaseshift)
+                                amplitude_contrast=amplitude_contrast, phaseflipped=phaseflipped,
+                                phase_shift=phaseshift)
 
-    deconv = xp.fft.irfftn(xp.fft.rfftn(input) * filter).real
+    deconv = xp.fft.ifftn(xp.fft.fftn(input) * xp.fft.ifftshift(filter)).real
     write(output_file, deconv)

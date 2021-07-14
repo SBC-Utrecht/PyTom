@@ -283,7 +283,7 @@ def wiener_like_filter_1d(shape, spacing_angstrom, defocus, snrfalloff, deconvst
     # r[r > 1] = 1
     # r = xp.fft.ifftshift(r)
 
-    return profile2FourierVol(wiener, dim=shape, reduced=False)
+    return profile2FourierVol(wiener, dim=shape)
 
 
 def wiener_like_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, highpassnyquist, voltage=300e3,
@@ -329,10 +329,17 @@ def wiener_like_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstren
     ssnr = SSNR(shape, spacing_angstrom, snrfalloff, deconvstrength)
 
     # calculate ctf
-    ctf = - create_ctf(shape, spacing_angstrom * 1e-10, defocus, amplitude_contrast, voltage, spherical_aberration)
+    ctf = - create_ctf(shape, spacing_angstrom * 1e-10, defocus, amplitude_contrast, voltage, spherical_aberration,
+                       phase_shift_deg=phase_shift)
     # todo add astigmatism option
 
-    return wiener_filtered_ctf(ctf, ssnr, highpass=highpass, phaseflipped=phaseflipped)
+    wiener = wiener_filtered_ctf(ctf, ssnr, highpass=highpass, phaseflipped=phaseflipped)
+
+    # if reduced:
+    #     z = wiener.shape[-1]
+    #     wiener = wiener[...,:z//2+1]
+
+    return wiener
 
 
 class Wedge(object):
