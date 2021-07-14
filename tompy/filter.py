@@ -173,6 +173,54 @@ def wiener_filtered_ctf(ctf, ssnr, highpass=None, phaseflipped=False):
     return wiener
 
 
+def SSNR(shape, spacing_angstrom, snrfalloff, deconvstrength, r=None):
+    """
+
+    @param shape: shape tuple
+    @type  shape: L{tuple}
+    @param spacing_angstrom: spacing in angstrom
+    @type  spacing_angstrom: L{float}
+    @param snrfalloff: fall off of gaussian ssnr function
+    @type  snrfalloff: L{float}
+    @param deconvstrength: strength at 0 spatial frequency, 10 ** (3 * deconvstrength)
+    @type  deconvstrength: L{float}
+    @param r: optional radial grid
+    @type  r: L{np.ndarray}
+
+    @return: ssnr function
+    @rtype:  L{np.ndarray}
+    """
+    # todo what about astigmatic ssnr?
+    if r is None:
+        d = [xp.abs(xp.arange(-1, 1, 2 / size)) for size in shape]
+        grids = xp.meshgrid(*d)
+        r = - xp.sqrt(sum([g ** 2 for g in grids]))
+
+    return xp.exp(r * snrfalloff * 100 / spacing_angstrom) * 10 ** (3 * deconvstrength)
+
+
+def highpass_ramp(shape, highpassnyquist, r=None):
+    """
+
+    @param shape: shape tuple
+    @type  shape: L{tuple}
+    @param highpassnyquist: high pass frequency, good value is 0.02
+    @type  highpassnyquist: L{float}
+    @param r: optional radial grid
+    @type  r: L{np.ndarray}
+
+    @return: high pass ramp filter
+    @rtype:  L{np.ndarray}
+    """
+    if r is None:
+        d = [xp.abs(xp.arange(-1, 1, 2 / size)) for size in shape]
+        grids = xp.meshgrid(*d)
+        r = xp.sqrt(sum([g ** 2 for g in grids]))
+    highpass = r / highpassnyquist
+    highpass[highpass > 1] = 1
+    return 1 - xp.cos(highpass * xp.pi)
+
+
 def wiener_like_filter_1d(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, highpassnyquist, voltage=300e3,
                   spherical_aberration=2.7e-3, amplitude_contrast=0.07, phaseflipped=False, phase_shift=0):
     """
@@ -274,19 +322,11 @@ def wiener_like_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstren
     """
     from pytom.simulation.microscope import create_ctf, create_ctf_1d
 
-    # create sampling points for highpass and snr
-    d_hp = [xp.abs(xp.arange(-1, 1, 2 / size)) for size in shape]
-    grids = xp.meshgrid(*d_hp)
-    points_hp = xp.sqrt(sum([g ** 2 for g in grids]))
-    points_snr = - points_hp
-
     # calculate highpass
-    highpass = points_hp / highpassnyquist
-    highpass[highpass > 1] = 1
-    highpass = 1 - xp.cos(highpass * xp.pi)
+    highpass = highpass_ramp(shape, highpassnyquist)
 
     # calculate spectral SNR
-    ssnr = xp.exp(points_snr * snrfalloff * 100 / spacing_angstrom) * 10 ** (3 * deconvstrength)
+    ssnr = SSNR(shape, spacing_angstrom, snrfalloff, deconvstrength)
 
     # calculate ctf
     ctf = - create_ctf(shape, spacing_angstrom * 1e-10, defocus, amplitude_contrast, voltage, spherical_aberration)
