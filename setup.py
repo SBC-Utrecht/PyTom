@@ -72,7 +72,7 @@ setup(
         'gpu': ['cupy'],
         'gui': ['PyQt5', 'pyqtgraph', 'mrcfile'],
         'all': ['cupy', 'PyQt5', 'pyqtgraph', 'mrcfile']},
-    cmdclass={'install': CustomInstall, 'build_py': BuildPyCommand},
+    cmdclass={'build_py': BuildPyCommand},
     include_package_data=True,
     scripts=find_executables(),
     test_suite='nose.collector',
