@@ -1133,18 +1133,26 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
         x = xp.random.normal(0, sigma_shift) / (pixel_size*1E10)
         y = xp.random.normal(0, sigma_shift) / (pixel_size*1E10)
         # print((x,y,0.0))
-        translations.append((x,y,0.0))
+        translations.append((x, y, 0.0))
 
     # defocus_series = [xp.random.normal(defocus, 0.2E-6) for a in angles]
     ctf_series = []
+    dz_series, ast_series, ast_angle_series = [], [], []
     for i in angles:
-        dz = xp.random.normal(defocus, 0.2E-6)
+        # todo currently input astigmatism is overriden by these options
+        # todo add these options for frame series
+        dz, ast, ast_angle = (xp.random.normal(defocus, 0.2E-6),
+                             xp.random.normal(0, 0.1e-6),  # introduce astigmastism with 100 nm variation
+                             xp.random.normal(40, 10))  # vary angle randomly around a 40 degree angle
         ctf = create_complex_ctf((image_size, image_size), pixel_size, dz, voltage=voltage,
                                      Cs=spherical_aberration, Cc=chromatic_aberration, energy_spread=energy_spread,
                                      illumination_aperture=illumination_aperture, objective_diameter=objective_diameter,
-                                     focus_length=focus_length, astigmatism=astigmatism,
-                                     astigmatism_angle=astigmatism_angle, display=False)
+                                     focus_length=focus_length, astigmatism=ast,
+                                     astigmatism_angle=ast_angle, display=False)
         ctf_series.append(ctf)
+        dz_series.append(dz)
+        ast_series.append(ast)
+        ast_angle_series.append(ast_angle)
 
     dqe = create_detector_response(camera_type, 'DQE', image_size, voltage=voltage,
                                             folder=camera_folder, oversampling=binning)
@@ -1176,6 +1184,8 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     write(filename_nf, xp.stack([n for (n, p) in results], axis=2))
     write(filename_pr, xp.stack([p for (n, p) in results], axis=2))
 
+    # todo create alignment and misalignment file, so that in reconstruction choice can be made between align and
+    # todo misalign
     # store alignment information
     # len(angles) is the number of files that we have
     alignment                       = xp.zeros(len(angles), dtype=dar)
@@ -1188,6 +1198,32 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     # write the alignment file
     filename_align                      = os.path.join(save_path, 'alignment_simulated.txt')
     savestar(filename_align, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
+
+    # write varied parameters
+    # translations, dz_series, ast_series, ast_angle_series
+    header_varied_params = ''
+    dt_varied_params = [('TranslationX', 'f4'),
+                                  ('TranslationY', 'f4'),
+                                  ('Defocus', 'f4'),
+                                  ('Astigmatism', 'f4'),
+                                  ('AstigmatismAngle', 'f4')]
+    units_varied_params = ['px', 'px', 'um', 'um', 'degrees']
+
+    for n, h in enumerate(dt_varied_params):
+        header_varied_params += '{} {}\n'.format(h[0], '({})'.format(units_varied_params[n]) * (
+                units_varied_params[n] != ''))
+
+    fmt_varied_params = '%15.10f %15.10f %15.10f %15.10f %15.10f'
+
+    varied_params = xp.zeros(len(angles), dtype=dt_varied_params)
+    varied_params['TranslationX'] = xp.array([x for (x, y, z) in translations])
+    varied_params['TranslationY'] = xp.array([y for (x, y, z) in translations])
+    varied_params['Defocus'] = xp.array(dz_series) * 1e6
+    varied_params['Astigmatism'] = xp.array(ast_series) * 1e6
+    varied_params['AstigmatismAngle'] = xp.array(ast_angle_series)
+
+    savestar(os.path.join(save_path, 'varied_parameters.txt'), varied_params, fmt=fmt_varied_params,
+             header=header_varied_params)
 
     return
 
@@ -1970,8 +2006,7 @@ if __name__ == '__main__':
                        number_of_markers    =number_of_markers,
                        absorption_contrast  =absorption_contrast,
                        voltage              =voltage,
-                       number_of_membranes  =number_of_membranes,
-                       beam_damage_snr      =beam_damage_snr)
+                       number_of_membranes  =number_of_membranes)
 
     if simulator_mode in config.sections() and simulator_mode == 'TiltSeries':
         # set seed for random number generation
@@ -2002,7 +2037,8 @@ if __name__ == '__main__':
                                       camera_type           =camera,
                                       camera_folder         =camera_folder,
                                       solvent_potential     =solvent_potential,
-                                      absorption_contrast   =absorption_contrast)
+                                      absorption_contrast   =absorption_contrast,
+                                      beam_damage_snr       =beam_damage_snr)
         elif device == 'GPU':
             print('This option needs to be implemented.')
             sys.exit(0)
@@ -2032,11 +2068,12 @@ if __name__ == '__main__':
                                       astigmatism_angle     =astigmatism_angle,
                                       msdz                  =msdz,
                                       defocus               =defocus,
-                                      mean_shift           =translation_shift,
+                                      mean_shift            =translation_shift,
                                       camera_type           =camera,
                                       camera_folder         =camera_folder,
                                       solvent_potential     =solvent_potential,
-                                      absorption_contrast   =absorption_contrast)
+                                      absorption_contrast   =absorption_contrast,
+                                      beam_damage_snr       =beam_damage_snr)
         elif device == 'GPU':
             print('This option needs to be implemented.')
             sys.exit(0)
