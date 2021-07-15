@@ -53,8 +53,8 @@ if __name__ == '__main__':
                  ScriptOption2(['-g', '--gpuID'], 'Index of used GPU', 'int', 'optional'),
                  ScriptOption2(['--startEndXYZ'], 'Region of interest in all dims. [startX, startY, startZ, endX, endY, endZ]', 'int,int,int,int,int,int', 'optional', [0,0,0,0,0,0]),
 
-                 ScriptOption2(['--scoreVolume'], 'Filename of volume', 'file', 'optional', 'scores.mrc'),
-                 ScriptOption2(['--rotationVolume'], 'Filename of volume', 'file', 'optional', 'angles.mrc'),
+                 ScriptOption2(['--scoreVolume'], 'Filename of volume', 'string', 'optional', 'scores.mrc'),
+                 ScriptOption2(['--rotationVolume'], 'Filename of volume', 'string', 'optional', 'angles.mrc'),
 
                  ScriptOption2(['--extractPeaks'], 'This flag activates peaks extraction', 'no arguments', 'optional'),
                  ScriptOption2(['--particleList'], 'Filename of output particleList', 'string', 'optional', 'particleList.xml'),
@@ -83,7 +83,7 @@ if __name__ == '__main__':
 
         wedge = Wedge(wedge_angles)
 
-        if 1:
+        if 0:
             from pytom.tompy.transform import resize
             volume = resize(volume, 1/2)
             template = resize(template, 1/2)

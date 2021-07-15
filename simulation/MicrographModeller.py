@@ -114,7 +114,7 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
                    size=1024, thickness=200,
                    solvent_potential=physics.V_WATER, solvent_factor=1.0, number_of_particles=1000,
                    placement_size=512, retries=5000, number_of_markers=0,
-                   absorption_contrast=False, voltage=300E3, number_of_membranes=0, beam_damage_snr=0):
+                   absorption_contrast=False, voltage=300E3, number_of_membranes=0):
     """
     Generate a grand model of a cryo-EM sample. Particles, membranes and gold markers will be randomly rotated before
     being randomly placed in the volume. The program attempts to place the specified numbers, but only takes a max of
@@ -557,19 +557,19 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
 
     # Add beam damage normal noise
     # get the mean signal
-    if beam_damage_snr > 0.0:
-        mean_signal_real = cell_real[cell_real>0.01].mean()
-        # snr = mu**2 / sigma**2
-        sigma_damage = xp.sqrt( mean_signal_real**2 / beam_damage_snr)
-        print(f'Standard deviation in beam damage SNR set to {sigma_damage} for SNR of {beam_damage_snr}')
-        noise = xp.random.normal(0, scale=sigma_damage, size=cell_real.shape)
-        # beam damage is applied as a normal distributed noise, degrading the information
-        cell_real += noise
-        if absorption_contrast:
-            # apply the same noise to the imaginary part as we assume atoms for phase and absorption contrast are damaged
-            # equally
-            mean_signal_imag = cell_imag[cell_imag >0.01].mean()
-            cell_imag += (noise * (mean_signal_imag/mean_signal_real))  # scale the noise by the ratio of mean signal
+    # if beam_damage_snr > 0.0:
+    #     mean_signal_real = cell_real[cell_real>0.01].mean()
+    #     # snr = mu**2 / sigma**2
+    #     sigma_damage = xp.sqrt( mean_signal_real**2 / beam_damage_snr)
+    #     print(f'Standard deviation in beam damage SNR set to {sigma_damage} for SNR of {beam_damage_snr}')
+    #     noise = xp.random.normal(0, scale=sigma_damage, size=cell_real.shape)
+    #     # beam damage is applied as a normal distributed noise, degrading the information
+    #     cell_real += noise
+    #     if absorption_contrast:
+    #         # apply the same noise to the imaginary part as we assume atoms for phase and absorption contrast are damaged
+    #         # equally
+    #         mean_signal_imag = cell_imag[cell_imag >0.01].mean()
+    #         cell_imag += (noise * (mean_signal_imag/mean_signal_real))  # scale the noise by the ratio of mean signal
 
     # grandmodel names
     filename_gm_real    = os.path.join(save_path, 'grandmodel.mrc')
@@ -756,7 +756,7 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
 
 def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, ctf, dose, dqe, mtf, voltage,
                      binning=1, translation=(.0,.0,.0), rotation=(.0,.0,.0), solvent_potential=physics.V_WATER,
-                     solvent_absorption=.0, ice_voxels=None):
+                     solvent_absorption=.0, ice_voxels=None, beam_damage_snr=0):
     """
     Project grandcell to create a frame/tilt. The grandcell will first be transformed according to the rotation and
     translation parameters, before projection. Microscope functions such as CTF, DQE, MTF need to be supplied. This
@@ -856,13 +856,14 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
         # print(f'data type of ice: {ice_layer.dtype}')
 
     if sample.dtype == 'complex64':
-        ice_layer *= solvent_potential
-        sample.real += ice_layer  # Maybe we can remove this? Are we only interested in absorption of ice layer?
-        ice_layer *= (solvent_absorption / solvent_potential)
-        sample.imag += ice_layer
-    else:
-        ice_layer *= solvent_potential
-        sample += ice_layer
+        # ice_layer *= solvent_potential
+        # sample.real += ice_layer  # Maybe we can remove this? Are we only interested in absorption of ice layer?
+        # ice_layer *= (solvent_absorption / solvent_potential)
+        # sample.imag += ice_layer
+        sample.imag += (ice_layer * solvent_absorption)
+    # else:
+    #     ice_layer *= solvent_potential
+    #     sample += ice_layer
 
     del ice_layer # free memory
 
@@ -918,6 +919,15 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     # Intensity in image plane is obtained by taking the absolute square of the wave function
     noisefree_projection = xp.abs(xp.fft.fftshift(xp.fft.ifftn(wave_ctf))) ** 2
 
+    if beam_damage_snr > 0.0:
+        sigma_signal = noisefree_projection[noisefree_projection>0.1].std()
+        # snr = sigma_signal**2 / sigma_noise**2
+        sigma_damage = xp.sqrt( sigma_signal**2 / beam_damage_snr)
+        print(f'Standard deviation in beam damage SNR set to {sigma_damage} for SNR of {beam_damage_snr}')
+        beam_noise = xp.random.normal(0, scale=sigma_damage, size=noisefree_projection.shape)
+    else:
+        beam_noise = 0
+
     # DEBUGGING
     # test = xp.log(xp.abs(xp.fft.fftshift(xp.fft.fftn(noisefree_projection))))
     # r1, m1 = radial_average(test)
@@ -927,7 +937,8 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     # plt.savefig(f'{folder}/radial.png')
 
     # Apply the microscope function
-    projection = microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_size, binning=binning)
+    projection = microscope_single_projection(noisefree_projection + beam_noise, dqe, mtf, dose, pixel_size,
+                                              binning=binning)
     # Write the projection to the projection folder
     # pytom.tompy.io.write(f'{folder}/synthetic_{frame+1}.mrc', projection)
     # Return noisefree and projection as tuple for writing as mrc stack in higher function
@@ -939,7 +950,8 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
                              chromatic_aberration=2.7E-3, energy_spread=0.7, illumination_aperture=0.030E-3,
                              objective_diameter=100E-6, focus_length=4.7E-3, astigmatism=0.0E-9, astigmatism_angle=0,
                              msdz=1E-9, defocus=2E-6, sigma_shift=0.0, camera_type='K2SUMMIT', camera_folder='',
-                             solvent_potential=physics.V_WATER, absorption_contrast=False, grandcell=None):
+                             solvent_potential=physics.V_WATER, absorption_contrast=False, beam_damage_snr=0,
+                             grandcell=None):
     """
     Creating a tilt series for the initial grand model by rotating the sample along a set of tilt angles. For each angle
     the projection process of the microscope will be simulated. Calculation of each projection will be done on CPU
@@ -1147,7 +1159,8 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
         (delayed(parallel_project)(rotation_volume, i, image_size, pixel_size, msdz, n_slices, ctf,
                                    dose_per_tilt, dqe, mtf, voltage, binning=binning, translation=translation,
                                    rotation=(.0, angle, .0), solvent_potential=solvent_potential,
-                                   solvent_absorption=solvent_amplitude, ice_voxels=box_height)
+                                   solvent_absorption=solvent_amplitude, ice_voxels=box_height,
+                                   beam_damage_snr=beam_damage_snr)
          for i, (angle, translation, ctf) in enumerate(zip(angles, translations, ctf_series)))
 
     sys.stdout.flush()
@@ -1184,7 +1197,8 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
                               chromatic_aberration=2.7E-3, energy_spread=0.7, illumination_aperture=0.030E-3,
                               objective_diameter=100E-6, focus_length=4.7E-3, astigmatism=0.0E-9, astigmatism_angle=0,
                               msdz=5E-9, defocus=2E-6, mean_shift=0.0, camera_type='K2SUMMIT', camera_folder='',
-                              solvent_potential=physics.V_WATER, absorption_contrast=False, grandcell=None):
+                              solvent_potential=physics.V_WATER, absorption_contrast=False, beam_damage_snr=0,
+                              grandcell=None):
     """
     Creating a frame series for the initial grand model by applying stage drift (translation) for each frame, and
     calculating the sample projection in the microscope. Calculation of each projection will be done on CPU nodes, as
@@ -1378,7 +1392,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
         (delayed(parallel_project)(grandcell, frame, image_size, pixel_size, msdz, n_slices, ctf,
                                    dose_per_frame, dqe, mtf, voltage, binning=binning, translation=shift, rotation=(.0,.0,.0),
                                    solvent_potential=solvent_potential, solvent_absorption=solvent_amplitude,
-                                   ice_voxels=None)
+                                   ice_voxels=None, beam_damage_snr=beam_damage_snr)
          for frame, shift in enumerate(translations_voxel))
 
     sys.stdout.flush()
@@ -1853,9 +1867,6 @@ if __name__ == '__main__':
                                              'NumberOfParticles')
             number_of_membranes = draw_range(literal_eval(config['GenerateModel']['NumberOfMembranes']), int,
                                              'NumberOfMembranes')
-            # beam damage SNR
-            beam_damage_snr     = draw_range(literal_eval(config['GenerateModel']['BeamDamageSNR']), float,
-                                             'BeamDamageSNR')
         except Exception as e:
             print(e)
             raise Exception('Missing generate model parameters in config file.')
@@ -1864,6 +1875,9 @@ if __name__ == '__main__':
         try:
             camera                  = config['Microscope']['Camera']
             camera_folder           = config['Microscope']['CameraFolder']
+            # beam damage SNR
+            beam_damage_snr         = draw_range(literal_eval(config['Microscope']['BeamDamageSNR']), float,
+                                                 'BeamDamageSNR')
             defocus                 = draw_range(literal_eval(config['Microscope']['Defocus']), float, 'Defocus') * 1E-6
             electron_dose           = draw_range(literal_eval(config['Microscope']['ElectronDose']), float, 'ElectronDose')
             spherical_aberration    = config['Microscope'].getfloat('SphericalAberration') * 1E-3
