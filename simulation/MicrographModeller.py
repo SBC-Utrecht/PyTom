@@ -1141,9 +1141,9 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     for i in angles:
         # todo currently input astigmatism is overriden by these options
         # todo add these options for frame series
-        dz, ast, ast_angle = (xp.random.normal(defocus, 0.2E-6),
-                             xp.random.normal(0, 0.1e-6),  # introduce astigmastism with 100 nm variation
-                             xp.random.normal(40, 10))  # vary angle randomly around a 40 degree angle
+        dz = xp.random.normal(defocus, 0.2e-6)
+        ast = xp.random.normal(astigmatism, 0.1e-6)  # introduce astigmastism with 100 nm variation
+        ast_angle = xp.random.normal(astigmatism_angle, 10)  # vary angle randomly around a 40 degree angle
         ctf = create_complex_ctf((image_size, image_size), pixel_size, dz, voltage=voltage,
                                      Cs=spherical_aberration, Cc=chromatic_aberration, energy_spread=energy_spread,
                                      illumination_aperture=illumination_aperture, objective_diameter=objective_diameter,
@@ -1218,7 +1218,7 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     varied_params = xp.zeros(len(angles), dtype=dt_varied_params)
     varied_params['TranslationX'] = xp.array([x for (x, y, z) in translations])
     varied_params['TranslationY'] = xp.array([y for (x, y, z) in translations])
-    varied_params['Defocus'] = xp.array(dz_series) * 1e6
+    varied_params['Defocus'] = (xp.array(dz_series) + zheight/2) * 1e6
     varied_params['Astigmatism'] = xp.array(ast_series) * 1e6
     varied_params['AstigmatismAngle'] = xp.array(ast_angle_series)
 

@@ -3,6 +3,7 @@
 import os
 import sys
 import pytom.simulation.physics as physics
+import numpy as np
 from pytom.tompy.io import write
 from pytom.simulation.template import generate_template
 
@@ -62,13 +63,14 @@ if __name__ == '__main__':
                                       'usually does not offer enough room to apply a spherical mask.', 'int',
                          'optional'),
             ScriptOption2(['-i', '--invert'], 'Multiplies template by -1. WARNING not needed if ctf with defocus is '
-                                              'already applied!', 'no arguments', 'optional')])
+                                              'already applied!', 'no arguments', 'optional'),
+            ScriptOption2(['-m', '--mirror'], 'Mirror the particle.', 'no arguments', 'optional')])
 
     options = parse_script_options2(sys.argv[1:], helper)
 
     filepath, output_folder, spacing, binning, modify_structure, solvent_correction, solvent_density, \
         ctf_correction, defocus, amplitude_contrast, voltage, Cs, sigma_decay, \
-        display_ctf, resolution, box_size, invert = options
+        display_ctf, resolution, box_size, invert, mirror = options
 
     if resolution is None:
         resolution = 2 * spacing * binning
@@ -91,6 +93,9 @@ if __name__ == '__main__':
 
     if invert:
         template *= -1
+
+    if mirror:
+        template = np.flip(template)
 
     # output structure
     _, file = os.path.split(filepath)
