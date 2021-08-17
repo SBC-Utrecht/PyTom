@@ -30,6 +30,8 @@ if __name__ == '__main__':
         options=[
             ScriptOption2(['-f', '--file'], 'Protein structure file, either pdb or cif.', 'file', 'required'),
             ScriptOption2(['-d', '--destination'], 'Folder where output should be stored.', 'directory', 'required'),
+            ScriptOption2(['-o', '--output_name'], 'Name of file to write as output, with extension (mrc or em).',
+                          'string', 'optional'),
             ScriptOption2(['-s', '--spacing'], 'The pixel spacing of original projections of the dataset in A,'
                                              ' e.g. 2.62', 'float', 'required'),
             ScriptOption2(['-b', '--binning'], 'Number of times to bin the template. Default is 1 (no binning). If '
@@ -68,7 +70,7 @@ if __name__ == '__main__':
 
     options = parse_script_options2(sys.argv[1:], helper)
 
-    filepath, output_folder, spacing, binning, modify_structure, solvent_correction, solvent_density, \
+    filepath, output_folder, output_name, spacing, binning, modify_structure, solvent_correction, solvent_density, \
         ctf_correction, defocus, amplitude_contrast, voltage, Cs, sigma_decay, \
         display_ctf, resolution, box_size, invert, mirror = options
 
@@ -93,14 +95,17 @@ if __name__ == '__main__':
 
     if invert:
         template *= -1
-
+    
     if mirror:
         template = np.flip(template)
 
     # output structure
     _, file = os.path.split(filepath)
     id, _ = os.path.splitext(file)
-    output_filepath = os.path.join(output_folder, f'template_{id}_{spacing*binning:.2f}A_{template.shape[0]}px.mrc')
+    if output_name:
+        output_filepath = os.path.join(output_folder, output_name)
+    else:
+        output_filepath = os.path.join(output_folder, f'template_{id}_{spacing*binning:.2f}A_{template.shape[0]}px.mrc')
     print(f'Writing template as {output_filepath}')
     write(output_filepath, template)
 
