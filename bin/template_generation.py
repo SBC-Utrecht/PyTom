@@ -66,7 +66,8 @@ if __name__ == '__main__':
                          'optional'),
             ScriptOption2(['-i', '--invert'], 'Multiplies template by -1. WARNING not needed if ctf with defocus is '
                                               'already applied!', 'no arguments', 'optional'),
-            ScriptOption2(['-m', '--mirror'], 'Mirror the particle.', 'no arguments', 'optional')])
+            ScriptOption2(['-m', '--mirror'], 'Produce a mirrored and non-mirrored version.', 'no arguments',
+                          'optional')])
 
     options = parse_script_options2(sys.argv[1:], helper)
 
@@ -95,9 +96,6 @@ if __name__ == '__main__':
 
     if invert:
         template *= -1
-    
-    if mirror:
-        template = np.flip(template)
 
     # output structure
     _, file = os.path.split(filepath)
@@ -106,6 +104,11 @@ if __name__ == '__main__':
         output_filepath = os.path.join(output_folder, output_name)
     else:
         output_filepath = os.path.join(output_folder, f'template_{id}_{spacing*binning:.2f}A_{template.shape[0]}px.mrc')
+
     print(f'Writing template as {output_filepath}')
     write(output_filepath, template)
 
+    if mirror:
+        output_filepath_mirror = os.path.splitext(output_filepath)[0] + '_mirror' + os.path.splitext(output_filepath)[1]
+        print(f'Writing template as {output_filepath_mirror}')
+        write(output_filepath_mirror, np.flip(template))

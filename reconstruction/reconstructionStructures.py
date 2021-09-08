@@ -475,7 +475,7 @@ class ProjectionList(PyTomClass):
         @author: FF
         last change: include binning in reconstructionPosition
         """
-        from pytom_volume import vol, backProject
+        # from pytom_volume import vol, backProject
         from pytom.gpu.initialize import device, xp
         from pytom.reconstruction.reconstructionFunctions import alignImagesUsingAlignmentResultFile as align
         from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
@@ -664,10 +664,10 @@ class ProjectionList(PyTomClass):
             for procIndex in range(num_procs):
                 ps = particles[procIndex::num_procs]
                 if (len(ps)) < 1: continue
-                #extract(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results)
-                proc = Process(target=extract, args=(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results))
-                procs.append(proc)
-                proc.start()
+                extract(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results)
+                # proc = Process(target=ext ract, args=(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results))
+                # procs.append(proc)
+                # proc.start()
 
             # print('Subtomogram reconstruction for particle {} has started (batch mode).'.format(particleIndex))
         else:
@@ -727,7 +727,7 @@ class ProjectionList(PyTomClass):
         import time
         from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
 
-        #xp.cuda.Device(gpuID).use()
+        xp.cuda.Device(gpuID).use()
 
         ts = time.time()
 
@@ -771,7 +771,7 @@ class ProjectionList(PyTomClass):
 
 
         except Exception as e:
-            print('Caught exception in worker thread (x = %d):' % pid)
+            print('Caught exception in worker thread (x = %d):' % procID)
             print()
             raise e
 

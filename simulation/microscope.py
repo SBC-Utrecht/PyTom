@@ -25,7 +25,7 @@ def fourier_array(shape, nyquist):
 
     size = shape[0]
 
-    d = xp.arange(-nyquist, nyquist, 2. * nyquist / size)
+    d = xp.arange(-1, 1, 2. / size) * nyquist
 
     if len(shape) == 2:
         grids = xp.meshgrid(d, d)
