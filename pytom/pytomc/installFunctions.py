@@ -9,6 +9,7 @@ def help():
     print('--exeDir             Specify multiple directories for excecuteable search')
     print('--pythonVersion      Specify a python version you want to link against if you have many (2.5, 2.6 ...)')
     print('--target             Specify which build target you like')
+    print('--minicondaEnvDir    Specify the directory in which your miniconda environment is installed. i.e. /path/to/miniconda/envs/pytom_env')
     print('                     all         : build everything')
     print('                     swig        : build swig modules only (part of all)')
     print('                     libtomc     : build C++ libraries only (part of all)')
@@ -27,12 +28,14 @@ def parseArguments(args):
     exeParameter        = '--exeDir'
     pythonVersion       = '--pythonVersion'
     target              = '--target'
+    minconEnvDir        = '--minicondaEnvDir' 
     
     libIndex    = None
     incIndex    = None
     exeIndex    = None
     pythonIndex = None
     targetIndex = None
+    minconIndex = None
     
     for i in range(len(args)):
         
@@ -46,6 +49,8 @@ def parseArguments(args):
             pythonIndex = i
         elif target in args[i]:    
             targetIndex = i
+        elif minconEnvDir in args[i]:
+            minconIndex = i
             
     libPaths = []
     incPaths = []
@@ -89,8 +94,26 @@ def parseArguments(args):
     target = ''
     if targetIndex != None:
         target = args[targetIndex + 1]
+
+    envdir=''
+    if minconIndex != None:
+        libPaths.append(os.path.join(args[minconIndex+1], 'lib'))
+        exePaths.append(os.path.join(args[minconIndex+1], 'bin'))
+        incPaths.append(os.path.join(args[minconIndex+1], 'include'))
+        print('Updating the exe, inc and lib paths using minicondaEnvDir')
         
-    return [libPaths,incPaths,exePaths,pythonVersion,target]
+        for f in ('c++', 'cc' ):
+            fname = os.path.join(args[minconIndex+1],'bin/x86_64-conda_cos6-linux-gnu-'+f)
+            fnm = os.path.join(args[minconIndex+1],'bin/' + f)
+            if os.path.exists(fname):
+                os.system(f'unlink {fname}')
+            os.system(f'ln -s {fnm} {fname}')
+            print(f'ln -s {fnm} {fname}')
+            
+        envdir = args[minconIndex+1]
+                
+        
+    return [libPaths,incPaths,exePaths,pythonVersion,envdir, target]
     
 # find the file recursively, return the dir
 def find_file(name, dir, required=''):
