@@ -1,23 +1,44 @@
 from setuptools import setup, Extension, find_packages
 from setuptools.command.install import install
-import subprocess
-import os
 
+import subprocess
+import setuptools.command.build_py
+
+import os
+from pytom import __version__
 
 def find_executables():
-
-    a =  [f'bin/{e}' for e in os.listdir('bin') if os.path.isfile(f'bin/{e}') and not '__' in e]
+    folder = 'pytom/bin'
+    a =  [f'{folder}/{e}' for e in os.listdir(folder) if os.path.isfile(f'{folder}/{e}') and not '__' in e]
     return a
 
-class CustomInstall(install):
+class BuildPyCommand(setuptools.command.build_py.build_py):
+    """Custom build command."""
+
     def run(self):
-        commandPullSubmodules = 'git submodule update --recursive --remote; git submodule update --recursive'
+        import sys
+        commandPullSubmodules = 'git submodule update --init --recursive'
         process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="./")
         process.wait()
 
-        commandInstall = 'python3.7 compile.py --target all --pythonVersion 3.7 > logfile.installation.txt'
-        process = subprocess.Popen(commandInstall, shell=True, cwd="pytomc")
+        version = f'{sys.version_info[0]}.{sys.version_info[1]}'
+        commandInstall = f'python{version} compile.py --target all'
+        process = subprocess.Popen(commandInstall, shell=True, cwd="pytom/pytomc")
         process.wait()
+
+
+
+class CustomInstall(install):
+    def run(self):
+        # import sys
+        # commandPullSubmodules = 'git submodule update --init --recursive'
+        # process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="./")
+        # process.wait()
+        #
+        # version = f'{sys.version_info[0]}.{sys.version_info[1]}'
+        # commandInstall = f'python{version} compile.py --target all'
+        # process = subprocess.Popen(commandInstall, shell=True, cwd="pytom/pytomc")
+        # process.wait()
 
         install.run(self)
 
@@ -39,9 +60,9 @@ class CustomInstall(install):
 
 setup(
     name='pytom',
-    version='0.994',
+    version=__version__,
     packages=find_packages(),
-    package_dir={'pytom':'pytom'},
+    #package_dir={'pytom':'pytom'},
     # package_data={'pytom':["alignment"]},
     author='`FridoF',
     author_email='gijsschot@gmail.com',
@@ -51,7 +72,7 @@ setup(
         'gpu': ['cupy'],
         'gui': ['PyQt5', 'pyqtgraph', 'mrcfile'],
         'all': ['cupy', 'PyQt5', 'pyqtgraph', 'mrcfile']},
-    cmdclass={'install': CustomInstall},
+    cmdclass={'build_py': BuildPyCommand},
     include_package_data=True,
     scripts=find_executables(),
     test_suite='nose.collector',
