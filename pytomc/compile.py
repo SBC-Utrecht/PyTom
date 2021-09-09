@@ -22,7 +22,7 @@ if len(args) == 0:
     help()
     sys.exit(1)
 
-[libPaths , includePaths , exePaths, pythonVersion , phony_target] = parseArguments(args)
+[libPaths , includePaths , exePaths, pythonVersion , minicondaDir,  phony_target] = parseArguments(args)
 
 print(includePaths)
 
@@ -364,8 +364,17 @@ if nonfft is False:
         print()
         print("############ Start to compile NFFT Library ############")
         print()
+
+        if minicondaDir:
+            import os
+            tt= '../external/src/nfft-3.1.3/include/fftw3.h'
+            if os.path.exists(tt):
+                os.system(f'unlink {tt}')
+                
+            os.system(f'ln -s {minicondaDir}/include/fftw3.h {tt}')
+        
         install_path = os.path.abspath(os.path.join(os.getcwd(), os.pardir))+"/external/"
-        os.system("cd ../external/src/nfft-3.1.3/ && chmod +x ./configure && ./configure --prefix="+install_path)
+        os.system("cd ../external/src/nfft-3.1.3/ && export C_INCLUDE_PATH='/home/gijs/miniconda3/envs/new/include'  && chmod +x ./configure && ./configure --prefix="+install_path)
         os.system("cd ../external/src/nfft-3.1.3/ && make && make install")
         print()
         # compile the swig part
