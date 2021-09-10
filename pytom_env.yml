@@ -1,8 +1,8 @@
 name: pytom_env
 channels:
-  - conda-forge
   - omgarcia
   - eumetsat
+  - conda-forge
   - intel
   - anaconda
   - defaults
@@ -14,8 +14,8 @@ dependencies:
   - boost=1.73.0=py38h06a4308_11
   - brotli=1.0.9=he6710b0_2
   - bzip2=1.0.8=hb9a14ef_8
-  - ca-certificates=2021.7.5=h06a4308_1
-  - certifi=2021.5.30=py38h06a4308_0
+  - ca-certificates=2021.5.30=ha878542_0
+  - certifi=2021.5.30=py38h578d9bd_0
   - cloudpickle=1.6.0=pyhd3eb1b0_0
   - cycler=0.10.0=py38_0
   - cytoolz=0.11.0=py38h7b6447c_0
@@ -71,6 +71,7 @@ dependencies:
   - mkl_random=1.2.2=py38h51133e4_0
   - mpc=1.0.1=0
   - mpfr=3.1.2=0
+  - mpi=1.0=openmpi
   - munkres=1.1.4=py_0
   - ncurses=6.2=he6710b0_1
   - networkx=2.6.2=pyhd3eb1b0_0
@@ -78,6 +79,7 @@ dependencies:
   - numpy-base=1.20.3=py38h74d4b33_0
   - olefile=0.46=pyhd3eb1b0_0
   - openjpeg=2.4.0=h3ad879b_0
+  - openmpi=3.1.4=hc99cbb1_0
   - openssl=1.1.1l=h7f8727e_0
   - packaging=21.0=pyhd3eb1b0_0
   - parso=0.8.2=pyhd3eb1b0_0
