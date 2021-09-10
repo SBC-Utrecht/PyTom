@@ -138,11 +138,12 @@ else:
     libraryFile,lib_python      = find("libpython" + pythonVersion + dynamicExtension,libPaths)
     lib_pythonFlag  = 'lpython' + pythonVersion
     
-if include_fftw is None:    
-    includeNew = os.path.dirname(os.popen('locate fftw3.h').read().split()[0])
-    if includeNew:
-        includePaths = [includeNew] + includePaths
-        includeFile,include_fftw = find("fftw3.h",includePaths)
+#if include_fftw is None:
+#    
+#    includeNew = os.path.dirname(os.popen('locate fftw3.h').read().split()[0])
+#    if includeNew:
+#        includePaths = [includeNew] + includePaths
+#        includeFile,include_fftw = find("fftw3.h",includePaths)
     
 if include_fftw is None:
     print('FFTW include path not found!')
@@ -150,11 +151,11 @@ if include_fftw is None:
 
 libraryFile,lib_fftw = find("libfftw3" + dynamicExtension,libPaths)
 
-if lib_fftw is None:    
-    libPathsNew = os.path.dirname(os.popen('locate libfftw3'+dynamicExtension).read().split()[0])
-    if libPathsNew:
-        libPaths = [libPathsNew] + libPaths
-        libraryFile, lib_fftw = find("libfftw3"+ dynamicExtension, libPaths)
+#if lib_fftw is None:    
+#    libPathsNew = os.path.dirname(os.popen('locate libfftw3'+dynamicExtension).read().split()[0])
+#    if libPathsNew:
+#        libPaths = [libPathsNew] + libPaths
+#        libraryFile, lib_fftw = find("libfftw3"+ dynamicExtension, libPaths)
 
 if lib_fftw is None:
     print('FFTW library path not found!')
@@ -376,7 +377,7 @@ if nonfft is False:
             extra = f" export C_INCLUDE_PATH='{minicondaDir}/include'  &&" 
         
         install_path = os.path.abspath(os.path.join(os.getcwd(), os.pardir))+"/external/"
-        os.system("cd ../external/src/nfft-3.1.3/ && {extra} chmod +x ./configure && ./configure --prefix="+install_path)
+        os.system(f"cd ../external/src/nfft-3.1.3/ && {extra} chmod +x ./configure && ./configure --prefix="+install_path)
 
     
         os.system("cd ../external/src/nfft-3.1.3/ && make && make install")
