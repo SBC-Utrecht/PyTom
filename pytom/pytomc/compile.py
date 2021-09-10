@@ -143,7 +143,8 @@ else:
 #    includeNew = os.path.dirname(os.popen('locate fftw3.h').read().split()[0])
 #    if includeNew:
 #        includePaths = [includeNew] + includePaths
-#        includeFile,include_fftw = find("fftw3.h",includePaths)
+
+includeFile,include_fftw = find("fftw3.h",includePaths)
     
 if include_fftw is None:
     print('FFTW include path not found!')
@@ -155,7 +156,8 @@ libraryFile,lib_fftw = find("libfftw3" + dynamicExtension,libPaths)
 #    libPathsNew = os.path.dirname(os.popen('locate libfftw3'+dynamicExtension).read().split()[0])
 #    if libPathsNew:
 #        libPaths = [libPathsNew] + libPaths
-#        libraryFile, lib_fftw = find("libfftw3"+ dynamicExtension, libPaths)
+
+libraryFile, lib_fftw = find("libfftw3"+ dynamicExtension, libPaths)
 
 if lib_fftw is None:
     print('FFTW library path not found!')
