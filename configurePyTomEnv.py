@@ -5,6 +5,8 @@ import os
 #sudo apt install mlocate
 #sudo apt install build-essential
 
+
+
 conda = os.popen('which conda').read()[:-1]
 print(conda)
 
@@ -21,7 +23,7 @@ while c == '':
       c = ''
       print('Please provide a valid option.')
 if c in ('Y', 'y', 'yes' ):
-   os.system('conda env create -f pytom_env.yml; conda activate pytom_env')
+   os.system('conda env create -f pytom_env.yml; conda init bash; conda activate pytom_env')
 
 print('Do you want to install fftw3?')
 install = ''
@@ -42,7 +44,7 @@ if conda:
    
 if install in ('Y', 'y'):
    installdir= ''
-   print('\nWhere do you want to install fftw3? Press enter is selection is ok.')
+   print('\nWhere do you want to install fftw3? Press enter if selection is ok.')
    
    while installdir == '':
       installdir = input(f'\t{envdir}: ')
@@ -51,8 +53,8 @@ if install in ('Y', 'y'):
 
       if not os.path.exists(installdir):
          installdir = ''
-	  
-   if 'pytom_env' in envdir:
-      if not os.path.exists(f'{envdir}/bin/x86_64-conda_cos6-linux-gnu-cc'): os.system(f'ln -s {envdir}/bin/cc {envdir}/bin/x86_64-conda_cos6-linux-gnu-cc')
 
-   os.system(' wget http://www.fftw.org/fftw-3.3.9.tar.gz; tar -zxvf fftw-3.3.9.tar.gz; cd fftw-3.3.9; ./configure --prefix=/home/gijs/miniconda3/envs/pytom_env --enable-mpi --enable-shared=yes --libdir=/home/gijs/miniconda3/envs/pytom_env/lib; make install; make clean; ./configure --prefix=/home/gijs/miniconda3/envs/pytom_env --enable-mpi --enable-shared=yes --enable-float; make install')
+   if 'pytom_env' in installdir:
+      if not os.path.exists(f'{installdir}/bin/x86_64-conda_cos6-linux-gnu-cc'): os.system(f'ln -s {installdir}/bin/cc {installdir}/bin/x86_64-conda_cos6-linux-gnu-cc')
+
+   os.system(f' wget http://www.fftw.org/fftw-3.3.9.tar.gz; tar -zxvf fftw-3.3.9.tar.gz; cd fftw-3.3.9; ./configure --prefix={installdir} --enable-mpi --enable-shared=yes --libdir={installdir}; make install; make clean; ./configure --prefix={installdir} --enable-mpi --enable-shared=yes --enable-float; make install')
