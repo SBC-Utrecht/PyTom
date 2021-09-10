@@ -170,10 +170,10 @@ if include_boost:
 
 includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
 if include_numpy is None:
-    includePathsNew = [p for p in os.popen('locate ndarrayobject.h').read().split() if pythonVersion in p]
-    if includePathsNew:
-        includePaths = [includePathsNew] + includePaths
-        includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
+    #includePathsNew = [p for p in os.popen('locate ndarrayobject.h').read().split() if pythonVersion in p]
+    #if includePathsNew:
+    #    includePaths = [includePathsNew] + includePaths
+    #    includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
     if include_numpy is None:
         try:
             import numpy
@@ -365,6 +365,7 @@ if nonfft is False:
         print("############ Start to compile NFFT Library ############")
         print()
 
+        extra = '' 
         if minicondaDir:
             import os
             tt= '../external/src/nfft-3.1.3/include/fftw3.h'
@@ -372,9 +373,12 @@ if nonfft is False:
                 os.system(f'unlink {tt}')
                 
             os.system(f'ln -s {minicondaDir}/include/fftw3.h {tt}')
+            extra = f" export C_INCLUDE_PATH='{minicondaDir}/include'  &&" 
         
         install_path = os.path.abspath(os.path.join(os.getcwd(), os.pardir))+"/external/"
-        os.system("cd ../external/src/nfft-3.1.3/ && export C_INCLUDE_PATH='/home/gijs/miniconda3/envs/new/include'  && chmod +x ./configure && ./configure --prefix="+install_path)
+        os.system("cd ../external/src/nfft-3.1.3/ && {extra} chmod +x ./configure && ./configure --prefix="+install_path)
+
+    
         os.system("cd ../external/src/nfft-3.1.3/ && make && make install")
         print()
         # compile the swig part
