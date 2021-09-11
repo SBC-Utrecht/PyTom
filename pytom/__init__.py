@@ -2,7 +2,7 @@
 
 __all__ = ["alignment", "angles", "basic", "bin", "classification","cluster","frm","frontend","gui", "gpu", "image2D","localization","parallel","pytomc",
            "plotting", "reconstruction","score", "simulation", 'tompy', "tools", "visualization", 'voltools']
-__version__ = "0.994"
+__version__ = "0.995"
 
 import pytom.basic.fourier as fourier
 import pytom.basic.files as files

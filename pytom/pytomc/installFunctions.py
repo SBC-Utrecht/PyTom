@@ -220,12 +220,12 @@ export PYTOM_GPU=-1
 
 for a in $*
 do
-    if [$FID == 1]; then
+    if [ $FID -eq 1 ]; then
         FID=0
         export PYTOM_GPU="$a"
     fi
 
-    if [["$a" == '-g'] || ["$a" == '--gpuID']]; then
+    if [ "$a" = '-g' ] || [ "$a" = '--gpuID' ]; then
         export PYTOM_GPU=1
         FID=1
     fi

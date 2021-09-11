@@ -1,7 +1,7 @@
 #!/usr/bin/env pytom
 import os
 
-tests = [test for test in os.listdir('./') if test.startswith('pytom_') and test.endswith('Test.py')]
+tests = [test for test in os.listdir('./') if test.startswith('test_') and test.endswith('Test.py')]
 
 for test in tests:
     print('\n\nRunning ', test)
