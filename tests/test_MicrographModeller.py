@@ -50,7 +50,7 @@ class MicrographModellerTest(unittest.TestCase):
             'defocus':              3e-6,
             'msdz':                 5e-9,
             'camera_type':          'K2SUMMIT',
-            'camera_folder':        '../simulation/detectors',
+            'camera_folder':        '../pytom/simulation/detectors',
         }
 
         self.param_rec = {
