@@ -1108,7 +1108,7 @@ tom::FreqWeight_Volume<T>::FreqWeight_Volume(tom::Volume<T> &w, bool copy):
     } else {
         ww.reset(new tom::Volume<T>(w, 0, w.getSizeX(), w.getSizeY(), w.getSizeZ(), w.getStrideX(), w.getStrideY(), w.getStrideZ()));
     }
-    resetVolume(ww);
+    this->resetVolume(ww);
 }
 
 
@@ -1332,7 +1332,7 @@ tom::FreqWeight_EmFile<T>::FreqWeight_EmFile(const std::string &filename, size_t
     assert(v.get() && tom::isfinite(*v));
 
     try {
-        resetVolume(v);
+        this->resetVolume(v);
     } catch (std::invalid_argument &e) {
         throw std::invalid_argument("While reading weighting \"" + filename + "\": " + e.what());
     }

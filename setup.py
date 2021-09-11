@@ -8,11 +8,17 @@ import os
 from pytom import __version__
 
 
-print('Would you like to add a miniconda environment directory to your installation? Example: /home/user/miniconda3/envs/pytom_env')
-condadir = input('\nType Path: ')
+#print('Would you like to add a miniconda environment directory to your installation? Example: /home/user/miniconda3/envs/pytom_env')
+#proc = subprocess.Popen("""conda env list | grep "*" | awk '{print $3}'""")#input('\nType Path: ')
+#condadir = proc.communicate()[0]
 
+condadir = os.popen("""conda env list | grep "*" | awk '{print $3}'""").read()[:-1]#input('\nType Path: ')
 
+print(condadir, condadir[:-1])
 
+condadir = '' if not os.path.exists(condadir) else condadir
+
+print(condadir)
 def find_executables():
     folder = 'pytom/bin'
     a =  [f'{folder}/{e}' for e in os.listdir(folder) if os.path.isfile(f'{folder}/{e}') and not '__' in e]

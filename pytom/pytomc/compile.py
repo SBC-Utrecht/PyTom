@@ -253,9 +253,9 @@ print('Flags determined: ')
 print(setflags_line)
 print('')
 
-nosh = False # you can choose not to compile the SH Alignment library
-nompi4py = False # you can choose not to compile the mpi4py library
-nonfft = False # you can choose not to compile the NFFT library
+nosh       = False  # you can choose not to compile the SH Alignment library
+nompi4py   = False  # you can choose not to compile the mpi4py library
+nonfft     = False  # you can choose not to compile the NFFT library
 novoltools = True
 
 

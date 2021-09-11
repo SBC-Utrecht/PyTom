@@ -664,15 +664,15 @@ namespace local {
 namespace functor {
 namespace {
 template<typename T1, typename T2> inline void element_wise_multiply_f(T1 &v1, const T2 &v2) { v1 = v1 * v2; }
-#if __xlC__ == 0x0800
+  //#if __xlC__ == 0x0800
 // in the complex header from the currently used xlC compiler the methods real and imag to not return a reference...
 // strange :)
 template<> inline void element_wise_multiply_f<std::complex<float >, double>(std::complex<float > &v1, const double &v2) { v1.real(v1.real()*v2); v1.imag(v1.imag()*v2); }
 template<> inline void element_wise_multiply_f<std::complex<double>, float >(std::complex<double> &v1, const float  &v2) { v1.real(v1.real()*v2); v1.imag(v1.imag()*v2); }
-#else
+  /*#else
 template<> inline void element_wise_multiply_f<std::complex<float >, double>(std::complex<float > &v1, const double &v2) { v1.real() = v1.real()*v2; v1.imag() = v1.imag()*v2; }
 template<> inline void element_wise_multiply_f<std::complex<double>, float >(std::complex<double> &v1, const float  &v2) { v1.real() = v1.real()*v2; v1.imag() = v1.imag()*v2; }
-#endif
+#endif */
 template<typename T1, typename T2>
 struct element_wise_multiply {
     void operator()(T1 &v1, const T2 &v2) { element_wise_multiply_f<T1, T2>(v1, v2); }

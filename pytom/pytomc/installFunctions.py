@@ -105,9 +105,9 @@ def parseArguments(args):
         for f in ('c++', 'cc' ):
             fname = os.path.join(args[minconIndex+1],'bin/x86_64-conda_cos6-linux-gnu-'+f)
             fnm = os.path.join(args[minconIndex+1],'bin/' + f)
-            if os.path.exists(fname):
-                os.system(f'unlink {fname}')
-            os.system(f'ln -s {fnm} {fname}')
+            #if os.path.exists(fname):
+                #os.system(f'unlink {fname}')
+            #os.system(f'ln -s {fnm} {fname}')
             print(f'ln -s {fnm} {fname}')
             
         envdir = args[minconIndex+1]
@@ -211,26 +211,25 @@ def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None,python_version
 
 def generatePyTomScript(pytomDirectory,python_version):
     
-    pytomCommand = f"""#!/usr/bin/env csh
+    pytomCommand = f"""#!/usr/bin/env bash
 cat {pytomDirectory}/../LICENSE.txt
-source {pytomDirectory}/bin/paths.csh
+source {pytomDirectory}/bin/paths.sh
 
-set FID=0
-setenv PYTOM_GPU -1
+FID=0
+export PYTOM_GPU=-1
 
-foreach a ($*)
-    if ($FID == 1) then
-        set FID=0
-        setenv PYTOM_GPU "$a"
-    endif
+for a in $*
+do
+    if [$FID == 1]; then
+        FID=0
+        export PYTOM_GPU="$a"
+    fi
 
-    if (("$a" == '-g') || ("$a" == '--gpuID')) then
-        setenv PYTOM_GPU 1
-        set FID=1
-    endif
-
-
-end
+    if [["$a" == '-g'] || ["$a" == '--gpuID']]; then
+        export PYTOM_GPU=1
+        FID=1
+    fi
+done
 
 python{python_version} -O $*
 """
@@ -253,9 +252,9 @@ def generatePyTomGuiScript(pytomDirectory, python_version):
 
 def generateIPyTomScript(pytomDirectory):
 
-    ipytomCommand = '#!/usr/bin/env csh\n'
+    ipytomCommand = '#!/usr/bin/env bash\n'
     ipytomCommand += 'cat ' + pytomDirectory + os.sep + '../LICENSE.txt\n'
-    ipytomCommand += 'source ' + pytomDirectory + os.sep + 'bin' + os.sep + 'paths.csh\n'
+    ipytomCommand += 'source ' + pytomDirectory + os.sep + 'bin' + os.sep + 'paths.sh\n'
     ipytomCommand += 'ipython $* -i\n'
     
     f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'ipytom','w')
@@ -282,12 +281,12 @@ def generatePathsFile(pytomDirectory,libPaths, binPaths, pyPaths):
                 if p is not None:
                     pyString += p + ':'
         
-        cshCommands  = '#!/usr/bin/env csh\n'
-        cshCommands += 'if ($?LD_LIBRARY_PATH>0) then\n'
-        cshCommands += "setenv LD_LIBRARY_PATH '" + libString + pytomDirectory + os.sep + "pytomc" + os.sep + "libs" + os.sep + "libtomc" + os.sep + "libs':$LD_LIBRARY_PATH\n"
-        cshCommands += "else\n"
-        cshCommands += "setenv LD_LIBRARY_PATH '" + libString + pytomDirectory + os.sep + "pytomc" + os.sep + "libs" + os.sep + "libtomc" + os.sep + "libs'\n"
-        cshCommands += "endif\n\n"
+        cshCommands  = '#!/usr/bin/env bash\n'
+        #cshCommands += 'if ($?LD_LIBRARY_PATH>0) then\n'
+        cshCommands += "export LD_LIBRARY_PATH='" + libString + pytomDirectory + os.sep + "pytomc" + os.sep + "libs" + os.sep + "libtomc" + os.sep + "libs':$LD_LIBRARY_PATH\n"
+        #cshCommands += "else\n"
+        #cshCommands += "setenv LD_LIBRARY_PATH '" + libString + pytomDirectory + os.sep + "pytomc" + os.sep + "libs" + os.sep + "libtomc" + os.sep + "libs'\n"
+        #cshCommands += "endif\n\n"
         
         
         if binPaths.__class__ == list and len(binPaths) > 0:    
@@ -299,19 +298,19 @@ def generatePathsFile(pytomDirectory,libPaths, binPaths, pyPaths):
                     binString += bin +':'
             binString = binString[0:-1]
              
-            cshCommands += 'if ($?PATH>0) then\n'
-            cshCommands += "setenv PATH '" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + "':$PATH\n"
-            cshCommands += "else\n"
-            cshCommands += "setenv PATH '" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + "'\n"
-            cshCommands += "endif\n\n"
+            #cshCommands += 'if ($?PATH>0) then\n'
+            cshCommands += "export PATH='" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + "':$PATH\n"
+            #cshCommands += "else\n"
+            #cshCommands += "setenv PATH '" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + "'\n"
+            #cshCommands += "endif\n\n"
             
-        cshCommands += "if ($?PYTHONPATH>0) then\n"
-        cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules':$PYTHONPATH\n"
-        cshCommands += "else\n"
-        cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules'\n"
-        cshCommands += "endif\n\n"
+        #cshCommands += "if ($?PYTHONPATH>0) then\n"
+        cshCommands += "export PYTHONPATH='" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules':$PYTHONPATH\n"
+        #cshCommands += "else\n"
+        #cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules'\n"
+        #cshCommands += "endif\n\n"
  
-        f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'paths.csh','w')
+        f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'paths.sh','w')
         f.write(cshCommands)
         f.close()
     
