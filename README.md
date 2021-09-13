@@ -60,7 +60,9 @@ python3.8 setup.py install --prefix [CONDA_INSTALL_DIR]/envs/pytom_env
 
 ### Installing on WSL2 (windows for linux subsystem)
 
-PATH environment variable will contain windows directories in the /mnt folder of your linux subsystem. Pytom will have an issue with reading the PATH because of the white spaces ( arg! ). Make sure to update the PATH by removing the windows directories. 
+PATH environment variable will contain windows directories in the /mnt folder of your linux subsystem. Pytom will have an issue with reading the PATH because of the white spaces ( arrrrg :( ). Make sure to update the PATH by removing the windows directories.
+
+For WSL2 you need at least Windows 10 Pro with HyperV support.
 
 ## Versioning
 
