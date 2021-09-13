@@ -189,7 +189,7 @@ clean:
 	rm *.o
 
 shared:
-	cc -shared OURperms.o OURmods.o newFCT.o weights.o cospmls.o seminaive.o oddweights.o csecond.o primitive.o FST_semi_memo.o naive_synthesis.o primitive_FST.o permroots.o indextables.o FFTcode.o fft_grids.o -o libsphkit.so
+	cc -shared OURperms.o OURmods.o newFCT.o weights.o cospmls.o seminaive.o oddweights.o csecond.o primitive.o FST_semi_memo.o naive_synthesis.o primitive_FST.o permroots.o indextables.o FFTcode.o fft_grids.o -o ../../../lib/libsphkit.so
 
 # now the make definitions for the individual executables
 

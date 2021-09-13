@@ -281,13 +281,8 @@ def generatePathsFile(pytomDirectory,libPaths, binPaths, pyPaths):
                     pyString += p + ':'
         
         cshCommands  = '#!/usr/bin/env bash\n'
-        #cshCommands += 'if ($?LD_LIBRARY_PATH>0) then\n'
-        cshCommands += "export LD_LIBRARY_PATH='" + libString + pytomDirectory + os.sep + "pytomc" + os.sep + "libs" + os.sep + "libtomc" + os.sep + "libs':$LD_LIBRARY_PATH\n"
-        #cshCommands += "else\n"
-        #cshCommands += "setenv LD_LIBRARY_PATH '" + libString + pytomDirectory + os.sep + "pytomc" + os.sep + "libs" + os.sep + "libtomc" + os.sep + "libs'\n"
-        #cshCommands += "endif\n\n"
-        
-        
+        cshCommands += "export LD_LIBRARY_PATH='" + libString + pytomDirectory + os.sep + "pytomc" + os.sep + "lib':$LD_LIBRARY_PATH\n"
+
         if binPaths.__class__ == list and len(binPaths) > 0:    
 
             binString = ''
@@ -297,17 +292,10 @@ def generatePathsFile(pytomDirectory,libPaths, binPaths, pyPaths):
                     binString += bin +':'
             binString = binString[0:-1]
              
-            #cshCommands += 'if ($?PATH>0) then\n'
-            cshCommands += "export PATH='" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + "':$PATH\n"
-            #cshCommands += "else\n"
-            #cshCommands += "setenv PATH '" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + "'\n"
-            #cshCommands += "endif\n\n"
-            
-        #cshCommands += "if ($?PYTHONPATH>0) then\n"
-        cshCommands += "export PYTHONPATH='" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules':$PYTHONPATH\n"
-        #cshCommands += "else\n"
-        #cshCommands += "setenv PYTHONPATH '" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "pytomc" + os.sep + "swigModules'\n"
-        #cshCommands += "endif\n\n"
+            cshCommands += "export PATH='" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + ":" + pytomDirectory + os.sep + 'lib'  + "':$PATH\n"
+                        
+        cshCommands += "export PYTHONPATH='" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "lib':$PYTHONPATH\n"
+
  
         f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'paths.sh','w')
         f.write(cshCommands)

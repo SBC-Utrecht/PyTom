@@ -2,12 +2,12 @@ CC = g++
 
 LIBTOMC_BASEDIR=./libs/libtomc
 
-LDFLAGS_LIBTOMC=-L$(PYTOMC_DIR)/libs/libtomc/libs/ -ltomc
+LDFLAGS_LIBTOMC=-L$(PYTOMC_DIR)/../lib -ltomc
 LIBTOMC_STATIC=shared
-LIBS = -L$(PYTOMC_DIR)/libs/libtomc/libs/
+LIBS = -L$(PYTOMC_DIR)/../lib
 LDFLAGS_TOMC = -lstdc++ -shared -ltomc -fpermissive
 
-     
+
 
 libtomc:
 	make -C $(LIBTOMC_BASEDIR) shared
@@ -32,7 +32,7 @@ ifndef GCCSWIGFLAGS
 GCCSWIGFLAGS :=-fPIC -c -g3 -Wall -Wno-long-long -pedantic -ansi --std=c++98
 endif 
 
-PYMODULESPATH=./swigModules/
+PYMODULESPATH=../lib/
 
 
 SWIGCODE=./swigCode/
@@ -84,7 +84,7 @@ SWIGOBJECTS= 	libtomc \
 				$(PYMODULESPATH)_pytom_volume.so \
 				$(PYMODULESPATH)_pytom_fftplan.so \
 				$(PYMODULESPATH)_pytom_freqweight.so
-					
+
 SWIGINCLUDE= $(INCLUDE) -I./src
 
 NUMPYOBJECTS= libtomc \
@@ -119,24 +119,24 @@ $(SWIGLIBS)pytom_fftplan_wrap.o: $(SWIGCPP)pytom_fftplan_wrap.cpp
 	$(CC) $(GCCSWIGFLAGS) $(INCLUDE) $< -o $@
 $(PYMODULESPATH)_pytom_fftplan.so: $(SWIGLIBS)pytom_fftplan_wrap.o
 	$(CC)  $< -o $@  $(LDFLAGS) $(LIBS)
-	
+
 $(SWIGCPP)pytom_freqweight_wrap.cpp: $(SWIGCODE)pytom_freqweight.i $(HEADERS) ./src/swigFreqWeight*c*
 	swig $(SWIGFLAGS) $(SWIGINCLUDE) -o $@ $< 	
 $(SWIGLIBS)pytom_freqweight_wrap.o: $(SWIGCPP)pytom_freqweight_wrap.cpp
 	$(CC) $(GCCSWIGFLAGS) $(INCLUDE) $< -o $@
 $(PYMODULESPATH)_pytom_freqweight.so: $(SWIGLIBS)pytom_freqweight_wrap.o
 	$(CC)  $< -o $@  $(LDFLAGS) $(LIBS)
-	
+
 $(SWIGCPP)pytom_numpy_wrap.cpp: $(SWIGCODE)pytom_numpy.i $(HEADERS) ./src/swigTomNumpy*c* ./src/swigVol*c*
 	swig $(SWIGFLAGS) $(SWIGINCLUDE) -o $@ $< 	
 $(SWIGLIBS)pytom_numpy_wrap.o: $(SWIGCPP)pytom_numpy_wrap.cpp
 	$(CC) -fPIC -c -g -Wall -Wno-long-long  -ansi --std=c++98 $(INCLUDE) $< -o $@ #-I$(NUMPYINCLUDE) 
 $(PYMODULESPATH)_pytom_numpy.so: $(SWIGLIBS)pytom_numpy_wrap.o
 	$(CC)  $< -o $@  $(LDFLAGS) $(LIBS)
-	
+
 ct: $(HEADERS) $(SRCS)
 	$(CC) $(LDFLAGS_LIBTOMC) $(INCLUDE) src/swigVolume.cpp src/swigVolumeFnc.cpp ct.cpp -o c.x -g
-	
+
 s : swig
 swig: $(SWIGOBJECTS)
 np : $(NUMPYOBJECTS)
@@ -144,16 +144,16 @@ smpi: $(MPIOBJECTS)
 all : swig smpi np
 
 default: libtomc all
-		
+
 sc: swigclean
-	
+
 swigclean:
 	rm -rf $(SWIGCPP)*
 	rm -rf $(SWIGLIBS)*
 	rm -rf $(PYMODULESPATH)*.py*
 	rm -rf $(PYMODULESPATH)*so
 	rm -rf $(SWIGTEST)*pyc
-	
+
 clean:
 	rm -rf ./libs/libtomc/libs/*
 	rm -rf $(SWIGCPP)*
@@ -161,16 +161,15 @@ clean:
 	rm -rf $(PYMODULESPATH)*.py*
 	rm -rf $(PYMODULESPATH)*so
 	rm -rf $(SWIGTEST)*pyc
-		
+
 check:
 	ldd -r -d $(PYMODULESPATH)*so
-	
+
 svnup:
 	svn update
 	make all
 	echo 'import PyTom_Test;PyTom_Test.run()' | python
-	
-	
+
 
 unexport LDFLAGS
 unexport LDFLAGS_LIBTOMC

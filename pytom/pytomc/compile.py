@@ -254,8 +254,8 @@ print(setflags_line)
 print('')
 
 nosh       = False  # you can choose not to compile the SH Alignment library
-nompi4py   = False  # you can choose not to compile the mpi4py library
-nonfft     = False  # you can choose not to compile the NFFT library
+nompi4py   = False#False  # you can choose not to compile the mpi4py library
+nonfft     = False#False  # you can choose not to compile the NFFT library
 novoltools = True
 
 
@@ -422,11 +422,11 @@ if nonfft is False:
         print("Compilation of NFFT failed! Disable this functionality.")
 
 
-if os.path.isfile("./swigModules/_pytom_fftplan.so") \
-    and os.path.isfile("./swigModules/_pytom_freqweight.so") \
-    and os.path.isfile("./swigModules/_pytom_mpi.so") \
-    and os.path.isfile("./swigModules/_pytom_numpy.so") \
-    and os.path.isfile("./swigModules/_pytom_volume.so") \
+if os.path.isfile("../lib/_pytom_fftplan.so") \
+    and os.path.isfile("../lib/_pytom_freqweight.so") \
+    and os.path.isfile("../lib/_pytom_mpi.so") \
+    and os.path.isfile("../lib/_pytom_numpy.so") \
+    and os.path.isfile("../lib/_pytom_volume.so") \
     and phony_target and not ('clean' in phony_target):
     print('Generating executables:')
     print('../bin/pytom')
