@@ -1,4 +1,4 @@
-#!/cm/shared/apps/python3/3.7/bin/python3.7
+#!/usr/bin/env python
 import sys
 import os
 import pickle, json
@@ -30,8 +30,8 @@ def update_env_vars(pytompath):
         update_vars = False
         for search in ('LD_LIBRARY_PATH','PATH','PYTHONPATH'):
             # Check if env vars include all paths set in paths.csh
-            query_string = "cat {}/bin/paths.csh | grep 'setenv {}' | grep -v '${}'".format(pytompath, search,search)
-            string = os.popen(query_string).read()[:-1].split()[-1]
+            query_string = "cat {}/bin/paths.sh | grep 'export {}'".format(pytompath, search, search)
+            string = os.popen(query_string).read()[:-1].split("'")[1]
             for new_lib in (string.split(':')):
                 new_lib = new_lib.replace("'","")
 
