@@ -11,6 +11,16 @@
 *.Po
 
 
+# ignore .idea folder
+.idea
+
+
+# ignore built pytom files
+/pytom/bin/paths.sh
+build
+*.egg-info
+
+
 # external stuff
 pytom/external/lib/
 pytom/external/include/
