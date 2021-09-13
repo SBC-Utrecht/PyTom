@@ -24,10 +24,24 @@ if len(args) == 0:
 
 [libPaths , includePaths , exePaths, pythonVersion , minicondaDir,  phony_target] = parseArguments(args)
 
-print(includePaths)
+
+def check4specialchars(path):
+    special_chars = [' ', ')', '(' ]
+
+    outpath = '' 
+    
+    for n, char in enumerate(path):
+        if char in specoal_chars and char[n-1] != '\\':
+            outpath += "\\" + char
+        else:
+            outpath += path[n]
+            
+    return outpath
+
 
 if 'LD_LIBRARY_PATH' in os.environ:
-    for path in os.environ['LD_LIBRARY_PATH'].split(':'):
+    LIB = check4specialchars(os.environ['LD_LIBRARY_PATH'])
+    for path in LIB.split(':'):
         libPaths.append(path)
 else:
     print('Warning: Your system does not have LD_LIBRARY_PATH set.')
@@ -35,11 +49,13 @@ else:
     print('')
 
 if 'INCLUDE_PATH' in os.environ: # most OS does not set this, ignore the warning
-    for path in os.environ['INCLUDE_PATH'].split(':'):
+    INC = check4specialchars(os.environ['INCLUDE_PATH'])
+    for path in INC.split(':'):
         includePaths.append(path)
     
 if 'PATH' in os.environ:
-    for path in os.environ['PATH'].split(':'):
+    BIN = check4specialchars(os.environ['PATH'])
+    for path in BIN.split(':'):
         exePaths.append(path)
 else:
     print('Warning: Your system does not have PATH set.')
