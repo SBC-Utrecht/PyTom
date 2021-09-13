@@ -40,20 +40,20 @@ PyTomGUI is designed to run on linux systems, but can also be installed on MacOS
 
 ### Installing
 
-Before you can install PyTom you need to have an account on github, and to the account you need to link a token for online identification. For more information click on the following link.
+Before you can install PyTom, you need to create an account on github. And to the github account you need to link a token for online identification. For more information click on the following link.
 
-Furthermore, the software packages git needs to be install. Git can be installed by sudo apt install git or yum install git. After git has been installed, run the following lines:
+Furthermore, the software packages git needs to be installed. Git can be installed by sudo apt install git or yum install git. After git has been installed, run the following lines:
 
 ```
 git clone --recursive https://github.com/FridoF/PyTomPrivate.git
 cd PyTomPrivate
 bash installMiniconda.sh
+conda env create -f pytom_env.yml
 ```
 
 Please remember the location where you decide to install conda (CONDA_INSTALL_DIR). 
 
 ```
-conda env create -f pytom_env.yml
 conda activate pytom_env
 python3.8 setup.py install --prefix [CONDA_INSTALL_DIR]/envs/pytom_env
 ```
