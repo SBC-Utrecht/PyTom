@@ -22,8 +22,7 @@ def em2mrc(filename,target):
         ff = [f'sorted_{int(ff[-1])-1:02d}']
         print(ff)
     except Exception as e:
-        print('\n\n\n')
-        print(e)
+        # If there's only one file, just pass
         pass
     ff = '_'.join(ff)
     newFilename = target + os.sep + ff + '.mrc'

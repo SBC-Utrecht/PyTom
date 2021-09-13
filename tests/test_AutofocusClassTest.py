@@ -95,10 +95,10 @@ class pytom_MyFunctionTest(unittest.TestCase):
         #cmd = cmd + ' -k ' + str(self.settings["ncluster"])
         #cmd = cmd + ' -f ' + str(self.settings["frequency"])
         try:
-            e = os.system(cmd)
+            e = os.system(cmd + ' > /dev/null 2>&1')
         except:
             print('hello')
-        self.assertTrue( e == 256, 'no error raised!')
+        self.assertTrue(e == 256, 'no error raised!')
 
     def test_Binning(self):
         """
