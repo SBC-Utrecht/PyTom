@@ -3358,6 +3358,26 @@ class ParticleList(PyTomClass):
             trot = particle.getRotation()
             particle.setShift(shift=ttrans+translation.rotate(rot=trot))
 
+    def removeEmptySubtomograms(self):
+        """Remove all zero particles from list"""
+        from pytom.agnostic.io import read
+        import os
+        import numpy
+
+        num_subtomos, num_del = len(self), 0
+        for n in range(num_subtomos):
+            fname = self[n - num_del].getFilename()
+
+            if os.path.exists(fname):
+                volume = read(fname)
+            else:
+                volume = numpy.zeros((2,3))
+
+            if abs(volume.mean()) < 1E-4 and volume.std() < 1E-4:
+                self._particleList.pop(n-num_del)
+                num_del += 1
+
+
 
 class InformationGUI(PyTomClass):
     """
