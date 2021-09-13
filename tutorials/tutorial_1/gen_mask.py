@@ -1,5 +1,5 @@
 #!/usr/bin/env pytom
-from pytom.tompy.io import read, write
+from pytom.agnostic.io import read, write
 import sys, os
 import matplotlib
 matplotlib.use('Qt5Agg')

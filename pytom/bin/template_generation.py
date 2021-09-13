@@ -5,7 +5,7 @@ import sys
 import pytom.simulation.physics as physics
 from pytom.tools.script_helper import ScriptHelper, ScriptOption
 from pytom.tools.parse_script_options import parse_script_options
-from pytom.tompy.io import write
+from pytom.agnostic.io import write
 from pytom.simulation.template import generate_template
 
 

@@ -320,7 +320,7 @@ class Mask(PyTomClass):
             raise IOError('Could not find mask file: ' + str(self._filename))
 
     def convert2numpy(self):
-        from pytom.tompy.structures import Mask
+        from pytom.agnostic.structures import Mask
         mask = Mask(self._filename, self._isSphere, self._binning)
         return mask
 
@@ -936,7 +936,7 @@ class Wedge(PyTomClass):
         self._wedgeObject.setWedgeAngles(wedgeangles)
 
     def convert2numpy(self):
-        from pytom.tompy.structures import Wedge, SingleTiltWedge
+        from pytom.agnostic.structures import Wedge, SingleTiltWedge
 
         angle = self.getWedgeAngle()
         print(angle)
@@ -1766,7 +1766,7 @@ class Particle(PyTomClass):
 	    @param score: score type
 	    @type score: L{pytom.score.score.Score}
         """
-        from pytom.score.score import Score
+        from pytom.basic.score import Score
         
         if ((not score.__class__ == Score) and (not score.__class__.__bases__[0] == Score)):
             raise TypeError('score parameter must be of type Score')
@@ -1780,7 +1780,7 @@ class Particle(PyTomClass):
         @type scoreValue: L{float}
         """
         if not hasattr(self, 'self._score'):
-            from pytom.score.score import Score
+            from pytom.basic.score import Score
             # set dummy score for particles
             dumscore = Score()
             dumscore.ctor()
@@ -1908,7 +1908,7 @@ class Particle(PyTomClass):
         
         score_element = particle_element.xpath('Score')
         if len(score_element) > 0:
-            from pytom.score.score import fromXML
+            from pytom.basic.score import fromXML
             self._score = fromXML(score_element[0])
 
     def copy(self):
@@ -2256,7 +2256,7 @@ class ParticleList(PyTomClass):
         from pytom.basic.structures import Rotation,Shift,PickPosition,Particle
         #if not score:
         if score == None:
-            from pytom.score.score import xcfScore as score
+            from pytom.basic.score import xcfScore as score
         
         checkFileExists(motlFile)
         
@@ -2918,8 +2918,8 @@ class ParticleList(PyTomClass):
             r = determineResolution(fsc, criterion, verbose)
         else:
             import numpy as np
-            from pytom.tompy.io import write
-            from pytom.tompy.correlation import randomizePhaseBeyondFreq, calc_FSC_true
+            from pytom.agnostic.io import write
+            from pytom.agnostic.correlation import randomizePhaseBeyondFreq, calc_FSC_true
             randomizationFrequency    = np.floor(determineResolution(fsc, float(randomize), verbose)[1])
             oddVolumeRandomizedPhase  = randomizePhaseBeyondFreq(vol2npy(oddVolume), randomizationFrequency)
             evenVolumeRandomizedPhase = randomizePhaseBeyondFreq(vol2npy(evenVolume), randomizationFrequency)
@@ -3326,7 +3326,7 @@ class ParticleList(PyTomClass):
     def pickle(self):
         """Make this particle list picklable.
         """
-        from pytom.frm.FRMAlignment import FRMScore
+        from pytom.alignment.FRMAlignment import FRMScore
         
         for p in self._particleList:
             if p.getScore().__class__ != FRMScore:
@@ -4715,4 +4715,6 @@ class BandPassFilter(PyTomClass):
         
         res = bandpassFilter(volume,self._lowestFrequency,self._highestFrequency,bpf=None,smooth=self._smooth,fourierOnly=False)
         return res[0]
-        
+
+
+

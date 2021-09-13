@@ -30,7 +30,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatypeAR
     import os
     from pytom.basic.files import EMHeader, read, read_em_header
-    from pytom.tompy.io import read_size
+    from pytom.agnostic.io import read_size
     if binning:
         imdim = int(float(TiltSeries_._imdim)/float(binning)+.5)
     else:

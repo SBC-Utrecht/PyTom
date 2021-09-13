@@ -31,7 +31,7 @@ class ExPeakResult:
         self.score = score
 
         if self.score is None:
-            from pytom.score.score import FLCFScore
+            from pytom.basic.score import FLCFScore
             self.score = FLCFScore
         
         self.result = None

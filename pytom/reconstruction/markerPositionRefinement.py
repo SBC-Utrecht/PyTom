@@ -1,11 +1,10 @@
 import numpy
 import os
-from pytom.reconstruction.tiltAlignmentFunctions import markerResidual
-from pytom.image2D.imageStructures import ImageStack
+from pytom.reconstruction.imageStructures import ImageStack
 from pytom.reconstruction.TiltAlignmentStructures import TiltAlignmentParameters, TiltSeries, TiltAlignment
-from pytom.basic.functions import initSphere, taper_edges
 
-def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj, 
+
+def refineMarkerPositions( tiltSeriesName, markerFileName, firstProj,
                            lastProj, finealigfile, dimBox=32, projIndices=None, tiltSeriesFormat='em',ret=False,write=True,ireftilt=21,size=30000):
     """
     refine coordinates of markers

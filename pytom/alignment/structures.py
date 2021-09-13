@@ -78,7 +78,7 @@ class MaximisationJob(PyTomClass):
             jobDescription = jobDescription[0]
 
         from pytom.angles.angle import AngleObject
-        from pytom.score.score import fromXML as fromXMLScore
+        from pytom.basic.score import fromXML as fromXMLScore
         from pytom.alignment.preprocessing import Preprocessing
         from pytom.basic.structures import Mask,Particle,Reference,ReferenceList
         
@@ -161,8 +161,8 @@ class MaximisationJob(PyTomClass):
         check: Performs check on self whether all settings were sane. Paths and Files exists 
         """
         
-        from pytom.tools.files import checkFileExists,checkDirExists
-        
+        from pytom.tools.files import checkFileExists
+
         returnValue = checkFileExists(self.particle.getFilename())
         if not returnValue:
             raise IOError(str(self.particle.getFilename()) + ' not found!')
@@ -214,7 +214,7 @@ class MaximisationResult(PyTomClass):
             self._rotation = Rotation()
             
         if score.__class__ == float:
-            from pytom.score.score import xcfScore
+            from pytom.basic.score import xcfScore
             self._score = xcfScore()
         else:
             self._score = score
@@ -231,7 +231,6 @@ class MaximisationResult(PyTomClass):
         @return:
         @rtype: L{pytom.basic.structures.Particle}
         """
-        from pytom.basic.structures import Particle
         particle = self._particle
         particle.setRotation(self._rotation)
         particle.setShift(self._shift)
@@ -299,7 +298,7 @@ class MaximisationResult(PyTomClass):
             from pytom.basic.exceptions import ParameterError
             raise ParameterError('Is not a lxml.etree._Element! You must provide a valid XML object.') 
         
-        from pytom.score.score import fromXML as fromXMLScore 
+        from pytom.basic.score import fromXML as fromXMLScore 
         from pytom.angles.angle import AngleObject
         
         if xmlObj.tag == "Result":
@@ -424,7 +423,6 @@ class ExpectationJob(PyTomClass):
 
         @author: Thomas Hrabe 
         """
-        from lxml import etree
         from lxml.etree import _Element
         from pytom.basic.structures import ParticleList
 
@@ -479,8 +477,8 @@ class ExpectationResult(PyTomClass):
         @param xmlObj: A xml object  
         @author: Thomas Hrabe 
         """
-        from lxml.etree import _Element,tostring
-        
+        from lxml.etree import _Element
+
         if xmlObj.__class__ != _Element :
             from pytom.basic.exceptions import ParameterError
             raise ParameterError('Is not a lxml.etree._Element! You must provide a valid XML object.')
@@ -915,7 +913,7 @@ class GrowingAverageJob(PyTomClass):
             raise ParameterError('Is not a GrowingAverageJobXML! You must provide a valid GrowingAverageJobXML object.')
         
         from pytom.angles.angle import AngleObject
-        from pytom.score.score import fromXML as scoreFromXML
+        from pytom.basic.score import fromXML as scoreFromXML
         from pytom.basic.structures import ParticleList
         from pytom.alignment.preprocessing import Preprocessing
         

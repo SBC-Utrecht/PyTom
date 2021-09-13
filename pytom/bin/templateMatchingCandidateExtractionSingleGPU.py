@@ -31,10 +31,10 @@ if __name__ == '__main__':
     from pytom.tools.parse_script_options import parse_script_options2
     from pytom.basic.structures import Wedge
     from pytom.localization.extractPeaks import templateMatchingGPU
-    from pytom.tompy.io import read, write
+    from pytom.agnostic.io import read, write
     from pytom.angles.globalSampling import GlobalSampling
     from pytom.bin.extractCandidates import extractCandidatesWithoutJobFile
-    from pytom.score.score import FLCFScore
+    from pytom.basic.score import FLCFScore
     import numpy
     from pytom.basic.structures import ParticleList
     import os
@@ -84,13 +84,13 @@ if __name__ == '__main__':
         wedge = Wedge(wedge_angles)
 
         if 0:  # todo implement binning option
-            from pytom.tompy.transform import resize
+            from pytom.agnostic.transform import resize
             volume = resize(volume, 1/2)
             template = resize(template, 1/2)
             #mask = resize(mask, 1/2, 'Spline')
 
         if 0:  # todo implement bandpass option
-            from pytom.tompy.filter import bandpass
+            from pytom.agnostic.filter import bandpass
             volume = bandpass(volume,0, 60, 3)
             template = bandpass(template,0, 60, 3)
 

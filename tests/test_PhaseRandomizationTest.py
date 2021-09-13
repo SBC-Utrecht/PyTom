@@ -11,7 +11,7 @@ class pytom_PhaseRandomizationTest(unittest.TestCase):
         test phase randomization
         """
         import numpy as np
-        from pytom.tompy.correlation import generate_random_phases_3d
+        from pytom.agnostic.correlation import generate_random_phases_3d
 
         a = np.zeros((128,128,128))
         a[10:-10,10:-10,10:-10] = 1
@@ -27,7 +27,7 @@ class pytom_PhaseRandomizationTest(unittest.TestCase):
         test phase randomization
         """
         import numpy as np
-        from pytom.tompy.correlation import generate_random_phases_3d
+        from pytom.agnostic.correlation import generate_random_phases_3d
 
         a = np.zeros((129,129,129))
         a[10:-10,10:-10,10:-10] = 1

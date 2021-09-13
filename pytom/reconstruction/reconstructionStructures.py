@@ -478,8 +478,8 @@ class ProjectionList(PyTomClass):
         from pytom_volume import vol, backProject
         from pytom.gpu.initialize import device, xp
         from pytom.reconstruction.reconstructionFunctions import alignImagesUsingAlignmentResultFile as align
-        from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
-        from pytom.tompy.io import write
+        from pytom.agnostic.reconstruction_functions import backProjectGPU as backProject
+        from pytom.agnostic.io import write
 
         import time
         s = time.time()
@@ -637,7 +637,7 @@ class ProjectionList(PyTomClass):
                                                                                  circleFilter=True, scaleFactorParticle=scaleFactorParticle)
         else:
             from pytom.reconstruction.reconstructionFunctions import alignImagesUsingAlignmentResultFile as align
-            from pytom.tompy.io import write as write_em
+            from pytom.agnostic.io import write as write_em
 
             resultProjstack = align( alignResultFile, binning=binning, weighting=applyWeighting, circleFilter=True, angle_specimen=specimen_angle)
             [projections, vol_phi, proj_angles, vol_offsetProjections] = resultProjstack
@@ -721,11 +721,11 @@ class ProjectionList(PyTomClass):
 
     def extract_particles_on_gpu(self, particles, procID, verbose, binning, postScale, cubeSize, filename_ppr='', gpuID=None, results=0):
         import os
-        from pytom.tompy.io import read, write
+        from pytom.agnostic.io import read, write
         from pytom.gpu.initialize import xp, device
         import numpy as np
         import time
-        from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
+        from pytom.agnostic.reconstruction_functions import backProjectGPU as backProject
 
         #xp.cuda.Device(gpuID).use()
 

@@ -1,1 +1,1 @@
-__all__ = ["structures","filter","correlation","maths","fourier","normalise","resolution"];
+__all__ = ["structures","filter","correlation","maths","fourier","normalise","resolution", "score"];

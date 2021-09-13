@@ -13,12 +13,12 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=1)
     import matplotlib
     matplotlib.use('Qt5Agg')
     from pylab import imshow, show, subplots, savefig
-    from pytom.tompy.tools import create_sphere
-    from pytom.tompy.io import read, write
+    from pytom.agnostic.tools import create_sphere
+    from pytom.agnostic.io import read, write
     from pytom.voltools import transform
     from pytom.gpu.initialize import xp, device
-    from pytom.tompy.correlation import meanVolUnderMask, stdVolUnderMask
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.correlation import meanVolUnderMask, stdVolUnderMask
+    from pytom.agnostic.transform import resize
     import sys
     import os
 
@@ -46,12 +46,12 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
     import matplotlib
     matplotlib.use('Qt5Agg')
     from pylab import imshow, show, subplots, savefig
-    from pytom.tompy.tools import create_sphere
-    from pytom.tompy.io import read, write
+    from pytom.agnostic.tools import create_sphere
+    from pytom.agnostic.io import read, write
     from pytom.voltools import transform
     from pytom.gpu.initialize import xp, device
-    from pytom.tompy.correlation import meanVolUnderMask, stdVolUnderMask
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.correlation import meanVolUnderMask, stdVolUnderMask
+    from pytom.agnostic.transform import resize
     import sys
     import os
 

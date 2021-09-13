@@ -66,7 +66,7 @@ def polish_particles(particle_list_filename, projection_directory, averaged_subt
     assert isinstance(skip_alignment, bool)
 
     import os, time
-    from pytom.tompy.io import read_size, read
+    from pytom.agnostic.io import read_size, read
     from pytom.gui.guiFunctions import fmtLAR, headerLocalAlignmentResults, LOCAL_ALIGNMENT_RESULTS
     import pytom.voltools as vt
 
@@ -144,9 +144,9 @@ def run_single_tilt_angle_unpack(inp):
 def cut_patch(projection, ang, pick_position, vol_size=200, binning=8, dimz=0, offset=[0,0,0], projection_name=None):
     #from pytom.gpu.initialize import xp
     from pytom.voltools import transform
-    from pytom.tompy.transform import rotate3d, rotate_axis
-    from pytom.tompy.transform import cut_from_projection
-    from pytom.tompy.io import read
+    from pytom.agnostic.transform import rotate3d, rotate_axis
+    from pytom.agnostic.transform import cut_from_projection
+    from pytom.agnostic.io import read
 
     # Get the size of the original projection
     dim_x = projection.shape[0]
@@ -205,11 +205,11 @@ def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position,
     matplotlib.use('Qt5Agg')
     from pylab import subplots, show
     import pytom.voltools as vt
-    from pytom.tompy.transform import rotate3d, rotate_axis
+    from pytom.agnostic.transform import rotate3d, rotate_axis
     import numpy as np
     from math import cos, sin, pi, sqrt
-    from pytom.tompy.transform import cut_from_projection
-    from pytom.tompy.io import read, write
+    from pytom.agnostic.transform import cut_from_projection
+    from pytom.agnostic.io import read, write
     import time
     t = time.time()
     #print(particle_filename, ang)

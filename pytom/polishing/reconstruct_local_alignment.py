@@ -66,7 +66,7 @@ def polish_particles(particle_list_filename, projection_directory, averaged_subt
 
     import numpy as np
     import os
-    from pytom.tompy.io import read_size, read
+    from pytom.agnostic.io import read_size, read
     from pytom.basic.datatypes import fmtLAR, headerLocalAlignmentResults, LOCAL_ALIGNMENT_RESULTS
 
     # load particle list
@@ -135,11 +135,11 @@ def run_single_tilt_angle_unpack(inp):
     return run_single_tilt_angle(*inp)
 
 def cut_patch(projection, ang, pick_position, vol_size=200, binning=8, dimz=0, offset=[0,0,0]):
-    from pytom.tompy.transform import rotate3d, rotate_axis
+    from pytom.agnostic.transform import rotate3d, rotate_axis
     import numpy as np
     from math import cos, sin, pi
-    from pytom.tompy.transform import cut_from_projection
-    from pytom.tompy.io import read
+    from pytom.agnostic.transform import cut_from_projection
+    from pytom.agnostic.io import read
 
     # Get the size of the original projection
     dim_x = projection.shape[0]
@@ -162,7 +162,7 @@ def cut_patch(projection, ang, pick_position, vol_size=200, binning=8, dimz=0, o
 
 
 def normalize_image(image, mask, p):
-    from pytom.tompy.correlation import meanUnderMask, stdUnderMask
+    from pytom.agnostic.correlation import meanUnderMask, stdUnderMask
     mp = meanUnderMask(image, mask, p)
     normalized_image = (image - mp) / stdUnderMask(image, mask, mp, p)
     return normalized_image * mask
@@ -201,15 +201,15 @@ def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position,
 
 
     from pytom.reconstruction.reconstructionFunctions import alignImageUsingAlignmentResultFile
-    from pytom.tompy.transform import rotate3d, rotate_axis
+    from pytom.agnostic.transform import rotate3d, rotate_axis
     from pytom.gui.guiFunctions import datatypeAR, loadstar
     import numpy as np
     from math import cos, sin, pi, sqrt
-    from pytom.tompy.tools import create_circle
-    from pytom.tompy.transform import cut_from_projection
-    from pytom.tompy.filter import applyFourierFilterFull, bandpass_circle
-    from pytom.tompy.io import read, write
-    from pytom.tompy.correlation import meanUnderMask, stdUnderMask
+    from pytom.agnostic.tools import create_circle
+    from pytom.agnostic.transform import cut_from_projection
+    from pytom.agnostic.filter import applyFourierFilterFull, bandpass_circle
+    from pytom.agnostic.io import read, write
+    from pytom.agnostic.correlation import meanUnderMask, stdUnderMask
     import os
     import time
 
@@ -223,7 +223,7 @@ def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position,
         '/data/gijsvds/ctem/05_Subtomogram_Analysis/Alignment/GLocal/mask_200_75_5.mrc')
 
     import os
-    from pytom.tompy.filter import filter_volume_by_profile, profile2FourierVol
+    from pytom.agnostic.filter import filter_volume_by_profile, profile2FourierVol
     fsc_path = ''
     if os.path.isfile(fsc_path):
         profile = [line.split()[0] for line in open(fsc_path, 'r').readlines()]
@@ -234,7 +234,7 @@ def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position,
 
     # Cross correlate the templat
     # e and patch, this should give the pixel shift it is after
-    from pytom.tompy.correlation import nXcf
+    from pytom.agnostic.correlation import nXcf
 
     # Get template
     # First rotate the template towards orientation of the particle, then to the tilt angle
@@ -546,7 +546,7 @@ def normalised_cross_correlation(first, second, filter_mask=None):
     @requires: the shape of first to be equal to the shape of second, and equal t the shape of the filter (if used of course)
     """
     import sys
-    from pytom.tompy.io import write
+    from pytom.agnostic.io import write
     assert first.shape == second.shape
     assert len(first.shape) == 2
     if not(filter_mask is None): assert first.shape == filter_mask.shape

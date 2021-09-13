@@ -139,7 +139,7 @@ if __name__ == '__main__':
             sy = tmp.getYSize()
         except:
             from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS
-            from pytom.tompy.io import read_size
+            from pytom.agnostic.io import read_size
             from pytom.gui.guiFunctions import loadstar
 
             lar = loadstar(alignResultFile, dtype=DATATYPE_ALIGNMENT_RESULTS)

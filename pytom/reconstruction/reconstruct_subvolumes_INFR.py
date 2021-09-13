@@ -61,7 +61,7 @@ if __name__ == '__main__':
     
     # read all the projections in tompy
     import numpy as np
-    from pytom.tompy.io import read, write
+    from pytom.agnostic.io import read, write
     proj = []
     tilt_angles = []
     for p in projections:
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     
     # reconstruct each particles
     from math import cos, sin, pi, ceil
-    from pytom.tompy.transform import cut_from_projection
+    from pytom.agnostic.transform import cut_from_projection
     from nufft.reconstruction import fourier_2d1d_iter_reconstruct, fourier_2d1d_gridding_reconstruct
     from pytom.tools.ProgressBar import FixedProgBar
     prog = FixedProgBar(0, len(pl)-1, '')

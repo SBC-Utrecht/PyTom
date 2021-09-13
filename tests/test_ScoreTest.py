@@ -24,7 +24,7 @@ class pytom_ScoreTest(unittest.TestCase):
               shiftV=self.shift, wedgeInfo=self.wi, SNR=10.)
 
     def test_xcfScore(self):
-        from pytom.score.score import xcfScore as score
+        from pytom.basic.score import xcfScore as score
         from pytom_volume import peak
 
         sc = score()
@@ -44,7 +44,7 @@ class pytom_ScoreTest(unittest.TestCase):
         """
         test nxcf score
         """
-        from pytom.score.score import nxcfScore as score
+        from pytom.basic.score import nxcfScore as score
         from pytom_volume import peak
 
         sc = score()
@@ -78,7 +78,7 @@ class pytom_ScoreTest(unittest.TestCase):
         """
         test FLCF score
         """
-        from pytom.score.score import FLCFScore as score
+        from pytom.basic.score import FLCFScore as score
         from pytom_volume import peak
         
         sc = score()
@@ -98,7 +98,7 @@ class pytom_ScoreTest(unittest.TestCase):
         """
         second order correlation score
         """
-        from pytom.score.score import SOCScore as score
+        from pytom.basic.score import SOCScore as score
         from pytom_volume import peak
 
         sc = score()

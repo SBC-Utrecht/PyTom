@@ -60,7 +60,7 @@ from multiprocessing import Process, Event, Manager, Pool, cpu_count
 
 from pytom.gui.guiStructures import *
 from pytom.gui.guiFunctions import *
-from pytom.tompy.io import read_size
+from pytom.agnostic.io import read_size
 def sort_str( obj, nrcol ):
     obj.sort(key=lambda i: str(i[nrcol]))
 
@@ -634,7 +634,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         print ("Start reading files process {}/{}".format(proc_id + 1, nr_procs))
         from copy import deepcopy
-        from pytom.tompy.io import read as readNPY
+        from pytom.agnostic.io import read as readNPY
         for nr, fname in enumerate(fnames):
 
             #m = mrcfile.open(fname, permissive=True)

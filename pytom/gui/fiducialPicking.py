@@ -969,12 +969,12 @@ class PickingFunctions():
         import matplotlib
         matplotlib.use('Qt5Agg')
         from pylab import imshow, show, subplots, savefig
-        from pytom.tompy.tools import create_sphere, create_circle
-        from pytom.tompy.io import read, write
+        from pytom.agnostic.tools import create_sphere, create_circle
+        from pytom.agnostic.io import read, write
         from pytom.voltools import transform
         from pytom.gpu.initialize import xp, device
-        from pytom.tompy.correlation import meanVolUnderMask, stdVolUnderMask
-        from pytom.tompy.transform import resize
+        from pytom.agnostic.correlation import meanVolUnderMask, stdVolUnderMask
+        from pytom.agnostic.transform import resize
         import sys
         import os
         from skimage import restoration
@@ -1055,7 +1055,7 @@ class PickingFunctions():
     def find_potential_fiducial_log(self, frames, frames_full, raw, bin, bin_full, cropsize=50, target=0, fid_list=[],
                                            proc_id=0, num_procs=1, average_marker=None, threshold=1.7, radius=10):
 
-        from pytom.tompy.transform import resize
+        from pytom.agnostic.transform import resize
         from skimage.morphology import watershed, label
         import scipy, skimage
         from skimage.feature import peak_local_max

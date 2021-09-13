@@ -27,7 +27,7 @@ from pytom_numpy import vol2npy
 from pytom.gui.mrcOperations import read_mrc
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.mrcOperations import square_mrc, remove_hot_pixels
-from pytom.tompy.io import read_size
+from pytom.agnostic.io import read_size
 from pytom.gui.guiFunctions import loadstar
 from pytom.basic.datatypes import DATATYPE_METAFILE
 
@@ -1057,7 +1057,7 @@ class TomographReconstruct(GuiTabWidget):
         self.statusBar.addPermanentWidget(self.progressBar, stretch=1)
 
     def preprocdata(self, dst_mcor, crop):
-        from pytom.tompy.io import read as readNPY, write
+        from pytom.agnostic.io import read as readNPY, write
         data = readNPY(dst_mcor)
         if crop:
             size = min(data.shape[:2])

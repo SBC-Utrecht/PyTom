@@ -394,8 +394,8 @@ def atomList2em(atomList, pixelSize, cubeSize, densityNegative=False):
 
 def recenterVolume(volume, densityNegative=False):
     from scipy.ndimage import center_of_mass
-    from pytom.tompy.io import read, write
-    from pytom.tompy.tools import paste_in_center
+    from pytom.agnostic.io import read, write
+    from pytom.agnostic.tools import paste_in_center
     from pytom.gpu.initialize import xp
     from pytom_numpy import vol2npy
     import os
@@ -854,7 +854,7 @@ def pdb2mrc(pdbPath, pixelSize, cubeSize, chain=None, invertDensity=False, fname
     vol = pdb2em(pdbPath, pixelSize, cubeSize, chain=chain, invertDensity=invertDensity, recenter=recenter)
 
     if fname:
-        from pytom.tompy.io import write as writeNPY
+        from pytom.agnostic.io import write as writeNPY
         from pytom_numpy import vol2npy
 
         writeNPY(fname, vol2npy(vol))
@@ -907,7 +907,7 @@ def mmCIF2mrc(mmCIFPath, pixelSize, cubeSize, chain=None, densityNegative=False,
         vol = recenterVolume(vol, densityNegative)
 
     if fname:
-        from pytom.tompy.io import write as writeNPY
+        from pytom.agnostic.io import write as writeNPY
         from pytom_numpy import vol2npy
 
         writeNPY(fname, vol2npy(vol))
@@ -924,7 +924,7 @@ def txt2pl(coordinate_file, particleList_file, subtomoPrefix=None, wedgeAngle=No
 def mdoc2meta(filename, target, prefix=None):
     import numpy
     from pytom.gui.guiFunctions import datatype, headerText as header, fmt
-    from pytom.tompy.io import read, write, read_tilt_angle
+    from pytom.agnostic.io import read, write, read_tilt_angle
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
     if not checkFileExists(filename):
@@ -1012,7 +1012,7 @@ def ccp42mrc(filename, target, prefix='sorted_'):
     emfile.write(newFilename, 'mrc')
 
 def em2mrc(filename, target, prefix='sorted_'):
-    from pytom.tompy.io import read, write, read_tilt_angle
+    from pytom.agnostic.io import read, write, read_tilt_angle
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
 
@@ -1064,7 +1064,7 @@ def mrc2ccp4(filename, target, prefix='sorted_'):
     emfile.write(newFilename, 'ccp4')
 
 def mrc2em(filename, target, prefix='sorted_'):
-    from pytom.tompy.io import read, write, read_tilt_angle
+    from pytom.agnostic.io import read, write, read_tilt_angle
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
     if not checkFileExists(filename):

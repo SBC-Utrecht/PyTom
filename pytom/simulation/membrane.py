@@ -393,9 +393,9 @@ if __name__ == '__main__':
     import sys
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
-    from pytom.tompy.io import write
+    from pytom.agnostic.io import write
     from pytom.simulation.support import reduce_resolution
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
 
     # syntax is ScriptOption([short, long], description, requires argument, is optional)
     options = [ScriptOption(['-s', '--size_factor'], '1 corresponds to a vesicle which has an average diameter of'

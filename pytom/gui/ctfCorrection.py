@@ -5,7 +5,7 @@ from cupyx.scipy.ndimage import map_coordinates
 from pytom.gui.guiFunctions import datatype
 import os
 import numpy as np
-from pytom.tompy.mpi import MPI
+from pytom.agnostic.mpi import MPI
 import mrcfile
 import time
 
@@ -319,7 +319,7 @@ def CorrectProjection_proxy(fname, new_fname, p, metafile, gs, fs, binning_facto
     
     Objectpixelsize = metadata['PixelSpacing'][p] * 0.1 * binning_factor
                     
-    from pytom.tompy.io import read, write
+    from pytom.agnostic.io import read, write
 
     # Load projection
     proj = np.array(read(fname))

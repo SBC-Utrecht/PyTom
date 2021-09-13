@@ -1,6 +1,6 @@
 #!/usr/bin/env pytom
 
-from pytom.tompy.io import read
+from pytom.agnostic.io import read
 import sys
 import numpy as np
 

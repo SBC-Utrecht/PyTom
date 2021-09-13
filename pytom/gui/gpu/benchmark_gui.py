@@ -5,7 +5,7 @@ from pycuda import gpuarray as gu
 from pycuda import driver
 from pycuda.cumath import fabs
 from pycuda.tools import DeviceData
-from pytom.tompy.tools import paste_in_center
+from pytom.agnostic.tools import paste_in_center
 
 from typing import Union, Tuple
 
@@ -258,7 +258,7 @@ if __name__=='__main__':
     from pytom_numpy import vol2npy
     import pytom_volume
 
-    from pytom.tompy.correlation import meanVolUnderMask, stdVolUnderMask
+    from pytom.agnostic.correlation import meanVolUnderMask, stdVolUnderMask
     import pytom.basic.correlation as corr
     from pytom.basic.files import read as readd
     from pytom.basic.files import write_em
@@ -285,7 +285,7 @@ if __name__=='__main__':
 
 
 
-    from pytom.tompy.io import read
+    from pytom.agnostic.io import read
     import mrcfile
 
     # NDARRAYS
@@ -346,8 +346,8 @@ if __name__=='__main__':
 
 
     #CALCULATE STDV
-    import pytom.tompy.correlation as corrNDA
-    import pytom.tompy.testGPUcorr as corrGPU
+    import pytom.agnostic.correlation as corrNDA
+    import pytom.agnostic.testGPUcorr as corrGPU
     import pytom.basic.correlation as corrVOL
 
 

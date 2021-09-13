@@ -11,7 +11,6 @@ class pytom_LocalTest(unittest.TestCase):
     """
     def setUp(self):
         """set up"""
-        from helper_functions import create_RandomParticleList, installdir
         self.testfilename = f'./testData/emd_1480.map.em_bin_4.em'
 
     # Module Structures---------------------------------
@@ -49,7 +48,7 @@ class pytom_LocalTest(unittest.TestCase):
     def FoundParticle_Test(self):
         from pytom.localization.structures import FoundParticle
         from pytom.basic.structures import PickPosition, Rotation
-        from pytom.score.score import FLCFScore
+        from pytom.basic.score import FLCFScore
         
         r = Rotation([1,2,3])
         p = PickPosition([4,5,6], originFilename='originalFilename')
@@ -76,7 +75,7 @@ class pytom_LocalTest(unittest.TestCase):
         from pytom.localization.peak_job import PeakJob
         from pytom.basic.structures import Mask, Reference, WedgeInfo
         from pytom.localization.structures import Volume
-        from pytom.score.score import FLCFScore
+        from pytom.basic.score import FLCFScore
         from pytom.angles.angleList import AngleList
         
         v = Volume( self.testfilename)
@@ -130,7 +129,7 @@ class pytom_LocalTest(unittest.TestCase):
         from pytom.localization.peak_job import PeakJob
         from pytom.basic.structures import Mask, Reference, WedgeInfo
         from pytom.localization.structures import Volume
-        from pytom.score.score import FLCFScore
+        from pytom.basic.score import FLCFScore
         from pytom.angles.angleList import AngleList
         
         v = Volume( self.testfilename)

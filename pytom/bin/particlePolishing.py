@@ -11,11 +11,11 @@ if __name__ == '__main__':
     import sys
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
-    from pytom.tompy.mpi import MPI
+    from pytom.agnostic.mpi import MPI
     from time import gmtime, strftime
     from pytom.polishing.reconstruct_local_alignment import polish_particles
-    from pytom.tompy.io import read_size
-    from pytom.tompy.mpi import MPI
+    from pytom.agnostic.io import read_size
+    from pytom.agnostic.mpi import MPI
     from pytom.reconstruction.reconstructionStructures import ProjectionList
     import sys
 

@@ -84,7 +84,7 @@ if __name__ == '__main__':
 
     from pytom.alignment.GLocalSampling import GLocalSamplingJob, mainAlignmentLoop
     from pytom.basic.structures import ParticleList, Reference, Mask, SampleInformation, PointSymmetry
-    from pytom.score.score import FLCFScore, nxcfScore
+    from pytom.basic.score import FLCFScore, nxcfScore
     from pytom.angles.localSampling import LocalSampling
     from pytom.alignment.preprocessing import Preprocessing
 

@@ -97,7 +97,7 @@ class MicrographModellerTest(unittest.TestCase):
     def simulateTomogram(self, c=''):
         """Run the simulation, output here will be written to some temp storage"""
         from pytom.simulation.MicrographModeller import generate_tilt_series_cpu, reconstruct_tomogram
-        from pytom.tompy.io import read
+        from pytom.agnostic.io import read
         from os import path
         import os
 
@@ -126,8 +126,8 @@ class MicrographModellerTest(unittest.TestCase):
     def test_Simulation(self):
         """Run two simulations and test their correlation. Both will have a different realization of noise and will
         slightly differ."""
-        from pytom.tompy.correlation import nxcc
-        from pytom.tompy.tools import create_sphere
+        from pytom.agnostic.correlation import nxcc
+        from pytom.agnostic.tools import create_sphere
         from pytom.simulation.support import reduce_resolution
 
         # generate two different realization of tomogram noise

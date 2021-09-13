@@ -71,7 +71,7 @@ if __name__ == '__main__':
     from pytom.basic.structures import Mask,Reference,Wedge,BandPassFilter
     from pytom.localization.structures import Volume
     from pytom.angles.globalSampling import GlobalSampling
-    from pytom.score.score import FLCFScore
+    from pytom.basic.score import FLCFScore
     from pytom.localization.peak_job import PeakJob
     from pytom.frontend.serverpages.createLocalizationJob import createRunscripts
     

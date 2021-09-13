@@ -839,7 +839,7 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
             tomo_from_filename[tomoname].append([k.replace('[','_').replace(']','_').split('_'), tiltangle, k])
 
         if v == 'st':
-            from pytom.tompy.io import read as readNPY, read_size, read_pixelsize
+            from pytom.agnostic.io import read as readNPY, read_size, read_pixelsize
             from numpy import loadtxt
 
 
@@ -1013,7 +1013,7 @@ def addShiftToMarkFrames(mark_frames, shifts, metadata, excluded):
     return mark_frames, shifts
 
 def convert_markerfile(filename, outname):
-    from pytom.tompy.io import read
+    from pytom.agnostic.io import read
     import numpy as np
     from pytom.basic.datatypes import HEADER_MARKERFILE, FMT_MARKERFILE as fmtMarkerfile
 

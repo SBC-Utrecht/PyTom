@@ -129,7 +129,7 @@ templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[
 templateFRMSlurm  = '''
 cd {d[0]}
 
-mpiexec -n {d[3]} pytom {d[1]}/frm/FRMAlignment.py -j {d[2]} -v
+mpiexec -n {d[3]} pytom {d[1]}/alignment/FRMAlignment.py -j {d[2]} -v
 
 '''
 

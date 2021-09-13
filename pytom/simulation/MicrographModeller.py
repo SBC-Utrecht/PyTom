@@ -173,7 +173,7 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
     from pytom.simulation.potential import create_gold_marker
     from pytom.voltools import transform
-    from pytom.tompy.io import read_mrc, write
+    from pytom.agnostic.io import read_mrc, write
 
     # outputs
     X, Y, Z = size, size, thickness
@@ -1008,7 +1008,7 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
     from pytom.gui.guiFunctions import savestar
     from pytom.simulation.microscope import create_detector_response, create_complex_ctf
-    from pytom.tompy.io import read_mrc, write
+    from pytom.agnostic.io import read_mrc, write
     from joblib import Parallel, delayed
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
 
@@ -1252,7 +1252,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
     from pytom.gui.guiFunctions import savestar
     from pytom.simulation.microscope import create_detector_response, create_complex_ctf
-    from pytom.tompy.io import read_mrc, write
+    from pytom.agnostic.io import read_mrc, write
     from joblib import Parallel, delayed
 
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
@@ -1429,7 +1429,7 @@ def FSS(fimage1, fimage2, numberBands, verbose=False):
 
     @author: Marten Chaillet
     """
-    from pytom.tompy.correlation import meanUnderMask
+    from pytom.agnostic.correlation import meanUnderMask
     from pytom.simulation.support import bandpass_mask
 
     assert fimage1.shape == fimage2.shape, "volumes not of same size"
@@ -1533,7 +1533,7 @@ def parallel_scale(number, projection, example, pixel_size, example_pixel_size, 
 
     @author: Marten Chaillet
     """
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
 
     # print(projection.shape, example.shape)
 
@@ -1593,9 +1593,9 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
 
     @author: Marten Chaillet
     """
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution
-    from pytom.tompy.io import read_mrc, write
+    from pytom.agnostic.io import read_mrc, write
     from joblib import Parallel, delayed
 
     # generate list of all the possible example projections in the provided parameter example_folder
@@ -1679,9 +1679,9 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
     @author: Gijs van der Schot, Marten Chaillet
     """
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution
-    from pytom.tompy.io import read_mrc, write
+    from pytom.agnostic.io import read_mrc, write
 
     # create folder for individual projections, reconstruction algorithm reads single projections from a folder
     projection_folder = os.path.join(save_path, 'projections')

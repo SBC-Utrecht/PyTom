@@ -7,7 +7,7 @@ class pytom_GLocalTest(unittest.TestCase):
 
     def setUp(self):
         from helper_functions import create_RandomParticleList, installdir
-        from pytom.tompy.io import read_size
+        from pytom.agnostic.io import read_size
         from pytom_volume import vol, initSphere
 
         self.installdir = installdir

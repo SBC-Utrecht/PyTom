@@ -220,8 +220,8 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     '''
 
     from pytom_numpy import vol2npy
-    from pytom.tompy.filter import create_wedge, applyFourierFilter
-    from pytom.tompy.io import write
+    from pytom.agnostic.filter import create_wedge, applyFourierFilter
+    from pytom.agnostic.io import write
     from pytom.gpu.gpuStructures import TemplateMatchingGPU
     from pytom.tools.calcFactors import calc_fast_gpu_dimensions
     import time

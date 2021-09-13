@@ -23,7 +23,7 @@ from pytom.gui.guiFunctions import avail_gpu
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.bin.extractTomoNameFromXML import *
 from pytom.gui.guiFunctions import readMarkerfile
-from pytom.tompy.io import read_size
+from pytom.agnostic.io import read_size
 
 
 

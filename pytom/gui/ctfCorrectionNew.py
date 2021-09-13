@@ -101,8 +101,8 @@ def CorrectProjection_proxy(fname, new_fname, p, metadata, gs, fs, binning_facto
     Imdim           = metadata['ImageSize'][p]
     Objectpixelsize = metadata['PixelSpacing'][p] * 0.1 * binning_factor
 
-    from pytom.tompy.io import read, write
-    from pytom.tompy.tools import paste_in_center
+    from pytom.agnostic.io import read, write
+    from pytom.agnostic.tools import paste_in_center
     # Load projection
 
 

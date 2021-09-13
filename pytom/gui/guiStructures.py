@@ -2,9 +2,7 @@ import os
 import copy
 import pickle
 import glob
-import atexit
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
 import multiprocessing
 import getpass
 
@@ -14,25 +12,22 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5 import QtWidgets, QtCore, QtGui
-from pytom.tompy.io import read, write
-from pytom_numpy import vol2npy
 
 #from pytom.basic.functions import initSphere
-from pytom.basic.files import pdb2em, pdb2mrc
+from pytom.basic.files import pdb2mrc
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.mrcOperations import *
 from pytom.gui.guiFunctions import initSphere
-from pytom.tompy.transform import rotate3d
 import pytom.gui.guiFunctions as guiFunctions
-import traceback
-from numpy import zeros, meshgrid, arange, sqrt
+from numpy import zeros, sqrt
 import numpy as np
 
 from scipy.ndimage.filters import gaussian_filter
-from ftplib import FTP_TLS, FTP
+from ftplib import FTP_TLS
 import lxml.etree as et
 
-from multiprocessing import Manager, Event, Process
+from multiprocessing import Manager, Event
+
 
 class BrowseWindowRemote(QMainWindow):
     '''This class creates a new windows for browsing'''
@@ -1140,7 +1135,6 @@ class CommonFunctions():
         widget2.setVisible(True)
 
     def popup_messagebox(self, messagetype, title, message):
-        import time
         if messagetype == 'Info':
             QMessageBox().information(self, title, message, QMessageBox.Ok)
 
@@ -1215,7 +1209,6 @@ class CommonFunctions():
         return groupbox, parent
 
     def submitBatchJob(self, execfilename, id, command, threaded=True):
-        import time
         outjob = open(execfilename, 'w')
         outjob.write(command)
         outjob.close()
@@ -1246,7 +1239,6 @@ class CommonFunctions():
             return 'Local_'+ID, 0
 
     def multiSeq(self, func, params, wID=0, threaded=False):
-        import time
         maxtime = 600
         for execfilename, pid, job in params:
             sleeptime = 0
@@ -1677,7 +1669,7 @@ class CreateFSCMaskFile(QMainWindow, CommonFunctions):
 
     def generate(self,params):
         from pytom.bin.gen_mask import gen_mask_fsc
-        from pytom.tompy.io import read
+        from pytom.agnostic.io import read
 
 
 
@@ -3446,8 +3438,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
     def remove_deselected_particles_from_XML(self):
         from pytom.basic.structures import ParticleList, Particle, PickPosition
-        from pytom.score.score import FLCFScore
-        from pytom.tompy.io import read
+        from pytom.basic.score import FLCFScore
+        from pytom.agnostic.io import read
         import numpy
         import random
 
@@ -4379,7 +4371,7 @@ class Viewer3DSurface(QMainWindow, CommonFunctions):
 
     def reload_image(self, params):
         from numpy import cos, sin, arccos, arcsin
-        from pytom.tompy.transform import rotate3d
+        from pytom.agnostic.transform import rotate3d
 
         if self.centcanvas.reorientParticle.isChecked():
             azimuth = np.deg2rad(self.centcanvas.opts['azimuth'])
@@ -4505,7 +4497,7 @@ class ControlWindowSurface(QMainWindow, CommonFunctions):
 
 
     def save_image(self,params=None):
-        from pytom.tompy.io import read, write
+        from pytom.agnostic.io import read, write
         fname = str(QFileDialog.getSaveFileName(self, 'Save image.', '', filter="MRC File (*.mrc);; EM File (*.em)")[0])
         if fname:
             if not (fname.split('.')[-1] in ('mrc', 'em')):
@@ -4815,7 +4807,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
 
         try:
             if self.title.endswith('em'):
-                from pytom.tompy.io import read
+                from pytom.agnostic.io import read
                 from pytom_numpy import vol2npy
                 self.vol = read(self.title)
                 self.vol = self.vol.T
@@ -5064,7 +5056,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
 
     def load_image(self):
 
-        from pytom.tompy.io import read, read_size
+        from pytom.agnostic.io import read, read_size
         from pytom.gui.mrcOperations import downsample
         mode = 'Viewer2D_'
 
@@ -6041,7 +6033,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def updateBoxsizeAndPixelsize(self, mode):
         from pytom.alignment.alignmentStructures import GLocalSamplingJob
-        from pytom.tompy.io import read_size
+        from pytom.agnostic.io import read_size
         fscfile = self.widgets[mode+'FSCFilename'].text()
         folder =  self.widgets[mode+'FSCFolder'].text()
         if not fscfile and not folder: return
@@ -6623,7 +6615,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         self.init_variables()
         import atexit
         from multiprocessing import Process
-        from pytom.gui.guiFunctions import loadstar, savestar, kill_proc
+        from pytom.gui.guiFunctions import kill_proc
 
         self.num_subtomo_per_row = int(self.width / self.size_subplot)
         #self.index = [0,self.index[1]]

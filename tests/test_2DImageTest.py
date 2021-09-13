@@ -1,12 +1,11 @@
 import unittest
-import pytom
 
 
 class pytom_2DImageTest(unittest.TestCase):
     def setUp(self):
 
         from pytom.basic.functions import initSphere
-        from pytom.image2D.imageStructures import ImageStack, Image
+        from pytom.reconstruction.imageStructures import ImageStack, Image
         from pytom.basic.transformations import general_transform2d
         from pytom.simulation.support import add_white_noise
         import random
