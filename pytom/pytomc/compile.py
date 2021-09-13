@@ -433,5 +433,11 @@ if os.path.isfile("../lib/_pytom_fftplan.so") \
     print('../bin/ipytom')
     print('../bin/pytomGUI')
 
-    generateExecuteables([lib_mpi,lib_fftw,lib_python]+sh_ld_library_paths,exePaths,sh_python_paths,python_version=pythonVersion)
+
+    genexelibs = list(set([lib_mpi, lib_fftw, lib_python] + sh_ld_library_paths[:1]))
+    genexeincl = []
+
+    
+    
+    generateExecuteables(genexelibs, exePaths, [], python_version=pythonVersion)
 

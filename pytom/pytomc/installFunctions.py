@@ -281,7 +281,7 @@ def generatePathsFile(pytomDirectory,libPaths, binPaths, pyPaths):
                     pyString += p + ':'
         
         cshCommands  = '#!/usr/bin/env bash\n'
-        cshCommands += "export LD_LIBRARY_PATH='" + libString + pytomDirectory + os.sep + "pytomc" + os.sep + "lib':$LD_LIBRARY_PATH\n"
+        cshCommands += "export LD_LIBRARY_PATH='" + libString + pytomDirectory + os.sep +  "lib':$LD_LIBRARY_PATH\n"
 
         if binPaths.__class__ == list and len(binPaths) > 0:    
 
