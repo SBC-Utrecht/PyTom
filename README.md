@@ -21,13 +21,18 @@ PyTomGUI is designed to run on linux systems, but can also be installed on MacOS
 
 # Python Packages
 - numpy
+- scipy
 - boost
 - lxml 
-- pyqtgraph
 - mrcfile
+- tqdm
+- scikit-image
+- matplotlib
+- cupy (Optional for GPU acceleration)
 
 # Optional Software Packages used by GUI
 - PyQt5
+- pyqtgraph
 - motioncor2 ( >=1.2.1)
 - imod (=4.10.25)
 
@@ -35,58 +40,22 @@ PyTomGUI is designed to run on linux systems, but can also be installed on MacOS
 
 ### Installing
 
-Please use the following command to install the General Packages on RedHat or CentOS:
+Before you can install PyTom, you need to create an account on github. And to the github account you need to link a token for online identification. For more information click on the following link.
+
+Furthermore, the software packages git needs to be installed. Git can be installed by sudo apt install git or yum install git. After git has been installed, run the following lines:
 
 ```
-sudo yum install python3.x86_64
-sudo yum install openmpi.x86_64
-sudo yum install openmpi-devel.x86_64
-sudo yum install fftw-devel.x86_64
-sudo yum install gcc.x86_64
-sudo yum install libxml2.x86_64
-sudo yum install swig3.x86_64
+git clone --recursive https://github.com/FridoF/PyTomPrivate.git
+cd PyTomPrivate
+bash installMiniconda.sh
+conda env create -f pytom_env.yml
 ```
 
-To install PyTom, please clone the most recent version by executing the following command: 
+Please remember the location where you decide to install conda (CONDA_INSTALL_DIR). 
 
 ```
-git clone --recursive https://github.com/FridoF/PyTomPrivate.git pytom
-```
-
-After a successful clone enter the new directory and go to pytomc
-```
-cd pytom/pytomc
-```
-
-Here you will find an installation script name compile.py. Please run this script with python3. 
-```
-python3.7 compile.py --pythonVersion 3.7 --target all 
-```
-
-If certain dependencies are not found, chances are there you either have not installed them, or that the installation paths to the dependencies are not found automatically. 
-
-It is possible to add installation paths manually by adding them after a respective flag (include dirs after --includeDir, lib dirs after --libDir and exe dirs after --exeDir). More than one path can be added per flag, where each path should be separated by a space. Note that the order of the paths can make a difference.
-
-```
-python3.7 compile.py --pythonVersion 3.7 --target all --exeDir [path_to_your_exe_dir1] [path_to_your_exe_dir2] --libDir [path_to_your_lib_dir1] [path_to_your_lib_dir2] --includeDir [path_to_your_exclude_dir1] [path_to_your_exclude_dir2] 
-```
-
-To locate missing dependencies try:
-
-```
-locate Python.h
-```
-
-This results in something similar to:
-```
-/usr/local/Cellar/python/3.7.2_1/Frameworks/Python.framework/Versions/3.7/include/python3.7m/Python.h
-/usr/local/Cellar/python@2/2.7.15/Frameworks/Python.framework/Versions/2.7/include/python2.7/Python.h
-```
-
-Now update the includeDir flag to:
-
-```
-python3.7 compile.py --pythonVersion 3.7 --target all --includeDir /usr/local/Cellar/python/3.7.2_1/Frameworks/Python.framework/Versions/3.7/include/python3.7m/
+conda activate pytom_env
+python3.8 setup.py install --prefix [CONDA_INSTALL_DIR]/envs/pytom_env
 ```
 
 ## Versioning
