@@ -64,6 +64,12 @@ PATH environment variable will contain windows directories in the /mnt folder of
 
 For WSL2 you need at least Windows 10 Pro with HyperV support.
 
+to check if your machine can run of wsl, please type 'systeminfo' into the command prompt. The lines about HyperV should all return Yes.
+
+To activate wsl, follow the following tutorial.
+https://www.omgubuntu.co.uk/how-to-install-wsl2-on-windows-10
+
+
 ## Versioning
 
 For the versions available, see the [tags on this repository]. 
