@@ -17,6 +17,7 @@ if __name__ == '__main__':
     from pytom.tompy.io import read, write
     from pytom.tompy.filter import wiener_like_filter
     from pytom.gpu.initialize import xp, device
+    from pytom.tompy.transform import resize
 
     helper = ScriptHelper2(
         sys.argv[0].split('/')[-1],  # script name
@@ -41,14 +42,19 @@ if __name__ == '__main__':
             ScriptOption2(['-v', '--voltage'], 'Acceleration voltage in keV', 'float', 'optional', 300.),
             ScriptOption2(['--Cs'], 'Spherical aberration of microscope in mm', 'float', 'optional', 2.7),
             ScriptOption2(['-a', '--amplitude'], 'Fraction of amplitude contrast', 'float', 'optional', 0.07),
+            ScriptOption2(['-b', '--binning'], 'Binning factor for tomogram or projection', 'int', 'optional', 1),
             ScriptOption2(['-g', '--gpuID'], 'GPU ID to run code on', 'int', 'optional')])
 
     options = parse_script_options2(sys.argv[1:], helper)
 
     input_file, output_file, spacing_angstrom, defocus_um, snrfalloff, deconvstrength, highpassnyquist, phaseflipped, \
-        phaseshift, voltage_kev, Cs_mm, amplitude_contrast, gpu = options
+        phaseshift, voltage_kev, Cs_mm, amplitude_contrast, binning, gpu = options
 
     input = read(input_file)
+
+    if binning > 1:
+        input = resize(input, 1.0/binning)
+        spacing_angstrom = spacing_angstrom * binning
 
     filter = wiener_like_filter(input.shape, spacing_angstrom, defocus_um * 1e-6, snrfalloff, deconvstrength,
                                 highpassnyquist, voltage=voltage_kev * 1e3, spherical_aberration=Cs_mm * 1e-3,

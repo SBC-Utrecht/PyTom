@@ -331,6 +331,7 @@ def wiener_like_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstren
     # calculate ctf
     ctf = - create_ctf(shape, spacing_angstrom * 1e-10, defocus, amplitude_contrast, voltage, spherical_aberration,
                        phase_shift_deg=phase_shift)
+    print(f'ctf shape is {ctf.shape}')
     # todo add astigmatism option
 
     wiener = wiener_filtered_ctf(ctf, ssnr, highpass=highpass, phaseflipped=phaseflipped)
