@@ -35,13 +35,14 @@ def check4specialchars(path):
             outpath += "\\" + char
         else:
             outpath += char
-            
+    print(path)
+    print(outpath)
     return outpath
 
 
 if 'LD_LIBRARY_PATH' in os.environ:
-    LIB = check4specialchars(os.environ['LD_LIBRARY_PATH'])
-    for path in LIB.split(':'):
+    os.environ['LD_LIBRARY_PATH'] = check4specialchars(os.environ['LD_LIBRARY_PATH'])
+    for path in os.environ['LD_LIBRARY_PATH'].split(':'):
         libPaths.append(path)
 else:
     print('Warning: Your system does not have LD_LIBRARY_PATH set.')
@@ -49,19 +50,19 @@ else:
     print('')
 
 if 'INCLUDE_PATH' in os.environ: # most OS does not set this, ignore the warning
-    INC = check4specialchars(os.environ['INCLUDE_PATH'])
-    for path in INC.split(':'):
+    os.environ['INCLUDE_PATH'] = check4specialchars(os.environ['INCLUDE_PATH'])
+    for path in os.environ['INCLUDE_PATH'].split(':'):
         includePaths.append(path)
     
 if 'PATH' in os.environ:
-    BIN = check4specialchars(os.environ['PATH'])
-    for path in BIN.split(':'):
+    os.environ['PATH'] = check4specialchars(os.environ['PATH'])
+    for path in os.environ['PATH'].split(':'):
         exePaths.append(path)
 else:
     print('Warning: Your system does not have PATH set.')
     print('PyTom assumes this to be the standard environment variable to store system paths!')
     print('')
-    
+
 for path in libPaths:
     newPath = ''
     if '/lib' in path:
@@ -71,7 +72,9 @@ for path in libPaths:
         
     if os.path.exists(newPath):
         includePaths.append(newPath)
-    
+
+print(includePaths)
+
 # prerequisites
 need_exes = ["mpic++"]
 need_headers = ["mpi.h", "Python.h", "fftw3.h","ndarrayobject.h"]
@@ -105,7 +108,8 @@ include_boost = None
 include_numpy = None
 #-------------------------
 
-mpi_exe,mpi_exePath = find(["mpicc","mpic++","openmpic++","mpicxx-openmpi-gcc45"],exePaths)
+# mpi_exe,mpi_exePath = find(["mpicc","mpic++","openmpic++","mpicxx-openmpi-gcc45"],exePaths)
+mpi_exe,mpi_exePath = find(["mpicc","mpic++"],exePaths)
 if mpi_exePath is None:
     print('MPI compiler not found!')
     exit(1)
@@ -269,9 +273,9 @@ print('Flags determined: ')
 print(setflags_line)
 print('')
 
-nosh       = False  # you can choose not to compile the SH Alignment library
-nompi4py   = False#False  # you can choose not to compile the mpi4py library
-nonfft     = False#False  # you can choose not to compile the NFFT library
+nosh       = False # you can choose not to compile the SH Alignment library
+nompi4py   = False  # you can choose not to compile the mpi4py library
+nonfft     = False  # you can choose not to compile the NFFT library
 novoltools = True
 
 
