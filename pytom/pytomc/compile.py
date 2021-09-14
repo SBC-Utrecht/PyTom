@@ -28,13 +28,13 @@ if len(args) == 0:
 def check4specialchars(path):
     special_chars = [' ', ')', '(' ]
 
-    outpath = '' 
+    outpath = path[:1]
     
-    for n, char in enumerate(path):
-        if char in specoal_chars and char[n-1] != '\\':
+    for n, char in enumerate(path[1:]):
+        if char in special_chars and path[n] != '\\':
             outpath += "\\" + char
         else:
-            outpath += path[n]
+            outpath += char
             
     return outpath
 

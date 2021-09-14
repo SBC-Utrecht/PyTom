@@ -102,7 +102,7 @@ def parseArguments(args):
         incPaths.append(os.path.join(args[minconIndex+1], 'include'))
         print('Updating the exe, inc and lib paths using minicondaEnvDir')
         
-        for f in ('c++', 'cc', 'gcc' ):
+        for f in ('c++', 'cc', 'gcc', 'g++' ):
             fname = os.path.join(args[minconIndex+1],'bin/x86_64-conda_cos6-linux-gnu-'+f)
             fnm = os.path.join(args[minconIndex+1],'bin/' + f)
             if not os.path.exists(fnm) and os.path.exists(fname):
