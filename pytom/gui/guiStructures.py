@@ -1696,6 +1696,7 @@ class CreateFSCMaskFile(QMainWindow, CommonFunctions):
 class MyCircleOverlay(pg.EllipseROI):
     def __init__(self, pos, size, label='', **args):
         pg.ROI.__init__(self, pos, size, **args)
+        self.path = None
         self.aspectLocked = True
         colorsHEX = ['00ffff', 'f5f5dc', '0000ff', 'a52a2a', '7fff00', 'd2691e', 'daa520', 'ff7f50', '00ffff',
                      'dc143c', '00008b', '006400', '7fffd4', 'ff00ff', 'ffd700', '008000', '4b0082', 'f0e68c', 'add8e6',
