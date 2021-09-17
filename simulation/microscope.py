@@ -23,7 +23,7 @@ def fourier_grids(shape, nyquist):
 
     d = [xp.arange(-nyquist, nyquist, 2. * nyquist / size) for size in shape]
 
-    grids = xp.meshgrid(*d)
+    grids = xp.meshgrid(*d, indexing='ij')
 
     # Wave vector and direction
 
