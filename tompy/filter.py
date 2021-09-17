@@ -193,7 +193,7 @@ def SSNR(shape, spacing_angstrom, snrfalloff, deconvstrength, r=None):
     # todo what about astigmatic ssnr?
     if r is None:
         d = [xp.abs(xp.arange(-1, 1, 2 / size)) for size in shape]
-        grids = xp.meshgrid(*d)
+        grids = xp.meshgrid(*d, indexing='ij')
         r = - xp.sqrt(sum([g ** 2 for g in grids]))
 
     return xp.exp(r * snrfalloff * 100 / spacing_angstrom) * 10 ** (3 * deconvstrength)
@@ -214,7 +214,7 @@ def highpass_ramp(shape, highpassnyquist, r=None):
     """
     if r is None:
         d = [xp.abs(xp.arange(-1, 1, 2 / size)) for size in shape]
-        grids = xp.meshgrid(*d)
+        grids = xp.meshgrid(*d, indexing='ij')
         r = xp.sqrt(sum([g ** 2 for g in grids]))
     highpass = r / highpassnyquist
     highpass[highpass > 1] = 1
