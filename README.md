@@ -45,7 +45,7 @@ Before you can install PyTom, you need to create an account on github. And to th
 Furthermore, the software packages git needs to be installed. Git can be installed by sudo apt install git or yum install git. After git has been installed, run the following lines:
 
 ```
-git clone --recursive https://github.com/FridoF/PyTomPrivate.git
+git clone git@github.com:FridoF/PyTomPrivate.git
 cd PyTomPrivate
 bash installMiniconda.sh
 conda env create -f pytom_env.yml
