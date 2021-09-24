@@ -455,9 +455,9 @@ if os.path.isfile("../lib/_pytom_fftplan.so") \
 
 
     genexelibs = list(set([lib_mpi, lib_fftw, lib_python] + sh_ld_library_paths[:1]))
-    genexeincl = []
+    genexeincl = sh_python_paths
 
     
     
-    generateExecuteables(genexelibs, exePaths, [], python_version=pythonVersion)
+    generateExecuteables(genexelibs, exePaths, genexeincl, python_version=pythonVersion)
 
