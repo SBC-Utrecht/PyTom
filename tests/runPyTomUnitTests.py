@@ -1,7 +1,12 @@
 #!/usr/bin/env pytom
 import os
 
-tests = [test for test in os.listdir('./') if test.startswith('test_') and test.endswith('Test.py')]
+# change working directory to tests folder
+tests_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(tests_dir)
+
+tests = [test for test in os.listdir('./')
+         if test.startswith('test_') and test.endswith('Test.py')]
 
 for test in tests:
     print('\n\nRunning ', test)
