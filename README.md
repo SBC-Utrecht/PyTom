@@ -70,6 +70,23 @@ To activate wsl, follow the following tutorial.
 https://www.omgubuntu.co.uk/how-to-install-wsl2-on-windows-10
 
 
+### Docker container
+
+You can also use dockerfile to easily build pytom image on any platform.  
+**Note:** Out of the box the image does not support GPU operations or pytomGUI.
+```
+git clone git@github.com:FridoF/PyTomPrivate.git && cd PyTomPrivate
+docker build -t pytom .
+```
+
+Now that you have built an image, here are some examples of what you can do.
+- Run ipytom: `docker run -it --rm pytom ipytom`  
+- Run a script located on the host: `docker run -it --rm -v "/home/user/scripts:/hostfiles/" pytom pytom /hostfiles/some_script.py`
+
+If you don't want to remove containers after the run, remove `--rm` flag.
+Find info about how to user docker on [their docs](https://docs.docker.com/).
+
+
 ## Versioning
 
 For the versions available, see the [tags on this repository]. 
