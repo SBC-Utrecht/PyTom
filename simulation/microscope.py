@@ -828,7 +828,7 @@ def create_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-
     return complex_ctf
 
 
-def test_defocus_grid_time(shape):
+def test_defocus_grid_time(shape, ntests=100):
     import time
 
     # Initialize parameters
@@ -846,26 +846,28 @@ def test_defocus_grid_time(shape):
     # Test grid coordinates astigmatism without cos over full grid
     t0 = time.time()
 
-    xdot = xx * xp.cos(astigmatism_angle_rad) - yy * xp.sin(astigmatism_angle_rad)
-    ydot = xx * xp.sin(astigmatism_angle_rad) + yy * xp.cos(astigmatism_angle_rad)
-    q = xp.sqrt((xdot / inratioqlq) ** 2 + (ydot * inratioqqs) ** 2) ** 2 * defocus
+    for i in range(ntests):
+        xdot = xx * xp.cos(astigmatism_angle_rad) - yy * xp.sin(astigmatism_angle_rad)
+        ydot = xx * xp.sin(astigmatism_angle_rad) + yy * xp.cos(astigmatism_angle_rad)
+        q = xp.sqrt((xdot / inratioqlq) ** 2 + (ydot * inratioqqs) ** 2) ** 2 * defocus
 
     t1 = time.time()
 
-    print(t1 - t0)
+    print((t1 - t0) / ntests)
 
     # Test astigmatism speed with cos over grid but less additional operations
     t0 = time.time()
 
-    defocus_grid = astigmatised_defocus_grid(angles, df1, df2, astigmatism_angle_rad)
-    q2 = defocus_grid * k2
+    for i in range(ntests):
+        defocus_grid = astigmatised_defocus_grid(angles, df1, df2, astigmatism_angle_rad)
+        q2 = defocus_grid * k2
 
     t1 = time.time()
 
-    print(t1 - t0)
+    print((t1 - t0) / ntests)
 
-    # output for shape = (8000, 8000)
-    # >>> 2.8827826976776123
-    # >>> 2.9768245220184326
+    # output for: test_defocus_grid_time((2000, 3000), ntests=100)
+    # >>> 0.2865477156639099
+    # >>> 0.2980231332778931
     # speed seems roughly identical for both methods, so the cos method for me is preferred as it is has better
     # correspondence to the mathematical definition of the CTF curve
