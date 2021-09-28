@@ -78,6 +78,13 @@ def angular_grid(gridx, gridy):
     return xp.angle(gridx - 1j * gridy)
 
 
+def precalculate(shape, nyquist):
+    grids = fourier_grids(shape, nyquist)
+    k, k2, k4 = ctf_grids(grids)
+    angles = angular_grid(grids[0], grids[1])
+    return k, k2, k4, angles
+
+
 def astigmatised_defocus_grid(angular_grid, defocusU, defocusV, astigmatism_angle_rad):
     """
     Create an astigmatised defocus grid that can be used in CTF calculations. The astigmatism angle rotation is
@@ -638,9 +645,7 @@ def create_ctf(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_
     # get the fourier space coordinate grids and angular grid
     if precalculated is None:
         nyquist = 1 / (2 * spacing)
-        grids = fourier_grids(shape, nyquist)
-        k, k2, k4 = ctf_grids(grids)
-        angles = angular_grid(grids[0], grids[1])
+        k, k2, k4, angles = precalculate(shape, nyquist)
     else:
         k, k2, k4, angles = precalculated
 
