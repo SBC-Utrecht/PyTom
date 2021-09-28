@@ -8,6 +8,7 @@ class TemplateMatchingPlan():
         from pytom.tompy.io import read
         from pytom.basic.files import read as readC
         import pytom.voltools as vt
+        import os
 
         cp.cuda.Device(deviceid).use()
 
@@ -24,6 +25,7 @@ class TemplateMatchingPlan():
 
         write('te.em', template)
         self.templateVol = readC('te.em')
+        os.remove('te.em')
         self.where = 'gpu'
         self.template = cp.asarray(template, dtype=cp.float32,order='C')
         self.texture = vt.StaticVolume(self.template, interpolation='filt_bspline', device=f'gpu:{deviceid}')

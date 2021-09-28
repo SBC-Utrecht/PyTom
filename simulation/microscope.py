@@ -1,42 +1,150 @@
 import os
-import numpy as xp
+from pytom.gpu.initialize import xp, device
 import pytom.simulation.physics as physics
 from scipy.optimize import curve_fit
 
 
-def fourier_array(shape, nyquist):
+def convert_defocusU_defocusV_to_defocus_astigmatism(defocusU, defocusV):
+    return 0.5 * (defocusU + defocusV), -0.5 * (defocusU - defocusV)
+
+def convert_defocus_astigmatism_to_defocusU_defocusV(defocus, astigmatism):
+    return defocus + astigmatism, defocus - astigmatism
+
+
+def fourier_grids(shape, nyquist, indexing='ij'):
     """
     Generate a fourier space frequency array where values range from -nyquist to +nyquist, with the center equal
     to zero.
 
-    @param shape: tuple with 2 or 3 elements with the size of each dimension
-    @type  shape: L{tuple} -> (L{int},)
-    @param nyquist: nyquist frequency giving the range of frequencies
-    @type  nyquist: L{float}
+    In combination with angular_grid() the indexing parameter gives:
+     - 'ij' produces the angles assuming the x axis is 0
+     - 'xy' produces angles assuming the y axis is 0
 
-    @return: fourier space frequencies, 2d or 3d array of floats
+    @param shape: shape tuple of grid
+    @type  shape: L{tuple} -> (L{int},) * n
+    @param nyquist: nyquist frequency in fourier space
+    @type  nyquist: L{float}
+    @param indexing: type of np.meshgrid indexing, either 'ij' or 'xy', if unsure stick with default 'ij'
+    @type  indexing: L{str}
+
+    @return: fourier space frequencies, 1d, 2d or 3d array of floats
     @rtype:  L{numpy.ndarray}
+
+    @author: Marten Chaillet, Gijs van der Schot
+    """
+    assert 1 <= len(shape) <= 3, print('invalid argument for number of dimensions of fourier array')
+
+    d = [xp.arange(-1, 1, 2. / size) * nyquist for size in shape]
+
+    return xp.meshgrid(*d, indexing=indexing)
+
+
+def ctf_grids(grids):
+    """
+    Create coordinate grid from fourier_grids (meshgrid) output. Return the grid, grid**2, and grid**4 for ctf calc.
+
+    @param grids: output from fourier grids
+    @type  grids: L{tuple} -> (L{np.ndarray},) * n
+
+    @return: three arrays, k, k^2, k^4
+    @rtype : L{tuple} -> (L{np.ndarray},) * n
 
     @author: Marten Chaillet
     """
-    assert type(shape) == tuple, "shape needs to be a tuple of dimenion sizes, dimenions need to be equal"
-    assert len(set(shape)) == 1, "dimensions are not identical"
-    assert len(shape) <= 3, "too many dimensions, 3 is max"
+    k = sum([d ** 2 for d in grids])  # xz ** 2 + yz ** 2 + zz ** 2)
+    return xp.sqrt(k), k, k ** 2
 
-    size = shape[0]
 
-    d = xp.arange(-1, 1, 2. / size) * nyquist
+def angular_grid(gridx, gridy):
+    """
+    Create an angular grid, where the x-axis is the 0 angle and the rotation is clockwise.
 
-    if len(shape) == 2:
-        grids = xp.meshgrid(d, d)
-    else:
-        grids = xp.meshgrid(d, d, d)
+    From fourier_grids() indexing:
+     - 'ij' produces the angles assuming the x axis is 0
+     - 'xy' produces angles assuming the y axis is 0
 
-    # Wave vector and direction
-    k = xp.sqrt(sum([d**2 for d in grids]))  # xz ** 2 + yz ** 2 + zz ** 2)
-    # k2 = k ** 2
-    # k4 = k2 ** 2
-    return k  # , k2, k4
+    @param gridx: x grid for fourier_grids (or meshgrid)
+    @type  gridx: L{np.ndarray}
+    @param gridy: y grid for fourier_grids (or meshgrid)
+    @type  gridy: L{np.ndarray}
+
+    @return: angular grid in radians
+    @rtype : L{np.ndarray}
+
+    @author: Marten Chaillet
+    """
+    # correct expression is: x - 1j * y
+    # TODO check compared to ctf estimation CTFFIND to see if astigmatism is correct
+    return xp.angle(gridx - 1j * gridy)
+
+
+def precalculate(shape, nyquist):
+    grids = fourier_grids(shape, nyquist)
+    k, k2, k4 = ctf_grids(grids)
+    angles = angular_grid(grids[0], grids[1])
+    return k, k2, k4, angles
+
+
+def astigmatised_defocus_grid(angular_grid, defocusU, defocusV, astigmatism_angle_rad):
+    """
+    Create an astigmatised defocus grid that can be used in CTF calculations. The astigmatism angle rotation is
+    relative to the x-axis.
+    NOTE: astigmatised grids are only possible for 2-dimensional CTF
+
+    @param angular_grid: grid with angles, where the x-axis is the 0 angle
+    @type  angular_grid: L{np.ndarray}
+    @param defocusU: first defocus value
+    @type  defocusU: L{float}
+    @param defocusV: second defocus value
+    @type  defocusV: L{float}
+    @param astigmatism_angle_deg: astigmatism angle in degrees
+    @type  astigmatism_angle_deg: L{float}
+
+    @return: a defocus grid with astigmatism
+    @rtype : L{np.ndarray}
+
+    @author: Marten Chaillet
+    """
+    return 0.5 * (defocusU + defocusV +
+                  (defocusU - defocusV) * xp.cos(2 * (angular_grid - astigmatism_angle_rad)))
+
+
+def generate_astigmatised_grid(k, Y=None, defocusU=None, defocusV=None, defocus_angle_deg=0., nyquist=None):
+    """
+    Generate an astigmatised defocus grid with wavevector k and fourier grid in y. If defocusV is not provided a non
+    astigmatic grid is created.
+
+    @param k: fourier space wave vector
+    @type  k: L{np.ndarray}
+    @param Y: fourier grid in y dimension (optional), by default determined from k but providing it is more precise
+    @type  Y: L{np.ndarray}
+    @param defocusU: defocus in m
+    @type  defocusU: L{float}
+    @param defocusV: defocus along astigmatism angle in m (optional)
+    @type  defocusV: L{float}
+    @param defocus_angle_deg: astigmatism angle in degrees
+    @type  defocus_angle_deg: L{float}
+    @param nyquist: optional nyquist frequencies
+    @type  nyquist: L{float}
+
+    @return: return the astigmatised defocus grid
+    @rtype:  L{np.ndarray}
+
+    @author: Gijs van der Schot, Marten Chaillet
+    """
+    size = k.shape[1]
+    defocusV = defocusU if defocusV is None else defocusV
+    if Y is None:
+        if nyquist is None:
+            nyquist = k.min(axis=0)
+        Y = fourier_grids(k.shape, nyquist)[1]
+
+    theta = xp.arcsin(Y / k)
+
+    z = defocusU * xp.cos(theta - defocus_angle_deg) ** 2 + defocusV * xp.sin(theta - defocus_angle_deg) ** 2
+    z[:, -int(size // 2):] = xp.flipud(z[:, -int(size // 2):])
+
+    return z
 
 
 def sinc_square(x, p1, p2, p3, p4):
@@ -243,7 +351,10 @@ def create_detector_response(detector, response_function, image_size, voltage=30
     # Ny = 1
     # R, Y = xp.meshgrid(xp.arange(-Ny, Ny, 2. * Ny / (shape[0])), xp.arange(-Ny, Ny, 2. * Ny / (shape[1])))
     # r = xp.sqrt(R ** 2 + Y ** 2)
-    r = fourier_array((sampling_image_size,)*2, 1)  # nyquist is 1, as the fraction of nyquist maximum
+    # r = fourier_array(sampling_image_size, 2, 1)
+
+    grids = fourier_grids((sampling_image_size,)*2, 1)  # nyquist is 1, as the fraction of nyquist maximum
+    r = xp.sqrt(sum([d**2 for d in grids]))
 
     detector_response = sinc_square(r, params[0], params[1], params[2], params[3])
 
@@ -307,13 +418,114 @@ def fresnel_propagator(image_size, pixel_size, voltage, dz):
     Lambda = physics.wavelength_eV2m(voltage)
 
     nyquist = 1 / (2 * pixel_size)
-    k = fourier_array((image_size,)*2, nyquist)
+    grids = fourier_grids((image_size,) * 2, nyquist)
+    k = xp.sqrt(sum([d ** 2 for d in grids]))
+    # k = fourier_array(image_size, 2, nyquist)
 
     return xp.exp(-1j * xp.pi * Lambda * (k ** 2) * dz)
 
 
-def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, Cs, sigma_decay=0.4,
-               display=False):
+def create_ctf_1d_orig(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3, Cs=2.7e-3, phase_shift_deg=.0,
+                   bfactor=.0):
+    """
+    Create a 1 dimensional ctf curve.
+    Based on tom_deconv by Tegunov.
+
+    @param size: number of sampling points
+    @type  size: L{int}
+    @param spacing: spacing of sampling points in m
+    @type  spacing: L{float}
+    @param defocus: defocus of CTF in m
+    @type  defocus: L{float}
+    @param amplitude_contrast: fraction amplitude contrast in CTF
+    @type  amplitude_contrast: L{float}
+    @param voltage: acceleration voltage in eV
+    @type  voltage: L{float}
+    @param Cs: spherical aberration
+    @type  Cs: L{float}
+    @param phase_shift_deg: phaseshift CTF in radians
+    @type  phase_shift_deg: L{float}
+    @param bfactor: b_factor
+    @type  bfactor: L{float}
+
+    @return: 1d numpy array of floats
+    @rtype: L{np.ndarray}
+
+    @author: Marten Chaillet
+    """
+    nyquist = 1 / (2 * spacing)
+    lmbd = physics.wavelength_eV2m(voltage)
+    # print('lambda in deconv: ', 12.2643247 / xp.sqrt(voltage * (1.0 + voltage * 0.978466e-6)) * 1e-10)
+    # print('lambda in pytom sim: ', lmbd)
+
+    points = xp.arange(0, nyquist, nyquist / size)
+
+    k2 = points ** 2
+
+    phase_shift_rad = xp.deg2rad(phase_shift_deg)
+
+    chi = xp.pi * (lmbd * defocus * k2 + 0.5 * lmbd ** 3 * Cs * k2 ** 2) - phase_shift_rad
+
+    acurve = xp.cos(chi) * amplitude_contrast
+    pcurve = - xp.sqrt(1 - amplitude_contrast ** 2) * xp.sin(chi)
+
+    bfactor = xp.exp(-bfactor * k2 * 0.25)
+
+    return (pcurve + acurve) * bfactor
+
+
+def create_ctf_1d(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3, Cs=2.7e-3, phase_shift_deg=.0,
+                  bfactor=.0):
+    """
+    Create a 1 dimensional ctf curve.
+    Based on tom_deconv by Tegunov.
+
+    @param size: number of sampling points
+    @type  size: L{int}
+    @param spacing: spacing of sampling points in m
+    @type  spacing: L{float}
+    @param defocus: defocus of CTF in m
+    @type  defocus: L{float}
+    @param amplitude_contrast: fraction amplitude contrast in CTF
+    @type  amplitude_contrast: L{float}
+    @param voltage: acceleration voltage in eV
+    @type  voltage: L{float}
+    @param Cs: spherical aberration
+    @type  Cs: L{float}
+    @param phase_shift_deg: phaseshift CTF in radians
+    @type  phase_shift_deg: L{float}
+    @param bfactor: b_factor
+    @type  bfactor: L{float}
+
+    @return: 1d numpy array of floats
+    @rtype: L{np.ndarray}
+
+    @author: Marten Chaillet
+    """
+    nyquist = 1 / (2 * spacing)
+    k = xp.arange(0, nyquist, nyquist / size)
+    k2 = k ** 2
+    lmbd = physics.wavelength_eV2m(voltage)
+
+    phase_shift_rad = xp.deg2rad(phase_shift_deg)
+
+    chi = xp.pi * (lmbd * defocus * k2 - 0.5 * Cs * lmbd ** 3 * k2 ** 2) + phase_shift_rad
+
+    acurve = - amplitude_contrast * xp.cos(chi)
+    pcurve = - xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi)
+
+    # chi = xp.pi * (0.5 * Cs * lmbd ** 3 * k2 ** 2 + lmbd * defocus * k2) #- phase_shift_rad
+    #
+    # acurve = - amplitude_contrast * xp.cos(chi)
+    # pcurve = xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi)
+
+    bfactor = xp.exp(-bfactor * k2 * 0.25)
+
+    return (pcurve + acurve) * bfactor
+
+
+def create_ctf_old(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_decay=.0,
+               display=False, defocusV=None, defocus_angle_deg=.0, phase_shift_deg=.0, precalc=None):
     """
     This function models a non-complex CTF. It can be used for both 2d or 3d function. It describes a ctf after
     detection (and is therefore not complex).
@@ -322,34 +534,144 @@ def create_ctf(shape, spacing, defocus, amplitude_contrast, voltage, Cs, sigma_d
     @type  shape: L{tuple} -> (L{int},)
     @param spacing: pixel/voxel spacing in m
     @type  spacing: L{float}
-    @param defocus: defocus value in m, dz > 0 is defocus, dz < 0  is overfocus
-    @type  defocus: L{float}
+    @param defocusU: defocus value in m, dz > 0 is defocus, dz < 0  is overfocus
+    @type  defocusU: L{float}
     @param amplitude_contrast: Amplitude contrast fraction (e.g., 0.1)
     @type  amplitude_contrast: L{float}
-    @param voltage: acceleration voltage in eV
+    @param voltage: acceleration voltage in eV, e.g. 300e3
     @type  voltage: L{float}
-    @param Cs: spherical aberration in m
+    @param Cs: spherical aberration in m, e.g. 2.7e-3
     @type  Cs: L{float}
-    @param sigma_decay: sigma of Gaussian decay function
+    @param sigma_decay: sigma of Gaussian decay function, e.g. 0.4
     @type  sigma_decay: L{float}
     @param display: flag for plotting a radially averaged version of the CTF curve
     @type  display: L{bool}
+    @param defocusV: optional astigmatism defocus along defocus angle in m
+    @type  defocusV: L{float}
+    @param defocus_angle_deg: angle of astigmatism in degrees
+    @type  defocus_angle_deg: L{float}
+    @param phase_shift_deg: phase shift of ctf function in degrees
+    @type  phase_shift_deg: L{float}
+    @param precalc: tuple of 4 elements of precalculated fourier grids, k, k**2, k**4, and Y (is the y dimension
+    grid of function fourier_grid)
+    @type  precalc: L{tuple} -> (L{np.ndarray},) * 4
 
     @return: real-valued CTF in Fourier space, 2d or 3d array
     @rtype:  L{np.ndarray}
 
-    @author: Marten Chaillet
+    @author: Marten Chaillet, Gijs van der Schot
     """
-    nyquist = 1 / (2 * spacing)
-    k = fourier_array(shape, nyquist)
+    if precalc is None:
+        nyquist = 1 / (2 * spacing)
+        grids = fourier_grids(shape, nyquist)
+
+        # Wave vector
+        k = xp.sqrt(sum([d**2 for d in grids]))  # xz ** 2 + yz ** 2 + zz ** 2)
+        Y = grids[1]
+        del grids
+        k2, k4 = k ** 2, k ** 4
+    else:
+        k, k2, k4, Y = precalc
+
     lmbd = physics.wavelength_eV2m(voltage)
 
-    chi = xp.pi * lmbd * defocus * k**2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k ** 4
+    if not defocusV is None:
+        # in this case we need k, k2, k4 and Y
+        defocusGrid = generate_astigmatised_grid(k, Y, defocusU=defocusU, defocusV=defocusV,
+                                          defocus_angle_deg=defocus_angle_deg)
+        chi = xp.pi * lmbd * defocusGrid * k2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k4
+    else:
+        # in this case we need k2 and k4
+        chi = xp.pi * lmbd * defocusU * k2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k4
 
-    ctf = - xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi) - amplitude_contrast * xp.cos(chi)
+    phase_shift_rad = xp.deg2rad(phase_shift_deg)
+
+    ctf = - xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi+phase_shift_rad) - \
+          amplitude_contrast * xp.cos(chi+phase_shift_rad)
 
     decay = 1 if sigma_decay <= 0 else xp.exp(-(k / (sigma_decay * nyquist)) ** 2)
     ctf *= decay
+
+    if display:
+        if len(shape) == 2:
+            display_microscope_function(ctf, form='ctf', complex=False)
+        else:
+            display_microscope_function(ctf[:, :, shape[2]//2], form='ctf', complex=False)
+
+    return ctf
+
+
+def create_ctf(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_decay=.0,
+               display=False, defocusV=None, defocus_angle_deg=.0, phase_shift_deg=.0, precalculated=None):
+    """
+    This function models a non-complex CTF. It can be used for both 2d or 3d function. It describes a ctf after
+    detection (and is therefore not complex).
+
+    This function uses definition given in CTFFIND4, only doing one sin() operation on the grid to reduce
+    computational cost.
+
+    @param shape: shape tuple with 2 or 3 elements
+    @type  shape: L{tuple} -> (L{int},)
+    @param spacing: pixel/voxel spacing in m
+    @type  spacing: L{float}
+    @param defocusU: defocus value in m, dz > 0 is defocus, dz < 0  is overfocus
+    @type  defocusU: L{float}
+    @param amplitude_contrast: Amplitude contrast fraction (e.g., 0.1)
+    @type  amplitude_contrast: L{float}
+    @param voltage: acceleration voltage in eV, e.g. 300e3
+    @type  voltage: L{float}
+    @param Cs: spherical aberration in m, e.g. 2.7e-3
+    @type  Cs: L{float}
+    @param sigma_decay: sigma of Gaussian decay function, e.g. 0.4
+    @type  sigma_decay: L{float}
+    @param display: flag for plotting a radially averaged version of the CTF curve
+    @type  display: L{bool}
+    @param defocusV: optional astigmatism defocus along defocus angle in m
+    @type  defocusV: L{float}
+    @param defocus_angle_deg: angle of astigmatism in degrees
+    @type  defocus_angle_deg: L{float}
+    @param phase_shift_deg: phase shift of ctf function in degrees
+    @type  phase_shift_deg: L{float}
+    @param precalc: tuple of 3 elements of precalculated fourier grids, k, k**2, k**4, and an angular grid
+    @type  precalc: L{tuple} -> (L{np.ndarray},) * 3
+
+    @return: real-valued CTF in Fourier space, 2d or 3d array
+    @rtype:  L{np.ndarray}
+
+    @author: Marten Chaillet, Gijs van der Schot
+    """
+    assert 1 < len(shape) <= 3, 'Invalid shape for create_ctf, only 2d or 3d. For 1d ctf use create_ctf_1d.'
+
+    # get the fourier space coordinate grids and angular grid
+    if precalculated is None:
+        nyquist = 1 / (2 * spacing)
+        k, k2, k4, angles = precalculate(shape, nyquist)
+    else:
+        k, k2, k4, angles = precalculated
+
+    lmbd = physics.wavelength_eV2m(voltage)
+
+    if defocusV is None:
+        # in this case we just need k2 and k4 with one defocus value
+        chi = xp.pi * lmbd * defocusU * k2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k4
+    else:
+        # in this case we need k2, k4 and a defocus grid for the astigmatism
+        defocus_grid = astigmatised_defocus_grid(angles, defocusU, defocusV, xp.deg2rad(defocus_angle_deg))
+        chi = xp.pi * lmbd * defocus_grid * k2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k4
+
+    # convert phase shift degrees to radians
+    phase_shift_rad = xp.deg2rad(phase_shift_deg)
+    tan_term = xp.arctan(amplitude_contrast / xp.sqrt(1 - amplitude_contrast ** 2))  # tangent term can also be
+    # precomputed
+    chi += (phase_shift_rad + tan_term)
+    # determine the ctf
+    ctf = - xp.sin(chi)
+    # ctf = - xp.sqrt(1. - amplitude_contrast ** 2) * xp.sin(chi + phase_shift_rad) - \
+    #       amplitude_contrast * xp.cos(chi + phase_shift_rad)
+
+    if sigma_decay > 0:
+        decay = xp.exp(-(k / (sigma_decay * nyquist)) ** 2)
+        ctf *= decay
 
     if display:
         if len(shape) == 2:
@@ -396,7 +718,9 @@ def create_simple_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, C
 
     nyquist = 1 / (2 * pixel_size)
 
-    k = fourier_array(image_shape, nyquist)
+    # k = fourier_array(image_shape[0], len(image_shape), nyquist)
+    grids = fourier_grids(image_shape, nyquist)
+    k = xp.sqrt(sum([d ** 2 for d in grids]))
 
     complex_ctf = xp.exp(-1j * xp.pi / 2 * (Cs * (lmbd ** 3) * (k ** 4) - 2 * defocus * lmbd * (k ** 2)))
 
@@ -465,25 +789,21 @@ def create_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-
     assert len(image_shape) == 2, print('image shape should be a tuple of length 2')
     assert len(set(image_shape)) == 1, print('invalid input image/volume for create CTF, dimensions need to be equal.')
 
-    image_size = image_shape[0]
-
     lmbd = physics.wavelength_eV2m(voltage)
 
-    q_true = 1 / (image_size * pixel_size)
+    inratioqqs = xp.sqrt((defocus + astigmatism) / defocus)
+    inratioqlq = xp.sqrt(defocus / (defocus - astigmatism))
 
-    dfsh = defocus + astigmatism
-    dfln = defocus - astigmatism
-    inratioqqs = xp.sqrt(dfsh/defocus)
-    inratioqlq = xp.sqrt(defocus/dfln)
+    # generate fourier space grids with astigmatism
+    nyquist = 1 / (2 * pixel_size)
+    xx, yy = fourier_grids(image_shape, nyquist)
+    qsym = xp.sqrt(xx ** 2 + yy ** 2)
+    astigmatism_angle_rad = xp.deg2rad(astigmatism_angle)
+    xdot = xx * xp.cos(astigmatism_angle_rad) - yy * xp.sin(astigmatism_angle_rad)
+    ydot = xx * xp.sin(astigmatism_angle_rad) + yy * xp.cos(astigmatism_angle_rad)
+    q = xp.sqrt((xdot / inratioqlq) ** 2 + (ydot * inratioqqs) ** 2)
 
-    x = xp.arange(-(image_size//2), abs(-image_size//2), 1)
-    xx, yy = xp.meshgrid(x, x)
-    xdot = xx * xp.cos(astigmatism_angle*xp.pi/180) - yy * xp.sin(astigmatism_angle*xp.pi/180)
-    ydot = xx * xp.sin(astigmatism_angle*xp.pi/180) - yy * xp.cos(astigmatism_angle*xp.pi/180)
-    q = xp.sqrt((xdot / inratioqlq) ** 2 + (ydot * inratioqqs) ** 2) * q_true
-    qsym = xp.sqrt(xdot ** 2 + ydot ** 2) * q_true
-
-    # print(r)
+    # calculate chi and the CTF
     chi = 0.5 * xp.pi * (Cs * (lmbd ** 3) * (qsym ** 4) - 2 * defocus * lmbd * (q ** 2))
     complex_ctf = xp.cos(chi) - 1j * xp.sin(chi)
 
@@ -504,11 +824,55 @@ def create_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-
     aperture[q > qmax] = 0
     gaussian_filter(aperture, sigma=3, output=aperture)
 
+    # convolute CTF with envelope and aperture
     complex_ctf *= (envelope * aperture)
 
-    # print(complex_CTF.shape, K.shape, A.shape)
-    # visual inspection of CTF
     if display:
         display_microscope_function(complex_ctf, form='ctf', complex=True)
 
     return complex_ctf
+
+
+def test_defocus_grid_time(shape, ntests=100):
+    import time
+
+    # Initialize parameters
+    df1 = 4e-6
+    df2 = 2e-6
+    xx, yy = fourier_grids(shape, 1/(2*2.62e-10))
+    astigmatism_angle_deg = 30
+    astigmatism_angle_rad = xp.deg2rad(astigmatism_angle_deg)
+    defocus, astigmatism = convert_defocusU_defocusV_to_defocus_astigmatism(df1, df2)
+    inratioqqs = xp.sqrt((defocus + astigmatism) / defocus)
+    inratioqlq = xp.sqrt(defocus / (defocus - astigmatism))
+    k2 = xx**2 + yy**2
+    angles = angular_grid(xx, yy)
+
+    # Test grid coordinates astigmatism without cos over full grid
+    t0 = time.time()
+
+    for i in range(ntests):
+        xdot = xx * xp.cos(astigmatism_angle_rad) - yy * xp.sin(astigmatism_angle_rad)
+        ydot = xx * xp.sin(astigmatism_angle_rad) + yy * xp.cos(astigmatism_angle_rad)
+        q = xp.sqrt((xdot / inratioqlq) ** 2 + (ydot * inratioqqs) ** 2) ** 2 * defocus
+
+    t1 = time.time()
+
+    print((t1 - t0) / ntests)
+
+    # Test astigmatism speed with cos over grid but less additional operations
+    t0 = time.time()
+
+    for i in range(ntests):
+        defocus_grid = astigmatised_defocus_grid(angles, df1, df2, astigmatism_angle_rad)
+        q2 = defocus_grid * k2
+
+    t1 = time.time()
+
+    print((t1 - t0) / ntests)
+
+    # output for: test_defocus_grid_time((2000, 3000), ntests=100)
+    # >>> 0.2865477156639099
+    # >>> 0.2980231332778931
+    # speed seems roughly identical for both methods, so the cos method for me is preferred as it is has better
+    # correspondence to the mathematical definition of the CTF curve

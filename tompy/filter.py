@@ -127,6 +127,222 @@ def gaussian3d(data, sigma=0):
     return d
 
 
+def wiener_filtered_ctf(ctf, ssnr, highpass=None, phaseflipped=False):
+    """
+    Highpass and ssnr might be generated as follows:
+
+    # create sampling points for highpass and snr
+    d_hp = [xp.abs(xp.arange(-1, 1, 2 / size)) for size in shape]
+    grids = xp.meshgrid(*d_hp)
+    points_hp = xp.sqrt(sum([g ** 2 for g in grids]))
+    points_ssnr = - points_hp
+
+    # calculate highpass
+    highpass = points_hp / highpassnyquist
+    highpass[highpass > 1] = 1
+    highpass = 1 - xp.cos(highpass * xp.pi)
+
+    # calculate spectral SNR
+    ssnr = xp.exp(points_snr * snrfalloff * 100 / spacing_angstrom) * 10 ** (3 * deconvstrength)
+
+
+    @param ctf: ctf function
+    @type  ctf: L{np.ndarray}
+    @param ssnr: array with spectral signal to noise ratio, same shape as ctf
+    @type  ssnr: L{np.ndarray}
+    @param highpass: Pass optional high pass filter, should filter to ~ (0.02 nm)^-1, same shape a ctf
+    @type  highpass: L{np.ndarray}
+    @param phaseflipped: Flip phases of CTF
+    @type  phaseflipped: L{bool}
+
+    @return: Wiener filter
+    @rtype: L{np.ndarray}
+    """
+    # apply highpass to ssnr
+    if highpass is not None:
+        ssnr *= highpass
+
+    # flip phases if needed
+    if phaseflipped:
+        ctf = xp.abs(ctf)
+
+    # create the wiener_like filter
+    with np.errstate(all='ignore'):  # division by 0 is not a problem in 1/snr because the inf will be used for the
+        wiener = ctf / (ctf * ctf + 1 / ssnr)  # next division
+    wiener[xp.isnan(wiener)] = 0
+    return wiener
+
+
+def SSNR(shape, spacing_angstrom, snrfalloff, deconvstrength, r=None):
+    """
+
+    @param shape: shape tuple
+    @type  shape: L{tuple}
+    @param spacing_angstrom: spacing in angstrom
+    @type  spacing_angstrom: L{float}
+    @param snrfalloff: fall off of gaussian ssnr function
+    @type  snrfalloff: L{float}
+    @param deconvstrength: strength at 0 spatial frequency, 10 ** (3 * deconvstrength)
+    @type  deconvstrength: L{float}
+    @param r: optional radial grid
+    @type  r: L{np.ndarray}
+
+    @return: ssnr function
+    @rtype:  L{np.ndarray}
+    """
+    # todo what about astigmatic ssnr?
+    if r is None:
+        d = [xp.abs(xp.arange(-1, 1, 2 / size)) for size in shape]
+        grids = xp.meshgrid(*d, indexing='ij')
+        r = - xp.sqrt(sum([g ** 2 for g in grids]))
+
+    return xp.exp(r * snrfalloff * 100 / spacing_angstrom) * 10 ** (3 * deconvstrength)
+
+
+def highpass_ramp(shape, highpassnyquist, r=None):
+    """
+
+    @param shape: shape tuple
+    @type  shape: L{tuple}
+    @param highpassnyquist: high pass frequency, good value is 0.02
+    @type  highpassnyquist: L{float}
+    @param r: optional radial grid
+    @type  r: L{np.ndarray}
+
+    @return: high pass ramp filter
+    @rtype:  L{np.ndarray}
+    """
+    if r is None:
+        d = [xp.abs(xp.arange(-1, 1, 2 / size)) for size in shape]
+        grids = xp.meshgrid(*d, indexing='ij')
+        r = xp.sqrt(sum([g ** 2 for g in grids]))
+    highpass = r / highpassnyquist
+    highpass[highpass > 1] = 1
+    return 1 - xp.cos(highpass * xp.pi)
+
+
+def wiener_like_filter_1d(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, highpassnyquist, voltage=300e3,
+                  spherical_aberration=2.7e-3, amplitude_contrast=0.07, phaseflipped=False, phase_shift=0):
+    """
+    # todo should defocus input be in m or in um?
+
+    @param shape:
+    @type  shape:
+    @param spacing_angstrom:
+    @type  spacing_angstrom:
+    @param defocus:
+    @type  defocus:
+    @param voltage:
+    @type  voltage:
+    @param spherical_aberration:
+    @type  spherical_aberration:
+    @param amplitude_contrast:
+    @type  amplitude_contrast:
+    @param snrfalloff:
+    @type  snrfalloff:
+    @param deconvstrength:
+    @type  deconvstrength:
+    @param highpassnyquist:
+    @type  highpassnyquist:
+    @param phaseflipped:
+    @type  phaseflipped:
+    @param phaseshift: phasehift input in degrees
+    @type  phaseshift:
+
+    @return:
+    @rtype:
+
+    @author: Marten Chaillet
+    """
+    from pytom.simulation.microscope import create_ctf_1d
+    size = max(shape) // 2
+
+    points_hp = xp.linspace(.0, 1., num=size)
+    # points_hp = xp.arange(0, 1 + 1 / (max(shape) - 1), 1 / (max(shape) - 1))
+    highpass = points_hp / highpassnyquist
+    highpass[highpass > 1] = 1
+    highpass = 1 - xp.cos(highpass * xp.pi)
+    points_snr = xp.linspace(.0, -1., num=size)
+    # points_snr = xp.arange(0, -(1 + 1 / (max(shape) - 1)), -1 / (max(shape) - 1))
+    ssnr = xp.exp(points_snr * snrfalloff * 100 / spacing_angstrom) * 10 ** (3 * deconvstrength)
+
+    ctf = - create_ctf_1d(size, spacing_angstrom * 1e-10, defocus, amplitude_contrast=amplitude_contrast,
+                        voltage=voltage, Cs=spherical_aberration, phase_shift_deg=phase_shift, bfactor=.0)
+
+    wiener = wiener_filtered_ctf(ctf, ssnr, highpass=highpass, phaseflipped=phaseflipped)
+
+    # now expand the wiener filter to the input shape
+    # x = xp.arange(0, shape[0]) - shape[0] // 2
+    # y = xp.arange(0, shape[1]) - shape[1] // 2
+    # z = xp.arange(0, shape[2]) - shape[2] // 2
+    # xx, yy, zz = xp.meshgrid(x, y, z)
+    # xx /= (shape[0] // 2)
+    # yy /= (shape[1] // 2)
+    # zz /= (shape[2] // 2)
+    # r = xp.sqrt(xx ** 2, yy ** 2, zz ** 2)
+    # r[r > 1] = 1
+    # r = xp.fft.ifftshift(r)
+
+    return profile2FourierVol(wiener, dim=shape)
+
+
+def wiener_like_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstrength, highpassnyquist, voltage=300e3,
+                  spherical_aberration=2.7e-3, amplitude_contrast=0.07, phaseflipped=False, phase_shift=0):
+    """
+    # todo should defocus input be in m or in um?
+    # todo function should have an option for reduced
+
+    @param shape:
+    @type  shape:
+    @param spacing_angstrom:
+    @type  spacing_angstrom:
+    @param defocus:
+    @type  defocus:
+    @param voltage:
+    @type  voltage:
+    @param spherical_aberration:
+    @type  spherical_aberration:
+    @param amplitude_contrast:
+    @type  amplitude_contrast:
+    @param snrfalloff:
+    @type  snrfalloff:
+    @param deconvstrength:
+    @type  deconvstrength:
+    @param highpassnyquist:
+    @type  highpassnyquist:
+    @param phaseflipped:
+    @type  phaseflipped:
+    @param phaseshift: phasehift input in degrees
+    @type  phaseshift:
+
+    @return:
+    @rtype:
+
+    @author: Marten Chaillet
+    """
+    from pytom.simulation.microscope import create_ctf, create_ctf_1d
+
+    # calculate highpass
+    highpass = highpass_ramp(shape, highpassnyquist)
+
+    # calculate spectral SNR
+    ssnr = SSNR(shape, spacing_angstrom, snrfalloff, deconvstrength)
+
+    # calculate ctf
+    ctf = - create_ctf(shape, spacing_angstrom * 1e-10, defocus, amplitude_contrast, voltage, spherical_aberration,
+                       phase_shift_deg=phase_shift)
+    print(f'ctf shape is {ctf.shape}')
+    # todo add astigmatism option
+
+    wiener = wiener_filtered_ctf(ctf, ssnr, highpass=highpass, phaseflipped=phaseflipped)
+
+    # if reduced:
+    #     z = wiener.shape[-1]
+    #     wiener = wiener[...,:z//2+1]
+
+    return wiener
+
+
 class Wedge(object):
     """Defines the missing wedge filter in Fourier space."""
     def __init__(self):
