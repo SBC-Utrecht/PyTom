@@ -1052,6 +1052,7 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
             # set dtype as float32 to save memory
             xp_type = xp.float32
             grandcell = grandcell.astype(xp_type)
+            solvent_amplitude = 0.0
 
     # extract variables of grandcell shape
     box_size = grandcell.shape[0]
@@ -1075,9 +1076,9 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
         offset = (rotation_box_height - box_height) // 2
 
         if (rotation_box_height - box_height) % 2:
-            rotation_volume[:, :, offset + 1:-offset] = grandcell[:, :, :]
+            rotation_volume[:, :, offset + 1:rotation_box_height-offset] = grandcell[:, :, :]
         else:
-            rotation_volume[:, :, offset:-offset] = grandcell[:, :, :]
+            rotation_volume[:, :, offset:rotation_box_height-offset] = grandcell[:, :, :]
     else:
         # Calculate maximal box height to contain all the information for the rotation
         max_tilt = max([abs(a) for a in angles])
@@ -1090,9 +1091,9 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
         offset = (rotation_box_height - box_height) // 2
 
         if (rotation_box_height - box_height) % 2:
-            rotation_volume[:, :, offset + 1:-offset] = grandcell[:, :, :]
+            rotation_volume[:, :, offset + 1:rotation_box_height-offset] = grandcell[:, :, :]
         else:
-            rotation_volume[:, :, offset:-offset] = grandcell[:, :, :]
+            rotation_volume[:, :, offset:rotation_box_height-offset] = grandcell[:, :, :]
     del grandcell
 
     # adjust defocus because the value specifies defocus at the bottom of the box. the input expects defocus at the
