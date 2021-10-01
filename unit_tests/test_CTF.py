@@ -6,6 +6,7 @@ Test CTF with astigmatism and rectangular images shapes.
 import unittest
 import numpy as np
 
+
 class CTFTest(unittest.TestCase):
     def setUp(self):
         """Initialize simulation parameters"""
@@ -217,6 +218,8 @@ class CTFTest(unittest.TestCase):
         return ccc
 
     def test_CTFs(self):
+        """Run ctf tests to check shape of ctfs, through simulation of a gold bead and wiener filter correction.
+        CTFs are generated with astigmatism to make unit test check for the astigmatism angle."""
         ccc = self.basicCTF()
         self.assertGreater(ccc, 0.7, msg='correlation not sufficient between original gold marker and wiener filtered '
                                          'gold marker')

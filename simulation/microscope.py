@@ -35,7 +35,7 @@ def fourier_grids(shape, nyquist, indexing='ij'):
     """
     assert 1 <= len(shape) <= 3, print('invalid argument for number of dimensions of fourier array')
 
-    # xp.arange(-1, 1, 998) returns an array of length 999
+    # xp.arange(-1, 1, 998) returns an array of length 999, expression xp.arange(size) / (size/2) - 1 solves this
     d = [(xp.arange(size) / (size/2) - 1) * nyquist for size in shape]
 
     return xp.meshgrid(*d, indexing=indexing)
