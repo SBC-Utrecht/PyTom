@@ -848,24 +848,12 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     box_height = sample.shape[2]
 
     # add the ice layer to the sample
-    if ice_voxels is None: # this does not seem like the best condition 'or not sample.dtype=='complex64' '
-        ice_layer = 1
-    else:
-        ice_layer = create_ice_layer(sample.shape, rotation[1], ice_voxels, value=1.0, sigma=0.0)
-        # ice layer datatype at this point should be np.float32
-        # print(f'data type of ice: {ice_layer.dtype}')
+    if sample.dtype == 'complex64' and ice_voxels is not None:
+        if rotation[1] == 0.0:
+            sample.imag += solvent_absorption
+        else:
+            sample.imag += create_ice_layer(sample.shape, rotation[1], ice_voxels, value=solvent_absorption, sigma=0.0)
 
-    if sample.dtype == 'complex64':
-        # ice_layer *= solvent_potential
-        # sample.real += ice_layer  # Maybe we can remove this? Are we only interested in absorption of ice layer?
-        # ice_layer *= (solvent_absorption / solvent_potential)
-        # sample.imag += ice_layer
-        sample.imag += (ice_layer * solvent_absorption)
-    # else:
-    #     ice_layer *= solvent_potential
-    #     sample += ice_layer
-
-    del ice_layer # free memory
 
     if n_slices==box_height and image_size==box_size:
         projected_potent_ms = sample
@@ -1144,7 +1132,7 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
         # todo add these options for frame series
         dz = xp.random.normal(defocus, 0.2e-6)
         ast = xp.random.normal(astigmatism, 0.1e-6)  # introduce astigmastism with 100 nm variation
-        ast_angle = xp.random.normal(astigmatism_angle, 10)  # vary angle randomly around a 40 degree angle
+        ast_angle = xp.random.normal(astigmatism_angle, 5)  # vary angle randomly around a 40 degree angle
         ctf = create_complex_ctf((image_size, image_size), pixel_size, dz, voltage=voltage,
                                      Cs=spherical_aberration, Cc=chromatic_aberration, energy_spread=energy_spread,
                                      illumination_aperture=illumination_aperture, objective_diameter=objective_diameter,

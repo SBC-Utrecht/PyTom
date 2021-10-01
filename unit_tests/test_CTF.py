@@ -1,6 +1,5 @@
 """
 Test CTF with astigmatism and rectangular images shapes.
-todo simulation should also have a unittest for potential generation, Fourier shell scaling, and grandmodel generation.
 
 @author: Marten Chaillet
 """
@@ -11,17 +10,27 @@ class CTFTest(unittest.TestCase):
     def setUp(self):
         """Initialize simulation parameters"""
         from pytom.simulation.microscope import convert_defocusU_defocusV_to_defocus_astigmatism as convert
+        from pytom.simulation.potential import create_gold_marker
+        import pytom.simulation.physics as phys
         import os
 
-        self.x, self.y, self.z = 1000, 1000, 33
-        self.potential = np.zeros((self.x, self.y, self.z))
-        self.potential[self.x//2, self.y//2, self.z//2] = 1
+        self.voltage = 300e3
+        self.pixel_size_angstrom = 2
+        real, imag = create_gold_marker(self.pixel_size_angstrom, phys.V_WATER, oversampling=1, solvent_factor=1.0,
+                                       imaginary=True, voltage=self.voltage)
+        self.gold_bead = real + 1j * imag
+        self.gold_size = self.gold_bead.shape
 
-        self.defocusU, self.defocusV, self.ast_angle_deg = 3e-6, 5e-6, -69
+        self.x, self.y, self.z = 1000, 1000, 300
+        self.potential = np.zeros((self.x, self.y, self.z), dtype=self.gold_bead.dtype)
+        self.potential[self.x//2:self.x//2 + self.gold_size[0], self.y//2:self.y//2+self.gold_size[1],
+                                self.z//2:self.z//2+self.gold_size[2]] = self.gold_bead
+
+        self.defocusU, self.defocusV, self.ast_angle_deg = 5e-6, 7e-6, -69
         self.defocus, self.astigmatism = convert(self.defocusU, self.defocusV)
         self.Cs = 2.7e-3
-        self.amplitude_contrast = 0
-        self.sigma_decay = 0.3
+        self.amplitude_contrast = 0.07
+        self.sigma_decay = 0.4
 
         # create temporary dir for storing simulation data
         if not os.path.exists('temp_simulation'):
@@ -31,8 +40,8 @@ class CTFTest(unittest.TestCase):
         self.param_sim = {
             'save_path':            './temp_simulation',
             'angles':               [0],
-            'nodes':                1,  # todo change to multiple if possible ??
-            'pixel_size':           1e-10,
+            'nodes':                1,
+            'pixel_size':           self.pixel_size_angstrom*1e-10,
             'binning':              2,
             'dose':                 100,
             'voltage':              300e3,
@@ -43,15 +52,6 @@ class CTFTest(unittest.TestCase):
             'camera_type':          'K2SUMMIT',
             'camera_folder':        '../simulation/detectors',
         }
-
-        # TODO remove redundant ctf functions once tested
-        # TODO fix astigmatism passing to simulation
-
-        # self.param_rec = {
-        #     'save_path':            './temp_simulation',
-        #     'weighting':            1,
-        #     'reconstruction_bin':   1
-        # }
 
     def tearDown(self):
         """Remove all the files gathered during simulation"""
@@ -104,33 +104,32 @@ class CTFTest(unittest.TestCase):
                                  dose=self.param_sim['dose'],
                                  voltage=self.param_sim['voltage'],
                                  defocus=self.param_sim['defocus'],
+                                 astigmatism=self.astigmatism,
+                                 astigmatism_angle=self.ast_angle_deg,
                                  msdz=self.param_sim['msdz'],
                                  camera_type=self.param_sim['camera_type'],
                                  camera_folder=self.param_sim['camera_folder'],
                                  grandcell=self.potential)
 
-        return read(os.path.join(self.param_sim['save_path'] + c, 'noisefree_projections.mrc')).squeeze()
+        return read(os.path.join(self.param_sim['save_path'] + c, 'projections.mrc')).squeeze()
 
-    def test_CTF(self):
-        """Run a multislice simulation of a point source. Compare its CTF with a ctf from the create_ctf() function."""
+    def basicCTF(self):
+        """Convolute gold marker with a ctf, then use a wiener filter on this marker. CCC is calculated between
+        original gold bead and the wiener filtered one."""
         from pytom.tompy.correlation import nxcc
         from pytom.simulation.microscope import create_ctf
 
-        import matplotlib
-        matplotlib.use('Qt5Agg')
-        import matplotlib.pyplot as plt
-
-        # generate a projection of a point with multislice
-        projection = self.simulateProjection()
+        # import matplotlib
+        # matplotlib.use('Qt5Agg')
+        # import matplotlib.pyplot as plt
 
         # create an image of a point
-        point = self.potential[:, :, self.z//2]
-
-        point_ft = np.fft.fftn(point)
+        point = self.potential[:, :, self.z//2 + self.gold_size[2] // 2].real
+        point = point[2:,101:]  # crop with annoying lengths to ensure the ctf function still works
 
         # get a ctf
-        ctf = create_ctf(projection.shape,
-                         self.param_sim['pixel_size'] * self.param_sim['binning'],
+        ctf = create_ctf(point.shape,
+                         self.param_sim['pixel_size'],
                          self.defocusU,
                          self.amplitude_contrast,
                          self.param_sim['voltage'],
@@ -139,37 +138,91 @@ class CTFTest(unittest.TestCase):
                          defocusV=self.defocusV,
                          defocus_angle_deg=self.ast_angle_deg)
 
-        ctf_abs = np.abs(ctf)
+        point_conv = np.fft.ifftn(np.fft.fftn(point) * np.fft.ifftshift(ctf)).real
 
-        point_conv = np.fft.fftn(point_ft * np.fft.ifftshift(ctf)).real
-        point_power_spectrum = np.abs(np.fft.fftshift(np.fft.fftn(point_conv)))
+        ctf_corr = create_ctf(point.shape,
+                         self.param_sim['pixel_size'],
+                         self.defocusU,
+                         self.amplitude_contrast,
+                         self.param_sim['voltage'],
+                         self.Cs,
+                         sigma_decay=0,
+                         defocusV=self.defocusV,
+                         defocus_angle_deg=self.ast_angle_deg)
+
+        ctf_corr = np.fft.ifftshift(ctf_corr)
+
+        point_corrected = np.fft.ifftn(np.conjugate(ctf_corr) * np.fft.fftn(
+            point_conv) / (ctf_corr ** 2 + 0.1)).real
 
         # fig, ax = plt.subplots(1, 3)
-        # ax[0].imshow(point_conv)
-        # ax[1].imshow(point_power_spectrum)
-        # ax[2].imshow(ctf_abs)
+        # ax[0].imshow(point)
+        # ax[1].imshow(point_conv)
+        # ax[2].imshow(point_corrected)
         # plt.show()
 
-        ccc1 = nxcc(point_power_spectrum, ctf_abs)
+        ccc = nxcc(point, point_corrected)
 
         # test if correlation is within the limits
-        print('cross correlation of imaged point source with a ctf = ', ccc1)
-        self.assertGreater(ccc1, 0.99, msg='correlation not sufficient between point convoluted with ctf and ctf')
+        # print('cross correlation of imaged point source with a ctf = ', ccc)
+        return ccc
 
-        projection_power_spectrum = np.abs(np.fft.fftshift(np.fft.fftn(projection)))
+    def complexCTF(self):
+        """Gold marker is simulated with multislice method. Afterwards it is wiener filtered and cross-correlated
+        with the original gold bead under a mask."""
+        from pytom.tompy.correlation import nxcc
+        from pytom.simulation.microscope import create_ctf
+        from pytom.tompy.tools import create_circle
 
-        fig, ax = plt.subplots(1, 3)
-        ax[0].imshow(projection)
-        ax[1].imshow(projection_power_spectrum)
-        ax[2].imshow(ctf_abs)
-        plt.show()
+        # import matplotlib
+        # matplotlib.use('Qt5Agg')
+        # import matplotlib.pyplot as plt
 
+        # generate a projection of a point with multislice
+        projection = self.simulateProjection()
+
+        ctf = create_ctf(projection.shape,
+                         self.param_sim['pixel_size'],
+                         self.defocusU,
+                         self.amplitude_contrast,
+                         self.param_sim['voltage'],
+                         self.Cs,
+                         sigma_decay=self.sigma_decay,
+                         defocusV=self.defocusV,
+                         defocus_angle_deg=self.ast_angle_deg)
+
+        ctf = np.fft.ifftshift(ctf)
+
+        projection_corrected = np.fft.ifftn(np.conjugate(ctf) * np.fft.fftn(projection) / (ctf ** 2 + 0.1)).real
+
+        # create an image of a point
+        gold_slice = self.potential[:, :, self.z // 2 + self.gold_size[2] // 2].real
+
+        # fig, ax = plt.subplots(1, 3)
+        # ax[0].imshow(gold_slice)
+        # ax[1].imshow(projection)
+        # ax[2].imshow(projection_corrected)
+        # plt.show()
+
+        # add a mask for the correlation because of the noise
+        mask = create_circle(projection.shape, radius=0.9*(self.gold_size[0]//2),
+                             sigma=0.1*(self.gold_size[0]//2), center=[self.x//2+self.gold_size[0]//2,
+                                                                  self.y//2+self.gold_size[1]//2])
         # calculate correlation
-        ccc2 = nxcc(projection_power_spectrum, ctf_abs)
+        ccc = nxcc(gold_slice, projection_corrected, mask=mask)
 
         # test if correlation is within the limits
-        print('cross correlation of imaged point source with a ctf = ', ccc2)
-        # self.assertGreater(ccc2, 0.80, msg='correlation not sufficient between ctf of multislice imaged point and ctf')
+        # print('cross correlation of imaged point source with a ctf = ', ccc)
+
+        return ccc
+
+    def test_CTFs(self):
+        ccc = self.basicCTF()
+        self.assertGreater(ccc, 0.7, msg='correlation not sufficient between original gold marker and wiener filtered '
+                                         'gold marker')
+        ccc = self.complexCTF()
+        self.assertGreater(ccc, 0.8, msg='correlation not sufficient between original gold marker and wiener filtered '
+                                         'simulation')
 
 
 if __name__ == '__main__':

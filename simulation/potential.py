@@ -5,11 +5,6 @@ import math
 import pytom.simulation.physics as physics
 import os, sys
 
-# image display
-import matplotlib as plt
-plt.use('Qt5Agg')
-from pylab import *
-
 
 def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=False, interpolation='filt_bspline'):
     """

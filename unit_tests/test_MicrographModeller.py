@@ -43,7 +43,7 @@ class MicrographModellerTest(unittest.TestCase):
             'save_path':            './temp_simulation',
             'angles':               list(range(-60, 60 + 3, 3)),
             'nodes':                1,  # todo change to multiple if possible ??
-            'pixel_size':           2.5e-10,
+            'pixel_size':           5e-10,
             'binning':              2,
             'dose':                 80,
             'voltage':              300e3,
@@ -140,13 +140,13 @@ class MicrographModellerTest(unittest.TestCase):
 
         # calculate cross-correlation coefficient of the two tomograms
         spacing = self.param_sim['pixel_size'] * 1e10
-        cc = nxcc(reduce_resolution(tomo_1, spacing, 2 * spacing * 16),
-                  reduce_resolution(tomo_2, spacing, 2 * spacing * 16),
+        cc = nxcc(reduce_resolution(tomo_1, spacing, 2 * spacing * 8),
+                  reduce_resolution(tomo_2, spacing, 2 * spacing * 8),
                   mask=mask)
 
         print('normalized cross correlation of two simulations of identical volume after binning both subtomograms 8 '
               'times = ', cc)
-        self.assertGreater(cc, 0.55, msg='correlation is not sufficient between simulations')
+        self.assertGreater(cc, 0.8, msg='correlation is not sufficient between simulations')
 
 
 if __name__ == '__main__':
