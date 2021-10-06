@@ -11,6 +11,7 @@ import numpy as xp
 import pytom.simulation.physics as physics
 
 # plotting
+# TODO remove plotting import
 import matplotlib
 matplotlib.use('Qt5Agg')
 from pylab import *
@@ -171,7 +172,10 @@ def ellipsoid_intersection(thetaphi, a, b, c, x, y, z):
     return eq1, eq2
 
 
-def place_back_to_ellipsoid(point, a, b, c):
+def place_back_to_ellipsoid(point, a, b, c, newton_iter=3):
+
+    # TODO Missing r parameter in function?
+    # TODO Function does not optimize for 'strong' ellipsoids, possibly because of bad initial guess for theta phi
 
     from scipy.optimize import newton
 
@@ -192,18 +196,18 @@ def place_back_to_ellipsoid(point, a, b, c):
 
     x, y, z = point
     thetaphi0 = [xp.arctan2(a*y, b*x), xp.arctan2(z, c * xp.sqrt((x/a)**2 + (y/b)**2))]
-    angles_ellipsoid = newton(ellipsoid_intersection, thetaphi0, args=(a, b, c, x, y, z), maxiter=3)
+    angles_ellipsoid = newton(ellipsoid_intersection, thetaphi0, args=(a, b, c, x, y, z), maxiter=newton_iter)
     return get_point_ellipsoid(a, b, c, angles_ellipsoid[0], angles_ellipsoid[1])
 
 
-def test_place_back_to_ellipsoid(size=100, a=1, b=1, c=1):
+def test_place_back_to_ellipsoid(size=100, a=1, b=1, c=1, iter=3):
     # xyz points between -1 and 1
     distances = xp.zeros((size, size, size))
-    for i,x in zip(range(size), xp.arange(-1, 1, 2./size)):
-        for j,y in zip(range(size), xp.arange(-1, 1, 2./size)):
-            for k,z in zip(range(size), xp.arange(-1, 1, 2./size)):
+    for i,x in zip(range(size), xp.arange(-a, a, (2.*a)/size)):
+        for j,y in zip(range(size), xp.arange(-b, b, (2.*b)/size)):
+            for k,z in zip(range(size), xp.arange(-c, c, (2.*c)/size)):
                 point = xp.array([x,y,z])
-                ellipsoid_point = place_back_to_ellipsoid(point, a, b, c)
+                ellipsoid_point = place_back_to_ellipsoid(point, a, b, c, newton_iter=iter)
                 distances[i,j,k] = distance(point, ellipsoid_point)
     # visualize
     slice_x = distances[size//2,:,:]
@@ -374,7 +378,6 @@ def triangulate(points, alpha):
 
     # for noise search for "pyvista perlin noise 3d"
 
-
     volume = cloud.delaunay_3d(alpha=alpha, progress_bar=True)
     shell = volume.extract_geometry()
     # shell.plot()
@@ -501,7 +504,33 @@ def point_in_triangle(pt, triangle):
     return not(has_neg and has_pos)
 
 
-def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage):
+def point_array_sign(point_array, p2, p3):
+    return (point_array[:, 0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (point_array[:, 1] - p3[1])
+
+
+def point_array_in_triangle(point_array, triangle):
+
+    v1 = triangle[0]
+    v2 = triangle[1]
+    v3 = triangle[2]
+
+    d1 = sign(point_array, v1, v2)
+    d2 = sign(point_array, v2, v3)
+    d3 = sign(point_array, v3, v1)
+
+    has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
+    has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
+
+    return not(has_neg and has_pos)
+
+
+def rotation_matrix_to_affine_matrix(rotation_matrix):
+    m = np.identity(4)
+    m[0:3, 0:3] = rotation_matrix
+    return m
+
+
+def membrane_potential_old(surface_mesh, voxel_size, membrane_pdb, solvent, voltage):
     """
 
     @param ellipsoid_mesh: this is a pyvista surface
@@ -569,7 +598,7 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
         i = 0
         while i < len(newx):
             coordinate = xp.array([newx[i], newy[i]])
-            if not point_in_triangle(coordinate, triangle_sample[:,:2]):
+            if not point_in_triangle(coordinate, triangle_sample[:, :2]):
                 newx.pop(i)
                 newy.pop(i)
                 newz.pop(i)
@@ -587,15 +616,15 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
         # matrix2_t = matrix2.T
 
         atoms = xp.array([newx, newy, newz])
-        atoms[0,:] += shift[0]
-        atoms[1,:] += shift[1]
-        atoms[2,:] += shift[2]
+        atoms[0, :] += shift[0]
+        atoms[1, :] += shift[1]
+        atoms[2, :] += shift[2]
         # inverse of rotation matrix for the rotating the points back to original triangle position
         # inverse of atoms for correct order of applying rotation matrices
         ratoms = (matrix1.T @ (matrix2.T @ atoms))
-        ratoms[0,:] += center[0]
-        ratoms[1,:] += center[1]
-        ratoms[2,:] += center[2]
+        ratoms[0, :] += center[0]
+        ratoms[1, :] += center[1]
+        ratoms[2, :] += center[2]
         # newx = list(ratoms[0, :])
         # newy = list(ratoms[1, :])
         # newz = list(ratoms[2, :])
@@ -615,6 +644,150 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
         membrane_e += newe
         membrane_b += newb
         membrane_o += newo
+
+        atom_count += len(newe)
+        print(f'Number of atoms added {len(newe)} to a total count of {atom_count}.')
+
+    structure = (membrane_x, membrane_y, membrane_z, membrane_e, membrane_b, membrane_o)
+    # pass directly to iasa_integration
+    potential = iasa_integration('', voxel_size, solvent_exclusion=True, V_sol=solvent,
+                                 absorption_contrast=True, voltage=voltage, density=physics.PROTEIN_DENSITY,
+                                 molecular_weight=physics.PROTEIN_MW, structure_tuple=structure)
+    return potential
+
+
+def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage):
+    """
+
+    @param ellipsoid_mesh: this is a pyvista surface
+    @param voxel_size:
+    @param membrane_pdb:
+    @param solvent_potential:
+    @return:
+    """
+    #todo function is very slow
+
+    from potential import read_structure, iasa_integration
+    from pytom.voltools.utils import translation_matrix
+
+    # READ THE STRUCTURE AND EXTEND IT ONLY ONCE
+    # membrane pdb should have solvent deleted at this point
+    x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(membrane_pdb)
+    z_coordinates = list(xp.array(z_coordinates) - sum(z_coordinates) / len(z_coordinates))
+    # get the periodice boundary box from the pdb file
+    x_bound, y_bound, z_bound = boundary_box_from_pdb(membrane_pdb)
+
+    reference = Vector(.0, .0, 1.0)
+
+    membrane_x, membrane_y, membrane_z, membrane_e, membrane_b, membrane_o = [], [], [], [], [], []
+
+    atom_count = 0
+
+    for icell in range(surface_mesh.n_cells):
+        print(f'Triangle {icell+1} out of {surface_mesh.n_cells}.')
+
+        triangle = surface_mesh.extract_cells(icell).points
+        # print(triangle)
+        normal = Vector(*surface_mesh.cell_normals[icell])
+
+        center = centroid(triangle)
+        triangle1 = shift_triangle(triangle, -center)
+
+        matrix1 = get_rotation(normal, reference)
+        triangle2 = rotate_triangle(triangle1, matrix1)
+
+        # add a random rotation of the triangle in the x-y plane to rotate the membrane's coordinates to other locations
+        angle = xp.random.uniform(0,360)
+        matrix2 = z_axis_rotation_matrix(angle)
+        triangle3 = rotate_triangle(triangle2, matrix2)
+
+        # apply a shift to the points so that the coordinates are all above the origin
+        shift = xp.array([xp.min(triangle3[:, 0]), xp.min(triangle3[:, 1]), 0])
+        triangle_sample = shift_triangle(triangle3, -shift)
+        # print(xp.round(triangle_sample, decimals=2))
+
+        xmax = xp.max(triangle_sample[:, 0])
+        ymax = xp.max(triangle_sample[:, 1])
+
+        xext = int(xp.ceil(xmax / x_bound))
+        yext = int(xp.ceil(ymax / y_bound))
+        newx, newy, newz, newe, newb, newo = [], [], [], [], [], []
+        for i in range(xext):
+            for j in range(yext):
+                newx += list(xp.array(x_coordinates) + i*x_bound)
+                newy += list(xp.array(y_coordinates) + j*y_bound)
+                newz += z_coordinates
+                newe += elements
+                newb += b_factors
+                newo += occupancies
+
+        atoms = xp.array([newx, newy, newz])
+        newe = xp.array(elements)
+        newb = xp.array(b_factors)
+        newo = xp.array(occupancies)
+
+        locs = point_array_in_triangle(atoms, triangle_sample[:, :2])
+        atoms = atoms[locs]
+        newe = newe[locs]
+        newb = newb[locs]
+        newo = newo[locs]
+
+        # at this points our triangle fits onto the structure
+        # now delete all the atoms that fall outside of the triangle
+        # i = 0
+        # while i < len(newx):
+        #     coordinate = xp.array([newx[i], newy[i]])
+        #     if not point_in_triangle(coordinate, triangle_sample[:, :2]):
+        #         newx.pop(i)
+        #         newy.pop(i)
+        #         newz.pop(i)
+        #         newe.pop(i)
+        #         newb.pop(i)
+        #         newo.pop(i)
+        #     else:
+        #         i += 1
+        # now we have all the atoms needed to build the membrane model for the current triangle
+        # lets first rotate the atoms to the original orientation of the triangle
+
+        # applying the rotation to each atom individually might me a bit slow...
+        # n_atoms = len(newe)
+        # matrix1_t = matrix1.T
+        # matrix2_t = matrix2.T
+        t2 = translation_matrix(translation=-shift)  # voltools implements matrices as inverse operations, here we want
+        t1 = translation_matrix(translation=-center)  # forward transformation
+        affine_matrix = xp.matmul(xp.matmul(t1, matrix1.T), xp.matmul(matrix2.T, t2))
+
+        ratoms = xp.matmul(affine_matrix, atoms)
+
+        # atoms[0, :] += shift[0]
+        # atoms[1, :] += shift[1]
+        # atoms[2, :] += shift[2]
+        # # inverse of rotation matrix for the rotating the points back to original triangle position
+        # inverse of atoms for correct order of applying rotation matrices
+        # np.matmul(matrix1.T, matrix2.T)
+        # ratoms = (matrix1.T @ (matrix2.T @ atoms))
+        # ratoms[0, :] += center[0]
+        # ratoms[1, :] += center[1]
+        # ratoms[2, :] += center[2]
+        # newx = list(ratoms[0, :])
+        # newy = list(ratoms[1, :])
+        # newz = list(ratoms[2, :])
+
+        # for i in range(n_atoms):
+        #     atom = xp.array([newx[i], newy[i], newz[i]])
+        #     catom = rotate_point(shift_point(atom, shift), matrix2_t)
+        #     atom_surface = shift_point(rotate_point(catom, matrix1_t), center)
+        #     newx[i] = atom_surface[0]
+        #     newy[i] = atom_surface[1]
+        #     newz[i] = atom_surface[2]
+
+        # add positions to larger array that describes atom coordinates on the full surface
+        membrane_x += list(ratoms[0, :])
+        membrane_y += list(ratoms[1, :])
+        membrane_z += list(ratoms[2, :])
+        membrane_e += list(newe)
+        membrane_b += list(newb)
+        membrane_o += list(newo)
 
         atom_count += len(newe)
         print(f'Number of atoms added {len(newe)} to a total count of {atom_count}.')
@@ -678,7 +851,8 @@ if __name__ == '__main__':
     voltage = 300E3
 
     # generate an ellipsoid and triangulate it
-    points = sample_points_ellipsoid(N, a=a, b=b, c=c)
+    print('ellipsoid parameters: ' , a,b,c)
+    points = sample_points_ellipsoid(N, a=a, b=b, c=c, evenly=True, maxiter=50000, factor=0.1)
     surface = triangulate(points, alpha)
 
     # fill the triangles with lipid molecules and calculate potential for it

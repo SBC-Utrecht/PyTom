@@ -602,9 +602,11 @@ class ProjectionList(PyTomClass):
         import time, os
         from pytom_numpy import vol2npy
         from pytom.basic.files import write_em
-        from multiprocessing import Process
-        print('start')
+        from multiprocessing import Process, set_start_method
         import time
+
+        # important to set to allow child processes on multiple GPU's (otherwise cupy init is not working)
+        set_start_method('spawn')
 
         t = time.time()
         if len(particles) == 0:
@@ -664,10 +666,10 @@ class ProjectionList(PyTomClass):
             for procIndex in range(num_procs):
                 ps = particles[procIndex::num_procs]
                 if (len(ps)) < 1: continue
-                extract(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results)
-                # proc = Process(target=ext ract, args=(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results))
-                # procs.append(proc)
-                # proc.start()
+                # extract(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results)
+                proc = Process(target=extract, args=(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results))
+                procs.append(proc)
+                proc.start()
 
             # print('Subtomogram reconstruction for particle {} has started (batch mode).'.format(particleIndex))
         else:
@@ -727,7 +729,8 @@ class ProjectionList(PyTomClass):
         import time
         from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
 
-        xp.cuda.Device(gpuID).use()
+        print(gpuID)
+        # xp.cuda.Device(gpuID).use()
 
         ts = time.time()
 

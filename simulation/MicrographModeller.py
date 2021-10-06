@@ -755,8 +755,8 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
 
 
 def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, ctf, dose, dqe, mtf, voltage,
-                     binning=1, translation=(.0,.0,.0), rotation=(.0,.0,.0), solvent_potential=physics.V_WATER,
-                     solvent_absorption=.0, ice_voxels=None, beam_damage_snr=0):
+                     binning=1, translation=(.0,.0,.0), rotation=(.0,.0,.0), scale=(1., 1., 1.),
+                     solvent_potential=physics.V_WATER, solvent_absorption=.0, ice_voxels=None, beam_damage_snr=0):
     """
     Project grandcell to create a frame/tilt. The grandcell will first be transformed according to the rotation and
     translation parameters, before projection. Microscope functions such as CTF, DQE, MTF need to be supplied. This
@@ -825,15 +825,15 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     # first transform the volume
     if sample.dtype == 'complex64':
         transform(sample[...,i:-i].real, translation=translation, rotation=rotation, rotation_order='sxyz',
-                                interpolation='filt_bspline', device='cpu', output=sample[...,i:-i].real)
-        transform(sample[...,i:-i].imag, translation=translation, rotation=rotation, rotation_order='sxyz',
-                                interpolation='filt_bspline', device='cpu', output=sample[...,i:-i].imag)
+                  scale=scale, interpolation='filt_bspline', device='cpu', output=sample[...,i:-i].real)
+        transform(sample[...,i:-i].imag, translation=translation, rotation=rotation, rotation_order='sxyz', scale=scale,
+                  interpolation='filt_bspline', device='cpu', output=sample[...,i:-i].imag)
         # remove rotation artifacts
         threshold = 0.001
         sample.real[sample.real < threshold] = 0
         sample.imag[sample.imag < threshold] = 0
     elif sample.dtype == 'float32':
-        transform(sample[...,i:-i], translation=translation, rotation=rotation, rotation_order='sxyz',
+        transform(sample[...,i:-i], translation=translation, rotation=rotation, rotation_order='sxyz', scale=scale,
                                 interpolation='filt_bspline', device='cpu', output=sample[...,i:-i])
         # remove rotation artifacts
         threshold = 0.001
@@ -933,12 +933,34 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     return (noisefree_projection, projection)
 
 
-def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotation_box_height=None,
-                             pixel_size=1E-9, binning=1, dose=80, voltage=300E3, spherical_aberration=2.7E-3,
-                             chromatic_aberration=2.7E-3, energy_spread=0.7, illumination_aperture=0.030E-3,
-                             objective_diameter=100E-6, focus_length=4.7E-3, astigmatism=0.0E-9, astigmatism_angle=0,
-                             msdz=1E-9, defocus=2E-6, sigma_shift=0.0, camera_type='K2SUMMIT', camera_folder='',
-                             solvent_potential=physics.V_WATER, absorption_contrast=False, beam_damage_snr=0,
+def generate_tilt_series_cpu(save_path,
+                             angles,
+                             nodes=1,
+                             image_size=None,
+                             rotation_box_height=None,
+                             pixel_size=1E-9,
+                             binning=1,
+                             dose=80,
+                             voltage=300E3,
+                             spherical_aberration=2.7E-3,
+                             chromatic_aberration=2.7E-3,
+                             energy_spread=0.7,
+                             illumination_aperture=0.030E-3,
+                             objective_diameter=100E-6,
+                             focus_length=4.7E-3,
+                             astigmatism=0.0E-9,
+                             astigmatism_angle=0,
+                             msdz=1E-9,
+                             defocus=2E-6,
+                             sigma_shift=0.,
+                             sigma_angle_in_plane_rotation=0.,
+                             sigma_magnification=0.,
+                             sigma_tilt_angle=0.,
+                             camera_type='K2SUMMIT',
+                             camera_folder='',
+                             solvent_potential=physics.V_WATER,
+                             absorption_contrast=False,
+                             beam_damage_snr=0,
                              grandcell=None):
     """
     Creating a tilt series for the initial grand model by rotating the sample along a set of tilt angles. For each angle
@@ -1005,9 +1027,11 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     @author: Marten Chaillet
     """
     from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS as dar
-    from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
+    from pytom.basic.datatypes import DATATYPE_METAFILE as dmf
+    from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS, FMT_METAFILE, HEADER_METAFILE
     from pytom.gui.guiFunctions import savestar
     from pytom.simulation.microscope import create_detector_response, create_complex_ctf
+    from pytom.simulation.microscope import convert_defocus_astigmatism_to_defocusU_defocusV
     from pytom.tompy.io import read_mrc, write
     from joblib import Parallel, delayed
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
@@ -1118,16 +1142,34 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
 
     # create motion blur by introducing random  x,y translation for each tilt
     translations = []
-    for i in angles:
+    magnifications = []
+    in_plane_rotations = []
+    for i in range(len(angles)):
+        # generate random translation
         x = xp.random.normal(0, sigma_shift) / (pixel_size*1E10)
         y = xp.random.normal(0, sigma_shift) / (pixel_size*1E10)
-        # print((x,y,0.0))
         translations.append((x, y, 0.0))
+
+        # generate random in plane rotation
+        in_plane_rotations.append(xp.random.normal(0, sigma_angle_in_plane_rotation))
+
+        # add magnifications
+        if sigma_magnification != 0:
+            gamma_a = 1. / (sigma_magnification ** 2)  # a = 1 / sigma**2
+            gamma_b = 1. / gamma_a                     # b = mu / a
+            # generate random magnification
+            mag = xp.random.gamma(gamma_a, gamma_b)
+            magnifications.append((mag, mag, 1.))
+        else:
+            magnifications.append((1., 1., 1.))
+
+        # random dz for tilt angle
+        angles[i] += xp.random.normal(0, sigma_tilt_angle)
 
     # defocus_series = [xp.random.normal(defocus, 0.2E-6) for a in angles]
     ctf_series = []
     dz_series, ast_series, ast_angle_series = [], [], []
-    for i in angles:
+    for x in angles:
         # todo currently input astigmatism is overriden by these options
         # todo add these options for frame series
         dz = xp.random.normal(defocus, 0.2e-6)
@@ -1155,10 +1197,13 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
         (delayed(parallel_project)(rotation_volume, i, image_size, pixel_size, msdz, n_slices, ctf,
                                    dose_per_tilt, dqe, mtf, voltage, binning=binning, translation=translation,
-                                   rotation=(.0, angle, .0), solvent_potential=solvent_potential,
+                                   rotation=(.0, angle, in_plane_rotation), scale=magnification,
+                                   solvent_potential=solvent_potential,
                                    solvent_absorption=solvent_amplitude, ice_voxels=box_height,
                                    beam_damage_snr=beam_damage_snr)
-         for i, (angle, translation, ctf) in enumerate(zip(angles, translations, ctf_series)))
+         for i, (angle, in_plane_rotation,
+                 translation, magnification, ctf) in enumerate(zip(angles, in_plane_rotations,
+                                                                   translations, magnifications, ctf_series)))
 
     sys.stdout.flush()
 
@@ -1173,14 +1218,16 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     write(filename_nf, xp.stack([n for (n, p) in results], axis=2))
     write(filename_pr, xp.stack([p for (n, p) in results], axis=2))
 
-    # todo create alignment and misalignment file, so that in reconstruction choice can be made between align and
-    # todo misalign
+    # todo create alignment and misalignment file, in reconstruction choice for alignment and misalignment
     # store alignment information
     # len(angles) is the number of files that we have
     alignment                       = xp.zeros(len(angles), dtype=dar)
-    # IMPORTANT: correct angles by -1 to get the right reconstruction
-    alignment['TiltAngle']          = -1.0 * xp.array(angles)
-    alignment['Magnification']      = xp.repeat(1.0, len(angles))
+    # IMPORTANT: get the inverse of each parameter for correct reconstruction
+    alignment['TiltAngle']          = -1. * xp.array(angles)
+    alignment['Magnification']      = 1. / xp.array([x for (x, y, z) in magnifications])
+    alignment['AlignmentTransX']    = -1 * xp.array([x for (x, y, z) in translations])
+    alignment['AlignmentTransY']    = -1 * xp.array([y for (x, y, z) in translations])
+    alignment['InPlaneRotation']    = -1 * xp.array(in_plane_rotations)
     for i in range(len(angles)):
         alignment['FileName'][i]    = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
 
@@ -1188,31 +1235,50 @@ def generate_tilt_series_cpu(save_path, angles, nodes=1, image_size=None, rotati
     filename_align                      = os.path.join(save_path, 'alignment_simulated.txt')
     savestar(filename_align, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
 
-    # write varied parameters
+    # write meta file containing exactly all varied parameters in the simulation
+    # get defocusU defocusV type defocus parameters
+    defocusU, defocusV = convert_defocus_astigmatism_to_defocusU_defocusV(xp.array(dz_series), xp.array(ast_series))
+    metafile                        = xp.zeros(len(angles), dtype=dmf)
+    metafile['DefocusU']            = defocusU
+    metafile['DefocusV']            = defocusV
+    metafile['DefocusAngle']        = xp.array(ast_angle_series)
+    metafile['Voltage']             = xp.array([voltage * 1e-3, ] * len(angles))
+    metafile['SphericalAberration'] = xp.array([spherical_aberration * 1e3, ] * len(angles))
+    metafile['PixelSpacing']        = xp.array([pixel_size * 1e10, ] * len(angles))
+    metafile['TiltAngle']           = xp.array(angles)
+    metafile['InPlaneRotation']     = xp.array(in_plane_rotations)
+    metafile['TranslationX']        = xp.array([x for (x, y, z) in translations])
+    metafile['TranslationY']        = xp.array([y for (x, y, z) in translations])
+    metafile['Magnification']       = xp.array([x for (x, y, z) in magnifications])
+    for i in range(len(angles)):
+        alignment['FileName'][i]    = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
+
+    savestar(os.path.join(save_path, 'simulation.meta'), metafile, fmt=FMT_METAFILE, header=HEADER_METAFILE)
+
     # translations, dz_series, ast_series, ast_angle_series
-    header_varied_params = ''
-    dt_varied_params = [('TranslationX', 'f4'),
-                                  ('TranslationY', 'f4'),
-                                  ('Defocus', 'f4'),
-                                  ('Astigmatism', 'f4'),
-                                  ('AstigmatismAngle', 'f4')]
-    units_varied_params = ['px', 'px', 'um', 'um', 'degrees']
-
-    for n, h in enumerate(dt_varied_params):
-        header_varied_params += '{} {}\n'.format(h[0], '({})'.format(units_varied_params[n]) * (
-                units_varied_params[n] != ''))
-
-    fmt_varied_params = '%15.10f %15.10f %15.10f %15.10f %15.10f'
-
-    varied_params = xp.zeros(len(angles), dtype=dt_varied_params)
-    varied_params['TranslationX'] = xp.array([x for (x, y, z) in translations])
-    varied_params['TranslationY'] = xp.array([y for (x, y, z) in translations])
-    varied_params['Defocus'] = (xp.array(dz_series) + zheight/2) * 1e6
-    varied_params['Astigmatism'] = xp.array(ast_series) * 1e6
-    varied_params['AstigmatismAngle'] = xp.array(ast_angle_series)
-
-    savestar(os.path.join(save_path, 'varied_parameters.txt'), varied_params, fmt=fmt_varied_params,
-             header=header_varied_params)
+    # header_varied_params = ''
+    # dt_varied_params = [('TranslationX', 'f4'),
+    #                               ('TranslationY', 'f4'),
+    #                               ('Defocus', 'f4'),
+    #                               ('Astigmatism', 'f4'),
+    #                               ('AstigmatismAngle', 'f4')]
+    # units_varied_params = ['px', 'px', 'um', 'um', 'degrees']
+    #
+    # for n, h in enumerate(dt_varied_params):
+    #     header_varied_params += '{} {}\n'.format(h[0], '({})'.format(units_varied_params[n]) * (
+    #             units_varied_params[n] != ''))
+    #
+    # fmt_varied_params = '%15.10f %15.10f %15.10f %15.10f %15.10f'
+    #
+    # varied_params = xp.zeros(len(angles), dtype=dt_varied_params)
+    # varied_params['TranslationX'] = xp.array([x for (x, y, z) in translations])
+    # varied_params['TranslationY'] = xp.array([y for (x, y, z) in translations])
+    # varied_params['Defocus'] = (xp.array(dz_series) + zheight/2) * 1e6
+    # varied_params['Astigmatism'] = xp.array(ast_series) * 1e6
+    # varied_params['AstigmatismAngle'] = xp.array(ast_angle_series)
+    #
+    # savestar(os.path.join(save_path, 'varied_parameters.txt'), varied_params, fmt=fmt_varied_params,
+    #          header=header_varied_params)
 
     return
 
@@ -1293,6 +1359,10 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     from pytom.simulation.microscope import create_detector_response, create_complex_ctf
     from pytom.tompy.io import read_mrc, write
     from joblib import Parallel, delayed
+
+    print('this function is not working because it does not create a metafile and does not correctly pass '
+          'magnification to parallel project')
+    sys.exit(0)
 
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
     if grandcell is None:
