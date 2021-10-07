@@ -642,7 +642,7 @@ class ProjectionList(PyTomClass):
             from pytom.tompy.io import write as write_em
 
             resultProjstack = align( alignResultFile, binning=binning, weighting=applyWeighting, circleFilter=True, angle_specimen=specimen_angle)
-            [projections, vol_phi, proj_angles, vol_offsetProjections] = resultProjstack
+            resultProjstack = [x.get() for x in resultProjstack]
 
         # if verbose: return
 
@@ -729,8 +729,7 @@ class ProjectionList(PyTomClass):
         import time
         from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
 
-        print(gpuID)
-        # xp.cuda.Device(gpuID).use()
+        xp.cuda.Device(gpuID).use()
 
         ts = time.time()
 
@@ -743,7 +742,7 @@ class ProjectionList(PyTomClass):
                 for index in range(4):
                     results.append(read('{}/.temp_{}.mrc'.format(folder, index)))
 
-            [projections, vol_phi, vol_the, vol_offsetProjections] = results
+            [projections, vol_phi, vol_the, vol_offsetProjections] = [xp.asarray(x) for x in results]
             num_projections = projections.shape[2]
 
             vol_bp = xp.zeros((cubeSize, cubeSize, cubeSize), dtype=xp.float32)
