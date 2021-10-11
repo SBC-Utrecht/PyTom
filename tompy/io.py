@@ -18,8 +18,26 @@ def read(filename, ndarray=True, order='F', keepnumpy=False, deviceID=None):
         data = read_em(filename, order=order, keepnumpy=keepnumpy, deviceID=deviceID)
     elif filename.endswith('.mrc') or filename.endswith('.rec'):
         data = read_mrc(filename, order=order, keepnumpy=keepnumpy, deviceID=deviceID)
+    elif filename.endswith('.txt'):
+        from pytom.basic.datatypes import DATATYPE_METAFILE, DATATYPE_ALIGNMENT_RESULTS, DATATYPE_MARKER_RESULTS, DATATYPE_MARKERFILE
+        from pytom.basic.files import loadtxt
+
+        success =False
+        data = None
+
+        for dtype in (DATATYPE_METAFILE, DATATYPE_ALIGNMENT_RESULTS, DATATYPE_MARKER_RESULTS, DATATYPE_MARKERFILE):
+
+            try:
+                data = loadtxt(filename, dtype=dtype)
+                success = True
+            except Exception as e:
+                pass
+            if success:
+                return data
+
+        if not success: raise Exception(f'No valid interpreter found for {filename}')
     else:
-        raise Exception('Invalid filetype. Please provide a *.em or a *.mrc file.')
+        raise Exception('Invalid filetype. Please provide a *.em or a *.mrc file, or a pytom txt file.')
 
     if ndarray:
         return data

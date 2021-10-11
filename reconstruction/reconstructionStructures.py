@@ -410,7 +410,7 @@ class ProjectionList(PyTomClass):
 
 
     def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0], read_only=False,
-                          binning=1, applyWeighting=False, alignResultFile='', gpu=-1, specimen_angle=0):
+                          binning=1, applyWeighting=False, alignResultFile='', gpu=-1, specimen_angle=0, order=[2,1,0]):
         """ reconstruct a a single 3D volume from weighted and aligned projections on either a gpu or a cpu
 
         @param dims: 3D Size of reconstructed volume
@@ -438,11 +438,11 @@ class ProjectionList(PyTomClass):
 
         if 1 and 'gpu' in device:
             vol = self.reconstructVolumeGPU(dims=dims, reconstructionPosition=reconstructionPosition, binning=binning, read_only=read_only,
-                                      applyWeighting=applyWeighting, alignResultFile=alignResultFile, gpu=gpu, specimen_angle=specimen_angle)
+                                      applyWeighting=applyWeighting, alignResultFile=alignResultFile, gpu=gpu, specimen_angle=specimen_angle, order=order)
 
         else:
             vol = self.reconstructVolumeCPU(dims=dims, reconstructionPosition=reconstructionPosition, binning=binning, read_only=read_only,
-                                      applyWeighting=applyWeighting, alignResultFile=alignResultFile, gpu=gpu, specimen_angle=specimen_angle)
+                                      applyWeighting=applyWeighting, alignResultFile=alignResultFile, gpu=gpu, specimen_angle=specimen_angle, order=order)
         return vol
 
     def reconstructVolumeGPU(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0], interpolation='filt_bspline',
@@ -478,6 +478,7 @@ class ProjectionList(PyTomClass):
         from pytom_volume import vol, backProject
         from pytom.gpu.initialize import device, xp
         from pytom.reconstruction.reconstructionFunctions import alignImagesUsingAlignmentResultFile as align
+
         from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
         from pytom.tompy.io import write
 
@@ -487,8 +488,16 @@ class ProjectionList(PyTomClass):
         reconstruction = xp.zeros((dims[0], dims[1], dims[2]), dtype=xp.float32)
 
         # stacks for images, projections angles etc.
-        arrays = align( alignResultFile, binning=binning, weighting=applyWeighting, circleFilter=True, angle_specimen=specimen_angle)
+        if alignResultFile == '':
+            [vol_img, vol_phi, vol_the, vol_offsetProjections] = self.toProjectionStack(
+                binning=binning, applyWeighting=applyWeighting, showProgressBar=False,
+                verbose=False)
+            #arrays = [vol2npy(vol_img).copy(), vol2npy(vol_phi).copy(), vol2npy(vol_the).copy(),vol2npy(vol_offsetProjections).copy() ]
+        else:
+            arrays = align( alignResultFile, binning=binning, weighting=applyWeighting, circleFilter=True, angle_specimen=specimen_angle)
         [projections, vol_phi, proj_angles, vol_offsetProjections] = arrays
+
+
 
         # volume storing reconstruction offset from center (x,y,z)
         recPosVol = xp.zeros((projections.shape[2], 3), dtype=xp.int32)
@@ -496,7 +505,7 @@ class ProjectionList(PyTomClass):
         for ii in range(0,3):
             recPosVol[:, ii] = float(reconstructionPosition[ii] // binning)
 
-        print(time.time()-s)
+        print(time.time()-s, vol_offsetProjections, recPosVol)
         s = time.time()
         # finally backproject into volume
         vol_bp = backProject(projections, reconstruction, vol_phi, proj_angles, recPosVol, vol_offsetProjections,
@@ -508,7 +517,7 @@ class ProjectionList(PyTomClass):
 
 
     def reconstructVolumeCPU(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0], read_only=False,
-                          binning=1, applyWeighting=False, alignResultFile='', gpu=-1, specimen_angle=0):
+                          binning=1, applyWeighting=False, alignResultFile='', gpu=-1, specimen_angle=0, order=[2,1,0]):
         """
         reconstruct a single 3D volume from weighted and aligned projections on a CPU
 
@@ -547,10 +556,10 @@ class ProjectionList(PyTomClass):
         if not alignResultFile or read_only:
             [vol_img, vol_phi, vol_the, vol_offsetProjections] = self.toProjectionStack(
                 binning=binning, applyWeighting=applyWeighting, showProgressBar=False,
-                verbose=False)
+                verbose=False, order=order)
         else:
             [vol_img, vol_phi, vol_the, vol_offsetProjections] = self.toProjectionStackFromAlignmentResultsFile(
-                alignResultFile, binning=binning, weighting=applyWeighting, circleFilter=True)
+                alignResultFile, binning=binning, weighting=applyWeighting, circleFilter=True, order=order)
 
         # volume storing reconstruction offset from center (x,y,z)
         recPosVol = vol(3, vol_img.sizeZ(), 1)
@@ -568,7 +577,7 @@ class ProjectionList(PyTomClass):
         return vol_bp
 
     def reconstructVolumes(self, particles, cubeSize, binning=1, applyWeighting=False,
-                           showProgressBar=False, verbose=False, preScale=1, postScale=1, num_procs=5,
+                           showProgressBar=False, verbose=False, preScale=1, postScale=1, num_procs=5, ctfcenter=None,
                            alignResultFile='', polishResultFile='', scaleFactorParticle=1, gpuIDs=None, specimen_angle=0):
         """
         reconstructVolumes: reconstruct a subtomogram given a particle object.
@@ -620,22 +629,30 @@ class ProjectionList(PyTomClass):
 
         # stacks for images, projections angles etc.
         if gpuIDs is None:
+            # Running on the CPU
+
+            # Are the aligned images already written out?
             if not alignResultFile:
+                # YES ALIGNED IMAGES ARE WRITTEN OUT
                 resultProjstack = self.toProjectionStack(binning=binning, applyWeighting=applyWeighting,
                                                          showProgressBar=False,
                                                          verbose=False, num_procs=num_procs, scaleFactorParticle=scaleFactorParticle)
             else:
-
+                # NO ALIGNED IMAGES ARE NOT WRITTEN OUT, THUS HAVE TO BE COMPUTED IN MEMORY FROM ALIGNMENT RESULTS FILE
+                # Do you want to align (in memory) in parallel?
                 if num_procs > 1:
+                    # YES
                     resultProjstack = self.toProjectionStackParallel(alignResultFile, weighting=applyWeighting,
                                                                      num_procs=num_procs, binning=binning,
                                                                      circleFilter=True,
                                                                      scaleFactorParticle=scaleFactorParticle)
                 else:
+                    # NO
                     resultProjstack = self.toProjectionStackFromAlignmentResultsFile(alignResultFile, weighting=applyWeighting,
                                                                                  num_procs=num_procs, binning=binning,
                                                                                  circleFilter=True, scaleFactorParticle=scaleFactorParticle)
         else:
+            # Running on the GPU
             from pytom.reconstruction.reconstructionFunctions import alignImagesUsingAlignmentResultFile as align
             from pytom.tompy.io import write as write_em
 
@@ -1056,7 +1073,7 @@ class ProjectionList(PyTomClass):
         self._list = sorted(self._list, key=lambda Projection: Projection._tiltAngle)
 
     def toProjectionStack(self, binning=1, applyWeighting=False, tiltAngle=None, showProgressBar=False, verbose=False,
-                          num_procs=1, scaleFactorParticle=1):
+                          num_procs=1, scaleFactorParticle=1, order=[2,1,0]):
         """
         toProjectionStack:
 
@@ -1155,7 +1172,7 @@ class ProjectionList(PyTomClass):
 
     def toProjectionStackFromAlignmentResultsFile(self, alignmentResultsFile, weighting=None, lowpassFilter=0.9,
                                                   binning=1, circleFilter=False, num_procs=1, verbose=False,
-                                                  scaleFactorParticle=1):
+                                                  scaleFactorParticle=1, order=[2,1,0]):
         """read image and create aligned projection stack, based on the results described in the alignmentResultFile.
 
            @param alignmentResultsFile: filename of alignment result file (see pytom.basic.datatypes)
@@ -1298,8 +1315,9 @@ class ProjectionList(PyTomClass):
                 image = newImage
 
 
+            print(order)
 
-            image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=[2, 1, 0], crop=True)
+            image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True)
 
             if lowpassFilter:
                 filtered = filterFunction(volume=image, filterObject=lpf, fourierOnly=False)
@@ -1553,7 +1571,9 @@ class ProjectionList(PyTomClass):
             pasteCenter(image, newImage)
             image = newImage
 
-        image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=[2, 1, 0], crop=True)
+        order = [1,2,0]
+        print(order)
+        image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True)
 
         if lowpassFilter:
             filtered = filterFunction(volume=image, filterObject=lpf, fourierOnly=False)

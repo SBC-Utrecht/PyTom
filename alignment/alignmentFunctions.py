@@ -951,7 +951,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     else:
         meanV = None
         stdV = None
-
+    cntr = 0
     while currentRotation != [None,None,None]:
         if mask:
             m = mask.getVolume(currentRotation)
@@ -959,7 +959,10 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
                 m = resize(volume=m, factor=1./binning, interpolation='Spline')
             #update stdV if mask is not a sphere
             # compute standard deviation volume really only if needed
-            if not mask.isSphere() and (scoreObject._type=='FLCFScore'):
+            # print('Mask is sphere: ', mask.isSphere(), scoreObject._type)
+
+            if (not mask.isSphere()) and (scoreObject._type=='FLCFScore'):
+                if 1: print('recalc meanV en stdV')
                 meanV   = meanUnderMask(particle, m, p)
                 stdV    = stdUnderMask(particle, m, p, meanV)
         else:
@@ -977,14 +980,24 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
             particleCopy.copyVolume(particle)
             r = list(filter(particleCopy, weight(weightingRotated)))
             particleCopy = r[0]
-        
+
+
         scoringResult = scoreObject.score(particleCopy, simulatedVol, m, stdV)
+
         pk = peak(scoringResult)
 
         # with subPixelPeak
         [peakValue,peakPosition] = subPixelPeak(scoreVolume=scoringResult, coordinates=pk,
                                                interpolation='Quadratic', verbose=False)
         #[peakValue,peakPosition] = subPixelPeakParabolic(scoreVolume=scoringResult, coordinates=pk, verbose=False)
+
+        # if abs(peakPosition[0]-48) > 30 or abs(peakPosition[1]-48) > 30:
+        #     from pytom_numpy import vol2npy
+        #     from pytom.tompy.io import read, write
+        #     v =  vol2npy(scoringResult)
+        #     print('Issue with peak position', peakPosition, peakValue, v.sum())
+        #     write(f'{xp.random.randint(1000000):06d}.mrc', v)
+
 
         # determine shift relative to center
         shiftX = (peakPosition[0] - centerX) * binning
@@ -996,7 +1009,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         
         newPeak = Peak(peakValue, Rotation(currentRotation), Shift(shiftX, shiftY, shiftZ))
         
-        if verbose:
+        if verbose and 0:
             print('Rotation: z1=%3.1f, z2=%3.1f, x=%3.1f; Dx=%2.2f, Dy=%2.2f, Dz=%2.2f, CC=%2.3f' % \
                   (currentRotation[0], currentRotation[1], currentRotation[2], shiftX, shiftY, shiftZ, peakValue))
 
@@ -1026,6 +1039,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
             meanV = meanUnderMask(volume=particleUnbinned, mask=m, p=p)
             stdV  = stdUnderMask(volume=particleUnbinned, mask=m, p=p, meanV=meanV)
         scoreObject._peakPrior.reset_weight()
+        print(scoreObject._peakPrior, scoreObject._peakPrior.getFileName())
         scoringResult = scoreObject.score(particle=particleUnbinned, reference=simulatedVol, mask=m, stdV=stdV)
         pk = peak(scoringResult)
         [peakValue,peakPosition] = subPixelPeak(scoreVolume=scoringResult, coordinates=pk, interpolation='Quadratic',

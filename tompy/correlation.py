@@ -7,7 +7,7 @@ from pytom.tompy.normalise import normaliseUnderMask, mean0std1, subtractMeanUnd
 
 # Correlation Functions
 
-def FLCF(volume, template, mask=None, stdV=None, gpu=False, mempool=None, pinned_mempool=None):
+def FLCF(volume, template, mask=None, stdV=None):
     '''Fast local correlation function
 
     @param volume: target volume
@@ -26,7 +26,7 @@ def FLCF(volume, template, mask=None, stdV=None, gpu=False, mempool=None, pinned
             mask = create_sphere(volume.shape, volume.shape[0]//2-3, 3)
 
     p = mask.sum()
-    meanT = meanUnderMask(template, mask, p=p, gpu=gpu)
+    meanT = meanUnderMask(template, mask, p=p)
     temp = ((template - meanT ) / stdUnderMask(template, mask, meanT,p=p)) * mask
 
     if stdV is None:
@@ -36,18 +36,18 @@ def FLCF(volume, template, mask=None, stdV=None, gpu=False, mempool=None, pinned
     res =  xp.fft.fftshift(xp.fft.ifftn(xp.conj(xp.fft.fftn(temp)) * xp.fft.fftn(volume))).real / stdV / p
     return res
 
-def xcc(volume, template, mask=None, volumeIsNormalized=False, gpu=False):
+def xcc(volume, template, mask=None, volumeIsNormalized=False):
     """
     xcc: Calculates the cross correlation coefficient in real space
     @param volume: A volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{xp.ndarray}
     @param template: A template that is searched in volume. Must be of same size as volume.
-    @type template:  L{pytom_volume.vol}
+    @type template:  L{xp.ndarray}
     @param mask: mask to constrain correlation
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{xp.ndarray}
     @param volumeIsNormalized: only used for compatibility with nxcc - not used
     @type volumeIsNormalized: L{bool}
-    @return: A unscaled value
+    @return: An unscaled value
     @raise exception: Raises a runtime error if volume and template have a different size.
     @author: Thomas Hrabe
     """
@@ -72,11 +72,11 @@ def nxcc(volume, template, mask=None, volumeIsNormalized=False):
     """
     nxcc: Calculates the normalized cross correlation coefficient in real space
     @param volume: A volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{xp.ndarray}
     @param template: A template that is searched in volume. Must be of same size as volume.
-    @type template:  L{pytom_volume.vol}
+    @type template:  L{xp.ndarray}
     @param mask: mask to constrain correlation
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{xp.ndarray}
     @param volumeIsNormalized: speed up if volume is already normalized
     @type volumeIsNormalized: L{bool}
     @return: A value between -1 and 1
@@ -121,13 +121,13 @@ def xcf(volume, template, mask=None, stdV=None, ):
     result is scaled only by the square of the number of elements.
 
     @param volume : The search volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{xp.ndarray}
     @param template : The template searched (this one will be used for conjugate complex multiplication)
-    @type template: L{pytom_volume.vol}
+    @type template: L{xp.ndarray}
     @param mask: Will be unused, only for compatibility reasons with FLCF
     @param stdV: Will be unused, only for compatibility reasons with FLCF
     @return: XCF volume
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{xp.ndarray}
     @author: Thomas Hrabe
     """
 
@@ -199,12 +199,12 @@ def nXcf(volume, template, mask=None, stdV=None, gpu=False):
 
     @param volume: The search volume
     @param template: The template searched (this one will be used for conjugate complex multiplication)
-    @type template: L{pytom_volume.vol}
+    @type template: L{xp.ndarray}
     @param mask: template mask. If not given, a default sphere mask will be generated which has the same size with the given template.
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{xp.ndarray}
     @param stdV: Will be unused, only for compatibility reasons with FLCF
     @return: the calculated nXcf volume
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{xp.ndarray}
     @author: Thomas Hrabe
     @change: masking of template implemented
     """
@@ -217,24 +217,19 @@ def nXcf(volume, template, mask=None, stdV=None, gpu=False):
 
     return result
 
-def weightedXCC(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
+def weightedXCC(volume,reference,numberOfBands,wedgeAngle=-1):
     """
     weightedXCC: Determines the band weighted correlation coefficient for a volume and reference. Notation according Steward/Grigorieff paper
     @param volume: A volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{xp.ndarray}
     @param reference: A reference of same size as volume
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{xp.ndarray}
     @param numberOfBands: Number of bands
     @param wedgeAngle: A optional wedge angle
     @return: The weighted correlation coefficient
     @rtype: float
     @author: Thomas Hrabe
     """
-
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
 
     from pytom.tompy.transform import fft, fourier_reduced2full
     from pytom.basic.structures import WedgeInfo
@@ -252,7 +247,7 @@ def weightedXCC(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
         band[0] = i
         band[1] = i + increment
 
-        r = bandCC(volume, reference, band, gpu=gpu)
+        r = bandCC(volume, reference, band)
         cc = r[0]
 
         # print cc;
@@ -283,7 +278,7 @@ def weightedXCC(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
             cc = cc2 / (cc + w)
 
         # print 'cc',cc;
-        cc = cc * cc * cc;  # no abs
+        cc = cc * cc * cc  # no abs
         # print 'cc',cc;
 
         # add up result
@@ -291,7 +286,7 @@ def weightedXCC(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
 
     return result * (1 / float(numberVoxels))
 
-def weightedXCF(volume, reference, numberOfBands, wedgeAngle=-1, gpu=False):
+def weightedXCF(volume, reference, numberOfBands, wedgeAngle=-1):
     """
     weightedXCF: Determines the weighted correlation function for volume and reference
     @param volume: A volume
@@ -303,12 +298,6 @@ def weightedXCF(volume, reference, numberOfBands, wedgeAngle=-1, gpu=False):
     @author: Thomas Hrabe
     @todo: does not work yet -> test is disabled
     """
-
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
-
     from pytom.tompy.correlation import bandCF
     from pytom.tompy.transforms import fourier_reduced2full
     from math import sqrt
@@ -356,49 +345,44 @@ def weightedXCF(volume, reference, numberOfBands, wedgeAngle=-1, gpu=False):
 
         cc2 = cc2 ** 2
 
-        cc = shiftscale(cc, w, 1)
+        cc += w
         ccdiv = cc2 / (cc)
 
         ccdiv = ccdiv ** 3
 
         # abs(ccdiv); as suggested by grigorief
-        ccdiv = shiftscale(ccdiv, 0, N)
+        ccdiv *= N
 
         result = result + ccdiv
 
-    result = shiftscale(result, 0, 1 / float(numberVoxels))
+    result *= 1 / float(numberVoxels)
 
     return result
 
-def soc(volume, reference, mask=None, stdV=None, gpu=False):
+def soc(volume, reference, mask=None, stdV=None):
     """
     soc : Second Order Correlation. Correlation of correlation peaks.
     @param volume: The volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{xp.ndarray}
     @param reference: The reference / template
-    @type reference:  L{pytom_volume.vol}
+    @type reference:  L{xp.ndarray}
     @author: Thomas Hrabe
     """
 
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
+    referencePeak = FLCF(reference, reference, mask)
+    peaks = FLCF(volume, reference, mask)
 
-    referencePeak = FLCF(reference, reference, mask, gpu=gpu)
-    peaks = FLCF(volume, reference, mask, gpu=gpu)
-
-    return FLCF(peaks, referencePeak, mask, gpu=gpu)
+    return FLCF(peaks, referencePeak, mask)
 
 def dev(volume, template, mask=None, volumeIsNormalized=False):
     """
     dev: Calculates the squared deviation of volume and template in real space
     @param volume: A volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{xp.ndarray}
     @param template: A template that is searched in volume. Must be of same size as volume.
-    @type template:  L{pytom_volume.vol}
+    @type template:  L{xp.ndarray}
     @param mask: mask to constrain correlation
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{xp.ndarray}
     @param volumeIsNormalized: speed up if volume is already normalized
     @type volumeIsNormalized: L{bool}
     @return: deviation
@@ -406,25 +390,19 @@ def dev(volume, template, mask=None, volumeIsNormalized=False):
     @author: FF
     """
 
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
+    from pytom.tompy.tools import volumesSameSize
 
-    from pytom_volume import vol,sum
-    from pytom.tools.macros import volumesSameSize
-
-    assert type(volume) == vol, "dev: volume has to be of type vol!"
-    assert type(template) == vol, "dev: template has to be of type vol!"
+    assert volume.__class__ == xp.ndarray, "dev: volume has to be of type xp.ndarray!"
+    assert template.__class__ == xp.ndarray, "dev: template has to be of type xp.ndarray!"
     if not volumesSameSize(volume,template):
         raise RuntimeError('Volume and template must have same size!')
 
     if not mask:
-        p = volume.numelem()
+        p = volume.size
         result = volume-template
     else:
-        assert type(mask) == vol, "dev: mask has to be of type vol!"
-        p = sum(mask)
+        assert mask.__class__ == xp.ndarray, "dev: mask has to be of type xp.ndarray!"
+        p = xp.sum(mask)
         result = (volume-template)*mask
 
     deviat = sum(result**2)
@@ -435,18 +413,17 @@ def dev(volume, template, mask=None, volumeIsNormalized=False):
 
 # Band correlation
 
-def bandCC(volume,reference,band,verbose = False, shared=None, index=None):
+def bandCC(volume, reference, band, verbose=False, shared=None, index=None):
     """
     bandCC: Determines the normalised correlation coefficient within a band
     @param volume: The volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{xp.ndarray}
     @param reference: The reference
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{xp.ndarray}
     @param band: [a,b] - specify the lower and upper end of band.
-    @return: First parameter - The correlation of the two volumes in the specified band.
-             Second parameter - The bandpass filter used.
-    @rtype: List - [float,L{pytom_freqweight.weight}]
-    @author: Thomas Hrabe
+    @return: The correlation coefficient of the two volumes in the specified band.
+    @rtype: L{float}
+    @author: GS
     """
 
     if not index is None: print(index)
@@ -506,36 +483,28 @@ def bandCF(volume, reference, band=[0, 100]):
     @param band: [a,b] - specify the lower and upper end of band. [0,1] if not set.
     @return: First parameter - The correlation of the two volumes in the specified ring.
              Second parameter - The bandpass filter used.
-    @rtype: List - [L{pytom_volume.vol},L{pytom_freqweight.weight}]
+    @rtype: List - [L{xp.ndarray},L{pytom_freqweight.weight}]
     @author: Thomas Hrabe
     @todo: does not work yet -> test is disabled
     """
 
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
 
-    import pytom_volume
     from math import sqrt
     from pytom.basic import fourier
-    from pytom.basic.filter import bandpassFilter
-    from pytom.basic.correlation import nXcf
+    from pytom.tompy.filter import bandpass as bandpassFilter
+    from pytom.tompy.transform import fourier_reduced2full, fourier_full2reduced
 
-    vf = bandpassFilter(volume, band[0], band[1], fourierOnly=True)
+    vf, vfm = bandpassFilter(volume, band[0], band[1], fourierOnly=True, returnMask=True)
     rf = bandpassFilter(reference, band[0], band[1], vf[1], fourierOnly=True)
 
-    v = pytom_volume.reducedToFull(vf[0])
-    r = pytom_volume.reducedToFull(rf[0])
+    v = fourier_reduced2full(vf)
+    r = fourier_reduced2full(rf)
 
-    absV = pytom_volume.abs(v)
-    absR = pytom_volume.abs(r)
+    absV = xp.abs(v)**2
+    absR = xp.abs(r)**2
 
-    pytom_volume.power(absV, 2)
-    pytom_volume.power(absR, 2)
-
-    sumV = abs(pytom_volume.sum(absV))
-    sumR = abs(pytom_volume.sum(absR))
+    sumV = abs(xp.sum(absV))
+    sumR = abs(xp.sum(absR))
 
     if sumV == 0:
         sumV = 1
@@ -543,36 +512,38 @@ def bandCF(volume, reference, band=[0, 100]):
     if sumR == 0:
         sumR = 1
 
-    pytom_volume.conjugate(rf[0])
+    xp.conj(rf[0])
 
-    fresult = vf[0] * rf[0]
+    fresult = vf * rf
 
     # transform back to real space
-    result = fourier.ifft(fresult)
+    result = xp.fft.ifftshift(xp.fft.ifftn(fresult)).real
 
-    fourier.iftshift(result)
+    result *= 1 / float(sqrt(sumV * sumR))
 
-    result.shiftscale(0, 1 / float(sqrt(sumV * sumR)))
-
-    return [result, vf[1]]
+    return [result, vfm]
 
 
 #Fourier Shell Correlation and helper functions
 
-def FSC(volume1, volume2, numberBands=None, mask=None, verbose=False, filename=None, num_procs=1):
+def FSC(volume1, volume2, numberBands=None, mask=None, verbose=False, filename=None):
     """
     FSC - Calculates the Fourier Shell Correlation for two volumes
     @param volume1: volume one
-    @type volume1: L{pytom_volume.vol}
+    @type volume1: L{xp.ndarray}
     @param volume2: volume two
-    @type volume2: L{pytom_volume.vol}
+    @type volume2: L{xp.ndarray}
     @param numberBands: number of shells for FSC
     @type numberBands: int
+    @param mask: mask
+    @type mask: L{xp.ndarray}
+    @param verbose: flag to activate printing of info
+    @type verbose: L{bool}
     @param filename: write FSC to ascii file if specified
     @type filename: string
 
     @return: Returns a list of cc values
-    @author: Thomas Hrabe
+    @author:GS
     @rtype: list[floats]
     """
 
@@ -642,13 +613,13 @@ def FSC(volume1, volume2, numberBands=None, mask=None, verbose=False, filename=N
 
     return fscResult
 
-def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
+def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1):
     """
     FSCSum: Determines the sum of the Fourier Shell Correlation coefficient for a volume and reference.
     @param volume: A volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{xp.ndarray}
     @param reference: A reference of same size as volume
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{xp.ndarray}
     @param numberOfBands: Number of bands
     @param wedgeAngle: A optional wedge angle
     @return: The sum FSC coefficient
@@ -656,27 +627,19 @@ def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
     @author: Thomas Hrabe
     """
 
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
-
     from pytom.tompy.correlation import bandCC
 
 
     result = 0
     numberVoxels = 0
 
-    #volume.write('vol.em');
-    #reference.write('ref.em');
     fvolume = xp.fft.fftn(volume)
     freference = xp.fft.fftn(reference)
     numelem = volume.size
 
-    fvolume = shiftscale(fvolume, 0, 1/float(numelem))
-    freference = shiftscale(fvolume, 0, 1/float(numelem))
+    fvolume *= 1/float(numelem)
+    freference *= 1/float(numelem)
 
-    #print '-----'
     for i in range(numberOfBands):
         #process bandCorrelation
         band = []
@@ -685,17 +648,17 @@ def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1, gpu=False):
 
         r = bandCC(fvolume, freference, band, gpu=gpu)
         cc = r[0]
-        #print cc
         result = result + cc
-    #print '-----'
 
     return result*(1/float(numberOfBands))
 
-def determineResolution(fsc, resolutionCriterion, verbose=False, randomizedFSC=None, gpu=False):
+def determineResolution(fsc, resolutionCriterion, verbose=False, randomizedFSC=None):
     """
     determineResolution: Determines frequency and band where correlation drops below the resolutionCriterion. Uses linear interpolation between two positions
     @param fsc: The fsc list determined by L{pytom.basic.correlation.FSC}
     @param resolutionCriterion: A value between 0 and 1
+    @param verbose: Bool that activate writing of info, default=False
+    @param randomizedFSC: A value that sets the start of the calculation of randomized FSC. (0-1).
     @return: [resolution,interpolatedBand,numberBands]
     @author: Thomas Hrabe
     @todo: Add test!
@@ -821,12 +784,12 @@ def generate_random_phases_3d(shape, reduced_complex=True):
 def randomizePhaseBeyondFreq(volume, frequency):
     '''This function randomizes the phases beyond a given frequency, while preserving the Friedel symmetry.
     @param volume: target volume
-    @type volume: 3d ndarray
+    @type volume: L{xp.ndarray}
     @param frequency: frequency in pixel beyond which phases are randomized.
     @type frequency: int
 
     @return: 3d volume.
-    @rtype: 3d ndarray
+    @rtype: L{xp.ndarray}
     @author: GvdS'''
 
     from numpy.fft import ifftn, fftshift, fftn, rfftn, irfftn
@@ -880,7 +843,7 @@ def randomizePhaseBeyondFreq(volume, frequency):
 
 #Sub Pixel Peak Methods
 
-def subPixelPeakParabolic(scoreVolume, coordinates, verbose=False, gpu=False):
+def subPixelPeakParabolic(scoreVolume, coordinates, verbose=False):
     """
     quadratic interpolation of three adjacent samples
     @param scoreVolume: The score volume
@@ -890,10 +853,6 @@ def subPixelPeakParabolic(scoreVolume, coordinates, verbose=False, gpu=False):
     @return: Returns [peakValue,peakCoordinates] with sub pixel accuracy
     @rtype: float, tuple
     """
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
 
     if isBorderVoxel(scoreVolume, coordinates):
         if verbose:
@@ -946,11 +905,6 @@ def subPixelPeak(scoreVolume, coordinates, cubeLength=8, interpolation='Spline',
                                                              verbose=verbose)
         return [peakValue, peakCoordinates]
 
-    if gpu:
-        import cupy as xp
-    else:
-        import numpy as xp
-
     from pytom_volume import vol, subvolume, rescaleSpline, peak
     from pytom.basic.transformations import resize
 
@@ -958,9 +912,7 @@ def subPixelPeak(scoreVolume, coordinates, cubeLength=8, interpolation='Spline',
     twoD = (scoreVolume.shape) == 2
 
     cubeStart = cubeLength // 2
-    sizeX = scoreVolume.sizeX()
-    sizeY = scoreVolume.sizeY()
-    sizeZ = scoreVolume.sizeZ()
+    sizeX, sizeY, sizeZ = scoreVolume.shape
 
     if twoD:
         if (coordinates[0] - cubeStart < 1 or coordinates[1] - cubeStart < 1) or \

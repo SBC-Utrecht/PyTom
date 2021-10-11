@@ -133,6 +133,7 @@ class MPI:
     def parfor(self, func, data, verbose=False):
         """For master only.
         """
+        import sys
         if not self._begun:
             raise Exception("MPI has not been initialized!")
 
@@ -171,7 +172,8 @@ class MPI:
             all_res = self._merge_seq(all_res, len(data))
 
         except Exception as e:
-            print(e)
+            tb = sys.exc_info()[2]
+            print(e.with_traceback(tb))
             self.comm.Abort()
 
         return all_res

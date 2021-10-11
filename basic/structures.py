@@ -1237,6 +1237,8 @@ class SingleTiltWedge(PyTomClass):
         self._wedgeAngle1, self._wedgeAngle2 = wedgeangles
 
 
+
+
 class WedgeInfo(SingleTiltWedge):        
     """
     WedgeInfo:
@@ -1766,7 +1768,7 @@ class Particle(PyTomClass):
 	    @param score: score type
 	    @type score: L{pytom.score.score.Score}
         """
-        from pytom.score.score import Score
+        from pytom.score.score import Score, FLCFScore
         
         if ((not score.__class__ == Score) and (not score.__class__.__bases__[0] == Score)):
             raise TypeError('score parameter must be of type Score')
@@ -1779,7 +1781,7 @@ class Particle(PyTomClass):
         @param scoreValue: value of score
         @type scoreValue: L{float}
         """
-        if not hasattr(self, 'self._score'):
+        if not hasattr(self, '_score'):
             from pytom.score.score import Score
             # set dummy score for particles
             dumscore = Score()
@@ -2817,6 +2819,9 @@ class ParticleList(PyTomClass):
                 even.append(self[particleCounter])
             else:
                 odd.append(self[particleCounter])
+
+        print(even[0])
+        print(odd[0])
         return odd, even
 
     def updateFromOddEven(self, odd, even, verbose=False):
@@ -2834,6 +2839,7 @@ class ParticleList(PyTomClass):
         for ii in range(len(self)):
             if ii % 2 == 0:
                 self._particleList[ii] = even[ieven]
+                print(even[ieven].getScore().getPeakPrior())
                 ieven = ieven + 1
             else:
                 self._particleList[ii] = odd[iodd]
@@ -3306,9 +3312,11 @@ class ParticleList(PyTomClass):
         assert len(self) == len(peaks)
 
         for (ii, part) in enumerate(self._particleList):
+            print(ii, part.getScore().getPeakPrior())
             part.setRotation(rotation=peaks[ii].getRotation())
             part.setShift(shift=peaks[ii].getShift())
             part.setScoreValue(scoreValue=peaks[ii].getScoreValue())
+            print(ii, part.getScore().getPeakPrior())
 
     def setFileName(self, filename):
         """
@@ -3357,6 +3365,25 @@ class ParticleList(PyTomClass):
             ttrans = particle.getShift()
             trot = particle.getRotation()
             particle.setShift(shift=ttrans+translation.rotate(rot=trot))
+
+    def removeEmptySubtomograms(self):
+        """Remove all zero particles from list"""
+        from pytom.tompy.io import read
+        import os
+        import numpy
+
+        num_subtomos, num_del = len(self), 0
+        for n in range(num_subtomos):
+            fname = self[n - num_del].getFilename()
+
+            if os.path.exists(fname):
+                volume = read(fname)
+            else:
+                volume = numpy.zeros((2,3))
+
+            if abs(volume.mean()) < 1E-4 and volume.std() < 1E-4:
+                self._particleList.pop(n-num_del)
+                num_del += 1
 
 
 class InformationGUI(PyTomClass):

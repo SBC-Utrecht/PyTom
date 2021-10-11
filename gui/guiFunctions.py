@@ -20,14 +20,46 @@ import mrcfile
 import copy
 from pytom.basic.files import write_em
 
+from pytom.basic.files import loadtxt as loadstar, savetxt as savestar
+
 def kill_proc(runner):
+    '''kill_proc kills a running process
+    @param runner: running process
+    @type runner: QRunnable'''
     runner.terminate()
 
 def terminateWorker(killEvent):
+    '''terminateWorker sets an event flag
+    @param killEvent: event triggered by killing a process
+    @type killEvent: QEvent'''
     killEvent.set()
     print('Please exit: ', killEvent.is_set())
 
 def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, filename='', cutoff_SD=3):
+    '''ínitSphere create a 3D sphere
+    @param x: size of box in x-dimension
+    @type x: int
+    @param y: size of box in y-dimension
+    @type y: int
+    @param z: size of box in z-dimension
+    @type z: int
+    @param radius: radius of sphere
+    @type radius: int/float
+    @param smooth: sigma of gaussian drop-off at edge sphere
+    @type smooth: float
+    @param cent_x: x-coordinate of center of sphere (px from edge)
+    @type cent_x: float/int
+    @param cent_y: y-coordinate of center of sphere (px from edge)
+    @type cent_y: float/int
+    @param cent_z: z-coordinate of center of sphere (px from edge)
+    @type cent_z: float/int
+    @param filename: optional filename, if specified sphere will be saved instead of returned
+    @type filename: L{str}
+    @param cutoff_SD: number of STD after which the gaussian drop-off is set to zero
+    @type cutoff_SD: L{int}
+    @return:  3D array with sphere of 0 if failed or 1 if successfully saved
+    @rtype: ndarray or int
+    '''
     from scipy.ndimage import gaussian_filter
     if cent_x < 0 or cent_x > x: cent_x = x // 2
     if cent_y < 0 or cent_y > y: cent_y = y // 2
@@ -66,6 +98,17 @@ def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, fi
         return sphere
 
 def write_markerfile(markerFileName, markerfile, tiltangles, bin_factor=1):
+    '''this function writes a markerfile
+    @param markerFileName: filename under which markerfile is saved
+    @type markerFileName: L{str}
+    @param markerfile: array with markerdata
+    @type markerfile: L{numpy.ndarray}
+    @param tiltangles: array with tilt angles of tilt images
+    @type tiltangles: L{numpy.ndarray}
+    @param bin_factor: binning factor used to multiple marker location in markerfile
+    @type bin_factor: L{int}
+
+    '''
     from pytom.basic.datatypes import HEADER_MARKERFILE, FMT_MARKERFILE as fmtMarkerfile
     import numpy as np
     num_projs, num_markers, c = markerfile.shape
@@ -87,6 +130,16 @@ def write_markerfile(markerFileName, markerfile, tiltangles, bin_factor=1):
             np.savetxt(outfile, data_slice, fmt=fmtMarkerfile)
 
 def read_markerfile(filename,tiltangles):
+    '''imports a markerfile in mrc/em/wimp/npy/txt to an array used by the GUI
+
+    @param filename: filename of markerfile
+    @type markerFileName: L{str}
+    @param tiltangles: array with tilt angles of tilt images
+    @type tiltangles: L{numpy.ndarray}
+    @return: mark_frames object (num_tilts, num_marks, 2)
+    @type bin_factor: L{numpy.ndarray}
+    '''
+
     if filename[-4:] == '.mrc':
         mark_frames = mrc2markerfile(filename, tiltangles)
     elif filename[-3:] == '.em':
@@ -103,6 +156,16 @@ def read_markerfile(filename,tiltangles):
     return mark_frames
 
 def readMarkerfile(filename, num_tilt_images=0):
+    '''imports a markerfile in em or txt to an array of shape (4, num_tilts, num_marks)
+
+    @param filename: filename of markerfile
+    @type markerFileName: L{str}
+    @param num_tilt_images: array with tilt angles of tilt images
+    @type num_tilt_images: L{int}
+    @return: markerdata object of shape (4, num_tilts, num_marks)
+    @type bin_factor: L{numpy.ndarray}
+    '''
+
     if filename.endswith('.em'):
         from pytom.basic.files import read
         from pytom_numpy import vol2npy
@@ -119,6 +182,16 @@ def readMarkerfile(filename, num_tilt_images=0):
         return markerdata
 
 def txt2markerfile(filename, tiltangles):
+    '''imports a markerfile in txt format to an array used by the GUI
+
+    @param filename: filename of markerfile
+    @type markerFileName: L{str}
+    @param tiltangles: array with tilt angles of tilt images
+    @type tiltangles: L{numpy.ndarray}
+    @return: mark_frames object (num_tilts, num_marks, 2)
+    @type mark_frames: L{numpy.ndarray}
+    '''
+
     data = loadstar(filename)
     datalen = data.shape[0]
     num_angles = (data[:, 0] < 1E-6).sum()
@@ -141,9 +214,27 @@ def txt2markerfile(filename, tiltangles):
         return mark_frames
 
 def npy2markerfile(filename,tiltangles):
+    '''imports a markerfile in npy format to an array used by the GUI
+
+    @param filename: filename of markerfile
+    @type markerFileName: L{str}
+    @param tiltangles: array with tilt angles of tilt images
+    @type tiltangles: L{numpy.ndarray}
+    @return: mark_frames object (num_tilts, num_marks, 2)
+    @type mark_frames: L{numpy.ndarray}
+    '''
     return numpy.load(filename)
 
 def wimp2markerfile(filename, tiltangles, write=False):
+    '''imports a markerfile in wimp format to an array used by the GUI
+    @param filename: filename of markerfile
+    @type markerFileName: L{str}
+    @param tiltangles: array with tilt angles of tilt images
+    @type tiltangles: L{numpy.ndarray}
+    @return: mark_frames object (num_tilts, num_marks, 2)
+    @type mark_frames: L{numpy.ndarray}
+    '''
+
     data = [line for line in open(filename).readlines()]
 
     for i in range(10):
@@ -166,6 +257,15 @@ def wimp2markerfile(filename, tiltangles, write=False):
     return markerset
 
 def mrc2markerfile(filename, tiltangles):
+    '''imports a markerfile in mrc format to an array used by the GUI
+
+    @param filename: filename of markerfile
+    @type markerFileName: L{str}
+    @param tiltangles: array with tilt angles of tilt images
+    @type tiltangles: L{numpy.ndarray}
+    @return: mark_frames object (num_tilts, num_marks, 2)
+    @type mark_frames: L{numpy.ndarray}
+    '''
     if 0:
         mf = read_mrc(filename)
     else:
@@ -187,6 +287,15 @@ def mrc2markerfile(filename, tiltangles):
     return markers
 
 def em2markerfile(filename, tiltangles):
+    '''imports a markerfile in em format to an array used by the GUI
+
+    @param filename: filename of markerfile
+    @type markerFileName: L{str}
+    @param tiltangles: array with tilt angles of tilt images
+    @type tiltangles: L{numpy.ndarray}
+    @return: mark_frames object (num_tilts, num_marks, 2)
+    @type mark_frames: L{numpy.ndarray}
+    '''
     vol = read(filename)
     mf = copy.deepcopy(vol2npy(vol))
 
@@ -242,7 +351,12 @@ def renumber_gui2pytom(output_folder, prefix):
         os.system('mv {} {}'.format(fname, fname[:-len('.temp')]))
 
 def mrc2em(filename,destination):
-
+    '''This function converts a signle em file to the .mrc format and saves the files in the
+    specified destination folder.
+    @param filename: absolute/relative path to a .em file
+    @type filename: L{str}
+    @param filename: absolute/relative path to output folder
+    @type filename: L{str}'''
 
     if not os.path.exists(filename):
         raise RuntimeError('MRC file not found! ',filename)
@@ -352,12 +466,20 @@ def createGenericDict(fname='template',cmd='', folder='', partition='defq', num_
     return genericSbatchDict
 
 def sort( obj, nrcol ):
+    '''sort_str sorts a list/array on values in column nrcol interpreted as str'''
     obj.sort(key=lambda i: float(i[nrcol]))
 
 def sort_str( obj, nrcol ):
+    '''sort_str sorts a list/array on values in column nrcol interpreted as str'''
     obj.sort(key=lambda i: str(i[nrcol]))
 
 def avail_gpu(cutoff_busy=.25, cutoff_space = 0.5):
+    '''avail_gpu return as list with gpu indices that are available. availibility is determined if available space > cutoff_space and activity < cutoff_busy
+
+    @param cutoff_busy: fraction of GPU active, default .25
+    @param cutoff_space: fraction of memeory of GPU available
+    @return: list of gpu indices of available gpus
+    '''
     lines = [line.split() for line in os.popen('nvidia-smi').readlines()]
 
     list_gpu, available_gpu = [],[]
@@ -381,8 +503,9 @@ def avail_gpu(cutoff_busy=.25, cutoff_space = 0.5):
         av = []
     return av
 
-def delete( path):
-    '''the function moves a file or folder to the .trash folder in the folder below. if .trash does not exists it will be create'''
+def delete(path):
+    '''the function moves a file or folder to the .trash folder in the folder below. if .trash does not exists it will be create
+    @param path: absolute/relative path to to be deleted folder of file'''
     import shutil
     if path.endswith('/'):
         path = path[:-1]
@@ -408,7 +531,14 @@ def delete( path):
 
 def Radial_average(image, mask=None):
     """Calculates the radial average of an array of any shape,
-    the center is assumed to be at the physical center."""
+    the center is assumed to be at the physical center.
+
+    @param image: 2d array of image
+    @type image: L{numpy.ndarray}
+    @param mask: optional 2d array mask, image is multiplied by mask before calculating the radial average
+    @type mask: L{numpy.ndarray}
+
+    """
     import pylab
     [cx,cy] = image.shape
     if mask == None:
@@ -430,6 +560,15 @@ def Radial_average(image, mask=None):
     return radial_sum / weight
 
 def detect_shift(arr0,arr1,image=[]):
+    '''calculates the 2d shift between two 2d arrays using their cross-correlation. shift is relative shift of max
+    in crosscorelation and center of image.
+
+    @param arr0: 2d array of image
+    @type arr1: L{numpy.ndarray}
+    @param arr1: 2d array of image
+    @type arr1: L{numpy.ndarray}
+    @return: 2d cross correlation arr0 and arr1, shiftx, shifty, max 2d cross-correlation
+    '''
     x,y = image.shape
     cross = abs(fftshift( ifft2(fftshift(fftshift(fft2(arr0))*conj(fftshift(fft2(arr1)))))))**2
     locx,locy =  (abs((cross))**2).flatten().argmax()%y, (abs((cross))**2).flatten().argmax()/y
@@ -440,6 +579,7 @@ def create_folder(foldername):
     if not os.path.exists(foldername): os.mkdir( foldername ) 
 
 def write_text2file(text,fname,mode='a'):
+    '''Writes text to file, default text is appended to existing file'''
     create_folder( os.path.dirname(fname) ) 
     out = open(fname,mode)
     out.write(text)
@@ -498,9 +638,6 @@ def copy_files(folderstructure, enter, projectdir='.'):
             copy_files(folderstructure[mainfolder], "%s/%s" % (enter, mainfolder), projectdir)
 
 def create_project_filestructure(projectdir='.'):
-    # with open('config.json') as json_data_file:
-    #    folderstructure = json.load(json_data_file)
-
 
     folderstructure = {
         "01_Raw_Nanographs": {
@@ -696,23 +833,6 @@ fmtAE = '%7d %15.2f %15.3f %15.3f %15.3f %15.3f %15.3f'
 for n, h in enumerate(ALIGNMENT_ERRORS):
     headerAlignmentErrors += '{} {}\n'.format(h[0], '({})'.format(unitsAE[n]) * (unitsAE[n] != ''))
 
-
-def headerline(line):
-
-    if line.startswith('data_') or line.startswith('loop_') or line.startswith('_') or line.startswith('#'):
-        return False
-    else:
-
-        return True
-
-def loadstar(filename, dtype='float32', usecols=None, skip_header=0):
-    with open(filename, 'r') as f:
-        lines = [line for line in f if headerline(line)]
-        arr = numpy.genfromtxt(lines, dtype=dtype, usecols=usecols, skip_header=skip_header)
-    return arr
-
-def savestar(filename, arr, header='', fmt='', comments='#'):
-    numpy.savetxt(filename, arr, comments=comments, header=header, fmt=fmt)
 
 def update_metafile(filename, columnID, values ):
     metadata= loadstar(filename,dtype=datatype)

@@ -65,8 +65,8 @@ class TomographReconstruct(GuiTabWidget):
         subheaders = [[], [], ['Individual Alignment', 'Batch Alignment'],
                       ['CTF Determination', 'CTF Correction', 'Batch Correction'],
                       ['INFR', 'WBP', 'Batch Reconstruction']]
-        tabUIs = [self.tab1UI,
-                  self.tab2UI,
+        tabUIs = [[self.tab1UI],
+                  [self.tab2UI],
                   [self.tab31UI,self.tab32UI],
                   [self.tab41UI,self.tab42UI,self.tab43UI],
                   [self.tab51UI, self.tab52UI,self.tab53UI]]
@@ -206,7 +206,7 @@ class TomographReconstruct(GuiTabWidget):
 
         last, reftilt = 10, 5
 
-        self.insert_pushbutton(parent,cstep=1,text='Create Markerfile',action=self.startFidAssignment, params=[parent],
+        self.insert_pushbutton(parent,cstep=1, text='Create Markerfile', action=self.startFidAssignment, params=[parent],
                                wname='startFidAss',rstep=1)
         self.widgets['startFidAss'].setSizePolicy(self.sizePolicyC)
         self.insert_label(parent,sizepolicy=self.sizePolicyA)
@@ -581,17 +581,20 @@ class TomographReconstruct(GuiTabWidget):
                                   tooltip='Binning factor used for reconstruction')
 
         for name in ('tomofolder', 'tomogramNR','FirstIndex', 'LastIndex', 'Reduced', 'tiltSeriesName', 'markerfile',
-                     'specimenAngleFlag', 'DimY'):
+                     'specimenAngleFlag', 'DimY', 'DimX', 'DimZ'):
             self.widgets[mode + name] = QLineEdit()
 
         self.widgets[h + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
         self.updateTomoFolder(mode)
 
         self.widgets[h + 'BinningFactor'].valueChanged.connect(lambda dummy, m=mode: self.updateVoldims(m))
+        self.widgets[h + 'RotationTiltAxis'].valueChanged.connect(lambda dummy, m=mode: self.updateVoldims(m))
+
         self.updateVoldims(mode)
 
         self.widgets[mode + 'FirstAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
         self.widgets[mode + 'LastAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
+
 
 
         execfilename = [mode + 'tomofolder', 'reconstruction/WBP/WBP_Reconstruction.sh']
@@ -606,8 +609,9 @@ class TomographReconstruct(GuiTabWidget):
 
         paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex', mode + 'LastIndex',
                      mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', mode + 'tomogramNR', 'mrc',
-                     mode + 'Voldims', mode + 'WeightingType', mode+'RotationTiltAxis', mode + 'specimenAngleFlag', mode + 'DimY',
+                     mode + 'Voldims', mode + 'WeightingType', mode+'RotationTiltAxis', mode + 'specimenAngleFlag', mode + 'DimY', mode + 'DimZ',
                      templateWBP]
+
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, action=self.convert_em, exefilename=execfilename,
                                  paramsAction=[mode,'reconstruction/WBP','sorted'],paramsSbatch=paramsSbatch,
@@ -726,9 +730,8 @@ class TomographReconstruct(GuiTabWidget):
         self.fidass.show()
         pass
 
-    def ctfDetermination(self, mode):
+    def ctfDetermination(self, mode, title=''):
 
-        title = "CTF Determination"
         tooltip = 'Run IMOD ctfplotter.'
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
@@ -812,8 +815,7 @@ class TomographReconstruct(GuiTabWidget):
         setattr(self, mode + 'gb_CD', groupbox)
         return groupbox
 
-    def ctfCorrection(self, mode):
-        title = "CTF Correction"
+    def ctfCorrection(self, mode, title=''):
         tooltip = 'CTF Correction for aligned tilt images.'
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
@@ -1178,6 +1180,20 @@ class TomographReconstruct(GuiTabWidget):
                         markerfile[:,i,0] -= shiftx
                         markerfile[:,i,1] -= shifty
                 print('write markerfile')
+
+                out = markerfile.copy()
+                cntr = 0
+
+                for i in range(markerfile.shape[1]):
+                    xx = markerfile[:, i, 0].sum()
+                    yy = markerfile[:, i, 1].sum()
+                    if yy > 0 and xx > 0:
+                        out[:,cntr,:] = markerfile[:,i,:]
+                        cntr += 1
+
+                if cntr > 0:
+                    markerfile = out[:,:cntr,:]
+
                 write_markerfile(markerFileName, markerfile, tiltangles, bin_factor=binning)
 
 
@@ -1242,7 +1258,7 @@ class TomographReconstruct(GuiTabWidget):
 
         self.widgets[mode + 'markerfile'].setText(markerfile)
 
-    def updateVoldims(self,mode):
+    def updateVoldims(self,mode, rotation_axis=None):
         folderSorted = self.widgets[mode+'FolderSorted'].text()
         if not folderSorted: return
         files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')]
@@ -1254,8 +1270,18 @@ class TomographReconstruct(GuiTabWidget):
         dimy = str(int(float(imdims[1])/float(self.widgets[mode+'BinningFactor'].text())+.5))
 
 
-        self.widgets[mode+'Voldims'].setText(f'{dimx}')
-        self.widgets[mode + 'DimY'].setText(f'{dimy}')
+        expectedRotation = float(self.widgets[mode+'RotationTiltAxis'].text()) if (rotation_axis is None) else rotation_axis
+
+        if abs(90 - (expectedRotation % 180)) < 45:
+            dx, dy, dz = dimy, dimx, dimy
+        else:
+            dx, dy, dz = dimx, dimy, dimx
+
+
+        self.widgets[mode+'Voldims'].setText(f'{dx}')
+        self.widgets[mode + 'DimX'].setText(f'{dx}')
+        self.widgets[mode + 'DimY'].setText(f'{dy}')
+        self.widgets[mode + 'DimZ'].setText(f'{dz}')
 
     def updateIndex(self, mode):
         if 'INFR' in mode: INFR=1
@@ -1794,12 +1820,16 @@ class TomographReconstruct(GuiTabWidget):
                 if widgets[widget].isChecked():
 
 
-                    for name in ('FirstAngle', 'LastAngle', 'FirstIndex', 'LastIndex', 'Reduced', 'Voldims'):
+                    for name in ('FirstAngle', 'LastAngle', 'FirstIndex', 'LastIndex', 'Reduced', 'Voldims', 'RotationTiltAxis', 'DimX', 'DimY', 'DimZ'):
+                        if mode + name in self.widgets.keys():
+                            continue
                         self.widgets[mode + name] = QLineEdit()
 
 
                     self.widgets[mode+'FirstAngle'].setText(firstAngle)
                     self.widgets[mode+'LastAngle'].setText(lastAngle)
+                    self.widgets[mode+'RotationTiltAxis'].setText(str(expectedRotation))
+
                     self.updateIndex(mode)
                     firstIndex, lastIndex = int(self.widgets[mode+'FirstIndex'].text()), int(self.widgets[mode+'LastIndex'].text())
 

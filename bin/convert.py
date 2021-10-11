@@ -15,7 +15,7 @@ import numpy
 #from pytom.gui.guiFunctions import createMetaDataFiles
 
 # The lookup tables for the conversion functions
-extensions = all_extensions = ["em", "mrc", "ccp4", "pl", "meta", "pdb", "mmCIF", 'mrcs', 'st', 'mdoc', 'h5', 'star', 'txt']
+extensions = all_extensions = ["em", "mrc", "ccp4", "pl", "meta", "pdb", "mmCIF", 'mrcs', 'st', 'mdoc', 'h5', 'star', 'txt', 'wimp']
 special = ['pl']
 
 lookuptable = []
@@ -66,6 +66,8 @@ def convertfile(file, format, target, chaindata, subtomo_prefix=None, wedge_angl
     in_ex = file.split('.')[-1]
     if in_ex == "map": in_ex = "mrc"
 
+    if in_ex == 'xml': in_ex = 'pl'
+
     # Check if func exists
     try:
         index_from = extensions.index(in_ex)
@@ -91,6 +93,15 @@ def convertfile(file, format, target, chaindata, subtomo_prefix=None, wedge_angl
         except:
             return 1, "Exception while converting coordinatesfile {:s} to a particlelist".format(file)
 
+
+    if in_ex == "pl" and format == "star":
+        try:
+            func(file, target, **chaindata)
+            return 0,""
+
+        except Exception as e:
+            print(e)
+            return 1, "Exception while converting particleList {:s} to a star file".format(file)
 
 
     if func is None:
@@ -149,8 +160,6 @@ def test_validity(filename, directory, target, format, chaindata):
     """Test the validity of the input arguments"""
     exceptions = ""
 
-    print(filename, directory, target, format, chaindata)
-
     # Determine the validity of the call
     if chaindata and chaindata[2] > 1:
         exceptions += "The only valid values for invertDensity are 0 and 1\n"
@@ -188,6 +197,8 @@ if __name__ == '__main__':
                  ScriptOption2(
                      ['-t', '--targetPath'], 'Path to new file, as a relative or absolute path to a directory, the file'
                                              'name will be the same as the original file', 'directory', 'optional', '.'),
+                 ScriptOption2(['--outname'], 'Filename output file. Used only in case of pl2star conversion.', 'string', 'optional', ''),
+
                  ScriptOption2(
                      ['-o', '--outputFormat'], 'The format of the output file, will keep the same name but only change '
                                                'the extension.', 'string', 'required'),
@@ -203,12 +214,21 @@ if __name__ == '__main__':
                      ['-w', '--wedgeAngles'], 'Data needed for the conversion from coordinates to a particlelist. '
                                               'Missing wedge angle(s) [counter-clock, clock] or single angle',
                      'has arguments', 'optional'),
-                 ScriptOption2(['--filter'], 'Only files that match the discription will be converted.'
-                              , 'string', 'optional')])
+                 ScriptOption2(['--prefixQuery'], 'Only files that match the prefix will be converted.'
+                              , 'string', 'optional', ''),
+                 ScriptOption2(['--suffixQuery'], 'Only files that end with suffix will be converted.'
+                          , 'string', 'optional', ''),
+
+
+                 ScriptOption2(['--pixelSize'], 'Pixelsize of original nanographs.', 'float', 'optional', 1),
+                 ScriptOption2(['--binPyTom'], 'Binning factor of the pytom tomogram.', 'float', 'optional', 1),
+                 ScriptOption2(['--binWarpM'], 'Binning factor of the warp/m volumes.', 'float', 'optional', 1),
+        ])
 
     #TODO write --filter to filter input files maybe on (glob) pattern or else on extension or similar
 
-    filename, directory, target, format, chaindata, subtomo_prefix, w, pattern = parse_script_options2(sys.argv[1:], helper)
+    filename, directory, target, outname, format, chaindata, subtomo_prefix, w, prefix, suffix, pixelsize, binningFactorPyTom,\
+    binningFactorWarpM = parse_script_options2(sys.argv[1:], helper)
 
     try:
         if w:
@@ -225,6 +245,9 @@ if __name__ == '__main__':
             wedge_angles = None
     except Exception as e:
         print_errors("The parsing of the wedge angle was not successful.\n{:s}".format(str(e)))
+
+
+
 
     # Parse the pattern
 
@@ -257,6 +280,14 @@ if __name__ == '__main__':
     # Test for validity of the arguments passed, will stop execution if an error is found
     test_validity(filename, directory, target, format, chaindata)
 
+    if (outname and format == 'star') or (not filename is None and filename.endswith('xml')):
+        chaindata = {}
+
+        chaindata['pixelsize'] = pixelsize
+        chaindata['binningWarpM'] = binningFactorWarpM
+        chaindata['binningPyTom'] = binningFactorPyTom
+        outname = 'dummy.star' if outname == '' else outname
+
     if filename:
         warn_if_file_exists(f.name_to_format(filename, target, format))
 
@@ -269,24 +300,32 @@ if __name__ == '__main__':
     elif directory:
         import glob
 
-        if pattern is None:
+        if prefix == '' and suffix == '':
             fileList = [os.path.join(directory, fname) for fname in os.listdir(directory) if not os.path.isdir(fname)]
         else:
-            query = os.path.join(directory, pattern+'*')
+            query = os.path.join(directory, prefix + '*' + suffix)
             print(query)
             fileList = sorted(glob.glob(query))
 
-        for filename in fileList:
-            warn_if_file_exists(f.name_to_format(filename, target, format))
 
-            try:
-                num, ex = convertfile(filename, format, target, chaindata, subtomo_prefix, wedge_angles)
-            except Exception as e:
-                num = 1
-                ex = "CONVERSION EXCEPTION " + str(e)
+        if format == 'star':
+            lookuptable[extensions.index('pl')][extensions.index('star')](directory, target, pixelsize=pixelsize,
+                                                                          binningPyTom=binningFactorPyTom,
+                                                                          binningWarpM=binningFactorWarpM,
+                                                                          outname=outname)
 
-            # Print the result, ignores status code -1
-            if num == 0:
-                print("Converted {:s} to {:s}".format(filename, f.name_to_format(filename, target, format)))
-            elif num == 1:
-                print_single_error("File: {:s} gave error: {:s}".format(filename, ex))
+        else:
+            for filename in fileList:
+                warn_if_file_exists(f.name_to_format(filename, target, format))
+
+                try:
+                    num, ex = convertfile(filename, format, target, chaindata, subtomo_prefix, wedge_angles)
+                except Exception as e:
+                    num = 1
+                    ex = "CONVERSION EXCEPTION " + str(e)
+
+                # Print the result, ignores status code -1
+                if num == 0:
+                    print("Converted {:s} to {:s}".format(filename, f.name_to_format(filename, target, format)))
+                elif num == 1:
+                    print_single_error("File: {:s} gave error: {:s}".format(filename, ex))

@@ -69,7 +69,6 @@ def backProjectGPU(projections, vol_bp, vol_phi, proj_angles, recPosVol=None, vo
     center_proj[:, 0] += dims_proj[0] // 2 + vol_offsetProjections[:, 0]
     center_proj[:, 1] += dims_proj[1] // 2 + vol_offsetProjections[:, 1]
 
-
     for n in range(projections.shape[2]):
         # get projection
         src = cp.array(projections[:,:,n], dtype=cp.float32)
@@ -80,20 +79,18 @@ def backProjectGPU(projections, vol_bp, vol_phi, proj_angles, recPosVol=None, vo
 
 
         tr11 = cos(Y)*cos(Z1)*cos(Z2)-sin(Z1)*sin(Z2)
-        # tr21 = cos(Y)*sin(Z1)*cos(Z2)+cos(Z1)*sin(Z2)
+        tr21 = cos(Y)*sin(Z1)*cos(Z2)+cos(Z1)*sin(Z2)
         tr31 = -sin(Y)*cos(Z2)
-        # tr12 = -cos(Y)*cos(Z1)*sin(Z2)-sin(Z1)*cos(Z2)
+        tr12 = -cos(Y)*cos(Z1)*sin(Z2)-sin(Z1)*cos(Z2)
         tr22 = -cos(Y)*sin(Z1)*sin(Z2)+cos(Z1)*cos(Z2)
+        tr32 = sin(Y)*sin(Z2)
 
-        tr = cp.array([tr11, tr22, tr31],dtype=cp.float32)
-        # tr32 = sin(Y)*sin(Z2)
-
+        tr = cp.array([tr11, tr21, tr31, tr12, tr22, tr32],dtype=cp.float32)
         # if not recPosVol is None:
         #     cx, cy, cz = recPosVol[n, :]
         #     print(cx,cy,cz)
         #     center_proj[n,0] += xp.cos(xp.arctan2(cz,cx) + Y)* xp.sqrt(cx**2+cz**2) - cx
         #center_proj = cp.array([dims[0] // 2 + vol_offsetProjections[0, 0, n], dims[1] // 2 + vol_offsetProjections[0, 1, n]], dtype=cp.float32)
-
         reconstruction_wbp((nblocks,1,1,), (nthreads,1,1), (src, center_proj[n,:], dims_proj, reconstruction, center_recon, dims, tr, reconstruction.size))
 
         #print(reconstruction.sum())

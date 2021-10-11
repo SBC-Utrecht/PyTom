@@ -83,7 +83,7 @@ if __name__ == '__main__':
 
         wedge = Wedge(wedge_angles)
 
-        if 1:
+        if 0:
             from pytom.tompy.transform import resize
             volume = resize(volume, 1/2)
             template = resize(template, 1/2)

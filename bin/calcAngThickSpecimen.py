@@ -66,7 +66,7 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
     if binning != 1:
         data = resize(data, 1/binning)
 
-    mask2 = create_sphere(data.shape, radius=data.shape[0]*2//5)
+    mask2 = create_sphere(data.shape, radius=data.shape[0]*2.2//5)
     mask = create_sphere(data.shape, radius=radius)
 
     volume = data #* mask2
@@ -74,7 +74,7 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
     meanV = meanVolUnderMask(volume, mask)
     stdV = stdVolUnderMask(volume, mask, meanV)
 
-    if verbose:
+    if 0 and verbose:
         if 1:
             outname = os.path.join(folder, 'stdV.mrc')
             if 0:
@@ -188,7 +188,7 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
         #     pass
 
     stdV *= mask2
-    stdV[mask2<0.5] = stdV.min()
+    stdV[mask2<0.5] = stdV.min()*0
 
     proj = xp.expand_dims((stdV).sum(axis=1), 2)
     rot = xp.zeros_like(proj, dtype=xp.float32)
@@ -228,6 +228,7 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
             bestA = a
             curve_norm = rot2-reference_line
             curve = rot2
+            vol = rot.copy()
         if verbose:
             try:
                 ax[2].plot(rot2-reference_line)
@@ -235,26 +236,54 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
                 ax[2].plot((rot2-reference_line).get())
 
 
-    for n, v in enumerate(curve_norm[:curve.argmax()][::-1]):
-        if v <0:
-            left2 = int(curve_norm.argmax()-n)
-            break
+    maxid = -2
+    ref = -2
 
-    for n, v in enumerate(curve_norm[curve.argmax():]):
-        if v <0:
-            right2 = int(curve_norm.argmax()+n)
-            break
+    for offset in range(5,15):
+        aa = curve.get()
+        bb = reference_line.get()
+
+        cc = bb * 0 + 1
+        cc[150:-150] = 0
+
+        from numpy.fft import ifftn, fftn, fftshift
+
+        top = ifftn(fftn(aa*cc)*fftn(cc*bb*offset/10.).conj())
+        print(offset/10, top.max())
+        if top.max() > maxid:
+            maxid = top.max()
+            ref = offset/10.
+
+    print(ref)
+    # curve_norm = curve - reference_line*ref
 
 
+    left2, right2 = 0, len(curve_norm)
     left = int(curve_norm[:curve.argmax()].argmin())
 
     right = int(curve_norm[curve.argmax():].argmin() + curve.argmax())
+
+    for n, v in enumerate(curve_norm[left:curve.argmax()]):
+        print(n, v)
+        if v > 0:
+            left2 = int(left+n)
+            break
+
+    for n, v in enumerate(curve_norm[curve.argmax():right][::-1]):
+        if v >0:
+            right2 = int(right-n)
+            break
+
+
+
+
+
 
     try:
         sra_file = f'{folder}/z_limits.txt'
 
         out = open(sra_file, 'w')
-        out.write(f'{left2} {right2}')
+        out.write(f'{left} {right}')
         out.close()
 
         if os.path.exists(os.path.join(os.path.dirname(sra_file), 'WBP_Reconstruction.sh')):
@@ -288,7 +317,11 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
         ax[2].vlines(right2, curve_norm.min(), curve_norm.max(), lw=1, colors='#54d777', label='Cut off right2')
 
         ax[2].legend()
-        ax[0].imshow((stdV).sum(axis=1).get(),cmap='gray')
+        print(vol.shape)
+        ax[0].imshow(vol.squeeze().get(),cmap='gray')
+        ax[0].vlines(left, 0, stdV.shape[2], lw=1, colors='#54d777', label='Cut off left')
+        ax[0].vlines(right,0,stdV.shape[2], lw=1, colors='#54d777', label='Cut off left')
+
         try:
             savefig(f'{folder}/anglethickness.png')
         except:

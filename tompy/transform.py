@@ -634,7 +634,6 @@ def fourier_filter(data, fltr, human=True):
 
     return res
 
-
 def resiz2e(volume, factor, interpolation='Fourier'):
     """
     resize volume in real or Fourier space

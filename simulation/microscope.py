@@ -339,7 +339,6 @@ def create_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-
     q = xp.sqrt((xdot / inratioqlq) ** 2 + (ydot * inratioqqs) ** 2) * q_true
     qsym = xp.sqrt(xdot ** 2 + ydot ** 2) * q_true
 
-    # print(r)
     chi = 0.5 * xp.pi * (Cs * (lmbd ** 3) * (qsym ** 4) - 2 * defocus * lmbd * (q ** 2))
     complex_ctf = xp.cos(chi) - 1j * xp.sin(chi)
 
@@ -348,9 +347,11 @@ def create_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-
     nominator = xp.pi * lmbd * q ** 2 * h
     denominator = 4 * xp.sqrt(xp.log(2))
     chromatic_envelope = xp.exp(- (nominator / denominator) ** 2)
+
     # spatial envelope
     nums = (xp.pi * Cs * lmbd ** 2 * q ** 3 - xp.pi * defocus * q) ** 2 * illumination_aperture ** 2
     spatial_envelope = xp.exp(- nums / xp.log(2))
+
     # full envelope
     envelope = chromatic_envelope * spatial_envelope
 

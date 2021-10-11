@@ -495,7 +495,8 @@ def averageGPU2(particleList, averageName, showProgressBar=False, verbose=False,
         rotation = particleObject.getRotation()
         rotinvert = rotation.invert()
         shiftV = particleObject.getShift()
-
+        print(-shiftV[0], -shiftV[1], -shiftV[2])
+        print(-rotation[1], -rotation[2], -rotation[0])
         # if n % total == 0:
         #     while len(procs):
         #         procs =[proc for proc in procs if proc.is_alive()]

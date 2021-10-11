@@ -70,10 +70,13 @@ class SubtomoAnalysis(GuiTabWidget):
         subheaders = [['Single Reconstruction','Batch Reconstruction'],['Single', 'Batch'], [], ['FRM Alignment','GLocal'],['CPCA','Auto Focus'], [] ]
         tabUIs = [[self.SubtomoReconstrSingleUI, self.SubtomoReconstrBatchUI],
                   [self.PolishSingleUI, self.PolishBatchUI],
-                  self.AveragePL,
+                  [self.AveragePL],
                   [self.FRMUI,self.GLocalUI],
                   [self.CPCAUI,self.AC3DUI],
-                  self.FSCUI]
+                  [self.FSCUI]]
+
+        self.names = [[],[],[],[],[],[],[]]
+
         static_tabs = [[True, False], [True, False], [True],[True, True], [True, True], [True, True]]
 
 
@@ -162,7 +165,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         t0 = self.stage + 'SingleParticlePolish_'
 
-        items += list(self.create_expandable_group(self.addParticlePolishFields, self.sizePolicyB, 'Single Reconstruction',
+        items += list(self.create_expandable_group(self.addParticlePolishFields, self.sizePolicyB, 'Single Polishing',
                                                    mode=t0))
         items[-1].setVisible(False)
 
@@ -312,11 +315,11 @@ class SubtomoAnalysis(GuiTabWidget):
         grid.addWidget(label, n + 1, 0, Qt.AlignRight)
 
 
-    # Functions to fill tabs with input fields or an input table
+    # Methods to fill tabs with input fields or an input table
 
-    def addSubtomogramReconstructionFields(self, mode=''):
+    def addSubtomogramReconstructionFields(self, mode='', title=''):
 
-        title = "Single Reconstruction"
+        #title = "Single Reconstruction"
         tooltip = ''
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
@@ -409,10 +412,8 @@ class SubtomoAnalysis(GuiTabWidget):
 
                 for pp in pls:
                     if len(pp) == 0: continue
-                    projdir = pp[0].getInfoGUI().getProjectDir()
-                    print(projdir)
+                    projdir = os.path.basename(pp[0].getInfoGUI().getProjectDir())
                     projdir = os.path.basename(self.projectname) if projdir == '' else projdir
-                    print(projdir)
 
                     if projdir[-1] == '/': projdir = projdir[:-1]
                     if projdir: projdir+='_'
@@ -552,8 +553,161 @@ class SubtomoAnalysis(GuiTabWidget):
         for i in range(len(values)):
             self.updateChoices(i, key)
 
-    def addParticlePolishFields(self, mode=''):
-        title = "Particle Polish (Single)"
+    def massExtractParticles(self, pid, values):
+        num_nodes = int(self.num_nodes[pid].value())
+        qIDs = []
+        jobCode = {}
+        execfilenames = {}
+        num_submitted_jobs = nsj = 0
+        values = self.valuesBatchSubtomoReconstruction
+        try:
+            for row in range(self.tables[pid].table.rowCount()):
+                if self.tab12_widgets['widget_{}_1'.format(row)].isChecked():
+                    particleXML = values[row][0] #[row][0]
+                    tomoindex = particleXML.split('_tomogram_')[-1][:3]
+                    markerPath = values[row][2][self.tab12_widgets['widget_{}_{}'.format(row,2)].currentIndex()]
+                    folder_align_type = values[row][3][self.tab12_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
+                    folder_origin      = values[row][4][self.tab12_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
+
+                    metafile = glob.glob('{}/03_Tomographic_Reconstruction/tomogram_{}/sorted/*.meta'.format(self.projectname,tomoindex))
+                    if not metafile: continue
+                    metafile = metafile[0]
+                    #q = '{}/03_Tomographic_Reconstruction/tomogram_{}/alignment/unweighted_unbinned_marker_{}'
+                    #folder_aligned = q.format(self.projectname,tomoindex,ref_marker)
+                    bin_read = self.tab12_widgets['widget_{}_{}'.format(row,5)].text()
+                    weight = self.tab12_widgets['widget_{}_{}'.format(row, 6)].text()
+                    size = self.tab12_widgets['widget_{}_{}'.format(row, 7)].text()
+                    bin_subtomo = self.tab12_widgets['widget_{}_{}'.format(row,8)].text()
+                    offx = self.tab12_widgets['widget_{}_{}'.format(row, 9)].text()
+                    offy = self.tab12_widgets['widget_{}_{}'.format(row, 10)].text()
+                    offz = self.tab12_widgets['widget_{}_{}'.format(row, 11)].text()
+                    scale = self.tab12_widgets['widget_{}_{}'.format(row, 12)].text()
+                    scale = None if (scale == '1' or scale == '') else float(scale)
+                    gpuIDs = self.tab12_widgets['widget_{}_{}'.format(row, 13)].text()
+                    gpuIDflag = '' if not gpuIDs else f' --gpuID {gpuIDs}'
+                    ppfile = values[row][14][self.tab12_widgets['widget_{}_{}'.format(row, 14)].currentIndex()]
+                    ppflag = f'--particlePolishResultFile {ppfile}' if ppfile else ''
+
+                    ppflag +=  '' if scale is None else f' --scaleFactorParticle {scale}'
+
+                    ppflag += gpuIDflag
+
+                    refid = os.path.basename(markerPath).split('_')[1]
+
+                    if refid.lower() != 'closest':
+
+                        outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_Refmarker_{}.sh'.format(int(tomoindex),refid)
+                        execfilename = os.path.join(self.subtomodir, outname)
+                        qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
+
+                        paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
+                                     self.subtomodir, weight, metafile,  str(cores*n_nodes), ppflag]
+
+                        txt = extractParticles.format(d=paramsCmd)
+                        jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
+                                                               name='SubtomoRecon_{}'.format(nsj % num_nodes),
+                                                               num_jobs_per_node=cores, time=time, partition=qname,
+                                                               modules=modules, num_nodes=n_nodes, singleton=True) + txt
+
+                    else:
+                        outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'
+                        outname = outname.format(int(tomoindex), refid)
+                        execfilename = os.path.join(self.subtomodir, outname)
+
+                        folder_origin = os.path.join(markerPath, folder_align_type, folder_origin)
+
+
+                        tomodir = os.path.dirname(os.path.dirname(metafile))
+
+                        reconAlg = None
+                        for alg in ('WBP', 'INFR'):
+                            if alg in particleXML:
+                                reconAlg = alg
+
+                        if not reconAlg:
+                            print('FAIL: subtomogram reconstruction for {} failed. No INFR or WBP in xml path to particle.')
+                            continue
+
+                        # Find the most recent markerLocation file
+                        end = 'reconstruction/{}/markerLocations*_irefmark_*.txt'
+                        end = end.format(reconAlg, tomoindex, reconAlg)
+                        logfilequery = os.path.join(tomodir, end)
+                        logfiles = glob.glob(logfilequery)
+                        logfiles.sort(key=os.path.getmtime)
+                        logfile = logfiles[-1]
+
+                        qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
+
+                        paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
+                                     self.subtomodir, weight, metafile, logfile, str(cores*n_nodes), 'sorted_aligned']
+
+
+                        txt = extractParticlesClosestMarker.format(d=paramsCmd)
+
+                        jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, singleton=True, num_nodes=n_nodes,
+                                                               name='SubtomoRecon_{}'.format(nsj % num_nodes),
+                                                               partition=qname,num_jobs_per_node=cores, time=time,
+                                                               modules=modules) + txt
+
+                    fname = 'SubtomoRecon_{}'.format(nsj % num_nodes)
+                    timed = time
+                    cmd = txt
+
+                    if gpuIDs and not gpuIDs in jobCode.keys():
+                        job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname,
+                                                            time=timed, num_nodes=n_nodes, partition=qname, modules=modules,
+                                                            num_jobs_per_node=cores, gpus=gpuIDs)*self.checkbox[pid].isChecked() + cmd
+                        execfilenames[gpuIDs] = execfilename
+                        jobCode[gpuIDs] = job
+                        nsj += 1
+
+                    elif gpuIDs and gpuIDs in jobCode.keys():
+                        jobCode[gpuIDs] += f'\nwait\n\n{cmd}\n'
+
+                    elif not f'noGPU_{nsj % num_nodes}' in jobCode.keys():
+                        job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname,
+                                                            time=timed, num_nodes=n_nodes, partition=qname,
+                                                            modules=modules, num_jobs_per_node=cores) + cmd
+                        execfilenames[f'noGPU_{nsj % num_nodes}'] = execfilename
+                        jobCode[f'noGPU_{nsj % num_nodes}'] = job
+                        nsj += 1
+
+                    else:
+                        jobCode[f'noGPU_{nsj % num_nodes}'] += f'\nwait\n\n{cmd}\n'
+
+
+                    # ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
+                    # nsj += 1
+                    # qIDs.append(ID)
+
+            wid = []
+            todoList = {}
+
+            for key in jobCode.keys():
+                if not key in todoList:
+                    todoList[key] = []
+                todoList[key].append([execfilenames[key], pid, jobCode[key]])
+
+            from time import sleep
+            for key in todoList.keys():
+                print(f'starting {len(todoList[key])} jobs on device {key}')
+                self.localJobs[self.workerID] = []
+                wid.append(self.workerID)
+                proc = Worker(fn=self.multiSeq, args=((self.submitBatchJob, todoList[key], self.workerID)))
+                self.threadPool.start(proc)
+                self.workerID += 1
+                sleep(.01)
+
+            if nsj:
+                self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
+                self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Subtom Recon Batch')
+
+        except Exception as e:
+            print('Submission failed due to following error: ')
+            print(e)
+
+    def addParticlePolishFields(self, mode='', title=''):
+        # title = "Particle Polish (Single)"
         tooltip = ''
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
@@ -757,8 +911,63 @@ class SubtomoAnalysis(GuiTabWidget):
         for i in range(len(values)):
             self.updateChoicesPP(i, values)
 
-    def addAverageFields(self, mode):
-        title = "Calculate Average from Particle List"
+    def massPolishParticles(self, pid, values):
+        qIDs =[]
+        num_nodes = int(self.num_nodes[pid].value())
+        num_submitted_jobs = nsj = 0
+        values = self.valuesBatchParticlePolishing
+        for row in range(self.tables[pid].table.rowCount()):
+            if self.tabPolish_widgets['widget_{}_1'.format(row)].isChecked():
+                particleXML = values[row][0]  # [row][0]
+                tomoindex = particleXML.split('_tomogram_')[-1][:3]
+                origin = values[row][2][self.tabPolish_widgets['widget_{}_{}'.format(row, 2)].currentIndex()]
+                folder_aligned = values[row][3][self.tabPolish_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
+                template = values[row][4][self.tabPolish_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
+
+                dimZ = self.tabPolish_widgets['widget_{}_{}'.format(row, 5)].text()
+                bin_read = self.tabPolish_widgets['widget_{}_{}'.format(row, 6)].text()
+                maxShift = self.tabPolish_widgets['widget_{}_{}'.format(row, 7)].text()
+                offx = self.tabPolish_widgets['widget_{}_{}'.format(row, 8)].text()
+                offy = self.tabPolish_widgets['widget_{}_{}'.format(row, 9)].text()
+                offz = self.tabPolish_widgets['widget_{}_{}'.format(row, 10)].text()
+                meta = values[row][11][self.tabPolish_widgets['widget_{}_{}'.format(row, 11)].currentIndex()]
+                alignfile = values[row][12][self.tabPolish_widgets['widget_{}_{}'.format(row, 12)].currentIndex()]
+                fscfile = values[row][13][self.tabPolish_widgets['widget_{}_{}'.format(row, 13)].currentIndex()]
+
+                fscflag = f'--FSCPath {fscfile}' if fscfile else ''
+                metaflag = f'--metaFile {meta}' if meta else ''
+                alignflag = f'--alignmentResultsFile {alignfile}' if alignfile else ''
+
+                refid = folder_aligned.split('marker_')[1].split('_')[0]
+
+                # generate output directory for particle polishing results if output directory does not exist.
+                destination = os.path.join(f'ParticlePolishing/tomogram_{tomoindex}')
+                if not os.path.exists(os.path.join(self.subtomodir, destination)):
+                    os.mkdir(os.path.join(self.subtomodir, destination))
+
+                execfilename = os.path.join(self.subtomodir, destination, f'inputParticlePolishing.sh')
+                qname, n_nodes, cores, time, modules = self.qparams['BatchParticlePolish'].values()
+
+                paramsCmd = [self.subtomodir, str(cores * n_nodes), self.pytompath, particleXML, folder_aligned,
+                             template, destination, bin_read, maxShift, offx, offy, offz, fscflag, metaflag, alignflag]
+
+                txt = polishParticles.format(d=paramsCmd)
+                jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
+                                                       name='PolishParticles_{}'.format(nsj % num_nodes),
+                                                       num_jobs_per_node=cores, time=time, partition=qname,
+                                                       modules=modules, num_nodes=n_nodes) + txt
+
+                ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
+                nsj += 1
+                qIDs.append(ID)
+
+
+        if nsj:
+            self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
+            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Particle Polish')
+
+    def addAverageFields(self, mode, title=''):
+
         tooltip = 'Calculate the average of the particles described in a particle list.'
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
@@ -819,8 +1028,7 @@ class SubtomoAnalysis(GuiTabWidget):
         setattr(self, mode + 'gb_APL', groupbox)
         return groupbox
 
-    def addFRMAlignmentFields(self, mode=None):
-        title = "FRM Alignment"
+    def addFRMAlignmentFields(self, mode=None, title=''):
         tooltip = ''
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
@@ -897,8 +1105,7 @@ class SubtomoAnalysis(GuiTabWidget):
         setattr(self, mode + 'gb_inputFiles', groupbox)
         return groupbox
 
-    def addGLocalAlignmentFields(self,mode):
-        title = "GLocal alignment"
+    def addGLocalAlignmentFields(self,mode, title=''):
         tooltip = 'Run pytom GLocal routine.'
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
@@ -953,7 +1160,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'gpuID'].textChanged.connect(lambda d, m=mode: self.updateGpuString(m))
 
         self.updateJobname(mode)
-
+        #self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.glocaldir: self.updateOutFolder(mode, p))
         exefilename = [mode+'destination', 'GLocal_Alignment.sh']
         paramsSbatch = guiFunctions.createGenericDict(fname='GLocal', folder=self.logfolder, id='GLocalAlignment')
         paramsCmd = [self.subtomodir, self.pytompath, self.pytompath, mode+'particleList', 'referenceCommand',
@@ -973,8 +1180,7 @@ class SubtomoAnalysis(GuiTabWidget):
         setattr(self, mode + 'gb_GLocal', groupbox)
         return groupbox
 
-    def addCPCAFields(self,mode=''):
-        title = "Classify CPCA"
+    def addCPCAFields(self,mode='', title=''):
         tooltip = 'The CCC is further used for classification. This script computes \n'+\
                   'the eigenvectors of the CCC and projects the data on the first \n'+\
                   'neig eigenvectors. Subsequently, these multidimensional vectors \n'+\
@@ -1003,8 +1209,8 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_line(parent, 'Prefix', mode + 'prefix', rstep=1, cstep=0,
                                tooltip='Root for generated averages of the corresponding classes. The files will be called "Prefix"_iclass.em.')
 
-        # self.widgets[mode + 'particleList'].textChanged.connect(
-        #     lambda d, m=mode, p=self.cpcadir: self.updateOutFolder(mode, p))
+        self.widgets[mode + 'particleList'].textChanged.connect(
+            lambda d, m=mode, p=self.cpcadir: self.updateOutFolder(mode, p))
         self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
 
         exefilename = [mode + 'outFolder', 'CPCA_Classification.sh']
@@ -1019,8 +1225,7 @@ class SubtomoAnalysis(GuiTabWidget):
         setattr(self, mode + 'gb_CPCA', groupbox)
         return groupbox
 
-    def addCCCFields(self,mode=''):
-        title = "Pairwise Constrained Cross Correlation"
+    def addCCCFields(self,mode='', title=''):
         tooltip = 'Calculate the pairwise constrained cross correlation.'
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
@@ -1050,7 +1255,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
         self.widgets[mode + 'gpuString'] = QLineEdit('')
 
-        # self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.cpcadir: self.updateOutFolder(mode,p))
+        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.cpcadir: self.updateOutFolder(mode,p))
         self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
         self.widgets[mode + 'gpuID'].textChanged.connect(lambda d, m=mode: self.updateGpuString(m))
 
@@ -1070,8 +1275,7 @@ class SubtomoAnalysis(GuiTabWidget):
         setattr(self, mode + 'gb_CCC', groupbox)
         return groupbox
 
-    def addAC3DFields(self,mode):
-        title = "Auto Focus Classification"
+    def addAC3DFields(self,mode, title=''):
         tooltip = 'Run autofocussed classification.'
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
@@ -1130,7 +1334,7 @@ class SubtomoAnalysis(GuiTabWidget):
             lambda d, m=mode: self.updateAlignmentMaskFlag(m))
         self.widgets[mode + 'filenameClassificationMask'].textChanged.connect(
             lambda d, m=mode: self.updateClassificationMaskFlag(m))
-        # self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.acpath: self.updateOutFolder(mode, p))
+        self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode, p=self.acpath: self.updateOutFolder(mode, p))
         self.widgets[mode + 'outFolder'].textChanged.connect(lambda d, m=mode: self.createOutFolder(m))
 
         # Widgets Updated When Other Widgets Are Updated
@@ -1161,8 +1365,7 @@ class SubtomoAnalysis(GuiTabWidget):
         setattr(self, mode + 'gb_AC', groupbox)
         return groupbox
 
-    def addFSCFields(self, mode):
-        title = "Fourier Shell Correlation"
+    def addFSCFields(self, mode, title=''):
         tooltip = 'Run fourier shell correlation function.'
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
@@ -1263,7 +1466,8 @@ class SubtomoAnalysis(GuiTabWidget):
         setattr(self, mode + 'gb_FSC', groupbox)
         return groupbox
 
-    # Helper functions
+
+    # Helper methods
 
     def updateOutFileName(self, mode):
         try:
@@ -1532,8 +1736,10 @@ class SubtomoAnalysis(GuiTabWidget):
 
     def updatePixelSize(self, mode):
         from pytom.basic.structures import ParticleList
+
         try:
             particleList = self.widgets[mode + 'particleList'].text()
+            if not particleList: return
             pl = ParticleList()
             pl.fromXMLFile(particleList)
             tomid = pl[0].getPickPosition().getOriginFilename().split('/tomogram_')[1].split('_')[0]
@@ -1577,9 +1783,9 @@ class SubtomoAnalysis(GuiTabWidget):
             return
 
         if not self.doAllParticlesExist(pl):
-            self.popup_messagebox('Error', 'Particles do not exist',
-                                  f'Not all particles in {os.path.basename(pl)} have been created')
-            self.widgets[mode + name].setText('')
+            self.popup_messagebox('Warning', 'Particles do not exist.',
+                                  f'Not all particles in {os.path.basename(pl)} have been created.\nPlease be aware that the job might fail. ')
+            # self.widgets[mode + name].setText('')
             return
 
         folder = os.path.basename(pl).replace('particleList_','')[:-4]
@@ -1591,7 +1797,53 @@ class SubtomoAnalysis(GuiTabWidget):
         if not os.path.exists(folder):
             os.mkdir(folder)
             #os.system('ln -s {}/Subtomograms {}/Subtomograms'.format(self.subtomodir, folder ) )
-        self.widgets[mode + 'outFolder'].setText(folder) 
+        try: self.widgets[mode + 'outFolder'].setText(folder)
+        except: self.widgets[mode + 'destination'].setText(folder)
+
+    def updateFSCPlotFlag(self, mode):
+        t = self.widgets[mode + 'plot'].isChecked()
+
+        if t:
+            self.widgets[mode + 'flagPlot'].setText('--plot ')
+            self.widgets[mode + 'queue'].setChecked(False)
+        else:
+            self.widgets[mode + 'flagPlot'].setText('')
+
+    def updateFSCCombResFlag(self, mode):
+        t = self.widgets[mode + 'CombinedResolution'].isChecked()
+
+        if t:
+            self.widgets[mode + 'flagCombinedResolution'].setText('--combinedResolution')
+        else:
+            self.widgets[mode + 'flagCombinedResolution'].setText('')
+
+    def updateLog(self, mode):
+        if self.widgets[mode + 'queue'].isChecked():
+            self.widgets[mode + 'plot'].setChecked(False)
+
+    def updateFSCFlags(self, mode, id='all'):
+
+        for n, (name, flag) in enumerate((('particleList', '--pl'), ('volume1','--v1'), ('volume2', '--v2'),
+                                          ('mask', '--mask'))):
+            if n != id and id != 'all': continue
+            t = self.widgets[mode + name].text()
+
+            if t: self.widgets[mode + 'flag' + name[:1].capitalize() + name[1:]].setText(f'{flag} {t}')
+            else: self.widgets[mode + 'flag' + name[:1].capitalize() + name[1:]].setText('')
+
+
+        di = {'-Even.':'-Odd.', '-Odd.':'-Even.'}
+        if id == 1:
+            t = self.widgets[mode + f'volume{id}'].text()
+            for i in ('-Even.', '-Odd.'):
+                if not i in t: continue
+                otherHalfMap = t.replace(i,di[i])
+                #print(otherHalfMap == self.widgets[mode + f'volume{3-id}'].text(), otherHalfMap, self.widgets[mode + f'volume{3-id}'].text())
+                if os.path.exists(otherHalfMap) and self.widgets[mode + f'volume{3-id}'].text() != otherHalfMap:
+                    self.widgets[mode + f'volume{3-id}'].setText(otherHalfMap)
+                    break
+
+            self.redoPixelSize(mode)
 
     def createOutFolder(self, mode):
         folder = self.widgets[mode + 'outFolder'].text()
@@ -1601,6 +1853,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
     def doAllParticlesExist(self, particleList):
         from pytom.basic.structures import ParticleList
+        if not particleList: return
         pl = ParticleList()
         pl.fromXMLFile(particleList)
         allParticlesExist = True
@@ -1609,214 +1862,6 @@ class SubtomoAnalysis(GuiTabWidget):
                 allParticlesExist = False
                 break
         return allParticlesExist
-
-    def massExtractParticles(self, pid, values):
-        num_nodes = int(self.num_nodes[pid].value())
-        qIDs = []
-        jobCode = {}
-        execfilenames = {}
-        num_submitted_jobs = nsj = 0
-        values = self.valuesBatchSubtomoReconstruction
-        try:
-            for row in range(self.tables[pid].table.rowCount()):
-                if self.tab12_widgets['widget_{}_1'.format(row)].isChecked():
-                    particleXML = values[row][0] #[row][0]
-                    tomoindex = particleXML.split('_tomogram_')[-1][:3]
-                    markerPath = values[row][2][self.tab12_widgets['widget_{}_{}'.format(row,2)].currentIndex()]
-                    folder_align_type = values[row][3][self.tab12_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
-                    folder_origin      = values[row][4][self.tab12_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
-
-                    metafile = glob.glob('{}/03_Tomographic_Reconstruction/tomogram_{}/sorted/*.meta'.format(self.projectname,tomoindex))
-                    if not metafile: continue
-                    metafile = metafile[0]
-                    #q = '{}/03_Tomographic_Reconstruction/tomogram_{}/alignment/unweighted_unbinned_marker_{}'
-                    #folder_aligned = q.format(self.projectname,tomoindex,ref_marker)
-                    bin_read = self.tab12_widgets['widget_{}_{}'.format(row,5)].text()
-                    weight = self.tab12_widgets['widget_{}_{}'.format(row, 6)].text()
-                    size = self.tab12_widgets['widget_{}_{}'.format(row, 7)].text()
-                    bin_subtomo = self.tab12_widgets['widget_{}_{}'.format(row,8)].text()
-                    offx = self.tab12_widgets['widget_{}_{}'.format(row, 9)].text()
-                    offy = self.tab12_widgets['widget_{}_{}'.format(row, 10)].text()
-                    offz = self.tab12_widgets['widget_{}_{}'.format(row, 11)].text()
-                    scale = self.tab12_widgets['widget_{}_{}'.format(row, 12)].text()
-                    scale = None if (scale == '1' or scale == '') else float(scale)
-                    gpuIDs = self.tab12_widgets['widget_{}_{}'.format(row, 13)].text()
-                    gpuIDflag = '' if not gpuIDs else f' --gpuID {gpuIDs}'
-                    ppfile = values[row][14][self.tab12_widgets['widget_{}_{}'.format(row, 14)].currentIndex()]
-                    ppflag = f'--particlePolishResultFile {ppfile}' if ppfile else ''
-
-                    ppflag +=  '' if scale is None else f' --scaleFactorParticle {scale}'
-
-                    ppflag += gpuIDflag
-
-                    refid = os.path.basename(markerPath).split('_')[1]
-
-                    if refid.lower() != 'closest':
-
-                        outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_Refmarker_{}.sh'.format(int(tomoindex),refid)
-                        execfilename = os.path.join(self.subtomodir, outname)
-                        qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
-
-                        paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
-                                     self.subtomodir, weight, metafile,  str(cores*n_nodes), ppflag]
-
-                        txt = extractParticles.format(d=paramsCmd)
-                        jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
-                                                               name='SubtomoRecon_{}'.format(nsj % num_nodes),
-                                                               num_jobs_per_node=cores, time=time, partition=qname,
-                                                               modules=modules, num_nodes=n_nodes, singleton=True) + txt
-
-                    else:
-                        outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'
-                        outname = outname.format(int(tomoindex), refid)
-                        execfilename = os.path.join(self.subtomodir, outname)
-
-                        folder_origin = os.path.join(markerPath, folder_align_type, folder_origin)
-
-
-                        tomodir = os.path.dirname(os.path.dirname(metafile))
-
-                        reconAlg = None
-                        for alg in ('WBP', 'INFR'):
-                            if alg in particleXML:
-                                reconAlg = alg
-
-                        if not reconAlg:
-                            print('FAIL: subtomogram reconstruction for {} failed. No INFR or WBP in xml path to particle.')
-                            continue
-
-                        # Find the most recent markerLocation file
-                        end = 'reconstruction/{}/markerLocations*_irefmark_*.txt'
-                        end = end.format(reconAlg, tomoindex, reconAlg)
-                        logfilequery = os.path.join(tomodir, end)
-                        logfiles = glob.glob(logfilequery)
-                        logfiles.sort(key=os.path.getmtime)
-                        logfile = logfiles[-1]
-
-                        qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
-
-                        paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
-                                     self.subtomodir, weight, metafile, logfile, str(cores*n_nodes), 'sorted_aligned']
-
-
-                        txt = extractParticlesClosestMarker.format(d=paramsCmd)
-
-                        jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, singleton=True, num_nodes=n_nodes,
-                                                               name='SubtomoRecon_{}'.format(nsj % num_nodes),
-                                                               partition=qname,num_jobs_per_node=cores, time=time,
-                                                               modules=modules) + txt
-
-                    fname = 'SubtomoRecon_{}'.format(nsj % num_nodes)
-                    timed = time
-                    cmd = txt
-
-                    if gpuIDs and not gpuIDs in jobCode.keys():
-                        job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname,
-                                                            time=timed, num_nodes=n_nodes, partition=qname, modules=modules,
-                                                            num_jobs_per_node=cores, gpus=gpuIDs)*self.checkbox[pid].isChecked() + cmd
-                        execfilenames[gpuIDs] = execfilename
-                        jobCode[gpuIDs] = job
-                        nsj += 1
-
-                    elif gpuIDs and gpuIDs in jobCode.keys():
-                        jobCode[gpuIDs] += f'\nwait\n\n{cmd}\n'
-
-                    elif not f'noGPU_{nsj % num_nodes}' in jobCode.keys():
-                        job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname,
-                                                            time=timed, num_nodes=n_nodes, partition=qname,
-                                                            modules=modules, num_jobs_per_node=cores) + cmd
-                        execfilenames[f'noGPU_{nsj % num_nodes}'] = execfilename
-                        jobCode[f'noGPU_{nsj % num_nodes}'] = job
-                        nsj += 1
-
-                    else:
-                        jobCode[f'noGPU_{nsj % num_nodes}'] += f'\nwait\n\n{cmd}\n'
-
-
-                    # ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
-                    # nsj += 1
-                    # qIDs.append(ID)
-
-            wid = []
-            todoList = {}
-
-            for key in jobCode.keys():
-                if not key in todoList:
-                    todoList[key] = []
-                todoList[key].append([execfilenames[key], pid, jobCode[key]])
-
-            from time import sleep
-            for key in todoList.keys():
-                print(f'starting {len(todoList[key])} jobs on device {key}')
-                self.localJobs[self.workerID] = []
-                wid.append(self.workerID)
-                proc = Worker(fn=self.multiSeq, args=((self.submitBatchJob, todoList[key], self.workerID)))
-                self.threadPool.start(proc)
-                self.workerID += 1
-                sleep(.01)
-
-            if nsj:
-                self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
-                self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Subtom Recon Batch')
-
-        except Exception as e:
-            print('Submission failed due to following error: ')
-            print(e)
-
-    def massPolishParticles(self, pid, values):
-        qIDs =[]
-        num_nodes = int(self.num_nodes[pid].value())
-        num_submitted_jobs = nsj = 0
-        values = self.valuesBatchParticlePolishing
-        for row in range(self.tables[pid].table.rowCount()):
-            if self.tabPolish_widgets['widget_{}_1'.format(row)].isChecked():
-                particleXML = values[row][0]  # [row][0]
-                tomoindex = particleXML.split('_tomogram_')[-1][:3]
-                origin = values[row][2][self.tabPolish_widgets['widget_{}_{}'.format(row, 2)].currentIndex()]
-                folder_aligned = values[row][3][self.tabPolish_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
-                template = values[row][4][self.tabPolish_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
-
-                dimZ = self.tabPolish_widgets['widget_{}_{}'.format(row, 5)].text()
-                bin_read = self.tabPolish_widgets['widget_{}_{}'.format(row, 6)].text()
-                maxShift = self.tabPolish_widgets['widget_{}_{}'.format(row, 7)].text()
-                offx = self.tabPolish_widgets['widget_{}_{}'.format(row, 8)].text()
-                offy = self.tabPolish_widgets['widget_{}_{}'.format(row, 9)].text()
-                offz = self.tabPolish_widgets['widget_{}_{}'.format(row, 10)].text()
-                meta = values[row][11][self.tabPolish_widgets['widget_{}_{}'.format(row, 11)].currentIndex()]
-                alignfile = values[row][12][self.tabPolish_widgets['widget_{}_{}'.format(row, 12)].currentIndex()]
-                fscfile = values[row][13][self.tabPolish_widgets['widget_{}_{}'.format(row, 13)].currentIndex()]
-
-                fscflag = f'--FSCPath {fscfile}' if fscfile else ''
-                metaflag = f'--metaFile {meta}' if meta else ''
-                alignflag = f'--alignmentResultsFile {alignfile}' if alignfile else ''
-
-                refid = folder_aligned.split('marker_')[1].split('_')[0]
-
-                # generate output directory for particle polishing results if output directory does not exist.
-                destination = os.path.join(f'ParticlePolishing/tomogram_{tomoindex}')
-                if not os.path.exists(os.path.join(self.subtomodir, destination)):
-                    os.mkdir(os.path.join(self.subtomodir, destination))
-
-                execfilename = os.path.join(self.subtomodir, destination, f'inputParticlePolishing.sh')
-                qname, n_nodes, cores, time, modules = self.qparams['BatchParticlePolish'].values()
-
-                paramsCmd = [self.subtomodir, str(cores * n_nodes), self.pytompath, particleXML, folder_aligned,
-                             template, destination, bin_read, maxShift, offx, offy, offz, fscflag, metaflag, alignflag]
-
-                txt = polishParticles.format(d=paramsCmd)
-                jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
-                                                       name='PolishParticles_{}'.format(nsj % num_nodes),
-                                                       num_jobs_per_node=cores, time=time, partition=qname,
-                                                       modules=modules, num_nodes=n_nodes) + txt
-
-                ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
-                nsj += 1
-                qIDs.append(ID)
-
-
-        if nsj:
-            self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
-            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Particle Polish')
 
     def gen_average(self, params):
         key_particleList, key_filename_average, key_outputDir = params
@@ -1860,30 +1905,6 @@ class SubtomoAnalysis(GuiTabWidget):
                                                  run_upon_complete=self.populatePartPolishingBatchTable,
                                                  title='Select FSC File for filtering cross-correlation (optional)')
 
-    def updateFSCFlags(self, mode, id='all'):
-
-        for n, (name, flag) in enumerate((('particleList', '--pl'), ('volume1','--v1'), ('volume2', '--v2'),
-                                          ('mask', '--mask'))):
-            if n != id and id != 'all': continue
-            t = self.widgets[mode + name].text()
-
-            if t: self.widgets[mode + 'flag' + name[:1].capitalize() + name[1:]].setText(f'{flag} {t}')
-            else: self.widgets[mode + 'flag' + name[:1].capitalize() + name[1:]].setText('')
-
-
-        di = {'-Even.':'-Odd.', '-Odd.':'-Even.'}
-        if id == 1:
-            t = self.widgets[mode + f'volume{id}'].text()
-            for i in ('-Even.', '-Odd.'):
-                if not i in t: continue
-                otherHalfMap = t.replace(i,di[i])
-                #print(otherHalfMap == self.widgets[mode + f'volume{3-id}'].text(), otherHalfMap, self.widgets[mode + f'volume{3-id}'].text())
-                if os.path.exists(otherHalfMap) and self.widgets[mode + f'volume{3-id}'].text() != otherHalfMap:
-                    self.widgets[mode + f'volume{3-id}'].setText(otherHalfMap)
-                    break
-
-            self.redoPixelSize(mode)
-
     def redoPixelSize(self, mode):
         from pytom.alignment.alignmentStructures import GLocalSamplingJob
 
@@ -1904,23 +1925,6 @@ class SubtomoAnalysis(GuiTabWidget):
         except Exception as e:
             print(e)
 
-    def updateFSCPlotFlag(self, mode):
-        t = self.widgets[mode + 'plot'].isChecked()
-
-        if t:
-            self.widgets[mode + 'flagPlot'].setText('--plot ')
-            self.widgets[mode + 'queue'].setChecked(False)
-        else:
-            self.widgets[mode + 'flagPlot'].setText('')
-
-    def updateFSCCombResFlag(self, mode):
-        t = self.widgets[mode + 'CombinedResolution'].isChecked()
-
-        if t:
-            self.widgets[mode + 'flagCombinedResolution'].setText('--combinedResolution')
-        else:
-            self.widgets[mode + 'flagCombinedResolution'].setText('')
-
     def gen_fsc_mask(self,params):
         try:
             maskfilename = CreateFSCMaskFile(self, params[0], params[1])
@@ -1928,6 +1932,4 @@ class SubtomoAnalysis(GuiTabWidget):
         except Exception as e:
             print(e)
 
-    def updateLog(self, mode):
-        if self.widgets[mode + 'queue'].isChecked():
-            self.widgets[mode + 'plot'].setChecked(False)
+

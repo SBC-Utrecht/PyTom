@@ -64,8 +64,16 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
     print("compound Wedge  = "+str(alignmentJob.scoringParameters.compoundWedge))
     print("Calculate on GPU= "+str(alignmentJob.gpu))
 
+    norm = False
+
+
     for particle in alignmentJob.particleList:
         particle.setScoreValue(-1000.)
+        particle.getScore().setPeakPrior(alignmentJob.scoringParameters.score.getPeakPrior())
+        particle.getScore().getPeakPrior().reset_weight()
+
+    print('StartPrior: ', alignmentJob.particleList[0].getScore().getPeakPrior())
+
     (odd, even) = alignmentJob.particleList.splitOddEven(verbose=verbose)
     progressBar = True
     setParticleNodesRatio = 2
@@ -96,12 +104,12 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             evenAverage = averageParallel(particleList=even,
                                           averageName=alignmentJob.destination+"/"+str(ii)+f'-EvenFiltered.{filetype}',
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                          weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                          weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                           setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
             oddAverage = averageParallel(particleList=odd,
                                           averageName=alignmentJob.destination+"/"+str(ii)+f'-OddFiltered.{filetype}',
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                          weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                          weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                           setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
             #write un-filtered averages for info
             if 'gpu' in device:
@@ -204,8 +212,14 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         evenSplitList = splitParticleList(particleList=even, setParticleNodesRatio=setParticleNodesRatio)
         oddSplitList  = splitParticleList(particleList=odd, setParticleNodesRatio=setParticleNodesRatio)
         print(">>>>>>>>> Aligning Even ....")
+        print(f'particle score even: {type(even[0]._score)}')
 
-        
+        # alignParticleList(even,currentReferenceEven,evenCompoundWedgeFile,alignmentJob.destination+"/"+'CurrentRotations.xml',
+        #                   alignmentJob.destination + "/" + 'CurrentScore.xml', alignmentJob.destination + "/" + 'CurrentMask.xml',
+        #                   alignmentJob.scoringParameters.preprocessing,progressBar, alignmentJob.samplingParameters.binning, verbose)
+
+
+
         if alignmentJob.gpu is None or alignmentJob.gpu == []:
             print('CPU variant is running')
             bestPeaksEvenSplit = mpi.parfor( alignParticleList,
@@ -227,6 +241,9 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                         [alignmentJob.scoringParameters.preprocessing]*len(oddSplitList),
                                         [progressBar]*nodd, [alignmentJob.samplingParameters.binning]*len(oddSplitList),
                                         [verbose]*len(oddSplitList))))
+
+
+
             # merge peak lists
             bestPeaksEven = mergeLists(bestPeaksEvenSplit)
             bestPeaksOdd = mergeLists(bestPeaksOddSplit)
@@ -245,16 +262,18 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             even.toXMLFile(filename=alignmentJob.destination+"/"+str(ii)+'-ParticleListEven.xml')
             odd.toXMLFile(filename=alignmentJob.destination+"/"+str(ii)+'-ParticleListOdd.xml')
 
+            print('Odd particles: ', str(odd[0]))
+
             ## finally average ALL particles in ONE average and determine FSC
             evenAverage = averageParallel(particleList=even,
                                           averageName=alignmentJob.destination+f"/average-Final-Even.{filetype}",
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                          weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                          weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                           setParticleNodesRatio=setParticleNodesRatio)
             oddAverage = averageParallel(particleList=odd,
                                          averageName=alignmentJob.destination+f"/average-Final-Odd.{filetype}",
                                          showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                         weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                         weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                          setParticleNodesRatio=setParticleNodesRatio)
             # filter both volumes by sqrt(FSC)
             (averageEven, averageOdd, fsc, fil, optiRot, optiTrans) = \
@@ -274,12 +293,12 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                 oddAverage = averageParallel(particleList=odd,
                                              averageName=alignmentJob.destination+f"/average-Final-Odd.{filetype}",
                                              showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                             weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                             weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                              setParticleNodesRatio=setParticleNodesRatio)
             final_average = averageParallel(particleList=alignmentJob.particleList,
                                             averageName=alignmentJob.destination+f"/average-Final.{filetype}",
                                             showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                            weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                            weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                             setParticleNodesRatio=setParticleNodesRatio)
             from pytom.basic.correlation import FSC
             fsc = FSC(volume1=evenAverage.getVolume(), volume2=oddAverage.getVolume(),
@@ -504,16 +523,20 @@ def alignParticleList(pl, reference, referenceWeightingFile, rotationsFilename,
     @return: Returns the peak list for particle list.
     @author: FF
     """
+
+
     from pytom.score.score import fromXMLFile
     from pytom.angles.angle import AngleObject
     from pytom.basic.structures import Mask, ParticleList
 
     assert type(pl) == ParticleList, "pl is supposed to be a particleList"
 
+    print('step1', scoreXMLFilename)
     scoreObject = fromXMLFile(filename=scoreXMLFilename)
-
+    print(scoreObject)
     rot = AngleObject()
     rotations = rot.fromXMLFile(filename=rotationsFilename)
+
 
     mask = Mask()
     mask.fromXMLFile(filename=maskFilename)
@@ -756,7 +779,7 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
     angDiff = differenceAngleOfTwoRotations(rotation1=bestPeak.getRotation(), rotation2=oldRot)
     t2 = time()
     # print(bestPeak.getRotation())
-    print(fname+": Angular Difference before and after alignment: %2.2f ... took %3.1f seconds ..." % (angDiff, t2-t1))
+    # print(fname+": Angular Difference before and after alignment: %2.2f ... took %3.1f seconds ..." % (angDiff, t2-t1))
     rotations.reset()
 
     particle.setRotation(bestPeak.getRotation())

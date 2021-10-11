@@ -140,6 +140,7 @@ def fromXML(xmlObj):
     score.setValue(value)
     
     prElement = xmlObj.xpath('PeakPrior')
+
     if prElement == None:
         prElement = xmlObj.xpath('DistanceFunction')
         
@@ -452,14 +453,16 @@ class FLCFScore(Score):
     FLCFScore: Uses the FLCF correlation function for scoring
     @author: Thomas Hrabe
     """
-    coefFnc = peakCoef
+    # coefFnc = peakCoef
     def __init__(self,value=None):
         """
         __init__ : Assigns the fast local correlation as scoringFunction, peakCoef as scoringCoefficient and Vol_G_Val as scoringCriterion
         @param value: Current value of score
         """
         from pytom.basic.correlation import FLCF
-        self.ctor(FLCF, self.coefFnc, Vol_G_Val)
+        from pytom.score.score import peakCoef
+
+        self.ctor(FLCF, peakCoef, Vol_G_Val)
         self._type = 'FLCFScore'
         
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):
@@ -655,7 +658,9 @@ class PeakPrior(PyTomClass):
         
         assert volumesSameSize(self._weight,volume)#make sure both have same size
 
-        return self._weight * volume
+        from pytom_numpy import vol2npy
+
+        return (self._weight * volume) - (self._weight <= 0.000001)*2
     
     def fromFile(self,filename=None):
         from pytom_volume import read
@@ -705,7 +710,8 @@ class PeakPrior(PyTomClass):
         """
         from lxml import etree
         
-        prElement = etree.Element("PeakPrior", Filename=self._filename,Radius = str(float(self._radius)), Smooth = str(float(self._smooth)))
+        prElement = etree.Element("PeakPrior", Filename=self._filename, Radius = str(float(self._radius)),
+                                  Smooth = str(float(self._smooth)))
         
         return prElement
     
@@ -721,7 +727,7 @@ class PeakPrior(PyTomClass):
         
         if xmlObj.__class__ != _Element :
             raise Exception('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
-        
+
         if xmlObj.tag == 'PeakPrior':
             self._filename = xmlObj.get('Filename')
             self._radius = float(xmlObj.get('Radius'))

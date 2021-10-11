@@ -29,7 +29,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        pdbFile, chain, pixelSize, cubeSize, volumePath ,densityNegative , helpme = parse_script_options(sys.argv[1:], helper)
+        pdbFile, chain, pixelSize, cubeSize, volumePath, densityNegative , helpme = parse_script_options(sys.argv[1:], helper)
     except:
         sys.exit()
         
@@ -38,6 +38,6 @@ if __name__ == '__main__':
         sys.exit()
         pass
     
-    volume = pdb2em(pdbFile, float(pixelSize), int(cubeSize), chain=chain, densityNegative=densityNegative)
+    volume = pdb2em(pdbFile, float(pixelSize), int(cubeSize), chain=chain, invertDensity=densityNegative)
     
     volume.write(volumePath)

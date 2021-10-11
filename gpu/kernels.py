@@ -492,8 +492,11 @@ void reconstruction_wbp(float * projection, float* proj_center, int * proj_dims,
             y = (i % (recon_dims[1] * recon_dims[2])) / recon_dims[2] - recon_center[1]; 
             z = (i % (recon_dims[1] * recon_dims[2])) % recon_dims[2] - recon_center[2];
             
-            float ix = tr[0] * float(x) + tr[2] * float(z) + float(proj_center[0]);
-            float iy = tr[1] * float(y) + float(proj_center[1]);
+            //float ix = tr[0] * float(x) + tr[2] * float(z) + float(proj_center[0]);
+            //float iy = tr[4] * float(y) + float(proj_center[1]);
+            
+            float ix = tr[0] * float(x) + tr[1] * float(y) + tr[2] * float(z) + float(proj_center[0]);
+			float iy = tr[3] * float(x) + tr[4] * float(y) + tr[5] * float(z) + float(proj_center[1]);
             
             int px = int(ix); 
             int py = int(iy);
@@ -562,4 +565,442 @@ void reconstruction_wbp_calc(float * projection, float* proj_center, int * proj_
         //i++;
     //};
 };
+'''
+
+transformSpline_txt = '''
+
+__device__ float interpolNearestNeighbour(float * data, float x, float y, float z, float defaultval, int sizex, int sizey, int sizez) {
+
+    x += 0.5;
+    y += 0.5;
+    z += 0.5;
+    if (x<0 || y<0 || z<0 || x>=sizex || y>=sizey || z>=sizez) {
+        return defaultval;
+    }else {
+        return data[int(x) *  sizey* sizez + int(y) * sizez + int(z)];
+    }
+}
+
+__device__ float interpolTriLinear(float *data, float x, float y, float z, float defaultval, int sizex, int sizey, int sizez) {
+
+    if (x<0. || y<0. || z<0. || x > sizex || y > sizey || z > sizez ) {
+        return defaultval;
+    }
+    int floorx = int(x);
+    int floory = int(y);
+    int floorz = int(z);
+    float xoffseth = x - float(floorx);
+    float yoffseth = y - float(floory);
+    float zoffseth = z - float(floorz);
+
+    int stridey = sizex;
+    int stridez = sizex*sizey;
+
+    float * src = &data[floorz * stridez + floory * stridey + floorx];
+
+    switch (int(xoffseth > 0.) | (int(yoffseth > 0.)<<1) | (int(zoffseth > 0.)<<2)) {
+        case 0x07: {
+                float x00x, x01x, x10x, x11x, x0yx;
+                x00x = src[0] + (src[1]-src[0])*xoffseth;
+                src += stridey;
+                x01x = src[0] + (src[1]-src[0])*xoffseth;
+                src += stridez;
+                x11x = src[0] + (src[1]-src[0])*xoffseth;
+                src -= stridey;
+                x10x = src[0] + (src[1]-src[0])*xoffseth;
+                x0yx = x00x + (x01x - x00x) * yoffseth;
+                return x0yx + ((x10x + (x11x - x10x) * yoffseth) - x0yx) * zoffseth;
+            }
+        case 0x06: {
+                float x0y0 = src[0] + (src[stridey]-src[0])*yoffseth;
+                src += stridez;
+                return x0y0 + (src[0] + (src[stridey]-src[0])*yoffseth - x0y0)*zoffseth;
+            }
+        case 0x05: {
+                float x00x = src[0] + (src[1]-src[0])*xoffseth;
+                src += stridez;
+                return x00x + (src[0] + (src[1]-src[0])*xoffseth - x00x)*zoffseth;
+            }
+        case 0x03: {
+                float x00x = src[0] + (src[1]-src[0])*xoffseth;
+                src += stridey;
+                return x00x + (src[0] + (src[1]-src[0])*xoffseth - x00x)* yoffseth;
+            }
+        case 0x04:
+            return src[0] + (src[stridez]-src[0])*zoffseth;
+        case 0x02:
+            return src[0] + (src[stridey]-src[0])*yoffseth;
+        case 0x01:
+            return src[0] + (src[1]-src[0])*xoffseth;
+    }
+    return src[0];
+}
+
+
+
+__device__ float CUB_INT(float x, float y, float xj, float x2, float x3){\
+return y*(x-x2)/(xj-x2)*(x-x3)/(xj-x3);
+}
+
+__device__ float interpolTriCubic(float *data, float x, float y, float z, float defaultval, int sizex, int sizey, int sizez) {
+
+    bool is3D = sizez > 1;
+    int stridey = sizex;
+    int stridez = sizex*sizey;
+
+
+	// is the current position in the data or outside. return default value if outside
+    if (is3D && (x<1. || y<1. || z<1. || x > (sizex)-2 || y > (sizey)-2 || z > (sizez)-2) ) {
+    	return defaultval; //interpolTriLinear(data, x, y, z, defaultval, sizex, sizey, sizez);
+    }
+
+	if(!is3D && (x<1. || y<1. || x > (sizex)-2 || y > (sizey)-2) ){
+		return defaultval; //interpolTriLinear(data, x, y, z, defaultval, sizex, sizey, sizez);
+	}
+
+
+    int floorx = (int(x));              //integer position along x
+    int floory = (int(y));              //integer position along y
+    int floorz = (int(z));              //integer position along z
+    float xoffseth = x - float(floorx); //floating point offset along x
+    float yoffseth = y - float(floory); //floating point offset along y
+    float zoffseth = z - float(floorz); //floating point offset along z
+
+    float * src = &data[int(floorz) * stridez + int(floory)*stridey + int(floorx)]; //point into the closest position to interpolation
+
+    switch (int(xoffseth > 0.) | (int(yoffseth > 0.)<<1) | (int(zoffseth > 0.)<<2)) {
+		case 0x00:{
+                //all match grid, no interpolation
+			return src[0];
+		}
+		default: {
+
+			float px_pl_1 = floorx + 1; //all voxels plus 1 from x -> p3,p6,p9
+			float px_mi_1 = floorx - 1; //all voxels minus 1 from x -> p1,p4,p7
+
+			float py_pl_1 = floory + 1; //all voxels plus 1 from y -> p1,p2,p3
+			float py_mi_1 = floory - 1; //all voxels minus 1 from x -> p7,p8,p9
+
+			//those will hold the current voxel values
+			float v1 = defaultval;
+			float v2 = defaultval;
+			float v3 = defaultval;
+			float v4 = defaultval;
+			float v5 = defaultval;
+			float v6 = defaultval;
+			float v7 = defaultval;
+			float v8 = defaultval;
+			float v9 = defaultval;
+
+			float line1 = defaultval; //interpolation values for each line (y)
+			float line2 = defaultval;
+			float line3 = defaultval;
+
+			int lowerLayerBound = -1;
+			int upperLayerBound = 1;
+			int layerOffset = 1;
+			float layerValues[3];
+
+			if(!is3D){
+				lowerLayerBound = 0;
+				upperLayerBound = 0;
+				layerOffset = 0;
+			}
+
+			//interpolation values for each layer (z)
+			for (int zIteration=lowerLayerBound; zIteration <= upperLayerBound; zIteration++) {
+				//current position in memory plus current z layer offset in voxels (of type T)
+				//first will be negative (-1), second 0 (same layer), third is 1, next layer
+
+				//load the pixel values
+				v1 = *(src-1-stridey + zIteration*stridez); //one line up in y direction, one position back in x
+				v2 = *(src  -stridey + zIteration*stridez); //one line up in y direction
+				v3 = *(src+1-stridey + zIteration*stridez); //one line up in y direction, one position forward in x
+				v4 = *(src-1 + zIteration*stridez); //same line in y
+				v5 = *(src + zIteration*stridez); //...
+				v6 = *(src+1 + zIteration*stridez);
+				v7 = *(src-1+stridey + zIteration*stridez);
+				v8 = *(src  +stridey + zIteration*stridez);
+				v9 = *(src+1+stridey + zIteration*stridez);
+
+				//interpolate first row 1 2 3
+				line1 = CUB_INT(x,v1,px_mi_1,floorx,px_pl_1); //px1,px2,px3
+				line2 = CUB_INT(x,v2,floorx,px_pl_1,px_mi_1); //px2,px3,px1
+				line3 = CUB_INT(x,v3,px_pl_1,px_mi_1,floorx); //px3,px1,px2
+				//store values into v1
+				v1 = line1+line2+line3;
+
+
+				//same for the next rows
+				line1 = CUB_INT(x,v4,px_mi_1,floorx,px_pl_1); //px4,px5,px6
+				line2 = CUB_INT(x,v5,floorx,px_pl_1,px_mi_1); //px5,px6,px4
+				line3 = CUB_INT(x,v6,px_pl_1,px_mi_1,floorx); //px6,px5,px4
+				v2 = line1+line2+line3;
+
+				line1 = CUB_INT(x,v7,px_mi_1,floorx,px_pl_1); //px7,px8,px9
+				line2 = CUB_INT(x,v8,floorx,px_pl_1,px_mi_1); //px8,px9,px7
+				line3 = CUB_INT(x,v9,px_pl_1,px_mi_1,floorx); //px9,px7,px8
+				v3 = line1+line2+line3;
+
+				//interpolate col 2 5 8 in y direction
+				line1 = CUB_INT(y,v1,py_mi_1,floory,py_pl_1); //py2,py5,py8
+				line2 = CUB_INT(y,v2,floory,py_pl_1,py_mi_1); //py5,py8,py2
+				line3 = CUB_INT(y,v3,py_pl_1,py_mi_1,floory); //py8,py2,py5
+				layerValues[zIteration + layerOffset] = line1+line2+line3;
+
+			    //printf("GPU %d - %.1f %.1f %.1f - %.1f %.1f %.1f %.1f - %.1f %.1f %.1f %.1f - %.1f\\n", zIteration, x, y, z, v1, v2, v3, v4, line1, line2, line3, line4, layerValues[zIteration + layerOffset]);
+
+			}
+
+			if(is3D){
+				line1 = CUB_INT(z,layerValues[0],(floorz-1),floorz,(floorz+1));
+				line2 = CUB_INT(z,layerValues[1],floorz,(floorz+1),(floorz-1));
+				line3 = CUB_INT(z,layerValues[2],(floorz+1),(floorz-1),floorz);
+			}
+
+			return (line1 + line2 + line3);
+
+		}
+
+
+		return defaultval;
+    }
+    return defaultval;
+}
+
+__device__ float CSPL_INT(float f1,float f2, float f3, float f4, float a, float b, float c, float d){
+    return 3*(f1*(b-a)+f2*(c-a)+f3*(d-b)+f4*(d-c));
+}
+
+__device__ float CSPL_CALC(float c2, float c3, float D1, float D2, float off){
+    return c2+D1*off+(3*(c3-c2)-2*D1-D2)*off*off+(2*(c2-c3)+D1+D2)*off*off*off;
+}
+
+
+__device__ float interpolCubicSpline(float * data, float x, float y, float z, float defaultval, int sizex, int sizey, int sizez) {
+
+    int stridex = sizey;
+    int stridey = sizex;
+    int stridez = sizex*sizey;
+
+    //printf("%d %d %d; \\n", sizex, sizey, sizez);
+
+    bool is3D = sizez > 1;
+
+
+
+	// is the current position in the data or outside. return default value if outside
+    if (is3D && (x<2. || y<2. || z<2. || x > (sizex)-3 || y > (sizey)-3 || z > (sizez)-3) ) {
+        return interpolTriCubic(data, x,y,z, defaultval, sizex, sizey, sizez);
+    }
+
+    if(!is3D && (x<2. || y<2. || x > (sizex)-3 || y > (sizey)-3) ){
+        return interpolTriCubic(data, x,y,z, defaultval, sizex, sizey, sizez); 
+    }
+
+    int floorx = int(x);//integer position along x
+    int floory = int(y);//integer position along y
+    int floorz = int(z);//integer position along z
+    float xoffseth = x - float(floorx);//floating point offset along x
+    float yoffseth = y - float(floory);//floating point offset along y
+    float zoffseth = z - float(floorz);//floating point offset along z
+
+    float * src = &data[floorz * stridez + floory*stridey + floorx];//point into the closest position to interpolation
+
+    switch (static_cast<int>(xoffseth > 0.) | (static_cast<int>(yoffseth > 0.)<<1) | (static_cast<int>(zoffseth > 0.)<<2)) {
+		case 0x00:{
+			//all match grid, no interpolation
+			return src[0];
+		}
+		default:{
+			/*interpolation square
+
+			 p1   p2   p3 p4
+			 p5   p6   p7 p8
+			         P
+			 p9   p10  p11 p12
+			 p13  p14  p15 p16
+
+			 */
+
+			//stridey = stridex;
+
+			float f1= -0.1556;
+			float f2=  0.3111;
+			float f3= -0.0889;
+			float f4=  0.0444;
+
+			//those will hold the current voxel values
+			float v1 = defaultval;
+			float v2 = defaultval;
+			float v3 = defaultval;
+			float v4 = defaultval;
+			float v5 = defaultval;
+			float v6 = defaultval;
+			float v7 = defaultval;
+			float v8 = defaultval;
+			float v9 = defaultval;
+			float v10 = defaultval;
+			float v11 = defaultval;
+			float v12 = defaultval;
+			float v13 = defaultval;
+			float v14 = defaultval;
+			float v15 = defaultval;
+			float v16 = defaultval;
+
+			float line1 = defaultval; 
+			float line2 = defaultval;
+			float line3 = defaultval;
+			float line4 = defaultval;
+
+			float D1 = defaultval;
+			float D2 = defaultval;
+
+			int lowerLayerBound = -1;
+			int upperLayerBound = 2;
+			int layerOffset = 1;
+			float layerValues[4];
+
+			if(!is3D){
+				lowerLayerBound = 0;
+				upperLayerBound = 0;
+				layerOffset = 0;
+			}
+			//interpolation values for each layer (z)
+			for (int zIteration=lowerLayerBound; zIteration <= upperLayerBound; zIteration++) {
+
+				//load the pixel values
+				v1 = *(src-1-stridey + zIteration*stridez); //one line up in y direction, one position back in x
+				v2 = *(src  -stridey + zIteration*stridez); //one line up in y direction
+				v3 = *(src+1-stridey + zIteration*stridez); //one line up in y direction, one position forward in x
+				v4 = *(src+2-stridey + zIteration*stridez);
+
+				v5 = *(src-1 + zIteration*stridez); //same line in y
+				v6 = *(src   + zIteration*stridez); //...
+				v7 = *(src+1 + zIteration*stridez);
+				v8 = *(src+2 + zIteration*stridez);
+
+				v9  = *(src-1+stridey + zIteration*stridez);
+				v10 = *(src  +stridey + zIteration*stridez);
+				v11 = *(src+1+stridey + zIteration*stridez);
+				v12 = *(src+2+stridey + zIteration*stridez);
+
+				v13 = *(src-1+2*stridey + zIteration*stridez);
+				v14= *(src  +2*stridey + zIteration*stridez);
+				v15 = *(src+1+2*stridey + zIteration*stridez);
+				v16 = *(src+2+2*stridey + zIteration*stridez);
+
+
+                //printf("L-1: %.1f %.1f %.1f %.1f\\nL 0: %.1f %.1f %.1f %.1f\\nL 1: %.1f %.1f %.1f %.1f\\nL 2: %.1f %.1f %.1f %.1f\\n", v1, v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12, v13, v14, v15, v16);
+
+
+				/*calculate spline value for line 1 2 3 4 above pixel of interest */
+                D1 = CSPL_INT(f1,f2,f3,f4,v1,v2,v3,v4);
+                D2 = CSPL_INT(f4,f3,f2,f1,v1,v2,v3,v4);
+                line1 = CSPL_CALC(v2,v3,D1,D2,xoffseth);
+
+				/*calculate spline value for line 5 6 7 8 above pixel of interest */
+                D1 = CSPL_INT(f1,f2,f3,f4,v5,v6,v7,v8);
+                D2 = CSPL_INT(f4,f3,f2,f1,v5,v6,v7,v8);
+                line2 = CSPL_CALC(v6,v7,D1,D2,xoffseth);
+
+				/*calculate spline value for line 9 10 11 12 above pixel of interest */
+                D1 = CSPL_INT(f1,f2,f3,f4,v9,v10,v11,v12);
+                D2 = CSPL_INT(f4,f3,f2,f1,v9,v10,v11,v12);
+                line3 = CSPL_CALC(v10,v11,D1,D2,xoffseth);
+
+				/*calculate spline value for line 13 14 15 16 above pixel of interest */
+                D1 = CSPL_INT(f1,f2,f3,f4,v13,v14,v15,v16);
+                D2 = CSPL_INT(f4,f3,f2,f1,v13,v14,v15,v16);
+                line4 = CSPL_CALC(v14,v15,D1,D2,xoffseth);
+
+
+
+
+
+				/*finaly, calculate spline into y direction and save into value[z]*/
+                D1 = CSPL_INT(f1,f2,f3,f4,line1,line2,line3,line4);
+                D2 = CSPL_INT(f4,f3,f2,f1,line1,line2,line3,line4);
+                layerValues[zIteration + layerOffset] = CSPL_CALC(line2,line3,D1,D2,yoffseth);
+
+                //printf("GPU %d - %.1f %.1f %.1f - %.1f %.1f %.1f %.1f - %.1f %.1f %.1f %.1f - %.1f\\n", zIteration, x, y, z, v1, v2, v3, v4, line1, line2, line3, line4, layerValues[zIteration + layerOffset]);
+
+			}
+
+			if (is3D) {
+				/*calculate spline value for z direction*/
+				D1 = CSPL_INT(f1,f2,f3,f4,layerValues[0],layerValues[1],layerValues[2],layerValues[3]);
+				D2 = CSPL_INT(f4,f3,f2,f1,layerValues[0],layerValues[1],layerValues[2],layerValues[3]);
+
+				D1 = CSPL_CALC(layerValues[1],layerValues[2],D1,D2,zoffseth);
+
+				return D1;
+
+			}else {
+				return layerValues[0];
+			}
+		}
+	}
+    return defaultval;
+}
+
+
+__device__ bool are_same(float a, float b) {
+
+    float epsilon = 0.00001;
+    return fabs(float(a) - float(b)) < epsilon;
+}
+
+__device__ bool is_identity(float *P){
+    if (are_same(P[ 0], 1.) && are_same(P[ 1], 0.) && are_same(P[ 2], 0.) && are_same(P[ 3], 0.) &&
+        are_same(P[ 4], 0.) && are_same(P[ 5], 1.) && are_same(P[ 6], 0.) && are_same(P[ 7], 0.) &&
+        are_same(P[ 8], 0.) && are_same(P[ 9], 0.) && are_same(P[10], 1.) && are_same(P[11], 0.)) {
+            return (1>0);
+    } else {
+        return (0 > 1);
+    }
+}
+
+
+
+extern "C" __global__ 
+void transformSpline(float *src, float *dst, float *P, bool is_affinity, float defaultval, float valinf, int * dim_src, int * dim_dst) {
+
+
+    int blockSize = blockDim.x; 
+    unsigned int tid = threadIdx.x;                                                                                                                                        
+    int i = (blockIdx.x*(blockSize) + tid);
+    
+    if (i < (dim_dst[0]*dim_dst[1]*dim_dst[2])){
+        int x,y,z;
+
+        z = i  / (dim_dst[0] * dim_dst[1]);
+        y = (i % (dim_dst[0] * dim_dst[1])) / dim_dst[0] ; 
+        x = (i % (dim_dst[0] * dim_dst[1])) % dim_dst[0] ;
+
+
+        if (is_identity(P)) {
+            dst[i] = src[x + y * dim_src[0] + z * dim_src[0] * dim_src[1]];
+        } else {
+
+            float dx, dy, dz;
+
+            dx = P[0]*x+P[1]*y+P[2]*z+P[3];
+            dy = P[4]*x+P[5]*y+P[6]*z+P[7];
+            dz = P[8]*x+P[9]*y+P[10]*z+P[11];
+
+            //if (x==8 && y ==8 ){printf("SIZE GPU %d %d %d %d - %.1f %.1f %.1f; \\n", i, x,y,z, dx,dy,dz);}         
+
+            dz = interpolCubicSpline(src, dx, dy, dz, defaultval, dim_src[0], dim_src[1], dim_src[2] );
+
+            i = z  + y * dim_dst[2] + x * dim_dst[1] * dim_dst[2];
+
+
+            //i = i;
+
+            //printf("%d %.3f\\n", i, dz);
+            dst[i] = dz;
+        }    
+    }
+}
 '''

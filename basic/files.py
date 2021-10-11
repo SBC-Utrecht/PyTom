@@ -1093,8 +1093,155 @@ def files2mrcs(folder, target, prefix='sorted_'):
             stack[n, :, :] = mrcfile.open(filename, permissive=True).data.copy().squeeze()
         mrcfile.new(target, stack, overwrite=True)
 
+def pl2star(filename, target, prefix='', pixelsize=1, binningPyTom=1, binningWarpM=1, outname=''):
+    from pytom.tompy.tools import zxz2zyz
+    from pytom.basic.structures import ParticleList
+    from pytom.basic.datatypes import RELION31_PICKPOS_STAR, fmtR31S, headerRelion31Subtomo
+    import os
+    import numpy as np
+
+    # If filename is a directory combine all xmls, otherwise read filename
+    if os.path.isdir(filename):
+        pl = ParticleList()
+        xmls = [os.path.join(filename, fname) for fname in os.listdir(filename) if fname.endswith('.xml')]
+        for fname in xmls:
+            try:
+                tempxml = ParticleList()
+                tempxml.fromXMLFile(fname)
+                pl = pl + tempxml
+            except:
+                pass
+    else:
+        pl = ParticleList()
+        pl.fromXMLFile(filename)
+
+    stardata = np.zeros((len(pl)), dtype=RELION31_PICKPOS_STAR)
+
+    for n, p in enumerate(pl):
+        x, y, z = p.getPickPosition().toVector()
+
+        stardata['CoordinateX'][n] = x * binningPyTom / binningWarpM
+        stardata['CoordinateY'][n] = y * binningPyTom / binningWarpM
+        stardata['CoordinateZ'][n] = z * binningPyTom / binningWarpM
+
+        stardata['MicrographName'][n] = p.getPickPosition().getOriginFilename()
+
+        stardata['Magnification'][n] = 1
+
+        stardata['DetectorPixelSize'][n] = pixelsize
+
+        stardata['GroupNumber'][n] = p.getClass()
+
+        z0, z1, x = p.getRotation().toVector()
+
+        z0, y, z1 = zxz2zyz(z0, x, z1)
+
+        stardata['AngleRot'][n] = -z0
+        stardata['AngleTilt'][n] = y
+        stardata['AnglePsi'][n] = -z1
+
+    newFilename = name_to_format(filename if outname == '' else outname, target, "star")
+
+
+    np.savetxt(newFilename, stardata, fmt=fmtR31S, header=headerRelion31Subtomo, comments='')
+
+def txt2wimp(fname, target, prefix, outname=''):
+    '''This functions creates and saves a file named outname which has the wimp format.
+    @parm fname: path to markerfile.txt file in PyTom DATATYPE_MARKERFILE format
+    @param outname: path to output file in wimp format, if empty the name of fname will be used
+    '''
+    from pytom.basic.datatypes import DATATYPE_MARKERFILE
+    from pytom.gui.guiFunctions import loadstar
+    import numpy, os
+
+    data = loadstar(fname, dtype=DATATYPE_MARKERFILE)
+
+    outname = outname if outname else os.path.join(target, fname.split('/')[-1][:-4] + '.wimp')
+
+    ids = numpy.unique(data['MarkerIndex'])
+
+    max_num_obj = num_obj = len(ids)
+    num_mode = len(data['MarkerIndex'])
+
+    wimpfile = f'''
+     Model file name........................{outname}
+     max # of object.......................   {max_num_obj}
+     # of node.............................  {num_mode+max_num_obj}
+     # of object...........................   {num_obj}
+      Object sequence : 
+    '''
+
+    headermarker = '''  Object #:           {}
+     # of point:           {}
+     Display switch:1  247
+         #    X       Y       Z      Mark    Label 
+    '''
+
+    ii = data['MarkerIndex']
+    x = data['PositionX']
+    y = data['PositionY']
+    a = data['TiltAngle']
+
+    dict_angs = {}
+    angs = numpy.sort(numpy.unique(a))
+
+    for l, aaa in enumerate(angs):
+        dict_angs[f'{aaa:.2f}'] = l
+
+    line = '{:7d} {:7.2f} {:7.2f} {:7.2f} {:3d}\n'
+
+    cntr = 0
+
+    for n, id in enumerate(ids):
+        num_points = len(ii[ii == id])
+        wimpfile += headermarker.format(n, num_points)
+
+        xx = x[ii == id]
+        yy = y[ii == id]
+        aa = a[ii == id]
+
+        for m in range(num_points):
+            wimpfile += line.format(cntr, xx[m], yy[m], dict_angs[f'{aa[m]:.2f}'], 0)
+            cntr += 1
+
+        cntr += 1
+
+    wimpfile += '''
+      END
+    '''
+
+    out = open(outname, 'w')
+    out.write(wimpfile)
+    out.close()
+
+def txt2fid(fname, target, prefix, outname=''):
+    import os
+    outname = outname if outname else os.path.join(target, fname.split('/')[-1][:-4] + '.wimp')
+    txt2wimp(fname,outname=outname)
+    os.system('wimp')
 
 def name_to_format(filename, target, extension):
     import os
     basename = os.path.basename(filename)
     return target + ("" if target.endswith(os.sep) else os.sep) + ".".join(basename.split(".")[:-1]) + '.' + extension
+
+
+def headerline(line):
+    if line.startswith('data_') or line.startswith('loop_') or line.startswith('_') or line.startswith('#'):
+        return False
+    else:
+
+        return True
+
+
+def loadtxt(filename, dtype='float32', usecols=None, skip_header=0):
+    import numpy
+    with open(filename, 'r') as f:
+        lines = [line for line in f if headerline(line)]
+        arr = numpy.genfromtxt(lines, dtype=dtype, usecols=usecols, skip_header=skip_header)
+    return arr
+
+
+def savetxt(filename, arr, header='', fmt='', comments='#'):
+    import numpy
+    numpy.savetxt(filename, arr, comments=comments, header=header, fmt=fmt)

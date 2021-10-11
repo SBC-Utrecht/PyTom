@@ -408,7 +408,7 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
         z = abs(grid[1, :, :, :])
         x = abs(grid[2, :, :, :])
 
-    r = xp.sqrt((x*sizeX/sizeZ) ** 2 + (y) ** 2 + (z*sizeX/sizeY) ** 2)
+    r = xp.sqrt((x*sizeZ/sizeZ) ** 2 + (y) ** 2 + (z*sizeY/sizeY) ** 2)
     if angle1 > 1E-3:
         range_angle1Smooth = smooth / xp.sin(angle1 * xp.pi / 180.)
 
@@ -504,7 +504,7 @@ def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, s
         z = grid[1, :, :, :]
         x = grid[2, :, :, :]
 
-    r = xp.sqrt((x*sizeX/sizeZ) ** 2 + (y) ** 2 + (z*sizeX/sizeY) ** 2)
+    r = xp.sqrt((x*sizeZ/sizeZ) ** 2 + (y) ** 2 + (z*sizeY/sizeY) ** 2)
 
 
     with np.errstate(all='ignore'):

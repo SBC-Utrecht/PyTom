@@ -194,8 +194,7 @@ class CollectPreprocess(GuiTabWidget):
 
         headers = ["Data Collection", "Motion Correction"]
         subheaders = [[], []]
-        tabUIs = [self.tab1UI,
-                  self.tab2UI]
+        tabUIs = [[self.tab1UI], [self.tab2UI]]
         static_tabs = [[True],[True]]
         self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict, tab_actions=self.tab_actions)
 

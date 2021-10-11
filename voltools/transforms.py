@@ -41,7 +41,7 @@ def transform(volume: np.ndarray,
         volume = cp.expand_dims(volume, 2)
 
     if center is None:
-        center = np.divide(volume.shape, 2, dtype=np.float32)
+        center = np.divide(np.subtract(volume.shape,1), 2, dtype=np.float32)
 
     # passing just one float is uniform scaling
     if isinstance(scale, float):
@@ -254,12 +254,12 @@ def _get_transform_kernel(interpolation: str = 'linear'):
                     int y = get_y_idx(i, dims);
                     int x = get_z_idx(i, dims);
                     
-                    float4 voxf = make_float4(((float)x) + .5f, ((float)y) + .5f, ((float)z) + .5f, 1.0f);
+                    float4 voxf = make_float4(((float)x), ((float)y), ((float)z), 1.0f);
 
                     float3 ndx;
-                    ndx.z = dot(voxf, xform[0]);
-                    ndx.y = dot(voxf, xform[1]);
-                    ndx.x = dot(voxf, xform[2]);
+                    ndx.z = dot(voxf, xform[0]) + 0.5f;
+                    ndx.y = dot(voxf, xform[1]) + 0.5f;
+                    ndx.x = dot(voxf, xform[2]) + 0.5f;
                     
                     if (ndx.x < 0 || ndx.y < 0 || ndx.z < 0 || ndx.x >= dims[0].z || ndx.y >= dims[0].y || ndx.z >= dims[0].x) {{
                         continue;

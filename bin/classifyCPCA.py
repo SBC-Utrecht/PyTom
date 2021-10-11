@@ -49,6 +49,8 @@ if __name__ == '__main__':
     if not cName:
         cName = 'class'
     directory = './' if directory is None else directory
+
+    cName = cName if cName[-4:] == '.xml' else cName + '.xml'
     cName = os.path.join(directory, cName)
     cpl = os.path.join(directory, cpl)
     doClassification(pl=pl, cpl=cpl, ccc=ccc, neig=neig, nclass=nclass, cName=cName)

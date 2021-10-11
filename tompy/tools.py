@@ -214,6 +214,28 @@ def rotation_matrix_zxz(angle):
 
     return res
 
+def rotation_matrix_zyz(angle):
+    """Return the 3x3 rotation matrix of an Euler angle in ZXZ convention.
+    Note the order of the specified angle should be [Phi, Psi, Theta], or [Z1, Z2, X] in Pytom format.
+
+    @param angle: list of [Phi, Psi, Theta] in degree.
+
+    @return: rotation matrix.
+    """
+    assert len(angle) == 3
+
+    z1 = angle[0]
+    z2 = angle[1]
+    y = angle[2]
+
+    zm1 = rotation_matrix_z(z1)
+    xm = rotation_matrix_y(y)
+    zm2= rotation_matrix_z(z2)
+
+    res = zm2 * (xm * zm1)
+
+    return res
+
 def rotation_distance(ang1, ang2):
     """Given two angles (lists), calculate the angular distance (degree).
 
@@ -478,6 +500,7 @@ def subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, 
     from pytom_volume import vol, subvolume
 
     if volume.__class__ != vol:
+
         return volume[sub_startX:sub_startX+stepSizeX, sub_startY:sub_startY+stepSizeY, sub_startZ:sub_startZ+stepSizeZ]
     else:
         return subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, stepSizeZ)
@@ -500,3 +523,280 @@ def putSubVolume(subvolume, volume, startX, startY, startZ):
         sx, sy, sz = subvolume.shape
         volume[startX:startX + sx, startY:startY + sy, startZ:startZ + sz] = subvolume[:, :, :]
 
+
+def convert_angles(angles, rotation_order='rzxz', return_order='rzyz'):
+    from pytom.voltools.utils.matrices import rotation_matrix
+    import numpy as np
+
+    mat_dict = {'x':rotation_matrix_x, 'y':rotation_matrix_y, 'z': rotation_matrix_z}
+
+    # shift direction of rotation to match CCW definition used in mat2??? calculations.
+    # angles = -1* np.array(angles)
+
+    m = rotation_matrix(angles,rotation_order=rotation_order)
+
+    return_funcs = {'xyz':mat2xyz, 'xzy':mat2xzy, 'yxz':mat2yxz, 'yzx':mat2yzx, 'zxy':mat2zxy, 'zyx':mat2zyx,
+                    'xyx':mat2xyx, 'xzx':mat2xzx, 'yxy':mat2yxy, 'yzy':mat2yzy, 'zxz':mat2zxz, 'zyz':mat2zyz}
+
+    angs = return_funcs[return_order[-3:]](m)
+
+    if return_order[0] == 's':
+        angs = np.array(angs)[::-1]
+
+    return angs
+
+def mat2xyz(rotation_matrix):
+    #y = asin(r02), x = atan2(−r12, r22).z = atan2(−r01, r00)
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
+    r = rotation_matrix
+    y = rad2deg(asin(r[0, 2]))
+
+    epsilon = 1E-4
+
+    if abs(90 - y) < epsilon or abs(90 + y) < epsilon:
+        z = rad2deg(atan2(r[1,0], r[1,1]))
+        x = 0
+    else:
+        x = rad2deg(atan2(-r[1, 2], r[2, 2]))
+        z = rad2deg(atan2(-r[0, 1], r[0, 0]))
+
+    return (x, y, z)
+
+def mat2xzy(rotation_matrix):
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
+    r = rotation_matrix
+    z = rad2deg(asin(-r[0, 1]))
+
+    if abs(90 - z) < 1E-4 or abs(90 + z) < 1E-4:
+        y = rad2deg(atan2(-r[2, 0], r[2, 2]))
+        x = 0
+    else:
+        x = rad2deg(atan2(r[2, 1], r[1, 1]))
+        y = rad2deg(atan2(r[0, 2], r[0, 0]))
+
+    return (x, z, y)
+
+def mat2yxz(rotation_matrix):
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
+    r = rotation_matrix
+    x = rad2deg(asin(-r[1, 2]))
+
+    if abs(90 - x) < 1E-4 or abs(90 + x) < 1E-4:
+        z = rad2deg(atan2(-r[0, 1], r[0,0]))
+        y = 0
+    else:
+        y = rad2deg(atan2(r[0, 2], r[2, 2]))
+        z = rad2deg(atan2(r[1, 0], r[1, 1]))
+
+    return (y, x, z)
+
+def mat2yzx(rotation_matrix):
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
+    r = rotation_matrix
+
+    z = rad2deg(asin(r[1, 0]))
+
+    if abs(90- z) < 1E-8 or abs(90 + z) < 1E-8:
+        x = rad2deg(atan2(r[2, 1], r[2, 2]))
+        y = 0
+    else:
+        y = rad2deg(atan2(-r[2, 0], r[0, 0]))
+        x = rad2deg(atan2(-r[1, 2], r[1, 1]))
+
+    return (y, z, x)
+
+def mat2zxy(rotation_matrix):
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
+    r = rotation_matrix
+    x = rad2deg(asin(r[2, 1]))
+
+    if abs(90 - x) < 1E-8 or abs(90 + x) < 1E-8:
+        y = rad2deg(atan2(r[0, 2], r[0, 0]))
+        z = 0
+    else:
+        z = rad2deg(atan2(-r[0, 1], r[1, 1]))
+        y = rad2deg(atan2(-r[2, 0], r[2, 2]))
+
+    return (z, x, y)
+
+def mat2zyx(rotation_matrix):
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
+    r = rotation_matrix
+    y = rad2deg(asin(-r[2, 0]))
+
+    if abs(90 - y) < 1E-8 or abs(90 + y) < 1E-8:
+        x = rad2deg(atan2(-r[1, 2], r[1, 1]))
+        z = 0
+    else:
+        z = rad2deg(atan2(r[1, 0], r[0, 0]))
+        x = rad2deg(atan2(r[2, 1], r[2, 2]))
+
+    return (z, y, x)
+
+def mat2xyx(rotation_matrix):
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
+    r = rotation_matrix
+    y = rad2deg(acos(r[0, 0]))
+
+    if abs(180 - y) < 1E-8 or abs(y) < 1E-8:
+        x1 = rad2deg(atan2(-r[1, 2], r[1, 1]))
+        x0 = 0
+    else:
+        x0 = rad2deg(atan2(r[1, 0], -r[2, 0]))
+        x1 = rad2deg(atan2(r[0, 1], r[0, 2]))
+
+    return (x0, y, x1)
+
+def mat2xzx(rotation_matrix):
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
+    r = rotation_matrix
+    z = rad2deg(acos(r[0, 0]))
+
+    if abs(180 - z) < 1E-8 or abs(z) < 1E-8:
+        x1 = rad2deg(atan2(r[2, 1], r[2, 2]))
+        x0 = 0
+    else:
+        x0 = rad2deg(atan2(r[2, 0], r[1, 0]))
+        x1 = rad2deg(atan2(r[0, 2], -r[0, 1]))
+
+    return (x0, z, x1)
+
+def mat2yxy(rotation_matrix):
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
+    r = rotation_matrix
+    x = rad2deg(acos(r[1, 1]))
+
+    if abs(180 - x) < 1E-8 or abs(x) < 1E-8:
+        y1 = rad2deg(atan2(r[0, 2], r[0, 0]))
+        y0 = 0
+    else:
+        y0 = rad2deg(atan2(r[0, 1], r[2, 1]))
+        y1 = rad2deg(atan2(r[1, 0], -r[1, 2]))
+
+    return (y0, x, y1)
+
+def mat2yzy(rotation_matrix):
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
+    r = rotation_matrix
+    z = rad2deg(acos(r[1, 1]))
+
+    if abs(180 - z) < 1E-8 or abs(z) < 1E-8:
+        y1 = rad2deg(atan2(-r[2, 0], r[2, 2]))
+        y0 = 0
+    else:
+        y0 = rad2deg(atan2(r[2, 1], -r[0, 1]))
+        y1 = rad2deg(atan2(r[1, 2], r[1, 0]))
+
+    return (y0, z, y1)
+
+def mat2zxz(rotation_matrix):
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos
+    r = rotation_matrix
+    x = rad2deg(acos(r[2,2]))
+
+    if abs(180 - x) < 1E-8 or abs(x) < 1E-8:
+        z1 = rad2deg(atan2(-r[0,1], r[0,0]))
+        z0 = 0
+    else:
+        z0 = rad2deg(atan2(r[0,2], -r[1,2]))
+        z1 = rad2deg(atan2(r[2,0], r[2,1]))
+
+    return (z0, x, z1)
+
+def mat2zyz(rotation_matrix):
+    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos
+    r = rotation_matrix
+
+    y = rad2deg(acos(r[2,2]))
+
+    if abs(180 - y) < 1E-8 or abs(y) < 1E-8:
+        z1 = rad2deg(atan2(r[1,0], r[1,1]))
+        z0 = 0
+    else:
+        z0 = rad2deg(atan2(r[1,2], r[0,2]))
+        z1 = rad2deg(atan2(r[2,1], -r[2,0]))
+
+    return (z0, y, z1)
+
+def zxz2zyz(z0, x, z1):
+    from numpy import cos, sin, deg2rad, arctan2 as atan2, rad2deg, pi, abs
+
+    cz0 = cos(deg2rad(z0))
+    cz1 = cos(deg2rad(z1))
+    cx  = cos(deg2rad(x))
+    sx  = sin(deg2rad(x))
+    sz0 = sin(deg2rad(z0))
+    sz1 = sin(deg2rad(z1))
+
+    r02 = sx * sz0
+    r10 = cz1* sz0 + cx*cz0*sz1
+    r11 = cx*cz0*cz1-sz0*sz1
+    r12 = -sx*cz0
+    r20 = sx * sz1
+    r21 = sx* cz1
+
+    y = x
+
+    if abs(pi - x) < 1E-8 or abs(x) < 1E-8:
+        z1 = rad2deg(atan2(r10, r11))
+        z0 = 0
+    else:
+        z0 = rad2deg(atan2(r12, r02))
+        z1 = rad2deg(atan2(r21,-r20))
+
+    return (z0,y,z1)
+
+def zyz2zxz(z0, y, z1):
+    from numpy import cos, sin, deg2rad, zeros, arccos as acos, arctan2 as atan2, rad2deg, arcsin as asin, abs, pi
+
+    cz0 = cos(deg2rad(z0))
+    cz1 = cos(deg2rad(z1))
+    cy = cos(deg2rad(y))
+    sy = sin(deg2rad(y))
+    sz0 = sin(deg2rad(z0))
+    sz1 = sin(deg2rad(z1))
+
+    r00 = cy * cz0 * cz1 - sz0 * sz1
+    r01 = -cz1 * sz0 - cy * cz0 * sz1
+    r02 = sy * cz0
+    r12 = sy * sz0
+    r20 = -sy * cz1
+    r21 = sy * sz1
+
+    x = y
+
+    if abs(pi-x) < 1E-8 or abs(x) < 1E-8:
+        z1 = rad2deg(atan2(-r01, r00))
+        z0 = 0
+    else:
+        z0 = rad2deg(atan2(r02, -r12))
+        z1 = rad2deg(atan2(r20, r21))
+
+    return (z0, x, z1)
+
+def is1D(volume):
+    '''This function checks if a volume is 1D
+    @param volume: ndarray
+    @type volume: ndarray numpy or cupy
+    @return: returns boolean indicating if volume is 1D
+    @rtype: bool'''
+
+    return (volume.ndim == 1)
+
+def is2D(volume):
+    '''This function checks if a volume is 2D
+        @param volume: ndarray
+        @type volume: ndarray numpy or cupy
+        @return: returns boolean indicating if volume is 2D
+        @rtype: bool'''
+
+    return (volume.ndim == 2)
+
+def is3D(volume):
+    '''This function checks if a volume is 3D
+        @param volume: ndarray
+        @type volume: ndarray numpy or cupy
+        @return: returns boolean indicating if volume is 3D
+        @rtype: bool'''
+
+    return (volume.ndim == 3)

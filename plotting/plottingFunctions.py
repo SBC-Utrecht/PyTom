@@ -2,13 +2,30 @@
 import matplotlib
 matplotlib.use('Qt5Agg')
 import numpy
-from pylab import *
-
-
-
 import os
 import lxml.etree as et
 
+from pylab import imshow as im_show, show, subplots, plot, savefig
+from matplotlib.pyplot import Circle
+from matplotlib.axes._axes import Axes
+
+def imshow_agnostic(self, *args, **kwargs):
+    image = args[0]
+    try:
+        self.imshow(image.get(), *args[1:], **kwargs)
+    except:
+        self.imshow(image, *args[1:], **kwargs)
+
+setattr(Axes, 'im_show', imshow_agnostic)
+
+def imshow(*args, **kwargs):
+    image = args[0]
+    try:
+        im_show(image.get().squeeze(), *args[1:], **kwargs)
+        show()
+    except:
+        im_show(image.squeeze(), *args[1:], **kwargs)
+        show()
 def im_show(image):
     try:
         imshow(image.get())

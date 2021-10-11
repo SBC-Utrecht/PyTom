@@ -103,7 +103,7 @@ class StaticVolume:
                   profile: bool = False, output = None, matrix: np.ndarray = None) -> Union[np.ndarray, None]:
 
         if center is None:
-            center = np.divide(self.shape, 2, dtype=np.float32)
+            center = np.divide(np.subtract(self.shape,1), 2, dtype=np.float32)
         # passing just one float is uniform scaling
         if isinstance(scale, float):
             scale = (scale, scale, scale)

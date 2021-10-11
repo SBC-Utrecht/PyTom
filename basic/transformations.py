@@ -454,7 +454,7 @@ def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2])
     all_mtx = [None, None, None]
     all_mtx[order[0]] = rotCenter2 * (rotM * rotCenter1) # for the rotation center!
     all_mtx[order[1]] = shiftM
-    all_mtx[order[2]] = rotCenter2 * (scaleM* rotCenter1) # for the magnification center!
+    all_mtx[order[2]] = rotCenter2 * (scaleM * rotCenter1) # for the magnification center!
     mtx = all_mtx[2] * (all_mtx[1] * all_mtx[0])
 
     res = vol(v.sizeX(), v.sizeY(), v.sizeZ())

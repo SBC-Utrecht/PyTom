@@ -24,7 +24,7 @@ class TemplateMatchingPlan():
 
         write('te.em', template)
         self.templateVol = readC('te.em')
-        self.where = 'gpu'
+        self.where = 'cpu'
         self.template = cp.asarray(template, dtype=cp.float32,order='C')
         self.texture = vt.StaticVolume(self.template, interpolation='filt_bspline', device=f'gpu:{deviceid}')
         self.templatePadded = cp.zeros_like(self.volume)
@@ -130,7 +130,7 @@ class TemplateMatchingGPU(threading.Thread):
             self.completed = False
         self.active = False
 
-    def template_matching_gpu(self, angle_list, dims, isSphere=True, verbose=True):
+    def template_matching_gpu(self, angle_list, dims, isSphere=True, verbose=True, debug=False):
         from pytom_numpy import vol2npy
         from pytom_volume import rotateSpline as rotate, vol
         import time
@@ -155,8 +155,13 @@ class TemplateMatchingGPU(threading.Thread):
                 rotate(self.plan.templateVol, ref, angles[0], angles[1], angles[2])
                 self.plan.template = xp.array(vol2npy(ref).copy(),dtype=xp.float32)
 
+            # if debug: write('rotated_template.mrc', self.plan.template)
+
             # Add wedge
             self.plan.template = self.irfftn(self.rfftn(self.plan.template) * self.plan.wedge, s=self.plan.template.shape)
+
+            # if debug: write('wedge_rotated_template.mrc', self.plan.template)
+
 
             # Normalize template
             meanT = self.meanUnderMask(self.plan.template, self.plan.mask, p=self.plan.p)
@@ -164,8 +169,12 @@ class TemplateMatchingGPU(threading.Thread):
 
             self.plan.template = ((self.plan.template - meanT) / stdT) * self.plan.mask
 
+
             # Paste in center
             self.plan.templatePadded[CX-cx:CX+cx+mx, CY-cy:CY+cy+my,CZ-cz:CZ+cz+mz] = self.plan.template
+
+            # if debug: write('norm_wedge_rotated_template.mrc', self.plan.templatePadded)
+            # if debug: write('stdV_gpu.mrc', self.plan.stdV)
 
             # write('volume_gpu.em', self.ifftnP(self.plan.volume_fft2, plan=self.plan.fftplan).real)
             # write('template_gpu.em', self.plan.templatePadded)
@@ -174,6 +183,9 @@ class TemplateMatchingGPU(threading.Thread):
 
             # Cross-correlate and normalize by stdV
             self.plan.ccc_map = self.normalized_cross_correlation(self.plan.volume_fft2, self.plan.templatePadded, self.plan.stdV, self.plan.p, plan=self.plan.fftplan)
+
+            # if debug: write('cmap.mrc', self.plan.ccc_map)
+
 
             # Update the scores and angles
             self.updateResFromIdx(self.plan.scores, self.plan.angles, self.plan.ccc_map, angleId, self.plan.scores, self.plan.angles)
@@ -184,9 +196,11 @@ class TemplateMatchingGPU(threading.Thread):
         return self.active
 
     def calc_stdV(self, plan):
+        from pytom.tompy.io import write, read
         self.Device(self.deviceid).use()
+
         stdV = self.meanVolUnderMask2(plan.volume**2, plan) - self.meanVolUnderMask2(plan.volume, plan)**2
-        stdV[stdV < self.float32(1e-09)] = 1
+        stdV[stdV <= self.float32(1e-09)] = 1
         plan.stdV = self.sqrt(stdV)
 
     def meanVolUnderMask2(self, volume, plan):
@@ -227,15 +241,18 @@ class TemplateMatchingGPU(threading.Thread):
 
     def normalized_cross_correlation(self, volume_fft, template, norm, p=1, plan=None):
         return self.fftshift(self.ifftnP(volume_fft * self.fftnP(template, plan=plan).conj(), plan=plan)).real / (p * norm)
+
         # #print(volume_fft.shape)
         #
         # print('cc')
+
         # cc = xp.conj(xp.fft.fftn(template))
         # print('ccc')
         # aa = xp.fft.fftn(template)
         # res = xp.abs(xp.fft.fftshift(xp.fft.ifftn(aa * cc )) )
-        # #res = xp.abs(xp.fft.fftshift(xp.fft.ifftn(volume_fft * xp.fft.fftn(template).conj() )) / (p * norm))
-        # return res
+        res = xp.abs(xp.fft.fftshift(xp.fft.ifftn(volume_fft * xp.fft.fftn(template).conj() )) / (p * norm))
+
+        return res
 
 
     def pad(self, volume, out, sPad, sOrg):

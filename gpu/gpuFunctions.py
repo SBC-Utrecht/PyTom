@@ -209,3 +209,77 @@ if 'gpu' in device:
     }''', 'argmax')
 else:
     argmax = xp.argmax()
+
+
+def invert_first_last_axis(volume):
+    v = xp.atleast_3d(volume)
+
+    if v.shape[-1] == 1:
+        out = xp.zeros((v.shape[1], v.shape[0], v.shape[2]), dtype=xp.float32)
+        out[:, :, 0] = v[:, :, 0].T
+    else:
+        out = xp.zeros((v.shape[-1], v.shape[1], v.shape[0]), dtype=xp.float32)
+        for i in range(v.shape[1]):
+            out[:, i, :] = v[:, i, :].T
+
+    return out
+
+def general_transform_crop(volume, output, translation=None, scale=None, rotation=None, rotation_order='rzxz', rotation_units='deg',
+                  custom=None, num_threads=512, defaultval=0):
+    '''This function uses the standard transform methods from pytom C.
+    Passed are standard translation, scale and rotation+rotation_order+rotation_units, or optional custom operations.
+
+    @param volume: any volume will do. If 2D it will be automatically made into a 3D object as is done for pytomC
+    @param translation: list/tuple/cupy.ndarray/numpy.ndarray with 3 elements. Unit in pixels
+    @param scale: list/tuple/ndarray with 3 elements.
+    @param rotation: list/tuple/ndarray with 3 elements. Default in deg
+    @param rotation_order: which axes are rotating. see pytom.voltools. Default 'rzxz'.
+    @param rotation_units: units of rotation. Default degrees.
+    @param custom: see pytom.voltools.util.matrices custom_matrix
+    @param num_threads: number of threads per block. Default 1024.
+    @param defaultval: defaultval is the value of a pixel in output volume if the corresponding pixel coordinate in the volume lies outside the volume (default 0)
+    @return: numpy.ndarray/cupy.ndarray
+    '''
+    from pytom.voltools.utils.matrices import transform_matrix, custom_matrix
+    from pytom.gpu.kernels import transformSpline_txt
+    from pytom.tompy.tools import is2D
+    import numpy
+    import scipy
+
+    isShape2D = is2D(volume)
+    isNumpyArray = isinstance(volume, numpy.ndarray)
+
+    if isShape2D:
+        volume = xp.atleast_3d(volume,2)
+
+    volume= xp.asfortranarray(volume)
+
+    if custom is None:
+        P = transform_matrix(scale=scale,
+                             rotation=rotation, rotation_units=rotation_units, rotation_order=rotation_order,
+                             translation=translation,
+                             center=(volume.shape[0]//2,volume.shape[1]//2,volume.shape[2]//2), )
+    else:
+        P = custom_matrix(transforms=custom)
+
+    transformSpline = xp.RawKernel(transformSpline_txt, 'transformSpline')
+
+    volume = xp.array(volume,dtype=xp.float32)
+    dst = xp.zeros_like(output,dtype=xp.float32)
+
+    num_blocks = 1 + dst.size//num_threads
+
+    dim_src = xp.array([volume.shape[0], volume.shape[1],volume.shape[2]], dtype=xp.int32)
+    dim_dst = xp.array([dst.shape[0], dst.shape[1], dst.shape[2]], dtype=xp.int32)
+
+    P = xp.array(P, dtype=xp.float32)
+
+    transformSpline((num_blocks, 1), (num_threads, 1, 1), (volume, dst, P, True, xp.float32(defaultval), 1000000, dim_src, dim_dst))
+
+    if isShape2D:
+        pass#dst = dst.squeeze()
+
+    if isNumpyArray:
+        dst = dst.get()
+
+    return dst

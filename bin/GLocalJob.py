@@ -63,6 +63,7 @@ if __name__ == '__main__':
                                                                   " of mpi cores should be one more than the number of "
                                                                   "GPUs you are using.", arg=True,
                                                 optional=True),
+                                   ScriptOption(['-v', '--verbose'], "be communicative", optional=True, arg=False),
                                    ScriptOption(['-h', '--help'], 'Help.', arg=False, optional=True)])
     
     if len(sys.argv) <= 2:
@@ -73,7 +74,7 @@ if __name__ == '__main__':
         particleList, reference, mask, isSphere, angShells, angleInc, scoreObject, \
         symmetryN, symmetryAxisZ, symmetryAxisX,\
         destination, numberIterations, binning,\
-        pixelSize, diameter, weighting, compound, jobName, gpuIDs, help = results
+        pixelSize, diameter, weighting, compound, jobName, gpuIDs, verbose, help = results
     except Exception as e:
         print(e)
         sys.exit()
@@ -145,12 +146,18 @@ if __name__ == '__main__':
     gpuIDs = [] if gpuIDs is None else list(map(int, gpuIDs.split(',')))
 
     ################# fixed parameters #################
+    print(scoreObject)
     if (scoreObject == None or scoreObject.lower() == 'flcf'):
         score   = FLCFScore()
     elif scoreObject.lower() == 'nxcf':
         score   = nxcfScore()
     else:
         score   = FLCFScore()
+
+
+    score.setPeakPrior( pl[0].getScore().getPeakPrior()  )
+
+
     score.setRemoveAutocorrelation(flag=False)
     #pre     = Preprocessing(lowestFrequency = float(lowestFrequency),highestFrequency = float(highestFrequency))
     pre     = Preprocessing()
@@ -165,6 +172,6 @@ if __name__ == '__main__':
                                symmetries=None, adaptive_res=adaptive_res, fsc_criterion=fsc_criterion)
     locJob.toXMLFile(jobName)
     # run script
-    mainAlignmentLoop( alignmentJob=locJob, verbose=False)
+    mainAlignmentLoop( alignmentJob=locJob, verbose=False if verbose is None else True)
     print('finished')
     
