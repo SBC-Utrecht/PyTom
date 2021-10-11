@@ -1,8 +1,19 @@
-'''
+"""
 Created on Dec 7, 2010
 
 @author: hrabe
-'''
+"""
+
+
+def get_install_folder():
+    """
+    Get path to pytom install folder.
+
+    @return: full path
+    @rtype:  L{str}
+    """
+    import os
+    return os.path.dirname(os.path.dirname(os.popen('which pytom').read()[:-1]))
 
 
 def readProxy(fileName, subregion1=0, subregion2=0, subregion3=0,

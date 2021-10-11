@@ -20,8 +20,19 @@ class pytom_NormTest(unittest.TestCase):
         assert epsilon >= me >= -epsilon #mean value test 
         assert 1+epsilon >= var >= 1-epsilon
 
+    def zeroVol_Test(self):
+        import pytom_volume
+        from pytom.basic.normalise import normaliseUnderMask
+        #from pytom_volume import vol, initSphere
+
+        vol = pytom_volume.vol(64,64,64)
+        mask = pytom_volume.vol(64,64,64)
+        pytom_volume.initSphere(mask,13,0,0,33,33,33)
+        (v,p) = normaliseUnderMask(vol, mask)
+
     def runTest(self):
         self.mean0std1_Test()
+        self.zeroVol_Test()
 
 if __name__ == '__main__':
     unittest.main()

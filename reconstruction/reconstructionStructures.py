@@ -475,7 +475,7 @@ class ProjectionList(PyTomClass):
         @author: FF
         last change: include binning in reconstructionPosition
         """
-        from pytom_volume import vol, backProject
+        # from pytom_volume import vol, backProject
         from pytom.gpu.initialize import device, xp
         from pytom.reconstruction.reconstructionFunctions import alignImagesUsingAlignmentResultFile as align
 
@@ -611,9 +611,11 @@ class ProjectionList(PyTomClass):
         import time, os
         from pytom_numpy import vol2npy
         from pytom.basic.files import write_em
-        from multiprocessing import Process
-        print('start')
+        from multiprocessing import Process, set_start_method
         import time
+
+        # important to set to allow child processes on multiple GPU's (otherwise cupy init is not working)
+        set_start_method('spawn')
 
         t = time.time()
         if len(particles) == 0:
@@ -657,7 +659,7 @@ class ProjectionList(PyTomClass):
             from pytom.tompy.io import write as write_em
 
             resultProjstack = align( alignResultFile, binning=binning, weighting=applyWeighting, circleFilter=True, angle_specimen=specimen_angle)
-            [projections, vol_phi, proj_angles, vol_offsetProjections] = resultProjstack
+            resultProjstack = [x.get() for x in resultProjstack]
 
         # if verbose: return
 
@@ -681,7 +683,7 @@ class ProjectionList(PyTomClass):
             for procIndex in range(num_procs):
                 ps = particles[procIndex::num_procs]
                 if (len(ps)) < 1: continue
-                #extract(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results)
+                # extract(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results)
                 proc = Process(target=extract, args=(ps, procIndex, verbose, binning, postScale, cubeSize, polishResultFile, gpuIDs[procIndex], results))
                 procs.append(proc)
                 proc.start()
@@ -744,7 +746,7 @@ class ProjectionList(PyTomClass):
         import time
         from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
 
-        #xp.cuda.Device(gpuID).use()
+        xp.cuda.Device(gpuID).use()
 
         ts = time.time()
 
@@ -757,7 +759,7 @@ class ProjectionList(PyTomClass):
                 for index in range(4):
                     results.append(read('{}/.temp_{}.mrc'.format(folder, index)))
 
-            [projections, vol_phi, vol_the, vol_offsetProjections] = results
+            [projections, vol_phi, vol_the, vol_offsetProjections] = [xp.asarray(x) for x in results]
             num_projections = projections.shape[2]
 
             vol_bp = xp.zeros((cubeSize, cubeSize, cubeSize), dtype=xp.float32)
@@ -788,7 +790,7 @@ class ProjectionList(PyTomClass):
 
 
         except Exception as e:
-            print('Caught exception in worker thread (x = %d):' % pid)
+            print('Caught exception in worker thread (x = %d):' % procID)
             print()
             raise e
 

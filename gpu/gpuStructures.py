@@ -8,6 +8,7 @@ class TemplateMatchingPlan():
         from pytom.tompy.io import read
         from pytom.basic.files import read as readC
         import pytom.voltools as vt
+        import os
 
         cp.cuda.Device(deviceid).use()
 
@@ -48,6 +49,7 @@ class TemplateMatchingPlan():
             self.fftplan = None
             self.volume_fft2 = None
 
+        os.remove('te.em')
         cp.cuda.stream.get_current_stream().synchronize()
 
 
@@ -155,13 +157,8 @@ class TemplateMatchingGPU(threading.Thread):
                 rotate(self.plan.templateVol, ref, angles[0], angles[1], angles[2])
                 self.plan.template = xp.array(vol2npy(ref).copy(),dtype=xp.float32)
 
-            # if debug: write('rotated_template.mrc', self.plan.template)
-
             # Add wedge
             self.plan.template = self.irfftn(self.rfftn(self.plan.template) * self.plan.wedge, s=self.plan.template.shape)
-
-            # if debug: write('wedge_rotated_template.mrc', self.plan.template)
-
 
             # Normalize template
             meanT = self.meanUnderMask(self.plan.template, self.plan.mask, p=self.plan.p)
@@ -169,12 +166,8 @@ class TemplateMatchingGPU(threading.Thread):
 
             self.plan.template = ((self.plan.template - meanT) / stdT) * self.plan.mask
 
-
             # Paste in center
             self.plan.templatePadded[CX-cx:CX+cx+mx, CY-cy:CY+cy+my,CZ-cz:CZ+cz+mz] = self.plan.template
-
-            # if debug: write('norm_wedge_rotated_template.mrc', self.plan.templatePadded)
-            # if debug: write('stdV_gpu.mrc', self.plan.stdV)
 
             # write('volume_gpu.em', self.ifftnP(self.plan.volume_fft2, plan=self.plan.fftplan).real)
             # write('template_gpu.em', self.plan.templatePadded)
@@ -183,9 +176,6 @@ class TemplateMatchingGPU(threading.Thread):
 
             # Cross-correlate and normalize by stdV
             self.plan.ccc_map = self.normalized_cross_correlation(self.plan.volume_fft2, self.plan.templatePadded, self.plan.stdV, self.plan.p, plan=self.plan.fftplan)
-
-            # if debug: write('cmap.mrc', self.plan.ccc_map)
-
 
             # Update the scores and angles
             self.updateResFromIdx(self.plan.scores, self.plan.angles, self.plan.ccc_map, angleId, self.plan.scores, self.plan.angles)
@@ -241,18 +231,15 @@ class TemplateMatchingGPU(threading.Thread):
 
     def normalized_cross_correlation(self, volume_fft, template, norm, p=1, plan=None):
         return self.fftshift(self.ifftnP(volume_fft * self.fftnP(template, plan=plan).conj(), plan=plan)).real / (p * norm)
-
         # #print(volume_fft.shape)
         #
         # print('cc')
-
         # cc = xp.conj(xp.fft.fftn(template))
         # print('ccc')
         # aa = xp.fft.fftn(template)
         # res = xp.abs(xp.fft.fftshift(xp.fft.ifftn(aa * cc )) )
-        res = xp.abs(xp.fft.fftshift(xp.fft.ifftn(volume_fft * xp.fft.fftn(template).conj() )) / (p * norm))
-
-        return res
+        # #res = xp.abs(xp.fft.fftshift(xp.fft.ifftn(volume_fft * xp.fft.fftn(template).conj() )) / (p * norm))
+        # return res
 
 
     def pad(self, volume, out, sPad, sOrg):
