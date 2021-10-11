@@ -1,0 +1,300 @@
+\form#0:\[ f_j= \sum_{k=-\frac{N}{2}}^{\frac{N}{2}-1} \hat{f}_{k} {\rm e}^{2\pi{\rm i}\frac{kj}{N}} \]
+\form#1:$j=-\frac{N}{2},\hdots,\frac{N}{2}-1$
+\form#2:$\hat{f}_{k}\in\mathbb{C}$
+\form#3:${\cal O}(N^2)$
+\form#4:${\cal O}(N\log N)$
+\form#5:$\mathbf{k}\in\mathbb{Z}^d$
+\form#6:\[ I_{\mathbf{N}} := \left\{ \mathbf{k}=\left(k_t\right)_{t=0,\hdots,d-1} \in \mathbb{Z}^d: - \frac{N_t}{2} \le k_t < \frac{N_t}{2} ,\;t=0,\hdots,d-1\right\}, *\]
+\form#7:$\mathbf{N}=\left(N_t\right)_{t=0,\hdots,d-1}$
+\form#8:$N_t\in 2\mathbb{N}$
+\form#9:$\hat f_{\mathbf{k}} \in \mathbb{C}$
+\form#10:$\mathbf{k}\in I_{\mathbf{N}}$
+\form#11:\[ f\left(\mathbf{x}\right) := \sum_{ \mathbf{k}\in I_{ N}} \hat{f}_{\mathbf{ k}} {\rm e}^{-2\pi{\rm i}\mathbf{k}\mathbf{ x}} \]
+\form#12:$\mathbf{x}_j \in \mathbb{T}^d$
+\form#13:$j=0,\ldots, M-1$
+\form#14:$ d$
+\form#15:\[ \hat h_{\mathbf{k}} := \sum_{j=0}^{M-1} {f}_{j} {\rm e}^{2\pi{\rm i}\mathbf{k}\mathbf{ x}_j}. \]
+\form#16:\[ \mathbb{T}^d := \left\{ \mathbf{x}=\left(x_t\right)_{t=0,\hdots,d-1}\in\mathbb{R}^{d}: \; - \frac{1}{2} \le x_t < \frac{1}{2},\; t=0,\hdots,d-1 \right\} \]
+\form#17:$d$
+\form#18:$\mathbf{x}$
+\form#19:${\cal X}:=\{\mathbf{x}_j \in {\mathbb T}^d: \,j=0,\hdots,M-1\}$
+\form#20:$\mathbf{k}$
+\form#21:\[ I_{\mathbf{N}} := \left\{ \mathbf{k}=\left(k_t\right)_{t=0,\hdots,d-1}\in \mathbb{Z}^d: - \frac{N_t}{2} \le k_t < \frac{N_t}{2} ,\;t=0,\hdots,d-1 \right\}. \]
+\form#22:\[ f_j = \sum_{\mathbf{k}\in I_{\mathbf{N}}} \hat{f}_{\mathbf{k}} {\rm e}^{-2\pi{\rm i} \mathbf{k}\mathbf{x}_j}, \qquad j=0,\hdots,M-1. \]
+\form#23:\[ \hat f_{\mathbf{k}}=\sum_{j=0}^{M-1} f_j {\rm e}^{+2\pi{\rm i} \mathbf{k}\mathbf{x}_j}, \qquad \mathbf{k}\in I_{\mathbf{N}}. \]
+\form#24:${\cal O}(|I_{\mathbf{N}}|M)$
+\form#25:${\cal O}(|I_{\mathbf{N}}|\log|I_{\mathbf{N}}|+M)$
+\form#26:$\mathbf{D}$
+\form#27:$\mathbf{B}$
+\form#28:$(K+1)d$
+\form#29:$K=2^{10}(m+1)$
+\form#30:$2dM$
+\form#31:$(2m+2)dM$
+\form#32:$(2m+2)^dM$
+\form#33:$N$
+\form#34:$x$
+\form#35:$j=0,...,M\_total-1$
+\form#36:$f_j^C(x_j) = \sum_{k \in I_0^{N,d}} \hat{f}_k^C * cos(2 \pi k x_j)$
+\form#37:$k \in I_0^{N,d}$
+\form#38:$h^C(k) = \sum_{j \in I_0^{(M\_total,1)}} f_j^C * cos(2 \pi k x_j)$
+\form#39:$f_j^S(x_j) = \sum_{k \in I_1^{N,d}} \hat{f}_k^S * sin(2 \pi k x_j)$
+\form#40:$k \in I_1^{N,d}$
+\form#41:$h^S(k) = \sum_{j \in I_0^{M\_total,1}} f_j^S * cos(2 \pi k x_j)$
+\form#42:$v$
+\form#43:$j=0,...,M_{total}-1$
+\form#44:\[ f(x_j) = \sum_{k = 0}^{N_{total}-1} \hat{f}(v_k) {\rm e}^{-2 \pi \mbox{\rm\scriptsize i} v_k x_j \odot N} \]
+\form#45:$k=0,...,N_{total}-1$
+\form#46:\[ \hat{f}(v_k) = \sum_{j = 0}^{M_{total}-1} f(x_j) {\rm e}^{2 \pi \mbox{\rm\scriptsize i} v_k x_j \odot N} \]
+\form#47:\[ \hat{f}(v_k) = \sum_{j = 0}^{M_{tota}l-1} f(x_j) {\rm e}^{2 \pi \mbox{\rm\scriptsize i} v_k x_j \odot N} \]
+\form#48:$j=0,\hdots,M-1$
+\form#49:\[ f_j = \sum_{k\in H_N^d}\hat f_k {\rm e}^{-2\pi{\rm\scriptsize i}k x_j} \]
+\form#50:$k\in H_N^d$
+\form#51:\[ \hat f_k = \sum_{j=0,\hdots,M-1} f_j {\rm e}^{+2\pi{\rm\scriptsize i}k x_j} \]
+\form#52:\[ f(x_j) = \sum_{k \in I_N^2} \hat{f}(k) {\rm e}^{\mbox{\rm\scriptsize i} t_j \omega(k)} {\rm e}^{-2 \pi \mbox{\rm\scriptsize i} k x_j} \]
+\form#53:$k \in I_N^2$
+\form#54:\[ \hat{f}(k) = \sum_{j=0}^{M_{total}-1} f(x_j) {\rm e}^{\mbox{\rm\scriptsize i} t_j \omega(k)} {\rm e}^{-2 \pi \mbox{\rm\scriptsize i} k x_j} \]
+\form#55:$\mathbb{R}^3$
+\form#56:$(r,\vartheta,\varphi)^{\mathrm{T}}$
+\form#57:$r \in \mathbb{R}^{+}$
+\form#58:$\vartheta \in [0,\pi]$
+\form#59:$\varphi \in [-\pi,\pi)$
+\form#60:$\mathbb{S}^2$
+\form#61:\[ \mathbb{S}^2 := \left\{\mathbf{x} \in \mathbb{R}^{3}:\; \|\mathbf{x}\|_2=1\right\} \]
+\form#62:$(\vartheta,\varphi)^{\mathrm{T}}$
+\form#63:$x_1 := \frac{\varphi}{2\pi}$
+\form#64:$x_2 := \frac{\vartheta}{2\pi}$
+\form#65:$\mathbf{x} := \left(x_1,x_2\right) \in [-\frac{1}{2}, \frac{1}{2}) \times [0,\frac{1}{2}]$
+\form#66:$P_k : [-1,1] \rightarrow \mathbb{R}$, $k \in \mathbb{N}_{0}$
+\form#67:\[ P_k(t) := \frac{1}{2^k k!} \frac{\text{d}^k}{\text{d} t^k} \left(t^2-1\right)^k. \]
+\form#68:\[ (k+1)P_{k+1}(t) = (2k+1) x P_{k}(t) - k P_{k-1}(t) \quad (k \in \mathbb{N}_0). \]
+\form#69:\[ \left< f,g \right>_{\text{L}^2\left([-1,1]\right)} := \int_{-1}^{1} f(t) g(t) \text{d} t \]
+\form#70:$\text{L}^2\left([-1,1]\right)$
+\form#71:\[ \left< P_k,P_l \right>_{\text{L}^2\left([-1,1]\right)} = \frac{2}{2k+1} \delta_{k,l}. \]
+\form#72:$ c_k := \sqrt{\frac{2k+1}{2}}$
+\form#73:$c_k P_k$
+\form#74:\[ \|f\|_{\text{L}^2\left([-1,1]\right)} := \left(<f,f>_{\text{L}^2\left([-1,1]\right)}\right)^{1/2} = \left(\int_{-1}^{1} |f(t)|^2 \; \text{d} t\right)^{1/2}. \]
+\form#75:$P_k^n : [-1,1] \rightarrow \mathbb{R} $
+\form#76:$n \in \mathbb{N}_0$
+\form#77:$k \ge n$
+\form#78:\[ P_k^n(t) := \left(\frac{(k-n)!}{(k+n)!}\right)^{1/2} \left(1-t^2\right)^{n/2} \frac{\text{d}^n}{\text{d} t^n} P_k(t). \]
+\form#79:$n = 0$
+\form#80:$P_k^0 = P_k$
+\form#81:\[ P_{k+1}^n(t) = v_{k}^n t P_k^n(t) + w_{k}^n P_{k-1}^n(t) \quad (k \ge n), \]
+\form#82:$P_{n-1}^n(t) := 0$
+\form#83:$P_{n}^n(t) := \frac{\sqrt{(2n)!}}{2^n n!} \left(1-t^2\right)^{n/2}$
+\form#84:\[ v_{k}^n := \frac{2k+1}{((k-n+1)(k+n+1))^{1/2}}\; ,\qquad w_{k}^n := - \frac{((k-n)(k+n))^{1/2}}{((k-n+1)(k+n+1))^{1/2}}. \]
+\form#85:$n$
+\form#86:$\left\{P_k^n:\: k \ge n\right\}$
+\form#87:\[ \left< P_k^n,P_l^n \right>_{\text{L}^2\left([-1,1]\right)} = \frac{2}{2k+1} \delta_{k,l} \quad (0 \le n \le k,l). \]
+\form#88:$ c_k = \sqrt{\frac{2k+1}{2}}$
+\form#89:$c_k P_k^n$
+\form#90:$\text{L}^2 \left(\mathbb{S}^2\right)$
+\form#91:$\tilde{Y}_k^n : \mathbb{S}^2 \rightarrow \mathbb{C}$
+\form#92:\[ \tilde{Y}_k^n(\vartheta,\varphi) := P_k^{|n|}(\cos\vartheta) \mathrm{e}^{\mathrm{i} n \varphi} \]
+\form#93:$\text{L}^2\left(\mathbb{S}^2\right)$
+\form#94:\[ \left< f,g \right>_{\mathrm{L}^2\left(\mathbb{S}^2\right)} := \int_{\mathbb{S}^2} f(\vartheta,\varphi) \overline{g(\vartheta,\varphi)} \: \mathrm{d} \mathbf{\xi} := \int_{-\pi}^{\pi} \int_{0}^{\pi} f(\vartheta,\varphi) \overline{g(\vartheta,\varphi)} \sin \vartheta \; \mathrm{d} \vartheta \; \mathrm{d} \varphi. \]
+\form#95:$c_k^n := \sqrt{\frac{2k+1}{4\pi}}$
+\form#96:\[ Y_k^n(\vartheta,\varphi) := c_k^n P_k^{|n|}(\cos\vartheta) \mathrm{e}^{\mathrm{i} n \varphi} \]
+\form#97:$\text{L}^2\left(\mathbb{S}^2 \right)$
+\form#98:\[ \|f\|_{\text{L}^2\left(\mathbb{S}^2\right)} = \left(<f,f>_{\text{L}^2\left(\mathbb{S}^2\right)}\right)^{1/2} = \left(\int_{-\pi}^{\pi} \int_{0}^{\pi} |f(\vartheta,\varphi)|^2 \sin \vartheta \; \mathrm{d} \vartheta \; \mathrm{d} \varphi\right)^{1/2}. \]
+\form#99:$f \in \mathrm{L}^2\left(\mathbb{S}^2\right)$
+\form#100:\[ f = \sum_{k=0}^{\infty} \sum_{n=-k}^{k} \hat{f}(k,n) Y_k^n, \]
+\form#101:$\hat{f}(k,n) := \left< f, Y_k^{n} \right>_{\mathrm{L}^2\left(\mathbb{S}^2\right)}$
+\form#102:$\mathrm{L}^2$
+\form#103:\[ \begin{array}{rcl} \text{\textbf{Input}} & : & \text{coefficients } \hat{f}(k,n) \in \mathbb{C} \text{ for } k=0,\ldots,N,\;n=-k, \ldots,k,\; N \in \mathbb{N}_0,\\[1ex] & & \text{arbitrary nodes } \mathbf{x}(m) \in [-\frac{1}{2},\frac{1}{2}] \times [0,\frac{1}{2}] \text{ for } m=0,\ldots,M-1, M \in \mathbb{N}. \\[1ex] \text{\textbf{Task}} & : & \text{evaluate } f(m) := f\left( \mathbf{x}(m)\right) = \sum_{k=0}^N \sum_{n=-k}^k \hat{f}_k^n Y_k^n\left(\mathbf{x}(m)\right) \text{ for } m=0,\ldots,M-1. \\[1ex] \text{\textbf{Output}} & : & \text{coefficients } f(m) \in \mathbb{C} \text{ for } m=0,\ldots,M-1.\\ \end{array} \]
+\form#104:\[ \begin{array}{rcl} \text{\textbf{Input}} & : & \text{coefficients } f(m) \in \mathbb{C} \text{ for } m=0,\ldots,M-1, M \in \mathbb{N},\\ & & \text{arbitrary nodes } \mathbf{x}(m) \in [-\frac{1}{2},\frac{1}{2}] \times [0,\frac{1}{2}] \text{ for } m=0,\ldots,M-1, N \in \mathbb{N}_0.\\[1ex] \text{\textbf{Task}} & : & \text{evaluate } \hat{f}(k,n) := \sum_{m=0}^{M-1} f(m) \overline{Y_k^n\left(\mathbf{x}(m)\right)}cd Do \text{ for } k=0,\ldots,N,\;n=-k,\ldots,k.\\[1ex] \text{\textbf{Output}} & : & \text{coefficients } \hat{f}(k,n) \in \mathbb{C} \text{ for } k=0,\ldots,N,\;n=-k,\ldots,k.\\[1ex] \end{array} \]
+\form#105:$N \in \mathbb{N}_0$
+\form#106:$ = (2N+2)^2$
+\form#107:$M$
+\form#108:$(2N+2)^2$
+\form#109:$i \in \mathbb{N}_0$
+\form#110:$i$
+\form#111:$i=0,1,\ldots,(2N+2)^2-1$
+\form#112:$\hat{f}(k,n)$
+\form#113:$0 \le k \le M$
+\form#114:$-k \le n \le k$
+\form#115:$i = (N+2)(N-n+1)+N+k+1$
+\form#116:$k,n$
+\form#117:$f(m)$
+\form#118:$m=0,\ldots,M-1$
+\form#119:$m$
+\form#120:$\mathbf{x}(m) \in [-\frac{1}{2},\frac{1}{2}] \times [0,\frac{1}{2}]$
+\form#121:$m = 0, \ldots,M-1$
+\form#122:$2m$
+\form#123:$x_1$
+\form#124:$2m+1$
+\form#125:$x_2$
+\form#126:$N_{\text{max}}$
+\form#127:\[ \tilde{Y}_k^n(\vartheta,\varphi) = P_k^{|n|}(\cos\vartheta) \mathrm{e}^{\mathrm{i} n \varphi}. \]
+\form#128:$L_2$
+\form#129:\[ Y_k^n(\vartheta,\varphi) = \sqrt{\frac{2k+1}{4\pi}} P_k^{|n|}(\cos\vartheta) \mathrm{e}^{\mathrm{i} n \varphi}. \]
+\form#130:$f_hat(k,n)$
+\form#131:$0 \le k \le N$
+\form#132:\[ (N+2)(N-n+1)+N+k+1 \]
+\form#133:$M \in \mathbb{N}$
+\form#134:$N \in \mathbb{N}_2$
+\form#135:$\kappa \in \mathbb{R}^{+}$
+\form#136:$m = 0,\ldots,M-1$
+\form#137:\[ f(m) = \sum_{k=0}^N \sum_{n=-k}^k \hat{f}(k,n) Y_k^n\left(2\pi x_1(m), 2\pi x_2(m)\right). \]
+\form#138:$k=0,\ldots,N; n=-k,\ldots,k$
+\form#139:\[ \hat{f}(k,n) = \sum_{m = 0}^{M-1} f(m) Y_k^n\left(2\pi x_1(m), 2\pi x_2(m)\right). \]
+\form#140:$M \in \mathbb{N}_0$
+\form#141:$m \in \mathbb{N}_0$
+\form#142:$m = 0,\ldots,M$
+\form#143:$M+1$
+\form#144:$t \in \mathbb{N}, t \ge 2$
+\form#145:$N = 2^t \in \mathbb{N}, N \ge 4$
+\form#146:$m \in \mathbb{N}, 0 \le m \le M$
+\form#147:$\alpha_k \in \mathbb{R}$
+\form#148:$k=0,\ldots,N$
+\form#149:$=\alpha_k$
+\form#150:$\beta_k \in \mathbb{R}$
+\form#151:$=\beta_k$
+\form#152:$\gamma_k \in \mathbb{R}$
+\form#153:$=\gamma_k$
+\form#154:$k_{\text{start}} \in \mathbb{N}_0, 0 \le k_{\text{start}} \le N$
+\form#155:$\kappa \in \mathbb{R}, \kappa > 0$
+\form#156:\[ D_{mn}^l(\alpha,\beta,\gamma) = d^{mn}_{l}(\cos\beta) \mathrm{e}^{-\mathrm{i} m \alpha}\mathrm{e}^{-\mathrm{i} n \gamma}. \]
+\form#157:\[ \tilde D_{mn}^l(\alpha,\beta,\gamma) = \sqrt{\frac{2l+1}{8\pi^2}}d^{mn}_{l}(\cos\beta) \mathrm{e}^{-\mathrm{i} m \alpha}\mathrm{e}^{-\mathrm{i} n \gamma} \]
+\form#158:$f_hat^{mn}_l$
+\form#159:$l=0,...,B$
+\form#160:$m,n =-l,...,l$
+\form#161:\[ f(g_m) = \sum_{l=0}^B \sum_{m=-l}^l \sum_{n=-l}^l \hat{f}^{mn}_l D_l^{mn}\left( \alpha_m,\beta_m,\gamma_m\right). \]
+\form#162:$l=0,\ldots,B; m,n=-l,\ldots,l$
+\form#163:\[ \hat{f}^{mn}_l = \sum_{m = 0}^{M-1} f(g_m) D_l^{mn}\left( \alpha_m,\beta_m,\gamma_m\right) \]
+\form#164:$2\le\sigma<4$
+\form#165:$dM$
+\form#166:$D$
+\form#167:$N_0+\hdots+N_{d-1}$
+\form#168:$B$
+\form#169:$\mathbf{x}(m) = * \left(x_1,x_2\right) \in * [-\frac{1}{2},\frac{1}{2}) \times * [0,\frac{1}{2}]$
+\form#170:$M \in * \mathbb{N},$
+\form#171:$n\ge N$
+\form#172:$n=2^j,\, j\in\mathbb{N}_0$
+\form#173:$\frac{sin\left(x\right)}{x}$
+\form#174:$M_{k,0}\left(x\right)$
+\form#175:$\prod_{t=0}^{d-1} v_t$
+\form#176:$\prod_{t=0}^{d-1} v_t-a$
+\form#177:$\sum_{t=0}^{d-1} i_t \prod_{t'=t+1}^{d-1} N_{t'}$
+\form#178:$x^H x$
+\form#179:$x^H (w \odot x)$
+\form#180:$x^H (w1\odot w2\odot w2 \odot x)$
+\form#181:$x^H (w2\odot w2 \odot x)$
+\form#182:$x \leftarrow y$
+\form#183:$x \leftarrow a y$
+\form#184:$x \leftarrow w\odot y$
+\form#185:$x \leftarrow a x + y$
+\form#186:$x \leftarrow x + a y$
+\form#187:$x \leftarrow a x + b y$
+\form#188:$x \leftarrow x + a w\odot y$
+\form#189:$x \leftarrow a x + w\odot y$
+\form#190:$\frac{\|x-y\|_{\infty}}{\|x\|_{\infty}} $
+\form#191:$\frac{\|x-y\|_{\infty}}{\|z\|_1} $
+\form#192:$\frac{\|x-y\|_2}{\|x\|_2} $
+\form#193:$[0,1]\times[0,1]{\rm i}$
+\form#194:$[-1/2,1/2]$
+\form#195:$x_j$
+\form#196:$\frac{2}{N}\left(1-\frac{\left|2k+1\right|}{N}\right)$
+\form#197:$\Lambda(z,\epsilon) = \frac{\Gamma(z+\epsilon)}{\Gamma(z+1)}$
+\form#198:$ z + \epsilon > 0$
+\form#199:$P_k : \mathbb{R} \rightarrow \mathbb{R}$
+\form#200:\[ f(x) = \sum_{k=0}^N a_k P_k(x) \quad (N \in \mathbb{N}_0) \]
+\form#201:\[ P_{k+1}(x) = (alpha_k * x + beta_k)*P_{k}(x) + gamma_k P_{k-1}(x) \quad (alpha_k, beta_k, gamma_k \in \mathbb{R},\; k \ge 0) \]
+\form#202:$P_{-1}(x) := 0$
+\form#203:$P_0(x) := \lambda$
+\form#204:$\left(a_k\right)_{k=0}^N \in \mathbb{C}^{N+1}$
+\form#205:$\left(x_j\right)_{j=0}^M \in \mathbb{R}^{M+1}$
+\form#206:$B, B^{\rm T}$
+\form#207:$D, D^T$
+\form#208:$\alpha_{k-1}^n$
+\form#209:$k,n = 0,1,\ldots,N$
+\form#210:$(N+1)^2$
+\form#211:$\beta_{k-1}^n$
+\form#212:$\gamma_{k-1}^n$
+\form#213:$P_k^n(x,c)$
+\form#214:$k$
+\form#215:$\alpha_c^n,\ldots,\alpha_{c+k}^n$
+\form#216:$\beta_c^n,\ldots,\beta_{c+k}^n$
+\form#217:$\gamma_c^n,\ldots,\gamma_{c+k}^n$
+\form#218:$\left(b_k^n\right)_{k=0}^M$
+\form#219:$-M \le n \le M$
+\form#220:\[ f(\cos\vartheta) = \sum_{k=0}^{2\lfloor\frac{M}{2}\rfloor} a_k (\sin\vartheta)^{n\;\mathrm{mod}\;2} T_k(\cos\vartheta) \]
+\form#221:$\left(c_k^n\right)_{k=0}^M$
+\form#222:\[ f(\cos\vartheta) = \sum_{k=-M}^{M} c_k \mathrm{e}^{\mathrm{i}k\vartheta} \]
+\form#223:$n=-M,\ldots,M$
+\form#224:$\left(b_k^n\right)_{k=0,\ldots,M;n=-M,\ldots,M}$
+\form#225:$\left(c_k^n\right)_{k=-M,\ldots,M;n=-M,\ldots,M}$
+\form#226:$\alpha_l^{km}$
+\form#227:$l$
+\form#228:$\beta_l^{km}$
+\form#229:$\gamma_l^{km}$
+\form#230:$ \alpha_{l}^{km}$
+\form#231:$ l= 0,\ldots,N $
+\form#232:$(2N+1)^2(N+1)$
+\form#233:$ \beta_{l}^{km}$
+\form#234:$ \gamma_{l}^{km}$
+\form#235:$ m = -N,\ldots,N $
+\form#236:$\alpha_{l}^{km}$
+\form#237:$ k,m = -N,\ldots,N $
+\form#238:$\beta_{l}^{km}$
+\form#239:$\gamma_{l}^{km}$
+\form#240:$d_l^{km}(x,c)$
+\form#241:$\alpha_c^{km},\ldots,\alpha_{c+l}^{km}$
+\form#242:$\beta_c^{km},\ldots,\beta_{c+l}^{km}$
+\form#243:$\gamma_c^{km},\ldots,\gamma_{c+l}^{km}$
+\form#244:$ d^{km}_l(cos(theta)) $
+\form#245:$x^H (w\odot w2\odot w2 \odot x)$
+\form#246:$I_{n+\alpha}(x)$
+\form#247:$\mathrm{e}^{-x}$
+\form#248:$x,alpha$
+\form#249:$0 \le \alpha < 1$
+\form#250:$n=0,1,\ldots,nb-1$
+\form#251:$|x| \ge exparg$
+\form#252:$\min(nb,0)-1$
+\form#253:$n=0,1,\ldots,ncalc$
+\form#254:$J_{\nu}(x)$
+\form#255:$I_{\nu}(x)$
+\form#256:$\nu$
+\form#257:\[ f(g_q)=\sum^{N}_{l=0}\sum_{m,n=-l}^l \hat f^{mn}_l D_{mn}^l(\alpha_q,\beta_q,\gamma_q) \]
+\form#258:$[-1/4,1/4]$
+\form#259:$\varphi_1 \in [-\pi,\pi)$
+\form#260:$\vartheta_1 \in [0,\pi]$
+\form#261:$\varphi_2 \in [-\pi,\pi)$
+\form#262:$\vartheta_2 \in [0,\pi]$
+\form#263:$\cos \vartheta_1 \cos \vartheta_2 + \sin \vartheta_1 \sin(\vartheta_2 \cos(\varphi_1 - \varphi_2)$
+\form#264:$Q_h: [-1,1] \rightarrow \mathbb{R}$
+\form#265:$x \in [-1,1]$
+\form#266:$h \in (0,1)$
+\form#267:$Q_h(x)$
+\form#268:$S_h: [-1,1] \rightarrow \mathbb{R}$
+\form#269:$S_h(x)$
+\form#270:$L_{h,\lambda}: [-1,1] \rightarrow \mathbb{R}$
+\form#271:$\lambda \in \mathbb{N}_0$
+\form#272:$L_{h,\lambda}(x)$
+\form#273:$G_\sigma: [-1,1] \rightarrow \mathbb{R}$
+\form#274:$\sigma \in \mathbb{R}_+$
+\form#275:$G_\sigma(x)$
+\form#276:$x_{t,j}$
+\form#277:$w_{t,j}$
+\form#278:$T$
+\form#279:$R$
+\form#280:\[ x_{t,j} := r_j\left(\cos\theta_t, \sin\theta_t\right)^{\top}\,,\qquad (j,t)^{\top}\in I_{\sqrt{2}R}\times I_T\,. \]
+\form#281:$r_j$
+\form#282:$\theta_t$
+\form#283:$M \approx \frac{4}{\pi}\log(1+\sqrt{2}) T R$
+\form#284:$(j,t)^{\top}\in I_R\times I_T$
+\form#285:$r_j := \frac{j}{R} \in [-\frac{1}{2},\frac{1}{2})$
+\form#286:$\theta_t := \frac{\pi t}{T} \in [-\frac{\pi}{2},\frac{\pi}{2})$
+\form#287:\[ x_{t,j} := r_j\left(\cos\theta_t, \sin\theta_t\right)^{\top}\,. \]
+\form#288:$M=TR$
+\form#289:$j \ne 0$
+\form#290:\[ w_{t,j} = \frac{\pi}{2TR^2}\left(\left(|j|+\frac{1}{2}\right)^2- \left(|j|-\frac{1}{2}\right)^2\right) = \frac{\pi |j| }{TR^2}\, . \]
+\form#291:$\frac{1}{2R}$
+\form#292:$\frac{\pi}{4R^2}$
+\form#293:$w_{t,0} := \frac{\pi}{4TR^2}$
+\form#294:$\frac{\pi}{4}(1+\frac{1}{R^2})$
+\form#295:\[ R_{\theta_t} f\left(\frac{s}{R}\right) = \sum_{r \in I_R} w_r \; \sum_{k \in I_N^2} f_{k} \mathrm{e}^{-2\pi\mathrm{I} k \; (\frac{r}{R}\theta_t)} \, \mathrm{e}^{2\pi\mathrm{i} r s / R} \qquad(t \in I_T, s \in I_R). \]
+\form#296:$\frac{r}{R}\theta_t$
+\form#297:$w_r$
+\form#298:$f_k$
+\form#299:$t \in T$

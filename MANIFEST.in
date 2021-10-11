@@ -1,3 +1,6 @@
-include pytom/pytomc/swigModules/*.so
-include pytom/pytomc/sh_alignment/frm/swig/*.so
-include pytom/pytomc/nufft/*.so
+include pytom/lib/*.so
+include pytom/lib/*.py
+include pytom/bin/pytom
+include pytom/bin/ipytom
+include pytom/bin/pytomGUI
+
