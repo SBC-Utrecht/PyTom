@@ -242,7 +242,7 @@ def general_transform_crop(volume, output, translation=None, scale=None, rotatio
     '''
     from pytom.voltools.utils.matrices import transform_matrix, custom_matrix
     from pytom.gpu.kernels import transformSpline_txt
-    from pytom.tompy.tools import is2D
+    from pytom.agnostic.tools import is2D
     import numpy
     import scipy
 

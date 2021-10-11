@@ -585,11 +585,11 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
     if absorption_contrast: write(filename_gm_imag, cell_imag)
     # save class masks
     print('Saving class volumes')
-    # pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', class_bbox_mask)
+    # pytom.agnostic.io.write(f'{save_path}/class_bbox.mrc', class_bbox_mask)
     write(filename_cm, class_accurate_mask)
     # save occupancy masks
     print('Saving occupancy volumes')
-    # pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', occupancy_bbox_mask)
+    # pytom.agnostic.io.write(f'{save_path}/occupancy_bbox.mrc', occupancy_bbox_mask)
     write(filename_om, occupancy_accurate_mask)
     # save particle text file
     with open(filename_loc, 'w') as f:
@@ -928,7 +928,7 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     projection = microscope_single_projection(noisefree_projection + beam_noise, dqe, mtf, dose, pixel_size,
                                               binning=binning)
     # Write the projection to the projection folder
-    # pytom.tompy.io.write(f'{folder}/synthetic_{frame+1}.mrc', projection)
+    # pytom.agnostic.io.write(f'{folder}/synthetic_{frame+1}.mrc', projection)
     # Return noisefree and projection as tuple for writing as mrc stack in higher function
     return (noisefree_projection, projection)
 

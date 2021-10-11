@@ -91,7 +91,7 @@ class CTFTest(unittest.TestCase):
     def simulateProjection(self, c=''):
         """Run the simulation, output here will be written to some temp storage"""
         from pytom.simulation.MicrographModeller import generate_tilt_series_cpu
-        from pytom.tompy.io import read
+        from pytom.agnostic.io import read
         import os
 
         if not os.path.exists(self.param_sim['save_path'] + c):
@@ -117,7 +117,7 @@ class CTFTest(unittest.TestCase):
     def basicCTF(self):
         """Convolute gold marker with a ctf, then use a wiener filter on this marker. CCC is calculated between
         original gold bead and the wiener filtered one."""
-        from pytom.tompy.correlation import nxcc
+        from pytom.agnostic.correlation import nxcc
         from pytom.simulation.microscope import create_ctf
 
         # import matplotlib
@@ -171,9 +171,9 @@ class CTFTest(unittest.TestCase):
     def complexCTF(self):
         """Gold marker is simulated with multislice method. Afterwards it is wiener filtered and cross-correlated
         with the original gold bead under a mask."""
-        from pytom.tompy.correlation import nxcc
+        from pytom.agnostic.correlation import nxcc
         from pytom.simulation.microscope import create_ctf
-        from pytom.tompy.tools import create_circle
+        from pytom.agnostic.tools import create_circle
 
         # import matplotlib
         # matplotlib.use('Qt5Agg')

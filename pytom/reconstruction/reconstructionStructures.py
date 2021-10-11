@@ -479,8 +479,8 @@ class ProjectionList(PyTomClass):
         from pytom.gpu.initialize import device, xp
         from pytom.reconstruction.reconstructionFunctions import alignImagesUsingAlignmentResultFile as align
 
-        from pytom.tompy.reconstruction_functions import backProjectGPU as backProject
-        from pytom.tompy.io import write
+        from pytom.agnostic.reconstruction_functions import backProjectGPU as backProject
+        from pytom.agnostic.io import write
 
         import time
         s = time.time()

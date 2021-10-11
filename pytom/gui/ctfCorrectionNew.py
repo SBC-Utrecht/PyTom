@@ -5,7 +5,7 @@ from cupyx.scipy.ndimage import map_coordinates
 from pytom.gui.guiFunctions import datatype
 import os
 import numpy as np
-#from tompy.mpi import MPI
+#from agnostic.mpi import MPI
 import mrcfile
 import time
 

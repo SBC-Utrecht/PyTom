@@ -606,7 +606,7 @@ class Reference(PyTomClass):
         @param referenceFile: path to reference
         @type referenceFile: L{str}
         @param generatedByParticleList: ParticleList from which this reference was generated
-        @type generatedByParticleList: L{pytom.tompy.structures.ParticleList}
+        @type generatedByParticleList: L{pytom.agnostic.structures.ParticleList}
         """
 
         from pytom.tools.files import checkFileExists
@@ -701,7 +701,7 @@ class Reference(PyTomClass):
         updateReference: updates current object
         @param referenceFile:
         @param generatedByParticleList: ParticleList from which this reference was generated
-        @type generatedByParticleList: L{pytom.tompy.structures.ParticleList}
+        @type generatedByParticleList: L{pytom.agnostic.structures.ParticleList}
         """
         from pytom.tools.files import checkFileExists
 
@@ -1012,7 +1012,7 @@ class ReferenceList(PyTomClass):
         """
         _getReferenceByName: Selects a reference from this list. This is a private helper function, call ReferenceList[ReferenceName] instead
         @return: The reference searched or None if not found
-        @rtype: L{pytom.tompy.structures.Reference}
+        @rtype: L{pytom.agnostic.structures.Reference}
         """
         from pytom.agnostic.structures import Reference
 
@@ -1066,7 +1066,7 @@ class Wedge(PyTomClass):
 
     def __init__(self, wedgeAngles=[0.0, 0.0], cutoffRadius=0.0, tiltAxis='Y', smooth=0.0):
         """
-        __init__: This constructor is compatible to L{pytom.tompy.structures.SingleTiltWedge} and L{pytom.tompy.structures.DoubleTiltWedge}.
+        __init__: This constructor is compatible to L{pytom.agnostic.structures.SingleTiltWedge} and L{pytom.agnostic.structures.DoubleTiltWedge}.
         """
 
         from pytom.agnostic.structures import DoubleTiltWedge, SingleTiltWedge
@@ -1220,7 +1220,7 @@ class SingleTiltWedge(PyTomClass):
             be generated. If omitted / 0, filter is fixed to size/2.
         @param tiltAxis: Default will be Y. You can choose between the strings "X",\
             "Y" or "custom". You can also specify a Rotation object
-        @type tiltAxis: str or L{pytom.tompy.structures.Rotation}
+        @type tiltAxis: str or L{pytom.agnostic.structures.Rotation}
         @param smooth: Smoothing size of wedge at the edges in degrees. Default is 0.
         """
         if wedgeAngle.__class__ == list:
@@ -1290,7 +1290,7 @@ class SingleTiltWedge(PyTomClass):
         @param wedgeSizeY: volume size for y (original size)
         @param wedgeSizeZ: volume size for z (original size)
         @param rotation: Apply rotation to the wedge
-        @type rotation: L{pytom.tompy.structures.Rotation}
+        @type rotation: L{pytom.agnostic.structures.Rotation}
         @rtype: L{pytom_freqweight.weight}
         @return: Weighting object. Remember, the wedge will be cutoff at sizeX/2 if no cutoff provided in constructor or cutoff == 0!
         @author: Thomas Hrabe
@@ -1356,7 +1356,7 @@ class SingleTiltWedge(PyTomClass):
         @param volume: The volume to be filtered
         @type volume: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
         @param rotation: rotate the wedge
-        @type rotation: L{pytom.tompy.structures.Rotation}
+        @type rotation: L{pytom.agnostic.structures.Rotation}
         @return: The filtered volume
         @rtype: L{pytom_volume.vol}
         @author: Thomas Hrabe
@@ -1504,9 +1504,9 @@ The missing region. All should be positive degrees.
 will be Y, the second might differ. Unless specified otherwise, it will \
 be set to X -> the double tilt wedge is perfectly rotated by 90 degrees.
         @type tiltAxis1: either string (default: 'Y'), or a rotation object \
-L{pytom.tompy.structures.Rotation}
+L{pytom.agnostic.structures.Rotation}
         @param rotation12: Rotation of 2nd tilt series with respect to 1st
-        @type rotation12: rotation object L{pytom.tompy.structures.Rotation} or 3-dim list
+        @type rotation12: rotation object L{pytom.agnostic.structures.Rotation} or 3-dim list
         @param cutoffRadius: Maximum frequency (in pixels) up to where wedge will \
 be generated. If omitted / 0, filter is fixed to size/2.
         @param smooth: Smoothing size of wedge at the edges in degrees. Default is 0.
@@ -1658,7 +1658,7 @@ be generated. If omitted / 0, filter is fixed to size/2.
         @param volume: The volume to be filtered
         @type volume: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
         @param rotation: rotate the wedge
-        @type rotation: L{pytom.tompy.structures.Rotation}
+        @type rotation: L{pytom.agnostic.structures.Rotation}
         @return: The filtered volume
         @rtype: L{pytom_volume.vol}
         @author: Thomas Hrabe
@@ -1825,15 +1825,15 @@ class Particle(PyTomClass):
         @param filename: name of particle volume file (.em or .mrc file)
         @type filename: L{str}
         @param rotation: A pre rotation of the particle? (optional)
-        @type rotation: L{pytom.tompy.structures.Rotation}
+        @type rotation: L{pytom.agnostic.structures.Rotation}
         @param shift: A pre shift of particle? (optional)
-        @type shift: L{pytom.tompy.structures.Shift}
+        @type shift: L{pytom.agnostic.structures.Shift}
         @param wedge: Wedge information
-        @type wedge: L{pytom.tompy.structures.Wedge}
+        @type wedge: L{pytom.agnostic.structures.Wedge}
         @param className: Name of class this particle belongs to (numericals will be converted to string)
         @type className: int / float or string?
         @param pickPosition: Position of particle in original volume
-        @type pickPosition: L{pytom.tompy.structures.PickPosition}
+        @type pickPosition: L{pytom.agnostic.structures.PickPosition}
         @param score: XCF Score of this particle, if any
         @type score: L{pytom.score.score.Score}
         """
@@ -1895,7 +1895,7 @@ class Particle(PyTomClass):
         """
         get wedge object of particle
         @return: wedge
-        @rtype: L{pytom.tompy.structures.Wedge}
+        @rtype: L{pytom.agnostic.structures.Wedge}
         """
         return self._wedge
 
@@ -1973,7 +1973,7 @@ class Particle(PyTomClass):
         """
         set shift of particle
         @param shift: Shift
-        @type shift: L{pytom.tompy.structures.Shift}
+        @type shift: L{pytom.agnostic.structures.Shift}
         """
         if not shift.__class__ == Shift:
             raise TypeError('Shift argument must be of class shift!')
@@ -1992,7 +1992,7 @@ class Particle(PyTomClass):
         """
         set wedge in particle
         @param wedge: Wedge
-        @type wedge: L{pytom.tompy.structures.Wedge}
+        @type wedge: L{pytom.agnostic.structures.Wedge}
         """
         self._wedge = wedge
 
@@ -2226,7 +2226,7 @@ def keyFunctionForParticleSortingByClassLabel(particle):
 
 class ParticleList(PyTomClass):
     """
-    ParticleList: Stores a list of particle objects L{pytom.tompy.structures.Particle}
+    ParticleList: Stores a list of particle objects L{pytom.agnostic.structures.Particle}
     """
 
     def __init__(self, directory=None, pl=None):
@@ -2235,7 +2235,7 @@ class ParticleList(PyTomClass):
         @param directory: Source directory of particle files
         @type directory: C{str}
         @param pl: A particle list.
-        @type pl: L{pytom.tompy.structures.ParticleList}
+        @type pl: L{pytom.agnostic.structures.ParticleList}
         """
         if directory and directory.__class__ == str and len(directory) > 0:
             if directory[len(directory) - 1] == '/':
@@ -2302,7 +2302,7 @@ class ParticleList(PyTomClass):
         """
         append: Appends particle to self.particleList
         @param particle: particle
-        @type particle: L{pytom.tompy.structures.Particle}
+        @type particle: L{pytom.agnostic.structures.Particle}
         """
         from pytom.agnostic.structures import Particle
 
@@ -2425,7 +2425,7 @@ class ParticleList(PyTomClass):
         @param key: The index
         @type key: int
         @param value: A particle
-        @type value: L{pytom.tompy.structures.Particle}
+        @type value: L{pytom.agnostic.structures.Particle}
         """
         if isinstance(key, int):
             if key < len(self._particleList):
@@ -2619,7 +2619,7 @@ class ParticleList(PyTomClass):
         """
         splitByClass: Splits current self.particleList and returns N ParticleLists if there are N classes.
         This function will resort the current particle list.
-        @return: List of L{pytom.tompy.structures.ParticleList}
+        @return: List of L{pytom.agnostic.structures.ParticleList}
         """
         # sort list to ascending order
         self.sortByClassLabel()
@@ -2703,7 +2703,7 @@ class ParticleList(PyTomClass):
         """
         setWedgeAllParticles: Sets wedge properties to all particles
         @param wedge: Wedge
-        @type wedge: L{pytom.tompy.structures.Wedge}
+        @type wedge: L{pytom.agnostic.structures.Wedge}
         """
         for i in range(len(self)):
             p = self._particleList[i]
@@ -2890,7 +2890,7 @@ class ParticleList(PyTomClass):
         @param _mpiParallel: run the average in parallel
         @param weighting: create the average using weighting scheme
         @return: Reference object for resulting average
-        @rtype: L{pytom.tompy.structures.Reference}
+        @rtype: L{pytom.agnostic.structures.Reference}
         """
 
         gpuIDs = [] if gpuIDs is None else gpuIDs
@@ -2985,7 +2985,7 @@ class ParticleList(PyTomClass):
         @param randomize: if you want to correct your resolution using phases randomization set this variable to a value between 0 and 1.
         @type randomize: float
         @return: [Resolution in Nyquist , resolution in band, numberBands]
-        @todo: Change return type to L{pytom.tompy.structures.resolution} to make it clearer.
+        @todo: Change return type to L{pytom.agnostic.structures.resolution} to make it clearer.
         """
         if len(self) < 2:
             raise RuntimeError('ParticleList must have at least 2 elements to determine resolution!')
@@ -3461,7 +3461,7 @@ class ParticleList(PyTomClass):
         """
         add a rotation to a particle list, i.e., all particles causing effective rotation of average by the inverse
         @param rot: rotation to be applied IN ADDITION to the one stored for each particle
-        @type rot: L{pytom.tompy.structures.Rotation}
+        @type rot: L{pytom.agnostic.structures.Rotation}
         @author: FF
         """
         assert isinstance(rot, Rotation), "addRotation: rot must be Rotation!"
@@ -3474,7 +3474,7 @@ class ParticleList(PyTomClass):
         add a translation to a particle list, i.e., all particles causing effective translation of average by the
         inverse. In pseudocode: p.newTranslation = p.currentTranslation + p.currentRotation.rotate(newTranslation)
         @param translation: translation to be applied IN ADDITION to the one stored for each particle
-        @type translation: L{pytom.tompy.structures.Shift}
+        @type translation: L{pytom.agnostic.structures.Shift}
         @author: FF
         """
         assert isinstance(translation, Shift), "addShift: translation must be Shift!"
@@ -4010,7 +4010,7 @@ class Shift(PyTomClass):
         """
         invert: Will return this object as inverted shift.
         @return: inverted shift (note: shift itself remains unaltered)
-        @rtype: L{pytom.tompy.structures.Shift}
+        @rtype: L{pytom.agnostic.structures.Shift}
         """
         return Shift(-self.getX(), -self.getY(), -self.getZ())
 
@@ -4024,9 +4024,9 @@ class Shift(PyTomClass):
         """
         rotate shift by rotation
         @param rot: rotation
-        @type rot: L{pytom.tompy.structures.Rotation}
+        @type rot: L{pytom.agnostic.structures.Rotation}
         @return: rotated shift (note: shift itself remains unaltered)
-        @rtype: L{pytom.tompy.structures.Shift}
+        @rtype: L{pytom.agnostic.structures.Shift}
         """
         assert isinstance(object=rot, class_or_type_or_tuple=Rotation), "rot must be of type Rotation"
         m = rot.toMatrix(fourByfour=True) * self.toMatrix()
