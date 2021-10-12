@@ -1794,7 +1794,7 @@ class Particle(PyTomClass):
         @return: scoreValue
         @rtype: L{float}
         """
-        if not hasattr(self, 'self._score'):
+        if not hasattr(self, '_score'):
             return self._scoreValue
         else:
             return self._score.getValue()
