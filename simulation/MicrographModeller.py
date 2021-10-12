@@ -1193,7 +1193,7 @@ def generate_tilt_series_cpu(save_path,
     # joblib automatically memory maps a numpy array to child processes
     print(f'Projecting the model with {nodes} processes')
 
-    verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
+    verbosity = 11  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
         (delayed(parallel_project)(rotation_volume, i, image_size, pixel_size, msdz, n_slices, ctf,
                                    dose_per_tilt, dqe, mtf, voltage, binning=binning, translation=translation,
