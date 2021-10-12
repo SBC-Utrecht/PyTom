@@ -45,7 +45,7 @@ Before you can install PyTom, you need to create an account on github. And to th
 Furthermore, the software packages git needs to be installed. Git can be installed by sudo apt install git or yum install git. After git has been installed, run the following lines:
 
 ```
-git clone --recursive https://github.com/FridoF/PyTomPrivate.git
+git clone git@github.com:FridoF/PyTomPrivate.git
 cd PyTomPrivate
 bash installMiniconda.sh
 conda env create -f pytom_env.yml
@@ -63,6 +63,29 @@ python3.8 setup.py install --prefix [CONDA_INSTALL_DIR]/envs/pytom_env
 PATH environment variable will contain windows directories in the /mnt folder of your linux subsystem. Pytom will have an issue with reading the PATH because of the white spaces ( arrrrg :( ). Make sure to update the PATH by removing the windows directories.
 
 For WSL2 you need at least Windows 10 Pro with HyperV support.
+
+to check if your machine can run of wsl, please type 'systeminfo' into the command prompt. The lines about HyperV should all return Yes.
+
+To activate wsl, follow the following tutorial.
+https://www.omgubuntu.co.uk/how-to-install-wsl2-on-windows-10
+
+
+### Docker container
+
+You can also use dockerfile to easily build pytom image on any platform.  
+**Note:** Out of the box the image does not support GPU operations or pytomGUI.
+```
+git clone git@github.com:FridoF/PyTomPrivate.git && cd PyTomPrivate
+docker build -t pytom .
+```
+
+Now that you have built an image, here are some examples of what you can do.
+- Run ipytom: `docker run -it --rm pytom ipytom`  
+- Run a script located on the host: `docker run -it --rm -v "/home/user/scripts:/hostfiles/" pytom pytom /hostfiles/some_script.py`
+
+If you don't want to remove containers after the run, remove `--rm` flag.
+Find info about how to user docker on [their docs](https://docs.docker.com/).
+
 
 ## Versioning
 

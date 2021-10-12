@@ -619,7 +619,7 @@ class PickingFunctions():
             if excluded[i]:
                 coordinates_sorted[i,:,:] *= 0
 
-        self.assignedFiducials[self.assignedFiducials > -0.5] = 0
+        # self.assignedFiducials[self.assignedFiducials > -0.5] = 0
 
         for nr in range(coordinates_sorted.shape[1]):
             if nr+1 > 0.5:# and (index_map == nr).sum() > 2:
@@ -654,7 +654,7 @@ class PickingFunctions():
                     printline +=  "\tindex {:4d}: {}/{}\n".format(int(cntr), cur, r-sum(excluded))
                     listdx.append('{:02d}/{}'.format(cur,r-sum(excluded)))
                     outc[:,imark,:] = coordinates_sorted[:,nr,:]
-                    for j,mcnt in ids_assigned: self.assignedFiducials[j][mcnt] = 1
+                    # for j,mcnt in ids_assigned: self.assignedFiducials[j][mcnt] = 1
                     try: add_marker(['Marker_{:03d}'.format(imark), '{:02d}/{:02d}'.format(cur,r-sum(excluded))])
                     except: pass
                     imark += 1
@@ -668,7 +668,7 @@ class PickingFunctions():
                             listdx.append('{:02d}/{}'.format(cur,r-sum(excluded)))
 
                         outc[:,imark,:] = coordinates_sorted[:,nr,:]
-                        for j, mcnt in ids_assigned: self.assignedFiducials[j][mcnt] = 2
+                        # for j, mcnt in ids_assigned: self.assignedFiducials[j][mcnt] = 2
                         try: add_marker(['Marker_{:03d}'.format(imark), '{:02d}/{:02d}'.format(cur,r-sum(excluded))])
                         except: pass
                         imark += 1
@@ -969,12 +969,12 @@ class PickingFunctions():
         import matplotlib
         matplotlib.use('Qt5Agg')
         from pylab import imshow, show, subplots, savefig
-        from pytom.tompy.tools import create_sphere, create_circle
-        from pytom.tompy.io import read, write
+        from pytom.agnostic.tools import create_sphere, create_circle
+        from pytom.agnostic.io import read, write
         from pytom.voltools import transform
         from pytom.gpu.initialize import xp, device
-        from pytom.tompy.correlation import meanVolUnderMask, stdVolUnderMask
-        from pytom.tompy.transform import resize
+        from pytom.agnostic.correlation import meanVolUnderMask, stdVolUnderMask
+        from pytom.agnostic.transform import resize
         import sys
         import os
         from skimage import restoration
@@ -1055,7 +1055,7 @@ class PickingFunctions():
     def find_potential_fiducial_log(self, frames, frames_full, raw, bin, bin_full, cropsize=50, target=0, fid_list=[],
                                            proc_id=0, num_procs=1, average_marker=None, threshold=1.7, radius=10):
 
-        from pytom.tompy.transform import resize
+        from pytom.agnostic.transform import resize
         from skimage.morphology import watershed, label
         import scipy, skimage
         from skimage.feature import peak_local_max
@@ -1458,7 +1458,7 @@ class PickingFunctions():
                             markers[imark].set_xProj(v0[0])
                             markers[imark].set_yProj(v0[1])
                             self.coordinates[itilt,imark,:] = v0
-                            self.assignedFiducials[itilt][imark] = 1
+                            # self.assignedFiducials[itilt][imark] = 1
 
         return markers
 

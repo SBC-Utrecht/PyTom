@@ -5,9 +5,12 @@ todo simulation should also have a unittest for potential generation, Fourier sh
 @author: Marten Chaillet
 """
 import unittest
+import os
 import numpy as np
 
-
+# TODO: this shouldn't happen, we shouldn't force interactive backend outside of pytomGUI
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 class MicrographModellerTest(unittest.TestCase):
     def setUp(self):
         """Initialize simulation parameters"""
@@ -97,7 +100,7 @@ class MicrographModellerTest(unittest.TestCase):
     def simulateTomogram(self, c=''):
         """Run the simulation, output here will be written to some temp storage"""
         from pytom.simulation.MicrographModeller import generate_tilt_series_cpu, reconstruct_tomogram
-        from pytom.tompy.io import read
+        from pytom.agnostic.io import read
         from os import path
         import os
 
@@ -126,8 +129,8 @@ class MicrographModellerTest(unittest.TestCase):
     def test_Simulation(self):
         """Run two simulations and test their correlation. Both will have a different realization of noise and will
         slightly differ."""
-        from pytom.tompy.correlation import nxcc
-        from pytom.tompy.tools import create_sphere
+        from pytom.agnostic.correlation import nxcc
+        from pytom.agnostic.tools import create_sphere
         from pytom.simulation.support import reduce_resolution
 
         # generate two different realization of tomogram noise

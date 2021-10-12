@@ -639,16 +639,16 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
     @author: Thomas Hrabe
     @change: limit for wedgeSum set to 1% or particles to avoid division by small numbers - FF
     """
-    from pytom.tompy.io import read, write
-    from pytom.tompy.transform import fourier_reduced2full
-    from pytom.tompy.filter import bandpass, rotateWeighting, applyFourierFilter
+    from pytom.agnostic.io import read, write
+    from pytom.agnostic.transform import fourier_reduced2full
+    from pytom.agnostic.filter import bandpass, rotateWeighting, applyFourierFilter
     from pytom.voltools import transform
     from pytom.basic.fourier import convolute
-    from pytom.tompy.structures import Reference
-    from pytom.tompy.correlation import mean0std1, subPixelMax3D
+    from pytom.agnostic.structures import Reference
+    from pytom.agnostic.correlation import mean0std1, subPixelMax3D
     from pytom.tools.ProgressBar import FixedProgBar
     from math import exp
-    from pytom.tompy.tools import invert_WedgeSum
+    from pytom.agnostic.tools import invert_WedgeSum
     import os
 
     showProgressBar = False
@@ -907,7 +907,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         m = mask.getVolume()
 
     if scoreObject == 0 or not scoreObject:
-        from pytom.score.score import xcfScore
+        from pytom.basic.score import xcfScore
         scoreObject = xcfScore()
     # fix binning
     if binning == 0:
@@ -951,7 +951,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     else:
         meanV = None
         stdV = None
-
+    cntr = 0
     while currentRotation != [None,None,None]:
         if mask:
             m = mask.getVolume(currentRotation)
@@ -959,7 +959,10 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
                 m = resize(volume=m, factor=1./binning, interpolation='Spline')
             #update stdV if mask is not a sphere
             # compute standard deviation volume really only if needed
-            if not mask.isSphere() and (scoreObject._type=='FLCFScore'):
+            # print('Mask is sphere: ', mask.isSphere(), scoreObject._type)
+
+            if (not mask.isSphere()) and (scoreObject._type=='FLCFScore'):
+                if 1: print('recalc meanV en stdV')
                 meanV   = meanUnderMask(particle, m, p)
                 stdV    = stdUnderMask(particle, m, p, meanV)
         else:
@@ -977,8 +980,10 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
             particleCopy.copyVolume(particle)
             r = list(filter(particleCopy, weight(weightingRotated)))
             particleCopy = r[0]
-        
+
+
         scoringResult = scoreObject.score(particleCopy, simulatedVol, m, stdV)
+
         pk = peak(scoringResult)
 
         # with subPixelPeak
@@ -1072,12 +1077,12 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
     """
     from pytom.gpu.gpuFunctions import add_transformed_particle_to_sum, applyFourierFilter, applyFourierFilters
     from pytom.gpu.gpuFunctions import cross_correlation, subPixelShifts, find_coords_max_ccmap, add_transformed_particle_to_sum
-    from pytom.tompy.correlation import meanVolUnderMask, stdVolUnderMask, meanUnderMask, stdUnderMask, subPixelMax3D
+    from pytom.agnostic.correlation import meanVolUnderMask, stdVolUnderMask, meanUnderMask, stdUnderMask, subPixelMax3D
     from pytom.basic.structures import Rotation, Shift
-    from pytom.tompy.structures import Preprocessing
-    from pytom.tompy.transform import fourier_full2reduced
+    from pytom.agnostic.structures import Preprocessing
+    from pytom.agnostic.transform import fourier_full2reduced
     from pytom.alignment.structures import Peak
-    from pytom.tompy.io import write
+    from pytom.agnostic.io import write
 
 
     centerCoordinates = [size//2 for size in plan.volume.shape]
@@ -1253,7 +1258,7 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
     assert rotations.__class__ == OneAngleList or len(rotations) == 1
     
     if scoreObject == 0:
-        from pytom.score.score import nxcfScore
+        from pytom.basic.score import nxcfScore
         scoreObject = nxcfScore()
     
     particleCopy = vol(particle.sizeX(),particle.sizeY(),particle.sizeZ())
@@ -1358,7 +1363,7 @@ def FRMAlignmentWrapper(particle,wedgeParticle, reference, wedgeReference,bandwi
     @return: Returns a list of [L{pytom.basic.structures.Shift}, L{pytom.basic.structures.Rotation}, scoreValue]
     """
     from pytom.basic.structures import Particle,Reference,Mask,Wedge,Shift,Rotation
-    from pytom.score.score import PeakPrior
+    from pytom.basic.score import PeakPrior
     from sh_alignment.frm import frm_align
     
     if particle.__class__ == Particle:

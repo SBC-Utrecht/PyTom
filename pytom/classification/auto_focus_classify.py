@@ -1,7 +1,7 @@
 
 from pytom.gpu.initialize import device, xp
 import numpy as np
-from pytom.tompy.mpi import MPI
+from pytom.agnostic.mpi import MPI
 from pytom.basic.structures import ParticleList
 import os
 assert np.__version__ >= '1.7.0'
@@ -33,7 +33,7 @@ def combinations(iterable, r):
 def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, align=True, sigma=None, threshold=0.4):
     """mask if for alignment, while focus_mask is for difference map.
     """
-    from pytom_volume import vol, power, abs, limit, transformSpline, variance, mean, max, min
+    from pytom_volume import vol, power, abs, limit, transformSpline, mean, max, min
     from pytom.basic.normalise import mean0std1
     from pytom.basic.filter import lowpassFilter
 
@@ -116,9 +116,8 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
 
 def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binning, iteration, sigma, threshold, outdir='./'):
     from pytom_volume import read, vol, pasteCenter
-    from pytom.basic.structures import Particle, Mask
+    from pytom.basic.structures import Particle
     import os
-    from pytom.basic.transformations import resize
 
     v1 = r1.getVolume()
     v2 = r2.getVolume()
@@ -177,8 +176,6 @@ def focus_score(p, ref, freq, diff_mask, binning):
 
 
 def paverage(particleList, norm, binning, verbose, outdir='./', gpuID=None):
-
-    from pytom.gpu.initialize import device, xp
 
     device = 'cpu'
 
@@ -265,11 +262,11 @@ def paverage(particleList, norm, binning, verbose, outdir='./', gpuID=None):
 
     elif 'gpu' in device:
         # print('averaging particles on gpu')
-        from pytom.tompy.io import read, write
+        from pytom.agnostic.io import read, write
         from pytom.voltools import transform
         from pytom.basic.structures import Particle
-        from pytom.tompy.normalise import mean0std1
-        from pytom.tompy.transform import resize
+        from pytom.agnostic.normalise import mean0std1
+        from pytom.agnostic.transform import resize
         from pytom.gpu.initialize import xp, device
 
         if not gpuID is None: xp.cuda.Device(int(gpuID)).use()
@@ -353,7 +350,7 @@ def calculate_averages(pl, binning, mask, outdir='./', gpuIDs=None):
     last change: Jan 18 2020: error message for too few processes, FF
     """
     import os
-    from pytom_volume import complexDiv, vol, pasteCenter
+    from pytom_volume import complexDiv, vol
     from pytom.basic.fourier import fft,ifft
     from pytom.basic.correlation import FSC, determineResolution
     from pytom_fftplan import fftShift
@@ -449,10 +446,8 @@ def calculate_averages(pl, binning, mask, outdir='./', gpuIDs=None):
 
 def frm_proxy(p, ref, freq, offset, binning, mask):
     from pytom_volume import read, pasteCenter, vol
-    from pytom.basic.transformations import resize
     from pytom.basic.structures import Shift, Rotation
     from sh_alignment.frm import frm_align
-    import time
 
     v = p.getVolume(binning)
 
@@ -470,7 +465,7 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
 
     else:
         from pytom_numpy import vol2npy
-        from pytom.tompy.frm import frm_align
+        from pytom.agnostic.frm import frm_align
 
         vgpu = xp.array(vol2npy(v).copy())
         refgpu = xp.array(vol2npy(ref.getVolume()).copy())
@@ -484,7 +479,6 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
 
 
 def score_noalign_proxy(p, ref, freq, offset, binning, mask):
-    from pytom.basic.structures import Shift, Rotation
     from pytom.basic.correlation import nxcc
     from pytom.basic.filter import lowpassFilter
     v = p.getTransformedVolume(binning)
@@ -498,8 +492,6 @@ def score_noalign_proxy(p, ref, freq, offset, binning, mask):
         
 
 def calculate_scores(pl, references, freqs, offset, binning, mask, noalign=False):
-    from pytom_volume import read, pasteCenter, vol
-
     res = {}
     import time
 
@@ -594,7 +586,7 @@ def determine_class_labels(pl, references, frequencies, scores, dmaps, binning, 
                 raise Exception("Particle list and the scores do not have the same order!")
 
 
-    from pytom.frm.FRMAlignment import FRMScore
+    from pytom.alignment.FRMAlignment import FRMScore
 
     # track the class changes
     class_changes = {}
@@ -831,7 +823,7 @@ def classify(pl, settings):
     @param settings: settings for autofocus classification
     @type settings: C{dict}
     """
-    from pytom.basic.structures import Particle, Shift, Rotation
+    from pytom.basic.structures import Particle
     from pytom.basic.filter import lowpassFilter
     
     # make the particle list picklable

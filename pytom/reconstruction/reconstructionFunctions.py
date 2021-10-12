@@ -378,7 +378,13 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
             # Retrieve the original pick position
             xx = tiltAlignment._Markers[tiltSeries._TiltAlignmentParas.irefmark].xProj[ireftilt]
             yy = tiltAlignment._Markers[tiltSeries._TiltAlignmentParas.irefmark].yProj[ireftilt]
-            dx,dy = float(tiltSeries._imdimX // 2 + 1), float(tiltSeries._imdimY // 2 + 1)
+            dimx, dimy = float(tiltSeries._imdimX // 2 + 1), float(tiltSeries._imdimY // 2 + 1)
+
+            if abs(90 - (inPlaneAng % 180)) < 45:
+                dx, dy = dimx, dimy
+            else:
+                dx, dy = dimy, dimx
+
             dz = min(dx,dy)
 
             # Create ref marker point
@@ -412,7 +418,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
             try:
                 vol_bp.write(volumeName, volumeFileType)
             except:
-                from pytom.tompy.io import write
+                from pytom.agnostic.io import write
                 write(volumeName, vol_bp) #vol_bp.write(volumeName, volumeFileType)
 
     else:
@@ -425,7 +431,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
         try:
             vol_bp.write(volumeName, volumeFileType)
         except:
-            from pytom.tompy.io import write
+            from pytom.agnostic.io import write
             write(volumeName, vol_bp)
 
     if profile:
@@ -468,9 +474,9 @@ def alignImageUsingAlignmentResultFile(alignmentResultsFile, indexImage, weighti
 
     from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
-    from pytom.tompy.io import read, write, read_size
-    from pytom.tompy.tools import taper_edges, create_circle, paste_in_center as pasteCenter
-    from pytom.tompy.filter import circle_filter, ramp_filter, exact_filter, ellipse_filter
+    from pytom.agnostic.io import read, write, read_size
+    from pytom.agnostic.tools import taper_edges, create_circle, paste_in_center as pasteCenter
+    from pytom.agnostic.filter import circle_filter, ramp_filter, exact_filter, ellipse_filter
     import pytom.voltools as vt
     from pytom.gpu.initialize import xp, device
 
@@ -526,7 +532,7 @@ def alignImageUsingAlignmentResultFile(alignmentResultsFile, indexImage, weighti
     for (ii, projection) in enumerate(projectionList):
         if not ii == indexImage:
             continue
-        from pytom.tompy.transform import resize
+        from pytom.agnostic.transform import resize
 
         # print(f'read {projection._filename}')
         image = read(str(projection._filename)).squeeze()
@@ -572,7 +578,7 @@ def alignImageUsingAlignmentResultFile(alignmentResultsFile, indexImage, weighti
 
         # 5 -- Optional Low Pass Filter
         if lowpassFilter:
-            from pytom.tompy.filter import bandpass_circle
+            from pytom.agnostic.filter import bandpass_circle
 
             image = bandpass_circle(image, high=lowpassFilter * (min(imdimX, imdimY) // 2),
                                     sigma=0.4 * lowpassFilter * (min(imdimX, imdimY) // 2))
@@ -604,12 +610,12 @@ def alignImagesUsingAlignmentResultFile(alignmentResultsFile, weighting=None, lo
     from pytom_numpy import vol2npy, npy2vol
     from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
-    from pytom.tompy.io import read, write, read_size
-    from pytom.tompy.tools import taper_edges, create_circle, paste_in_center as pasteCenter
-    from pytom.tompy.filter import circle_filter, ramp_filter, exact_filter, ellipse_filter
+    from pytom.agnostic.io import read, write, read_size
+    from pytom.agnostic.tools import taper_edges, create_circle, paste_in_center as pasteCenter
+    from pytom.agnostic.filter import circle_filter, ramp_filter, exact_filter, ellipse_filter
     import pytom.voltools as vt
     from pytom.gpu.initialize import xp, device
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
     from pytom.basic.files import read as RR
     from pytom.basic.transformations import general_transform2d
     import pytom_freqweight
@@ -711,7 +717,7 @@ def alignImagesUsingAlignmentResultFile(alignmentResultsFile, weighting=None, lo
 
         # 5 -- lowpass filter (optional)
         if lowpassFilter:
-            from pytom.tompy.filter import bandpass_circle
+            from pytom.agnostic.filter import bandpass_circle
             image = bandpass_circle(image, high=lowpassFilter * imdim // 2, sigma=lowpassFilter /5. * imdim)
 
         # 6 -- smoothen once more to avoid edges
@@ -803,7 +809,7 @@ def toProjectionStackFromAlignmentResultsFile(alignmentResultsFile, weighting=No
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
     from pytom_numpy import vol2npy
     import mrcfile
-    from pytom.tompy.io import write, read_size
+    from pytom.agnostic.io import write, read_size
     import os
 
     print("Create aligned images from alignResults.txt")

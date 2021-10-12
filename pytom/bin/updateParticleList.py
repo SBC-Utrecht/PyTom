@@ -12,7 +12,7 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 from pylab import *
 from scipy.spatial.transform import Rotation as R
-from pytom.tompy.io import read_size
+from pytom.agnostic.io import read_size
 
 def get_size(particleList, directory):
     tempPL = ParticleList()

@@ -2,7 +2,7 @@
 
 import mrcfile
 import sys, os
-from pytom.tompy.io import read, write
+from pytom.agnostic.io import read, write
 
 if __name__=='__main__':
     

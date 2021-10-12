@@ -2,8 +2,8 @@
 
 import mrcfile
 import sys, os
-from pytom.tompy.io import read, write
-from pytom.tompy.mpi import MPI
+from pytom.agnostic.io import read, write
+from pytom.agnostic.mpi import MPI
 
 
 # mpi = MPI()
@@ -150,8 +150,8 @@ SubFramePath = X:\{}
 #
 # import mrcfile
 # import sys, os
-# from pytom.tompy.io import read, write
-# from pytom.tompy.mpi import MPI
+# from pytom.agnostic.io import read, write
+# from pytom.agnostic.mpi import MPI
 #
 # #mpi = MPI()
 #

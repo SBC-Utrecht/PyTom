@@ -1,8 +1,19 @@
-'''
+"""
 Created on Dec 7, 2010
 
 @author: hrabe
-'''
+"""
+
+
+def get_install_folder():
+    """
+    Get path to pytom install folder.
+
+    @return: full path
+    @rtype:  L{str}
+    """
+    import os
+    return os.path.dirname(os.path.dirname(os.popen('which pytom').read()[:-1]))
 
 
 def readProxy(fileName, subregion1=0, subregion2=0, subregion3=0,
@@ -52,9 +63,9 @@ def read(file, subregion=[0, 0, 0, 0, 0, 0], sampling=[0, 0, 0], binning=[0, 0, 
                  subregion[4], subregion[5], sampling[0], sampling[1], sampling[2],
                  binning[0], binning[1], binning[2])
         return f
-    except (RuntimeError, errorNumber, errorString):
+    except Exception as e:
         # redundant to code above, but just in case it goes through
-        if "Wrong file format or file doesn't exist!" in errorString:
+        if "Wrong file format or file doesn't exist!" in e:
             raise IOError('File not found or path is wrong: ' + file)
         else:
             raise
@@ -394,8 +405,8 @@ def atomList2em(atomList, pixelSize, cubeSize, densityNegative=False):
 
 def recenterVolume(volume, densityNegative=False):
     from scipy.ndimage import center_of_mass
-    from pytom.tompy.io import read, write
-    from pytom.tompy.tools import paste_in_center
+    from pytom.agnostic.io import read, write
+    from pytom.agnostic.tools import paste_in_center
     from pytom.gpu.initialize import xp
     from pytom_numpy import vol2npy
     import os
@@ -535,7 +546,7 @@ def int32toint8(n):
     return bytearr
 
 
-
+import numpy as np
 
 
 def int8toint32(bytearr):
@@ -543,7 +554,6 @@ def int8toint32(bytearr):
     @param bytearr: list of bytes
     @rtype: int32
     """
-    import numpy as np
     n = np.int32(0)
     n = bytearr[3] * (256 ** 3) + bytearr[2] * (256 ** 2) + bytearr[1] * 256 + bytearr[0]
     return n
@@ -551,7 +561,6 @@ def int8toint32(bytearr):
 
 class EMHeader():
     def __init__(self):
-        import numpy as np
         self.raw_data = np.zeros(128, dtype='int32')
         self.raw_data[0] = 83886086  # '0x5000006', TODO: hard-coded, to be changed!
 
@@ -589,7 +598,6 @@ class EMHeader():
 	@param machinetype:
 	@type machinetype: string
         """
-        import numpy as np
         inibytes = self.get_1st4bytes()
         if datatype:
             if datatype == float:
@@ -666,7 +674,6 @@ class EMHeader():
 	    get type of data from header
 	    @return: numpy type
         """
-        import numpy as np
         inibytes = self.get_1st4bytes()
         dtype = inibytes[3]
         if dtype == 1:
@@ -714,7 +721,6 @@ class EMHeader():
         """
         @param angle: tilt angle in deg
         """
-        import numpy as np
         self.raw_data[24 + 18] = np.int32(angle * 1000)  # 19th
 
     def get_tiltangle(self):
@@ -745,7 +751,6 @@ def read_em_header(filename):
 
     f = open(filename, 'r')
     try:
-        import numpy as np
         header_data = np.fromfile(f, np.dtype('int32'), 128)
         header = EMHeader()
         header.from_binary(header_data)
@@ -854,7 +859,7 @@ def pdb2mrc(pdbPath, pixelSize, cubeSize, chain=None, invertDensity=False, fname
     vol = pdb2em(pdbPath, pixelSize, cubeSize, chain=chain, invertDensity=invertDensity, recenter=recenter)
 
     if fname:
-        from pytom.tompy.io import write as writeNPY
+        from pytom.agnostic.io import write as writeNPY
         from pytom_numpy import vol2npy
 
         writeNPY(fname, vol2npy(vol))
@@ -907,7 +912,7 @@ def mmCIF2mrc(mmCIFPath, pixelSize, cubeSize, chain=None, densityNegative=False,
         vol = recenterVolume(vol, densityNegative)
 
     if fname:
-        from pytom.tompy.io import write as writeNPY
+        from pytom.agnostic.io import write as writeNPY
         from pytom_numpy import vol2npy
 
         writeNPY(fname, vol2npy(vol))
@@ -924,7 +929,7 @@ def txt2pl(coordinate_file, particleList_file, subtomoPrefix=None, wedgeAngle=No
 def mdoc2meta(filename, target, prefix=None):
     import numpy
     from pytom.gui.guiFunctions import datatype, headerText as header, fmt
-    from pytom.tompy.io import read, write, read_tilt_angle
+    from pytom.agnostic.io import read, write, read_tilt_angle
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
     if not checkFileExists(filename):
@@ -1012,7 +1017,7 @@ def ccp42mrc(filename, target, prefix='sorted_'):
     emfile.write(newFilename, 'mrc')
 
 def em2mrc(filename, target, prefix='sorted_'):
-    from pytom.tompy.io import read, write, read_tilt_angle
+    from pytom.agnostic.io import read, write, read_tilt_angle
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
 
@@ -1064,7 +1069,7 @@ def mrc2ccp4(filename, target, prefix='sorted_'):
     emfile.write(newFilename, 'ccp4')
 
 def mrc2em(filename, target, prefix='sorted_'):
-    from pytom.tompy.io import read, write, read_tilt_angle
+    from pytom.agnostic.io import read, write, read_tilt_angle
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
     if not checkFileExists(filename):
@@ -1099,8 +1104,155 @@ def files2mrcs(folder, target, prefix='sorted_'):
             stack[n, :, :] = mrcfile.open(filename, permissive=True).data.copy().squeeze()
         mrcfile.new(target, stack, overwrite=True)
 
+def pl2star(filename, target, prefix='', pixelsize=1, binningPyTom=1, binningWarpM=1, outname=''):
+    from pytom.agnostic.tools import zxz2zyz
+    from pytom.basic.structures import ParticleList
+    from pytom.basic.datatypes import RELION31_PICKPOS_STAR, fmtR31S, headerRelion31Subtomo
+    import os
+    import numpy as np
+
+    # If filename is a directory combine all xmls, otherwise read filename
+    if os.path.isdir(filename):
+        pl = ParticleList()
+        xmls = [os.path.join(filename, fname) for fname in os.listdir(filename) if fname.endswith('.xml')]
+        for fname in xmls:
+            try:
+                tempxml = ParticleList()
+                tempxml.fromXMLFile(fname)
+                pl = pl + tempxml
+            except:
+                pass
+    else:
+        pl = ParticleList()
+        pl.fromXMLFile(filename)
+
+    stardata = np.zeros((len(pl)), dtype=RELION31_PICKPOS_STAR)
+
+    for n, p in enumerate(pl):
+        x, y, z = p.getPickPosition().toVector()
+
+        stardata['CoordinateX'][n] = x * binningPyTom / binningWarpM
+        stardata['CoordinateY'][n] = y * binningPyTom / binningWarpM
+        stardata['CoordinateZ'][n] = z * binningPyTom / binningWarpM
+
+        stardata['MicrographName'][n] = p.getPickPosition().getOriginFilename()
+
+        stardata['Magnification'][n] = 1
+
+        stardata['DetectorPixelSize'][n] = pixelsize
+
+        stardata['GroupNumber'][n] = p.getClass()
+
+        z0, z1, x = p.getRotation().toVector()
+
+        z0, y, z1 = zxz2zyz(z0, x, z1)
+
+        stardata['AngleRot'][n] = -z0
+        stardata['AngleTilt'][n] = y
+        stardata['AnglePsi'][n] = -z1
+
+    newFilename = name_to_format(filename if outname == '' else outname, target, "star")
+
+
+    np.savetxt(newFilename, stardata, fmt=fmtR31S, header=headerRelion31Subtomo, comments='')
+
+def txt2wimp(fname, target, prefix, outname=''):
+    '''This functions creates and saves a file named outname which has the wimp format.
+    @parm fname: path to markerfile.txt file in PyTom DATATYPE_MARKERFILE format
+    @param outname: path to output file in wimp format, if empty the name of fname will be used
+    '''
+    from pytom.basic.datatypes import DATATYPE_MARKERFILE
+    from pytom.gui.guiFunctions import loadstar
+    import numpy, os
+
+    data = loadstar(fname, dtype=DATATYPE_MARKERFILE)
+
+    outname = outname if outname else os.path.join(target, fname.split('/')[-1][:-4] + '.wimp')
+
+    ids = numpy.unique(data['MarkerIndex'])
+
+    max_num_obj = num_obj = len(ids)
+    num_mode = len(data['MarkerIndex'])
+
+    wimpfile = f'''
+     Model file name........................{outname}
+     max # of object.......................   {max_num_obj}
+     # of node.............................  {num_mode+max_num_obj}
+     # of object...........................   {num_obj}
+      Object sequence : 
+    '''
+
+    headermarker = '''  Object #:           {}
+     # of point:           {}
+     Display switch:1  247
+         #    X       Y       Z      Mark    Label 
+    '''
+
+    ii = data['MarkerIndex']
+    x = data['PositionX']
+    y = data['PositionY']
+    a = data['TiltAngle']
+
+    dict_angs = {}
+    angs = numpy.sort(numpy.unique(a))
+
+    for l, aaa in enumerate(angs):
+        dict_angs[f'{aaa:.2f}'] = l
+
+    line = '{:7d} {:7.2f} {:7.2f} {:7.2f} {:3d}\n'
+
+    cntr = 0
+
+    for n, id in enumerate(ids):
+        num_points = len(ii[ii == id])
+        wimpfile += headermarker.format(n, num_points)
+
+        xx = x[ii == id]
+        yy = y[ii == id]
+        aa = a[ii == id]
+
+        for m in range(num_points):
+            wimpfile += line.format(cntr, xx[m], yy[m], dict_angs[f'{aa[m]:.2f}'], 0)
+            cntr += 1
+
+        cntr += 1
+
+    wimpfile += '''
+      END
+    '''
+
+    out = open(outname, 'w')
+    out.write(wimpfile)
+    out.close()
+
+def txt2fid(fname, target, prefix, outname=''):
+    import os
+    outname = outname if outname else os.path.join(target, fname.split('/')[-1][:-4] + '.wimp')
+    txt2wimp(fname,outname=outname)
+    os.system('wimp')
 
 def name_to_format(filename, target, extension):
     import os
     basename = os.path.basename(filename)
     return target + ("" if target.endswith(os.sep) else os.sep) + ".".join(basename.split(".")[:-1]) + '.' + extension
+
+
+def headerline(line):
+    if line.startswith('data_') or line.startswith('loop_') or line.startswith('_') or line.startswith('#'):
+        return False
+    else:
+
+        return True
+
+
+def loadtxt(filename, dtype='float32', usecols=None, skip_header=0):
+    import numpy
+    with open(filename, 'r') as f:
+        lines = [line for line in f if headerline(line)]
+        arr = numpy.genfromtxt(lines, dtype=dtype, usecols=usecols, skip_header=skip_header)
+    return arr
+
+
+def savetxt(filename, arr, header='', fmt='', comments='#'):
+    import numpy
+    numpy.savetxt(filename, arr, comments=comments, header=header, fmt=fmt)

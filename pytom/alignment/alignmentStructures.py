@@ -92,7 +92,7 @@ class SamplingParameters(PyTomClass):
             self.sampleInformation = SampleInformation()
 
 
-from pytom.score.score import FLCFScore
+from pytom.basic.score import FLCFScore
 
 
 class ScoringParameters(PyTomClass):
@@ -123,10 +123,10 @@ class ScoringParameters(PyTomClass):
         if 'cpu' in device:
             from pytom.basic.structures import Mask, Reference, Symmetry
             from pytom.alignment.preprocessing import Preprocessing
-            from pytom.score.score import Score, FLCFScore
+            from pytom.basic.score import Score, FLCFScore
         else:
-            from pytom.tompy.structures import Mask, Reference, Symmetry, Preprocessing
-            from pytom.score.score import Score, FLCFScore
+            from pytom.agnostic.structures import Mask, Reference, Symmetry, Preprocessing
+            from pytom.basic.score import Score, FLCFScore
 
         assert type(score) == Score or type(
             score) == FLCFScore, "ScoringParameters: input score not of pytom type Score"
@@ -178,7 +178,7 @@ class ScoringParameters(PyTomClass):
         @author: FF
         """
         from lxml.etree import _Element
-        from pytom.score.score import fromXML as fromXMLScore
+        from pytom.basic.score import fromXML as fromXMLScore
         from pytom.basic.structures import Mask, Reference, MultiSymmetries
         from pytom.alignment.preprocessing import Preprocessing
 
@@ -275,7 +275,7 @@ class GLocalSamplingJob(PyTomClass):
         @author: FF
         """
         from pytom.basic.structures import ParticleList, Reference, Mask, MultiSymmetries
-        from pytom.score.score import Score
+        from pytom.basic.score import Score
         from pytom.angles.angle import AngleObject
         from pytom.alignment.preprocessing import Preprocessing
 

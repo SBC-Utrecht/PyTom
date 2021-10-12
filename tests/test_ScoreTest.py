@@ -24,7 +24,7 @@ class pytom_ScoreTest(unittest.TestCase):
               shiftV=self.shift, wedgeInfo=self.wi, SNR=10.)
 
     def test_xcfScore(self):
-        from pytom.score.score import xcfScore as score
+        from pytom.basic.score import xcfScore as score
         from pytom_volume import peak
 
         sc = score()
@@ -44,7 +44,7 @@ class pytom_ScoreTest(unittest.TestCase):
         """
         test nxcf score
         """
-        from pytom.score.score import nxcfScore as score
+        from pytom.basic.score import nxcfScore as score
         from pytom_volume import peak
 
         sc = score()
@@ -78,14 +78,14 @@ class pytom_ScoreTest(unittest.TestCase):
         """
         test FLCF score
         """
-        from pytom.score.score import FLCFScore as score
+        from pytom.basic.score import FLCFScore as score
         from pytom_volume import peak
         
         sc = score()
         # check auto-correlation coefficient
         c  = sc.scoringCoefficient( self.s, self.s)
         self.assertAlmostEqual( first=c,  second=1., places=5, 
-             msg='SocScore: Auto-correlation not == 1')
+             msg='FLCFScore: Auto-correlation not == 1')
         # consistency of scoring coefficient and scoring function - difference 
         # due to sub-pixel accuracy for score
         c  = sc.scoringCoefficient( self.s, self.v)
@@ -98,7 +98,7 @@ class pytom_ScoreTest(unittest.TestCase):
         """
         second order correlation score
         """
-        from pytom.score.score import SOCScore as score
+        from pytom.basic.score import SOCScore as score
         from pytom_volume import peak
 
         sc = score()

@@ -202,7 +202,7 @@ class ExMaxJob(PyTomClass):
             raise TypeError('You must provide a valid XML-ExpectationMaximisationJob object.')
         
         from pytom.angles.angle import AngleObject
-        from pytom.score.score import fromXML as fromXMLScore
+        from pytom.basic.score import fromXML as fromXMLScore
         from pytom.alignment.preprocessing import Preprocessing
         from pytom.basic.structures import ParticleList,Symmetry,Reference,SampleInformation
         
@@ -498,7 +498,7 @@ class ExMaxWorker(object):
             raise TypeError('Provided particle must be of type pytom.basic.structures.Particle')
          
         if self._scoreObject.__class__ == str:
-            from pytom.score.score import Score
+            from pytom.basic.score import Score
             string              = self._scoreObject
             self._scoreObject   = Score() 
             self._scoreObject.fromStr(string)
@@ -864,7 +864,7 @@ class ExMaxManager(PyTomClass):
         """
         from pytom.basic.correlation import FSC,determineResolution
         from pytom_volume import read
-        from pytom.score.score import RScore
+        from pytom.basic.score import RScore
         self._saveForFSC(self._destination + filename)
         
         if self._score.__class__ == RScore:

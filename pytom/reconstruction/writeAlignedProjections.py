@@ -3,7 +3,7 @@ import copy
 from numpy import abs, float32
 
 def writeAlignedProjections(TiltSeries_, weighting=None,
-                            lowpassFilter=None, binning=None,verbose=False, write_images=True):
+                            lowpassFilter=None, binning=None,verbose=False, write_images=True, order=(2,1,0)):
     """write weighted and aligned projections to disk1
 
        @param TiltSeries_: Tilt Series
@@ -30,7 +30,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatypeAR
     import os
     from pytom.basic.files import EMHeader, read, read_em_header
-    from pytom.tompy.io import read_size
+    from pytom.agnostic.io import read_size
     if binning:
         imdim = int(float(TiltSeries_._imdim)/float(binning)+.5)
     else:
@@ -130,7 +130,6 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             if projection._filename.split('.')[-1] == 'st':
                 newFilename = (TiltSeries_._alignedTiltSeriesName+"_"+str(projection.getIndex())+'.em')
             else:
-                TiltSeries_._tiltSeriesFormat = 'mrc'
                 newFilename = (TiltSeries_._alignedTiltSeriesName+"_"+str(projection.getIndex())
                                +'.'+TiltSeries_._tiltSeriesFormat)
             if verbose:
@@ -151,7 +150,8 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
                 image = newImage
 
             # 4 -- Rotate
-            image = general_transform2d(v=image, rot=rot, shift=[transX,transY], scale=mag, order=[2, 1, 0], crop=True)
+
+            image = general_transform2d(v=image, rot=rot, shift=[transX,transY], scale=mag, order=order, crop=True)
 
             # 5 -- Optional Low Pass Filter
             if lowpassFilter:

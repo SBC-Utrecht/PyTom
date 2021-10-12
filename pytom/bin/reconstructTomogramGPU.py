@@ -6,16 +6,16 @@ Created on Sep 02, 2019
 @author: dschulte
 """
 from pytom.gpu.initialize import device, xp
-from pytom.tompy.tools import taper_edges
+from pytom.agnostic.tools import taper_edges
 
 
 def cut_patch(projection, ang, pick_position, vol_size=200, binning=8, dimz=None, offset=[0,0,0], projection_name=None):
-    from pytom.tompy.tools import taper_edges
+    from pytom.agnostic.tools import taper_edges
     #from pytom.gpu.initialize import xp
     from pytom.voltools import transform
-    from pytom.tompy.transform import rotate3d, rotate_axis
-    from pytom.tompy.transform import cut_from_projection
-    from pytom.tompy.io import read
+    from pytom.agnostic.transform import rotate3d, rotate_axis
+    from pytom.agnostic.transform import cut_from_projection
+    from pytom.agnostic.io import read
 
     # Get the size of the original projection
     dim_x = projection.shape[0]
@@ -43,16 +43,16 @@ if __name__ == '__main__':
     import sys
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
-    from pytom.tompy.mpi import MPI
+    from pytom.agnostic.mpi import MPI
     from time import gmtime, strftime
     from pytom.polishing.reconstruct_local_alignment import polish_particles
-    from pytom.tompy.io import read_size
-    from pytom.tompy.mpi import MPI
+    from pytom.agnostic.io import read_size
+    from pytom.agnostic.mpi import MPI
     from pytom.reconstruction.reconstructionStructures import ProjectionList
     from pytom.reconstruction.reconstructionFunctions import toProjectionStackFromAlignmentResultsFile, alignImageUsingAlignmentResultFile
     from pytom.basic.structures import ParticleList
-    from pytom.tompy.reconstruction_functions import backProjectGPU
-    from pytom.tompy.io import write, read
+    from pytom.agnostic.reconstruction_functions import backProjectGPU
+    from pytom.agnostic.io import write, read
     from pytom_numpy import vol2npy
     import numpy
     import os

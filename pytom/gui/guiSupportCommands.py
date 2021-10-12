@@ -129,7 +129,7 @@ templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[
 templateFRMSlurm  = '''
 cd {d[0]}
 
-mpiexec -n {d[3]} pytom {d[1]}/frm/FRMAlignment.py -j {d[2]} -v
+mpiexec -n {d[3]} pytom {d[1]}/alignment/FRMAlignment.py -j {d[2]} -v
 
 '''
 
@@ -156,7 +156,7 @@ mpiexec --tag-output -n {d[7]} pytom {d[1]}/classification/calculate_correlation
 
 templateCPCA      = """cd {d[0]}
 
-classifyCPCA.py -p {d[2]} -o {d[3]} -c {d[7]}/{d[4]} -e {d[5]} -n {d[6]} -a {d[8]} -t {d[7]}
+classifyCPCA.py -p {d[2]} -o {d[7]}/{d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[8]} -t {d[7]}
 """
 
 templateAC        = '''cd {d[0]}

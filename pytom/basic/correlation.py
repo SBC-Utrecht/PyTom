@@ -312,6 +312,7 @@ def FLCF(volume, template, mask=None, stdV=None, wedge=1):
     @author: Yuxiang Chen
     '''
     from pytom_volume import vol, pasteCenter
+    from pytom.basic.files import read
     from pytom.basic.fourier import fft, ifft, iftshift
     from pytom_volume import conjugate
     from pytom.basic.structures import Mask

@@ -287,7 +287,7 @@ class Preprocessing(PyTomClass):
         return preObj
 
     def convert2numpy(self):
-        from pytom.tompy.structures import Preprocessing
+        from pytom.agnostic.structures import Preprocessing
 
         return Preprocessing(self._lowestFrequency, self._highestFrequency, self._bandpassSmooth, self._prerotate,
                              self._weightingFile, self._substractParticle, self._taper)

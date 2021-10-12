@@ -408,7 +408,7 @@ class GrowingAverageJob(PyTomClass):
             raise ParameterError('Is not a GrowingAverageJobXML! You must provide a valid GrowingAverageJobXML object.')
         
         from pytom.angles.angle import AngleObject
-        from pytom.score.score import fromXML as scoreFromXML
+        from pytom.basic.score import fromXML as scoreFromXML
         from pytom.basic.structures import ParticleList
         from pytom.alignment.preprocessing import Preprocessing
         

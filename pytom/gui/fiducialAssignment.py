@@ -60,7 +60,7 @@ from multiprocessing import Process, Event, Manager, Pool, cpu_count
 
 from pytom.gui.guiStructures import *
 from pytom.gui.guiFunctions import *
-from pytom.tompy.io import read_size
+from pytom.agnostic.io import read_size
 def sort_str( obj, nrcol ):
     obj.sort(key=lambda i: str(i[nrcol]))
 
@@ -634,7 +634,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         print ("Start reading files process {}/{}".format(proc_id + 1, nr_procs))
         from copy import deepcopy
-        from pytom.tompy.io import read as readNPY
+        from pytom.agnostic.io import read as readNPY
         for nr, fname in enumerate(fnames):
 
             #m = mrcfile.open(fname, permissive=True)
@@ -869,7 +869,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         radius = float(self.settings.widgets['radius_watershed'].value())
         average_marker = None
         self.mark_frames = -1 * numpy.ones((len(self.fnames), 3000, 2), dtype=float)
-        self.assignedFiducials = -1 * numpy.ones((len(self.fnames), 3000), dtype=int)
+        # self.assignedFiducials = -1 * numpy.ones((len(self.fnames), 3000), dtype=int)
 
         if len(self.mark_frames[ref_frame]) > 2 and self.algorithm == 'cross_correlation':
             average_marker = self.create_average_markers(ref_frame - 5, ref_frame + 6)
@@ -941,11 +941,11 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             CX,CY =cx*self.bin_alg*1./self.bin_read,cy*self.bin_alg*1./self.bin_read
             self.tiltimages[imnr].add_fiducial(CX-self.xmin,CY-self.ymin,CX,CY, check=False,draw=self.imnr==imnr)
             self.mark_frames[imnr][cntr[imnr]][:] = numpy.array((cy, cx))
-            self.assignedFiducials[imnr][cntr[imnr]] = 0
+            # self.assignedFiducials[imnr][cntr[imnr]] = 0
             cntr[imnr] += 1
 
         self.mark_frames = self.mark_frames[:, :cntr.max(), :]
-        self.assignedFiducials = self.assignedFiducials[:, :cntr.max()]
+        # self.assignedFiducials = self.assignedFiducials[:, :cntr.max()]
 
         self.coordinates = numpy.zeros_like(self.mark_frames)
         self.user_coordinates = numpy.zeros_like(self.mark_frames)

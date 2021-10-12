@@ -13,8 +13,8 @@ if __name__ == '__main__':
     import sys, os
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
-    from pytom.tompy.correlation import FSC, determineResolution
-    from pytom.tompy.io import read
+    from pytom.agnostic.correlation import FSC, determineResolution
+    from pytom.agnostic.io import read
     
     helper = ScriptHelper(sys.argv[0].split('/')[-1], # script name
                           description='Determine resolution by FSC.',
@@ -98,10 +98,10 @@ if __name__ == '__main__':
 
         if verbose: print('FSC:\n', f)
 
-        import pytom.tompy.correlation as correlation
+        import pytom.agnostic.correlation as correlation
         from pytom_numpy import vol2npy
         import numpy as np
-        from pytom.tompy.io import write
+        from pytom.agnostic.io import write
 
         if randomize is None or randomize < 1E-3:
             r = determineResolution(f, fscCriterion, verbose)

@@ -2,12 +2,16 @@
 test GLocal Alignment
 """
 import unittest
+import os
 
+# TODO: this shouldn't happen, we shouldn't force interactive backend outside of pytomGUI
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 class pytom_GLocalTest(unittest.TestCase):
 
     def setUp(self):
         from helper_functions import create_RandomParticleList, installdir
-        from pytom.tompy.io import read_size
+        from pytom.agnostic.io import read_size
         from pytom_volume import vol, initSphere
 
         self.installdir = installdir

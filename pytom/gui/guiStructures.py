@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5 import QtWidgets, QtCore, QtGui
-from pytom.tompy.io import read, write
+from pytom.agnostic.io import read, write
 from pytom_numpy import vol2npy
 
 #from pytom.basic.functions import initSphere
@@ -22,7 +22,7 @@ from pytom.basic.files import pdb2em, pdb2mrc
 from pytom.gui.guiStyleSheets import *
 from pytom.gui.mrcOperations import *
 from pytom.gui.guiFunctions import initSphere
-from pytom.tompy.transform import rotate3d
+from pytom.agnostic.transform import rotate3d
 import pytom.gui.guiFunctions as guiFunctions
 import traceback
 from numpy import zeros, meshgrid, arange, sqrt
@@ -1677,7 +1677,7 @@ class CreateFSCMaskFile(QMainWindow, CommonFunctions):
 
     def generate(self,params):
         from pytom.bin.gen_mask import gen_mask_fsc
-        from pytom.tompy.io import read
+        from pytom.agnostic.io import read
 
 
 
@@ -1703,6 +1703,7 @@ class CreateFSCMaskFile(QMainWindow, CommonFunctions):
 
 class MyCircleOverlay(pg.EllipseROI):
     def __init__(self, pos, size, label='', **args):
+        self.path = None
         pg.ROI.__init__(self, pos, size, **args)
         self.aspectLocked = True
         colorsHEX = ['00ffff', 'f5f5dc', '0000ff', 'a52a2a', '7fff00', 'd2691e', 'daa520', 'ff7f50', '00ffff',
@@ -2097,7 +2098,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
             try:
                 tabs[f'tab{n+1}'] = getattr(self,f'tab{n+1}')
                 if tabUIs[n]:
-                    tab_actions[f'tab{n+1}'] = tabUIs[n]
+                    tab_actions[f'tab{n+1}'] = tabUIs[n][0]
             except:pass
             self.tabWidget.addTab(tab, header)
 
@@ -3446,8 +3447,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
     def remove_deselected_particles_from_XML(self):
         from pytom.basic.structures import ParticleList, Particle, PickPosition
-        from pytom.score.score import FLCFScore
-        from pytom.tompy.io import read
+        from pytom.basic.score import FLCFScore
+        from pytom.agnostic.io import read
         import numpy
         import random
 
@@ -4379,7 +4380,7 @@ class Viewer3DSurface(QMainWindow, CommonFunctions):
 
     def reload_image(self, params):
         from numpy import cos, sin, arccos, arcsin
-        from pytom.tompy.transform import rotate3d
+        from pytom.agnostic.transform import rotate3d
 
         if self.centcanvas.reorientParticle.isChecked():
             azimuth = np.deg2rad(self.centcanvas.opts['azimuth'])
@@ -4505,7 +4506,7 @@ class ControlWindowSurface(QMainWindow, CommonFunctions):
 
 
     def save_image(self,params=None):
-        from pytom.tompy.io import read, write
+        from pytom.agnostic.io import read, write
         fname = str(QFileDialog.getSaveFileName(self, 'Save image.', '', filter="MRC File (*.mrc);; EM File (*.em)")[0])
         if fname:
             if not (fname.split('.')[-1] in ('mrc', 'em')):
@@ -4815,7 +4816,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
 
         try:
             if self.title.endswith('em'):
-                from pytom.tompy.io import read
+                from pytom.agnostic.io import read
                 from pytom_numpy import vol2npy
                 self.vol = read(self.title)
                 self.vol = self.vol.T
@@ -5064,7 +5065,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
 
     def load_image(self):
 
-        from pytom.tompy.io import read, read_size
+        from pytom.agnostic.io import read, read_size
         from pytom.gui.mrcOperations import downsample
         mode = 'Viewer2D_'
 
@@ -5899,8 +5900,8 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         static_tabs = [[False, False], [True], [True]]
 
         tabUIs = [[self.tab32UI, self.tab31UI],
-                  self.tab1UI,
-                  self.tab2UI]
+                  [self.tab1UI],
+                  [self.tab2UI]]
         self.tabs_dict, self.tab_actions = {}, {}
 
         self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict,
@@ -6041,7 +6042,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def updateBoxsizeAndPixelsize(self, mode):
         from pytom.alignment.alignmentStructures import GLocalSamplingJob
-        from pytom.tompy.io import read_size
+        from pytom.agnostic.io import read_size
         fscfile = self.widgets[mode+'FSCFilename'].text()
         folder =  self.widgets[mode+'FSCFolder'].text()
         if not fscfile and not folder: return
@@ -6151,14 +6152,23 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                     values[i][j] = float(values[i][j])
                 outfile.write('{} {:10.3f} {:10.1f} {:10.1f}    {:4s} {:4s} {:3s}   {:3s}\n'.format(*(values[i][:-1])))
         except:
-            for key in self.alignmentResulsDict.keys():
-                results, refmarkers = self.alignmentResulsDict[key].values()
-                for i in results.keys():
-                    for j in range(len(results[i])):
-                        for k in range(1, 4):
-                            results[i][j][k] = float(results[i][j][k])
-                        outfile.write('{:15s} {:10.3f} {:10.1f} {:10.1f}    {:4s} {:4s} {:3s}   {:3s}\n'.format(
-                            *(results[i][j][:-1])))
+            outfile.write('# Name Tomogram\n# Alignment Method\n# Origin Folder\n# Alignment Score\n# First Angle\n'
+                          '# Last Angle\n# Referce Image ID\n# Reference Marker ID\n# Expected Rotation Angle\n# Determined Rotation Angle\n')
+            for tomofolder in self.alignmentResulsDict.keys():
+                for refmarker in self.alignmentResulsDict[tomofolder].keys():
+                    for first in  self.alignmentResulsDict[tomofolder][refmarker].keys():
+                        for last in  self.alignmentResulsDict[tomofolder][refmarker][first].keys():
+                            for alignType in self.alignmentResulsDict[tomofolder][refmarker][first][last].keys():
+                                for origin in self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType].keys():
+                                    d = self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin]
+
+                #
+                # results, refmarkers = self.alignmentResulsDict[key].values()
+                # for i in results.keys():
+                #     for j in range(len(results[i])):
+                #         for k in range(1, 4):
+                #             results[i][j][k] = float(results[i][j][k])
+                                    outfile.write(f'{d[0]:15s} {d[4]:22s} {d[5]:11s} {d[1]:>10s} {d[2]:>8s} {d[3]:>8s} {d[6]:>7s} {d[7]:>7s} {d[8]:>7s} {d[9]:>7s}\n')
 
         outfile.close()
 
@@ -6232,29 +6242,17 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                         markerPath = dname(dname(dname(logfile)))
                         alignType  = bname(dname(dname(logfile)))
                         origin     = bname(dname(logfile))
-                        try:
-                            self.alignmentResulsDict[tomofolder]
-                        except:
+                        if not (tomofolder in self.alignmentResulsDict.keys()):
                             self.alignmentResulsDict[tomofolder] = {}
-                        try:
-                            self.alignmentResulsDict[tomofolder][refmarker]
-                        except:
+                        if not (refmarker in self.alignmentResulsDict[tomofolder].keys()):
                             self.alignmentResulsDict[tomofolder][refmarker] = {}
-                        try:
-                            self.alignmentResulsDict[tomofolder][refmarker][first]
-                        except:
+                        if not (first in self.alignmentResulsDict[tomofolder][refmarker].keys()):
                             self.alignmentResulsDict[tomofolder][refmarker][first] = {}
-                        try:
-                            self.alignmentResulsDict[tomofolder][refmarker][first][last]
-                        except:
+                        if not (last in self.alignmentResulsDict[tomofolder][refmarker][first].keys()):
                             self.alignmentResulsDict[tomofolder][refmarker][first][last] = {}
-                        try:
-                            self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType]
-                        except:
+                        if not (alignType in self.alignmentResulsDict[tomofolder][refmarker][first][last].keys()):
                             self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType] = {}
-                        try:
-                            self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin]
-                        except:
+                        if not (origin in self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType].keys()):
                             self.alignmentResulsDict[tomofolder][refmarker][first][last][alignType][origin] = {}
 
                         results = [tomofolder, alignmentscore, firstangle, lastangle, alignType, origin, refindex, refmarker, expected,

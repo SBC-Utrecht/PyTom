@@ -1,12 +1,11 @@
 '''
 Structures for alignment of tilt series using fiducial markers
 '''
-from pytom_volume import vol, read, transform
-from pytom_numpy import vol2npy
+from pytom_volume import read
 import numpy
 import os
 from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
-from pytom.reconstruction.tiltAlignmentFunctions import markerResidual, alignmentFixMagRot
+from pytom.reconstruction.tiltAlignmentFunctions import alignmentFixMagRot
 from pytom.basic.structures import PyTomClass
 from pytom_volume import vol
 from pytom_numpy import vol2npy
@@ -280,7 +279,6 @@ class TiltSeries(PyTomClass):
 
         @author: FF
         """
-        from math import pi
 
         if markerFileName.endswith('.em') or markerFileName.endswith('.mrc'):
             markerFileVol = read(markerFileName)
@@ -379,7 +377,6 @@ class TiltSeries(PyTomClass):
         @author: FF
         """
         from pytom.reconstruction.tiltAlignmentFunctions import readIMODtiltAngles
-        from math import sin, cos, pi
 
         tiltAngles = readIMODtiltAngles(tltfile)
         if len(tiltAngles) != len(self._ProjectionList):
@@ -508,7 +505,6 @@ class TiltSeries(PyTomClass):
         # set alignedProjectionList
 
         from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS
-        from pytom.basic.files import readProxy as read
 
         projs = []
 
@@ -885,8 +881,7 @@ class TiltAlignment:
         @type optimizableVariables: numpy array
         @return: alignment score
         """
-        from pytom.reconstruction.tiltAlignmentFunctions import markerResidual, refMarkerResidualForTiltImage as refResidual
-        import numpy
+        from pytom.reconstruction.tiltAlignmentFunctions import markerResidual
         self.setOptimizableVariables(self.TiltSeries_._TiltAlignmentParas, optimizableVariables)
 
         if self.TiltSeries_._TiltAlignmentParas.leastsq == True:
@@ -928,7 +923,6 @@ class TiltAlignment:
         @return: alignment score
         """
         from pytom.reconstruction.tiltAlignmentFunctions import markerResidualFixedMarker
-        import numpy
         self.setOptimizableVariables(self.TiltSeries_._TiltAlignmentParas, optimizableVariables)
 
         score = markerResidualFixedMarker(self.TiltSeries_._TiltAlignmentParas.cent,
@@ -1162,7 +1156,6 @@ class TiltAlignment:
         if not self.optimizeMarkerPositions:
             ntilt = self._ntilt
             from math import cos, sin, pi
-            from sys import exit
             from numpy import mean
             from pytom.tools.maths import rotate_vector2d
             cent = self.TiltSeries_._TiltAlignmentParas.cent
@@ -1818,8 +1811,7 @@ class TiltAlignment:
     
         @author: FF
         """
-        from pytom.image2D.imageStructures import ImageStack
-        from pytom.basic.functions import initSphere, taper_edges
+        from pytom.reconstruction.imageStructures import ImageStack
 
         # prepare mask
         #mask = initSphere(sizeX=dimBox, sizeY=dimBox, sizeZ=1, radius=dimBox/5.,

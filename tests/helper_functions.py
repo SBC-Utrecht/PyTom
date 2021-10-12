@@ -16,13 +16,13 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
     
     """
     from pytom.basic.structures import Particle, ParticleList, Rotation, Shift, Wedge
-    from pytom_volume import vol, rotate, shift, read
+    from pytom_volume import read
     from pytom.basic.transformations import general_transform_crop
     from pytom.basic.functions import initSphere
     from pytom.simulation.support import add_white_noise as addNoise
     import random
     from os import mkdir
-    from pytom.score.score import FLCFScore as score
+    from pytom.basic.score import FLCFScore as score
 
     try:
         mkdir(pdir)
@@ -59,7 +59,7 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
 
         #noisy.write( fname)
         p = Particle(filename=fname, rotation=rot, shift=shift, wedge=wedge,
-                     className=0, pickPosition=None, score=score, infoGUI=None)
+                     className=0, pickPosition=None, score=score(), infoGUI=None)
         p.setScoreValue(0.0)
 
         wg = p.getWedge().getWedgeObject()
@@ -86,8 +86,8 @@ def cleanUp_RandomParticleList( pl_filename='pl.xml', pdir='./testparticles'):
     remove(pl_filename)
 
 def create_TiltSeries(data, tiltAngles, outputfolder='./'):
-    from pytom.tompy.io import read, write
-    from pytom.tompy.transform import rotate_axis
+    from pytom.agnostic.io import read, write
+    from pytom.agnostic.transform import rotate_axis
     import os
 
     if data.__class__ == str:

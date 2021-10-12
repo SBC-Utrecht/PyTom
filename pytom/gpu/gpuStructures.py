@@ -1,11 +1,11 @@
 import threading
 import importlib
-from pytom.tompy.io import read, write
+from pytom.agnostic.io import read, write
 from pytom.gpu.initialize import device, xp
 
 class TemplateMatchingPlan():
     def __init__(self, volume, template, mask, wedge, cp, vt, calc_stdV, pad, get_fft_plan, deviceid):
-        from pytom.tompy.io import read
+        from pytom.agnostic.io import read
         from pytom.basic.files import read as readC
         import pytom.voltools as vt
         import os
@@ -25,8 +25,7 @@ class TemplateMatchingPlan():
 
         write('te.em', template)
         self.templateVol = readC('te.em')
-        os.remove('te.em')
-        self.where = 'gpu'
+        self.where = 'cpu'
         self.template = cp.asarray(template, dtype=cp.float32,order='C')
         self.texture = vt.StaticVolume(self.template, interpolation='filt_bspline', device=f'gpu:{deviceid}')
         self.templatePadded = cp.zeros_like(self.volume)
@@ -50,6 +49,7 @@ class TemplateMatchingPlan():
             self.fftplan = None
             self.volume_fft2 = None
 
+        os.remove('te.em')
         cp.cuda.stream.get_current_stream().synchronize()
 
 
@@ -132,7 +132,7 @@ class TemplateMatchingGPU(threading.Thread):
             self.completed = False
         self.active = False
 
-    def template_matching_gpu(self, angle_list, dims, isSphere=True, verbose=True):
+    def template_matching_gpu(self, angle_list, dims, isSphere=True, verbose=True, debug=False):
         from pytom_numpy import vol2npy
         from pytom_volume import rotateSpline as rotate, vol
         import time
@@ -187,8 +187,9 @@ class TemplateMatchingGPU(threading.Thread):
 
     def calc_stdV(self, plan):
         self.Device(self.deviceid).use()
+
         stdV = self.meanVolUnderMask2(plan.volume**2, plan) - self.meanVolUnderMask2(plan.volume, plan)**2
-        stdV[stdV < self.float32(1e-09)] = 1
+        stdV[stdV <= self.float32(1e-09)] = 1
         plan.stdV = self.sqrt(stdV)
 
     def meanVolUnderMask2(self, volume, plan):
@@ -318,14 +319,14 @@ class GLocalAlignmentPlan():
         self.device = device
         print(f'start init on: {device}')
         from pytom.voltools import StaticVolume
-        from pytom.tompy.tools import taper_edges
-        from pytom.tompy.transform import fourier_reduced2full
+        from pytom.agnostic.tools import taper_edges
+        from pytom.agnostic.transform import fourier_reduced2full
         from cupyx.scipy.fftpack.fft import get_fft_plan
         from cupyx.scipy.fftpack.fft import fftn as fftnP
         from cupyx.scipy.fftpack.fft import ifftn as ifftnP
-        from pytom.tompy.io import read_size, write
+        from pytom.agnostic.io import read_size, write
         from pytom.gpu.kernels import argmax_text, meanStdv_text
-        from pytom.tompy.filter import bandpass
+        from pytom.agnostic.filter import bandpass
 
         # Allocate volume and volume_fft
         self.volume        = cp.zeros(read_size(particle.getFilename()), dtype=cp.float32)
@@ -588,7 +589,7 @@ class GLocalAlignmentPlan():
         """
 
         from pytom.voltools import transform
-        from pytom.tompy.io import write
+        from pytom.agnostic.io import write
 
         ox, oy, oz = volume.shape
         ib = ignore_border
@@ -797,8 +798,8 @@ class GLocalAlignmentGPU(threading.Thread):
         threading.Thread.__init__(self)
 
         import numpy as np
-        from pytom.tompy.tools import paste_in_center
-        from pytom.tompy.transform import rotate3d
+        from pytom.agnostic.tools import paste_in_center
+        from pytom.agnostic.transform import rotate3d
         from pytom_volume import rotateSpline as rotate
         import cupy as cp
 
@@ -807,7 +808,7 @@ class GLocalAlignmentGPU(threading.Thread):
         from cupy import sqrt, float32
         from cupy.fft import fftshift, rfftn, irfftn, ifftn, fftn
         import pytom.voltools as vt
-        from pytom.tompy.io import write
+        from pytom.agnostic.io import write
         from cupyx.scipy.ndimage import map_coordinates
 
 
@@ -881,7 +882,7 @@ class GLocalAlignmentGPU(threading.Thread):
         self.Device(self.deviceid).use()
 
         import pytom.voltools as vt
-        from pytom.tompy.io import write
+        from pytom.agnostic.io import write
         sx, sy, sz = self.plan.template.shape
         cx, cy, cz = sx // 2, sy // 2, sz // 2
         mx, my, mz = sx %  2, sy %  2, sz %  2
@@ -1047,13 +1048,13 @@ class CCCPlan():
         self.device = device
         print(f'start init on: {device}')
         from pytom.voltools import transform, StaticVolume
-        from pytom.tompy.tools import taper_edges
-        from pytom.tompy.transform import fourier_reduced2full, resize
+        from pytom.agnostic.tools import taper_edges
+        from pytom.agnostic.transform import fourier_reduced2full, resize
         from cupyx.scipy.fftpack.fft import get_fft_plan
         from cupyx.scipy.fftpack.fft import fftn as fftnP
         from cupyx.scipy.fftpack.fft import ifftn as ifftnP
-        from pytom.tompy.io import read_size, read, write
-        from pytom.tompy.tools import create_sphere
+        from pytom.agnostic.io import read_size, read, write
+        from pytom.agnostic.tools import create_sphere
 
         maskFull = read(maskname)
 
@@ -1229,8 +1230,8 @@ void normalize( float* volume, const float* mask, float mean, float stdV, int n 
         return ((self.simulatedVolume - meanT) / stdT) * self.mask
 
     def ccc_go(self, pairs):
-        from pytom.tompy.filter import create_wedge
-        from pytom.tompy.transform import fourier_reduced2full as r2f
+        from pytom.agnostic.filter import create_wedge
+        from pytom.agnostic.transform import fourier_reduced2full as r2f
         ttt = 0
         vg, vf = 0, 0
         for pair in pairs:
@@ -1360,8 +1361,8 @@ void normalize( float* volume, const float* mask, float mean, float stdV, int n 
         @change: flag for pre-normalized volume, FF
         """
 
-        from pytom.tompy.macros import volumesSameSize
-        from pytom.tompy.io import write
+        from pytom.agnostic.macros import volumesSameSize
+        from pytom.agnostic.io import write
 
         if not volumesSameSize(volume, template):
             raise RuntimeError('Volume and template must have same size!')
@@ -1413,7 +1414,7 @@ void normalize( float* volume, const float* mask, float mean, float stdV, int n 
         print(volume.sum())
 
     def store_particle(self, id, filename, profile=True, binning=1):
-        from pytom.tompy.transform import resize, fourier_reduced2full, resizeFourier, fourier_full2reduced
+        from pytom.agnostic.transform import resize, fourier_reduced2full, resizeFourier, fourier_full2reduced
         if self.profile:
             t_start = self.stream.record()
 

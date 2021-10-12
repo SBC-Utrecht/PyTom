@@ -61,8 +61,8 @@ if __name__ == '__main__':
         raise RuntimeError('Destination directory ' + destination + ' does not exist!')    
 
     from pytom.cluster.mcoACStructures import MCOACJob,MetropolisCriterion,SigmaTemperature 
-    from pytom.basic.structures import ParticleList,Reference,Mask,Wedge,SampleInformation,PointSymmetry
-    from pytom.score.score import FLCFScore
+    from pytom.basic.structures import ParticleList, Mask,Wedge,SampleInformation,PointSymmetry
+    from pytom.basic.score import FLCFScore
     from pytom.frontend.serverpages.createMCOACJob import createRunscripts
     from pytom.alignment.preprocessing import Preprocessing
      

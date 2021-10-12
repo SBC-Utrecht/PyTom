@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     from pytom.alignment.ExMaxAlignment import ExMaxJob
     from pytom.basic.structures import ParticleList,Reference,Mask,SampleInformation,PointSymmetry
-    from pytom.score.score import FLCFScore
+    from pytom.basic.score import FLCFScore
     from pytom.frontend.serverpages.createAlignmentJob import createRunscripts
     from pytom.angles.localSampling import LocalSampling
     from pytom.alignment.preprocessing import Preprocessing

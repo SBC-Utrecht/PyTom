@@ -176,7 +176,7 @@ class FiducialLessAlignment():
         return ((volume - meanT) / stdT)
 
     def singleNXCC(self, k, shiftX, shiftY, rot):
-        from pytom.tompy.correlation import nxcc
+        from pytom.agnostic.correlation import nxcc
         import time
 
         cr_projTrans = self.craw_images[k]
@@ -254,9 +254,9 @@ class FiducialLessAlignment():
 
     def calcBestFitXY(self, params, show=False):
         from pytom.gpu.initialize import xp, device
-        from pytom.tompy.correlation import nxcc
+        from pytom.agnostic.correlation import nxcc
         import pytom.voltools as vt
-        from pytom.tompy.filter import ramp_filter
+        from pytom.agnostic.filter import ramp_filter
         cos,sin = xp.cos, xp.sin
         Z1,Y,Z2 = self.angs
 
@@ -333,12 +333,12 @@ class FiducialLessAlignment():
         from pytom.reconstruction.ccAlign import modelProjCrop
         from pytom.basic.files import read_em, write_em, read_em_header, write_em_header
         from pytom.basic.files import read as read_c
-        from pytom.tompy.tools import taper_edges, paste_in_center
+        from pytom.agnostic.tools import taper_edges, paste_in_center
         from pytom.gpu.kernels import reconstruction_wbp_text
-        from pytom.tompy.transform import resize
-        from pytom.tompy.io import read, write
+        from pytom.agnostic.transform import resize
+        from pytom.agnostic.io import read, write
         from pytom.gpu.initialize import xp, device
-        from pytom.tompy.filter import ramp_filter
+        from pytom.agnostic.filter import ramp_filter
         from pytom.reconstruction.reconstructionFunctions import alignWeightReconstruct
         from pytom.reconstruction.TiltAlignmentStructures import TiltSeries
         from pytom.reconstruction.writeAlignedProjections import writeAlignedProjections
@@ -564,7 +564,7 @@ class FiducialLessAlignment():
                     start_time = time.time()
                 #optParam = scipy.optimize.fmin_cg(self.calcScore, param, maxiter=5, epsilon=eps)
 
-                from pytom.tompy.correlation import FLCF
+                from pytom.agnostic.correlation import FLCF
                 for i in range(len(alignmentResults['TiltAngle'])):
                     res = FLCF(self.craw_images[i], self.csim_images[i])
                     px, py = xp.unravel_index(res.argmax(),res.shape)

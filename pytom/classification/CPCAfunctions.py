@@ -105,7 +105,7 @@ def averageClasses(particleListFilename, avName, gpuIDs=None):
     """
     from pytom.basic.structures import ParticleList
     if gpuIDs:
-        from pytom.tompy.structures import ParticleList
+        from pytom.agnostic.structures import ParticleList
 
     pl = ParticleList()
     pl.fromXMLFile(particleListFilename)

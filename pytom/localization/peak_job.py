@@ -96,7 +96,7 @@ class PeakJob(PyTomClass):
             else:
                 self.dstDir = dstDir + '/'
 
-        from pytom.score.score import fromXML as fromXMLScore
+        from pytom.basic.score import fromXML as fromXMLScore
         from pytom.basic.structures import Mask,Reference,Wedge
 #        from pytom.angles.angleList import AngleList
         from pytom.localization.structures import Volume
@@ -332,7 +332,7 @@ class JobInfo():
 if __name__ == '__main__':
     from pytom.basic.structures import Mask, Reference, WedgeInfo
     from pytom.localization.structures import Volume
-    from pytom.score.score import FLCFScore, xcfScore
+    from pytom.basic.score import FLCFScore
     from pytom.localization.peak_job import PeakJob
     
     v = Volume('/fs/pool/pool-foerster/apps/src/molmatch/test/testvol.em')

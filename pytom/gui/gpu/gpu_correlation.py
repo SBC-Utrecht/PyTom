@@ -5,7 +5,7 @@ from pycuda import gpuarray as gu
 from pycuda import driver
 from pycuda.cumath import fabs
 from pycuda.tools import DeviceData
-from pytom.tompy.tools import paste_in_center
+from pytom.agnostic.tools import paste_in_center
 
 from typing import Union, Tuple
 
@@ -286,7 +286,7 @@ if __name__=='__main__':
 
 
 
-    from pytom.tompy.io import read
+    from pytom.agnostic.io import read
     import mrcfile
 
     print(start,end)
@@ -298,7 +298,7 @@ if __name__=='__main__':
     mask = read("mask.em")
     mask2 = paste_in_center(mask, np.zeros_like(volume))
 
-    from pytom.tompy.correlation import meanVolUnderMask, stdVolUnderMask
+    from pytom.agnostic.correlation import meanVolUnderMask, stdVolUnderMask
     import pytom.basic.correlation as corr
     from pytom.basic.files import read as readd
     from pytom.basic.files import write_em

@@ -107,3 +107,85 @@ unitsLAR = ['', 'px', 'px', 'degrees', 'degrees', '', '']
 fmtLAR = '%7d %15.3f %15.3f %15.3f %15.3f %15.10f %s'
 for n, h in enumerate(LOCAL_ALIGNMENT_RESULTS):
     headerLocalAlignmentResults += '{} {}\n'.format(h[0], '({})'.format(unitsLAR[n]) * (unitsLAR[n] != ''))
+
+
+
+RELION31_PICKPOS_STAR = [('CoordinateX', 'f4'),
+                         ('CoordinateY', 'f4'),
+                         ('CoordinateZ', 'f4'),
+                         ('MicrographName', 'U1000'),
+                         ('Magnification', 'f4'),
+                         ('DetectorPixelSize', 'f4'),
+                         ('GroupNumber', 'i4'),
+                         ('AngleRot', 'f4'),
+                         ('AngleTilt', 'f4'),
+                         ('AnglePsi', 'f4')]
+
+headerRelion31Subtomo = '\ndata_\n\nloop_\n\n'
+for n, h in enumerate(RELION31_PICKPOS_STAR):
+    headerRelion31Subtomo += '_rln{} #{}\n'.format(h[0], n+1)
+headerRelion31Subtomo = headerRelion31Subtomo[:-1]
+
+
+fmtR31S = '%-9.4f %-9.4f %-9.4f %60s %9.4f %9.4f %4d %9.4f %9.4f %9.4f'
+
+DATATYPE_PROJECT_ALIGN_RESULTS = [('TomogramName', 'U1000'),
+                                  ('AlignmentMethod', 'U1000'),
+                                  ('OriginFolder', 'U1000'),
+                                  ('AlignmentScore', 'f4'),
+                                  ('FirstAngle', 'f4'),
+                                  ('LastAngle', 'f4'),
+                                  ('ReferenceImageID', 'f4'),
+                                  ('ReferenceMarkerID', 'f4'),
+                                  ('ExpectedRotationAngle', 'f4'),
+                                  ('DeterminedRotationAngle', 'f4')]
+
+
+
+DATATYPE_TASOLUTION = [('View', 'i4'),
+                        ('Rotation', 'f4'),
+                        ('Tilt', 'f4'),
+                        ('DelTilt', 'f4'),
+                        ('Magn', 'f4'),
+                        ('Dmag', 'f4'),
+                        ('Skew', 'f4'),
+                        ('MeanResid', 'f4')]
+
+HEADER_TASOLUTION = ''
+unitsTaSolutionsFile = ['', 'deg', 'deg', 'deg', '', '', '', 'px' ]
+FMT_TASOLTUION='%4d %10.1f %10.1f %10.2f %10.4f %10.4f %10.2f %10.2f'
+
+for n, h in enumerate(DATATYPE_TASOLUTION):
+    HEADER_TASOLUTION += '{} {}\n'.format(h[0], '({})'.format(unitsTaSolutionsFile[n])*(unitsTaSolutionsFile[n]!=''))
+
+
+def generate_default_alignmentresults(folder, metafilename='', prefix='sorted_', filename='alignmentResults.txt'):
+    '''This function creates an alignmentResults.txt file and returns a structured array,
+    alignmentTransX=alignmentTransY=inPlaneRotation=0, magnification=1
+    @param folder: all files found in folder are used.
+    @param metafilename: if file is supplied, angles from this file are used as TiltAngle
+    @param prefix: only files starting with prefix will be used.. Default sorted_
+    @param filename: if filename is supplied, array will be written to file. Default:'alignmentResults.txt'
+    @return structured array
+    '''
+    import os,numpy
+    from pytom.basic.files import loadtxt, savetxt
+
+    files = [os.path.join(folder, fname) for fname in os.listdir(folder) if fname.startswith(prefix)]
+    data= numpy.zeros((len(files)),dtype=DATATYPE_ALIGNMENT_RESULTS)
+    data['Magnification'] = 1
+    data['FileName'] = numpy.array(files,dtype=numpy.str)
+
+    if metafilename:
+        metadata = loadtxt(metafilename,dtype=DATATYPE_METAFILE)
+        m = 0
+        for nn, fname in enumerate(data['FileName']):
+            if os.path.basename(fname) in files:
+                data['TiltAngle'][m] = metadata['TiltAngle'][nn]
+                m+=1
+
+    if filename:
+        outname = os.path.join(folder,filename)
+        savetxt(outname, data, fmt=FMT_ALIGNMENT_RESULTS, header=HEADER_ALIGNMENT_RESULTS)
+
+    return data

@@ -2,7 +2,7 @@
 from pytom.basic.structures import PyTomClass
 from pytom.basic.structures import ParticleList
 from pytom.angles.localSampling import LocalSampling
-from pytom.tompy.mpi import MPI
+from pytom.agnostic.mpi import MPI
 import os
 
 
@@ -354,7 +354,7 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
     return newReference
 
 def multi_read(shared, filenames, startID=0, size=0):
-    from pytom.tompy.io import read
+    from pytom.agnostic.io import read
     print(len(filenames), size)
     for i, filename in enumerate(filenames):
         shared[(startID+i)*size:(startID+i+1)*size] = read(filename, keepnumpy=True).flatten()
@@ -391,13 +391,13 @@ def averageGPU2(particleList, averageName, showProgressBar=False, verbose=False,
     @change: limit for wedgeSum set to 1% or particles to avoid division by small numbers - FF
     """
     import time
-    from pytom.tompy.io import read, write, read_size
-    from pytom.tompy.filter import bandpass as lowpassFilter, rotateWeighting, applyFourierFilter, applyFourierFilterFull, create_wedge
+    from pytom.agnostic.io import read, write, read_size
+    from pytom.agnostic.filter import bandpass as lowpassFilter, rotateWeighting, applyFourierFilter, applyFourierFilterFull, create_wedge
     from pytom.voltools import transform, StaticVolume
     from pytom.basic.structures import Reference
-    from pytom.tompy.normalise import mean0std1
-    from pytom.tompy.tools import volumesSameSize, invert_WedgeSum, create_sphere
-    from pytom.tompy.transform import fourier_full2reduced, fourier_reduced2full
+    from pytom.agnostic.normalise import mean0std1
+    from pytom.agnostic.tools import volumesSameSize, invert_WedgeSum, create_sphere
+    from pytom.agnostic.transform import fourier_full2reduced, fourier_reduced2full
     from cupyx.scipy.fftpack.fft import fftn as fftnP
     from cupyx.scipy.fftpack.fft import ifftn as ifftnP
     from cupyx.scipy.fftpack.fft import get_fft_plan
@@ -802,9 +802,9 @@ def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose
     from pytom.basic.fourier import fft, ifft
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Reference
-    from pytom.tompy.tools import invert_WedgeSum
+    from pytom.agnostic.tools import invert_WedgeSum
     from pytom_numpy import vol2npy
-    from pytom.tompy.io import write, read
+    from pytom.agnostic.io import write, read
     import os
 
     splitLists = splitParticleList(particleList, setParticleNodesRatio=setParticleNodesRatio, numberOfNodes=cores)

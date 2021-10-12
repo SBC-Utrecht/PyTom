@@ -5,11 +5,6 @@ import math
 import pytom.simulation.physics as physics
 import os, sys
 
-# image display
-import matplotlib as plt
-plt.use('Qt5Agg')
-from pylab import *
-
 
 def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=False, interpolation='filt_bspline'):
     """
@@ -42,7 +37,7 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
             new = xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
             return transform(new, translation=tuple([x/2 for x in increment]), interpolation=interpolation)
         else:
-            from pytom.tompy.tools import paste_in_center
+            from pytom.agnostic.tools import paste_in_center
             new = xp.zeros([a + b for a, b in zip(vol.shape, increment)])
             if pad_value:
                 new += pad_value
@@ -293,7 +288,7 @@ def call_apbs(pdb_filepath, force_field='amber', ph=7.):
 def read_structure(filepath):
     """
     Read pdb, cif, or pqr file and return atom data in lists.
-    todo move to basic.files or tompy.io ??
+    todo move to basic.files or agnostic.io ??
 
     @param filepath: full path to the file, either .pdb, .cif, or .pqr
     @type  filepath: L{str}
@@ -427,9 +422,9 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
 
     @author: Marten Chaillet
     """
-    from pytom.tompy.tools import create_sphere
+    from pytom.agnostic.tools import create_sphere
     from pytom.simulation.support import reduce_resolution, create_ellipse, add_correlated_noise
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
 
     assert (type(oversampling) is int) and (oversampling >= 1), print('Stop gold marker creation oversampling factor is not a positive'
                                                             ' integer.')
@@ -535,7 +530,7 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
 
     @author: Marten Chaillet
     """
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution_fourier
     from scipy.special import erf
 
@@ -733,7 +728,7 @@ def iasa_rough(filepath, voxel_size=10, oversampling=1, solvent_exclusion=False,
 
     @author: Marten Chaillet
     """
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution_fourier
 
     assert (type(oversampling) is int) and (oversampling >= 1), print('oversampling parameter is not an integer')
@@ -813,7 +808,7 @@ def iasa_potential(filepath, voxel_size=1., oversampling=1): # add params voxel_
 
     @author: Marten Chaillet
     """
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution_fourier
 
     assert (type(oversampling) is int) and (oversampling >= 1), print('oversampling parameter is not an integer')
@@ -976,7 +971,7 @@ def resample_apbs(filepath, voxel_size=1.0):
     @author: Marten Chaillet
     """
     from skimage.transform import rescale
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution_fourier
 
     print(f' - Parsing and resampling APBS file {filepath}')
@@ -1082,8 +1077,8 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=None, e
 
     @author: Marten Chaillet
     """
-    from pytom.tompy.io import write
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.io import write
+    from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution_fourier
 
     # Id does not makes sense to apply absorption contrast if solvent exclusion is not turned on

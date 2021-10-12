@@ -935,7 +935,7 @@ class PeakLeader(PeakWorker):
         
         @rtype: L{pytom.localization.peak_job.PeakResult}
         """
-        from pytom.tompy.io import read, write
+        from pytom.agnostic.io import read, write
 
 
         if jobID != None:
@@ -1034,7 +1034,7 @@ class PeakLeader(PeakWorker):
             stepSizeY = min(vsizeY-sub_start[1], sizeY)
             stepSizeZ = min(vsizeZ-sub_start[2], sizeZ)
 
-            from pytom.tompy.tools import subvolume, putSubVolume
+            from pytom.agnostic.tools import subvolume, putSubVolume
             sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
             sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
 

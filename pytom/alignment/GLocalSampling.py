@@ -8,7 +8,7 @@ from pytom.basic.structures import PyTomClass
 from pytom.gpu.initialize import xp, device
 from pytom.angles.localSampling import LocalSampling
 from pytom.alignment.alignmentStructures import GLocalSamplingJob, ScoringParameters, FLCFScore, SamplingParameters
-from pytom.tompy.mpi import MPI
+from pytom.agnostic.mpi import MPI
 mpi = MPI()
 
 
@@ -23,13 +23,13 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
     """
 
     if 'gpu' in device:
-        from pytom.tompy.structures import Preprocessing, Reference, Rotation
-        from pytom.tompy.tools import alignVolumesAndFilterByFSC
+        from pytom.agnostic.structures import Preprocessing, Reference, Rotation
+        from pytom.agnostic.tools import alignVolumesAndFilterByFSC
         from pytom.basic.resolution import bandToAngstrom, getResolutionBandFromFSC, angleFromResolution, \
             write_fsc2Ascii
         from time import time
         from pytom.angles.angleFnc import differenceAngleOfTwoRotations
-        from pytom.tompy.io import write, read_size
+        from pytom.agnostic.io import write, read_size
 
         filetype = 'mrc'
 
@@ -64,8 +64,16 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
     print("compound Wedge  = "+str(alignmentJob.scoringParameters.compoundWedge))
     print("Calculate on GPU= "+str(alignmentJob.gpu))
 
+    norm = False
+
+
     for particle in alignmentJob.particleList:
         particle.setScoreValue(-1000.)
+        particle.getScore().setPeakPrior(alignmentJob.scoringParameters.score.getPeakPrior())
+        particle.getScore().getPeakPrior().reset_weight()
+
+    print('StartPrior: ', alignmentJob.particleList[0].getScore().getPeakPrior())
+
     (odd, even) = alignmentJob.particleList.splitOddEven(verbose=verbose)
     progressBar = True
     setParticleNodesRatio = 2
@@ -96,12 +104,12 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             evenAverage = averageParallel(particleList=even,
                                           averageName=alignmentJob.destination+"/"+str(ii)+f'-EvenFiltered.{filetype}',
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                          weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                          weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                           setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
             oddAverage = averageParallel(particleList=odd,
                                           averageName=alignmentJob.destination+"/"+str(ii)+f'-OddFiltered.{filetype}',
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                          weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                          weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                           setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
             #write un-filtered averages for info
             if 'gpu' in device:
@@ -249,12 +257,12 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             evenAverage = averageParallel(particleList=even,
                                           averageName=alignmentJob.destination+f"/average-Final-Even.{filetype}",
                                           showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                          weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                          weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                           setParticleNodesRatio=setParticleNodesRatio)
             oddAverage = averageParallel(particleList=odd,
                                          averageName=alignmentJob.destination+f"/average-Final-Odd.{filetype}",
                                          showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                         weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                         weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                          setParticleNodesRatio=setParticleNodesRatio)
             # filter both volumes by sqrt(FSC)
             (averageEven, averageOdd, fsc, fil, optiRot, optiTrans) = \
@@ -274,12 +282,12 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                 oddAverage = averageParallel(particleList=odd,
                                              averageName=alignmentJob.destination+f"/average-Final-Odd.{filetype}",
                                              showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                             weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                             weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                              setParticleNodesRatio=setParticleNodesRatio)
             final_average = averageParallel(particleList=alignmentJob.particleList,
                                             averageName=alignmentJob.destination+f"/average-Final.{filetype}",
                                             showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
-                                            weighting=alignmentJob.scoringParameters.weighting, norm=False,
+                                            weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                             setParticleNodesRatio=setParticleNodesRatio)
             from pytom.basic.correlation import FSC
             fsc = FSC(volume1=evenAverage.getVolume(), volume2=oddAverage.getVolume(),
@@ -308,7 +316,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
 
         else:
             from pytom.gpu.gpuFunctions import applyFourierFilter
-            from pytom.tompy.io import read
+            from pytom.agnostic.io import read
             print(len(evenSplitList))
             resultsEven = mpi.parfor(alignParticleListGPU, list(zip(evenSplitList,
                                         [currentReferenceEven] * len(evenSplitList),
@@ -435,7 +443,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                             setParticleNodesRatio=setParticleNodesRatio,gpuIDs=alignmentJob.gpu)
             xp.cuda.Device(alignmentJob.gpu[0]).use()
 
-            from pytom.tompy.correlation import FSC
+            from pytom.agnostic.correlation import FSC
 
             fsc = FSC(volume1=cvols['Even'], volume2=oddAverage,
                       numberBands=int(cvols['Even'].shape[0]// 2))
@@ -457,7 +465,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             print(">>>>>>>>>> Final Resolution = %3.2f A." % resolutionAngstrom)
 
             # filter final average according to resolution
-            from pytom.tompy.filter import bandpass as lowpassFilter
+            from pytom.agnostic.filter import bandpass as lowpassFilter
             filtered_final = lowpassFilter(final_average.getVolume(), high=resolutionBand, sigma=resolutionBand / 10)
             write(alignmentJob.destination + f"/average-FinalFiltered_{resolutionAngstrom:.2f}.mrc", filtered_final)
             # clean up temporary files
@@ -504,7 +512,7 @@ def alignParticleList(pl, reference, referenceWeightingFile, rotationsFilename,
     @return: Returns the peak list for particle list.
     @author: FF
     """
-    from pytom.score.score import fromXMLFile
+    from pytom.basic.score import fromXMLFile
     from pytom.angles.angle import AngleObject
     from pytom.basic.structures import Mask, ParticleList
 
@@ -568,15 +576,15 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     @return: Returns the peak list for particle list.
     @author: FF
     """
-    from pytom.score.score import fromXMLFile
+    from pytom.basic.score import fromXMLFile
     from pytom.angles.angle import AngleObject
-    from pytom.tompy.structures import Wedge, Rotation, Mask, ParticleList
+    from pytom.agnostic.structures import Mask, ParticleList
     from pytom.alignment.alignmentFunctions import bestAlignmentGPU
     from pytom.gpu.gpuStructures import GLocalAlignmentPlan
     from time import time
     import os
     from pytom.angles.angleFnc import differenceAngleOfTwoRotations
-    from pytom.tompy.io import read, read_size
+    from pytom.agnostic.io import read, read_size
     import numpy as np
 
     assert type(pl) == ParticleList, "pl must be particleList"
@@ -656,7 +664,7 @@ def alignOneParticleWrapper(particle, reference, referenceWeighting=None, rotati
     @rtype: L{pytom.alignment.structures.Peak}
     @author: FF
     """
-    from pytom.score.score import fromXMLFile
+    from pytom.basic.score import fromXMLFile
     from pytom.angles.angle import AngleObject
     from pytom.basic.structures import Mask, Particle
 
@@ -710,7 +718,7 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
     from pytom.basic.structures import Particle, Reference, Mask, Wedge, WedgeInfo
     from pytom.angles.angleList import AngleList
     from pytom.alignment.alignmentFunctions import bestAlignment
-    from pytom.score.score import Score
+    from pytom.basic.score import Score
     from pytom.alignment.preprocessing import Preprocessing
     from pytom.angles.angleFnc import differenceAngleOfTwoRotations
     from time import time
@@ -795,8 +803,8 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     print(f'Device = {device}')
     if 'gpu' in device:
         from pytom.bin.average import averageGPU2 as average
-        from pytom.tompy.structures import Reference
-        from pytom.tompy.io import read, write
+        from pytom.agnostic.structures import Reference
+        from pytom.agnostic.io import read, write
 
         print('Averaging volumes on gpu.')
 
@@ -841,8 +849,8 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
 
 
     if 'gpu' in device:
-        from pytom.tompy.tools import invert_WedgeSum
-        from pytom.tompy.filter import applyFourierFilter, bandpass
+        from pytom.agnostic.tools import invert_WedgeSum
+        from pytom.agnostic.filter import applyFourierFilter, bandpass
         write(f'{root}-PreWedge{ext}', unweiAv)
         write(f'{root}-WedgeSumUnscaled{ext}', wedgeSum)
         wedgeSum = invert_WedgeSum(invol=wedgeSum, r_max=unweiAv.shape[0] / 2 - 2., lowlimit=.05 * len(particleList),

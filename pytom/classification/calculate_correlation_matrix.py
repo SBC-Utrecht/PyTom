@@ -77,9 +77,9 @@ class CMWorkerGPU():
         from pytom.basic.correlation import nxcc
         from pytom.basic.structures import Rotation
         from pytom.tools.ProgressBar import FixedProgBar
-        from pytom.tompy.transform import fourier_reduced2full
-        from pytom.tompy.io import read
-        from pytom.tompy.tools import create_sphere
+        from pytom.agnostic.transform import fourier_reduced2full
+        from pytom.agnostic.io import read
+        from pytom.agnostic.tools import create_sphere
         from pytom.gpu.gpuStructures import CCCPlan
 
         while True:

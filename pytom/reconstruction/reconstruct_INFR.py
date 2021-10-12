@@ -50,7 +50,7 @@ if __name__ == '__main__':
     metafile = '' if metafile is None or not os.path.exists(metafile) else metafile
 
     # start reconstruction
-    from pytom.tompy.io import read, write
+    from pytom.agnostic.io import read, write
     from nufft.reconstruction import fourier_2d1d_iter_reconstruct
     from pytom.reconstruction.reconstructionStructures import ProjectionList
     projections = ProjectionList()

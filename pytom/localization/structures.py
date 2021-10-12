@@ -222,7 +222,7 @@ class FoundParticle(PyTomClass):
             main = main[0]
             
         from pytom.basic.structures import PickPosition, Rotation
-        from pytom.score.score import fromXML as fromXMLScore
+        from pytom.basic.score import fromXML as fromXMLScore
         
         self.filename = main.get('Filename')
         

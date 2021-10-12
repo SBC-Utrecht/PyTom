@@ -20,7 +20,8 @@
 #                    resVol.setV(newVol.getV(i,j,k), i,j,k)
 #                    orientVol.setV(index, i,j,k)
     
-def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, **kwargs):
+def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, debug=False,
+                 **kwargs):
     '''
     Created on May 17, 2010
     @param volume: target volume
@@ -106,14 +107,18 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     while currentRotation != [None,None,None]:
         if verbose == True:
             prog.update(index)
-        
+        from pytom.basic.files import read
         # rotate the reference
         ref = vol(reference.sizeX(),reference.sizeY(),reference.sizeZ())
         rotate(reference, ref, currentRotation[0], currentRotation[1], currentRotation[2])
 
+        if debug: ref.write('rot_cpu.em')
+
         # apply wedge
         if wedgeInfo.__class__ == WedgeInfo or wedgeInfo.__class__ == Wedge:
             ref = wedgeInfo.apply(ref)
+
+        if debug: ref.write('wedge_rot_cpu.em')
 
         # rotate the mask if it is asymmetric
         if scoreFnc == FLCF:
@@ -135,11 +140,11 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
             from pytom_volume import sum
             p = sum(m);
             from pytom.basic.correlation import meanUnderMask, stdUnderMask
-            meanV = meanUnderMask(volume, maskV, p);
-            stdV = stdUnderMask(volume, maskV, p, meanV);
-
-
-
+            meanV = meanUnderMask(volume, maskV, p)
+            stdV = stdUnderMask(volume, maskV, p, meanV)
+            if debug:
+                volume.write('volume_cpu.mrc')
+                meanV.write('meanV_cpu.mrc')
 
 
         if scoreFnc == FLCF:
@@ -153,6 +158,8 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
             pasteCenter(ref, _ref)
             
             score = scoreFnc(volume, _ref)
+
+        if debug: score.write('cmap_cpu2.mrc')
 
         # update the result volume and the orientation volume
         updateResFromIdx(result, score, orientation, index)
@@ -220,8 +227,8 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     '''
 
     from pytom_numpy import vol2npy
-    from pytom.tompy.filter import create_wedge, applyFourierFilter
-    from pytom.tompy.io import write
+    from pytom.agnostic.filter import create_wedge, applyFourierFilter
+    from pytom.agnostic.io import write
     from pytom.gpu.gpuStructures import TemplateMatchingGPU
     from pytom.tools.calcFactors import calc_fast_gpu_dimensions
     import time
@@ -253,10 +260,13 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
         wedge = create_wedge(w1, w2, cutoff, sx, sy, sz, smooth).astype(np.complex64).get()
 
         wedgeVolume = create_wedge(w1, w2, (SX//2)-1, SX, SY, SZ, smooth).astype(np.float32)
+
+        # wedgec = vol2npy(wedgeInfo.returnWedgeVolume(SX,SY,SZ)).copy()
         #wedgeVolume2 = create_structured_wedge(xp.arange(-w2,w1,2), w2, (SX//2)-2, SX, SY, SZ, smooth).astype(np.float32)
 
-        #write('/data/gijsvds/Benchmark/Images/ww.mrc', wedgeVolume2)
-        volume = np.real(np.fft.irfftn(np.fft.rfftn(volume)* wedgeVolume.get()))
+        volume = np.real(np.fft.irfftn(np.fft.rfftn(volume)* wedgeVolume.get()))#Volume.get()))
+
+        # volume = np.real(np.fft.irfftn(np.fft.rfftn(volume)* wedgeVolume.get()))
         del wedgeVolume
         #del wedgeVolume2
         print('Wedge applied to volume')
@@ -265,7 +275,7 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
 
     scrs = np.zeros_like(volume,dtype=np.float32)
 
-    padding=False
+
 
     if padding:
         dimx, dimy, dimz = volume.shape

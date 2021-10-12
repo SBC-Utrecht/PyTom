@@ -66,6 +66,7 @@ def rotation_matrix(rotation: Union[Tuple[float, float, float], np.ndarray],
     # Matrix assembly
     m = np.identity(4, dtype=dtype)
 
+
     if repetition:
         m[i, i] = cj
         m[i, j] = sj*si
@@ -134,6 +135,11 @@ def transform_matrix(scale: Union[Tuple[float, float, float], np.ndarray] = None
     if center is not None:
         m = np.dot(m, translation_matrix(tuple(-1 * i for i in center), dtype))
 
+
+    # Second translation applied after all other transformations
+    if not (translation2 is None):
+        m = np.dot(m, translation_matrix(translation2, dtype))
+
     # Rotation
     if rotation is not None:
         m = np.dot(m, rotation_matrix(rotation, rotation_units, rotation_order, dtype))
@@ -154,11 +160,35 @@ def transform_matrix(scale: Union[Tuple[float, float, float], np.ndarray] = None
     if center is not None:
         m = np.dot(m, translation_matrix(center, dtype))
 
-    # Second translation applied after all other transformations
-    if not (translation2 is None):
-        m = np.dot(m, translation_matrix(translation2, dtype))
 
     # Keep it homogeneous
+    m /= m[3, 3]
+
+    return m
+
+
+def custom_matrix(transforms: list = None,
+                  center: Union[Tuple[float,float,float], np.ndarray] = None,
+                  dtype: np.dtype = np.float32) -> np.ndarray:
+
+    matrix_dict = {'R': rotation_matrix, 'T': translation_matrix, 'S': scale_matrix, 'H': shear_matrix}
+
+    m = np.identity(4, dtype=dtype)
+
+    if transforms is None:
+        return m
+
+    # Post-translation
+    if center is not None:
+        m = np.dot(m, translation_matrix(tuple(-1 * i for i in center), dtype))
+
+    for (type, args) in transforms:
+        m = np.dot(m, matrix_dict[type](*args))
+
+    # Pre-translation
+    if center is not None:
+        m = np.dot(m, translation_matrix(center, dtype))
+
     m /= m[3, 3]
 
     return m

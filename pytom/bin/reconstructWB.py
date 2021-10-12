@@ -44,6 +44,8 @@ if __name__ == '__main__':
                                              optional=True),
                                 ScriptOption(['--particlePolishResultFile'], 'Supply a particle polish result file.',
                                              arg=True, optional=True),
+                                ScriptOption(['--ctfCorrectionCenter'], 'What is the z-height of the reference center.',
+                                             arg=True, optional=True),
                                 ScriptOption(['--gpuID'], 'Which GPUs do you want to use?', arg=True, optional=True),
                                 ScriptOption(['--help'], 'Print this help.', arg=False, optional=True)])
     
@@ -57,7 +59,8 @@ if __name__ == '__main__':
     
     try:
         tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, \
-        recOffset, projBinning, metafile, numProcesses, alignResultFile, scaleFactorParticle, particlePolishResultFile, gpuIDs,  help = \
+        recOffset, projBinning, metafile, numProcesses, alignResultFile, scaleFactorParticle, particlePolishResultFile,\
+        ctfcenter, gpuIDs,  help = \
             parse_script_options(sys.argv[1:], helper)
     
     except Exception as e:
@@ -139,7 +142,7 @@ if __name__ == '__main__':
             sy = tmp.getYSize()
         except:
             from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS
-            from pytom.tompy.io import read_size
+            from pytom.agnostic.io import read_size
             from pytom.gui.guiFunctions import loadstar
 
             lar = loadstar(alignResultFile, dtype=DATATYPE_ALIGNMENT_RESULTS)
@@ -175,18 +178,18 @@ if __name__ == '__main__':
             y = (pickPosition.getY()*coordinateBinning+ recOffset[1])
             z = (pickPosition.getZ()*coordinateBinning+ recOffset[2])
 
-            if abs(scaleFactorParticle-1) > 0.000001:
-                x = x * float(scaleFactorParticle)
-                y = y * float(scaleFactorParticle)
-                z = z-80# * float(scaleFactorParticle)
+            # if abs(scaleFactorParticle-1) > 0.000001:
+            #     x = x * float(scaleFactorParticle)
+            #     y = y * float(scaleFactorParticle)
+            #     z = z # * float(scaleFactorParticle)
 
             particle.setPickPosition( PickPosition(x=x, y=y, z=z))
 
         #print(particlePolishResultFile)
 
-        projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \
-                                       binning=projBinning, applyWeighting = aw, \
-                                       showProgressBar = True,verbose=False, \
+        projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]),
+                                       binning=projBinning, applyWeighting = aw,
+                                       showProgressBar = True,verbose=False,
                                        preScale=projBinning,postScale=1, num_procs=numProcesses,
                                        alignResultFile=alignResultFile, polishResultFile=particlePolishResultFile,
                                        scaleFactorParticle=scaleFactorParticle, gpuIDs=gpuIDs)

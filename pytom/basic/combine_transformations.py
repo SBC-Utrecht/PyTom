@@ -20,8 +20,8 @@ position, for this it also needs the 3d rotation of the particle.
 import numpy as np
 
 def test(index=0):
-    from pytom.tompy.io import read
-    from pytom.tompy.transform import rotate3d
+    from pytom.agnostic.io import read
+    from pytom.agnostic.transform import rotate3d
 
     path_raw_projection = "/data2/dschulte/BachelorThesis/Data/VPP2/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_29.em"
     path_aligned_projection = "/data2/dschulte/BachelorThesis/Data/VPP2/03_Tomographic_Reconstruction/tomogram_000/alignment/marker_0001_-60.0,60.0/sorted_aligned_30.em"
