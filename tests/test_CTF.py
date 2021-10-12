@@ -51,7 +51,7 @@ class CTFTest(unittest.TestCase):
             'ast_angle':            self.ast_angle_deg,
             'msdz':                 5e-9,
             'camera_type':          'K2SUMMIT',
-            'camera_folder':        '../simulation/detectors',
+            'camera_folder':        '../pytom/simulation/detectors',
         }
 
     def tearDown(self):

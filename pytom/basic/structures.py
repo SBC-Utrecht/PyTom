@@ -1780,7 +1780,7 @@ class Particle(PyTomClass):
         @type scoreValue: L{float}
         """
         if not hasattr(self, '_score'):
-            from pytom.score.score import Score
+            from pytom.basic.score import Score
             # set dummy score for particles
             dumscore = Score()
             dumscore.ctor()
