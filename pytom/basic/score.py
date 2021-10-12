@@ -44,7 +44,7 @@ def weightedCoefficient(self,volume,reference,mask=None,stdV=None):
     
     return resFunction
 
-def peakCoef(self,volume,reference,mask=None):
+def peakCoef(self, volume, reference, mask=None):
     """
     peakCoef: Determines the coefficient of the scoring function.
     @param volume: A volume.
@@ -177,7 +177,7 @@ class Score:
     @author: Thomas Hrabe
     G{classtree}
     """
-    def ctor(self,scoringFunction = 0,scoringCoefficient = 0,scoringCriterion = 0,scoreValue=[], removeAutocorr=False):
+    def ctor(self, scoringFunction = 0,scoringCoefficient = 0,scoringCriterion = 0,scoreValue=[], removeAutocorr=False):
         """
         ctor : The constructor of this class
         @param scoringFunction: Will be assigned to self.scoringFunction - the true scoring function (XCF,nXCF,FLCF...)
@@ -198,7 +198,7 @@ class Score:
         self.setRemoveAutocorrelation( flag=removeAutocorr)
         self._type = 'undefined'
         
-    def score(self,particle,reference,mask=None,stdV=None):
+    def score(self, particle, reference, mask=None,stdV=None):
         """
         returns weighted Coefficient
         @param volume: A volume.
@@ -211,7 +211,7 @@ class Score:
         @type stdV: L{pytom_volume.vol}
         @return: The highest coefficient determined.
         """
-        return self.weightedCoefficient(self,particle,reference,mask,stdV)
+        return self.weightedCoefficient(self, particle, reference, mask, stdV)
         
     def getScoreFunc(self):
         """
@@ -453,16 +453,17 @@ class FLCFScore(Score):
     FLCFScore: Uses the FLCF correlation function for scoring
     @author: Thomas Hrabe
     """
-    # coefFnc = peakCoef
+
     def __init__(self,value=None):
         """
         __init__ : Assigns the fast local correlation as scoringFunction, peakCoef as scoringCoefficient and Vol_G_Val as scoringCriterion
         @param value: Current value of score
         """
         from pytom.basic.correlation import FLCF
-        from pytom.basic.score import peakCoef
+        from types import MethodType
 
-        self.ctor(FLCF, peakCoef, Vol_G_Val)
+        self.coefFnc = MethodType(peakCoef, self)
+        self.ctor(FLCF, self.coefFnc, Vol_G_Val)
         self._type = 'FLCFScore'
         
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):
