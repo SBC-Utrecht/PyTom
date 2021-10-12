@@ -59,7 +59,7 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
 
         #noisy.write( fname)
         p = Particle(filename=fname, rotation=rot, shift=shift, wedge=wedge,
-                     className=0, pickPosition=None, score=score, infoGUI=None)
+                     className=0, pickPosition=None, score=score(), infoGUI=None)
         p.setScoreValue(0.0)
 
         wg = p.getWedge().getWedgeObject()

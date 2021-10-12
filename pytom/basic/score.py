@@ -227,7 +227,7 @@ class Score:
         """
         return self.scoreValue
         
-    def setValue(self,value):
+    def setValue(self, value):
         """
         setValue: Sets score value determined by this scoring object.
         @param value:  The value.
@@ -454,16 +454,14 @@ class FLCFScore(Score):
     @author: Thomas Hrabe
     """
 
-    def __init__(self,value=None):
+    def __init__(self,value=None, coefFnc=peakCoef):
         """
         __init__ : Assigns the fast local correlation as scoringFunction, peakCoef as scoringCoefficient and Vol_G_Val as scoringCriterion
         @param value: Current value of score
         """
         from pytom.basic.correlation import FLCF
-        from types import MethodType
 
-        self.coefFnc = MethodType(peakCoef, self)
-        self.ctor(FLCF, self.coefFnc, Vol_G_Val)
+        self.ctor(FLCF, coefFnc, Vol_G_Val)
         self._type = 'FLCFScore'
         
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):

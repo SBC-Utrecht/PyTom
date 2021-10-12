@@ -85,7 +85,7 @@ class pytom_ScoreTest(unittest.TestCase):
         # check auto-correlation coefficient
         c  = sc.scoringCoefficient( self.s, self.s)
         self.assertAlmostEqual( first=c,  second=1., places=5, 
-             msg='SocScore: Auto-correlation not == 1')
+             msg='FLCFScore: Auto-correlation not == 1')
         # consistency of scoring coefficient and scoring function - difference 
         # due to sub-pixel accuracy for score
         c  = sc.scoringCoefficient( self.s, self.v)
