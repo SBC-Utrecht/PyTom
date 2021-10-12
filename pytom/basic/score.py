@@ -454,14 +454,14 @@ class FLCFScore(Score):
     @author: Thomas Hrabe
     """
 
-    def __init__(self,value=None, coefFnc=peakCoef):
+    def __init__(self,value=None):
         """
         __init__ : Assigns the fast local correlation as scoringFunction, peakCoef as scoringCoefficient and Vol_G_Val as scoringCriterion
         @param value: Current value of score
         """
         from pytom.basic.correlation import FLCF
 
-        self.ctor(FLCF, coefFnc, Vol_G_Val)
+        self.ctor(FLCF, self.coefFnc, Vol_G_Val)
         self._type = 'FLCFScore'
         
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):
@@ -473,6 +473,39 @@ class FLCFScore(Score):
     def getWorstValue(self):
         return -10000000000
 
+    def coefFnc(self, volume, reference, mask=None):
+        """
+        peakCoef: Determines the coefficient of the scoring function.
+        @param volume: A volume.
+        @type volume: L{pytom_volume.vol}
+        @param reference: A reference.
+        @type reference: L{pytom_volume.vol}
+        @return: The highest coefficient determined.
+        @author: Thomas Hrabe, FF
+        """
+        from pytom_volume import peak
+        from pytom.tools.maths import euclidianDistance
+        from pytom.basic.correlation import subPixelPeak
+
+        if mask is None:
+            resFunction = self.scoringFunction(volume, reference)
+        else:
+            resFunction = self.scoringFunction(volume, reference, mask)
+
+        # change FF: 07.01.2020
+        # centerX = resFunction.sizeX()//2 -1
+        # centerY = resFunction.sizeY()//2 -1
+        # centerZ = resFunction.sizeZ()//2 -1
+
+        pcoarse = peak(resFunction)
+
+        p = subPixelPeak(scoreVolume=resFunction, coordinates=pcoarse)
+        # p = subPixelPeak(scoreVolume=resFunction, coordinates=[centerX,centerY,centerZ])
+
+        # if euclidianDistance([centerX,centerY,centerZ],p[1]) <= 1.4142135623730951:
+        #    c = p[0]
+
+        return p[0]
 
 def wXCCWrapper(self,volume,reference,mask=None):
     from pytom.basic.correlation import weightedXCC
