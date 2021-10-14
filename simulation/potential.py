@@ -1,9 +1,128 @@
 #!/usr/bin/env pytom
 
-import numpy as xp
-import math
+from pytom.gpu.initialize import xp, device
 import pytom.simulation.physics as physics
 import os, sys
+
+
+# // Leave this part out for now....
+# // if atom in list(physics.volume_displaced):
+# //     r_0 = xp.cbrt(physics.volume_displaced[atom] / (xp.pi ** (3 / 2)))
+# // else:  # If not H,C,O,N we assume the same volume displacement as for carbon
+# //     r_0 = xp.cbrt(physics.volume_displaced['C'] / (xp.pi ** (3 / 2)))
+#
+# // N should be len(atoms) // 3
+# // <<<N/TPB, TPB>>>
+#
+# // #include "math.h"  => can probably be skipped as cupy math.h probably includes erf()
+
+iasa_integrate_text = '''
+#define M_PI 3.141592654
+
+extern "C" __global__ 
+void iasa_integrate(float *atoms, unsigned char *elements, float *b_factors, float *occupancies, 
+                    float *potential, unsigned int *potential_dims, float *scattering_factors, 
+                    float voxel_size, unsigned int n_atoms) {
+        
+    // get the atom index                                                                                                                                      
+    unsigned int i = (blockIdx.x*(blockDim.x) + threadIdx.x); // correct for each atom having 3 coordinates
+        
+    if (i < n_atoms) {
+        
+        unsigned int j, l, m, n, potent_idx;
+        int3 ind_min, ind_max;
+        float atom_voxel_pot, sqrt_b, pi2_sqrt_b, pi2, sqrt_pi, factor3;
+        float integral_x, integral_y, integral_z, integral_voxel;
+        float3 atom, voxel_bound_min, voxel_bound_max;
+    
+        // get all the atom information
+        atom.x = atoms[(i * 3) + 0];
+        atom.y = atoms[(i * 3) + 1];
+        atom.z = atoms[(i * 3) + 2];
+        int elem = elements[i];  // its much easier if elements are ints, because dict wont work in C
+        float b_factor = b_factors[i];
+        float occupancy = occupancies[i];
+        
+        // if I uncomment this the values at the end change
+        //if (i % blockDim.x == 0) {
+        //    printf("%d ", elem);
+        //};
+        
+        // scattering factors for this atom
+        float *a = &scattering_factors[elem * 10];
+        float *b = &scattering_factors[elem * 10 + 5];
+        
+        // find the max radius over all gaussians with a certain cutoff
+        float r2 = 0;
+        for (j = 0; j < 5; j++) {
+            r2 = max(r2, 15 / (4 * M_PI * M_PI / b[j]));
+        };
+        float r = sqrt(r2 / 3);
+        
+        // set indices in potential box
+        ind_min.x = (int)floor((atom.x - r) / voxel_size); // use floor and int casting for explicitness
+        ind_max.x = (int)floor((atom.x + r) / voxel_size);
+        ind_min.y = (int)floor((atom.y - r) / voxel_size);
+        ind_max.y = (int)floor((atom.y + r) / voxel_size);
+        ind_min.z = (int)floor((atom.z - r) / voxel_size);
+        ind_max.z = (int)floor((atom.z + r) / voxel_size);
+        
+        // enforce ind_min can never be smaller than 0 and ind_max can never be larger than potential_dims
+        // ind min should also always be smaller than the dims...
+        ind_min.x = ((ind_min.x >= 0) ? ind_min.x : 0);
+        ind_max.x = ((ind_max.x < potential_dims[0]) ? ind_max.x : potential_dims[0]);
+        ind_min.y = ((ind_min.y >= 0) ? ind_min.y : 0);
+        ind_max.y = ((ind_max.y < potential_dims[1]) ? ind_max.y : potential_dims[1]);
+        ind_min.z = ((ind_min.z >= 0) ? ind_min.z : 0);
+        ind_max.z = ((ind_max.z < potential_dims[2]) ? ind_max.z : potential_dims[2]);
+        
+        // precalc sqrt of pi
+        sqrt_pi = sqrt(M_PI);
+        // two times pi
+        pi2 = 2 * M_PI;
+        // loop over coordinates where this atom is present
+        for (l = ind_min.x; l < ind_max.x; l++) {
+        
+            voxel_bound_min.x = l * voxel_size - atom.x;
+            voxel_bound_max.x = (l + 1) * voxel_size - atom.x;
+            
+            for (m = ind_min.y; m < ind_max.y; m++) {
+            
+                voxel_bound_min.y = m * voxel_size - atom.y;
+                voxel_bound_max.y = (m + 1) * voxel_size - atom.y;
+                
+                for (n = ind_min.z; n < ind_max.z; n++) {
+                
+                    voxel_bound_min.z = n * voxel_size - atom.z;
+                    voxel_bound_max.z = (n + 1) * voxel_size - atom.z;
+                    
+                    atom_voxel_pot = 0;
+                    
+                    for (j = 0; j < 5; j++) {
+                        sqrt_b = sqrt(b[j]);
+                        pi2_sqrt_b = pi2 / sqrt_b;
+                        factor3 = pow(sqrt_b / (4 * sqrt_pi), 3);
+                        
+                        integral_x = (erf(voxel_bound_max.x * pi2_sqrt_b) - erf(voxel_bound_min.x * pi2_sqrt_b));
+                        integral_y = (erf(voxel_bound_max.y * pi2_sqrt_b) - erf(voxel_bound_min.y * pi2_sqrt_b));
+                        integral_z = (erf(voxel_bound_max.z * pi2_sqrt_b) - erf(voxel_bound_min.z * pi2_sqrt_b));
+                        integral_voxel = integral_x * integral_y * integral_z * factor3;
+                        
+                        atom_voxel_pot += (a[j] / pow(b[j], (float)3 / 2)) * integral_voxel;
+                    };
+                    
+                    // if (i % blockDim.x == 0) {
+                    //     printf("%f ", atom_voxel_pot);
+                    // };
+                    
+                    potent_idx = l * potential_dims[1] * potential_dims[2] + m * potential_dims[2] + n;
+                    atomicAdd( potential + potent_idx, atom_voxel_pot );
+                };
+            };
+        };
+    };
+};
+'''
 
 
 def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=False, interpolation='filt_bspline'):
@@ -786,6 +905,182 @@ def iasa_integration_parallel(filepath, voxel_size=1., oversampling=1, solvent_e
         return real
 
 
+def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclusion=None,
+                     V_sol=physics.V_WATER, absorption_contrast=False, voltage=300E3, density=physics.PROTEIN_DENSITY,
+                     molecular_weight=physics.PROTEIN_MW, structure_tuple=None, gpu_id=0):
+    """
+    Calculates interaction potential map to 1 A volume as described initially by Rullgard et al. (2011) in TEM
+    simulator, but adapted from matlab InSilicoTEM from Vulovic et al. (2013). This function applies averaging of
+    the potential over the voxels to obtain precise results without oversampling.
+
+    @param filepath: full filepath to pdb file
+    @type  filepath: L{string}
+    @param voxel_size: size of voxel in output map, default 1 A
+    @type  voxel_size: L{float}
+    @param oversampling: number of times to oversample final voxel size
+    @type  oversampling: L{int}
+    @param solvent_exclusion: flag to execute solvent exclusion using gaussian spheres. Solvent exclusion can be set
+    with a string, either 'gaussian' or 'masking'. Default is None.
+    @type  solvent_exclusion: L{str}
+    @param solvent_masking: flag to do solvent exclusion using smoothed occupation mask (considered more accurate)
+    @type  solvent_masking: L{bool}
+    @param V_sol: average solvent background potential (V/A^3)
+    @type  V_sol: L{float}
+    @param absorption_contrast: flag to generate absorption factor for imaginary part of potential
+    @type  absorption_contrast: L{bool}
+    @param voltage: electron beam voltage, absorption factor depends on voltage, default 300e3
+    @type  voltage: L{float}
+    @param density: average density of molecule that is generated, default 1.35 (protein)
+    @type  density: L{float}
+    @param molecular_weight: average molecular weight of the molecule that is generated, default protein MW
+    @type  molecular_weight: L{float}
+    @param structure_tuple: structure information as a tuple (x_coordinates, y_coordinates, z_coordinates, elements,
+    b_factors, occupancies), if provided this overrides file reading
+    @type  structure_tuple: L{tuple} - (L{list},) * 6 with types (float, float, float, str, float, float)
+
+    @return: A volume with interaction potentials, either tuple of (real, imag) or single real, both real and imag
+    are 3d arrays.
+    @rtype: L{tuple} -> (L{np.ndarray},) * 2 or L{np.ndarray}
+
+    @author: Marten Chaillet
+
+    TODO function now takes string for solvent ex, and output complex volume instead of tuple, but this needs to be
+    TODO taken care of in all scripts that call this function.
+    """
+    from pytom.tompy.transform import resize
+    from pytom.simulation.support import reduce_resolution_fourier
+
+    if (absorption_contrast) or (solvent_exclusion in ['gaussian', 'masking']) or (oversampling != 1):
+        print('abs contrast, gaussian/masking solvent_exclusion, and oversampling still need to be implement for gpu')
+        sys.exit(0)
+
+    # cp set device ...
+    xp.cuda.Device(gpu_id).use()
+
+    assert (type(oversampling) is int) and (oversampling >= 1), print('oversampling parameter is not an integer')
+
+    if structure_tuple is None:
+        print(f' - Calculating IASA potential from {filepath}')
+        x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(filepath)
+    else:
+        print(f' - Calculating IASA potential from structure tuple')
+        x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = structure_tuple
+
+    # fix voxel size by oversampling
+    if oversampling > 1:
+        voxel_size /= oversampling
+    # extend volume by 30 A in all directions to
+    extra_space = 30
+    # dV volume of a single voxel, needed for integration
+    dV = voxel_size ** 3
+    # conversion of electrostatic potential to correct units
+    C = 4 * xp.sqrt(xp.pi) * physics.constants['h'] ** 2 / (
+            physics.constants['el'] * physics.constants['me']) * 1E20  # angstrom**2
+
+    # setup easier gpu indexing for scattering factors
+    scattering = xp.array([v["g"] for k, v in physics.scattering_factors.items()], dtype=xp.float32)
+    map_element_to_id = {k: i for i, k in enumerate(physics.scattering_factors.keys())}
+
+    # move to gpu
+    atoms = xp.ascontiguousarray(xp.array([x_coordinates, y_coordinates, z_coordinates]).T, dtype=xp.float32)
+    n_atoms = atoms.shape[0]
+    elements = xp.array([map_element_to_id[e] for e in elements], dtype=xp.uint8)
+    b_factors = xp.array(b_factors, dtype=xp.float32)
+    occupancies = xp.array(occupancies, dtype=xp.float32)
+
+    # make coordinates start from origin
+    x_max = xp.max(atoms[:, 0] - xp.min(atoms[:, 0]))
+    y_max = xp.max(atoms[:, 1] - xp.min(atoms[:, 1]))
+    z_max = xp.max(atoms[:, 2] - xp.min(atoms[:, 2]))
+    dimensions = (x_max, y_max, z_max)
+
+    # give some extra space for atoms at the edges
+    atoms[:, 0] += (- xp.min(atoms[:, 0]) + extra_space)  # + difference[0] / 2
+    atoms[:, 1] += (- xp.min(atoms[:, 1]) + extra_space)  # + difference[1] / 2
+    atoms[:, 2] += (- xp.min(atoms[:, 2]) + extra_space)  # + difference[2] / 2
+    # Define the volume of the protein
+    sz_potential = tuple([int((d + 2 * extra_space) / voxel_size) for d in dimensions])
+    sz_potential_gpu = xp.array(sz_potential, dtype=xp.uint32)
+    sz_final = (max(sz_potential),) * 3
+    difference = tuple([a - b for a, b in zip(sz_final, sz_potential)])
+
+    # initiate the final volume
+    potential = xp.zeros(sz_potential, dtype=xp.float32)
+
+    # create kernel
+    n_threads = 1024
+    n_blocks = int(xp.ceil(atoms.shape[0] / n_threads).get())
+    iasa_integrate = xp.RawKernel(iasa_integrate_text, 'iasa_integrate')
+    iasa_integrate((n_blocks, 1, 1,), (n_threads, 1, 1), (atoms, elements, b_factors, occupancies, potential,
+                                                          sz_potential_gpu, scattering, xp.float32(voxel_size),
+                                                          xp.uint32(n_atoms)))
+
+    # convert potential to correct units and correct for solvent exclusion
+    if solvent_exclusion == 'gaussian':
+        # Correct for solvent and convert both the solvent and potential array to the correct units.
+        real = (potential * (C / dV)) - (solvent / dV * V_sol)
+    elif solvent_exclusion == 'masking':  # only if voxel size is small enough for accurate determination of mask
+        solvent_mask = (potential > 1E-5) * 1.0
+        # construct solvent mask
+        # gaussian decay of mask
+        if oversampling == 1:
+            smoothed_mask = reduce_resolution_fourier(solvent_mask, voxel_size, voxel_size * 2)
+            smoothed_mask[smoothed_mask < 0.001] = 0
+            solvent_mask = smoothed_mask
+        # subtract solvent from the protein electrostatic potential
+        real = (potential * (C / dV)) - (solvent_mask * V_sol)
+    else:
+        real = potential * (C / dV)
+
+    # determine absorption contrast if set
+    if absorption_contrast:
+        # voltage by default 300 keV
+        molecule_absorption = physics.potential_amplitude(density, molecular_weight, voltage)
+        solvent_absorption = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY,
+                                                         physics.WATER_MW, voltage) * (V_sol / physics.V_WATER)
+        print('Calculating absorption contrast')
+        print(f'Molecule absorption = {molecule_absorption:.3f}')
+        print(f'Solvent absorption = {solvent_absorption:.3f}')
+
+        if solvent_exclusion == 'masking':
+            imaginary = solvent_mask * (molecule_absorption - solvent_absorption)
+        elif solvent_exclusion == 'gaussian':
+            imaginary = solvent / dV * (molecule_absorption - solvent_absorption)
+        else:
+            print('ERROR: Absorption contrast cannot be generated if solvent exclusion is not set to either gaussian '
+                  'or masking.')
+            sys.exit(0)
+
+        real = xp.pad(real, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
+                             (difference[1] // 2, difference[1] // 2 + difference[1] % 2),
+                             (difference[2] // 2, difference[2] // 2 + difference[2] % 2)),
+                      mode='constant', constant_values=0)
+        imaginary = xp.pad(imaginary, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
+                             (difference[1] // 2, difference[1] // 2 + difference[1] % 2),
+                             (difference[2] // 2, difference[2] // 2 + difference[2] % 2)),
+                           mode='constant', constant_values=0)
+
+        if oversampling > 1:
+            print('Rescaling after oversampling')
+            real = reduce_resolution_fourier(real, voxel_size, voxel_size * 2 * oversampling)
+            # TODO Bug with resizing!!
+            real = resize(real, 1 / oversampling, interpolation='Spline')
+            imaginary = resize(reduce_resolution_fourier(imaginary, voxel_size, voxel_size * 2 * oversampling),
+                               1 / oversampling, interpolation='Spline')
+        return real + 1j * imaginary
+    else:
+        # extend volume to a box
+        real = xp.pad(real, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
+                             (difference[1] // 2, difference[1] // 2 + difference[1] % 2),
+                             (difference[2] // 2, difference[2] // 2 + difference[2] % 2)),
+                      mode='constant', constant_values=0)
+        if oversampling > 1:
+            print('Rescaling after oversampling')
+            real = resize(reduce_resolution_fourier(real, voxel_size, voxel_size * 2 * oversampling),
+                          1 / oversampling, interpolation='Spline')
+        return real
+
+
 # TODO possibly use jit from numba to speed up this function
 def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=False, solvent_masking=False,
                      V_sol=physics.V_WATER, absorption_contrast=False, voltage=300E3, density=physics.PROTEIN_DENSITY,
@@ -1335,8 +1630,9 @@ def combine_potential(potential1, potential2):
     return potential1_ext, potential2_ext, potential_combined
 
 
-def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=None, exclude_solvent=False, solvent_masking=False,
-            solvent_potential=physics.V_WATER, absorption_contrast=False, voltage=300E3, solvent_factor=1.0):
+def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=1, solvent_exclusion=None,
+            solvent_potential=physics.V_WATER, absorption_contrast=False, voltage=300E3, solvent_factor=1.0, cores=1,
+            gpu_id=None):
     """
     Execution of generating an electrostatic potential (and absorption potential) from a pdb/cif file. Process
     includes preprocessing with chimera to add hydrogens and symmetry, then passing to IASA_intergration method to
@@ -1377,7 +1673,8 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=None, e
 
     # Id does not makes sense to apply absorption contrast if solvent exclusion is not turned on
     if absorption_contrast:
-        assert exclude_solvent or solvent_masking, print('absorption contrast can only be applied if solvent exclusion is used.')
+        assert solvent_exclusion is not None, print('absorption contrast can only be applied if solvent exclusion is '
+                                                    'used.')
 
     _, file = os.path.split(filepath)
     pdb_id, _ = os.path.splitext(file)
@@ -1400,29 +1697,37 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=None, e
     # 4 times oversampling of IASA yields accurate potentials
     # Could be {structure}.{extension}, but currently chimera is only able to produce .pdb files, so the extended
     # structure file created by call chimera has a .pdb extension.
-    v_atom = iasa_integration(filepath, voxel_size=voxel_size, oversampling=oversampling,
-                              solvent_exclusion=exclude_solvent, solvent_masking=solvent_masking, V_sol=solvent_potential * solvent_factor,
-                              absorption_contrast= absorption_contrast, voltage=voltage)
+    if gpu_id is not None:
+        v_atom = iasa_integration_gpu(filepath, voxel_size=voxel_size, oversampling=oversampling,
+                                  solvent_exclusion=solvent_exclusion,
+                                  V_sol=solvent_potential * solvent_factor, absorption_contrast=absorption_contrast,
+                                  voltage=voltage, gpu_id=gpu_id)
+    else:
+        v_atom = iasa_integration_parallel(filepath, voxel_size=voxel_size, oversampling=oversampling,
+                                  solvent_exclusion=solvent_exclusion,
+                                  V_sol=solvent_potential * solvent_factor, absorption_contrast= absorption_contrast,
+                                  voltage=voltage, cores=cores)
+
 
     # Absorption contrast map generated here will look blocky when generated at 2.5A and above!
-    if absorption_contrast:
+    if v_atom.dtype == complex:
         output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
         print(f'writing real and imaginary part with name {output_name}')
         write(os.path.join(output_folder, f'{output_name}_real.mrc'), v_atom.real)
         write(os.path.join(output_folder, f'{output_name}_imag_{voltage*1E-3:.0f}V.mrc'), v_atom.imag)
     else:
-        if exclude_solvent or solvent_masking:
+        if solvent_exclusion:
             output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
         else:
             output_name = f'{pdb_id}_{voxel_size:.2f}A'
         print(f'writing real part with name {output_name}')
         write(os.path.join(output_folder, f'{output_name}_real.mrc'), v_atom)
 
-    if binning is not None:
+    if binning > 1:
         # v_atom_binned = iasa_integration(f'{output_folder}/{structure}.pdb', voxel_size=voxel_size*binning,
         #                       solvent_exclusion=exclude_solvent, V_sol=solvent_potential)
         # first filter the volume!
-        if absorption_contrast:
+        if v_atom.dtype == complex:
             print(' - Binning volume')
             filtered = [reduce_resolution_fourier(v_atom.real, voxel_size, voxel_size * 2 * binning),
                         reduce_resolution_fourier(v_atom.imag, voxel_size, voxel_size * 2 * binning)]
@@ -1436,9 +1741,9 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=None, e
 
         else:
             print(' - Binning volume')
-            filtered = reduce_resolution_fourier(v_atom, voxel_size, voxel_size * 2 * binning)
+            filtered = reduce_resolution_fourier(v_atom, voxel_size, 2 * voxel_size * binning)
             binned = resize(filtered, 1/binning, interpolation='Spline')
-            if exclude_solvent or solvent_masking:
+            if solvent_exclusion:
                 output_name = f'{pdb_id}_{voxel_size*binning:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
             else:
                 output_name = f'{pdb_id}_{voxel_size*binning:.2f}A'
@@ -1448,80 +1753,56 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=None, e
 
 
 if __name__ == '__main__':
-    # parameters: folder, pdb_id, ph, voxel_size, resolution?
-
     # IN ORDER TO FUNCTION, SCRIPT REQUIRES INSTALLATION OF PYTOM (and dependencies), CHIMERA, PDB2PQR (modified), APBS
 
     import sys
-    from pytom.tools.script_helper import ScriptHelper, ScriptOption
-    from pytom.tools.parse_script_options import parse_script_options
+    from pytom.tools.script_helper import ScriptHelper2, ScriptOption2
+    from pytom.tools.parse_script_options import parse_script_options2
 
     # syntax is ScriptOption([short, long], description, requires argument, is optional)
-    options = [ScriptOption(['-f', '--file'], 'File path with protein structure, either pdb or cif.', True, False),
-               ScriptOption(['-d', '--destination'], 'Folder to store the files produced by potential.py.', True, False),
-               ScriptOption(['-s', '--spacing'], 'The size of the voxels of the output volume. 1A by default.', True, True),
-               ScriptOption(['-n', '--oversampling'], 'n times pixel size oversampling.', True, True),
-               ScriptOption(['-b', '--binning'], 'Number of times to bin. Additional storage of binned volume.', True, True),
-               ScriptOption(['-x', '--exclude_solvent'],
-                            'Whether to exclude solvent around each atom as a correction of the potential.', False, True),
-               ScriptOption(['-m', '--mask_solvent'], 'Whether to exclude solvent by masking.', False, True),
-               ScriptOption(['-p', '--solvent_potential'],
-                            f'Value for the solvent potential. By default amorphous ice, {physics.V_WATER} V.', True, True),
-               ScriptOption(['-c', '--percentile'], 'Multiplication for solvent potential and absorption contrast of '
+    helper = ScriptHelper2(
+        sys.argv[0].split('/')[-1],  # script name
+        description='Calculate electrostatic potential from protein structure file.\n Script has dependencies on '
+                    'pytom, chimera. (pdb2pqr apbs)',
+        authors='Marten Chaillet',
+        options=[ScriptOption2(['-f', '--file'], 'File path with protein structure, either pdb or cif.', 'file',
+                               'required'),
+               ScriptOption2(['-d', '--destination'], 'Folder to store the files produced by potential.py.',
+                             'directory', 'optional', './'),
+               ScriptOption2(['-s', '--spacing'], 'The size of the voxels of the output volume. 1A by default.',
+                             'float', 'required'),
+               ScriptOption2(['-n', '--oversampling'], 'n times pixel size oversampling.', 'int', 'optional', 1),
+               ScriptOption2(['-b', '--binning'], 'Number of times to bin. Additional storage of binned volume.',
+                             'int', 'optional', 1),
+               ScriptOption2(['-x', '--exclude_solvent'],
+                             'Whether to exclude solvent around each atom as a correction of the potential, '
+                             'either "gaussian" or "masking".', 'str',
+                             'optional'),
+               ScriptOption2(['-p', '--solvent_potential'],
+                             f'Value for the solvent potential. By default amorphous ice, {physics.V_WATER} V.',
+                             'float', 'optional', physics.V_WATER),
+               ScriptOption2(['-c', '--percentile'], 'Multiplication for solvent potential and absorption contrast of '
                                                     'solvent to decrease/increase contrast. Value between 0 and 3 (could'
-                                                    ' be higher but would not make sense).', True, True),
-               ScriptOption(['-a', '--absorption_contrast'],
-                            'Whether to add imaginary part of absorption contrast, can only be done if solvent'
-                            'is excluded.', False, True),
-               ScriptOption(['-v', '--voltage'],
-                            'Value for the electron acceleration voltage. Need for calculating the inelastic mean free '
-                            'path in case of absorption contrast calculation. By default 300 (keV).', True, True),
-               ScriptOption(['-h', '--help'], 'Help.', False, True)]
+                                                    ' be higher but would not make sense).', 'float', 'optional', 1),
+               ScriptOption2(['-a', '--absorption_contrast'],
+                             'Whether to add imaginary part of absorption contrast, can only be done if solvent'
+                             'is excluded.', 'no arguments', 'optional'),
+               ScriptOption2(['-v', '--voltage'],
+                             'Value for the electron acceleration voltage. Need for calculating the inelastic mean '
+                             'free '
+                             'path in case of absorption contrast calculation. By default 300 (keV).', 'float',
+                             'optional', 300),
+               ScriptOption2(['--cores'], 'Number of cpu cores to use for the calculation.', 'int', 'optional', 1),
+               ScriptOption2(['-g', '--gpuID'], 'GPU index to run the program on.', 'int', 'optional')])
 
-    helper = ScriptHelper(sys.argv[0].split('/')[-1], description='Calculate electrostatic potential from protein structure file.\n'
-                                                                  'Script has dependencies on pytom, chimera. (pdb2pqr apbs)',
-                          authors='Marten Chaillet', options=options)
+    options = parse_script_options2(sys.argv[1:], helper)
 
-    if len(sys.argv) == 2:
-        print(helper)
-        sys.exit()
-    try:
-        filepath, output_folder, voxel_size, oversampling, binning, exclude_solvent, solvent_masking, solvent_potential, \
-                    solvent_factor, absorption_contrast, voltage, help = parse_script_options(sys.argv[1:], helper)
-    except Exception as e:
-        print(e)
-        sys.exit()
-
-    if help:
-        print(helper)
-        sys.exit()
-
-    if not voxel_size: voxel_size=1
-    else: voxel_size = float(voxel_size)
-
-    if not oversampling: oversampling=1
-    else: oversampling = int(oversampling)
-
-    if not solvent_potential: solvent_potential = physics.V_WATER
-    else: solvent_potential = float(solvent_potential)
-
-    if not solvent_factor: solvent_factor = 1
-    else: solvent_factor = float(solvent_factor)
-
-    if not voltage: voltage = 300E3
-    else: voltage = float(voltage)*1E3 # value should be given in keV
-
-    if binning: binning = int(binning)
-
-    if not os.path.exists(filepath):
-        print('Protein structure file does not exist!')
-        sys.exit()
-    if not os.path.exists(output_folder):
-        print('Output folder does not exist!')
-        sys.exit()
+    filepath, output_folder, voxel_size, oversampling, binning, solvent_exclusion, solvent_potential, solvent_factor, \
+        absorption_contrast, voltage, cores, gpuID = options
 
     wrapper(filepath, output_folder, voxel_size, oversampling=oversampling, binning=binning,
-            exclude_solvent=exclude_solvent, solvent_masking=solvent_masking, solvent_potential=solvent_potential,
-            absorption_contrast=absorption_contrast, voltage=voltage, solvent_factor=solvent_factor)
+            solvent_exclusion=solvent_exclusion, solvent_potential=solvent_potential,
+            absorption_contrast=absorption_contrast, voltage=voltage, solvent_factor=solvent_factor, cores=cores,
+            gpu_id=gpuID)
 
 
