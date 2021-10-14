@@ -43,11 +43,6 @@ void iasa_integrate(float *atoms, unsigned char *elements, float *b_factors, flo
         float b_factor = b_factors[i];
         float occupancy = occupancies[i];
         
-        // if I uncomment this the values at the end change
-        //if (i % blockDim.x == 0) {
-        //    printf("%d ", elem);
-        //};
-        
         // scattering factors for this atom
         float *a = &scattering_factors[elem * 10];
         float *b = &scattering_factors[elem * 10 + 5];
@@ -96,6 +91,7 @@ void iasa_integrate(float *atoms, unsigned char *elements, float *b_factors, flo
                     voxel_bound_min.z = n * voxel_size - atom.z;
                     voxel_bound_max.z = (n + 1) * voxel_size - atom.z;
                     
+                    // initialize to zero for this voxel
                     atom_voxel_pot = 0;
                     
                     for (j = 0; j < 5; j++) {
@@ -110,10 +106,6 @@ void iasa_integrate(float *atoms, unsigned char *elements, float *b_factors, flo
                         
                         atom_voxel_pot += (a[j] / pow(b[j], (float)3 / 2)) * integral_voxel;
                     };
-                    
-                    // if (i % blockDim.x == 0) {
-                    //     printf("%f ", atom_voxel_pot);
-                    // };
                     
                     potent_idx = l * potential_dims[1] * potential_dims[2] + m * potential_dims[2] + n;
                     atomicAdd( potential + potent_idx, atom_voxel_pot );
