@@ -16,10 +16,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout repository with submodules
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Build docker image
         run: docker build -t pytom .
 
       - name: Run tests inside the container
-        run: docker run pytom pytom -m unittest discover
+        run: docker run -w /app/tests/ pytom pytom -m unittest discover
