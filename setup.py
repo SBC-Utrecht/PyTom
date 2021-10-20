@@ -21,7 +21,7 @@ condadir = '' if not os.path.exists(condadir) else condadir
 print(condadir)
 def find_executables():
     folder = 'pytom/bin'
-    a =  [f'{folder}/{e}' for e in os.listdir(folder) if os.path.isfile(f'{folder}/{e}') and not '__' in e]
+    a =  [f'{folder}/{e}' for e in os.listdir(folder) if os.path.isfile(f'{folder}/{e}') and not '__' in e] + ['pytom/bin/pytom', 'pytom/bin/ipytom', 'pytom/bin/pytomGUI']
     return a
 
 
