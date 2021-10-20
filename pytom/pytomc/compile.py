@@ -461,3 +461,8 @@ if os.path.isfile("../lib/_pytom_fftplan.so") \
     
     generateExecuteables(genexelibs, exePaths, genexeincl, python_version=pythonVersion)
 
+if minicondaDir:
+    print('link c-libs', os.getcwd(), minicondaDir)
+    os.system(f'cp lib/lib*.so {minicondaDir}/lib')
+    os.system(f'cp lib/_pytom*.so {minicondaDir}/lib/python3.8/site-packages/')
+    os.system(f'cp lib/*.py {minicondaDir}/lib/python3.8/site-packages/')
