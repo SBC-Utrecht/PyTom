@@ -114,7 +114,7 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
                    size=1024, thickness=200,
                    solvent_potential=physics.V_WATER, solvent_factor=1.0, number_of_particles=1000,
                    placement_size=512, retries=5000, number_of_markers=0,
-                   absorption_contrast=False, voltage=300E3, number_of_membranes=0, beam_damage_snr=0):
+                   absorption_contrast=False, voltage=300E3, number_of_membranes=0):
     """
     Generate a grand model of a cryo-EM sample. Particles, membranes and gold markers will be randomly rotated before
     being randomly placed in the volume. The program attempts to place the specified numbers, but only takes a max of
@@ -557,19 +557,19 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
 
     # Add beam damage normal noise
     # get the mean signal
-    if beam_damage_snr > 0.0:
-        mean_signal_real = cell_real[cell_real>0.01].mean()
-        # snr = mu**2 / sigma**2
-        sigma_damage = xp.sqrt( mean_signal_real**2 / beam_damage_snr)
-        print(f'Standard deviation in beam damage SNR set to {sigma_damage} for SNR of {beam_damage_snr}')
-        noise = xp.random.normal(0, scale=sigma_damage, size=cell_real.shape)
-        # beam damage is applied as a normal distributed noise, degrading the information
-        cell_real += noise
-        if absorption_contrast:
-            # apply the same noise to the imaginary part as we assume atoms for phase and absorption contrast are damaged
-            # equally
-            mean_signal_imag = cell_imag[cell_imag >0.01].mean()
-            cell_imag += (noise * (mean_signal_imag/mean_signal_real))  # scale the noise by the ratio of mean signal
+    # if beam_damage_snr > 0.0:
+    #     mean_signal_real = cell_real[cell_real>0.01].mean()
+    #     # snr = mu**2 / sigma**2
+    #     sigma_damage = xp.sqrt( mean_signal_real**2 / beam_damage_snr)
+    #     print(f'Standard deviation in beam damage SNR set to {sigma_damage} for SNR of {beam_damage_snr}')
+    #     noise = xp.random.normal(0, scale=sigma_damage, size=cell_real.shape)
+    #     # beam damage is applied as a normal distributed noise, degrading the information
+    #     cell_real += noise
+    #     if absorption_contrast:
+    #         # apply the same noise to the imaginary part as we assume atoms for phase and absorption contrast are damaged
+    #         # equally
+    #         mean_signal_imag = cell_imag[cell_imag >0.01].mean()
+    #         cell_imag += (noise * (mean_signal_imag/mean_signal_real))  # scale the noise by the ratio of mean signal
 
     # grandmodel names
     filename_gm_real    = os.path.join(save_path, 'grandmodel.mrc')
@@ -1193,7 +1193,7 @@ def generate_tilt_series_cpu(save_path,
     # joblib automatically memory maps a numpy array to child processes
     print(f'Projecting the model with {nodes} processes')
 
-    verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
+    verbosity = 11  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
         (delayed(parallel_project)(rotation_volume, i, image_size, pixel_size, msdz, n_slices, ctf,
                                    dose_per_tilt, dqe, mtf, voltage, binning=binning, translation=translation,
