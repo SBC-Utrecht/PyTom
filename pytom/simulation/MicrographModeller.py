@@ -723,7 +723,7 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
 
     # NUMBER OF ELECTRONS PER PIXEL
     dose_per_pixel = dose * (pixel_size*1E10)**2 / binning**2 # from square A to square nm (10A pixels)
-    print(f'Number of electrons per pixel (before binning and sample absorption): {dose_per_pixel}')
+    print(f'Number of electrons per pixel (before binning and sample absorption): {dose_per_pixel:.2f}')
 
     # Fourier transform and multiply with sqrt(dqe) = mtf/ntf
     projection_fourier = xp.fft.fftn(noisefree_projection) * mtf_shift / ntf_shift
@@ -755,7 +755,7 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
 
 
 def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, ctf, dose, dqe, mtf, voltage,
-                     binning=1, translation=(.0,.0,.0), rotation=(.0,.0,.0), scale=(1., 1., 1.),
+                     binning=1, translation=(.0, .0, .0), rotation=(.0, .0, .0), scale=(1., 1., 1.),
                      solvent_potential=physics.V_WATER, solvent_absorption=.0, ice_voxels=None, beam_damage_snr=0):
     """
     Project grandcell to create a frame/tilt. The grandcell will first be transformed according to the rotation and

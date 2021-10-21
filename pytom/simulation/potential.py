@@ -407,11 +407,9 @@ def call_apbs(pdb_filepath, force_field='amber', ph=7.):
 def read_structure(filepath):
     """
     Read pdb, cif, or pqr file and return atom data in lists.
-<<<<<<< HEAD
+
     todo move to basic.files or agnostic.io ??
-=======
-    todo move to basic.files or tompy.io ??
->>>>>>> multislice
+
 
     @param filepath: full path to the file, either .pdb, .cif, or .pqr
     @type  filepath: L{str}
@@ -1011,6 +1009,9 @@ def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclus
     # initiate the final volume
     potential = xp.zeros(sz_potential, dtype=xp.float32)
 
+    # print to user the number of atoms in system
+    print(f'Number of atoms to go over is {n_atoms}')
+
     # create kernel
     n_threads = 1024
     n_blocks = int(xp.ceil(atoms.shape[0] / n_threads).get())
@@ -1155,13 +1156,14 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
     y_coordinates = y_coordinates - xp.min(y_coordinates) + extra_space + difference[1]/2
     z_coordinates = z_coordinates - xp.min(z_coordinates) + extra_space + difference[2]/2
     # Define the volume of the protein
-    sz = (int(largest_dimension + 2 * extra_space), ) * 3
+    # todo change to same behavior as parallel integration and gpu integration ???
+    sz = (int((largest_dimension + 2 * extra_space) / voxel_size), ) * 3
 
     potential = xp.zeros(sz)
     if solvent_exclusion:
         solvent = xp.zeros(sz)
 
-    print(f'#atoms to go over is {len(x_coordinates)}.')
+    print(f'Number of atoms to go over is {len(x_coordinates)}')
 
     for i in range(len(elements)):
         if xp.mod(i, 5000) == 0:

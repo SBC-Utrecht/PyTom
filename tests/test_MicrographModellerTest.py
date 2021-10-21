@@ -19,23 +19,22 @@ class MicrographModellerTest(unittest.TestCase):
 
         self.param_pot = {
             'pdb':                  './testData/3j9m.cif',
-            'voxel_size':           2.5,
+            'voxel_size':           5,
             'oversampling':         2,
             'solvent_masking':      True,
             'absorption_contrast':  True,
             'voltage':              300e3
         }
 
-        real, imag = iasa_integration(self.param_pot['pdb'],
-                                      voxel_size=self.param_pot['voxel_size'],
-                                      oversampling=self.param_pot['oversampling'],
-                                      solvent_masking=self.param_pot['solvent_masking'],
-                                      absorption_contrast=self.param_pot['absorption_contrast'],
-                                      voltage=self.param_pot['voltage'])
-        self.potential = real + 1j * imag
+        self.potential = iasa_integration(self.param_pot['pdb'],
+                                          voxel_size=self.param_pot['voxel_size'],
+                                          oversampling=self.param_pot['oversampling'],
+                                          solvent_masking=self.param_pot['solvent_masking'],
+                                          absorption_contrast=self.param_pot['absorption_contrast'],
+                                          voltage=self.param_pot['voltage'])
 
         if self.potential.shape[0] % 2:
-            self.potential = np.pad(self.potential, pad_width=(0,1), mode='constant', constant_values=0)
+            self.potential = np.pad(self.potential, pad_width=(0, 1), mode='constant', constant_values=0)
 
         # create temporary dir for storing simulation data
         if not os.path.exists('temp_simulation'):
@@ -149,7 +148,7 @@ class MicrographModellerTest(unittest.TestCase):
 
         print('normalized cross correlation of two simulations of identical volume after binning both subtomograms 8 '
               'times = ', cc)
-        self.assertGreater(cc, 0.80, msg='correlation is not sufficient between simulations')
+        self.assertGreater(cc, 0.75, msg='correlation is not sufficient between simulations')
 
 
 if __name__ == '__main__':
