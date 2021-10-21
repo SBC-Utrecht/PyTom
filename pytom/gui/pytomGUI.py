@@ -44,7 +44,9 @@ def update_env_vars(pytompath):
                 sys.argv = [sys.executable] + sys.argv
             os.execv(sys.argv[0],sys.argv)
             #os.execv('/cm/shared/apps/python3/3.7/bin/python3.7', sys.argv)
-update_env_vars(pytompath)
+# TODO for now we skip the update_env_vars because with pytom_env it should already be arranged (above code might
+# TODO be removed)
+# update_env_vars(pytompath)
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
