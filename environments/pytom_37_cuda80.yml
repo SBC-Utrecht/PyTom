@@ -45,6 +45,7 @@ dependencies:
   - intel-openmp=2021.3.0=h06a4308_3350
   - ipython=7.27.0=py37hb070fc8_0
   - jedi=0.18.0=py37h06a4308_1
+  - joblib=1.0.1=pyhd3eb1b0_0
   - jpeg=9d=h7f8727e_0
   - jxrlib=1.1=h7b6447c_2
   - kernel-headers_linux-64=2.6.32=he073ed8_14
@@ -145,3 +146,4 @@ dependencies:
     - cupy-cuda80==7.8.0
     - fastrlock==0.8
     - mrcfile==1.3.0
+    - pytom==0.995
