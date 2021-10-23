@@ -318,9 +318,9 @@ if nosh is False:
     try:
         print()
         print("############ Start to compile the SH Alignment Library ############")
-        print()
+        print(pythonVersion)
         from sh_alignment.compile import compile
-        sh_ld_library_paths, sh_python_paths = compile(include_path=includePaths, library_path=libPaths, python_version='python'+pythonVersion + 'm' if pythonVersion == 3.7 else '')
+        sh_ld_library_paths, sh_python_paths = compile(include_path=includePaths, library_path=libPaths, python_version='python'+pythonVersion + ('m' if pythonVersion == '3.7' else ''))
         sh_ld_library_paths = sh_ld_library_paths.split(':')
         sh_python_paths = sh_python_paths.split(':')
     except Exception as e:
@@ -382,7 +382,7 @@ if novoltools is False:
 
 
 # NFFT
-if 0 and nonfft is False:
+if nonfft is False:
     try:
         print()
         print("############ Start to compile NFFT Library ############")
@@ -421,7 +421,7 @@ if 0 and nonfft is False:
         set_flags += ' && export NFFT_LIB_PATH="%s"' % (install_path+"lib/")
         set_flags += ' && export NFFT_INCLUDE_PATH="%s"' % (install_path+"src/nfft-3.1.3/include/")
         set_flags += ' && export PYTHON_LIB_PATH="%s"' % lib_python
-        set_flags += ' && export PYTHON_VERSION="python%s"' % pythonVersion + 'm' if pythonVersion == 3.7 else ''
+        set_flags += ' && export PYTHON_VERSION="python%s"' % pythonVersion + ('m' if pythonVersion == '3.7' else '')
         
         command = set_flags+" && cd nufft/ && chmod +x mkswig.sh && ./mkswig.sh"
         print(command)
@@ -462,7 +462,7 @@ if os.path.isfile("../lib/_pytom_fftplan.so") \
     generateExecuteables(genexelibs, exePaths, genexeincl, python_version=pythonVersion)
 
     if minicondaDir:
-        print('link c-libs', os.getcwd(), minicondaDir)
+        print('link c-libs')
         os.system(f'cp lib/lib*.so {minicondaDir}/lib')
         os.system(f'cp lib/_pytom*.so {minicondaDir}/lib/python{pythonVersion}/site-packages/')
         os.system(f'cp lib/*.py {minicondaDir}/lib/python{pythonVersion}/site-packages/')
