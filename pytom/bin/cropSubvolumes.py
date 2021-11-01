@@ -1,3 +1,4 @@
+#!/usr/bin/env pytom
 
 """
 script for cropping particles
@@ -31,9 +32,9 @@ def writeCroppedParticles(particleListName, output, center, cubesize):
     pvol_ali = vol(sizeX, sizeY, sizeZ) 
     subV = vol(cubesize, cubesize, cubesize)
 
-    sub_startX = center[0]-cubesize/2
-    sub_startY = center[1]-cubesize/2
-    sub_startZ = center[2]-cubesize/2
+    sub_startX = center[0]-cubesize//2
+    sub_startY = center[1]-cubesize//2
+    sub_startZ = center[2]-cubesize//2
     if (sub_startX < 0) or (sub_startY < 0) or (sub_startZ < 0):
         raise ValueError('cubesize too large :(')
 
@@ -47,7 +48,8 @@ def writeCroppedParticles(particleListName, output, center, cubesize):
         transform(pvol, pvol_ali, rotinvert[0], rotinvert[1], rotinvert[2], 
                   sizeX/2, sizeY/2, sizeZ/2, -shiftV[0], -shiftV[1], -shiftV[2], 0, 0, 0) 
         # box out subvolume
-        subV = subvolume(pvol_ali,  sub_startX, sub_startY, sub_startZ, cubesize, cubesize, cubesize)
+        subV = vol(cubesize, cubesize, cubesize)
+        subV = subvolume(pvol_ali, sub_startX, sub_startY, sub_startZ, cubesize, cubesize, cubesize)
         transform(subV, subV, rot[0], rot[1], rot[2], cubesize/2, cubesize/2, cubesize/2, 0, 0, 0, 0, 0, 0)
         fname = part.getFilename()
         idx = fname.split('_')[-1].split('.')[0] 
