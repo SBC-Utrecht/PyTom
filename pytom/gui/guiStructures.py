@@ -955,12 +955,12 @@ class CommonFunctions():
         signals.finished_mcor.emit()
 
     def gen_action(self, params):
-        print(params)
         try:
             if params[3]:
                 for field in params[3]:
                     if self.widgets[field].text() == '':
-                        self.popup_messagebox('Warning', 'Required field is empty', 'One of the required paramaters has not been supplied, please supply it and regenerate script before pressing execute.')
+                        if self.silent == False:
+                            self.popup_messagebox('Warning', 'Required field is empty', 'One of the required paramaters has not been supplied, please supply it and regenerate script before pressing execute.')
                         return
         except Exception as e:
             print(e)
@@ -2035,7 +2035,8 @@ class GuiTabWidget(QWidget, CommonFunctions):
 
         self.addTabs(headers=headers, offx=offx, offy=offy, dimx=dimx, dimy=dimy,soff=50)
 
-    def addTabs(self, headers, widget=QWidget, subheaders=[], offx=0,offy=0,dimx=900,dimy=721,soff=0, sizeX=900,sizeY=700, tabUIs=None, tabs=None, tab_actions=None):
+    def addTabs(self, headers, widget=QWidget, subheaders=[], offx=0,offy=0,dimx=900,dimy=721,soff=0,
+                sizeX=900,sizeY=700, tabUIs=None, tabs=None, tab_actions=None, static_tabs=None):
 
         self.size_policies()
         self.scrollarea = QScrollArea(self)
@@ -2055,14 +2056,15 @@ class GuiTabWidget(QWidget, CommonFunctions):
 
         self.scrollarea.setWidget(self.tabWidget)
         self.tabs = []
+        self.tabs2 = {}
+        self.tab_actions2 = {}
 
         try:
             self.scrollareas.append(self.scrollarea)
             self.scrolloffset.append(soff)
         except:
-            self.scrollareas=[self.scrollarea]
+            self.scrollareas = [self.scrollarea]
             self.scrolloffset = [soff]
-
 
         try:
             self.logbook = self.parent().logbook
@@ -2072,10 +2074,9 @@ class GuiTabWidget(QWidget, CommonFunctions):
         except:
             pass
 
-
         for n, header in enumerate(headers):
-            if len(subheaders) >= len(headers) and len(subheaders[n]) >1:
-                subtab = widget(headers=subheaders[n],dimx=dimx-50)
+            if len(subheaders) >= len(headers) and len(subheaders[n]) > 1:
+                subtab = widget(headers=subheaders[n], dimx=dimx - 50)
                 self.scrollareas += subtab.scrollareas
                 self.scrolloffset += subtab.scrolloffset
                 tab = QWidget(self.tabWidget)
@@ -2086,21 +2087,137 @@ class GuiTabWidget(QWidget, CommonFunctions):
                 for m, subheader in enumerate(subheaders[n]):
                     setattr(self, 'tab{}{}'.format(n + 1, m + 1), subtab.tabs[m])
 
-                    tabs[f'tab{n+1}{m+1}'] = getattr(self,f'tab{n+1}{m+1}')
+                    self.tabs2[f'tab{n+1}{m+1}'] = getattr(self, f'tab{n+1}{m+1}')
+                    tabs[f'tab{n+1}{m+1}'] = getattr(self, f'tab{n+1}{m+1}')
                     if tabUIs[n][m]:
                         tab_actions[f'tab{n+1}{m+1}'] = tabUIs[n][m]
+                        self.tab_actions2['tab{}{}'.format(n + 1, m + 1)] = tabUIs[n][m]
 
             else:
                 tab = QWidget()
             self.tabs.append(tab)
             tab.setObjectName(header)
-            setattr(self,'tab{}'.format(n+1),tab)
+            setattr(self, 'tab{}'.format(n + 1), tab)
+
             try:
-                tabs[f'tab{n+1}'] = getattr(self,f'tab{n+1}')
+                tabs[f'tab{n+1}'] = getattr(self, f'tab{n+1}')
+                self.tabs2[f'tab{n+1}'] = getattr(self, f'tab{n+1}')
                 if tabUIs[n]:
                     tab_actions[f'tab{n+1}'] = tabUIs[n][0]
-            except:pass
+                    self.tab_actions2[f'tab{n+1}'] = tabUIs[n][0]
+
+            except Exception as e:
+                print('jumbo', e)
+                pass
             self.tabWidget.addTab(tab, header)
+
+        # self.tabs2 = {'tab1': self.tab1,
+        #              'tab2':  self.tab2,
+        #              'tab31': self.tab31, 'tab32': self.tab32,
+        #              'tab41': self.tab41, 'tab42': self.tab42, 'tab43': self.tab43,
+        #              'tab51': self.tab51, 'tab52': self.tab52, 'tab53': self.tab53}
+        #
+
+        # self.tab_actions2 = {'tab1':  self.tab1UI,
+        #                     'tab2':  self.tab2UI,
+        #                     'tab31': self.tab31UI, 'tab32': self.tab32UI,
+        #                     'tab41': self.tab41UI, 'tab42': self.tab42UI, 'tab43': self.tab43UI,
+        #                     'tab51': self.tab51UI, 'tab52': self.tab52UI, 'tab53': self.tab53UI}
+
+        if not static_tabs is None:
+
+            for i in range(len(headers)):
+                t = 'tab{}'.format(i + 1)
+                empty = 1 * (len(subheaders[i]) == 0)
+
+                for j in range(len(subheaders[i]) + empty):
+                    tt = t + (str(j + 1) * (1 - empty))
+
+                    if static_tabs[i][j]:  # tt in ('tab2', 'tab31', 'tab41', 'tab42', 'tab51', 'tab52'):
+                        self.table_layouts[tt] = QGridLayout()
+                    else:
+                        self.table_layouts[tt] = QVBoxLayout()
+
+                    self.tables[tt] = QWidget()
+                    self.pbs[tt] = QWidget()
+                    self.ends[tt] = QWidget()
+                    self.ends[tt].setSizePolicy(self.sizePolicyA)
+                    self.checkbox[tt] = QCheckBox('queue')
+
+                    if not static_tabs[i][j]:  # tt in ('tab1','tab32', 'tab43', 'tab53'):
+                        button = QPushButton('Refresh Tab')
+                        button.setSizePolicy(self.sizePolicyC)
+                        button.clicked.connect(lambda d, k=tt, a=self.tab_actions[tt]: a(k))
+                        self.table_layouts[tt].addWidget(button)
+                        self.table_layouts[tt].addWidget(self.ends[tt])
+
+                    else:  # if tt in ('tab2','tab31','tab41', 'tab42', 'tab51', 'tab52'):
+
+                        self.tab_actions[tt](tt)
+
+                    tab = self.tabs_dict[tt]
+                    tab.setLayout(self.table_layouts[tt])
+    def addGeneralVariables(self):
+        print(f'\n\n\n\nAdding general\n\n\n')
+
+        self.pytompath = self.parent().pytompath
+        self.projectname = self.parent().projectname
+        self.logfolder = self.parent().logfolder
+        self.tomogram_folder = self.parent().tomogram_folder
+        self.rawnanographs_folder = self.parent().rawnanographs_folder
+        self.motioncor_folder = self.parent().motioncor_folder
+        self.particlepick_folder = self.parent().particlepick_folder
+        self.tomoanalysis = self.parent().tomogram_folder
+        self.subtomodir = self.parent().subtomo_folder
+        self.subtomofolder = self.parent().subtomo_folder
+
+        self.fscdir = os.path.join(self.subtomodir, 'Validation')
+        self.polishfolder = os.path.join(self.subtomodir, 'ParticlePolishing')
+        self.frmdir = os.path.join(self.subtomodir, 'Alignment/FRM')
+        self.glocaldir = os.path.join(self.subtomodir, 'Alignment/GLocal')
+        self.cpcadir = os.path.join(self.subtomodir, 'Classification/CPCA')
+        self.acdir = os.path.join(self.subtomodir, 'Classification/AutoFocus')
+        self.acpath = os.path.join(self.subtomodir, 'Classification/AutoFocus')
+
+        self.pickpartdir = os.path.join(self.particlepick_folder, 'Picked_Particles')
+        self.pickpartfolder = os.path.join(self.particlepick_folder, 'Picked_Particles')
+        self.tomogramfolder = os.path.join(self.particlepick_folder, 'Tomograms')
+        self.templatematchfolder = os.path.join(self.particlepick_folder, 'Template_Matching')
+        self.ccfolder = os.path.join(self.templatematchfolder, 'cross_correlation')
+
+        self.silent = self.parent().silent
+        self.qtype = self.parent().qtype
+        self.qcommand = self.parent().qcommand
+        self.widgets = {}
+        self.progressBarCounters = {}
+        self.progressBars = {}
+        self.queueEvents = self.parent().qEvents
+        self.localqID = {}
+        self.activeProcesses = {}
+        self.threadPool = self.parent().threadPool
+        self.localJobs = {}
+        self.tabs_dict, self.tab_actions = {}, {}
+        self.qparams = self.parent().qparams
+        self.localJobStrings = {}
+        self.modes = {}
+
+        self.widgets['pytomPath'] = QLineEdit()
+        self.widgets['pytomPath'].setText(self.parent().pytompath)
+
+        self.binningFactorIMOD = 4
+
+        self.table_layouts = {}
+        self.tables = {}
+        self.pbs = {}
+        self.ends = {}
+        self.checkbox = {}
+        self.num_nodes = {}
+
+        self.queue_job_names = []
+
+        self.workerID = 0
+        self.TMCounter = 0
+        self.ECCounter = 0
 
 
 class KeyPressGraphicsWindow(pg.GraphicsWindow):

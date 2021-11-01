@@ -36,82 +36,15 @@ class ParticlePick(GuiTabWidget):
     def __init__(self, parent=None):
         super(ParticlePick, self).__init__(parent)
         self.stage='v03_'
-        self.pytompath = self.parent().pytompath
-        self.projectname = self.parent().projectname
-        self.logfolder = self.parent().logfolder
-        self.tomogram_folder = self.parent().tomogram_folder
-        self.templatematchfolder = os.path.join( self.projectname, '04_Particle_Picking/Template_Matching' )
-        self.ccfolder = os.path.join(self.templatematchfolder, 'cross_correlation')
-        self.pickpartfolder = os.path.join(self.projectname, '04_Particle_Picking/Picked_Particles')
-        self.subtomofolder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
-        self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
-        self.qtype = self.parent().qtype
-        self.qcommand = self.parent().qcommand
-        self.progressBarCounters = {}
-        self.progressBars = {}
-        self.queueEvents = self.parent().qEvents
-        self.localqID = {}
-        self.localJobs = {}
-        self.activeProcesses ={}
-        self.threadPool = self.parent().threadPool
-        self.tabs_dict, self.tab_actions = {}, {}
-        self.workerID = 0
-        self.TMCounter = 0
-        self.ECCounter = 0
-        self.localJobStrings = {}
+        self.addGeneralVariables()
 
         headers = ["Manual Picking","Template Matching", "Create Particle List", "Alter Particle List"]
         subheaders  = [[],['Single', 'Batch Template Match', 'Batch Extract'], ['Single','Batch'], []]
         tabUIs = [[self.tab1UI],[self.tab21UI,self.tab22UI, self.tab23UI],[self.tab31UI,self.tab32UI],[self.tab4UI]]
         static_tabs = [[True],[True,False, False],[True, False],[True]]
 
-        self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs,tabs=self.tabs_dict, tab_actions=self.tab_actions)
-
-        self.table_layouts = {}
-        self.tables = {}
-        self.pbs = {}
-        self.ends = {}
-        self.num_nodes = {}
-        self.checkbox = {}
-
-        self.tabs2 = {'tab1': self.tab1,
-                     'tab21': self.tab21, 'tab22': self.tab22,
-                     'tab31': self.tab31, 'tab32': self.tab32,
-                     'tab4': self.tab4}
-
-        self.tab_actions2 = {'tab1': self.tab1UI,
-                            'tab21': self.tab21UI, 'tab22': self.tab22UI,
-                            'tab31': self.tab31UI, 'tab32': self.tab32UI,
-                            'tab4': self.tab4UI}
-
-        for i in range(len(headers)):
-            t = 'tab{}'.format(i + 1)
-            empty = 1 * (len(subheaders[i]) == 0)
-            for j in range(len(subheaders[i]) + empty):
-                tt = t + str(j + 1) * (1 - empty)
-                if static_tabs[i][j]:      #tt in ('tab1', 'tab21', 'tab31', 'tab4'):
-                    self.table_layouts[tt] = QGridLayout()
-                else:
-                    self.table_layouts[tt] = QVBoxLayout()
-
-                self.tables[tt] = QWidget()
-                self.pbs[tt] = QWidget()
-                self.ends[tt] = QWidget()
-                self.ends[tt].setSizePolicy(self.sizePolicyA)
-                self.checkbox[tt] = QCheckBox('queue')
-
-                if not static_tabs[i][j]:
-                    #print(tt)#tt in ('tab22', 'tab32'):
-                    button = QPushButton('Refresh Tab')
-                    button.setSizePolicy(self.sizePolicyC)
-                    button.clicked.connect(lambda d, k=tt, a=self.tab_actions[tt]: a(key=k))
-                    self.table_layouts[tt].addWidget(button)
-                    self.table_layouts[tt].addWidget(self.ends[tt])
-                else:
-                    self.tab_actions[tt](tt)
-
-                tab = self.tabs_dict[tt]
-                tab.setLayout(self.table_layouts[tt])
+        self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs,tabs=self.tabs_dict,
+                     tab_actions=self.tab_actions, static_tabs=static_tabs)
 
     def tab1UI(self,  key=''):
         self.no_image = False

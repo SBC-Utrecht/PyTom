@@ -32,35 +32,8 @@ class SubtomoAnalysis(GuiTabWidget):
     def __init__(self, parent=None):
         super(SubtomoAnalysis, self).__init__(parent)
         self.stage          = 'v04_'
-        self.pytompath      = self.parent().pytompath
-        self.projectname    = self.parent().projectname
-        self.logfolder      = self.parent().logfolder
-        self.subtomodir     = self.parent().subtomo_folder
-        self.tomoanalysis   = self.parent().tomogram_folder
-        self.fscdir         = os.path.join(self.subtomodir, 'Validation')
-        self.polishfolder   = os.path.join(self.subtomodir, 'ParticlePolishing')
-        self.frmdir         = os.path.join(self.subtomodir, 'Alignment/FRM')
-        self.glocaldir      = os.path.join(self.subtomodir, 'Alignment/GLocal')
-        self.cpcadir        = os.path.join(self.subtomodir, 'Classification/CPCA')
-        self.acdir          = os.path.join(self.subtomodir, 'Classification/AutoFocus')
-        self.pickpartdir    = self.parent().particlepick_folder+'/Picked_Particles'
-        self.tomogramfolder = os.path.join(self.parent().particlepick_folder, 'Tomograms')
-        self.tomogram_folder = self.parent().tomogram_folder
-        self.acpath = os.path.join(self.parent().subtomo_folder, 'Classification/AutoFocus')
-        self.qtype = self.parent().qtype
-        self.qcommand = self.parent().qcommand
-        self.progressBarCounters = {}
-        self.progressBars = {}
-        self.queueEvents = self.parent().qEvents
-        self.localqID = {}
-        self.activeProcesses = {}
-        self.threadPool = self.parent().threadPool
-        self.workerID = 0
-        self.qparams = {}
-        self.tabs_dict = {}
-        self.tab_actions = {}
-        self.localJobs = {}
-        self.localJobStrings = {}
+        self.addGeneralVariables()
+
         # CHANGE THE NEXT FOUR VARIABLES WHEN ADDING OR REMOVING TABS
         # ONE NEEDS 1) UI FUNCTION TO SET UP THE GENERAL TAB (NUMBER OF DROPDOWN FIELDS VS DYNAMIC TABLE)
         #           2) FUNCTION TO FILL DROP DOWN MENU / FILL THE TABLE
@@ -82,43 +55,9 @@ class SubtomoAnalysis(GuiTabWidget):
 
 
 
-        self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders,tabUIs=tabUIs,tabs=self.tabs_dict, tab_actions=self.tab_actions)
+        self.addTabs(headers=headers,widget=GuiTabWidget, subheaders=subheaders,tabUIs=tabUIs,tabs=self.tabs_dict,
+                     tab_actions=self.tab_actions, static_tabs=static_tabs)
 
-        self.widgets = {}
-        self.table_layouts = {}
-        self.tables = {}
-        self.pbs = {}
-        self.ends = {}
-        self.num_nodes = {}
-        self.checkbox = {}
-
-        for i in range(len(headers)):
-            t = 'tab{}'.format(i + 1)
-            empty = 1 * (len(subheaders[i]) == 0)
-            for j in range(len(subheaders[i]) + empty):
-                tt = t + str(j + 1) * (1 - empty)
-                if static_tabs[i][j]:# tt in ('tab11', 'tab31', 'tab32', 'tab41', 'tab42'):
-                    self.table_layouts[tt] = QGridLayout()
-                else:
-                    self.table_layouts[tt] = QVBoxLayout()
-                self.tables[tt] = QWidget()
-                self.pbs[tt] = QWidget()
-                self.ends[tt] = QWidget()
-                self.ends[tt].setSizePolicy(self.sizePolicyA)
-                self.checkbox[tt] = QCheckBox('queue')
-
-                if not static_tabs[i][j]:#tt in ('tab12'):
-                    button = QPushButton('Refresh Tab')
-                    button.setSizePolicy(self.sizePolicyC)
-                    button.clicked.connect(lambda d, k=tt, a=self.tab_actions[tt]: a(k))
-
-                    self.table_layouts[tt].addWidget(button)
-                    self.table_layouts[tt].addWidget(self.ends[tt])
-                else:#if not tt in ('tab12'):
-                    self.tab_actions[tt](tt)
-
-                tab = self.tabs_dict[tt]
-                tab.setLayout(self.table_layouts[tt])
 
 
     # General UI functions

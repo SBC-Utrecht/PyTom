@@ -37,30 +37,8 @@ class TomographReconstruct(GuiTabWidget):
         super(TomographReconstruct, self).__init__(parent)
 
         self.stage = 'v02_'
-        self.projectname = self.parent().projectname
-        self.logfolder = self.parent().logfolder
-        self.tomogram_folder = self.parent().tomogram_folder
-        self.rawnanographs_folder = self.parent().rawnanographs_folder
-        self.motioncor_folder = self.parent().motioncor_folder
-        self.qtype = self.parent().qtype
-        self.qcommand = self.parent().qcommand
-        self.widgets = {}
-        self.progressBarCounters = {}
-        self.progressBars = {}
-        self.queueEvents = self.parent().qEvents
-        self.localqID = {}
-        self.activeProcesses = {}
-        self.threadPool = self.parent().threadPool
-        self.workerID = 0
-        self.qparams = self.parent().qparams
-        self.localJobStrings = {}
+        self.addGeneralVariables()
 
-        self.widgets['pytomPath'] = QLineEdit()
-        self.widgets['pytomPath'].setText(self.parent().pytompath)
-
-        self.binningFactorIMOD = 4
-        self.pytompath = self.parent().pytompath
-        self.tabs_dict, self.tab_actions = {}, {}
         headers = ["Select Tomograms", "Create Markerfile", "Alignment", 'CTF Correction', 'Reconstruction']
         subheaders = [[], [], ['Individual Alignment', 'Batch Alignment'],
                       ['CTF Determination', 'CTF Correction', 'Batch Correction'],
@@ -71,60 +49,10 @@ class TomographReconstruct(GuiTabWidget):
                   [self.tab41UI,self.tab42UI,self.tab43UI],
                   [self.tab51UI, self.tab52UI,self.tab53UI]]
         static_tabs = [[False],[True],[True,False],[True,True,False],[True,True,False]]
-        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict, tab_actions=self.tab_actions)
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict,
+                     tab_actions=self.tab_actions, static_tabs=static_tabs)
 
-        self.table_layouts = {}
-        self.tables = {}
-        self.pbs = {}
-        self.ends = {}
-        self.checkbox = {}
-        self.num_nodes = {}
 
-        self.tabs2 = {'tab1': self.tab1,
-                     'tab2':  self.tab2,
-                     'tab31': self.tab31, 'tab32': self.tab32,
-                     'tab41': self.tab41, 'tab42': self.tab42, 'tab43': self.tab43,
-                     'tab51': self.tab51, 'tab52': self.tab52, 'tab53': self.tab53}
-
-        self.queue_job_names = []
-
-        self.tab_actions2 = {'tab1':  self.tab1UI,
-                            'tab2':  self.tab2UI,
-                            'tab31': self.tab31UI, 'tab32': self.tab32UI,
-                            'tab41': self.tab41UI, 'tab42': self.tab42UI, 'tab43': self.tab43UI,
-                            'tab51': self.tab51UI, 'tab52': self.tab52UI, 'tab53': self.tab53UI}
-
-        for i in range(len(headers)):
-            t = 'tab{}'.format(i+1)
-            empty = 1*(len(subheaders[i]) == 0)
-
-            for j in range(len(subheaders[i])+empty):
-                tt = t + (str(j+1)*(1-empty))
-
-                if static_tabs[i][j]:    #tt in ('tab2', 'tab31', 'tab41', 'tab42', 'tab51', 'tab52'):
-                    self.table_layouts[tt] = QGridLayout()
-                else:
-                    self.table_layouts[tt] = QVBoxLayout()
-
-                self.tables[tt] = QWidget()
-                self.pbs[tt] = QWidget()
-                self.ends[tt] = QWidget()
-                self.ends[tt].setSizePolicy(self.sizePolicyA)
-                self.checkbox[tt] = QCheckBox('queue')
-
-                if not static_tabs[i][j]:   # tt in ('tab1','tab32', 'tab43', 'tab53'):
-                    button = QPushButton('Refresh Tab')
-                    button.setSizePolicy(self.sizePolicyC)
-                    button.clicked.connect(lambda d, k=tt, a=self.tab_actions[tt]: a(k))
-                    self.table_layouts[tt].addWidget(button)
-                    self.table_layouts[tt].addWidget(self.ends[tt])
-
-                else:        #if tt in ('tab2','tab31','tab41', 'tab42', 'tab51', 'tab52'):
-
-                    self.tab_actions[tt](tt)
-
-                tab = self.tabs_dict[tt]
-                tab.setLayout(self.table_layouts[tt])
 
     def tab1UI(self,  id=''):
         #print(f'batch id: {id}')
