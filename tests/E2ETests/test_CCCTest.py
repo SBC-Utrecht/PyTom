@@ -10,7 +10,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         from helper_functions import create_RandomParticleList, installdir
 
         self.installdir = installdir
-        self.reffile = f'./testData/ribo.em'
+        self.reffile = f'../testData/ribo.em'
         self.pdir = f'./testparticles'
 
 

@@ -18,7 +18,7 @@ class MicrographModellerTest(unittest.TestCase):
         import os
 
         self.param_pot = {
-            'pdb':                  './testData/3j9m.cif',
+            'pdb':                  '../testData/3j9m.cif',
             'voxel_size':           2.5,
             'oversampling':         2,
             'solvent_masking':      True,
@@ -53,7 +53,7 @@ class MicrographModellerTest(unittest.TestCase):
             'defocus':              3e-6,
             'msdz':                 5e-9,
             'camera_type':          'K2SUMMIT',
-            'camera_folder':        '../pytom/simulation/detectors',
+            'camera_folder':        '../../pytom/simulation/detectors',
         }
 
         self.param_rec = {

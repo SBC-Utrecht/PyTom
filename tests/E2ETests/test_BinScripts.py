@@ -58,14 +58,14 @@ class pytom_MyFunctionTest(unittest.TestCase):
     def average(self):
         func = self.generate_cmd(sys._getframe().f_code.co_name)
 
-        outname = 'average.mrc'
+        outname = merge(self.outdir, 'average.mrc')
         self.pl.toXMLFile('average.xml')
         cmd  = f'average.py -p average.xml -a {outname} -c 1'
 
         self.check_cmd(cmd, func, outname)
 
     def bandpassFilterVolume(self):
-        outname = 'dummy.mrc'
+        outname = merge(self.outdir, 'dummy.mrc')
         os.system(f'bandpassFilterVolume.py -v {self.reffile} -o {outname} -l 10 -h 25 -s 3')
         self.assertTrue(os.path.exists(outname))
         os.remove(outname)
@@ -93,7 +93,6 @@ class pytom_MyFunctionTest(unittest.TestCase):
         self.check_cmd(cmd, func, outfile)
 
     def check_cmd(self, cmd, func, outfile):
-        print(cmd)
         exe(cmd)
         self.assertTrue(exists(outfile), f'{func} failed')
         try:
@@ -228,7 +227,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         self.check_cmd(cmd, func, os.path.join(outfolder, 'FSCOrig.dat'))
 
     def gen_mask(self):
-        outname = 'dummy.mrc'
+        outname = merge(self.outdir, 'dummy.mrc')
         os.system(f'gen_mask.py -f {self.reffile} -o {outname} -n {1} -s {3} -c {4}')
         self.assertTrue(os.path.exists(outname))
         os.remove(outname)
@@ -254,7 +253,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         from pytom.agnostic.io import read, write
         import numpy as np
 
-        fname = 'dummy.mrcs'
+        fname = merge(self.outdir, 'dummy.mrcs')
         size =11
         vol = np.zeros((size,size,size),dtype=np.float32)
         for i in range(size):
@@ -267,7 +266,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         for i in range(size):
             self.assertTrue(os.path.exists(f'{self.outdir}/sorted_{i:02d}.mrc'), 'file not generated')
             data = read(f'{self.outdir}/sorted_{i:02d}.mrc').squeeze()
-            
+
             self.assertTrue(np.abs(data[i,i] - (i+1))  < 1E-5, 'Max value is off')
             self.assertTrue(np.abs(data).sum() > i+1-1E-5, f'{np.abs(data).sum()} ')
 

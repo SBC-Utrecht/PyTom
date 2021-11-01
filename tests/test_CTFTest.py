@@ -119,7 +119,13 @@ class CTFTest(unittest.TestCase):
         original gold bead and the wiener filtered one."""
         from pytom.agnostic.correlation import nxcc
         from pytom.simulation.microscope import create_ctf
-
+        try:
+            import matplotlib
+            matplotlib.use('Qt5Agg')
+            import matplotlib.pyplot as plt
+        except:
+            import matplotlib
+            import matplotlib.pyplot as plt
         # import matplotlib
         # matplotlib.use('Qt5Agg')
         # import matplotlib.pyplot as plt

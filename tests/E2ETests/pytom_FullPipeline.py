@@ -1,6 +1,7 @@
 import unittest
 import os
 from pytom.gpu.initialize import device
+import sys
 
 print(device)
 
@@ -9,6 +10,10 @@ class pytom_MyFunctionTest(unittest.TestCase):
     def setUp(self):
         from helper_functions import create_RandomParticleList
         import os
+
+        pythonversion = f'python{sys.version_info.major}.{sys.version_info.minor}'
+        if pythonversion == 'python3.7': pythonversion += 'm'
+
 
         self.projectname = f'{os.getcwd()}/FullPipeline'
         self.refDataDir = f'{os.getcwd()}/../testData'
@@ -19,6 +24,11 @@ class pytom_MyFunctionTest(unittest.TestCase):
         self.orignal_data = 'ftp://ftp.ebi.ac.uk/empiar/world_availability/10064/data/mixedCTEM_tomo3.mrc'
         self.mrcs = 'mixedCTEM_tomo3.mrc'
         self.pytomDir = os.path.dirname(os.path.dirname(os.popen('which pytom').readlines()[0]))
+        if 'miniconda' in self.pytomDir:
+            self.pytomDir2 = os.path.join(self.pytomDir, f'lib/{pythonversion}/site-packages/pytom')
+        else:
+            self.pytomDir2 = self.pytomDir
+
         self.alignment_sorted_results = f'../testData/alignmentResultsFullRange.txt'
         self.tmfolder =f'{self.projectname}/04_Particle_Picking/Template_Matching/cross_correlation/tomogram_000_WBP'
         self.plFilename = f'{self.projectname}/04_Particle_Picking/Picked_Particles/particleList_TM_tomogram_000_WBP_deselected.xml'
@@ -53,11 +63,10 @@ class pytom_MyFunctionTest(unittest.TestCase):
         self.binningGLocalFull = 2
         self.binningGLocalReduced = 1
         self.particleDiameter = 300
-
+        self.dont = True
         global device
 
         device= 'gpu:0'
-
 
     def cleanUp(self):
         """
@@ -101,7 +110,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
     def test_02_dataExtraction(self):
         import os
-
+        if self.dont: return
         os.system(f'mrcs2mrc.py -f {self.mrcs} -t {self.tomoname}/sorted -p sorted -i 2 -s {self.startAngleFull} -e {self.endAngleFull} -m ')
         os.system(f'cp {self.markerFile} {self.tomoname}/sorted')
 
@@ -120,7 +129,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         from pytom.gui.guiFunctions import loadstar
         import os
 
-        cmd = f'pytom {self.pytomDir}/reconstruction/generateAlignedTiltImages.py '
+        cmd = f'pytom {self.pytomDir2}/reconstruction/generateAlignedTiltImages.py '
 
         cmd += f'--tiltSeriesName {self.tomoname}/sorted/sorted '
         cmd += f'--markerFile {self.tomoname}/sorted/markerfile.txt '
@@ -135,6 +144,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         cmd += f'--expectedRotationAngle {self.expectedRotationAngle} '
         cmd += f'--numberProcesses 1 '
 
+        print(cmd)
         os.system(cmd)
 
         ref = loadstar(self.alignment_sorted_results, dtype=DATATYPE_ALIGNMENT_RESULTS)
@@ -154,6 +164,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         check that resulting alignment score is smaller than reference score
         """
         import os
+        if self.dont: return
 
         cmd = f"pytom {self.pytomDir}/bin/reconstructTomogram.py "
         cmd += f"--tiltSeriesName {self.tomoname}/sorted/sorted "
@@ -185,12 +196,51 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
         pass
 
+    def test_06_TemplateMatching_CPU(self):
+        """
+        check that resulting sum of correlation scores are larger than ref value. Check locations? Check if correct handedness has a higher score
+        """
+        import os
+        if self.dont: return
+
+        if 'gpu ' in device:
+            return
+
+        if not os.path.exists(f'{self.projectname}/04_Particle_Picking/Template_Matching/cross_correlation/tomogram_000_WBP'):
+            os.mkdir(f'{self.projectname}/04_Particle_Picking/Template_Matching/cross_correlation/tomogram_000_WBP')
+
+        for suffix in ('', '_Mirrored'):
+            jobFile = f'''<JobDescription Destination="{self.projectname}/04_Particle_Picking/Template_Matching/cross_correlation/tomogram_000_WBP">
+      <Volume Filename="{self.tomoname}/reconstruction/WBP/tomogram_000_WBP.mrc" Subregion=" 0,0,197,464,464,68 "/>
+      <Reference Weighting="" File="{self.refDataDir}/human_ribo_21A{suffix}.em"/>
+      <Mask Filename="{self.refDataDir}/human_ribo_mask_32_8_5{suffix}.mrc" Binning="1" isSphere="True"/>
+      <WedgeInfo Angle1="30.0" Angle2="30.0" CutoffRadius="0.0" TiltAxis="custom">
+        <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </WedgeInfo>
+      <Angles Type="FromEMFile" File="angles_12.85_7112.em"/>
+      <Score Type="FLCFScore" Value="-100000000">
+        <DistanceFunction Deviation="0.0" Mean="0.0" Filename=""/>
+      </Score>
+    </JobDescription>'''
+
+            fname = f'{self.projectname}/04_Particle_Picking/Template_Matching/cross_correlation/tomogram_000_WBP/job{suffix}.xml'
+            d = open(fname, 'w')
+            d.write(jobFile)
+            d.close()
+            cmd = f"mpiexec --tag-output -n 16 pytom {self.pytomDir}/bin/localization.py -j {fname} -x 4 -y 4 -z 1"
+            print(cmd)
+
+            os.system(cmd)
+
+        pass
+
     def test_06_TemplateMatching_GPU(self):
         """
         check that resulting sum of correlation scores are larger than ref value. Check locations? Check if correct handedness has a higher score
         """
         import os
 
+        if 'cpu' in device: return
 
         if not os.path.exists(f'{self.projectname}/04_Particle_Picking/Template_Matching/cross_correlation/tomogram_000_WBP'):
             os.mkdir(f'{self.projectname}/04_Particle_Picking/Template_Matching/cross_correlation/tomogram_000_WBP')
@@ -239,7 +289,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
             cmd += f'--size 8 '
             cmd += f'--numberCandidates 1500 '
             cmd += f'--minimalScoreValue 0.001 '
-        
+            print(cmd)
             os.system(cmd)
 
 
@@ -324,7 +374,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         cmd += f'--angleShells 3 '
         cmd += f'--angleIncrement 3.00 '
         cmd += f'--jobName {outdir}/glocal_input_params_Single_Iter.xml'
-
+        print(cmd)
         os.system(cmd)
 
     def test_12_GLocal_GPU(self):
@@ -418,7 +468,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
 
 
-        cmd = f'''cd {self.tomoname}/ctf;                                                                                                                                                                                      
+        cmd = f'''cd {self.tomoname}/ctf;
 
 ctfphaseflip -inp {self.ctfFileNameStack} -o ctfCorrected.st -an {self.ctfFileNameAngle} -defF {self.ctfFileNameDefocus} \
 -defT 200 -iW 15 -pi 0.262 -cs 2.70 -gpu {self.singleGpuID} \
@@ -499,6 +549,8 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         """
         check that resulting resolution is below threshold and similar to CPU
         """
+
+        if 'cpu' in device: return
 
         outdir = os.path.join(self.glocaldir, 'alignment_002_gpu')
         self.outdir_ali2 = outdir

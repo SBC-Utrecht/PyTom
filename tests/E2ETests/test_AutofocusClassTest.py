@@ -9,7 +9,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         from helper_functions import create_RandomParticleList, installdir
 
         self.installdir = installdir
-        self.reffile = f'./testData/ribo.em'
+        self.reffile = f'../testData/ribo.em'
         self.pl_filename = 'pl.xml'
         self.pdir = f'./testparticles'
         self.pl = create_RandomParticleList( reffile=self.reffile, pl_filename=self.pl_filename, 
@@ -25,10 +25,10 @@ class pytom_MyFunctionTest(unittest.TestCase):
         #self.settings["offset"] = None
         #self.settings["mask"] = options.mask
 
-        self.settings["fmask"] = f'./testData/focussed_classification_mask_ribo.mrc'
-        self.settings["mask"]  = f'./testData/ribo_mask.em'
-        self.settings["fmask"] = f'./testData/focussed_classification_mask_ribo.mrc'
-        self.settings["mask"]  = f'./testData/ribo_mask.em'
+        self.settings["fmask"] = f'../testData/focussed_classification_mask_ribo.mrc'
+        self.settings["mask"]  = f'../testData/ribo_mask.em'
+        self.settings["fmask"] = f'../testData/focussed_classification_mask_ribo.mrc'
+        self.settings["mask"]  = f'../testData/ribo_mask.em'
 
         #self.settings["fmask"] = None
         #self.settings["dispersion"] = None

@@ -15,7 +15,7 @@ class pytom_GLocalTest(unittest.TestCase):
         from pytom_volume import vol, initSphere
 
         self.installdir = installdir
-        self.reffile = f'./testData/ribo.em'
+        self.reffile = f'../testData/ribo.em'
         self.pl_filename = 'pl.xml'
         self.pdir = f'./testparticles'
         self.pl = create_RandomParticleList( reffile=self.reffile, pl_filename=self.pl_filename, 
@@ -25,7 +25,7 @@ class pytom_GLocalTest(unittest.TestCase):
         self.settings = {}
         self.settings["binning"] = 4
         self.settings["niteration"] = 1
-        self.settings["mask"] = f'./testData/ribo_mask.em'
+        self.settings["mask"] = f'../testData/ribo_mask.em'
         dims = read_size(self.reffile)
         maskvol = vol(int(dims[0]), int(dims[1]), int(dims[2]))
         initSphere(maskvol, 30,5, 0, int(dims[0]/2), int(dims[1]/2), int(dims[2]/2))
