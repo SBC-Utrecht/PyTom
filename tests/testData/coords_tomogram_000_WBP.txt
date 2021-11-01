@@ -1,0 +1,7 @@
+#
+#TOMONAME 	/data/gijsvds/PyTomTutorial/04_Particle_Picking/Tomograms/tomogram_000_WBP.mrc
+#MARKERINDEX 	8
+#BINNINGFACTOR 	1
+#
+      68       60      232
+     108       73      232
