@@ -1,9 +1,14 @@
 #!/usr/bin/env pytom
 from pytom.agnostic.io import read, write
 import sys, os
-import matplotlib
-matplotlib.use('Qt5Agg')
-from pylab import *
+try:
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    from pylab import *
+except:
+    import matplotlib
+    from pylab import *
+
 from skimage.morphology import *
 from scipy.ndimage.morphology import binary_fill_holes
 from scipy.ndimage import label

@@ -4454,7 +4454,10 @@ class PointSymmetry(Symmetry):
 
         if plot:
             import matplotlib
-            matplotlib.use('Qt5Agg')
+            try:
+                matplotlib.use('Qt5Agg')
+            except:
+                pass
             from matplotlib import pyplot
             pyplot.plot(ccList)
             pyplot.show()

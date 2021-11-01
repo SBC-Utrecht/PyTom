@@ -4,10 +4,15 @@ import sys
 from pytom.gui.mrcOperations import read_mrc, downsample
 from pytom_volume import read
 from pytom_numpy import vol2npy
-import matplotlib
-matplotlib.use('Qt5Agg')
 
-from pylab import *
+try:
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    from pylab import *
+except:
+    import matplotlib
+    from pylab import *
+
 import copy
 
 

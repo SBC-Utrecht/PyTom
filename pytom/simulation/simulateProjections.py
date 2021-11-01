@@ -7,7 +7,10 @@ import sys
 from pytom.gui.mrcOperations import *
 import matplotlib
 
-matplotlib.use('Qt5Agg')
+try:
+    matplotlib.use('Qt5Agg')
+except:
+    pass
 from pylab import *
 from pytom.basic.transformations import rotate
 from pytom_volume import read

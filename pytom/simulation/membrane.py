@@ -13,7 +13,8 @@ import pytom.simulation.physics as physics
 # plotting
 # TODO remove plotting import
 import matplotlib
-matplotlib.use('Qt5Agg')
+try: matplotlib.use('Qt5Agg')
+except: pass
 from pylab import *
 from mpl_toolkits.mplot3d import Axes3D # <--- This is important for 3d plotting
 

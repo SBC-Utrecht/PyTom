@@ -27,10 +27,13 @@ d = np.abs(a-b)
 for e in [d]:
     print(e[mask > 1E-4].mean(), e[mask>1E-4].std(), e.min(), e.max())
 
-import matplotlib
-
-matplotlib.use('Qt5Agg')
-from pylab import imshow, show, subplots
+try:
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    from pylab import *
+except:
+    import matplotlib
+    from pylab import *
 
 
 d = d.squeeze()

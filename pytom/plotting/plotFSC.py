@@ -1,6 +1,10 @@
 #!/usr/bin/env pytom
 import matplotlib
-matplotlib.use('Qt5Agg')
+
+try:
+    matplotlib.use('Qt5Agg')
+except:
+    pass
 from pylab import subplots, savefig, show
 import os
 

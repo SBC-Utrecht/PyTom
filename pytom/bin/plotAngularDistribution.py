@@ -76,9 +76,15 @@ if __name__ == '__main__':
     
     # start plotting
     import numpy as np
-    import matplotlib
-    matplotlib.use('Qt5Agg')
-    import matplotlib.pyplot as plt
+
+    try:
+        import matplotlib
+
+        matplotlib.use('Qt5Agg')
+        from pylab import *
+    except:
+        import matplotlib
+        from pylab import *
     
     ax = plt.subplot(121, polar=True)
     ax.plot(top_longitude, top_latitude, 'ro')

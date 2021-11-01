@@ -1186,7 +1186,10 @@ def readPolishResultFile(filename, tilt_angles=None, non_stacked=False):
 
 def plotCurve(data, num_rows=1, num_cols=1, s=5, e=None, h=None):
     import matplotlib
-    matplotlib.use('Qt5Agg')
+    try:
+        matplotlib.use('Qt5Agg')
+    except:
+        pass
     from pylab import subplots, show, savefig
 
     fig, ax = subplots(num_rows, num_cols, figsize=(num_cols*s, num_rows*s))

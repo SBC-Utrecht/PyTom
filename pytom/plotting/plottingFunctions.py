@@ -1,6 +1,10 @@
 #!/usr/bin/env pytom
 import matplotlib
-matplotlib.use('Qt5Agg')
+
+try:
+    matplotlib.use('Qt5Agg')
+except:
+    pass
 import numpy
 import os
 import lxml.etree as et

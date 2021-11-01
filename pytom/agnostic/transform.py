@@ -482,7 +482,10 @@ def shiftFourier(volume, shift=None, grid=None):
 
 
     import matplotlib
-    matplotlib.use('Qt5Agg')
+    try:
+        matplotlib.use('Qt5Agg')
+    except:
+        pass
     from pylab import imshow, show
 
 

@@ -303,7 +303,9 @@ class FiducialLessAlignment():
             print(params)
 
             import matplotlib
-            matplotlib.use('Qt5Agg')
+            try: matplotlib.use('Qt5Agg')
+            except:
+                pass
             from pylab import imshow, show, subplots
             fig, ax = subplots(2, 1, figsize=(5, 10))
             ax[0].set_title(nccVal)
@@ -323,7 +325,8 @@ class FiducialLessAlignment():
                   numIter=1, startCoor=[0,0,0], CRawDir='CRaw/', CSimDir='CSim/', simulDir='simulDir/', outdir='./',
                   interp='filt_bspline', profile=True, gpuID=-1):
         import matplotlib
-        matplotlib.use('Qt5Agg')
+        try: matplotlib.use('Qt5Agg')
+        except:pass
         from pylab import imshow, show, subplots
         import sys, os, re, subprocess
         from scipy import misc
@@ -571,7 +574,10 @@ class FiducialLessAlignment():
                     self.params[i*3:i*3+2] = [px-sx//2,py-sy//2]
                     print(i, res.max(), px-sx//2, py-sy//2)
                     import matplotlib
-                    matplotlib.use('Qt5Agg')
+                    try:
+                        matplotlib.use('Qt5Agg')
+                    except:
+                        pass
                     from pylab import imshow, show, subplots
                     fig,ax = subplots(1,3,figsize=(15,5))
                     ax[0].imshow(self.craw_images[i].get())

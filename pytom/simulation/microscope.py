@@ -264,7 +264,11 @@ def display_microscope_function(image, form='', complex=False):
     @author: Marten Chaillet
     """
     import matplotlib
-    matplotlib.use('Qt5Agg')
+    try:
+        matplotlib.use('Qt5Agg')
+    except:
+        pass
+
     import matplotlib.pyplot as plt
 
     if complex:

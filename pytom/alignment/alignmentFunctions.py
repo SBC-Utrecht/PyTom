@@ -5,7 +5,11 @@ Created on Jan 27, 2010
 '''
 analytWedge=False
 import matplotlib
-matplotlib.use('Qt5Agg')
+
+try:
+    matplotlib.use('Qt5Agg')
+except:
+    pass
 from pylab import imshow, show
 
 from pytom.gpu.initialize import xp, device

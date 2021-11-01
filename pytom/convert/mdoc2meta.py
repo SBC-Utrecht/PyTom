@@ -1,7 +1,11 @@
 #!/usr/bin/env pytom
 import matplotlib
 import matplotlib.backends.backend_qt5agg
-matplotlib.use('Qt5Agg')
+
+try:
+    matplotlib.use('Qt5Agg')
+except:
+    pass
 import sys
 import os
 import pickle, json

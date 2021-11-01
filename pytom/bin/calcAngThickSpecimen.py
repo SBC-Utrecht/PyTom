@@ -10,9 +10,9 @@ Estimate the thickness and angle of the specimen.
 
 
 def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=1):
-    import matplotlib
-    matplotlib.use('Qt5Agg')
-    from pylab import imshow, show, subplots, savefig
+    # import matplotlib
+    # matplotlib.use('Qt5Agg')
+    # from pylab import imshow, show, subplots, savefig
     from pytom.agnostic.tools import create_sphere
     from pytom.agnostic.io import read, write
     from pytom.voltools import transform
@@ -43,9 +43,9 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=1)
 
 
 def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6, radius2=2):
-    import matplotlib
-    matplotlib.use('Qt5Agg')
-    from pylab import imshow, show, subplots, savefig
+    # import matplotlib
+    # matplotlib.use('Qt5Agg')
+    # from pylab import imshow, show, subplots, savefig
     from pytom.agnostic.tools import create_sphere
     from pytom.agnostic.io import read, write
     from pytom.voltools import transform

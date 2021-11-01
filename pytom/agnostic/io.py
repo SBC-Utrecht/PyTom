@@ -174,7 +174,7 @@ def write(filename, data, tilt_angle=0, pixel_size=1, order='F'):
 
     if filename.endswith('.em'):
         write_em(filename, data, tilt_angle, order=order)
-    elif filename.endswith('.mrc'):
+    elif filename.endswith('.mrc') or filename.endswith('.mrcs') or filename.endswith('.rec'):
         write_mrc(filename, data, tilt_angle, pixel_size=pixel_size, order=order)
     else:
         raise Exception('Unsupported file format, cannot write an {}-file'.format(filename.split('.')[-1]))

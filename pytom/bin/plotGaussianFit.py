@@ -11,9 +11,16 @@ Updated on Jun 21, 2021
 # todo make sure ValueError are printed with output if data cannot be fit
 
 # plotting
-import matplotlib
-matplotlib.use('Qt5Agg')
-import matplotlib.pyplot as plt
+try:
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    from pylab import *
+    import matplotlib.pyplot as plt
+
+except:
+    import matplotlib
+    from pylab import *
+    import matplotlib.pyplot as plt
 
 # main functionality
 import sys

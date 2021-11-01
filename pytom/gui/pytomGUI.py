@@ -214,7 +214,9 @@ class View2d(QMainWindow, CommonFunctions):
 
 class PyTomGui(QMainWindow, CommonFunctions):
     resized=pyqtSignal()
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, warn_closing=True):
+        self.warn_closing = warn_closing
+        self.silent = not warn_closing
         super(PyTomGui, self).__init__(parent)
         self.size_policies()
         self.setGeometry(0,0, 300, 100)
@@ -655,11 +657,13 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
     def closeEvent(self, event):
 
-
-        close = QMessageBox()
-        close.setText("Are you sure you want to close the PyTomGUI?")
-        close.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
-        close = close.exec()
+        if self.warn_closing:
+            close = QMessageBox()
+            close.setText("Are you sure you want to close the PyTomGUI?")
+            close.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+            close = close.exec()
+        else:
+            close = QMessageBox.Yes
 
         if close == QMessageBox.Yes:
 

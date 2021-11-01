@@ -9,7 +9,11 @@ Updated on Sep 08, 2019 (GS)
 global xp
 from pytom.gpu.initialize import xp, device
 import matplotlib
-matplotlib.use('Qt5Agg')
+
+try:
+    matplotlib.use('Qt5Agg')
+except:
+    pass
 from pylab import imshow, show, savefig, subplots
 from pytom.gui.guiFunctions import savestar
 import mrcfile
@@ -202,7 +206,10 @@ def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position,
     @returntype: list
     """
     import matplotlib
-    matplotlib.use('Qt5Agg')
+    try:
+        matplotlib.use('Qt5Agg')
+    except:
+        pass
     from pylab import subplots, show
     import pytom.voltools as vt
     from pytom.agnostic.transform import rotate3d, rotate_axis

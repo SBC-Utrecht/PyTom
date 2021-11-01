@@ -967,7 +967,10 @@ class PickingFunctions():
 
 
         import matplotlib
-        matplotlib.use('Qt5Agg')
+        try:
+            matplotlib.use('Qt5Agg')
+        except:
+            pass
         from pylab import imshow, show, subplots, savefig
         from pytom.agnostic.tools import create_sphere, create_circle
         from pytom.agnostic.io import read, write
@@ -1159,7 +1162,10 @@ class PickingFunctions():
     def refine(self, cx, cy, frame, imnr, fact, cropsize):
         '''This function finds the maxima in a 2D frame'''
         import matplotlib
-        matplotlib.use('Qt5Agg')
+        try:
+            matplotlib.use('Qt5Agg')
+        except:
+            pass
         from pylab import subplots, imshow, show
 
         if len(frame.shape) != 2: raise Exception('wrong shape of input frame')

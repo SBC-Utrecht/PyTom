@@ -7,7 +7,11 @@ Updated on Sep 08, 2019 (GS)
 @author: dschulte
 """
 import matplotlib
-matplotlib.use('Qt5Agg')
+
+try:
+    matplotlib.use('Qt5Agg')
+except:
+    pass
 import pylab as pp
 from pytom.gpu.initialize import xp, device
 from pylab import imshow, show, savefig, subplots

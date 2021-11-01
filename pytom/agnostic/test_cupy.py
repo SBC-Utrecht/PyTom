@@ -4,7 +4,10 @@
 
 def plot_central_sections(vol):
     import matplotlib
-    matplotlib.use('Qt5Agg')
+    try:
+        matplotlib.use('Qt5Agg')
+    except:
+        pass
     from pylab import subplots, show
 
     fig,ax = subplots(1,3,figsize=(15,5))

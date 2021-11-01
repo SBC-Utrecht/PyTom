@@ -1708,7 +1708,10 @@ class NonUniformFFT():
         However, serial atomic add is far too slow and inaccurate.
         """
         import matplotlib
-        matplotlib.use('Qt5Agg')
+        try:
+            matplotlib.use('Qt5Agg')
+        except:
+            pass
         from pylab import imshow, show, plot
 
         k   = xp.zeros(self.multi_Kd, dtype=xp.complex64)
