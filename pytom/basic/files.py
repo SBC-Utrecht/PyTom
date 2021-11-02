@@ -1156,6 +1156,57 @@ def pl2star(filename, target, prefix='', pixelsize=1, binningPyTom=1, binningWar
 
     np.savetxt(newFilename, stardata, fmt=fmtR31S, header=headerRelion31Subtomo, comments='')
 
+def star2xml(filename, target, prefix=None, pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None):
+    star2pl(filename, target, prefix, pixelsize, binningPyTom, binningWarpM, outname, wedgeAngles)
+
+def star2pl(filename, target, prefix=None, pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None):
+    from pytom.agnostic.tools import zxz2zyz, zyz2zxz
+    from pytom.basic.structures import ParticleList, Particle
+    from pytom.basic.datatypes import RELION31_PICKPOS_STAR, fmtR31S, headerRelion31Subtomo
+    import os
+    import numpy as np
+
+    stardata= loadtxt(filename, dtype=RELION31_PICKPOS_STAR)
+
+    pl = ParticleList()
+
+    for n in range(len(stardata['CoordinateX'])):
+
+        x, y, z = stardata['CoordinateX'][n], stardata['CoordinateX'][n], stardata['CoordinateX'][n]
+
+        p = Particle(stardata['MicrographName'][n])
+
+        factor = binningWarpM / binningPyTom
+
+        p.getShift().setX(x * factor)
+        p.getShift().setY(y * factor)
+        p.getShift().setZ(z * factor)
+
+
+        p.setClass(stardata['GroupNumber'][n])
+
+        z0, z1, x = p.getRotation().toVector()
+
+        z0 = -stardata['AngleRot'][n]
+        y  = stardata['AngleTilt'][n]
+        z1 = -stardata['AnglePsi'][n]
+
+
+        z0, x, z1 = zyz2zxz(z0, y, z1)
+
+        p.getRotation().setZ1(z0)
+        p.getRotation().setZ2(z1)
+        p.getRotation().setX(x)
+        if not wedgeAngles is None:
+            p.getWedge().setWedgeAngles(wedgeAngles)
+
+        pl.append(p)
+
+    newFilename = name_to_format(filename if outname == '' else outname, target, "xml")
+
+    pl.toXMLFile(newFilename)
+
+
 def txt2wimp(fname, target, prefix, outname=''):
     '''This functions creates and saves a file named outname which has the wimp format.
     @parm fname: path to markerfile.txt file in PyTom DATATYPE_MARKERFILE format
@@ -1256,3 +1307,46 @@ def loadtxt(filename, dtype='float32', usecols=None, skip_header=0):
 def savetxt(filename, arr, header='', fmt='', comments='#'):
     import numpy
     numpy.savetxt(filename, arr, comments=comments, header=header, fmt=fmt)
+
+def log2txt(filename, target, prefix=None, pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', prexf='', sorted_folder=''):
+    import numpy
+    from pytom.basic.datatypes import DATATYPE_TASOLUTION as dtype_ta, DATATYPE_ALIGNMENT_RESULTS_RO, FMT_ALIGNMENT_RESULTS_RO, HEADER_ALIGNMENT_RESULTS_RO
+    import os
+
+    ta_fname = filename
+    shift_fname = prexf
+    prefix, filetype, folder = 'sorted_', 'mrc', sorted_folder
+
+    if folder == '': folder =target
+
+    shift = numpy.loadtxt(shift_fname)
+    ta = loadtxt(ta_fname, dtype=dtype_ta, skip_header=3)
+
+    NUM = len(ta)
+    pp = 0
+    ar = numpy.zeros((NUM),dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
+    ar['TiltAngle'] = ta['Tilt']  #+ ta['DelTilt']
+    ar['InPlaneRotation'] = (numpy.arccos(shift[:,0])*-180/numpy.pi + 90)
+    ar['OperationOrder'] = 120
+
+    for n, (shx, shy) in enumerate(shift[:,-2:]):
+        m = numpy.zeros((2,2))
+        m[0,0] = numpy.cos(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
+        m[0,1] = numpy.sin(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
+        m[1,0] = -numpy.sin(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
+        m[1,1] = numpy.cos(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
+        #m[:2,0] = shift[n][:2]
+        #m[:2,1] = shift[n][2:4]
+        shift[n,-2:] = m.dot(numpy.array((shx,shy)))
+
+
+        ar['AlignmentTransX'][n] = -shift[n,-2]
+        ar['AlignmentTransY'][n] = shift[n,-1]
+    print(1 / ta[ 'Magn'])
+    ar['Magnification'] = 1/ta['Magn']
+
+    # ar['InPlaneRotation'] += 0
+    print(ar)
+    ar['FileName'] = sorted([os.path.join(folder, fname) for fname in os.listdir(folder) if fname.startswith(prefix) and fname.endswith('.'+filetype)])
+
+    savetxt(os.path.join(target, 'alignmentResults.txt'), ar, fmt=FMT_ALIGNMENT_RESULTS_RO, header=HEADER_ALIGNMENT_RESULTS_RO)

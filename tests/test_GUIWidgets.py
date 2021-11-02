@@ -6,7 +6,12 @@ import sys
 
 from pytom.gui.pytomGUI import PyTomGui as pytomGUI
 
-fname = 'UnitTestProject'
+fname = 'E2ETests/FullPipeline'
+
+if not os.path.exists(os.path.join(fname, 'logfile.pickle')):
+    os.system(f"touch {os.path.join(fname, 'logfile.pickle')}")
+
+
 
 def create_project(qtbot,name,wtype=''):
     widget = pytomGUI()
@@ -38,14 +43,13 @@ def test_01_start_gui(qtbot):
 
 def test_03_Alignment_form(qtbot):
     mode = 'v02_SingleAlignment_'
-    wbpForm = open('alignment.sh', 'r').read()
     widget = pytomGUI(warn_closing=False)
     qtbot.addWidget(widget)
     widget.open_project(fname)
     window = widget.TR
     dd = (("LastAngle", 60), ("LastIndex", 36), ("RefMarkerIndex", 1), ("RefTiltIndex", 18), ("RotationTiltAxis", 0),
           ("queue", False),("FirstAngle", -60), ("FirstIndex", 0),
-          ("FolderSorted", "UnitTestProject/03_Tomographic_Reconstruction/tomogram_001/sorted"))
+          ("FolderSorted", f"{fname}/03_Tomographic_Reconstruction/tomogram_000/sorted"))
 
     set_values(window, dd, mode)
     qtbot.mouseClick(window.widgets[mode + 'GeneratePushButton'], QtCore.Qt.LeftButton)
@@ -56,8 +60,6 @@ def test_03_Alignment_form(qtbot):
     assert text != ''
 
 def test_03_Alignment_form_pbs(qtbot):
-    mode = 'v02_SingleAlignment_'
-    wbpForm = open('alignment.sh', 'r').read()
     widget = pytomGUI(warn_closing=False)
     qtbot.addWidget(widget)
     widget.open_project(fname)
@@ -66,7 +68,6 @@ def test_03_Alignment_form_pbs(qtbot):
 
 def test_04_INFR_form_mandatory_fill(qtbot):
     mode = 'v02_ReconstructINFR_'
-    infrForm = open('INFR_reconstruction.sh', 'r').read()
 
     widget = pytomGUI(warn_closing=False)
     qtbot.addWidget(widget)
@@ -85,7 +86,6 @@ def test_04_INFR_form_mandatory_fill(qtbot):
 
 def test_04_INFR_form(qtbot):
     mode = 'v02_ReconstructINFR_'
-    infrForm = open('INFR_reconstruction.sh', 'r').read()
 
     widget = pytomGUI(warn_closing=False)
     qtbot.addWidget(widget)
@@ -94,7 +94,7 @@ def test_04_INFR_form(qtbot):
 
     dd = (("LastAngle", 60), ("LastIndex", 37), ("RefMarkerIndex", 1), ("RefTiltIndex", 19), ("RotationTiltAxis", 0),
           ("queue", False),("FirstAngle", -60), ("FirstIndex", 0),
-          ("FolderSorted", "UnitTestProject/03_Tomographic_Reconstruction/tomogram_001/sorted"))
+          ("FolderSorted", f"{fname}/03_Tomographic_Reconstruction/tomogram_000/sorted"))
 
     set_values(window, dd, mode)
     qtbot.mouseClick(window.widgets[mode + 'GeneratePushButton'], QtCore.Qt.LeftButton)
@@ -113,7 +113,7 @@ def test_05_WBP_form(qtbot):
     window = widget.TR
     dd = (("LastAngle", 60), ("LastIndex", 37), ("RefMarkerIndex", 1), ("RefTiltIndex", 18), ("RotationTiltAxis", 0),
           ("WeightingType", 1), ("queue", False),("FirstAngle", -60), ("FirstIndex", 0),
-          ("FolderSorted", "UnitTestProject/03_Tomographic_Reconstruction/tomogram_001/sorted"))
+          ("FolderSorted", f"{fname}/03_Tomographic_Reconstruction/tomogram_000/sorted"))
 
     set_values(window, dd, mode)
     qtbot.mouseClick(window.widgets[mode + 'GeneratePushButton'], QtCore.Qt.LeftButton)

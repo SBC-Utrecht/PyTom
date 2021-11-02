@@ -2107,7 +2107,6 @@ class GuiTabWidget(QWidget, CommonFunctions):
                     self.tab_actions2[f'tab{n+1}'] = tabUIs[n][0]
 
             except Exception as e:
-                print('jumbo', e)
                 pass
             self.tabWidget.addTab(tab, header)
 
@@ -2158,7 +2157,6 @@ class GuiTabWidget(QWidget, CommonFunctions):
                     tab = self.tabs_dict[tt]
                     tab.setLayout(self.table_layouts[tt])
     def addGeneralVariables(self):
-        print(f'\n\n\n\nAdding general\n\n\n')
 
         self.pytompath = self.parent().pytompath
         self.projectname = self.parent().projectname

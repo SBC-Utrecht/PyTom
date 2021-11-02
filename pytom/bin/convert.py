@@ -15,7 +15,7 @@ import numpy
 #from pytom.gui.guiFunctions import createMetaDataFiles
 
 # The lookup tables for the conversion functions
-extensions = all_extensions = ["em", "mrc", "ccp4", "pl", "meta", "pdb", "mmCIF", 'mrcs', 'st', 'mdoc', 'h5', 'star', 'txt', 'wimp']
+extensions = all_extensions = ["em", "mrc", "ccp4", "pl", "meta", "pdb", "mmCIF", 'mrcs', 'st', 'mdoc', 'h5', 'star', 'txt', 'wimp', 'xml', 'log']
 special = ['pl']
 
 lookuptable = []
@@ -103,6 +103,23 @@ def convertfile(file, format, target, chaindata, subtomo_prefix=None, wedge_angl
             print(e)
             return 1, "Exception while converting particleList {:s} to a star file".format(file)
 
+    if in_ex == "star" and format == "xml":
+        try:
+            func(file, target, **chaindata)
+            return 0,""
+
+        except Exception as e:
+            print(e)
+            return 1, "Exception while converting particleList {:s} to a xml file".format(file)
+
+    if in_ex == "log" and format == "txt":
+        try:
+            func(file, target, **chaindata)
+            return 0, ""
+
+        except Exception as e:
+            print(e)
+            return 1, "Exception while converting particleList {:s} to a {:s} file".format(file, format)
 
     if func is None:
         return -1, "Converting from {:s} to {:s} is not implemented yet".format(in_ex, format)
@@ -223,12 +240,14 @@ if __name__ == '__main__':
                  ScriptOption2(['--pixelSize'], 'Pixelsize of original nanographs.', 'float', 'optional', 1),
                  ScriptOption2(['--binPyTom'], 'Binning factor of the pytom tomogram.', 'float', 'optional', 1),
                  ScriptOption2(['--binWarpM'], 'Binning factor of the warp/m volumes.', 'float', 'optional', 1),
+                 ScriptOption2(['--prexf'], 'Final shift file IMOD', 'file', 'optional', ''),
+                 ScriptOption2(['--sortedFolder'], 'Sorted Images are located in this folder (either sorted or sorted_ctf)', 'directory', 'optional', ''),
         ])
 
     #TODO write --filter to filter input files maybe on (glob) pattern or else on extension or similar
 
     filename, directory, target, outname, format, chaindata, subtomo_prefix, w, prefix, suffix, pixelsize, binningFactorPyTom,\
-    binningFactorWarpM = parse_script_options2(sys.argv[1:], helper)
+    binningFactorWarpM, prexf, sorted_folder = parse_script_options2(sys.argv[1:], helper)
 
     try:
         if w:
@@ -280,16 +299,37 @@ if __name__ == '__main__':
     # Test for validity of the arguments passed, will stop execution if an error is found
     test_validity(filename, directory, target, format, chaindata)
 
-    if (outname and format == 'star') or (not filename is None and filename.endswith('xml')):
-        chaindata = {}
+    star2pl, pl2star = False, False
 
+
+    if outname and format == 'xml' or (not filename is None and filename.endswith('star')):
+        star2pl = True
+
+    if (outname and format == 'star') or (not filename is None and filename.endswith('xml')):
+        pl2star = True
+
+    if (outname and format == 'txt') or (not filename is None and filename.endswith('log')):
+        log2txt = True
+        chaindata = {}
         chaindata['pixelsize'] = pixelsize
         chaindata['binningWarpM'] = binningFactorWarpM
         chaindata['binningPyTom'] = binningFactorPyTom
-        outname = 'dummy.star' if outname == '' else outname
+        outname = f'dummy.{format}' if (outname == '' and directory) else outname
+        chaindata['outname'] = outname
+        chaindata['prexf'] = prexf
+        chaindata['sorted_folder'] = sorted_folder
+
+    if pl2star or star2pl:
+        chaindata = {}
+        chaindata['wedgeAngles'] = wedge_angles
+        chaindata['pixelsize'] = pixelsize
+        chaindata['binningWarpM'] = binningFactorWarpM
+        chaindata['binningPyTom'] = binningFactorPyTom
+        outname = f'dummy.{format}' if (outname == '' and directory) else outname
+        chaindata['outname'] = outname
 
     if filename:
-        warn_if_file_exists(f.name_to_format(filename, target, format))
+        warn_if_file_exists(f.name_to_format(filename, target, format) if outname == '' else outname)
 
         num, ex = convertfile(filename, format, target, chaindata, subtomo_prefix, wedge_angles)
 
@@ -304,7 +344,6 @@ if __name__ == '__main__':
             fileList = [os.path.join(directory, fname) for fname in os.listdir(directory) if not os.path.isdir(fname)]
         else:
             query = os.path.join(directory, prefix + '*' + suffix)
-            print(query)
             fileList = sorted(glob.glob(query))
 
 
@@ -313,7 +352,11 @@ if __name__ == '__main__':
                                                                           binningPyTom=binningFactorPyTom,
                                                                           binningWarpM=binningFactorWarpM,
                                                                           outname=outname)
-
+        elif format == 'xml':
+            lookuptable[extensions.index('star')][extensions.index('pl')](directory, target, pixelsize=pixelsize,
+                                                                          binningPyTom=binningFactorPyTom,
+                                                                          binningWarpM=binningFactorWarpM,
+                                                                          outname=outname)
         else:
             for filename in fileList:
                 warn_if_file_exists(f.name_to_format(filename, target, format))

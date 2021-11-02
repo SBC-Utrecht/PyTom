@@ -1208,12 +1208,18 @@ class ProjectionList(PyTomClass):
         import pytom_freqweight
         from pytom.basic.transformations import resize, rotate
         from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
+        from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO
         from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
         from pytom_numpy import vol2npy
 
         if 1: print(f"Create aligned images from {alignmentResultsFile}")
 
-        alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
+        try:
+            alignmentResults = loadstar(alignmentResultsFile, dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
+
+        except:
+            alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
+
         imageList = alignmentResults['FileName']
         tilt_angles = alignmentResults['TiltAngle']
 
@@ -1317,6 +1323,8 @@ class ProjectionList(PyTomClass):
                 image = newImage
 
 
+            if 'OperationOrder' in alignmentResults.dtype.names:
+                order = alignmentResults['OperationOrder'][ii]
 
             image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True)
 
@@ -1376,14 +1384,18 @@ class ProjectionList(PyTomClass):
         import pytom_freqweight
         from pytom.basic.transformations import resize, rotate
         from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
+        from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO
         from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
         from pytom_numpy import vol2npy
         import time, os
         from multiprocessing import Process
 
         if 1: print(f"Create aligned images from {alignmentResultsFile}")
+        try:
+            alignmentResults = loadstar(alignmentResultsFile, dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
 
-        alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
+        except:
+            alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
         imageList = alignmentResults['FileName']
         tilt_angles = alignmentResults['TiltAngle']
 
@@ -1431,9 +1443,14 @@ class ProjectionList(PyTomClass):
                 time.sleep(1)
                 procs = [proc for proc in procs if proc.is_alive()]
 
+            if 'OperationOrder' in alignmentResults.dtype.names:
+                order = alignmentResults['OperationOrder'][ii]
+            else:
+                order =[2,1,0]
+
             args = (projection._filename, projection._index, projection._tiltAngle, tilt_angles, sliceWidth,
                     projection._alignmentTransX, projection._alignmentTransY, projection._alignmentRotation,
-                    projection._alignmentMagnification,
+                    projection._alignmentMagnification, order,
                     scaleFactorParticle, weighting, imdim, imdimX, imdimY, binning, lowpassFilter, circleFilter,
                     f'TEMP{rnum}_{ii}.mrc')
 
@@ -1456,7 +1473,7 @@ class ProjectionList(PyTomClass):
         return [stack, phiStack, thetaStack, offsetStack]
 
     def align_single_image(self, filename, index, tiltAngle, tilt_angles, sliceWidth, alignmentTransX, alignmentTransY,
-                           alignmentRotation, alignmentMagnification,
+                           alignmentRotation, alignmentMagnification, order,
                            scaleFactorParticle, weighting, imdim, imdimX, imdimY, binning, lowpassFilter, circleFilter,
                            fname):
         """read image and create alignment images using the given params.
@@ -1571,6 +1588,7 @@ class ProjectionList(PyTomClass):
             newImage.setAll(0)
             pasteCenter(image, newImage)
             image = newImage
+
 
         image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True)
 

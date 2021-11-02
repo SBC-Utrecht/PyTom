@@ -463,15 +463,16 @@ class PyTomGui(QMainWindow, CommonFunctions):
         #dialog = QFileDialog(self, 'Create Project', './')
         #dialog.setFileMode(QtGui.QFileDialog.DirectoryOnly)
         
-    def open_project(self):
+    def open_project(self, name=None):
         
-        self.projectname = QFileDialog.getExistingDirectory(self, 'Open file', os.getcwd())
+        self.projectname = QFileDialog.getExistingDirectory(self, 'Open file', os.getcwd()) if name is None else name
 
         if len(self.projectname) < 2:
             pass
         elif self.is_pytomgui_project(self.projectname) == False:
 
-            QMessageBox().critical(self, "Invalid projectname",
+            if self.warn_closing:
+                QMessageBox().critical(self, "Invalid projectname",
                                 "The selected folder does not contain a valid pytomGUI structure", QMessageBox.Ok)
             #error_dialog.showMessage('The folder you selected does not contain a valid pytomGUI folder structure.')
 
@@ -492,13 +493,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
     def run_project(self):
 
-        self.rawnanographs_folder = os.path.join(self.projectname, '01_Raw_Nanographs')
-        self.logfolder = os.path.join(self.projectname, 'LogFiles')
-        self.motioncor_folder = os.path.join(self.projectname, '02_Preprocessed_Nanographs/Motion_corrected')
-        self.ctf_folder = os.path.join(self.projectname, '02_Preprocessed_Nanographs/CTF_corrected')
-        self.tomogram_folder = os.path.join(self.projectname, '03_Tomographic_Reconstruction')
-        self.particlepick_folder = os.path.join(self.projectname, '04_Particle_Picking')
-        self.subtomo_folder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
+        self.addGeneralFolderPaths()
 
         topleft = QFrame()
         topleft.setSizePolicy(self.sizePolicyC)
@@ -523,22 +518,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.threadPool = QThreadPool()
 
-        self.CD = CollectPreprocess(self)
-        self.TR = TomographReconstruct(self)
-        self.PP = ParticlePick(self)
-        self.SA = SubtomoAnalysis(self)
-
-        self.frames = [self.CD, self.TR, self.PP, self.SA]
-
-        self.topright.addWidget(self.CD)
-        self.topright.addWidget(self.TR)
-        self.topright.addWidget(self.PP)
-        self.topright.addWidget(self.SA)
-        #self.topright.setSizePolicy(self.sizePolicyB)
-        self.topright.setCurrentIndex(0)
-        self.CD.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.CD.scrollarea.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.CD.tabWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.addFrames()
 
         splitter1 = QSplitter(Qt.Horizontal)
         splitter1.addWidget(topleft)
@@ -654,6 +634,32 @@ class PyTomGui(QMainWindow, CommonFunctions):
                 for pid in pids:
                     os.system(f'kill -9 {pid} >& /dev/null')
 
+    def addFrames(self):
+        self.CD = CollectPreprocess(self)
+        self.TR = TomographReconstruct(self)
+        self.PP = ParticlePick(self)
+        self.SA = SubtomoAnalysis(self)
+
+        self.frames = [self.CD, self.TR, self.PP, self.SA]
+
+        self.topright.addWidget(self.CD)
+        self.topright.addWidget(self.TR)
+        self.topright.addWidget(self.PP)
+        self.topright.addWidget(self.SA)
+
+        # setting one frames size is enough for the others to follow
+        self.CD.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.CD.scrollarea.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.CD.tabWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+    def addGeneralFolderPaths(self):
+        self.rawnanographs_folder = os.path.join(self.projectname, '01_Raw_Nanographs')
+        self.logfolder = os.path.join(self.projectname, 'LogFiles')
+        self.motioncor_folder = os.path.join(self.projectname, '02_Preprocessed_Nanographs/Motion_corrected')
+        self.ctf_folder = os.path.join(self.projectname, '02_Preprocessed_Nanographs/CTF_corrected')
+        self.tomogram_folder = os.path.join(self.projectname, '03_Tomographic_Reconstruction')
+        self.particlepick_folder = os.path.join(self.projectname, '04_Particle_Picking')
+        self.subtomo_folder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
 
     def closeEvent(self, event):
 
