@@ -1,5 +1,6 @@
 from setuptools import setup, Extension, find_packages
 from setuptools.command.install import install
+import sys
 
 import subprocess
 #import setuptools.command.build_py
@@ -14,14 +15,17 @@ from pytom import __version__
 
 condadir = os.popen("""conda env list | grep "*" | awk '{print $3}'""").read()[:-1]#input('\nType Path: ')
 
-print(condadir, condadir[:-1])
-
 condadir = '' if not os.path.exists(condadir) else condadir
 
-print(condadir)
+folder = 'pytom/angles/angleLists'
+angleLists =  [e for e in os.listdir(folder) if e.endswith('.em') and e.startswith('angles_')]
+
+
+
 def find_executables():
     folder = 'pytom/bin'
     a =  [f'{folder}/{e}' for e in os.listdir(folder) if os.path.isfile(f'{folder}/{e}') and not '__' in e] + ['pytom/bin/pytom', 'pytom/bin/ipytom', 'pytom/bin/pytomGUI']
+
     return a
 
 
@@ -62,6 +66,8 @@ setup(
     packages=find_packages(),
     package_dir={'pytom':'pytom'},
     # package_data={'pytom':["alignment"]},
+    package_data={'pytom/angles/angleLists': angleLists},
+    include_package_data=True,
     author='`FridoF',
     author_email='gijsschot@gmail.com',
     url='https://github.com/FridoF/PyTomPrivate.git',
@@ -71,7 +77,6 @@ setup(
         'gui': ['PyQt5', 'pyqtgraph', 'mrcfile'],
         'all': ['cupy', 'PyQt5', 'pyqtgraph', 'mrcfile']},
     cmdclass={'install': CustomInstall},
-    include_package_data=True,
     scripts=find_executables(),
     test_suite='nose.collector',
     tests_require=['nose'])
