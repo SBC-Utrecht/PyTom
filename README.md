@@ -87,6 +87,15 @@ If you don't want to remove containers after the run, remove `--rm` flag.
 Find info about how to user docker on [their docs](https://docs.docker.com/).
 
 
+### Unit tests
+
+After installation you can run pytom unit tests that check the functionality of the program.
+
+```
+cd tests
+pytom -m unittest discover
+```
+
 ## Versioning
 
 For the versions available, see the [tags on this repository]. 
