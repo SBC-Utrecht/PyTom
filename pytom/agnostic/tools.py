@@ -799,3 +799,30 @@ def is3D(volume):
         @rtype: bool'''
 
     return (volume.ndim == 3)
+
+def convert_operation_order_str2list(operation_string):
+    '''This function convert a string of operations to a list of numbers as used in general_transform_crop
+        @param operation_string: a string of S R T in any order. Each letter should appear exactly once.
+        @type volume: str
+        @return: list of 3 ints
+        @rtype: list'''
+
+    a = {'R': 0, 'T': 1, 'S': 2}
+    order = [2, 1, 0]
+    for n, operation in enumerate(operation_string):
+        order[a[operation]] = 2-n
+    return order
+
+def convert_operation_order_list2str(operation_list):
+    '''This function convert a string of operations to a list of numbers as used in general_transform_crop
+        @param operation_list: a list of 2,1,0 in any order. Each number should appear exactly once.
+        @type volume: list
+        @return: str of RTS in any order
+        @rtype: str'''
+
+    t=['R', 'T', 'S']
+    order = ['', '', '']
+    for n, operation in enumerate(operation_list):
+        order[2-operation] = t[n]
+
+    return ''.join(order)
