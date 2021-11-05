@@ -4,12 +4,12 @@ DATATYPE_ALIGNMENT_RESULTS_RO = [('TiltAngle',       'f4'),
                               ('AlignmentTransX', 'f4'),
                               ('AlignmentTransY', 'f4'),
                               ('AxisAngle', 'f4'),
-                              ('OperationOrder',  'i4'),
+                              ('OperationOrder',  'U1000'),
                               ('FileName', 'U1000')]
 
 HEADER_ALIGNMENT_RESULTS_RO = ''
 unitsAlignmentResultsRo = ['', 'degrees', 'degrees', 'px', 'px', 'degrees', '', '']
-fmtAlignmentResultsRo = FMT_ALIGNMENT_RESULTS_RO ='%15.10f %15.10f %15.10f %15.10f %15.10f %15.10f %5d %s'
+fmtAlignmentResultsRo = FMT_ALIGNMENT_RESULTS_RO ='%15.10f %15.10f %15.10f %15.10f %15.10f %15.10f %5s %s'
 for n, h in enumerate(DATATYPE_ALIGNMENT_RESULTS_RO):
     HEADER_ALIGNMENT_RESULTS_RO += '{} {}\n'.format(h[0], '({})'.format(unitsAlignmentResultsRo[n])*(unitsAlignmentResultsRo[n]!=''))
 
