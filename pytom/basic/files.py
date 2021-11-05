@@ -1326,8 +1326,8 @@ def log2txt(filename, target, prefix=None, pixelsize=1., binningPyTom=1., binnin
     pp = 0
     ar = numpy.zeros((NUM),dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
     ar['TiltAngle'] = ta['Tilt']  #+ ta['DelTilt']
-    ar['InPlaneRotation'] = (numpy.arccos(shift[:,0])*-180/numpy.pi + 90)
-    ar['OperationOrder'] = 120
+    ar['InPlaneRotation'] = (numpy.arccos(shift[:,0])*180/numpy.pi)
+    ar['OperationOrder'] = "TRS"
 
     for n, (shx, shy) in enumerate(shift[:,-2:]):
         m = numpy.zeros((2,2))
@@ -1340,13 +1340,12 @@ def log2txt(filename, target, prefix=None, pixelsize=1., binningPyTom=1., binnin
         shift[n,-2:] = m.dot(numpy.array((shx,shy)))
 
 
-        ar['AlignmentTransX'][n] = -shift[n,-2]
+        ar['AlignmentTransX'][n] = shift[n,-2]
         ar['AlignmentTransY'][n] = shift[n,-1]
-    print(1 / ta[ 'Magn'])
+
     ar['Magnification'] = 1/ta['Magn']
 
     # ar['InPlaneRotation'] += 0
-    print(ar)
     ar['FileName'] = sorted([os.path.join(folder, fname) for fname in os.listdir(folder) if fname.startswith(prefix) and fname.endswith('.'+filetype)])
 
     savetxt(os.path.join(target, 'alignmentResults.txt'), ar, fmt=FMT_ALIGNMENT_RESULTS_RO, header=HEADER_ALIGNMENT_RESULTS_RO)

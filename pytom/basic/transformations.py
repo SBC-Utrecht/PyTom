@@ -391,7 +391,7 @@ def mirror(volume,axis = 'x',copyFlag = True):
                     
                     volume.setV(tmp,xMirrored,yMirrored,zMirrored)
 
-def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2]):
+def general_transform_crop(v, rot=None, shift=None, scale=None, order=(0, 1, 2), center=None):
     """
     Perform general transformation using 3rd order spline interpolation 
     using volume of identical size. The origin stays invariant upon rotation
@@ -408,6 +408,8 @@ def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2])
     @param order: the order in which the three operations are performed (smaller means first) \
     e.g.: [2,1,0]: rotation: 2, scale: 1, translation:0 => translation 1st
     @type order: list
+    @param center: optional list with center coordinates in pixels
+    @type center: list of 3 floats
     @return: pytom_volume
 
     @author: FF
@@ -445,10 +447,16 @@ def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2])
     scaleM[1,1] = scale[1]
     scaleM[2,2] = scale[2]
     scaleM[3,3] = 1
-    
-    # multiply them according to the order
-    rotCenter1 = Shift(-int(v.sizeX()/2), -int(v.sizeY()/2), -int(v.sizeZ()/2)).toMatrix()
-    rotCenter2 = Shift(int(v.sizeX()/2), int(v.sizeY()/2), int(v.sizeZ()/2)).toMatrix()
+
+    o = -0.5
+    if center == None:
+        # multiply them according to the order
+        rotCenter1 = Shift(-int(v.sizeX()/2), -int(v.sizeY()/2), -int(v.sizeZ()/2)).toMatrix()
+        rotCenter2 = Shift(int(v.sizeX()/2), int(v.sizeY()/2), int(v.sizeZ()/2)).toMatrix()
+
+    else:
+        rotCenter1 = Shift(-center[0], -center[1], -center[2]).toMatrix()
+        rotCenter2 = Shift(center[0], center[1], center[2]).toMatrix()
 
     # multiply them according to the order
     all_mtx = [None, None, None]
@@ -461,7 +469,7 @@ def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2])
     general_transform(v, res, mtx._matrix)
     return res
 
-def general_transform(v, rot=None, shift=None, scale=None, order=[0, 1, 2]):
+def general_transform(v, rot=None, shift=None, scale=None, order=(0, 1, 2), center=None):
     """Perform general transformation using 3rd order spline interpolation.
     @param v: volume
     @type v: L{pytom_volume.vol}
@@ -473,6 +481,8 @@ def general_transform(v, rot=None, shift=None, scale=None, order=[0, 1, 2]):
     @type scale: list
     @param order: the order in which the three operations are performed (smaller means first)
     @type order: list
+    @param center: optional list with center coordinates in pixels
+    @type center: list of 3 floats
     @return: pytom_volume
     """
     from pytom.basic.structures import Rotation, Shift
@@ -519,6 +529,7 @@ def general_transform(v, rot=None, shift=None, scale=None, order=[0, 1, 2]):
         else: # scale first, so the center is different
             rotCenter1 = Shift(-int(v.sizeX()*scale)/2, -int(v.sizeY()*scale)/2, -int(v.sizeZ()*scale)/2).toMatrix()
             rotCenter2 = Shift(int(v.sizeX()*scale)/2, int(v.sizeY()*scale)/2, int(v.sizeZ()*scale)/2).toMatrix()
+
         all_mtx[order[0]] = rotCenter2 * (rotM * rotCenter1) # for the rotation center!
         all_mtx[order[1]] = shiftM
         all_mtx[order[2]] = scaleM
@@ -531,7 +542,7 @@ def general_transform(v, rot=None, shift=None, scale=None, order=[0, 1, 2]):
     general_transform(v, res, mtx._matrix)
     return res
 
-def general_transform2d(v, rot=None, shift=None, scale=None, order=[0, 1, 2], crop=True):
+def general_transform2d(v, rot=None, shift=None, scale=None, order=(0, 1, 2), crop=True, center=None ):
     """Perform general transformation of 2D data using 3rd order spline interpolation.
     @param v: volume in 2d (it's got to be an image)
     @type v: L{pytom_volume.vol}
@@ -546,6 +557,8 @@ def general_transform2d(v, rot=None, shift=None, scale=None, order=[0, 1, 2], cr
     @type order: list
     @param crop: crop the resulting volume to have the same size as original volume (default: True)
     @type crop: boolean
+    @param center: optional list with center coordinates in pixels
+    @type center: list of 3 floats
     @return: pytom_volume
     """
     from pytom.basic.structures import Shift
@@ -571,9 +584,9 @@ def general_transform2d(v, rot=None, shift=None, scale=None, order=[0, 1, 2], cr
         shift = Shift(shift[0], shift[1], 0.) # you cannot shift 2D image along z axis, can you?
 
     if crop:
-        vv= general_transform_crop(v, rot=rot, shift=shift, scale=[scale, scale, 1], order=order)
+        vv= general_transform_crop(v, rot=rot, shift=shift, scale=[scale, scale, 1], order=order, center=center)
     else:
-        vv = general_transform(v, rot, shift, [scale, scale, 1], order)
+        vv = general_transform(v, rot, shift, [scale, scale, 1], order, center=center)
     return vv
 
 def project(v, rot, verbose=False):
