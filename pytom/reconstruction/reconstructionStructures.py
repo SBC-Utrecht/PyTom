@@ -1324,9 +1324,14 @@ class ProjectionList(PyTomClass):
 
 
             if 'OperationOrder' in alignmentResults.dtype.names:
-                order = alignmentResults['OperationOrder'][ii]
+                from pytom.agnostic.tools import convert_operation_order_str2list as str2list
+                operation_string = alignmentResults['OperationOrder'][ii]
+                order = str2list(operation_string)
 
-            image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True)
+            # IMOD Rotates around size/2 -0.5, wheras pytom defaults to rotating around size/2
+            center = (image.sizeX()/2-0.5, image.sizeY()/2-0.5, 0) if order == [1,2,0] else None
+
+            image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True, center=center)
 
             if lowpassFilter:
                 filtered = filterFunction(volume=image, filterObject=lpf, fourierOnly=False)
@@ -1444,7 +1449,11 @@ class ProjectionList(PyTomClass):
                 procs = [proc for proc in procs if proc.is_alive()]
 
             if 'OperationOrder' in alignmentResults.dtype.names:
-                order = alignmentResults['OperationOrder'][ii]
+                from pytom.agnostic.tools import convert_operation_order_str2list as str2list
+                operation_string = alignmentResults['OperationOrder'][ii]
+                order = str2list(operation_string)
+                if verbose: print(order)
+
             else:
                 order =[2,1,0]
 
@@ -1589,8 +1598,11 @@ class ProjectionList(PyTomClass):
             pasteCenter(image, newImage)
             image = newImage
 
+        # IMOD Rotates around size/2 -0.5, wheras pytom rotates around size/2
 
-        image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True)
+        center = (image.sizeX()/2-1, image.sizeY()/2-1, 0) if order == [1,2,0] else None
+
+        image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True, center=center)
 
         if lowpassFilter:
             filtered = filterFunction(volume=image, filterObject=lpf, fourierOnly=False)

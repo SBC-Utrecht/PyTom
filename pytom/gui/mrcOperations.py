@@ -81,27 +81,59 @@ def rot90_mrc_2d(mrc_fname,times=1):
     convert_numpy_array3d_mrc((o)[newaxis,:,:],mrc_fname)
 
 def downsample(img, factor):
-    ory,orx = img.shape
-    offsetx, offsety = crop_pix(img,factor)
-    offsetx = int(offsetx)
-    offsety = int(offsety)
 
-    starty,endy,startx,endx = int(offsety//2), int( -(offsety//2+offsety%2)+((not offsety)*ory)),int(offsetx//2),\
-                              int(-(offsetx//2+offsetx%2)+((not offsetx)*orx))
-    img = img[starty:endy,startx:endx]
+    shape = img.shape
 
-    image_size = img.shape[0]
-    
-    ds = (image_size//factor)
-    ds2 =  img.shape[1]//factor
-    return img.reshape(ds,image_size//ds,ds2,image_size//ds).mean(-1).mean(1)
+    if type(factor) == int:
+        factor = [factor for i in shape]
 
-def crop_pix(img,factor):
-    ydim,xdim = img.shape
-    offsetx,offsety = xdim%factor,ydim%factor
+    offset = crop_pix(img, factor)
 
-    return offsetx, offsety
+    if len(shape) == 1:
+        img = img[:img.shape[0]-offset[0]]
+        ds = [img.shape[i] // factor[i] for i in range(len(img.shape))]
+        v = img.reshape(ds[0], shape[0] // ds[0]).mean(-1)
+    elif len(img.shape) == 2:
+        img = img[:img.shape[0]-offset[0], :img.shape[1]-offset[1]]
+        ds = [img.shape[i] // factor[i] for i in range(len(img.shape))]
+        v = img.reshape(ds[0], shape[0] // ds[0], ds[1], shape[1] // ds[1]).mean(-1).mean(1)
+    elif len(img.shape) == 3:
+        img = img[:img.shape[0]-offset[0], :img.shape[1]-offset[1], :img.shape[2]-offset[2]]
+        ds = [img.shape[i] // factor[i] for i in range(len(img.shape))]
+        dd = img.reshape(ds[0], shape[0] // ds[0], ds[1], shape[1] // ds[1], ds[2], shape[2] // ds[2])
+        v = dd.mean(-1).mean(-2).mean(1)
+    else:
+        raise Exception('downsampling for >3d does not exists')
 
+    return v
+#
+# def downsample(img, factor):
+#     ory,orx = img.shape
+#     offsetx, offsety = crop_pix(img,factor)
+#     offsetx = int(offsetx)
+#     offsety = int(offsety)
+#
+#     starty,endy,startx,endx = int(offsety//2), int( -(offsety//2+offsety%2)+((not offsety)*ory)),int(offsetx//2),\
+#                               int(-(offsetx//2+offsetx%2)+((not offsetx)*orx))
+#     img = img[starty:endy,startx:endx]
+#
+#     image_size = img.shape[0]
+#
+#     ds = (image_size//factor)
+#     ds2 =  img.shape[1]//factor
+#     return img.reshape(ds,image_size//ds,ds2,image_size//ds).mean(-1).mean(1)
+#
+# def crop_pix(img,factor):
+#     ydim,xdim = img.shape
+#     offsetx,offsety = xdim%factor,ydim%factor
+#
+#     return offsetx, offsety
+
+def crop_pix(img, factor):
+    shape = img.shape
+    dim = len(shape)
+    offset = [shape[i] % factor[i] for i in range(dim)]
+    return offset
 
 
 # -----------------------------------------------------------------------------
