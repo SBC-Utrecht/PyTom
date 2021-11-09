@@ -209,12 +209,13 @@ class PeakJob(PyTomClass):
         
         from pytom.localization.peak_job_msg import PeakJobMsg
         
-#        self.check()
+        # self.check()
         msg = PeakJobMsg(str(source), str(destination))
         msg.setJob(self)
         
         import pytom_mpi
         print(f'destination: {destination}\ntype: {type(destination)}')
+
         pytom_mpi.send(str(msg), int(destination))
 
 

@@ -232,9 +232,12 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
 
     n = 0
 
+
+
     for particleObject in particleList:
         if 0 and verbose:
             print(particleObject)
+
 
         if not os.path.exists(particleObject.getFilename()):
             continue
@@ -252,7 +255,7 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
             sizeX = particle.sizeX()
             sizeY = particle.sizeY()
             sizeZ = particle.sizeZ()
-
+            print(sizeX, sizeY, sizeZ)
             newParticle = vol(sizeX, sizeY, sizeZ)
 
             centerX = sizeX // 2

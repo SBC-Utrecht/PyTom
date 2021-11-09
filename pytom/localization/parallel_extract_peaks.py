@@ -607,9 +607,10 @@ class PeakLeader(PeakWorker):
     """
     def __init__(self,suffix=''):
         import pytom_mpi
-        
+
         if not pytom_mpi.isInitialised():
             pytom_mpi.init()
+
         self.suffix=suffix
         self.mpi_id = pytom_mpi.rank()
         self.name = 'node_' + str(self.mpi_id)
@@ -905,7 +906,6 @@ class PeakLeader(PeakWorker):
         """
         
         numPieces = splitX*splitY*splitZ
-        
         # see how many members do I have
         self.setJob(job)
         
@@ -1077,13 +1077,14 @@ class PeakLeader(PeakWorker):
         """
         import pytom_mpi
         if self.mpi_id == 0: # send the first message
-#            if not pytom_mpi.isInitialised():
-#                pytom_mpi.init()
+            if not pytom_mpi.isInitialised():
+                pytom_mpi.init()
             job.members = pytom_mpi.size()
             print('job members', job.members)
-
-            job.send(0, 0)
-            print("\n")
+            self.distributeJobs(job, splitX, splitY, splitZ)
+            result = self.run(verbose, gpuID=gpuID)
+            self.summarize(result, self.jobID)
+            #job.send(0, 0)
 
         self.gpuID = gpuID
         end = False

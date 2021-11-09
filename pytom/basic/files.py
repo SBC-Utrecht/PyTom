@@ -3,7 +3,7 @@ Created on Dec 7, 2010
 
 @author: hrabe
 """
-
+import os
 
 def get_install_folder():
     """
@@ -820,113 +820,9 @@ def write_em_header(filename, header):
 
 # Conversion scripts and helper functions
 
+# These scripts all have same parameters
 
-def pdb2em(pdbPath, pixelSize, cubeSize, chain=None, invertDensity=False, fname='', recenter=True):
-    """
-    pdb2em: Creates an volume out of a PDB file
-    @param pdbPath: Path to PDB file or PDB id for online download
-    @param pixelSize: The pixel size to convert to
-    @param cubeSize: Resulting cube size
-    @return: A volume
-    @author: Thomas Hrabe & Luis Kuhn
-    """
-    from math import floor
-    from pytom_volume import vol
-
-    atomList = naivePDBParser(pdbPath, chain)
-
-    vol = atomList2em(atomList, pixelSize, cubeSize, invertDensity)
-
-    if recenter:
-        vol = recenterVolume(vol, invertDensity)
-
-    if fname:
-        vol.write(fname)
-
-    else:
-        return vol
-
-def pdb2mrc(pdbPath, pixelSize, cubeSize, chain=None, invertDensity=False, fname='', recenter=True):
-    """
-    pdb2em: Creates an volume out of a PDB file
-    @param pdbPath: Path to PDB file or PDB id for online download
-    @param pixelSize: The pixel size to convert to
-    @param cubeSize: Resulting cube size
-    @return: A volume
-    @author: Thomas Hrabe & Luis Kuhn
-    """
-
-    vol = pdb2em(pdbPath, pixelSize, cubeSize, chain=chain, invertDensity=invertDensity, recenter=recenter)
-
-    if fname:
-        from pytom.agnostic.io import write as writeNPY
-        from pytom_numpy import vol2npy
-
-        writeNPY(fname, vol2npy(vol))
-
-    else:
-        return vol
-
-def mmCIF2em(mmCIFPath, pixelSize, cubeSize, chain=None, densityNegative=False, fname='', recenter=True):
-    """
-    pdb2em: Creates an volume out of a mmCIF file
-    @param mmCIFPath: Path to mmCIF file
-    @param pixelSize: The pixel size to convert to
-    @param cubeSize: Resulting cube size
-    @return: A volume
-    @author: Thomas Hrabe
-    """
-    from math import floor
-    from pytom_volume import vol
-
-    atomList = mmCIFParser(mmCIFPath, chain)
-
-    vol = atomList2em(atomList, pixelSize, cubeSize, densityNegative)
-
-    if recenter:
-        vol = recenterVolume(vol, densityNegative)
-
-    if fname:
-        vol.write(fname)
-
-    else:
-        return vol
-
-def mmCIF2mrc(mmCIFPath, pixelSize, cubeSize, chain=None, densityNegative=False, fname='', recenter=True):
-    """
-    pdb2em: Creates an volume out of a mmCIF file
-    @param mmCIFPath: Path to mmCIF file
-    @param pixelSize: The pixel size to convert to
-    @param cubeSize: Resulting cube size
-    @return: A volume
-    @author: Thomas Hrabe
-    """
-    from math import floor
-    from pytom_volume import vol
-
-    atomList = mmCIFParser(mmCIFPath, chain)
-
-    vol = atomList2em(atomList, pixelSize, cubeSize, densityNegative)
-
-    if recenter:
-        vol = recenterVolume(vol, densityNegative)
-
-    if fname:
-        from pytom.agnostic.io import write as writeNPY
-        from pytom_numpy import vol2npy
-
-        writeNPY(fname, vol2npy(vol))
-
-    else:
-        return vol
-
-def txt2pl(coordinate_file, particleList_file, subtomoPrefix=None, wedgeAngle=None):
-    pl = ParticleList()
-    pl.loadCoordinateFile( filename=coordinate_file, name_prefix=subtomoPrefix,
-        wedgeAngle=wedgeAngle)
-    pl.toXMLFile(particleList_file)
-
-def mdoc2meta(filename, target, prefix=None):
+def mdoc2meta(filename, target, prefix=None, outname=''):
     import numpy
     from pytom.gui.guiFunctions import datatype, headerText as header, fmt
     from pytom.agnostic.io import read, write, read_tilt_angle
@@ -939,7 +835,7 @@ def mdoc2meta(filename, target, prefix=None):
         raise RuntimeError('Destination directory not found! ', target)
 
 
-    newFilename = name_to_format(filename, target, "meta")
+    newFilename = name_to_format(filename, target, "meta") if (not outname is None and not outname) else outname
 
     mdocEntries = open(filename, 'r').read().split('ZValue')[1:]
     metadata = numpy.zeros((len(mdocEntries)), dtype=datatype)
@@ -982,7 +878,7 @@ def mdoc2meta(filename, target, prefix=None):
 
     numpy.savetxt(newFilename, metadata, fmt=fmt, header=header)
 
-def ccp42em(filename, target, prefix='sorted_'):
+def ccp42em(filename, target, prefix='sorted_', outname=None):
     from pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
@@ -999,7 +895,7 @@ def ccp42em(filename, target, prefix='sorted_'):
 
     emfile.write(newFilename, 'em')
 
-def ccp42mrc(filename, target, prefix='sorted_'):
+def ccp42mrc(filename, target, prefix='sorted_', outname=None):
     from pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
@@ -1016,7 +912,7 @@ def ccp42mrc(filename, target, prefix='sorted_'):
 
     emfile.write(newFilename, 'mrc')
 
-def em2mrc(filename, target, prefix='sorted_'):
+def em2mrc(filename, target, prefix='sorted_', outname=None):
     from pytom.agnostic.io import read, write, read_tilt_angle
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
@@ -1034,7 +930,7 @@ def em2mrc(filename, target, prefix='sorted_'):
 
     write(newFilename, data, tilt_angle=tilt_angle)
 
-def em2ccp4(filename, target, prefix='sorted_'):
+def em2ccp4(filename, target, prefix='sorted_', outname=None):
     from pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
@@ -1051,7 +947,7 @@ def em2ccp4(filename, target, prefix='sorted_'):
 
     emfile.write(newFilename, 'ccp4')
 
-def mrc2ccp4(filename, target, prefix='sorted_'):
+def mrc2ccp4(filename, target, prefix='sorted_', outname=None):
     from pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
@@ -1068,7 +964,7 @@ def mrc2ccp4(filename, target, prefix='sorted_'):
 
     emfile.write(newFilename, 'ccp4')
 
-def mrc2em(filename, target, prefix='sorted_'):
+def mrc2em(filename, target, prefix='sorted_', outname=None):
     from pytom.agnostic.io import read, write, read_tilt_angle
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
@@ -1085,7 +981,7 @@ def mrc2em(filename, target, prefix='sorted_'):
 
     write(newFilename, data, tilt_angle=tilt_angle)
 
-def mrcs2mrc(filename, target, prefix='sorted_'):
+def mrcs2mrc(filename, target, prefix='sorted_', outname=None):
     import mrcfile
 
     data = mrcfile.open(filename, permissive=True).data.copy()
@@ -1094,7 +990,7 @@ def mrcs2mrc(filename, target, prefix='sorted_'):
         outname = os.path.join(target, f'{prefix}{sliceID:02d}.mrc')
         mrcfile.new(outname, data[sliceID,:,:].astype('float32'), overwrite=True)
 
-def files2mrcs(folder, target, prefix='sorted_'):
+def files2mrcs(folder, target, prefix='sorted_', outname=None):
     import mrcfile
     files = [os.path.join(folder, fname) for fname in os.listdir(folder) if fname.startswith(prefix)]
     data = mrcfile.open(filename, permissive=True).data.copy().squeeze()
@@ -1104,7 +1000,120 @@ def files2mrcs(folder, target, prefix='sorted_'):
             stack[n, :, :] = mrcfile.open(filename, permissive=True).data.copy().squeeze()
         mrcfile.new(target, stack, overwrite=True)
 
-def pl2star(filename, target, prefix='', pixelsize=1, binningPyTom=1, binningWarpM=1, outname=''):
+
+def pdb2em(filename, target, prefix='', pixelSize=1, cubeSize=200, chain=None, invertDensity=False, fname='', recenter=True, outname=None):
+    """
+    pdb2em: Creates an volume out of a PDB file
+    @param pdbPath: Path to PDB file or PDB id for online download
+    @param pixelSize: The pixel size to convert to
+    @param cubeSize: Resulting cube size
+    @return: A volume
+    @author: Thomas Hrabe & Luis Kuhn
+    """
+    from math import floor
+    from pytom_volume import vol
+
+    pdbPath = filename
+
+    atomList = naivePDBParser(pdbPath, chain)
+
+    vol = atomList2em(atomList, pixelSize, cubeSize, invertDensity)
+
+    if recenter:
+        vol = recenterVolume(vol, invertDensity)
+
+    if fname:
+        vol.write(fname)
+
+    else:
+        return vol
+
+def pdb2mrc(pdbPath, pixelSize=1, cubeSize=200, chain=None, invertDensity=False, fname='', recenter=True, outname=None):
+    """
+    pdb2em: Creates an volume out of a PDB file
+    @param pdbPath: Path to PDB file or PDB id for online download
+    @param pixelSize: The pixel size to convert to
+    @param cubeSize: Resulting cube size
+    @return: A volume
+    @author: Thomas Hrabe & Luis Kuhn
+    """
+
+    vol = pdb2em(pdbPath, pixelSize, cubeSize, chain=chain, invertDensity=invertDensity, recenter=recenter)
+
+    if fname:
+        from pytom.agnostic.io import write as writeNPY
+        from pytom_numpy import vol2npy
+
+        writeNPY(fname, vol2npy(vol))
+
+    else:
+        return vol
+
+def mmCIF2em(mmCIFPath, pixelSize=1, cubeSize=200, chain=None, densityNegative=False, fname='', recenter=True, outname=None):
+    """
+    pdb2em: Creates an volume out of a mmCIF file
+    @param mmCIFPath: Path to mmCIF file
+    @param pixelSize: The pixel size to convert to
+    @param cubeSize: Resulting cube size
+    @return: A volume
+    @author: Thomas Hrabe
+    """
+    from math import floor
+    from pytom_volume import vol
+
+    atomList = mmCIFParser(mmCIFPath, chain)
+
+    vol = atomList2em(atomList, pixelSize, cubeSize, densityNegative)
+
+    if recenter:
+        vol = recenterVolume(vol, densityNegative)
+
+    if fname:
+        vol.write(fname)
+
+    else:
+        return vol
+
+def mmCIF2mrc(mmCIFPath, pixelSize=1, cubeSize=200, chain=None, densityNegative=False, fname='', recenter=True, outname=None):
+    """
+    pdb2em: Creates an volume out of a mmCIF file
+    @param mmCIFPath: Path to mmCIF file
+    @param pixelSize: The pixel size to convert to
+    @param cubeSize: Resulting cube size
+    @return: A volume
+    @author: Thomas Hrabe
+    """
+    from math import floor
+    from pytom_volume import vol
+
+    atomList = mmCIFParser(mmCIFPath, chain)
+
+    vol = atomList2em(atomList, pixelSize, cubeSize, densityNegative)
+
+    if recenter:
+        vol = recenterVolume(vol, densityNegative)
+
+    if fname:
+        from pytom.agnostic.io import write as writeNPY
+        from pytom_numpy import vol2npy
+
+        writeNPY(fname, vol2npy(vol))
+
+    else:
+        return vol
+
+
+def txt2pl(filename, target, prefix='', outname='', subtomoPrefix=None, wedgeAngle=None):
+    from pytom.basic.structures import ParticleList
+    particleList_file = outname
+    coordinate_file = outname if outname else name_to_format(filename, target, "pl")
+    pl = ParticleList()
+    pl.loadCoordinateFile( filename=coordinate_file, name_prefix=subtomoPrefix,
+        wedgeAngle=wedgeAngle)
+    pl.toXMLFile(particleList_file)
+
+
+def  pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
     from pytom.agnostic.tools import zxz2zyz
     from pytom.basic.structures import ParticleList
     from pytom.basic.datatypes import RELION31_PICKPOS_STAR, fmtR31S, headerRelion31Subtomo
@@ -1156,10 +1165,10 @@ def pl2star(filename, target, prefix='', pixelsize=1, binningPyTom=1, binningWar
 
     np.savetxt(newFilename, stardata, fmt=fmtR31S, header=headerRelion31Subtomo, comments='')
 
-def star2xml(filename, target, prefix=None, pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None):
+def star2xml(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
     star2pl(filename, target, prefix, pixelsize, binningPyTom, binningWarpM, outname, wedgeAngles)
 
-def star2pl(filename, target, prefix=None, pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None):
+def  star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
     from pytom.agnostic.tools import zxz2zyz, zyz2zxz
     from pytom.basic.structures import ParticleList, Particle
     from pytom.basic.datatypes import RELION31_PICKPOS_STAR, fmtR31S, headerRelion31Subtomo
@@ -1206,6 +1215,47 @@ def star2pl(filename, target, prefix=None, pixelsize=1., binningPyTom=1., binnin
 
     pl.toXMLFile(newFilename)
 
+def  log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
+    import numpy
+    from pytom.basic.datatypes import DATATYPE_TASOLUTION as dtype_ta, DATATYPE_ALIGNMENT_RESULTS_RO, FMT_ALIGNMENT_RESULTS_RO, HEADER_ALIGNMENT_RESULTS_RO
+    import os
+
+    ta_fname = filename
+    shift_fname = prexf
+    prefix, filetype, folder = 'sorted_', 'mrc', sorted_folder
+
+    if folder == '': folder =target
+
+    shift = numpy.loadtxt(shift_fname)
+    ta = loadtxt(ta_fname, dtype=dtype_ta, skip_header=3)
+
+    NUM = len(ta)
+    pp = 0
+    ar = numpy.zeros((NUM),dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
+    ar['TiltAngle'] = ta['Tilt']  #+ ta['DelTilt']
+    ar['InPlaneRotation'] = (numpy.arccos(shift[:,0])*180/numpy.pi)
+    ar['OperationOrder'] = "TRS"
+
+    for n, (shx, shy) in enumerate(shift[:,-2:]):
+        m = numpy.zeros((2,2))
+        m[0,0] = numpy.cos(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
+        m[0,1] = numpy.sin(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
+        m[1,0] = -numpy.sin(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
+        m[1,1] = numpy.cos(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
+        #m[:2,0] = shift[n][:2]
+        #m[:2,1] = shift[n][2:4]
+        shift[n,-2:] = m.dot(numpy.array((shx,shy)))
+
+
+        ar['AlignmentTransX'][n] = shift[n,-2]
+        ar['AlignmentTransY'][n] = shift[n,-1]
+
+    ar['Magnification'] = 1/ta['Magn']
+
+    # ar['InPlaneRotation'] += 0
+    ar['FileName'] = sorted([os.path.join(folder, fname) for fname in os.listdir(folder) if fname.startswith(prefix) and fname.endswith('.'+filetype)])
+
+    savetxt(os.path.join(target, 'alignmentResults.txt'), ar, fmt=FMT_ALIGNMENT_RESULTS_RO, header=HEADER_ALIGNMENT_RESULTS_RO)
 
 def txt2wimp(fname, target, prefix, outname=''):
     '''This functions creates and saves a file named outname which has the wimp format.
@@ -1308,44 +1358,3 @@ def savetxt(filename, arr, header='', fmt='', comments='#'):
     import numpy
     numpy.savetxt(filename, arr, comments=comments, header=header, fmt=fmt)
 
-def log2txt(filename, target, prefix=None, pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', prexf='', sorted_folder=''):
-    import numpy
-    from pytom.basic.datatypes import DATATYPE_TASOLUTION as dtype_ta, DATATYPE_ALIGNMENT_RESULTS_RO, FMT_ALIGNMENT_RESULTS_RO, HEADER_ALIGNMENT_RESULTS_RO
-    import os
-
-    ta_fname = filename
-    shift_fname = prexf
-    prefix, filetype, folder = 'sorted_', 'mrc', sorted_folder
-
-    if folder == '': folder =target
-
-    shift = numpy.loadtxt(shift_fname)
-    ta = loadtxt(ta_fname, dtype=dtype_ta, skip_header=3)
-
-    NUM = len(ta)
-    pp = 0
-    ar = numpy.zeros((NUM),dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
-    ar['TiltAngle'] = ta['Tilt']  #+ ta['DelTilt']
-    ar['InPlaneRotation'] = (numpy.arccos(shift[:,0])*180/numpy.pi)
-    ar['OperationOrder'] = "TRS"
-
-    for n, (shx, shy) in enumerate(shift[:,-2:]):
-        m = numpy.zeros((2,2))
-        m[0,0] = numpy.cos(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
-        m[0,1] = numpy.sin(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
-        m[1,0] = -numpy.sin(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
-        m[1,1] = numpy.cos(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
-        #m[:2,0] = shift[n][:2]
-        #m[:2,1] = shift[n][2:4]
-        shift[n,-2:] = m.dot(numpy.array((shx,shy)))
-
-
-        ar['AlignmentTransX'][n] = shift[n,-2]
-        ar['AlignmentTransY'][n] = shift[n,-1]
-
-    ar['Magnification'] = 1/ta['Magn']
-
-    # ar['InPlaneRotation'] += 0
-    ar['FileName'] = sorted([os.path.join(folder, fname) for fname in os.listdir(folder) if fname.startswith(prefix) and fname.endswith('.'+filetype)])
-
-    savetxt(os.path.join(target, 'alignmentResults.txt'), ar, fmt=FMT_ALIGNMENT_RESULTS_RO, header=HEADER_ALIGNMENT_RESULTS_RO)

@@ -38,6 +38,10 @@ except:
 
 d = d.squeeze()
 
+if 'write' in sys.argv:
+    from pytom.agnostic.io import write
+    [write(sys.argv[n+1], d) for n, w in enumerate(sys.argv) if w == 'write']
+
 if 'plot' in sys.argv:
     fig,ax = subplots(1,3,figsize=(15,5))
     try:

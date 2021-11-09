@@ -64,7 +64,7 @@ def special(file, format, target, chaindata):
 def convertfile(file, format, target, chaindata, subtomo_prefix=None, wedge_angles=None):
     """Convert a file to the given format, returns (statuscode, errormessage)"""
     in_ex = file.split('.')[-1]
-    if in_ex == "map": in_ex = "mrc"
+    if in_ex in ("map", 'rec', 'st'): in_ex = "mrc"
 
     if in_ex == 'xml': in_ex = 'pl'
 
@@ -94,32 +94,15 @@ def convertfile(file, format, target, chaindata, subtomo_prefix=None, wedge_angl
             return 1, "Exception while converting coordinatesfile {:s} to a particlelist".format(file)
 
 
-    if in_ex == "pl" and format == "star":
+    if (in_ex == "pl" and format == "star") or (in_ex == "star" and format == "xml") or (in_ex == "log" and format == "txt"):
         try:
             func(file, target, **chaindata)
             return 0,""
 
         except Exception as e:
             print(e)
-            return 1, "Exception while converting particleList {:s} to a star file".format(file)
+            return 1, "Exception while converting {:s} file {:s} to a star file".format(in_ex, file)
 
-    if in_ex == "star" and format == "xml":
-        try:
-            func(file, target, **chaindata)
-            return 0,""
-
-        except Exception as e:
-            print(e)
-            return 1, "Exception while converting particleList {:s} to a xml file".format(file)
-
-    if in_ex == "log" and format == "txt":
-        try:
-            func(file, target, **chaindata)
-            return 0, ""
-
-        except Exception as e:
-            print(e)
-            return 1, "Exception while converting particleList {:s} to a {:s} file".format(file, format)
 
     if func is None:
         return -1, "Converting from {:s} to {:s} is not implemented yet".format(in_ex, format)
@@ -214,39 +197,44 @@ if __name__ == '__main__':
                  ScriptOption2(
                      ['-t', '--targetPath'], 'Path to new file, as a relative or absolute path to a directory, the file'
                                              'name will be the same as the original file', 'directory', 'optional', '.'),
-                 ScriptOption2(['--outname'], 'Filename output file. Used only in case of pl2star conversion.', 'string', 'optional', ''),
-
                  ScriptOption2(
                      ['-o', '--outputFormat'], 'The format of the output file, will keep the same name but only change '
                                                'the extension.', 'string', 'required'),
+
+                 ScriptOption2(['--outname'], 'Filename output file. This name has presedence over automatic output filename determination.', 'string', 'optional', ''),
+
                  ScriptOption2(
                      ['-c', '--chainData'], 'Data needed for conversion from the special formats ({:s} and {:s}), in the format \
                      pixelsSize,cubeSize,invertDensity,chain (invertDensity is 1 or 0)'.format(", ".join([a for a in special_extensions[:-1]]), special_extensions[-1]),
                      'float,uint,uint,string', 'optional'),
+
                  ScriptOption2(
-                     ['-s', '--prefix'], 'Data needed for the conversion from coordinates to a particlelist. Pat'
-                                                'h and filename for subtomogram files (e.g., MyPath/particle_)',
+                     ['-s', '--prefix'], 'Data needed for the conversion from coordinates to a particlelist. '
+                                         'Path and filename for subtomogram files (e.g., MyPath/particle_)',
                      'string', 'optional'),
                  ScriptOption2(
                      ['-w', '--wedgeAngles'], 'Data needed for the conversion from coordinates to a particlelist. '
                                               'Missing wedge angle(s) [counter-clock, clock] or single angle',
                      'has arguments', 'optional'),
+
+
+
                  ScriptOption2(['--prefixQuery'], 'Only files that match the prefix will be converted.'
                               , 'string', 'optional', ''),
                  ScriptOption2(['--suffixQuery'], 'Only files that end with suffix will be converted.'
                           , 'string', 'optional', ''),
 
 
-                 ScriptOption2(['--pixelSize'], 'Pixelsize of original nanographs.', 'float', 'optional', 1),
-                 ScriptOption2(['--binPyTom'], 'Binning factor of the pytom tomogram.', 'float', 'optional', 1),
-                 ScriptOption2(['--binWarpM'], 'Binning factor of the warp/m volumes.', 'float', 'optional', 1),
-                 ScriptOption2(['--prexf'], 'Final shift file IMOD', 'file', 'optional', ''),
+                 ScriptOption2(['--pixelSize'], 'Pixelsize in Angstrom of original nanographs.', 'float', 'optional', 1),
+                 ScriptOption2(['--binPyTom'], '(Linear) Binning factor of the pytom tomogram.', 'float', 'optional', 1),
+                 ScriptOption2(['--binWarpM'], '(Linear) Binning factor of the warp/m volumes.', 'float', 'optional', 1),
+                 ScriptOption2(['--alignxf'], 'Final shift file from IMOD (ending with xf). ', 'file', 'optional', ''),
                  ScriptOption2(['--sortedFolder'], 'Sorted Images are located in this folder (either sorted or sorted_ctf)', 'directory', 'optional', ''),
         ])
 
     #TODO write --filter to filter input files maybe on (glob) pattern or else on extension or similar
 
-    filename, directory, target, outname, format, chaindata, subtomo_prefix, w, prefix, suffix, pixelsize, binningFactorPyTom,\
+    filename, directory, target, format, outname, chaindata, subtomo_prefix, w, prefix, suffix, pixelsize, binningFactorPyTom,\
     binningFactorWarpM, prexf, sorted_folder = parse_script_options2(sys.argv[1:], helper)
 
     try:
@@ -299,17 +287,7 @@ if __name__ == '__main__':
     # Test for validity of the arguments passed, will stop execution if an error is found
     test_validity(filename, directory, target, format, chaindata)
 
-    star2pl, pl2star = False, False
-
-
-    if outname and format == 'xml' or (not filename is None and filename.endswith('star')):
-        star2pl = True
-
-    if (outname and format == 'star') or (not filename is None and filename.endswith('xml')):
-        pl2star = True
-
-    if (outname and format == 'txt') or (not filename is None and filename.endswith('log')):
-        log2txt = True
+    if not chaindata is None:
         chaindata = {}
         chaindata['pixelsize'] = pixelsize
         chaindata['binningWarpM'] = binningFactorWarpM
@@ -318,15 +296,7 @@ if __name__ == '__main__':
         chaindata['outname'] = outname
         chaindata['prexf'] = prexf
         chaindata['sorted_folder'] = sorted_folder
-
-    if pl2star or star2pl:
-        chaindata = {}
         chaindata['wedgeAngles'] = wedge_angles
-        chaindata['pixelsize'] = pixelsize
-        chaindata['binningWarpM'] = binningFactorWarpM
-        chaindata['binningPyTom'] = binningFactorPyTom
-        outname = f'dummy.{format}' if (outname == '' and directory) else outname
-        chaindata['outname'] = outname
 
     if filename:
         warn_if_file_exists(f.name_to_format(filename, target, format) if outname == '' else outname)
