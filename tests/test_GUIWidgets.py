@@ -1,27 +1,30 @@
 import os
-if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+import unittest
+
+if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', True):
     from PyQt5.QtWidgets import *
     from PyQt5 import QtCore, QtGui, QtWidgets
-    import os
+    import os, shutil
     import sys
     from pytom.gui.guiFunctions import create_project_filestructure
     from pytom.gui.pytomGUI import PyTomGui as pytomGUI
-    import unittest
+
     import os
 
     fname = 'E2ETests/TestGUI'
 
-    if not os.path.exists(fname):
-        create_project_filestructure(fname)
-        os.system(f'cp -rf {fname}/03_Tomographic_Reconstruction/.tomoname {fname}/03_Tomographic_Reconstruction/tomogram_000')
-        os.system(f'cp testData/tomogram_000.meta {fname}/03_Tomographic_Reconstruction/tomogram_000/sorted/')
+    if os.path.exists(fname): shutil.rmtree(fname)
+
+    create_project_filestructure(fname)
+    os.system(f'cp -rf {fname}/03_Tomographic_Reconstruction/.tomoname {fname}/03_Tomographic_Reconstruction/tomogram_000')
+    os.system(f'cp testData/tomogram_000.meta {fname}/03_Tomographic_Reconstruction/tomogram_000/sorted/')
 
     if not os.path.exists(os.path.join(fname, 'logfile.pickle')):
         os.system(f"touch {os.path.join(fname, 'logfile.pickle')}")
 
 
 # TODO: this shouldn't happen, we shouldn't force interactive backend outside of pytomGUI
-@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False) or not os.path.exists(fname),
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False),
                  "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 # class GUIWidgetTest(unittest.TestCase):
 def create_project(qtbot,name,wtype=''):
