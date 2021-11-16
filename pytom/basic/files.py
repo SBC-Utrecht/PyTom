@@ -1232,7 +1232,7 @@ def  log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binning
     NUM = len(ta)
     pp = 0
     ar = numpy.zeros((NUM),dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
-    ar['TiltAngle'] = ta['Tilt']  #+ ta['DelTilt']
+    ar['TiltAngle'] = ta['Tilt']
     ar['InPlaneRotation'] = (numpy.arccos(shift[:,0])*180/numpy.pi)
     ar['OperationOrder'] = "TRS"
 
@@ -1342,15 +1342,16 @@ def headerline(line):
     if line.startswith('data_') or line.startswith('loop_') or line.startswith('_') or line.startswith('#'):
         return False
     else:
-
         return True
 
 
-def loadtxt(filename, dtype='float32', usecols=None, skip_header=0):
+def loadtxt(filename, dtype='float32', usecols=None, skip_header=0, max_rows=None):
     import numpy
     with open(filename, 'r') as f:
-        lines = [line for line in f if headerline(line)]
-        arr = numpy.genfromtxt(lines, dtype=dtype, usecols=usecols, skip_header=skip_header)
+        stop = 1E9 if max_rows is None else max_rows
+
+        lines = [line for n, line in enumerate(f) if n >= skip_header and headerline(line) and n < stop]
+        arr = numpy.genfromtxt(lines, dtype=dtype, usecols=usecols, max_rows=max_rows)
     return arr
 
 
