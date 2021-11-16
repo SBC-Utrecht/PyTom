@@ -1,7 +1,10 @@
 import matplotlib
-import matplotlib.backends.backend_qt5agg
-try: matplotlib.use('Qt5Agg')
-except: pass
+try:
+    import matplotlib.backends.backend_qt5agg
+    matplotlib.use('Qt5Agg')
+except:
+    pass
+
 import os
 import numpy
 import copy
