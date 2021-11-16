@@ -32,9 +32,9 @@ def find_executables():
 class CustomInstall(install):
     def run(self):
         import sys
-        commandPullSubmodules = 'git submodule update --init --recursive'
-        process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="./")
-        process.wait()
+        # commandPullSubmodules = 'git submodule update --init --recursive'
+        # process = subprocess.Popen(commandPullSubmodules, shell=True, cwd="./")
+        # process.wait()
         #
         version = f'{sys.version_info[0]}.{sys.version_info[1]}'
         commandInstall = f'python{version} compile.py --target all'
@@ -77,7 +77,5 @@ setup(
         'gui': ['PyQt5', 'pyqtgraph', 'mrcfile'],
         'all': ['cupy', 'PyQt5', 'pyqtgraph', 'mrcfile']},
     cmdclass={'install': CustomInstall},
-    scripts=find_executables(),
-    test_suite='nose.collector',
-    tests_require=['nose'])
+    scripts=find_executables())
 

@@ -337,12 +337,12 @@ if nompi4py is False:
         print()
         mpicc_exe, mpicc_exePath = find("mpicc", exePaths)
         mpicc_exe = mpicc_exePath + '/' + mpicc_exe
-        os.system("cd ../external/src/mpi4py/ && python"+str(pythonVersion)+" setup.py build --mpicc="+mpicc_exe)
-        os.system("cd ../external/src/mpi4py/ && python"+str(pythonVersion)+" setup.py install --prefix=../../")
+        # os.system("cd ../external/src/mpi4py/ && python"+str(pythonVersion)+" setup.py build --mpicc="+mpicc_exe)
+        # os.system("cd ../external/src/mpi4py/ && python"+str(pythonVersion)+" setup.py install --prefix=../../")
         print()
         # add into the path
-        path1 = os.path.abspath(os.path.join(os.getcwd(), os.pardir)) + '/external/lib/'
-        path2 = os.path.abspath(os.path.join(os.getcwd(), os.pardir)) + '/external/lib/python'+str(pythonVersion)+'/site-packages/'
+        path1 = os.path.abspath(os.path.join(minicondaDir, 'lib/'))
+        path2 = os.path.abspath(os.path.join(minicondaDir, '/external/lib/python'+str(pythonVersion)+'/site-packages/'))
         if sh_python_paths is None:
             sh_python_paths = [path1, path2]
         elif sh_python_paths.__class__ == list:
