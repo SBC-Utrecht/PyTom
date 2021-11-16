@@ -3,16 +3,26 @@ from PyQt5.QtWidgets import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 import os
 import sys
-
+from pytom.gui.guiFunctions import create_project_filestructure
 from pytom.gui.pytomGUI import PyTomGui as pytomGUI
+import unittest
+import os
 
-fname = 'E2ETests/FullPipeline'
+fname = 'E2ETests/TestGUI'
+
+if not os.path.exists(fname):
+    create_project_filestructure(fname)
+    os.system(f'cp -rf {fname}/03_Tomographic_Reconstruction/.tomoname {fname}/03_Tomographic_Reconstruction/tomogram_000')
+    os.system(f'cp testData/tomogram_000.meta {fname}/03_Tomographic_Reconstruction/tomogram_000/sorted/')
 
 if not os.path.exists(os.path.join(fname, 'logfile.pickle')):
     os.system(f"touch {os.path.join(fname, 'logfile.pickle')}")
 
 
-
+# TODO: this shouldn't happen, we shouldn't force interactive backend outside of pytomGUI
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False) or not os.path.exists(fname),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
+# class GUIWidgetTest(unittest.TestCase):
 def create_project(qtbot,name,wtype=''):
     widget = pytomGUI()
     qtbot.addWidget(widget)
@@ -36,11 +46,15 @@ def TR_starting_values(window):
             assert tempWidget.text().replace(' ', '') == ''
             continue
 
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False) or not os.path.exists(fname),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 def test_01_start_gui(qtbot):
     widget = pytomGUI(warn_closing=False)
     qtbot.addWidget(widget)
     assert widget.qcommand == "sbatch"
 
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False) or not os.path.exists(fname),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 def test_03_Alignment_form(qtbot):
     mode = 'v02_SingleAlignment_'
     widget = pytomGUI(warn_closing=False)
@@ -59,6 +73,8 @@ def test_03_Alignment_form(qtbot):
 
     assert text != ''
 
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False) or not os.path.exists(fname),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 def test_03_Alignment_form_pbs(qtbot):
     widget = pytomGUI(warn_closing=False)
     qtbot.addWidget(widget)
@@ -66,6 +82,8 @@ def test_03_Alignment_form_pbs(qtbot):
     window = widget.TR
     qtbot.mouseClick(window.pbs['tab32'], QtCore.Qt.LeftButton)
 
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False) or not os.path.exists(fname),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 def test_04_INFR_form_mandatory_fill(qtbot):
     mode = 'v02_ReconstructINFR_'
 
@@ -84,6 +102,8 @@ def test_04_INFR_form_mandatory_fill(qtbot):
     print('INFR', text)
     assert window.widgets[mode + 'CommandText'].toPlainText() == ''
 
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False) or not os.path.exists(fname),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 def test_04_INFR_form(qtbot):
     mode = 'v02_ReconstructINFR_'
 
@@ -103,6 +123,8 @@ def test_04_INFR_form(qtbot):
     print('INFR', text)
     assert window.widgets[mode + 'CommandText'].toPlainText() != ''
 
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False) or not os.path.exists(fname),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 def test_05_WBP_form(qtbot):
 
     mode = 'v02_ReconstructWBP_'
@@ -120,6 +142,8 @@ def test_05_WBP_form(qtbot):
 
     assert window.widgets[mode + 'CommandText'].toPlainText() != ''
 
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False) or not os.path.exists(fname),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 def test_05_WBP_batch(qtbot):
     widget = pytomGUI(warn_closing=False)
     qtbot.addWidget(widget)
@@ -127,6 +151,8 @@ def test_05_WBP_batch(qtbot):
     window = widget.TR
     qtbot.mouseClick(window.pbs['tab53'], QtCore.Qt.LeftButton)
 
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False) or not os.path.exists(fname),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 def test_batch_recon(qtbot):
     widget = pytomGUI(warn_closing=False)
     qtbot.addWidget(widget)
@@ -135,3 +161,5 @@ def test_batch_recon(qtbot):
     qtbot.mouseClick(window.pbs['tab43'], QtCore.Qt.LeftButton)
 
 
+# if __name__ == '__main__':
+#     unittest.main()
