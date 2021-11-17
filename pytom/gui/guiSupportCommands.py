@@ -328,3 +328,8 @@ motioncor2 -In{d[1]} {d[2]}/ \\
 templateAverageParticleList = '''cd {d[0]}
 
 average.py -p {d[2]} -a {d[3]} -c {d[4]} {d[5]}'''
+
+templateConvertData = '''cd {d[0]}
+
+convert.py -t ./ {d[1]}{d[2]}{d[3]}{d[4]} -o {d[5]} {d[6]} --binPyTom {d[7]} --binWarpM {d[8]} --pixelSize {d[9]} \\
+{d[10]}{d[11]}{d[12]}'''

@@ -58,203 +58,80 @@ from pytom.gui.frameDataTransfer import *#CollectPreprocess, TomographReconstruc
 from pytom.gui.frameTomographicReconstruction import TomographReconstruct
 from pytom.gui.frameParticlePicking import ParticlePick
 from pytom.gui.frameSubtomogramAnalysis import SubtomoAnalysis
-
-class NewProject(QMainWindow, CommonFunctions):
-    '''This class creates a new windows for browsing'''
-    def __init__(self,parent,label):
-        super(NewProject, self).__init__(parent)
-        self.setGeometry(50, 50, 300, 100)
-        self.cwidget = QWidget()
-        self.gridLayout = QGridLayout()
-        self.setWindowModality(Qt.ApplicationModal)
-
-        #self.gridLayout.setContentrsMargins(10, 10, 10, 10)
-        self.label = label
-        self.setStyleSheet('background: #{};'.format(self.parent().middlec) )
-        self.cwidget.setLayout(self.gridLayout)
-        self.setCentralWidget(self.cwidget)
-        self.fill()
-
-
-    def fill(self):
-        columns, rows = 5, 5
-
-        self.items, self.widgets = [['', ] * columns, ] * rows, {}
-        parent = self.gridLayout
-
-        self.row, self.column = 0, 1
-        self.insert_label(parent, text='Project name', rstep=1, alignment=QtCore.Qt.AlignHCenter,
-                          tooltip='Provide the foldername of a new project. The foldername must not exist.')
-        self.insert_lineedit(parent, 'projectname', cstep=1)
-        self.insert_pushbutton(parent, cstep=self.column * -1+1, rstep=1, text='Browse',
-                               action=self.browse, params=['folder', self.items[self.row][self.column - 1], ''])
-        self.insert_pushbutton(parent, cstep=self.column * -1+1, rstep=1, text='Create',
-                               action=self.return_value)
-
-    def return_value(self,params):
-        path = self.widgets['projectname'].text()
-
-        if os.path.exists(os.path.join(path,'logfile.js')):
-            QMessageBox().warning(self, "Folder exists",
-                                   "Please provide a non existing folder name.", QMessageBox.Ok)
-        else:
-
-            self.label.setText(path)
-            self.close()
-
-class View3d(QMainWindow, CommonFunctions):
-    def __init__(self, parent):
-        super(View3d, self).__init__(parent)
-        self.setGeometry(50, 50, 200, 100)
-        self.size_policies()
-        self.cwidget = QWidget()
-        self.pytompath=self.parent().pytompath
-        self.projectname = self.parent().projectname
-        self.logfolder = self.parent().logfolder
-        self.templatematchfolder = os.path.join(self.projectname, '04_Particle_Picking/Template_Matching')
-        self.pickpartfolder = os.path.join(self.projectname, '04_Particle_Picking/Picked_Particles')
-        self.subtomofolder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
-        self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
-        self.qtype = self.parent().qtype
-        self.qcommand = self.parent().qcommand
-
-        initdir = self.parent().projectname
-        self.logbook = self.parent().logbook
-        parent = QGridLayout()
-        parent.setAlignment(self, Qt.AlignTop)
-        mode = 'Viewer3D_'
-        self.widgets= {}
-        self.row, self.column = 0, 1
-        rows, columns = 20, 20
-        self.items = [['', ] * columns, ] * rows
-
-        self.insert_label(parent,cstep=0, rstep=1)
-        self.insert_label_line_push(parent, '3D object', mode + 'tomogramFname', initdir=initdir,
-                                    tooltip='Select the particle list.', mode='file', filetype=['mrc', 'em'], rstep=1)
-        self.insert_label_combobox(parent, '3D object', mode + 'sliceDirection', ['x', 'y', 'z'], cstep=0, rstep=1)
-
-        self.insert_pushbutton(parent, 'View!', tooltip='Select 3D mrc or em file.',
-                               rstep=1, cstep=2, action=self.insert_image, params=[parent])
-
-        self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA, rstep=1)
-        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyB, width=10)
-
-        self.widgets[mode + 'sliceDirection'].setCurrentIndex(2)
-
-        self.cwidget.setLayout(parent)
-        self.setWindowTitle('Select a file describing a 3D model')
-        self.setCentralWidget(self.cwidget)
-
-
-    def insert_image(self, will=''):
-        self.view3d = Viewer3D(self)
-        if not self.view3d.failed:
-            self.view3d.show()
-
-class View2d(QMainWindow, CommonFunctions):
-    def __init__(self, parent):
-        super(View2d, self).__init__(parent)
-        self.setGeometry(50, 50, 200, 200)
-        self.size_policies()
-        self.cwidget = QWidget()
-        self.pytompath = self.parent().pytompath
-        self.projectname = self.parent().projectname
-        self.logfolder = self.parent().logfolder
-        self.templatematchfolder = os.path.join(self.projectname, '04_Particle_Picking/Template_Matching')
-        self.pickpartfolder = os.path.join(self.projectname, '04_Particle_Picking/Picked_Particles')
-        self.subtomofolder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
-        self.tomogramfolder = os.path.join(self.projectname, '04_Particle_Picking/Tomograms')
-        self.qtype = self.parent().qtype
-        self.qcommand = self.parent().qcommand
-
-        initdir = self.parent().projectname
-        self.logbook = self.parent().logbook
-        parent = QGridLayout()
-        parent.setAlignment(self, Qt.AlignTop)
-        mode = 'Viewer2D_'
-        self.widgets = {}
-        self.row, self.column = 0, 1
-        rows, columns = 20, 20
-        self.items = [['', ] * columns, ] * rows
-
-        self.insert_label(parent, cstep=0, rstep=1)
-        self.insert_label_line_push(parent, 'Image', mode + 'Filename', initdir=initdir, filetype=['mrc', 'em'],
-                                    tooltip='Select an image (2D and 3D are possible).', mode='file', cstep=-2, rstep=1)
-        self.insert_label_line_push(parent, 'Folder with 2D/3D Images', mode + 'Foldername', initdir=initdir,
-                                    tooltip='Select a folder with 2D or 3D images.', mode='folder', cstep=-2, rstep=1)
-        self.insert_label(parent, cstep=0, rstep=1)
-        self.insert_label_spinbox(parent, mode + 'binningFactor', 'Binning Factor', value=1, stepsize=1, minimum=1, maximum=10)
-        self.insert_label_line(parent, 'Prefix', mode + 'prefix', value='sorted_')
-        self.insert_label_combobox(parent, 'File Type', mode + 'filetype', ['mrc', 'em'], cstep=0)
-
-        self.widgets[mode + 'Filename'].textChanged.connect(lambda d, m=mode, f='Filename': self.clearChoice(m, f))
-        self.widgets[mode + 'Foldername'].textChanged.connect(lambda d, m=mode, f='Foldername': self.clearChoice(m, f))
-        self.insert_pushbutton(parent, 'View!', tooltip='Select 3D mrc or em file.', wname=mode+'pushButtonView2D',
-                               rstep=1, cstep=2, action=self.insert_image, params=[parent])
-
-        self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA, rstep=1)
-        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyB, width=10)
-
-        self.cwidget.setLayout(parent)
-        self.setWindowTitle('Select either a file, or a folder with 2D images.')
-        self.setCentralWidget(self.cwidget)
-
-    def insert_image(self, will):
-        self.viewer = Viewer2D(self)
-        if not self.viewer.failed:
-            self.viewer.show()
-
-    def clearChoice(self, mode, choice):
-        txt = self.widgets[mode + choice].text()
-        if choice == 'Filename':
-            self.widgets[mode + 'Foldername'].setText('')
-        if choice == 'Foldername':
-            self.widgets[mode + 'Filename'].setText('')
-        self.widgets[mode + choice].setText(txt)
+from pytom.gui.guiStructures import NewProject, View2d, View3d, PlotWindow
 
 class PyTomGui(QMainWindow, CommonFunctions):
     resized=pyqtSignal()
+
     def __init__(self, parent=None, warn_closing=True):
         self.warn_closing = warn_closing
         self.silent = not warn_closing
+
         super(PyTomGui, self).__init__(parent)
+
         self.size_policies()
         self.setGeometry(0,0, 300, 100)
         self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-        self.pytompath=pytompath
-        self.projectname = None
+
+        self.pytompath = pytompath
+        self.projectname = './'
+
         self.stage_buttons = []
         self.qparams = {}
         self.qEvents = {}
         self.queueEvents = {}
-        self.projectname = './'
-        y,b,g,w = 'f9ce00', '343434', 'cacaca','fcfaf1'
-        bl='1989ac'
-        lg = 'f6f6f6'
+        self.logbook = {}
 
+        # COLORS USED IN GUI
+        y, b, g, w, bl, lg = 'f9ce00', '343434', 'cacaca','fcfaf1', '1989ac', 'f6f6f6'
         self.bars = bl
         self.mainc = w
         self.middlec = lg
+        self.setStyleSheet('background: #{};'.format(self.mainc))
 
+        # DEFAULT VALUES FOR QUEUING SYSTEM AND IMPORT
         self.qtype = 'slurm'
         self.qcommand = 'sbatch'
-        self.logbook = {}
-        dropdown = []
         self.modules = ['openmpi/2.1.1', 'python3/3.7', 'lib64/append']
 
-        self.setStyleSheet('background: #{};'.format(self.mainc))
-        bar=self.menuBar()
+
+       # INSERT MENU BAR
+        bar = self.menuBar()
         bar.setNativeMenuBar(False)
         bar.setStyleSheet('selection-background-color: #1989ac;')
+
+
+        # CREATE DROP-DOWN MENUS INSIDE MENU BAR
+        self.targets = (('CollectPreprocess', "Data Transfer"),
+                        ('TomographReconstruct', "Tomographic Reconstruction"),
+                        ('ParticlePick', "Particle Picking"),
+                        ('SubtomoAnalysis', "Subtomogram Analysis"))
+
+        dmp = dropdown_menu_project = ("Project", ('New', 'Open', 'Save', 'Settings', 'Quit'), self.processtrigger)
+        dmf = dropdown_menu_file = ("File", ('Open', 'Save', 'Close'), self.filetrigger)
+        dmt = dropdown_menu_tools = ("Tools", ('Plot', 'Queue', 'View2D', 'View3D', 'Convert', 'Help'), self.processtrigger)
+
+        self.drs = dropdown_menu_stage = (
+        "Enable Stage", ("Tomographic Reconstruction", "Particle Picking", "Subtomogram Analysis"),
+        self.processtrigger)
+
+        dropdown = []
+
+        for name, actionlist, trigger in (dmp, dmf, self.drs, dmt):
+            dropdown.append(bar.addMenu(name))
+            for subname in actionlist:
+                action = QAction(subname, self)
+                dropdown[-1].addAction(action)
+            dropdown[-1].triggered[QAction].connect(trigger)
+
+
+        # ADD TOOL BAR BELOW MENU BAR
         tb = QToolBar()
         tb.setStyleSheet('background: #{};'.format(self.bars))
         self.addToolBar(tb)
 
 
-        # Add window Icon
-        #self.setWindowIcon(QtGui.QIcon(f"{pytompath}/gui/Icons/SubtomogramAnalysis.jpg"))
-
-        # ADD ICONS FOR NEW, OPEN, SAVE, AND SETTINGS.
+        # ADD FRIST FOUR ICONS TO TOOLBAR: new, load, save, settings
         new  = QAction(QIcon("{}/gui/Icons/NewProject.png".format(self.pytompath)),"New",self)
         load = QAction(QIcon("{}/gui/Icons/OpenProject.png".format(self.pytompath)),"Open",self)
         save = QAction(QIcon("{}/gui/Icons/SaveProject.png".format(self.pytompath)), "Save", self)
@@ -262,44 +139,27 @@ class PyTomGui(QMainWindow, CommonFunctions):
         for action in (new, load, save, settings):
             tb.addAction(action)
 
-        # ADD ICONS FOR PLOT AND QUEUE -- ALSO ACCESSIBLE THROUGH DROPDOWN MENU FOR TOOLS
+
+        # ADD ICONS FOR PLOT, LOG FILES, 2D VIEWING, 3D VIEUWING, CONVERTING AND HELP TO TOOLBAR
         plot = QAction(QIcon("{}/gui/Icons/PlotIcon.png".format(self.pytompath)), "Plot", self)
         log = QAction(QIcon("{}/gui/Icons/LogFileTray.png".format(self.pytompath)), "Queue", self)
         view2d = QAction(QIcon("{}/gui/Icons/2d-viewing.png".format(self.pytompath)), "View2D", self)
         view3d = QAction(QIcon("{}/gui/Icons/3d-viewing.png".format(self.pytompath)), "View3D", self)
+        convert = QAction(QIcon("{}/gui/Icons/ConvertDataIcon.png".format(self.pytompath)), "Convert", self)
         help = QAction(QIcon("{}/gui/Icons/HelpLink.png".format(self.pytompath)), "Help", self)
 
-
-        for action in (plot, log, view2d, view3d, help):
+        for action in (plot, log, view2d, view3d, convert, help):
             tb.addAction(action)
 
-        # ADD SEPARATOR
+        # ADD SEPARATOR before PLOT
         tb.insertSeparator(plot)
         tb.insertSeparator(plot)
 
+        # CONNECT THE RESPECTIVE WIDGETS TO ICONS
         tb.actionTriggered[QAction].connect(self.processtrigger)
 
 
-        self.targets =  ( ('CollectPreprocess',  "Data Transfer" ),
-                          ('TomographReconstruct', "Tomographic Reconstruction"),
-                          ('ParticlePick',         "Particle Picking" ),
-                          ('SubtomoAnalysis',      "Subtomogram Analysis"))
-
-
-        dmp = dropdown_menu_project = ("Project",('New', 'Open', 'Save', 'Settings', 'Quit'), self.processtrigger)
-        dmf = dropdown_menu_file    = ("File", ('Open', 'Save', 'Close'), self.filetrigger)
-        dmt = dropdown_menu_tools   = ("Tools", ('Plot', 'Queue'), self.processtrigger)
-
-        self.drs = dropdown_menu_stage = ("Enable Stage",("Tomographic Reconstruction","Particle Picking","Subtomogram Analysis"),
-                               self.processtrigger)
-
-        for name, actionlist, trigger in (dropdown_menu_project, dmf, self.drs, dmt):
-            dropdown.append(bar.addMenu(name))
-            for subname in actionlist:
-                action=QAction(subname, self)
-                dropdown[-1].addAction(action)
-            dropdown[-1].triggered[QAction].connect(trigger)
-
+        # ADD STATUS BAS AT BOTTOM OF GUI
         self.sbar = QStatusBar(self)
         self.sbar.setStyleSheet('background: #{}'.format(self.bars))
         # self.statusBar.setLayout(QHBoxLayout())
@@ -307,6 +167,8 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.sbar.setSizeGripEnabled(False)
 
         self.killProcs()
+
+        # IF USER HAS SUPPLIED A FOLDER, CHECK IF FOLDER IS A PYTOMGUI FOLDER.. IF SO, OPEN THE PROJECT.
 
         try:
 
@@ -320,49 +182,12 @@ class PyTomGui(QMainWindow, CommonFunctions):
                     # self.destroy(error_dialog)
                     self.setWindowTitle('PyTom -- ' + os.path.basename(self.projectname))
                     guiFunctions.create_project_filestructure(projectdir=self.projectname)
-                    self.run_project()
+                    self.createCentralWidgets()
         except Exception as e:
             print(e)
             pass
 
-    def resizeEvent(self, event):
-        self.resized.emit()
-        return super(PyTomGui, self).resizeEvent(event)
-
-    def sizetest(self):
-        w = self.splitter.frameGeometry().width()
-        h  = self.splitter.frameGeometry().height()
-        for frame in (self.CD, self.TR, self.PP, self.SA):
-            for scrollarea in frame.scrollareas:
-                scrollarea.resize(w-280,h-20)
-
-    def init_size(self,w,h):
-        self.resize(1200, 800)
-        for frame in (self.CD, self.TR, self.PP, self.SA):
-            for n, scrollarea in enumerate( frame.scrollareas):
-                scrollarea.resize(w-280-frame.scrolloffset[n]/2,h-80-frame.scrolloffset[n])
-
-    def save_logfile(self):
-        if not self.projectname: return
-        with open(os.path.join(self.projectname, 'logfile.js'),'w') as f:
-                json.dump(self.logbook, f, indent=4, sort_keys=True)
-        print('saved  logfile')
-
-        #np.save('logfile.npy', self.logbook)
-
-    def load_logfile(self,logfile):
-        with open(logfile) as f:
-            self.logbook = json.load(f)
-
-    def is_pytomgui_project(self, projectname):
-        if os.path.exists(os.path.join(projectname, 'logfile.js')):
-            self.load_logfile(os.path.join(projectname, 'logfile.js'))
-            return True
-        elif os.path.exists(os.path.join(projectname, 'logfile.pickle')):
-            for t, text in self.targets:
-                self.logbook['00_framebutton_{}'.format(t)] = (t == self.targets[0][0])
-            return True
-        return False
+    # Connecting the drop down menus
 
     def filetrigger(self, q):
         try:
@@ -386,6 +211,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         elif q.text() == 'Queue':        self.show_logfiles()
         elif q.text() == 'View3D':       self.open3DImage()
         elif q.text() == 'View2D':       self.open2DImage()
+        elif q.text() == 'Convert':      self.convertData()
         elif q.text() == 'Help':         webbrowser.open('https://github.com/FridoF/PyTom/wiki', new=2)
         else:
             for n, subname in enumerate(self.drs[1]):
@@ -393,26 +219,47 @@ class PyTomGui(QMainWindow, CommonFunctions):
                     self.stage_buttons[n+1].setEnabled(True)
                     self.logbook['00_framebutton_{}'.format(self.targets[n+1][0])] = True
 
-    def plot_results(self):
-        try:
-            self.CD
-        except:
-            self.popup_messagebox('Warning', 'Current Project Not Set', 'Functionality has been disabled. Please create or open a project. ')
-            return
 
-        try:
-            self.plotWindow.close()
-            self.plotWindow.show()
-        except:
-            self.plotWindow = PlotWindow(self)
-            self.plotWindow.show()
+    # Activate windows connected to icon in header bar
 
     def new_project(self):
         self.projectname = ''
         self.label = QLineEdit(self)
-        self.label.textChanged.connect(lambda ignore: self.go_you())
+        self.label.textChanged.connect(lambda ignore: self.prepareStartProject())
         widget = NewProject(self,self.label)
         widget.show()
+
+    def open_project(self, name=None):
+
+        self.projectname = QFileDialog.getExistingDirectory(self, 'Open file', os.getcwd()) if name is None else name
+
+        if len(self.projectname) < 2:
+            pass
+        elif self.is_pytomgui_project(self.projectname) == False:
+
+            if self.warn_closing:
+                QMessageBox().critical(self, "Invalid projectname",
+                                       "The selected folder does not contain a valid pytomGUI structure",
+                                       QMessageBox.Ok)
+            # error_dialog.showMessage('The folder you selected does not contain a valid pytomGUI folder structure.')
+
+        elif self.projectname and self.is_pytomgui_project(self.projectname):
+            # self.destroy(error_dialog)
+            self.setWindowTitle(basename('PyTom -- ' + self.projectname))
+            guiFunctions.create_project_filestructure(projectdir=self.projectname)
+            self.createCentralWindgets()
+
+    def save_logfile(self):
+        if not self.projectname: return
+        with open(os.path.join(self.projectname, 'logfile.js'), 'w') as f:
+            json.dump(self.logbook, f, indent=4, sort_keys=True)
+        print('saved  logfile')
+
+        # np.save('logfile.npy', self.logbook)
+
+    def load_logfile(self, logfile):
+        with open(logfile) as f:
+            self.logbook = json.load(f)
 
     def open_settings(self,show_menu=True, new_project=False):
         try:
@@ -433,11 +280,26 @@ class PyTomGui(QMainWindow, CommonFunctions):
             if show_menu:
                 self.generalSettings.show()
 
-    def show_logfiles(self,show_menu=True):
+    def plot_results(self):
         try:
             self.CD
         except:
             self.popup_messagebox('Warning', 'Current Project Not Set', 'Functionality has been disabled. Please create or open a project. ')
+            return
+
+        try:
+            self.plotWindow.close()
+            self.plotWindow.show()
+        except:
+            self.plotWindow = PlotWindow(self)
+            self.plotWindow.show()
+
+    def show_logfiles(self, show_menu=True):
+        try:
+            self.CD
+        except:
+            self.popup_messagebox('Warning', 'Current Project Not Set',
+                                  'Functionality has been disabled. Please create or open a project. ')
             return
 
         try:
@@ -447,7 +309,35 @@ class PyTomGui(QMainWindow, CommonFunctions):
             self.executedJobs = ExecutedJobs(self)
             if show_menu: self.executedJobs.show()
 
-    def go_you(self):
+    def open2DImage(self):
+        try:
+            self.view2d.close()
+            self.view2d.show()
+        except:
+            self.view2d = View2d(self)
+            self.view2d.show()
+
+    def open3DImage(self):
+        try:
+            self.view3d.close()
+            self.view3d.show()
+        except:
+            self.view3d = View3d(self)
+            self.view3d.show()
+
+    def convertData(self):
+        from pytom.gui.guiStructures import ConvertData
+        try:
+            self.convert_data.close()
+            self.convert_data.show()
+        except:
+            self.convert_data = ConvertData(self)
+            self.convert_data.show()
+
+
+    # Populating the main widgets
+
+    def prepareStartProject(self):
         self.projectname = os.path.join(os.getcwd(), self.label.text())
         if self.projectname.endswith('/'): self.projectname = self.projectname[:-1]
 
@@ -462,36 +352,8 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.run_project()
         #dialog = QFileDialog(self, 'Create Project', './')
         #dialog.setFileMode(QtGui.QFileDialog.DirectoryOnly)
-        
-    def open_project(self, name=None):
-        
-        self.projectname = QFileDialog.getExistingDirectory(self, 'Open file', os.getcwd()) if name is None else name
 
-        if len(self.projectname) < 2:
-            pass
-        elif self.is_pytomgui_project(self.projectname) == False:
-
-            if self.warn_closing:
-                QMessageBox().critical(self, "Invalid projectname",
-                                "The selected folder does not contain a valid pytomGUI structure", QMessageBox.Ok)
-            #error_dialog.showMessage('The folder you selected does not contain a valid pytomGUI folder structure.')
-
-        elif self.projectname and self.is_pytomgui_project(self.projectname):
-            #self.destroy(error_dialog)
-            self.setWindowTitle(basename('PyTom -- ' + self.projectname))
-            guiFunctions.create_project_filestructure(projectdir=self.projectname)
-            self.run_project()
-
-    def keyPressEvent(self, e):
-
-        if e.key() == Qt.Key_Escape:
-            self.close()
-        if e.key() == Qt.Key_N:
-            self.new_project()
-        if e.key() == Qt.Key_O:
-            self.open_project()
-
-    def run_project(self):
+    def createCentralWidgets(self):
 
         self.addGeneralFolderPaths()
 
@@ -579,61 +441,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.setCentralWidget(self.splitter)
         self.init_size(1200,800)
 
-    def showpage(self, index):
-        self.topright.setCurrentIndex(index)
-        self.image.setParent(None)
-        self.image = QWidget(self)
-        self.imagelayout = QVBoxLayout()
-        self.transfer_data = QLabel()
-        pixmap = QPixmap(self.iconnames[index])
-        self.transfer_data.setPixmap(pixmap)
-        self.image.setSizePolicy(self.sizePolicyC)
-        self.imagelayout.addWidget(self.transfer_data)
-        self.image.setLayout(self.imagelayout)
-
-        self.topleft_layout.addWidget(self.image,alignment=Qt.AlignHCenter)
-
-    def open3DImage(self):
-        try:
-            self.view3d.close()
-            self.view3d.show()
-        except:
-            self.view3d = View3d(self)
-
-            self.view3d.show()
-
-    def open2DImage(self):
-        try:
-            self.view2d.close()
-            self.view2d.show()
-        except:
-            self.view2d = View2d(self)
-            self.view2d.show()
-
-    def killProcs(self, query='pytomGUI.py', ask=True):
-        import getpass
-        uid = str(getpass.getuser())
-
-
-        pids = []
-
-        for line in [pid for pid in os.popen(f"""ps -ef""").read().split('\n') if pid]:
-            p = line.split()
-            if p[0] == uid and query in line and p[1] != PID:
-                pids.append(p[1])
-
-        if pids:
-            if ask:
-                close = QMessageBox()
-                close.setText("Do you want to terminate existing GUI processes?\nThis either means you already have a GUI running or the previous GUI did not terminate properly.")
-                close.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
-                close = close.exec()
-            else:
-                close = QMessageBox.Yes
-            if close == QMessageBox.Yes:
-                for pid in pids:
-                    os.system(f'kill -9 {pid} >& /dev/null')
-
     def addFrames(self):
         self.CD = CollectPreprocess(self)
         self.TR = TomographReconstruct(self)
@@ -661,6 +468,56 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.particlepick_folder = os.path.join(self.projectname, '04_Particle_Picking')
         self.subtomo_folder = os.path.join(self.projectname, '05_Subtomogram_Analysis')
 
+    def showpage(self, index):
+        self.topright.setCurrentIndex(index)
+        self.image.setParent(None)
+        self.image = QWidget(self)
+        self.imagelayout = QVBoxLayout()
+        self.transfer_data = QLabel()
+        pixmap = QPixmap(self.iconnames[index])
+        self.transfer_data.setPixmap(pixmap)
+        self.image.setSizePolicy(self.sizePolicyC)
+        self.imagelayout.addWidget(self.transfer_data)
+        self.image.setLayout(self.imagelayout)
+
+        self.topleft_layout.addWidget(self.image,alignment=Qt.AlignHCenter)
+
+
+    # Supporting Functions
+
+    def keyPressEvent(self, e):
+
+        if e.key() == Qt.Key_Escape:
+            self.close()
+        if e.key() == Qt.Key_N:
+            self.new_project()
+        if e.key() == Qt.Key_O:
+            self.open_project()
+
+    def killProcs(self, query='pytomGUI.py', ask=True):
+        import getpass
+        uid = str(getpass.getuser())
+
+
+        pids = []
+
+        for line in [pid for pid in os.popen(f"""ps -ef""").read().split('\n') if pid]:
+            p = line.split()
+            if p[0] == uid and query in line and p[1] != PID:
+                pids.append(p[1])
+
+        if pids:
+            if ask and not self.silent:
+                close = QMessageBox()
+                close.setText("Do you want to terminate existing GUI processes?\nThis either means you already have a GUI running or the previous GUI did not terminate properly.")
+                close.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+                close = close.exec()
+            else:
+                close = QMessageBox.Yes
+            if close == QMessageBox.Yes:
+                for pid in pids:
+                    os.system(f'kill -9 {pid} >& /dev/null')
+
     def closeEvent(self, event):
 
         if self.warn_closing:
@@ -678,6 +535,34 @@ class PyTomGui(QMainWindow, CommonFunctions):
             event.accept()
         else:
             event.ignore()
+
+    def resizeEvent(self, event):
+        self.resized.emit()
+        return super(PyTomGui, self).resizeEvent(event)
+
+    def sizetest(self):
+        w = self.splitter.frameGeometry().width()
+        h  = self.splitter.frameGeometry().height()
+        for frame in (self.CD, self.TR, self.PP, self.SA):
+            for scrollarea in frame.scrollareas:
+                scrollarea.resize(w-280,h-20)
+
+    def init_size(self,w,h):
+        self.resize(1200, 800)
+        for frame in (self.CD, self.TR, self.PP, self.SA):
+            for n, scrollarea in enumerate( frame.scrollareas):
+                scrollarea.resize(w-280-frame.scrolloffset[n]/2,h-80-frame.scrolloffset[n])
+
+    def is_pytomgui_project(self, projectname):
+        if os.path.exists(os.path.join(projectname, 'logfile.js')):
+            self.load_logfile(os.path.join(projectname, 'logfile.js'))
+            return True
+        elif os.path.exists(os.path.join(projectname, 'logfile.pickle')):
+            for t, text in self.targets:
+                self.logbook['00_framebutton_{}'.format(t)] = (t == self.targets[0][0])
+            return True
+        return False
+
 
 def main():
 

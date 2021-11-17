@@ -846,7 +846,7 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
     if not mdocfiles:
         mdocfiles = [mdocfile for mdocfile in os.listdir(nanographfolder) if mdocfile.endswith('.mdoc')]
-    datafiles = [fname for fname in os.listdir(nanographfolder) if fname.split('.')[-1] in ('tif','mrc','em', 'st') and not (fname[0] in '0123456789')]
+    datafiles = [fname for fname in os.listdir(nanographfolder) if fname.split('.')[-1] in ('tif','mrc','em', 'st') ]#and not (fname[0] in '0123456789')]
 
     annotated = {}
 
