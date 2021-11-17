@@ -177,8 +177,6 @@ extern "C" __global__ void spmv(
 };  // End of pELL_spmv_mCoil
 """
 
-
-
 sum_weighted_norm_complex_array_text = r'''
 __device__ void warpReduceSum(volatile float* sdata, int tid, int blockSize) {
     if (blockSize >= 64) {sdata[tid] += sdata[tid + 32];}

@@ -14,19 +14,24 @@ class StaticVolume:
 
     def __init__(self, data: np.ndarray, interpolation: str = 'linear', device: str = 'gpu'):
 
-        if len(data.shape) == 2:
-            data = cp.expand_dims(data, 2)
+        self.is3D = True
+
+        if len(data.shape) == 2 or data.shape[2] == 1:
+            self.is3D = False
+            data = cp.atleast_3d(data, 2)
 
         if data.ndim != 3:
             raise ValueError('Expected a 3D array')
+
         if device not in get_available_devices():
             raise ValueError(f'Unknown device ({device}), must be one of {get_available_devices()}')
+
         switch_to_device(device)
 
         self.device = device
         self.interpolation = interpolation
 
-        if device.startswith('gpu'):
+        if device.startswith('gpu') and self.is3D:
             data = cp.array(data)
             self.shape = data.shape
             self.d_shape = cp.asarray(data.shape, dtype=cp.uint32)
@@ -58,9 +63,14 @@ class StaticVolume:
             self.shape = data.shape
             self.data = data
 
+        elif device.startswith('gpu') and not self.is3D:
+            self.data = data
+            self.shape = data.shape
+
+
     def affine(self, transform_m: np.ndarray, profile: bool = False, output: cp.ndarray = None) -> Union[np.ndarray, None]:
 
-        if self.device.startswith('gpu'):
+        if self.device.startswith('gpu') and self.is3D:
 
             if profile:
                 stream = cp.cuda.Stream.null
@@ -88,7 +98,8 @@ class StaticVolume:
                 return output_vol
             else:
                 return None
-
+        elif self.device.startswith('gpu') and not self.is3D:
+            return affine(self.data, transform_m, self.interpolation, profile, output, self.device)
         elif self.device == 'cpu':
             return affine(self.data, transform_m, self.interpolation, profile, output, self.device)
 

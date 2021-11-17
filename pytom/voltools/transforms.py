@@ -20,6 +20,7 @@ _INTERPOLATIONS = {
 AVAILABLE_INTERPOLATIONS = list(_INTERPOLATIONS.keys())
 AVAILABLE_DEVICES = get_available_devices()
 
+
 if 'gpu' in AVAILABLE_DEVICES:
     import cupy as cp
 
@@ -124,8 +125,44 @@ def affine(volume: np.ndarray,
            output = None,
            device: str = 'cpu'):
 
-    if len(volume.shape) == 2:
-        volume = cp.expand_dims(volume, 2)
+    if len(volume.shape) == 2 or volume.shape[2] == 1:
+        if device == 'cpu':
+            import numpy as cp
+        else:
+            import cupy as cp
+
+        volume = cp.atleast_3d(volume)
+
+        if device == 'cpu':
+            from pytom.agnostic.interpolation import fill_values_real_spline
+            P = cp.array(transform_m.flatten(),dtype=cp.float32)
+            dst = output if not output is None else cp.zeros_like(volume,dtype=cp.float32)
+            dim_src = cp.array([volume.shape[0], volume.shape[1], volume.shape[2]], dtype=cp.int32)
+            dim_dst = cp.array([dst.shape[0], dst.shape[1], dst.shape[2]], dtype=cp.int32)
+
+            fill_values_real_spline(volume, dst, P, dim_src, dim_dst)
+
+            return dst
+
+
+        else:
+            from pytom.gpu.kernels import transformSpline_txt
+            transformSpline = cp.RawKernel(transformSpline_txt, 'transformSpline')
+
+            num_threads, defaultval = 512, 0
+            num_blocks = volume.size//num_threads + 1
+            print(num_threads, num_blocks)
+
+            P = cp.array(transform_m.flatten(),dtype=cp.float32)
+
+            dst = output if not output is None else cp.zeros_like(volume,dtype=cp.float32)
+            dim_src = cp.array([volume.shape[0], volume.shape[1],volume.shape[2]], dtype=cp.int32)
+            dim_dst = cp.array([dst.shape[0], dst.shape[1], dst.shape[2]], dtype=cp.int32)
+
+            transformSpline((num_blocks, 1), (num_threads, 1, 1),
+                            (volume, dst, P, True, cp.float32(defaultval), 1000000, dim_src, dim_dst))
+
+            return dst
 
     if device not in AVAILABLE_DEVICES:
         raise ValueError(f'Unknown device ({device}), must be one of {AVAILABLE_DEVICES}')
