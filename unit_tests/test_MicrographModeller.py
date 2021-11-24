@@ -23,13 +23,12 @@ class MicrographModellerTest(unittest.TestCase):
             'voltage':              300e3
         }
 
-        real, imag = iasa_integration(self.param_pot['pdb'],
+        self.potential = iasa_integration(self.param_pot['pdb'],
                                       voxel_size=self.param_pot['voxel_size'],
                                       oversampling=self.param_pot['oversampling'],
                                       solvent_masking=self.param_pot['solvent_masking'],
                                       absorption_contrast=self.param_pot['absorption_contrast'],
                                       voltage=self.param_pot['voltage'])
-        self.potential = real + 1j * imag
 
         if self.potential.shape[0] % 2:
             self.potential = np.pad(self.potential, pad_width=(0,1), mode='constant', constant_values=0)

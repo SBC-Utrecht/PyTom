@@ -1,7 +1,33 @@
-import numpy as xp
+from pytom.gpu.initialize import xp, device
 
 
-def create_gaussian_low_pass(shape, cutoff, center=None):
+def sigma_to_sigma(sigma, N):
+    """
+    Convert real space sigma to fourier space sigma, or vice versa. The formula is identical.
+     > sigma * sigma_fourier = N / (2 * xp.pi)
+
+    If passed N=1 it just gives the fraction of where the fourier filter should be applied relative to the dimension.
+
+    :param sigma:
+    :type sigma:
+    :param N:
+    :type N:
+    :return:
+    :rtype:
+    """
+    sigma_fourier = N / (2 * xp.pi * sigma)
+    return sigma_fourier
+
+
+def fwhm_to_sigma(fwhm):
+    return fwhm / (2 * xp.sqrt(2 * xp.log(2)))
+
+
+def sigma_to_fwhm(sigma):
+    return sigma * (2 * xp.sqrt(2 * xp.log(2)))
+
+
+def create_gaussian_low_pass(shape, cutoff, center=None, indexing='ij', filter_type='gaussian'):
     """
     NOTE: MOVE FUNCTION TO TOMPY.FILTER
     Create a 2D or 3D Gaussian low-pass filter with cutoff (or HWHM). This value will be converted to the proper
@@ -20,19 +46,28 @@ def create_gaussian_low_pass(shape, cutoff, center=None):
     @author: Marten Chaillet
     """
     assert len(shape) == 2 or len(shape) == 3, "filter can only be created in 2d or 3d"
-    assert len(set(shape)) == 1, "shape needs to have equal sizes"
+    # assert len(set(shape)) == 1, "shape needs to have equal sizes"
 
     # full width at half maximum is two times the half width at half maximum (or cutoff)
-    c = 2  # or can be set to np.sqrt(2) for butterworth filter
+    if filter_type == 'gaussian':
+        c = 2  # or can be set to np.sqrt(2) for butterworth filter
+    elif filter_type == 'butterworth':
+        c = xp.sqrt(2)
+    else:
+        print('Invalid filter type in create_gaussian_low_pass, only "gaussian" or "butterworth" allowed, '
+              'switching to default "gaussian". ')
+        c = 2
+
     sigma_cutoff = cutoff / xp.sqrt(2 * xp.log(c))
 
     if center is None:
-        # center = [(shape[0]-1)/2, (shape[1]-1)/2, (shape[2]-1)/2]
         center = tuple([s//2 for s in shape])
 
-    grid = xp.mgrid[0:shape[0], 0:shape[1], 0:shape[2]] if len(shape) == 3 else xp.mgrid[0:shape[0], 0:shape[1]]
-    # r = xp.sqrt(sum((x-center[0])**2+(y-center[1])**2+(z-center[2])**2)
-    r = xp.sqrt(sum([(g-c)**2 for (g,c) in zip(grid, center)]))
+    d = [xp.arange(size) for size in shape]
+
+    grids = xp.meshgrid(*d, indexing=indexing)
+
+    r = xp.sqrt(sum([(g-c)**2 for (g,c) in zip(grids, center)]))
 
     filter = xp.exp(-r ** 2 / (2 * sigma_cutoff ** 2))
 
@@ -61,7 +96,7 @@ def reduce_resolution_fourier(input, spacing, resolution):
     from scipy.ndimage import fourier_gaussian
 
     # 2.35 is the factor for the full width half maximum
-    result = fourier_gaussian(xp.fft.fftn(input), sigma=(resolution / (2 * spacing)) / 2.35)
+    result = fourier_gaussian(xp.fft.fftn(input), sigma=(resolution / (2 * spacing)) / (2 * xp.sqrt(2 * xp.log(2))))
     return xp.fft.ifftn(result).real
 
 

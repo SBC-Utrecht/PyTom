@@ -115,6 +115,15 @@ if __name__ == '__main__':
     for f in foundParticles:
         scores.append(float(f.score.getValue()))
 
+    scores = np.array(scores)
+
+    # determine nbins automatically
+    # q75, q25 = np.percentile(scores, [75, 25])
+    # iqr = q75 - q25
+    # bin_width = 2 * iqr / len(scores)**(1/3)
+    # snbins = (max(scores) - min(scores)) / bin_width
+    # print('suggested nbins', snbins)
+
     # ================================== generate the histogram ========================================================
     matplotlib.rc('font', size=18)
     fig = plt.figure(figsize=(10, 5))

@@ -20,25 +20,28 @@ iasa_integrate_text = '''
 #define M_PI 3.141592654
 
 extern "C" __global__ 
-void iasa_integrate(float *atoms, unsigned char *elements, float *b_factors, float *occupancies, 
-                    float *potential, unsigned int *potential_dims, float *scattering_factors, 
+void iasa_integrate(float3 *atoms, unsigned char *elements, float *b_factors, float *occupancies, 
+                    float *potential, float *scattering_factors, unsigned int *potential_dims, 
                     float voxel_size, unsigned int n_atoms) {
         
     // get the atom index                                                                                                                                      
     unsigned int i = (blockIdx.x*(blockDim.x) + threadIdx.x); // correct for each atom having 3 coordinates
         
     if (i < n_atoms) {
+    
+        // make atoms a float3
+        // potential_dims can also be a float3
         
         unsigned int j, l, m, n, potent_idx;
         int3 ind_min, ind_max;
         float atom_voxel_pot, sqrt_b, pi2_sqrt_b, pi2, sqrt_pi, factor3;
         float integral_x, integral_y, integral_z, integral_voxel;
-        float3 atom, voxel_bound_min, voxel_bound_max;
+        float3 voxel_bound_min, voxel_bound_max;
     
         // get all the atom information
-        atom.x = atoms[(i * 3) + 0];
-        atom.y = atoms[(i * 3) + 1];
-        atom.z = atoms[(i * 3) + 2];
+        //atom.x = atoms[(i * 3) + 0];
+        //atom.y = atoms[(i * 3) + 1];
+        //atom.z = atoms[(i * 3) + 2];
         int elem = elements[i];  // its much easier if elements are ints, because dict wont work in C
         float b_factor = b_factors[i];
         float occupancy = occupancies[i];
@@ -55,21 +58,21 @@ void iasa_integrate(float *atoms, unsigned char *elements, float *b_factors, flo
         float r = sqrt(r2 / 3);
         
         // set indices in potential box
-        ind_min.x = (int)floor((atom.x - r) / voxel_size); // use floor and int casting for explicitness
-        ind_max.x = (int)floor((atom.x + r) / voxel_size);
-        ind_min.y = (int)floor((atom.y - r) / voxel_size);
-        ind_max.y = (int)floor((atom.y + r) / voxel_size);
-        ind_min.z = (int)floor((atom.z - r) / voxel_size);
-        ind_max.z = (int)floor((atom.z + r) / voxel_size);
+        ind_min.x = (int)floor((atoms[i].x - r) / voxel_size); // use floor and int casting for explicitness
+        ind_max.x = (int)floor((atoms[i].x + r) / voxel_size);
+        ind_min.y = (int)floor((atoms[i].y - r) / voxel_size);
+        ind_max.y = (int)floor((atoms[i].y + r) / voxel_size);
+        ind_min.z = (int)floor((atoms[i].z - r) / voxel_size);
+        ind_max.z = (int)floor((atoms[i].z + r) / voxel_size);
         
         // enforce ind_min can never be smaller than 0 and ind_max can never be larger than potential_dims
         // ind min should also always be smaller than the dims...
-        ind_min.x = ((ind_min.x >= 0) ? ind_min.x : 0);
-        ind_max.x = ((ind_max.x < potential_dims[0]) ? ind_max.x : potential_dims[0]);
-        ind_min.y = ((ind_min.y >= 0) ? ind_min.y : 0);
-        ind_max.y = ((ind_max.y < potential_dims[1]) ? ind_max.y : potential_dims[1]);
-        ind_min.z = ((ind_min.z >= 0) ? ind_min.z : 0);
-        ind_max.z = ((ind_max.z < potential_dims[2]) ? ind_max.z : potential_dims[2]);
+        ind_min.x = max(ind_min.x, 0);
+        ind_min.y = max(ind_min.y, 0);
+        ind_min.z = max(ind_min.z, 0);
+        ind_max.x = min(ind_max.x, potential_dims[0]);
+        ind_max.y = min(ind_max.y, potential_dims[1]);
+        ind_max.z = min(ind_max.z, potential_dims[2]);
         
         // precalc sqrt of pi
         sqrt_pi = sqrt(M_PI);
@@ -78,18 +81,18 @@ void iasa_integrate(float *atoms, unsigned char *elements, float *b_factors, flo
         // loop over coordinates where this atom is present
         for (l = ind_min.x; l < ind_max.x; l++) {
         
-            voxel_bound_min.x = l * voxel_size - atom.x;
-            voxel_bound_max.x = (l + 1) * voxel_size - atom.x;
+            voxel_bound_min.x = l * voxel_size - atoms[i].x;
+            voxel_bound_max.x = (l + 1) * voxel_size - atoms[i].x;
             
             for (m = ind_min.y; m < ind_max.y; m++) {
             
-                voxel_bound_min.y = m * voxel_size - atom.y;
-                voxel_bound_max.y = (m + 1) * voxel_size - atom.y;
+                voxel_bound_min.y = m * voxel_size - atoms[i].y;
+                voxel_bound_max.y = (m + 1) * voxel_size - atoms[i].y;
                 
                 for (n = ind_min.z; n < ind_max.z; n++) {
                 
-                    voxel_bound_min.z = n * voxel_size - atom.z;
-                    voxel_bound_max.z = (n + 1) * voxel_size - atom.z;
+                    voxel_bound_min.z = n * voxel_size - atoms[i].z;
+                    voxel_bound_max.z = (n + 1) * voxel_size - atoms[i].z;
                     
                     // initialize to zero for this voxel
                     atom_voxel_pot = 0;
@@ -1004,7 +1007,7 @@ def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclus
     n_blocks = int(xp.ceil(atoms.shape[0] / n_threads).get())
     iasa_integrate = xp.RawKernel(iasa_integrate_text, 'iasa_integrate')
     iasa_integrate((n_blocks, 1, 1,), (n_threads, 1, 1), (atoms, elements, b_factors, occupancies, potential,
-                                                          sz_potential_gpu, scattering, xp.float32(voxel_size),
+                                                          scattering, sz_potential_gpu, xp.float32(voxel_size),
                                                           xp.uint32(n_atoms)))
 
     # convert potential to correct units and correct for solvent exclusion
@@ -1143,7 +1146,7 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
     y_coordinates = y_coordinates - xp.min(y_coordinates) + extra_space + difference[1]/2
     z_coordinates = z_coordinates - xp.min(z_coordinates) + extra_space + difference[2]/2
     # Define the volume of the protein
-    sz = (int(largest_dimension + 2 * extra_space), ) * 3
+    sz = (int((largest_dimension + 2 * extra_space) / voxel_size), ) * 3
 
     potential = xp.zeros(sz)
     if solvent_exclusion:
@@ -1768,7 +1771,7 @@ if __name__ == '__main__':
                              'int', 'optional', 1),
                ScriptOption2(['-x', '--exclude_solvent'],
                              'Whether to exclude solvent around each atom as a correction of the potential, '
-                             'either "gaussian" or "masking".', 'str',
+                             'either "gaussian" or "masking".', 'string',
                              'optional'),
                ScriptOption2(['-p', '--solvent_potential'],
                              f'Value for the solvent potential. By default amorphous ice, {physics.V_WATER} V.',
@@ -1791,6 +1794,8 @@ if __name__ == '__main__':
 
     filepath, output_folder, voxel_size, oversampling, binning, solvent_exclusion, solvent_potential, solvent_factor, \
         absorption_contrast, voltage, cores, gpuID = options
+
+    voltage *= 1e3
 
     wrapper(filepath, output_folder, voxel_size, oversampling=oversampling, binning=binning,
             solvent_exclusion=solvent_exclusion, solvent_potential=solvent_potential,
