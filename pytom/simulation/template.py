@@ -63,8 +63,8 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
     @author: Marten Chaillet
     """
     from pytom.simulation.microscope import create_ctf, display_microscope_function
-    from pytom.tompy.transform import resize, fourier_filter
-    from pytom.tompy.tools import paste_in_center
+    from pytom.agnostic.transform import resize, fourier_filter
+    from pytom.agnostic.tools import paste_in_center
     from pytom.simulation.support import create_gaussian_low_pass
     from pytom.simulation.potential import iasa_integration_parallel, call_chimera
 

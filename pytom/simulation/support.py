@@ -76,7 +76,7 @@ def create_gaussian_low_pass(shape, cutoff, center=None, indexing='ij', filter_t
 
 def reduce_resolution_fourier(input, spacing, resolution):
     """
-    NOTE: MOVE FUNCTION TO TOMPY.FILTER
+    NOTE: MOVE FUNCTION TO agnostic.FILTER
     Apply scipy gaussian filter in fourier space.
 
     @param input: input to be filtered, either 2d or 3d array (however scipy will be able to handle higher
@@ -102,7 +102,7 @@ def reduce_resolution_fourier(input, spacing, resolution):
 
 def reduce_resolution(input, spacing, resolution):
     """
-    NOTE: MOVE FUNCTION TO TOMPY.FILTER
+    NOTE: MOVE FUNCTION TO agnostic.FILTER
     Apply scipy gaussian filter in real space.
 
     @param input: input to be filtered, either 2d or 3d array (however scipy will be able to handle higher

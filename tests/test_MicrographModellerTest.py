@@ -7,7 +7,9 @@ todo simulation should also have a unittest for potential generation, Fourier sh
 import unittest
 import numpy as np
 
-
+# TODO: this shouldn't happen, we shouldn't force interactive backend outside of pytomGUI
+@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False),
+                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 class MicrographModellerTest(unittest.TestCase):
     def setUp(self):
         """Initialize simulation parameters"""
@@ -24,14 +26,14 @@ class MicrographModellerTest(unittest.TestCase):
         }
 
         self.potential = iasa_integration(self.param_pot['pdb'],
-                                      voxel_size=self.param_pot['voxel_size'],
-                                      oversampling=self.param_pot['oversampling'],
-                                      solvent_masking=self.param_pot['solvent_masking'],
-                                      absorption_contrast=self.param_pot['absorption_contrast'],
-                                      voltage=self.param_pot['voltage'])
+                                          voxel_size=self.param_pot['voxel_size'],
+                                          oversampling=self.param_pot['oversampling'],
+                                          solvent_masking=self.param_pot['solvent_masking'],
+                                          absorption_contrast=self.param_pot['absorption_contrast'],
+                                          voltage=self.param_pot['voltage'])
 
         if self.potential.shape[0] % 2:
-            self.potential = np.pad(self.potential, pad_width=(0,1), mode='constant', constant_values=0)
+            self.potential = np.pad(self.potential, pad_width=(0, 1), mode='constant', constant_values=0)
 
         # create temporary dir for storing simulation data
         if not os.path.exists('temp_simulation'):
@@ -49,7 +51,7 @@ class MicrographModellerTest(unittest.TestCase):
             'defocus':              3e-6,
             'msdz':                 5e-9,
             'camera_type':          'K2SUMMIT',
-            'camera_folder':        '../simulation/detectors',
+            'camera_folder':        '../pytom/simulation/detectors',
         }
 
         self.param_rec = {
@@ -96,7 +98,7 @@ class MicrographModellerTest(unittest.TestCase):
     def simulateTomogram(self, c=''):
         """Run the simulation, output here will be written to some temp storage"""
         from pytom.simulation.MicrographModeller import generate_tilt_series_cpu, reconstruct_tomogram
-        from pytom.tompy.io import read
+        from pytom.agnostic.io import read
         from os import path
         import os
 
@@ -125,8 +127,8 @@ class MicrographModellerTest(unittest.TestCase):
     def test_Simulation(self):
         """Run two simulations and test their correlation. Both will have a different realization of noise and will
         slightly differ."""
-        from pytom.tompy.correlation import nxcc
-        from pytom.tompy.tools import create_sphere
+        from pytom.agnostic.correlation import nxcc
+        from pytom.agnostic.tools import create_sphere
         from pytom.simulation.support import reduce_resolution
 
         # generate two different realization of tomogram noise
@@ -145,7 +147,7 @@ class MicrographModellerTest(unittest.TestCase):
 
         print('normalized cross correlation of two simulations of identical volume after binning both subtomograms 8 '
               'times = ', cc)
-        self.assertGreater(cc, 0.8, msg='correlation is not sufficient between simulations')
+        self.assertGreater(cc, 0.75, msg='correlation is not sufficient between simulations')
 
 
 if __name__ == '__main__':

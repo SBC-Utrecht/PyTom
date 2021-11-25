@@ -10,47 +10,55 @@
 *.Plo
 *.Po
 
-# pycharm stuff
-.idea/
+
+# ignore .idea folder
+.idea
+
+
+# ignore built pytom files
+/pytom/bin/paths.sh
+build
+*.egg-info
+
 
 # external stuff
-external/lib/
-external/include/
-external/lib64/
-external/shared/
-external/src/nfft-3.1.3/*
-external/src/mpi4py/
-external/share
-external/src/nfft-3.1.3/3rdparty/
+pytom/external/lib/
+pytom/external/include/
+pytom/external/lib64/
+pytom/external/shared/
+pytom/external/src/nfft-3.1.3/*
+pytom/external/src/mpi4py/
+pytom/external/share
+pytom/external/src/nfft-3.1.3/3rdparty/
 
 
 # pytomc compiled stuff
-bin/pytom
-bin/ipytom
-bin/paths.csh
-bin/pytomGUI.py
+pytom/bin/pytom
+pytom/bin/ipytom
+pytom/bin/paths.csh
+pytom/bin/pytomGUI
 
-pytomc/swigModules/
-pytomc/nufft/mkswig.sh
-pytomc/sh_alignment/frm/swig/
-pytomc/sh_alignment/SpharmonicKit27/CONV_HYBRID_DISK
-pytomc/sh_alignment/SpharmonicKit27/CONV_HYBRID_MEMO
-pytomc/sh_alignment/SpharmonicKit27/CONV_SEMI_DISK
-pytomc/sh_alignment/SpharmonicKit27/CONV_SEMI_FLY
-pytomc/sh_alignment/SpharmonicKit27/CONV_SEMI_MEMO
-pytomc/sh_alignment/SpharmonicKit27/FST_precomp2disk
-pytomc/sh_alignment/SpharmonicKit27/test_FST_hybrid_disk
-pytomc/sh_alignment/SpharmonicKit27/test_FST_hybrid_memo
-pytomc/sh_alignment/SpharmonicKit27/test_FST_hybrid_memoX
-pytomc/sh_alignment/SpharmonicKit27/test_FST_semi_disk
-pytomc/sh_alignment/SpharmonicKit27/test_FST_semi_fly
-pytomc/sh_alignment/SpharmonicKit27/test_FST_semi_memo
-pytomc/sh_alignment/SpharmonicKit27/test_flt_classic
-pytomc/sh_alignment/SpharmonicKit27/test_flt_dhmid
-pytomc/sh_alignment/SpharmonicKit27/test_flt_hybrid
-pytomc/sh_alignment/SpharmonicKit27/test_naive
-pytomc/sh_alignment/SpharmonicKit27/test_semi
-pytomc/sh_alignment/SpharmonicKit27/test_stability_naive
+pytom/pytomc/swigModules/
+pytom/pytomc/nufft/mkswig.sh
+pytom/pytomc/sh_alignment/frm/swig/
+pytom/pytomc/sh_alignment/SpharmonicKit27/CONV_HYBRID_DISK
+pytom/pytomc/sh_alignment/SpharmonicKit27/CONV_HYBRID_MEMO
+pytom/pytomc/sh_alignment/SpharmonicKit27/CONV_SEMI_DISK
+pytom/pytomc/sh_alignment/SpharmonicKit27/CONV_SEMI_FLY
+pytom/pytomc/sh_alignment/SpharmonicKit27/CONV_SEMI_MEMO
+pytom/pytomc/sh_alignment/SpharmonicKit27/FST_precomp2disk
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_FST_hybrid_disk
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_FST_hybrid_memo
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_FST_hybrid_memoX
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_FST_semi_disk
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_FST_semi_fly
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_FST_semi_memo
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_flt_classic
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_flt_dhmid
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_flt_hybrid
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_naive
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_semi
+pytom/pytomc/sh_alignment/SpharmonicKit27/test_stability_naive
 
 # compiled docs
 doc/epydoc/

@@ -181,11 +181,10 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
 
     @author: Gijs van der Schot, Ilja Gubins, Marten Chaillet
     """
-    #TODO Add the motion blur parameter to model generation. Apply after placing particles.
     # IMPORTANT: We assume the particle models are in the desired voxel spacing for the pixel size of the simulation!
     from pytom.simulation.potential import create_gold_marker
     from pytom.voltools import transform
-    from pytom.tompy.io import read_mrc, write
+    from pytom.agnostic.io import read_mrc, write
 
     # outputs
     X, Y, Z = size, size, thickness
@@ -585,11 +584,11 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
     if absorption_contrast: write(filename_gm_imag, cell_imag)
     # save class masks
     print('Saving class volumes')
-    # pytom.tompy.io.write(f'{save_path}/class_bbox.mrc', class_bbox_mask)
+    # pytom.agnostic.io.write(f'{save_path}/class_bbox.mrc', class_bbox_mask)
     write(filename_cm, class_accurate_mask)
     # save occupancy masks
     print('Saving occupancy volumes')
-    # pytom.tompy.io.write(f'{save_path}/occupancy_bbox.mrc', occupancy_bbox_mask)
+    # pytom.agnostic.io.write(f'{save_path}/occupancy_bbox.mrc', occupancy_bbox_mask)
     write(filename_om, occupancy_accurate_mask)
     # save particle text file
     with open(filename_loc, 'w') as f:
@@ -731,7 +730,7 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
 
     # NUMBER OF ELECTRONS PER PIXEL
     dose_per_pixel = dose * (pixel_size*1E10)**2 / binning**2 # from square A to square nm (10A pixels)
-    print(f'Number of electrons per pixel (before binning and sample absorption): {dose_per_pixel}')
+    print(f'Number of electrons per pixel (before binning and sample absorption): {dose_per_pixel:.2f}')
 
     # Fourier transform and multiply with sqrt(dqe) = mtf/ntf
     projection_fourier = xp.fft.fftn(noisefree_projection) * mtf_shift / ntf_shift
@@ -933,7 +932,7 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     projection = microscope_single_projection(noisefree_projection + beam_noise, dqe, mtf, dose, pixel_size,
                                               binning=binning)
     # Write the projection to the projection folder
-    # pytom.tompy.io.write(f'{folder}/synthetic_{frame+1}.mrc', projection)
+    # pytom.agnostic.io.write(f'{folder}/synthetic_{frame+1}.mrc', projection)
     # Return noisefree and projection as tuple for writing as mrc stack in higher function
     return (noisefree_projection, projection)
 
@@ -1037,7 +1036,7 @@ def generate_tilt_series_cpu(save_path,
     from pytom.gui.guiFunctions import savestar
     from pytom.simulation.microscope import create_detector_response, create_complex_ctf
     from pytom.simulation.microscope import convert_defocus_astigmatism_to_defocusU_defocusV
-    from pytom.tompy.io import read_mrc, write
+    from pytom.agnostic.io import read_mrc, write
     from joblib import Parallel, delayed
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
 
@@ -1366,7 +1365,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     from pytom.gui.guiFunctions import savestar
     from pytom.simulation.microscope import create_detector_response, create_complex_ctf, \
         convert_defocus_astigmatism_to_defocusU_defocusV
-    from pytom.tompy.io import read_mrc, write
+    from pytom.agnostic.io import read_mrc, write
     from joblib import Parallel, delayed
 
     # print('this function is not working because it does not create a metafile and does not correctly pass '
@@ -1616,7 +1615,7 @@ def FSS(fimage1, fimage2, numberBands, verbose=False):
 
     @author: Marten Chaillet
     """
-    from pytom.tompy.correlation import meanUnderMask
+    from pytom.agnostic.correlation import meanUnderMask
     from pytom.simulation.support import bandpass_mask
 
     assert fimage1.shape == fimage2.shape, "volumes not of same size"
@@ -1720,7 +1719,7 @@ def parallel_scale(number, projection, example, pixel_size, example_pixel_size, 
 
     @author: Marten Chaillet
     """
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
 
     # print(projection.shape, example.shape)
 
@@ -1780,9 +1779,9 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
 
     @author: Marten Chaillet
     """
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution
-    from pytom.tompy.io import read_mrc, write
+    from pytom.agnostic.io import read_mrc, write
     from joblib import Parallel, delayed
 
     # generate list of all the possible example projections in the provided parameter example_folder
@@ -1866,9 +1865,9 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
     @author: Gijs van der Schot, Marten Chaillet
     """
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution
-    from pytom.tompy.io import read_mrc, write
+    from pytom.agnostic.io import read_mrc, write
 
     # create folder for individual projections, reconstruction algorithm reads single projections from a folder
     projection_folder = os.path.join(save_path, 'projections')

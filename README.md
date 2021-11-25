@@ -21,13 +21,18 @@ PyTomGUI is designed to run on linux systems, but can also be installed on MacOS
 
 # Python Packages
 - numpy
+- scipy
 - boost
 - lxml 
-- pyqtgraph
 - mrcfile
+- tqdm
+- scikit-image
+- matplotlib
+- cupy (Optional for GPU acceleration)
 
 # Optional Software Packages used by GUI
 - PyQt5
+- pyqtgraph
 - motioncor2 ( >=1.2.1)
 - imod (=4.10.25)
 
@@ -35,59 +40,52 @@ PyTomGUI is designed to run on linux systems, but can also be installed on MacOS
 
 ### Installing
 
-Please use the following command to install the General Packages on RedHat or CentOS:
+Before you can install PyTom, you need to create an account on github. And to the github account you need to link a token for online identification. For more information click on the following link.
+
+Furthermore, the software packages git needs to be installed. Git can be installed by sudo apt install git or yum install git. After git has been installed, run the following lines:
 
 ```
-sudo yum install python3.x86_64
-sudo yum install openmpi.x86_64
-sudo yum install openmpi-devel.x86_64
-sudo yum install fftw-devel.x86_64
-sudo yum install gcc.x86_64
-sudo yum install libxml2.x86_64
-sudo yum install swig3.x86_64
+git clone git@github.com:FridoF/PyTomPrivate.git
+cd PyTomPrivate
+bash installMiniconda.sh
+conda env create -f pytom_env.yml
 ```
 
-To install PyTom, please clone the most recent version by executing the following command: 
+Please remember the location where you decide to install conda (CONDA_INSTALL_DIR). 
 
 ```
-git clone --recursive https://github.com/FridoF/PyTomPrivate.git pytom
+conda activate pytom_env
+python3.8 setup.py install --prefix [CONDA_INSTALL_DIR]/envs/pytom_env
 ```
 
-After a successful clone enter the new directory and go to pytomc
+### Installing on WSL2 (windows for linux subsystem)
+
+PATH environment variable will contain windows directories in the /mnt folder of your linux subsystem. Pytom will have an issue with reading the PATH because of the white spaces ( arrrrg :( ). Make sure to update the PATH by removing the windows directories.
+
+For WSL2 you need at least Windows 10 Pro with HyperV support.
+
+to check if your machine can run of wsl, please type 'systeminfo' into the command prompt. The lines about HyperV should all return Yes.
+
+To activate wsl, follow the following tutorial.
+https://www.omgubuntu.co.uk/how-to-install-wsl2-on-windows-10
+
+
+### Docker container
+
+You can also use dockerfile to easily build pytom image on any platform.  
+**Note:** Out of the box the image does not support GPU operations or pytomGUI.
 ```
-cd pytom/pytomc
+git clone git@github.com:FridoF/PyTomPrivate.git && cd PyTomPrivate
+docker build -t pytom .
 ```
 
-Here you will find an installation script name compile.py. Please run this script with python3. 
-```
-python3.7 compile.py --pythonVersion 3.7 --target all 
-```
+Now that you have built an image, here are some examples of what you can do.
+- Run ipytom: `docker run -it --rm pytom ipytom`  
+- Run a script located on the host: `docker run -it --rm -v "/home/user/scripts:/hostfiles/" pytom pytom /hostfiles/some_script.py`
 
-If certain dependencies are not found, chances are there you either have not installed them, or that the installation paths to the dependencies are not found automatically. 
+If you don't want to remove containers after the run, remove `--rm` flag.
+Find info about how to user docker on [their docs](https://docs.docker.com/).
 
-It is possible to add installation paths manually by adding them after a respective flag (include dirs after --includeDir, lib dirs after --libDir and exe dirs after --exeDir). More than one path can be added per flag, where each path should be separated by a space. Note that the order of the paths can make a difference.
-
-```
-python3.7 compile.py --pythonVersion 3.7 --target all --exeDir [path_to_your_exe_dir1] [path_to_your_exe_dir2] --libDir [path_to_your_lib_dir1] [path_to_your_lib_dir2] --includeDir [path_to_your_exclude_dir1] [path_to_your_exclude_dir2] 
-```
-
-To locate missing dependencies try:
-
-```
-locate Python.h
-```
-
-This results in something similar to:
-```
-/usr/local/Cellar/python/3.7.2_1/Frameworks/Python.framework/Versions/3.7/include/python3.7m/Python.h
-/usr/local/Cellar/python@2/2.7.15/Frameworks/Python.framework/Versions/2.7/include/python2.7/Python.h
-```
-
-Now update the includeDir flag to:
-
-```
-python3.7 compile.py --pythonVersion 3.7 --target all --includeDir /usr/local/Cellar/python/3.7.2_1/Frameworks/Python.framework/Versions/3.7/include/python3.7m/
-```
 
 ## Versioning
 

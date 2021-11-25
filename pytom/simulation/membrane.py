@@ -826,9 +826,9 @@ if __name__ == '__main__':
     import sys
     from pytom.tools.script_helper import ScriptHelper2, ScriptOption2
     from pytom.tools.parse_script_options import parse_script_options2
-    from pytom.tompy.io import write
+    from pytom.agnostic.io import write
     from pytom.simulation.support import reduce_resolution
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
 
     # syntax is ScriptOption([short, long], description, requires argument, is optional)
     helper = ScriptHelper2(
