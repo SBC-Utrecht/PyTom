@@ -7,9 +7,8 @@ todo simulation should also have a unittest for potential generation, Fourier sh
 import unittest
 import numpy as np
 
-# TODO: this shouldn't happen, we shouldn't force interactive backend outside of pytomGUI
-@unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False),
-                 "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
+# @unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False),
+#                  "The tests below call matplotlib and force to use qt5agg which is unavailable on default docker")
 class MicrographModellerTest(unittest.TestCase):
     def setUp(self):
         """Initialize simulation parameters"""
@@ -45,7 +44,7 @@ class MicrographModellerTest(unittest.TestCase):
             'angles':               list(range(-60, 60 + 3, 3)),
             'nodes':                1,  # todo change to multiple if possible ??
             'pixel_size':           5e-10,
-            'binning':              2,
+            'oversampling':         2,
             'dose':                 80,
             'voltage':              300e3,
             'defocus':              3e-6,
@@ -109,7 +108,7 @@ class MicrographModellerTest(unittest.TestCase):
                                  self.param_sim['angles'],
                                  nodes=self.param_sim['nodes'],
                                  pixel_size=self.param_sim['pixel_size'],
-                                 binning=self.param_sim['binning'],
+                                 oversampling=self.param_sim['oversampling'],
                                  dose=self.param_sim['dose'],
                                  voltage=self.param_sim['voltage'],
                                  defocus=self.param_sim['defocus'],
