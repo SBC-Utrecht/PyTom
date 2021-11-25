@@ -20,7 +20,7 @@ class MicrographModellerTest(unittest.TestCase):
             'pdb':                  './testData/3j9m.cif',
             'voxel_size':           5,
             'oversampling':         2,
-            'solvent_masking':      True,
+            'solvent_exclusion':    'masking',
             'absorption_contrast':  True,
             'voltage':              300e3
         }
@@ -28,7 +28,7 @@ class MicrographModellerTest(unittest.TestCase):
         self.potential = iasa_integration(self.param_pot['pdb'],
                                           voxel_size=self.param_pot['voxel_size'],
                                           oversampling=self.param_pot['oversampling'],
-                                          solvent_masking=self.param_pot['solvent_masking'],
+                                          solvent_exclusion=self.param_pot['solvent_exclusion'],
                                           absorption_contrast=self.param_pot['absorption_contrast'],
                                           voltage=self.param_pot['voltage'])
 

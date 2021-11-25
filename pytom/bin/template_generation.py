@@ -41,7 +41,8 @@ if __name__ == '__main__':
                                                       'removing water molecules from the structure.', 'no arguments',
                           'optional'),
             ScriptOption2(['--solvent_correction'], 'Whether to exclude solvent around each atom as a '
-                                                        'correction of the potential.', 'no arguments', 'optional'),
+                                                        'correction of the potential, options: gaussian, masking.',
+                          'string', 'optional'),
             ScriptOption2(['-r', '--solvent_density'], 'Density of solvent, value should not be higher than 1.35 as'
                                                      ' that is the density of proteins. Default is 0.93 g/cm^3.',
                           'float', 'optional', physics.AMORPHOUS_ICE_DENSITY),
@@ -82,7 +83,7 @@ if __name__ == '__main__':
     template = generate_template(filepath, spacing,
                                  binning=binning,
                                  modify_structure=modify_structure,
-                                 apply_solvent_correction=solvent_correction,
+                                 solvent_correction=solvent_correction,
                                  solvent_density=solvent_density,
                                  apply_ctf_correction=ctf_correction,
                                  defocus=defocus * 1e-6,

@@ -10,13 +10,6 @@ Author: Marten Chaillet
 import numpy as xp
 import pytom.simulation.physics as physics
 
-# plotting
-# TODO remove plotting import
-import matplotlib
-matplotlib.use('Qt5Agg')
-from pylab import *
-from mpl_toolkits.mplot3d import Axes3D # <--- This is important for 3d plotting
-
 
 class Vector:
     # Class can be used as both a 3d coordinate, and a vector
@@ -201,6 +194,9 @@ def place_back_to_ellipsoid(point, a, b, c, newton_iter=3):
 
 
 def test_place_back_to_ellipsoid(size=100, a=1, b=1, c=1, iter=3):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
     # xyz points between -1 and 1
     xx, yy, zz = map(int, [size*a, size*b, size*c])
     distances = xp.zeros((xx, yy, zz))
@@ -267,6 +263,9 @@ def equilibrate_ellipsoid(points, a=2, b=3, c=4, maxiter=10000, factor=0.01, dis
         # placed_back = xp.vstack((placed_back, points[minp2]))
 
         if display:
+            import matplotlib
+            matplotlib.use('Qt5Agg')
+            import matplotlib.pyplot as plt
             print(p1, p2)
             print(p1_new, p2_new)
             print(points[minp1], points[minp2])
@@ -345,6 +344,9 @@ def equilibrate_ellipse(points, a=2, b=3, maxiter=10000, factor=0.01, display=Fa
         points[minp2] = place_back_to_ellipse(p2_new, a, b)
 
         if display:
+            import matplotlib
+            matplotlib.use('Qt5Agg')
+            import matplotlib.pyplot as plt
             plt.close()
             display_points_2d(points)
 
@@ -413,6 +415,11 @@ def shift_triangle(triangle, shift):
 
 
 def display_points_2d(points):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
+    from pylab import *
+    from mpl_toolkits.mplot3d import Axes3D  # <--- This is important for 3d plotting
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.scatter(points[:, 0], points[:, 1])
@@ -423,6 +430,10 @@ def display_points_2d(points):
 
 
 def display_points_3d(points, zlim=0):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D  # <--- This is important for 3d plotting
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(points[:, 0], points[:, 1], points[:, 2])
@@ -437,6 +448,10 @@ def display_points_3d(points, zlim=0):
 
 
 def display_vectors(v1, v2):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D  # <--- This is important for 3d plotting
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.plot([0, v1[0]], [0, v1[1]], [0, v1[2]], color='blue')
@@ -449,6 +464,10 @@ def display_vectors(v1, v2):
 
 
 def display_triangle_normal(triangle, normal):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D  # <--- This is important for 3d plotting
     # first center triangle around origin
     center = centroid(triangle)
     centered_triangle = shift_triangle(triangle, -center)
@@ -652,7 +671,7 @@ def membrane_potential_old(surface_mesh, voxel_size, membrane_pdb, solvent, volt
 
     structure = (membrane_x, membrane_y, membrane_z, membrane_e, membrane_b, membrane_o)
     # pass directly to iasa_integration
-    potential = iasa_integration('', voxel_size, solvent_exclusion=True, V_sol=solvent,
+    potential = iasa_integration('', voxel_size, solvent_exclusion='masking', V_sol=solvent,
                                  absorption_contrast=True, voltage=voltage, density=physics.PROTEIN_DENSITY,
                                  molecular_weight=physics.PROTEIN_MW, structure_tuple=structure)
     return potential

@@ -3,7 +3,7 @@ import numpy as xp
 import pytom.simulation.physics as physics
 
 
-def generate_template(structure_file_path, spacing, binning=1, modify_structure=False, apply_solvent_correction=False,
+def generate_template(structure_file_path, spacing, binning=1, modify_structure=False, solvent_correction=None,
                       solvent_density=physics.AMORPHOUS_ICE_DENSITY, apply_ctf_correction=False, defocus=3E-6,
                       amplitude_contrast=0.07, voltage=300E3, Cs=2.7E-3, ctf_decay=0.4, display_ctf=False,
                       resolution=30, box_size=None, output_folder='', cores=1):
@@ -31,8 +31,8 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
     @param modify_structure: flag to modify structure by adding hydrogen and adding symmetry using UCSF Chimera.
     Chimera needs to be on PATH in terminal to execute this option.
     @type  modify_structure: L{bool}
-    @param apply_solvent_correction: flag to apply solvent correction
-    @type  apply_solvent_correction: L{bool}
+    @param solvent_correction: 'masking' or 'gaussian'
+    @type  solvent_correction: L{str}
     @param solvent_density: solvent density to use for the correction, default is amorphous ice density 0.93 g/cm^3
     @type  solvent_density: L{float}
     @param apply_ctf_correction: flag to apply ctf correction to template
@@ -69,7 +69,7 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
     from pytom.simulation.potential import iasa_integration_parallel, call_chimera
 
     assert binning >= 1, 'binning factor smaller than 1 is invalid'
-    if apply_solvent_correction:
+    if solvent_correction is not None:
         assert solvent_density > 0, 'solvent density smaller or equal to 0 is invalid'
         if solvent_density > physics.PROTEIN_DENSITY:
             print(f'WARNING: Solvent density larger than protein density {physics.PROTEIN_DENSITY}')
@@ -86,7 +86,7 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
     # generate electrostatic_potential
     # iasa_generation returns a list of the real (and imaginary) part
     template = iasa_integration_parallel(structure_file_path, voxel_size=spacing,
-                                     solvent_exclusion=apply_solvent_correction,
+                                     solvent_exclusion=solvent_correction,
                                  V_sol = physics.V_WATER * (solvent_density/physics.AMORPHOUS_ICE_DENSITY), cores=cores)
 
     # extend volume to the desired input size before applying convolutions!

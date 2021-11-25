@@ -110,13 +110,6 @@ void iasa_integrate(float3 *atoms, unsigned char *elements, float *b_factors, fl
                         atom_voxel_pot += (a[j] / pow(b[j], (float)3 / 2)) * integral_voxel;
                     };
                     
-<<<<<<< HEAD
-=======
-                    // if (i % blockDim.x == 0) {
-                    //     printf("%f ", atom_voxel_pot);
-                    // };
-                    
->>>>>>> 2e00143f4493dab4e14af56a89fd7f11fe14673e
                     potent_idx = l * potential_dims[1] * potential_dims[2] + m * potential_dims[2] + n;
                     atomicAdd( potential + potent_idx, atom_voxel_pot );
                 };
@@ -776,7 +769,7 @@ def iasa_integration_parallel(filepath, voxel_size=1., oversampling=1, solvent_e
     TODO function now takes string for solvent ex, and output complex volume instead of tuple, but this needs to be
     TODO taken care of in all scripts that call this function.
     """
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution_fourier
     from multiprocessing import Pool
     from functools import partial
@@ -926,8 +919,6 @@ def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclus
     @param solvent_exclusion: flag to execute solvent exclusion using gaussian spheres. Solvent exclusion can be set
     with a string, either 'gaussian' or 'masking'. Default is None.
     @type  solvent_exclusion: L{str}
-    @param solvent_masking: flag to do solvent exclusion using smoothed occupation mask (considered more accurate)
-    @type  solvent_masking: L{bool}
     @param V_sol: average solvent background potential (V/A^3)
     @type  V_sol: L{float}
     @param absorption_contrast: flag to generate absorption factor for imaginary part of potential
@@ -950,8 +941,10 @@ def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclus
 
     TODO function now takes string for solvent ex, and output complex volume instead of tuple, but this needs to be
     TODO taken care of in all scripts that call this function.
+
+    TODO solvent exclusion through gaussian needs to be added for gpu
     """
-    from pytom.tompy.transform import resize
+    from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution_fourier
 
     if (absorption_contrast) or (solvent_exclusion in ['gaussian', 'masking']) or (oversampling != 1):
@@ -1089,7 +1082,7 @@ def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclus
 
 
 # TODO possibly use jit from numba to speed up this function
-def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=False, solvent_masking=False,
+def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=None,
                      V_sol=physics.V_WATER, absorption_contrast=False, voltage=300E3, density=physics.PROTEIN_DENSITY,
                      molecular_weight=physics.PROTEIN_MW, structure_tuple=None):
     """
@@ -1103,12 +1096,9 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
     @type  voxel_size: L{float}
     @param oversampling: number of times to oversample final voxel size
     @type  oversampling: L{int}
-    todo combine solvent exclusion and masking to one parameter, exclusion={'gaussian' or 'mask' or None}
-    @param solvent_exclusion: flag to execute solvent exclusion using gaussian spheres. this option overrides
-    solvent_masking if set.
-    @type  solvent_exclusion: L{bool}
-    @param solvent_masking: flag to do solvent exclusion using smoothed occupation mask (considered more accurate)
-    @type  solvent_masking: L{bool}
+    @param solvent_exclusion: flag to execute solvent exclusion using gaussian spheres. Solvent exclusion can be set
+    with a string, either 'gaussian' or 'masking'. Default is None.
+    @type  solvent_exclusion: L{str}
     @param V_sol: average solvent background potential (V/A^3)
     @type  V_sol: L{float}
     @param absorption_contrast: flag to generate absorption factor for imaginary part of potential
@@ -1123,7 +1113,6 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
     b_factors, occupancies), if provided this overrides file reading
     @type  structure_tuple: L{tuple} - (L{list},) * 6 with types (float, float, float, str, float, float)
 
-    todo makes more sense if real and imag potential are returned as array with complex values instead of tuple
     @return: A volume with interaction potentials, either tuple of (real, imag) or single real, both real and imag
     are 3d arrays.
     @rtype: L{tuple} -> (L{np.ndarray},) * 2 or L{np.ndarray}
@@ -1158,7 +1147,6 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
     y_coordinates = y_coordinates - xp.min(y_coordinates) + extra_space + difference[1]/2
     z_coordinates = z_coordinates - xp.min(z_coordinates) + extra_space + difference[2]/2
     # Define the volume of the protein
-    # todo change to same behavior as parallel integration and gpu integration ???
     sz = (int((largest_dimension + 2 * extra_space) / voxel_size), ) * 3
 
     potential = xp.zeros(sz)
@@ -1231,7 +1219,7 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
         # scatter_add instead of +=
         potential[ind_min[0]:ind_max[0] + 1, ind_min[1]:ind_max[1] + 1, ind_min[2]:ind_max[2] + 1] += atom_potential
 
-        if solvent_exclusion:
+        if solvent_exclusion == 'gaussian':
             # excluded solvent potential
             int_x = xp.sqrt(xp.pi) * r_0 / 2 * (erf(x_max_bound / r_0) - erf(x_min_bound / r_0))
             x_matrix = xp.tile(int_x[:, xp.newaxis, xp.newaxis], [1,
@@ -1255,10 +1243,10 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
     # Convert to correct units
     C = 4 * xp.sqrt(xp.pi) * physics.constants['h'] ** 2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # angstrom**2
 
-    if solvent_exclusion:
+    if solvent_exclusion == 'gaussian':
         # Correct for solvent and convert both the solvent and potential array to the correct units.
         real = (potential / dV * C) - (solvent / dV * V_sol)
-    elif solvent_masking: # only if voxel size is small enough for accurate determination of mask
+    elif solvent_exclusion == 'masking': # only if voxel size is small enough for accurate determination of mask
         solvent_mask = (potential > 1E-5) * 1.0
         # construct solvent mask
         # gaussian decay of mask
@@ -1283,9 +1271,9 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
         print(f'molecule absorption = {molecule_absorption:.3f}')
         print(f'solvent absorption = {solvent_absorption:.3f}')
 
-        if solvent_masking:
+        if solvent_exclusion == 'masking':
             imaginary = solvent_mask * (molecule_absorption - solvent_absorption)
-        elif solvent_exclusion:
+        elif solvent_exclusion == 'gaussian':
             imaginary = solvent/dV * (molecule_absorption - solvent_absorption)
         else:
             print('ERROR: Absorption contrast cannot be generated if the solvent masking or solvent exclusion method '
@@ -1656,7 +1644,6 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=1, solv
     @type  oversampling: L{int}
     @param binning: number of times to bin the volume after sampling, this file will be saved separately
     @type  binning: L{int}
-    todo combine exclude_solvent and mask_solvent in one parameter with multiple options
     @param exclude_solvent: flag to exclude solvent with a Gaussian sphere
     @type  exclude_solvent: L{bool}
     @param solvent_masking: flag to excluded solvent by masking (thresholding method)
