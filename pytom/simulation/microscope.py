@@ -12,7 +12,7 @@ def convert_defocus_astigmatism_to_defocusU_defocusV(defocus, astigmatism):
     return defocus + astigmatism, defocus - astigmatism
 
 
-def fourier_grids(shape, nyquist, indexing='ij'):
+def fourier_grids(shape, nyquist, indexing='ij', reduced=False):
     """
     Generate a fourier space frequency array where values range from -nyquist to +nyquist, with the center equal
     to zero.
@@ -36,7 +36,15 @@ def fourier_grids(shape, nyquist, indexing='ij'):
     assert 1 <= len(shape) <= 3, print('invalid argument for number of dimensions of fourier array')
 
     # xp.arange(-1, 1, 998) returns an array of length 999, expression xp.arange(size) / (size/2) - 1 solves this
-    d = [(xp.arange(size) / (size/2) - 1) * nyquist for size in shape]
+    if reduced:
+        d = []
+        for i, size in enumerate(shape):
+            if i == (len(shape) - 1):
+                d.append((xp.arange(size // 2 + 1) / (size // 2) - 1) * nyquist)
+            else:
+                d.append((xp.arange(size) / (size // 2) - 1) * nyquist)
+    else:
+        d = [(xp.arange(size) / (size // 2) - 1) * nyquist for size in shape]
 
     return xp.meshgrid(*d, indexing=indexing)
 
@@ -279,6 +287,7 @@ def display_microscope_function(image, form='', complex=False):
 
     fig, ax = plt.subplots()
     ax.plot(r1, m1, label=form)
+    ax.set_ylim(0, 1)
     if complex: ax.plot(r2, m2, label='imaginary')
     ax.legend()
     # plt.savefig(f'{form}.png')

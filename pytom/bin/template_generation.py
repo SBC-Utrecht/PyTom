@@ -39,12 +39,13 @@ if __name__ == '__main__':
                                              'be 5.24', 'int', 'optional', 1),
             ScriptOption2(['--modify_structure'], 'Activate to call Chimera for adding hydrogen, symmetry and'
                                                       'removing water molecules from the structure.', 'no arguments',
-                         'optional'),
+                          'optional'),
             ScriptOption2(['--solvent_correction'], 'Whether to exclude solvent around each atom as a '
-                                                        'correction of the potential.', 'no arguments', 'optional'),
+                                                        'correction of the potential, options: gaussian, masking.',
+                          'string', 'optional'),
             ScriptOption2(['-r', '--solvent_density'], 'Density of solvent, value should not be higher than 1.35 as'
                                                      ' that is the density of proteins. Default is 0.93 g/cm^3.',
-                        'float', 'optional', physics.AMORPHOUS_ICE_DENSITY),
+                          'float', 'optional', physics.AMORPHOUS_ICE_DENSITY),
             ScriptOption2(['-c', '--ctf_correction'], 'Correct the volume by applying a CTF. Default parameters are '
                                                   'defocus 3 um, amplitude contrast 0.07, voltage 300 keV, '
                                                   'spherical abberation (Cs) 2.7 mm, sigma of gaussian decay 0.4, '
@@ -55,25 +56,26 @@ if __name__ == '__main__':
             ScriptOption2(['--Cs'], 'Spherical abberration in mm.', 'float', 'optional', 2.7),
             ScriptOption2(['--decay'], 'Sigma of gaussian CTF decay function, 0.4 default.', 'float', 'optional', 0.4),
             ScriptOption2(['--plot'], 'Give this option for plotting the CTF for visual inspection.', 'no arguments',
-                        'optional'),
+                          'optional'),
             ScriptOption2(['-l', '--lpf_resolution'], 'Specify the resolution of the low pass filter that is applied.'
                                                     'The default value is 2 x spacing x binning (in angstrom), a '
                                                     'smaller resolution than this cannot be selected.', 'float',
-                         'optional'),
+                          'optional'),
             ScriptOption2(['-x', '--xyz'], 'Specify a desired size for the output box of the template in number of '
                                       'pixels. By default the molecule is placed in a box with 30A overhang. This '
                                       'usually does not offer enough room to apply a spherical mask.', 'int',
-                         'optional'),
+                          'optional'),
             ScriptOption2(['-i', '--invert'], 'Multiplies template by -1. WARNING not needed if ctf with defocus is '
                                               'already applied!', 'no arguments', 'optional'),
             ScriptOption2(['-m', '--mirror'], 'Produce a mirrored and non-mirrored version.', 'no arguments',
-                          'optional')])
+                          'optional'),
+            ScriptOption2(['--cores'], 'Number of cores to run template generation on.', 'int', 'optional', 1)])
 
     options = parse_script_options2(sys.argv[1:], helper)
 
     filepath, output_folder, output_name, spacing, binning, modify_structure, solvent_correction, solvent_density, \
         ctf_correction, defocus, amplitude_contrast, voltage, Cs, sigma_decay, \
-        display_ctf, resolution, box_size, invert, mirror = options
+        display_ctf, resolution, box_size, invert, mirror, cores = options
 
     if resolution is None:
         resolution = 2 * spacing * binning
@@ -81,7 +83,7 @@ if __name__ == '__main__':
     template = generate_template(filepath, spacing,
                                  binning=binning,
                                  modify_structure=modify_structure,
-                                 apply_solvent_correction=solvent_correction,
+                                 solvent_correction=solvent_correction,
                                  solvent_density=solvent_density,
                                  apply_ctf_correction=ctf_correction,
                                  defocus=defocus * 1e-6,
@@ -92,7 +94,8 @@ if __name__ == '__main__':
                                  display_ctf=display_ctf,
                                  resolution=resolution,
                                  box_size=box_size,
-                                 output_folder=output_folder)
+                                 output_folder=output_folder,
+                                 cores=cores)
 
     if invert:
         template *= -1

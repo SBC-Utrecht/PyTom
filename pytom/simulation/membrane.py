@@ -10,14 +10,6 @@ Author: Marten Chaillet
 import numpy as xp
 import pytom.simulation.physics as physics
 
-# plotting
-# TODO remove plotting import
-import matplotlib
-try: matplotlib.use('Qt5Agg')
-except: pass
-from pylab import *
-from mpl_toolkits.mplot3d import Axes3D # <--- This is important for 3d plotting
-
 
 class Vector:
     # Class can be used as both a 3d coordinate, and a vector
@@ -202,18 +194,22 @@ def place_back_to_ellipsoid(point, a, b, c, newton_iter=3):
 
 
 def test_place_back_to_ellipsoid(size=100, a=1, b=1, c=1, iter=3):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
     # xyz points between -1 and 1
-    distances = xp.zeros((size, size, size))
-    for i,x in zip(range(size), xp.arange(-a, a, (2.*a)/size)):
-        for j,y in zip(range(size), xp.arange(-b, b, (2.*b)/size)):
-            for k,z in zip(range(size), xp.arange(-c, c, (2.*c)/size)):
+    xx, yy, zz = map(int, [size*a, size*b, size*c])
+    distances = xp.zeros((xx, yy, zz))
+    for i,x in zip(range(xx), xp.arange(-a, a, (2.*a)/xx)):
+        for j,y in zip(range(yy), xp.arange(-b, b, (2.*b)/yy)):
+            for k,z in zip(range(zz), xp.arange(-c, c, (2.*c)/zz)):
                 point = xp.array([x,y,z])
                 ellipsoid_point = place_back_to_ellipsoid(point, a, b, c, newton_iter=iter)
                 distances[i,j,k] = distance(point, ellipsoid_point)
     # visualize
-    slice_x = distances[size//2,:,:]
-    slice_y = distances[:,size//2,:]
-    slice_z = distances[:,:,size//2]
+    slice_x = distances[xx//2,:,:]
+    slice_y = distances[:,yy//2,:]
+    slice_z = distances[:,:,zz//2]
     fig, ax = plt.subplots(1, 3)
     ax[0].imshow(slice_x)
     ax[1].imshow(slice_y)
@@ -267,6 +263,9 @@ def equilibrate_ellipsoid(points, a=2, b=3, c=4, maxiter=10000, factor=0.01, dis
         # placed_back = xp.vstack((placed_back, points[minp2]))
 
         if display:
+            import matplotlib
+            matplotlib.use('Qt5Agg')
+            import matplotlib.pyplot as plt
             print(p1, p2)
             print(p1_new, p2_new)
             print(points[minp1], points[minp2])
@@ -345,6 +344,9 @@ def equilibrate_ellipse(points, a=2, b=3, maxiter=10000, factor=0.01, display=Fa
         points[minp2] = place_back_to_ellipse(p2_new, a, b)
 
         if display:
+            import matplotlib
+            matplotlib.use('Qt5Agg')
+            import matplotlib.pyplot as plt
             plt.close()
             display_points_2d(points)
 
@@ -413,6 +415,11 @@ def shift_triangle(triangle, shift):
 
 
 def display_points_2d(points):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
+    from pylab import *
+    from mpl_toolkits.mplot3d import Axes3D  # <--- This is important for 3d plotting
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.scatter(points[:, 0], points[:, 1])
@@ -423,6 +430,10 @@ def display_points_2d(points):
 
 
 def display_points_3d(points, zlim=0):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D  # <--- This is important for 3d plotting
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(points[:, 0], points[:, 1], points[:, 2])
@@ -437,6 +448,10 @@ def display_points_3d(points, zlim=0):
 
 
 def display_vectors(v1, v2):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D  # <--- This is important for 3d plotting
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.plot([0, v1[0]], [0, v1[1]], [0, v1[2]], color='blue')
@@ -449,6 +464,10 @@ def display_vectors(v1, v2):
 
 
 def display_triangle_normal(triangle, normal):
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D  # <--- This is important for 3d plotting
     # first center triangle around origin
     center = centroid(triangle)
     centered_triangle = shift_triangle(triangle, -center)
@@ -515,14 +534,15 @@ def point_array_in_triangle(point_array, triangle):
     v2 = triangle[1]
     v3 = triangle[2]
 
-    d1 = sign(point_array, v1, v2)
-    d2 = sign(point_array, v2, v3)
-    d3 = sign(point_array, v3, v1)
+    d1 = point_array_sign(point_array, v1, v2)
+    d2 = point_array_sign(point_array, v2, v3)
+    d3 = point_array_sign(point_array, v3, v1)
 
-    has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
-    has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
+    # for numpy arrays
+    has_neg = np.any([d1 < 0, d2 < 0, d3 < 0], axis=0)
+    has_pos = np.any([d1 > 0, d2 > 0, d3 > 0], axis=0)
 
-    return not(has_neg and has_pos)
+    return np.invert(np.all([has_neg, has_pos], axis=0))
 
 
 def rotation_matrix_to_affine_matrix(rotation_matrix):
@@ -651,13 +671,13 @@ def membrane_potential_old(surface_mesh, voxel_size, membrane_pdb, solvent, volt
 
     structure = (membrane_x, membrane_y, membrane_z, membrane_e, membrane_b, membrane_o)
     # pass directly to iasa_integration
-    potential = iasa_integration('', voxel_size, solvent_exclusion=True, V_sol=solvent,
+    potential = iasa_integration('', voxel_size, solvent_exclusion='masking', V_sol=solvent,
                                  absorption_contrast=True, voltage=voltage, density=physics.PROTEIN_DENSITY,
                                  molecular_weight=physics.PROTEIN_MW, structure_tuple=structure)
     return potential
 
 
-def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage):
+def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage, cores=1):
     """
 
     @param ellipsoid_mesh: this is a pyvista surface
@@ -668,13 +688,15 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
     """
     #todo function is very slow
 
-    from potential import read_structure, iasa_integration
+    from potential import read_structure, iasa_integration_parallel
     from pytom.voltools.utils import translation_matrix
 
     # READ THE STRUCTURE AND EXTEND IT ONLY ONCE
     # membrane pdb should have solvent deleted at this point
-    x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(membrane_pdb)
-    z_coordinates = list(xp.array(z_coordinates) - sum(z_coordinates) / len(z_coordinates))
+    x_coordinates, y_coordinates, z_coordinates, \
+        elements, b_factors, occupancies = map(xp.array, read_structure(membrane_pdb))
+    z_coordinates -= z_coordinates.mean()
+    n_atoms_box = len(elements)
     # get the periodice boundary box from the pdb file
     x_bound, y_bound, z_bound = boundary_box_from_pdb(membrane_pdb)
 
@@ -712,22 +734,31 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
 
         xext = int(xp.ceil(xmax / x_bound))
         yext = int(xp.ceil(ymax / y_bound))
-        newx, newy, newz, newe, newb, newo = [], [], [], [], [], []
+
+        atoms = np.empty((xext * yext * n_atoms_box, 4))  # this should be (xext*yext, 3) for other multiplication
+        # definition
+        newe = np.zeros(xext * yext * n_atoms_box, dtype='<U1')
+        newb, newo = (np.zeros(xext * yext * n_atoms_box),) * 2
+
         for i in range(xext):
             for j in range(yext):
-                newx += list(xp.array(x_coordinates) + i*x_bound)
-                newy += list(xp.array(y_coordinates) + j*y_bound)
-                newz += z_coordinates
-                newe += elements
-                newb += b_factors
-                newo += occupancies
+                index = i * yext + j
+                # add ones to 4th coordinate position for affine transformation
+                atoms[index * n_atoms_box: (index + 1) * n_atoms_box, :] = xp.array([x_coordinates + i * x_bound,
+                                                                                     y_coordinates + j * y_bound,
+                                                                                     z_coordinates,
+                                                                                     xp.ones(n_atoms_box)]).T
+                newe[index * n_atoms_box: (index + 1) * n_atoms_box] = elements.copy()
+                newb[index * n_atoms_box: (index + 1) * n_atoms_box] = b_factors.copy()
+                newo[index * n_atoms_box: (index + 1) * n_atoms_box] = occupancies.copy()
+                # newx += list(xp.array(x_coordinates) + i*x_bound)
+                # newy += list(xp.array(y_coordinates) + j*y_bound)
+                # newz += z_coordinates
+                # newe += elements
+                # newb += b_factors
+                # newo += occupancies
 
-        atoms = xp.array([newx, newy, newz])
-        newe = xp.array(elements)
-        newb = xp.array(b_factors)
-        newo = xp.array(occupancies)
-
-        locs = point_array_in_triangle(atoms, triangle_sample[:, :2])
+        locs = point_array_in_triangle(atoms[:, :2], triangle_sample[:, :2])
         atoms = atoms[locs]
         newe = newe[locs]
         newb = newb[locs]
@@ -754,11 +785,16 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
         # n_atoms = len(newe)
         # matrix1_t = matrix1.T
         # matrix2_t = matrix2.T
+        matrix1 = rotation_matrix_to_affine_matrix(matrix1)
+        matrix2 = rotation_matrix_to_affine_matrix(matrix2)
         t2 = translation_matrix(translation=-shift)  # voltools implements matrices as inverse operations, here we want
         t1 = translation_matrix(translation=-center)  # forward transformation
-        affine_matrix = xp.matmul(xp.matmul(t1, matrix1.T), xp.matmul(matrix2.T, t2))
+        # TODO xp.dot does the same as matmul in this situation but allows multithreading
+        affine_matrix = xp.matmul(xp.matmul(t1, matrix1.T), xp.matmul(matrix2.T, t2))  # transpose for the inverse
+        # rotations
 
-        ratoms = xp.matmul(affine_matrix, atoms)
+        ratoms = np.dot(atoms, affine_matrix.T)
+        # ratoms = xp.matmul(affine_matrix, atoms)
 
         # atoms[0, :] += shift[0]
         # atoms[1, :] += shift[1]
@@ -782,10 +818,12 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
         #     newy[i] = atom_surface[1]
         #     newz[i] = atom_surface[2]
 
+        # TODO It might be much faster to write these coordinates to the end of a file. Because append will force new
+        # TODO allocation of memory each time it is called.
         # add positions to larger array that describes atom coordinates on the full surface
-        membrane_x += list(ratoms[0, :])
-        membrane_y += list(ratoms[1, :])
-        membrane_z += list(ratoms[2, :])
+        membrane_x += list(ratoms[:, 0])
+        membrane_y += list(ratoms[:, 1])
+        membrane_z += list(ratoms[:, 2])
         membrane_e += list(newe)
         membrane_b += list(newb)
         membrane_o += list(newo)
@@ -795,9 +833,9 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage)
 
     structure = (membrane_x, membrane_y, membrane_z, membrane_e, membrane_b, membrane_o)
     # pass directly to iasa_integration
-    potential = iasa_integration('', voxel_size, solvent_exclusion=True, V_sol=solvent,
+    potential = iasa_integration_parallel('', voxel_size, solvent_exclusion='masking', V_sol=solvent,
                                  absorption_contrast=True, voltage=voltage, density=physics.PROTEIN_DENSITY,
-                                 molecular_weight=physics.PROTEIN_MW, structure_tuple=structure)
+                                 molecular_weight=physics.PROTEIN_MW, structure_tuple=structure, cores=cores)
     return potential
 
 
@@ -805,46 +843,35 @@ if __name__ == '__main__':
 
     import os
     import sys
-    from pytom.tools.script_helper import ScriptHelper, ScriptOption
-    from pytom.tools.parse_script_options import parse_script_options
+    from pytom.tools.script_helper import ScriptHelper2, ScriptOption2
+    from pytom.tools.parse_script_options import parse_script_options2
     from pytom.agnostic.io import write
     from pytom.simulation.support import reduce_resolution
     from pytom.agnostic.transform import resize
 
     # syntax is ScriptOption([short, long], description, requires argument, is optional)
-    options = [ScriptOption(['-s', '--size_factor'], '1 corresponds to a vesicle which has an average diameter of'
-                                                     '45 nm across.', True, False),
-               ScriptOption(['-d', '--destination'], 'Folder where output should be stored.', True, False),
-               ScriptOption(['-m', '--membrane_pdb'], 'Membrane file, default '
-                                                      '/data2/mchaillet/structures/pdb/lipid/dppc128_dehydrated.pdb'
-                            , True, True),
-               ScriptOption(['-h', '--help'], 'Help.', False, True)]
+    helper = ScriptHelper2(
+        sys.argv[0].split('/')[-1],  # script name
+        description='Generate a membrane structure for simulation',
+        authors='Marten Chaillet',
+        options = [ScriptOption2(['-s', '--size_factor'], '1 corresponds to a vesicle which has an average diameter '
+                                                          'of 45 nm across.', 'float', 'optional', 1.),
+                   ScriptOption2(['-d', '--destination'], 'Folder where output should be stored.', 'directory',
+                                 'required'),
+                   ScriptOption2(['-m', '--membrane_pdb'], 'Membrane file, default '
+                                                           '/data2/mchaillet/structures/pdb/lipid/dppc128_dehydrated.pdb',
+                                 'file', 'required'),
+                   ScriptOption2(['-c', '--cores'], 'Number of cores to use for numpy dot operations and later iasa '
+                                                    'integration.', 'int', 'optional', 1)])
 
-    helper = ScriptHelper(sys.argv[0].split('/')[-1], description='Create a template from the specified structure file '
-                                                                  'with options for ctf correction and filtering. \n'
-                                                                  'Script has dependencies on pytom and chimera.',
-                          authors='Marten Chaillet', options=options)
-    if len(sys.argv) == 2:
-        print(helper)
-        sys.exit()
-    try:
-        size_factor, folder, input_membrane, help = parse_script_options(sys.argv[1:], helper)
-    except Exception as e:
-        print(e)
-        sys.exit()
-
-    if help:
-        print(helper)
-        sys.exit()
-
-    if size_factor: size_factor = float(size_factor)
-    if input_membrane: pdb = input_membrane
-    else: pdb = '/data2/mchaillet/structures/pdb/lipid/dppc128_dehydrated.pdb'
+    options = parse_script_options2(sys.argv[1:], helper)
+    size_factor, folder, input_membrane, cores = options
 
     # automatically scale these points
     N = int(100 * size_factor**2.2)  # number of points
-    a, b, c = (x*size_factor for x in (xp.random.randint(180, 280), xp.random.randint(180, 280),
-                                       xp.random.randint(180, 280)))
+    # a, b, c = (x*size_factor for x in (xp.random.randint(180, 280), xp.random.randint(180, 280),
+    #                                    xp.random.randint(180, 280)))
+    a, b, c = (220 * size_factor,) * 3
     alpha = 2000 * size_factor
     voxel = 5 # A
 
@@ -852,28 +879,26 @@ if __name__ == '__main__':
     voltage = 300E3
 
     # generate an ellipsoid and triangulate it
-    print('ellipsoid parameters: ' , a,b,c)
+    print('Ellipsoid parameters: ' , a,b,c)
     points = sample_points_ellipsoid(N, a=a, b=b, c=c, evenly=True, maxiter=50000, factor=0.1)
     surface = triangulate(points, alpha)
 
     # fill the triangles with lipid molecules and calculate potential for it
-    volume = membrane_potential(surface, voxel, pdb, solvent, voltage)
-    real = volume[0]
-    imag = volume[1]
+    volume = membrane_potential(surface, voxel, input_membrane, solvent, voltage, cores=cores)
 
     name = 'bilayer'
-    size = f'{a*2/10:.0f}x{b*2/10:.0f}x{c*2/10:.0f}nm' # double the values of the ellipsoid radii for actual size
+    size = f'{a*2/10:.0f}x{b*2/10:.0f}x{c*2/10:.0f}nm'  # double the values of the ellipsoid radii for actual size
 
-    real_fil = reduce_resolution(real, voxel, 2 * voxel)
-    imag_fil = reduce_resolution(imag, voxel, 2 * voxel)
+    real_fil = reduce_resolution(volume.real, voxel, 2 * voxel)
+    imag_fil = reduce_resolution(volume.imag, voxel, 2 * voxel)
 
-    write(os.path.join(folder, f'{name}_{voxel:.2f}A_{size}_solvent-4.530V_real.mrc'), real)
-    write(os.path.join(folder, f'{name}_{voxel:.2f}A_{size}_solvent-4.530V_imag_300V.mrc'), imag)
+    write(os.path.join(folder, f'{name}_{voxel:.2f}A_{size}_solvent-4.530V_real.mrc'), real_fil)
+    write(os.path.join(folder, f'{name}_{voxel:.2f}A_{size}_solvent-4.530V_imag_300V.mrc'), imag_fil)
 
     binning = 2
 
-    real_bin = resize(reduce_resolution(real, voxel, binning * voxel * 2), 1/binning, interpolation='Spline')
-    imag_bin = resize(reduce_resolution(imag, voxel, binning * voxel * 2), 1/binning, interpolation='Spline')
+    real_bin = resize(reduce_resolution(volume.real, voxel, binning * voxel * 2), 1/binning, interpolation='Spline')
+    imag_bin = resize(reduce_resolution(volume.imag, voxel, binning * voxel * 2), 1/binning, interpolation='Spline')
 
     write(os.path.join(folder, f'{name}_{voxel*binning:.2f}A_{size}_solvent-4.530V_real.mrc'), real_bin)
     write(os.path.join(folder, f'{name}_{voxel*binning:.2f}A_{size}_solvent-4.530V_imag_300V.mrc'), imag_bin)

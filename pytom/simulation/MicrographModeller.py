@@ -110,11 +110,22 @@ def draw_range(range, datatype, name):
         sys.exit(0)
 
 
+def motion_blur(model, spacing, sigma):
+
+    from pytom.simulation.microscope import fourier_grids, ctf_grids
+
+    blurring_filter = xp.flip(xp.fft.ifftshift(xp.exp(- 2 * xp.pi ** 2 * sigma ** 2 *
+                                       ctf_grids(fourier_grids(model.shape, 1 / (2 * spacing), reduced=True))[1]),
+                                               axes=(0,1)), axis=2)
+
+    return xp.fft.irfftn(xp.fft.rfftn(model) * blurring_filter).real
+
+
 def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_size=1.0,
                    size=1024, thickness=200,
                    solvent_potential=physics.V_WATER, solvent_factor=1.0, number_of_particles=1000,
                    placement_size=512, retries=5000, number_of_markers=0,
-                   absorption_contrast=False, voltage=300E3, number_of_membranes=0, beam_damage_snr=0):
+                   absorption_contrast=False, voltage=300E3, number_of_membranes=0, sigma_motion_blur=.0):
     """
     Generate a grand model of a cryo-EM sample. Particles, membranes and gold markers will be randomly rotated before
     being randomly placed in the volume. The program attempts to place the specified numbers, but only takes a max of
@@ -555,21 +566,9 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
         ground_truth_txt_file += f'{listpdbs[cls_id]} {int(loc_x - loc_x_start)} {int(loc_y - loc_y_start)} {int(loc_z)} ' \
                                  f'{p_angles[0]:.4f} {p_angles[1]:.4f} {p_angles[2]:.4f}\n'
 
-    # Add beam damage normal noise
-    # get the mean signal
-    if beam_damage_snr > 0.0:
-        mean_signal_real = cell_real[cell_real>0.01].mean()
-        # snr = mu**2 / sigma**2
-        sigma_damage = xp.sqrt( mean_signal_real**2 / beam_damage_snr)
-        print(f'Standard deviation in beam damage SNR set to {sigma_damage} for SNR of {beam_damage_snr}')
-        noise = xp.random.normal(0, scale=sigma_damage, size=cell_real.shape)
-        # beam damage is applied as a normal distributed noise, degrading the information
-        cell_real += noise
-        if absorption_contrast:
-            # apply the same noise to the imaginary part as we assume atoms for phase and absorption contrast are damaged
-            # equally
-            mean_signal_imag = cell_imag[cell_imag >0.01].mean()
-            cell_imag += (noise * (mean_signal_imag/mean_signal_real))  # scale the noise by the ratio of mean signal
+    # add motion blur to a certain resolution (like a b_factor)
+    cell_real = motion_blur(cell_real, pixel_size, sigma_motion_blur)
+    cell_imag = motion_blur(cell_imag, pixel_size, sigma_motion_blur)
 
     # grandmodel names
     filename_gm_real    = os.path.join(save_path, 'grandmodel.mrc')
@@ -646,19 +645,23 @@ def create_ice_layer(shape, angle, width, value=1.0, sigma=0.0):
     from scipy.ndimage import gaussian_filter
     assert xp.abs(angle) <= 90, print('rotation angle of ice layer cannot be larger than +- 90 degrees.')
 
+    # get size
     xsize = shape[0]
     ysize = shape[1]
     zsize = shape[2]
 
+    # create coordinates for x and z
     x = xp.arange(-xsize / 2, xsize / 2, 1, dtype=xp.float32)
     z = xp.arange(-zsize / 2, zsize / 2, 1, dtype=xp.float32)
     zm = xp.tile(z[xp.newaxis, :], [xsize, 1])
 
+    # draw x values dependent on angle
     xline = x * xp.tan(-angle * xp.pi / 180)
     nwidth = width / xp.cos(angle * xp.pi / 180)
     xmin = xline - nwidth / 2
     xmax = xline + nwidth / 2
 
+    # gradient for min and max value of x
     square_min = xp.tile(xmin[:, xp.newaxis], [1, zsize])
     square_max = xp.tile(xmax[:, xp.newaxis], [1, zsize])
 
@@ -675,7 +678,11 @@ def create_ice_layer(shape, angle, width, value=1.0, sigma=0.0):
     c2 = (range2 / grad2.shape[0]) / 0.5
     grad2[grad2 > c2] = c2
     grad2[grad2 < -c2] = -c2
-    grad2 = (grad2 - grad2.min()) / (grad2.max() - grad2.min())
+    # prevent division by zero if ice layer fills up the whole volume
+    if (grad2.max() - grad2.min()) == 0:
+        grad2 = grad2 / grad2.max()
+    else:
+        grad2 = (grad2 - grad2.min()) / (grad2.max() - grad2.min())
 
     # if a sigma is provided apply gaussian filter
     if not (sigma == 0.0):
@@ -687,14 +694,14 @@ def create_ice_layer(shape, angle, width, value=1.0, sigma=0.0):
     return xp.tile(layer[:, xp.newaxis, :], [1, ysize, 1])
 
 
-def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_size, binning=1):
+def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_size, oversampling=1):
     """
     Apply detector functions to the electron probability wave in the image plane and sample from Poisson distribution
     to obtain electron counts per pixel.
 
     Projections is first multiplied with mtf/ntf in fourier space. In real space it is then multiplied with dose. Then
-    draw from Poisson distribution binning**2 times. Finally:
-    coarse_projection = (1/binning**2) * sum_{i}^{N} F-1( F(count_i) * ntf )
+    draw from Poisson distribution oversampling**2 times. Finally:
+    coarse_projection = (1/oversampling**2) * sum_{i}^{N} F-1( F(count_i) * ntf )
 
     @param noisefree_projection: input projection giving probability of detecting electron in pixel, 2d array of floats
     @type  noisefree_projection: L{np.ndarray}
@@ -706,8 +713,8 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
     @type  dose: L{float}
     @param pixel_size: pixel size in m
     @type  pixel_size: L{float}
-    @param binning: binning times of pixel size was binned, influences the sampling from poisson distribution
-    @type  binning: L{int}
+    @param oversampling: oversampling times of pixel size was binned, influences the sampling from poisson distribution
+    @type  oversampling: L{int}
 
     @return: projection after detection process, 2d array of floats
     @rtype:  L{np.ndarray}
@@ -722,8 +729,8 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
     ntf_shift = xp.fft.ifftshift(ntf)
 
     # NUMBER OF ELECTRONS PER PIXEL
-    dose_per_pixel = dose * (pixel_size*1E10)**2 / binning**2 # from square A to square nm (10A pixels)
-    print(f'Number of electrons per pixel (before binning and sample absorption): {dose_per_pixel}')
+    dose_per_pixel = dose * (pixel_size*1E10)**2 / oversampling**2 # from square A to square nm (10A pixels)
+    print(f'Number of electrons per pixel (before oversampling and sample absorption): {dose_per_pixel:.2f}')
 
     # Fourier transform and multiply with sqrt(dqe) = mtf/ntf
     projection_fourier = xp.fft.fftn(noisefree_projection) * mtf_shift / ntf_shift
@@ -734,12 +741,12 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
 
     # Apply poissonian noise
     projection_poisson = xp.zeros(projection.shape)
-    for _ in range(binning**2):
-        # Sample from the poisson distribution for binning^2 to account for the coarse graining of the simulation.
-        # Normally in binning multiple pixels are averaged, obtaining a mean value of multiple poisson distributed
+    for _ in range(oversampling**2):
+        # Sample from the poisson distribution for oversampling^2 to account for the coarse graining of the simulation.
+        # Normally in oversampling multiple pixels are averaged, obtaining a mean value of multiple poisson distributed
         # variables.
         poisson_intermediate = xp.random.poisson(lam=projection * dose_per_pixel)
-        projection_poisson += xp.real(xp.fft.ifftn(xp.fft.fftn(poisson_intermediate) * ntf_shift)) / binning**2
+        projection_poisson += xp.real(xp.fft.ifftn(xp.fft.fftn(poisson_intermediate) * ntf_shift)) / oversampling**2
 
     # Add additional noise from digitization process, less relevant for modern day cameras.
     # readout noise standard deviation can be 7 ADUs, from Vulovic et al., 2010
@@ -755,8 +762,8 @@ def microscope_single_projection(noisefree_projection, dqe, mtf, dose, pixel_siz
 
 
 def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, ctf, dose, dqe, mtf, voltage,
-                     binning=1, translation=(.0,.0,.0), rotation=(.0,.0,.0), scale=(1., 1., 1.),
-                     solvent_potential=physics.V_WATER, solvent_absorption=.0, ice_voxels=None, beam_damage_snr=0):
+                     oversampling=1, translation=(.0,.0,.0), rotation=(.0,.0,.0), scale=(1., 1., 1.),
+                     solvent_potential=physics.V_WATER, solvent_absorption=.0, ice_thickness_voxels=None, beam_damage_snr=0):
     """
     Project grandcell to create a frame/tilt. The grandcell will first be transformed according to the rotation and
     translation parameters, before projection. Microscope functions such as CTF, DQE, MTF need to be supplied. This
@@ -787,8 +794,8 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     @type  mtf: L{np.ndarray}
     @param voltage: voltage of electron beam in eV
     @type  voltage: L{float}
-    @param binning: number of times pixel size was binned for dose correction
-    @type  binning: L{int}
+    @param oversampling: number of times pixel size was binned for dose correction
+    @type  oversampling: L{int}
     @param translation: translation in x,y,z
     @type  translation: L{tuple} - (L{float},) * 3
     @param rotation: rotation along x,y,z angles, for tilt-series it suffices to specify y, i.e. (.0, tilt angle, .0)
@@ -797,8 +804,8 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     @type  solvent_potential: L{float}
     @param solvent_absorption: absorption contrast to fill in background ice
     @type  solvent_absorption: L{float}
-    @param ice_voxels: thickness of ice layers in voxels
-    @type  ice_voxels: L{int}
+    @param ice_thickness_voxels: thickness of ice layers in voxels
+    @type  ice_thickness_voxels: L{int}
 
     @return: (noisefree projection, projection)
     @rtype:  L{tuple} - (L{np.ndarray}, L{np.ndarray})
@@ -815,7 +822,7 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     max_tilt_radians = abs(rotation[1]) * xp.pi / 180
     max_tilt_radians_opp = (90 - abs(rotation[1])) * xp.pi / 180
     rotation_height = int(xp.ceil(xp.sin(max_tilt_radians) * image_size +
-                                           xp.sin(max_tilt_radians_opp) * ice_voxels))
+                                           xp.sin(max_tilt_radians_opp) * ice_thickness_voxels))
     print(f'Reduced rotation height for relevant specimens: {rotation_height}')
     if rotation_height % 2: rotation_height += 1
     diff = sample.shape[2]-rotation_height
@@ -848,12 +855,9 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     box_height = sample.shape[2]
 
     # add the ice layer to the sample
-    if sample.dtype == 'complex64' and ice_voxels is not None:
-        if rotation[1] == 0.0:
-            sample.imag += solvent_absorption
-        else:
-            sample.imag += create_ice_layer(sample.shape, rotation[1], ice_voxels, value=solvent_absorption, sigma=0.0)
-
+    if sample.dtype == 'complex64' and ice_thickness_voxels is not None:
+        sample.imag += create_ice_layer(sample.shape, rotation[1], ice_thickness_voxels, value=solvent_absorption,
+                                        sigma=0.0)
 
     if n_slices==box_height and image_size==box_size:
         projected_potent_ms = sample
@@ -910,7 +914,7 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     if beam_damage_snr > 0.0:
         sigma_signal = noisefree_projection[noisefree_projection>0.1].std()
         # snr = sigma_signal**2 / sigma_noise**2
-        sigma_damage = xp.sqrt( sigma_signal**2 / beam_damage_snr)
+        sigma_damage = xp.sqrt(sigma_signal**2 / beam_damage_snr)
         print(f'Standard deviation in beam damage SNR set to {sigma_damage} for SNR of {beam_damage_snr}')
         beam_noise = xp.random.normal(0, scale=sigma_damage, size=noisefree_projection.shape)
     else:
@@ -926,7 +930,7 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
 
     # Apply the microscope function
     projection = microscope_single_projection(noisefree_projection + beam_noise, dqe, mtf, dose, pixel_size,
-                                              binning=binning)
+                                              oversampling=oversampling)
     # Write the projection to the projection folder
     # pytom.agnostic.io.write(f'{folder}/synthetic_{frame+1}.mrc', projection)
     # Return noisefree and projection as tuple for writing as mrc stack in higher function
@@ -939,7 +943,7 @@ def generate_tilt_series_cpu(save_path,
                              image_size=None,
                              rotation_box_height=None,
                              pixel_size=1E-9,
-                             binning=1,
+                             oversampling=1,
                              dose=80,
                              voltage=300E3,
                              spherical_aberration=2.7E-3,
@@ -966,7 +970,7 @@ def generate_tilt_series_cpu(save_path,
     Creating a tilt series for the initial grand model by rotating the sample along a set of tilt angles. For each angle
     the projection process of the microscope will be simulated. Calculation of each projection will be done on CPU
     nodes, as specified by nodes parameter. Computational cost can quickly increase for small pixel sizes with no
-    binning factor. Sufficient RAM memory needs to be available to store each instance of the grandmodel for projection.
+    oversampling factor. Sufficient RAM memory needs to be available to store each instance of the grandmodel for projection.
 
     @param save_path: simulation project folder
     @type  save_path: L{str}
@@ -980,8 +984,8 @@ def generate_tilt_series_cpu(save_path,
     @type  rotation_box_height: L{int}
     @param pixel_size: pixel size in m, default 1e-9 (i.e. 1 nm)
     @type  pixel_size: L{float}
-    @param binning: number of times pixel size is binned for dose, mtf, and dqe correction
-    @type  binning: L{int}
+    @param oversampling: number of times pixel size is binned for dose, mtf, and dqe correction
+    @type  oversampling: L{int}
     @param dose: electron dose over the full series in e-/A^2, will be equally divided over number of frames, default 80
     @type  dose: L{float}
     @param voltage: voltage of electron beam in eV, default 300E3
@@ -1186,20 +1190,20 @@ def generate_tilt_series_cpu(save_path,
         ast_angle_series.append(ast_angle)
 
     dqe = create_detector_response(camera_type, 'DQE', image_size, voltage=voltage,
-                                            folder=camera_folder, oversampling=binning)
+                                            folder=camera_folder, oversampling=oversampling)
     mtf = create_detector_response(camera_type, 'MTF', image_size, voltage=voltage,
-                                            folder=camera_folder, oversampling=binning)
+                                            folder=camera_folder, oversampling=oversampling)
 
     # joblib automatically memory maps a numpy array to child processes
     print(f'Projecting the model with {nodes} processes')
 
-    verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
+    verbosity = 11  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
         (delayed(parallel_project)(rotation_volume, i, image_size, pixel_size, msdz, n_slices, ctf,
-                                   dose_per_tilt, dqe, mtf, voltage, binning=binning, translation=translation,
+                                   dose_per_tilt, dqe, mtf, voltage, oversampling=oversampling, translation=translation,
                                    rotation=(.0, angle, in_plane_rotation), scale=magnification,
                                    solvent_potential=solvent_potential,
-                                   solvent_absorption=solvent_amplitude, ice_voxels=box_height,
+                                   solvent_absorption=solvent_amplitude, ice_thickness_voxels=box_height,
                                    beam_damage_snr=beam_damage_snr)
          for i, (angle, in_plane_rotation,
                  translation, magnification, ctf) in enumerate(zip(angles, in_plane_rotations,
@@ -1239,8 +1243,8 @@ def generate_tilt_series_cpu(save_path,
     # get defocusU defocusV type defocus parameters
     defocusU, defocusV = convert_defocus_astigmatism_to_defocusU_defocusV(xp.array(dz_series), xp.array(ast_series))
     metafile                        = xp.zeros(len(angles), dtype=dmf)
-    metafile['DefocusU']            = defocusU
-    metafile['DefocusV']            = defocusV
+    metafile['DefocusU']            = defocusU * 1e6
+    metafile['DefocusV']            = defocusV * 1e6
     metafile['DefocusAngle']        = xp.array(ast_angle_series)
     metafile['Voltage']             = xp.array([voltage * 1e-3, ] * len(angles))
     metafile['SphericalAberration'] = xp.array([spherical_aberration * 1e3, ] * len(angles))
@@ -1284,11 +1288,13 @@ def generate_tilt_series_cpu(save_path,
 
 
 def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, pixel_size=1E-9,
-                              binning=1, dose=80, voltage=300E3, spherical_aberration=2.7E-3,
+                              oversampling=1, dose=80, voltage=300E3, spherical_aberration=2.7E-3,
                               chromatic_aberration=2.7E-3, energy_spread=0.7, illumination_aperture=0.030E-3,
                               objective_diameter=100E-6, focus_length=4.7E-3, astigmatism=0.0E-9, astigmatism_angle=0,
                               msdz=5E-9, defocus=2E-6, mean_shift=0.0, camera_type='K2SUMMIT', camera_folder='',
                               solvent_potential=physics.V_WATER, absorption_contrast=False, beam_damage_snr=0,
+                              sigma_angle_in_plane_rotation=0.,
+                              sigma_magnification=0.,
                               grandcell=None):
     """
     Creating a frame series for the initial grand model by applying stage drift (translation) for each frame, and
@@ -1307,8 +1313,8 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     @type  image_size: L{int}
     @param pixel_size: pixel size in m, default 1e-9 (i.e. 1 nm)
     @type  pixel_size: L{float}
-    @param binning: number of times pixel size is binned for dose, mtf, and dqe correction
-    @type  binning: L{int}
+    @param oversampling: number of times pixel size is binned for dose, mtf, and dqe correction
+    @type  oversampling: L{int}
     @param dose: electron dose over the full series in e-/A^2, will be equally divided over number of frames, default 80
     @type  dose: L{float}
     @param voltage: voltage of electron beam in eV, default 300E3
@@ -1354,15 +1360,17 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     @author: Marten Chaillet
     """
     from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS as dar
-    from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS
+    from pytom.basic.datatypes import DATATYPE_METAFILE as dmf
+    from pytom.basic.datatypes import fmtAlignmentResults, HEADER_ALIGNMENT_RESULTS, FMT_METAFILE, HEADER_METAFILE
     from pytom.gui.guiFunctions import savestar
-    from pytom.simulation.microscope import create_detector_response, create_complex_ctf
+    from pytom.simulation.microscope import create_detector_response, create_complex_ctf, \
+        convert_defocus_astigmatism_to_defocusU_defocusV
     from pytom.agnostic.io import read_mrc, write
     from joblib import Parallel, delayed
 
-    print('this function is not working because it does not create a metafile and does not correctly pass '
-          'magnification to parallel project')
-    sys.exit(0)
+    # print('this function is not working because it does not create a metafile and does not correctly pass '
+    #       'magnification to parallel project')
+    # sys.exit(0)
 
     # NOTE; Parameter defocus specifies the defocus at the bottom of the model!
     if grandcell is None:
@@ -1439,6 +1447,8 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     average_motion_per_frame = global_motion / n_frames
     global_angle = xp.random.uniform(0,360)  # random angle from uniform
     translations, cumulative_translations, translations_voxel = [], [], []
+    magnifications = []
+    in_plane_rotations = []
     x, y = 0, 0
     for i in range(n_frames):
         # randomly vary the motion per frame and angle
@@ -1454,6 +1464,19 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
         cumulative_translations.append((x,y, 0)) # translation for z coordinate as we are referring to volumes
         translations_voxel.append((x*1E-10 / pixel_size, y*1E-10 / pixel_size, 0))
 
+        # generate random in plane rotation
+        in_plane_rotations.append(xp.random.normal(0, sigma_angle_in_plane_rotation))
+
+        # add magnifications
+        if sigma_magnification != 0:
+            gamma_a = 1. / (sigma_magnification ** 2)  # a = 1 / sigma**2
+            gamma_b = 1. / gamma_a  # b = mu / a
+            # generate random magnification
+            mag = xp.random.gamma(gamma_a, gamma_b)
+            magnifications.append((mag, mag, 1.))
+        else:
+            magnifications.append((1., 1., 1.))
+
     # write motion trajectory to a png file for debugging
     # fig, ax = plt.subplots(2)
     # ax[0].plot([x for (x,y,z) in cumulative_translations], [y for (x,y,z) in cumulative_translations], label='trajectory')
@@ -1467,17 +1490,29 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     # plt.savefig(f'{save_path}/global_motion.png')
     # plt.close()
 
-    # get the contrast transfer function
-    ctf = create_complex_ctf((image_size, image_size), pixel_size, defocus, voltage=voltage,
-                                   Cs=spherical_aberration, Cc=chromatic_aberration, energy_spread=energy_spread,
-                                   illumination_aperture=illumination_aperture, objective_diameter=objective_diameter,
-                                   focus_length=focus_length, astigmatism=astigmatism,
-                                   astigmatism_angle=astigmatism_angle, display=False)
+    # defocus_series = [xp.random.normal(defocus, 0.2E-6) for a in angles]
+    ctf_series = []
+    dz_series, ast_series, ast_angle_series = [], [], []
+    for x in range(n_frames):
+        # todo currently input astigmatism is overriden by these options
+        # todo add these options for frame series
+        dz = xp.random.normal(defocus, 0.2e-6)
+        ast = xp.random.normal(astigmatism, 0.1e-6)  # introduce astigmastism with 100 nm variation
+        ast_angle = xp.random.normal(astigmatism_angle, 5)  # vary angle randomly around a 40 degree angle
+        ctf = create_complex_ctf((image_size, image_size), pixel_size, dz, voltage=voltage,
+                                 Cs=spherical_aberration, Cc=chromatic_aberration, energy_spread=energy_spread,
+                                 illumination_aperture=illumination_aperture, objective_diameter=objective_diameter,
+                                 focus_length=focus_length, astigmatism=ast,
+                                 astigmatism_angle=ast_angle, display=False)
+        ctf_series.append(ctf)
+        dz_series.append(dz)
+        ast_series.append(ast)
+        ast_angle_series.append(ast_angle)
 
     dqe = create_detector_response(camera_type, 'DQE', image_size, voltage=voltage,
-                                            folder=camera_folder, oversampling=binning)
+                                            folder=camera_folder, oversampling=oversampling)
     mtf = create_detector_response(camera_type, 'MTF', image_size, voltage=voltage,
-                                            folder=camera_folder, oversampling=binning)
+                                            folder=camera_folder, oversampling=oversampling)
 
     # joblib automatically memory maps a numpy array to child processes
     print(f'Projecting the model with {nodes} processes')
@@ -1485,10 +1520,14 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
         (delayed(parallel_project)(grandcell, frame, image_size, pixel_size, msdz, n_slices, ctf,
-                                   dose_per_frame, dqe, mtf, voltage, binning=binning, translation=shift, rotation=(.0,.0,.0),
-                                   solvent_potential=solvent_potential, solvent_absorption=solvent_amplitude,
-                                   ice_voxels=None, beam_damage_snr=beam_damage_snr)
-         for frame, shift in enumerate(translations_voxel))
+                                   dose_per_frame, dqe, mtf, voltage, oversampling=oversampling, translation=shift,
+                                   rotation=(.0, .0, in_plane_rotation),
+                                   scale=magnification, solvent_potential=solvent_potential,
+                                   solvent_absorption=solvent_amplitude, ice_thickness_voxels=box_height,
+                                   beam_damage_snr=beam_damage_snr)
+        for frame, (in_plane_rotation,
+                shift, magnification, ctf) in enumerate(zip(in_plane_rotations,
+                                                                  translations_voxel, magnifications, ctf_series)))
 
     sys.stdout.flush()
     if results.count(None) == 0:
@@ -1502,18 +1541,56 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     write(filename_nf, xp.stack([n for (n,p) in results], axis=2))
     write(filename_pr, xp.stack([p for (n, p) in results], axis=2))
 
-    # Store translations as reference for model
+    # todo create alignment and misalignment file, in reconstruction choice for alignment and misalignment
+    # store alignment information
     # len(angles) is the number of files that we have
-    alignment                       = xp.zeros(n_frames, dtype=dar)
-    alignment['AlignmentTransX']    = xp.array([x for (x,y,z) in cumulative_translations])
-    alignment['AlignmentTransY']    = xp.array([y for (x,y,z) in cumulative_translations])
-    alignment['Magnification']      = xp.repeat(1.0, n_frames)
+    alignment = xp.zeros(n_frames, dtype=dar)
+    # IMPORTANT: get the inverse of each parameter for correct reconstruction
+    alignment['TiltAngle'] = xp.array([.0] * n_frames)
+    alignment['Magnification'] = 1. / xp.array([x for (x, y, z) in magnifications])
+    alignment['AlignmentTransX'] = -1 * xp.array([x for (x, y, z) in translations_voxel])
+    alignment['AlignmentTransY'] = -1 * xp.array([y for (x, y, z) in translations_voxel])
+    alignment['InPlaneRotation'] = -1 * xp.array(in_plane_rotations)
     for i in range(n_frames):
-        alignment['FileName'][i]    = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
+        alignment['FileName'][i] = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
 
-    # Write the alignment file as a text file
-    filename_align                      = os.path.join(save_path, 'alignment_simulated.txt')
+    # write the alignment file
+    filename_align = os.path.join(save_path, 'alignment_simulated.txt')
     savestar(filename_align, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
+
+    # write meta file containing exactly all varied parameters in the simulation
+    # get defocusU defocusV type defocus parameters
+    defocusU, defocusV = convert_defocus_astigmatism_to_defocusU_defocusV(xp.array(dz_series), xp.array(ast_series))
+    metafile = xp.zeros(n_frames, dtype=dmf)
+    metafile['DefocusU'] = defocusU * 1e6
+    metafile['DefocusV'] = defocusV * 1e6
+    metafile['DefocusAngle'] = xp.array(ast_angle_series)
+    metafile['Voltage'] = xp.array([voltage * 1e-3, ] * n_frames)
+    metafile['SphericalAberration'] = xp.array([spherical_aberration * 1e3, ] * n_frames)
+    metafile['PixelSpacing'] = xp.array([pixel_size * 1e10, ] * n_frames)
+    metafile['TiltAngle'] = xp.array([.0] * n_frames)
+    metafile['InPlaneRotation'] = xp.array(in_plane_rotations)
+    metafile['TranslationX'] = xp.array([x for (x, y, z) in translations_voxel])
+    metafile['TranslationY'] = xp.array([y for (x, y, z) in translations_voxel])
+    metafile['Magnification'] = xp.array([x for (x, y, z) in magnifications])
+    for i in range(n_frames):
+        alignment['FileName'][i] = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
+
+    savestar(os.path.join(save_path, 'simulation.meta'), metafile, fmt=FMT_METAFILE, header=HEADER_METAFILE)
+
+    # # Store translations as reference for model
+    # # len(angles) is the number of files that we have
+    # alignment                       = xp.zeros(n_frames, dtype=dar)
+    # alignment['AlignmentTransX']    = xp.array([x for (x,y,z) in cumulative_translations])
+    # alignment['AlignmentTransY']    = xp.array([y for (x,y,z) in cumulative_translations])
+    # alignment['Magnification']      = xp.repeat(1.0, n_frames)
+    # for i in range(n_frames):
+    #     alignment['FileName'][i]    = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
+    #
+    # # Write the alignment file as a text file
+    # filename_align                      = os.path.join(save_path, 'alignment_simulated.txt')
+    # savestar(filename_align, alignment, fmt=fmtAlignmentResults, header=HEADER_ALIGNMENT_RESULTS)
+
     return
 
 
@@ -1617,7 +1694,7 @@ def scale_image(image1, image2, numberBands):
     return fout.real
 
 
-def parallel_scale(number, projection, example, pixel_size, example_pixel_size, binning, make_even_factor):
+def parallel_scale(number, projection, example, pixel_size, example_pixel_size, oversampling, make_even_factor):
     """
     Function that prepares projection and example for fourier shell scaling by ensuring same shape and pixel size.
     It is used in a parallel CPU call.
@@ -1632,8 +1709,8 @@ def parallel_scale(number, projection, example, pixel_size, example_pixel_size, 
     @type  pixel_size: L{float}
     @param example_pixel_size: pixel size experimental in A
     @type  example_pixel_size: L{float}
-    @param binning: binning factor
-    @type  binning: L{int}
+    @param oversampling: oversampling factor
+    @type  oversampling: L{int}
     @param make_even_factor: force the output projection size to be divisible by 2*make_even_factor, i.e. a 1 as input forces the size to be divisble by two
     @type  make_even_factor: L{int}
 
@@ -1647,13 +1724,13 @@ def parallel_scale(number, projection, example, pixel_size, example_pixel_size, 
     # print(projection.shape, example.shape)
 
     print(f' -- scaling projection {number+1}')
-    if pixel_size != (example_pixel_size * binning):
+    if pixel_size != (example_pixel_size * oversampling):
         # magnify or de-magnify if the pixel size does not match yet
         print('(de)magnifying pixel size')
-        example = resize(example, (example_pixel_size * binning) / pixel_size, interpolation='Spline').squeeze()
+        example = resize(example, (example_pixel_size * oversampling) / pixel_size, interpolation='Spline').squeeze()
         #todo squeeze() can be removed after updating pytom
 
-    # prevent issues later on with binning in case experimental and simulated pixel size do not match
+    # prevent issues later on with oversampling in case experimental and simulated pixel size do not match
     if example.shape[0] % (2*make_even_factor):
         example = example[:-(example.shape[0] % (2*make_even_factor)), :-(example.shape[0] % (2*make_even_factor))]
 
@@ -1670,7 +1747,7 @@ def parallel_scale(number, projection, example, pixel_size, example_pixel_size, 
     return number, scale_image(projection, example, projection.shape[0] // 4)
 
 
-def scale_projections(save_path, pixel_size, example_folder, example_pixel_size, binning, nodes,
+def scale_projections(save_path, pixel_size, example_folder, example_pixel_size, oversampling, nodes,
                       make_even_factor):
     """
     Scale the amplitudes of a simulated tilt/frame-series by the amplitudes from experimental images in Fourier space.
@@ -1679,7 +1756,7 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
     signal from energy filters.
 
     If the experimental image has a different pixel size than the simulation, the images will be resized. That is why
-    the experimental pixel size is needed as argument here. The binning factor is also needed to downsample the
+    the experimental pixel size is needed as argument here. The oversampling factor is also needed to downsample the
     the data to the binned simulation pixel size.
 
     @param save_path: simulation project folder
@@ -1690,8 +1767,8 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
     @type  example_folder: L{str}
     @param example_pixel_size: pixel size of experimental image in A
     @type  example_pixel_size: L{float}
-    @param binning: the binning factor of the simulation
-    @type  binning: L{int}
+    @param oversampling: the oversampling factor of the simulation
+    @type  oversampling: L{int}
     @param nodes: number of CPU nodes to use to parallelize scaling per tilt/frame
     @type  nodes: L{int}
     @param make_even_factor: force the output projection size to be divisible by 2*make_even_factor, i.e. a 1 as input forces the size to be divisble by two
@@ -1737,9 +1814,9 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
     verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
         (delayed(parallel_scale)(i, projections[:, :, i].squeeze(),
-                                 resize(reduce_resolution(example_projections[:, :, i], 1, 2*binning),
-                                        1/binning, interpolation='Spline').squeeze(),
-                                 pixel_size, example_pixel_size, binning, make_even_factor)
+                                 resize(reduce_resolution(example_projections[:, :, i], 1, 2*oversampling),
+                                        1/oversampling, interpolation='Spline').squeeze(),
+                                 pixel_size, example_pixel_size, oversampling, make_even_factor)
          for i in range(projections.shape[2]))
     # todo squeeze() can be removed after updating pytom
 
@@ -1922,14 +1999,14 @@ if __name__ == '__main__':
         model_ID                = config['General'].getint('ModelID')
         seed                    = config['General'].getint('Seed')
         pixel_size              = config['General'].getfloat('PixelSize') * 1E-10 # pixel_size in nm
-        binning                 = config['General'].getint('Binning')
+        oversampling            = config['General'].getint('Oversampling')
         solvent_potential       = config['General'].getfloat('SolventConstant')
         absorption_contrast     = config['General'].getboolean('AbsorptionContrast')
         voltage                 = config['General'].getfloat('Voltage') * 1E3  # voltage in keV
         # voltage and pixelsize are needed for model generation and projection, thus general parameters
 
-        # adjust pixel size with binning factor
-        pixel_size *= binning
+        # adjust pixel size with oversampling factor
+        pixel_size *= oversampling
 
         # ensure simulator mode and device are valid options
         if (simulator_mode in ['TiltSeries', 'FrameSeries']) or (device in ['CPU', 'GPU']):
@@ -1962,6 +2039,7 @@ if __name__ == '__main__':
                                              'NumberOfParticles')
             number_of_membranes = draw_range(literal_eval(config['GenerateModel']['NumberOfMembranes']), int,
                                              'NumberOfMembranes')
+            sigma_motion_blur   = config['GenerateModel'].getfloat('SigmaMotionBlur')  # in A units
         except Exception as e:
             print(e)
             raise Exception('Missing generate model parameters in config file.')
@@ -2010,7 +2088,7 @@ if __name__ == '__main__':
             example_folder      = config['ScaleProjections']['ExampleFolder']
             example_pixel_size  = config['ScaleProjections'].getfloat('ExamplePixelSize')
             # If experimental and simulated projections have different size, we need to crop. This should be done with
-            # care if the option binning is set for reconstructions, because in that case the ground truth data needs
+            # care if the option oversampling is set for reconstructions, because in that case the ground truth data needs
             # to be binned and cropped as well. Uneven size of the volume means the ground truth data will be shifted
             # by half a pixel compared to the reconstruction. This options makes sure that this not happen.
             make_even_factor    = config['ScaleProjections'].getint('EvenSizeFactor')
@@ -2065,7 +2143,8 @@ if __name__ == '__main__':
                        number_of_markers    =number_of_markers,
                        absorption_contrast  =absorption_contrast,
                        voltage              =voltage,
-                       number_of_membranes  =number_of_membranes)
+                       number_of_membranes  =number_of_membranes,
+                       sigma_motion_blur    = sigma_motion_blur)
 
     if simulator_mode in config.sections() and simulator_mode == 'TiltSeries':
         # set seed for random number generation
@@ -2079,7 +2158,7 @@ if __name__ == '__main__':
                                       image_size            =image_size,
                                       rotation_box_height   =None, # will automatically calculate fitting size if None
                                       pixel_size            =pixel_size,
-                                      binning               =binning,
+                                      oversampling          =oversampling,
                                       dose                  =electron_dose,
                                       voltage               =voltage,
                                       spherical_aberration  =spherical_aberration,
@@ -2114,7 +2193,7 @@ if __name__ == '__main__':
                                       nodes                 =nodes,
                                       image_size            =image_size,
                                       pixel_size            =pixel_size,
-                                      binning               =binning,
+                                      oversampling          =oversampling,
                                       dose                  =electron_dose,
                                       voltage               =voltage,
                                       spherical_aberration  =spherical_aberration,
@@ -2146,7 +2225,7 @@ if __name__ == '__main__':
         random.seed(seed)
         print('\n- Scaling projections with experimental data')
         scale_projections(save_path, pixel_size * 1E10, example_folder,
-                                            example_pixel_size, binning, nodes, make_even_factor)
+                                            example_pixel_size, oversampling, nodes, make_even_factor)
 
     if 'TomogramReconstruction' in config.sections():
         print('\n- Reconstructing tomogram')

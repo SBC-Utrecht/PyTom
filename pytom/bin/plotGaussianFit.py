@@ -7,7 +7,6 @@ Updated on Jun 21, 2021
 @author: yuxiangchen, Marten Chaillet
 """
 # todo add option for prividing a ground truth file for the particle list
-# todo increase number of points on roc curve to make more robust?
 # todo make sure ValueError are printed with output if data cannot be fit
 
 # plotting
@@ -122,6 +121,15 @@ if __name__ == '__main__':
     for f in foundParticles:
         scores.append(float(f.score.getValue()))
 
+    scores = np.array(scores)
+
+    # determine nbins automatically
+    # q75, q25 = np.percentile(scores, [75, 25])
+    # iqr = q75 - q25
+    # bin_width = 2 * iqr / len(scores)**(1/3)
+    # snbins = (max(scores) - min(scores)) / bin_width
+    # print('suggested nbins', snbins)
+
     # ================================== generate the histogram ========================================================
     matplotlib.rc('font', size=18)
     fig = plt.figure(figsize=(10, 5))
@@ -172,6 +180,8 @@ if __name__ == '__main__':
             bounds = ([0, 0, 0, 0.1, 0, 0],
                       [.1, 0.2, np.inf, 1.0, 0.2, 200])  # todo 200 is not a good upper bound for
             # second gaussian
+
+        # TODO try fitting, if it does not work dont continue with ROC analysis
         # parameter names for output
         params_names = ['mu_1', 'sigma_1', 'A_1', 'mu_2', 'sigma_2', 'A_2']
         # params_names = ['a', 'b', 'c', 'mu_2', 'sigma_2', 'A_2']
@@ -196,6 +206,7 @@ if __name__ == '__main__':
         ax1.legend()
 
         # ======================================= Generate a ROC curve =================================================
+        # TODO care with determining ROC points if noise gaussian has a larger tail than particle population.
         roc_steps = 50
         if max_roc_threshold:
             x_roc = np.flip(np.linspace(x[0], max_roc_threshold, roc_steps))
