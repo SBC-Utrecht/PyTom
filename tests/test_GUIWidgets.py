@@ -1,7 +1,7 @@
 import os
 import unittest
 
-if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', True):
+if not os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
     from PyQt5.QtWidgets import *
     from PyQt5 import QtCore, QtGui, QtWidgets
     import os, shutil
