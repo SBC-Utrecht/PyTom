@@ -846,7 +846,7 @@ if __name__ == '__main__':
                    ScriptOption2(['-d', '--destination'], 'Folder where output should be stored.', 'directory',
                                  'required'),
                    ScriptOption2(['-m', '--membrane_pdb'], 'Membrane file, default '
-                                                           '/data2/mchaillet/structures/pdb/lipid/dppc128_dehydrated.pdb',
+                                                           '/path/to/pdb/lipid/dppc128_dehydrated.pdb',
                                  'file', 'required'),
                    ScriptOption2(['-c', '--cores'], 'Number of cores to use for numpy dot operations and later iasa '
                                                     'integration.', 'int', 'optional', 1)])

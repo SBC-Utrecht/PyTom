@@ -48,9 +48,12 @@ def convert_to_mesh(volume, cutoff=0.2, mesh_detail=2, display=False):
     return verts, faces, normals, values
 
 
-def find_outliers(distances, nstd=3):
-    norm_distances = (distances - distances.mean()) / distances.std()
-    return np.logical_and(norm_distances >= -nstd, norm_distances <= nstd)
+def find_outliers(distances, nstd=3, minmaxdistance=None):
+    if minmaxdistance is not None:
+        return np.logical_and(distances >= minmaxdistance[0], distances <= minmaxdistance[1])
+    else:
+        norm_distances = (distances - distances.mean()) / distances.std()
+        return np.logical_and(norm_distances >= -nstd, norm_distances <= nstd)
 
 
 def find_orientations(plist, segmentation, cutoff, mesh_detail, reference_normal):
@@ -61,7 +64,7 @@ def find_orientations(plist, segmentation, cutoff, mesh_detail, reference_normal
     # get the triangular mesh
     verts, faces, normals, values = convert_to_mesh(segmentation, cutoff, mesh_detail)
 
-    # load reference normal and make sure it is actually a normal
+    # load reference unit vector and make sure it is actually a 'unit' vector
     unit_vector = Vector(reference_normal)
     unit_vector.normalize()
 
@@ -75,19 +78,22 @@ def find_orientations(plist, segmentation, cutoff, mesh_detail, reference_normal
         particle_normal = Vector(unit_vector.get())  # copy reference normal
         particle_normal.rotate(matrix[:3, :3])
 
-        # angle, vector = matToAxisAngle(rotation_matrix)
-        # particle_normal = Vector(*vector)
-
         # get the coordinates of the particle
         coordinates = np.array(p.getPickPosition().toVector())
 
         # distance to each vertex in the triangle mesh
         distance = np.sqrt(np.sum(np.subtract(verts, coordinates) ** 2, axis=1))
-        # distance = np.sqrt((verts[:, 0] - coordinates[0]) ** 2 +
-        #                    (verts[:, 1] - coordinates[1]) ** 2 + (verts[:, 2] - coordinates[2]) ** 2)
         min_distance = np.min(distance)
         distances.append(min_distance)
         min_distance_idx = np.argmin(distance)
+
+        # try to find if the particle is directly above a triangle of the closest point
+        # face_idx = np.any(faces == min_distance_idx, axis=1)
+        # faces_subset = faces[face_idx]
+        # for face in faces_subset:
+        #     # get the triangle normal
+        #     v1, v2, v3 = verts[face[0]], verts[face[1]], verts[face[2]]
+        #     point_in_triangle
 
         # find all triangles that have closest_point index in them
         vertex_normal = Vector(normals[min_distance_idx])
@@ -141,20 +147,28 @@ if __name__ == '__main__':
                           'required'),
             ScriptOption2(['-o', '--output_name'], 'Histogram plot output name. If not provided plot to screen.',
                           'string', 'optional'),
+            ScriptOption2(['-v', '--voxel_size'], 'Voxel size of segmentation model.',
+                          'float', 'optional'),
             ScriptOption2(['-c', '--cutoff'], 'Cutoff value for converting membrane model to a triangular mesh.',
                           'float', 'optional', 0.2),
             ScriptOption2(['-m', '--mesh_detail'], 'Detail of the mesh, i.e. how fine it should be sampled from the '
                                                    'volume.', 'int', 'optional', 2),
-            ScriptOption2(['-n', '--template_normal'], 'Direction of normal vector of template that the orientations '
-                                                       'are relative to. It will not affect the distribution of '
-                                                       'populations that you find, only their angular difference with '
-                                                       'the template.', 'float,float,float', 'optional', [.0, .0, 1.]),
+            ScriptOption2(['-u', '--template_unit_vector'], 'Direction of unit vector of template that the '
+                                                            'orientations are relative to. It will not affect the '
+                                                            'distribution of populations that you find, only their '
+                                                            'angular difference with the template.',
+                          'float,float,float', 'optional', [.0, .0, 1.]),
             ScriptOption2(['-f', '--filter_nstd'], 'Number of standard deviations to filter outliers based on '
-                                                   'distance to membrane mesh.', 'int', 'optional', 3)])
+                                                   'distance to membrane mesh.', 'int', 'optional', 3),
+            ScriptOption2(['-r', '--distance_range'], 'Min and max distance from closest membrane point to consider, '
+                                                      'min distance can for example be set to the radius of the '
+                                                      'particle (if the current coordinate is in the center',
+                          'float,float', 'optional')])
 
     options = parse_script_options2(sys.argv[1:], helper)
 
-    particle_list_file, segmentation_file, output_file, cutoff, mesh_detail, template_normal, nstd = options
+    particle_list_file, segmentation_file, output_file, voxel_size, cutoff, mesh_detail, template_normal, nstd, \
+    distance_range = options
 
     segmentation = read(segmentation_file)
     particle_list = ParticleList()
@@ -163,7 +177,7 @@ if __name__ == '__main__':
     distances, orientations, p_arrows, m_arrows = find_orientations(particle_list, segmentation, cutoff, mesh_detail,
                                                                     template_normal)
 
-    outlier_filter = find_outliers(distances, nstd)
+    outlier_filter = find_outliers(distances, nstd, minmaxdistance=distance_range)
     distances = distances[outlier_filter]
     orientations = orientations[outlier_filter]
 
@@ -175,15 +189,23 @@ if __name__ == '__main__':
         matplotlib.use('Qt5Agg')
         import matplotlib.pyplot as plt
 
+    font = {'size': 16}
+    plt.rc('font', **font)
+
     # do some plotting
     fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-    ax[0].hist(distances)
-    # ax[0].set_label('distance')
-    ax[0].set_xlabel('distance (voxels)')
-    ax[0].set_ylabel('number of particles')
+    if voxel_size is not None:
+        ax[0].hist(distances * voxel_size)
+        # ax[0].set_label('distance')
+        ax[0].set_xlabel(r'Distance ($\AA$)')
+    else:
+        ax[0].hist(distances)
+        # ax[0].set_label('distance')
+        ax[0].set_xlabel('Distance (voxels)')
+    ax[0].set_ylabel('Number of particles')
     ax[1].hist(orientations)
     # ax[1].set_label('orientation')
-    ax[1].set_xlabel('angle (degrees)')
+    ax[1].set_xlabel('Angle (degrees)')
 
     plt.tight_layout()
 
