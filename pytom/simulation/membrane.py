@@ -13,46 +13,32 @@ import pytom.simulation.physics as physics
 
 class Vector:
     # Class can be used as both a 3d coordinate, and a vector
-    def __init__(self, vx, vy, vz):
-        self.axis = xp.array([vx, vy, vz])
+    def __init__(self, coordinates):
+        assert len(coordinates) == 3, 'Invalid axis list for a 3d vector, input does not contain 3 coordinates.'
+        self._axis = xp.array(coordinates)
 
-    def get_x(self):
-        return self.axis[0]
-
-    def set_x(self, x):
-        self.axis[0] = x
-
-    def get_y(self):
-        return self.axis[1]
-
-    def set_y(self, y):
-        self.axis[1] = y
-
-    def get_z(self):
-        return self.axis[2]
-
-    def set_z(self, z):
-        self.axis[2] = z
+    def get(self):
+        return self._axis
 
     def show(self):
-        print(self.axis)
+        print(self._axis)
 
     def cross(self, other):
-        return Vector(self.axis[1] * other.axis[2] - self.axis[2] * other.axis[1],
-                      self.axis[2] * other.axis[0] - self.axis[0] * other.axis[2],
-                      self.axis[0] * other.axis[1] - self.axis[1] * other.axis[0])
+        return Vector(self._axis[1] * other._axis[2] - self._axis[2] * other._axis[1],
+                      self._axis[2] * other._axis[0] - self._axis[0] * other._axis[2],
+                      self._axis[0] * other._axis[1] - self._axis[1] * other._axis[0])
 
     def dot(self, other):
         # return the dot product of vectors v1 and v2, of form (x,y,z)
         # dot product of two vectors is zero if they are perpendicular
-        return self.axis[0] * other.axis[0] + self.axis[1] * other.axis[1] + self.axis[2] * other.axis[2]
+        return self._axis[0] * other._axis[0] + self._axis[1] * other._axis[1] + self._axis[2] * other._axis[2]
 
     def magnitude(self):
         # calculate the magnitude (length) of vector p
-        return xp.sqrt(xp.sum(self.axis ** 2))
+        return xp.sqrt(xp.sum(self._axis ** 2))
 
     def normalize(self):
-        self.axis = self.axis / self.magnitude()
+        self._axis = self._axis / self.magnitude()
 
     def angle(self, other, degrees=False):
         # returns angle in radians
@@ -61,6 +47,9 @@ class Vector:
             return angle * 180 / xp.pi
         else:
             return angle
+
+    def rotate(self, rotation_matrix):
+        self._axis = xp.dot(self._axis, rotation_matrix)
 
 
 def matrix_from_axis_angle(ax, angle):
@@ -114,12 +103,12 @@ def get_rotation(vector, reference):
 
 
 def distance_nonsqrt(p1, p2):
-    return sum( (p1 - p2) ** 2 )
+    return sum((p1 - p2) ** 2)
 
 
 def distance(p1, p2):
     dd = (p1 - p2)**2
-    return np.sqrt(sum(dd))
+    return xp.sqrt(sum(dd))
 
 
 def get_point_ellipsoid(a, b, c, theta, phi):
@@ -223,11 +212,11 @@ class DistanceMatrix:
         from scipy.spatial.distance import cdist
         self.matrix = cdist(points, points, metric='sqeuclidean')  # squared euclidean because we compare distance
         # remove the points correlating with themselves
-        self.upper = np.max(self.matrix)
+        self.upper = xp.max(self.matrix)
         self.matrix[self.matrix == 0] = self.upper
 
     def update(self, points, new_point_index):
-        dist_update = np.sum((points - points[new_point_index]) ** 2, axis=1)  # squared euclidean (see above)
+        dist_update = xp.sum((points - points[new_point_index]) ** 2, axis=1)  # squared euclidean (see above)
         # remove point correlating with itself
         dist_update[dist_update == 0] = self.upper
         self.matrix[new_point_index, :] = dist_update
@@ -418,8 +407,6 @@ def display_points_2d(points):
     import matplotlib
     matplotlib.use('Qt5Agg')
     import matplotlib.pyplot as plt
-    from pylab import *
-    from mpl_toolkits.mplot3d import Axes3D  # <--- This is important for 3d plotting
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.scatter(points[:, 0], points[:, 1])
@@ -539,14 +526,14 @@ def point_array_in_triangle(point_array, triangle):
     d3 = point_array_sign(point_array, v3, v1)
 
     # for numpy arrays
-    has_neg = np.any([d1 < 0, d2 < 0, d3 < 0], axis=0)
-    has_pos = np.any([d1 > 0, d2 > 0, d3 > 0], axis=0)
+    has_neg = xp.any([d1 < 0, d2 < 0, d3 < 0], axis=0)
+    has_pos = xp.any([d1 > 0, d2 > 0, d3 > 0], axis=0)
 
-    return np.invert(np.all([has_neg, has_pos], axis=0))
+    return xp.invert(xp.all([has_neg, has_pos], axis=0))
 
 
 def rotation_matrix_to_affine_matrix(rotation_matrix):
-    m = np.identity(4)
+    m = xp.identity(4)
     m[0:3, 0:3] = rotation_matrix
     return m
 
@@ -571,7 +558,7 @@ def membrane_potential_old(surface_mesh, voxel_size, membrane_pdb, solvent, volt
     # get the periodice boundary box from the pdb file
     x_bound, y_bound, z_bound = boundary_box_from_pdb(membrane_pdb)
 
-    reference = Vector(.0, .0, 1.0)
+    reference = Vector([.0, .0, 1.0])
 
     membrane_x, membrane_y, membrane_z, membrane_e, membrane_b, membrane_o = [], [], [], [], [], []
 
@@ -582,7 +569,7 @@ def membrane_potential_old(surface_mesh, voxel_size, membrane_pdb, solvent, volt
 
         triangle = surface_mesh.extract_cells(icell).points
         # print(triangle)
-        normal = Vector(*surface_mesh.cell_normals[icell])
+        normal = Vector(surface_mesh.cell_normals[icell])
 
         center = centroid(triangle)
         triangle1 = shift_triangle(triangle, -center)
@@ -700,7 +687,7 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage,
     # get the periodice boundary box from the pdb file
     x_bound, y_bound, z_bound = boundary_box_from_pdb(membrane_pdb)
 
-    reference = Vector(.0, .0, 1.0)
+    reference = Vector([.0, .0, 1.0])
 
     membrane_x, membrane_y, membrane_z, membrane_e, membrane_b, membrane_o = [], [], [], [], [], []
 
@@ -711,7 +698,7 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage,
 
         triangle = surface_mesh.extract_cells(icell).points
         # print(triangle)
-        normal = Vector(*surface_mesh.cell_normals[icell])
+        normal = Vector(surface_mesh.cell_normals[icell])
 
         center = centroid(triangle)
         triangle1 = shift_triangle(triangle, -center)
@@ -735,10 +722,10 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage,
         xext = int(xp.ceil(xmax / x_bound))
         yext = int(xp.ceil(ymax / y_bound))
 
-        atoms = np.empty((xext * yext * n_atoms_box, 4))  # this should be (xext*yext, 3) for other multiplication
+        atoms = xp.empty((xext * yext * n_atoms_box, 4))  # this should be (xext*yext, 3) for other multiplication
         # definition
-        newe = np.zeros(xext * yext * n_atoms_box, dtype='<U1')
-        newb, newo = (np.zeros(xext * yext * n_atoms_box),) * 2
+        newe = xp.zeros(xext * yext * n_atoms_box, dtype='<U1')
+        newb, newo = (xp.zeros(xext * yext * n_atoms_box),) * 2
 
         for i in range(xext):
             for j in range(yext):
@@ -793,7 +780,7 @@ def membrane_potential(surface_mesh, voxel_size, membrane_pdb, solvent, voltage,
         affine_matrix = xp.matmul(xp.matmul(t1, matrix1.T), xp.matmul(matrix2.T, t2))  # transpose for the inverse
         # rotations
 
-        ratoms = np.dot(atoms, affine_matrix.T)
+        ratoms = xp.dot(atoms, affine_matrix.T)
         # ratoms = xp.matmul(affine_matrix, atoms)
 
         # atoms[0, :] += shift[0]
@@ -859,7 +846,7 @@ if __name__ == '__main__':
                    ScriptOption2(['-d', '--destination'], 'Folder where output should be stored.', 'directory',
                                  'required'),
                    ScriptOption2(['-m', '--membrane_pdb'], 'Membrane file, default '
-                                                           '/data2/mchaillet/structures/pdb/lipid/dppc128_dehydrated.pdb',
+                                                           '/path/to/pdb/lipid/dppc128_dehydrated.pdb',
                                  'file', 'required'),
                    ScriptOption2(['-c', '--cores'], 'Number of cores to use for numpy dot operations and later iasa '
                                                     'integration.', 'int', 'optional', 1)])

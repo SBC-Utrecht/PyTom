@@ -6,7 +6,7 @@ Updated on Jun 21, 2021
 
 @author: yuxiangchen, Marten Chaillet
 """
-# todo add option for prividing a ground truth file for the particle list
+# todo add option for providing a ground truth file for the particle list
 # todo make sure ValueError are printed with output if data cannot be fit
 
 # plotting
@@ -15,12 +15,12 @@ try:
     matplotlib.use('Qt5Agg')
     from pylab import *
     import matplotlib.pyplot as plt
-
+    # matplotlib.rcParams.update({'font.size': 22})
 except:
     import matplotlib
     from pylab import *
     import matplotlib.pyplot as plt
-
+    # matplotlib.rcParams.update({'font.size': 22})
 # main functionality
 import sys
 import numpy as np
@@ -246,6 +246,15 @@ if __name__ == '__main__':
             recall.append(n_true_positives / population_integral)
             fdr.append(n_false_positives / (n_true_positives + n_false_positives))
 
+        skip = 0
+        is_increasing = all([a <= b for a, b in zip(fdr, fdr[1:])])
+        while (is_increasing == False) and ((skip + 1) < len(fdr)):
+            skip += 1
+            is_increasing = all([a <= b for a, b in zip(fdr[skip:], fdr[skip+1:])])
+        recall = recall[skip:]
+        fdr = fdr[skip:]
+        x_roc = x_roc[skip:]
+
         # ============= attempt to fit ROC curve by cumulative distribution function of exponential distribution =======
         # # ROC curve characterized by f(x) = 1 - e^(-lx)  (l=lambda)
         # params2_names = ['lambda']
@@ -271,7 +280,7 @@ if __name__ == '__main__':
         # plot the threshold on the distribution plot for visual inspection
         ax1.vlines(x_roc[id], 0, max(y), linestyle='dashed', label=f'{x_roc[id]}')
         print(f' - optimal correlation coefficient threshold is {x_roc[id]}.')
-        print(f' - this threshold approximately selects {recall[id] * population_integral} particles.')
+        print(f' - this threshold approximately selects {x_roc[id] * population_integral} particles.')
 
         # points for plotting
         xs = np.linspace(0, 1, 200)

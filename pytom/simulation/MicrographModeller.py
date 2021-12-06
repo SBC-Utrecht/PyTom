@@ -819,6 +819,8 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
 
     sample = grandcell.copy()
 
+    # think of a rotating cube in a larger box
+    # sample box height = image_size * sin(tilt_angle) + ice_height * sin(90 - tilt_angle)
     max_tilt_radians = abs(rotation[1]) * xp.pi / 180
     max_tilt_radians_opp = (90 - abs(rotation[1])) * xp.pi / 180
     rotation_height = int(xp.ceil(xp.sin(max_tilt_radians) * image_size +
@@ -1097,6 +1099,8 @@ def generate_tilt_series_cpu(save_path,
             rotation_volume[:, :, offset:rotation_box_height-offset] = grandcell[:, :, :]
     else:
         # Calculate maximal box height to contain all the information for the rotation
+        # think of rotating parallel lines in a box
+        # rotation_height = ice_height / cos(tilt_angle) + image_size * tan(tilt_angle)
         max_tilt = max([abs(a) for a in angles])
         max_tilt_radians = max_tilt * xp.pi / 180
         rotation_box_height = int(xp.ceil(xp.tan(max_tilt_radians) * image_size +
