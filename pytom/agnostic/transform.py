@@ -622,20 +622,15 @@ def fourier_reduced2full(data, isodd=False):
     return res
 
 def fourier_full2reduced(data):
-    return data[:,:,0:data.shape[2]//2+1]
+    assert len(data.shape) > 1, 'functionality only defined for arrays with at least two dimensions'
+    return data[..., 0:data.shape[-1]//2+1]
 
 def fourier_filter(data, fltr, human=True):
     if human:
         fltr = ifftshift(fltr)
         fltr = fourier_full2reduced(fltr)
 
-    fd = rfft(data)
-    res = irfft(fd * fltr, data.shape)
-
-
-
-
-    return res
+    return irfft(rfft(data) * fltr, data.shape).real.astype(xp.float32)
 
 def resiz2e(volume, factor, interpolation='Fourier'):
     """

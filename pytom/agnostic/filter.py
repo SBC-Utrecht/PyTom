@@ -36,7 +36,7 @@ def bandpass_circle(image, low=0, high=-1, sigma=0, ff=1):
     from pytom.agnostic.tools import create_sphere, create_circle
 
     if high == -1:
-        high = np.min(volume.shape)/2
+        high = np.min(image.shape)/2
     assert low < high, "upper bandpass must be > than lower limit"
 
     if low == 0:
@@ -388,7 +388,7 @@ class GeneralWedge(Wedge):
         else:
             filter_vol = self._volume
 
-        from transform import fourier_filter
+        from pytom.agnostic.transform import fourier_filter
         res = fourier_filter(data, filter_vol, False)
 
         return res
@@ -987,7 +987,7 @@ def filter_volume_by_profile(volume, profile):
     return outvol
 
 def applyFourierFilter(particle, filter):
-    return xp.fft.irfftn(xp.fft.rfftn(particle) * filter).real.astype(xp.float32)
+    return xp.fft.irfftn(xp.fft.rfftn(particle, particle.shape) * filter).real.astype(xp.float32)
 
 def applyFourierFilterFull(particle, filter):
     return xp.fft.ifftn(xp.fft.fftn(particle) * filter).real.astype(xp.float32)

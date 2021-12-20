@@ -1784,7 +1784,7 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
     @author: Marten Chaillet
     """
     from pytom.agnostic.transform import resize
-    from pytom.simulation.support import reduce_resolution
+    from pytom.simulation.support import reduce_resolution_fourier
     from pytom.agnostic.io import read_mrc, write
     from joblib import Parallel, delayed
 
@@ -1818,7 +1818,7 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
     verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
         (delayed(parallel_scale)(i, projections[:, :, i].squeeze(),
-                                 resize(reduce_resolution(example_projections[:, :, i], 1, 2*oversampling),
+                                 resize(reduce_resolution_fourier(example_projections[:, :, i], 1, 2*oversampling),
                                         1/oversampling, interpolation='Spline').squeeze(),
                                  pixel_size, example_pixel_size, oversampling, make_even_factor)
          for i in range(projections.shape[2]))
@@ -1870,7 +1870,7 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
     """
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
     from pytom.agnostic.transform import resize
-    from pytom.simulation.support import reduce_resolution
+    from pytom.simulation.support import reduce_resolution_real
     from pytom.agnostic.io import read_mrc, write
 
     # create folder for individual projections, reconstruction algorithm reads single projections from a folder
@@ -1890,7 +1890,7 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
     if filter_projections:
         for i in range(projections.shape[2]):
             # 2.3 corresponds to circular filter with width 0.9 of half of the image
-            projection_scaled = reduce_resolution(projections[:, :, i].squeeze(), 1.0, 2.0 * reconstruction_bin)
+            projection_scaled = reduce_resolution_real(projections[:, :, i].squeeze(), 1.0, 2.0 * reconstruction_bin)
             filename_single = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
             write(filename_single, projection_scaled)
     else:
@@ -1934,7 +1934,7 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
         # find cropping indices
         lind = (cell.shape[0] - reconstruction_bin * size_reconstruction)//2
         rind = cell.shape[0] - lind
-        cell = resize(reduce_resolution(cell[lind:rind, lind:rind, :], 1, 2*reconstruction_bin), 1/reconstruction_bin,
+        cell = resize(reduce_resolution_real(cell[lind:rind, lind:rind, :], 1, 2*reconstruction_bin), 1/reconstruction_bin,
                       interpolation='Spline')
         write(filename_gm_bin, cell)
         # bin class mask and bbox needed for training
@@ -2051,7 +2051,10 @@ if __name__ == '__main__':
     if 'Microscope' in config.sections():
         try:
             camera                  = config['Microscope']['Camera']
-            camera_folder           = config['Microscope']['CameraFolder']
+            try:
+                camera_folder       = config['Microscope']['CameraFolder']
+            except Exception as e:
+                camera_folder       = os.path.join(os.path.realpath(__file__), 'detectors')
             # beam damage SNR
             beam_damage_snr         = draw_range(literal_eval(config['Microscope']['BeamDamageSNR']), float,
                                                  'BeamDamageSNR')

@@ -1,16 +1,14 @@
 #!/usr/bin/env pytom
 
-from pytom.gpu.initialize import xp, device
+from concurrent.futures import ThreadPoolExecutor
+from threading import current_thread
+import multiprocessing as mp
+import numpy as np
 import pytom.simulation.physics as physics
 import os, sys
+from numba import jit
 
 
-# // Leave this part out for now....
-# // if atom in list(physics.volume_displaced):
-# //     r_0 = xp.cbrt(physics.volume_displaced[atom] / (xp.pi ** (3 / 2)))
-# // else:  # If not H,C,O,N we assume the same volume displacement as for carbon
-# //     r_0 = xp.cbrt(physics.volume_displaced['C'] / (xp.pi ** (3 / 2)))
-#
 # // N should be len(atoms) // 3
 # // <<<N/TPB, TPB>>>
 #
@@ -21,9 +19,10 @@ iasa_integrate_text = '''
 
 extern "C" __global__ 
 void iasa_integrate(float3 *atoms, unsigned char *elements, float *b_factors, float *occupancies, 
-                    float *potential, float *scattering_factors, unsigned int *potential_dims, 
-                    float voxel_size, unsigned int n_atoms) {
-        
+                    float *potential, float *solvent, float *scattering_factors, unsigned int *potential_dims,
+                    float *displaced_volume, float voxel_size, unsigned int n_atoms, unsigned char exclude_solvent) {
+    // exclude_solvent is used a Boolean value
+    
     // get the atom index                                                                                                                                      
     unsigned int i = (blockIdx.x*(blockDim.x) + threadIdx.x); // correct for each atom having 3 coordinates
         
@@ -49,6 +48,9 @@ void iasa_integrate(float3 *atoms, unsigned char *elements, float *b_factors, fl
         // scattering factors for this atom
         float *a = &scattering_factors[elem * 10];
         float *b = &scattering_factors[elem * 10 + 5];
+        
+        // get the radius of the volume displacement
+        float r0 = cbrt(displaced_volume[elem] / sqrt(M_PI * M_PI * M_PI));
         
         // find the max radius over all gaussians with a certain cutoff
         float r2 = 0;
@@ -79,17 +81,17 @@ void iasa_integrate(float3 *atoms, unsigned char *elements, float *b_factors, fl
         // two times pi
         pi2 = 2 * M_PI;
         // loop over coordinates where this atom is present
-        for (l = ind_min.x; l < ind_max.x; l++) {
+        for (l = ind_min.x; l < (ind_max.x + 2); l++) {
         
             voxel_bound_min.x = l * voxel_size - atoms[i].x;
             voxel_bound_max.x = (l + 1) * voxel_size - atoms[i].x;
             
-            for (m = ind_min.y; m < ind_max.y; m++) {
+            for (m = ind_min.y; m < (ind_max.y + 2); m++) {
             
                 voxel_bound_min.y = m * voxel_size - atoms[i].y;
                 voxel_bound_max.y = (m + 1) * voxel_size - atoms[i].y;
                 
-                for (n = ind_min.z; n < ind_max.z; n++) {
+                for (n = ind_min.z; n < (ind_max.z + 2); n++) {
                 
                     voxel_bound_min.z = n * voxel_size - atoms[i].z;
                     voxel_bound_max.z = (n + 1) * voxel_size - atoms[i].z;
@@ -112,6 +114,17 @@ void iasa_integrate(float3 *atoms, unsigned char *elements, float *b_factors, fl
                     
                     potent_idx = l * potential_dims[1] * potential_dims[2] + m * potential_dims[2] + n;
                     atomicAdd( potential + potent_idx, atom_voxel_pot );
+                    
+                    if (exclude_solvent == 1) {
+                        factor3 = pow(sqrt_pi * r0 / 2, 3);
+                        
+                        integral_x = erf(voxel_bound_max.x / r0) - erf(voxel_bound_min.x / r0);
+                        integral_y = erf(voxel_bound_max.y / r0) - erf(voxel_bound_min.y / r0);
+                        integral_z = erf(voxel_bound_max.z / r0) - erf(voxel_bound_min.z / r0);
+                        
+                        atomicAdd( solvent + potent_idx, factor3 * integral_x * integral_y * integral_z );
+                    
+                    };
                 };
             };
         };
@@ -148,16 +161,16 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
         # condition = any([x%2 for x in increment])
         if true_center:
             from pytom.voltools import transform
-            new = xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
+            new = np.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
             return transform(new, translation=tuple([x/2 for x in increment]), interpolation=interpolation)
         else:
             from pytom.agnostic.tools import paste_in_center
-            new = xp.zeros([a + b for a, b in zip(vol.shape, increment)])
+            new = np.zeros([a + b for a, b in zip(vol.shape, increment)])
             if pad_value:
                 new += pad_value
             return paste_in_center(vol, new)
     else:
-        return xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
+        return np.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
 
 
 def call_chimera(filepath, output_folder):
@@ -539,30 +552,30 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
     @author: Marten Chaillet
     """
     from pytom.agnostic.tools import create_sphere
-    from pytom.simulation.support import reduce_resolution, create_ellipse, add_correlated_noise
+    from pytom.simulation.support import reduce_resolution_real, create_ellipse, add_correlated_noise
     from pytom.agnostic.transform import resize
 
     assert (type(oversampling) is int) and (oversampling >= 1), print('Stop gold marker creation oversampling factor is not a positive'
                                                             ' integer.')
 
     # select a random size for the gold marker in nm
-    diameter = xp.random.uniform(low=4.0, high=10.0)
+    diameter = np.random.uniform(low=4.0, high=10.0)
 
     # constants
     unit_cell_volume = 0.0679  # nm^3
     atoms_per_unit_cell = 4
-    C = 2 * xp.pi * physics.constants['h_bar']**2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # nm^2
+    C = 2 * np.pi * physics.constants['h_bar']**2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # nm^2
     voxel_size_nm = (voxel_size/10) / oversampling
     voxel_volume = voxel_size_nm**3
 
     # dimension of gold box, always add 5 nm to the sides
-    dimension = int(xp.ceil(diameter / voxel_size_nm)) * 3
+    dimension = int(np.ceil(diameter / voxel_size_nm)) * 3
     # sigma half of radius?
     r = 0.8 * ((diameter * 0.5) / voxel_size_nm)  # fraction of radius due to extension with exponential smoothing
     ellipse = True
     if ellipse:
-        r2 = r * xp.random.uniform(0.8, 1.2)
-        r3 = r * xp.random.uniform(0.8, 1.2)
+        r2 = r * np.random.uniform(0.8, 1.2)
+        r3 = r * np.random.uniform(0.8, 1.2)
         bead = create_ellipse(dimension, r, r2, r3, smooth=2)
     else:
         bead = create_sphere((dimension,)*3, radius=r)
@@ -573,7 +586,7 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
     bead[bead < 0.9] = 0 # remove too small values
     # add random noise to gold particle to prevent perfect CTF ringing around the particle.
     # random noise also dependent on voxel size maybe?
-    # rounded_sphere = (rounded_sphere > 0) * (rounded_sphere * xp.random.normal(1, 0.3, rounded_sphere.shape))
+    # rounded_sphere = (rounded_sphere > 0) * (rounded_sphere * np.random.normal(1, 0.3, rounded_sphere.shape))
     # rounded_sphere[rounded_sphere < 0] = 0
 
     if imaginary:
@@ -582,7 +595,7 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
         gold_amplitude = physics.potential_amplitude(physics.GOLD_DENSITY, physics.GOLD_MW, voltage)
         gold_imaginary = bead * (gold_amplitude - solvent_amplitude)
         # filter and bin
-        gold_imaginary = resize(reduce_resolution(gold_imaginary, 1, 2*oversampling), 1/oversampling,
+        gold_imaginary = resize(reduce_resolution_real(gold_imaginary, 1, 2*oversampling), 1/oversampling,
                                 interpolation='Spline')
 
     # values transformed to occupied volume per voxel from 1 nm**3 per voxel to actual voxel size
@@ -591,13 +604,13 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
     gold_atoms = unit_cells_per_voxel * atoms_per_unit_cell
 
     # interaction potential
-    gold_scattering_factors = xp.array(physics.scattering_factors['AU']['g'])
+    gold_scattering_factors = np.array(physics.scattering_factors['AU']['g'])
     # gold_scattering_factors[0:5].sum() == 10.57
     # C and scattering factor are in A units thus divided by 1000 A^3 = 1 nm^3 to convert
     gold_potential = gold_atoms * gold_scattering_factors[0:5].sum() * C / voxel_volume / 1000
     gold_real = gold_potential - solvent_correction
     # filter and bin
-    gold_real = resize(reduce_resolution(gold_real, 1, 2*oversampling), 1/oversampling, interpolation='Spline')
+    gold_real = resize(reduce_resolution_real(gold_real, 1, 2*oversampling), 1/oversampling, interpolation='Spline')
 
     if imaginary:
         return gold_real, gold_imaginary
@@ -605,126 +618,136 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
         return gold_real
 
 
-def split_data(data, size):
-    if len(data) == size:
-        new_seq = []
-        for i in range(size):
-            new_seq.append([data[i]])
-        return new_seq
-    elif len(data) > size:
-        new_seq = [None] * size
-        n, N = 0, len(data)
-        for i in range(size):
-            l = N // size + (N % size > i)
-            new_seq[i] = data[n:n + l]
+def split_data(data_length, cores):
+    if data_length == cores:
+        indices = []
+        for i in range(cores):
+            indices.append((i,i+1))
+        return indices
+    elif data_length > cores:
+        indices = [None] * cores
+        n, N = 0, data_length
+        for i in range(cores):
+            l = N // cores + (N % cores > i)
+            indices[i] = (n, n + l)
             n += l
-        return new_seq
+        return indices
     else:
-        new_seq = []
-        for i in range(len(data)):
-            new_seq.append([data[i]])
-        return new_seq
+        indices = []
+        for i in range(data_length):
+            indices.append((i, i+1))
+        return indices
 
 
-def parallel_integrate(data, sz, solvent_exclusion, voxel_size):
+def init(shared_data_, potential_shared_, solvent_shared_):
+    global shared_data
+    shared_data = shared_data_  # must be inherited, not passed as an argument to workers
+    global potential_shared
+    global solvent_shared
+    potential_shared = potential_shared_
+    solvent_shared = solvent_shared_
 
+
+def tonumpyarray(mp_arr, shape, dt):
+    return np.frombuffer(mp_arr.get_obj(), dtype=dt).reshape(shape)
+
+
+def parallel_integrate(index, size, solvent_exclusion, voxel_size, dtype):
     from scipy.special import erf
 
-    potential = xp.zeros(sz)
-    if solvent_exclusion == 'gaussian':
-        solvent = xp.zeros(sz)
+    # return np.ndarray view of mp.Array
+    potential = tonumpyarray(potential_shared, size, dtype)
+    solvent = tonumpyarray(solvent_shared, size, dtype)
 
-    print(f'Calculating {len(data)} atoms')
+    print(f' --- process {mp.current_process().name} calculating {index[1]-index[0]} atoms')
 
-    for i, d in enumerate(data):
-        # unpack data for this loop
-        x, y, z, element, b_factor, occupancy = d
+    for i in range(index[0], index[1]):
+        # order = x y z e b o
+        x, y, z, element, b_factor, occupancy = shared_data[0][i], shared_data[1][i], shared_data[2][i], \
+                                                shared_data[3][i], shared_data[4][i], shared_data[5][i]
 
         # atom type
         atom = element.upper()
         # atom center
         rc = [x, y, z]
 
-        sf = xp.array(physics.scattering_factors[atom]['g'])
+        sf = np.array(physics.scattering_factors[atom]['g'])
         a = sf[0:5]
         b = sf[5:10]
 
         # b += (b_factor) # units in A
 
         if atom in list(physics.volume_displaced):
-            r_0 = xp.cbrt(physics.volume_displaced[atom] / (xp.pi ** (3 / 2)))
+            r_0 = np.cbrt(physics.volume_displaced[atom] / (np.pi ** (3 / 2)))
         else:  # If not H,C,O,N we assume the same volume displacement as for carbon
-            r_0 = xp.cbrt(physics.volume_displaced['C'] / (xp.pi ** (3 / 2)))
+            r_0 = np.cbrt(physics.volume_displaced['C'] / (np.pi ** (3 / 2)))
 
-        r2 = 15 / (1 / r_0 ** 2)
+        r2 = 0  # it was 15 / (1 / r_0 ** 2) before but this gives very high values for carbon
         for j in range(5):
             # Find the max radius over all gaussians (assuming symmetrical potential to 4.5 sigma truncation
             # (corresponds to 10).
-            r2 = xp.maximum(r2, 15 / (4 * xp.pi ** 2 / b[j]))
+            r2 = np.maximum(r2, 15 / (4 * np.pi ** 2 / b[j]))
         # Radius of gaussian sphere
-        r = xp.sqrt(r2 / 3)
+        r = np.sqrt(r2 / 3)
 
         ind_min = [int((c - r) // voxel_size) for c in rc]  # Smallest index to contain relevant potential x,y,z
         ind_max = [int((c + r) // voxel_size) for c in rc]  # Largest index to contain relevant potential x,y,z
         # Explicit real space coordinates for the max and min boundary of each voxel
-        x_min_bound = xp.arange(ind_min[0], ind_max[0] + 1, 1) * voxel_size - rc[0]
-        x_max_bound = xp.arange(ind_min[0] + 1, ind_max[0] + 2, 1) * voxel_size - rc[0]
-        y_min_bound = xp.arange(ind_min[1], ind_max[1] + 1, 1) * voxel_size - rc[1]
-        y_max_bound = xp.arange(ind_min[1] + 1, ind_max[1] + 2, 1) * voxel_size - rc[1]
-        z_min_bound = xp.arange(ind_min[2], ind_max[2] + 1, 1) * voxel_size - rc[2]
-        z_max_bound = xp.arange(ind_min[2] + 1, ind_max[2] + 2, 1) * voxel_size - rc[2]
+        x_min_bound = np.arange(ind_min[0], ind_max[0] + 1, 1) * voxel_size - rc[0]
+        x_max_bound = np.arange(ind_min[0] + 1, ind_max[0] + 2, 1) * voxel_size - rc[0]
+        y_min_bound = np.arange(ind_min[1], ind_max[1] + 1, 1) * voxel_size - rc[1]
+        y_max_bound = np.arange(ind_min[1] + 1, ind_max[1] + 2, 1) * voxel_size - rc[1]
+        z_min_bound = np.arange(ind_min[2], ind_max[2] + 1, 1) * voxel_size - rc[2]
+        z_max_bound = np.arange(ind_min[2] + 1, ind_max[2] + 2, 1) * voxel_size - rc[2]
 
-        # x_min_bound, y_min_bound, z_min_bound = xp.meshgrid(x_min_bound, y_min_bound, z_min_bound, indexing='ij')
-        # x_max_bound, y_max_bound, z_max_bound = xp.meshgrid(x_max_bound, y_max_bound, z_max_bound, indexing='ij')
+        # x_min_bound, y_min_bound, z_min_bound = np.meshgrid(x_min_bound, y_min_bound, z_min_bound, indexing='ij')
+        # x_max_bound, y_max_bound, z_max_bound = np.meshgrid(x_max_bound, y_max_bound, z_max_bound, indexing='ij')
 
         atom_potential = 0
 
         for j in range(5):
-            sqrt_b = xp.sqrt(b[j])  # calculate only once
+            sqrt_b = np.sqrt(b[j])  # calculate only once
             # Difference of error function == integrate over Gaussian
-            int_x = sqrt_b / (4 * xp.sqrt(xp.pi)) * (erf(x_max_bound * 2 * xp.pi / sqrt_b) -
-                                                     erf(x_min_bound * 2 * xp.pi / sqrt_b))
-            x_matrix = xp.tile(int_x[:, xp.newaxis, xp.newaxis], [1,
+            int_x = sqrt_b / (4 * np.sqrt(np.pi)) * (erf(x_max_bound * 2 * np.pi / sqrt_b) -
+                                                     erf(x_min_bound * 2 * np.pi / sqrt_b))
+            x_matrix = np.tile(int_x[:, np.newaxis, np.newaxis], [1,
                                                                   ind_max[1] - ind_min[1] + 1,
                                                                   ind_max[2] - ind_min[2] + 1])
-            int_y = sqrt_b / (4 * xp.sqrt(xp.pi)) * (erf(y_max_bound * 2 * xp.pi / sqrt_b) -
-                                                     erf(y_min_bound * 2 * xp.pi / sqrt_b))
-            y_matrix = xp.tile(int_y[xp.newaxis, :, xp.newaxis], [ind_max[0] - ind_min[0] + 1,
+            int_y = sqrt_b / (4 * np.sqrt(np.pi)) * (erf(y_max_bound * 2 * np.pi / sqrt_b) -
+                                                     erf(y_min_bound * 2 * np.pi / sqrt_b))
+            y_matrix = np.tile(int_y[np.newaxis, :, np.newaxis], [ind_max[0] - ind_min[0] + 1,
                                                                   1,
                                                                   ind_max[2] - ind_min[2] + 1])
-            int_z = sqrt_b / (4 * xp.sqrt(xp.pi)) * (erf(z_max_bound * 2 * xp.pi / sqrt_b) -
-                                                     erf(z_min_bound * 2 * xp.pi / sqrt_b))
-            z_matrix = xp.tile(int_z[xp.newaxis, xp.newaxis, :], [ind_max[0] - ind_min[0] + 1,
+            int_z = sqrt_b / (4 * np.sqrt(np.pi)) * (erf(z_max_bound * 2 * np.pi / sqrt_b) -
+                                                     erf(z_min_bound * 2 * np.pi / sqrt_b))
+            z_matrix = np.tile(int_z[np.newaxis, np.newaxis, :], [ind_max[0] - ind_min[0] + 1,
                                                                   ind_max[1] - ind_min[1] + 1,
                                                                   1])
 
             atom_potential += a[j] / b[j] ** (3 / 2) * x_matrix * y_matrix * z_matrix
 
-        potential[ind_min[0]:ind_max[0] + 1, ind_min[1]:ind_max[1] + 1, ind_min[2]:ind_max[2] + 1] += atom_potential
+        potential[ind_min[0]:ind_max[0] + 1, ind_min[1]:ind_max[1] + 1, ind_min[2]:ind_max[2] + 1] += \
+            atom_potential
 
         if solvent_exclusion == 'gaussian':
             # excluded solvent potential
-            int_x = xp.sqrt(xp.pi) * r_0 / 2 * (erf(x_max_bound / r_0) - erf(x_min_bound / r_0))
-            x_matrix = xp.tile(int_x[:, xp.newaxis, xp.newaxis], [1,
+            int_x = np.sqrt(np.pi) * r_0 / 2 * (erf(x_max_bound / r_0) - erf(x_min_bound / r_0))
+            x_matrix = np.tile(int_x[:, np.newaxis, np.newaxis], [1,
                                                                   ind_max[1] - ind_min[1] + 1,
                                                                   ind_max[2] - ind_min[2] + 1])
-            int_y = xp.sqrt(xp.pi) * r_0 / 2 * (erf(y_max_bound / r_0) - erf(y_min_bound / r_0))
-            y_matrix = xp.tile(int_y[xp.newaxis, :, xp.newaxis], [ind_max[0] - ind_min[0] + 1,
+            int_y = np.sqrt(np.pi) * r_0 / 2 * (erf(y_max_bound / r_0) - erf(y_min_bound / r_0))
+            y_matrix = np.tile(int_y[np.newaxis, :, np.newaxis], [ind_max[0] - ind_min[0] + 1,
                                                                   1,
                                                                   ind_max[2] - ind_min[2] + 1])
-            int_z = xp.sqrt(xp.pi) * r_0 / 2 * (erf(z_max_bound / r_0) - erf(z_min_bound / r_0))
-            z_matrix = xp.tile(int_z[xp.newaxis, xp.newaxis, :], [ind_max[0] - ind_min[0] + 1,
+            int_z = np.sqrt(np.pi) * r_0 / 2 * (erf(z_max_bound / r_0) - erf(z_min_bound / r_0))
+            z_matrix = np.tile(int_z[np.newaxis, np.newaxis, :], [ind_max[0] - ind_min[0] + 1,
                                                                   ind_max[1] - ind_min[1] + 1,
                                                                   1])
 
-            solvent[ind_min[0]:ind_max[0] + 1, ind_min[1]:ind_max[1] + 1, ind_min[2]:ind_max[2] + 1] += (x_matrix *
-                                                                                                         y_matrix *
-                                                                                                         z_matrix)
+            solvent[ind_min[0]:ind_max[0] + 1, ind_min[1]:ind_max[1] + 1, ind_min[2]:ind_max[2] + 1] += (
+                    x_matrix * y_matrix * z_matrix)
 
-    if solvent_exclusion == 'gaussian':
-        return potential, solvent
-    else:
-        return potential, None
+    print(f' --- process {mp.current_process().name} finished')
 
 
 def iasa_integration_parallel(filepath, voxel_size=1., oversampling=1, solvent_exclusion=None,
@@ -766,14 +789,16 @@ def iasa_integration_parallel(filepath, voxel_size=1., oversampling=1, solvent_e
 
     @author: Marten Chaillet
 
-    TODO function now takes string for solvent ex, and output complex volume instead of tuple, but this needs to be
-    TODO taken care of in all scripts that call this function.
+    TODO: This function could be way more elegant using multiprocessing.shared_memory.SharedMemory. However this
+    TODO: functionality is only available from python3.8 onwards.
     """
     from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution_fourier
-    from multiprocessing import Pool
-    from functools import partial
-    # from joblib import Parallel, delayed
+    from functools import partial, reduce
+    from contextlib import closing
+    import operator
+    import ctypes
+    import time
 
     assert (type(oversampling) is int) and (oversampling >= 1), print('oversampling parameter is not an integer')
 
@@ -792,49 +817,62 @@ def iasa_integration_parallel(filepath, voxel_size=1., oversampling=1, solvent_e
     # dV volume of a single voxel, needed for integration
     dV = voxel_size ** 3
     # conversion of electrostatic potential to correct units
-    C = 4 * xp.sqrt(xp.pi) * physics.constants['h'] ** 2 / (
+    C = 4 * np.sqrt(np.pi) * physics.constants['h'] ** 2 / (
             physics.constants['el'] * physics.constants['me']) * 1E20  # angstrom**2
 
     # make coordinates start from origin
-    x_max = xp.max(x_coordinates - xp.min(x_coordinates))
-    y_max = xp.max(y_coordinates - xp.min(y_coordinates))
-    z_max = xp.max(z_coordinates - xp.min(z_coordinates))
+    x_max = np.max(x_coordinates - np.min(x_coordinates))
+    y_max = np.max(y_coordinates - np.min(y_coordinates))
+    z_max = np.max(z_coordinates - np.min(z_coordinates))
     dimensions = [x_max, y_max, z_max]
     largest_dimension = max(dimensions)
 
     # give some extra space for atoms at the edges
-    x_coordinates = x_coordinates - xp.min(x_coordinates) + extra_space  # + difference[0] / 2
-    y_coordinates = y_coordinates - xp.min(y_coordinates) + extra_space  # + difference[1] / 2
-    z_coordinates = z_coordinates - xp.min(z_coordinates) + extra_space  # + difference[2] / 2
+    x_coordinates = x_coordinates - np.min(x_coordinates) + extra_space  # + difference[0] / 2
+    y_coordinates = y_coordinates - np.min(y_coordinates) + extra_space  # + difference[1] / 2
+    z_coordinates = z_coordinates - np.min(z_coordinates) + extra_space  # + difference[2] / 2
     # Define the volume of the protein
     sz_final = (int((largest_dimension + 2 * extra_space) / voxel_size),) * 3
     sz_initial = tuple([int((d + 2 * extra_space) / voxel_size) for d in dimensions])
     difference = tuple([f - i for f, i in zip(sz_final, sz_initial)])
 
-    # place data as a tuple to easily spread the calculations over the cores
-    data_long = [(x, y, z, e, b, o) for x, y, z, e, b, o in zip(x_coordinates, y_coordinates, z_coordinates,
-                                                           elements, b_factors, occupancies)]
-
     # split the data into fractions over the nodes
-    data_split = split_data(data_long, cores)  # adjust nodes in case n_atoms is smaller than n_cores
-    print(f'Number of atoms to go over is {len(x_coordinates)} spread over {len(data_split)} processes')
+    indices = split_data(len(x_coordinates), cores)  # adjust nodes in case n_atoms is smaller than n_cores
 
-    # assign data to processes
-    pool = Pool(len(data_split))
-    results = pool.map(partial(parallel_integrate, sz=sz_initial, solvent_exclusion=solvent_exclusion,
-                               voxel_size=voxel_size), data_split)
+    x_shared, y_shared, z_shared = mp.Array('d', x_coordinates, lock=False), \
+                                   mp.Array('d', y_coordinates, lock=False), \
+                                   mp.Array('d', z_coordinates, lock=False)
+    b_shared, o_shared = mp.Array('d', b_factors, lock=False), mp.Array('d', occupancies, lock=False)
+    e_shared = mp.Array(ctypes.c_wchar, elements, lock=False)
+    # element_to_id = {k: i for i, k in enumerate(physics.scattering_factors.keys())}
+    # e_shared = mp.Array('i', [element_to_id[e] for e in elements], lock=False)
 
-    if results.count(None) == 0:
-        print('All potential calculation processes finished successfully')
-    else:
-        print(f'{results.count(None)} potential processes did not finish successfully')
-        sys.exit(0)
+    print(f'Number of atoms to go over is {len(x_coordinates)} spread over {len(indices)} processes')
 
-    # sum the parts calculated by all the processes
-    print('Sum the volumes generated by the processes')
-    potential = sum([p for p, s in results])
-    if solvent_exclusion == 'gaussian':
-        solvent = sum([s for p, s in results])
+    start = time.time()
+
+    # create shared arrays
+    potential_shared = mp.Array(ctypes.c_float, reduce(operator.mul, sz_initial))
+    solvent_shared = mp.Array(ctypes.c_float, reduce(operator.mul, sz_initial))
+    # initialize them via numpy
+    dtype = np.float32
+    potential, solvent = tonumpyarray(potential_shared, sz_initial, dtype), \
+                                      tonumpyarray(solvent_shared, sz_initial, dtype)
+    potential[:], solvent[:] = np.zeros(sz_initial, dtype=dtype), \
+                                        np.zeros(sz_initial, dtype=dtype)
+
+    with closing(mp.Pool(len(indices), initializer=init, initargs=((x_shared, y_shared, z_shared,
+                                                                    e_shared, b_shared, o_shared),
+                                                                   potential_shared, solvent_shared))) as p:
+        p.map_async(partial(parallel_integrate,
+                                          size=sz_initial,
+                                          solvent_exclusion=solvent_exclusion,
+                                          voxel_size=voxel_size,
+                                          dtype=dtype), indices)
+    p.join()
+
+    end = time.time()
+    print(f'shared mp.Array elapsed {end - start}')
 
     # convert potential to correct units and correct for solvent exclusion
     if solvent_exclusion == 'gaussian':
@@ -845,9 +883,8 @@ def iasa_integration_parallel(filepath, voxel_size=1., oversampling=1, solvent_e
         # construct solvent mask
         # gaussian decay of mask
         if oversampling == 1:
-            smoothed_mask = reduce_resolution_fourier(solvent_mask, voxel_size, voxel_size * 2)
-            smoothed_mask[smoothed_mask < 0.001] = 0
-            solvent_mask = smoothed_mask
+            solvent_mask = reduce_resolution_fourier(solvent_mask, voxel_size, voxel_size * 2)
+            solvent_mask[solvent_mask < 0.001] = 0
         # subtract solvent from the protein electrostatic potential
         real = (potential / dV * C) - (solvent_mask * V_sol)
     else:
@@ -872,11 +909,11 @@ def iasa_integration_parallel(filepath, voxel_size=1., oversampling=1, solvent_e
                   'or masking.')
             sys.exit(0)
 
-        real = xp.pad(real, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
+        real = np.pad(real, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
                              (difference[1] // 2, difference[1] // 2 + difference[1] % 2),
                              (difference[2] // 2, difference[2] // 2 + difference[2] % 2)),
                       mode='constant', constant_values=0)
-        imaginary = xp.pad(imaginary, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
+        imaginary = np.pad(imaginary, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
                              (difference[1] // 2, difference[1] // 2 + difference[1] % 2),
                              (difference[2] // 2, difference[2] // 2 + difference[2] % 2)),
                            mode='constant', constant_values=0)
@@ -891,7 +928,7 @@ def iasa_integration_parallel(filepath, voxel_size=1., oversampling=1, solvent_e
         return real + 1j * imaginary
     else:
         # extend volume to a box
-        real = xp.pad(real, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
+        real = np.pad(real, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
                              (difference[1] // 2, difference[1] // 2 + difference[1] % 2),
                              (difference[2] // 2, difference[2] // 2 + difference[2] % 2)),
                       mode='constant', constant_values=0)
@@ -938,21 +975,17 @@ def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclus
     @rtype: L{tuple} -> (L{np.ndarray},) * 2 or L{np.ndarray}
 
     @author: Marten Chaillet
-
-    TODO function now takes string for solvent ex, and output complex volume instead of tuple, but this needs to be
-    TODO taken care of in all scripts that call this function.
-
-    TODO solvent exclusion through gaussian needs to be added for gpu
     """
+    import cupy as cp
     from pytom.agnostic.transform import resize
     from pytom.simulation.support import reduce_resolution_fourier
 
-    if (absorption_contrast) or (solvent_exclusion in ['gaussian', 'masking']) or (oversampling != 1):
-        print('abs contrast, gaussian/masking solvent_exclusion, and oversampling still need to be implement for gpu')
-        sys.exit(0)
+    # if (absorption_contrast) or (solvent_exclusion in ['gaussian', 'masking']) or (oversampling != 1):
+    #     print('abs contrast, gaussian/masking solvent_exclusion, and oversampling still need to be implement for gpu')
+    #     sys.exit(0)
 
     # cp set device ...
-    xp.cuda.Device(gpu_id).use()
+    cp.cuda.Device(gpu_id).use()
 
     assert (type(oversampling) is int) and (oversampling >= 1), print('oversampling parameter is not an integer')
 
@@ -971,49 +1004,96 @@ def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclus
     # dV volume of a single voxel, needed for integration
     dV = voxel_size ** 3
     # conversion of electrostatic potential to correct units
-    C = 4 * xp.sqrt(xp.pi) * physics.constants['h'] ** 2 / (
+    C = 4 * cp.sqrt(cp.pi) * physics.constants['h'] ** 2 / (
             physics.constants['el'] * physics.constants['me']) * 1E20  # angstrom**2
 
     # setup easier gpu indexing for scattering factors
-    scattering = xp.array([v["g"] for k, v in physics.scattering_factors.items()], dtype=xp.float32)
+    scattering = cp.array([v["g"] for k, v in physics.scattering_factors.items()], dtype=cp.float32)
     map_element_to_id = {k: i for i, k in enumerate(physics.scattering_factors.keys())}
 
-    # move to gpu
-    atoms = xp.ascontiguousarray(xp.array([x_coordinates, y_coordinates, z_coordinates]).T, dtype=xp.float32)
-    n_atoms = atoms.shape[0]
-    elements = xp.array([map_element_to_id[e] for e in elements], dtype=xp.uint8)
-    b_factors = xp.array(b_factors, dtype=xp.float32)
-    occupancies = xp.array(occupancies, dtype=xp.float32)
+    # setup gpu indexing for solvent displacement
+    displacement = cp.array([physics.volume_displaced[k] if k in physics.volume_displaced.keys()
+                            else physics.volume_displaced['C'] for k in map_element_to_id.keys()], dtype=cp.float32)
 
-    # make coordinates start from origin
-    x_max = xp.max(atoms[:, 0] - xp.min(atoms[:, 0]))
-    y_max = xp.max(atoms[:, 1] - xp.min(atoms[:, 1]))
-    z_max = xp.max(atoms[:, 2] - xp.min(atoms[:, 2]))
-    dimensions = (x_max, y_max, z_max)
+    # find dimensions
+    n_atoms = len(x_coordinates)
+    min_x, max_x, min_y, max_y, min_z, max_z = min(x_coordinates), max(x_coordinates), min(y_coordinates), \
+                                        max(y_coordinates), min(z_coordinates), max(z_coordinates)
+    x_size = max_x - min_x
+    y_size = max_y - min_y
+    z_size = max_z - min_z
+    dimensions = (x_size, y_size, z_size)
 
-    # give some extra space for atoms at the edges
-    atoms[:, 0] += (- xp.min(atoms[:, 0]) + extra_space)  # + difference[0] / 2
-    atoms[:, 1] += (- xp.min(atoms[:, 1]) + extra_space)  # + difference[1] / 2
-    atoms[:, 2] += (- xp.min(atoms[:, 2]) + extra_space)  # + difference[2] / 2
     # Define the volume of the protein
     sz_potential = tuple([int((d + 2 * extra_space) / voxel_size) for d in dimensions])
-    sz_potential_gpu = xp.array(sz_potential, dtype=xp.uint32)
+    sz_potential_gpu = cp.array(sz_potential, dtype=cp.uint32)
     sz_final = (max(sz_potential),) * 3
     difference = tuple([a - b for a, b in zip(sz_final, sz_potential)])
 
     # initiate the final volume
-    potential = xp.zeros(sz_potential, dtype=xp.float32)
+    potential = cp.zeros(sz_potential, dtype=cp.float32)
+    if solvent_exclusion == 'gaussian':
+        solvent = cp.zeros(sz_potential, dtype=cp.float32)
+    else:
+        solvent = cp.array([0], dtype=cp.float32)
+
+    # find the number of atoms that can be loaded to gpu each time
+    # get current space on gpu
+    free_space = cp.cuda.Device().mem_info[0]  # this value is in bytes
+    # space per atom
+    bytes_per_atom = 3 * 4 + 1 + 4 + 4  # 3 coordinate floats, element type uint, b_factor float, and occupancy float
+    atoms_per_iter = free_space // bytes_per_atom
+    niter = -(n_atoms // -atoms_per_iter)
 
     # print to user the number of atoms in system
     print(f'Number of atoms to go over is {n_atoms}')
 
     # create kernel
-    n_threads = 1024
-    n_blocks = int(xp.ceil(atoms.shape[0] / n_threads).get())
-    iasa_integrate = xp.RawKernel(iasa_integrate_text, 'iasa_integrate')
-    iasa_integrate((n_blocks, 1, 1,), (n_threads, 1, 1), (atoms, elements, b_factors, occupancies, potential,
-                                                          scattering, sz_potential_gpu, xp.float32(voxel_size),
-                                                          xp.uint32(n_atoms)))
+    iasa_integrate = cp.RawKernel(iasa_integrate_text, 'iasa_integrate')
+    mempool = cp.get_default_memory_pool()
+
+    # distribute the atoms in multiple runs if there are too many
+    for i in range(niter):
+        #TODO check that large systems are correctly split in batches
+        # set the subset index for this iteration
+        index = [i * atoms_per_iter, (i + 1) * atoms_per_iter if (i + 1) < niter else n_atoms]
+
+        # move the selected atoms to gpu!
+        atoms = cp.ascontiguousarray(cp.array([x_coordinates[index[0]:index[1]],
+                                               y_coordinates[index[0]:index[1]],
+                                               z_coordinates[index[0]:index[1]]]).T,
+                                     dtype=cp.float32)
+        n_atoms_iter = atoms.shape[0]
+        elements = cp.array([map_element_to_id[e] for e in elements[index[0]:index[1]]], dtype=cp.uint8)
+        b_factors = cp.array(b_factors[index[0]:index[1]], dtype=cp.float32)
+        occupancies = cp.array(occupancies[index[0]:index[1]], dtype=cp.float32)
+
+        print(f'{n_atoms_iter} on iter {i} ---- using index {index}')
+
+        # give some extra space for atoms at the edges
+        atoms[:, 0] += (- min_x + extra_space)  # + difference[0] / 2
+        atoms[:, 1] += (- min_y + extra_space)  # + difference[1] / 2
+        atoms[:, 2] += (- min_z + extra_space)  # + difference[2] / 2
+
+        # threads and blocks
+        n_threads = 1024
+        n_blocks = int(cp.ceil(n_atoms_iter / n_threads).get())
+
+        # call gpu integration either with or without gaussian solvent exclusion
+        if solvent_exclusion == 'gaussian':
+            iasa_integrate((n_blocks, 1, 1,), (n_threads, 1, 1), (atoms, elements, b_factors, occupancies, potential,
+                                                                  solvent, scattering, sz_potential_gpu, displacement,
+                                                                  cp.float32(voxel_size), cp.uint32(n_atoms_iter),
+                                                                  cp.uint8(1)))
+            # last argument is a Boolean for using solvent exclusion
+        else:
+            iasa_integrate((n_blocks, 1, 1,), (n_threads, 1, 1), (atoms, elements, b_factors, occupancies, potential,
+                                                                  solvent, scattering, sz_potential_gpu, displacement,
+                                                                  cp.float32(voxel_size), cp.uint32(n_atoms_iter),
+                                                                  cp.uint8(0)))
+
+        del atoms, elements, b_factors, occupancies
+        mempool.free_all_blocks()
 
     # convert potential to correct units and correct for solvent exclusion
     if solvent_exclusion == 'gaussian':
@@ -1024,9 +1104,8 @@ def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclus
         # construct solvent mask
         # gaussian decay of mask
         if oversampling == 1:
-            smoothed_mask = reduce_resolution_fourier(solvent_mask, voxel_size, voxel_size * 2)
-            smoothed_mask[smoothed_mask < 0.001] = 0
-            solvent_mask = smoothed_mask
+            solvent_mask = reduce_resolution_fourier(solvent_mask, voxel_size, voxel_size * 2)
+            solvent_mask[solvent_mask < 0.001] = 0
         # subtract solvent from the protein electrostatic potential
         real = (potential * (C / dV)) - (solvent_mask * V_sol)
     else:
@@ -1051,26 +1130,25 @@ def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclus
                   'or masking.')
             sys.exit(0)
 
-        real = xp.pad(real, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
+        real = cp.pad(real, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
                              (difference[1] // 2, difference[1] // 2 + difference[1] % 2),
                              (difference[2] // 2, difference[2] // 2 + difference[2] % 2)),
                       mode='constant', constant_values=0)
-        imaginary = xp.pad(imaginary, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
+        imaginary = cp.pad(imaginary, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
                              (difference[1] // 2, difference[1] // 2 + difference[1] % 2),
                              (difference[2] // 2, difference[2] // 2 + difference[2] % 2)),
                            mode='constant', constant_values=0)
 
         if oversampling > 1:
             print('Rescaling after oversampling')
-            real = reduce_resolution_fourier(real, voxel_size, voxel_size * 2 * oversampling)
-            # TODO Bug with resizing!!
-            real = resize(real, 1 / oversampling, interpolation='Spline')
+            real = resize(reduce_resolution_fourier(real, voxel_size, voxel_size * 2 * oversampling),
+                          1 / oversampling, interpolation='Spline')
             imaginary = resize(reduce_resolution_fourier(imaginary, voxel_size, voxel_size * 2 * oversampling),
                                1 / oversampling, interpolation='Spline')
         return real + 1j * imaginary
     else:
         # extend volume to a box
-        real = xp.pad(real, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
+        real = cp.pad(real, ((difference[0] // 2, difference[0] // 2 + difference[0] % 2),
                              (difference[1] // 2, difference[1] // 2 + difference[1] % 2),
                              (difference[2] // 2, difference[2] // 2 + difference[2] % 2)),
                       mode='constant', constant_values=0)
@@ -1081,7 +1159,7 @@ def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclus
         return real
 
 
-# TODO possibly use jit from numba to speed up this function
+# @jit(nopython=True) should use this? too many other function calls probably
 def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=None,
                      V_sol=physics.V_WATER, absorption_contrast=False, voltage=300E3, density=physics.PROTEIN_DENSITY,
                      molecular_weight=physics.PROTEIN_MW, structure_tuple=None):
@@ -1136,81 +1214,81 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
     else:
         x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = structure_tuple
 
-    x_max = xp.max(x_coordinates - xp.min(x_coordinates))
-    y_max = xp.max(y_coordinates - xp.min(y_coordinates))
-    z_max = xp.max(z_coordinates - xp.min(z_coordinates))
+    x_max = np.max(x_coordinates - np.min(x_coordinates))
+    y_max = np.max(y_coordinates - np.min(y_coordinates))
+    z_max = np.max(z_coordinates - np.min(z_coordinates))
     dimensions = [x_max, y_max, z_max]
     largest_dimension = max(dimensions)
     difference = [largest_dimension - a for a in dimensions]
 
-    x_coordinates = x_coordinates - xp.min(x_coordinates) + extra_space + difference[0]/2
-    y_coordinates = y_coordinates - xp.min(y_coordinates) + extra_space + difference[1]/2
-    z_coordinates = z_coordinates - xp.min(z_coordinates) + extra_space + difference[2]/2
+    x_coordinates = x_coordinates - np.min(x_coordinates) + extra_space + difference[0]/2
+    y_coordinates = y_coordinates - np.min(y_coordinates) + extra_space + difference[1]/2
+    z_coordinates = z_coordinates - np.min(z_coordinates) + extra_space + difference[2]/2
     # Define the volume of the protein
     sz = (int((largest_dimension + 2 * extra_space) / voxel_size), ) * 3
 
-    potential = xp.zeros(sz)
+    potential = np.zeros(sz)
     if solvent_exclusion:
-        solvent = xp.zeros(sz)
+        solvent = np.zeros(sz)
 
     print(f'Number of atoms to go over is {len(x_coordinates)}')
 
     for i in range(len(elements)):
-        if xp.mod(i, 5000) == 0:
+        if np.mod(i, 5000) == 0:
             print(f'Calculating atom {i}.')
 
         atom = elements[i].upper()
         b_factor = b_factors[i]
         occupancy = occupancies[i]
 
-        sf = xp.array(physics.scattering_factors[atom]['g'])
+        sf = np.array(physics.scattering_factors[atom]['g'])
         a = sf[0:5]
         b = sf[5:10]
 
         # b += (b_factor) # units in A
 
         if atom in list(physics.volume_displaced):
-            r_0 = xp.cbrt(physics.volume_displaced[atom] / (xp.pi ** (3 / 2)))
+            r_0 = np.cbrt(physics.volume_displaced[atom] / (np.pi ** (3 / 2)))
         else:  # If not H,C,O,N we assume the same volume displacement as for carbon
-            r_0 = xp.cbrt(physics.volume_displaced['C'] / (xp.pi ** (3 / 2)))
+            r_0 = np.cbrt(physics.volume_displaced['C'] / (np.pi ** (3 / 2)))
 
-        r2 = 15 / (1 / r_0 ** 2)
+        r2 = 0  # this was 15 / (1 / r_0 ** 2) before but this gives very high values for carbon
         for j in range(5):
             # Find the max radius over all gaussians (assuming symmetrical potential to 4.5 sigma truncation
             # (corresponds to 10).
-            r2 = xp.maximum(r2, 15 / (4 * xp.pi ** 2 / b[j]))
+            r2 = np.maximum(r2, 15 / (4 * np.pi ** 2 / b[j]))
         # Radius of gaussian sphere
-        r = xp.sqrt(r2 / 3)
+        r = np.sqrt(r2 / 3)
 
         rc = [x_coordinates[i], y_coordinates[i], z_coordinates[i]]  # atom center
         ind_min = [int((c - r) // voxel_size) for c in rc]  # Smallest index to contain relevant potential x,y,z
         ind_max = [int((c + r) // voxel_size) for c in rc]  # Largest index to contain relevant potential x,y,z
         # Explicit real space coordinates for the max and min boundary of each voxel
-        x_min_bound = xp.arange(ind_min[0], ind_max[0] + 1, 1) * voxel_size - rc[0]
-        x_max_bound = xp.arange(ind_min[0] + 1, ind_max[0] + 2, 1) * voxel_size - rc[0]
-        y_min_bound = xp.arange(ind_min[1], ind_max[1] + 1, 1) * voxel_size - rc[1]
-        y_max_bound = xp.arange(ind_min[1] + 1, ind_max[1] + 2, 1) * voxel_size - rc[1]
-        z_min_bound = xp.arange(ind_min[2], ind_max[2] + 1, 1) * voxel_size - rc[2]
-        z_max_bound = xp.arange(ind_min[2] + 1, ind_max[2] + 2, 1) * voxel_size - rc[2]
+        x_min_bound = np.arange(ind_min[0], ind_max[0] + 1, 1) * voxel_size - rc[0]
+        x_max_bound = np.arange(ind_min[0] + 1, ind_max[0] + 2, 1) * voxel_size - rc[0]
+        y_min_bound = np.arange(ind_min[1], ind_max[1] + 1, 1) * voxel_size - rc[1]
+        y_max_bound = np.arange(ind_min[1] + 1, ind_max[1] + 2, 1) * voxel_size - rc[1]
+        z_min_bound = np.arange(ind_min[2], ind_max[2] + 1, 1) * voxel_size - rc[2]
+        z_max_bound = np.arange(ind_min[2] + 1, ind_max[2] + 2, 1) * voxel_size - rc[2]
 
         atom_potential = 0
 
         for j in range(5):
-            sqrt_b = xp.sqrt(b[j])  # calculate only once
+            sqrt_b = np.sqrt(b[j])  # calculate only once
             # Difference of error function == integrate over Gaussian
-            int_x = sqrt_b / (4 * xp.sqrt(xp.pi)) * (erf(x_max_bound * 2 * xp.pi / sqrt_b) -
-                                                     erf(x_min_bound * 2 * xp.pi / sqrt_b))
-            x_matrix = xp.tile(int_x[:, xp.newaxis, xp.newaxis], [1,
+            int_x = sqrt_b / (4 * np.sqrt(np.pi)) * (erf(x_max_bound * 2 * np.pi / sqrt_b) -
+                                                     erf(x_min_bound * 2 * np.pi / sqrt_b))
+            x_matrix = np.tile(int_x[:, np.newaxis, np.newaxis], [1,
                                                                   ind_max[1] - ind_min[1] + 1,
                                                                   ind_max[2] - ind_min[2] + 1])
-            int_y = sqrt_b / (4 * xp.sqrt(xp.pi)) * (erf(y_max_bound * 2 * xp.pi / sqrt_b) -
-                                                     erf(y_min_bound * 2 * xp.pi / sqrt_b))
-            y_matrix = xp.tile(int_y[xp.newaxis, :, xp.newaxis], [ind_max[0] - ind_min[0] + 1,
+            int_y = sqrt_b / (4 * np.sqrt(np.pi)) * (erf(y_max_bound * 2 * np.pi / sqrt_b) -
+                                                     erf(y_min_bound * 2 * np.pi / sqrt_b))
+            y_matrix = np.tile(int_y[np.newaxis, :, np.newaxis], [ind_max[0] - ind_min[0] + 1,
                                                                   1,
                                                                   ind_max[2] - ind_min[2] + 1])
-            int_z = sqrt_b / (4 * xp.sqrt(xp.pi)) * (erf(z_max_bound * 2 * xp.pi / sqrt_b) -
-                                                     erf(z_min_bound * 2 * xp.pi / sqrt_b))
-            z_matrix = xp.tile(int_z[xp.newaxis, xp.newaxis, :], [ind_max[0] - ind_min[0] + 1,
+            int_z = sqrt_b / (4 * np.sqrt(np.pi)) * (erf(z_max_bound * 2 * np.pi / sqrt_b) -
+                                                     erf(z_min_bound * 2 * np.pi / sqrt_b))
+            z_matrix = np.tile(int_z[np.newaxis, np.newaxis, :], [ind_max[0] - ind_min[0] + 1,
                                                                   ind_max[1] - ind_min[1] + 1,
                                                                   1])
 
@@ -1221,16 +1299,16 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
 
         if solvent_exclusion == 'gaussian':
             # excluded solvent potential
-            int_x = xp.sqrt(xp.pi) * r_0 / 2 * (erf(x_max_bound / r_0) - erf(x_min_bound / r_0))
-            x_matrix = xp.tile(int_x[:, xp.newaxis, xp.newaxis], [1,
+            int_x = np.sqrt(np.pi) * r_0 / 2 * (erf(x_max_bound / r_0) - erf(x_min_bound / r_0))
+            x_matrix = np.tile(int_x[:, np.newaxis, np.newaxis], [1,
                                                                   ind_max[1] - ind_min[1] + 1,
                                                                   ind_max[2] - ind_min[2] + 1])
-            int_y = xp.sqrt(xp.pi) * r_0 / 2 * (erf(y_max_bound / r_0) - erf(y_min_bound / r_0))
-            y_matrix = xp.tile(int_y[xp.newaxis, :, xp.newaxis], [ind_max[0] - ind_min[0] + 1,
+            int_y = np.sqrt(np.pi) * r_0 / 2 * (erf(y_max_bound / r_0) - erf(y_min_bound / r_0))
+            y_matrix = np.tile(int_y[np.newaxis, :, np.newaxis], [ind_max[0] - ind_min[0] + 1,
                                                                   1,
                                                                   ind_max[2] - ind_min[2] + 1])
-            int_z = xp.sqrt(xp.pi) * r_0 / 2 * (erf(z_max_bound / r_0) - erf(z_min_bound / r_0))
-            z_matrix = xp.tile(int_z[xp.newaxis, xp.newaxis, :], [ind_max[0] - ind_min[0] + 1,
+            int_z = np.sqrt(np.pi) * r_0 / 2 * (erf(z_max_bound / r_0) - erf(z_min_bound / r_0))
+            z_matrix = np.tile(int_z[np.newaxis, np.newaxis, :], [ind_max[0] - ind_min[0] + 1,
                                                                   ind_max[1] - ind_min[1] + 1,
                                                                   1])
 
@@ -1241,7 +1319,7 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
     # Voxel volume
     dV = voxel_size ** 3
     # Convert to correct units
-    C = 4 * xp.sqrt(xp.pi) * physics.constants['h'] ** 2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # angstrom**2
+    C = 4 * np.sqrt(np.pi) * physics.constants['h'] ** 2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # angstrom**2
 
     if solvent_exclusion == 'gaussian':
         # Correct for solvent and convert both the solvent and potential array to the correct units.
@@ -1251,9 +1329,8 @@ def iasa_integration(filepath, voxel_size=1., oversampling=1, solvent_exclusion=
         # construct solvent mask
         # gaussian decay of mask
         if oversampling == 1:
-            smoothed_mask = reduce_resolution_fourier(solvent_mask, voxel_size, voxel_size * 2)
-            smoothed_mask[smoothed_mask < 0.001] = 0
-            solvent_mask = smoothed_mask
+            solvent_mask = reduce_resolution_fourier(solvent_mask, voxel_size, voxel_size * 2)
+            solvent_mask[solvent_mask < 0.001] = 0
         # fig, (ax1, ax2) = plt.subplots(1, 2)
         # slice = int(solvent_mask.shape[2] // 2)
         # ax1.imshow(potential[:, :, slice])
@@ -1326,31 +1403,31 @@ def iasa_rough(filepath, voxel_size=10, oversampling=1, solvent_exclusion=False,
 
     x_coordinates, y_coordinates, z_coordinates, elements, _, _ = read_structure(filepath)
 
-    x_max = xp.max(x_coordinates - xp.min(x_coordinates))
-    y_max = xp.max(y_coordinates - xp.min(y_coordinates))
-    z_max = xp.max(z_coordinates - xp.min(z_coordinates))
+    x_max = np.max(x_coordinates - np.min(x_coordinates))
+    y_max = np.max(y_coordinates - np.min(y_coordinates))
+    z_max = np.max(z_coordinates - np.min(z_coordinates))
     dimensions = [x_max, y_max, z_max]
     largest_dimension = max(dimensions)
     difference = [largest_dimension - a for a in dimensions]
 
-    x_coordinates = x_coordinates - xp.min(x_coordinates) + extra_space + difference[0]/2
-    y_coordinates = y_coordinates - xp.min(y_coordinates) + extra_space + difference[1]/2
-    z_coordinates = z_coordinates - xp.min(z_coordinates) + extra_space + difference[2]/2
+    x_coordinates = x_coordinates - np.min(x_coordinates) + extra_space + difference[0]/2
+    y_coordinates = y_coordinates - np.min(y_coordinates) + extra_space + difference[1]/2
+    z_coordinates = z_coordinates - np.min(z_coordinates) + extra_space + difference[2]/2
     # Define the volume of the protein
-    szx = xp.abs(xp.max(x_coordinates) - xp.min(x_coordinates)) + 2 * extra_space + difference[0]
-    szy = xp.abs(xp.max(y_coordinates) - xp.min(y_coordinates)) + 2 * extra_space + difference[1]
-    szz = xp.abs(xp.max(z_coordinates) - xp.min(z_coordinates)) + 2 * extra_space + difference[2]
-    sz = xp.round(xp.array([szx, szy, szz]) / voxel_size).astype(int)
+    szx = np.abs(np.max(x_coordinates) - np.min(x_coordinates)) + 2 * extra_space + difference[0]
+    szy = np.abs(np.max(y_coordinates) - np.min(y_coordinates)) + 2 * extra_space + difference[1]
+    szz = np.abs(np.max(z_coordinates) - np.min(z_coordinates)) + 2 * extra_space + difference[2]
+    sz = np.round(np.array([szx, szy, szz]) / voxel_size).astype(int)
 
-    potential = xp.zeros(sz)
+    potential = np.zeros(sz)
 
-    C = 2 * xp.pi * physics.constants['h_bar'] ** 2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # angstrom**2
+    C = 2 * np.pi * physics.constants['h_bar'] ** 2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # angstrom**2
     dV = voxel_size ** 3
 
     print(f'Number of atoms to go over is {len(x_coordinates)}.')
 
     for i in range(len(elements)):
-        if xp.mod(i, 5000) == 0:
+        if np.mod(i, 5000) == 0:
             print(f'Potential for atom number {i}.')
 
         atom = elements[i].upper()
@@ -1358,7 +1435,7 @@ def iasa_rough(filepath, voxel_size=10, oversampling=1, solvent_exclusion=False,
         rc = [x_coordinates[i], y_coordinates[i], z_coordinates[i]]  # atom center
         ind = tuple([int((c) // (voxel_size/oversampling)) for c in rc])  # Indexes to contain the potential
 
-        potential[ind] += (xp.array(physics.scattering_factors[atom]['g'])[0:5].sum() * C / dV)
+        potential[ind] += (np.array(physics.scattering_factors[atom]['g'])[0:5].sum() * C / dV)
 
         if solvent_exclusion:
             if atom in list(physics.volume_displaced):
@@ -1407,40 +1484,40 @@ def iasa_potential(filepath, voxel_size=1., oversampling=1): # add params voxel_
 
     x_coordinates, y_coordinates, z_coordinates, elements, b_factors, occupancies = read_structure(filepath)
 
-    x_max = xp.max(x_coordinates - xp.min(x_coordinates))
-    y_max = xp.max(y_coordinates - xp.min(y_coordinates))
-    z_max = xp.max(z_coordinates - xp.min(z_coordinates))
+    x_max = np.max(x_coordinates - np.min(x_coordinates))
+    y_max = np.max(y_coordinates - np.min(y_coordinates))
+    z_max = np.max(z_coordinates - np.min(z_coordinates))
     dimensions = [x_max, y_max, z_max]
     largest_dimension = max(dimensions)
     difference = [largest_dimension - a for a in dimensions]
 
-    x_coordinates = x_coordinates - xp.min(x_coordinates) + extra_space + difference[0] / 2
-    y_coordinates = y_coordinates - xp.min(y_coordinates) + extra_space + difference[1] / 2
-    z_coordinates = z_coordinates - xp.min(z_coordinates) + extra_space + difference[2] / 2
+    x_coordinates = x_coordinates - np.min(x_coordinates) + extra_space + difference[0] / 2
+    y_coordinates = y_coordinates - np.min(y_coordinates) + extra_space + difference[1] / 2
+    z_coordinates = z_coordinates - np.min(z_coordinates) + extra_space + difference[2] / 2
     # Define the volume of the protein
-    szx = xp.abs(xp.max(x_coordinates) - xp.min(x_coordinates)) + 2 * extra_space + difference[0]
-    szy = xp.abs(xp.max(y_coordinates) - xp.min(y_coordinates)) + 2 * extra_space + difference[1]
-    szz = xp.abs(xp.max(z_coordinates) - xp.min(z_coordinates)) + 2 * extra_space + difference[2]
+    szx = np.abs(np.max(x_coordinates) - np.min(x_coordinates)) + 2 * extra_space + difference[0]
+    szy = np.abs(np.max(y_coordinates) - np.min(y_coordinates)) + 2 * extra_space + difference[1]
+    szz = np.abs(np.max(z_coordinates) - np.min(z_coordinates)) + 2 * extra_space + difference[2]
 
-    sz = xp.round(xp.array([szx, szy, szz]) / voxel_size).astype(int)
+    sz = np.round(np.array([szx, szy, szz]) / voxel_size).astype(int)
 
-    potential = xp.zeros(sz)
+    potential = np.zeros(sz)
 
     # C = 2132.8 A^2 * V; 1E20 is a conversion factor for Angstrom^2,
     # h and not h_bar, which is why we multiply with 4 * sqrt(pi) instead of 16*pi^(5/2)
-    C = 4 * xp.sqrt(xp.pi) * physics.constants['h']**2 / (physics.constants['el'] * physics.constants['me']) * 1E20
+    C = 4 * np.sqrt(np.pi) * physics.constants['h']**2 / (physics.constants['el'] * physics.constants['me']) * 1E20
 
     print(f'#atoms to go over is {len(x_coordinates)}.')
 
     for i in range(len(elements)):
-        if xp.mod(i, 5000) == 0:
+        if np.mod(i, 5000) == 0:
             print(f'Potential for atom number {i}.')
 
         atom = elements[i].upper()
         b_factor = b_factors[i]
         occupancy = occupancies[i]
 
-        sf = xp.array(physics.scattering_factors[atom]['g'])
+        sf = np.array(physics.scattering_factors[atom]['g'])
         a = sf[0:5]
         b = sf[5:10]
 
@@ -1449,31 +1526,31 @@ def iasa_potential(filepath, voxel_size=1., oversampling=1): # add params voxel_
         b += (b_factor) # + 16 * spacing**2)
 
         r2 = 0
-        b1 = xp.zeros(5)
+        b1 = np.zeros(5)
         for j in range(5):
             # Find the max radius over all gaussians (assuming symmetrical potential to 4.5 sigma truncation
             # (corresponds to 10).
-            b1[j] = 4 * xp.pi ** 2 / b[j] * voxel_size ** 2
-            r2 = xp.maximum(r2, 10/b1[j])
+            b1[j] = 4 * np.pi ** 2 / b[j] * voxel_size ** 2
+            r2 = np.maximum(r2, 10/b1[j])
         # Radius of gaussian sphere
-        r = xp.sqrt(r2 / 3)
+        r = np.sqrt(r2 / 3)
         xc1, yc1, zc1 = x_coordinates[i] / voxel_size, y_coordinates[i] / voxel_size, z_coordinates[i] / voxel_size
         # Center of the gaussian sphere.
         rc = [xc1, yc1, zc1]
         # Calculate the absolute indexes for the potential matrix.
-        kmin = [xp.maximum(0,x).astype(int) for x in xp.ceil(rc-r)]
-        kmax = [xp.minimum(xp.floor(x)-1,xp.floor(y+r)).astype(int) for x,y in zip(sz,rc)]
+        kmin = [np.maximum(0,x).astype(int) for x in np.ceil(rc-r)]
+        kmax = [np.minimum(np.floor(x)-1,np.floor(y+r)).astype(int) for x,y in zip(sz,rc)]
         kmm = max([x-y for x,y in zip(kmax,kmin)])
         # Determine the coordinates for sampling from the sum of Gaussians.
-        x = xc1 - xp.arange(kmin[0], kmin[0]+kmm+1, 1)
-        y = yc1 - xp.arange(kmin[1], kmin[1]+kmm+1, 1)
-        z = zc1 - xp.arange(kmin[2], kmin[2]+kmm+1, 1)
+        x = xc1 - np.arange(kmin[0], kmin[0]+kmm+1, 1)
+        y = yc1 - np.arange(kmin[1], kmin[1]+kmm+1, 1)
+        z = zc1 - np.arange(kmin[2], kmin[2]+kmm+1, 1)
 
         atom_potential = 0
         for j in range(5):
-            x_matrix = xp.tile(xp.exp(-b1[j] * x**2)[:,xp.newaxis,xp.newaxis], [1, kmm+1, kmm+1])
-            y_matrix = xp.tile(xp.exp(-b1[j] * y**2)[xp.newaxis,:,xp.newaxis], [kmm+1, 1, kmm+1])
-            z_matrix = xp.tile(xp.exp(-b1[j] * z**2)[xp.newaxis,xp.newaxis,:], [kmm+1, kmm+1, 1])
+            x_matrix = np.tile(np.exp(-b1[j] * x**2)[:,np.newaxis,np.newaxis], [1, kmm+1, kmm+1])
+            y_matrix = np.tile(np.exp(-b1[j] * y**2)[np.newaxis,:,np.newaxis], [kmm+1, 1, kmm+1])
+            z_matrix = np.tile(np.exp(-b1[j] * z**2)[np.newaxis,np.newaxis,:], [kmm+1, kmm+1, 1])
             tmp = a[j] / b[j]**(3/2) * C * x_matrix * y_matrix * z_matrix
             atom_potential += tmp
         atom_potential *= occupancy
@@ -1531,9 +1608,9 @@ def parse_apbs_output(filepath):
         raise Exception('Could not open APBS data file.')
 
     # Reshape to sequence
-    data = xp.array(data,dtype=float)
+    data = np.array(data,dtype=float)
     # Form to 3D grid
-    data = xp.reshape(data,(grid[2],grid[1],grid[0]),order='F').transpose(2,1,0) # x, y, z needs to be done as such to correspond to iasa
+    data = np.reshape(data,(grid[2],grid[1],grid[0]),order='F').transpose(2,1,0) # x, y, z needs to be done as such to correspond to iasa
     dx = spacing[0]
     dy = spacing[1]
     dz = spacing[2]
@@ -1674,10 +1751,10 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=1, solv
     _, file = os.path.split(filepath)
     pdb_id, _ = os.path.splitext(file)
 
-    output_folder = os.path.join(output_folder, pdb_id)
-    if not os.path.exists(output_folder):
-        print(f'Making folder {output_folder}...')
-        os.mkdir(output_folder)
+    # output_folder = os.path.join(output_folder, pdb_id)
+    # if not os.path.exists(output_folder):
+    #     print(f'Making folder {output_folder}...')
+    #     os.mkdir(output_folder)
 
     # Call external programs for structure preparation and PB-solver
     # call_apbs(folder, structure, ph=ph)
@@ -1703,9 +1780,8 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=1, solv
                                   V_sol=solvent_potential * solvent_factor, absorption_contrast= absorption_contrast,
                                   voltage=voltage, cores=cores)
 
-
     # Absorption contrast map generated here will look blocky when generated at 2.5A and above!
-    if v_atom.dtype == complex:
+    if np.iscomplexobj(v_atom):
         output_name = f'{pdb_id}_{voxel_size:.2f}A_solvent-{solvent_potential*solvent_factor:.3f}V'
         print(f'writing real and imaginary part with name {output_name}')
         write(os.path.join(output_folder, f'{output_name}_real.mrc'), v_atom.real)
@@ -1722,7 +1798,7 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=1, solv
         # v_atom_binned = iasa_integration(f'{output_folder}/{structure}.pdb', voxel_size=voxel_size*binning,
         #                       solvent_exclusion=exclude_solvent, V_sol=solvent_potential)
         # first filter the volume!
-        if v_atom.dtype == complex:
+        if np.iscomplexobj(v_atom):
             print(' - Binning volume')
             filtered = [reduce_resolution_fourier(v_atom.real, voxel_size, voxel_size * 2 * binning),
                         reduce_resolution_fourier(v_atom.imag, voxel_size, voxel_size * 2 * binning)]
@@ -1750,7 +1826,6 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=1, solv
 if __name__ == '__main__':
     # IN ORDER TO FUNCTION, SCRIPT REQUIRES INSTALLATION OF PYTOM (and dependencies), CHIMERA, PDB2PQR (modified), APBS
 
-    import sys
     from pytom.tools.script_helper import ScriptHelper2, ScriptOption2
     from pytom.tools.parse_script_options import parse_script_options2
 

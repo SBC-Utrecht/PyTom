@@ -1,6 +1,6 @@
 import time
 import numpy as np
-import numpy as cp
+# import numpy as cp  # WHY??
 
 from scipy.ndimage import affine_transform
 from typing import Union, Tuple
@@ -128,6 +128,7 @@ def affine(volume: np.ndarray,
     if len(volume.shape) == 2 or volume.shape[2] == 1:
         if device == 'cpu':
             import numpy as cp
+            # why import as cp?
         else:
             import cupy as cp
 
@@ -135,6 +136,9 @@ def affine(volume: np.ndarray,
 
         if device == 'cpu':
             from pytom.agnostic.interpolation import fill_values_real_spline
+
+            # volume = np.atleast_3d(volume)  # place here?
+
             P = cp.array(transform_m.flatten(),dtype=cp.float32)
             dst = output if not output is None else cp.zeros_like(volume,dtype=cp.float32)
             dim_src = cp.array([volume.shape[0], volume.shape[1], volume.shape[2]], dtype=cp.int32)
@@ -144,10 +148,11 @@ def affine(volume: np.ndarray,
 
             return dst
 
-
         else:
             from pytom.gpu.kernels import transformSpline_txt
             transformSpline = cp.RawKernel(transformSpline_txt, 'transformSpline')
+
+            # volume = cp.atleast_3d(volume)  # place here?
 
             num_threads, defaultval = 512, 0
             num_blocks = volume.size//num_threads + 1
@@ -155,7 +160,7 @@ def affine(volume: np.ndarray,
 
             P = cp.array(transform_m.flatten(),dtype=cp.float32)
 
-            dst = output if not output is None else cp.zeros_like(volume,dtype=cp.float32)
+            dst = output if not output is None else cp.zeros_like(volume, dtype=cp.float32)
             dim_src = cp.array([volume.shape[0], volume.shape[1],volume.shape[2]], dtype=cp.int32)
             dim_dst = cp.array([dst.shape[0], dst.shape[1], dst.shape[2]], dtype=cp.int32)
 
@@ -197,13 +202,16 @@ def affine(volume: np.ndarray,
             return output_vol
 
     elif device.startswith('gpu'):
+
+        import cupy as cp
+
         switch_to_device(device)
 
         if profile:
             stream = cp.cuda.Stream.null
             t_start = stream.record()
 
-        volume = cp.asarray(volume).copy()
+        volume = cp.asarray(volume, dtype=cp.float32).copy()
         volume_shape = volume.shape
 
         # texture setup
@@ -220,9 +228,7 @@ def affine(volume: np.ndarray,
         # prefilter if required and upload to texture
         if interpolation.startswith('filt_bspline'):
             volume = _bspline_prefilter(volume)
-            arr.copy_from(volume)
-        else:
-            arr.copy_from(volume)
+        arr.copy_from(volume)
 
         # kernel setup
         kernel = _get_transform_kernel(interpolation)

@@ -1,12 +1,12 @@
 
-import numpy as xp
+from pytom.gpu.initialize import xp, device
 import pytom.simulation.physics as physics
 
 
 def generate_template(structure_file_path, spacing, binning=1, modify_structure=False, solvent_correction=None,
                       solvent_density=physics.AMORPHOUS_ICE_DENSITY, apply_ctf_correction=False, defocus=3E-6,
                       amplitude_contrast=0.07, voltage=300E3, Cs=2.7E-3, ctf_decay=0.4, display_ctf=False,
-                      resolution=30, box_size=None, output_folder='', cores=1):
+                      resolution=30, box_size=None, output_folder='', cores=1, gpu_id=None):
     """
 
     Generating a template for template matching in a set of tomograms. Spacing provided should correspond to original
@@ -63,10 +63,11 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
     @author: Marten Chaillet
     """
     from pytom.simulation.microscope import create_ctf, display_microscope_function
-    from pytom.agnostic.transform import resize, fourier_filter
+    from pytom.agnostic.transform import resize
+    from pytom.agnostic.filter import applyFourierFilterFull
     from pytom.agnostic.tools import paste_in_center
     from pytom.simulation.support import create_gaussian_low_pass
-    from pytom.simulation.potential import iasa_integration_parallel, call_chimera
+    from pytom.simulation.potential import iasa_integration_parallel, iasa_integration_gpu, call_chimera
 
     assert binning >= 1, 'binning factor smaller than 1 is invalid'
     if solvent_correction is not None:
@@ -85,9 +86,15 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
 
     # generate electrostatic_potential
     # iasa_generation returns a list of the real (and imaginary) part
-    template = iasa_integration_parallel(structure_file_path, voxel_size=spacing,
-                                     solvent_exclusion=solvent_correction,
-                                 V_sol = physics.V_WATER * (solvent_density/physics.AMORPHOUS_ICE_DENSITY), cores=cores)
+    if gpu_id is not None:
+        template = iasa_integration_gpu(structure_file_path, voxel_size=spacing,
+                                             solvent_exclusion=solvent_correction,
+                                             V_sol=physics.V_WATER * (solvent_density / physics.AMORPHOUS_ICE_DENSITY),
+                                             gpu_id=gpu_id)
+    else:
+        template = iasa_integration_parallel(structure_file_path, voxel_size=spacing,
+                                         solvent_exclusion=solvent_correction,
+                                     V_sol=physics.V_WATER * (solvent_density/physics.AMORPHOUS_ICE_DENSITY), cores=cores)
 
     # extend volume to the desired input size before applying convolutions!
     if box_size is not None:
@@ -96,14 +103,14 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
             template    = paste_in_center(template, new_box)
         elif box_size < template.shape[0]//binning:
             print(f'Box size from electrostatic potential generation is {template.shape[0]//binning} px, which is larger than '
-                  f'the requested box size of {box_size} px. We will not reduce the box size because parts of the '
+                  f'the requested box size of {box_size} px. We will not reduce the box size because pacrts of the '
                   f'molecule might be cut.')
 
     # create ctf function and low pass gaussian if desired
     # for ctf the spacing of pixels/voxels needs to be in meters (not angstrom)
     ctf = create_ctf(template.shape, spacing*1E-10, defocus, amplitude_contrast, voltage, Cs,
                      sigma_decay=ctf_decay) if apply_ctf_correction else 1
-    lpf = create_gaussian_low_pass(template.shape, (template.shape[0]*spacing)/resolution)
+    lpf = create_gaussian_low_pass(template.shape, spacing, resolution)
 
     # print information back to user
     if apply_ctf_correction: print(f'Applying ctf correction with defocus {defocus*1e6:.2f} um')
@@ -113,7 +120,7 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
     if display_ctf:
         print('Displaying combined ctf and lpf frequency modulation')
         display_microscope_function(filter[...,filter.shape[2]//2], form='ctf*lpf')
-    template = fourier_filter(template, filter, human=True)
+    template = applyFourierFilterFull(template, xp.fft.ifftshift(filter))
 
     # binning
     if binning > 1:
