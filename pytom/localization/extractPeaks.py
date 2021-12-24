@@ -69,11 +69,10 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     # only FLCF needs mask
     if scoreFnc == FLCF:
         if mask.__class__ != vol: # construct a sphere mask by default
-            from pytom_volume import initSphere;
-            mask = vol(reference.sizeX(), reference.sizeY(), reference.sizeZ());
-            mask.setAll(0);
-            initSphere(mask, reference.sizeX()/2,0,0,reference.sizeX()/2,
-	        reference.sizeX()/2,reference.sizeX()/2);
+            from pytom_volume import initSphere
+            mask = vol(reference.sizeX(), reference.sizeY(), reference.sizeZ())
+            mask.setAll(0)
+            initSphere(mask, reference.sizeX()/2,0,0,reference.sizeX()/2, reference.sizeX()/2,reference.sizeX()/2)
             maskIsSphere = True
     
     # result volume which stores the score

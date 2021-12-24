@@ -843,7 +843,7 @@ def iasa_integration_parallel(filepath, voxel_size=1., oversampling=1, solvent_e
                                    mp.Array('d', y_coordinates, lock=False), \
                                    mp.Array('d', z_coordinates, lock=False)
     b_shared, o_shared = mp.Array('d', b_factors, lock=False), mp.Array('d', occupancies, lock=False)
-    e_shared = mp.Array(ctypes.c_wchar, elements, lock=False)
+    e_shared = mp.Array(ctypes.c_wchar_p, elements, lock=False)
     # element_to_id = {k: i for i, k in enumerate(physics.scattering_factors.keys())}
     # e_shared = mp.Array('i', [element_to_id[e] for e in elements], lock=False)
 
@@ -1064,7 +1064,7 @@ def iasa_integration_gpu(filepath, voxel_size=1., oversampling=1, solvent_exclus
                                                z_coordinates[index[0]:index[1]]]).T,
                                      dtype=cp.float32)
         n_atoms_iter = atoms.shape[0]
-        elements = cp.array([map_element_to_id[e] for e in elements[index[0]:index[1]]], dtype=cp.uint8)
+        elements = cp.array([map_element_to_id[e.upper()] for e in elements[index[0]:index[1]]], dtype=cp.uint8)
         b_factors = cp.array(b_factors[index[0]:index[1]], dtype=cp.float32)
         occupancies = cp.array(occupancies[index[0]:index[1]], dtype=cp.float32)
 
@@ -1759,7 +1759,8 @@ def wrapper(filepath, output_folder, voxel_size, oversampling=1, binning=1, solv
     # Call external programs for structure preparation and PB-solver
     # call_apbs(folder, structure, ph=ph)
     try:
-        filepath = call_chimera(filepath, output_folder) # output structure name is dependent on modification by chimera
+        filepath = call_chimera(filepath, os.path.split(filepath)[0])  # output structure name is dependent on
+        # modification by chimera
     except Exception as e:
         print(e)
 

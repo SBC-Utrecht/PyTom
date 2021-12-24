@@ -106,7 +106,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         cmd = f"{func} -d {folder} -t {self.outdir} -o mrc "
         self.check_cmd(cmd, func, merge(self.outdir, 'particle_0.mrc'))
 
-    def create3DEllipse(self):
+    def create_mask(self):
         outfile = merge(self.outdir, 'ellipse.mrc')
         func = self.generate_cmd(sys._getframe().f_code.co_name)
         cmd = f"{func} -e {128} -m {40} -n {30} -l {20} -o {outfile} -s {5} -c {3}"
@@ -297,7 +297,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
 
     # Already in Micrograph modeller unittest
-    def template_generation(self):
+    def create_template(self):
         pass
 
     # Need to find solution to test plotting, maybe flag that not show but saves fig

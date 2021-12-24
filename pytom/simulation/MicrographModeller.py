@@ -125,7 +125,8 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
                    size=1024, thickness=200,
                    solvent_potential=physics.V_WATER, solvent_factor=1.0, number_of_particles=1000,
                    placement_size=512, retries=5000, number_of_markers=0,
-                   absorption_contrast=False, voltage=300E3, number_of_membranes=0, sigma_motion_blur=.0):
+                   absorption_contrast=False, voltage=300E3, number_of_membranes=0, sigma_motion_blur=.0,
+                   particle_flipping=None):
     """
     Generate a grand model of a cryo-EM sample. Particles, membranes and gold markers will be randomly rotated before
     being randomly placed in the volume. The program attempts to place the specified numbers, but only takes a max of
@@ -486,11 +487,15 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
 
             # Code for randomly flipping particles to add both handedness to the model, useful for generalizing
             # training datasets
-            if xp.random.randint(2): # Generate true/false randomly
-                # Mirror the particle to cover both left and right handedness of the proteins
-                ax = xp.random.randint(3)
-                particle_real = xp.flip(particle_real, axis=ax)
-                if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=ax)
+            if particle_flipping == 'Random':
+                if xp.random.randint(2): # Generate true/false randomly
+                    # Mirror the particle to cover both left and right handedness of the proteins
+                    ax = xp.random.randint(3)
+                    particle_real = xp.flip(particle_real, axis=ax)
+                    if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=ax)
+            elif particle_flipping == 'Yes':
+                particle_real = xp.flip(particle_real, axis=0)
+                if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=0)
 
             # Rotate particle to the specified orientation
             rotated_particle_real = transform(particle_real, rotation=p_angles,
@@ -2003,14 +2008,12 @@ if __name__ == '__main__':
         model_ID                = config['General'].getint('ModelID')
         seed                    = config['General'].getint('Seed')
         pixel_size              = config['General'].getfloat('PixelSize') * 1E-10 # pixel_size in nm
-        oversampling            = config['General'].getint('Oversampling')
+        oversampling            = config['General'].getint('Oversampling')  # oversampling is used for correcting
+        # poisson statistics and camera DQE and MTF functions
         solvent_potential       = config['General'].getfloat('SolventConstant')
         absorption_contrast     = config['General'].getboolean('AbsorptionContrast')
         voltage                 = config['General'].getfloat('Voltage') * 1E3  # voltage in keV
         # voltage and pixelsize are needed for model generation and projection, thus general parameters
-
-        # adjust pixel size with oversampling factor
-        pixel_size *= oversampling
 
         # ensure simulator mode and device are valid options
         if (simulator_mode in ['TiltSeries', 'FrameSeries']) or (device in ['CPU', 'GPU']):
@@ -2044,6 +2047,7 @@ if __name__ == '__main__':
             number_of_membranes = draw_range(literal_eval(config['GenerateModel']['NumberOfMembranes']), int,
                                              'NumberOfMembranes')
             sigma_motion_blur   = config['GenerateModel'].getfloat('SigmaMotionBlur')  # in A units
+            particle_flipping   = config['GenerateModel']['Mirror']
         except Exception as e:
             print(e)
             raise Exception('Missing generate model parameters in config file.')
@@ -2054,7 +2058,7 @@ if __name__ == '__main__':
             try:
                 camera_folder       = config['Microscope']['CameraFolder']
             except Exception as e:
-                camera_folder       = os.path.join(os.path.realpath(__file__), 'detectors')
+                camera_folder       = os.path.join(os.path.split(os.path.realpath(__file__))[0], 'detectors')
             # beam damage SNR
             beam_damage_snr         = draw_range(literal_eval(config['Microscope']['BeamDamageSNR']), float,
                                                  'BeamDamageSNR')
@@ -2151,7 +2155,8 @@ if __name__ == '__main__':
                        absorption_contrast  =absorption_contrast,
                        voltage              =voltage,
                        number_of_membranes  =number_of_membranes,
-                       sigma_motion_blur    = sigma_motion_blur)
+                       sigma_motion_blur    =sigma_motion_blur,
+                       particle_flipping    =particle_flipping)
 
     if simulator_mode in config.sections() and simulator_mode == 'TiltSeries':
         # set seed for random number generation

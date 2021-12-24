@@ -1051,18 +1051,18 @@ if __name__ == '__main__':
     real_fil = reduce_resolution_fourier(volume.real, voxel, 2 * voxel)
     imag_fil = reduce_resolution_fourier(volume.imag, voxel, 2 * voxel)
 
-    write(os.path.join(folder, f'{name}_{voxel:.2f}A_{size}_solvent-4.530V_real.mrc'), real_fil)
-    write(os.path.join(folder, f'{name}_{voxel:.2f}A_{size}_solvent-4.530V_imag_300V.mrc'), imag_fil)
+    write(os.path.join(folder, f'{name}_{size}_{voxel:.2f}A_solvent-4.530V_real.mrc'), real_fil)
+    write(os.path.join(folder, f'{name}_{size}_{voxel:.2f}A_solvent-4.530V_imag_300V.mrc'), imag_fil)
 
-    binning = 2
-
-    real_bin = resize(reduce_resolution_fourier(volume.real, voxel, binning * voxel * 2), 1/binning,
-                      interpolation='Spline')
-    imag_bin = resize(reduce_resolution_fourier(volume.imag, voxel, binning * voxel * 2), 1/binning,
-                      interpolation='Spline')
-
-    write(os.path.join(folder, f'{name}_{voxel*binning:.2f}A_{size}_solvent-4.530V_real.mrc'), real_bin)
-    write(os.path.join(folder, f'{name}_{voxel*binning:.2f}A_{size}_solvent-4.530V_imag_300V.mrc'), imag_bin)
+    # binning = 2
+    #
+    # real_bin = resize(reduce_resolution_fourier(volume.real, voxel, binning * voxel * 2), 1/binning,
+    #                   interpolation='Spline')
+    # imag_bin = resize(reduce_resolution_fourier(volume.imag, voxel, binning * voxel * 2), 1/binning,
+    #                   interpolation='Spline')
+    #
+    # write(os.path.join(folder, f'{name}_{voxel*binning:.2f}A_{size}_solvent-4.530V_real.mrc'), real_bin)
+    # write(os.path.join(folder, f'{name}_{voxel*binning:.2f}A_{size}_solvent-4.530V_imag_300V.mrc'), imag_bin)
 
     end = time.time()
 

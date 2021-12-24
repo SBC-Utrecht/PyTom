@@ -62,6 +62,7 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
 
     @author: Marten Chaillet
     """
+    import os
     from pytom.simulation.microscope import create_ctf, display_microscope_function
     from pytom.agnostic.transform import resize
     from pytom.agnostic.filter import applyFourierFilterFull
@@ -80,9 +81,13 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
         resolution = 2 * spacing * binning
 
     if modify_structure:
-        print('Adding symmetry, removing water, and adding hydrogen to pdb for template generation')
-        # call chimera to modify the input structure, call_chimera returns the path to the updated structure
-        structure_file_path  = call_chimera(structure_file_path, output_folder)
+        try:
+            print('Adding symmetry, removing water, and adding hydrogen to pdb for template generation')
+            # call chimera to modify the input structure, call_chimera returns the path to the updated structure
+            structure_file_path = call_chimera(structure_file_path, os.path.split(structure_file_path)[0])
+        except Exception as e:
+            print(e)
+            print('Failed to call chimera for structure modification.')
 
     # generate electrostatic_potential
     # iasa_generation returns a list of the real (and imaginary) part
@@ -118,8 +123,12 @@ def generate_template(structure_file_path, spacing, binning=1, modify_structure=
     # apply ctf and low pass in fourier space
     filter = lpf * ctf
     if display_ctf:
-        print('Displaying combined ctf and lpf frequency modulation')
-        display_microscope_function(filter[...,filter.shape[2]//2], form='ctf*lpf')
+        try:
+            print('Displaying combined ctf and lpf frequency modulation')
+            display_microscope_function(filter[..., filter.shape[2]//2], form='ctf*lpf')
+        except Exception as e:
+            print(e)
+            print('Skipping plotting due to error.')
     template = applyFourierFilterFull(template, xp.fft.ifftshift(filter))
 
     # binning

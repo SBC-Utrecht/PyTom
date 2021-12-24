@@ -18,7 +18,6 @@ from pytom.basic.files import read_em_header
 from pytom.gui.mrcOperations import read_mrc, read_angle
 from pytom_numpy import vol2npy
 from pytom.gui.guiSupportCommands import multiple_alignment
-from pylab import imread
 import mrcfile
 import copy
 from pytom.basic.files import write_em
@@ -63,13 +62,16 @@ def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, fi
     @return:  3D array with sphere of 0 if failed or 1 if successfully saved
     @rtype: ndarray or int
     '''
-    from scipy.ndimage import gaussian_filter
     if cent_x < 0 or cent_x > x: cent_x = x // 2
     if cent_y < 0 or cent_y > y: cent_y = y // 2
     if cent_z < 0 or cent_z > z: cent_z = z // 2
 
     if x < 1 or y < 1 or z < 1 or radius < 1:
         return 0
+    # elif radius in [int, float] and radius < 1:
+    #     return 0
+    # elif radius is tuple and any([r < 1 for r in radius]):
+    #     return 0
 
     Y, X, Z = numpy.meshgrid(numpy.arange(y), numpy.arange(x), numpy.arange(z))
     X = X.astype('float32')
@@ -90,10 +92,6 @@ def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, fi
         sphere = numpy.exp(-1 * ((R2 - radius) / smooth) ** 2)
         sphere[sphere <= numpy.exp(-cutoff_SD**2/2.)] = 0
     if filename:
-        from numpy import array
-        from pytom_numpy import npy2vol
-        #maskVol = npy2vol(array(sphere, dtype='float32', order='F'), 3)
-        #write_em(filename, maskVol)
         import mrcfile
         mrcfile.new(filename.replace('.em', '.mrc'), sphere,overwrite=True)
         return 1
