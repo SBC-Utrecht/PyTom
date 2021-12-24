@@ -287,7 +287,8 @@ if __name__ == '__main__':
     # Test for validity of the arguments passed, will stop execution if an error is found
     test_validity(filename, directory, target, format, chaindata)
 
-    if not chaindata is None:
+    # TODO Rename this dictionary to something else, chaindata is an input argument for pdbs/CIF
+    if chaindata is None:
         chaindata = {}
         chaindata['pixelsize'] = pixelsize
         chaindata['binningWarpM'] = binningFactorWarpM
