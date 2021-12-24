@@ -1,10 +1,88 @@
 #!/usr/bin/env pytom
 
-'''
+"""
 Created on Jun 27, 2011
 
 @author: yuxiangchen
-'''
+"""
+import numpy as np
+
+
+def evaluate_estimates(estimated_positions, ground_truth_positions, tolerance):
+    """
+    Estimated_positions numpy array, ground truth positions numpy array
+    :param estimated_positions:
+    :type estimated_positions:
+    :param ground_truth_positions:
+    :type ground_truth_positions:
+    :param tolerance:
+    :type tolerance:
+    :return:
+    :rtype:
+    """
+    from scipy.spatial.distance import cdist
+    n_estimates = estimated_positions.shape[0]
+    matrix = cdist(estimated_positions, ground_truth_positions, metric='euclidean')
+    correct = [0] * n_estimates
+    for i in range(n_estimates):
+        if matrix[i].min() < tolerance:
+            correct[i] = 1
+    return correct
+
+
+def fdr_recall(correct, scores):
+    assert all(i > j for i, j in zip(scores, scores[1:])), print('Scores list should be decreasing.')
+
+    n_true_positives = sum(correct)
+    true_positives, false_positives = 0, 0
+    fdr, recall = [], []
+    for i, score in enumerate(scores):
+        if correct[i]:
+            true_positives += 1
+        else:
+            false_positives
+        recall.append(true_positives / n_true_positives)
+        fdr.append(false_positives / (true_positives + false_positives))
+    return recall, fdr
+
+
+def get_distance(line, point):
+
+    a1, b1 = line
+    x, y = point
+    a2 = - (1 / a1)
+    b2 = y - a2 * x
+
+    x_int = (b2 - b1) / (a1 - a2)
+    y_int = a2 * x_int + b2
+
+    return np.sqrt((x_int - x)**2 + (y_int - y)**2)
+
+
+def distance_to_random(fdr, recall):
+    AUC = [0] * len(fdr)
+    for i in range(len(fdr)):
+        AUC[i] = get_distance((1, 0), (fdr[i], recall[i])) * 2  # AUC should be 1 at most not 1/2
+    return max(AUC)
+
+
+def plist_quality(particle_list, ground_truth, position_tolerance):
+
+    # read out the scores, they should be in descending order
+    scores = [-1] * len(particle_list._particleList)
+    estimated_positions = []
+    for i, f in enumerate(foundParticles):
+        scores[i] = float(f.score.getValue())
+        estimated_positions.append(f.getPickPosition().toVector())
+    scores = np.array(scores)
+    estimated_positions = np.array(estimated_positions).T
+    ground_truth_positions = np.array(ground_truth).T
+
+    correct = evaluate_estimates(estimated_positions, ground_truth_positions, position_tolerance)
+    fdr, recall = fdr_recall(correct, scores)
+    quality = distance_to_random(fdr, recall)
+    return quality
+
 
 if __name__ == '__main__':
     # parse command line arguments
