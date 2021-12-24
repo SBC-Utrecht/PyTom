@@ -1215,7 +1215,7 @@ def  star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binning
 
     pl.toXMLFile(newFilename)
 
-def  log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
+def log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
     import numpy
     from pytom.basic.datatypes import DATATYPE_TASOLUTION as dtype_ta, DATATYPE_ALIGNMENT_RESULTS_RO, FMT_ALIGNMENT_RESULTS_RO, HEADER_ALIGNMENT_RESULTS_RO
     import os
@@ -1250,7 +1250,7 @@ def  log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binning
         ar['AlignmentTransX'][n] = shift[n,-2]
         ar['AlignmentTransY'][n] = shift[n,-1]
 
-    ar['Magnification'] = 1/ta['Magn']
+    ar['Magnification'] = 1/ta['Mag']
 
     # ar['InPlaneRotation'] += 0
     ar['FileName'] = sorted([os.path.join(folder, fname) for fname in os.listdir(folder) if fname.startswith(prefix) and fname.endswith('.'+filetype)])
