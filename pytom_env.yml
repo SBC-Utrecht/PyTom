@@ -4,6 +4,8 @@ channels:
   - intel
   - anaconda
   - defaults
+variables:
+  - SETUPTOOLS_USE_DISTUTILS: stdlib # temporary fix, see pull request #71
 dependencies:
   - backcall=0.2.0=pyhd3eb1b0_0
   - binutils_impl_linux-64=2.31.1=h6176602_1
