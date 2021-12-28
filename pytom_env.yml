@@ -4,7 +4,6 @@ channels:
   - intel
   - anaconda
   - defaults
-  - conda-forge
 dependencies:
   - backcall=0.2.0
   - binutils_impl_linux-64=2.31.1
