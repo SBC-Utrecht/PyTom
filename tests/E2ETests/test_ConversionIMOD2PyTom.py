@@ -34,7 +34,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
         # Clone data repo if not existing
         if not exists('PyTomUnitTests'):
-            gitcmd = 'git clone git@github.com:gijsschot/PyTomUnitTests.git'
+            gitcmd = 'git clone https://github.com/gijsschot/PyTomUnitTests.git'
             os.system(gitcmd)
 
         # main folders
