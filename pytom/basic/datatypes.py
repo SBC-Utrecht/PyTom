@@ -125,7 +125,6 @@ for n, h in enumerate(LOCAL_ALIGNMENT_RESULTS):
     headerLocalAlignmentResults += '{} {}\n'.format(h[0], '({})'.format(unitsLAR[n]) * (unitsLAR[n] != ''))
 
 
-
 RELION31_PICKPOS_STAR = [('CoordinateX', 'f4'),
                          ('CoordinateY', 'f4'),
                          ('CoordinateZ', 'f4'),
@@ -157,7 +156,6 @@ DATATYPE_PROJECT_ALIGN_RESULTS = [('TomogramName', 'U1000'),
                                   ('DeterminedRotationAngle', 'f4')]
 
 
-
 DATATYPE_TASOLUTION = [('View', 'i4'),
                         ('Rotation', 'f4'),
                         ('Tilt', 'f4'),
@@ -173,6 +171,15 @@ FMT_TASOLTUION='%4d %10.1f %10.1f %10.2f %10.4f %10.4f %10.2f %10.2f'
 
 for n, h in enumerate(DATATYPE_TASOLUTION):
     HEADER_TASOLUTION += '{} {}\n'.format(h[0], '({})'.format(unitsTaSolutionsFile[n])*(unitsTaSolutionsFile[n]!=''))
+
+
+SIMULATED_GROUND_TRUTH = [('ParticleName', 'U1000'),
+                          ('x', 'f4'),
+                          ('y', 'f4'),
+                          ('z', 'f4'),
+                          ('ThetaZ', 'f4'),
+                          ('PsiX', 'f4'),
+                          ('PhiZ', 'f4')]
 
 
 def generate_default_alignmentresults(folder, metafilename='', prefix='sorted_', filename='alignmentResults.txt'):
