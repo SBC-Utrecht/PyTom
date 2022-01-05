@@ -2165,10 +2165,10 @@ def write_em(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnifica
     header[0] = 83886086  # '0x5000006', TODO: hard-coded, to be changed!
     header[24 + 18] = int(tilt_angle * 1000)  # set tilt angle
 
-    if not rotation_angles is None:
-        header[43] = float(rotation_angles[0])
-        header[44] = float(rotation_angles[1])
-        header[45] = float(rotation_angles[2])
+    # if not rotation_angles is None:
+    #     header[43] = float(rotation_angles[0])
+    #     header[44] = float(rotation_angles[1])
+    #     header[45] = float(rotation_angles[2])
 
     if len(data.shape) == 3:
         header[1:4] = data.shape
