@@ -64,6 +64,8 @@ class pytom_IOTest(unittest.TestCase):
         from pytom.agnostic.io import write, read
         from pytom_volume import vol, sum
         from pytom_numpy import vol2npy
+        from time import sleep
+
 
         fname = f'{self.outfolder}/dummy_reading.em'
         self.fnames.append(fname)
@@ -72,8 +74,10 @@ class pytom_IOTest(unittest.TestCase):
 
         write(fname, data)
         self.assertTrue(os.path.exists(fname))
+        sleep(1)
 
         data2 = read(fname,ndarray=False)
+        print(sum((data - data2)), self.epsilon)
         self.assertTrue(sum((data - data2)) < self.epsilon)
 
     def write_read_STAR(self):
