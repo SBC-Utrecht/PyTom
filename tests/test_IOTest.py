@@ -8,8 +8,9 @@ import unittest
 import numpy as np
 import os
 
-class pytom_IOTest(unittest.TestCase):
 
+class pytom_IOTest(unittest.TestCase):
+    # TODO help this test still needs a tearDown()
     def setUp(self):
         self.fnames = []
         self.epsilon = 1E-4
