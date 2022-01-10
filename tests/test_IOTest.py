@@ -63,23 +63,17 @@ class pytom_IOTest(unittest.TestCase):
 
     def write_read_EM(self):
         from pytom.agnostic.io import write, read
-        from pytom_volume import vol, sum
-        from pytom_numpy import vol2npy
-        from time import sleep
-
 
         fname = f'{self.outfolder}/dummy_reading.em'
         self.fnames.append(fname)
-        data = vol(self.sx, self.sy, self.sz)
-        data.setAll(1.)
+        data = np.ones((self.sx, self.sy, self.sz))
 
         write(fname, data)
         self.assertTrue(os.path.exists(fname))
-        sleep(1)
 
-        data2 = read(fname,ndarray=False)
-        print(sum((data - data2)), self.epsilon)
-        self.assertTrue(sum((data - data2)) < self.epsilon)
+        data2 = read(fname)
+        print(sum((data - data2)))
+        self.assertTrue((data != data2).sum() == 0)
 
     def write_read_STAR(self):
         from pytom.agnostic.io import write, read
