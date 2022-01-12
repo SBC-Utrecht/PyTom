@@ -1,8 +1,8 @@
-'''
+"""
 Created on Jul 30, 2012
 
 @author: hrabe
-'''
+"""
 
 import unittest
 import numpy as np
@@ -10,7 +10,6 @@ import os
 
 
 class pytom_IOTest(unittest.TestCase):
-    # TODO help this test still needs a tearDown()
     def setUp(self):
         self.fnames = []
         self.epsilon = 1E-4
@@ -22,17 +21,17 @@ class pytom_IOTest(unittest.TestCase):
         if not os.path.exists(self.outfolder):
             os.mkdir(self.outfolder)
 
+    def tearDown(self):
+        from tests.helper_functions import remove_tree
+        remove_tree(self.outfolder)
+
     def read(self):
         """
         test general read function
         """
         from pytom.basic.files import read
-        from helper_functions import create_RandomParticleList, installdir
 
-
-        
         v = read(f'./testData/ribo.em')
-        #v = read('testData/emd_1480.map.em_bin_4.em')
         self.assertTrue( v.sizeX() == 100 and v.sizeY() == 100 and v.sizeZ() == 100)
         
         v = read(f'./testData/ribo.em',binning=[4,4,4])
@@ -43,20 +42,19 @@ class pytom_IOTest(unittest.TestCase):
         test readem
         """
         from pytom.basic.files import read_em
-        from helper_functions import create_RandomParticleList, installdir
 
         int2_file = f'./testData/int2.em'
         (image, header) = read_em(int2_file)
         inibytes = header.get_1st4bytes()
-        self.assertTrue( inibytes[3] == 5, 
-            'Datatype number is wrong! should have been changed to 5 from 2 in initial file')
+        self.assertTrue(inibytes[3] == 5,
+                        'Datatype number is wrong! should have been changed to 5 from 2 in initial file')
         dims = header.get_dim()
 
         #now binning
         (image, header) = read_em(int2_file, binning=[4, 4, 1])
         bdims = header.get_dim()
-        self.assertTrue( bdims[0]*4 == dims[0], 
-            'Dimensions of binned file are wrong!')
+        self.assertTrue(bdims[0]*4 == dims[0],
+                        'Dimensions of binned file are wrong!')
 
     def write_read_MRC(self):
         self.data_write_read('mrc')
@@ -72,13 +70,11 @@ class pytom_IOTest(unittest.TestCase):
         self.assertTrue(os.path.exists(fname))
 
         data2 = read(fname)
-        print(sum((data - data2)))
         self.assertTrue((data != data2).sum() == 0)
 
     def write_read_STAR(self):
         from pytom.agnostic.io import write, read
         from pytom.basic.datatypes import DATATYPE_RELION31_EXTENDED, fmtR31EXTENDED, headerRelion31EXTENDEDSubtomo
-        from pytom_volume import vol
 
         fname = f'testData/example_starfile.star'
 
@@ -110,7 +106,7 @@ class pytom_IOTest(unittest.TestCase):
         self.data_write_read('st')
 
     def read_LOG(self):
-        from pytom.agnostic.io import write, read
+        from pytom.agnostic.io import read
         fname = f'testData/taSolution.log'
         a = read(fname)
 
@@ -139,15 +135,16 @@ class pytom_IOTest(unittest.TestCase):
             x = read_size(self.fnames[0], d)
             self.assertTrue(x==sized, f'size in {d}-dimension is off: found {x}, expected {sized}')
 
-
         x,y,z = read_size(self.fnames[0])
-        self.assertTrue(x==self.sx and y==self.sy and z==self.sz, f'Reading sizes failed:\n\texpected {self.sx}.{self.sy},{self.sz}\n\tfound {x},{y},{z}')
+        self.assertTrue(x==self.sx and y==self.sy and z==self.sz,
+                        f'Reading sizes failed:\n\texpected {self.sx}.{self.sy},{self.sz}\n\tfound {x},{y},{z}')
 
     def read_tilt_angle(self):
         from pytom.agnostic.io import read_tilt_angle
 
         a = read_tilt_angle(self.fnames[1])
-        self.assertTrue(np.abs(a-self.tilt_angle) < self.epsilon, f'Tilt Angle is not correct: found {a}, expected {self.tilt_angle}')
+        self.assertTrue(np.abs(a-self.tilt_angle) < self.epsilon,
+                        f'Tilt Angle is not correct: found {a}, expected {self.tilt_angle}')
 
     def write_tilt_angle(self):
         from pytom.agnostic.io import write_tilt_angle, read_tilt_angle
@@ -157,7 +154,8 @@ class pytom_IOTest(unittest.TestCase):
         write_tilt_angle(fname, self.rotation_angles[0])
 
         a = read_tilt_angle(fname)
-        self.assertTrue(np.abs(a-ta) < self.epsilon, f'Tilt Angle is not correct: found {a}, expected {ta}')
+        self.assertTrue(np.abs(a-ta) < self.epsilon,
+                        f'Tilt Angle is not correct: found {a}, expected {ta}')
 
     def read_header(self):
         from pytom.agnostic.io import read_header
@@ -203,9 +201,8 @@ class pytom_IOTest(unittest.TestCase):
 
         data2 = read(fname)
 
-
-        write('testing.mrc', data2 -data)
-        write('testing2.mrc', data2 )
+        write(f'{self.outfolder}/testing.mrc', data2 -data)
+        write(f'{self.outfolder}/testing2.mrc', data2 )
 
         self.assertTrue(np.abs(data - data2).sum() < self.epsilon, f'reading {fname} failed: input and output files are different')
 
@@ -226,10 +223,6 @@ class pytom_IOTest(unittest.TestCase):
         self.read_header()
         self.read_pixelsize()
 
-
-
         
 if __name__ == '__main__':
     unittest.main()
-        
-        

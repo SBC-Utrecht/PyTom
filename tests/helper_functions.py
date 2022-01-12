@@ -1,6 +1,7 @@
 import os
 installdir = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + '/pytom'
 
+
 def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testparticles', nparticles=10):
     """
     @param reffile: reference file
@@ -71,6 +72,7 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
     pl.toXMLFile(filename=pl_filename)
     return pl
 
+
 def cleanUp_RandomParticleList( pl_filename='pl.xml', pdir='./testparticles'):
     """
     remove directories 
@@ -85,6 +87,7 @@ def cleanUp_RandomParticleList( pl_filename='pl.xml', pdir='./testparticles'):
     rmdir(pdir)
     remove(pl_filename)
 
+
 def create_TiltSeries(data, tiltAngles, outputfolder='./'):
     from pytom.agnostic.io import read, write
     from pytom.agnostic.transform import rotate_axis
@@ -98,3 +101,15 @@ def create_TiltSeries(data, tiltAngles, outputfolder='./'):
     for n, tiltAngle in enumerate(tiltAngles):
         outname = os.path.join(outputfolder, 'sorted_{:03d}.mrc'.format(n))
         write(outname, rotate_axis(data, tiltAngle, axis='y').sum(axis=2),tilt_angle=tiltAngle)
+
+
+def remove_tree(foldername):
+    """Assert folder exists, then remove its content and itself"""
+    from os import path
+    from shutil import rmtree
+
+    foldercheck = path.exists(foldername)
+    if not foldercheck:
+        print(foldername + " does not exist")
+    else:
+        rmtree(foldername)
