@@ -2025,8 +2025,6 @@ def write(filename, data, tilt_angle=0, pixel_size=1, order='F', fmt=None, heade
     assert filename
     assert ext in write_functions.keys()
 
-    # data_npy = data
-
     # If data is instance of vol datatype, convert data to numpy array. Needed because header is defined differently.
     if isinstance(data, vol):
         from pytom_numpy import vol2npy
