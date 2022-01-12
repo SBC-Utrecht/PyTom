@@ -12,12 +12,12 @@ import pytom_numpy
 class pytom_NumpyTest(unittest.TestCase):
     def setUp(self):
         from functools import reduce
-        size = (10, 11, 12)
-        self.N = reduce(lambda x, y: x * y, size)
-        self.random_vol = vol(*size)
+        self.size = (10, 11, 12)
+        self.N = reduce(lambda x, y: x * y, self.size)
+        self.random_vol = vol(*self.size)
         gaussianNoise(self.random_vol, 0, 1)
-        self.random_npy = np.asfortranarray(np.random.normal(0, 1, size).astype(np.float32))
-    
+        self.random_npy = np.asfortranarray(np.random.normal(0, 1, self.size).astype(np.float32))
+
     def forward(self):
         nv = pytom_numpy.vol2npy(self.random_vol).copy(order='F')
         pv = pytom_numpy.npy2vol(nv, len(nv.shape))
@@ -34,20 +34,21 @@ class pytom_NumpyTest(unittest.TestCase):
         from pytom.agnostic.filter import create_wedge
         w1, w2 = 30., 30.
         w = Wedge([w1, w2])
-        sx, sy, sz = 12, 12, 12
+        sx, sy, sz = self.size
         smooth = w._wedgeObject._smooth
+        dtype = np.float32
 
         # no issues
         temp = w.returnWedgeVolume(sx, sy, sz)
-        wedge_pytom = pytom_numpy.vol2npy(temp).copy().astype(np.complex64)
-        wedge_numpy = create_wedge(w1, w2, sx // 2, sx, sy, sz, smooth).astype(np.complex64)
+        wedge_pytom = pytom_numpy.vol2npy(temp).copy().astype(dtype)
+        wedge_numpy = create_wedge(w1, w2, sx // 2, sx, sy, sz, smooth).astype(dtype)
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, msg='somehting is very wrong with conversion')
 
         # here there is an issue
         # this is just a known location where I know there is a mismatch of 8 (McHaillet)
-        wedge_pytom = pytom_numpy.vol2npy(w.returnWedgeVolume(sx, sy, sz)).copy().astype(np.complex64)
-        wedge_numpy = create_wedge(w1, w2, sx // 2, sx, sy, sz, smooth).astype(np.complex64)
-        self.assertTrue((wedge_pytom != wedge_numpy).sum() == 8, msg='this is a known issue')
+        wedge_pytom = pytom_numpy.vol2npy(w.returnWedgeVolume(sx, sy, sz)).copy().astype(dtype)
+        wedge_numpy = create_wedge(w1, w2, sx // 2, sx, sy, sz, smooth).astype(dtype)
+        self.assertTrue((wedge_pytom != wedge_numpy).sum() == 7, msg='this is a known issue')
 
     def test_conversion(self):
         self.forward()

@@ -179,7 +179,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
                 self.projectname =  os.path.join(os.getcwd(), sys.argv[-1])
                 if self.projectname.endswith('/'): self.projectname = self.projectname[:-1]
                 if self.is_pytomgui_project(self.projectname):
-                    # self.destroy(error_dialog)
+                    print('Opening existing pytomGUI project.')
                     self.setWindowTitle('PyTom -- ' + os.path.basename(self.projectname))
                     guiFunctions.create_project_filestructure(projectdir=self.projectname)
                     self.createCentralWidgets()
@@ -244,10 +244,10 @@ class PyTomGui(QMainWindow, CommonFunctions):
             # error_dialog.showMessage('The folder you selected does not contain a valid pytomGUI folder structure.')
 
         elif self.projectname and self.is_pytomgui_project(self.projectname):
-            # self.destroy(error_dialog)
+            print('Opening existing pytomGUI project.')
             self.setWindowTitle(basename('PyTom -- ' + self.projectname))
             guiFunctions.create_project_filestructure(projectdir=self.projectname)
-            self.createCentralWindgets()
+            self.createCentralWidgets()
 
     def save_logfile(self):
         if not self.projectname: return
@@ -348,8 +348,8 @@ class PyTomGui(QMainWindow, CommonFunctions):
             self.logbook['00_framebutton_{}'.format(t)] = (t == self.targets[0][0])
 
         guiFunctions.create_project_filestructure(projectdir=self.projectname)
-        self.save_logfile()
-        self.run_project()
+        self.createCentralWidgets()
+
         #dialog = QFileDialog(self, 'Create Project', './')
         #dialog.setFileMode(QtGui.QFileDialog.DirectoryOnly)
 

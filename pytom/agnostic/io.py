@@ -2025,11 +2025,16 @@ def write(filename, data, tilt_angle=0, pixel_size=1, order='F', fmt=None, heade
     assert filename
     assert ext in write_functions.keys()
 
+    # data_npy = data
+
     # If data is instance of vol datatype, convert data to numpy array. Needed because header is defined differently.
     if isinstance(data, vol):
         from pytom_numpy import vol2npy
         try:
-            data = vol2npy(data).copy()
+            data_npy = vol2npy(data).copy()
+            # Write data to file, using respective write function
+            write_functions[ext](filename, data_npy, tilt_angle=tilt_angle, pixel_size=pixel_size, order=order, fmt=fmt,
+                                 header=header, rotation_angles=rotation_angles)
         except Exception as e:
             print(data.__class__, e)
             raise Exception('Invalid data type of data. Please provide an ndarray or a pytom volume object.')
@@ -2250,20 +2255,11 @@ def n2v(data):
         data = np.array(data, dtype="float32")
 
     if len(data.shape) == 3:
-        if np.isfortran(data):
-            # Fortran order
-            v = npy2vol(data, 3)
-        else:
-            vv = np.asfortranarray(data)
-            v = npy2vol(vv, 3)
+        vv = data.copy(order='F')
+        v = npy2vol(vv, 3)
     elif len(data.shape) == 2:
-        if np.isfortran(data):
-            data = data.reshape(data.shape[0], data.shape[1], 1)
-            v = npy2vol(data, 2)
-        else:
-            data = data.reshape(data.shape[0], data.shape[1], 1)
-            vv = np.asfortranarray(data)
-            v = npy2vol(vv, 2)
+        vv = data.reshape(data.shape[0], data.shape[1], 1).copy(order='F')
+        v = npy2vol(vv, 2)
     else:
         raise Exception("Data shape invalid!")
 
