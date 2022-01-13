@@ -3,7 +3,6 @@
 import os
 import sys
 import pytom.simulation.physics as physics
-import numpy as np
 from pytom.agnostic.io import write
 from pytom.simulation.template import generate_template
 
@@ -69,13 +68,14 @@ if __name__ == '__main__':
                                               'already applied!', 'no arguments', 'optional'),
             ScriptOption2(['-m', '--mirror'], 'Produce a mirrored and non-mirrored version.', 'no arguments',
                           'optional'),
-            ScriptOption2(['--cores'], 'Number of cores to run template generation on.', 'int', 'optional', 1)])
+            ScriptOption2(['--cores'], 'Number of cores to run template generation on.', 'int', 'optional', 1),
+            ScriptOption2(['-g', '--gpuID'], 'GPU index to run the program on.', 'int', 'optional')])
 
     options = parse_script_options2(sys.argv[1:], helper)
 
     filepath, output_folder, output_name, spacing, binning, modify_structure, solvent_correction, solvent_density, \
         ctf_correction, defocus, amplitude_contrast, voltage, Cs, sigma_decay, \
-        display_ctf, resolution, box_size, invert, mirror, cores = options
+        display_ctf, resolution, box_size, invert, mirror, cores, gpuID = options
 
     if resolution is None:
         resolution = 2 * spacing * binning
@@ -95,7 +95,8 @@ if __name__ == '__main__':
                                  resolution=resolution,
                                  box_size=box_size,
                                  output_folder=output_folder,
-                                 cores=cores)
+                                 cores=cores,
+                                 gpu_id=gpuID)
 
     if invert:
         template *= -1
@@ -111,7 +112,9 @@ if __name__ == '__main__':
     print(f'Writing template as {output_filepath}')
     write(output_filepath, template)
 
+    from pytom.gpu.initialize import xp, device
+
     if mirror:
         output_filepath_mirror = os.path.splitext(output_filepath)[0] + '_mirror' + os.path.splitext(output_filepath)[1]
         print(f'Writing template as {output_filepath_mirror}')
-        write(output_filepath_mirror, np.flip(template))
+        write(output_filepath_mirror, xp.flip(template, 0))

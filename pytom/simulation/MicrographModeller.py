@@ -125,7 +125,8 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
                    size=1024, thickness=200,
                    solvent_potential=physics.V_WATER, solvent_factor=1.0, number_of_particles=1000,
                    placement_size=512, retries=5000, number_of_markers=0,
-                   absorption_contrast=False, voltage=300E3, number_of_membranes=0, sigma_motion_blur=.0):
+                   absorption_contrast=False, voltage=300E3, number_of_membranes=0, sigma_motion_blur=.0,
+                   particle_flipping=None):
     """
     Generate a grand model of a cryo-EM sample. Particles, membranes and gold markers will be randomly rotated before
     being randomly placed in the volume. The program attempts to place the specified numbers, but only takes a max of
@@ -486,11 +487,15 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
 
             # Code for randomly flipping particles to add both handedness to the model, useful for generalizing
             # training datasets
-            if xp.random.randint(2): # Generate true/false randomly
-                # Mirror the particle to cover both left and right handedness of the proteins
-                ax = xp.random.randint(3)
-                particle_real = xp.flip(particle_real, axis=ax)
-                if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=ax)
+            if particle_flipping == 'Random':
+                if xp.random.randint(2): # Generate true/false randomly
+                    # Mirror the particle to cover both left and right handedness of the proteins
+                    ax = xp.random.randint(3)
+                    particle_real = xp.flip(particle_real, axis=ax)
+                    if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=ax)
+            elif particle_flipping == 'Yes':
+                particle_real = xp.flip(particle_real, axis=0)
+                if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=0)
 
             # Rotate particle to the specified orientation
             rotated_particle_real = transform(particle_real, rotation=p_angles,
@@ -1784,7 +1789,7 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
     @author: Marten Chaillet
     """
     from pytom.agnostic.transform import resize
-    from pytom.simulation.support import reduce_resolution
+    from pytom.simulation.support import reduce_resolution_fourier
     from pytom.agnostic.io import read_mrc, write
     from joblib import Parallel, delayed
 
@@ -1818,7 +1823,7 @@ def scale_projections(save_path, pixel_size, example_folder, example_pixel_size,
     verbosity = 55  # set to 55 for debugging, 11 to see progress, 0 to turn off output
     results = Parallel(n_jobs=nodes, verbose=verbosity, prefer="threads") \
         (delayed(parallel_scale)(i, projections[:, :, i].squeeze(),
-                                 resize(reduce_resolution(example_projections[:, :, i], 1, 2*oversampling),
+                                 resize(reduce_resolution_fourier(example_projections[:, :, i], 1, 2*oversampling),
                                         1/oversampling, interpolation='Spline').squeeze(),
                                  pixel_size, example_pixel_size, oversampling, make_even_factor)
          for i in range(projections.shape[2]))
@@ -1870,7 +1875,7 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
     """
     from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
     from pytom.agnostic.transform import resize
-    from pytom.simulation.support import reduce_resolution
+    from pytom.simulation.support import reduce_resolution_real
     from pytom.agnostic.io import read_mrc, write
 
     # create folder for individual projections, reconstruction algorithm reads single projections from a folder
@@ -1890,7 +1895,7 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
     if filter_projections:
         for i in range(projections.shape[2]):
             # 2.3 corresponds to circular filter with width 0.9 of half of the image
-            projection_scaled = reduce_resolution(projections[:, :, i].squeeze(), 1.0, 2.0 * reconstruction_bin)
+            projection_scaled = reduce_resolution_real(projections[:, :, i].squeeze(), 1.0, 2.0 * reconstruction_bin)
             filename_single = os.path.join(save_path, 'projections', f'synthetic_{i+1}.mrc')
             write(filename_single, projection_scaled)
     else:
@@ -1934,7 +1939,7 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
         # find cropping indices
         lind = (cell.shape[0] - reconstruction_bin * size_reconstruction)//2
         rind = cell.shape[0] - lind
-        cell = resize(reduce_resolution(cell[lind:rind, lind:rind, :], 1, 2*reconstruction_bin), 1/reconstruction_bin,
+        cell = resize(reduce_resolution_real(cell[lind:rind, lind:rind, :], 1, 2*reconstruction_bin), 1/reconstruction_bin,
                       interpolation='Spline')
         write(filename_gm_bin, cell)
         # bin class mask and bbox needed for training
@@ -2003,14 +2008,12 @@ if __name__ == '__main__':
         model_ID                = config['General'].getint('ModelID')
         seed                    = config['General'].getint('Seed')
         pixel_size              = config['General'].getfloat('PixelSize') * 1E-10 # pixel_size in nm
-        oversampling            = config['General'].getint('Oversampling')
+        oversampling            = config['General'].getint('Oversampling')  # oversampling is used for correcting
+        # poisson statistics and camera DQE and MTF functions
         solvent_potential       = config['General'].getfloat('SolventConstant')
         absorption_contrast     = config['General'].getboolean('AbsorptionContrast')
         voltage                 = config['General'].getfloat('Voltage') * 1E3  # voltage in keV
         # voltage and pixelsize are needed for model generation and projection, thus general parameters
-
-        # adjust pixel size with oversampling factor
-        pixel_size *= oversampling
 
         # ensure simulator mode and device are valid options
         if (simulator_mode in ['TiltSeries', 'FrameSeries']) or (device in ['CPU', 'GPU']):
@@ -2044,6 +2047,7 @@ if __name__ == '__main__':
             number_of_membranes = draw_range(literal_eval(config['GenerateModel']['NumberOfMembranes']), int,
                                              'NumberOfMembranes')
             sigma_motion_blur   = config['GenerateModel'].getfloat('SigmaMotionBlur')  # in A units
+            particle_flipping   = config['GenerateModel']['Mirror']
         except Exception as e:
             print(e)
             raise Exception('Missing generate model parameters in config file.')
@@ -2051,7 +2055,10 @@ if __name__ == '__main__':
     if 'Microscope' in config.sections():
         try:
             camera                  = config['Microscope']['Camera']
-            camera_folder           = config['Microscope']['CameraFolder']
+            try:
+                camera_folder       = config['Microscope']['CameraFolder']
+            except Exception as e:
+                camera_folder       = os.path.join(os.path.split(os.path.realpath(__file__))[0], 'detectors')
             # beam damage SNR
             beam_damage_snr         = draw_range(literal_eval(config['Microscope']['BeamDamageSNR']), float,
                                                  'BeamDamageSNR')
@@ -2148,7 +2155,8 @@ if __name__ == '__main__':
                        absorption_contrast  =absorption_contrast,
                        voltage              =voltage,
                        number_of_membranes  =number_of_membranes,
-                       sigma_motion_blur    = sigma_motion_blur)
+                       sigma_motion_blur    =sigma_motion_blur,
+                       particle_flipping    =particle_flipping)
 
     if simulator_mode in config.sections() and simulator_mode == 'TiltSeries':
         # set seed for random number generation

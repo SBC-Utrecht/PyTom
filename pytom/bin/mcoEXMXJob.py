@@ -63,7 +63,7 @@ if __name__ == '__main__':
     from pytom.cluster.mcoEXMXStructures import MCOEXMXJob 
     from pytom.basic.structures import ParticleList,Reference,Mask,Wedge,SampleInformation,PointSymmetry
     from pytom.basic.score import FLCFScore
-    from pytom.frontend.serverpages.createMCOEXMXJob import createRunscripts
+    # from pytom.frontend.serverpages.createMCOEXMXJob import createRunscripts
     from pytom.alignment.preprocessing import Preprocessing
      
     p       = ParticleList()
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     
     job.toXMLFile(jobName)
     
-    createRunscripts(jobName[:-3] + 'sh',jobName)
+    # createRunscripts(jobName[:-3] + 'sh',jobName)
     
     
     

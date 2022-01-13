@@ -126,7 +126,7 @@ class MicrographModellerTest(unittest.TestCase):
         slightly differ."""
         from pytom.agnostic.correlation import nxcc
         from pytom.agnostic.tools import create_sphere
-        from pytom.simulation.support import reduce_resolution
+        from pytom.simulation.support import reduce_resolution_fourier
 
         # generate two different realization of tomogram noise
         tomo_1 = self.simulateTomogram()
@@ -138,8 +138,8 @@ class MicrographModellerTest(unittest.TestCase):
 
         # calculate cross-correlation coefficient of the two tomograms
         spacing = self.param_sim['pixel_size'] * 1e10
-        cc = nxcc(reduce_resolution(tomo_1, spacing, 2 * spacing * 8),
-                  reduce_resolution(tomo_2, spacing, 2 * spacing * 8),
+        cc = nxcc(reduce_resolution_fourier(tomo_1, spacing, 2 * spacing * 8),
+                  reduce_resolution_fourier(tomo_2, spacing, 2 * spacing * 8),
                   mask=mask)
 
         print('normalized cross correlation of two simulations of identical volume after binning both subtomograms 8 '

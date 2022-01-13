@@ -31,9 +31,9 @@ class Volume(PyTomClass):
     
     def getVolume(self, subregion=[0,0,0,0,0,0], sampling=[0,0,0], binning=[0,0,0]):
         """
-        getVolume: Get the volume according to the given parameters.\
-        Note the subregion, sampling and binning parameters are not the same as \
-	those attributes in the class.
+        getVolume: Get the volume according to the given parameters.
+        Note the subregion, sampling and binning parameters are not the same as
+        those attributes in the class.
 
         @param subregion: subregion [startX, startY, startZ, sizeX, sizeY, sizeZ]
         @type subregion: list

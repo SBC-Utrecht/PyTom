@@ -13,6 +13,7 @@ if __name__ == '__main__':
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
     from pytom.tools.files import checkFileExists,checkDirExists
+    from pytom.agnostic.io import read_size
     helper = ScriptHelper(sys.argv[0].split('/')[-1], 
                           description='Create a localization job. Documentation is available at\n\
                           http://www.pytom.org/doc/pytom/localization.html',
@@ -35,7 +36,12 @@ if __name__ == '__main__':
                                     angles_3_553680.em
                                     ''', arg=True, optional=False),
                                    ScriptOption(['-d','--destination'], 'Destination : destination directory', arg=True, optional=False),
-                                   ScriptOption(['-b','--band'], 'Lowpass filter : band - in pixels', arg=True, optional=False),
+                                   ScriptOption(['--zstart'], 'Start of z height subregion to search.', arg=True,
+                                                optional=True),
+                                   ScriptOption(['--zend'], 'Start of z height subregion to search.', arg=True,
+                                                optional=True),
+                                   ScriptOption(['-b','--band'], 'Lowpass filter : band - in pixels', arg=True,
+                                                optional=True),
                                    ScriptOption(['--splitX'], 'Into how many parts do you want to split volume (X dimension)', arg=True, optional=False),
                                    ScriptOption(['--splitY'], 'Into how many parts do you want to split volume (Y dimension)', arg=True, optional=False),
                                    ScriptOption(['--splitZ'], 'Into how many parts do you want to split volume (Z dimension)', arg=True, optional=False),
@@ -47,7 +53,8 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        volume, reference, mask, wedge1,wedge2,angles,destination,band,sx,sy,sz,jobName,help = parse_script_options(sys.argv[1:], helper)
+        volume, reference, mask, wedge1,wedge2,angles,destination,zstart,zend,band,sx,sy,sz,jobName,\
+        help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -67,26 +74,33 @@ if __name__ == '__main__':
     
     if not checkDirExists(destination):
         raise RuntimeError('Destination directory ' + destination + ' does not exist!')
+
+    subregion = [0, 0, 0, 0, 0, 0]
+    try:
+        zstart, zend = int(zstart), int(zend)
+        x, y, z = map(int, read_size(volume))
+        if z >= zend > zstart:
+            subregion = [0, 0, zstart, x, y, zend - zstart]
+    except Exception as e:
+        print('Non or invalid z search range provided.')
     
     from pytom.basic.structures import Mask,Reference,Wedge,BandPassFilter
     from pytom.localization.structures import Volume
     from pytom.angles.globalSampling import GlobalSampling
     from pytom.basic.score import FLCFScore
     from pytom.localization.peak_job import PeakJob
-    from pytom.frontend.serverpages.createLocalizationJob import createRunscripts
+    # from pytom.frontend.serverpages.createLocalizationJob import createRunscripts
     
-    v = Volume(volume)
+    v = Volume(volume, subregion=subregion)
     r = Reference(reference)
     m = Mask(mask)
     w = Wedge([float(wedge1),float(wedge2)])
     a = GlobalSampling(angles)
+    bp = BandPassFilter(0,float(band),0) if band is not None else None
     
-    job = PeakJob(volume=v, reference=r, mask=m, wedge=w, rotations=a, score=FLCFScore(), jobID=0, members=1, dstDir=destination, bandpass=BandPassFilter(0,float(band),0))
+    job = PeakJob(volume=v, reference=r, mask=m, wedge=w, rotations=a, score=FLCFScore(), jobID=0, members=1,
+                  dstDir=destination, bandpass=bp)
     
     job.toXMLFile(jobName)
     
-    createRunscripts(jobName[:-3] + 'sh',jobName,int(sx),int(sy),int(sz))
-    
-    
-    
-    
+    # createRunscripts(jobName[:-3] + 'sh',jobName,int(sx),int(sy),int(sz))

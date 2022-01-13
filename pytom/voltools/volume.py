@@ -32,7 +32,7 @@ class StaticVolume:
         self.interpolation = interpolation
 
         if device.startswith('gpu') and self.is3D:
-            data = cp.array(data)
+            data = cp.array(data, dtype=cp.float32)
             self.shape = data.shape
             self.d_shape = cp.asarray(data.shape, dtype=cp.uint32)
             self.d_type = data.dtype

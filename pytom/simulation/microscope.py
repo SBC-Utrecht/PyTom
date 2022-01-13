@@ -49,6 +49,11 @@ def fourier_grids(shape, nyquist, indexing='ij', reduced=False):
     return xp.meshgrid(*d, indexing=indexing)
 
 
+def normalised_grid(shape, reduced=False):
+    grids = fourier_grids(shape, 1, reduced=reduced)
+    return xp.sqrt(sum([g**2 for g in grids]))
+
+
 def ctf_grids(grids):
     """
     Create coordinate grid from fourier_grids (meshgrid) output. Return the grid, grid**2, and grid**4 for ctf calc.
@@ -251,7 +256,7 @@ def radial_average(image):
     return r, mean
 
 
-def display_microscope_function(image, form='', complex=False):
+def display_microscope_function(image, form='', ylim=(-1, 1), complex=False):
     """
     Display the radial average of a microscope function. If complex flag is set to true the function can also accept
     complex valued inputs.
@@ -287,7 +292,7 @@ def display_microscope_function(image, form='', complex=False):
 
     fig, ax = plt.subplots()
     ax.plot(r1, m1, label=form)
-    ax.set_ylim(0, 1)
+    ax.set_ylim(*ylim)
     if complex: ax.plot(r2, m2, label='imaginary')
     ax.legend()
     # plt.savefig(f'{form}.png')
@@ -379,7 +384,7 @@ def create_detector_response(detector, response_function, image_size, voltage=30
         detector_response = detector_response[cut:-cut, cut:-cut]
 
     if display:
-        display_microscope_function(detector_response, form=response_function, complex=False)
+        display_microscope_function(detector_response, form=response_function, ylim=(0,1), complex=False)
 
     return detector_response
 

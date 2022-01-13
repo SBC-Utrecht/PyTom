@@ -277,7 +277,7 @@ def stdUnderMask(volume, mask, p, meanV):
     
     copyV = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
     copyV.copyVolume(volume)
-    power(copyV, 2) #calculate the square of the volume
+    power(copyV, 2)  #calculate the square of the volume
     
     copyMean = vol(meanV.sizeX(), meanV.sizeY(), meanV.sizeZ())
     copyMean.copyVolume(meanV)
@@ -285,9 +285,9 @@ def stdUnderMask(volume, mask, p, meanV):
 
     result = meanUnderMask(copyV, mask, p) - copyMean
 
-#    from pytom_volume import abs
-#    abs(result)
-    limit(result, 1e-09, 1, 0, 0, True, False) # this step is needed to set all those value (close to 0) to 1
+    # from pytom_volume import abs
+    # abs(result)
+    limit(result, 1e-09, 1, 0, 0, True, False)  # this step is needed to set all those value (close to 0) to 1
     power(result, 0.5)
 
     return result
@@ -368,7 +368,7 @@ def FLCF(volume, template, mask=None, stdV=None, wedge=1):
     conjugate(fT)
     result = iftshift(ifft(fT*fft(volume)))/stdV
 
-    result.shiftscale(0,1/(size*p))
+    result.shiftscale(0, 1/(size*p))
     
     return result
 
