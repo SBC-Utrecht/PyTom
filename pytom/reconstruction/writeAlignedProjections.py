@@ -1,6 +1,6 @@
 import mrcfile
 import copy
-from numpy import abs, float32
+
 
 def writeAlignedProjections(TiltSeries_, weighting=None,
                             lowpassFilter=None, binning=None,verbose=False, write_images=True, order=(2,1,0)):
@@ -16,7 +16,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
 
        @author: FF
     """
-    import numpy
+    import numpy as np
     from pytom_numpy import vol2npy
     from pytom.basic.files import read_em, write_em
     from pytom.basic.functions import taper_edges
@@ -24,7 +24,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     from pytom.basic.fourier import ifft, fft
     from pytom.basic.filter import filter as filterFunction, bandpassFilter
     from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, rotateFilter
-    from pytom_volume import complexRealMult, vol, pasteCenter
+    from pytom_volume import complexRealMult, vol, pasteCenter, sum
     import pytom_freqweight
     from pytom.basic.transformations import resize
     from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatypeAR
@@ -36,8 +36,8 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     else:
         imdim = TiltSeries_._imdim
 
-    imdimX = int(numpy.around(read_size(TiltSeries_._ProjectionList[0]._filename, 'x')/binning,0))
-    imdimY = int(numpy.around(read_size(TiltSeries_._ProjectionList[0]._filename, 'y')/binning,0))
+    imdimX = int(np.around(read_size(TiltSeries_._ProjectionList[0]._filename, 'x')/binning,0))
+    imdimY = int(np.around(read_size(TiltSeries_._ProjectionList[0]._filename, 'y')/binning,0))
 
     imdim = int(max(imdimX, imdimY))
 
@@ -67,9 +67,9 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         tilt_angles.append( projection._tiltAngle )
     tilt_angles = sorted(tilt_angles)
 
-    #q = numpy.matrix(abs(numpy.arange(-imdim//2, imdim//2)))
+    #q = np.matrix(abs(np.arange(-imdim//2, imdim//2)))
 
-    alignmentResults = numpy.zeros((len(TiltSeries_._ProjectionList)),dtype=datatypeAR)
+    alignmentResults = np.zeros((len(TiltSeries_._ProjectionList)),dtype=datatypeAR)
     alignmentResults['TiltAngle'] = tilt_angles
 
     for (ii,projection) in enumerate(TiltSeries_._ProjectionList):
@@ -118,7 +118,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
             #     image = filtered[0]
 
             # 1 -- normalize to contrast - subtract mean and norm to mean
-            immean = vol2npy(image).mean()
+            immean = sum(image) / image.numelem()
             image = (image - immean)/immean
 
 
@@ -174,9 +174,9 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
                       (image.sizeX()*image.sizeY()*image.sizeZ()) )
             header.set_tiltangle(tilt_angles[ii])
 
-            if newFilename.endswith ('.mrc'):
+            if newFilename.endswith('.mrc'):
                 data = copy.deepcopy(vol2npy(image))
-                mrcfile.new(newFilename,data.T.astype(float32),overwrite=True)
+                mrcfile.new(newFilename,data.T.astype(np.float32), overwrite=True)
             else:
                 write_em(filename=newFilename, data=image, header=header)
 
@@ -184,5 +184,5 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
                 tline = ("%30s written ..." %newFilename)
 
     outname = os.path.join(os.path.dirname(TiltSeries_._alignedTiltSeriesName), 'alignmentResults.txt')
-    numpy.savetxt(outname, alignmentResults, fmt=fmtAR, header=headerAlignmentResults)
+    np.savetxt(outname, alignmentResults, fmt=fmtAR, header=headerAlignmentResults)
     print('Alignment successful. See {} for results.'.format(outname))
