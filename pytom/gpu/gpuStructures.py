@@ -3,6 +3,7 @@ import importlib
 from pytom.agnostic.io import read, write
 from pytom.gpu.initialize import device, xp
 
+
 class TemplateMatchingPlan():
     def __init__(self, volume, template, mask, wedge, cp, vt, calc_stdV, pad, get_fft_plan, deviceid):
         from pytom.agnostic.io import read
@@ -149,13 +150,12 @@ class TemplateMatchingGPU(threading.Thread):
             # Rotate
             #self.plan.template = self.rotate3d(self.plan.templateOrig, phi=phi,the=the,psi=psi)
 
-            if self.plan.where  == 'gpu':
+            if self.plan.where == 'gpu':
                 self.plan.texture.transform(rotation=(angles[0], angles[2], angles[1]), rotation_order='rzxz', output=self.plan.template)
                 #self.plan.template *= self.plan.mask
             else:
-                #ref.setAll(0.)
                 rotate(self.plan.templateVol, ref, angles[0], angles[1], angles[2])
-                self.plan.template = xp.array(vol2npy(ref).copy(),dtype=xp.float32)
+                self.plan.template = xp.array(vol2npy(ref).copy(), dtype=xp.float32)
 
             # Add wedge
             self.plan.template = self.irfftn(self.rfftn(self.plan.template) * self.plan.wedge, s=self.plan.template.shape)

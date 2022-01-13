@@ -59,7 +59,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     from pytom.basic.correlation import FLCF
     from pytom.basic.structures import WedgeInfo, Wedge
     from pytom_volume import vol, pasteCenter
-    from pytom_volume import rotateSpline as rotate # for more accuracy
+    from pytom_volume import rotateSpline as rotate  # for more accuracy
     from pytom_volume import updateResFromIdx
     from pytom.basic.files import write_em
 
@@ -254,27 +254,28 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
         w1, w2 = angle
 
     if w1 > 1E-3 or w2 > 1E-3:
-        cutoff = wedgeInfo._wedgeObject._cutoffRadius if wedgeInfo._wedgeObject._cutoffRadius > 1E-3 else sx//2-1
+        # cutoff was previously sx // 2 - 1
+        cutoff = wedgeInfo._wedgeObject._cutoffRadius
         smooth = wedgeInfo._wedgeObject._smooth
         wedge = create_wedge(w1, w2, cutoff, sx, sy, sz, smooth).astype(np.complex64).get()
 
-        wedgeVolume = create_wedge(w1, w2, (SX//2)-1, SX, SY, SZ, smooth).astype(np.float32)
+        wedgeVolume = create_wedge(w1, w2, cutoff, SX, SY, SZ, smooth).astype(np.float32)
 
-        # wedgec = vol2npy(wedgeInfo.returnWedgeVolume(SX,SY,SZ)).copy()
-        #wedgeVolume2 = create_structured_wedge(xp.arange(-w2,w1,2), w2, (SX//2)-2, SX, SY, SZ, smooth).astype(np.float32)
+        try:
+            wedge = wedge.get()
+            wedgeVolume = wedgeVolume.get()
+        except:
+            pass
 
-        volume = np.real(np.fft.irfftn(np.fft.rfftn(volume)* wedgeVolume.get()))#Volume.get()))
+        # convolve the search volume with the wedge
+        volume = np.real(np.fft.irfftn(np.fft.rfftn(volume) * wedgeVolume.get()))
 
-        # volume = np.real(np.fft.irfftn(np.fft.rfftn(volume)* wedgeVolume.get()))
         del wedgeVolume
-        #del wedgeVolume2
-        print('Wedge applied to volume')
+        print('Wedge filter applied to volume')
     else:
         wedge = np.ones((sx,sy,sz//2+1),dtype='float32')
 
     scrs = np.zeros_like(volume,dtype=np.float32)
-
-
 
     if padding:
         dimx, dimy, dimz = volume.shape
@@ -286,11 +287,7 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
         voluNDAs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = volume[:min(cx, dimx), :min(cy, dimy),:min(cz, dimz)]
         volume = voluNDAs
 
-
-
-
     print(f'dimensions of template and mask: {reference.shape} {mask.shape} ')
-
 
     input = (volume, reference, mask, wedge, angles, volume.shape)
 
@@ -315,7 +312,5 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     else:
         if sleep_time >= max_sleep_time:
             print(f'Job terminated on {kwargs["gpuID"]} due to time limit (exceeded {max_sleep_time} sec).')
-
-
 
         raise Exception('failed template matching')

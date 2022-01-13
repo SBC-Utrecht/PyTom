@@ -552,6 +552,9 @@ def create_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, sm
     @rtype: ndarray of np.float64'''
     import numpy as np
 
+    if cutOffRadius < 1:
+        cutOffRadius = sizeX // 2
+
     if wedgeAngle1 == wedgeAngle2:
         return create_symmetric_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth, rotation).astype(np.float32)
     else:

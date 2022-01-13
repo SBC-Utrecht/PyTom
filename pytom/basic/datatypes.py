@@ -178,8 +178,8 @@ SIMULATED_GROUND_TRUTH = [('ParticleName', 'U1000'),
                           ('y', 'f4'),
                           ('z', 'f4'),
                           ('ThetaZ', 'f4'),
-                          ('PsiX', 'f4'),
-                          ('PhiZ', 'f4')]
+                          ('PhiX', 'f4'),
+                          ('PsiZ', 'f4')]
 
 
 def generate_default_alignmentresults(folder, metafilename='', prefix='sorted_', filename='alignmentResults.txt'):
