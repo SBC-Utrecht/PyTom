@@ -550,7 +550,6 @@ def create_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, sm
     @type smooth: float
     @return: 3D array determining the wedge object.
     @rtype: ndarray of np.float64'''
-    # TODO add cutoff of SX // 2 if a zero cutoff is provided, so that it is identical to pytom_volume Wedge
     # TODO update so that uneven values for sizeZ still match with pytom_volume
 
     import numpy as np
