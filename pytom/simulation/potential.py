@@ -1,12 +1,10 @@
 #!/usr/bin/env pytom
 
-from concurrent.futures import ThreadPoolExecutor
-from threading import current_thread
 import multiprocessing as mp
 import numpy as np
 import pytom.simulation.physics as physics
 import os, sys
-from numba import jit
+# from numba import jit
 
 
 # // N should be len(atoms) // 3

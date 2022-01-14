@@ -490,11 +490,12 @@ def generate_model(particle_folder, save_path, listpdbs, listmembranes, pixel_si
             if particle_flipping == 'Random':
                 if xp.random.randint(2): # Generate true/false randomly
                     # Mirror the particle to cover both left and right handedness of the proteins
+                    # TODO if particle is flipped it should be written down in the particle locations txt file
                     ax = xp.random.randint(3)
                     particle_real = xp.flip(particle_real, axis=ax)
                     if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=ax)
             elif particle_flipping == 'Yes':
-                particle_real = xp.flip(particle_real, axis=0)
+                particle_real = xp.flip(particle_real, axis=0)  # the axis to flip does not matter for mirroring
                 if absorption_contrast: particle_imag = xp.flip(particle_imag, axis=0)
 
             # Rotate particle to the specified orientation
@@ -918,6 +919,7 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     # Intensity in image plane is obtained by taking the absolute square of the wave function
     noisefree_projection = xp.abs(xp.fft.fftshift(xp.fft.ifftn(wave_ctf))) ** 2
 
+    # TODO Beam damage might be better modelled as a Gaussian drop off that increases in the order of projecting
     if beam_damage_snr > 0.0:
         sigma_signal = noisefree_projection[noisefree_projection>0.1].std()
         # snr = sigma_signal**2 / sigma_noise**2
@@ -2048,6 +2050,8 @@ if __name__ == '__main__':
                                              'NumberOfMembranes')
             sigma_motion_blur   = config['GenerateModel'].getfloat('SigmaMotionBlur')  # in A units
             particle_flipping   = config['GenerateModel']['Mirror']
+
+            # TODO add parameter for meta mode of random variation or stick exactly to input values
         except Exception as e:
             print(e)
             raise Exception('Missing generate model parameters in config file.')
@@ -2071,7 +2075,8 @@ if __name__ == '__main__':
             objective_diameter      = config['Microscope'].getfloat('ObjectiveDiameter') * 1E-6
             focus_length            = config['Microscope'].getfloat('FocalDistance') * 1E-3
             astigmatism             = config['Microscope'].getfloat('Astigmatism') * 1E-9
-            astigmatism_angle       = config['Microscope'].getfloat('AstigmatismAngle')
+            astigmatism_angle       = draw_range(literal_eval(config['Microscope']['AstigmatismAngle']), float,
+                                                 'AstigmatismAngle')
         except Exception as e:
             print(e)
             raise Exception('Missing microscope parameters in config file.')
