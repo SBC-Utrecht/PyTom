@@ -15,8 +15,8 @@ dependencies:
   - brunsli=0.1=h2531618_0
   - bzip2=1.0.8=h7b6447c_0
   - c-ares=1.17.1=h27cfd23_0
-  - ca-certificates=2021.9.30=h06a4308_1
-  - certifi=2021.10.8=py37h06a4308_0
+  - ca-certificates=2021.10.26=h06a4308_2
+  - certifi=2021.10.8=py37h06a4308_2
   - cfitsio=3.470=hf0d0db6_6
   - charls=2.2.0=h2531618_0
   - cloudpickle=2.0.0=pyhd3eb1b0_0
@@ -66,6 +66,7 @@ dependencies:
   - libgfortran-ng=7.5.0=ha8ba4b0_17
   - libgfortran4=7.5.0=ha8ba4b0_17
   - libgomp=11.2.0=h1d223b6_11
+  - libllvm10=10.0.1=hbcb73fb_5
   - libnghttp2=1.41.0=hf8bcb03_2
   - libpng=1.6.37=hbc83047_0
   - libsanitizer=11.2.0=he4da1e4_11
@@ -79,6 +80,7 @@ dependencies:
   - libxml2=2.9.12=h03d6c58_0
   - libxslt=1.1.34=hc22bd24_0
   - libzopfli=1.0.3=he6710b0_0
+  - llvmlite=0.36.0=py37h612dafd_4
   - locket=0.2.1=py37h06a4308_1
   - lxml=4.6.3=py37h9120a33_0
   - lz4-c=1.9.3=h295c915_1
@@ -93,12 +95,13 @@ dependencies:
   - munkres=1.1.4=py_0
   - ncurses=6.2=he6710b0_1
   - networkx=2.6.3=pyhd3eb1b0_0
+  - numba=0.53.1=py37ha9443f7_0
   - numpy=1.16.6=py37h2d18471_3
   - numpy-base=1.16.6=py37hdc34a94_3
   - olefile=0.46=py37_0
   - openjpeg=2.4.0=h3ad879b_0
   - openmpi=3.1.4=hc99cbb1_0
-  - openssl=1.1.1l=h7f8727e_0
+  - openssl=1.1.1m=h7f8727e_0
   - packaging=21.0=pyhd3eb1b0_0
   - parso=0.8.2=pyhd3eb1b0_0
   - partd=1.2.0=pyhd3eb1b0_0
@@ -129,6 +132,7 @@ dependencies:
   - sqlite=3.36.0=hc218d9a_0
   - swig=3.0.12=h38cdd7d_3
   - sysroot_linux-64=2.12=he073ed8_14
+  - tbb=2020.3=hfd86e86_0
   - tifffile=2021.7.2=pyhd3eb1b0_2
   - tk=8.6.11=h1ccaba5_0
   - toolz=0.11.1=pyhd3eb1b0_0
@@ -143,9 +147,15 @@ dependencies:
   - zlib=1.2.11=h7b6447c_3
   - zstd=1.4.9=haebb681_0
   - pip:
+    - attrs==21.2.0
     - cupy-cuda80==7.8.0
     - fastrlock==0.8
+    - iniconfig==1.1.1
+    - mpi4py==3.1.2
     - mrcfile==1.3.0
+    - pluggy==1.0.0
+    - py==1.11.0
     - pytest==6.2.5
     - pytest-qt==3.1.0
-    - mpi4py==3.1.2
+    - pytom==0.995
+    - toml==0.10.2
