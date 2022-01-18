@@ -1,7 +1,8 @@
 from pytom.gpu.initialize import xp, device
 from numba import njit
 
-@njit(parallel=True)
+
+@njit
 def fill_values_real_spline(src, dst, mtx, dims_src, dims):
     for dx in range(dims[0]):
         for dy in range(dims[1]):

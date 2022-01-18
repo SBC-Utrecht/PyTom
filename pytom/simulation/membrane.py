@@ -11,6 +11,7 @@ import numpy as np
 import pytom.simulation.physics as physics
 from numba import jit
 
+
 class Vector:
     # Class can be used as both a 3d coordinate, and a vector
     def __init__(self, coordinates):
