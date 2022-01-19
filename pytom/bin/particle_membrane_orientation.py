@@ -184,7 +184,7 @@ if __name__ == '__main__':
     # ======== create plot
     try:
         import matplotlib.pyplot as plt
-    except Exception as e:
+    except:
         import matplotlib
         matplotlib.use('Qt5Agg')
         import matplotlib.pyplot as plt

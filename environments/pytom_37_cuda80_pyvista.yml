@@ -1,4 +1,4 @@
-name: pytom_env
+name: pytom_localize
 channels:
   - cryoem/label/archive
   - conda-forge
@@ -6,7 +6,6 @@ channels:
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=1_gnu
-  - appdirs=1.4.4=pyh9f0ad1d_0
   - backcall=0.2.0=pyhd3eb1b0_0
   - binutils_impl_linux-64=2.36.1=h193b22a_2
   - blas=1.0=mkl
@@ -16,24 +15,17 @@ dependencies:
   - brunsli=0.1=h2531618_0
   - bzip2=1.0.8=h7b6447c_0
   - c-ares=1.17.1=h27cfd23_0
-  - ca-certificates=2021.10.8=ha878542_0
-  - cached-property=1.5.2=hd8ed1ab_1
-  - cached_property=1.5.2=pyha770c72_1
-  - certifi=2021.10.8=py37h89c1867_1
+  - ca-certificates=2021.10.26=h06a4308_2
+  - certifi=2021.10.8=py37h06a4308_0
   - cfitsio=3.470=hf0d0db6_6
-  - cftime=1.4.1=py37h902c9e0_0
   - charls=2.2.0=h2531618_0
   - cloudpickle=2.0.0=pyhd3eb1b0_0
-  - curl=7.78.0=h1ccaba5_0
   - cycler=0.10.0=py37_0
   - cytoolz=0.11.0=py37h7b6447c_0
   - dask-core=2021.9.1=pyhd3eb1b0_0
   - dbus=1.13.18=hb2f20db_0
   - decorator=5.1.0=pyhd3eb1b0_0
-  - double-conversion=3.1.5=h9c3ff4c_2
-  - eigen=3.4.0=h4bd325d_0
   - expat=2.4.1=h2531618_2
-  - ffmpeg=4.3.2=hca11adc_0
   - fftw-mpi=3.3.6=openmpi3_4
   - fontconfig=2.13.1=h6c09931_0
   - fonttools=4.25.0=pyhd3eb1b0_0
@@ -42,34 +34,23 @@ dependencies:
   - gcc=11.2.0=h702ea55_1
   - gcc_impl_linux-64=11.2.0=h82a94d6_11
   - giflib=5.1.4=h14c3975_1
-  - gl2ps=1.4.2=h0708190_0
-  - glew=2.1.0=h9c3ff4c_2
   - glib=2.69.1=h5202010_0
-  - gmp=6.2.1=h58526e2_0
-  - gnutls=3.6.13=h85f3911_1
   - gst-plugins-base=1.14.0=h8213a91_2
   - gstreamer=1.14.0=h28cd5cc_2
   - gxx=11.2.0=h702ea55_1
   - gxx_impl_linux-64=11.2.0=h82a94d6_11
-  - h5py=3.1.0=nompi_py37h1e651dc_100
-  - hdf4=4.2.15=h10796ff_3
-  - hdf5=1.10.6=nompi_h7c3c948_1111
   - icu=58.2=he6710b0_3
   - imagecodecs=2021.6.8=py37h20f8b18_1
   - imageio=2.9.0=pyhd3eb1b0_0
-  - importlib-metadata=4.8.2=py37h89c1867_0
-  - importlib_metadata=4.8.2=hd8ed1ab_0
   - intel-openmp=2021.3.0=h06a4308_3350
   - ipython=7.27.0=py37hb070fc8_0
   - jedi=0.18.0=py37h06a4308_1
   - joblib=1.0.1=pyhd3eb1b0_0
   - jpeg=9d=h7f8727e_0
-  - jsoncpp=1.8.4=hc9558a2_1002
   - jxrlib=1.1=h7b6447c_2
   - kernel-headers_linux-64=2.6.32=he073ed8_14
   - kiwisolver=1.3.1=py37h2531618_0
   - krb5=1.19.2=hac12032_0
-  - lame=3.100=h7f98852_1001
   - lcms2=2.12=h3be6417_0
   - ld_impl_linux-64=2.36.1=hea4e1c9_2
   - lerc=2.2.1=h2531618_0
@@ -84,33 +65,28 @@ dependencies:
   - libgcc-ng=11.2.0=h1d223b6_11
   - libgfortran-ng=7.5.0=ha8ba4b0_17
   - libgfortran4=7.5.0=ha8ba4b0_17
-  - libglu=9.0.0=he1b5a44_1001
   - libgomp=11.2.0=h1d223b6_11
-  - libnetcdf=4.7.4=nompi_h56d31a8_107
+  - libllvm10=10.0.1=hbcb73fb_5
   - libnghttp2=1.41.0=hf8bcb03_2
-  - libogg=1.3.4=h7f98852_1
   - libpng=1.6.37=hbc83047_0
   - libsanitizer=11.2.0=he4da1e4_11
   - libssh2=1.9.0=h1ba5d50_1
   - libstdcxx-devel_linux-64=11.2.0=h0952999_11
   - libstdcxx-ng=11.2.0=he4da1e4_11
-  - libtheora=1.1.1=h7f98852_1005
   - libtiff=4.1.0=h2733197_1
   - libuuid=1.0.3=h7f8727e_2
-  - libvorbis=1.3.7=h9c3ff4c_0
   - libwebp=1.0.1=h8e7db2f_0
   - libxcb=1.14=h7b6447c_0
   - libxml2=2.9.12=h03d6c58_0
   - libxslt=1.1.34=hc22bd24_0
   - libzopfli=1.0.3=he6710b0_0
+  - llvmlite=0.36.0=py37h612dafd_4
   - locket=0.2.1=py37h06a4308_1
-  - loguru=0.5.3=py37h89c1867_3
   - lxml=4.6.3=py37h9120a33_0
   - lz4-c=1.9.3=h295c915_1
   - matplotlib=3.4.3=py37h06a4308_0
   - matplotlib-base=3.4.3=py37hbbc1b5f_0
   - matplotlib-inline=0.1.2=pyhd3eb1b0_2
-  - meshio=4.4.6=pyhd8ed1ab_0
   - mkl=2021.3.0=h06a4308_520
   - mkl-service=2.4.0=py37h7f8727e_0
   - mkl_fft=1.3.1=py37hd3c417c_0
@@ -118,16 +94,14 @@ dependencies:
   - mpi=1.0=openmpi
   - munkres=1.1.4=py_0
   - ncurses=6.2=he6710b0_1
-  - netcdf4=1.5.6=nompi_py37hdbee05a_100
-  - nettle=3.6=he412f7d_0
   - networkx=2.6.3=pyhd3eb1b0_0
+  - numba=0.53.1=py37ha9443f7_0
   - numpy=1.16.6=py37h2d18471_3
   - numpy-base=1.16.6=py37hdc34a94_3
   - olefile=0.46=py37_0
-  - openh264=2.1.1=h780b84a_0
   - openjpeg=2.4.0=h3ad879b_0
   - openmpi=3.1.4=hc99cbb1_0
-  - openssl=1.1.1l=h7f98852_0
+  - openssl=1.1.1l=h7f8727e_0
   - packaging=21.0=pyhd3eb1b0_0
   - parso=0.8.2=pyhd3eb1b0_0
   - partd=1.2.0=pyhd3eb1b0_0
@@ -136,10 +110,8 @@ dependencies:
   - pickleshare=0.7.5=pyhd3eb1b0_1003
   - pillow=8.3.1=py37h2c7a002_0
   - pip=21.2.2=py37h06a4308_0
-  - proj=7.1.1=h966b41f_3
   - prompt-toolkit=3.0.20=pyhd3eb1b0_0
   - ptyprocess=0.7.0=pyhd3eb1b0_2
-  - pugixml=1.11.4=h9c3ff4c_0
   - py-boost=1.73.0=py37ha9443f7_11
   - pygments=2.10.0=pyhd3eb1b0_0
   - pyparsing=2.4.7=pyhd3eb1b0_0
@@ -147,15 +119,12 @@ dependencies:
   - pyqtgraph=0.11.0=py_0
   - python=3.7.11=h12debd9_0
   - python-dateutil=2.8.2=pyhd3eb1b0_0
-  - python_abi=3.7=2_cp37m
-  - pyvista=0.32.1=pyhd8ed1ab_0
   - pywavelets=1.1.1=py37h7b6447c_2
   - pyyaml=5.4.1=py37h27cfd23_1
   - qt=5.9.7=h5867ecd_1
   - readline=8.1=h27cfd23_0
   - scikit-image=0.18.1=py37ha9443f7_0
   - scipy=1.7.1=py37h292c36d_2
-  - scooby=0.5.8=pyhd8ed1ab_0
   - setuptools=58.0.4=py37h06a4308_0
   - sip=4.19.8=py37hf484d3e_0
   - six=1.16.0=pyhd3eb1b0_0
@@ -163,35 +132,30 @@ dependencies:
   - sqlite=3.36.0=hc218d9a_0
   - swig=3.0.12=h38cdd7d_3
   - sysroot_linux-64=2.12=he073ed8_14
-  - tbb=2020.2=h4bd325d_4
-  - tbb-devel=2020.2=h4bd325d_4
+  - tbb=2020.3=hfd86e86_0
   - tifffile=2021.7.2=pyhd3eb1b0_2
   - tk=8.6.11=h1ccaba5_0
   - toolz=0.11.1=pyhd3eb1b0_0
   - tornado=6.1=py37h27cfd23_0
   - tqdm=4.62.2=pyhd3eb1b0_1
   - traitlets=5.1.0=pyhd3eb1b0_0
-  - typing_extensions=4.0.0=pyha770c72_0
-  - utfcpp=3.2.1=ha770c72_0
-  - vtk=9.0.1=no_osmesa_py37h9c81a00_103
   - wcwidth=0.2.5=pyhd3eb1b0_0
   - wheel=0.37.0=pyhd3eb1b0_1
-  - x264=1!161.3030=h7f98852_1
-  - xorg-kbproto=1.0.7=h7f98852_1002
-  - xorg-libice=1.0.10=h7f98852_0
-  - xorg-libsm=1.2.2=h470a237_5
-  - xorg-libx11=1.7.2=h7f98852_0
-  - xorg-libxext=1.3.4=h7f98852_1
-  - xorg-libxt=1.2.1=h7f98852_2
-  - xorg-xextproto=7.3.0=h7f98852_1002
-  - xorg-xproto=7.0.31=h7f98852_1007
   - xz=5.2.5=h7b6447c_0
   - yaml=0.2.5=h7b6447c_0
   - zfp=0.5.5=h2531618_6
-  - zipp=3.6.0=pyhd8ed1ab_0
   - zlib=1.2.11=h7b6447c_3
   - zstd=1.4.9=haebb681_0
   - pip:
+    - attrs==21.2.0
     - cupy-cuda80==7.8.0
     - fastrlock==0.8
+    - iniconfig==1.1.1
+    - mpi4py==3.1.2
     - mrcfile==1.3.0
+    - pluggy==1.0.0
+    - py==1.11.0
+    - pytest==6.2.5
+    - pytest-qt==3.1.0
+    - pytom==0.995
+    - toml==0.10.2
