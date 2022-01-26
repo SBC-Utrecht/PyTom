@@ -131,7 +131,7 @@ if __name__ == '__main__':
 
     if tomogram:
         vol = projections.reconstructVolume( dims=size, reconstructionPosition=recOffset,
-            binning=projBinning, applyWeighting=aw)
+            binning=projBinning, applyWeighting=aw)  # TODO alignmentresults file should also be passed here
         vol.write(tomogram)
         
     else:

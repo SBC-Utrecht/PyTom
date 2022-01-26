@@ -5,9 +5,8 @@ started on Mar 10, 2011
 '''
 
 from pytom.basic.structures import PyTomClass
-import numpy as np
 import mrcfile
-from pytom_numpy import vol2npy
+
 
 class Projection(PyTomClass):
     """
@@ -1220,7 +1219,7 @@ class ProjectionList(PyTomClass):
         except:
             alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
 
-        imageList = alignmentResults['FileName']
+        imageList = alignmentResults['FileName']  # TODO do not read these, just use the already aligned stack
         tilt_angles = alignmentResults['TiltAngle']
 
         a = mrcfile.open(imageList[0], permissive=True)
@@ -1716,107 +1715,3 @@ class ProjectionList(PyTomClass):
                     print(query)
                 magnification = alignXML.xpath(query)
                 projection.setAlignmentMagnification(float(magnification[0].text))
-    
-            
-class Reconstruction(PyTomClass):            
-
-                
-    def __init__(self,projectionList,particleList):
-        """
-        __init__
-        """
-
-        self._projectionList = None
-        self._particleList = None
-
-        if projectionList:
-            self._projectionList = projectionList
-                
-        if particleList:
-            self._particleList = particleList    
-        
-    
-    def apply(self,cubeSize,preScale=1,postScale=1,target="",coordinatesScale=1):
-        """
-        apply: Apply reconstruction method
-        @param cubeSize: Size of resulting cube
-        @param preScale: Downscale projections BEFORE reconstruction. Default = 1. Can be 1x, 2x
-        @param postScale:   Downscale projections AFTER reconstruction. Default = 1. Can be 1x, 2x
-        @param target: Target volume if no particle list is given.
-        @param coordinatesScale: Do the determined coordinates stem from a "binned" volume?  
-        """
-        
-        raise RuntimeError('You must run this function on a child of Reconstruction')
-
-
-class WeightedBackprojection(PyTomClass):
-    """
-    WeightedBackprojection: A class that can do everything related to WB
-    """          
-                
-    def apply(self,cubeSize,preScale=1,postScale=1,target="",coordinatesScale=1,applyWeighting=False,showProgressBar=False,verbose=False):
-        """
-        @param applyWeighting: Are the projections weighted. Apply weighting if not. Is False by default 
-        """
-
-        from pytom.tools.ProgressBar import FixedProgBar
-        from pytom_volume import vol, backProject
-        
-        if not self._projectionList or len(self._projectionList) == 0:
-            raise RuntimeError('This reconstruction object does not have a valid ProjectionList')
-        
-        if not self._particleList:
-            from pytom.basic.structures import ParticleList,Particle
-            
-            p = Particle(target)
-            pl = ParticleList('.')
-            
-            self._particleList = pl
-            
-        targetVolume = vol(cubeSize, cubeSize, cubeSize)
-        targetVolume.setAll(0.0)
-        
-        [projectionStack,phiStack,thetaStack,projectionOffsetStack] = self._projectionStack.toProjectionStack() 
-
-        if showProgressBar:
-            progressBar = FixedProgBar(0,len(self._particleList),'Particle volumes generated ')
-            progressBar.update(0)
-            numberParticleVolumes = 0
-        
-        
-        particleOffsetStack = vol(3, len(self) ,1)
-        particleOffsetStack.setAll(0.0)
-        
-        
-        for particleIndex in range(len(self._particleList)):    
-            p = self._particleList[particleIndex]
-            
-            if verbose:
-                print(p)
-            
-            for i in range(len(self)):
-                particleOffsetStack.setV(p.getPickPosition().getX()*coordinatesScale, 0, i, 0) 
-                particleOffsetStack.setV(p.getPickPosition().getY()*coordinatesScale, 1, i, 0)
-                particleOffsetStack.setV(p.getPickPosition().getZ()*coordinatesScale, 2, i, 0)   
-            
-            backProject(projectionStack, targetVolume, phiStack, thetaStack, projectionOffsetStack,projectionOffsetStack)
-            targetVolume.write(p.getFilename())
-
-            if showProgressBar:
-                numberParticleVolumes = numberParticleVolumes + 1
-                progressBar.update(numberParticleVolumes)
-            
-        
-    def reconstructTomogram(self,cubeSize,preScale=1,postScale=1,target="",coordinatesScale=1,applyWeighting=False,showProgressBar=False,verbose=False):
-        """
-        reconstructTomogram: Will reconstruct a WB tomogram
-        """
-        
-                
-                
-        
-    
-    
-    
-    
-    
