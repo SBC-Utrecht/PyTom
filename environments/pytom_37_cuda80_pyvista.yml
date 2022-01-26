@@ -157,5 +157,4 @@ dependencies:
     - py==1.11.0
     - pytest==6.2.5
     - pytest-qt==3.1.0
-    - pytom==0.995
     - toml==0.10.2
