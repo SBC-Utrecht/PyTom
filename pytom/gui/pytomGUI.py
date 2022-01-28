@@ -48,17 +48,23 @@ def update_env_vars(pytompath):
 # TODO be removed)
 # update_env_vars(pytompath)
 
+
+from os.path import dirname, basename
+
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from pytom.gui.guiStyleSheets import *
-from pytom.gui.frameDataTransfer import *#CollectPreprocess, TomographReconstruct, CommonFunctions
+from pytom.gui.guiStructures import *
+from pytom.gui.guiSupportCommands import *
+from pytom.gui.frameDataTransfer import CollectPreprocess
 from pytom.gui.frameTomographicReconstruction import TomographReconstruct
 from pytom.gui.frameParticlePicking import ParticlePick
 from pytom.gui.frameSubtomogramAnalysis import SubtomoAnalysis
 from pytom.gui.guiStructures import NewProject, View2d, View3d, PlotWindow
+
 
 class PyTomGui(QMainWindow, CommonFunctions):
     resized=pyqtSignal()
@@ -94,12 +100,10 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.qcommand = 'sbatch'
         self.modules = ['openmpi/2.1.1', 'python3/3.7', 'lib64/append']
 
-
        # INSERT MENU BAR
         bar = self.menuBar()
         bar.setNativeMenuBar(False)
         bar.setStyleSheet('selection-background-color: #1989ac;')
-
 
         # CREATE DROP-DOWN MENUS INSIDE MENU BAR
         self.targets = (('CollectPreprocess', "Data Transfer"),
@@ -124,12 +128,10 @@ class PyTomGui(QMainWindow, CommonFunctions):
                 dropdown[-1].addAction(action)
             dropdown[-1].triggered[QAction].connect(trigger)
 
-
         # ADD TOOL BAR BELOW MENU BAR
         tb = QToolBar()
         tb.setStyleSheet('background: #{};'.format(self.bars))
         self.addToolBar(tb)
-
 
         # ADD FRIST FOUR ICONS TO TOOLBAR: new, load, save, settings
         new  = QAction(QIcon("{}/gui/Icons/NewProject.png".format(self.pytompath)),"New",self)
@@ -138,7 +140,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
         settings = QAction(QIcon("{}/gui/Icons/Settings.png".format(self.pytompath)), "Settings", self)
         for action in (new, load, save, settings):
             tb.addAction(action)
-
 
         # ADD ICONS FOR PLOT, LOG FILES, 2D VIEWING, 3D VIEUWING, CONVERTING AND HELP TO TOOLBAR
         plot = QAction(QIcon("{}/gui/Icons/PlotIcon.png".format(self.pytompath)), "Plot", self)
@@ -158,7 +159,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
         # CONNECT THE RESPECTIVE WIDGETS TO ICONS
         tb.actionTriggered[QAction].connect(self.processtrigger)
 
-
         # ADD STATUS BAS AT BOTTOM OF GUI
         self.sbar = QStatusBar(self)
         self.sbar.setStyleSheet('background: #{}'.format(self.bars))
@@ -169,17 +169,14 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.killProcs()
 
         # IF USER HAS SUPPLIED A FOLDER, CHECK IF FOLDER IS A PYTOMGUI FOLDER.. IF SO, OPEN THE PROJECT.
-
         try:
-
-            print(sys.argv[-1])
             if os.path.isdir(sys.argv[-1]):
                 if sys.argv[-1] == './' or sys.argv[-1]== '.':
                     sys.argv[-1] = ''
-                self.projectname =  os.path.join(os.getcwd(), sys.argv[-1])
-                if self.projectname.endswith('/'): self.projectname = self.projectname[:-1]
+                self.projectname = os.path.join(os.getcwd(), sys.argv[-1])
+                # if self.projectname.endswith('/'): self.projectname = self.projectname[:-1]  # this is not a problem
                 if self.is_pytomgui_project(self.projectname):
-                    print('Opening existing pytomGUI project.')
+                    print(f'Opening existing pytomGUI project: {self.projectname}')
                     self.setWindowTitle('PyTom -- ' + os.path.basename(self.projectname))
                     guiFunctions.create_project_filestructure(projectdir=self.projectname)
                     self.createCentralWidgets()
@@ -188,7 +185,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
             pass
 
     # Connecting the drop down menus
-
     def filetrigger(self, q):
         try:
             self.filewindow.close()
@@ -219,9 +215,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
                     self.stage_buttons[n+1].setEnabled(True)
                     self.logbook['00_framebutton_{}'.format(self.targets[n+1][0])] = True
 
-
-    # Activate windows connected to icon in header bar
-
+    # =========================== Activate windows connected to icon in header bar =============
     def new_project(self):
         self.projectname = ''
         self.label = QLineEdit(self)
@@ -241,10 +235,9 @@ class PyTomGui(QMainWindow, CommonFunctions):
                 QMessageBox().critical(self, "Invalid projectname",
                                        "The selected folder does not contain a valid pytomGUI structure",
                                        QMessageBox.Ok)
-            # error_dialog.showMessage('The folder you selected does not contain a valid pytomGUI folder structure.')
 
         elif self.projectname and self.is_pytomgui_project(self.projectname):
-            print('Opening existing pytomGUI project.')
+            print(f'Opening existing pytomGUI project: {self.projectname}')
             self.setWindowTitle(basename('PyTom -- ' + self.projectname))
             guiFunctions.create_project_filestructure(projectdir=self.projectname)
             self.createCentralWidgets()
@@ -254,8 +247,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
         with open(os.path.join(self.projectname, 'logfile.js'), 'w') as f:
             json.dump(self.logbook, f, indent=4, sort_keys=True)
         print('saved  logfile')
-
-        # np.save('logfile.npy', self.logbook)
 
     def load_logfile(self, logfile):
         with open(logfile) as f:
@@ -334,9 +325,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
             self.convert_data = ConvertData(self)
             self.convert_data.show()
 
-
-    # Populating the main widgets
-
+    # ================== Populating the main widgets ============================
     def prepareStartProject(self):
         self.projectname = os.path.join(os.getcwd(), self.label.text())
         if self.projectname.endswith('/'): self.projectname = self.projectname[:-1]
@@ -350,9 +339,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
         guiFunctions.create_project_filestructure(projectdir=self.projectname)
         self.createCentralWidgets()
 
-        #dialog = QFileDialog(self, 'Create Project', './')
-        #dialog.setFileMode(QtGui.QFileDialog.DirectoryOnly)
-
     def createCentralWidgets(self):
 
         self.addGeneralFolderPaths()
@@ -361,7 +347,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
         topleft.setSizePolicy(self.sizePolicyC)
         topleft.setFixedWidth(250)
 
-        #topleft.setGeometry(20,20,0,0)
         self.topleft_layout = QVBoxLayout(topleft)
 
         self.topleft_layout.setContentsMargins(10,80,10,30)
@@ -375,7 +360,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
         sizePolicy.setHorizontalStretch(1)
         sizePolicy.setVerticalStretch(1)
 
-        #sizePolicy.setHeightForWidth(self.topright.sizePolicy().hasHeightForWidth())
         self.topright.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.threadPool = QThreadPool()
@@ -385,12 +369,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
         splitter1 = QSplitter(Qt.Horizontal)
         splitter1.addWidget(topleft)
         splitter1.addWidget(self.topright)
-
-        #splitter1.addWidget(dummy)
-        #splitter1.setSizes([100,1000])
-
-
-                          #('Segmentation',         "Segmentation") )
 
         self.open_settings(show_menu=False, new_project=True)
 
@@ -407,7 +385,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
             sizePolicy.setVerticalStretch(0)
             sizePolicy.setHeightForWidth(widget.sizePolicy().hasHeightForWidth())
             widget.setSizePolicy(sizePolicy)
-            #self.topleft_layout.addStretch(0)
             self.stage_buttons.append(widget)
             self.stage_buttons[-1].clicked.connect(lambda ignore, index=nn: self.showpage(index))
             self.topleft_layout.addWidget(self.stage_buttons[-1])
@@ -427,7 +404,6 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.imagelayout = QVBoxLayout()
         self.transfer_data = QLabel()
         pixmap = QPixmap(self.iconnames[0])
-        #pixmap = pixmap.scaledToWidth(225)  # scaled(300, 200, Qt.KeepAspectRatio, Qt.FastTransformation)
         self.transfer_data.setPixmap(pixmap)
         self.imagelayout.addWidget(self.transfer_data)
         self.image.setLayout(self.imagelayout)
@@ -482,9 +458,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
         self.topleft_layout.addWidget(self.image,alignment=Qt.AlignHCenter)
 
-
-    # Supporting Functions
-
+    # ======================== Supporting Functions ==========================
     def keyPressEvent(self, e):
 
         if e.key() == Qt.Key_Escape:
@@ -565,29 +539,29 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
 
 def main():
-
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
-    app.setWindowIcon(QIcon('/Users/gijs/Documents/PostDocUtrecht/GUI/pp.jpg'))
+    app.setWindowIcon(QIcon(os.path.join(pytompath, 'gui/icons/pp.jpg')))
     gui = PyTomGui()
     gui.show()
     sys.exit(app.exec_())
+
 
 if __name__ == '__main__':
     import sys
 
     sys._excepthook = sys.excepthook
+
     def exception_hook(exctype, value, traceback):
         print(exctype, value, traceback)
         sys._excepthook(exctype, value, traceback)
         sys.exit(1)
+
     sys.excepthook = exception_hook
 
-
-    for fname,module in [( 'motioncor2','motioncor2/1.2.1' ),('header','imod/4.10.25')]:
+    for fname, module in [( 'motioncor2', 'motioncor2/1.2.1' ), ('header', 'imod/4.10.25')]:
         if 1:
             result = os.popen('which {}'.format(fname)).read()[:-1]
             if not result:
-                #print('not found')
                 print('Please load the {} module'.format(module))
     main()

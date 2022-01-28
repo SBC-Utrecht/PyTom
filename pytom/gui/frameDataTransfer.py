@@ -6,7 +6,6 @@ import numpy
 import time
 import atexit
 
-from os.path import dirname, basename
 from multiprocessing import Manager, Event, Process
 from ftplib import FTP_TLS, FTP
 
@@ -21,6 +20,7 @@ from pytom.gui.guiStructures import *
 from pytom.gui.guiFunctions import avail_gpu
 from pytom.gui.guiSupportCommands import *
 import pytom.gui.guiFunctions as guiFunctions
+
 
 class BrowseWindowRemote(QMainWindow):
     '''This class creates a new windows for browsing'''
