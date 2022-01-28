@@ -1863,4 +1863,3 @@ class TomographReconstruct(GuiTabWidget):
         files = [os.path.join(folder,line) for line in os.listdir(folder) if line.endswith('.mrc') and line.startswith('sorted_aligned')]
 
         files = sorted(files)
-

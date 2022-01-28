@@ -223,19 +223,6 @@ multiple_alignment = '''cd {d[0]}
 --fnames {d[6]}'''
 
 
-# multiple_alignment = '''cd {d[0]}
-#
-# {d[1]}/bin/pytom {d[1]}/gui/additional/multi_tilt_alignment.py \\
-# --start {d[2]} \\
-# --end {d[3]} \\
-# --numberProcesses {d[4]} \\
-# --tiltSeriesName {d[5]} \\
-# --markerFile {d[6]} \\
-# --projectionTargets {d[7]} \\
-# --tomogramFolder {d[0]} \\
-# --fnames {d[8]}'''
-
-
 templateExtractCandidates = '''cd {d[0]}
 
 {d[1]}/bin/pytom {d[1]}/bin/extractCandidates.py \\
