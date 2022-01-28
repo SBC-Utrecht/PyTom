@@ -217,14 +217,13 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
 
             tiltAlignment.alignFromFiducials(mute=mute, shift_markers=False, logfile_residual=logfile_residual)
 
-
         values = []
 
-
-
-
-        if outfile:
+        if outfile:  # this is false with the default name ''
             # Retrieve the index of reference image
+            if verbose:
+                print(f'Writing reference marker file: {outfile}')
+
             ireftilt = int(numpy.argwhere( tiltAlignment._projIndices.astype(int) == tiltSeries._TiltAlignmentParas.ireftilt)[0][0])
 
             # for n, i in enumerate(tiltAlignment._projIndices.astype(int)):
@@ -270,7 +269,6 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
                 values.append([imark, r[0]-ref[0], r[1]-ref[1], r[2]-ref[2], r[0]+dx, r[1]+dy, r[2]+dz])
 
             savestar(outfile, numpy.array(values), header=headerMarkerResults, fmt=fmtMR)
-
 
         # creating dir for aligned tilt series if default filename
         if alignedTiltSeriesName == 'align/myTilt':

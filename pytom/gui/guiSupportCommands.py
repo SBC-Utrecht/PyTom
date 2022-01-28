@@ -30,38 +30,23 @@ old = '''
  
 '''
 
-newTemplateAlignment = '''cd {d[0]}; 
+
+templateAlignment = '''cd {d[0]}; 
 
 {d[1]}/bin/pytom {d[1]}/reconstruction/generateAlignedTiltImages.py \\
     --tiltSeriesName {d[2]}  \\
-	--firstIndex {d[3]} \\
-	--lastIndex {d[4]} \\
-	--referenceIndex {d[5]} \\
-	--referenceMarkerIndex {d[6]} \\
-	--markerFile {d[7]} \\
-	--projectionTargets {d[8]} \\
-	--projectionBinning {d[9]} \\
-	--lowpassFilter 0.9 \\
-	--weightingType {d[10]} \\
-	--expectedRotationAngle {d[11]} \\
+    --firstIndex {d[3]} \\
+    --lastIndex {d[4]} \\
+    --referenceIndex {d[5]} \\
+    --referenceMarkerIndex {d[6]} \\
+    --markerFile {d[7]} \\
+    --projectionTargets {d[8]} \\
+    --projectionBinning {d[9]} \\
+    --lowpassFilter 0.9 \\
+    --weightingType {d[10]} \\
+    --expectedRotationAngle {d[11]} \\
     --numberProcesses 1 '''
 
-
-templateAlignment = '''cd {d[0]}
-
-{d[1]}/bin/pytom {d[1]}/bin/reconstructTomogram.py \\
-    --tiltSeriesName sorted/sorted  \\
-    --firstIndex {d[2]} \\
-    --lastIndex {d[3]} \\
-    --referenceIndex {d[4]} \\
-    --referenceMarkerIndex {d[5]} \\
-    --projectionBinning {d[6]} \\
-    --expectedRotationAngle {d[7]} \\
-    --projectionTargets alignment/marker_{d[5]}{d[8]}/sorted_aligned \\
-    --markerFile {d[9]} \\
-    --lowpassFilter 0.9 \\
-    --tiltSeriesFormat mrc \\
-    --weightingType 0 '''
 
 templateWBP       = '''cd {d[0]}
 
@@ -93,7 +78,6 @@ unlink ../../04_Particle_Picking/Tomograms/{d[7]}_WBP.{d[8]}
 ln -s {d[0]}/reconstruction/WBP/{d[7]}_WBP.{d[8]} ../../04_Particle_Picking/Tomograms/{d[7]}_WBP.{d[8]}'''
 
 
-
 templateINFR      = '''cd {d[0]}
 
 {d[1]}/bin/pytom {d[1]}/bin/reconstructTomogram.py \\
@@ -116,8 +100,6 @@ unlink ../../04_Particle_Picking/Tomograms/{d[8]}_INFR.em
 ln -s {d[0]}/reconstruction/INFR/{d[8]}_INFR.em ../../04_Particle_Picking/Tomograms/{d[8]}_INFR.em'''
 
 
-
-
 templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[1]}]' Frequency='{d[2]}' MaxIterations='{d[3]}' PeakOffset='{d[4]}' RScore='{d[5]}' WeightedAverage='{d[6]}' Binning='1'>
     <Reference PreWedge="" File="{d[7]}" Weighting="{d[8]}"/>
     <Mask Filename="{d[9]}" Binning="{d[10]}" isSphere="{d[11]}"/>
@@ -126,12 +108,14 @@ templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[
 </FRMJob>
 '''
 
+
 templateFRMSlurm  = '''
 cd {d[0]}
 
 mpiexec -n {d[3]} pytom {d[1]}/alignment/FRMAlignment.py -j {d[2]} -v
 
 '''
+
 
 templateGLocal    = '''cd {d[0]}
 
@@ -149,15 +133,18 @@ mpiexec -n {d[14]} {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
 --jobName {d[10]} \\
 {d[4]}{d[15]}'''
 
+
 templateCCC       = """cd {d[0]}
 
 mpiexec --tag-output -n {d[7]} pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]} -o {d[6]} {d[8]}
 """
 
+
 templateCPCA      = """cd {d[0]}
 
 classifyCPCA.py -p {d[2]} -o {d[7]}/{d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[8]} -t {d[7]}
 """
+
 
 templateAC        = '''cd {d[0]}
 
@@ -172,6 +159,7 @@ mpiexec --tag-output -n {d[13]} {d[1]}/bin/pytom {d[1]}/classification/auto_focu
 -n {d[9]} --sig {d[10]} -t {d[11]} \\
 -o {d[12]}'''
 
+
 templateTM        = '''cd {d[0]}
 
 mpiexec --tag-output -n {d[1]} {d[2]}/bin/pytom {d[2]}/bin/localization.py -j {d[3]} -x {d[4]} -y {d[5]} -z {d[6]} {d[7]}
@@ -179,6 +167,7 @@ mpiexec --tag-output -n {d[1]} {d[2]}/bin/pytom {d[2]}/bin/localization.py -j {d
 
 
 createParticleList = 'coords2PL.py -c {d[0]}  -s {d[1]} -w {d[2]},{d[3]} -p {d[4]} {d[5]}'
+
 
 extractParticles = '''cd {d[8]}
 
@@ -193,6 +182,7 @@ reconstructWB.py --particleList {d[0]} \\
 --numProcesses {d[11]} \\
 {d[12]}'''
 
+
 polishParticles = '''cd {d[0]}
 
 mpiexec -n {d[1]} particlePolishingOrig.py \\
@@ -205,6 +195,7 @@ mpiexec -n {d[1]} particlePolishingOrig.py \\
 --recOffset {d[9]},{d[10]},{d[11]} \\
 {d[12]} {d[13]} {d[14]}
 '''
+
 
 extractParticlesClosestMarker = '''cd {d[8]}
 
@@ -221,17 +212,29 @@ reconstructWBClosestMarker.py --particleList {d[0]} \\
 --prefixFileName {d[13]} \\
 '''
 
+
 multiple_alignment = '''cd {d[0]}
 
 {d[1]}/bin/pytom {d[1]}/gui/additional/multi_tilt_alignment.py \\
 --start {d[2]} \\
 --end {d[3]} \\
---numberProcesses {d[4]} \\
---tiltSeriesName {d[5]} \\
---markerFile {d[6]} \\
---projectionTargets {d[7]} \\
---tomogramFolder {d[0]} \\
---fnames {d[8]}'''
+--tiltSeriesName {d[4]} \\
+--projectionTargets {d[5]} \\
+--fnames {d[6]}'''
+
+
+# multiple_alignment = '''cd {d[0]}
+#
+# {d[1]}/bin/pytom {d[1]}/gui/additional/multi_tilt_alignment.py \\
+# --start {d[2]} \\
+# --end {d[3]} \\
+# --numberProcesses {d[4]} \\
+# --tiltSeriesName {d[5]} \\
+# --markerFile {d[6]} \\
+# --projectionTargets {d[7]} \\
+# --tomogramFolder {d[0]} \\
+# --fnames {d[8]}'''
+
 
 templateExtractCandidates = '''cd {d[0]}
 
@@ -244,6 +247,7 @@ templateExtractCandidates = '''cd {d[0]}
 --size {d[7]} \\
 --numberCandidates {d[8]} \\
 --minimalScoreValue {d[9]} {d[10]}'''
+
 
 ParamsFileCTFPlotter = '''#
 InputStack           {d[0]}
@@ -270,6 +274,7 @@ templateCTFPlotter = '''cd {d[0]}
 
 ctfplotter -pa {d[1]}'''
 
+
 templateCTFCorrection = '''cd {d[0]}
 
 mpiexec --tag-output -n {d[9]}  {d[1]}/bin/pytom {d[1]}/gui/ctfCorrection.py \\
@@ -280,6 +285,7 @@ mpiexec --tag-output -n {d[9]}  {d[1]}/bin/pytom {d[1]}/gui/ctfCorrection.py \\
 --gridSpacing {d[6]} \\
 --fieldSize {d[7]} \\
 --binningFactor {d[8]}'''
+
 
 templateFSC = '''cd {d[0]}
 
@@ -294,7 +300,6 @@ fsc.py {d[2]} \\
 {d[10]}{d[11]} {d[12]}'''
 
 
-
 templateFSC2 = '''cd {d[0]}
 
 fsc.py {d[2]} \\
@@ -307,6 +312,7 @@ fsc.py {d[2]} \\
 --randomizePhases {d[9]} \\
 {d[10]}{d[11]} {d[12]}'''
 
+
 templateCTFCorrectionImod = '''cd {d[0]}                                                                                                                                                                                      
 
 ctfphaseflip -inp {d[1]} -o {d[2]} -an {d[3]} -defF {d[4]} \\
@@ -314,6 +320,7 @@ ctfphaseflip -inp {d[1]} -o {d[2]} -an {d[3]} -defF {d[4]} \\
 -am {d[9]} -vo {d[10]} -AxisAngle {d[11]} {d[15]}
 
 mrcs2mrc.py -f {d[2]} -t {d[12]} -p {d[13]} -o {d[14]}'''
+
 
 templateMotionCorrection = '''cd {d[0]}
 
@@ -325,9 +332,11 @@ motioncor2 -In{d[1]} {d[2]}/ \\
 {d[4]} {d[5]} {d[6]}
 '''
 
+
 templateAverageParticleList = '''cd {d[0]}
 
 average.py -p {d[2]} -a {d[3]} -c {d[4]} {d[5]}'''
+
 
 templateConvertData = '''cd {d[0]}
 

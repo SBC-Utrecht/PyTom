@@ -1,44 +1,27 @@
-import sys
-import os
-import random
-import glob
-import numpy
 import time
 import shutil
-import copy
-import atexit
 
-from os.path import dirname, basename
-from ftplib import FTP_TLS, FTP
-from multiprocessing import Manager, Event, Process
+from os.path import basename
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5 import QtCore, QtGui, QtWidgets
-
-from pytom.gui.guiStyleSheets import *
 from pytom.gui.fiducialAssignment import FiducialAssignment
 from pytom.gui.guiStructures import *
 from pytom.gui.guiFunctions import avail_gpu, sort
 from pytom.gui.guiSupportCommands import *
-from pytom.basic.files import read
-from pytom_numpy import vol2npy
-from pytom.gui.mrcOperations import read_mrc
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.mrcOperations import square_mrc, remove_hot_pixels
 from pytom.agnostic.io import read_size
 from pytom.gui.guiFunctions import loadstar
 from pytom.basic.datatypes import DATATYPE_METAFILE
 
+
 class TomographReconstruct(GuiTabWidget):
-    '''Collect Preprocess Widget'''
     def __init__(self, parent=None):
         super(TomographReconstruct, self).__init__(parent)
 
         self.stage = 'v02_'
         self.addGeneralVariables()
 
+        # Select Tomograms
         headers = ["Select Tomograms", "Create Markerfile", "Alignment", 'CTF Correction', 'Reconstruction']
         subheaders = [[], [], ['Individual Alignment', 'Batch Alignment'],
                       ['CTF Determination', 'CTF Correction', 'Batch Correction'],
@@ -48,12 +31,11 @@ class TomographReconstruct(GuiTabWidget):
                   [self.tab31UI,self.tab32UI],
                   [self.tab41UI,self.tab42UI,self.tab43UI],
                   [self.tab51UI, self.tab52UI,self.tab53UI]]
-        static_tabs = [[False],[True],[True,False],[True,True,False],[True,True,False]]
+        static_tabs = [[False], [True], [True, False], [True, True, False], [True, True, False]]
         self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict,
                      tab_actions=self.tab_actions, static_tabs=static_tabs)
 
     def tab1UI(self,  id=''):
-        #print(f'batch id: {id}')
         self.filepath_tomodata = {}
         self.filepath_tomodata['Motion Corrected'] = self.motioncor_folder
         self.filepath_tomodata['Raw Nanographs']  = self.rawnanographs_folder
@@ -189,7 +171,7 @@ class TomographReconstruct(GuiTabWidget):
         paramsCmd    = [mode + 'tomofolder', self.parent().pytompath, mode + 'tiltSeriesName', mode + 'FirstIndex',
                         mode + 'LastIndex', mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'markerfile',
                         mode + 'outFolder', mode + 'BinningFactor', '0', mode+'RotationTiltAxis',
-                        newTemplateAlignment]
+                        templateAlignment]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch = paramsSbatch,
                                  paramsCmd=paramsCmd, action=self.convert_em, paramsAction=[mode,'alignment','sorted'],
@@ -300,20 +282,26 @@ class TomographReconstruct(GuiTabWidget):
 
     def tab43UI(self, id=''):
 
-        headers = ["Name Tomogram", 'Correct', 'Index GPU', 'Defocus Tol', 'Width Interpol.', 'Pixel Size', 'Spherical Aberr.',
-                   'Amp. Contrast', 'Voltage', 'Rot. Angle', "Input Stack", "Angle File", "Defocus File", 'Output Folder', '']
-        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit','lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
-        sizes = [0, 0, 30, 30, 30, 430, 30, 30, 30, 0, 0 ,0, 0, 0, 0, ]
+        headers = ['Name Tomogram', 'Correct', 'Index GPU', 'Defocus Tol', 'Width Interpol.', 'Pixel Size',
+                   'Spherical Aberr.','Amp. Contrast', 'Voltage', 'Rot. Angle', 'Input Stack', 'Angle File',
+                   'Defocus File', 'Output Folder', '']
+        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit',
+                 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
+        sizes = [0, 0, 30, 30, 30, 430, 30, 30, 30, 0, 0, 0, 0, 0, 0, ]
 
-        tooltip = ['Names of existing tomogram folders.', 'Run checkbox', 'GPU ID (only one gpu allowed)'
+        tooltip = ['Names of existing tomogram folders.',
+                   'Run checkbox',
+                   'GPU ID (only one gpu allowed)',
+                   'Defocus tolerance (nm)',
                    'Interpolation width (pixels)',
-                   'Pixel Size (nm)', 'Spherical Aberration', 'Amplitude Contrast', 'Voltage (kV)',
-                   'In-plane rotation angle',
-                   'CTF Correction.',
+                   'Pixel Size (nm)',
+                   'Spherical Aberration (mm)',
+                   'Amplitude Contrast',
+                   'Voltage (kV)',
+                   'Rotation axis angle (degrees)',
                    'Input Stack.',
                    'Angle File',
-                   'Defocus file (from correction).',
-                   'Parameter File from wich other relevant input values are taken, i.e. Volrage or Rot Angle.',
+                   'Defocus file (from CTF Determination).',
                    'Output Folder']
 
         defocusfiles = sorted(glob.glob('{}/tomogram_*/ctf/*.defocus'.format(self.tomogram_folder)))
@@ -354,7 +342,8 @@ class TomographReconstruct(GuiTabWidget):
                 self.num_nodes[id].setParent(None)
             except:
                 pass
-            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True, wname=self.stage + 'BatchCTFCorrection')
+            self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True,
+                          wname=self.stage + 'BatchCTFCorrection')
             self.tab43_widgets = self.tables[id].widgets
             self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_ctf_correction(pid, v))
 
@@ -613,7 +602,7 @@ class TomographReconstruct(GuiTabWidget):
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, wname=self.stage+'BatchReconstruct')
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_reconstruction(pid, v))
 
-    def fill_tab(self, id, headers, types, values, sizes, tooltip=[],connect=0, nn=False, wname=''):
+    def fill_tab(self, id, headers, types, values, sizes, tooltip=[], connect=0, nn=False, nc=False, wname=''):
         try:
             self.tables[id].setParent(None)
             self.pbs[id].setParent(None)
@@ -633,13 +622,25 @@ class TomographReconstruct(GuiTabWidget):
             num_nodes = QSpinBox()
             num_nodes.setValue(2)
             num_nodes.setRange(1, 9)
-            num_nodes.setPrefix('Num Nodes: ')
+            num_nodes.setPrefix('Numbre of nodes: ')
 
         try:
             self.num_nodes[id] = num_nodes
         except:
             self.num_nodes = {}
-            self.num_nodes[id] = 0
+            self.num_nodes[id] = 0   # should this not be num_nodes ??
+
+        # if nc:
+        #     num_cores = QSpinBox()
+        #     num_cores.setValue(1)
+        #     num_cores.setRange(1, )
+        #     num_cores.setPrefix('Number of cores: ')
+        #
+        # try:
+        #     self.num_cores[id] = num_cores
+        # except:
+        #     self.num_cores = {}
+        #     self.num_cores[id] = num_cores
 
         for n, a in enumerate((self.tables[id], self.num_nodes[id], self.checkbox[id], self.pbs[id], self.ends[id])):
             if n==1 and not nn: continue
@@ -1493,10 +1494,20 @@ class TomographReconstruct(GuiTabWidget):
 
         self.activate_stage(2)
 
-    def run_multi_align(self,id,values):
+    def run_multi_align(self, id, values):
+        """
+        Multi tilt alignment will create jobs with a specified number of cores (n). Each job will then give the
+        alignment of one tomogram to a single core. If there are more tomograms then cores, the jobs will go over n
+        tomogram each.
+
+        @param id: tab id (tab32)
+        @type id: str
+        @param values: fillable values from the tab as a list
+        @type values: list
+        @return:
+        @rtype: None
+        """
         print('multi_align', id)
-        num_procs = 20
-        n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables[id].table
         widgets = self.tables[id].widgets
 
@@ -1508,11 +1519,10 @@ class TomographReconstruct(GuiTabWidget):
         tomofolder_info = []
         total_number_markers = 0
         number_tomonames = 0
-        num_procs_per_proc = 0
         firstindices, lastindices, expectedangles = [], [], []
         firstangles, lastangles = [], []
         mode = 'v02_ba_'
-        for name in ('FirstAngle', 'LastAngle','FirstIndex', 'LastIndex', 'Reduced', 'FolderSorted'):
+        for name in ('FirstAngle', 'LastAngle', 'FirstIndex', 'LastIndex', 'Reduced', 'FolderSorted'):
             self.widgets[mode + name] = QLineEdit()
         for row in range(table.rowCount()):
             wname = 'widget_{}_{}'.format(row, 1)
@@ -1522,15 +1532,15 @@ class TomographReconstruct(GuiTabWidget):
                 tomofoldername = values[row][0]
                 firstindex = widgets['widget_{}_{}'.format(row, 2)].text()
                 lastindex  = widgets['widget_{}_{}'.format(row, 3)].text()
-                refindex   = widgets['widget_{}_{}'.format(row, 4)].text() #values[row][4]
+                refindex   = widgets['widget_{}_{}'.format(row, 4)].text()
                 markindex  = widgets['widget_{}_{}'.format(row, 5)].currentText()
                 expected   = widgets['widget_{}_{}'.format(row, 6)].text()
                 inputfolder= values[row][7][widgets['widget_{}_{}'.format(row, 7)].currentIndex()]
                 fixmarkers = widgets['widget_{}_{}'.format(row, 8)].isChecked()
                 refmarkIDTomo = widgets['widget_{}_{}'.format(row, 9)].currentText()
                 tiltseriesname = os.path.join(inputfolder, os.path.basename(inputfolder))
-                self.widgets[mode + 'FolderSorted'].setText(os.path.join(self.tomogram_folder, tomofoldername, 'sorted'))
-                num_procs_per_proc = max(num_procs_per_proc, len(values[row][5]) - 1)
+                self.widgets[mode + 'FolderSorted'].setText(os.path.join(self.tomogram_folder,
+                                                                         tomofoldername, 'sorted'))
                 number_tomonames += 1
                 folder = os.path.join(self.tomogram_folder, tomofoldername)
                 os.system('cp {} {}/alignment/'.format(self.mfiles[row],folder))
@@ -1561,31 +1571,34 @@ class TomographReconstruct(GuiTabWidget):
                 if not refmarkIDTomo: refmarkIDTomo = '*'
 
                 ll = '{} {} {} {} {} {} {} {} {} {} {} {} {} {}\n'
-                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0, expected, tiltseriesname, markerfile, fixmarkers, refmarkIDTomo)
-                tomofolder_info.append([ numMark, ll])
+                ll = ll.format(tomofoldername, refindex, numMark, markindex, fa, la, fi, li, 0,
+                               expected, tiltseriesname, markerfile, fixmarkers, refmarkIDTomo)
+                tomofolder_info.append([numMark, ll])
 
         if not tomofolder_info:
             return
 
-        new_list = sorted(tomofolder_info, key=lambda l:l[0], reverse=True)
+        qname, n_nodes, cores, time, modules = self.qparams['BatchAlignment'].values()
+
+        new_list = sorted(tomofolder_info, key=lambda l: l[0], reverse=True)
 
         new_info = []
         lprocs = [0]
-        taken = [0,]*number_tomonames
+        taken = [0, ] * number_tomonames
         while number_tomonames - sum(taken):
             take = []
             partial_sum = 0
             for n in range(len(new_list)):
                 if taken[n]: continue
-                if not partial_sum or (partial_sum + new_list[n][0]) < 21:
-                    partial_sum += new_list[n][0] % 20
-                    if not partial_sum: partial_sum += 20
+                # this piece assumes 20 cores, could easily be updated with a number of cores
+                if not partial_sum or (partial_sum + new_list[n][0]) < cores + 1:
+                    partial_sum += new_list[n][0] % cores
+                    if not partial_sum: partial_sum += cores
                     take.append(n)
             for t in take:
                 taken[t] = 1
                 new_info.append(new_list[t])
             lprocs.append(sum(taken))
-
 
         tomofolder_file = open(file_tomoname, 'w')
         for x,y in new_info:
@@ -1593,23 +1606,22 @@ class TomographReconstruct(GuiTabWidget):
         tomofolder_file.close()
 
         num_submitted_jobs = 0
-        qname, n_nodes, cores, time, modules = self.qparams['BatchAlignment'].values()
-
         submissionIDs = []
 
         for n in range(len(lprocs) - 1):
 
-            input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1], num_procs_per_proc,
-                            tiltseriesname, 'markerfile.txt', 'alignment', file_tomoname)
+            input_params = (self.tomogram_folder, self.pytompath, lprocs[n], lprocs[n + 1],
+                            tiltseriesname, 'alignment', file_tomoname)
 
-            cmd = multiple_alignment.format( d=input_params )
+            cmd = multiple_alignment.format(d=input_params)
             exefilename = '{}/jobscripts/alignment_{:03d}.sh'.format(self.tomogram_folder, n)
 
             if self.checkbox[id].isChecked():
                 jobname = 'Alignment_BatchMode_Job_{:03d}'.format(num_submitted_jobs)
 
-                cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname, time=time,
-                                                    num_nodes=n_nodes, cmd=cmd, modules=modules, num_jobs_per_node=cores)
+                cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname,
+                                                    time=time, num_nodes=n_nodes, cmd=cmd, modules=modules,
+                                                    num_jobs_per_node=cores)
 
             ID, num = self.submitBatchJob(exefilename, id, cmd)
             num_submitted_jobs += 1
@@ -1646,7 +1658,6 @@ class TomographReconstruct(GuiTabWidget):
                 defocusfile   = self.tab43_widgets['widget_{}_{}'.format(row,12)].text()
                 outputfolder  = self.tab43_widgets['widget_{}_{}'.format(row,13)].text()
 
-
                 try:
                     origdir = os.path.dirname(inputstack)
                     prefix = os.path.basename(origdir) + '_ctf'
@@ -1670,28 +1681,25 @@ class TomographReconstruct(GuiTabWidget):
 
                     jobscript = templateCTFCorrectionImod.format(d=jobParams)
 
-
                     fname = 'CTF_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                     suffix = f"_{tomofolder}_"
 
-                    qname,n_nodes,cores,time, modules = self.qparams['BatchCTFCorrection'].values()
-
+                    qname, n_nodes, cores, time, modules = self.qparams['BatchCTFCorrection'].values()
 
                     job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, time=time,
                                                         partition=qname, num_nodes=n_nodes, singleton=True,
-                                                        num_jobs_per_node = cores, modules=modules, gpus=gpu)*self.checkbox[id].isChecked() + jobscript
+                                                        num_jobs_per_node=cores, modules=modules, gpus=gpu) * \
+                        self.checkbox[id].isChecked() + jobscript
 
                     exefilename = os.path.join(outputfolder, 'ctfCorrectionBatch.sh')
-
 
                     ID, num = self.submitBatchJob(exefilename, id, job)
                     num_submitted_jobs += 1
                     submissionIDs.append(ID)
 
-
                 except Exception as e:
                     print(e)
-                    print('Failed correction for '+defocusfile)
+                    print('Failed correction for ' + defocusfile)
                     continue
 
         if num_submitted_jobs > 0:

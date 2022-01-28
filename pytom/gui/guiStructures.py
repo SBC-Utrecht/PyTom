@@ -1226,7 +1226,6 @@ class CommonFunctions():
         return groupbox, parent
 
     def submitBatchJob(self, execfilename, id, command, threaded=True):
-        import time
         outjob = open(execfilename, 'w')
         outjob.write(command)
         outjob.close()
@@ -1252,8 +1251,6 @@ class CommonFunctions():
             else:
                 self.submit_local_job(execfilename, ID)
 
-
-            #self.popup_messagebox('Info', 'Local Job Finished', f'Finished Job {ID}')
             return 'Local_'+ID, 0
 
     def multiSeq(self, func, params, wID=0, threaded=False):
