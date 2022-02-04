@@ -4,7 +4,7 @@ import os
 import sys
 import pytom.simulation.physics as physics
 from pytom.agnostic.io import write
-from pytom.simulation.template import generate_template
+from pytom.simulation.template import generate_template_from_pdb, generate_template_from_map
 
 
 if __name__ == '__main__':
@@ -54,6 +54,9 @@ if __name__ == '__main__':
             ScriptOption2(['-v', '--voltage'], 'Acceleration voltage in keV', 'float', 'optional', 300),
             ScriptOption2(['--Cs'], 'Spherical abberration in mm.', 'float', 'optional', 2.7),
             ScriptOption2(['--decay'], 'Sigma of gaussian CTF decay function, 0.4 default.', 'float', 'optional', 0.4),
+            ScriptOption2(['--flip_phase'], 'Apply phase flipped CTF, corresponding to tomogram which has been CTF '
+                                            'corrected through phase-flipping.', 'no arguments', 'optional'),
+            ScriptOption2(['--cut_first_zero'], 'Cut ctf after first zero crossing', 'no arguments', 'optional'),
             ScriptOption2(['--plot'], 'Give this option for plotting the CTF for visual inspection.', 'no arguments',
                           'optional'),
             ScriptOption2(['-l', '--lpf_resolution'], 'Specify the resolution of the low pass filter that is applied.'
@@ -61,9 +64,9 @@ if __name__ == '__main__':
                                                     'smaller resolution than this cannot be selected.', 'float',
                           'optional'),
             ScriptOption2(['-x', '--xyz'], 'Specify a desired size for the output box of the template in number of '
-                                      'pixels. By default the molecule is placed in a box with 30A overhang. This '
-                                      'usually does not offer enough room to apply a spherical mask.', 'int',
-                          'optional'),
+                                           'pixels. By default the molecule is placed in a box with 30A overhang. '
+                                           'This usually does not offer enough room to apply a spherical mask.',
+                          'int', 'optional'),
             ScriptOption2(['-i', '--invert'], 'Multiplies template by -1. WARNING not needed if ctf with defocus is '
                                               'already applied!', 'no arguments', 'optional'),
             ScriptOption2(['-m', '--mirror'], 'Produce a mirrored and non-mirrored version.', 'no arguments',
@@ -74,29 +77,58 @@ if __name__ == '__main__':
     options = parse_script_options2(sys.argv[1:], helper)
 
     filepath, output_folder, output_name, spacing, binning, modify_structure, solvent_correction, solvent_density, \
-        ctf_correction, defocus, amplitude_contrast, voltage, Cs, sigma_decay, \
+        ctf_correction, defocus, amplitude_contrast, voltage, Cs, sigma_decay, phase_flipped, cut_zero, \
         display_ctf, resolution, box_size, invert, mirror, cores, gpuID = options
 
     if resolution is None:
         resolution = 2 * spacing * binning
 
-    template = generate_template(filepath, spacing,
-                                 binning=binning,
-                                 modify_structure=modify_structure,
-                                 solvent_correction=solvent_correction,
-                                 solvent_density=solvent_density,
-                                 apply_ctf_correction=ctf_correction,
-                                 defocus=defocus * 1e-6,
-                                 amplitude_contrast=amplitude_contrast,
-                                 voltage=voltage * 1e3,
-                                 Cs=Cs * 1e-3,
-                                 ctf_decay=sigma_decay,
-                                 display_ctf=display_ctf,
-                                 resolution=resolution,
-                                 box_size=box_size,
-                                 output_folder=output_folder,
-                                 cores=cores,
-                                 gpu_id=gpuID)
+    if cut_zero is not None:
+        zero_cut = 0
+    else:
+        zero_cut = -1
+
+    ext = os.path.splitext(filepath)[1]
+    if ext == '.pdb' or ext == '.cif':
+        template = generate_template_from_pdb(filepath, spacing,
+                                     binning=binning,
+                                     modify_structure=modify_structure,
+                                     solvent_correction=solvent_correction,
+                                     solvent_density=solvent_density,
+                                     apply_ctf_correction=ctf_correction,
+                                     defocus=defocus * 1e-6,
+                                     amplitude_contrast=amplitude_contrast,
+                                     voltage=voltage * 1e3,
+                                     Cs=Cs * 1e-3,
+                                     ctf_decay=sigma_decay,
+                                     phase_flip=phase_flipped,
+                                     zero_cut=zero_cut,
+                                     display_ctf=display_ctf,
+                                     resolution=resolution,
+                                     box_size=box_size,
+                                     output_folder=output_folder,
+                                     cores=cores,
+                                     gpu_id=gpuID)
+
+    elif ext == '.mrc' or ext == '.em':
+        template = generate_template_from_map(filepath, spacing,
+                                              binning=binning,
+                                              apply_ctf_correction=ctf_correction,
+                                              defocus=defocus * 1e-6,
+                                              amplitude_contrast=amplitude_contrast,
+                                              voltage=voltage * 1e3,
+                                              Cs=Cs * 1e-3,
+                                              ctf_decay=sigma_decay,
+                                              phase_flip=phase_flipped,
+                                              zero_cut=zero_cut,
+                                              display_ctf=display_ctf,
+                                              resolution=resolution,
+                                              box_size=box_size,
+                                              gpu_id=gpuID)
+
+    else:
+        print('Invalid input file provided, should be either pdb, cif, mrc, or em.')
+        sys.exit(0)
 
     if invert:
         template *= -1
