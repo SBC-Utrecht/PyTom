@@ -212,7 +212,7 @@ if __name__ == '__main__':
 
     gpuID = -1 if gpu is None else int(gpu)
 
-    if 1:
+    if verbose:
         print("Tilt Series: "+str(tiltSeriesName)+", "+str(firstProj)+"-"+str(lastProj))
         print("Index of Reference Projection: "+str(referenceIndex))
         print("Marker Filename: "+str(markerFileName))
@@ -228,16 +228,27 @@ if __name__ == '__main__':
         print("Reconstruction center: "+str(reconstructionPosition))
         print("write only aligned projections out: "+str(onlyWeightedProjections))
         print(f"Marker locations are written to: {outfile}")
-    alignWeightReconstruct(tiltSeriesName=tiltSeriesName, markerFileName=markerFileName, lastProj=lastProj,
-                           tltfile=tltFile, prexgfile=prexgFile, preBin=preBin,
-                           volumeName=volumeName, volumeFileType=filetype,
-                           voldims=voldims, recCent=reconstructionPosition,
-                           tiltSeriesFormat=tiltSeriesFormat, firstProj=firstProj, irefmark=irefmark, ireftilt=ireftilt,
-                           handflip=float(expectedRotationAngle)*numpy.pi/180,
-                           alignedTiltSeriesName=alignedTiltSeriesName,
-                           weightingType=weightingType, alignResultFile=alignResultFile,
-                           lowpassFilter=lowpassFilter, projBinning=projBinning,
-                           outMarkerFileName=outMarkerFileName, outfile=outfile, verbose=True,
-                           write_images=write_images, specimen_angle=specimen_angle, gpuID=gpuID)
 
+    if alignResultFile == '':  # if not provided align the images before weighting and reconstruction
+        if markerFileName is None:  # weight and reconstruct the tilt series directly (i.e. no alignment)
 
+            tilt_series = ProjectionsList()
+            tilt_series.reconstructVolume()  # without alignment results should reconstruct directly
+
+        else:  # do alignment before reconstructing
+            alignWeightReconstruct(tiltSeriesName=tiltSeriesName, markerFileName=markerFileName, lastProj=lastProj,
+                                   tltfile=tltFile, prexgfile=prexgFile, preBin=preBin,
+                                   volumeName=volumeName, volumeFileType=filetype,
+                                   voldims=voldims, recCent=reconstructionPosition,
+                                   tiltSeriesFormat=tiltSeriesFormat, firstProj=firstProj, irefmark=irefmark, ireftilt=ireftilt,
+                                   handflip=float(expectedRotationAngle)*numpy.pi/180,
+                                   alignedTiltSeriesName=alignedTiltSeriesName,
+                                   weightingType=weightingType, alignResultFile=alignResultFile,
+                                   lowpassFilter=lowpassFilter, projBinning=projBinning,
+                                   outMarkerFileName=outMarkerFileName, outfile=outfile, verbose=True,
+                                   write_images=write_images, specimen_angle=specimen_angle, gpuID=gpuID)
+
+    else:  # load the projections and align and reconstruct them with the previously determined alignment
+
+        tilt_series = ProjectionList()
+        tilt_series.reconstructVolume(params)
