@@ -344,7 +344,8 @@ def rampFilter( sizeX, sizeY, crowtherFreq=None, N=None):
 
     filter_vol = vol(sizeX, sizeY, 1)
     filter_vol.setAll(0.0)
-    
+
+    # TODO this is very slow...
     for i in range(sizeX):        
         distX = abs(float(i-centerX))
         ratio = min(1, (distX/Ny)+N)

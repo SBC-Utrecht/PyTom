@@ -73,13 +73,10 @@ class TiltSeries(PyTomClass):
             if markerFileName.endswith('.em'): self.mf = vol2npy(read(markerFileName))
             elif markerFileName.endswith('.txt'): self.mf = self.txt2markerfile(markerFileName, len(files))
             else: raise Exception('Unknown file type for markerfile.\n Please submit either a .txt file or a .em file')
-            #print(self.mf[0,:,0])
-            #print self.mf[0,:,0]
             
             # set Projection List
             self._firstIndex, self._lastIndex = -1, len(self._projIndices)
             projs = []
-
 
             if tiltSeriesFormat != 'st':
                 for cnt, ii in enumerate(self._projIndices):
@@ -405,7 +402,6 @@ class TiltSeries(PyTomClass):
                 if imark == 0:
                     markerFileVol.setV(int(round(proj._tiltAngle)), 0, int(itilt), int(imark))
         markerFileVol.write(markerFileName)
-
 
     def write_aligned_projs(self, weighting=None, lowpassFilter=None, binning=1, verbose=False, write_images=True):
         """
@@ -1311,10 +1307,8 @@ class TiltAlignment:
         self.setRotationsInTiltSeries(self.TiltSeries_)
         self.setMagnificationsInTiltSeries(self.TiltSeries_)
 
-
         if not mute:
             print("Alignment Score after optimization: " + str(sqrt(score)))
-
 
             errors = numpy.zeros((len(self._cTilt)))
             for i in range(len(self._cTilt)):
@@ -1335,14 +1329,6 @@ class TiltAlignment:
                                    dMagnFocus=None, dRotFocus=None, equationSet=False,
                                    logfile_residual=logfile_residual, verbose=True, errorRef=True)
             print("Error score refmarker: ", errorRef)
-
-
-
-
-        # out = open('scores.txt', 'w')
-        # for n, s in enumerate(scoresIt):
-        #     out.write(f'{n} {s}\n')
-        # out.close()
 
         return sqrt(score)
 

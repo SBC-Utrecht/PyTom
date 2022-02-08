@@ -1,9 +1,10 @@
 #!/usr/bin/env pytom
-'''
+"""
+Reconstruction of subtomograms taking into account closest markers.
 Created on Jul 19, 2011
 
-@author: hrabe
-'''
+@author: hrabe, GIJS?
+"""
 
     
 
