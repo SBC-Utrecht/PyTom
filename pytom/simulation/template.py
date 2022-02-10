@@ -146,10 +146,9 @@ def generate_template_from_pdb(structure_file_path, spacing, binning=1, modify_s
     return template
 
 
-def generate_template_from_map(map_file_path, spacing, binning=1, apply_ctf_correction=False,
+def generate_template_from_map(map_file_path, spacing, original_spacing=None, binning=1, apply_ctf_correction=False,
                                defocus=3E-6, amplitude_contrast=0.07, voltage=300E3, Cs=2.7E-3, ctf_decay=0.4,
-                               phase_flip=False, zero_cut=-1, display_ctf=False, resolution=30, box_size=None,
-                               gpu_id=None):
+                               phase_flip=False, zero_cut=-1, display_ctf=False, resolution=30, box_size=None):
     from pytom.agnostic.io import read, read_pixelsize
     from pytom.simulation.microscope import create_ctf, display_microscope_function
     from pytom.agnostic.transform import resize
@@ -158,14 +157,15 @@ def generate_template_from_map(map_file_path, spacing, binning=1, apply_ctf_corr
     from pytom.simulation.support import create_gaussian_low_pass
 
     # read map and its pixel size
-    template = read(map_file_path, deviceID=gpu_id)
-    pixel_size = read_pixelsize(map_file_path)
+    template = read(map_file_path, deviceID=device) if 'gpu' in device else read(map_file_path)
+    pixel_size = original_spacing if original_spacing is not None else read_pixelsize(map_file_path)
 
     # ensure pixel size is equal among dimensions
-    assert pixel_size[0] == pixel_size[1] and pixel_size[0] == pixel_size[2], 'pixel size not equal in each dimension'
-
-    # set to a single float
-    pixel_size = pixel_size[0]
+    if type(pixel_size) == list:
+        assert pixel_size[0] == pixel_size[1] and pixel_size[0] == pixel_size[2], \
+            'pixel size not equal in each dimension'
+        # set to a single float
+        pixel_size = pixel_size[0]
 
     if not resolution >= (2 * spacing * binning):
         print(f'Invalid resolution specified, changing to {2*spacing*binning}A')

@@ -156,7 +156,6 @@ def affine(volume: np.ndarray,
 
             num_threads, defaultval = 512, 0
             num_blocks = volume.size//num_threads + 1
-            print(num_threads, num_blocks)
 
             P = cp.array(transform_m.flatten(),dtype=cp.float32)
 

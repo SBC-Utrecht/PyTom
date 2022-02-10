@@ -33,6 +33,8 @@ if __name__ == '__main__':
                           'string', 'optional'),
             ScriptOption2(['-s', '--spacing'], 'The pixel spacing of original projections of the dataset in A,'
                                              ' e.g. 2.62', 'float', 'required'),
+            ScriptOption2(['--map_spacing'], 'Additional spacing of the EM map, provide in addition to spacing '
+                                             'argument.', 'float', 'optional'),
             ScriptOption2(['-b', '--binning'], 'Number of times to bin the template. Default is 1 (no binning). If '
                                              'set to 2 with a spacing of 2.62 the resulting voxel size will '
                                              'be 5.24', 'int', 'optional', 1),
@@ -76,9 +78,9 @@ if __name__ == '__main__':
 
     options = parse_script_options2(sys.argv[1:], helper)
 
-    filepath, output_folder, output_name, spacing, binning, modify_structure, solvent_correction, solvent_density, \
-        ctf_correction, defocus, amplitude_contrast, voltage, Cs, sigma_decay, phase_flipped, cut_zero, \
-        display_ctf, resolution, box_size, invert, mirror, cores, gpuID = options
+    filepath, output_folder, output_name, spacing, original_spacing, binning, modify_structure, solvent_correction, \
+        solvent_density, ctf_correction, defocus, amplitude_contrast, voltage, Cs, sigma_decay, phase_flipped, \
+        cut_zero, display_ctf, resolution, box_size, invert, mirror, cores, gpuID = options
 
     if resolution is None:
         resolution = 2 * spacing * binning
@@ -106,12 +108,12 @@ if __name__ == '__main__':
                                      display_ctf=display_ctf,
                                      resolution=resolution,
                                      box_size=box_size,
-                                     output_folder=output_folder,
                                      cores=cores,
                                      gpu_id=gpuID)
 
     elif ext == '.mrc' or ext == '.em':
         template = generate_template_from_map(filepath, spacing,
+                                              original_spacing=original_spacing,
                                               binning=binning,
                                               apply_ctf_correction=ctf_correction,
                                               defocus=defocus * 1e-6,
@@ -123,8 +125,7 @@ if __name__ == '__main__':
                                               zero_cut=zero_cut,
                                               display_ctf=display_ctf,
                                               resolution=resolution,
-                                              box_size=box_size,
-                                              gpu_id=gpuID)
+                                              box_size=box_size)
 
     else:
         print('Invalid input file provided, should be either pdb, cif, mrc, or em.')
