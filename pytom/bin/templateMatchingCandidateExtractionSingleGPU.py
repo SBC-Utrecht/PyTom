@@ -111,7 +111,7 @@ if __name__ == '__main__':
         if plFilename:
 
             pl = ParticleList()
-            wedge = Wedge(*wedge_angles)
+            wedge = Wedge(wedge_angles)
 
             if particlePath[-1] != os.sep:
                 particlePath += os.sep
