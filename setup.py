@@ -7,8 +7,8 @@ import os
 from pytom import __version__
 
 
-folder = 'pytom/angles/angleLists'
-angleLists = [e for e in os.listdir(folder) if e.endswith('.em') and e.startswith('angles_')]
+def find_angle_lists(folder):
+    return [e for e in os.listdir(folder) if e.endswith('.em') and e.startswith('angles_')]
 
 
 def find_executables():
@@ -34,7 +34,7 @@ setup(
     version=__version__,
     packages=find_packages(),
     package_dir={'pytom':'pytom'},
-    package_data={'pytom/angles/angleLists': angleLists},
+    package_data={'pytom/angles/angleLists': find_angle_lists('pytom/angles/angleLists')},
     include_package_data=True,
     author='`FridoF',
     author_email='gijsschot@gmail.com',
