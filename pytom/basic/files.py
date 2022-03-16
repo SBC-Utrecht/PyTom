@@ -1263,10 +1263,9 @@ def txt2wimp(fname, target, prefix, outname=''):
     @param outname: path to output file in wimp format, if empty the name of fname will be used
     '''
     from pytom.basic.datatypes import DATATYPE_MARKERFILE
-    from pytom.gui.guiFunctions import loadstar
     import numpy, os
 
-    data = loadstar(fname, dtype=DATATYPE_MARKERFILE)
+    data = loadtxt(fname, dtype=DATATYPE_MARKERFILE)
 
     outname = outname if outname else os.path.join(target, fname.split('/')[-1][:-4] + '.wimp')
 
