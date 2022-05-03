@@ -2223,7 +2223,6 @@ class KeyPressGraphicsWindow(pg.GraphicsWindow):
 
     def __init__(self, *args, **kwargs):
         super(KeyPressGraphicsWindow,self).__init__(*args, **kwargs)
-        print('\n\nkkk')
 
     def keyPressEvent(self, ev):
         self.scene().keyPressEvent(ev)

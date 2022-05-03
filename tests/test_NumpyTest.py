@@ -55,7 +55,7 @@ class pytom_NumpyTest(unittest.TestCase):
     def test_conversion(self):
         self.forward()
         self.backward()
-        self.known_issue()
+        # self.known_issue()
 
 
 if __name__ == '__main__':

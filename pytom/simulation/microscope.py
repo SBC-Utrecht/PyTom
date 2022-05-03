@@ -496,7 +496,7 @@ def create_ctf_1d(size, spacing, defocus, amplitude_contrast=0.07, voltage=300e3
 
 
 def create_ctf(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_decay=.0,
-               display=False, defocusV=None, defocus_angle_deg=.0, phase_shift_deg=.0, precalculated=None):
+               display=False, defocusV=None, defocus_angle_deg=.0, phase_shift_deg=.0, zero_cut=-1, precalculated=None):
     """
     This function models a non-complex CTF. It can be used for both 2d or 3d function. It describes a ctf after
     detection (and is therefore not complex).
@@ -566,6 +566,22 @@ def create_ctf(shape, spacing, defocusU, amplitude_contrast, voltage, Cs, sigma_
     if sigma_decay > 0:
         decay = xp.exp(-(k / (sigma_decay * nyquist)) ** 2)
         ctf *= decay
+
+    if zero_cut >= 0:  # this part is only needed for template generation
+        # one dimensional ctf function will be easier to find the specified zero crossing
+        f_prechi = lambda k: xp.pi * lmbd * defocusU * k ** 2 - 0.5 * xp.pi * Cs * lmbd ** 3 * k ** 4
+        f_chi = lambda k: - xp.sin(f_prechi(k) + phase_shift_rad + tan_term)
+        # generate oversampled range of fourier space frequencies
+        k_range = xp.arange(max(k.shape)) / max(k.shape) * nyquist
+        # calculate ctf for each k
+        values = f_chi(k_range)
+        # get the indexes of the zero crossings (the places where the sign changes
+        zero_crossings = xp.where(xp.diff(xp.sign(values)))[0]
+        # find cutoff frequency
+        k_cutoff = k_range[zero_crossings[zero_cut]] if defocusU > 0 else k_range[zero_crossings[zero_cut + 1]]
+        # filter the ctf with the cutoff frequency
+        flt = (k <= k_cutoff) * 1
+        ctf *= flt
 
     if display:
         if len(shape) == 2:
