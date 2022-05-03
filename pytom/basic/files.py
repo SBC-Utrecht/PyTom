@@ -1354,6 +1354,10 @@ def loadtxt(filename, dtype='float32', usecols=None, skip_header=0, max_rows=Non
     return arr
 
 
+def loadstar(filename, dtype='float32', usecols=None, skip_header=0, max_rows=None):
+    return loadtxt(filename, dtype=dtype, usecols=usecols, skip_header=skip_header, max_rows=max_rows)
+
+
 def savetxt(filename, arr, header='', fmt='', comments='#'):
     import numpy
     numpy.savetxt(filename, arr, comments=comments, header=header, fmt=fmt)

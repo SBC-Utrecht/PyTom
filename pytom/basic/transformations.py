@@ -469,7 +469,7 @@ def general_transform_crop(v, rot=None, shift=None, scale=None, order=(0, 1, 2),
     general_transform(v, res, mtx._matrix)
     return res
 
-def general_transform(v, rot=None, shift=None, scale=None, order=(0, 1, 2), center=None):
+def general_transform(v, rot=None, shift=None, scale=None, order=[0, 1, 2], center=None):
     """Perform general transformation using 3rd order spline interpolation.
     @param v: volume
     @type v: L{pytom_volume.vol}
@@ -542,7 +542,7 @@ def general_transform(v, rot=None, shift=None, scale=None, order=(0, 1, 2), cent
     general_transform(v, res, mtx._matrix)
     return res
 
-def general_transform2d(v, rot=None, shift=None, scale=None, order=(0, 1, 2), crop=True, center=None ):
+def general_transform2d(v, rot=None, shift=None, scale=None, order=[0, 1, 2], crop=True, center=None ):
     """Perform general transformation of 2D data using 3rd order spline interpolation.
     @param v: volume in 2d (it's got to be an image)
     @type v: L{pytom_volume.vol}
