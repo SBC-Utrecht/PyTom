@@ -25,8 +25,8 @@ else:
     device = 'cpu'
 
 def initialize_gpu(id):
+    global xp, device
     import cupy as xp
     xp.cuda.Device(int(id)).use()
     from cupyx.scipy.ndimage import map_coordinates
-    global device
     device = f'gpu:{id}'

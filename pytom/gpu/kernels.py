@@ -472,7 +472,7 @@ void sumMeanStdv(float *g_idata, float *mask, float *g_mean, float * g_stdv,  in
 reconstruction_wbp_text = '''
 
 extern "C" __global__ 
-void reconstruction_wbp(float * projection, float* proj_center, int * proj_dims, 
+void reconstruction_wbp(float * projection, int* proj_center, int * proj_dims, 
                         float * reconstruction, int * recon_center, int * recon_dims,
                         float * tr, int n) {
 
@@ -486,15 +486,18 @@ void reconstruction_wbp(float * projection, float* proj_center, int * proj_dims,
     
     //for(int d=0; d < recon_dims[2]; d++){
         if (i < n) {
-            x = i  / (recon_dims[1] * recon_dims[2]) - recon_center[0]; 
-            y = (i % (recon_dims[1] * recon_dims[2])) / recon_dims[2] - recon_center[1]; 
-            z = (i % (recon_dims[1] * recon_dims[2])) % recon_dims[2] - recon_center[2];
+            x = i  / (recon_dims[1] * recon_dims[2]) - recon_center[0] + 1; 
+            y = (i % (recon_dims[1] * recon_dims[2])) / recon_dims[2] - recon_center[1] + 1; 
+            z = (i % (recon_dims[1] * recon_dims[2])) % recon_dims[2] - recon_center[2] + 1;
+            //x = i  / (recon_dims[1] * recon_dims[2]) - recon_center[0]; 
+            //y = (i % (recon_dims[1] * recon_dims[2])) / recon_dims[2] - recon_center[1]; 
+            //z = (i % (recon_dims[1] * recon_dims[2])) % recon_dims[2] - recon_center[2];
             
             //float ix = tr[0] * float(x) + tr[2] * float(z) + float(proj_center[0]);
             //float iy = tr[4] * float(y) + float(proj_center[1]);
             
             float ix = tr[0] * float(x) + tr[1] * float(y) + tr[2] * float(z) + float(proj_center[0]);
-			float iy = tr[3] * float(x) + tr[4] * float(y) + tr[5] * float(z) + float(proj_center[1]);
+            float iy = tr[3] * float(x) + tr[4] * float(y) + tr[5] * float(z) + float(proj_center[1]);
             
             int px = int(ix); 
             int py = int(iy);
@@ -506,6 +509,11 @@ void reconstruction_wbp(float * projection, float* proj_center, int * proj_dims,
                 float v1 = projection[(px-1)*proj_dims[1]+py-1] + (projection[px*proj_dims[1]+py-1]-projection[(px-1)*proj_dims[1]+py-1]) * xoff;
                 float v2 = projection[(px-1)*proj_dims[1]+py  ] + (projection[px*proj_dims[1]+py  ]-projection[(px-1)*proj_dims[1]+py  ]) * xoff;
                 float v3 = v1 + (v2-v1)*yoff;
+                //float v1 = projection[px*proj_dims[1]+py] + (projection[(px+1)*proj_dims[1]+py]-projection[
+                //px*proj_dims[1]+py]) * xoff;
+                //float v2 = projection[px*proj_dims[1]+py+1  ] + (projection[(px+1)*proj_dims[1]+py+1 ]-projection[
+                //px*proj_dims[1]+py+1  ]) * xoff;
+                //float v3 = v1 + (v2-v1)*yoff;
                 
                 atomicAdd( reconstruction + i, v3);
                 //atomicAdd( weights + i, 1);
