@@ -793,6 +793,7 @@ def ramp_filter(sizeX, sizeY, crowtherFreq=None, N=None):
     N = 0 if N is None else 1/N
 
     rampLine = (xp.abs(xp.arange(-sizeX//2, sizeX//2)) + N) / crowtherFreq
+    # should be: rampLine = xp.abs(xp.arange(-sizeX // 2, sizeX // 2)) / crowtherFreq + N
     rampLine[rampLine > 1] = 1
 
     rampfilter = xp.column_stack(([(rampLine), ] * (sizeY)))

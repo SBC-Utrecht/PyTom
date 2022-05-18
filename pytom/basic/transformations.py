@@ -391,7 +391,83 @@ def mirror(volume,axis = 'x',copyFlag = True):
                     
                     volume.setV(tmp,xMirrored,yMirrored,zMirrored)
 
-def general_transform_crop(v, rot=None, shift=None, scale=None, order=(0, 1, 2), center=None):
+
+def general_transform_matrix(v_shape, rot=None, shift=None, scale=None, order=[0, 1, 2], center=None):
+    """
+    Perform general transformation using 3rd order spline interpolation
+    using volume of identical size. The origin stays invariant upon rotation
+    AND magnification!
+
+    @param v: x y z shape of volume as a list
+    @type v: L{list}
+    @param rot: rotate
+    @type rot: pytom.basic.structures.Rotate or list
+    @param shift: shift
+    @type shift: pytom.basic.structures.Shift or list
+    @param scale: scale / magnification along each dimension
+    @type scale: list
+    @param order: the order in which the three operations are performed (smaller means first) \
+    e.g.: [2,1,0]: rotation: 2, translation: 1, scale:0 => i.e. scale first
+    @type order: list
+    @param center: optional list with center coordinates in pixels
+    @type center: list of 3 floats
+
+    @return: matrix
+
+    @author: FF
+    """
+    from pytom.tools.maths import Matrix
+    from pytom.basic.structures import Rotation, Shift
+
+    if rot is None:
+        rot = Rotation(0.,0.,0.)
+    if rot.__class__ == list and len(rot) == 3:
+        rot = Rotation(rot[0], rot[1], rot[2])
+    if shift is None:
+        shift = Shift(0.,0.,0.)
+    if shift.__class__ == list and len(shift) == 3:
+        shift = Shift(shift[0], shift[1], shift[2])
+    if scale is None:
+        scale = [1.0, 1.0, 1.0]
+    if scale.__class__ == list and len(scale) == 3:
+        #check
+        if int(v_shape[0]*scale[0]) < 1 or int(v_shape[1]*scale[1]) < 1 or int(v_shape[2]*scale[2]) < 1:
+            raise RuntimeError("Scale not possible! Please check all the dimension after scaling is bigger than 1!")
+    else:
+        raise TypeError("Scale parameter invalid! Should be a list of 3 values!")
+
+    # invert matrix
+    rotM = rot.toMatrix(True)
+    shiftM = shift.toMatrix()
+    scaleM = Matrix(4, 4)
+    scaleM[0, 0] = scale[0]
+    scaleM[1, 1] = scale[1]
+    scaleM[2, 2] = scale[2]
+    scaleM[3, 3] = 1
+
+    all_mtx = [None, None, None]
+    try:
+        # pre- and post-translation for the center
+        if center is None:
+            rotCenter1 = Shift(-int(v_shape[0] / 2), -int(v_shape[1] / 2), -int(v_shape[2] / 2)).toMatrix()
+            rotCenter2 = Shift(int(v_shape[0] / 2), int(v_shape[1] / 2), int(v_shape[2] / 2)).toMatrix()
+        else:
+            rotCenter1 = Shift(-center[0], -center[1], -center[2]).toMatrix()
+            rotCenter2 = Shift(center[0], center[1], center[2]).toMatrix()
+
+        # prepare order and make rot and scale matrix execute is specified center
+        all_mtx[order[0]] = rotCenter2 * (rotM * rotCenter1)  # for the rotation center!  # 2
+        all_mtx[order[1]] = shiftM  # 0
+        all_mtx[order[2]] = rotCenter2 * (scaleM * rotCenter1)  # for the magnification center!  # 1
+    except:
+        raise Exception("The given order is wrong! Should be a list of 0,1,2!")
+
+    mtx = all_mtx[2] * (all_mtx[1] * all_mtx[0])
+
+    return mtx
+
+
+def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2], center=None):
     """
     Perform general transformation using 3rd order spline interpolation 
     using volume of identical size. The origin stays invariant upon rotation
@@ -406,7 +482,7 @@ def general_transform_crop(v, rot=None, shift=None, scale=None, order=(0, 1, 2),
     @param scale: scale / magnification along each dimension
     @type scale: list
     @param order: the order in which the three operations are performed (smaller means first) \
-    e.g.: [2,1,0]: rotation: 2, scale: 1, translation:0 => translation 1st
+    e.g.: [2,1,0]: rotation: 2, translation: 1, scale:0 => i.e. scale first
     @type order: list
     @param center: optional list with center coordinates in pixels
     @type center: list of 3 floats
@@ -414,56 +490,12 @@ def general_transform_crop(v, rot=None, shift=None, scale=None, order=(0, 1, 2),
 
     @author: FF
     """
-    from pytom.basic.structures import Rotation, Shift
-    from pytom_volume import vol
+    from pytom_volume import vol, general_transform
     if not isinstance(v,vol):
         raise TypeError('general_transform_crop: v must be of type pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
 
-    if rot is None:
-        rot = Rotation(0.,0.,0.)
-    if rot.__class__ == list and len(rot) == 3:
-        rot = Rotation(rot[0], rot[1], rot[2])
-    if shift is None:
-        shift = Shift(0.,0.,0.)
-    if shift.__class__ == list and len(shift) == 3:
-        shift = Shift(shift[0], shift[1], shift[2])
-    if scale is None:
-        scale = [1.0, 1.0, 1.0]
-    if scale.__class__ == list and len(scale) == 3:
-        #check
-        if int(v.sizeX()*scale[0]) < 1 or int(v.sizeY()*scale[1]) < 1 or int(v.sizeZ()*scale[2]) < 1:
-            raise RuntimeError("Scale not possible! Please check all the dimension after scaling is bigger than 1!")
-    else:
-        raise TypeError("Scale parameter invalid! Should be a list of 3 values!")
-    
-    from pytom_volume import vol, general_transform
-    from pytom.tools.maths import Matrix
-    
-    # invert matrix
-    rotM = rot.toMatrix(True)
-    shiftM = shift.toMatrix()
-    scaleM = Matrix(4,4)
-    scaleM[0,0] = scale[0]
-    scaleM[1,1] = scale[1]
-    scaleM[2,2] = scale[2]
-    scaleM[3,3] = 1
-
-    o = -0.5
-    if center == None:
-        # multiply them according to the order
-        rotCenter1 = Shift(-int(v.sizeX()/2), -int(v.sizeY()/2), -int(v.sizeZ()/2)).toMatrix()
-        rotCenter2 = Shift(int(v.sizeX()/2), int(v.sizeY()/2), int(v.sizeZ()/2)).toMatrix()
-
-    else:
-        rotCenter1 = Shift(-center[0], -center[1], -center[2]).toMatrix()
-        rotCenter2 = Shift(center[0], center[1], center[2]).toMatrix()
-
-    # multiply them according to the order
-    all_mtx = [None, None, None]
-    all_mtx[order[0]] = rotCenter2 * (rotM * rotCenter1) # for the rotation center!
-    all_mtx[order[1]] = shiftM
-    all_mtx[order[2]] = rotCenter2 * (scaleM * rotCenter1) # for the magnification center!
-    mtx = all_mtx[2] * (all_mtx[1] * all_mtx[0])
+    mtx = general_transform_matrix([v.sizeX(), v.sizeY(), v.sizeZ()], rot=rot, shift=shift, scale=scale, order=order,
+                                   center=center)
 
     res = vol(v.sizeX(), v.sizeY(), v.sizeZ())
     general_transform(v, res, mtx._matrix)
@@ -485,58 +517,12 @@ def general_transform(v, rot=None, shift=None, scale=None, order=[0, 1, 2], cent
     @type center: list of 3 floats
     @return: pytom_volume
     """
-    from pytom.basic.structures import Rotation, Shift
-
-    from pytom_volume import vol
+    from pytom_volume import vol, general_transform
     if not isinstance(v,vol):
         raise TypeError('general_transform: v must be of type pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
 
-    if rot is None:
-        rot = Rotation(0.,0.,0.)
-    if rot.__class__ == list and len(rot) == 3:
-        rot = Rotation(rot[0], rot[1], rot[2])
-    if shift is None:
-        shift = Shift(0.,0.,0.)
-    if shift.__class__ == list and len(shift) == 3:
-        shift = Shift(shift[0], shift[1], shift[2])
-    if scale is None:
-        scale = [1.0, 1.0, 1.0]
-    if scale.__class__ == list and len(scale) == 3:
-        #check
-        if int(v.sizeX()*scale[0]) < 1 or int(v.sizeY()*scale[1]) < 1 or int(v.sizeZ()*scale[2]) < 1:
-            raise Exception("Scale not possible! Please check all the dimension after scaling is bigger than 1!")
-    else:
-        raise Exception("Scale parameter invalid! Should be a list of 3 values!")
-    
-    from pytom_volume import vol, general_transform
-    from pytom.tools.maths import Matrix
-    
-    # invert matrix
-    rotM = rot.toMatrix(True)
-    shiftM = shift.toMatrix()
-    scaleM = Matrix(4,4)
-    scaleM[0,0] = scale[0]
-    scaleM[1,1] = scale[1]
-    scaleM[2,2] = scale[2]
-    scaleM[3,3] = 1
-    
-    # multiply them according to the order
-    all_mtx = [None, None, None]
-    try:
-        if order[2] > order[0]: # rotation first
-            rotCenter1 = Shift(-int(v.sizeX()/2), -int(v.sizeY()/2), -int(v.sizeZ()/2)).toMatrix()
-            rotCenter2 = Shift(int(v.sizeX()/2), int(v.sizeY()/2), int(v.sizeZ()/2)).toMatrix()
-        else: # scale first, so the center is different
-            rotCenter1 = Shift(-int(v.sizeX()*scale)/2, -int(v.sizeY()*scale)/2, -int(v.sizeZ()*scale)/2).toMatrix()
-            rotCenter2 = Shift(int(v.sizeX()*scale)/2, int(v.sizeY()*scale)/2, int(v.sizeZ()*scale)/2).toMatrix()
-
-        all_mtx[order[0]] = rotCenter2 * (rotM * rotCenter1) # for the rotation center!
-        all_mtx[order[1]] = shiftM
-        all_mtx[order[2]] = scaleM
-    except:
-        raise Exception("The given order is wrong! Should be a list of 0,1,2!")
-    
-    mtx = all_mtx[2] * (all_mtx[1] * all_mtx[0])
+    mtx = general_transform_matrix([v.sizeX(), v.sizeY(), v.sizeZ()], rot=rot, shift=shift, scale=scale, order=order,
+                                   center=center)
     
     res = vol(int(v.sizeX()*scale[0]), int(v.sizeY()*scale[1]), int(v.sizeZ()*scale[2]))
     general_transform(v, res, mtx._matrix)
