@@ -1,11 +1,10 @@
 #!/usr/bin/env pytom
-'''
+"""
 Created on Jul 19, 2011
 
 @author: hrabe
-'''
+"""
 
-    
 
 if __name__ == '__main__':
     

@@ -22,7 +22,7 @@ class pytom_AlignmentTest(unittest.TestCase):
         # initialize projection list
         self.projections = ProjectionList()
 
-        # TODO replace this by git test folder
+        # TODO replace this by github test folder
         os.chdir('/data2/mchaillet')
         # alignment data is in local directory and should not be there (should be example data for unittests
         self.projections.loadDirectory(
@@ -40,9 +40,9 @@ class pytom_AlignmentTest(unittest.TestCase):
 
         # reconstruct
         recon_gpu = self.projections.reconstructVolumeGPU(weighting=-1, binning=8)
-        recon_cpu = self.projections.reconstructVolumeCPU(weighting=-1, binning=8, cores=self.cpu_cores)
+        # write('processing/pytom_projects/tutorial/alignment_test/tomo_000_recon_gpu_w-1_b8.mrc', recon_gpu)
 
-        # write('processing/pytom_projects/tutorial/alignment_test/tomo_000_recon_gpu_offset.mrc', recon_gpu)
+        recon_cpu = self.projections.reconstructVolumeCPU(weighting=-1, binning=8, num_procs=self.cpu_cores)
 
         # convert to numpy and correlate
         rec_gpu_np = recon_gpu.get()
@@ -52,13 +52,15 @@ class pytom_AlignmentTest(unittest.TestCase):
         ccc = nxcc(rec_gpu_np, rec_cpu_np)  # this should be better than 0.999
         self.assertGreater(ccc, 0.995, msg='correlation between cpu and gpu reconstruction not sufficient')
 
-    def test_alignemnt(self):
+    def test_alignment(self):
         from pytom_numpy import vol2npy
         from pytom.agnostic.correlation import nxcc
 
         # run the alignment
         output_gpu = self.projections.to_projection_stack_gpu(weighting=-1, binning=4, show_progress_bar=True,
                                                           verbose=False)
+        # write('processing/pytom_projects/tutorial/alignment_test/tomo_000_gpu.mrc', output_gpu[0])
+
         output_cpu_parallel = self.projections.to_projection_stack_parallel(weighting=-1, binning=4,
                                                                          show_progress_bar=True,
                                                            num_procs=10, verbose=False)
@@ -83,6 +85,33 @@ class pytom_AlignmentTest(unittest.TestCase):
         # check the nxcc between stack cpu and stack gpu
         ccc = nxcc(stack_s, stack_g)  # this should be better than 0.999
         self.assertGreater(ccc, 0.999, msg='correlation between cpu and gpu alignment not sufficient')
+
+    def test_exact_filter(self):
+        from pytom_numpy import vol2npy
+        from pytom.agnostic.correlation import nxcc
+
+        recon_gpu = self.projections.reconstructVolumeGPU(weighting=1, binning=8)
+        write('processing/pytom_projects/tutorial/alignment_test/tomo_000_recon_gpu_w1_b8.mrc', recon_gpu)
+
+        recon_gpu = self.projections.reconstructVolumeGPU(weighting=-1, binning=8)
+        write('processing/pytom_projects/tutorial/alignment_test/tomo_000_recon_gpu_w-1_b8.mrc', recon_gpu)
+
+        # run the alignment
+        # output_gpu = self.projections.to_projection_stack_gpu(weighting=1, binning=4, show_progress_bar=True,
+        #                                                       verbose=False)
+        # write('processing/pytom_projects/tutorial/alignment_test/tomo_000_gpu.mrc', output_gpu[0])
+        #
+        # output_cpu_parallel = self.projections.to_projection_stack_parallel(weighting=1, binning=4,
+        #                                                                     show_progress_bar=True,
+        #                                                                     num_procs=10, verbose=False)
+        #
+        # # convert all to numpy
+        # stack_p, phi_p, theta_p, offset_p = (vol2npy(o).copy() for o in output_cpu_parallel)  # p = parallel
+        # stack_g, phi_g, theta_g, offset_g = (o.get() for o in output_gpu)  # g =  gpu
+        #
+        # # check the nxcc between stack cpu and stack gpu
+        # ccc = nxcc(stack_p, stack_g)  # this should be better than 0.999
+        # self.assertGreater(ccc, 0.999, msg='correlation between cpu and gpu alignment not sufficient')
 
 
 if __name__ == '__main__':
