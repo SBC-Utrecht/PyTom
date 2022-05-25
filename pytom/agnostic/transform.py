@@ -230,8 +230,11 @@ def scale(volume, factor, interpolation='Spline'):
     if factor <= 0:
         raise RuntimeError('Scaling factor must be > 0!')
 
-
-    interpolation_dict = {'Spline': 'filt_bspline', 'Linear': 'linear', 'Cubic': 'filt_bspline', 'filt_bspline': 'filt_bspline', 'linear':'linear'}
+    interpolation_dict = {'Spline': 'filt_bspline',
+                          'Linear': 'linear',
+                          'Cubic': 'filt_bspline',
+                          'filt_bspline': 'filt_bspline',
+                          'linear':'linear'}
     interpolation = interpolation_dict[interpolation]
 
     volume = volume.squeeze()
@@ -287,7 +290,7 @@ def resize(volume, factor, interpolation='Fourier'):
     volume = volume.squeeze()
 
     if (interpolation == 'Spline') or (interpolation == 'Cubic') or (interpolation == 'Linear'):
-        return scale(volume, factor, interpolation='Spline')
+        return scale(volume, factor, interpolation=interpolation)
     else:
         fvol = xp.fft.rfftn(volume)
         outsize= tuple((numpy.around(numpy.array(volume.shape)*factor,0)).astype(numpy.int))
