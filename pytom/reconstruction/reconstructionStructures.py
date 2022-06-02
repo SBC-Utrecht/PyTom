@@ -1668,7 +1668,7 @@ class ProjectionList(PyTomClass):
         return [stack, phiStack, thetaStack, offsetStack]
 
     def to_projection_stack_gpu(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
-                                scale_factor_particle=1., angle_specimen=0., particle_diameter=280, pixel_size=2.62,
+                                scale_factor_particle=1., angle_specimen=0., particle_diameter=270, pixel_size=2.62,
                                 show_progress_bar=False, verbose=False):
         from pytom.agnostic.io import read
         from pytom.agnostic.tools import taper_edges, paste_in_center
@@ -1704,7 +1704,7 @@ class ProjectionList(PyTomClass):
         # cut off is calculated as: cut == f_ij / Ny * (dim // 2)
         # f_ij = 1 / (D * sin th_ij)   => the max overlap frequency of projection i and j
         # ny = 1 / (2 * px)
-        slice_width = (pixel_size * binning * imdim) / particle_diameter
+        slice_width = particle_diameter / (pixel_size * binning)
 
         # pre-determine analytical weighting function and lowpass for speedup
         if weighting == -1:
@@ -1744,7 +1744,7 @@ class ProjectionList(PyTomClass):
 
             # 1 -- normalize to contrast - subtract mean and norm to mean
             immean = image.mean()
-            image = (image - immean) / immean
+            image = (image - immean) / immean  # maybe only division by mean and not subtraction
 
             # 2 -- smoothen borders to prevent high contrast oscillations
             if i == 0:
