@@ -18,7 +18,7 @@ except:
 import matplotlib.pyplot as plt
 
 
-def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=5,
+def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=4,
                           plane_norm=[0, 0, 1], reference=[0, 0, 1], estimate_membrane_plane=False):
     # get set of the unique tomogram names to loop over
     unique_tomograms = np.unique(tomograms)
@@ -34,12 +34,12 @@ def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=5,
 
     for tomo in unique_tomograms:
         # select tomogram from dataframe
-        tomo_particles = tomograms == tomo
+        tomo_particles = (tomograms == tomo)
         n_part_in_tomo = tomo_particles.sum()
         tomo_coordinates = coordinates[tomo_particles]
         tomo_rotations = rotations[tomo_particles]
 
-        if n_part_in_tomo:
+        if n_part_in_tomo < 2:
             # skip this tomogram because the particles has no neighbours
             continue
         else:
@@ -49,6 +49,7 @@ def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=5,
         dist_matrix = cdist(tomo_coordinates, tomo_coordinates)
         max_dist = np.max(dist_matrix)
         dist_matrix[dist_matrix == 0] = max_dist + 1
+        # print(dist_matrix.min())
 
         for i in range(n_part_in_tomo):
 
@@ -60,10 +61,10 @@ def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=5,
                 distance = dist_matrix[i][j]  # ; could write out distance? or check distance?
                 dist_matrix[i][j] = max_dist + 1
 
-                if distance < 1000:  # assume distance larger than 1000 A will not be very relevant
+                if distance < 1000:  # assume distance larger than 1000 A will not be relevant
                     # get center and neighbour coordinate
-                    coord_p = coordinates[i]
-                    coord_n = coordinates[j]
+                    coord_p = tomo_coordinates[i]
+                    coord_n = tomo_coordinates[j]
 
                     # vector from center particle to neighbour
                     v = Vector(coord_n - coord_p)
@@ -76,8 +77,8 @@ def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=5,
                     relative_coords.append(list(v.get()))
 
     relative_coords = np.array(relative_coords).T
-    print('you have ', n_center_particles, ' particle centers')
-    print('they have ', relative_coords[1].shape, ' neighbours')
+    print('---> you have ', n_center_particles, ' particle centers')
+    print('---> they have ', relative_coords[1].shape, ' neighbours')
 
     if estimate_membrane_plane:
         svd = np.linalg.svd(relative_coords[:, 0:25000] -
@@ -86,7 +87,7 @@ def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=5,
         plane_norm = Vector(left[:, -1])
         rm_adjust = reference.get_rotation(plane_norm)
 
-        print('estimated membrane plane vector ', left[:, -1])
+        print('---> estimated membrane plane vector ', left[:, -1])
 
     return np.dot(relative_coords.T, rm_adjust).T, plane_norm.get()
 
@@ -126,18 +127,19 @@ def density_plot(data, hist_limits, hist_voxel_size, fig_size=(5, 5), vrange=Non
     ax.set_ylabel('Relative y-coordinate $(\AA)$')
 
     ticks = [0, hist_3d.shape[0] // 2, hist_3d.shape[0] - 1]
-    labels = [hist_limits[0], 0, hist_limits[1]]
+    xlabels = [hist_limits[0], 0, hist_limits[1]]
+    ylabels = [hist_limits[1], 0, hist_limits[0]]
 
     ax.set_xticks(ticks)
-    ax.set_xticklabels(labels)
+    ax.set_xticklabels(xlabels)
 
     ax.set_yticks(ticks)
-    ax.set_yticklabels(labels)
+    ax.set_yticklabels(ylabels)
 
     return fig, ax, hist_3d, hist_3d_edges
 
 
-def scatter_plot(data, axis_limits, fig_size=(5, 5), plane='xy'):
+def scatter_plot(data, axis_limits, fig_size=(5, 5), plane='xy', msize=0.01):
     """
     @param data: (3, N) shape array, x, y, z coordinates with A units
     @param axis_limits: tuple of two elements giving min and max value for all axis
@@ -147,11 +149,11 @@ def scatter_plot(data, axis_limits, fig_size=(5, 5), plane='xy'):
     fig, ax = plt.subplots(figsize=fig_size)
 
     if plane == 'xy':
-        ax.scatter(data[0], data[1], s=0.01)
+        ax.scatter(data[0], data[1], s=msize)
     elif plane == 'xz':
-        ax.scatter(data[0], data[2], s=0.01)
+        ax.scatter(data[0], data[2], s=msize)
     elif plane == 'yz':
-        ax.scatter(data[1], data[2], s=0.01)
+        ax.scatter(data[1], data[2], s=msize)
     else:
         print('invalid plane')
         sys.exit(0)
@@ -166,7 +168,7 @@ def scatter_plot(data, axis_limits, fig_size=(5, 5), plane='xy'):
     return fig, ax
 
 
-def plot_3d(data, plane_norm, axis_limits):
+def plot_3d(data, plane_norm, axis_limits, msize=0.01):
     # ======= plot
     fig = plt.figure(figsize=(5, 5))
     ax = fig.add_subplot(111, projection='3d')
@@ -176,7 +178,7 @@ def plot_3d(data, plane_norm, axis_limits):
     else:
         display = data
 
-    ax.scatter(display[0], display[1], display[2], s=0.01)
+    ax.scatter(display[0], display[1], display[2], s=msize*100)
     ax.quiver(0, 0, 0, *plane_norm, length=100, color='red', label='membrane plane')
     ax.quiver(0, 0, 0, 0, 0, 1, length=100, color='blue', label='plane correction')
 
@@ -214,18 +216,22 @@ if __name__ == '__main__':
             ScriptOption2(['--plane-norm'], 'Provide a normal for the xy plane rotation, instead of estimating the '
                                             'plane. Script echos estimated plane norm in previous calculations, '
                                             'so you can put it back here to get a consistent rotation over multiple '
-                                            'particle lists.', 'float,float,float', 'optional'),
+                                            'particle lists. Default is no rotation.', 'float,float,float', 'optional',
+                          [0, 0, 1]),
             ScriptOption2(['--neighbourhood'], 'Number of neighbours to plot around each particle.', 'int',
                           'optional', 4),
             ScriptOption2(['--density'], 'Plot side views as density map instead of point cloud.', 'no arguments',
                           'optional'),
             ScriptOption2(['--view3d'], 'Opens interactive 3d plot point cloud that can be rotated and zoomed.',
-                          'no arguments', 'optional')])
+                          'no arguments', 'optional'),
+            ScriptOption2(['--marker-size'], 'Size of markers for 2d and 3d scatter plots, increase for small lists.',
+                          'float', 'optional', 0.001)
+        ])
 
     options = parse_script_options2(sys.argv[1:], helper)
 
     input_file, destination, output_name, pixel_size, particle_diameter, estimate_plane, plane_norm, \
-        neighbourhood, plot_density, plot_3d_interactive = options
+        neighbourhood, plot_density, plot_3d_interactive, marker_size = options
     views_list = ['xy', 'xz', 'yz']
 
     # set output path if not specified with a name
@@ -252,7 +258,7 @@ if __name__ == '__main__':
             pick_position, shift, rotation = particle.getPickPosition(), particle.getShift(), particle.getRotation()
 
             # shift position
-            pick_position += shift.toVector()
+            pick_position + shift.toVector()
 
             # get the tomogram
             tomogram = pick_position.getOriginFilename()
@@ -277,16 +283,17 @@ if __name__ == '__main__':
 
         assert np.all(data['PixelSize'] == data['PixelSize'][0]), 'pixel size not identical over dataset'
         if pixel_size is None:
-            print('No pixel size provided, reading from star file.')
             pixel_size = data['PixelSize'][0]
+            print(f'No pixel size provided, reading from star file ({pixel_size}A).')
 
         # tomograms are in micrograph name folder
-        tomograms = np.array([os.path.split(name)[1] for name in data['MicrographName']])
+        tomograms = np.array([os.path.split(name)[1].split('.')[0] for name in data['MicrographName']])
         # OriginXAngst, etc, should already be in A according to RELION docs
         # see https://relion.readthedocs.io/en/release-3.1/Reference/Conventions.html
         shifts = np.array([data['OriginXAngst'], data['OriginYAngst'], data['OriginZAngst']]).T
-        coordinates = np.array([data['CoordinateX'], data['CoordinateY'], data['CoordinateZ']]).T * pixel_size
-        coordinates += shifts
+        coordinates = np.array([data['CoordinateX'],
+                                data['CoordinateY'],
+                                data['CoordinateZ']]).T * pixel_size + shifts
         rotations = np.array([data['AngleRot'], data['AngleTilt'], data['AnglePsi']]).T
 
     # run the neighbour rotation
@@ -305,17 +312,17 @@ if __name__ == '__main__':
 
     # make interactive 3d plot
     if plot_3d_interactive:
-        plot_3d(relative_coordinates, plane_norm, limits)
+        plot_3d(relative_coordinates, plane_norm, limits, msize=marker_size)
         plt.show()
 
     # make 2d plots
     if plot_density:
         for view in views_list:
-            density_plot(relative_coordinates, limits, 15, fig_size=(7, 7), probability=True, plane=view)
+            density_plot(relative_coordinates, limits, 15, fig_size=(5, 5), probability=True, plane=view)
             plt.tight_layout()
             plt.savefig(output_path + '_density_' + view + '.png', dpi=300)
     else:
         for view in views_list:
-            scatter_plot(relative_coordinates, limits, fig_size=(7, 7), plane=view)
+            scatter_plot(relative_coordinates, limits, fig_size=(5, 5), plane=view, msize=marker_size)
             plt.tight_layout()
             plt.savefig(output_path + '_scatter_' + view + '.png', dpi=300)
