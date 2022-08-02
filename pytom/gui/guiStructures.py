@@ -7,6 +7,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import multiprocessing
 import getpass
+import re
 
 # import pyqtgraph.opengl as gl
 
@@ -4827,27 +4828,6 @@ class QParams():
         for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
             tab.qparams = parent.qparams
 
-    # def update(self, mode, parent):
-    #     self.queue   = parent.widgets[mode + 'queueName'].text()
-    #     self.time    = parent.widgets[mode + 'maxTime'].value()
-    #     self.nodes   = parent.widgets[mode + 'numberOfNodes'].value()
-    #     self.cores   = parent.widgets[mode + 'numberOfCores'].value()
-    #     if mode + 'command' in parent.widgets.keys():  # allows placing this option after reading modules
-    #         self.command = parent.widgets[mode + 'command'].text()  # also ensures backward compat.
-    #     if mode+'modules' in parent.widgets.keys():
-    #         self.modules = parent.widgets[mode + 'modules'].getModules()
-    #     else:
-    #         self.modules = list(numpy.unique(numpy.array(parent.parent().modules)))
-    #
-    #     # this does not seem to happen
-    #     with open(os.path.join(parent.projectname, '.qparams.pickle'), 'wb') as handle:
-    #         pickle.dump(parent.qparams, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    #
-    #     parent.parent().qparams = parent.qparams  # updated qparams in the PyTomGUI class structure
-    #
-    #     for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
-    #         tab.qparams = parent.qparams
-
     def values(self):
         return [self.queue, self.nodes, self.cores, self.time, self.modules, self.command]
 
@@ -4926,8 +4906,9 @@ class SelectModules(QWidget):
         q = "module avail --long 2>&1 | awk 'NR >2 {print $1}'"
         avail = [line for line in os.popen(q).readlines() if not line.startswith('/')
                  and not line.startswith('shared') and not 'intel' in line]
-        self.grouped = [mod.strip("\n") for mod in avail if 'python' in mod or 'lib64' in mod or 'motioncor' in mod
-                        or 'imod' in mod or 'pytom' in mod or 'openmpi' in mod]
+        # only add pytom, imod, and motioncor, rest is contained now in the conda environment
+        self.grouped = [mod.strip("\n") for mod in avail if 'motioncor' in mod
+                        or 'imod' in mod or 'pytom' in mod]
         self.update = True
         for i, name in enumerate(self.grouped):
             action = self.toolmenu.addAction(name)
@@ -4941,7 +4922,7 @@ class SelectModules(QWidget):
         myBoxLayout.addWidget(self.toolbutton)
 
         # activate modules for all qparams ?
-        self.activateModules(modules)  # => needs to be done per job
+        self.activateModules(modules)
 
     def updateModules(self, index):
         # this makes sure this function is not running multiple times
@@ -4986,7 +4967,30 @@ class SelectModules(QWidget):
                         # How to discriminate init step?
                     self.p.qparams[jobname].update_settings(parent=self.p)
 
+    def getLatestVersion(self, module_name):
+        from distutils.version import StrictVersion
+        # remove module name from available
+        available = [m for m in self.grouped if module_name in m]
+        if len(available) == 0:
+            return module_name
+        versions = []
+        for avail in [m.replace(module_name, '') for m in self.grouped if module_name in m]:
+            matches = [x.group() for x in re.finditer('\\d+(\\.\\d+)*', avail)]
+            if len(matches) != 0:
+                versions.append(max(matches, key=len))
+        if len(versions) != 0:
+            latest = sorted(versions, key=StrictVersion)[-1]
+            return [a for a in available if latest in a][0]
+        else:  # no versions numbers found, just return the first encountered module
+            return available[0]
+
     def activateModules(self, modules, block=False):
+        # if module name contains exactly pytom, imod, or motioncor2, find the latest versions and activate
+        # this can happen uppon processing directory init
+        for i, mod in enumerate(modules):
+            if mod not in self.grouped and mod in ['pytom', 'imod', 'motioncor2']:
+                modules[i] = self.getLatestVersion(mod)
+
         if block:
             for action in self.actions:
                 action.blockSignals(True)
@@ -5353,7 +5357,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                 time, done2 = QtWidgets.QInputDialog.getInt(self, 'Default Time-out time', 'After how many hours does a queued job time out:', 24)
                 num_cores, done3 = QtWidgets.QInputDialog.getInt(self, 'Default number of cores per node', 'How many cores does one node have:',max(1,multiprocessing.cpu_count()-4))
             else:  # if nothing provided set some default values
-                queue_system, queue, time, num_cores = 'slurm', 'defq', '12', '20'
+                queue_system, queue, time, num_cores = 'slurm', 'defq', '24', '20'
             self.logbook[self.stage + 'queue_system'] = queue_system
             self.logbook[self.stage + 'num_cores'] = num_cores
             self.logbook[self.stage + 'time'] = time
@@ -5361,7 +5365,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
             self.parent().save_logfile()
 
         self.queue_system = queue_system
-        self.qnames = queue
+        self.qname = queue
         self.expTime = time
         self.num_cores = num_cores
 
@@ -5473,7 +5477,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         for jobname in self.jobnames:
             if not jobname in self.qparams.keys():
                 try:
-                    self.qparams[jobname] = QParams(queue=self.qnames[0], time=self.expTime,
+                    self.qparams[jobname] = QParams(queue=self.qname, time=self.expTime,
                                                     cores=self.num_cores, modules=self.parent().modules)
                 except:
                     self.qparams[jobname] = QParams(modules=self.parent().modules)
@@ -5523,17 +5527,6 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.widgets[mode + 'qType'].currentTextChanged.connect(lambda d, m=mode: self.updateQType(m))
         self.widgets[mode + 'CustomHeader'].stateChanged.connect(lambda d, m=mode: self.updateCustomHeader(m))
         self.widgets[mode + 'jobName'].currentTextChanged.connect(lambda d, m=mode: self.updateJobName(m))
-
-        # self.widgets[mode + 'queueName'].textChanged.connect(lambda d, m=mode:
-        #                                                      self.qparams[self.currentJobName].update(mode,self))
-        # self.widgets[mode + 'command'].textChanged.connect(lambda d, m=mode:
-        #                                                      self.qparams[self.currentJobName].update(mode, self))
-        # self.widgets[mode + 'numberOfNodes'].valueChanged.connect(lambda d, m=mode:
-        #                                                           self.qparams[self.currentJobName].update(m,self))
-        # self.widgets[mode + 'numberOfCores'].valueChanged.connect(lambda d, m=mode:
-        #                                                           self.qparams[self.currentJobName].update(m,self))
-        # self.widgets[mode + 'maxTime'].valueChanged.connect(lambda d, m=mode:
-        #                                                     self.qparams[self.currentJobName].update(m,self))
 
         self.widgets[mode + 'queueName'].textChanged.connect(lambda d, m=mode:
                                                              self.qparams[self.currentJobName].update_queue(

@@ -92,8 +92,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         # DEFAULT VALUES FOR QUEUING SYSTEM AND IMPORT
         self.qtype = 'slurm'
         self.qcommand = 'sbatch'
-        self.modules = ['openmpi/2.1.1', 'python3/3.7', 'lib64/append']  # default should be pyTOM env
-        # for motioncor jobs and imod related perhaps load those
+        self.modules = ['pytom']  # by default search pytom module, and search for latest version in system
         # =====> these are overwritten if a .qparams.pickle is found in the project directory
 
         # INSERT MENU BAR
