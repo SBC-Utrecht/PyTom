@@ -789,8 +789,8 @@ class CommonFunctions():
         self.insert_pushbutton(parent, text=actiontext, rstep=1, cstep=cstep, action=action, params=params, wname=wname,
                                width=width)
 
-    def insert_gen_text_exe(self, parent, mode, gen_action='', action='', paramsAction=[], paramsXML=[], paramsCmd=[],
-                            paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, id='', gpu=False,
+    def insert_gen_text_exe(self, parent, mode, action='', paramsAction=[], paramsXML=[], paramsCmd=[],
+                            paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, gpu=False,
                             queue=True, cs=3, mandatory_fill=[]):
 
         if not queue:
@@ -964,18 +964,19 @@ class CommonFunctions():
             if params[3]:
                 for field in params[3]:
                     if self.widgets[field].text() == '':
-                        if self.silent == False:
-                            self.popup_messagebox('Warning', 'Required field is empty', 'One of the required paramaters has not been supplied, please supply it and regenerate script before pressing execute.')
+                        if not self.silent:  # TODO no attribute silent in commonfunctions??
+                            self.popup_messagebox('Warning', 'Required field is empty',
+                                                  'One of the required paramaters has not been supplied, '
+                                                  'please supply it and regenerate script before pressing execute.')
                         return
         except Exception as e:
             print(e)
 
         mode = params[1][0][:-len('CommandText')]
 
-
         id = params[2]['id']
-        if id:
-            partition, num_nodes, cores, time, modules = self.qparams[id].values()
+        if id or self.widgets[mode+'queue'].isChecked():  # TODO remove if statement here?
+            partition, num_nodes, cores, time, modules, qcmd = self.qparams[id].values()
 
         for key in params[1][1:-1]:
             if 'numberMpiCores' in key and params[2]['id']:
@@ -1010,24 +1011,27 @@ class CommonFunctions():
 
                     text = text.format( d=d )
                 if i==0: self.widgets[params[i][0]].setPlainText(text)
+
         # Check if user wants to submit to queue. If so, add queue header.
         if self.widgets[mode+'queue'].isChecked():
             d = params[2]
             folder = d['folder']
-            num_jobs_per_node = d['num_jobs_per_node']
-            time = d['time']
-            partition = d['partition']
             suffix = d['suffix']
-            num_nodes = d['num_nodes']
-            id = d['id']
-            modules = d['modules']
+
+            # not needed it seems
+            # num_jobs_per_node = d['num_jobs_per_node']
+            # time = d['time']
+            # partition = d['partition']
+            # num_nodes = d['num_nodes']
+            # id = d['id']
+            # modules = d['modules']
+            # if id:
+            #     partition, num_nodes, num_jobs_per_node, time, modules, qcmd = self.qparams[id].values()
+
             try:
                 gpus = self.widgets[mode+'gpuID'].text()
             except:
                 gpus=''
-
-            if id:
-                partition, num_nodes, num_jobs_per_node, time, modules = self.qparams[id].values()
 
             if type(folder) == type([]):
 
@@ -1044,9 +1048,11 @@ class CommonFunctions():
             if self.custom:
                 text = self.genSettingsWidgets['v00_QParams_CustomHeaderTextField'].toPlainText() + '\n\n' + text
             else:
-                text = guiFunctions.gen_queue_header(name=d['fname'], folder=folder, cmd=d['cmd'], modules=modules,
+                # this generates the queue header based on the parameters in self.qparams
+                text = guiFunctions.gen_queue_header(name=d['fname'], folder=folder, cmd=qcmd, modules=modules,
                                                      qtype=self.qtype, partition=partition, time=time,suffix=suffix,
-                                                     num_jobs_per_node=num_jobs_per_node, num_nodes=num_nodes, gpus=gpus) + text
+                                                     num_jobs_per_node=cores, num_nodes=num_nodes,
+                                                     gpus=gpus) + text
 
         self.widgets[params[i][0]].setPlainText(text)
 
@@ -4719,35 +4725,131 @@ class ControlWindowSurface(QMainWindow, CommonFunctions):
 '''
 
 
-
 class QParams():
-    def __init__(self, time=12, queue='defq', nodes=1, cores=20, modules=[]):
+    """
+    Each update is structured in the same way:
+    - If a value is provided that will be used to directly update that attribute of the structure.
+    - If no value is provided, parent and mode will be used to update the attribute.
+    - If parent is provided all the settings will be updated. This means a pickle will be stored, and the qparams for
+    pytomGUI head structure will be updated.
+    - If current_job is All, this will update the specified parameter for all jobs.
+    """
+    # TODO custom header needs to be stored as well
+    def __init__(self, time=12, queue='defq', nodes=1, cores=20, modules=[], command=''):
         self.time = time
         self.queue = queue
         self.nodes = nodes
         self.cores = cores
         self.modules = modules
+        self.command = command
 
-    def update(self, mode, parent):
-        self.queue   = parent.widgets[mode + 'queueName'].text()
-        self.time    = parent.widgets[mode + 'maxTime'].value()
-        self.nodes   = parent.widgets[mode + 'numberOfNodes'].value()
-        self.cores   = parent.widgets[mode + 'numberOfCores'].value()
-        if mode+'modules' in parent.widgets.keys():
+    def update_time(self, parent=None, mode=None, value=None, current_job=''):
+        if value is None:
+            self.time = parent.widgets[mode + 'maxTime'].value()
+        else:
+            self.time = value
+
+        if current_job == 'All':
+            for key_other in parent.qparams.keys():
+                parent.qparams[key_other].update_time(value=self.time)
+        if parent is not None:
+            # update everything
+            self.update_settings(parent)
+
+    def update_queue(self, parent=None, mode=None, value=None, current_job=''):
+        if value is None:
+            self.queue = parent.widgets[mode + 'queueName'].text()
+        else:
+            self.queue = value
+
+        if current_job == 'All':
+            for key_other in parent.qparams.keys():
+                parent.qparams[key_other].update_queue(value=self.queue)
+        if parent is not None:
+            # update everything
+            self.update_settings(parent)
+
+    def update_nodes(self, parent=None, mode=None, value=None, current_job=''):
+        if value is None:
+            self.nodes = parent.widgets[mode + 'numberOfNodes'].value()
+        else:
+            self.nodes = value
+
+        if current_job == 'All':
+            for key_other in parent.qparams.keys():
+                parent.qparams[key_other].update_nodes(value=self.nodes)
+        if parent is not None:
+            # update everything
+            self.update_settings(parent)
+
+    def update_cores(self, parent=None, mode=None, value=None, current_job=''):
+        if value is None:
+            self.cores = parent.widgets[mode + 'numberOfCores'].value()
+        else:
+            self.cores = value
+
+        if current_job == 'All':
+            for key_other in parent.qparams.keys():
+                parent.qparams[key_other].update_cores(value=self.cores)
+        if parent is not None:
+            # update everything
+            self.update_settings(parent)
+
+    def update_command(self, parent=None, mode=None, value=None, current_job=''):
+        if value is None:
+            self.command = parent.widgets[mode + 'command'].text()
+        else:
+            self.command = value
+
+        if current_job == 'All':
+            for key_other in parent.qparams.keys():
+                parent.qparams[key_other].update_command(value=self.command)
+        if parent is not None:
+            # update everything
+            self.update_settings(parent)
+
+    def update_modules(self, parent=None, mode=None, value=None):
+        if value is None:
             self.modules = parent.widgets[mode + 'modules'].getModules()
         else:
-            self.modules =  list(numpy.unique(numpy.array(parent.parent().modules)))
+            self.modules = value
 
+        if parent is not None:
+            # update everything
+            self.update_settings(parent)
+
+    def update_settings(self, parent):
         with open(os.path.join(parent.projectname, '.qparams.pickle'), 'wb') as handle:
             pickle.dump(parent.qparams, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-        parent.parent().qparams = parent.qparams
+        parent.parent().qparams = parent.qparams  # updated qparams in the PyTomGUI class structure
 
         for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
             tab.qparams = parent.qparams
 
+    # def update(self, mode, parent):
+    #     self.queue   = parent.widgets[mode + 'queueName'].text()
+    #     self.time    = parent.widgets[mode + 'maxTime'].value()
+    #     self.nodes   = parent.widgets[mode + 'numberOfNodes'].value()
+    #     self.cores   = parent.widgets[mode + 'numberOfCores'].value()
+    #     if mode + 'command' in parent.widgets.keys():  # allows placing this option after reading modules
+    #         self.command = parent.widgets[mode + 'command'].text()  # also ensures backward compat.
+    #     if mode+'modules' in parent.widgets.keys():
+    #         self.modules = parent.widgets[mode + 'modules'].getModules()
+    #     else:
+    #         self.modules = list(numpy.unique(numpy.array(parent.parent().modules)))
+    #
+    #     # this does not seem to happen
+    #     with open(os.path.join(parent.projectname, '.qparams.pickle'), 'wb') as handle:
+    #         pickle.dump(parent.qparams, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    #
+    #     parent.parent().qparams = parent.qparams  # updated qparams in the PyTomGUI class structure
+    #
+    #     for tab in (parent.parent().CD, parent.parent().TR, parent.parent().PP, parent.parent().SA):
+    #         tab.qparams = parent.qparams
+
     def values(self):
-        return [self.queue, self.nodes, self.cores, self.time, self.modules]
+        return [self.queue, self.nodes, self.cores, self.time, self.modules, self.command]
 
 
 class DisplayText(QMainWindow, CommonFunctions):
@@ -4801,9 +4903,8 @@ class DisplayText(QMainWindow, CommonFunctions):
             self.show()
 
 
-
 class SelectModules(QWidget):
-    def __init__(self,parent=None, modules=[], mode=''):
+    def __init__(self, parent=None, modules=[], mode=''):
         super(SelectModules, self).__init__(parent)
 
         myBoxLayout = QVBoxLayout()
@@ -4825,7 +4926,6 @@ class SelectModules(QWidget):
         q = "module avail --long 2>&1 | awk 'NR >2 {print $1}'"
         avail = [line for line in os.popen(q).readlines() if not line.startswith('/')
                  and not line.startswith('shared') and not 'intel' in line]
-        avail += ['python3/3.7', 'imod/4.10.25', 'imod/4.10.28']
         self.grouped = [mod.strip("\n") for mod in avail if 'python' in mod or 'lib64' in mod or 'motioncor' in mod
                         or 'imod' in mod or 'pytom' in mod or 'openmpi' in mod]
         self.update = True
@@ -4833,19 +4933,26 @@ class SelectModules(QWidget):
             action = self.toolmenu.addAction(name)
             action.setCheckable(True)
             self.actions.append(action)
-            action.toggled.connect(lambda d, m=i, update=True: self.updateModules(m,update=update))
+            # this links the action of the widget I think...
+            action.toggled.connect(lambda d, index=i: self.updateModules(index))
             self.toolbutton.setMenu(self.toolmenu)
 
         self.toolbutton.setPopupMode(QToolButton.InstantPopup)
         myBoxLayout.addWidget(self.toolbutton)
-        self.activateModules(modules)
 
-    def updateModules(self, index, update=False):
-        if self.update == False: return
+        # activate modules for all qparams ?
+        self.activateModules(modules)  # => needs to be done per job
+
+    def updateModules(self, index):
+        # this makes sure this function is not running multiple times
+        if self.update == False:
+            return
+
         name = self.actions[index].text()
         origin = name.split('/')[0]
 
-        self.update = False
+        self.update = False  # start update step
+        # this probably ensures that only one version of the module is activated
         for action in self.actions:
             tempName = action.text()
             if name == tempName:
@@ -4853,23 +4960,31 @@ class SelectModules(QWidget):
             tempOrigin = tempName.split('/')[0]
             if origin == tempOrigin and action.isChecked() == True:
                 action.setChecked(False)
-        self.update = True
+        self.update = True  # finish update step
 
+        # start settings activated modules based on qparams file
         self.modules = self.getActivatedModules()
 
+        # get current job name
         text = self.p.widgets[self.mode + 'jobName'].currentText()
-        self.p.qparams[text].update(self.mode, self.p)
-        removed = not name in self.modules
-        if text == 'All':
+        try:  # try to update the modules, which should be the widget selected modules
+            self.p.qparams[text].update_modules(parent=self.p, mode=self.mode)
+        except KeyError:  # if KeyError the widget has not been intialized, pytom is initializing
+            pass
+
+        # ensure that module in all is added and removed from the other jobs
+        removed = name not in self.modules
+        if (text == 'All') and (self.mode + 'modules' in self.p.widgets.keys()):  # remove from all if the module
+            # was activated/deactivated for all jobs
             for jobname in self.p.jobnames:
                 if jobname != 'All':
                     if removed:
-                        print(jobname, name, self.p.qparams[jobname].modules, [mod for mod in self.p.qparams[jobname].modules if mod != name])
-                        self.p.qparams[jobname].modules = [mod for mod in self.p.qparams[jobname].modules if mod != name]
+                        self.p.qparams[jobname].modules = [mod for mod in
+                                                           self.p.qparams[jobname].modules if mod != name]
                     else:
-                        self.p.qparams[jobname].modules  += [name]
-                    self.p.qparams[jobname].update(self.mode, self.p)
-
+                        self.p.qparams[jobname].modules = list(set(self.p.qparams[jobname].modules + [name]))
+                        # How to discriminate init step?
+                    self.p.qparams[jobname].update_settings(parent=self.p)
 
     def activateModules(self, modules, block=False):
         if block:
@@ -4886,7 +5001,7 @@ class SelectModules(QWidget):
             action.blockSignals(False)
 
     def getModules(self):
-        return list(numpy.unique(numpy.array(self.modules)))
+        return self.modules
 
     def getActivatedModules(self):
         return [action.text() for action in self.actions if action.isChecked()]
@@ -5215,8 +5330,8 @@ class NewProject(QMainWindow, CommonFunctions):
 
 class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
     resized = pyqtSignal()
-    def __init__(self,parent):
-        super(GeneralSettings, self).__init__(parent)
+    def __init__(self, parent):
+        super(GeneralSettings, self).__init__(parent)  # this inits the inherited class, so QMainWindow?
         self.stage='generalSettings_'
         self.pytompath = self.parent().pytompath
         self.projectname = self.parent().projectname
@@ -5225,26 +5340,30 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.qcommanddict = {'slurm': 'sbatch', 'sge': 'qsub', 'torque': 'qsub', 'none': 'none'}
 
         try:
+            queue_system = self.logbook[self.stage + 'queue_system']
             num_cores = int(self.logbook[self.stage + 'num_cores'])
-            time = int(self.logbook[f'{self.stage}time'])
-            queue = self.logbook[f'{self.stage}default_queue']
+            time = int(self.logbook[self.stage + 'time'])
+            queue = self.logbook[self.stage + 'default_queue']
         except:
-            queue_system, done4 = QtWidgets.QInputDialog.getItem(self, 'Name Queuing system', 'Queuing system you are using:', self.qcommanddict.keys())
-            print(queue_system)
+            queue_system, done4 = QtWidgets.QInputDialog.getItem(self, 'Name Queuing system',
+                                                                 'Queuing system you are using:',
+                                                                 self.qcommanddict.keys())
             if queue_system != 'none':
                 queue, done1 = QtWidgets.QInputDialog.getText(self, 'Name default queue', 'Enter the name of default queue:', text='defq')
                 time, done2 = QtWidgets.QInputDialog.getInt(self, 'Default Time-out time', 'After how many hours does a queued job time out:', 24)
                 num_cores, done3 = QtWidgets.QInputDialog.getInt(self, 'Default number of cores per node', 'How many cores does one node have:',max(1,multiprocessing.cpu_count()-4))
-                if num_cores and done3: self.logbook[self.stage + 'num_cores'] = num_cores
-                if time and done2: self.logbook[f'{self.stage}time'] = time
-                if queue and done1: self.logbook[f'{self.stage}default_queue'] = queue
-                self.parent().save_logfile()
-            else:
-                queue, time, num_cores = 'defq','24','24'
+            else:  # if nothing provided set some default values
+                queue_system, queue, time, num_cores = 'slurm', 'defq', '12', '20'
+            self.logbook[self.stage + 'queue_system'] = queue_system
+            self.logbook[self.stage + 'num_cores'] = num_cores
+            self.logbook[self.stage + 'time'] = time
+            self.logbook[self.stage + 'default_queue'] = queue
+            self.parent().save_logfile()
 
-        self.qnames = [queue] if queue else ['defq']
-        self.expTime = time if time else 12
-        self.num_cores = num_cores if num_cores else 20
+        self.queue_system = queue_system
+        self.qnames = queue
+        self.expTime = time
+        self.num_cores = num_cores
 
         headers = ['Queuing Parameters', 'Data Transfer', 'Tomographic Reconstruction', 'Particle Picking', 'Subtomogram Analysis']
         subheaders = [[], ] * len(headers)
@@ -5310,13 +5429,14 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.qnames = ['defq', 'fastq']
 
     def updateJobName(self, mode='v00_QParams_'):
-        jobname = self.widgets[mode + 'jobName'].currentText()
-        self.currentJobName = jobname
+        self.currentJobName = self.widgets[mode + 'jobName'].currentText()
         self.widgets[mode + 'queueName'].setText(self.qparams[self.currentJobName].queue)
+        self.widgets[mode + 'command'].setText(self.qparams[self.currentJobName].command)
         self.widgets[mode + 'maxTime'].setValue(self.qparams[self.currentJobName].time)
         self.widgets[mode + 'numberOfNodes'].setValue(self.qparams[self.currentJobName].nodes)
         self.widgets[mode + 'numberOfCores'].setValue(self.qparams[self.currentJobName].cores)
-        self.widgets[mode + 'modules'].activateModules(self.qparams[self.currentJobName].modules,block=(jobname=='All'))
+        self.widgets[mode + 'modules'].activateModules(self.qparams[self.currentJobName].modules,
+                                                       block=(self.currentJobName == 'All'))
 
     def tab1UI(self):
         self.jobnames = ['All',
@@ -5330,33 +5450,46 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                          'AverageParticleList',
                          'FRMAlignment','GLocalAlignment',
                          'PairwiseCrossCorrelation', 'CPCA', 'AutoFocusClassification', 'FSCValidation']
-        #self.setQNames()
         self.currentJobName = self.jobnames[0]
 
         if os.path.exists(os.path.join(self.projectname, '.qparams.pickle')):
+            # load the previous queue settings
             with open(os.path.join(self.projectname, '.qparams.pickle'), 'rb') as handle:
                 self.qparams = pickle.load(handle)
+
+            # allow compatability of command option with old pytom projects
+            # old pickle will be stored as backup
+            copy_flag = False
+            for val in self.qparams.values():
+                if not hasattr(val, 'command'):
+                    val.command = ''
+                    copy_flag = True
+            if copy_flag:
+                os.system(f"cp {os.path.join(self.projectname, '.qparams.pickle')} "
+                          f"{os.path.join(self.projectname, '.qparams.pickle.bak')}")
         else:
             self.qparams = {}
 
         for jobname in self.jobnames:
             if not jobname in self.qparams.keys():
                 try:
-                    self.qparams[jobname] = QParams(queue=self.qnames[0], time=self.expTime, cores=self.num_cores, modules=self.parent().modules)
+                    self.qparams[jobname] = QParams(queue=self.qnames[0], time=self.expTime,
+                                                    cores=self.num_cores, modules=self.parent().modules)
                 except:
                     self.qparams[jobname] = QParams(modules=self.parent().modules)
+
         id = 'tab1'
         self.row, self.column = 0, 1
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
+        self.queue_system_options = ['slurm', 'torque', 'sge', 'none']
         parent = self.table_layouts[id]
         mode = 'v00_QParams_'
 
         w = 150
-        last, reftilt = 10, 5
         self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
-        self.insert_label_combobox(parent, 'Queuing System ', mode + 'qType', ['Slurm','Torque','SGE', 'None'],
-                                    tooltip='Select a particleList which you want to plot.\n', logvar=True)
+        self.insert_label_combobox(parent, 'Queuing System ', mode + 'qType', self.queue_system_options,
+                                    tooltip='Select the queuing system for you cluster.\n', logvar=True)
         self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
         self.insert_label_combobox(parent, 'Job Submission Parameters', mode + 'jobName', self.jobnames, logvar=True,
                                    tooltip='Select the job for which you want to adjust the queuing parameters.\n')
@@ -5370,41 +5503,87 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         self.insert_label_spinbox(parent,mode+'maxTime', 'Maximum Time (hours)',
                                   value=self.qparams[self.currentJobName].time, minimum=1, stepsize=1,
                                   wtype=QSpinBox)
+        # options should be changed to qparams().modules,  self.parent().modules
+        self.insert_label_modules(parent, mode + 'modules', text='Select Modules',
+                                  options=self.qparams[self.currentJobName].modules, rstep=1, cstep=-1, mode=mode)
+        self.insert_label_line(parent, 'Custom Command', mode + 'command',
+                               value=self.qparams[self.currentJobName].command)
 
-        self.insert_label_modules(parent, mode + 'modules', text='Select Modules', options=self.parent().modules, rstep=1, cstep=-1, mode=mode)
         self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
         self.insert_label_push(parent, 'Re-activate Pushbuttons', mode + 'activatePushButtons',rstep=1,cstep=-1,width=w,
                                tooltip='Re-activate the pushbuttons of specific or all stages.\nStage is set above.',
                                pushtext='Reactivate!', action=self.reactivatePushButtons, params=mode+'jobName')
         self.insert_label(parent, cstep=0, rstep=1, sizepolicy=self.sizePolicyB, width=w, columnspan=2)
 
-
         self.insert_checkbox(parent, mode + 'CustomHeader', 'use custom header for queue', cstep=0, rstep=1,
                             alignment=Qt.AlignLeft, logvar=True, columnspan=2)
-        self.insert_textfield(parent,mode+'CustomHeaderTextField', columnspan=5,rstep=1,cstep=0, logvar=True)
+        self.insert_textfield(parent, mode + 'CustomHeaderTextField', columnspan=5, rstep=1, cstep=0, logvar=True)
         self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
 
         self.widgets[mode + 'qType'].currentTextChanged.connect(lambda d, m=mode: self.updateQType(m))
         self.widgets[mode + 'CustomHeader'].stateChanged.connect(lambda d, m=mode: self.updateCustomHeader(m))
         self.widgets[mode + 'jobName'].currentTextChanged.connect(lambda d, m=mode: self.updateJobName(m))
+
+        # self.widgets[mode + 'queueName'].textChanged.connect(lambda d, m=mode:
+        #                                                      self.qparams[self.currentJobName].update(mode,self))
+        # self.widgets[mode + 'command'].textChanged.connect(lambda d, m=mode:
+        #                                                      self.qparams[self.currentJobName].update(mode, self))
+        # self.widgets[mode + 'numberOfNodes'].valueChanged.connect(lambda d, m=mode:
+        #                                                           self.qparams[self.currentJobName].update(m,self))
+        # self.widgets[mode + 'numberOfCores'].valueChanged.connect(lambda d, m=mode:
+        #                                                           self.qparams[self.currentJobName].update(m,self))
+        # self.widgets[mode + 'maxTime'].valueChanged.connect(lambda d, m=mode:
+        #                                                     self.qparams[self.currentJobName].update(m,self))
+
         self.widgets[mode + 'queueName'].textChanged.connect(lambda d, m=mode:
-                                                             self.qparams[self.currentJobName].update(mode,self))
+                                                             self.qparams[self.currentJobName].update_queue(
+                                                                 parent=self, mode=m,
+                                                                 current_job=self.currentJobName))
+        self.widgets[mode + 'command'].textChanged.connect(lambda d, m=mode:
+                                                             self.qparams[self.currentJobName].update_command(
+                                                                 parent=self, mode=m,
+                                                                 current_job=self.currentJobName))
         self.widgets[mode + 'numberOfNodes'].valueChanged.connect(lambda d, m=mode:
-                                                                  self.qparams[self.currentJobName].update(m,self))
+                                                             self.qparams[self.currentJobName].update_nodes(
+                                                                 parent=self, mode=m,
+                                                                 current_job=self.currentJobName))
         self.widgets[mode + 'numberOfCores'].valueChanged.connect(lambda d, m=mode:
-                                                                  self.qparams[self.currentJobName].update(m,self))
+                                                             self.qparams[self.currentJobName].update_cores(
+                                                                 parent=self, mode=m,
+                                                                 current_job=self.currentJobName))
         self.widgets[mode + 'maxTime'].valueChanged.connect(lambda d, m=mode:
-                                                            self.qparams[self.currentJobName].update(m,self))
+                                                             self.qparams[self.currentJobName].update_time(
+                                                                 parent=self, mode=m,
+                                                                 current_job=self.currentJobName))
 
-        self.updateCustomHeader(mode)
-        self.qparams[self.currentJobName].update(mode, self)
+        self.updateCustomHeader(mode)  # TODO custom header not fully working
+        # self.qparams[self.currentJobName].update(mode, self)
 
+        # Some automatic queue selection in case the selected queue is not available. Some robustness for users
+        # inexperienced with queueing systems.
+        existing_queues = []
         for n, value in enumerate(self.qcommanddict.values()):
-            if value != 'none':
-                if os.path.exists( os.popen('which {}'.format(value)).read()[:-1] ):
-                    self.widgets[mode + 'qType'].setCurrentIndex(n)
-                    break
-            else: self.widgets[mode + 'qType'].setCurrentIndex(n)
+            if value != 'none' and os.path.exists(os.popen('which {}'.format(value)).read()[:-1]):
+                existing_queues.append(n)
+        queue_index = self.queue_system_options.index(self.queue_system)
+        if queue_index in existing_queues:
+            self.widgets[mode + 'qType'].setCurrentIndex(queue_index)
+        elif len(existing_queues) != 0:
+            if len(existing_queues) == 1:
+                i = 0
+            else:
+                i = self.queue_system_options.index('slurm') if any(['slurm' == self.queue_system_options[q]
+                                                                     for q in existing_queues]) else 0
+            other_queue = self.queue_system_options[existing_queues[i]]
+            print(f'WARNING! selected queue system ({self.queue_system}) command ' \
+                  f'{self.qcommanddict[self.queue_system]} is not found, ' \
+                  f'switching to available queue {other_queue} with command ' \
+                  f'{self.qcommanddict[other_queue]}.')
+            self.widgets[mode + 'qType'].setCurrentIndex(existing_queues[i])
+        else:
+            print(f'WARNING! your selected queuing system ({self.queue_system}) command '
+                  f'{self.qcommanddict[self.queue_system]} is not found on your system.')
+            self.widgets[mode + 'qType'].setCurrentIndex(queue_index)
 
     def updateCustomHeader(self, mode):
         try:
@@ -5417,7 +5596,10 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
     def updateQType(self, mode):
 
         qtype = self.widgets[mode + 'qType'].currentText().lower()
-        qcommand =  self.qcommanddict[qtype]
+        self.queue_system = qtype
+        self.logbook[self.stage + 'queue_system'] = self.queue_system
+        self.parent().save_logfile()
+        qcommand = self.qcommanddict[qtype]
 
         self.parent().qtype = qtype
         self.parent().qcommand = qcommand
@@ -5500,7 +5682,6 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def updateNumberOfCores(self, mode):
         self.parent().TR.num_parallel_procs = int(self.widgets[mode + 'numberOfCores'].value())
-
 
     def updateBinningFactorIMOD(self, mode):
         self.parent().TR.binningFactorIMOD = int(self.widgets[mode + 'fidBinning'].value())

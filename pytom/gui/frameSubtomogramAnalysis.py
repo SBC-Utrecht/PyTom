@@ -537,7 +537,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                         outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_Refmarker_{}.sh'.format(int(tomoindex),refid)
                         execfilename = os.path.join(self.subtomodir, outname)
-                        qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
+                        qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchSubtomoReconstruct'].values()
 
                         paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
                                      self.subtomodir, weight, metafile,  str(cores*n_nodes), ppflag]
@@ -546,7 +546,8 @@ class SubtomoAnalysis(GuiTabWidget):
                         jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
                                                                name='SubtomoRecon_{}'.format(nsj % num_nodes),
                                                                num_jobs_per_node=cores, time=time, partition=qname,
-                                                               modules=modules, num_nodes=n_nodes, singleton=True) + txt
+                                                               modules=modules, num_nodes=n_nodes, singleton=True,
+                                                               cmd=qcmd) + txt
 
                     else:
                         outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'
@@ -575,7 +576,7 @@ class SubtomoAnalysis(GuiTabWidget):
                         logfiles.sort(key=os.path.getmtime)
                         logfile = logfiles[-1]
 
-                        qname, n_nodes, cores, time, modules = self.qparams['BatchSubtomoReconstruct'].values()
+                        qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchSubtomoReconstruct'].values()
 
                         paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
                                      self.subtomodir, weight, metafile, logfile, str(cores*n_nodes), 'sorted_aligned']
@@ -586,7 +587,7 @@ class SubtomoAnalysis(GuiTabWidget):
                         jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, singleton=True, num_nodes=n_nodes,
                                                                name='SubtomoRecon_{}'.format(nsj % num_nodes),
                                                                partition=qname,num_jobs_per_node=cores, time=time,
-                                                               modules=modules) + txt
+                                                               modules=modules, cmd=qcmd) + txt
 
                     fname = 'SubtomoRecon_{}'.format(nsj % num_nodes)
                     timed = time
@@ -595,7 +596,9 @@ class SubtomoAnalysis(GuiTabWidget):
                     if gpuIDs and not gpuIDs in jobCode.keys():
                         job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname,
                                                             time=timed, num_nodes=n_nodes, partition=qname, modules=modules,
-                                                            num_jobs_per_node=cores, gpus=gpuIDs)*self.checkbox[pid].isChecked() + cmd
+                                                            num_jobs_per_node=cores, gpus=gpuIDs,
+                                                            cmd=qcmd)*self.checkbox[
+                            pid].isChecked() + cmd
                         execfilenames[gpuIDs] = execfilename
                         jobCode[gpuIDs] = job
                         nsj += 1
@@ -606,7 +609,7 @@ class SubtomoAnalysis(GuiTabWidget):
                     elif not f'noGPU_{nsj % num_nodes}' in jobCode.keys():
                         job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname,
                                                             time=timed, num_nodes=n_nodes, partition=qname,
-                                                            modules=modules, num_jobs_per_node=cores) + cmd
+                                                            modules=modules, num_jobs_per_node=cores, cmd=qcmd) + cmd
                         execfilenames[f'noGPU_{nsj % num_nodes}'] = execfilename
                         jobCode[f'noGPU_{nsj % num_nodes}'] = job
                         nsj += 1
@@ -885,7 +888,7 @@ class SubtomoAnalysis(GuiTabWidget):
                     os.mkdir(os.path.join(self.subtomodir, destination))
 
                 execfilename = os.path.join(self.subtomodir, destination, f'inputParticlePolishing.sh')
-                qname, n_nodes, cores, time, modules = self.qparams['BatchParticlePolish'].values()
+                qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchParticlePolish'].values()
 
                 paramsCmd = [self.subtomodir, str(cores * n_nodes), self.pytompath, particleXML, folder_aligned,
                              template, destination, bin_read, maxShift, offx, offy, offz, fscflag, metaflag, alignflag]
@@ -894,7 +897,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
                                                        name='PolishParticles_{}'.format(nsj % num_nodes),
                                                        num_jobs_per_node=cores, time=time, partition=qname,
-                                                       modules=modules, num_nodes=n_nodes) + txt
+                                                       modules=modules, num_nodes=n_nodes, cmd=qcmd) + txt
 
                 ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
                 nsj += 1

@@ -395,7 +395,7 @@ def slurm_command(name='TemplateMatch',folder='./', cmd='', num_nodes=1,
 {}'''.format(name,folder,module_load,cmd)
     return slurm_generic_command
 
-def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, emailaddress='',id='',
+def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, emailaddress='', id='',
                      modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel'], suffix= '',
                      qtype='slurm', num_jobs_per_node=20, time=12, partition='defq', singleton=False, gpus=''):
     module_load = ''
@@ -436,14 +436,17 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
 #SBATCH --output      {}/%j-%x{}.out {}{}{}
 
 {}
+{}
 
-{}'''.format(time, num_nodes, partition, num_jobs_per_node, name, folder, suffix, oversubscribe, singletoncommand, gpus, module_load, cmd)
+'''.format(time, num_nodes, partition, num_jobs_per_node, name, folder, suffix, oversubscribe, singletoncommand,
+           gpus, module_load, cmd )
 
     elif qtype == 'qsub':
         print ('qsub has not been defined.')
         return ''
 
     elif qtype == 'torque':
+        # TODO torque also not correctly implemented
         if emailaddress:
             emailaddress = '#PBS -M {}\n        #PBS -m abe'.format(emailaddress)
         queue_command = '''#!/usr/bin/bash
@@ -457,6 +460,7 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
 
     return queue_command
 
+# TODO is this outdated if we can use Queue Parameter structure??
 def createGenericDict(fname='template',cmd='', folder='', partition='defq', num_jobs_per_node=20, time=12, suffix='',
                       num_nodes=1, modules=['openmpi/2.1.1', 'python3/3.7', 'lib64/append', 'pytom/dev/gui_devel'],
                       id=''):
@@ -592,6 +596,7 @@ def batch_tilt_alignment( fnames_tomograms='', projectfolder='.', num_procs=[], 
     '''BATCHMODE: tilt alignment. Submits a number of sbatch jobs to slurm queueing system.
     Each job calculates the tilt aligment for each marker in a markerfile.
     It divides the number or jobs with respect to the num_procs.'''
+    # TODO check if this function even works...
 
     pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
     num_submitted_jobs = 0
