@@ -718,7 +718,7 @@ def valid_cell_angles(alpha, beta, gamma, path):
   err = None
   
   for a in (alpha, beta, gamma):
-    if a <= 0 or a >= 180:
+    if a < 0 or a >= 180:
       err = 'must be between 0 and 180'
 
   if alpha + beta + gamma >= 360 and err is None:
