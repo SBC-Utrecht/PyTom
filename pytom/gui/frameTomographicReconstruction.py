@@ -52,8 +52,6 @@ class TomographReconstruct(GuiTabWidget):
         self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict,
                      tab_actions=self.tab_actions, static_tabs=static_tabs)
 
-
-
     def tab1UI(self,  id=''):
         #print(f'batch id: {id}')
         self.filepath_tomodata = {}
@@ -474,7 +472,7 @@ class TomographReconstruct(GuiTabWidget):
 
     def tab52UI(self, id=''):
         alg = 'ReconstructWBP'
-        h =  mode = 'v02_{}_'.format(alg)
+        h = mode = 'v02_{}_'.format(alg)
         self.row, self.column = 0,0
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
@@ -523,8 +521,6 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[mode + 'FirstAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
         self.widgets[mode + 'LastAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
 
-
-
         execfilename = [mode + 'tomofolder', 'reconstruction/WBP/WBP_Reconstruction.sh']
 
         paramsSbatch = guiFunctions.createGenericDict()
@@ -536,13 +532,12 @@ class TomographReconstruct(GuiTabWidget):
         paramsSbatch['id'] = 'ReconstructWBP'
 
         paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex', mode + 'LastIndex',
-                     mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', mode + 'tomogramNR', 'mrc',
-                     mode + 'Voldims', mode + 'WeightingType', mode+'RotationTiltAxis', mode + 'specimenAngleFlag', mode + 'DimY', mode + 'DimZ',
-                     templateWBP]
+                     mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', mode + 'tomogramNR',
+                     'mrc', mode + 'Voldims', mode + 'WeightingType', mode+ 'RotationTiltAxis',
+                     mode + 'specimenAngleFlag', mode + 'DimY', mode + 'DimZ', templateWBP]
 
-
-        self.insert_gen_text_exe(parent, mode, jobfield=False, action=self.convert_em, exefilename=execfilename,
-                                 paramsAction=[mode,'reconstruction/WBP','sorted'],paramsSbatch=paramsSbatch,
+        self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename,
+                                 paramsAction=[mode, 'reconstruction/WBP', 'sorted'], paramsSbatch=paramsSbatch,
                                  paramsCmd=paramsCmd, mandatory_fill=[h+'FolderSorted'])
 
         label = QLabel()
@@ -1137,11 +1132,13 @@ class TomographReconstruct(GuiTabWidget):
 
         folderSorted = self.widgets[mode+'FolderSorted'].text()
         if not folderSorted: return
-        self.widgets[mode + 'tiltSeriesName'].setText(f'{os.path.basename(folderSorted)}/{os.path.basename(folderSorted)}')
-        t = folderSorted.replace('/sorted','')
+        # basename() gets the second element of split()
+        prefix = os.path.basename(folderSorted)
+        self.widgets[mode + 'tiltSeriesName'].setText(f'{prefix}/{prefix}')
+        t = folderSorted.replace('/sorted', '')  # remove sorted
         t = t.split('/alignment')[0]
-        self.widgets[mode+'tomofolder'].setText(t)
-        self.widgets[mode+ 'tomogramNR'].setText( os.path.basename(t) )
+        self.widgets[mode + 'tomofolder'].setText(t)
+        self.widgets[mode + 'tomogramNR'].setText(os.path.basename(t))
         self.updateMarkerFile(folderSorted, mode)
 
         files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')]
@@ -1165,7 +1162,6 @@ class TomographReconstruct(GuiTabWidget):
 
             refIndex = abs(angles).argmin()
             self.widgets[mode+'RefTiltIndex'].setValue(refIndex+1*('INFR' in mode))
-
 
             fi,li = angles.argmin(), angles[angles < 1000].argmax()
             self.widgets[mode+'FirstIndex'].setText(str(fi))
@@ -1217,9 +1213,10 @@ class TomographReconstruct(GuiTabWidget):
         sorted_folder = self.widgets[mode + 'FolderSorted'].text()
         if sorted_folder == '':
             return
-        metafile = [os.path.join(sorted_folder, meta) for meta in os.listdir(sorted_folder) if meta.endswith('meta')][0]
+        metafiles = [os.path.join(sorted_folder, meta) for meta in os.listdir(sorted_folder) if meta.endswith('meta')]
         #print(metafile)
-        if metafile:
+        if len(metafiles) == 1:
+            metafile = metafiles[0]
             metadata = loadstar(metafile,dtype=guiFunctions.datatype)
 
             try:

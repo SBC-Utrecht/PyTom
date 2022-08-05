@@ -4819,9 +4819,10 @@ class QParams():
             # update everything
             self.update_settings(parent)
 
-    def update_settings(self, parent):
-        with open(os.path.join(parent.projectname, '.qparams.pickle'), 'wb') as handle:
-            pickle.dump(parent.qparams, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    def update_settings(self, parent, store=True):
+        if store:
+            with open(os.path.join(parent.projectname, '.qparams.pickle'), 'wb') as handle:
+                pickle.dump(parent.qparams, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         parent.parent().qparams = parent.qparams  # updated qparams in the PyTomGUI class structure
 
@@ -4908,7 +4909,8 @@ class SelectModules(QWidget):
                  and not line.startswith('shared') and not 'intel' in line]
         # only add pytom, imod, and motioncor, rest is contained now in the conda environment
         self.grouped = [mod.strip("\n") for mod in avail if 'motioncor' in mod
-                        or 'imod' in mod or 'pytom' in mod]
+                        or 'imod' in mod or 'pytom' in mod or 'python' in mod
+                        or 'openmpi' in mod or 'lib64' in mod]
         self.update = True
         for i, name in enumerate(self.grouped):
             action = self.toolmenu.addAction(name)
@@ -5334,6 +5336,7 @@ class NewProject(QMainWindow, CommonFunctions):
 
 class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
     resized = pyqtSignal()
+
     def __init__(self, parent):
         super(GeneralSettings, self).__init__(parent)  # this inits the inherited class, so QMainWindow?
         self.stage='generalSettings_'
@@ -5471,6 +5474,9 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
             if copy_flag:
                 os.system(f"cp {os.path.join(self.projectname, '.qparams.pickle')} "
                           f"{os.path.join(self.projectname, '.qparams.pickle.bak')}")
+
+            # update the settings to the parent but dont store the pickle
+            [p.update_settings(self, store=False) for p in self.qparams.values()]
         else:
             self.qparams = {}
 
