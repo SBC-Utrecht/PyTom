@@ -512,6 +512,7 @@ class TomographReconstruct(GuiTabWidget):
 
         execfilename = [mode + 'tomofolder', 'reconstruction/WBP/WBP_Reconstruction.sh']
 
+        # TODO Remove these parameters as these should not be used. Instead we should just stick with the qparams.
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'ReconstructionWBP'
         paramsSbatch[ 'folder' ] = self.logfolder #os.path.dirname(execfilename)
@@ -1147,7 +1148,7 @@ class TomographReconstruct(GuiTabWidget):
         #oself.widgets[mode+'LastIndex'].setText(lastIndex)
         metafiles = [line for line in os.listdir(folderSorted) if line.endswith('.meta')]
 
-        if len(metafiles) ==1:
+        if len(metafiles) == 1:
             metafile = metafiles[0]
 
             try:

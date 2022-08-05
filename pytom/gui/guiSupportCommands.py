@@ -48,7 +48,27 @@ templateAlignment = '''cd {d[0]};
     --numberProcesses 1 '''
 
 
+# 0 = tomoprocessing dir, 1 = projection dir, 6 = binning, 10, weighting, 7 = output name (tomogram_000),
+# 9,13,14 = tomgoram size, 12 = gpus??
 templateWBP       = '''cd {d[0]}
+
+reconstructWB.py \\
+    --projectionDirectory {d[1]} \\
+    --projectionBinning {d[6]} \\
+    --lowpassNy 0.9  \\
+    --weightingType {d[10]}  \\
+    --tomogram reconstruction/WBP/{d[7]}_WBP.mrc \\
+    --size {d[9]},{d[13]},{d[14]} \\
+    --recOffset 0,0,0 \\
+    --alignResultFile {} \\
+    {d[12]}
+
+
+unlink {d[0]}/04_Particle_Picking/Tomograms/{d[7]}_WBP.mrc
+ln -s reconstruction/WBP/{d[7]}_WBP.mrc {d[0]}/04_Particle_Picking/Tomograms/{d[7]}_WBP.mrc'''
+
+
+templateWBP_old    = '''cd {d[0]}
 
 {d[1]}/bin/pytom {d[1]}/bin/reconstructTomogram.py \\
     --tiltSeriesName sorted/sorted \\

@@ -100,7 +100,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.qcommand = 'sbatch'
         self.modules = ['pytom']  # by default search pytom module, and search for latest version in system
         # =====> these are overwritten if a .qparams.pickle is found in the project directory
-        
+
         # INSERT MENU BAR
         bar = self.menuBar()
         bar.setNativeMenuBar(False)

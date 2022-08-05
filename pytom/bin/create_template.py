@@ -29,39 +29,39 @@ if __name__ == '__main__':
         options=[
             ScriptOption2(['-f', '--file'], 'Protein structure file, either pdb or cif.', 'file', 'required'),
             ScriptOption2(['-d', '--destination'], 'Folder where output should be stored.', 'directory', 'required'),
-            ScriptOption2(['-o', '--output_name'], 'Name of file to write as output, with extension (mrc or em).',
+            ScriptOption2(['-o', '--output-name'], 'Name of file to write as output, with extension (mrc or em).',
                           'string', 'optional'),
             ScriptOption2(['-s', '--spacing'], 'The pixel spacing of original projections of the dataset in A,'
                                              ' e.g. 2.62', 'float', 'required'),
-            ScriptOption2(['--map_spacing'], 'Additional spacing of the EM map, provide in addition to spacing '
+            ScriptOption2(['--map-spacing'], 'Additional spacing of the EM map, provide in addition to spacing '
                                              'argument.', 'float', 'optional'),
             ScriptOption2(['-b', '--binning'], 'Number of times to bin the template. Default is 1 (no binning). If '
                                              'set to 2 with a spacing of 2.62 the resulting voxel size will '
                                              'be 5.24', 'int', 'optional', 1),
-            ScriptOption2(['--modify_structure'], 'Activate to call Chimera for adding hydrogen, symmetry and'
+            ScriptOption2(['--modify-structure'], 'Activate to call Chimera for adding hydrogen, symmetry and'
                                                       'removing water molecules from the structure.', 'no arguments',
                           'optional'),
-            ScriptOption2(['--solvent_correction'], 'Whether to exclude solvent around each atom as a '
+            ScriptOption2(['--solvent-correction'], 'Whether to exclude solvent around each atom as a '
                                                         'correction of the potential, options: gaussian, masking.',
                           'string', 'optional'),
-            ScriptOption2(['-r', '--solvent_density'], 'Density of solvent, value should not be higher than 1.35 as'
+            ScriptOption2(['-r', '--solvent-density'], 'Density of solvent, value should not be higher than 1.35 as'
                                                      ' that is the density of proteins. Default is 0.93 g/cm^3.',
                           'float', 'optional', physics.AMORPHOUS_ICE_DENSITY),
-            ScriptOption2(['-c', '--ctf_correction'], 'Correct the volume by applying a CTF. Default parameters are '
+            ScriptOption2(['-c', '--ctf-correction'], 'Correct the volume by applying a CTF. Default parameters are '
                                                   'defocus 3 um, amplitude contrast 0.07, voltage 300 keV, '
                                                   'spherical abberation (Cs) 2.7 mm, sigma of gaussian decay 0.4, '
                                                   'optionally plot the CTF to inspect.', 'no arguments', 'optional'),
             ScriptOption2(['-z', '--defocus'], 'Defocus in um (negative value is overfocus).', 'float', 'optional', 3.0),
-            ScriptOption2(['-a', '--amplitude_contrast'], 'Amplitude contrast fraction.', 'float', 'optional', 0.07),
+            ScriptOption2(['-a', '--amplitude-contrast'], 'Amplitude contrast fraction.', 'float', 'optional', 0.07),
             ScriptOption2(['-v', '--voltage'], 'Acceleration voltage in keV', 'float', 'optional', 300),
             ScriptOption2(['--Cs'], 'Spherical abberration in mm.', 'float', 'optional', 2.7),
             ScriptOption2(['--decay'], 'Sigma of gaussian CTF decay function, 0.4 default.', 'float', 'optional', 0.4),
-            ScriptOption2(['--flip_phase'], 'Apply phase flipped CTF, corresponding to tomogram which has been CTF '
+            ScriptOption2(['--flip-phase'], 'Apply phase flipped CTF, corresponding to tomogram which has been CTF '
                                             'corrected through phase-flipping.', 'no arguments', 'optional'),
-            ScriptOption2(['--cut_first_zero'], 'Cut ctf after first zero crossing', 'no arguments', 'optional'),
+            ScriptOption2(['--cut-first-zero'], 'Cut ctf after first zero crossing', 'no arguments', 'optional'),
             ScriptOption2(['--plot'], 'Give this option for plotting the CTF for visual inspection.', 'no arguments',
                           'optional'),
-            ScriptOption2(['-l', '--lpf_resolution'], 'Specify the resolution of the low pass filter that is applied.'
+            ScriptOption2(['-l', '--lpf-resolution'], 'Specify the resolution of the low pass filter that is applied.'
                                                     'The default value is 2 x spacing x binning (in angstrom), a '
                                                     'smaller resolution than this cannot be selected.', 'float',
                           'optional'),
