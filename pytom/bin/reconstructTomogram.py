@@ -230,12 +230,12 @@ if __name__ == '__main__':
         print(f"Marker locations are written to: {outfile}")
 
     if alignResultFile == '':  # if not provided align the images before weighting and reconstruction
-        if markerFileName is None:  # weight and reconstruct the tilt series directly (i.e. no alignment)
-
-            tilt_series = ProjectionsList()
-            tilt_series.reconstructVolume()  # without alignment results should reconstruct directly
-
-        else:  # do alignment before reconstructing
+        # if markerFileName is None:  # weight and reconstruct the tilt series directly (i.e. no alignment)
+        #
+        #     tilt_series = ProjectionList()
+        #     tilt_series.reconstructVolume()  # without alignment results should reconstruct directly
+        #
+        # else:  # do alignment before reconstructing
             alignWeightReconstruct(tiltSeriesName=tiltSeriesName, markerFileName=markerFileName, lastProj=lastProj,
                                    tltfile=tltFile, prexgfile=prexgFile, preBin=preBin,
                                    volumeName=volumeName, volumeFileType=filetype,
@@ -248,7 +248,7 @@ if __name__ == '__main__':
                                    outMarkerFileName=outMarkerFileName, outfile=outfile, verbose=True,
                                    write_images=write_images, specimen_angle=specimen_angle, gpuID=gpuID)
 
-    else:  # load the projections and align and reconstruct them with the previously determined alignment
-
-        tilt_series = ProjectionList()
-        tilt_series.reconstructVolume(params)
+    # else:  # load the projections and align and reconstruct them with the previously determined alignment
+    #
+    #     tilt_series = ProjectionList()
+    #     tilt_series.reconstructVolume(params)

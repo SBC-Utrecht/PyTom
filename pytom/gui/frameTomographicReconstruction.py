@@ -510,10 +510,9 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[mode + 'FirstAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
         self.widgets[mode + 'LastAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
 
-
-
         execfilename = [mode + 'tomofolder', 'reconstruction/WBP/WBP_Reconstruction.sh']
 
+        # TODO Remove these parameters as these should not be used. Instead we should just stick with the qparams.
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'ReconstructionWBP'
         paramsSbatch[ 'folder' ] = self.logfolder #os.path.dirname(execfilename)
@@ -527,9 +526,8 @@ class TomographReconstruct(GuiTabWidget):
                      mode + 'Voldims', mode + 'WeightingType', mode+'RotationTiltAxis', mode + 'specimenAngleFlag', mode + 'DimY', mode + 'DimZ',
                      templateWBP]
 
-
-        self.insert_gen_text_exe(parent, mode, jobfield=False, action=self.convert_em, exefilename=execfilename,
-                                 paramsAction=[mode,'reconstruction/WBP','sorted'],paramsSbatch=paramsSbatch,
+        self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename,
+                                 paramsAction=[mode, 'reconstruction/WBP', 'sorted'], paramsSbatch=paramsSbatch,
                                  paramsCmd=paramsCmd, mandatory_fill=[h+'FolderSorted'])
 
         label = QLabel()
@@ -1136,8 +1134,10 @@ class TomographReconstruct(GuiTabWidget):
 
         folderSorted = self.widgets[mode+'FolderSorted'].text()
         if not folderSorted: return
-        self.widgets[mode + 'tiltSeriesName'].setText(f'{os.path.basename(folderSorted)}/{os.path.basename(folderSorted)}')
-        t = folderSorted.replace('/sorted','')
+        # basename() gets the second element of split()
+        prefix = os.path.basename(folderSorted)
+        self.widgets[mode + 'tiltSeriesName'].setText(f'{prefix}/{prefix}')
+        t = folderSorted.replace('/sorted', '')  # remove sorted
         t = t.split('/alignment')[0]
         self.widgets[mode+'tomofolder'].setText(t)
         self.widgets[mode+ 'tomogramNR'].setText( os.path.basename(t) )
@@ -1148,7 +1148,7 @@ class TomographReconstruct(GuiTabWidget):
         #oself.widgets[mode+'LastIndex'].setText(lastIndex)
         metafiles = [line for line in os.listdir(folderSorted) if line.endswith('.meta')]
 
-        if len(metafiles) ==1:
+        if len(metafiles) == 1:
             metafile = metafiles[0]
 
             try:

@@ -1,14 +1,15 @@
 '''
 started on Mar 10, 2011
 
-@author: luiskuhn, foerster
+@author: luiskuhn, foerster, Marten Chaillet
 '''
-
+import sys
 from pytom.basic.structures import PyTomClass
 from pytom.agnostic.tools import convert_operation_order_str2list, convert_operation_order_list2str
 
-# TODO what should be the default operation order? => default order seems to be [0, 1, 2]
+# TODO  - what should be the default operation order? => default order seems to be [0, 1, 2]
 # TODO this was in previous versions already available as parameter to basic.transformations -> general_transform()
+# TODO  - projectionlist should also be able to read projections from a stacked mrc file
 
 # ============================= helper function parallel cpu alignment ====================
 
@@ -276,6 +277,7 @@ class Projection(PyTomClass):
         from pytom.tools.files import checkFileExists
         if not checkFileExists(self._filename):
             print('Warning: Projection() initialized without valid filename')
+            sys.exit(0)
 
     def getDimensions(self):
         """
@@ -551,7 +553,7 @@ class ProjectionList(PyTomClass):
             tline = tline + str(projection) + "\n"
         return tline
 
-    def loadDirectory(self, directory, metafile='', prefix=''):
+    def loadDirectory(self, directory, metafile=None, prefix=''):
         """
         loadDirectory: Will take all projections in a directory, determine their respective tilt angle from the
         header and populate this list object.
@@ -568,28 +570,32 @@ class ProjectionList(PyTomClass):
         from pytom.basic.datatypes import DATATYPE_METAFILE
         import os
 
-        if metafile:
-            metadata = loadstar(metafile, dtype=DATATYPE_METAFILE)
-            tiltAngles = metadata['TiltAngle']
-
         if not checkDirExists(directory):
             raise RuntimeError('Directory ' + directory + ' does not exist!')
+
+        if metafile is None:
+            possible_files = [line for line in sorted(os.listdir(directory))
+                              if '.meta' == os.path.splitext(line)[1]]
+            if len(possible_files) == 1:  # if we find a metafile, assign it
+                metafile = possible_files[0]
+        if metafile is not None:  # if we have a metafile, load its tilt angles
+            metadata = loadstar(metafile, dtype=DATATYPE_METAFILE)
+            tiltAngles = metadata['TiltAngle']
 
         files = [line for line in sorted(os.listdir(directory)) if prefix in line]
 
         # if metafile is provided we could just append directory with filename in metafile ...
         # metafile could also contain the full path
-
         for file in files:
             if os.path.splitext(file)[1] in ['.em', '.mrc']:
                 i = int(file.split('_')[-1].split('.')[0])  # TODO this is hackish => but leave it for now
-                if metafile:
+                if metafile is not None:
                     projection = Projection(filename=os.path.join(directory, file), tiltAngle=tiltAngles[i], index=i)
                 else:
                     projection = Projection(filename=os.path.join(directory, file), index=i)
                 self.append(projection)
 
-        if metafile or not any([p.getTiltAngle() is None for p in self._list]):  # with metafile we have the
+        if metafile is not None or not any([p.getTiltAngle() is None for p in self._list]):  # with metafile we have the
             # tilts, otherwise tilts might have been readable from the em/mrc files but we will need to them all
             self.sort()
         else:
@@ -647,6 +653,17 @@ class ProjectionList(PyTomClass):
         # sort by tilt angle
         self.sort()
 
+    def ready_for_reconstruction(self):
+        """
+        Check if the projection list has sufficient information to start reconstruction.
+        @return: True or False
+        @rtype: Bool
+        """
+        from pytom.tools.files import checkFileExists
+        files_ready = all([checkFileExists(p._filename) for p in self._list])
+        angles_ready = all([a is not None for a in self._tilt_angles]) if len(self._tilt_angles) > 0 else False
+        return files_ready and angles_ready
+
     def toXML(self):
         """
         """
@@ -682,7 +699,6 @@ class ProjectionList(PyTomClass):
         # sort the projections by tilt angle
         if not any([p.getTiltAngle() is None for p in self._list]):
             self.sort()
-            self._init_tilt_angles()
         else:
             self.sort(key=lambda p: p.getIndex())
 
@@ -693,7 +709,11 @@ class ProjectionList(PyTomClass):
         @param key: lambda expression to select which item of the Projection to sort on
         @type key: L{function}
         """
-        self._list.sort(key=key)
+        sorted_list = sorted(self._list, key=key)
+        if sorted_list != self._list:
+            self._list = sorted_list
+            [p.setIndex(i) for i, p in enumerate(self._list) if i != p.getIndex()]  # update indices of the
+            # if they have been sorted with key .getIndex() this will not change the indices of the projections
         if not any([p.getTiltAngle() is None for p in self._list]):
             self._init_tilt_angles()
         else:
@@ -735,10 +755,12 @@ class ProjectionList(PyTomClass):
         @deprecated: 
         """
         print('Generate Volumes is deprecated, use reconstructVolumes instead!')
-        self.reconstructVolumes(particles, cubeSize, binning, applyWeighting, show_progress_bar=showProgressBar,
+        w = -1 if applyWeighting else 0
+        self.reconstructVolumes(particles, cubeSize, binning=binning, weighting=w,
+                                show_progress_bar=showProgressBar,
                                 verbose=verbose, pre_scale_factor=preScale, post_scale=postScale)
 
-    # Tomogram reconstruction
+    # ================== Tomogram reconstruction ============================
     def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0],
                           recon_interpolation='filt_bspline', binning=1, weighting=0, specimen_angle=0,
                           low_pass_ny_fraction=0.9, apply_circle_filter=True, scale_factor=1.,
@@ -765,8 +787,9 @@ class ProjectionList(PyTomClass):
         @return: reconstructed volume
         @rtype: L{pytom_volume.vol} or L{numpy.ndarray}
         """
-
         from pytom.gpu.initialize import device
+
+        assert len(dims) == 3, "invalid dimensions for tomogram, needs to be 3 dimensional"
 
         if 'gpu' in device:
             vol = self.reconstructVolumeGPU(dims=dims, reconstructionPosition=reconstructionPosition,
@@ -921,8 +944,8 @@ class ProjectionList(PyTomClass):
 
         return vol_bp
 
-    # Subtomogram reconstruction
-    def reconstructVolumes(self, particles, cubeSize, binning=1, weighting=0, low_pass_ny_fraction=0.9,
+    # ====================== Subtomogram reconstruction =============
+    def reconstructVolumes(self, particles, cube_size, binning=1, weighting=0, low_pass_ny_fraction=0.9,
                            apply_circle_filter=True,  pre_scale_factor=1., post_scale=1., num_procs=1,
                            ctfcenter=None, polishResultFile='', specimen_angle=0., show_progress_bar=False,
                            verbose=False, gpuIDs=None):
@@ -931,7 +954,7 @@ class ProjectionList(PyTomClass):
 
         @param particles: A list of particles
         @type particles: L{pytom.basic.structures.ParticleList}
-        @param cubeSize: 3D Size of reconstructed particle (here, x == y == z)
+        @param cube_size: 3D Size of reconstructed particle (here, x == y == z)
         @param binning: binning of projections
         @param applyWeighting: Will apply weighting for weighted backprojection to projection. Default is off (False)!
         @param showProgressBar: False by default
@@ -960,8 +983,8 @@ class ProjectionList(PyTomClass):
         if len(particles) == 0:
             raise RuntimeError('ParticleList is empty!')
 
-        if cubeSize.__class__ != int:
-            raise TypeError('reconstructVolumes: Parameter cubeSize must be of type int!')
+        if cube_size.__class__ != int:
+            raise TypeError('reconstructVolumes: Parameter cube_size must be of type int!')
 
         if (num_procs is None) and (gpuIDs is not None):
             if isinstance(gpuIDs, list):
@@ -1021,7 +1044,7 @@ class ProjectionList(PyTomClass):
                     continue
 
                 # start all processes
-                proc = Process(target=extract, args=(ps, i, verbose, binning, post_scale, cubeSize, polishResultFile,
+                proc = Process(target=extract, args=(ps, i, verbose, binning, post_scale, cube_size, polishResultFile,
                                                      gpuIDs[i], stacks))
                 procs.append(proc)
                 proc.start()
@@ -1034,13 +1057,13 @@ class ProjectionList(PyTomClass):
 
             t = time.time()
 
-            vol_bp = vol(cubeSize, cubeSize, cubeSize)
+            vol_bp = vol(cube_size, cube_size, cube_size)
             [vol_img, vol_phi, vol_the, vol_offsetProjections] = stacks
 
             for particleIndex in range(len(particles)):
                 t = time.time()
                 p = particles[particleIndex]
-                # self.extract_single_particle(p, particleIndex, verbose, binning, post_scale, cubeSize)
+                # self.extract_single_particle(p, particleIndex, verbose, binning, post_scale, cube_size)
                 # print('Subtomogram reconstruction for particle {} has started.'.format(particleIndex))
                 if show_progress_bar:
                     progressBar.update(particleIndex)
@@ -1066,7 +1089,7 @@ class ProjectionList(PyTomClass):
                 backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition, vol_offsetProjections)
 
                 if post_scale > 1:
-                    volumeRescaled = vol(cubeSize / post_scale, cubeSize / post_scale, cubeSize / post_scale)
+                    volumeRescaled = vol(cube_size / post_scale, cube_size / post_scale, cube_size / post_scale)
                     rescaleSpline(vol_bp, volumeRescaled)
                     volumeRescaled.write(p.getFilename())
                 else:
@@ -1080,7 +1103,7 @@ class ProjectionList(PyTomClass):
 
         print('\n Subtomogram reconstructions have finished.\n\n')
 
-    def extract_particles_on_gpu(self, particles, pid, verbose, binning, post_scale, cubeSize, filename_ppr='',
+    def extract_particles_on_gpu(self, particles, pid, verbose, binning, post_scale, cube_size, filename_ppr='',
                                  gpuID=None, stacks=0):
         import os
         from pytom.agnostic.io import read, write
@@ -1105,7 +1128,7 @@ class ProjectionList(PyTomClass):
             [projections, vol_phi, vol_the, vol_offsetProjections] = [xp.asarray(x) for x in stacks]
             num_projections = projections.shape[2]
 
-            vol_bp = xp.zeros((cubeSize, cubeSize, cubeSize), dtype=xp.float32)
+            vol_bp = xp.zeros((cube_size, cube_size, cube_size), dtype=xp.float32)
             reconstructionPosition = xp.zeros((num_projections,3), dtype=xp.float32)
 
             interpolation = 'filt_bspline'
@@ -1141,10 +1164,8 @@ class ProjectionList(PyTomClass):
 
         print(f'recon time in process {pid}: {time.time()-t:.3f} sec')
 
-    def extract_single_particle(self, particles, pid, verbose, binning, post_scale, cubeSize, filename_ppr='',
+    def extract_single_particle(self, particles, pid, verbose, binning, post_scale, cube_size, filename_ppr='',
                                 gpuID=None, stacks=0):
-        import os
-        from pytom.basic.files import read
         from pytom_volume import vol, backProject, rescaleSpline
         import numpy as np
         import time
@@ -1161,7 +1182,7 @@ class ProjectionList(PyTomClass):
             [vol_img, vol_phi, vol_the, vol_offsetProjections] = stacks
             num_projections = vol_img.sizeZ()
 
-            vol_bp = vol(cubeSize, cubeSize, cubeSize)
+            vol_bp = vol(cube_size, cube_size, cube_size)
             vol_bp.setAll(0.0)
 
             reconstructionPosition = vol(3, num_projections, 1)
@@ -1210,7 +1231,7 @@ class ProjectionList(PyTomClass):
                 backProject(vol_img, vol_bp, vol_phi, vol_the, reconstructionPosition, vol_offsetProjections)
 
                 if post_scale > 1:
-                    volumeRescaled = vol(cubeSize / post_scale, cubeSize / post_scale, cubeSize / post_scale)
+                    volumeRescaled = vol(cube_size / post_scale, cube_size / post_scale, cube_size / post_scale)
                     rescaleSpline(vol_bp, volumeRescaled)
                     volumeRescaled.write(p.getFilename())
                 else:
@@ -1821,7 +1842,7 @@ class ProjectionList(PyTomClass):
 
         return [stack, phiStack, thetaStack, offsetStack]
 
-    # Old projection stack functions
+    # =========== Old projection stack functions ======================
     def toProjectionStack(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
                           scale_factor_particle=1, angle_specimen=0, showProgressBar=False, verbose=False):
         """
