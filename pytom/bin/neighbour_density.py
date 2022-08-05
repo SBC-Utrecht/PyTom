@@ -1,6 +1,7 @@
 import sys, os, numpy as np
 from scipy.spatial.distance import cdist
 from pytom.agnostic.io import read
+from pytom.agnostic.tools import zxz2zyz
 from pytom.angles.angleFnc import matToZYZ
 from pytom.basic.structures import ParticleList
 from pytom.tools.script_helper import ScriptHelper2, ScriptOption2
@@ -70,8 +71,12 @@ def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=4,
                     v = Vector(coord_n - coord_p)
 
                     # voltools rotation matrix
-                    rm = rotation_matrix(rotation=-tomo_rotations[i], rotation_order='rzyz').T
-                    v.rotate(rm[:3, :3])
+                    # this is how it was done before:
+                    #  - rm = rotation_matrix(rotation=-tomo_rotations[i], rotation_order='rzyz').T
+                    # the proper way because in vector rotation is dot(R, mat) instead of dot(mat, R):
+                    # (but inverse and transpose can be identical)
+                    rm = np.linalg.inv(rotation_matrix(rotation=-tomo_rotations[i], rotation_order='rzyz')[:3, :3])
+                    v.rotate(rm)
 
                     # append to results
                     relative_coords.append(list(v.get()))
@@ -267,7 +272,7 @@ if __name__ == '__main__':
             # get the angles in zyz notation
             # put them in RELION notation by taking tranpose of matrix and negative (other option is to do this with
             # relion angles of course)
-            zyz_angles = [- a for a in matToZYZ(rotation.toMatrix().transpose())]
+            zyz_angles = matToZYZ(rotation.toMatrix())  # returns a list zyz
 
             # add the information to the lists
             tomograms.append(tomogram)
