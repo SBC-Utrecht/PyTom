@@ -70,8 +70,7 @@ def rotate(volume,rotation,x=None,z2=None,imethod='spline',twice=False):
         z1 = rotation.getZ1()
         x  = rotation.getX()
         z2 = rotation.getZ2()
-    elif (rotation.__class__ != float and rotation.__class__ != int) or (x.__class__ != float and x.__class__ != int) or (z2.__class__ != float and z2.__class__ != int):
-        
+    elif not all([isinstance(r, (float, int)) for r in [rotation, x, z2]]):
         raise TypeError('Rotation parameter must be a Rotation object or provide z1,x,z2 as floats!')
     else:
         z1 = rotation

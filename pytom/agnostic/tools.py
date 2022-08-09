@@ -8,6 +8,9 @@ from numpy.random import standard_normal
 
 from pytom.agnostic.transform import resize as RESIZE
 
+epsilon = 1E-8
+
+
 def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False):
     """Create a 3D sphere volume.
     @param size: size of the resulting volume.
@@ -141,129 +144,16 @@ def paste_in_center(volume, volume2, gpu=False):
             volume2[SX//2-sx//2:SX//2+sx//2+sx%2,SY//2-sy//2:SY//2+sy//2+sy%2] = volume
             return volume2
 
-def rotation_matrix_x(angle):
-    """Return the 3x3 rotation matrix around x axis.
-
-    @param angle: rotation angle around x axis (in degree).
-
-    @return: rotation matrix.
-    """
-    angle = xp.deg2rad(angle)
-    mtx = xp.matrix(xp.zeros((3,3)))
-    mtx[1,1] = xp.cos(angle)
-    mtx[2,1] = xp.sin(angle)
-    mtx[2,2] = xp.cos(angle)
-    mtx[1,2] = -xp.sin(angle)
-    mtx[0,0] = 1
-
-    return mtx
-
-def rotation_matrix_y(angle):
-    """Return the 3x3 rotation matrix around y axis.
-
-    @param angle: rotation angle around y axis (in degree).
-
-    @return: rotation matrix.
-    """
-    angle = xp.deg2rad(angle)
-    mtx = xp.matrix(xp.zeros((3,3)))
-    mtx[0,0] = xp.cos(angle)
-    mtx[2,0] = -xp.sin(angle)
-    mtx[2,2] = xp.cos(angle)
-    mtx[0,2] = xp.sin(angle)
-    mtx[1,1] = 1
-
-    return mtx
-
-def rotation_matrix_z(angle):
-    """Return the 3x3 rotation matrix around z axis.
-
-    @param angle: rotation angle around z axis (in degree).
-
-    @return: rotation matrix.
-    """
-    angle = xp.deg2rad(angle)
-    mtx = xp.matrix(xp.zeros((3,3)))
-    mtx[0,0] = xp.cos(angle)
-    mtx[1,0] = xp.sin(angle)
-    mtx[1,1] = xp.cos(angle)
-    mtx[0,1] = -xp.sin(angle)
-    mtx[2,2] = 1
-
-    return mtx
-
-def rotation_matrix_zxz(angle):
-    """Return the 3x3 rotation matrix of an Euler angle in ZXZ convention.
-    Note the order of the specified angle should be [Phi, Psi, Theta], or [Z1, Z2, X] in Pytom format.
-
-    @param angle: list of [Phi, Psi, Theta] in degree.
-
-    @return: rotation matrix.
-    """
-    assert len(angle) == 3
-
-    z1 = angle[0]
-    z2 = angle[1]
-    x = angle[2]
-
-    zm1 = rotation_matrix_z(z1)
-    xm = rotation_matrix_x(x)
-    zm2= rotation_matrix_z(z2)
-    
-    res = zm2 * (xm * zm1)
-
-    return res
-
-def rotation_matrix_zyz(angle):
-    """Return the 3x3 rotation matrix of an Euler angle in ZXZ convention.
-    Note the order of the specified angle should be [Phi, Psi, Theta], or [Z1, Z2, X] in Pytom format.
-
-    @param angle: list of [Phi, Psi, Theta] in degree.
-
-    @return: rotation matrix.
-    """
-    assert len(angle) == 3
-
-    z1 = angle[0]
-    z2 = angle[1]
-    y = angle[2]
-
-    zm1 = rotation_matrix_z(z1)
-    xm = rotation_matrix_y(y)
-    zm2= rotation_matrix_z(z2)
-
-    res = zm2 * (xm * zm1)
-
-    return res
-
-def rotation_distance(ang1, ang2):
-    """Given two angles (lists), calculate the angular distance (degree).
-
-    @param ang1: angle 1. [Phi, Psi, Theta], or [Z1, Z2, X] in Pytom format.
-    @param ang2: angle 2. [Phi, Psi, Theta], or [Z1, Z2, X] in Pytom format.
-    
-    @return: rotation distance in degree.
-    """
-    mtx1 = rotation_matrix_zxz(ang1)
-    mtx2 = rotation_matrix_zxz(ang2)
-    res = xp.multiply(mtx1, mtx2) # elementwise multiplication
-    trace = xp.sum(res)
-    
-    from math import pi, acos
-    temp=0.5*(trace-1.0)
-    if temp >= 1.0:
-        return 0.0
-    if temp <= -1.0:
-        return 180
-    return acos(temp)*180/pi
 
 def euclidian_distance(pos1, pos2):
     return xp.linalg.norm(xp.array(pos1)-xp.array(pos2))
+
 
 def volumesSameSize(v0, v1):
     if len(v0.shape) != len(v1.shape):
         return False
     return xp.array([abs(v0.shape[pos] - v1.shape[pos]) == 0 for pos in range(len(v0.shape))]).sum() == len(v0.shape)
+
 
 def taper_edges(image, width, taper_mask=None):
     """
@@ -522,200 +412,328 @@ def putSubVolume(subvolume, volume, startX, startY, startZ):
         sx, sy, sz = subvolume.shape
         volume[startX:startX + sx, startY:startY + sy, startZ:startZ + sz] = subvolume[:, :, :]
 
+# ================================ ROTATION MATRICES ==============================
 
-def convert_angles(angles, rotation_order='rzxz', return_order='rzyz'):
-    from pytom.voltools.utils.matrices import rotation_matrix
-    import numpy as np
 
-    mat_dict = {'x':rotation_matrix_x, 'y':rotation_matrix_y, 'z': rotation_matrix_z}
+def rotation_matrix_x(angle):
+    """Return the 3x3 rotation matrix around x axis.
 
-    # shift direction of rotation to match CCW definition used in mat2??? calculations.
-    # angles = -1* np.array(angles)
+    @param angle: rotation angle around x axis (in degree).
 
-    m = rotation_matrix(angles,rotation_order=rotation_order)
+    @return: rotation matrix.
+    """
+    angle = xp.deg2rad(angle)
+    mtx = xp.zeros((3, 3))
+    mtx[1, 1] = xp.cos(angle)
+    mtx[2, 1] = xp.sin(angle)
+    mtx[2, 2] = xp.cos(angle)
+    mtx[1, 2] = -xp.sin(angle)
+    mtx[0, 0] = 1
 
-    return_funcs = {'xyz':mat2xyz, 'xzy':mat2xzy, 'yxz':mat2yxz, 'yzx':mat2yzx, 'zxy':mat2zxy, 'zyx':mat2zyx,
-                    'xyx':mat2xyx, 'xzx':mat2xzx, 'yxy':mat2yxy, 'yzy':mat2yzy, 'zxz':mat2zxz, 'zyz':mat2zyz}
+    return mtx
 
-    angs = return_funcs[return_order[-3:]](m)
 
-    if return_order[0] == 's':
-        angs = np.array(angs)[::-1]
+def rotation_matrix_y(angle):
+    """Return the 3x3 rotation matrix around y axis.
 
-    return angs
+    @param angle: rotation angle around y axis (in degree).
 
-def mat2xyz(rotation_matrix):
-    #y = asin(r02), x = atan2(−r12, r22).z = atan2(−r01, r00)
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
-    r = rotation_matrix
-    y = rad2deg(asin(r[0, 2]))
+    @return: rotation matrix.
+    """
+    angle = xp.deg2rad(angle)
+    mtx = xp.zeros((3, 3))
+    mtx[0, 0] = xp.cos(angle)
+    mtx[2, 0] = -xp.sin(angle)
+    mtx[2, 2] = xp.cos(angle)
+    mtx[0, 2] = xp.sin(angle)
+    mtx[1, 1] = 1
 
-    epsilon = 1E-4
+    return mtx
 
-    if abs(90 - y) < epsilon or abs(90 + y) < epsilon:
-        z = rad2deg(atan2(r[1,0], r[1,1]))
+
+def rotation_matrix_z(angle):
+    """Return the 3x3 rotation matrix around z axis.
+
+    @param angle: rotation angle around z axis (in degree).
+
+    @return: rotation matrix.
+    """
+    angle = xp.deg2rad(angle)
+    mtx = xp.zeros((3, 3))
+    mtx[0, 0] = xp.cos(angle)
+    mtx[1, 0] = xp.sin(angle)
+    mtx[1, 1] = xp.cos(angle)
+    mtx[0, 1] = -xp.sin(angle)
+    mtx[2, 2] = 1
+
+    return mtx
+
+
+def rotation_matrix_zxz(zxz):
+    """Return the 3x3 rotation matrix of an Euler angle in ZXZ convention.
+    Note the order of the specified angle should be [Phi, Theta, Psi], or [Z1, X, Z2].
+    Rotation matrix multiplied in order mat(Z2) * mat(X) * mat(Z1).
+
+    @param angle: list of [Phi, Theta, Psi] in degree.
+
+    @return: rotation matrix.
+    """
+    assert len(zxz) == 3
+
+    z1, x, z2 = zxz
+
+    zm1 = rotation_matrix_z(z1)
+    xm = rotation_matrix_x(x)
+    zm2 = rotation_matrix_z(z2)
+
+    res = xp.dot(zm2, xp.dot(xm, zm1))
+
+    return res
+
+
+def rotation_matrix_zyz(zyz):
+    """Return the 3x3 rotation matrix of an Euler angle in ZYZ convention.
+    Note the order of the specified angle should be [Phi, Theta, Psi], or [Z1, X, Z2].
+    Rotation matrix multiplied in order mat(Z2) * mat(X) * mat(Z1)
+
+    @param angle: list of [Phi, Theta, Psi] in degree.
+
+    @return: rotation matrix.
+    """
+    assert len(zyz) == 3
+
+    z1, y, z2 = zyz
+
+    zm1 = rotation_matrix_z(z1)
+    xm = rotation_matrix_y(y)
+    zm2 = rotation_matrix_z(z2)
+
+    res = xp.dot(zm2, xp.dot(xm, zm1))
+
+    return res
+
+
+def rotation_distance(ang1, ang2, rotation_order='zxz'):
+    """Given two angles (lists), calculate the angular distance (degree).
+
+    @param ang1: angle 1. [Phi, Psi, Theta], or [Z1, Z2, X] in Pytom format.
+    @param ang2: angle 2. [Phi, Psi, Theta], or [Z1, Z2, X] in Pytom format.
+
+    @return: rotation distance in degree.
+    """
+    mtx1 = rotation_matrix_zxz(ang1)
+    mtx2 = rotation_matrix_zxz(ang2)
+    res = xp.dot(mtx1, xp.linalg.inv(mtx2))  # elementwise multiplication
+    trace = xp.sum(res)
+
+    temp = 0.5 * (trace - 1.0)
+    if temp >= 1.0:
+        return 0.0
+    if temp <= -1.0:
+        return 180
+    return xp.arccos(temp) * 180 / xp.pi
+
+
+def rotation_matrix(angles, rotation_order='zxz', multiplication='post'):
+
+    assert len(angles) == 3, "should provide 3 angles"
+    assert multiplication in ['pre', 'post'], "multiplication can only be pre or post"
+
+    mat_dict = {'x': rotation_matrix_x, 'y': rotation_matrix_y, 'z': rotation_matrix_z}
+
+    mtxs = []
+    for angle, rot in zip(angles, rotation_order):
+        mtxs.append(mat_dict[rot](-angle) if multiplication == 'post' else mat_dict[rot](angle))
+
+    if multiplication == 'post':
+        return xp.dot(xp.dot(mtxs[0], mtxs[1]), mtxs[2])
+    else:
+        return xp.dot(mtxs[2], xp.dot(mtxs[1], mtxs[0]))
+
+
+def convert_angles(angles, rotation_order='zxz', return_order='zyz', multiplication='post'):
+    # get the rotation matrix with the input order
+    m = rotation_matrix(angles, rotation_order=rotation_order, multiplication=multiplication)
+    # get the angles with the specified output order
+    return mat2ord(m, return_order=return_order, multiplication=multiplication)
+
+# ================================= mat2... =========================================
+# these are all defined for post-multiplication with the matrix: dot(mat, Rc)
+
+
+def mat2ord(rotation_matrix, return_order='zyz', multiplication='post'):
+    assert multiplication in ['pre', 'post'], "multiplication can only be pre or post"
+    assert len(rotation_matrix.shape) == 2 and all([s == 3 for s in rotation_matrix.shape]), \
+        "invalid rotation matrix shape"
+
+    return_funcs = {'xyz': mat2xyz, 'xzy': mat2xzy, 'yxz': mat2yxz, 'yzx': mat2yzx, 'zxy': mat2zxy, 'zyx': mat2zyx,
+                    'xyx': mat2xyx, 'xzx': mat2xzx, 'yxy': mat2yxy, 'yzy': mat2yzy, 'zxz': mat2zxz, 'zyz': mat2zyz}
+
+    # if 'pre' multiplication, invert the matrix
+    res = return_funcs[return_order](xp.linalg.inv(rotation_matrix)) if \
+        multiplication == 'pre' else return_funcs[return_order](rotation_matrix)
+
+    # always take negative of angles
+    return tuple([-r for r in res])  # if multiplication == 'post' else res
+
+
+def mat2xyz(r):
+    y = xp.rad2deg(xp.arcsin(r[0, 2]))
+
+    if xp.abs(90 - y) < epsilon or xp.abs(90 + y) < epsilon:
+        z = xp.rad2deg(xp.arctan2(r[1,0], r[1,1]))
         x = 0
     else:
-        x = rad2deg(atan2(-r[1, 2], r[2, 2]))
-        z = rad2deg(atan2(-r[0, 1], r[0, 0]))
+        x = xp.rad2deg(xp.arctan2(-r[1, 2], r[2, 2]))
+        z = xp.rad2deg(xp.arctan2(-r[0, 1], r[0, 0]))
 
     return (x, y, z)
 
-def mat2xzy(rotation_matrix):
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
-    r = rotation_matrix
-    z = rad2deg(asin(-r[0, 1]))
 
-    if abs(90 - z) < 1E-4 or abs(90 + z) < 1E-4:
-        y = rad2deg(atan2(-r[2, 0], r[2, 2]))
+def mat2xzy(r):
+    z = xp.rad2deg(xp.arcsin(-r[0, 1]))
+
+    if xp.abs(90 - z) < epsilon or xp.abs(90 + z) < epsilon:
+        y = xp.rad2deg(xp.arctan2(-r[2, 0], r[2, 2]))
         x = 0
     else:
-        x = rad2deg(atan2(r[2, 1], r[1, 1]))
-        y = rad2deg(atan2(r[0, 2], r[0, 0]))
+        x = xp.rad2deg(xp.arctan2(r[2, 1], r[1, 1]))
+        y = xp.rad2deg(xp.arctan2(r[0, 2], r[0, 0]))
 
     return (x, z, y)
 
-def mat2yxz(rotation_matrix):
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
-    r = rotation_matrix
-    x = rad2deg(asin(-r[1, 2]))
 
-    if abs(90 - x) < 1E-4 or abs(90 + x) < 1E-4:
-        z = rad2deg(atan2(-r[0, 1], r[0,0]))
+def mat2yxz(r):
+    x = xp.rad2deg(xp.arcsin(-r[1, 2]))
+
+    if xp.abs(90 - x) < epsilon or xp.abs(90 + x) < epsilon:
+        z = xp.rad2deg(xp.arctan2(-r[0, 1], r[0,0]))
         y = 0
     else:
-        y = rad2deg(atan2(r[0, 2], r[2, 2]))
-        z = rad2deg(atan2(r[1, 0], r[1, 1]))
+        y = xp.rad2deg(xp.arctan2(r[0, 2], r[2, 2]))
+        z = xp.rad2deg(xp.arctan2(r[1, 0], r[1, 1]))
 
     return (y, x, z)
 
-def mat2yzx(rotation_matrix):
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
-    r = rotation_matrix
 
-    z = rad2deg(asin(r[1, 0]))
+def mat2yzx(r):
+    z = xp.rad2deg(xp.arcsin(r[1, 0]))
 
-    if abs(90- z) < 1E-8 or abs(90 + z) < 1E-8:
-        x = rad2deg(atan2(r[2, 1], r[2, 2]))
+    if xp.abs(90- z) < epsilon or xp.abs(90 + z) < epsilon:
+        x = xp.rad2deg(xp.arctan2(r[2, 1], r[2, 2]))
         y = 0
     else:
-        y = rad2deg(atan2(-r[2, 0], r[0, 0]))
-        x = rad2deg(atan2(-r[1, 2], r[1, 1]))
+        y = xp.rad2deg(xp.arctan2(-r[2, 0], r[0, 0]))
+        x = xp.rad2deg(xp.arctan2(-r[1, 2], r[1, 1]))
 
     return (y, z, x)
 
-def mat2zxy(rotation_matrix):
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
-    r = rotation_matrix
-    x = rad2deg(asin(r[2, 1]))
 
-    if abs(90 - x) < 1E-8 or abs(90 + x) < 1E-8:
-        y = rad2deg(atan2(r[0, 2], r[0, 0]))
+def mat2zxy(r):
+    x = xp.rad2deg(xp.arcsin(r[2, 1]))
+
+    if xp.abs(90 - x) < epsilon or xp.abs(90 + x) < epsilon:
+        y = xp.rad2deg(xp.arctan2(r[0, 2], r[0, 0]))
         z = 0
     else:
-        z = rad2deg(atan2(-r[0, 1], r[1, 1]))
-        y = rad2deg(atan2(-r[2, 0], r[2, 2]))
+        z = xp.rad2deg(xp.arctan2(-r[0, 1], r[1, 1]))
+        y = xp.rad2deg(xp.arctan2(-r[2, 0], r[2, 2]))
 
     return (z, x, y)
 
-def mat2zyx(rotation_matrix):
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
-    r = rotation_matrix
-    y = rad2deg(asin(-r[2, 0]))
 
-    if abs(90 - y) < 1E-8 or abs(90 + y) < 1E-8:
-        x = rad2deg(atan2(-r[1, 2], r[1, 1]))
+def mat2zyx(r):
+    y = xp.rad2deg(xp.arcsin(-r[2, 0]))
+
+    if xp.abs(90 - y) < epsilon or xp.abs(90 + y) < epsilon:
+        x = xp.rad2deg(xp.arctan2(-r[1, 2], r[1, 1]))
         z = 0
     else:
-        z = rad2deg(atan2(r[1, 0], r[0, 0]))
-        x = rad2deg(atan2(r[2, 1], r[2, 2]))
+        z = xp.rad2deg(xp.arctan2(r[1, 0], r[0, 0]))
+        x = xp.rad2deg(xp.arctan2(r[2, 1], r[2, 2]))
 
     return (z, y, x)
 
-def mat2xyx(rotation_matrix):
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
-    r = rotation_matrix
-    y = rad2deg(acos(r[0, 0]))
 
-    if abs(180 - y) < 1E-8 or abs(y) < 1E-8:
-        x1 = rad2deg(atan2(-r[1, 2], r[1, 1]))
+def mat2xyx(r):
+    y = xp.rad2deg(xp.arccos(r[0, 0]))
+
+    if xp.abs(180 - y) < epsilon or xp.abs(y) < epsilon:
+        x1 = xp.rad2deg(xp.arctan2(-r[1, 2], r[1, 1]))
         x0 = 0
     else:
-        x0 = rad2deg(atan2(r[1, 0], -r[2, 0]))
-        x1 = rad2deg(atan2(r[0, 1], r[0, 2]))
+        x0 = xp.rad2deg(xp.arctan2(r[1, 0], -r[2, 0]))
+        x1 = xp.rad2deg(xp.arctan2(r[0, 1], r[0, 2]))
 
     return (x0, y, x1)
 
-def mat2xzx(rotation_matrix):
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
-    r = rotation_matrix
-    z = rad2deg(acos(r[0, 0]))
 
-    if abs(180 - z) < 1E-8 or abs(z) < 1E-8:
-        x1 = rad2deg(atan2(r[2, 1], r[2, 2]))
+def mat2xzx(r):
+    z = xp.rad2deg(xp.arccos(r[0, 0]))
+
+    if xp.abs(180 - z) < epsilon or xp.abs(z) < epsilon:
+        x1 = xp.rad2deg(xp.arctan2(r[2, 1], r[2, 2]))
         x0 = 0
     else:
-        x0 = rad2deg(atan2(r[2, 0], r[1, 0]))
-        x1 = rad2deg(atan2(r[0, 2], -r[0, 1]))
+        x0 = xp.rad2deg(xp.arctan2(r[2, 0], r[1, 0]))
+        x1 = xp.rad2deg(xp.arctan2(r[0, 2], -r[0, 1]))
 
     return (x0, z, x1)
 
-def mat2yxy(rotation_matrix):
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
-    r = rotation_matrix
-    x = rad2deg(acos(r[1, 1]))
 
-    if abs(180 - x) < 1E-8 or abs(x) < 1E-8:
-        y1 = rad2deg(atan2(r[0, 2], r[0, 0]))
+def mat2yxy(r):
+    x = xp.rad2deg(xp.arccos(r[1, 1]))
+
+    if xp.abs(180 - x) < epsilon or xp.abs(x) < epsilon:
+        y1 = xp.rad2deg(xp.arctan2(r[0, 2], r[0, 0]))
         y0 = 0
     else:
-        y0 = rad2deg(atan2(r[0, 1], r[2, 1]))
-        y1 = rad2deg(atan2(r[1, 0], -r[1, 2]))
+        y0 = xp.rad2deg(xp.arctan2(r[0, 1], r[2, 1]))
+        y1 = xp.rad2deg(xp.arctan2(r[1, 0], -r[1, 2]))
 
     return (y0, x, y1)
 
-def mat2yzy(rotation_matrix):
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos, arcsin as asin
-    r = rotation_matrix
-    z = rad2deg(acos(r[1, 1]))
 
-    if abs(180 - z) < 1E-8 or abs(z) < 1E-8:
-        y1 = rad2deg(atan2(-r[2, 0], r[2, 2]))
+def mat2yzy(r):
+    z = xp.rad2deg(xp.arccos(r[1, 1]))
+
+    if xp.abs(180 - z) < epsilon or xp.abs(z) < epsilon:
+        y1 = xp.rad2deg(xp.arctan2(-r[2, 0], r[2, 2]))
         y0 = 0
     else:
-        y0 = rad2deg(atan2(r[2, 1], -r[0, 1]))
-        y1 = rad2deg(atan2(r[1, 2], r[1, 0]))
+        y0 = xp.rad2deg(xp.arctan2(r[2, 1], -r[0, 1]))
+        y1 = xp.rad2deg(xp.arctan2(r[1, 2], r[1, 0]))
 
     return (y0, z, y1)
 
-def mat2zxz(rotation_matrix):
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos
-    r = rotation_matrix
-    x = rad2deg(acos(r[2,2]))
 
-    if abs(180 - x) < 1E-8 or abs(x) < 1E-8:
-        z1 = rad2deg(atan2(-r[0,1], r[0,0]))
+def mat2zxz(r):
+    x = xp.rad2deg(xp.arccos(r[2,2]))
+
+    if xp.abs(180 - x) < epsilon or xp.abs(x) < epsilon:
+        z1 = xp.rad2deg(xp.arctan2(-r[0,1], r[0,0]))
         z0 = 0
     else:
-        z0 = rad2deg(atan2(r[0,2], -r[1,2]))
-        z1 = rad2deg(atan2(r[2,0], r[2,1]))
+        z0 = xp.rad2deg(xp.arctan2(r[0,2], -r[1,2]))
+        z1 = xp.rad2deg(xp.arctan2(r[2,0], r[2,1]))
 
     return (z0, x, z1)
 
-def mat2zyz(rotation_matrix):
-    from numpy import pi, abs, rad2deg, arctan2 as atan2, arccos as acos
-    r = rotation_matrix
 
-    y = rad2deg(acos(r[2,2]))
+def mat2zyz(r):
+    y = xp.rad2deg(xp.arccos(r[2,2]))
 
-    if abs(180 - y) < 1E-8 or abs(y) < 1E-8:
-        z1 = rad2deg(atan2(r[1,0], r[1,1]))
+    if xp.abs(180 - y) < epsilon or xp.abs(y) < epsilon:
+        z1 = xp.rad2deg(xp.arctan2(r[1,0], r[1,1]))
         z0 = 0
     else:
-        z0 = rad2deg(atan2(r[1,2], r[0,2]))
-        z1 = rad2deg(atan2(r[2,1], -r[2,0]))
+        z0 = xp.rad2deg(xp.arctan2(r[1,2], r[0,2]))
+        z1 = xp.rad2deg(xp.arctan2(r[2,1], -r[2,0]))
 
     return (z0, y, z1)
+
+
+# ========================================================================================
 
 def zxz2zyz(z0, x, z1):
     from numpy import cos, sin, deg2rad, arctan2 as atan2, rad2deg, pi, abs
@@ -736,7 +754,7 @@ def zxz2zyz(z0, x, z1):
 
     y = x
 
-    if abs(pi - x) < 1E-8 or abs(x) < 1E-8:
+    if abs(pi - x) < epsilon or abs(x) < epsilon:
         z1 = rad2deg(atan2(r10, r11))
         z0 = 0
     else:
@@ -764,7 +782,7 @@ def zyz2zxz(z0, y, z1):
 
     x = y
 
-    if abs(pi-x) < 1E-8 or abs(x) < 1E-8:
+    if abs(pi-x) < epsilon or abs(x) < epsilon:
         z1 = rad2deg(atan2(-r01, r00))
         z0 = 0
     else:
