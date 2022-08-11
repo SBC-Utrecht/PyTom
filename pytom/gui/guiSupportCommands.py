@@ -32,7 +32,7 @@ old = '''
 
 newTemplateAlignment = '''cd {d[0]}; 
 
-{d[1]}/bin/pytom {d[1]}/reconstruction/generateAlignedTiltImages.py \\
+generateAlignedTiltImages.py \\
     --tiltSeriesName {d[2]}  \\
 	--firstIndex {d[3]} \\
 	--lastIndex {d[4]} \\
@@ -49,7 +49,7 @@ newTemplateAlignment = '''cd {d[0]};
 
 templateAlignment = '''cd {d[0]}
 
-{d[1]}/bin/pytom {d[1]}/bin/reconstructTomogram.py \\
+reconstructTomogram.py \\
     --tiltSeriesName sorted/sorted  \\
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\
@@ -65,7 +65,7 @@ templateAlignment = '''cd {d[0]}
 
 templateWBP       = '''cd {d[0]}
 
-{d[1]}/bin/pytom {d[1]}/bin/reconstructTomogram.py \\
+reconstructTomogram.py \\
     --tiltSeriesName sorted/sorted \\
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\
@@ -96,7 +96,7 @@ ln -s {d[0]}/reconstruction/WBP/{d[7]}_WBP.{d[8]} ../../04_Particle_Picking/Tomo
 
 templateINFR      = '''cd {d[0]}
 
-{d[1]}/bin/pytom {d[1]}/bin/reconstructTomogram.py \\
+reconstructTomogram.py \\
     --tiltSeriesName reconstruction/INFR/sorted  \\
     --firstIndex {d[2]} \\
     --lastIndex {d[3]} \\
@@ -129,13 +129,13 @@ templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[
 templateFRMSlurm  = '''
 cd {d[0]}
 
-mpiexec -n {d[3]} pytom {d[1]}/alignment/FRMAlignment.py -j {d[2]} -v
+mpiexec -n {d[3]} FRMAlignment.py -j {d[2]} -v
 
 '''
 
 templateGLocal    = '''cd {d[0]}
 
-mpiexec -n {d[14]} {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
+mpiexec -n {d[14]} GLocalJob.py \\
 --particleList {d[3]} \\
 --mask {d[5]} \\
 --numberIterations {d[6]} \\
@@ -151,7 +151,7 @@ mpiexec -n {d[14]} {d[1]}/bin/pytom {d[2]}/bin/GLocalJob.py \\
 
 templateCCC       = """cd {d[0]}
 
-mpiexec --tag-output -n {d[7]} pytom {d[1]}/classification/calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]} -o {d[6]} {d[8]}
+mpiexec --tag-output -n {d[7]} calculate_correlation_matrix.py -p {d[2]} -m {d[3]} -f {d[4]} -b {d[5]} -o {d[6]} {d[8]}
 """
 
 templateCPCA      = """cd {d[0]}
@@ -161,7 +161,7 @@ classifyCPCA.py -p {d[2]} -o {d[7]}/{d[3]} -c {d[4]} -e {d[5]} -n {d[6]} -a {d[8
 
 templateAC        = '''cd {d[0]}
 
-mpiexec --tag-output -n {d[13]} {d[1]}/bin/pytom {d[1]}/classification/auto_focus_classify.py \\
+mpiexec --tag-output -n {d[13]} auto_focus_classify.py \\
 -p {d[2]} \\
 {d[3]} {d[4]} \\
 -k {d[5]} \\
@@ -174,7 +174,7 @@ mpiexec --tag-output -n {d[13]} {d[1]}/bin/pytom {d[1]}/classification/auto_focu
 
 templateTM        = '''cd {d[0]}
 
-mpiexec --tag-output -n {d[1]} {d[2]}/bin/pytom {d[2]}/bin/localization.py -j {d[3]} -x {d[4]} -y {d[5]} -z {d[6]} {d[7]}
+mpiexec --tag-output -n {d[1]} localization.py -j {d[3]} -x {d[4]} -y {d[5]} -z {d[6]} {d[7]}
 '''
 
 
@@ -223,7 +223,7 @@ reconstructWBClosestMarker.py --particleList {d[0]} \\
 
 multiple_alignment = '''cd {d[0]}
 
-{d[1]}/bin/pytom {d[1]}/gui/additional/multi_tilt_alignment.py \\
+multi_tilt_alignment.py \\
 --start {d[2]} \\
 --end {d[3]} \\
 --numberProcesses {d[4]} \\
@@ -235,7 +235,7 @@ multiple_alignment = '''cd {d[0]}
 
 templateExtractCandidates = '''cd {d[0]}
 
-{d[1]}/bin/pytom {d[1]}/bin/extractCandidates.py \\
+extractCandidates.py \\
 --jobFile {d[2]} \\
 --result {d[3]} \\
 --orientation {d[4]} \\
@@ -272,7 +272,7 @@ ctfplotter -pa {d[1]}'''
 
 templateCTFCorrection = '''cd {d[0]}
 
-mpiexec --tag-output -n {d[9]}  {d[1]}/bin/pytom {d[1]}/gui/ctfCorrection.py \\
+mpiexec --tag-output -n {d[9]}  ctfCorrection.py \\
 -u {d[2]} \\
 -c {d[3]} \\
 --metafile {d[4]} \\
