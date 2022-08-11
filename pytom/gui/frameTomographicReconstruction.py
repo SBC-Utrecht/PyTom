@@ -1593,7 +1593,7 @@ class TomographReconstruct(GuiTabWidget):
         tomofolder_file.close()
 
         num_submitted_jobs = 0
-        qname, n_nodes, cores, time, modules = self.qparams['BatchAlignment'].values()
+        qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchAlignment'].values()
 
         submissionIDs = []
 
@@ -1609,7 +1609,8 @@ class TomographReconstruct(GuiTabWidget):
                 jobname = 'Alignment_BatchMode_Job_{:03d}'.format(num_submitted_jobs)
 
                 cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname, time=time,
-                                                    num_nodes=n_nodes, cmd=cmd, modules=modules, num_jobs_per_node=cores)
+                                                    num_nodes=n_nodes, cmd=qcmd, modules=modules,
+                                                    num_jobs_per_node=cores) + cmd
 
             ID, num = self.submitBatchJob(exefilename, id, cmd)
             num_submitted_jobs += 1
@@ -1674,12 +1675,13 @@ class TomographReconstruct(GuiTabWidget):
                     fname = 'CTF_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                     suffix = f"_{tomofolder}_"
 
-                    qname,n_nodes,cores,time, modules = self.qparams['BatchCTFCorrection'].values()
+                    qname,n_nodes,cores,time, modules, qmd = self.qparams['BatchCTFCorrection'].values()
 
 
-                    job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, time=time,
+                    job = guiFunctions.gen_queue_header(folder=self.logfolder, cmd = qcmd, name=fname,
+                                                        suffix=suffix, time=time,
                                                         partition=qname, num_nodes=n_nodes, singleton=True,
-                                                        num_jobs_per_node = cores, modules=modules, gpus=gpu)*self.checkbox[id].isChecked() + jobscript
+                                                        num_jobs_per_node=cores, modules=modules, gpus=gpu)*self.checkbox[id].isChecked() + jobscript
 
                     exefilename = os.path.join(outputfolder, 'ctfCorrectionBatch.sh')
 
@@ -1795,10 +1797,10 @@ class TomographReconstruct(GuiTabWidget):
                         continue
 
                     if self.checkbox[id].isChecked():
-                        qname, n_nodes, cores, time, modules = self.qparams['BatchReconstruct'].values()
+                        qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchReconstruct'].values()
                         header = guiFunctions.gen_queue_header(name=paramsSbatch['fname'], folder=paramsSbatch['folder'],
                                                                modules=modules, time=1, num_jobs_per_node=1,
-                                                               partition=qname)
+                                                               partition=qname, cmd=qcmd)
                         commandText = header + commandText
 
                     ID, num = self.submitBatchJob(execfilename, id, commandText)
