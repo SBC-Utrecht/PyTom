@@ -1062,7 +1062,7 @@ class TomographReconstruct(GuiTabWidget):
 
             src_mcor = os.path.join(folder, tif[1:-1])
             dst_mcor = os.path.join(os.path.dirname(meta_dst), 'sorted_{:02d}.mrc'.format(n))
-            print('debug', src_mcor)
+
             if os.path.exists(src_mcor):
                 # print('test', src_mcor)
                 num_copied += 1

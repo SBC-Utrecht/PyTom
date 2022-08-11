@@ -703,20 +703,6 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.frames_adj = zeros((len(self.fnames), dimy, dimx))
         self.dataRaw = zeros_like(self.frames_adj)
 
-        for i in range(len(fnames)):
-            if 0:
-
-                #datafile = mrcfile.open(self.fnames[i], permissive=True)
-                datafile = read_mrc('{}'.format(self.fnames[i]), binning=[1, 1, 1])
-                fa = deepcopy(datafile).T
-
-                fa[fa > fa.mean() + 5 * fa.std()] = fa.mean()
-                self.frames_adj[i, :, :] = fa
-                print(f'read {self.fnames[i]}')
-                #datafile.close()
-
-
-
         procs = []
 
         self.error_window.logfile = os.path.join(os.path.dirname(fnames[0]), 'alignmentErrors.txt')
@@ -1441,7 +1427,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         w = self.widgets
         fiducial_size,pixel_size,bin_read = map(float,(w['fiducial_size'].text(),
                                                        w['pixel_size'].text(),
-                                                       w['bin_read'].text()) )
+                                                       w['bin_read'].text()))
 
         self.parent().radius = fiducial_size/(pixel_size*bin_read*2.)
         w['radius_watershed'].setValue(fiducial_size/pixel_size/w['bin_alg'].value())
