@@ -123,9 +123,13 @@ if __name__ == '__main__':
         projection_list.loadDirectory(projection_directory, metafile=metafile,
                                       prefix=('' if projection_prefix is None else projection_prefix))
         print('projections loaded from directory')
+        if os.path.exists(os.path.join(projection_directory, 'alignmentResults.txt')):
+            align_result_file = os.path.join(projection_directory, 'alignmentResults.txt')
+
     if align_result_file is not None:
         projection_list.load_alignment(align_result_file)
         print('alignment parameters for projections loaded')
+
     # check if the files are okay and that they are some tilt angles loaded
     if not projection_list.ready_for_reconstruction():
         print('Something went wrong in loading the projection list and the alignment parameters. Please check your '

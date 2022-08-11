@@ -1917,8 +1917,9 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
         filename_output = os.path.join(save_path, f'reconstruction_bin{reconstruction_bin}.em')
     # IF EM alignment file provided, filters applied and reconstruction will be identical.
     projections = ProjectionList()
+    projections.load_alignment(filename_align)
     vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0, 0, 0], binning=reconstruction_bin,
-                                        applyWeighting=weighting, alignResultFile=filename_align)
+                                        weighting=weighting)
     vol.write(filename_output)
     os.system(f'em2mrc.py -f {filename_output} -t {os.path.dirname(filename_output)}')
     os.system(f'rm {filename_output}')

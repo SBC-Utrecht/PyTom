@@ -541,8 +541,12 @@ class ProjectionList(PyTomClass):
     ProjectionList: List of projections
     """
     def __init__(self, projection_list=None):
-        self._list = projection_list._list if projection_list is not None else []
-        self._tilt_angles = projection_list._tilt_angles if projection_list is not None else []
+        if projection_list is not None:
+            self._list = projection_list._list
+            self._init_tilt_angles() if projection_list._tilt_angles is None else projection_list._tilt_angles
+        else:
+            self._list = []
+            self._tilt_angles = []
 
     def _init_tilt_angles(self):
         self._tilt_angles = [p.getTiltAngle() for p in self._list]
@@ -727,6 +731,7 @@ class ProjectionList(PyTomClass):
         @type projection: L{pytom.reconstructionStructures.Projection}
         """
         self._list.append(projection)
+        self._tilt_angles.append(projection.getTiltAngle())
         
     def __getitem__(self, key):
         """

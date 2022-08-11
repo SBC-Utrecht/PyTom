@@ -502,41 +502,41 @@ class TiltSeries(PyTomClass):
 
         from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS
 
-        projs = []
-
         if alignResultFile:
-            ar = loadstar(alignResultFile, dtype=DATATYPE_ALIGNMENT_RESULTS)
-            for (kk, filename) in enumerate(ar['FileName']):
-                filename=str(filename)
-                tiltAngle = ar['TiltAngle'][kk]
-                proj = Projection(filename=filename,
-                                  alignedFilename=filename,
-                                  index=kk, tiltAngle=tiltAngle,
-                                  offsetX=0., offsetY=0.,
-                                  alignmentTransX=0., alignmentTransY=0.,
-                                  alignmentRotation=0., alignmentMagnification=1.)
-                projs.append(proj)
+            self._alignedProjectionList = ProjectionList()
+            self._alignedProjectionList.load_alignment(alignResultFile)
+            # ar = loadstar(alignResultFile, dtype=DATATYPE_ALIGNMENT_RESULTS)
+            # for (kk, filename) in enumerate(ar['FileName']):
+            #     filename=str(filename)
+            #     tiltAngle = ar['TiltAngle'][kk]
+            #     proj = Projection(filename=filename,
+            #                       alignedFilename=filename,
+            #                       index=kk, tiltAngle=tiltAngle,
+            #                       offsetX=0., offsetY=0.,
+            #                       alignmentTransX=0., alignmentTransY=0.,
+            #                       alignmentRotation=0., alignmentMagnification=1.)
+            #     projs.append(proj)
 
-        if not alignResultFile:
+        else:
+            projs = []
             for (kk, ii) in enumerate(self._projIndices):
                 print(self._alignedTiltSeriesName + "_" + str(ii) + "." + self._tiltSeriesFormat)
                 tiltAngle = self._ProjectionList[kk]._tiltAngle
                 proj = Projection(filename=self._alignedTiltSeriesName + "_" + str(ii) + "." + self._tiltSeriesFormat,
-                                  alignedFilename=self._alignedTiltSeriesName + "_" + str(
-                                      ii) + "." + self._tiltSeriesFormat,
                                   index=ii, tiltAngle=tiltAngle,
                                   offsetX=0., offsetY=0.,
                                   alignmentTransX=0., alignmentTransY=0.,
                                   alignmentRotation=0., alignmentMagnification=1.)
-                projs.append(proj)
+                                    # alignedFilename=self._alignedTiltSeriesName + "_" + str(
+                                    #     ii) + "." + self._tiltSeriesFormat,
 
-        self._alignedProjectionList = ProjectionList(projs)
+                projs.append(proj)
+            self._alignedProjectionList = ProjectionList(projs)
 
         # reconstruct tomogram
-        vol_bp = self._alignedProjectionList.reconstructVolume(dims=dims, alignResultFile=alignResultFile,
-                                                               reconstructionPosition=reconstructionPosition,
-                                                               binning=binning, applyWeighting=applyWeighting, gpu=gpu,
-                                                               specimen_angle=specimen_angle, read_only=read_only)
+        vol_bp = self._alignedProjectionList.reconstructVolume(dims=dims, reconstructionPosition=reconstructionPosition,
+                                                               binning=binning, weighting=applyWeighting,
+                                                               specimen_angle=specimen_angle)
         return vol_bp
 
     def updateAlignmentParams(self, alignmentResultsFile):
