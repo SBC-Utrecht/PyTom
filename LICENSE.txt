@@ -2,7 +2,10 @@ PyTom v0.994
 
 This license affects the software package PyTom and all the herein distributed source / data files.
 Authors: 
+Marten Chaillet
 Gijs van der Schot
+Ilja Gubins
+Mihajlo Vanevic
 Thomas Hrabe
 Yuxiang Chen
 Friedrich Foerster
