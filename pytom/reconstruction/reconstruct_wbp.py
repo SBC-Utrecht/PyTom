@@ -45,6 +45,6 @@ if __name__ == '__main__':
         p = Projection(prefix+str(i)+suffix)
         projections.append(p)
     
-    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=1,weighting=weighting)
+    vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0,0,0], binning=1, weighting=weighting)
     vol.write(output)
     

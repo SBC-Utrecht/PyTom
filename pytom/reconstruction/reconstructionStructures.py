@@ -4,7 +4,7 @@ started on Mar 10, 2011
 @author: luiskuhn, foerster, Marten Chaillet
 '''
 import sys
-from pytom.basic.structures import PyTomClass
+from pytom.basic.structures import PyTomClass, PyTomClassError
 from pytom.agnostic.tools import convert_operation_order_str2list, convert_operation_order_list2str
 
 # TODO  - what should be the default operation order? => default order seems to be [0, 1, 2]
@@ -599,11 +599,15 @@ class ProjectionList(PyTomClass):
                     projection = Projection(filename=os.path.join(directory, file), index=i)
                 self.append(projection)
 
-        if metafile is not None or not any([p.getTiltAngle() is None for p in self._list]):  # with metafile we have the
-            # tilts, otherwise tilts might have been readable from the em/mrc files but we will need to them all
-            self.sort()
+        if len(self._list) != 0:
+            if metafile is not None or not any([p.getTiltAngle() is None for p in self._list]):  # with metafile we
+                # have the tilts, otherwise tilts might have been readable from the em/mrc files but we will need to
+                # them all
+                self.sort()
+            else:
+                self.sort(key=lambda p: p.getIndex())
         else:
-            self.sort(key=lambda p: p.getIndex())
+            raise PyTomClassError("No projections in directory that could be initialised for ProjectionList.")
 
     def load_alignment(self, alignment_file):
         """
@@ -664,8 +668,17 @@ class ProjectionList(PyTomClass):
         @rtype: Bool
         """
         from pytom.tools.files import checkFileExists
-        files_ready = all([checkFileExists(p._filename) for p in self._list])
+
+        # check if files all exist
+        files_ready = all([checkFileExists(p._filename) for p in self._list]) if len(self._list) > 0 else False
+
+        # if files exist but not tilt angles are known try to initialize them
+        if files_ready and len(self._tilt_angles) == 0:
+            self._init_tilt_angles()
+
+        # if we still dont have them this will be False and we wont be ready
         angles_ready = all([a is not None for a in self._tilt_angles]) if len(self._tilt_angles) > 0 else False
+
         return files_ready and angles_ready
 
     def toXML(self):
@@ -848,6 +861,11 @@ class ProjectionList(PyTomClass):
         from pytom.agnostic.reconstruction_functions import backProjectGPU as backProject
         import time
 
+        ready = self.ready_for_reconstruction()
+        if not ready:
+            print('ProjectionList is not initialized with sufficient parameters to start reconstruction.')
+            sys.exit(0)
+
         s = time.time()
 
         # TODO what to do with scale factor?? should also be applied to positions for reconstructions
@@ -907,6 +925,11 @@ class ProjectionList(PyTomClass):
         from pytom_volume import vol, backProject
         import time
         import sys
+
+        ready = self.ready_for_reconstruction()
+        if not ready:
+            print('ProjectionList is not initialized with sufficient parameters to start reconstruction.')
+            sys.exit(0)
 
         if recon_interpolation != 'filt_bspline':
             print('WARNING: other interpolation methods for reconstruction on CPU currently not available')
@@ -981,6 +1004,11 @@ class ProjectionList(PyTomClass):
         from pytom_volume import vol, backProject, rescaleSpline
         from pytom.tools.ProgressBar import FixedProgBar
         from multiprocessing import Process, set_start_method
+
+        ready = self.ready_for_reconstruction()
+        if not ready:
+            print('ProjectionList is not initialized with sufficient parameters to start reconstruction.')
+            sys.exit(0)
 
         # important to set to allow child processes on multiple GPU's (otherwise cupy init is not working)
         set_start_method('spawn')

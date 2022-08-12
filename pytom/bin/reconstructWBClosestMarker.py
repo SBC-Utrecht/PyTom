@@ -119,18 +119,18 @@ if __name__ == '__main__':
         alignResultFile = os.path.join(projectionDirectory, 'alignmentResults.txt')
 
         if not os.path.exists(alignResultFile):
-            alignResultFile = ''
+            print('Without closest marker alignment file this reconstruction is pointless.')
+            sys.exit(0)
         else:
             alignmentResults = loadstar(alignResultFile, dtype=datatypeAR)
             projectionsFileNames = alignmentResults['FileName']
             projectionDirectory = os.path.dirname(projectionsFileNames[0])
             prefix = os.path.basename(projectionsFileNames[0]).split('_')[0] + '_'
+
         if checkFileExists(projectionList):
             projections.fromXMLFile(projectionList)
-        elif checkDirExists(projectionDirectory):
-            projections.loadDirectory(projectionDirectory, metafile=metafile, prefix=prefix)
-        else:
-            raise RuntimeError('Neither projectionList existed nor the projectionDirectory you specified! Abort')
+
+        projections.load_alignment(alignResultFile)
 
         # transform the cropping offset
         if len(projections) == 0:
@@ -168,6 +168,6 @@ if __name__ == '__main__':
 
         projections.reconstructVolumes(particles=particleList, cube_size=int(size[0]),
                                        binning=projBinning, weighting = aw,
-                                       show_progress_bar=True,verbose=False,
+                                       show_progress_bar=True, verbose=False,
                                        post_scale=1, num_procs=numProcesses)
         del projections

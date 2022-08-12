@@ -12,6 +12,7 @@ class PyTomClassError(Exception):
        
     def __init__(self,value):
         self._value = value
+
     def __str__(self):
         print(self._value)
 

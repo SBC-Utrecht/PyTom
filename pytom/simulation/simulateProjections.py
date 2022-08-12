@@ -710,7 +710,7 @@ def reconstruct_tomogram(prefix, suffix, start_idx, end_idx, volsize, angles, ou
     outputname = os.path.join(outputFolder, f'tomogram_model_{modelID}.em')
 
     vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0, 0, 0], binning=1,
-                                        applyWeighting=weighting)
+                                        weighting=weighting)
     vol.write(outputname)
     os.system('em2mrc.py -f {} -t {}'.format(outputname, os.path.dirname(outputname)))
     os.system(f'rm {outputname}')

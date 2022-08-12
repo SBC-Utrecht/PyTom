@@ -5,6 +5,12 @@
 
 @author: Marten Chaillet, hrabe
 """
+import sys, os
+from pytom.tools.script_helper import ScriptHelper2, ScriptOption2
+from pytom.tools.parse_script_options import parse_script_options2
+from pytom.basic.structures import ParticleList, PickPosition, PyTomClassError
+from pytom.reconstruction.reconstructionStructures import ProjectionList
+from pytom.agnostic.io import write
 
 
 if __name__ == '__main__':
@@ -12,13 +18,6 @@ if __name__ == '__main__':
     # this script is significantly linked to
     # pytom/frontend/serverpages/createReconstructionJob.py
     # any changes like parameter names must be changed in the other script, too!
-
-    import sys, os
-    from pytom.tools.script_helper import ScriptHelper2, ScriptOption2
-    from pytom.tools.parse_script_options import parse_script_options2
-    from pytom.basic.structures import ParticleList, PickPosition
-    from pytom.reconstruction.reconstructionStructures import ProjectionList
-    from pytom.agnostic.io import write
 
     helper = ScriptHelper2(sys.argv[0].split('/')[-1],
           description='Reconstruct particles in a particle list. Documentation is available at \n\
@@ -120,9 +119,14 @@ if __name__ == '__main__':
         projection_list.fromXMLFile(projection_list_xml)
         print('projections loaded from xml')
     elif projection_directory is not None:
-        projection_list.loadDirectory(projection_directory, metafile=metafile,
-                                      prefix=('' if projection_prefix is None else projection_prefix))
-        print('projections loaded from directory')
+
+        try:  # to load from directory
+            projection_list.loadDirectory(projection_directory, metafile=metafile,
+                                          prefix=('' if projection_prefix is None else projection_prefix))
+            print('projections loaded from directory')
+        except PyTomClassError:  # Exception raised only if no projections are found in dir
+            pass
+
         if os.path.exists(os.path.join(projection_directory, 'alignmentResults.txt')):
             align_result_file = os.path.join(projection_directory, 'alignmentResults.txt')
 
