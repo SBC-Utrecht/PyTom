@@ -4,38 +4,15 @@ PyTom is a toolbox developed for interpreting cryo electron tomography data. All
 
 ## Getting Started
 
-
-
 ### Prerequisites
 
-PyTomGUI is designed to run on linux systems, but can also be installed on MacOSX. It requires the following software package to be installed:
+PyTomGUI is designed to run on linux systems, but can also be installed on MacOSX. All required packages are managed via conda. For further info see the wiki [installation page](https://github.com/FridoF/PyTomPrivate/wiki/Installation).
+
+If you want to make use of PyTomGUI interfacing with motioncor2 and IMOD's ctf correction, you will need to install these:
 
 ```
-# General packages 
-- python (>= 3.7 )
-- openmpi 
-- fftw3
-- gcc (version 5-7) 
-- libxml2
-- swig (>= 3.0.12)
-
-# Python Packages
-- numpy
-- scipy
-- boost
-- lxml 
-- mrcfile
-- tqdm
-- scikit-image
-- matplotlib
-- cupy (Optional for GPU acceleration)
-
-# Optional Software Packages used by GUI
-- PyQt5
-- pyqtgraph
 - motioncor2 ( >=1.2.1)
 - imod (=4.10.25)
-
 ```
 
 ### Installing
@@ -48,7 +25,7 @@ Furthermore, the software packages git needs to be installed. Git can be install
 git clone git@github.com:FridoF/PyTomPrivate.git
 cd PyTomPrivate
 bash installMiniconda.sh
-conda env create -f pytom_env.yml
+conda env create -f environments/pytom_py3.8_cu10.1.yaml --name pytom_env
 ```
 
 Please remember the location where you decide to install conda (CONDA_INSTALL_DIR). 
@@ -102,6 +79,7 @@ For the versions available, see the [tags on this repository].
 
 ## Authors
 
+* **Marten Chaillet**    - *PyTomGUI*
 * **Gijs van der Schot** - *PyTomGUI* 
 * **Thomas Hrabe**       - *PyTom* 
 * **Yuxiang Chen**       - *PyTom*
