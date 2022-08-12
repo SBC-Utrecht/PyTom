@@ -1348,7 +1348,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
                                   value=19,minimum=1,maximum=91,stepsize=1,
                                   tooltip='Which marker is the reference marker.')
         self.insert_label_spinbox(self.grid, 'ref_marker', text='Reference Marker', rstep=1,
-                                  value=1, minimum=1, maximum=91, stepsize=1,
+                                  value=0, minimum=0, maximum=91, stepsize=1,
                                   tooltip='Indexing and saving the markerfile uses the reference marker.')
 
         self.insert_label(self.grid,rstep=1)

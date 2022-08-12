@@ -1662,7 +1662,7 @@ class TomographReconstruct(GuiTabWidget):
                     else: metaFlag = ''
 
                     if gpu:
-                        gpuFlag = f' -gpu {int(gpu)+1} '
+                        gpuFlag = f' -gpu {int(gpu)} '
                     else:
                         gpuFlag = ''
 
@@ -1675,7 +1675,7 @@ class TomographReconstruct(GuiTabWidget):
                     fname = 'CTF_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                     suffix = f"_{tomofolder}_"
 
-                    qname,n_nodes,cores,time, modules, qmd = self.qparams['BatchCTFCorrection'].values()
+                    qname,n_nodes,cores,time, modules, qcmd = self.qparams['BatchCTFCorrection'].values()
 
 
                     job = guiFunctions.gen_queue_header(folder=self.logfolder, cmd = qcmd, name=fname,
