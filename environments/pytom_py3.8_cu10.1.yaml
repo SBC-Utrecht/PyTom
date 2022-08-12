@@ -19,6 +19,7 @@ dependencies:
   - intelpython=2021.3.0
   - ipython
   - lxml
+  - make=4.2.1
   - matplotlib=3.3.4
   - mpi=1.0=openmpi
   - conda-forge::mpi4py=3.0.3
