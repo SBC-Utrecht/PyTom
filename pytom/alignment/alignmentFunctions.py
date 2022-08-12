@@ -1079,15 +1079,8 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
     @return: Returns the best rotation for particle and the corresponding scoring result.
     @author: Thomas Hrabe
     """
-    from pytom.gpu.gpuFunctions import add_transformed_particle_to_sum, applyFourierFilter, applyFourierFilters
-    from pytom.gpu.gpuFunctions import cross_correlation, subPixelShifts, find_coords_max_ccmap, add_transformed_particle_to_sum
-    from pytom.agnostic.correlation import meanVolUnderMask, stdVolUnderMask, meanUnderMask, stdUnderMask, subPixelMax3D
     from pytom.basic.structures import Rotation, Shift
-    from pytom.agnostic.structures import Preprocessing
-    from pytom.agnostic.transform import fourier_full2reduced
     from pytom.alignment.structures import Peak
-    from pytom.agnostic.io import write
-
 
     centerCoordinates = [size//2 for size in plan.volume.shape]
     border = max(1,centerCoordinates[0]-max_shift)
@@ -1101,7 +1094,7 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
     if currentRotation == [None, None, None]:
         raise Exception('bestAlignment: No rotations are sampled! Something is wrong with input rotations')
 
-    bestPeak =  Peak(float(-100000.), Rotation(currentRotation), Shift([0,0,0]))
+    bestPeak = Peak(float(-100000.), Rotation(currentRotation), Shift([0,0,0]))
 
     while currentRotation != [None, None, None]:
         plan.rotatedRef *= 0

@@ -537,12 +537,12 @@ class ParticlePick(GuiTabWidget):
                     folder = outDirectory
                     cmd = templateTM.format(d=[outDirectory, x * y * z, self.pytompath, jobname, x, y, z, gpuIDFlag])
                     suffix = "_" + os.path.basename(outDirectory)
-                    qname, n_nodes, cores, timed, modules = self.qparams['BatchTemplateMatch'].values()
+                    qname, n_nodes, cores, timed, modules, qcmd = self.qparams['BatchTemplateMatch'].values()
 
                     if gpuID and not gpuID in jobCode.keys():
                         job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix,
                                                             time=timed, num_nodes=n_nodes, partition=qname,
-                                                            modules=modules,
+                                                            modules=modules, cmd=qcmd,
                                                             num_jobs_per_node=cores, gpus=gpuID) * self.checkbox[
                                   pid].isChecked() + cmd
                         execfilenames[gpuID] = os.path.join(self.templatematchfolder,
@@ -560,7 +560,7 @@ class ParticlePick(GuiTabWidget):
 
                         job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix,
                                                             time=timed, num_nodes=n_nodes, partition=qname,
-                                                            modules=modules,
+                                                            modules=modules, cmd=qcmd,
                                                             num_jobs_per_node=cores, gpus=gpuID) * self.checkbox[
                                   pid].isChecked() + cmd
 
@@ -571,7 +571,7 @@ class ParticlePick(GuiTabWidget):
 
                     elif not f'noGPU_{num_submitted_jobs % num_nodes}' in jobCode.keys():
                         job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix,
-                                                            time=timed, num_nodes=n_nodes, partition=qname,
+                                                            time=timed, num_nodes=n_nodes, partition=qname, cmd=qcmd,
                                                             modules=modules, num_jobs_per_node=cores) + cmd
                         execfilenames[f'noGPU_{num_submitted_jobs % num_nodes}'] = os.path.join(
                             self.templatematchfolder, f'templateMatchingBatch_{num_submitted_jobs}.sh')
@@ -585,7 +585,7 @@ class ParticlePick(GuiTabWidget):
                         jobCode[f'noGPU_{num_submitted_jobs % num_nodes}'] += f'\nwait\n\n{cmd}\n'
                         job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix,
                                                             time=timed, num_nodes=n_nodes, partition=qname,
-                                                            modules=modules,
+                                                            modules=modules, cmd=qcmd,
                                                             num_jobs_per_node=cores, gpus=gpuID) * self.checkbox[
                                   pid].isChecked() + cmd
 
@@ -698,10 +698,11 @@ class ParticlePick(GuiTabWidget):
 
                     fname         = 'EC_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                     cmd           = templateExtractCandidates.format(d=paramsCmd)
-                    qname, n_nodes, cores, time, modules = self.qparams['BatchExtractCandidates'].values()
+                    qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchExtractCandidates'].values()
                     job           = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, singleton=True,
                                                                   time=time, num_nodes=n_nodes, partition=qname,
-                                                                  modules=modules, num_jobs_per_node=cores) + cmd
+                                                                  modules=modules, num_jobs_per_node=cores,
+                                                                  cmd=qcmd) + cmd
 
 
                     execfilename = os.path.join(os.path.dirname(jobFile), f'extractCandidatesBatch_{self.ECCounter}.sh')

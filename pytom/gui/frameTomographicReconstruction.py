@@ -1,12 +1,30 @@
+import sys
+import os
+import random
+import glob
+import numpy
 import time
 import shutil
+import copy
+import atexit
 
-from os.path import basename
+from os.path import dirname, basename
+from ftplib import FTP_TLS, FTP
+from multiprocessing import Manager, Event, Process, cpu_count
 
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5 import QtCore, QtGui, QtWidgets
+
+from pytom.gui.guiStyleSheets import *
 from pytom.gui.fiducialAssignment import FiducialAssignment
 from pytom.gui.guiStructures import *
 from pytom.gui.guiFunctions import avail_gpu, sort
 from pytom.gui.guiSupportCommands import *
+from pytom.basic.files import read
+from pytom_numpy import vol2npy
+from pytom.gui.mrcOperations import read_mrc
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.mrcOperations import square_mrc, remove_hot_pixels
 from pytom.agnostic.io import read_size
@@ -15,6 +33,7 @@ from pytom.basic.datatypes import DATATYPE_METAFILE
 
 
 class TomographReconstruct(GuiTabWidget):
+    '''Collect Preprocess Widget'''
     def __init__(self, parent=None):
         super(TomographReconstruct, self).__init__(parent)
 
@@ -1064,7 +1083,7 @@ class TomographReconstruct(GuiTabWidget):
 
             src_mcor = os.path.join(folder, tif[1:-1])
             dst_mcor = os.path.join(os.path.dirname(meta_dst), 'sorted_{:02d}.mrc'.format(n))
-            print('debug', src_mcor)
+
             if os.path.exists(src_mcor):
                 # print('test', src_mcor)
                 num_copied += 1
@@ -1579,7 +1598,10 @@ class TomographReconstruct(GuiTabWidget):
         if not tomofolder_info:
             return
 
-        qname, n_nodes, cores, time, modules = self.qparams['BatchAlignment'].values()
+        if self.checkbox[id].isChecked():
+            _, _, cores, _, _, _ = self.qparams['BatchAlignment'].values()
+        else:
+            cores = cpu_count()
 
         new_list = sorted(tomofolder_info, key=lambda l: l[0], reverse=True)
 
@@ -1607,6 +1629,7 @@ class TomographReconstruct(GuiTabWidget):
         tomofolder_file.close()
 
         num_submitted_jobs = 0
+
         submissionIDs = []
 
         for n in range(len(lprocs) - 1):
@@ -1618,11 +1641,13 @@ class TomographReconstruct(GuiTabWidget):
             exefilename = '{}/jobscripts/alignment_{:03d}.sh'.format(self.tomogram_folder, n)
 
             if self.checkbox[id].isChecked():
+                qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchAlignment'].values()
+
                 jobname = 'Alignment_BatchMode_Job_{:03d}'.format(num_submitted_jobs)
 
-                cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname,
-                                                    time=time, num_nodes=n_nodes, cmd=cmd, modules=modules,
-                                                    num_jobs_per_node=cores)
+                cmd = guiFunctions.gen_queue_header(name=jobname, folder=self.logfolder, partition=qname, time=time,
+                                                    num_nodes=n_nodes, cmd=qcmd, modules=modules,
+                                                    num_jobs_per_node=cores) + cmd
 
             ID, num = self.submitBatchJob(exefilename, id, cmd)
             num_submitted_jobs += 1
@@ -1673,7 +1698,7 @@ class TomographReconstruct(GuiTabWidget):
                     else: metaFlag = ''
 
                     if gpu:
-                        gpuFlag = f' -gpu {int(gpu)+1} '
+                        gpuFlag = f' -gpu {int(gpu)} '
                     else:
                         gpuFlag = ''
 
@@ -1685,12 +1710,13 @@ class TomographReconstruct(GuiTabWidget):
                     fname = 'CTF_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                     suffix = f"_{tomofolder}_"
 
-                    qname, n_nodes, cores, time, modules = self.qparams['BatchCTFCorrection'].values()
+                    qname,n_nodes,cores,time, modules, qcmd = self.qparams['BatchCTFCorrection'].values()
 
-                    job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix, time=time,
+
+                    job = guiFunctions.gen_queue_header(folder=self.logfolder, cmd = qcmd, name=fname,
+                                                        suffix=suffix, time=time,
                                                         partition=qname, num_nodes=n_nodes, singleton=True,
-                                                        num_jobs_per_node=cores, modules=modules, gpus=gpu) * \
-                        self.checkbox[id].isChecked() + jobscript
+                                                        num_jobs_per_node=cores, modules=modules, gpus=gpu)*self.checkbox[id].isChecked() + jobscript
 
                     exefilename = os.path.join(outputfolder, 'ctfCorrectionBatch.sh')
 
@@ -1804,10 +1830,10 @@ class TomographReconstruct(GuiTabWidget):
                         continue
 
                     if self.checkbox[id].isChecked():
-                        qname, n_nodes, cores, time, modules = self.qparams['BatchReconstruct'].values()
+                        qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchReconstruct'].values()
                         header = guiFunctions.gen_queue_header(name=paramsSbatch['fname'], folder=paramsSbatch['folder'],
                                                                modules=modules, time=1, num_jobs_per_node=1,
-                                                               partition=qname)
+                                                               partition=qname, cmd=qcmd)
                         commandText = header + commandText
 
                     ID, num = self.submitBatchJob(execfilename, id, commandText)
@@ -1863,3 +1889,4 @@ class TomographReconstruct(GuiTabWidget):
         files = [os.path.join(folder,line) for line in os.listdir(folder) if line.endswith('.mrc') and line.startswith('sorted_aligned')]
 
         files = sorted(files)
+

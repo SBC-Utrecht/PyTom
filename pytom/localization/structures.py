@@ -106,7 +106,7 @@ class Volume(PyTomClass):
     
     def copy(self):
         """
-        copy: Copies self to new Particle object
+        copy: Copies self to new Particle objecta
         """
         p = Volume()
         pXML = self.toXML()
