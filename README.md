@@ -24,7 +24,7 @@ Furthermore, the software packages git needs to be installed. Git can be install
 ```
 git clone git@github.com:FridoF/PyTomPrivate.git
 cd PyTomPrivate
-bash installMiniconda.sh
+bash installMiniconda.sh (ONLY IF NOT YET INSTALLED!)
 conda env create -f environments/pytom_py3.8_cu10.1.yaml --name pytom_env
 ```
 
@@ -79,8 +79,10 @@ For the versions available, see the [tags on this repository].
 
 ## Authors
 
-* **Marten Chaillet**    - *PyTomGUI*
-* **Gijs van der Schot** - *PyTomGUI* 
+* **Marten Chaillet**    - *PyTomGUI* *GPU* *MicrographModeller*
+* **Gijs van der Schot** - *PyTomGUI* *GPU*
+* **Ilja Gubins**        - *GPU*
+* **Mihajlo Vanevic**    - *PyTomGUI*
 * **Thomas Hrabe**       - *PyTom* 
 * **Yuxiang Chen**       - *PyTom*
 * **Friedrich Forster**  - *PyTom* 
