@@ -617,7 +617,8 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
         t1 = time()
         oldRot = particle.getRotation()
         rotations.setStartRotation(oldRot)
-        particleVol = resize(read(particle.getFilename(), deviceID=use_device), 1/binning)  # resize
+        particleVol = read(particle.getFilename(), deviceID=use_device)
+        particleVol = resize(particleVol, 1 / binning)
         bestPeak = bestAlignmentGPU(particleVol, rotations, plan, preprocessing=preprocessing, wedgeInfo=wedge)
         bestPeaks += [bestPeak]
         rotations.reset()

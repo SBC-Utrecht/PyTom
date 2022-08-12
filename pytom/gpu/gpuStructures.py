@@ -333,8 +333,8 @@ class GLocalAlignmentPlan():
         assert isinstance(binning, int) and binning >= 1, "invalid binning type for glocal plan"
         self.binning = binning
         shape = read_size(particle.getFilename())
-        self.shape = tuple((cp.around(cp.array(shape) * 1 / self.binning, 0)).astype(cp.int)) if self.binning > 1 else \
-            shape
+        self.shape = tuple(cp.asnumpy((cp.around(cp.array(shape) * (1 / self.binning), 0)).astype(cp.int))) if \
+            self.binning > 1 else shape
 
         # Allocate volume and volume_fft
         self.volume        = cp.zeros(self.shape, dtype=cp.float32)
@@ -345,9 +345,9 @@ class GLocalAlignmentPlan():
         self.fftnP         = fftnP
         self.fftplan       = get_fft_plan(self.volume.astype(cp.complex64))
         # Allocate mask-related objects
-        mask               = resize(mask.getVolume().get(), 1 / self.binning)
-        self.mask          = cp.array(mask, dtype=cp.float32)
-        self.rotatedMask   = cp.array(mask, dtype=cp.float32)
+        mask               = mask.getVolume().get()
+        self.mask          = resize(cp.array(mask, dtype=cp.float32), 1 / self.binning)
+        self.rotatedMask   = self.mask.copy()
         self.maskTex       = StaticVolume(self.mask, device=device, interpolation=interpolation)
         self.mask_fft      = self.fftnP(self.rotatedMask.astype(cp.complex64),plan=self.fftplan)
         self.p             = self.rotatedMask.sum()
@@ -355,15 +355,15 @@ class GLocalAlignmentPlan():
         # Allocate wedge-related objects
         self.wedge         = wedge
         self.wedgeAngles   = wedge.getWedgeAngle()
-        wedgePart          = resize(wedge.returnWedgeVolume(*self.volume.shape, humanUnderstandable=True).get())
+        wedgePart          = wedge.returnWedgeVolume(*self.volume.shape, humanUnderstandable=True).get()
         self.rotatedWedge  = cp.array(wedgePart, dtype=cp.float32)
         self.wedgePart     = cp.fft.fftshift(wedgePart).astype(cp.float32)
         self.wedgeTex      = StaticVolume(self.rotatedWedge.copy(), device=self.device, interpolation=interpolation)
         del wedgePart
 
         # Allocate reference related objects
-        reference          = resize(cp.array((reference.getVolume()).get(), dtype=cp.float32), 1 / self.binning) * \
-                                    self.mask
+        reference          = resize(cp.array((reference.getVolume()).get(), dtype=cp.float32),
+                                    1 / self.binning) * self.mask
         self.referenceTex  = StaticVolume(reference, device=device, interpolation=interpolation)
         self.rotatedRef    = reference.copy()
         self.simulatedVolume = cp.zeros_like(self.volume, dtype=cp.float32)

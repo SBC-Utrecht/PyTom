@@ -1094,7 +1094,7 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
     if currentRotation == [None, None, None]:
         raise Exception('bestAlignment: No rotations are sampled! Something is wrong with input rotations')
 
-    bestPeak =  Peak(float(-100000.), Rotation(currentRotation), Shift([0,0,0]))
+    bestPeak = Peak(float(-100000.), Rotation(currentRotation), Shift([0,0,0]))
 
     while currentRotation != [None, None, None]:
         plan.rotatedRef *= 0

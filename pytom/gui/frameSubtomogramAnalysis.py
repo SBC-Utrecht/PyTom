@@ -1016,6 +1016,9 @@ class SubtomoAnalysis(GuiTabWidget):
                                   wtype=QDoubleSpinBox, minimum=0.1, stepsize=0.1, value=1.75)
         self.insert_label_spinbox(parent, mode + 'particleDiameter', 'Particle Diameter (A)', rstep=1, cstep=0,
                                   minimum=10, stepsize=1, value=300, maximum=10000, width=150)
+        self.insert_label_spinbox(parent, mode + 'binning', 'Binning Factor', rstep=1, cstep=-1,
+                                  stepsize=1, minimum=1, value=1,
+                                  tooltip='Perform binning (downscale) of subvolumes by factor. Default=1.')
 
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
         self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.updateFRM(m))
@@ -1023,7 +1026,6 @@ class SubtomoAnalysis(GuiTabWidget):
         rscore = 'False'
         weightedAv = 'False'
         weighting = ''
-        binning_mask = '1'
         sphere = 'True'
         ad_res = '0.00'
         fsc = '0.50'
@@ -1034,7 +1036,7 @@ class SubtomoAnalysis(GuiTabWidget):
         paramsSbatch = guiFunctions.createGenericDict(fname='FRMAlign', folder=self.logfolder,
                                                       id='FRMAlignment')  # , modules=['openmpi/2.1.1', 'python/2.7', 'lib64/append', 'pytom/dev/gui'])
         paramsJob = [mode + 'bwMin', mode + 'bwMax', mode + 'frequency', mode + 'maxIterations', mode + 'peakOffset',
-                     rscore, weightedAv, mode + 'filenameAverage', weighting, mode + 'filenameMask', binning_mask,
+                     rscore, weightedAv, mode + 'filenameAverage', weighting, mode + 'filenameMask', mode + 'binning',
                      sphere,
                      mode + 'pixelSize', mode + 'particleDiameter', mode + 'particleList', mode + 'outputDir']
         paramsCmd = [self.subtomodir, self.pytompath, jobfilename, mode + 'numberMpiCores', templateFRMSlurm]
