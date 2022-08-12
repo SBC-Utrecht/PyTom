@@ -48,18 +48,13 @@ def update_env_vars(pytompath):
 # TODO be removed)
 # update_env_vars(pytompath)
 
-
-from os.path import dirname, basename
-
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from pytom.gui.guiStyleSheets import *
-from pytom.gui.guiStructures import *
-from pytom.gui.guiSupportCommands import *
-from pytom.gui.frameDataTransfer import CollectPreprocess
+from pytom.gui.frameDataTransfer import *#CollectPreprocess, TomographReconstruct, CommonFunctions
 from pytom.gui.frameTomographicReconstruction import TomographReconstruct
 from pytom.gui.frameParticlePicking import ParticlePick
 from pytom.gui.frameSubtomogramAnalysis import SubtomoAnalysis
