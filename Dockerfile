@@ -2,8 +2,8 @@ FROM --platform=linux/amd64 continuumio/miniconda3
 WORKDIR /app
 
 # create pytom environment
-COPY pytom_env.yml .
-RUN conda env create -f pytom_env.yml
+COPY environments/pytom_py3.8_cu10.1.yaml .
+RUN conda env create -f pytom_py3.8_cu10.1.yaml --name pytom_env
 
 # activate the environment
 RUN echo "source activate pytom_env" > ~/.bashrc
