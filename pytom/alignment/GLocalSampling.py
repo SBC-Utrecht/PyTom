@@ -576,16 +576,14 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     @return: Returns the peak list for particle list.
     @author: FF
     """
-    from pytom.basic.score import fromXMLFile
     from pytom.angles.angle import AngleObject
     from pytom.agnostic.structures import Mask, ParticleList
+    from pytom.agnostic.transform import resize
     from pytom.alignment.alignmentFunctions import bestAlignmentGPU
     from pytom.gpu.gpuStructures import GLocalAlignmentPlan
     from time import time
-    import os
     from pytom.angles.angleFnc import differenceAngleOfTwoRotations
-    from pytom.agnostic.io import read, read_size
-    import numpy as np
+    from pytom.agnostic.io import read
 
     assert type(pl) == ParticleList, "pl must be particleList"
 
@@ -600,7 +598,7 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     use_device=f'gpu:{gpuID}'
     print('devices: ', use_device)
     plan = GLocalAlignmentPlan(pl[0], reference, mask, wedge, maskIsSphere=True, cp=xp, device=use_device,
-                               interpolation='filt_bspline')
+                               interpolation='filt_bspline', binning=binning)
 
     try:
         preprocessing = preprocessing.convert2numpy()
@@ -619,7 +617,7 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
         t1 = time()
         oldRot = particle.getRotation()
         rotations.setStartRotation(oldRot)
-        particleVol = read(particle.getFilename(), deviceID=use_device)
+        particleVol = resize(read(particle.getFilename(), deviceID=use_device), 1/binning)  # resize
         bestPeak = bestAlignmentGPU(particleVol, rotations, plan, preprocessing=preprocessing, wedgeInfo=wedge)
         bestPeaks += [bestPeak]
         rotations.reset()

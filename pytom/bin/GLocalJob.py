@@ -83,7 +83,8 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
 
-    from pytom.alignment.GLocalSampling import GLocalSamplingJob, mainAlignmentLoop
+    from pytom.alignment.alignmentStructures import GLocalSamplingJob
+    from pytom.alignment.GLocalSampling import  mainAlignmentLoop
     from pytom.basic.structures import ParticleList, Reference, Mask, SampleInformation, PointSymmetry
     from pytom.basic.score import FLCFScore, nxcfScore
     from pytom.angles.localSampling import LocalSampling

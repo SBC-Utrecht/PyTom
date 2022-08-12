@@ -311,7 +311,8 @@ class TemplateMatchingGPU(threading.Thread):
 
 
 class GLocalAlignmentPlan():
-    def __init__(self, particle, reference, mask, wedge, maskIsSphere=True, cp=xp, device='cpu', interpolation='filt_bspline', taper=0):
+    def __init__(self, particle, reference, mask, wedge, maskIsSphere=True, cp=xp, device='cpu',
+                 interpolation='filt_bspline', taper=0, binning=1):
         id = int(device.split(":")[1])
 
         cp.cuda.Device(id).use()
@@ -325,11 +326,18 @@ class GLocalAlignmentPlan():
         from cupyx.scipy.fftpack.fft import fftn as fftnP
         from cupyx.scipy.fftpack.fft import ifftn as ifftnP
         from pytom.agnostic.io import read_size, write
+        from pytom.agnostic.transform import resize
         from pytom.gpu.kernels import argmax_text, meanStdv_text
-        from pytom.agnostic.filter import bandpass
+
+        # particle shape and binned shape
+        assert isinstance(binning, int) and binning >= 1, "invalid binning type for glocal plan"
+        self.binning = binning
+        shape = read_size(particle.getFilename())
+        self.shape = tuple((cp.around(cp.array(shape) * 1 / self.binning, 0)).astype(cp.int)) if self.binning > 1 else \
+            shape
 
         # Allocate volume and volume_fft
-        self.volume        = cp.zeros(read_size(particle.getFilename()), dtype=cp.float32)
+        self.volume        = cp.zeros(self.shape, dtype=cp.float32)
         self.volume_fft    = cp.zeros_like(self.volume, dtype=cp.complex64)
 
         # Allocate planned-fftn-related functions and structure
@@ -337,7 +345,7 @@ class GLocalAlignmentPlan():
         self.fftnP         = fftnP
         self.fftplan       = get_fft_plan(self.volume.astype(cp.complex64))
         # Allocate mask-related objects
-        mask               = mask.getVolume().get()
+        mask               = resize(mask.getVolume().get(), 1 / self.binning)
         self.mask          = cp.array(mask, dtype=cp.float32)
         self.rotatedMask   = cp.array(mask, dtype=cp.float32)
         self.maskTex       = StaticVolume(self.mask, device=device, interpolation=interpolation)
@@ -347,14 +355,15 @@ class GLocalAlignmentPlan():
         # Allocate wedge-related objects
         self.wedge         = wedge
         self.wedgeAngles   = wedge.getWedgeAngle()
-        wedgePart          = wedge.returnWedgeVolume(*self.volume.shape,humanUnderstandable=True).get()
+        wedgePart          = resize(wedge.returnWedgeVolume(*self.volume.shape, humanUnderstandable=True).get())
         self.rotatedWedge  = cp.array(wedgePart, dtype=cp.float32)
         self.wedgePart     = cp.fft.fftshift(wedgePart).astype(cp.float32)
         self.wedgeTex      = StaticVolume(self.rotatedWedge.copy(), device=self.device, interpolation=interpolation)
         del wedgePart
 
         # Allocate reference related objects
-        reference          = cp.array((reference.getVolume()).get(), dtype=cp.float32) * self.mask
+        reference          = resize(cp.array((reference.getVolume()).get(), dtype=cp.float32), 1 / self.binning) * \
+                                    self.mask
         self.referenceTex  = StaticVolume(reference, device=device, interpolation=interpolation)
         self.rotatedRef    = reference.copy()
         self.simulatedVolume = cp.zeros_like(self.volume, dtype=cp.float32)
@@ -435,29 +444,6 @@ class GLocalAlignmentPlan():
         del self.zoomed
         del self.nblocks
         del self.num_threads
-
-
-
-    # def meanUnderMask(self, volume, mask, p, xp, num_threads=1024):
-    #
-    #     nblocks = int(xp.ceil(volume.size/num_threads/2))
-    #     self.fast_sum = xp.zeros((4*nblocks*2),dtype=xp.float32)
-    #     self.reduce6((nblocks, 1,), (num_threads, 1, 1), (volume, mask, self.fast_sum, volume.size), shared_mem=4*num_threads)
-    #     meanT = self.fast_sum.sum() / p
-    #     #
-    #     # print(meanT, (volume * mask).sum()/p)
-    #     return meanT
-    #
-    # def stdUnderMask(self, volume, mask, meanV, p, xp, num_threads=512):
-    #
-    #     nblocks = int(xp.ceil(volume.size / num_threads/2))
-    #     self.fast_sum = xp.zeros((4*nblocks*2), dtype=xp.float32)
-    #     self.reduce7((nblocks, 1,), (num_threads, 1, 1), (volume, mask, self.fast_sum, volume.size), shared_mem=4*num_threads)
-    #     dd = self.fast_sum.sum() / p
-    #     var = dd - meanV*meanV
-    #     # print('variance', abs(var - (volume*volume*mask).sum()/p - meanV*meanV), meanV)
-    #
-    #     return xp.sqrt(var)
 
     def normalizeVolume(self):
         self.fast_sum_stdv *= 0
