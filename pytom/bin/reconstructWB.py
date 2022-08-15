@@ -44,7 +44,8 @@ if __name__ == '__main__':
                                  'If projections are not weighted, apply weighting before. If omited, no weighting.',
                                  'int', 'optional', 0),
                    ScriptOption2(['-s', '--size'],
-                                 'Size of particle cube / tomogram.',
+                                 'Size of particle cube / tomogram. Can provide single integer, or 3 separate by '
+                                 'commas, e.g. 464,464,150 ',
                                  'string', 'optional', '100'),
                    ScriptOption2(['-b', '--coordinateBinning'],
                                  'Binning factor of coordinates. If particle coordinates are determined in binned '
@@ -152,7 +153,7 @@ if __name__ == '__main__':
                                                 scale_factor=scale_factor_particle, num_procs=nprocs)
         write(tomogram, vol)
 
-    elif particle_list_xml:
+    elif particle_list_xml is not None:
 
         if len(size) > 1:
             print('subtomogram reconstruction uses same cube size for each dimension, selecting x dim as cube size')

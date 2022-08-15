@@ -218,7 +218,7 @@ class Projection(PyTomClass):
         @type index: int
         """
 
-        self._filename = filename
+        self._filename = str(filename) if filename is not None else filename
         self._checkValidFile()
 
         self._xSize = None
@@ -227,16 +227,16 @@ class Projection(PyTomClass):
         if filename and tiltAngle is None:
             self._loadTiltAngle()
         else:
-            self._tiltAngle = tiltAngle
+            self._tiltAngle = float(tiltAngle)
 
-        self.setIndex(index)
-        self._offsetX = offsetX
-        self._offsetY = offsetY
-        self._alignmentTransX = alignmentTransX
-        self._alignmentTransY = alignmentTransY
-        self._alignmentRotation = alignmentRotation
-        self._alignmentMagnification = alignmentMagnification
-        self._alignmentAxisAngle = alignmentAxisAngle
+        self._index = int(index)
+        self._offsetX = float(offsetX)
+        self._offsetY = float(offsetY)
+        self._alignmentTransX = float(alignmentTransX)
+        self._alignmentTransY = float(alignmentTransY)
+        self._alignmentRotation = float(alignmentRotation)
+        self._alignmentMagnification = float(alignmentMagnification)
+        self._alignmentAxisAngle = float(alignmentAxisAngle)
         if isinstance(operationOrder, str):
             self._operationOrder = convert_operation_order_str2list(operationOrder)
         else:
@@ -386,7 +386,25 @@ class Projection(PyTomClass):
         @param tiltAngle: tilt angle (deg)
         @type tiltAngle: float
         """
-        self._tiltAngle = tiltAngle
+        self._tiltAngle = float(tiltAngle)
+
+    def setOffsetX(self, offsetX):
+        """
+        set offset in X direction
+
+        @param offsetX: offset (pixels)
+        @type offsetX: float
+        """
+        self._offsetX = float(offsetX)
+
+    def setOffsetY(self, offsetY):
+        """
+        set offset in Y direction
+
+        @param offsetY: offset (pixels)
+        @type offsetY float
+        """
+        self._offsetY = float(offsetY)
     
     def setAlignmentTransX(self,value):
         """
@@ -438,7 +456,7 @@ class Projection(PyTomClass):
 
         @type axisAngle: float
         """
-        self._alignmentAxisAngle = alignmentAxisAngle
+        self._alignmentAxisAngle = float(alignmentAxisAngle)
 
     def setOperationOrder(self, operationOrder):
         """
@@ -534,16 +552,20 @@ class Projection(PyTomClass):
             
         self._alignmentRotation = float(projection_element.get('AlignmentAngle'))
 
+
 # ============================== ProjectionList Class =====================================
-        
+
 class ProjectionList(PyTomClass):
     """
     ProjectionList: List of projections
     """
     def __init__(self, projection_list=None):
-        if projection_list is not None:
+        if isinstance(projection_list, ProjectionList):
             self._list = projection_list._list
             self._init_tilt_angles() if projection_list._tilt_angles is None else projection_list._tilt_angles
+        elif isinstance(projection_list, list):
+            self._list = projection_list
+            self._init_tilt_angles()
         else:
             self._list = []
             self._tilt_angles = []
@@ -641,7 +663,7 @@ class ProjectionList(PyTomClass):
                 if 'OperationOrder' in alignment_results.dtype.names:
                     projection.setOperationOrder(alignment_results[i]['OperationOrder'])
                 if 'AxisAngle' in alignment_results.dtype.names:
-                    projection.setAlignmentAxisAngle(alignment_results[i]['AxisAngle'])
+                    projection.setAlignmentAxisAngle(float(alignment_results[i]['AxisAngle']))
                 self.append(projection)
         else:
             assert len(self) == len(alignment_results), print('Current number of projections in ProjectionList does '

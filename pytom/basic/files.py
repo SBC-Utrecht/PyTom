@@ -52,7 +52,7 @@ def read(file, subregion=[0, 0, 0, 0, 0, 0], sampling=[0, 0, 0], binning=[0, 0, 
     from pytom.tools.files import checkFileExists
     from pytom_volume import read
 
-    if not file.__class__ == str:
+    if not isinstance(file, str):
         raise TypeError('File parameter must be a string!')
 
     if not checkFileExists(file):
@@ -116,26 +116,26 @@ def readSubvolumeFromFourierspaceFile(filename, sizeX, sizeY, sizeZ):
     # read a subvolume around every corner with a subvolume
     # of half x,y of the final volume with constant z
 
-    if filename.__class__ == str:
+    if isinstance(filename, str):
         firstSubvolume = read(filename, subregion=[0, 0, 0, newX, newY, newZ])
     else:
         firstSubvolume = subvolume(filename, 0, 0, 0, newX, newY, newZ)
 
-    if filename.__class__ == str:
+    if isinstance(filename, str):
         secondSubvolume = read(filename, subregion=[originalSizeX - newX,
                                                     0, 0, newX, newY, newZ])
     else:
         secondSubvolume = subvolume(filename, originalSizeX - newX, 0, 0,
                                     newX, newY, newZ)
 
-    if filename.__class__ == str:
+    if isinstance(filename, str):
         thirdSubvolume = read(filename, subregion=[0, originalSizeY - newY, 0,
                                                    newX, newY, newZ])
     else:
         thirdSubvolume = subvolume(filename, 0, originalSizeY - newY, 0,
                                    newX, newY, newZ)
 
-    if filename.__class__ == str:
+    if isinstance(filename, str):
         fourthSubvolume = read(filename, subregion=[originalSizeX - newX,
                                                     originalSizeY - newY, 0,
                                                     newX, newY, newZ])

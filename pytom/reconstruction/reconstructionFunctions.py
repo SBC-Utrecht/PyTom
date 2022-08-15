@@ -278,7 +278,7 @@ def alignWeightReconstruct(tiltSeriesName, markerFileName, lastProj, tltfile=Non
                 print(" dir 'align' already exists - writing aligned files into existing dir")
 
         tiltSeries.write_aligned_projs(weighting=weightingType, lowpassFilter=lowpassFilter, binning=projBinning,
-                                           verbose=verbose, write_images=write_images)
+                                       verbose=verbose, write_images=write_images)
         if voldims:
             # overrule tiltSeriesFormat - aligned tiltseries is always a series of em files
             #tiltSeries._tiltSeriesFormat = 'em'

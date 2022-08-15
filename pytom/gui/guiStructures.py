@@ -1009,7 +1009,7 @@ class CommonFunctions():
                         elif type(str(a)) == type(''):
                             d.append(a)
                         else: pass
-
+                    self.widgets.keys()
                     text = text.format( d=d )
                 if i==0: self.widgets[params[i][0]].setPlainText(text)
 
