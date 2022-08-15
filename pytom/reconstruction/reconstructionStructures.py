@@ -540,9 +540,16 @@ class ProjectionList(PyTomClass):
     """
     ProjectionList: List of projections
     """
-    def __init__(self, list = None):
-        self._list = list or []
-        self.angle_specimen = 0
+    def __init__(self, projection_list=None):
+        if projection_list is not None:
+            self._list = projection_list._list
+            self._init_tilt_angles() if projection_list._tilt_angles is None else projection_list._tilt_angles
+        else:
+            self._list = []
+            self._tilt_angles = []
+
+    def _init_tilt_angles(self):
+        self._tilt_angles = [p.getTiltAngle() for p in self._list]
 
     def info(self):
         tline = ""
@@ -636,9 +643,97 @@ class ProjectionList(PyTomClass):
                 if 'AxisAngle' in alignment_results.dtype.names:
                     projection.setAlignmentAxisAngle(alignment_results[i]['AxisAngle'])
                 self.append(projection)
+        else:
+            assert len(self) == len(alignment_results), print('Current number of projections in ProjectionList does '
+                                                              'not correspond with the amount of projections in '
+                                                              'the alignment parameters file. Exiting.')
+            for i in range(len(self)):
+                self[i].setTiltAngle(alignment_results[i]['TiltAngle'])
+                self[i].setAlignmentTransX(alignment_results[i]['AlignmentTransX'])
+                self[i].setAlignmentTransY(alignment_results[i]['AlignmentTransY'])
+                self[i].setAlignmentRotation(alignment_results[i]['InPlaneRotation'])
+                self[i].setAlignmentMagnification(alignment_results[i]['Magnification'])
+                if 'OperationOrder' in alignment_results.dtype.names:
+                    self[i].setOperationOrder(alignment_results[i]['OperationOrder'])
+                if 'AxisAngle' in alignment_results.dtype.names:
+                    self[i].setAlignmentAxisAngle(alignment_results[i]['AxisAngle'])
 
-    def sort(self):
-        self._list.sort(key=lambda p: p.getTiltAngle())
+        # sort by tilt angle
+        self.sort()
+
+    def ready_for_reconstruction(self):
+        """
+        Check if the projection list has sufficient information to start reconstruction.
+        @return: True or False
+        @rtype: Bool
+        """
+        from pytom.tools.files import checkFileExists
+
+        # check if files all exist
+        files_ready = all([checkFileExists(p._filename) for p in self._list]) if len(self._list) > 0 else False
+
+        # if files exist but not tilt angles are known try to initialize them
+        if files_ready and len(self._tilt_angles) == 0:
+            self._init_tilt_angles()
+
+        # if we still dont have them this will be False and we wont be ready
+        angles_ready = all([a is not None for a in self._tilt_angles]) if len(self._tilt_angles) > 0 else False
+
+        return files_ready and angles_ready
+
+    def toXML(self):
+        """
+        """
+        from lxml import etree
+
+        projectionList_element = etree.Element('ProjectionList')
+
+        ##self._list = sorted(self._list, key=lambda Projection: Projection._tiltAngle)
+
+        for projection in self._list:
+            projectionList_element.append(projection.toXML())
+
+        return projectionList_element
+
+    def fromXML(self, xmlObj):
+        """
+        """
+        from lxml.etree import _Element
+
+        if xmlObj.__class__ != _Element:
+            raise Exception('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
+
+        if xmlObj.tag == 'ProjectionList':
+            projectionList_element = xmlObj
+        else:
+            Exception('Is not a ProjectionList! You must provide a valid ProjectionList object.')
+
+        for projection in projectionList_element:
+            newProjection = Projection()
+            newProjection.fromXML(projection)
+            self.append(newProjection)
+
+        # sort the projections by tilt angle
+        if not any([p.getTiltAngle() is None for p in self._list]):
+            self.sort()
+        else:
+            self.sort(key=lambda p: p.getIndex())
+
+    def sort(self, key=lambda p: p.getTiltAngle()):
+        """
+        Sort the ProjectionList based on key.
+        @param key: lambda expression to select which item of the Projection to sort on
+        @type key: L{function}
+        """
+        sorted_list = sorted(self._list, key=key)
+        if sorted_list != self._list:
+            self._list = sorted_list
+            [p.setIndex(i) for i, p in enumerate(self._list) if i != p.getIndex()]  # update indices of the
+            # if they have been sorted with key .getIndex() this will not change the indices of the projections
+        if not any([p.getTiltAngle() is None for p in self._list]):
+            self._init_tilt_angles()
+        else:
+            print('Warning: ProjectionList could not initialize any or all of the tilt angles')
         
     def append(self, projection):
         """
