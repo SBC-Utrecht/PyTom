@@ -86,17 +86,16 @@ class TiltSeries(PyTomClass):
                     fname = tiltSeriesName + "_" + str( ii ) + "." + tiltSeriesFormat
                     if alignedTiltSeriesName:
                         proj = Projection(filename=fname,
-                                          alignedFilename=alignedTiltSeriesName + "_" + str(ii) + "." +tiltSeriesFormat,
                                           index=ii, tiltAngle=self.mf[0,cnt,0],
                                           offsetX=0., offsetY=0.,
                                           alignmentTransX=0., alignmentTransY=0.,
                                           alignmentRotation=0., alignmentMagnification=1.)
-                        
+                        # This options is removed as alignment is now calculated before reconstruction
+                        # alignedFilename = alignedTiltSeriesName + "_" + str(ii) + "." + tiltSeriesFormat,
 
                     else:
         
                         proj = Projection(filename=fname,
-                                          alignedFilename=None,
                                           index=ii, tiltAngle=self.mf[0,cnt,0],
                                           offsetX=0., offsetY=0.,
                                           alignmentTransX=0., alignmentTransY=0.,
@@ -121,16 +120,16 @@ class TiltSeries(PyTomClass):
 
                     if alignedTiltSeriesName:
                         proj = Projection(filename=fname,
-                                          alignedFilename=alignedTiltSeriesName + "_" + str(ii) + tiltSeriesFormat,
                                           index=ii, tiltAngle=self.mf[0,ii,0],
                                           offsetX=0., offsetY=0.,
                                           alignmentTransX=0., alignmentTransY=0.,
                                           alignmentRotation=0., alignmentMagnification=1.)
+                        # This options is removed as alignment is now calculated before reconstruction
+                        # alignedFilename = alignedTiltSeriesName + "_" + str(ii) + "." + tiltSeriesFormat,
                         
                     else:
                         
                         proj = Projection(filename=fname,
-                                          alignedFilename=None,
                                           index=ii, tiltAngle=self.mf[0,ii,0],
                                           offsetX=0., offsetY=0.,
                                           alignmentTransX=0., alignmentTransY=0.,
@@ -211,7 +210,6 @@ class TiltSeries(PyTomClass):
         projs = []
         for ii in self._projIndices:
             proj = Projection(filename=None,
-                              alignedFilename=None,
                               index=ii, tiltAngle=None,
                               offsetX=0., offsetY=0.,
                               alignmentTransX=0., alignmentTransY=0.,

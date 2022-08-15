@@ -47,7 +47,6 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
     if (weighting != None) and (weighting < -0.001):
         w_func = fourierFilterShift(rampFilter(imdim, imdim))
 
-    print('start weighting')
     # design lowpass filter
     if lowpassFilter:
         if lowpassFilter > 1.:
@@ -59,7 +58,6 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
         #                               lowpassFilter / 5. * imdimY)
         #lpf = bandpassFilter(volume=vol(imdim, imdim,1),lowestFrequency=0,highestFrequency=int(lowpassFilter*imdim/2),
         #                     bpf=None,smooth=lowpassFilter/5.*imdim,fourierOnly=False)[1]
-
 
     tilt_angles = []
 
