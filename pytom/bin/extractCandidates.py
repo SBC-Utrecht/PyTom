@@ -24,18 +24,16 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
     res = ExPeakResult()
     res.volFilename = job.volume.getFilename()
 
-
-    from pytom.basic.files import read
+    from pytom.basic.files import read, write_em
     from pytom_numpy import vol2npy
     from copy import deepcopy
 
-
-    if resultFilename=='':
-        res.resultFilename='scores.em'
+    if resultFilename == '':
+        res.resultFilename = 'scores.em'
     else:
         res.resultFilename = resultFilename
-    if orientFilename=='':
-        res.orientFilename='angles.em'
+    if orientFilename == '':
+        res.orientFilename = 'angles.em'
     else:
         res.orientFilename = orientFilename
 
@@ -44,14 +42,13 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
         resultdata, maskdata = deepcopy(vol2npy(resultfile)), deepcopy(vol2npy(maskfile))
 
         import mrcfile
-        x,y,z,sx,sy,sz = job.volume.subregion
+        x, y, z, _, _, _ = job.volume.subregion
+        sx, sy, sz = resultdata.shape
 
-        masked_data = (resultdata*maskdata[x:x+sx,y:y+sy,z:z+sz])
-        #masked_data[masked_data < 0.00001] = resultdata.median()
+        masked_data = (resultdata * maskdata[x:x + sx, y:y + sy, z:z + sz])
 
-        mrcfile.new(res.resultFilename.replace('.em', '_masked.em'),masked_data.T, overwrite=True)
+        mrcfile.new(res.resultFilename.replace('.em', '_masked.em'), masked_data.T, overwrite=True)
         res.resultFilename = res.resultFilename.replace('.em', '_masked.em')
-
 
     res.angleList = job.rotations[:]
     res.score = job.score.__class__
@@ -61,11 +58,12 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
     
     res.readAll()
     
-    if sizeParticle==None:
+    if sizeParticle is None:
         ref = job.reference.getVolume()
-        sizeParticle = [ref.sizeX(),ref.sizeY(),ref.sizeZ()]
-    print(job.volume.subregion[:3])
-    particleList = res.findParticles(sizeParticle,maxNumParticle,minScore,write2disk,margin, offset=job.volume.subregion[:3], structured_mask=structuredMask)
+        sizeParticle = [ref.sizeX(), ref.sizeY(), ref.sizeZ()]
+
+    particleList = res.findParticles(sizeParticle, maxNumParticle, minScore, write2disk, margin,
+                                     offset=job.volume.subregion[:3], structured_mask=structuredMask)
     
     return particleList
 
@@ -102,8 +100,14 @@ if __name__ == '__main__':
     helper = ScriptHelper(sys.argv[0].split('/')[-1],
                           description='Extract candidate molecules from localization result.',
                           authors='Yuxiang Chen',
-                          options= [ScriptOption(['-j','--jobFile'], 'Localization job XML file.', arg=True, optional=False),
-                                    ScriptOption(['-q', '--mask'], 'Mask file (mask.em).',arg=True, optional=True),
+                          options= [ScriptOption(['-j', '--jobFile'], 'Localization job XML file.', arg=True,
+                                                 optional=False),
+                                    ScriptOption(['--tomogram-mask'],
+                                                 'Mask file for the full tomogram to mask large structures such as '
+                                                 'vesicles, 1 = search region, 0 = exlcuded region. Size of the mask '
+                                                 'should be same as the original tomogram, pytom will read the '
+                                                 'subregion of template matching from the job file.',
+                                                 arg=True, optional=True),
                                     ScriptOption(['-r', '--result'], 'File with score coefficients (score.em).',arg=True, optional=False),
                                     ScriptOption(['-o','--orientation'], 'File with orientation indices (angles.em).', arg=True, optional=False),
                                     ScriptOption(['-n','--numberCandidates'], 'Number of candidates to extract.', arg=True, optional=False),
@@ -115,7 +119,8 @@ if __name__ == '__main__':
                                     ScriptOption(['--margin'], 'Size of outer margin that will be ignored for potential candidates.', arg=True,optional=True),
                                     ScriptOption(['-w','--sizeCubes'], 'If specified, it will cut out candidates from the original tomogram with the specified size.', arg=True,optional=True),
                                     ScriptOption(['--scale'], 'Scale coordinates by a factor. Set > 1 to adjust to larger volumes. Use 2 if the localization tomo was 1x binned.', arg=True, optional=True),
-                                    ScriptOption(['--structuredMask'], 'Use structured mask for specific exclusion.',
+                                    ScriptOption(['--structuredMask'], 'Use structured mask around particle in case '
+                                                                       'the template matching mask was not spherical.',
                                                  arg=True, optional=True),
                                     ScriptOption(['--projectDir'], 'Project Directory', True, True),
                                     ScriptOption(['--help'], 'Print this help.', arg=False,optional= True)])
@@ -123,8 +128,7 @@ if __name__ == '__main__':
     if len(sys.argv) ==1:
         print(helper)
         sys.exit()
-    
-    
+
     try:
         jobFilename, maskFile, resultFilename, orientFilename, maxNumParticle, sizeParticle, plFilename, particlePath, \
         minScore, motlFilename, margin, write2disk, scale, structuredMask, proj_dir, help = parse_script_options(sys.argv[1:], helper)
@@ -150,18 +154,15 @@ if __name__ == '__main__':
     else:
         scale = 1.0
 
+    res = extractCandidates(jobFilename, resultFilename, orientFilename, int(sizeParticle), int(maxNumParticle),
+                            minScore, int(write2disk), margin, mask=maskFile, structuredMask=structuredMask)
 
-
-
-    res=extractCandidates(jobFilename,resultFilename,orientFilename,int(sizeParticle),int(maxNumParticle),minScore,int(write2disk),margin, mask=maskFile, structuredMask=structuredMask)
     if not plFilename and not motlFilename:
         raise RuntimeError('You must specify at least a particle list or a motl file as result of this script!')
     
     if plFilename:
         from pytom.basic.structures import ParticleList
         from pytom.bin.templateMatchingCandidateExtractionSingleGPU import getBinningFactorAndReferenceMarker
-
-
 
         pl = ParticleList()
         
@@ -197,8 +198,7 @@ if __name__ == '__main__':
             pl.append(newParticle)
         
         pl.toXMLFile(plFilename)
-        
-    
+
     if motlFilename:
         from pytom.basic.structures import ParticleList
         
@@ -215,4 +215,3 @@ if __name__ == '__main__':
             pl.append(newParticle.toParticle())
             
         pl.toMOTL(motlFilename)
-        
