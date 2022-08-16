@@ -205,7 +205,8 @@ if __name__ == '__main__':
         projection_list.reconstructVolumes(particles=particle_list, cube_size=cube_size, binning=projection_binning,
                                            weighting=weighting, low_pass_ny_fraction=low_pass_ny,
                                            post_scale=scale_factor_particle, num_procs=nprocs, ctfcenter=ctf_center,
-                                           polishResultFile=particle_polish_file, gpuIDs=gpuIDs)
+                                           polishResultFile=particle_polish_file, show_progress_bar=True,
+                                           gpuIDs=gpuIDs)
 
     else:
         print('No valid tomogram or particle list provided. Exiting...')

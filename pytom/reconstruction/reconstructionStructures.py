@@ -1022,6 +1022,8 @@ class ProjectionList(PyTomClass):
         @param specimen_angle: angle of the specimen, the tilt angle will be corrected by this angle
         """
         import time, os, sys
+        from pytom.agnostic.io import write
+        # from pytom.basic.files import write_em
         from pytom_volume import vol, backProject, rescaleSpline
         from pytom.tools.ProgressBar import FixedProgBar
         from multiprocessing import Process, set_start_method
@@ -1040,7 +1042,7 @@ class ProjectionList(PyTomClass):
         if cube_size.__class__ != int:
             raise TypeError('reconstructVolumes: Parameter cube_size must be of type int!')
 
-        if (num_procs is None) and (gpuIDs is not None):
+        if gpuIDs is not None:
             if isinstance(gpuIDs, list):
                 num_procs = len(gpuIDs)
             elif isinstance(gpuIDs, int):
@@ -1075,20 +1077,34 @@ class ProjectionList(PyTomClass):
                                                    scale_factor_particle=pre_scale_factor,
                                                    angle_specimen=specimen_angle,
                                                    show_progress_bar=show_progress_bar, verbose=verbose)
-            stacks = [x.get() for x in stacks]
+            # stacks = [x.get() for x in stacks]
 
         # create list for processes
         procs = []
 
-        if num_procs is not None:
+        # set the temp dir from particle storage path
+        temp_dir = os.path.dirname(particles[0].getFilename())
 
+        if num_procs > 1 or gpuIDs is not None:
+
+            # temp storage of projections
+            for n in range(4):
+                if not os.path.exists(temp_dir):
+                    os.mkdir(temp_dir)
+                write(os.path.join(temp_dir, '.temp_' + str(n) + '.em'), stacks[n])
+
+            # set gpu or cpu extraction
+            # prepare gpuIDs as a list to assign to processes
             if gpuIDs is None:
                 extract = self.extract_single_particle
-                # initialize empty gpus if needs to run parallel in cpus
+                # set gpus to none for each process
                 gpuIDs = [None, ] * num_procs
             else:
                 extract = self.extract_particles_on_gpu
+                if isinstance(gpuIDs, int):
+                    gpuIDs = [gpuIDs, ]
 
+            # create each process
             for i in range(num_procs):
                 # select the particles for the process
                 ps = particles[i::num_procs]
@@ -1099,7 +1115,7 @@ class ProjectionList(PyTomClass):
 
                 # start all processes
                 proc = Process(target=extract, args=(ps, i, verbose, binning, post_scale, cube_size, polishResultFile,
-                                                     gpuIDs[i], stacks))
+                                                     gpuIDs[i], temp_dir))
                 procs.append(proc)
                 proc.start()
 
@@ -1155,10 +1171,14 @@ class ProjectionList(PyTomClass):
             time.sleep(0.1)
             procs = [proc for proc in procs if proc.is_alive()]
 
+        if num_procs > 1 or gpuIDs is not None:
+            for n in range(4):
+                os.system('rm -f {}'.format(os.path.join(temp_dir, '.temp_' + str(n) + '.em')))
+
         print('\n Subtomogram reconstructions have finished.\n\n')
 
-    def extract_particles_on_gpu(self, particles, pid, verbose, binning, post_scale, cube_size, filename_ppr='',
-                                 gpuID=None, stacks=0):
+    def extract_particles_on_gpu(self, particles, pid, verbose, binning, post_scale, cube_size, filename_ppr,
+                                 gpuID, temp_dir):
         import os
         from pytom.agnostic.io import read, write
         from pytom.gpu.initialize import xp, device
@@ -1168,31 +1188,31 @@ class ProjectionList(PyTomClass):
 
         xp.cuda.Device(gpuID).use()
 
+        print(f'start recon in process: {pid}')
         t = time.time()
 
         try:
-            # folder = os.path.dirname(particles[0].getFilename())
-            #
-            # if not stacks:
-            #     stacks = []
-            #
-            #     for index in range(4):
-            #         stacks.append(read('{}/.temp_{}.mrc'.format(folder, index)))
+            # read the temp stacks
+            stacks = []
+            for n in range(4):
+                stacks.append(read(os.path.join(temp_dir, '.temp_' + str(n) + '.em'), keepnumpy=True))
 
+            # put in gpu mem
             [projections, vol_phi, vol_the, vol_offsetProjections] = [xp.asarray(x) for x in stacks]
             num_projections = projections.shape[2]
 
             vol_bp = xp.zeros((cube_size, cube_size, cube_size), dtype=xp.float32)
-            reconstructionPosition = xp.zeros((num_projections,3), dtype=xp.float32)
+            reconstructionPosition = xp.zeros((num_projections, 3), dtype=xp.float32)
 
             interpolation = 'filt_bspline'
 
             proj_angles = vol_the.squeeze()
 
             for p in particles:
+
                 # set back project volume and reconstruction position back to zero
-                reconstructionPosition *= 0
-                vol_bp *=0
+                reconstructionPosition.fill(.0)
+                vol_bp.fill(.0)
 
                 # adjust coordinates of subvolumes to binned reconstruction
                 reconstructionPosition[:, 0] = float(p.getPickPosition().getX() / binning)
@@ -1200,8 +1220,8 @@ class ProjectionList(PyTomClass):
                 reconstructionPosition[:, 2] = float(p.getPickPosition().getZ() / binning)
 
                 # run the back projection for the particle
-                vol_bp = backProjectGPU(projections, vol_bp, vol_phi.squeeze(), proj_angles, reconstructionPosition,
-                                     vol_offsetProjections, interpolation).get()
+                backProjectGPU(projections, vol_bp, vol_phi.squeeze(), proj_angles,
+                               reconstructionPosition, vol_offsetProjections, interpolation)
 
                 # do post scaling
                 if post_scale > 1:
@@ -1218,21 +1238,25 @@ class ProjectionList(PyTomClass):
 
         print(f'recon time in process {pid}: {time.time()-t:.3f} sec')
 
-    def extract_single_particle(self, particles, pid, verbose, binning, post_scale, cube_size, filename_ppr='',
-                                gpuID=None, stacks=0):
+    def extract_single_particle(self, particles, pid, verbose, binning, post_scale, cube_size, filename_ppr,
+                                gpuID, temp_dir):
         from pytom_volume import vol, backProject, rescaleSpline
+        # from pytom.agnostic.io import read
+        from pytom.basic.files import read
         import numpy as np
         import time
+        import os
 
+        print(f'start recon in process: {pid}')
         t = time.time()
 
         try:
-            # folder = os.path.dirname(particles[0].getFilename())
-            #
-            # stacks = []
-            # for index in range(4):
-            #     stacks.append(read('{}/.temp_{}.mrc'.format(folder, index)))
+            # read the temp stacks
+            stacks = []
+            for n in range(4):
+                stacks.append(read(os.path.join(temp_dir, '.temp_' + str(n) + '.em')))  # ndarray = False
 
+            # put in variables
             [vol_img, vol_phi, vol_the, vol_offsetProjections] = stacks
             num_projections = vol_img.sizeZ()
 
@@ -1244,16 +1268,19 @@ class ProjectionList(PyTomClass):
             start_index = pid * len(self)
 
             for p in particles:
+                # reset
                 reconstructionPosition.setAll(0.0)
                 vol_bp.setAll(0.0)
+
                 # adjust coordinates of subvolumes to binned reconstruction
                 if not filename_ppr:
                     for i in range(num_projections):
                         reconstructionPosition(float(p.getPickPosition().getX() / binning), 0, i, 0)
                         reconstructionPosition(float(p.getPickPosition().getY() / binning), 1, i, 0)
                         reconstructionPosition(float(p.getPickPosition().getZ() / binning), 2, i, 0)
-                else:
 
+                else:
+                    # possible particle polish results loading
                     x, y, z = float(p.getPickPosition().getX() / binning), float(
                         p.getPickPosition().getY() / binning), float(p.getPickPosition().getZ() / binning)
 
