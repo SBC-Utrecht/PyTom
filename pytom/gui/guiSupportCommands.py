@@ -120,9 +120,9 @@ unlink ../../04_Particle_Picking/Tomograms/{d[8]}_INFR.em
 ln -s {d[0]}/reconstruction/INFR/{d[8]}_INFR.em ../../04_Particle_Picking/Tomograms/{d[8]}_INFR.em'''
 
 
-templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[1]}]' Frequency='{d[2]}' MaxIterations='{d[3]}' PeakOffset='{d[4]}' RScore='{d[5]}' WeightedAverage='{d[6]}' Binning='1'>
+templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[1]}]' Frequency='{d[2]}' MaxIterations='{d[3]}' PeakOffset='{d[4]}' RScore='{d[5]}' WeightedAverage='{d[6]}' Binning='{d[10]}'>
     <Reference PreWedge="" File="{d[7]}" Weighting="{d[8]}"/>
-    <Mask Filename="{d[9]}" Binning="{d[10]}" isSphere="{d[11]}"/>
+    <Mask Filename="{d[9]}" Binning=1 isSphere="{d[11]}"/>
     <SampleInformation PixelSize="{d[12]}" ParticleDiameter="{d[13]}"/>
     <ParticleListLocation Path="{d[14]}"/>
 </FRMJob>

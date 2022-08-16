@@ -3073,16 +3073,14 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
         if new:
             self.particleList.append([int(round(cx)), int(round(cy)), int(round(cz)), score])
 
-
         if radius < 1: return
 
         pos.setX(cx - radius)
         pos.setY(cy - radius)
 
-
         if abs(cz - self.slice) < self.radius:
             self.circles_cent.append(circle(pos, size=(radius) * 2))
-            #self.centimage.addItem(self.circles_cent[-1])
+            self.centimage.addItem(self.circles_cent[-1])
 
         if new:
             pos.setX(cx - self.radius)
@@ -3096,19 +3094,21 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
             self.leftimage.addItem(self.circles_left[-1])
 
     def remove_point(self, n, z, from_particleList=True):
-        if from_particleList:
-            self.particleList.pop(n)
-            # self.particleList = self.particleList[:n] + self.particleList[n + 1:]
 
-        if abs(z - self.slice) <= self.radius:
-            self.centimage.removeItem(self.circles_cent[n])
-        self.circles_cent.pop(n)  # = self.circles_cent[:n] + self.circles_cent[n + 1:]
+        if n < len(self.circles_cent):
+            if abs(z - self.slice) <= self.radius:
+                self.centimage.removeItem(self.circles_cent[n])
+                self.circles_cent.pop(n)  # = self.circles_cent[:n] + self.circles_cent[n + 1:]
 
-        self.leftimage.removeItem(self.circles_left[n])
-        self.circles_left.pop(n)  # = self.circles_left[:n] + self.circles_left[n + 1:]
+                self.leftimage.removeItem(self.circles_left[n])
+                self.circles_left.pop(n)  # = self.circles_left[:n] + self.circles_left[n + 1:]
 
-        self.bottomimage.removeItem(self.circles_bottom[n])
-        self.circles_bottom.pop(n)  # = self.circles_bottom[:n] + self.circles_bottom[n + 1:]
+                self.bottomimage.removeItem(self.circles_bottom[n])
+                self.circles_bottom.pop(n)  # = self.circles_bottom[:n] + self.circles_bottom[n + 1:]
+
+                if from_particleList:
+                    self.particleList.pop(n)
+                    # self.particleList = self.particleList[:n] + self.particleList[n + 1:]
 
     def remove_all(self):
         for image in self.image_list:

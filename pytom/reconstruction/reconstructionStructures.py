@@ -1092,6 +1092,7 @@ class ProjectionList(PyTomClass):
                 if not os.path.exists(temp_dir):
                     os.mkdir(temp_dir)
                 write(os.path.join(temp_dir, '.temp_' + str(n) + '.em'), stacks[n])
+            del stacks
 
             # set gpu or cpu extraction
             # prepare gpuIDs as a list to assign to processes
@@ -1241,7 +1242,6 @@ class ProjectionList(PyTomClass):
     def extract_single_particle(self, particles, pid, verbose, binning, post_scale, cube_size, filename_ppr,
                                 gpuID, temp_dir):
         from pytom_volume import vol, backProject, rescaleSpline
-        # from pytom.agnostic.io import read
         from pytom.basic.files import read
         import numpy as np
         import time
@@ -1254,7 +1254,7 @@ class ProjectionList(PyTomClass):
             # read the temp stacks
             stacks = []
             for n in range(4):
-                stacks.append(read(os.path.join(temp_dir, '.temp_' + str(n) + '.em')))  # ndarray = False
+                stacks.append(read(os.path.join(temp_dir, '.temp_' + str(n) + '.em')))
 
             # put in variables
             [vol_img, vol_phi, vol_the, vol_offsetProjections] = stacks

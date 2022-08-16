@@ -1014,11 +1014,11 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label(parent, rstep=1, cstep=0)
         self.insert_label_spinbox(parent, mode + 'pixelSize', 'Pixel Size (A)',
                                   wtype=QDoubleSpinBox, minimum=0.1, stepsize=0.1, value=1.75)
-        self.insert_label_spinbox(parent, mode + 'particleDiameter', 'Particle Diameter (A)', rstep=1, cstep=0,
+        self.insert_label_spinbox(parent, mode + 'particleDiameter', 'Particle Diameter (A)',
                                   minimum=10, stepsize=1, value=300, maximum=10000, width=150)
-        self.insert_label_spinbox(parent, mode + 'binning', 'Binning Factor', rstep=1, cstep=-1,
-                                  stepsize=1, minimum=1, value=1,
-                                  tooltip='Perform binning (downscale) of subvolumes by factor. Default=1.')
+        self.insert_label_spinbox(parent, mode + 'binning', 'Binning Factor', rstep=1, cstep=0, stepsize=1,
+                                  minimum=1, value=1, tooltip='Perform binning (downscale) of subvolumes by factor. '
+                                                              'Default=1.')
 
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
         self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.updateFRM(m))
