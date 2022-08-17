@@ -40,11 +40,12 @@ def bandpass_circle(image, low=0, high=-1, sigma=0, ff=1):
     assert low < high, "upper bandpass must be > than lower limit"
 
     if low == 0:
-        mask = create_circle(image.shape, high, sigma, num_sigma=2)
+        mask = create_circle(image.shape, high, sigma, num_sigma=5)
     else:
         # BUG! TODO
         # the sigma
-        mask = create_circle(image.shape, high, sigma, 2) - create_circle(image.shape, max(0,low-sigma*2), sigma, 2)
+        mask = create_circle(image.shape, high, sigma, num_sigma=5) - create_circle(image.shape, max(0,low-sigma*2),
+                                                                               sigma, num_sigma=5)
 
     if ff is None:
         res = applyFourierFilterFull(image, xp.fft.fftshift(mask))
@@ -787,12 +788,11 @@ def ramp_filter(sizeX, sizeY, crowtherFreq=None, N=None):
     @return: filter volume
 
     """
-
-
     if crowtherFreq is None: crowtherFreq = sizeX//2
     N = 0 if N is None else 1/N
 
-    rampLine = (xp.abs(xp.arange(-sizeX//2, sizeX//2)) + N) / crowtherFreq
+    rampLine = xp.abs(xp.arange(-sizeX//2, sizeX//2)) / crowtherFreq + N
+    # should be: rampLine = xp.abs(xp.arange(-sizeX // 2, sizeX // 2)) / crowtherFreq + N
     rampLine[rampLine > 1] = 1
 
     rampfilter = xp.column_stack(([(rampLine), ] * (sizeY)))
@@ -818,21 +818,42 @@ def exact_filter(tilt_angles, tiltAngle, sX, sY, sliceWidth=1, arr=[]):
 
     # Closest angle to tiltAngle (but not tiltAngle) sets the maximal frequency of overlap (Crowther's frequency).
     # Weights only need to be calculated up to this frequency.
-    sampling = xp.min(xp.abs(diffAngles)[xp.abs(diffAngles) > 0.001])
+    sampling = xp.abs(diffAngles)[xp.abs(diffAngles) > 0.001]
+    # minimum = xp.min(sampling)
+    # sampling = xp.min(xp.abs(diffAngles)[xp.abs(diffAngles) > 0.001])
+    if ((sX / sliceWidth) / xp.sin(sampling.min())) > (sX // 2):
+        sliceWidth = 2 / xp.sin(sampling.min())
 
-    crowtherFreq = min(sX // 2, xp.int32(xp.ceil(sliceWidth / xp.sin(sampling))))
-    arrCrowther = xp.matrix(xp.abs(xp.arange(-crowtherFreq, min(sX // 2, crowtherFreq + 1))))
+    # slice width should be object diameter
+    overlap_freqs = np.minimum(sX // 2, xp.int32(xp.ceil((sX / sliceWidth) / xp.sin(sampling))))
+    crowtherFreq = max(overlap_freqs)
+    # crowtherFreq = min(sX // 2, xp.int32(xp.ceil(sliceWidth / xp.sin(minimum))))
+    # arrCrowther = xp.matrix(xp.abs(xp.arange(-crowtherFreq, min(sX // 2, crowtherFreq + 1))))
+    arrCrowther = xp.abs(xp.arange(-crowtherFreq, min(sX // 2, crowtherFreq + 1)))
+
+    interaction = xp.ones(arrCrowther.shape, dtype=xp.float32)
+    interaction_ij = xp.zeros(arrCrowther.shape, dtype=xp.float32)
+
+    for i, f in enumerate(overlap_freqs):
+        # set to zero
+        interaction_ij.fill(.0)
+
+        # calculate interaction of projection i and j
+        interaction_ij[arrCrowther <= f] = xp.sinc(arrCrowther / f)[arrCrowther <= f]
+        # interaction_ij[arrCrowther <= f] = (1 - (arrCrowther[arrCrowther <= f] / f))
+        interaction += interaction_ij
 
     # Calculate weights
-    wfuncCrowther = 1. / (xp.clip(1 - xp.array(xp.matrix(xp.abs(xp.sin(diffAngles))).T * arrCrowther) ** 2, 0, 2)).sum(axis=0)
+    wfuncCrowther = 1 / interaction
+    # wfuncCrowther = 1. / (xp.clip(1 - (xp.matrix(xp.abs(xp.sin(diffAngles))).T * arrCrowther) ** 2, 0, 2)).sum(axis=0)
 
     # Create full with weightFunc
     wfunc = xp.ones((sX, sY), dtype=xp.float32)
 
     # row_stack is not implemented in cupy
-    weightingFunc = xp.column_stack( ([(wfuncCrowther), ] * (sY) )).T
+    weightingFunc = xp.column_stack([(wfuncCrowther), ] * (sY))
 
-    wfunc[:, sX // 2 - crowtherFreq:sX // 2 + min(sX // 2, crowtherFreq + 1)] = weightingFunc
+    wfunc[sX // 2 - crowtherFreq:sX // 2 + min(sX // 2, crowtherFreq + 1), :] = weightingFunc
 
     return wfunc
 

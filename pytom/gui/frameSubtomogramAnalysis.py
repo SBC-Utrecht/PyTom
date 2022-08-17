@@ -271,8 +271,9 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB)
         self.insert_label_line_push(parent, 'Particle List', mode + 'particlelist',initdir=self.pickpartdir,
                                     tooltip='Select the particle list.', mode='file', filetype='xml')
-        self.insert_label_line_push(parent, 'Folder with aligned tilt images', mode + 'AlignedTiltDir',
-                                    'Select the folder with the aligned tilt images.')
+        self.insert_label_line_push(parent, 'Folder with aligned results', mode + 'AlignedTiltDir',
+                                    'Select a folder with a alignmentResults.txt file, can be found in ['
+                                    'project]/03_Tomographic_Reconstruction/tomogram_[id]/alignment/[marker+angles]')
         self.insert_label_line_push(parent, 'Meta file with tilt angles', mode + 'MetaFile', mode='file',initdir=self.tomoanalysis,
                                     filetype='meta',
                                     tooltip='Select the corresponding metafile.')
@@ -1014,11 +1015,11 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label(parent, rstep=1, cstep=0)
         self.insert_label_spinbox(parent, mode + 'pixelSize', 'Pixel Size (A)',
                                   wtype=QDoubleSpinBox, minimum=0.1, stepsize=0.1, value=1.75)
-        self.insert_label_spinbox(parent, mode + 'particleDiameter', 'Particle Diameter (A)', rstep=1, cstep=0,
+        self.insert_label_spinbox(parent, mode + 'particleDiameter', 'Particle Diameter (A)',
                                   minimum=10, stepsize=1, value=300, maximum=10000, width=150)
-        self.insert_label_spinbox(parent, mode + 'binning', 'Binning Factor', rstep=1, cstep=-1,
-                                  stepsize=1, minimum=1, value=1,
-                                  tooltip='Perform binning (downscale) of subvolumes by factor. Default=1.')
+        self.insert_label_spinbox(parent, mode + 'binning', 'Binning Factor', rstep=1, cstep=0, stepsize=1,
+                                  minimum=1, value=1, tooltip='Perform binning (downscale) of subvolumes by factor. '
+                                                              'Default=1.')
 
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('20')
         self.widgets[mode + 'particleList'].textChanged.connect(lambda d, m=mode: self.updateFRM(m))

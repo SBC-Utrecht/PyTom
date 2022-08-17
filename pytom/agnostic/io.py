@@ -2036,10 +2036,10 @@ def write(filename, data, tilt_angle=0, pixel_size=1, order='F', fmt=None, heade
         except Exception as e:
             print(data.__class__, e)
             raise Exception('Invalid data type of data. Please provide an ndarray or a pytom volume object.')
-
-    # Write data to file, using respective write function
-    write_functions[ext](filename, data, tilt_angle=tilt_angle, pixel_size=pixel_size, order=order, fmt=fmt,
-                         header=header, rotation_angles=rotation_angles)
+    else:
+        # Write data to file, using respective write function
+        write_functions[ext](filename, data, tilt_angle=tilt_angle, pixel_size=pixel_size, order=order, fmt=fmt,
+                             header=header, rotation_angles=rotation_angles)
 
 
 def write_star(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnification=1., dx=0., dy=0.,

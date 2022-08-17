@@ -1,10 +1,11 @@
 #!/usr/bin/env pytom
 
 """
-Created on Sep 02, 2019
+This is a test script for tomogram reconstruction on a GPU. Created on Sep 02, 2019
 
 @author: dschulte
 """
+
 from pytom.gpu.initialize import device, xp
 from pytom.agnostic.tools import taper_edges
 

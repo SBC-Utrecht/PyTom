@@ -344,7 +344,8 @@ def rampFilter( sizeX, sizeY, crowtherFreq=None, N=None):
 
     filter_vol = vol(sizeX, sizeY, 1)
     filter_vol.setAll(0.0)
-    
+
+    # TODO this is very slow...
     for i in range(sizeX):        
         distX = abs(float(i-centerX))
         ratio = min(1, (distX/Ny)+N)
@@ -370,6 +371,7 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     from pytom_numpy import npy2vol
     from numpy import array, matrix, sin, pi, arange, float32, column_stack, argmin, clip, ones, ceil
 
+
     # Using Friedel Symmetry in Fourier space.
     sY = sY//2+1
 
@@ -380,6 +382,7 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     # Closest angle to tiltAngle (but not tiltAngle) sets the maximal frequency of overlap (Crowther's frequency).
     # Weights only need to be calculated up to this frequency.
     sampling =  min(abs(diffAngles)[abs(diffAngles)>0.001])
+    # TODO this should be slicewidth instead of 1 (probably), unless frequencies are differently defined here
     crowtherFreq = min(sX//2, int(ceil(1 / sin( sampling ))))
     arrCrowther = matrix(abs(arange(-crowtherFreq, min(sX//2, crowtherFreq+1))))
 
@@ -393,6 +396,8 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
 
     weightFunc = vol(sX, sY, 1)
     weightFunc.setAll(0.0)
+
+    # use npy2vol instead??
 
     for ix in range(0, sX):
         for iy in range(0, sY):

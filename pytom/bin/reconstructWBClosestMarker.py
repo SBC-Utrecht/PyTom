@@ -1,9 +1,10 @@
 #!/usr/bin/env pytom
-'''
+"""
+Reconstruction of subtomograms taking into account closest markers.
 Created on Jul 19, 2011
 
-@author: hrabe
-'''
+@author: hrabe, GIJS?
+"""
 
     
 
@@ -105,71 +106,68 @@ if __name__ == '__main__':
         prefix = 'sorted_aligned'
 
 
-    if tomogram:
-        vol = projections.reconstructVolume( dims=size, reconstructionPosition=recOffset,
-            binning=projBinning, applyWeighting=aw)
-        vol.write(tomogram)
-        
-    else:
-        # print(xmlsBasedOnClosestMarker)
-        for markerIndex, particleListXMLPath in xmlsBasedOnClosestMarker:
-            markerIndex = int(markerIndex)
-            projections = ProjectionList()
-            projectionDirectory = projectionDirectoryTemplate.replace('_CLOSEST_', '_{:04d}_'.format(markerIndex))
-            alignResultFile = os.path.join(projectionDirectory, 'alignmentResults.txt')
+    # if tomogram:
+    #     vol = projections.reconstructVolume( dims=size, reconstructionPosition=recOffset,
+    #         binning=projBinning, applyWeighting=aw)
+    #     vol.write(tomogram)
 
-            if not os.path.exists(alignResultFile):
-                alignResultFile = ''
-            else:
-                alignmentResults = loadstar(alignResultFile, dtype=datatypeAR)
-                projectionsFileNames = alignmentResults['FileName']
-                projectionDirectory = os.path.dirname(projectionsFileNames[0])
-                prefix = os.path.basename(projectionsFileNames[0]).split('_')[0] + '_'
-            if checkFileExists(projectionList):
-                projections.fromXMLFile(projectionList)
-            elif checkDirExists(projectionDirectory):
-                projections.loadDirectory(projectionDirectory, metafile=metafile, prefix=prefix)
-            else:
-                raise RuntimeError('Neither projectionList existed nor the projectionDirectory you specified! Abort')
+    # print(xmlsBasedOnClosestMarker)
+    for markerIndex, particleListXMLPath in xmlsBasedOnClosestMarker:
+        markerIndex = int(markerIndex)
+        projections = ProjectionList()
+        projectionDirectory = projectionDirectoryTemplate.replace('_CLOSEST_', '_{:04d}_'.format(markerIndex))
+        alignResultFile = os.path.join(projectionDirectory, 'alignmentResults.txt')
 
-            # transform the cropping offset
-            if len(projections) == 0:
-                #print(markerIndex, projectionDirectory, metafile, prefix)
-                continue
+        if not os.path.exists(alignResultFile):
+            print('Without closest marker alignment file this reconstruction is pointless.')
+            sys.exit(0)
+        else:
+            alignmentResults = loadstar(alignResultFile, dtype=datatypeAR)
+            projectionsFileNames = alignmentResults['FileName']
+            projectionDirectory = os.path.dirname(projectionsFileNames[0])
+            prefix = os.path.basename(projectionsFileNames[0]).split('_')[0] + '_'
 
-            tmp = projections[0]
-            sx = tmp.getXSize() # here should be the size of original projection!
-            sy = tmp.getYSize()
-            recOffset2 = [0,0,0]
-            recOffset2[0] = -sx/2 + recOffset[0]*coordinateBinning
-            recOffset2[1] = -sy/2 + recOffset[1]*coordinateBinning
-            recOffset2[2] = -sx/2 + recOffset[2]*coordinateBinning
+        if checkFileExists(projectionList):
+            projections.fromXMLFile(projectionList)
 
-            # set particle list in order to reconstruct subtomograms
-            particleList = ParticleList()
+        projections.load_alignment(alignResultFile)
 
-            try:
-                particleList.fromXMLFile(particleListXMLPath)
-            except RuntimeError:
-                print('Error reading particleList XML file! Abort')
-                sys.exit()
+        # transform the cropping offset
+        if len(projections) == 0:
+            #print(markerIndex, projectionDirectory, metafile, prefix)
+            continue
 
-            from pytom.basic.structures import PickPosition
-            for particle in particleList:
-                pickPosition = particle.getPickPosition()
-                x = (pickPosition.getX() * coordinateBinning + recOffset2[0])
-                y = (pickPosition.getY() * coordinateBinning + recOffset2[1])
-                z = (pickPosition.getZ() * coordinateBinning + recOffset2[2])
-                particle.setPickPosition( PickPosition(x=x, y=y, z=z))
+        tmp = projections[0]
+        sx = tmp.getXSize() # here should be the size of original projection!
+        sy = tmp.getYSize()
+        recOffset2 = [0,0,0]
+        recOffset2[0] = -sx/2 + recOffset[0]*coordinateBinning
+        recOffset2[1] = -sy/2 + recOffset[1]*coordinateBinning
+        recOffset2[2] = -sx/2 + recOffset[2]*coordinateBinning
 
-            if alignResultFile:
-                print(f'Alignment result file is used.\n\n{alignResultFile}')
+        # set particle list in order to reconstruct subtomograms
+        particleList = ParticleList()
 
-            projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]), \
-                                           binning=projBinning, applyWeighting = aw, \
-                                           showProgressBar = True,verbose=False, \
-                                           preScale=projBinning,postScale=1, num_procs=numProcesses, alignResultFile=alignResultFile)
+        try:
+            particleList.fromXMLFile(particleListXMLPath)
+        except RuntimeError:
+            print('Error reading particleList XML file! Abort')
+            sys.exit()
 
+        from pytom.basic.structures import PickPosition
+        for particle in particleList:
+            pickPosition = particle.getPickPosition()
+            x = (pickPosition.getX() * coordinateBinning + recOffset2[0])
+            y = (pickPosition.getY() * coordinateBinning + recOffset2[1])
+            z = (pickPosition.getZ() * coordinateBinning + recOffset2[2])
+            particle.setPickPosition( PickPosition(x=x, y=y, z=z))
 
+        if alignResultFile:
+            projections.load_alignment(alignResultFile)
+            print(f'Alignment result file is used.\n\n{alignResultFile}')
 
-            del projections
+        projections.reconstructVolumes(particles=particleList, cube_size=int(size[0]),
+                                       binning=projBinning, weighting = aw,
+                                       show_progress_bar=True, verbose=False,
+                                       post_scale=1, num_procs=numProcesses)
+        del projections

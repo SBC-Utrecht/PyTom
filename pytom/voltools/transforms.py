@@ -1,6 +1,5 @@
 import time
 import numpy as np
-# import numpy as cp  # WHY??
 
 from scipy.ndimage import affine_transform
 from typing import Union, Tuple
@@ -36,7 +35,7 @@ def transform(volume: np.ndarray,
               center: Union[Tuple[float, float, float], np.ndarray] = None,
               interpolation: str = 'linear',
               profile: bool = False,
-              output = None, device: str = 'cpu', matrix: np.ndarray = None):
+              output = None, device: str = 'cpu', matrix: np.ndarray = None):  # TODO operation order parameter
 
     if len(volume.shape) == 2:
         volume = cp.expand_dims(volume, 2)
@@ -52,7 +51,7 @@ def transform(volume: np.ndarray,
 
     if matrix is None:
         matrix = transform_matrix(scale, shear, rotation, axisrotation, rotation_units, rotation_order, translation,
-                                  translation2=translation2, center=center)
+                                  translation2=translation2, center=center)  # TODO operation order parameter
 
     return affine(volume, matrix, interpolation, profile, output, device)
 
@@ -126,33 +125,30 @@ def affine(volume: np.ndarray,
            device: str = 'cpu'):
 
     if len(volume.shape) == 2 or volume.shape[2] == 1:
-        if device == 'cpu':
-            import numpy as cp
-            # why import as cp?
-        else:
-            import cupy as cp
-
-        volume = cp.atleast_3d(volume)
 
         if device == 'cpu':
             from pytom.agnostic.interpolation import fill_values_real_spline
 
-            # volume = np.atleast_3d(volume)  # place here?
+            volume = np.atleast_3d(volume)
 
-            P = cp.array(transform_m.flatten(),dtype=cp.float32)
-            dst = output if not output is None else cp.zeros_like(volume,dtype=cp.float32)
-            dim_src = cp.array([volume.shape[0], volume.shape[1], volume.shape[2]], dtype=cp.int32)
-            dim_dst = cp.array([dst.shape[0], dst.shape[1], dst.shape[2]], dtype=cp.int32)
+            P = np.array(transform_m.flatten(),dtype=np.float32)
+            dst = output if not output is None else np.zeros_like(volume,dtype=np.float32)
+            dim_src = np.array([volume.shape[0], volume.shape[1], volume.shape[2]], dtype=np.int32)
+            dim_dst = np.array([dst.shape[0], dst.shape[1], dst.shape[2]], dtype=np.int32)
 
             fill_values_real_spline(volume, dst, P, dim_src, dim_dst)
 
             return dst
 
-        else:
+        elif device.startswith('gpu'):
+
             from pytom.gpu.kernels import transformSpline_txt
+
+            switch_to_device(device)
+
             transformSpline = cp.RawKernel(transformSpline_txt, 'transformSpline')
 
-            # volume = cp.atleast_3d(volume)  # place here?
+            volume = cp.atleast_3d(volume)
 
             num_threads, defaultval = 512, 0
             num_blocks = volume.size//num_threads + 1
@@ -167,6 +163,9 @@ def affine(volume: np.ndarray,
                             (volume, dst, P, True, cp.float32(defaultval), 1000000, dim_src, dim_dst))
 
             return dst
+
+        else:
+            raise ValueError(f'No instructions for {device}.')
 
     if device not in AVAILABLE_DEVICES:
         raise ValueError(f'Unknown device ({device}), must be one of {AVAILABLE_DEVICES}')
@@ -202,7 +201,7 @@ def affine(volume: np.ndarray,
 
     elif device.startswith('gpu'):
 
-        import cupy as cp
+        # import cupy as cp
 
         switch_to_device(device)
 
@@ -258,6 +257,7 @@ def affine(volume: np.ndarray,
 
     else:
         raise ValueError(f'No instructions for {device}.')
+
 
 def _get_transform_kernel(interpolation: str = 'linear'):
 

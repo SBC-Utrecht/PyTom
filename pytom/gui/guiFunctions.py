@@ -1224,3 +1224,11 @@ def plotCurve(data, num_rows=1, num_cols=1, s=5, e=None, h=None):
     show()
     try: return(a)
     except: pass
+
+def axis_angle_from_ar_file(alignment_file):
+    from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO, DATATYPE_ALIGNMENT_RESULTS
+    try:
+        alignment_results = loadstar(alignment_file, dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
+    except:
+        alignment_results = loadstar(alignment_file, dtype=DATATYPE_ALIGNMENT_RESULTS)
+    return alignment_results[0]['InPlaneRotation']

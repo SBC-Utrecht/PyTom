@@ -1,200 +1,213 @@
 #!/usr/bin/env pytom
-'''
-Created on Jul 19, 2011
+"""
+- Created on Jul 19, 2011
+- Updated to accomodate updates to the ProjectionList structure on August, 2022
 
-@author: hrabe
-'''
+@author: Marten Chaillet, hrabe
+"""
+import sys, os
+from pytom.tools.script_helper import ScriptHelper2, ScriptOption2
+from pytom.tools.parse_script_options import parse_script_options2
+from pytom.basic.structures import ParticleList, PickPosition, PyTomClassError
+from pytom.reconstruction.reconstructionStructures import ProjectionList
+from pytom.agnostic.io import write
 
-    
 
 if __name__ == '__main__':
-    
-    #this script is significantly linked to 
-    #pytom/frontend/serverpages/createReconstructionJob.py
-    #any changes like parameter names must be changed in the other script, too!
+    # This is outdated:
+    # this script is significantly linked to
+    # pytom/frontend/serverpages/createReconstructionJob.py
+    # any changes like parameter names must be changed in the other script, too!
 
-    import sys,getopt
-    from pytom.tools.script_helper import ScriptHelper, ScriptOption
-    from pytom.tools.parse_script_options import parse_script_options
-    from pytom.basic.structures import Particle, ParticleList
-    from pytom.reconstruction.reconstructionStructures import ProjectionList
-    from pytom.tools.files import checkFileExists,checkDirExists
-    from pytom.basic.files import read_em_header
-    
-    helper = ScriptHelper(sys.argv[0].split('/')[-1],
-                      description='Reconstruct particles in a particle list. Documentation is available at\n\
-                          http://www.pytom.org/doc/pytom/resonstructTomograms.html or\n\
-                          http://www.pytom.org/doc/pytom/resonstructSubtomograms.html',
-                      authors='Thomas Hrabe, FF',
+    helper = ScriptHelper2(sys.argv[0].split('/')[-1],
+          description='Reconstruct particles in a particle list. Documentation is available at \n\
+              http://www.pytom.org/doc/pytom/resonstructWB',
+          authors='Marten Chaillet, Thomas Hrabe, FF',
+          options=[ScriptOption2(['-t', '--tomogram'],
+                                 'Reconstruct a tomogram. Specify name of tomogam here. You do not need a particle '
+                                 'list for that!',
+                                 'string', 'optional'),
+                   ScriptOption2(['-p', '--particleList'],
+                                 'XML particle list.',
+                                 'file', 'optional'),
+                   ScriptOption2(['--projectionList'],
+                                 'XML projection list.',
+                                 'file', 'optional'),
+                   ScriptOption2(['--projectionDirectory'],
+                                 'Directory + prefix containing projections.',
+                                 'directory', 'optional'),
+                   ScriptOption2(['--projectionPrefix'],
+                                 'Prefix of projection files in the directory in case they are multiple copies or '
+                                 'variants of the same projection.',
+                                 'string', 'optional'),
+                   ScriptOption2(['-w', '--applyWeighting'],
+                                 'If projections are not weighted, apply weighting before. If omited, no weighting.',
+                                 'int', 'optional', 0),
+                   ScriptOption2(['-s', '--size'],
+                                 'Size of particle cube / tomogram. Can provide single integer, or 3 separate by '
+                                 'commas, e.g. 464,464,150 ',
+                                 'string', 'optional', '100'),
+                   ScriptOption2(['-b', '--coordinateBinning'],
+                                 'Binning factor of coordinates. If particle coordinates are determined in binned '
+                                 'volume (with respect to projections) this binning factor needs to be specified.',
+                                 'int', 'optional'),
+                   ScriptOption2(['-o', '--recOffset'],
+                                 'Cropping offset of the binned tomogram. Important to keep this consistent between '
+                                 'tomogram and subtomogram reconstruction.',
+                                 'int,int,int', 'optional', [0, 0, 0]),
+                   ScriptOption2(['--projBinning'],
+                                 'Bin projections BEFORE reconstruction. 1 is no binning, 2 will merge two voxels to '
+                                 'one, 3 -> 1, 4 ->1 ...',
+                                 'int', 'optional', 1),
+                   ScriptOption2(['-m', '--metafile'],
+                                 'Supply a metafile to get tiltangles.',
+                                 'file', 'optional'),
+                   ScriptOption2(['-a', '--alignResultFile'],
+                                 'Supply an alignResultFile.',
+                                 'file', 'optional'),
+                   ScriptOption2(['--scaleFactorParticle'],
+                                 'Scale particles by this factor.',
+                                 'float', 'optional', 1.),
+                   ScriptOption2(['--particlePolishResultFile'],
+                                 'Supply a particle polish result file.',
+                                 'file', 'optional'),
+                   ScriptOption2(['--ctfCorrectionCenter'],
+                                 'What is the z-height of the reference center. Option not implemented currently.',
+                                 'float', 'optional'),
+                   ScriptOption2(['--specimenAngle'],
+                                 'Rotation around y axis of the specimen in the tomogram.',
+                                 'float', 'optional', .0),
+                   ScriptOption2(['--lowpassNy'],
+                                 'Fraction of nyquist for low-pass filter that is applied to projections after '
+                                 'binning.',
+                                 'float', 'optional', 0.9),
+                   ScriptOption2(['-n', '--numProcesses'],
+                                 'Number of processes to split the job over. In case of GPUs this will be overwritten '
+                                 'by the number of GPUs.',
+                                 'int', 'optional', 1),
+                   ScriptOption2(['-g', '--gpuID'],
+                                 'Which GPUs do you want to use? This can be a single gpu (0) or multiple (1,'
+                                 '3). Multiple GPUs is only implemented for subtomogram reconstruction.',
+                                 'string', 'optional')])
 
-                      options= [ScriptOption(['-t','--tomogram'], 'Reconstruct a tomogram. Specify name of tomogam here. You do not need a particle list for that!', arg=True, optional=True),
-                                ScriptOption(['-p','--particleList'], 'XML particle list.', arg=True, optional=True),
-                                ScriptOption(['--projectionList'], 'XML projection list.', arg=True, optional=True),
-                                ScriptOption(['--projectionDirectory'], 'Directory containing the projections.', arg=True, optional=True),
-                                ScriptOption(['-w','--applyWeighting'], 'If projections are not weighted, apply weighting before. If omited, no weighting.', arg=True, optional=True),
-                                ScriptOption(['-s','--size'], 'Size of particle cube / tomogram.', arg=True, optional=False),
-                                ScriptOption(['-b','--coordinateBinning'], 'Binning factor of coordinates. If particle coordinates are determined in binned volume (with respect to projections) this binning factor needs to be specified.', arg=True, optional=True),
-                                ScriptOption(['-o','--recOffset'], 'Cropping offset of the binned tomogram.', arg=True, optional=True),
-                                ScriptOption(['--projBinning'], 'Bin projections BEFORE reconstruction. 1 is no binning, 2 will merge two voxels to one, 3 -> 1, 4 ->1 ...', arg=True, optional=True),
-                                ScriptOption(['-m', '--metafile'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
-                                ScriptOption(['-n', '--numProcesses'], 'Supply a metafile to get tiltangles.', arg=True, optional=True),
-                                ScriptOption(['-a', '--alignResultFile'], 'Supply an alignResultFile.', arg=True,
-                                             optional=True),
-                                ScriptOption(['--scaleFactorParticle'], 'Scale particles by this factor.', arg=True,
-                                             optional=True),
-                                ScriptOption(['--particlePolishResultFile'], 'Supply a particle polish result file.',
-                                             arg=True, optional=True),
-                                ScriptOption(['--ctfCorrectionCenter'], 'What is the z-height of the reference center.',
-                                             arg=True, optional=True),
-                                ScriptOption(['--gpuID'], 'Which GPUs do you want to use?', arg=True, optional=True),
-                                ScriptOption(['--help'], 'Print this help.', arg=False, optional=True)])
-    
-    if len(sys.argv) == 1:
-        print(helper)
-        sys.exit()
-        
-    particleList = None
-    projectionDirectory = None
-    aw = False
-    
-    try:
-        tomogram, particleListXMLPath, projectionList, projectionDirectory, aw, size, coordinateBinning, \
-        recOffset, projBinning, metafile, numProcesses, alignResultFile, scaleFactorParticle, particlePolishResultFile,\
-        ctfcenter, gpuIDs,  help = \
-            parse_script_options(sys.argv[1:], helper)
-    
-    except Exception as e:
-        print(e)
-        sys.exit()
-   
-    if help:
-        print(helper)
-        sys.exit()
-   
-    size = [int(i) for i in size.split(",")]
-    if len(size) == 1:
-        tmp = size[0]
-        size.append(tmp)
-        size.append(tmp)
+    tomogram, particle_list_xml, projection_list_xml, projection_directory, projection_prefix, weighting, size, \
+    coordinate_binning, rec_offset, projection_binning, metafile, align_result_file, scale_factor_particle, \
+    particle_polish_file, ctf_center, specimen_angle, low_pass_ny, nprocs, gpuIDs = parse_script_options2(sys.argv[
+                                                                                                          1:], helper)
 
-    if projBinning:
-        projBinning = int(projBinning)
-    else:
-        projBinning = 1
-        
-    if coordinateBinning:
-        coordinateBinning = float(coordinateBinning)
-    else:
-        coordinateBinning = 1
+    # parse the gpuIDs and overwrite the nprocs if neccessary
+    gpuIDs = None if gpuIDs is None else list(map(int, gpuIDs.split(',')))
+    nprocs = len(gpuIDs) if not gpuIDs is None else nprocs
+    size = list(map(int, size.split(',')))
 
-    if not aw:
-        aw = 0
-    else:
-        aw = float(aw)
+    # check if tomogram output directory is viable
+    if tomogram is not None:
+        output_dir, tomogram_name = os.path.split(tomogram)
+        if output_dir != '' and not os.path.exists(output_dir):
+            print('Invalid output location for tomogram, exiting...')
+            sys.exit(0)
+        _, ext = os.path.splitext(tomogram_name)
+        if ext == '':
+            tomogram += '.mrc'
+        elif ext not in ['.mrc', '.em']:
+            print('Invalid output format for tomogram. Needs to be either .em or .mrc. Exiting...')
+            sys.exit(0)
+        # else everything is fine
 
-    if recOffset:
-        recOffset = [int(i) for i in recOffset.split(",")]
-    else:
-        recOffset = [0.,0.,0.]
-    
-    try:
-        numProcesses = int(numProcesses)
-    except:
-        numProcesses = 0
-        
-    projections = ProjectionList()
-    if checkFileExists(projectionList):
-        projections.fromXMLFile(projectionList)
-    elif checkDirExists(projectionDirectory):
-        projections.loadDirectory(projectionDirectory, metafile=metafile)
-    else:
-        raise RuntimeError('Neither projectionList existed nor the projectionDirectory you specified! Abort')
+    # initialize the projection list structure
+    projection_list = ProjectionList()
+    if projection_list_xml is not None:
+        projection_list.fromXMLFile(projection_list_xml)
+        print('projections loaded from xml')
+    elif projection_directory is not None:
 
-    import os
+        try:  # to load from directory
+            projection_list.loadDirectory(projection_directory, metafile=metafile,
+                                          prefix=('' if projection_prefix is None else projection_prefix))
+            print('projections loaded from directory')
+        except PyTomClassError:  # Exception raised only if no projections are found in dir
+            pass
 
-    if os.path.exists(os.path.join(projectionDirectory, 'alignmentResults.txt')):
-        alignResultFile = os.path.join(projectionDirectory, 'alignmentResults.txt')
+        if os.path.exists(os.path.join(projection_directory, 'alignmentResults.txt')):
+            align_result_file = os.path.join(projection_directory, 'alignmentResults.txt')
 
-    if alignResultFile is None:
-        alignResultFile = ''
+    if align_result_file is not None:
+        projection_list.load_alignment(align_result_file)
+        print('alignment parameters for projections loaded')
 
-    if particlePolishResultFile is None:
-        particlePolishResultFile = ''
-    else:
-        if not checkFileExists(particlePolishResultFile):
-            raise RuntimeError('particlePolishResultFile does not exist! Abort')
+    # check if the files are okay and that they are some tilt angles loaded
+    if not projection_list.ready_for_reconstruction():
+        print('Something went wrong in loading the projection list and the alignment parameters. Please check your '
+              'alignResultsFile.txt and the directory where the projections are stored. Exiting...')
+        sys.exit(0)
 
+    # start reconstruction of tomogram or subtomograms depending on script options
+    if tomogram is not None:
 
-    gpuIDs = None if gpuIDs is None else list(map(int,gpuIDs.split(',')))
-    numProcesses = len(gpuIDs) if not gpuIDs is None else numProcesses
+        if len(size) == 1:
+            size = size * 3
 
+        vol = projection_list.reconstructVolume(dims=size, reconstructionPosition=rec_offset,
+                                                binning=projection_binning, weighting=weighting,
+                                                specimen_angle=specimen_angle, low_pass_ny_fraction=low_pass_ny,
+                                                scale_factor=scale_factor_particle, num_procs=nprocs)
+        write(tomogram, vol)
 
-    if tomogram:
-        vol = projections.reconstructVolume( dims=size, reconstructionPosition=recOffset,
-            binning=projBinning, applyWeighting=aw)  # TODO alignmentresults file should also be passed here
-        vol.write(tomogram)
-        
-    else:
+    elif particle_list_xml is not None:
+
+        if len(size) > 1:
+            print('subtomogram reconstruction uses same cube size for each dimension, selecting x dim as cube size')
+        cube_size = size[0]
+
         # transform the cropping offset
-        try:
-            tmp = projections[0]
-            sx = tmp.getXSize()  # here should be the size of original projection!
-            sy = tmp.getYSize()
-        except:
-            from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS
-            from pytom.agnostic.io import read_size
-            from pytom.gui.guiFunctions import loadstar
+        sx, sy = projection_list[0].getXSize(), projection_list[0].getYSize()
 
-            lar = loadstar(alignResultFile, dtype=DATATYPE_ALIGNMENT_RESULTS)
-            sx,sy,sz = read_size(lar['FileName'][0])
+        # TODO is this still needed?
+        # from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS
+        # from pytom.agnostic.io import read_size
+        # from pytom.gui.guiFunctions import loadstar
+        #
+        # lar = loadstar(alignResultFile, dtype=DATATYPE_ALIGNMENT_RESULTS)
+        # sx,sy,sz = read_size(lar['FileName'][0])
+        #
+        # if abs((lar['InPlaneRotation'][0] % 180) - 90) < 45:
+        #     t = sx
+        #     sx = sy
+        #     sy = t
+        #     print('Inverted shape of images due to rotation axis being close to horizontal, '
+        #           'and the reconstruction having the rotation axis vertically.')
 
-            if abs((lar['InPlaneRotation'][0] % 180) - 90) < 45:
-                t = sx
-                sx = sy
-                sy = t
-                print('Inverted shape of images due to rotation axis being close to horizontal, and the reconstruction having the rotation axis vertically.')
-
-
-        # sx, sy = 1024, 1024
-        recOffset[0] = -sx/2 + recOffset[0]*coordinateBinning
-        recOffset[1] = -sy/2 + recOffset[1]*coordinateBinning
-        recOffset[2] = -sx/2 + recOffset[2]*coordinateBinning
-
-        scaleFactorParticle = 1 if scaleFactorParticle is None else float(scaleFactorParticle)
+        rec_offset[0] = -sx/2 + rec_offset[0] * coordinate_binning
+        rec_offset[1] = -sy/2 + rec_offset[1] * coordinate_binning
+        rec_offset[2] = -sx/2 + rec_offset[2] * coordinate_binning
 
         # set particle list in order to reconstruct subtomograms
-        particleList = ParticleList()
-
+        particle_list = ParticleList()
         try:
-            particleList.fromXMLFile(particleListXMLPath)
+            particle_list.fromXMLFile(particle_list_xml)
         except RuntimeError:
-            print('Error reading particleList XML file! Abort')
+            print('Error reading particleList XML file! Exiting...')
             sys.exit()
 
-        from pytom.basic.structures import PickPosition
-        for particle in particleList:
+        for particle in particle_list:
             pickPosition = particle.getPickPosition()
-            x = (pickPosition.getX()*coordinateBinning+ recOffset[0])
-            y = (pickPosition.getY()*coordinateBinning+ recOffset[1])
-            z = (pickPosition.getZ()*coordinateBinning+ recOffset[2])
+            x = (pickPosition.getX() * coordinate_binning + rec_offset[0])
+            y = (pickPosition.getY() * coordinate_binning + rec_offset[1])
+            z = (pickPosition.getZ() * coordinate_binning + rec_offset[2])
 
             # if abs(scaleFactorParticle-1) > 0.000001:
             #     x = x * float(scaleFactorParticle)
             #     y = y * float(scaleFactorParticle)
             #     z = z # * float(scaleFactorParticle)
 
-            particle.setPickPosition( PickPosition(x=x, y=y, z=z))
+            particle.setPickPosition(PickPosition(x=x, y=y, z=z))
 
-        #print(particlePolishResultFile)
+        projection_list.reconstructVolumes(particles=particle_list, cube_size=cube_size, binning=projection_binning,
+                                           weighting=weighting, low_pass_ny_fraction=low_pass_ny,
+                                           post_scale=scale_factor_particle, num_procs=nprocs, ctfcenter=ctf_center,
+                                           polishResultFile=particle_polish_file, show_progress_bar=True,
+                                           gpuIDs=gpuIDs)
 
-        projections.reconstructVolumes(particles=particleList, cubeSize=int(size[0]),
-                                       binning=projBinning, applyWeighting = aw,
-                                       showProgressBar = True,verbose=False,
-                                       preScale=projBinning,postScale=1, num_procs=numProcesses,
-                                       alignResultFile=alignResultFile, polishResultFile=particlePolishResultFile,
-                                       scaleFactorParticle=scaleFactorParticle, gpuIDs=gpuIDs)
-
-            
-
-
-
+    else:
+        print('No valid tomogram or particle list provided. Exiting...')
+        sys.exit(0)

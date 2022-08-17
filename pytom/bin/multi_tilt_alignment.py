@@ -114,109 +114,52 @@ if __name__ == '__main__':
     from multiprocessing import Process
     import time
 
-    if 1:
-        options = [ScriptOption(['--start'], 'Starting Index tomogram folder', arg=True, optional=False),
-                   ScriptOption(['--end'], 'Ending index tomogram folder', arg=True, optional=False),
-                   ScriptOption(['--numberProcesses'], 'Number of processes spawned by each process', arg=True,
-                                optional=False),
-                   ScriptOption(['--tiltSeriesName'],
-                                'Name tilt series - either prefix of sequential tilt series files expected as "tiltSeriesName_index.em/mrc"',
-                                arg=True, optional=False),
-                   ScriptOption(['--firstIndex'], 'Index of first projection.', arg=True, optional=True),
-                   ScriptOption(['--lastIndex'], 'Index of last projection.', arg=True, optional=True),
-                   ScriptOption(['--referenceIndex'], 'Index of reference projection used for alignment.', arg=True,
-                                optional=True),
-                   ScriptOption(['--markerFile'],
-                                'Name of EM markerfile or IMOD wimp File containing marker coordinates.', arg=True,
-                                optional=False),
-                   ScriptOption(['--projectionTargets'],
-                                'Relative or absolute path to the aligned projections that will be generated + file prefix. default: "align/myTilt"',
-                                arg=True, optional=False),
-                   ScriptOption(['--weightingType'], 'Type of weighting (-1 default r-weighting, 0 no weighting)',
-                                arg=True, optional=True),
-                   ScriptOption(['--tomogramFolder'], 'Folder in which tomogram_XXX is located', arg=True,
-                                optional=False),
-                   ScriptOption(['--fnames'], 'File with tomogram names.', arg=True, optional=False),
-                   ScriptOption(['--projIndices'], 'Use projection indices.', arg=False, optional=True),
-                   ScriptOption(['--expectedRotationAngle'], 'Use projection indices.', arg=True, optional=True),
-                   ScriptOption(['--help'], 'Help function.', arg=False, optional=True)
-                   ]
+    options = [ScriptOption(['--start'], 'Starting Index tomogram folder', arg=True, optional=False),
+               ScriptOption(['--end'], 'Ending index tomogram folder', arg=True, optional=False),
+               ScriptOption(['--numberProcesses'], 'Number of processes spawned by each process', arg=True,
+                            optional=True),
+               ScriptOption(['--tiltSeriesName'],
+                            'Name tilt series - either prefix of sequential tilt series files expected as "tiltSeriesName_index.em/mrc"',
+                            arg=True, optional=False),
+               ScriptOption(['--firstIndex'], 'Index of first projection.', arg=True, optional=True),
+               ScriptOption(['--lastIndex'], 'Index of last projection.', arg=True, optional=True),
+               ScriptOption(['--referenceIndex'], 'Index of reference projection used for alignment.', arg=True,
+                            optional=True),
+               ScriptOption(['--markerFile'],
+                            'Name of EM markerfile or IMOD wimp File containing marker coordinates.', arg=True,
+                            optional=True),
+               ScriptOption(['--projectionTargets'],
+                            'Relative or absolute path to the aligned projections that will be generated + file prefix. default: "align/myTilt"',
+                            arg=True, optional=False),
+               ScriptOption(['--weightingType'], 'Type of weighting (-1 default r-weighting, 0 no weighting)',
+                            arg=True, optional=True),
+               ScriptOption(['--tomogramFolder'], 'Folder in which tomogram_XXX is located', arg=True,
+                            optional=True),
+               ScriptOption(['--fnames'], 'File with tomogram names.', arg=True, optional=False),
+               ScriptOption(['--projIndices'], 'Use projection indices.', arg=False, optional=True),
+               ScriptOption(['--expectedRotationAngle'], 'Use projection indices.', arg=True, optional=True),
+               ScriptOption(['--help'], 'Help function.', arg=False, optional=True)
+               ]
 
-        helper = ScriptHelper(sys.argv[0].split('/')[-1],
-                              description='BATCHMODE: Align (and weight) projections taking each marker in markerfile as a reference, and save them in alignment/unweighted_unbinned_marker_XXX. \n',
-                              authors='Gijs van der Schot',
-                              options=options)
-
-        if len(sys.argv) == 1:
-            print(helper)
-            sys.exit()
-        if 1:
-            start, end, procs, tiltSeriesName, firstProj, lastProj, referenceIndex, markerFileName, projectionTargets, \
-            weightingType, tomogramfolder, fnames, projIndices, expectedRotationAngle, help = input = \
-                parse_script_options(sys.argv[1:], helper)
-        else:  # Exception as e:
-            sys.exit()
-
-        start = int(start)
-        end = int(end)
-        print(start, end)
-        tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstProj, lastProj, referenceIndex,
-                                  markerFileName,
-                                  projectionTargets, weightingType, tomogramfolder, fnames, projIndices=projIndices,
-                                  expectedRotationAngle=expectedRotationAngle)
-
-    '''
-    except:
-        options=[ScriptOption(['--start'],'Starting Index tomogram folder', arg=True,optional=False),
-                 ScriptOption(['--end'],'Ending index tomogram folder', arg=True,optional=False),
-                 ScriptOption(['--fnames'], 'File with tomogram names.', arg=True,optional=False),
-                 ScriptOption(['--binningTomogram'], 'Binning factor Tomogram from which particles are picked (1: no binning, 3: 3x3 pixels form one superpixel.', arg=True,optional=True),
-                 ScriptOption(['--binningSubtomograms'], 'File with tomogram names.', arg=True,optional=True),
-                 ScriptOption(['--offset'], 'Offset subtomograms', arg=True,optional=True),
-                 ScriptOption(['--size'], 'Size of subtomograms (always cubic).', arg=True,optional=True),
-                 ScriptOption(['--weightingType'], 'Weighting type: \n\t\t-1=WB,\n\t\t1=exact,\n\t\t0=none.', arg=True,optional=True),
-                 ScriptOption(['--help'],'Help function.',arg=False,optional=True)
-        ]
-
-        helper = ScriptHelper(sys.argv[0].split('/')[-1],
+    helper = ScriptHelper(sys.argv[0].split('/')[-1],
                           description='BATCHMODE: Align (and weight) projections taking each marker in markerfile as a reference, and save them in alignment/unweighted_unbinned_marker_XXX. \n',
                           authors='Gijs van der Schot',
-                          options = options)
+                          options=options)
 
-        if len(sys.argv) == 1:
-            print(helper)
-            sys.exit()
+    if len(sys.argv) == 1:
+        print(helper)
+        sys.exit()
+    if 1:
+        start, end, procs, tiltSeriesName, firstProj, lastProj, referenceIndex, markerFileName, projectionTargets, \
+        weightingType, tomogramfolder, fnames, projIndices, expectedRotationAngle, help = input = \
+            parse_script_options(sys.argv[1:], helper)
+    else:  # Exception as e:
+        sys.exit()
 
-
-        try:
-            start, end, fnames,binning_tomogram,binning_subtomograms,offset,size,weighting_type,help = parse_script_options(sys.argv[1:], helper)
-        except Exception as e:                                                                                                                                                                                    
-            print(sys.version_info)
-            sys.exit()
-
-        if help is True:
-            print(helper)
-            sys.exit()
-
-        start = int(start)
-        end = int(end)
-
-        fnames,folders = zip(*[lines.split() for lines in open(fnames).readlines()])
-
-        if binning_tomogram == None:
-            binning_tomogram = 1
-
-        if binning_subtomograms == None:
-            binning_subtomograms  = 1
-
-        if offset == None:
-            offset = '0,0,0'
-
-        if size == None:
-            size = 128
-
-        if weighting_type == None:
-            weighting_type = 0
-
-        extract_subtomograms(start,end,fnames,folders,binning_tomogram,binning_subtomograms,offset,size,weighting_type)
-    '''
+    start = int(start)
+    end = int(end)
+    print(start, end)
+    tiltalignment_all_markers(start, end, procs, tiltSeriesName, firstProj, lastProj, referenceIndex,
+                              markerFileName,
+                              projectionTargets, weightingType, tomogramfolder, fnames, projIndices=projIndices,
+                              expectedRotationAngle=expectedRotationAngle)
