@@ -81,7 +81,7 @@ For the versions available, see the [tags on this repository].
 
 * **Marten Chaillet**    - *PyTomGUI* *GPU* *MicrographModeller*
 * **Gijs van der Schot** - *PyTomGUI* *GPU*
-* **Ilja Gubins**        - *GPU*
+* **Ilja Gubins**        - *GPU* *MicrographModeller*
 * **Mihajlo Vanevic**    - *PyTomGUI*
 * **Thomas Hrabe**       - *PyTom* 
 * **Yuxiang Chen**       - *PyTom*
