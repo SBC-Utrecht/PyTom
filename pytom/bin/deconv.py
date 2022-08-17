@@ -61,5 +61,6 @@ if __name__ == '__main__':
                                 amplitude_contrast=amplitude_contrast, phaseflipped=phaseflipped,
                                 phase_shift=phaseshift)
 
+    # TODO use reduced fft
     deconv = xp.fft.ifftn(xp.fft.fftn(input) * xp.fft.ifftshift(filter)).real
     write(output_file, deconv)
