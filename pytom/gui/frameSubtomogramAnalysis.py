@@ -271,8 +271,9 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB)
         self.insert_label_line_push(parent, 'Particle List', mode + 'particlelist',initdir=self.pickpartdir,
                                     tooltip='Select the particle list.', mode='file', filetype='xml')
-        self.insert_label_line_push(parent, 'Folder with aligned tilt images', mode + 'AlignedTiltDir',
-                                    'Select the folder with the aligned tilt images.')
+        self.insert_label_line_push(parent, 'Folder with aligned results', mode + 'AlignedTiltDir',
+                                    'Select a folder with a alignmentResults.txt file, can be found in ['
+                                    'project]/03_Tomographic_Reconstruction/tomogram_[id]/alignment/[marker+angles]')
         self.insert_label_line_push(parent, 'Meta file with tilt angles', mode + 'MetaFile', mode='file',initdir=self.tomoanalysis,
                                     filetype='meta',
                                     tooltip='Select the corresponding metafile.')

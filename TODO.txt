@@ -1,6 +1,0 @@
-
-- attach alignment to Projection of ProjectionList
-- to_projection_stack is single function that reads alignment assigned to Projection
-- update voltools to take operation order
-- datatypes are stored in basic.datatypes and in gui.guiFunctions, which to use?
-
