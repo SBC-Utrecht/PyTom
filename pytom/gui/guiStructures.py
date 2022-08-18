@@ -3264,7 +3264,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.activateLine = 0
         self.angleLine = 0
         self.red_circle = 0
-
+        self.mask = None
 
         self.circles_left = []
         self.circles_cent = []
@@ -3452,33 +3452,63 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.widgets['maxScore'].valueChanged.connect(self.stateScoreChanged)
         
         self.insert_checkbox(prnt, 'apply_mask', cstep=1)
-        self.insert_label(prnt, text='Apply mask', cstep=1, alignment=Qt.AlignLeft)
-        self.insert_pushbutton(prnt,'Create', rstep=1, cstep=-1, action=self.gen_mask,params=['filenameMask'])
-
-        self.insert_lineedit(prnt,'filenameMask',  cstep=1, value='')
+        self.insert_label(prnt, text='Apply mask', cstep=0, rstep=1, alignment=Qt.AlignLeft)
+        self.insert_lineedit(prnt, 'filenameMask', cstep=1, rstep=-1, value='')
         params = ['file', self.widgets['filenameMask'], ['mrc', 'em'], False, self.parent().pickpartfolder]
-        self.insert_pushbutton(prnt,'Browse', action=self.browse, params=params, width=100)
-        self.widgets['filenameMask'].textChanged.connect(self.updateMask)
+        self.insert_pushbutton(prnt, 'Browse', action=self.browse, params=params, width=100)
+        # self.insert_pushbutton(prnt, 'Create', rstep=1, cstep=-1, action=self.gen_mask)
+        self.widgets['apply_mask'].stateChanged.connect(self.stateMaskChanged)
 
-    def updateMask(self):
-        fname = self.widgets['filenameMask'].text()
-        if fname.endswith('.em'):
-            from pytom.basic.files import read
-            from pytom_numpy import vol2npy
-            vol  = read(fname)
-            self.mask = copy.deepcopy( vol2npy(vol) )
-            self.mask = self.mask.T
-        elif self.title.endswith('mrc'):
-            self.mask = read_mrc(fname)
-
-        self.widgets['apply_mask'].setChecked(True)
-        if self.filetype == 'xml': 
-            self.load_xmlFile(self.FNAME)
-
-    def gen_mask(self, params):
+    def gen_mask(self):
         self.genmask = CreateMaskTM(self)
         self.genmask.show()
-        #self.widgets[params[0]].setText(fname)
+
+    def stateMaskChanged(self):
+        w = self.widgets['apply_mask']
+        fname = self.widgets['filenameMask'].text()
+
+        if w.isChecked():
+
+            if os.path.exists(fname) and os.path.splitext(fname)[1] in ['.mrc', '.em']:
+
+                # read as em or mrc file
+                if fname.endswith('.em'):
+                    from pytom.basic.files import read
+                    from pytom_numpy import vol2npy
+                    vol = read(fname)
+                    self.mask = copy.deepcopy(vol2npy(vol))
+                    self.mask = self.mask.T  # why transpose ?
+
+                elif self.title.endswith('mrc'):
+                    self.mask = read_mrc(fname)
+
+                if self.mask is not None:
+                    # check that the shape is the same as tomogram
+                    if not all([s1 == s2 for s1, s2 in zip(self.mask.shape, self.vol.shape)]):
+                        self.mask = None
+
+                        # give user warning box
+                        msg = QMessageBox()
+                        msg.setText("Mask dimensions are not matching with tomogram")
+                        msg.setStandardButtons(QMessageBox.Ok)
+                        msg.exec()
+
+                    else:  # make mask binary if not already binary
+                        self.mask = (self.mask - self.mask.min()) / (self.mask.max() - self.mask.min())
+                        self.mask = ((self.mask >= 0.5) * 1).astype(np.int8)
+
+            else:
+                # give user warning box
+                msg = QMessageBox()
+                msg.setText("Invalid tomogram mask file")
+                msg.setStandardButtons(QMessageBox.Ok)
+                msg.exec()
+
+        else:
+            self.mask = None
+
+        if os.path.exists(self.xmlfile):
+            self.load_xmlFile(self.xmlfile)
 
     def open_load(self, q):
         if q.text() == 'Save Particle List': self.save_particleList()
@@ -3673,7 +3703,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         else:
             print('No file written.')
 
-    def load_xmlFile(self,filename):
+    def load_xmlFile(self, filename):
         from lxml import etree
         self.FNAME = filename
         xmlObj = etree.parse(filename)
@@ -3686,27 +3716,21 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         for p in particles:
             try:    score = float( p.xpath('Score')[0].get('Value') )
             except: score = 0.5
-            
 
             if score <= self.max_score and score >= self.min_score:
                 
-                x,y,z = map(float, (p.xpath('PickPosition')[0].get('X'), p.xpath('PickPosition')[0].get('Y'), p.xpath('PickPosition')[0].get('Z')))
+                x,y,z = map(float, (p.xpath('PickPosition')[0].get('X'),
+                                    p.xpath('PickPosition')[0].get('Y'),
+                                    p.xpath('PickPosition')[0].get('Z')))
 
-
-                include = True
-                #if self.mask[int(x),int(y),int(z)] or not self.widgets['apply_mask'].isChecked(): include =True
-                #else: include = False
-                if not include: continue
+                if self.mask is not None:
+                    if not self.mask[int(x), int(y), int(z)]:
+                        continue
 
                 if abs(dx/2-x) > dx/2 or abs(dy/2-y) > dy/2 or abs(dz/2-z) > dz/2 :
                     print('particle not added: ', x,y,z, self.vol.shape)
                     continue
 
-                radius = self.radius
-                if abs(z - self.slice) < self.radius:
-                    radius = sqrt(self.radius ** 2 - (z - self.slice) ** 2)
-                    #self.add_points(self.pos, int(round(x)), int(round(y)), int(round(z)), score, radius, score=score)
-                #if z < 5 or y < 5 or x < 5: continue
                 self.particleList.append([int(round(x)), int(round(y)), int(round(z)), score])
 
         if len(self.particleList): self.update_circles()
@@ -3937,7 +3961,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             elif self.title.split('.')[-1] in ('mrc', 'mrcs', 'rec', 'st', 'map'):
                 self.vol = read_mrc(self.title)
 
-            self.mask = numpy.ones_like(self.vol)
+            # not really necessary...
             #self.vol[self.vol < -4.] = -4.
             self.backup = self.vol.copy()
             self.origin = self.vol.copy()
@@ -7240,7 +7264,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
             elif self.title.split('.')[-1] in ('mrc', 'mrcs', 'rec', 'st', 'map'):
                 self.vol = read_mrc(self.title)
 
-            self.mask = numpy.ones_like(self.vol)
+            # self.mask = numpy.ones_like(self.vol)
             # self.vol[self.vol < -4.] = -4.
             self.backup = self.vol.copy()
 
