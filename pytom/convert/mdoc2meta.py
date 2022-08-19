@@ -1,6 +1,5 @@
 #!/usr/bin/env pytom
 import matplotlib
-import matplotlib.backends.backend_qt5agg
 
 try:
     matplotlib.use('Qt5Agg')

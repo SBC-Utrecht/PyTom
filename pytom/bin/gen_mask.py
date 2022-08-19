@@ -9,6 +9,7 @@ from scipy.ndimage.morphology import binary_fill_holes
 from scipy.ndimage import label
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage import median_filter
+import numpy as np
 
 
 def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2, maskD=None):
@@ -26,7 +27,7 @@ def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2, maskD=Non
     @:return return mask
     @:rtype ndarray of float32'''
 
-    mask = zeros_like(data, dtype=int)
+    mask = np.zeros_like(data, dtype=int)
     print(data.std(), num_stds)
     mask[data < data.mean() - float(num_stds) * data.std()] = 1
     mask = remove_small_objects(mask.astype(bool))
@@ -57,7 +58,7 @@ def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2, maskD=Non
     if outname is None:
         return mask
     else:
-        write(outname, mask.astype(float32))
+        write(outname, mask.astype(np.float32))
         return mask
 
 

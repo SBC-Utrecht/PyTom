@@ -1693,12 +1693,6 @@ class NonUniformFFT():
         Private: gridding by the Sparse Matrix-Vector Multiplication
         However, serial atomic add is far too slow and inaccurate.
         """
-        import matplotlib
-        try:
-            matplotlib.use('Qt5Agg')
-        except:
-            pass
-        from pylab import imshow, show, plot
 
         k   = xp.zeros(self.multi_Kd, dtype=xp.complex64)
         res = xp.zeros(self.multi_Kd, dtype=xp.complex64) # array which saves the residue of two sum

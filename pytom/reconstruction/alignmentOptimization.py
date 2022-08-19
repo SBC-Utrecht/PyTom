@@ -299,7 +299,7 @@ class FiducialLessAlignment():
 
         nccVal = nxcc((self.maskWBP*self.refImage)[sx-1:ex-1,sy-1:ey-1], (self.maskWBP*(self.reconstruction.sum(axis=2)+rec.sum(axis=2)))[sx:ex,sy:ey], volumeIsNormalized=False)
 
-        if show and 1:
+        if show:
             print(params)
 
             import matplotlib
@@ -327,7 +327,6 @@ class FiducialLessAlignment():
         import matplotlib
         try: matplotlib.use('Qt5Agg')
         except:pass
-        from pylab import imshow, show, subplots
         import sys, os, re, subprocess
         from scipy import misc
         import numpy as np

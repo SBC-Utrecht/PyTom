@@ -4,13 +4,6 @@ Created on Jan 27, 2010
 @author: Thomas Hrabe, FF
 '''
 analytWedge=False
-import matplotlib
-
-try:
-    matplotlib.use('Qt5Agg')
-except:
-    pass
-from pylab import imshow, show
 
 from pytom.gpu.initialize import xp, device
 
