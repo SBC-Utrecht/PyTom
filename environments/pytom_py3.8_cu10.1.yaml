@@ -38,4 +38,5 @@ dependencies:
   - scikit-image=0.18.1
   - scipy=1.7.1
   - swig=3.0.12
+  - tqdm=4.62.1
   - joblib=1.0.1
