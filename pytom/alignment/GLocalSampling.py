@@ -31,7 +31,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         from pytom.angles.angleFnc import differenceAngleOfTwoRotations
         from pytom.agnostic.io import write, read_size
 
-        filetype = 'mrc'
+        filetype = 'em'
 
     else:
         from pytom.alignment.preprocessing import Preprocessing
@@ -41,7 +41,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         from time import time
         from pytom.angles.angleFnc import differenceAngleOfTwoRotations
 
-        filetype='mrc'
+        filetype = 'em'
 
     assert isinstance(object=alignmentJob, class_or_type_or_tuple=GLocalSamplingJob), \
         "mainAlignmentLoop: alignmentJob must be of type GLocalSamplingJob"

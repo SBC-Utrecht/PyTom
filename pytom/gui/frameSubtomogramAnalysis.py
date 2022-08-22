@@ -286,9 +286,10 @@ class SubtomoAnalysis(GuiTabWidget):
                                   'the particles are selected.',
                                   minimum=1, stepsize=1, value=8)
 
-        self.insert_label_spinbox(parent, mode + 'WeightingFactor', 'Apply Weighting (0/1)',
-                                  'Sets the weighting scheme applied to the tilt images.\n' +
-                                  '0: no weighting.\n1: ramp filter.', minimum=-5, maximum=5, stepsize=1, value=0)
+        self.insert_label_spinbox(parent, mode + 'WeightingFactor', 'Apply Weighting (-1,0,1)',
+                                  'Sets the weighting scheme applied to the tilt images, -1 is recommended. \n(-1 = '
+                                  'ramp, 0 = no weighting, 1 = exact weighting)',
+                                  minimum=-1, maximum=1, stepsize=1, value=-1)
 
         self.insert_label_spinbox(parent, mode + 'SizeSubtomos', 'Size subtomograms.',
                                   'Sets the size of the subtomograms.',

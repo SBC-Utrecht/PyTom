@@ -3326,7 +3326,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         self.centimage.scene().sigMouseMoved.connect(self.updateLabel)
 
-
         self.bottomimage.addItem(self.lineB)
         self.leftimage.addItem(self.lineL)
 
@@ -3571,7 +3570,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         filetype = 'txt'
         initdir = self.parent().pickpartfolder
 
-        filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir, "PyTom ParticleList(*.xml);; Coordinate File (*.txt)")[0])
+        filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir,
+                                                   "PyTom ParticleList(*.xml);; Coordinate File (*.txt)")[0])
         if not filename: return
 
         if filename.endswith('.txt'):
@@ -3667,31 +3667,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 plNew.append(particle)
                 id += 1
 
-
-        '''
-        tree = et.parse(self.xmlfile)
-
-
-
-
-        for particle in tree.xpath("Particle"):
-            remove = True
-
-            position = []
-
-            for tag in ('X', 'Y', 'Z'):
-                position.append(float(particle.xpath('PickPosition')[0].get(tag)))
-
-            score = float(particle.xpath('Score')[0].get('Value'))
-            x, y, z = position
-
-            for cx, cy, cz, s in self.particleList:
-                if abs(x - cx) < 1 and abs(y - cy) < 1 and abs(z - cz) < 1 and score <= self.max_score and score >= self.min_score:
-                    remove = False
-                    break
-            if remove:
-                self.remove_element(particle)
-        '''
         fname = str(QFileDialog.getSaveFileName(self, 'Save particle list.', self.xmlfile, filter='*.xml')[0])
         if not fname.endswith('.xml'): fname += '.xml'
         if fname:
@@ -3714,8 +3689,10 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         QApplication.processEvents()
         dz, dy, dx = self.vol.shape
         for p in particles:
-            try:    score = float( p.xpath('Score')[0].get('Value') )
-            except: score = 0.5
+            try:
+                score = float( p.xpath('Score')[0].get('Value') )
+            except:
+                score = 0.5
 
             if score <= self.max_score and score >= self.min_score:
                 
@@ -3733,7 +3710,9 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
                 self.particleList.append([int(round(x)), int(round(y)), int(round(z)), score])
 
-        if len(self.particleList): self.update_circles()
+        # TODO first clear the circles ?
+        if len(self.particleList):
+            self.update_circles()
 
         self.widgets['numSelected'].setText(str(len(self.particleList)))
         self.replot()
@@ -3776,19 +3755,11 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
     def sizeChanged(self):
         a = self.widgets['size_selection: '].text()
-        if not a: return
 
-
-        #plist = copy.deepcopy(self.particleList)
-        #self.remove_all(keepPL=True)
+        if not a:
+            return
 
         self.radius = int(self.widgets['size_selection: '].text()) / 2
-
-
-        # for nn, (x,y,z,s) in enumerate(plist):
-        #     add= True
-        #     if self.xmlfile and len(self.particleList) > 100: add=False
-        #     self.add_points(QPoint(0,0), x, y, z, s, self.radius, add=add, score=s)
 
         self.update_circles()
 
@@ -3897,14 +3868,9 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
     def add_points(self, pos, cx, cy, cz, cs, radius, add=False, score=0.):
 
-
-
-        if 1:# abs(cz - self.slice) < self.radius:
-            pos.setX(cx - radius)
-            pos.setY(cy - radius)
-            self.circles_cent += [circle(pos, size=(radius) * 2)]
-            #self.centimage.addItem(self.circles_cent[-1])
-
+        pos.setX(cx - radius)
+        pos.setY(cy - radius)
+        self.circles_cent += [circle(pos, size=(radius) * 2)]
 
         if add:
             pos.setX(cx - self.radius)
@@ -3919,28 +3885,12 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
     def remove_point(self, n, z, from_particleList=True):
         if from_particleList:
-            self.particleList = self.particleList[:n] + self.particleList[n + 1:]
-
-        # if abs(z - self.slice) <= self.radius:
-        #     self.centimage.removeItem(self.circles_cent[n])
-        #
-        # self.circles_cent = self.circles_cent[:n] + self.circles_cent[n + 1:]
-        #
-        # self.leftimage.removeItem(self.circles_left[n])
-        # self.circles_left = self.circles_left[:n] + self.circles_left[n + 1:]
-        #
-        # self.bottomimage.removeItem(self.circles_bottom[n])
-        #
-        # self.circles_bottom = self.circles_bottom[:n] + self.circles_bottom[n + 1:]
+            self.particleList.pop(n)
 
     def remove_all(self, keepPL=False):
         [self.centimage.removeItem(child) for child in self.circles_cent]
         [self.bottomimage.removeItem(child) for child in self.circles_bottom]
         [self.leftimage.removeItem(child) for child in self.circles_left]
-        #[self.leftimage.removeItem(child) for child in self.leftimage.allChildren() if type(child) == MyCircleOverlay]
-        #[self.bottomimage.removeItem(child) for child in self.bottomimage.allChildren() if type(child) == MyCircleOverlay]
-        #[self.centimage.removeItem(child) for child in self.centimage.allChildren() if type(child) == MyCircleOverlay]
-
         self.circles_left = []
         self.circles_cent = []
         self.circles_bottom = []
@@ -4025,55 +3975,56 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         import time
         s = time.time()
         plist = copy.deepcopy(self.particleList)
-        #self.remove_all(keepPL=True)
+
         if type(self.red_circle) == MyCircleOverlay:
             self.centimage.removeItem(self.red_circle)
             self.red_circle = 0
-
-        #self.centimage.clear()
-
 
         nn = 0
         added = 0
         num_circles = len(self.circles_cent)
         for n, (cx, cy, cz, cs) in enumerate(plist):
-            #t = time.time()
+
             radius = self.radius
-            if n%100 == 0: print(n)
+
+            if n % 100 == 0:
+                print(n)
+
+            # this check if particle n has a circle that should be plotted in this slice
             if abs(cz - self.slice) >= self.radius:
-                #print(radius, cz, self.slice)
                 continue
 
+            # if it should be plotted, calculate radius of this slice of the sphere
             if abs(cz - self.slice) < self.radius:
                 radius = sqrt(self.radius ** 2 - (cz - self.slice)**2)
 
+            # if we have a particle list larger than 100 we should not add to side views to save time
+            # but why do we need to update this while scrolling, could be set immediately
             if self.xmlfile and len(plist) > 100:
                 add = False
             else:
                 add = True
 
+            # if nn is smaller than number of circles, update one of the circles
             if nn < num_circles:
                 self.circles_cent[nn].setPos(cx-radius, cy-radius, update=False)
                 self.circles_cent[nn].setSize(radius*2)
-            else:
+            else: # else add a new circle
                 self.add_points(self.pos, cx, cy, cz, cs, radius, add=add)
                 added += 1
-            #print(f'added point {nn}: {(time.time()-t)*1000:.2f}')
+
+            # nn counts if the particle sphere should be displayed this slice
             nn += 1
 
         self.centimage.addItems(self.circles_cent[-added:])
 
         remove= 0
         if nn < num_circles:
-            #remove = self.remove if self.remove < num_circles-nn-1
-            #[self.centimage.removeItem(child) for child in self.circles_cent[nn:]]
-            #self.circles_cent = self.circles_cent[:nn]
             for circle in self.circles_cent[nn:]:
                 circle.setSize(0.001)
 
         print(f'added {added} points: {(time.time()-s)*1000:.2f}')
         print(f'removed {remove} points')
-        #self.slice += update
 
     def adjustZLimits(self):
         self.replot_all()
@@ -4112,8 +4063,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.rgnbott.other = self.rgnleft
             self.leftimage.addItem(self.rgnleft)
             self.bottomimage.addItem(self.rgnbott)
-
-
 
         except Exception as e:
             print('\n\n\n', e)
