@@ -1710,29 +1710,15 @@ class CreateFSCMaskFile(QMainWindow, CommonFunctions):
 
 
 class MyCircleOverlay(pg.EllipseROI):
-    def __init__(self, pos, size, label='', **args):
+    def __init__(self, pos, size, **args):
         self.path = None
         pg.ROI.__init__(self, pos, size, **args)
         self.aspectLocked = True
-        colorsHEX = ['00ffff', 'f5f5dc', '0000ff', 'a52a2a', '7fff00', 'd2691e', 'daa520', 'ff7f50', '00ffff',
-                     'dc143c', '00008b', '006400', '7fffd4', 'ff00ff', 'ffd700', '008000', '4b0082', 'f0e68c', 'add8e6',
-                     '90ee90', 'ff00ff', '800000', '808000', 'ffa500', 'ff4500', 'da70d6', 'ffc0cb', '800080', 'dda0dd',
-                     'fa8072', 'fa8072', '008080', 'ffff00', '40e0d0', '9acd32',]*15
-
-        html = '<div style="text-align: center"><span style="color: #{}; font-size: 20pt;">{}</span></div>'
-
-        if label:
-            self.label = QtGui.QGraphicsTextItem(label, self)
-            #for d in dir(self.label): print (d)
-            self.label.setHtml(html.format(colorsHEX[int(label)], int(label)))
-            self.label.setPos(QtCore.QPoint( self.boundingRect().center().x() - (self.label.boundingRect().width()/2)*0,
-                                             self.state['size'][1]/1.5 ))
-            #self.label = pg.TextItem(text=label,anchor=(),angle=180)
 
 
-def circle(pos, size = 2, label='',color=Qt.blue, pensize=16):
+def circle(pos, size=2, color=Qt.blue, pensize=16):
     pensize = 0.02*40./pensize
-    return MyCircleOverlay(pos=pos, pen=QtGui.QPen(color, pensize), size=size, movable=False, label=label)
+    return MyCircleOverlay(pos=pos, size=size, pen=QtGui.QPen(color, pensize), movable=False)
 
 
 class SimpleTable(QMainWindow, CommonFunctions):
@@ -3259,6 +3245,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.max_score = 1.
         self.min_score = 0.
         self.xmlfile = ''
+        self.txtfile = ''
         self.filetype = 'txt'
         self.activate = 0
         self.activateLine = 0
@@ -3359,7 +3346,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
             elif self.slice+increment < self.vol.shape[0] and self.slice+increment > -1:
                 self.slice += increment
-                self.update_circles(increment)
+                self.update_circles()
                 self.replot()
         except Exception as e:
             print(e)
@@ -3506,8 +3493,12 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         else:
             self.mask = None
 
-        if os.path.exists(self.xmlfile):
-            self.load_xmlFile(self.xmlfile)
+        if self.filetype == 'txt':
+            if os.path.exists(self.txtfile):
+                self.load_txtFile(self.txtfile)
+        elif self.filetype == 'xml':
+            if os.path.exists(self.xmlfile):
+                self.load_xmlFile(self.xmlfile)
 
     def open_load(self, q):
         if q.text() == 'Save Particle List': self.save_particleList()
@@ -3567,7 +3558,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 out.write(outtext)
 
     def load_particleList(self):
-        filetype = 'txt'
         initdir = self.parent().pickpartfolder
 
         filename = str(QFileDialog.getOpenFileName(self, 'Open file', initdir,
@@ -3577,6 +3567,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         if filename.endswith('.txt'):
             self.filetype = 'txt'
             self.load_txtFile(filename)
+            self.txtfile = filename
 
         elif filename.endswith('.xml'):
             self.filetype = 'xml'
@@ -3679,14 +3670,13 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             print('No file written.')
 
     def load_xmlFile(self, filename):
-        from lxml import etree
-        self.FNAME = filename
-        xmlObj = etree.parse(filename)
+
+        self.remove_all()
+
+        xmlObj = et.parse(filename)
         particles = xmlObj.xpath('Particle')
 
-        self.particleList = []
         self.slice = int(self.vol.shape[0] / 2)
-        QApplication.processEvents()
         dz, dy, dx = self.vol.shape
         for p in particles:
             try:
@@ -3694,7 +3684,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             except:
                 score = 0.5
 
-            if score <= self.max_score and score >= self.min_score:
+            if self.max_score >= score >= self.min_score:
                 
                 x,y,z = map(float, (p.xpath('PickPosition')[0].get('X'),
                                     p.xpath('PickPosition')[0].get('Y'),
@@ -3704,35 +3694,56 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                     if not self.mask[int(x), int(y), int(z)]:
                         continue
 
-                if abs(dx/2-x) > dx/2 or abs(dy/2-y) > dy/2 or abs(dz/2-z) > dz/2 :
-                    print('particle not added: ', x,y,z, self.vol.shape)
+                if abs(dx/2-x) > dx/2 or abs(dy/2-y) > dy/2 or abs(dz/2-z) > dz/2:
+                    print(f'particle at ({x},{y},{z}) not added')
                     continue
 
                 self.particleList.append([int(round(x)), int(round(y)), int(round(z)), score])
 
-        # TODO first clear the circles ?
+        z_sorted_ids = sorted(range(len(self.particleList)), key=lambda k: self.particleList[k][2])
+
+        # initialize the circles
         if len(self.particleList):
             self.update_circles()
 
         self.widgets['numSelected'].setText(str(len(self.particleList)))
         self.replot()
-        QApplication.processEvents()
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
 
     def load_txtFile(self, filename):
-        particlePos = [map(float, line.split()) for line in open(filename).readlines() if line != '' and not '#' in line]
+
+        self.remove_all()
+
+        particlePos = [map(float, line.split()) for line in open(filename).readlines()
+                       if line != '' and not '#' in line]
 
         self.particleList = []
-        self.slice = int(self.vol.shape[0]/2)
+
+        self.slice = int(self.vol.shape[0] / 2)
+        dz, dy, dx = self.vol.shape
 
         for x,y,z in particlePos:
-            self.particleList.append([int(round(x)), int(round(y)), int(round(z)), self.radius])
 
-        if len(self.particleList): self.update_circles()
+            if self.mask is not None:
+                if not self.mask[int(x), int(y), int(z)]:
+                    continue
+
+            if abs(dx / 2 - x) > dx / 2 or abs(dy / 2 - y) > dy / 2 or abs(dz / 2 - z) > dz / 2:
+                print(f'particle at ({x},{y},{z}) not added')
+                continue
+
+            self.particleList.append([int(round(x)), int(round(y)), int(round(z)), self.radius])
+        #     self.z_sorted.append(int(round(z)))
+        #
+        # z_sorted = sorted(self.sorted)
+        # z_sorted_ids = sorted(range(len(self.particleList)), key=lambda k: self.particleList[k][2])
+
+        if len(self.particleList):
+            self.update_circles()
+
+        self.widgets['numSelected'].setText(str(len(self.particleList)))
         self.replot()
         self.subtomo_plots.reset_display_subtomograms(self.particleList, self.vol)
-
-        pass
 
     def empty(self):
         pass
@@ -3769,8 +3780,12 @@ class ParticlePicker(QMainWindow, CommonFunctions):
     def stateScoreChanged(self):
         self.min_score = float(self.widgets['minScore'].value())
         self.max_score = float(self.widgets['maxScore'].value())
-        if self.xmlfile and os.path.exists(self.xmlfile):
-            self.load_xmlFile(self.xmlfile)
+        if self.filetype == 'txt':
+            if os.path.exists(self.txtfile):
+                self.load_txtFile(self.txtfile)
+        elif self.filetype == 'xml':
+            if os.path.exists(self.xmlfile):
+                self.load_xmlFile(self.xmlfile)
 
     def replot_all(self):
         self.replot()
@@ -3971,10 +3986,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         self.angleLine = (angle-used_angle)*-1
 
-    def update_circles(self, update=0):
-        import time
-        s = time.time()
-        plist = copy.deepcopy(self.particleList)
+    def update_circles(self):
 
         if type(self.red_circle) == MyCircleOverlay:
             self.centimage.removeItem(self.red_circle)
@@ -3983,12 +3995,17 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         nn = 0
         added = 0
         num_circles = len(self.circles_cent)
-        for n, (cx, cy, cz, cs) in enumerate(plist):
+
+        # if the points were ordered by z height, the loop could be faster
+        # also coordinates could be stored in numpy array to speed up.
+        # might also be that the ROI init from pyqtgraph is the bottleneck, because the
+        # loop itself should be relatively fast for ~500 particles.
+        for n, (cx, cy, cz, cs) in enumerate(self.particleList):
 
             radius = self.radius
 
-            if n % 100 == 0:
-                print(n)
+            # if n % 100 == 0:
+            #     print(n)
 
             # this check if particle n has a circle that should be plotted in this slice
             if abs(cz - self.slice) >= self.radius:
@@ -4000,7 +4017,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
             # if we have a particle list larger than 100 we should not add to side views to save time
             # but why do we need to update this while scrolling, could be set immediately
-            if self.xmlfile and len(plist) > 100:
+            if self.xmlfile and len(self.particleList) > 100:
                 add = False
             else:
                 add = True
@@ -4009,22 +4026,21 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             if nn < num_circles:
                 self.circles_cent[nn].setPos(cx-radius, cy-radius, update=False)
                 self.circles_cent[nn].setSize(radius*2)
-            else: # else add a new circle
+            else:  # else add a new circle
                 self.add_points(self.pos, cx, cy, cz, cs, radius, add=add)
                 added += 1
 
             # nn counts if the particle sphere should be displayed this slice
             nn += 1
 
+        # only add the new circles to the image
         self.centimage.addItems(self.circles_cent[-added:])
 
-        remove= 0
+        # remove = 0
         if nn < num_circles:
+            # is it faster to remove the circles ?
             for circle in self.circles_cent[nn:]:
                 circle.setSize(0.001)
-
-        print(f'added {added} points: {(time.time()-s)*1000:.2f}')
-        print(f'removed {remove} points')
 
     def adjustZLimits(self):
         self.replot_all()
@@ -5035,7 +5051,6 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         xmax = min(tomo.shape[2], x + int(self.size_subtomo / 2))
         ymin = max(0, y - int(self.size_subtomo / 2))
         ymax = min(tomo.shape[1], y + int(self.size_subtomo / 2))
-        print(position[2], xmin, xmax, ymin, ymax)
         subtomo = zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
         subtomo[:xmax-xmin,:ymax-ymin] = (tomo[position[2]-4:position[2]+4].sum(axis=0).T)[xmin:xmax, ymin:ymax]
 
