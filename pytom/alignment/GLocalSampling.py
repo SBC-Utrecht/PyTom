@@ -136,7 +136,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             # write average from all particle with correctly rotated odd average
             averageAllVolume = evenAverage.getVolume() + oddAverage.getVolume()
             if 'gpu' in device:
-                write(alignmentJob.destination+"/"+str(ii)+'-All.mrc', averageAllVolume)
+                write(alignmentJob.destination+"/"+str(ii)+f'-All.{filetype}', averageAllVolume)
             else:
                 averageAllVolume.write(alignmentJob.destination+"/"+str(ii)+f'-All.{filetype}')
 
@@ -374,14 +374,14 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             for name in ('Even', 'Odd'):
                 if name == 'Even':
                     evenAverage = averageParallel(particleList=even,
-                                              averageName=alignmentJob.destination + "/average-Final-Even.mrc",
+                                              averageName=alignmentJob.destination + f"/average-Final-Even.{filetype}",
                                               showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                               weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                               setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
                     del plansEven
                 else:
                     oddAverage = averageParallel(particleList=odd,
-                                             averageName=alignmentJob.destination + "/average-Final-Odd.mrc",
+                                             averageName=alignmentJob.destination + f"/average-Final-Odd.{filtype}",
                                              showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                              weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                              setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
@@ -399,7 +399,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                 #         weight += xp.array(plan.sumWeights.get(),dtype=xp.float32)
                 #     del plansOdd
                 #
-                fname = f"{alignmentJob.destination}/average-Final-{name}.mrc"
+                fname = f"{alignmentJob.destination}/average-Final-{name}.{filetype}"
                 # # fname2 = f"{alignmentJob.destination}/average-FinalWeight-{name}.em"
                 # # fname3 = f"{alignmentJob.destination}/average-FinalSum-{name}.em"
                 # # write(fname3, average)
@@ -437,7 +437,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                 oddAverage = cvols['Odd']
 
             final_average = averageParallel(particleList=alignmentJob.particleList,
-                                            averageName=alignmentJob.destination + "/average-Final.mrc",
+                                            averageName=alignmentJob.destination + f"/average-Final.{filetype}",
                                             showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                             weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                             setParticleNodesRatio=setParticleNodesRatio,gpuIDs=alignmentJob.gpu)
@@ -448,7 +448,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             fsc = FSC(volume1=cvols['Even'], volume2=oddAverage,
                       numberBands=int(cvols['Even'].shape[0]// 2))
 
-            # resolution hokus pokus -> estimate fsc for all particles
+            # resolution hokus pokus -> estimate fsc for all particles (this is what RELION does)
             for (ii, fscel) in enumerate(fsc):
                 fsc[ii] = 2. * fscel / (1. + fscel)
 
@@ -467,7 +467,8 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             # filter final average according to resolution
             from pytom.agnostic.filter import bandpass as lowpassFilter
             filtered_final = lowpassFilter(final_average.getVolume(), high=resolutionBand, sigma=resolutionBand / 10)
-            write(alignmentJob.destination + f"/average-FinalFiltered_{resolutionAngstrom:.2f}.mrc", filtered_final)
+            write(alignmentJob.destination + f"/average-FinalFiltered_{resolutionAngstrom:.2f}.{filetype}",
+                  filtered_final)
             # clean up temporary files
             from os import remove
             remove(alignmentJob.destination + "/" + 'CurrentRotations.xml')
@@ -598,7 +599,7 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     use_device=f'gpu:{gpuID}'
     print('devices: ', use_device)
     plan = GLocalAlignmentPlan(pl[0], reference, mask, wedge, maskIsSphere=True, cp=xp, device=use_device,
-                               interpolation='filt_bspline', binning=binning)
+                               interpolation='linear', binning=binning)
 
     try:
         preprocessing = preprocessing.convert2numpy()

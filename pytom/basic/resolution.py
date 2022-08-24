@@ -105,7 +105,7 @@ def getResolutionBandFromFSC(fsc, criterion=0.143):
     """
     crossed = False
     resband = len(fsc)-1
-    for (ii,fscval) in enumerate(fsc):
+    for (ii,fscval) in enumerate(fsc[:-4]):
         if fscval < criterion and crossed==False:
             resband = ii
             crossed = True

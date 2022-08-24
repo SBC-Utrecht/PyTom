@@ -12,12 +12,13 @@ class pytom_NumpyTest(unittest.TestCase):
         self.SX, self.SY, self.SZ = 100, 100, 90
         self.SZ_uneven = 91
         self.SX_uneven = 101
+        self.SY_uneven = 99
+        self.smooth = 3
 
-    def wedge_pytom_vs_numpy(self):
+    def wedge_pytom_vs_numpy(self, w1=30., w2=30.):
         from pytom.basic.structures import Wedge
         from pytom.agnostic.filter import create_wedge
         from pytom_numpy import vol2npy
-        w1, w2 = 30., 30.
         w = Wedge([w1, w2])
         smooth = w._wedgeObject._smooth
 
@@ -28,22 +29,35 @@ class pytom_NumpyTest(unittest.TestCase):
         wedge_numpy = create_wedge(w1, w2, SX // 2, SX, SY, SZ, smooth).astype(np.float32)
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "now there is a big issue")
 
-        # here there is again a problem with uneven z height
+        # test uneven X
         SX, SY, SZ = self.SX_uneven, self.SY, self.SZ
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = create_wedge(w1, w2, SX // 2, SX, SY, SZ, smooth).astype(np.float32)
-        self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "same, this was also working ")
+        self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "failing with uneven X")
 
-        #
-        SX, SY, SZ = self.SX, self.SY, self.SZ_uneven
+        # test uneven Y
+        SX, SY, SZ = self.SX, self.SY_uneven, self.SZ
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = create_wedge(w1, w2, SX // 2, SX, SY, SZ, smooth).astype(np.float32)
-        self.assertTrue((wedge_pytom != wedge_numpy).sum() == 7843, "something changed with this know issue")
+        self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "failing with uneven Y")
+
+        # test uneven Z
+        run = False
+        if run:
+            SX, SY, SZ = self.SX, self.SY, self.SZ_uneven
+            temp = w.returnWedgeVolume(SX, SY, SZ)
+            wedge_pytom = vol2npy(temp).copy().astype(np.float32)
+            wedge_numpy = create_wedge(w1, w2, SX // 2, SX, SY, SZ, smooth).astype(np.float32)
+            # self.assertTrue((wedge_pytom != wedge_numpy).sum() == 7843, "failing with uneven Z")
+            self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "failing with uneven Z")
 
     def test_conversion(self):
-        self.wedge_pytom_vs_numpy()
+        wedges = [(30., 30.), (10., 80.), (34.23, 51.02)]
+        for w in wedges:
+            print(w)
+            self.wedge_pytom_vs_numpy(w1=w[0], w2=w[1])
 
 
 if __name__ == '__main__':
