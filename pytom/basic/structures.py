@@ -940,7 +940,6 @@ class Wedge(PyTomClass):
         from pytom.agnostic.structures import Wedge, SingleTiltWedge
 
         angle = self.getWedgeAngle()
-        print(angle)
         if angle.__class__ != list:
             w1 = w2 = angle
         else:

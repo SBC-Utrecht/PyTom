@@ -12,6 +12,7 @@ def convert_defocus_astigmatism_to_defocusU_defocusV(defocus, astigmatism):
     return defocus + astigmatism, defocus - astigmatism
 
 
+# TODO make this a GPU kernel / numba function as xp.meshgrid has a lot of memory overhead
 def fourier_grids(shape, nyquist, indexing='ij', reduced=False):
     """
     Generate a fourier space frequency array where values range from -nyquist to +nyquist, with the center equal

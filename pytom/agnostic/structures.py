@@ -1,4 +1,5 @@
 from pytom.gpu.initialize import xp, device
+from pytom.basic.structures import Rotation as RotationPytomC
 
 
 class PyTomClassError(Exception):
@@ -1295,16 +1296,15 @@ class SingleTiltWedge(PyTomClass):
         @return: Weighting object. Remember, the wedge will be cutoff at sizeX/2 if no cutoff provided in constructor or cutoff == 0!
         @author: Thomas Hrabe
         """
-        from pytom.agnostic.structures import Weight as weight
-        from pytom.agnostic.structures import Rotation
+        # This import from own file ....
         if self._cutoffRadius == 0.0:
             cut = wedgeSizeX // 2
         else:
             cut = self._cutoffRadius
-        weightObject = weight(self._wedgeAngle1, self._wedgeAngle2, cut, wedgeSizeX, wedgeSizeY, wedgeSizeZ,
+        weightObject = Weight(self._wedgeAngle1, self._wedgeAngle2, cut, wedgeSizeX, wedgeSizeY, wedgeSizeZ,
                               self._smooth)
 
-        if not rotation.__class__ == Rotation:
+        if (not isinstance(rotation, Rotation)) and (not isinstance(rotation, RotationPytomC)):
             rotation = Rotation()
 
         wedgeRotation = rotation * Rotation(self._tiltAxisRotation[0], self._tiltAxisRotation[1],
@@ -1704,7 +1704,7 @@ class GeneralWedge(PyTomClass):
         self._read_weight()
         w = weight(self._weight_vol)  # if you initialize weight obj this way, it assumes the input volume is full and zero freq is at the center!
 
-        if rotation.__class__ == Rotation:
+        if (not isinstance(rotation, Rotation)) and (not isinstance(rotation, RotationPytomC)):
             w.rotate(rotation.getZ1(), rotation.getZ2(), rotation.getX())
 
         return w

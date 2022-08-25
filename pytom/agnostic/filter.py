@@ -583,11 +583,15 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
     @rtype: ndarray of np.float64'''
     wedge = xp.zeros((sizeX, sizeY, sizeZ // 2 + 1), dtype=xp.float64)
     if rotation is None:
+        # numpy meshgrid by default returns indexing with cartesian coordinates (xy)
+        # shape N, M, P returns meshgrid with M, N, P (see numpy meshgrid documentation)
+        # the naming here is therefore weird => would be more logical to assign to y, x, z
         z, y, x = xp.meshgrid(xp.abs(xp.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2, 1.)),
                               xp.abs(xp.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2, 1.)),
                               xp.arange(0, sizeZ // 2 + 1, 1.))
 
     else:
+        # here its different again, but result is correct.
         cx,cy,cz = [s//2 for s in (sizeX,sizeY,sizeZ)]
         grid = xp.mgrid[-cx:sizeX - cx, -cy:sizeY - cy, :sizeZ // 2 + 1]
 
@@ -630,7 +634,7 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
         z = abs(grid[1, :, :, :])
         x = abs(grid[2, :, :, :])
 
-    r = xp.sqrt((x*sizeZ/sizeZ) ** 2 + (y) ** 2 + (z*sizeY/sizeY) ** 2)
+    r = xp.sqrt(x ** 2 + y ** 2 + z ** 2)
     if angle1 > 1E-3:
         range_angle1Smooth = smooth / xp.sin(angle1 * xp.pi / 180.)
 
@@ -643,8 +647,6 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
             phi,the,psi = rotation
             if phi < 1E-6 and psi < 1E-6 and the<1E-6:
                 wedge[sizeX // 2, :, 0] = 1
-            #wedge += (x==0)*(y==0)*1
-
 
         if smooth:
             area = xp.abs(x - (y / xp.tan(angle1 * xp.pi / 180))) < range_angle1Smooth
@@ -679,6 +681,7 @@ def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, s
     wedge = xp.zeros((sizeX, sizeY, sizeZ // 2 + 1))
 
     if rotation is None:
+        # see comment above with symmetric wedge function about meshgrid
         z, y, x = xp.meshgrid(xp.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2),
                               xp.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2),
                               xp.arange(0, sizeZ // 2 + 1))
@@ -726,7 +729,7 @@ def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, s
         z = grid[1, :, :, :]
         x = grid[2, :, :, :]
 
-    r = xp.sqrt((x*sizeZ/sizeZ) ** 2 + (y) ** 2 + (z*sizeY/sizeY) ** 2)
+    r = xp.sqrt(x ** 2 + y ** 2 + z ** 2)
 
 
     with np.errstate(all='ignore'):

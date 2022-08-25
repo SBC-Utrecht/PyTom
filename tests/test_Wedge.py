@@ -5,59 +5,181 @@ Created on Jan 12, 2022
 """
 import unittest
 import numpy as np
+from pytom.basic.structures import Wedge, Rotation
+from pytom.agnostic.correlation import nxcc
+from pytom_numpy import vol2npy
 
 
 class pytom_NumpyTest(unittest.TestCase):
     def setUp(self):
-        self.SX, self.SY, self.SZ = 100, 100, 90
-        self.SZ_uneven = 91
-        self.SX_uneven = 101
-        self.SY_uneven = 99
-        self.smooth = 3
+        self.SX, self.SY, self.SZ = 22, 22, 20
+        self.SZ_uneven = 19
+        self.SX_uneven = 23
+        self.SY_uneven = 19
+        self.smooth = 2
+        self.rotation = Rotation(23, 9., 51.222)
 
-    def wedge_pytom_vs_numpy(self, w1=30., w2=30.):
-        from pytom.basic.structures import Wedge
-        from pytom.agnostic.filter import create_wedge
-        from pytom_numpy import vol2npy
+    def wedge_pytom_vs_numpy(self, w1=30., w2=30., known_error=0):
         w = Wedge([w1, w2])
-        smooth = w._wedgeObject._smooth
+        w_np = w.convert2numpy()
 
         # here there is no problem
         SX, SY, SZ = self.SX, self.SY, self.SZ
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
-        wedge_numpy = create_wedge(w1, w2, SX // 2, SX, SY, SZ, smooth).astype(np.float32)
+        wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "now there is a big issue")
 
         # test uneven X
         SX, SY, SZ = self.SX_uneven, self.SY, self.SZ
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
-        wedge_numpy = create_wedge(w1, w2, SX // 2, SX, SY, SZ, smooth).astype(np.float32)
+        wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "failing with uneven X")
 
         # test uneven Y
         SX, SY, SZ = self.SX, self.SY_uneven, self.SZ
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
-        wedge_numpy = create_wedge(w1, w2, SX // 2, SX, SY, SZ, smooth).astype(np.float32)
+        wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "failing with uneven Y")
 
         # test uneven Z
+        SX, SY, SZ = self.SX, self.SY, self.SZ_uneven
+        temp = w.returnWedgeVolume(SX, SY, SZ)
+        wedge_pytom = vol2npy(temp).copy().astype(np.float32)
+        wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+        self.assertTrue((wedge_pytom != wedge_numpy).sum() == known_error, "failing with uneven Z")
+
+        # FOR DEVELOPERS: set to true if you want to plot the wedges
+        # shows the known issue for uneven z-height for pytom_volume
         run = False
-        if run:
+        if run and w1 == w2:
+            import matplotlib
+            try:
+                matplotlib.use('Qt5Agg')
+            except:
+                pass
+            import matplotlib.pyplot as plt
+
+            SX, SY, SZ = self.SX, self.SY, self.SZ
+            temp = w.returnWedgeVolume(SX, SY, SZ)
+            wedge_pytom = vol2npy(temp).copy().astype(np.float32)
+            wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+            fig, ax = plt.subplots(1, 3)
+            ax[0].imshow(wedge_numpy[:, 0, :])
+            ax[0].set_title('agnostic wedge')
+            ax[1].imshow(wedge_pytom[:, 0, :])
+            ax[1].set_title('pytom_volume wedge')
+            ax[2].imshow(wedge_pytom[:, 0, :] - wedge_numpy[:, 0, :])
+            ax[2].set_title('difference')
+            plt.show()
+
             SX, SY, SZ = self.SX, self.SY, self.SZ_uneven
             temp = w.returnWedgeVolume(SX, SY, SZ)
             wedge_pytom = vol2npy(temp).copy().astype(np.float32)
-            wedge_numpy = create_wedge(w1, w2, SX // 2, SX, SY, SZ, smooth).astype(np.float32)
-            # self.assertTrue((wedge_pytom != wedge_numpy).sum() == 7843, "failing with uneven Z")
-            self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "failing with uneven Z")
+            wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+            fig, ax = plt.subplots(1, 3)
+            ax[0].imshow(wedge_numpy[:, 0, :])
+            ax[0].set_title('agnostic wedge')
+            ax[1].imshow(wedge_pytom[:, 0, :])
+            ax[1].set_title('pytom_volume wedge')
+            ax[2].imshow(wedge_pytom[:, 0, :] - wedge_numpy[:, 0, :])
+            ax[2].set_title('difference')
+            plt.show()
+
+    def smoothed_wedge(self, w1, w2):
+        w = Wedge([w1, w2], smooth=self.smooth)
+        w_np = w.convert2numpy()
+
+        SX, SY, SZ = self.SX, self.SY, self.SZ
+        temp = w.returnWedgeVolume(SX, SY, SZ)
+        wedge_pytom = vol2npy(temp).copy().astype(np.float32)
+        wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+        self.assertTrue(nxcc(wedge_pytom, wedge_numpy) > 0.95, "now there is a big issue")
+
+        # test uneven X
+        SX, SY, SZ = self.SX_uneven, self.SY, self.SZ
+        temp = w.returnWedgeVolume(SX, SY, SZ)
+        wedge_pytom = vol2npy(temp).copy().astype(np.float32)
+        wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+        self.assertTrue(nxcc(wedge_pytom, wedge_numpy) > 0.95, "failing with uneven X")
+
+        # test uneven Y
+        SX, SY, SZ = self.SX, self.SY_uneven, self.SZ
+        temp = w.returnWedgeVolume(SX, SY, SZ)
+        wedge_pytom = vol2npy(temp).copy().astype(np.float32)
+        wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+        self.assertTrue(nxcc(wedge_pytom, wedge_numpy) > 0.95, "failing with uneven Y")
+
+    def rotated_wedge(self, w1, w2):
+        """
+        THIS TEST IS SKIPPED
+
+        Both pytom_volume and agnostic wedge produce incorrect results with the rotation parameter.
+        Do not use this option in your functions. Generate the wedge without rotation, and then rotate
+        it with some interpolation function.
+        """
+        from pytom.agnostic.io import write
+        w = Wedge([w1, w2], smooth=self.smooth)
+        w_np = w.convert2numpy()
+
+        SX, SY, SZ = self.SX, self.SY, self.SZ
+        temp = w.returnWedgeVolume(SX, SY, SZ, rotation=self.rotation)
+        wedge_pytom = vol2npy(temp).copy().astype(np.float32)
+        wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ, rotation=self.rotation)
+        write('wedge_pytom.mrc', np.fft.ifftshift(wedge_pytom, axes=(0, 1)))
+        write('wedge_numpy.mrc', np.fft.ifftshift(wedge_numpy, axes=(0, 1)))
+        print(nxcc(wedge_pytom, wedge_numpy))
+        self.assertTrue(nxcc(wedge_pytom, wedge_numpy) > 0.90, "now there is a big issue")
+
+        # test uneven X
+        SX, SY, SZ = self.SX_uneven, self.SY, self.SZ
+        temp = w.returnWedgeVolume(SX, SY, SZ, rotation=self.rotation)
+        wedge_pytom = vol2npy(temp).copy().astype(np.float32)
+        wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ, rotation=self.rotation)
+        print(nxcc(wedge_pytom, wedge_numpy))
+        self.assertTrue(nxcc(wedge_pytom, wedge_numpy) > 0.90, "failing with uneven X")
+
+        # test uneven Y
+        SX, SY, SZ = self.SX, self.SY_uneven, self.SZ
+        temp = w.returnWedgeVolume(SX, SY, SZ, rotation=self.rotation)
+        wedge_pytom = vol2npy(temp).copy().astype(np.float32)
+        wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ, rotation=self.rotation)
+        print(nxcc(wedge_pytom, wedge_numpy))
+        self.assertTrue(nxcc(wedge_pytom, wedge_numpy) > 0.90, "failing with uneven Y")
+
+        # FOR DEVELOPERS: set to true if you want to plot the wedges
+        # shows the known issue for uneven z-height for pytom_volume
+        run = True
+        if run and w1 == w2:
+            import matplotlib
+            try:
+                matplotlib.use('Qt5Agg')
+            except:
+                pass
+            import matplotlib.pyplot as plt
+
+            SX, SY, SZ = self.SX, self.SY, self.SZ
+            temp = w.returnWedgeVolume(SX, SY, SZ, rotation=self.rotation)
+            wedge_pytom = vol2npy(temp).copy().astype(np.float32)
+            wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ, rotation=self.rotation)
+            fig, ax = plt.subplots(1, 3)
+            ax[0].imshow(wedge_numpy[:, 0, :])
+            ax[0].set_title('agnostic wedge')
+            ax[1].imshow(wedge_pytom[:, 0, :])
+            ax[1].set_title('pytom_volume wedge')
+            ax[2].imshow(wedge_pytom[:, 0, :] - wedge_numpy[:, 0, :])
+            ax[2].set_title('difference')
+            plt.show()
 
     def test_conversion(self):
-        wedges = [(30., 30.), (10., 80.), (34.23, 51.02)]
+        # (wedge 1, wedge 2, known error)
+        wedges = [(30., 30., 365), (5., 85., 317), (34.23, 51.02, 375)]
         for w in wedges:
-            print(w)
-            self.wedge_pytom_vs_numpy(w1=w[0], w2=w[1])
+            self.wedge_pytom_vs_numpy(w1=w[0], w2=w[1], known_error=w[2])
+            self.smoothed_wedge(w1=w[0], w2=w[1])
+            # self.rotated_wedge(w1=w[0], w2=w[1])
 
 
 if __name__ == '__main__':
