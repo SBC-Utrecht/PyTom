@@ -312,13 +312,12 @@ class TemplateMatchingGPU(threading.Thread):
 
 class GLocalAlignmentPlan():
     def __init__(self, particle, reference, mask, wedge, maskIsSphere=True, cp=xp, device='cpu',
-                 interpolation='filt_bspline', taper=0, binning=1):
+                 interpolation='linear', taper=0, binning=1, max_shift=None):
         id = int(device.split(":")[1])
 
         cp.cuda.Device(id).use()
         self.cp = cp
         self.device = device
-        print(f'start init on: {device}')
         from pytom.voltools import StaticVolume
         from pytom.agnostic.tools import taper_edges
         from pytom.agnostic.transform import fourier_reduced2full
@@ -388,14 +387,27 @@ class GLocalAlignmentPlan():
         self.fast_sum_stdv = self.cp.zeros((4 * self.nblocks * 2), dtype=self.cp.float32)
 
         # Allocate arrays used in subPixelMas3D
-        b                  = max(0, int(self.volume.shape[0] // 2 - 4 / 0.1))
-        zx, zy, zz         = self.volume.shape
-        croppedForZoom     = self.volume[b:zx - b, b:zy - b, b:zz - b]
-        nblocks            = int(self.cp.ceil(croppedForZoom.size / 1024 / 2))
-        self.zoomed        = self.cp.zeros_like(croppedForZoom, dtype=cp.float32)
-        self.fast_sum      = self.cp.zeros((nblocks), dtype=cp.float32)
-        self.max_id        = self.cp.zeros((nblocks), dtype=cp.int32)
-        del croppedForZoom
+        self.subvolume_size  = 8  # default 8 is enough for spline interpolation
+        self.subvolume_start = self.subvolume_size // 2
+        # the border should always be larger than the subvolume to be cropped, makes sure we can interpolate
+        if max_shift is None:
+            self.ignore_border = self.subvolume_start + 1
+        else:
+            self.ignore_border = max(min(self.shape) // 2 - max_shift, self.subvolume_start + 1)
+        self.scale_ratio    = 1. / 10.  # same as cpu scaling
+        self.zoom_cube_size = self.subvolume_size * 10
+        self.zoomed         = self.cp.zeros((self.zoom_cube_size, ) * 3, dtype=self.cp.float32)
+        self.temp_sub       = self.cp.zeros_like(self.zoomed, dtype=self.cp.float32)
+
+        # previous subpixel values
+        # b                  = max(0, int(self.volume.shape[0] // 2 - 4 / 0.1))
+        # zx, zy, zz         = self.volume.shape
+        # croppedForZoom     = self.volume[b:zx - b, b:zy - b, b:zz - b]
+        # nblocks            = int(self.cp.ceil(croppedForZoom.size / 1024 / 2))
+        # self.zoomed        = self.cp.zeros_like(croppedForZoom, dtype=cp.float32)
+        # self.fast_sum      = self.cp.zeros((nblocks), dtype=cp.float32)
+        # self.max_id        = self.cp.zeros((nblocks), dtype=cp.int32)
+        # del croppedForZoom
 
         # Kernels
         self.normalize     = cp.ElementwiseKernel('T ref, T mask, raw T mean, raw T stdV ', 'T z', 'z = ((ref - mean[i*0]) / stdV[i*0]) * mask', 'norm2')
@@ -437,11 +449,12 @@ class GLocalAlignmentPlan():
         del self.sumMeanStdv
         del self.argmax
 
-        del self.max_id
-        del self.fast_sum
+        # del self.max_id
+        # del self.fast_sum
+        del self.zoomed
+        del self.temp_sub
         del self.fast_sum_mean
         del self.fast_sum_stdv
-        del self.zoomed
         del self.nblocks
         del self.num_threads
 
@@ -468,6 +481,64 @@ class GLocalAlignmentPlan():
         self.volume_fft = self.fftnP(self.volume.astype(self.cp.complex64),plan=self.fftplan) * self.wedgePart
         self.volume_fft = self.volume_fft.astype(self.cp.complex64)
 
+    def subPixelMaxSpline(self):
+        """
+        @param ignore_border: number of pixels to ignore for the border
+        @type ignore_border: int
+        @param k: number of types the cropped volume is upsampled
+        @type k: int
+        @return: interpolated correlation value and shift
+        @rtype: list of peak value and shifts
+        """
+        from pytom.agnostic.tools import paste_in_center
+        from pytom.voltools import transform
+        # needs these value to run
+        # self.ignore_border    ; number of pixel to ignore for border, cannot be less than subvolume size
+        # self.subvolume_size   ; size of subvolume
+        # self.subvolume_start  ; center of subvolume self.subvolume_size // 2
+        # self.scale_ratio      ; ratio to scale should be integer
+        # self.zoom_cube_size   ; sube size of zoom is self.subvolume_size * self.scale_ratio
+        # self.zoomed           ; zoomed allocated box of shape (zoom_cube_size,) * 3
+
+        # crop volume with the border
+        ox, oy, oz = self.ccc_map.shape
+        cropped_volume = self.ccc_map[self.ignore_border:ox - self.ignore_border,
+                         self.ignore_border:oy - self.ignore_border,
+                         self.ignore_border:oz - self.ignore_border].astype(self.cp.float32)
+
+        # get coordinates, but correct for cropping of the border
+        peak = [s + self.ignore_border for s in self.cp.unravel_index(cropped_volume.argmax(), cropped_volume.shape)]
+
+        subvolume = self.ccc_map[peak[0] - self.subvolume_start: peak[0] - self.subvolume_start + self.subvolume_size,
+                    peak[1] - self.subvolume_start: peak[1] - self.subvolume_start + self.subvolume_size,
+                    peak[2] - self.subvolume_start: peak[2] - self.subvolume_start + self.subvolume_size]
+
+        # scale the subvolume to the allocated zoomed subvolume
+        self.temp_sub *= 0
+        self.zoomed *= 0
+        self.temp_sub = paste_in_center(subvolume, self.temp_sub)
+        transform(self.temp_sub, scale=(self.scale_ratio, self.scale_ratio, self.scale_ratio),
+                  interpolation='bspline', output=self.zoomed, device=self.device,
+                  center=tuple([s // 2 for s in self.zoomed.shape]))
+
+        # get the argmax and max
+        zoom_peak = self.cp.unravel_index(self.zoomed.argmax(), self.zoomed.shape)
+        peak_value = self.zoomed[zoom_peak[0], zoom_peak[1], zoom_peak[2]]
+
+        # get the interpolated peak
+        interpolated_peak = [interp * self.scale_ratio -
+                             self.subvolume_start + orig for orig, interp in zip(peak, zoom_peak)]
+
+        # get the shift
+        peak_shift = [ip - s // 2 for ip, s in zip(interpolated_peak, self.ccc_map.shape)]
+
+        # compared to cpu there is always a shift of 2 here... likely goes wrong before this function
+        # print([ip - s // 2 for ip, s in zip(peak, self.ccc_map.shape)])
+        # print(peak_shift)
+
+        # return as list
+        return peak_value, peak_shift
+
     def subPixelMax3D(self, ignore_border=1, k=0.1, profile=False, check=True):
 
         from pytom.voltools import transform
@@ -483,7 +554,7 @@ class GLocalAlignmentPlan():
         x, y, z = self.cp.array(self.cp.unravel_index(cropped_volume.argmax(), cropped_volume.shape)) + ignore_border
 
         dx, dy, dz = self.ccc_map.shape
-        translation = [dx // 2 - x, dy // 2 - y, dz // 2 - z]
+        translation = (dx // 2 - x, dy // 2 - y, dz // 2 - z)
 
         if profile:
             t_end = stream.record()
@@ -498,6 +569,7 @@ class GLocalAlignmentPlan():
             zx, zy, zz = self.ccc_map.shape
             out = self.ccc_map[b:zx - b, b:zy - b, b:zz - b].astype(self.cp.float32)
             self.zoomed *= 0
+            # does this do the right thing??
             transform(out, output=self.zoomed, scale=(k, k, k), device=self.device, translation=translation,
                       interpolation='filt_bspline')
 
@@ -513,7 +585,8 @@ class GLocalAlignmentPlan():
             self.max_id *= 0
             self.fast_sum *= 0
 
-            self.argmax((nblocks, 1,), (num_threads, 1, 1), (self.zoomed, self.fast_sum, self.max_id, self.zoomed.size), shared_mem=8 * num_threads)
+            self.argmax((nblocks, 1,), (num_threads, 1, 1), (self.zoomed, self.fast_sum, self.max_id, self.zoomed.size),
+                        shared_mem=8 * num_threads)
 
             # if check:
             #     zzz = self.zoomed.argmax()
@@ -540,6 +613,9 @@ class GLocalAlignmentPlan():
                      y + (y2 - self.zoomed.shape[1] // 2) * k - zy // 2,
                      z + (z2 - self.zoomed.shape[2] // 2) * k - zz // 2]
 
+        # x2 * k
+        # peakCoordinates[0] * scaleRatio - cubeStart + coordinates[0]
+
         if profile:
             t_end = stream.record()
             t_end.synchronize()
@@ -560,73 +636,6 @@ class GLocalAlignmentPlan():
         mm = min(max_id[fast_sum.argmax()], volume.size - 1)
         indices = self.cp.unravel_index(mm, volume.shape)
         return indices
-
-    def subPixelMax33D(self, volume, k=.01, ignore_border=50, interpolation='filt_bspline', profile=True):
-        """
-        Function to find the highest point in a 3D array, with subpixel accuracy using cubic spline interpolation.
-
-        @param inp: A 3D numpy/cupy array containing the data points.
-        @type inp: numpy/cupy array 3D
-        @param k: The interpolation factor used in the spline interpolation, k < 1 is zoomed in, k>1 zoom out.
-        @type k: float
-        @return: A list of maximal value in the interpolated volume and a list of  x position, the y position and
-            the value.
-        @returntype: list
-        """
-
-        from pytom.voltools import transform
-        from pytom.agnostic.io import write
-
-        ox, oy, oz = volume.shape
-        ib = ignore_border
-        cropped_volume = volume[ib:ox - ib, ib:oy - ib, ib:oz - ib].astype(self.cp.float32)
-
-        if profile:
-            stream = self.cp.cuda.Stream.null
-            t_start = stream.record()
-
-        # x,y,z = self.cp.array(maxIndex(cropped_volume, Argmax)) + ignore_border
-        x, y, z = self.cp.array(self.cp.unravel_index(cropped_volume.argmax(), cropped_volume.shape)) + ignore_border
-
-        if profile:
-            t_end = stream.record()
-            t_end.synchronize()
-
-            time_took = self.cp.cuda.get_elapsed_time(t_start, t_end)
-            print(f'initial find max time: \t{time_took:.3f}ms')
-            t_start = stream.record()
-
-        b = border = max(0, int(volume.shape[0] // 2 - 4 / k))
-        zx, zy, zz = volume.shape
-
-        croppedForZoom = volume[b:zx - b, b:zy - b, b:zz - b]
-        out = self.cp.array(croppedForZoom, dtype=self.cp.float32)
-
-        dx, dy, dz = volume.shape
-        translation = [dx // 2 - x, dy // 2 - y, dz // 2 - z]
-        zoomed = self.cp.zeros_like(out, dtype=self.cp.float32)
-
-        transform(out, output=zoomed, scale=(k, k, k), device=self.device, translation=translation,
-                  interpolation=interpolation)
-        if profile:
-            t_end = stream.record()
-            t_end.synchronize()
-
-            time_took = self.cp.cuda.get_elapsed_time(t_start, t_end)
-            print(f'transform finished in \t{time_took:.3f}ms')
-            t_start = stream.record()
-
-        # x2, y2, z2 = self.maxIndex(zoomed)
-        x2,y2,z2 = self.cp.unravel_index(zoomed.argmax(), zoomed.shape)
-
-        peakValue = zoomed[x2][y2][z2]
-        peakShift = [x + (x2 - zoomed.shape[0] // 2) * k - volume.shape[0] // 2,
-                     y + (y2 - zoomed.shape[1] // 2) * k - volume.shape[1] // 2,
-                     z + (z2 - zoomed.shape[2] // 2) * k - volume.shape[2] // 2]
-        if profile:
-            t_end = stream.record()
-
-        return [peakValue, peakShift]
 
     def calc_stdV(self):
         meanV = (self.cp.fft.fftshift(self.ifftnP(self.volume_fft * self.cp.conj(self.mask_fft), plan=self.fftplan))/self.p).real

@@ -255,7 +255,6 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
             sizeX = particle.sizeX()
             sizeY = particle.sizeY()
             sizeZ = particle.sizeZ()
-            print(sizeX, sizeY, sizeZ)
             newParticle = vol(sizeX, sizeY, sizeZ)
 
             centerX = sizeX // 2
@@ -327,7 +326,6 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
     ###apply spectral weighting to sum
     result = lowpassFilter(result, sizeX / 2 - 1, 0.)[0]
 
-
     root, ext = os.path.splitext(averageName)
 
     # if createInfoVolumes:
@@ -393,22 +391,19 @@ def averageGPU2(particleList, averageName, showProgressBar=False, verbose=False,
     @author: Thomas Hrabe
     @change: limit for wedgeSum set to 1% or particles to avoid division by small numbers - FF
     """
-    import time
     from pytom.agnostic.io import read, write, read_size
-    from pytom.agnostic.filter import bandpass as lowpassFilter, rotateWeighting, applyFourierFilter, applyFourierFilterFull, create_wedge
-    from pytom.voltools import transform, StaticVolume
+    from pytom.agnostic.filter import bandpass as lowpassFilter, applyFourierFilterFull
+    from pytom.voltools import transform
     from pytom.basic.structures import Reference
     from pytom.agnostic.normalise import mean0std1
-    from pytom.agnostic.tools import volumesSameSize, invert_WedgeSum, create_sphere
-    from pytom.agnostic.transform import fourier_full2reduced, fourier_reduced2full
+    from pytom.agnostic.tools import invert_WedgeSum
+    from pytom.agnostic.transform import fourier_full2reduced
     from cupyx.scipy.fftpack.fft import fftn as fftnP
     from cupyx.scipy.fftpack.fft import ifftn as ifftnP
     from cupyx.scipy.fftpack.fft import get_fft_plan
     from pytom.tools.ProgressBar import FixedProgBar
-    from multiprocessing import RawArray
-    import numpy as np
     import cupy as xp
-
+    import os
 
     if not gpuId is None:
         device = f'gpu:{gpuId}'
@@ -416,16 +411,11 @@ def averageGPU2(particleList, averageName, showProgressBar=False, verbose=False,
     else:
         print(gpuId)
         raise Exception('Running gpu code on non-gpu device')
-    print(device)
+
     cstream = xp.cuda.Stream()
     if profile:
         stream = xp.cuda.Stream.null
         t_start = stream.record()
-
-    # from pytom.tools.ProgressBar import FixedProgBar
-    from math import exp
-    import os
-
 
     if len(particleList) == 0:
         raise RuntimeError('The particle list is empty. Aborting!')
@@ -443,21 +433,14 @@ def averageGPU2(particleList, averageName, showProgressBar=False, verbose=False,
         if wsum < 0.00001:
             weighting = False
             print("Warning: all scores have been zero - weighting not applied")
-    import time
-
 
     sx,sy,sz = read_size(particleList[0].getFilename())
     wedgeInfo = particleList[0].getWedge().convert2numpy()
 
-    print('angle: ', wedgeInfo.getWedgeAngle())
-
-    wedgeZero = xp.fft.fftshift(xp.array(wedgeInfo.returnWedgeVolume(sx, sy, sz, True).get(), dtype=xp.float32))
-
-    # wedgeZeroReduced = fourier_full2reduced(wedgeZero)
-    wedge     = xp.zeros_like(wedgeZero,dtype=xp.float32)
-    wedgeSum  = xp.zeros_like(wedge,dtype=xp.float32)
-    print('init texture')
-    wedgeText = StaticVolume(xp.fft.fftshift(wedgeZero), device=device, interpolation='filt_bspline')
+    # TODO ifftshift to shift centered spectrum back to corner!
+    wedgeZero = xp.fft.ifftshift(wedgeInfo.returnWedgeVolume(sx, sy, sz, True))
+    wedge     = xp.zeros_like(wedgeZero, dtype=xp.float32)
+    wedgeSum  = xp.zeros_like(wedge, dtype=xp.float32)
 
     newParticle = xp.zeros((sx, sy, sz), dtype=xp.float32)
 
@@ -472,18 +455,6 @@ def averageGPU2(particleList, averageName, showProgressBar=False, verbose=False,
     n = 0
 
     total = len(particleList)
-    # total = int(np.floor((11*1024**3 - mempool.total_bytes())/(sx*sy*sz*4)))
-    # total = 128
-    #
-    #
-    # particlesNP = np.zeros((total, sx, sy, sz),dtype=np.float32)
-    # particles = []
-    # mask = create_sphere([sx,sy,sz], sx//2-6, 2)
-    # raw = RawArray('f', int(particlesNP.size))
-    # shared_array = np.ctypeslib.as_array(raw)
-    # shared_array[:] = particlesNP.flatten()
-    # procs = allocateProcess(particleList, shared_array, n, total, wedgeZero.size)
-    # del particlesNP
 
     if profile:
         t_end = stream.record()
@@ -499,70 +470,33 @@ def averageGPU2(particleList, averageName, showProgressBar=False, verbose=False,
         rotinvert = rotation.invert()
         shiftV = particleObject.getShift()
 
-        # if n % total == 0:
-        #     while len(procs):
-        #         procs =[proc for proc in procs if proc.is_alive()]
-        #         time.sleep(0.1)
-        #         print(0.1)
-        #     # del particles
-        #     # xp._default_memory_pool.free_all_blocks()
-        #     # pinned_mempool.free_all_blocks()
-        #     particles = xp.array(shared_array.reshape(total, sx, sy, sz), dtype=xp.float32)
-        #     procs = allocateProcess(particleList, shared_array, n, total, size=wedgeZero.size)
-        #     #pinned_mempool.free_all_blocks()
-        #     #print(mempool.total_bytes()/1024**3)
-
-        particle = read(particleObject.getFilename(),deviceID=device)
-
-        #particle = particles[n%total]
-
+        particle = read(particleObject.getFilename(), deviceID=device)
 
         if norm:  # normalize the particle
             mean0std1(particle)  # happen inplace
 
+        # get the wedge per particle because the wedge can differ
+        wedgeInfo = particleObject.getWedge().convert2numpy()
+        wedgeZero = xp.fft.ifftshift(wedgeInfo.returnWedgeVolume(sx, sy, sz, True))
 
-
-        # apply its wedge to
-        #particle = applyFourierFilter(particle, wedgeZeroReduced)
-        #particle = (xp.fft.ifftn( xp.fft.fftn(particle) * wedgeZero)).real
-        particle = (ifftnP(fftnP(particle,plan=fftplan) * wedgeZero, plan=fftplan)).real
-
+        # apply wedge to particle
+        particle = (ifftnP(fftnP(particle, plan=fftplan) * wedgeZero, plan=fftplan)).real
 
         ### create spectral wedge weighting
-
         wedge *= 0
-
-        wedgeText.transform(rotation=[rotinvert[0],rotinvert[2], rotinvert[1]], rotation_order='rzxz', output=wedge)
-        #wedge = xp.fft.fftshift(fourier_reduced2full(create_wedge(30, 30, 21, 42, 42, 42, rotation=[rotinvert[0],rotinvert[2], rotinvert[1]])))
-        # if analytWedge:
-        #     # > analytical buggy version
-        # wedge = wedgeInfo.returnWedgeVolume(sx, sy, sz, True, rotinvert)
-        # else:
-        #     # > FF: interpol bugfix
-
-        # wedge = rotateWeighting(weighting=wedgeInfo.returnWedgeVolume(sx, sy, sz, True), rotation=[rotinvert[0], rotinvert[2], rotinvert[1]])
-        #     # < FF
-        #     # > TH bugfix
-        #     # wedgeVolume = wedgeInfo.returnWedgeVolume(wedgeSizeX=sizeX, wedgeSizeY=sizeY, wedgeSizeZ=sizeZ,
-        #     #                                    humanUnderstandable=True, rotation=rotinvert)
-        #     # wedge = rotate(volume=wedgeVolume, rotation=rotinvert, imethod='linear')
-        #     # < TH
+        transform(xp.fft.fftshift(wedgeZero), rotation=(rotinvert[0], rotinvert[2], rotinvert[1]),
+                  rotation_order='rzxz', center=(centerX, centerY, centerZ), output=wedge, device=device,
+                  interpolation='linear')
 
         ### shift and rotate particle
-
         newParticle *= 0
-        transform(particle, output=newParticle, rotation=[-rotation[1], -rotation[2], -rotation[0]],
-                  center=[centerX, centerY, centerZ], translation=[-shiftV[0], -shiftV[1], -shiftV[2]],
+        transform(particle, output=newParticle, rotation=(-rotation[1], -rotation[2], -rotation[0]),
+                  center=(centerX, centerY, centerZ), translation=(-shiftV[0], -shiftV[1], -shiftV[2]),
                   device=device, interpolation='filt_bspline', rotation_order='rzxz')
 
-        #write(f'trash/GPU_{n}.em', newParticle)
-        # print(rotation.toVector())
-        # break
+        # add to average and wedgeweighting
         result   += newParticle
-        wedgeSum += xp.fft.fftshift(wedge)
-        # if showProgressBar:
-        #     numberAlignedParticles = numberAlignedParticles + 1
-        #     progressBar.update(numberAlignedParticles)
+        wedgeSum += xp.fft.ifftshift(wedge)
 
         if n% total ==0:
             if profile:
@@ -585,14 +519,15 @@ def averageGPU2(particleList, averageName, showProgressBar=False, verbose=False,
     write(f'{root}-PreWedge{ext}', result)
     write(f'{root}-WedgeSumUnscaled{ext}', fourier_full2reduced(wedgeSum))
 
-    wedgeSumINV = invert_WedgeSum(wedgeSum, r_max=sx // 2 - 2., lowlimit=.05 * len(particleList), lowval=.05 * len(particleList))
-    wedgeSumINV = wedgeSumINV
+    # prev: wedgeSumINV =
+    invert_WedgeSum(wedgeSum, r_max=sx // 2 - 2., lowlimit=.05 * len(particleList), lowval=.05 * len(particleList))
 
-    #print(wedgeSum.mean(), wedgeSum.std())
     if createInfoVolumes:
-        write(f'{root}-WedgeSumInverted{ext}', xp.fft.fftshift(wedgeSumINV))
+        # write(f'{root}-WedgeSumInverted{ext}', xp.fft.fftshift(wedgeSumINV))
+        write(f'{root}-WedgeSumInverted{ext}', xp.fft.fftshift(wedgeSum))
 
-    result = applyFourierFilterFull(result, xp.fft.fftshift(wedgeSumINV))
+    # the wedge sum should already be centered in the corner ?
+    result = applyFourierFilterFull(result, wedgeSum)  # prev wedgeSumINV
 
     # do a low pass filter
     result = lowpassFilter(result, sx/2-2, (sx/2-1)/10.)[0]

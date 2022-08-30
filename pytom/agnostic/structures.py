@@ -1345,8 +1345,8 @@ class SingleTiltWedge(PyTomClass):
             if humanUnderstandable:
                 # applies hermitian symmetry to full and ftshift so that even humans do understand
                 from pytom.agnostic.transform import fourier_reduced2full as reducedToFull
-                wedgeVolume = reducedToFull(wedgeVolume, (wedgeSizeX % 2))
-                wedgeVolume = xp.fft.fftshift(wedgeVolume)
+                wedgeVolume = reducedToFull(wedgeVolume, (wedgeSizeZ % 2))
+                wedgeVolume = xp.fft.fftshift(wedgeVolume)  # fftshift to shift corner to center of spectrum
 
         return wedgeVolume
 
@@ -4927,9 +4927,10 @@ class Alignment:
         """
         from pytom.agnostic.normalise import normaliseUnderMask, mean0std1
         from pytom.agnostic.tools import volumesSameSize
-        from pytom.agnostic.structures import Rotation, Shift
         from pytom.voltools import StaticVolume
+
         assert isinstance(interpolation, str), "interpolation must be of type str"
+        self.interpolation = interpolation
 
         self.verbose = verbose
         if not volumesSameSize(vol1, vol2):
@@ -4942,7 +4943,7 @@ class Alignment:
             v = mean0std1(vol1, True)
 
         self.vol1 = v
-        self.vol2 = StaticVolume(xp.array(vol2), interpolation='filt_bspline', device=device)
+        self.vol2 = StaticVolume(xp.array(vol2), interpolation=self.interpolation, device=device)
         self.rotvol2 = xp.zeros_like(self.vol1,dtype=xp.float32)
         self.mask = mask
 
@@ -4958,7 +4959,6 @@ class Alignment:
         self.centY = int(self.vol1.shape[1] // 2)
         self.centZ = int(self.vol1.shape[2] // 2)
         self.binning = 1
-        self.interpolation = interpolation
 
         # set optimizer
         self.opti = opti
@@ -5006,8 +5006,6 @@ class Alignment:
         @rtype: L{pytom.basic.Rotation}, L{pytom.basic.Shift}
         @author: FF
         """
-        from pytom.agnostic.structures import Rotation, Shift
-
         rot = Rotation()
         trans = Shift()
         for ii in range(0, 3):
@@ -5063,35 +5061,17 @@ class Alignment:
         @type rot_trans: L{list}
         @author: FF
         """
-        self.vol2.transform(output=self.rotvol2, rotation=[rot_trans[0], rot_trans[2], rot_trans[1]],rotation_order='rzxz',
-                  center=[self.centX, self.centY, self.centZ],
-                  translation=[rot_trans[3] / self.binning, rot_trans[4] / self.binning, rot_trans[5] / self.binning])
+        self.vol2.transform(output=self.rotvol2, rotation=(rot_trans[0], rot_trans[2], rot_trans[1]),
+                            rotation_order='rzxz', center=(self.centX, self.centY, self.centZ), translation=(
+                rot_trans[3] / self.binning, rot_trans[4] / self.binning, rot_trans[5] / self.binning))
 
-        self.val = float(-1. * (self.score(volume=self.vol1, template=self.rotvol2, mask=self.mask, volumeIsNormalized=True)))
+        # score is a fucntion passed to the Alignment structure
+        self.val = float(-1. * (self.score(volume=self.vol1,
+                                           template=self.rotvol2,
+                                           mask=self.mask,
+                                           volumeIsNormalized=True)))
 
         return self.val
-
-    def cc(self, rot, trans):
-        """
-        evaluate the CC for given rotation and translation - here directly CC not multiplied by -1 as in evalScore
-
-        @param rot: rotation of vol2
-        @type rot: L{pytom.basic.Rotation}
-        @param trans: translation of vol2
-        @type trans: L{pytom.basic.Shift}
-        @return: cc
-        @rtype: L{float}
-        @author: FF
-        """
-
-        # transform vol2
-        self.vol2.transform(self.rotvol2, rotation=[rot[0], rot[2], rot[1]], center=[self.centX,self.centY,self.centZ],
-                            translation=[trans[0] / self.binning, trans[1] / self.binning, trans[2] / self.binning],
-                            rotation_order='rzxz')
-        # compute CCC
-        cc = self.score(volume=self.vol1, template=self.rotvol2, mask=self.mask, volumeIsNormalized=True)
-
-        return float(cc)
 
     def localOpti(self, iniRot=None, iniTrans=None):
         """
@@ -5115,7 +5095,7 @@ class Alignment:
 
         # optimize scoring function
         maxiter = 20
-        if ((self.opti == 'fmin') or (self.opti == 'fmin_powell')):
+        if (self.opti == 'fmin') or (self.opti == 'fmin_powell'):
             rot_trans = self.optimizer(self.evalScore, self.rot_trans,
                                        xtol=0.05, ftol=0.001, maxiter=maxiter, maxfun=maxiter * 20)
             # xtol=0.0001, ftol=0.0001, maxiter=maxiter, maxfun=None)

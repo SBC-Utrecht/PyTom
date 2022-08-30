@@ -284,15 +284,12 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
         note: filvol2 is NOT rotated and translated!
     @author: FF
     """
-    from pytom_volume import transformSpline, vol
     from pytom.agnostic.correlation import FSC
     from pytom.agnostic.filter import filter_volume_by_profile
     from pytom.agnostic.structures import Alignment
     from pytom.agnostic.correlation import nxcc
     from pytom.voltools import transform
 
-    assert isinstance(object=vol1, class_or_type_or_tuple=vol), "alignVolumesAndFilterByFSC: vol1 must be of type vol"
-    assert isinstance(object=vol2, class_or_type_or_tuple=vol), "alignVolumesAndFilterByFSC: vol2 must be of type vol"
     # filter volumes prior to alignment according to SNR
     fsc = FSC(volume1=vol1, volume2=vol2, numberBands=nband)
     fil = design_fsc_filter(fsc=fsc, fildim=int(vol2.shape[2]//2))
@@ -316,9 +313,9 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
                                     optiRot[1], optiRot[2], optiTrans[0], optiTrans[1], optiTrans[2]))
         print("Orientation difference: %2.3f deg" % diffAng)
     vol2_alig = xp.zeros(vol2.shape,dtype=xp.float32)
-    transform(vol2, output=vol2_alig, rotation=[optiRot[0], optiRot[2], optiRot[1]], rotation_order='rzxz',
-              center=[int(vol2.shape[0]//2),int(vol2.shape[1]//2),int(vol2.shape[2]//2)], interpolation='filt_bspline',
-              translation=[optiTrans[0], optiTrans[1], optiTrans[2]], device=device)
+    transform(vol2, output=vol2_alig, rotation=(optiRot[0], optiRot[2], optiRot[1]), rotation_order='rzxz',
+              center=(int(vol2.shape[0]//2),int(vol2.shape[1]//2),int(vol2.shape[2]//2)), interpolation='filt_bspline',
+              translation=(optiTrans[0], optiTrans[1], optiTrans[2]), device=device)
     # finally compute FSC and filter of both volumes
     if not nband:
         nband = int(vol2.sizeX()/2)

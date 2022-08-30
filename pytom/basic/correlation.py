@@ -960,7 +960,8 @@ def subPixelPeak(scoreVolume, coordinates, cubeLength=8, interpolation='Spline',
         rescaleSpline(subVolume,subVolumeScaled)
     else:
         subVolumeScaled = resize(volume=subVolume, factor=10)[0]
-    
+
+    # this returns the index of the peak
     peakCoordinates = peak(subVolumeScaled)
     
     peakValue = subVolumeScaled(peakCoordinates[0],peakCoordinates[1],peakCoordinates[2])

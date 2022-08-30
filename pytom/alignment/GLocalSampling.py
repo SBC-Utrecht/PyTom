@@ -211,11 +211,9 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         # split particle lists
         evenSplitList = splitParticleList(particleList=even, setParticleNodesRatio=setParticleNodesRatio)
         oddSplitList  = splitParticleList(particleList=odd, setParticleNodesRatio=setParticleNodesRatio)
-        print(">>>>>>>>> Aligning Even ....")
 
-        
         if alignmentJob.gpu is None or alignmentJob.gpu == []:
-            print('CPU variant is running')
+            print(">>>>>>>>> Aligning Even ....")
             bestPeaksEvenSplit = mpi.parfor( alignParticleList,
                                     list(zip(evenSplitList, [currentReferenceEven]*len(evenSplitList),
                                         [evenCompoundWedgeFile]*len(evenSplitList),
@@ -317,7 +315,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         else:
             from pytom.gpu.gpuFunctions import applyFourierFilter
             from pytom.agnostic.io import read
-            print(len(evenSplitList))
+            print(">>>>>>>>> Aligning Even ....")
             resultsEven = mpi.parfor(alignParticleListGPU, list(zip(evenSplitList,
                                         [currentReferenceEven] * len(evenSplitList),
                                         [evenCompoundWedgeFile] * len(evenSplitList),
@@ -329,7 +327,6 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                         [alignmentJob.samplingParameters.binning] * len(evenSplitList),
                                         [verbose] * len(evenSplitList),alignmentJob.gpu)))
             print(">>>>>>>>> Aligning Odd  ....")
-
             resultsOdd = mpi.parfor(alignParticleListGPU, list(zip(oddSplitList,
                                         [currentReferenceOdd]*len(oddSplitList),
                                         [oddCompoundWedgeFile]*len(oddSplitList),
@@ -381,7 +378,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                     del plansEven
                 else:
                     oddAverage = averageParallel(particleList=odd,
-                                             averageName=alignmentJob.destination + f"/average-Final-Odd.{filtype}",
+                                             averageName=alignmentJob.destination + f"/average-Final-Odd.{filetype}",
                                              showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                              weighting=alignmentJob.scoringParameters.weighting, norm=False,
                                              setParticleNodesRatio=setParticleNodesRatio, gpuIDs=alignmentJob.gpu)
@@ -597,7 +594,6 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     wedge = pl[0].getWedge().convert2numpy()
 
     use_device=f'gpu:{gpuID}'
-    print('devices: ', use_device)
     plan = GLocalAlignmentPlan(pl[0], reference, mask, wedge, maskIsSphere=True, cp=xp, device=use_device,
                                interpolation='linear', binning=binning)
 
@@ -614,23 +610,24 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
 
     bestPeaks = []
     for n, particle in enumerate(pl):
+        t1 = time()  # record time for single particle alignment
         fname = particle.getFilename()
-        t1 = time()
         oldRot = particle.getRotation()
         rotations.setStartRotation(oldRot)
         particleVol = read(particle.getFilename(), deviceID=use_device)
         particleVol = resize(particleVol, 1 / binning)
-        bestPeak = bestAlignmentGPU(particleVol, rotations, plan, preprocessing=preprocessing, wedgeInfo=wedge)
+        bestPeak = bestAlignmentGPU(particleVol, rotations, plan, preprocessing=preprocessing,
+                                    wedgeInfo=particle.getWedge().convert2numpy())
         bestPeaks += [bestPeak]
         rotations.reset()
         particle.setRotation(bestPeak.getRotation())
         particle.setShift(bestPeak.getShift())
         angDiff = differenceAngleOfTwoRotations(rotation1=bestPeak.getRotation(), rotation2=oldRot)
-        t2 = time()
-        # print(bestPeak.getRotation())
-        # print(bestPeak.getShift())
-        if verbose:
-            print(fname + ": Angular Difference before and after alignment: %2.2f ... took %3.1f seconds ..." % (angDiff, t2 - t1))
+        t2 = time()  # end time after alignment
+        shifts_print = bestPeak.getShift().toVector()
+        print(f"{fname}: Angular diff before and after alignment {angDiff:2.2f} and shift "
+              f"{shifts_print[0]:.4f}, {shifts_print[1]:.4f}, {shifts_print[2]:.4f}... "
+              f"took {t2-t1:3.1f} seconds...")
 
     plan.clean()
     return [bestPeaks, plan]
@@ -764,7 +761,10 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
     angDiff = differenceAngleOfTwoRotations(rotation1=bestPeak.getRotation(), rotation2=oldRot)
     t2 = time()
     # print(bestPeak.getRotation())
-    print(fname+": Angular Difference before and after alignment: %2.2f ... took %3.1f seconds ..." % (angDiff, t2-t1))
+    shifts_print = bestPeak.getShift().toVector()
+    print(f"{fname}: Angular diff before and after alignment {angDiff:2.2f} and shift "
+          f"{shifts_print[0]:.4f}, {shifts_print[1]:.4f}, {shifts_print[2]:.4f}... "
+          f"took {t2-t1:3.1f} seconds...")
     rotations.reset()
 
     particle.setRotation(bestPeak.getRotation())

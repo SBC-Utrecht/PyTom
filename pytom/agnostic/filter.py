@@ -656,7 +656,7 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
     else:
         wedge += 1
     wedge[r > cutoffRadius] = 0
-    return xp.fft.fftshift(wedge, axes=(0, 1))
+    return xp.fft.ifftshift(wedge, axes=(0, 1))  # TODO should be ifftshift, because centered is shifted to corner
 
 def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, smooth, rotation=None):
     '''This function returns an asymmetric wedge object.
@@ -748,7 +748,7 @@ def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, s
 
     wedge[r > cutoffRadius] = 0
 
-    return xp.fft.fftshift(wedge, axes=(0, 1))
+    return xp.fft.ifftshift(wedge, axes=(0, 1))  # TODO should be ifftshift, because centered is shifted to corner
 
 def circle_filter(sizeX, sizeY, radiusCutoff):
     """

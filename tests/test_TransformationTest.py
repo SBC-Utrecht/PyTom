@@ -103,7 +103,6 @@ class pytom_TransformationTest(unittest.TestCase):
         diff = myVol - resizeVol
         self.assertTrue(expr=variance(diff, False) < .0000001, msg="2D image before and after rescales differs")
 
-
     def runTest(self):
         self.test_Origin()
         self.test_Transform()
@@ -111,8 +110,7 @@ class pytom_TransformationTest(unittest.TestCase):
         self.test_resize3D()
         self.test_FullReducedTrafo()
 
+
 if __name__ == '__main__':
     unittest.main()
-
-
 
