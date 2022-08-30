@@ -35,23 +35,6 @@ class pytom_NumpyTest(unittest.TestCase):
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
-
-        import matplotlib
-        try:
-            matplotlib.use('Qt5Agg')
-        except:
-            pass
-        import matplotlib.pyplot as plt
-
-        fig, ax = plt.subplots(1, 3)
-        ax[0].imshow(wedge_numpy[:, 0, :])
-        ax[0].set_title('agnostic wedge')
-        ax[1].imshow(wedge_pytom[:, 0, :])
-        ax[1].set_title('pytom_volume wedge')
-        ax[2].imshow(wedge_pytom[:, 0, :] - wedge_numpy[:, 0, :])
-        ax[2].set_title('difference')
-        plt.show()
-
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "failing with uneven X")
 
         # test uneven Y
@@ -70,7 +53,7 @@ class pytom_NumpyTest(unittest.TestCase):
 
         # FOR DEVELOPERS: set to true if you want to plot the wedges
         # shows the known issue for uneven z-height for pytom_volume
-        run = True
+        run = False
         if run and w1 == w2:
             import matplotlib
             try:
