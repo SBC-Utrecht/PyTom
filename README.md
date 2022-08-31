@@ -35,8 +35,9 @@ git clone --recursive https://github.com/FridoF/PyTom.git pytom
 ```
 
 After a succesful clone enter the new directory and go to pytomc
+
 ```
-cd PyTomPrivate/pytomc
+cd pytom/pytomc
 ```
 
 Here you will find an installation script name compile.py. Please run this script with python3. 
