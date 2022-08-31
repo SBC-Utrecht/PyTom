@@ -31,7 +31,7 @@ PyTomGUI is designed to run on linux systems, but can also be installed on MacOS
 To install PyTomGUI please clone the most recent version by executing the following command 
 
 ```
-git clone --recursive https://github.com/FridoF/PyTomPrivate.git pytom
+git clone --recursive https://github.com/FridoF/PyTom.git pytom
 ```
 
 After a succesful clone enter the new directory and go to pytomc
