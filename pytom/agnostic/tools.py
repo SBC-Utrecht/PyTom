@@ -825,7 +825,7 @@ def convert_operation_order_str2list(operation_string):
     a = {'R': 0, 'T': 1, 'S': 2}
     order = [2, 1, 0]
     for n, operation in enumerate(operation_string):
-        order[a[operation]] = 2-n
+        order[a[operation]] = n
     return order
 
 def convert_operation_order_list2str(operation_list):
@@ -838,6 +838,6 @@ def convert_operation_order_list2str(operation_list):
     t=['R', 'T', 'S']
     order = ['', '', '']
     for n, operation in enumerate(operation_list):
-        order[2-operation] = t[n]
+        order[operation] = t[n]
 
     return ''.join(order)

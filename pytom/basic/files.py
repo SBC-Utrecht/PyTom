@@ -1216,8 +1216,9 @@ def  star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binning
     pl.toXMLFile(newFilename)
 
 def log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
-    import numpy
+    import numpy as np
     from pytom.basic.datatypes import DATATYPE_TASOLUTION as dtype_ta, DATATYPE_ALIGNMENT_RESULTS_RO, FMT_ALIGNMENT_RESULTS_RO, HEADER_ALIGNMENT_RESULTS_RO
+    from pytom.voltools.utils import transform_matrix
     import os
 
     ta_fname = filename
@@ -1226,35 +1227,50 @@ def log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
 
     if folder == '': folder =target
 
-    shift = numpy.loadtxt(shift_fname)
+    shift = np.loadtxt(shift_fname)
     ta = loadtxt(ta_fname, dtype=dtype_ta, skip_header=3)
 
     NUM = len(ta)
-    pp = 0
-    ar = numpy.zeros((NUM),dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
+    ar = np.zeros((NUM), dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
     ar['TiltAngle'] = ta['Tilt']
-    ar['InPlaneRotation'] = (numpy.arccos(shift[:,0])*180/numpy.pi)
+    ar['InPlaneRotation'] = - ta['Rotation']
+    ar['Magnification'] = 1 / ta['Mag']
     ar['OperationOrder'] = "TRS"
 
-    for n, (shx, shy) in enumerate(shift[:,-2:]):
-        m = numpy.zeros((2,2))
-        m[0,0] = numpy.cos(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
-        m[0,1] = numpy.sin(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
-        m[1,0] = -numpy.sin(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
-        m[1,1] = numpy.cos(pp*ar['InPlaneRotation'][n]*numpy.pi/180.)
-        #m[:2,0] = shift[n][:2]
-        #m[:2,1] = shift[n][2:4]
-        shift[n,-2:] = m.dot(numpy.array((shx,shy)))
+    for n, ((shx, shy), mat) in enumerate(zip(shift[:,-2:], shift[:, :4])):
+        # fill the rotation matrix with rotation around z-axis
+        m = transform_matrix(rotation=(ta['Rotation'][n], 0, 0),
+                             rotation_order='rzxz',
+                             scale=(ta['Mag'][n], ) * 3)[:2, :2]
+        # m[0, 0] = numpy.cos(ar['InPlaneRotation'][n]*numpy.pi/180.)  # why multiply with pp (==0) before??
+        # m[0, 1] = numpy.sin(ar['InPlaneRotation'][n]*numpy.pi/180.)
+        # m[1, 0] = -numpy.sin(ar['InPlaneRotation'][n]*numpy.pi/180.)
+        # m[1, 1] = numpy.cos(ar['InPlaneRotation'][n]*numpy.pi/180.)
+        # m[0, 0], m[0, 1], m[1, 0], m[1, 1] = mat[0], mat[2], mat[1], mat[3]
 
+        # dot multiply the rotation with the translation
+        # puts the translation in the reference frame??
+        # shift[n, -2:] = numpy.dot(m, numpy.array((shx, shy)))
+        # Warp does (-shx, -shy) and then dot(m.T, shifts)
+        shift_t = np.dot(m.T, np.array((shx, shy)))
 
-        ar['AlignmentTransX'][n] = shift[n,-2]
-        ar['AlignmentTransY'][n] = shift[n,-1]
+        # denom = mat[0] ** 2 + mat[1] ** 2
+        # scale = np.sqrt(denom)
+        # scaleY = (mat[0] * mat[3] - mat[2] * mat[1]) / scaleX
+        # skew = np.rad2deg(np.arctan2(mat[0] * mat[2] + mat[1] * mat[3], denom))
+        # skewY = 0
+        # ar['InPlaneRotation'][n] = -zxz[2]
 
-    ar['Magnification'] = 1/ta['Mag']
+        # set output
+        # ar['InPlaneRotation'][n] = - np.rad2deg(np.arctan2(mat[1], mat[0]))
+        # ar['Magnification'][n] = scale
+        ar['AlignmentTransX'][n] = shift_t[0]
+        ar['AlignmentTransY'][n] = shift_t[1]
 
-    # ar['InPlaneRotation'] += 0
+    # set sorted filenames in pytomproject folder
     ar['FileName'] = sorted([os.path.join(folder, fname) for fname in os.listdir(folder) if fname.startswith(prefix) and fname.endswith('.'+filetype)])
 
+    # save alignmentresults text files in the target location
     savetxt(os.path.join(target, 'alignmentResults.txt'), ar, fmt=FMT_ALIGNMENT_RESULTS_RO, header=HEADER_ALIGNMENT_RESULTS_RO)
 
 def txt2wimp(fname, target, prefix, outname=''):

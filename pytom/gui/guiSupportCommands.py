@@ -59,7 +59,6 @@ reconstructWB.py \\
     --tomogram reconstruction/WBP/{d[7]}_WBP.mrc \\
     --projBinning {d[6]} \\
     --applyWeighting {d[10]}  \\
-    --tomogram reconstruction/WBP/{d[7]}_WBP.mrc \\
     --size {d[9]},{d[13]},{d[14]} \\
     {d[12]}
 

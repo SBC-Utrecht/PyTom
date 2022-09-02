@@ -151,7 +151,7 @@ def align_single_projection(index, projection_list, tilt_angles, shared_dtype, s
 
     # IMOD Rotates around size/2 -0.5, wheras pytom defaults to rotating around size/2
     # so IMOD default order is scaling > rotation > translation, that seems a weird order...
-    center = (image.sizeX() / 2 - 0.5, image.sizeY() / 2 - 0.5, 0) if order == [1, 2, 0] else None
+    center = ((image.sizeX() - 1) / 2., (image.sizeY() - 1) / 2., 0) if order == [1, 0, 2] else None
 
     if not (rot == 0 and transX == 0 and transY == 0 and mag == 1):
         image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order,
@@ -241,7 +241,9 @@ class Projection(PyTomClass):
             self._operationOrder = convert_operation_order_str2list(operationOrder)
         else:
             self._operationOrder = operationOrder  # default = (2, 0, 1) translation, scaling, rotation
-            # imod default is probably (1, 2, 0) => scale, rotation, translation
+            # imod default is also (2, 0, 1) but set default to (1, 0, 2) is identical but then we can recognize
+            # imod alignments in results files.
+            # common in literature is translation, scaling, rotation => (2, 0, 1)
 
     def info(self):
         tline = (" %3d: " %self.getIndex())
@@ -1616,7 +1618,7 @@ class ProjectionList(PyTomClass):
 
             # IMOD Rotates around size/2 -0.5, wheras pytom defaults to rotating around size/2
             # so IMOD default order is scaling > rotation > translation, default order usually
-            center = (image.sizeX() / 2 - 0.5, image.sizeY() / 2 - 0.5, 0) if order == [1, 2, 0] else None
+            center = ((image.sizeX() - 1) / 2., (image.sizeY() - 1) / 2., 0) if order == [1, 0, 2] else None
 
             if not (rot == 0 and transX == 0 and transY == 0 and mag == 1):
                 image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order,
@@ -1874,7 +1876,8 @@ class ProjectionList(PyTomClass):
             else:
                 outputImage *= 0
 
-            center = (inputImage.shape[0] / 2 - 0.5, inputImage.shape[1]() / 2 - 0.5, 0) if order == [1, 2, 0] else None
+            center = ((inputImage.shape[0] - 1) / 2., (inputImage.shape[1]() - 1) / 2., 0) if \
+                order == [1, 0, 2] else None
 
             # TODO provide operation order directly to vt and let vt calculate transform matrix
             mtx = general_transform_matrix(inputImage.shape, rot=[rot, 0, 0], shift=[transX, transY, 0],
