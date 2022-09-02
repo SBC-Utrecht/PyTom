@@ -340,9 +340,9 @@ class pytom_MyFunctionTest(unittest.TestCase):
         # which apparently changes the alignment center slightly.
 
     def runTest(self):
-        # self.checkReconfromIMODali()
-        # self.checkAlignmentPyTom(plot=False)
-        # self.checkAlignmentUnbinned(plot=False)
+        self.checkReconfromIMODali()
+        self.checkAlignmentPyTom(plot=False)
+        self.checkAlignmentUnbinned(plot=False)
         self.checkPyTomMimickingImod()
 
 
