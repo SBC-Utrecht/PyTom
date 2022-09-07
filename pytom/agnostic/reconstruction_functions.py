@@ -51,7 +51,7 @@ def backProjectGPU(projections, reconstruction, vol_phi, proj_angles, recPosVol=
 
     assert len(theta_angles) == projections.shape[2]  #'Number of angles and projections should match'
 
-    center_recon = xp.zeros((3),dtype=xp.int32)
+    center_recon = xp.zeros((3), dtype=xp.int32)
     center_recon[0] = (dims[0] // 2 + 1) - recPosVol[0,0]
     center_recon[1] = (dims[1] // 2 + 1) - recPosVol[0,1]
     center_recon[2] = (dims[2] // 2 + 1) - recPosVol[0,2]

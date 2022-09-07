@@ -1,7 +1,7 @@
+#!/usr/bin/env pytom
 import sys, os, numpy as np
 from scipy.spatial.distance import cdist
 from pytom.agnostic.io import read
-from pytom.agnostic.tools import zxz2zyz
 from pytom.angles.angleFnc import matToZYZ
 from pytom.basic.structures import ParticleList
 from pytom.tools.script_helper import ScriptHelper2, ScriptOption2
@@ -19,7 +19,7 @@ except:
 import matplotlib.pyplot as plt
 
 
-def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=4,
+def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=4, center_class=None,
                           plane_norm=[0, 0, 1], reference=[0, 0, 1], estimate_membrane_plane=False):
     # get set of the unique tomogram names to loop over
     unique_tomograms = np.unique(tomograms)
@@ -33,18 +33,22 @@ def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=4,
     relative_coords = []
     n_center_particles = 0
 
+    if center_class is None:
+        center_class = np.array([True, ] * coordinates.shape[0])
+
     for tomo in unique_tomograms:
         # select tomogram from dataframe
         tomo_particles = (tomograms == tomo)
         n_part_in_tomo = tomo_particles.sum()
         tomo_coordinates = coordinates[tomo_particles]
         tomo_rotations = rotations[tomo_particles]
+        tomo_centers = center_class[tomo_particles]
 
         if n_part_in_tomo < 2:
             # skip this tomogram because the particles has no neighbours
             continue
         else:
-            n_center_particles += n_part_in_tomo
+            n_center_particles += tomo_centers.sum()
 
         # calculate distance matrix
         dist_matrix = cdist(tomo_coordinates, tomo_coordinates)
@@ -53,6 +57,9 @@ def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=4,
         # print(dist_matrix.min())
 
         for i in range(n_part_in_tomo):
+
+            if not tomo_centers[i]:
+                continue
 
             loop = neighbourhood if (n_part_in_tomo - 1) >= neighbourhood else n_part_in_tomo - 1
 
@@ -71,12 +78,8 @@ def neighbour_position_3d(tomograms, coordinates, rotations, neighbourhood=4,
                     v = Vector(coord_n - coord_p)
 
                     # voltools rotation matrix
-                    # this is how it was done before:
-                    #  - rm = rotation_matrix(rotation=-tomo_rotations[i], rotation_order='rzyz').T
-                    # the proper way because in vector rotation is dot(R, mat) instead of dot(mat, R):
-                    # (but inverse and transpose can be identical)
-                    rm = np.linalg.inv(rotation_matrix(rotation=-tomo_rotations[i], rotation_order='rzyz')[:3, :3])
-                    v.rotate(rm)
+                    rm = rotation_matrix(rotation=-tomo_rotations[i], rotation_order='rzyz').T
+                    v.rotate(rm[:3, :3])
 
                     # append to results
                     relative_coords.append(list(v.get()))
@@ -196,6 +199,19 @@ def plot_3d(data, plane_norm, axis_limits, msize=0.01):
     return fig, ax
 
 
+def get_classifier(subtomos, center_subtomos):
+
+    classifier = []
+
+    for s in subtomos:
+        if s in center_subtomos:
+            classifier.append(1)
+        else:
+            classifier.append(0)
+
+    return classifier
+
+
 if __name__ == '__main__':
     helper = ScriptHelper2(
         sys.argv[0].split('/')[-1],  # script name
@@ -204,6 +220,9 @@ if __name__ == '__main__':
         authors='Marten Chaillet',
         options=[
             ScriptOption2(['-f', '--file'], '.star (relion) or .xml (pytom) particle list ', 'file', 'required'),
+            ScriptOption2(['--center-class'], 'Particle list with subset of main file that will be used as center '
+                                              'class. Currently only supported for star file',
+                          'file', 'optional'),
             ScriptOption2(['-d', '--destination'], 'Folder where output graphs are stored.', 'directory',
                           'optional', '.'),
             ScriptOption2(['-o', '--output-name'], 'Base name of png files to write as output (do not write '
@@ -235,7 +254,7 @@ if __name__ == '__main__':
 
     options = parse_script_options2(sys.argv[1:], helper)
 
-    input_file, destination, output_name, pixel_size, particle_diameter, estimate_plane, plane_norm, \
+    input_file, center_file, destination, output_name, pixel_size, particle_diameter, estimate_plane, plane_norm, \
         neighbourhood, plot_density, plot_3d_interactive, marker_size = options
     views_list = ['xy', 'xz', 'yz']
 
@@ -244,6 +263,7 @@ if __name__ == '__main__':
         output_name = os.path.splitext(os.path.split(input_file)[1])[0]  # base input name will be used
     output_path = os.path.join(destination, output_name)
 
+    subtomogram_names = None
     # read the particle list
     if os.path.splitext(input_file)[1] == '.xml':
         if pixel_size is None:
@@ -272,7 +292,7 @@ if __name__ == '__main__':
             # get the angles in zyz notation
             # put them in RELION notation by taking tranpose of matrix and negative (other option is to do this with
             # relion angles of course)
-            zyz_angles = matToZYZ(rotation.toMatrix())  # returns a list zyz
+            zyz_angles = matToZYZ(rotation.toMatrix())  # returns a list
 
             # add the information to the lists
             tomograms.append(tomogram)
@@ -283,13 +303,18 @@ if __name__ == '__main__':
         coordinates = np.array(coordinates) * pixel_size
         rotations = np.array(rotations)
         tomograms = np.array(tomograms)
+
     else:
+
         data = read(input_file)
 
         assert np.all(data['PixelSize'] == data['PixelSize'][0]), 'pixel size not identical over dataset'
         if pixel_size is None:
             pixel_size = data['PixelSize'][0]
             print(f'No pixel size provided, reading from star file ({pixel_size}A).')
+
+        # get subtomogram names
+        subtomogram_names = data['ImageName']
 
         # tomograms are in micrograph name folder
         tomograms = np.array([os.path.split(name)[1].split('.')[0] for name in data['MicrographName']])
@@ -301,9 +326,20 @@ if __name__ == '__main__':
                                 data['CoordinateZ']]).T * pixel_size + shifts
         rotations = np.array([data['AngleRot'], data['AngleTilt'], data['AnglePsi']]).T
 
+    center_class_index = None
+
+    if center_file is not None and subtomogram_names is not None:
+        data_center = read(center_file)
+
+        # get center subtomo names
+        subtomogram_names_center = data_center['ImageName']
+
+        center_class_index = np.array(get_classifier(subtomogram_names, subtomogram_names_center))
+
     # run the neighbour rotation
     relative_coordinates, plane_norm = neighbour_position_3d(tomograms, coordinates, rotations,
                                                              neighbourhood=neighbourhood,
+                                                             center_class=center_class_index,
                                                              plane_norm=plane_norm,
                                                              estimate_membrane_plane=estimate_plane)
 
@@ -330,4 +366,4 @@ if __name__ == '__main__':
         for view in views_list:
             scatter_plot(relative_coordinates, limits, fig_size=(5, 5), plane=view, msize=marker_size)
             plt.tight_layout()
-            plt.savefig(output_path + '_scatter_' + view + '.png', dpi=300)
+        plt.savefig(output_path + '_scatter_' + view + '.png', dpi=300)

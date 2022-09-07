@@ -881,7 +881,7 @@ class ProjectionList(PyTomClass):
         last change: include binning in reconstructionPosition
         """
         from pytom.gpu.initialize import device, xp
-        from pytom.agnostic.reconstruction_functions import backProjectGPU as backProject
+        from pytom.agnostic.reconstruction_functions import backProjectGPU
         import time
 
         ready = self.ready_for_reconstruction()
@@ -908,7 +908,8 @@ class ProjectionList(PyTomClass):
 
         # finally backproject into volume
         # TODO interpolation methods is also not used in GPU back project
-        vol_bp = backProject(projections, dims, vol_phi, proj_angles, recPosVol, vol_offsetProjections,
+        vol_bp = xp.zeros(dims, dtype=xp.float32)
+        backProjectGPU(projections, vol_bp, vol_phi, proj_angles, recPosVol, vol_offsetProjections,
                              recon_interpolation)
 
         print(f'backproject time: {time.time()-s}')
@@ -1876,7 +1877,7 @@ class ProjectionList(PyTomClass):
             else:
                 outputImage *= 0
 
-            center = ((inputImage.shape[0] - 1) / 2., (inputImage.shape[1]() - 1) / 2., 0) if \
+            center = ((inputImage.shape[0] - 1) / 2., (inputImage.shape[1] - 1) / 2., 0) if \
                 order == [1, 0, 2] else None
 
             # TODO provide operation order directly to vt and let vt calculate transform matrix

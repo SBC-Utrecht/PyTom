@@ -234,7 +234,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
         elif self.projectname and self.is_pytomgui_project(self.projectname):
             print(f'Opening existing pytomGUI project: {self.projectname}')
-            self.setWindowTitle(basename('PyTom -- ' + self.projectname))
+            self.setWindowTitle(os.path.basename('PyTom -- ' + self.projectname))
             guiFunctions.create_project_filestructure(projectdir=self.projectname)
             self.createCentralWidgets()
 
@@ -327,7 +327,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         if self.projectname.endswith('/'): self.projectname = self.projectname[:-1]
 
         if not os.path.exists(self.projectname): os.mkdir(self.projectname)
-        self.setWindowTitle('PyTom -- ' + basename(self.projectname))
+        self.setWindowTitle('PyTom -- ' + os.path.basename(self.projectname))
         self.logbook = {}
         for t, text in self.targets:
             self.logbook['00_framebutton_{}'.format(t)] = (t == self.targets[0][0])
