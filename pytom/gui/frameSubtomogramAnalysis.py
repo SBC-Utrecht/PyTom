@@ -1,30 +1,22 @@
-import sys
 import os
-import random
 import glob
-import numpy
-import time
-
-from multiprocessing import Manager, Event, Process
-from ftplib import FTP_TLS, FTP
-from os.path import dirname, basename
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from PyQt5 import QtCore, QtGui, QtWidgets
 
-from pytom.basic.files import read
-from pytom.gui.guiStyleSheets import *
-from pytom.gui.guiSupportCommands import *
-from pytom.gui.guiStructures import *
-from pytom.gui.fiducialAssignment import FiducialAssignment
-from pytom.gui.guiFunctions import avail_gpu
+# pytom gui functions import
+from pytom.gui.guiSupportCommands import extractParticles, extractParticlesClosestMarker, polishParticles, \
+    templateFRMJob, templateAverageParticleList, templateCCC, templateAC, templateFSC, templateGLocal, templateCPCA, \
+    templateFRMSlurm
+from pytom.gui.guiStructures import GuiTabWidget, SelectFiles, Worker, CreateFSCMaskFile, CreateMaskFile
 import pytom.gui.guiFunctions as guiFunctions
-from pytom.bin.extractTomoNameFromXML import *
-from pytom.gui.guiFunctions import readMarkerfile
+from pytom.bin.extractTomoNameFromXML import extractParticleListsByTomoNameFromXML
+from pytom.basic.structures import ParticleList
 from pytom.agnostic.io import read_size
-
+from pytom.basic.files import read, loadstar
+from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO as ALIGNRESULTS_ORDER, DATATYPE_ALIGNMENT_RESULTS as \
+    ALIGNRESULTS_OLD
 
 
 class SubtomoAnalysis(GuiTabWidget):
@@ -271,34 +263,31 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB)
         self.insert_label_line_push(parent, 'Particle List', mode + 'particlelist',initdir=self.pickpartdir,
                                     tooltip='Select the particle list.', mode='file', filetype='xml')
-        self.insert_label_line_push(parent, 'Folder with aligned results', mode + 'AlignedTiltDir',
-                                    'Select a folder with a alignmentResults.txt file, can be found in ['
-                                    'project]/03_Tomographic_Reconstruction/tomogram_[id]/alignment/[marker+angles]')
-        self.insert_label_line_push(parent, 'Meta file with tilt angles', mode + 'MetaFile', mode='file',initdir=self.tomoanalysis,
-                                    filetype='meta',
-                                    tooltip='Select the corresponding metafile.')
-        self.insert_label_line_push(parent, 'Result file particle polishing', mode + 'polishFile', mode='file',
-                                    filetype='txt',initdir=self.polishfolder,
-                                    tooltip='Select a resultfile from particle polishing (Optional).')
+        self.insert_label_combobox(parent, 'Alignment', mode + 'alignment', labels=[],
+                                   tooltip='Select the alignment for subtomo reconstruction.')
+        self.insert_label_combobox(parent, 'Ctf corrected', mode + 'ctfCorrChoice', labels=[],
+                                   tooltip='Select original (sorted) or ctf corrected images (sorted_ctf).')
+        self.insert_label_spinbox(parent, mode + 'firstAngle', 'First Angle',
+                                  'Select the first angle of the angular range used for reconstruction.',
+                                  minimum=-90, maximum=90, stepsize=1, value=0)
+        self.insert_label_spinbox(parent, mode + 'lastAngle', 'Last Angle',
+                                  'Select the last angle of the angular range used for reconstruction.',
+                                  minimum=-90, maximum=90, stepsize=1, value=0)
         self.insert_label_spinbox(parent, mode + 'BinFactorReconstruction',
                                   'Binning factor used in the reconstruction.',
                                   'Defines the binning factor used in the reconstruction of the tomogram from which' +
                                   'the particles are selected.',
                                   minimum=1, stepsize=1, value=8)
-
         self.insert_label_spinbox(parent, mode + 'WeightingFactor', 'Apply Weighting (-1,0,1)',
                                   'Sets the weighting scheme applied to the tilt images, -1 is recommended. \n(-1 = '
                                   'ramp, 0 = no weighting, 1 = exact weighting)',
                                   minimum=-1, maximum=1, stepsize=1, value=-1)
-
         self.insert_label_spinbox(parent, mode + 'SizeSubtomos', 'Size subtomograms.',
                                   'Sets the size of the subtomograms.',
                                   minimum=10, maximum=1000, stepsize=1, value=128)
-
         self.insert_label_spinbox(parent, mode + 'BinFactorSubtomos', 'Binning Factor Subtomograms.',
                                   'Sets the binning factor of the subtomograms.', rstep=1,
                                   value=1, stepsize=1, minimum=1)
-
         self.insert_label_spinbox(parent, mode + 'OffsetX', 'Offset in x-dimension',
                                   'Has the tomogram been cropped in the x-dimension?\n' +
                                   'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping' +
@@ -312,24 +301,30 @@ class SubtomoAnalysis(GuiTabWidget):
         self.insert_label_spinbox(parent, mode + 'OffsetZ', 'Offset in z-dimension',
                                   'Has the tomogram been cropped in the z-dimension?\n' +
                                   'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping' +
-                                  ' in the z-dimension.', cstep=0, rstep=1,
+                                  ' in the z-dimension.',
                                   value=0, stepsize=1, minimum=-4000, maximum=4000)
-
+        self.insert_label_line_push(parent, 'Result file particle polishing', mode + 'polishFile', mode='file',
+                                    filetype='txt', initdir=self.polishfolder, cstep=-1, rstep=1,
+                                    tooltip='Select a resultfile from particle polishing (Optional).')
 
         self.widgets[mode + 'polishFlag'] = QLineEdit('')
+        self.widgets[mode + 'projectionDir'] = QLineEdit('')
+        self.widgets[mode + 'alignmentResultsFile'] = QLineEdit('')
+        self.tomogram = None
 
-        self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateMeta(m))
+        # self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateMeta(m))
+        self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.update_alignment_options(m))
         self.widgets[mode + 'polishFile'].textChanged.connect(lambda d, m=mode: self.updatePolishFlag(m))
 
         execfilename = os.path.join(self.subtomodir, 'Reconstruction/reconstructSubtomograms.sh')
         paramsSbatch = guiFunctions.createGenericDict(fname='subtomoReconstr', folder=self.logfolder,
                                                       id='SingleSubtomoReconstruct')
-        paramsCmd = [mode + 'particlelist', mode + 'AlignedTiltDir', mode + 'BinFactorReconstruction',
+        paramsCmd = [mode + 'particlelist', mode + 'alignmentResultsFile', mode + 'BinFactorReconstruction',
                      mode + 'SizeSubtomos', mode + 'BinFactorSubtomos', mode + 'OffsetX', mode + 'OffsetY',
                      mode + 'OffsetZ', self.subtomodir, mode + 'WeightingFactor', mode + 'MetaFile', '20',
-                     mode + 'polishFlag', extractParticles]
-        mandatory_fill = [mode + 'particlelist', mode + 'AlignedTiltDir', mode+'MetaFile']
-
+                     mode + 'projectionDir', mode + 'firstAngle', mode + 'lastAngle',
+                     mode + 'polishFlag', extractParticles]  # mode + projectionDir
+        mandatory_fill = [mode + 'particlelist', mode + 'alignmentResultsFile']
 
         self.updatePolishFlag(mode)
 
@@ -371,10 +366,11 @@ class SubtomoAnalysis(GuiTabWidget):
 
         particleFiles = sorted(particleFiles)
 
-        headers = ["Filename particleList", "Run", "Tilt Images", "Alignment Type", "Origin", 'Bin factor recon', 'Weighting',
-                   "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Z", 'Scale Factor', 'GPU IDs', 'Polish Result', '']
-        types = ['txt', 'checkbox', 'combobox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit',
-                 'lineedit', 'lineedit', 'lineedit',  'comboboxF', 'txt']
+        headers = ["Filename particleList", "Run", "Alignment", "Mode", "Origin", 'Bin factor recon',
+                   'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Z", 'Scale Factor',
+                   'GPU IDs', 'Polish Result', '']
+        types = ['txt', 'checkbox', 'combobox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit',
+                 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit',  'comboboxF', 'txt']
         a = 40
         sizes = [0, 0, 80, 80, 90, a, a, a, a, a, a, a, a, a, 80, a, a]
 
@@ -445,11 +441,13 @@ class SubtomoAnalysis(GuiTabWidget):
 
                 closest_options = []
                 for c in choices:
-                    print(c)
-                    align_folder = os.path.dirname(c)
-                    mm, markID, angles = os.path.basename(c).split('_')
-                    closestTemp = f'{align_folder}/{mm}_CLOSEST_{angles}'
-                    if not closestTemp in closest_options: closest_options.append(closestTemp)
+                    split = os.path.basename(c).split('_')
+                    if len(split) == 3:
+                        # print(c)
+                        align_folder = os.path.dirname(c)
+                        mm, markID, angles = split
+                        closestTemp = f'{align_folder}/{mm}_CLOSEST_{angles}'
+                        if not closestTemp in closest_options: closest_options.append(closestTemp)
 
                 if choices:
                     aligntype = [f'{choices[0]}/{f}' for f in os.listdir(choices[0]) if os.path.isdir(f'{choices[0]}/{f}')]
@@ -1470,6 +1468,81 @@ class SubtomoAnalysis(GuiTabWidget):
         except Exception as e:
             print(e)
             pass
+
+    def update_alignment_options(self, mode):
+        pl = self.widgets[mode + 'particlelist'].text()
+        try:  # to get the tomogram id from the particle list  # TODO could be improved by reading tomogram from list
+            tomo_id = int(pl.split('_tomogram_')[-1][:3])
+            self.tomogram = 'tomogram_{:03d}'.format(tomo_id)
+
+            # get alignment options
+            self.widgets[mode + 'alignment'].disconnect()
+            self.widgets[mode + 'alignment'].clear()
+            alignment_dir = os.path.join(self.tomogram_folder, self.tomogram, 'alignment')
+            alignments = [d for d in os.listdir(alignment_dir) if os.path.isdir(os.path.join(alignment_dir, d))]
+            self.widgets[mode + 'alignment'].currentIndexChanged.connect(
+                lambda d, m=mode: self.update_alignment_choice(m))
+            self.widgets[mode + 'alignment'].addItems(alignments)
+
+            # get ctf options
+            self.widgets[mode + 'ctfCorrChoice'].disconnect()
+            self.widgets[mode + 'ctfCorrChoice'].clear()
+            sorted_dir = os.path.join(self.tomogram_folder, self.tomogram, 'sorted')
+            ctf_sorted_dir = os.path.join(self.tomogram_folder, self.tomogram, 'ctf',
+                                          'sorted_ctf')
+            tilt_choices = []
+            if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
+                tilt_choices.append('sorted')
+            if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+                tilt_choices.append('sorted_ctf')
+            # set choices in the widget
+            self.widgets[mode + 'ctfCorrChoice'].currentIndexChanged.connect(
+                lambda d, m=mode: self.update_ctf_corr_choice(m))
+            self.widgets[mode + 'ctfCorrChoice'].addItems(tilt_choices)
+        except Exception as e:
+            print(e)
+            pass
+
+    def update_alignment_choice(self, mode):
+        alignment_choice = self.widgets[mode + 'alignment'].currentText()
+        try:
+            ac_dir = os.path.join(self.tomogram_folder, self.tomogram, 'alignment', alignment_choice, 'GlobalAlignment')
+            pointer_options = [f for f in os.listdir(ac_dir) if os.path.isdir(os.path.join(ac_dir, f)) and 'sorted'
+                               in f]
+            align_result = 'sorted' if 'sorted' in pointer_options else pointer_options[0]
+            self.widgets[mode + 'alignmentResultsFile'].setText(os.path.join(self.tomogram_folder,
+                                                                             self.tomogram, 'alignment',
+                                                                             alignment_choice, 'GlobalAlignment',
+                                                                             align_result, 'alignmentResults.txt'))
+
+            # if an alignment file has been selected, we can start looking for angle range
+            if os.path.exists(self.widgets[mode + 'alignmentResultsFile'].text()):
+                try:
+                    alignment = loadstar(self.widgets[mode + 'alignmentResultsFile'].text(), dtype=ALIGNRESULTS_ORDER)
+                except:
+                    alignment = loadstar(self.widgets[mode + 'alignmentResultsFile'].text(), dtype=ALIGNRESULTS_OLD)
+            tilt_angles = alignment['TiltAngle']
+            min_angle = int(round(tilt_angles.min()))
+            max_angle = int(round(tilt_angles.max()))
+            # set bounds of first angle and set to min value
+            self.widgets[mode + 'firstAngle'].setMinimum(min_angle)
+            self.widgets[mode + 'firstAngle'].setMaximum(max_angle)
+            self.widgets[mode + 'firstAngle'].setValue(min_angle)
+            # set bounds of last angle and set to max value
+            self.widgets[mode + 'lastAngle'].setMinimum(min_angle)
+            self.widgets[mode + 'lastAngle'].setMaximum(max_angle)
+            self.widgets[mode + 'lastAngle'].setValue(max_angle)
+
+        except IndexError:
+            print('No alignment result files found in tomogram directory')
+
+    def update_ctf_corr_choice(self, mode):
+        sorted_choice = self.widgets[mode + 'ctfCorrChoice'].currentText()
+        if 'ctf' in sorted_choice:
+            self.widgets[mode + 'projectionDir'].setText(os.path.join(self.tomogram_folder, self.tomogram,
+                                                                      'ctf', 'sorted_ctf'))
+        else:
+            self.widgets[mode + 'projectionDir'].setText(os.path.join(self.tomogram_folder, self.tomogram, 'sorted'))
 
     def updateHeaderChoices(self, rowID, key):
         print('Update Header', rowID, key)

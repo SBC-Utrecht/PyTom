@@ -1,28 +1,27 @@
-import sys
-import os
-import glob
-import numpy as np
 import copy
 import atexit
+import sys
+import os
+import time
+import mrcfile
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-from PyQt5 import QtWidgets, QtCore, QtGui
 
-from pytom.gui.guiStyleSheets import *
-from pytom.gui.mrcOperations import *
-from pytom.gui.guiFunctions import read_markerfile, datatype, fmt, headerText, datatype0
-import pyqtgraph as pg
-from pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
-from pyqtgraph import ImageItem
+# pytom gui imports
+from pytom.gui.fiducialPicking import PickingFunctions, projectMarkerToFrame
+from pytom.gui.guiStructures import circle, CommonFunctions, MyCircleOverlay, Worker
+from pytom.gui import guiFunctions
+from pytom.gui.mrcOperations import downsample, convert_numpy_array3d_mrc
 
-from scipy.ndimage.filters import gaussian_filter
-from pytom.gui.fiducialPicking import *
-from pytom.gui.guiFunctions import loadstar, savestar, kill_proc
+import numpy as np
+from scipy.signal import wiener
+from multiprocessing import Process, Manager, cpu_count
+from pytom.agnostic.io import read_size
 
+# dont know why this is all needed...
 global mf_write
-
 try:
     from pytom.reconstruction.markerPositionRefinement import refineMarkerPositions
     from pytom.reconstruction.tiltAlignmentFunctions import alignmentFixMagRot
@@ -33,38 +32,13 @@ try:
     mf_write=1
 except Exception as e:
     print(e)
-    print ('marker file refinement is not possible')
+    print('marker file refinement is not possible')
     mf_write = 0
 
-import sys
-import os
-import glob
-import numpy
-import time
-import shutil
-import mrcfile
 
-from scipy.ndimage import sobel, gaussian_filter, laplace, label, median_filter, maximum_filter, convolve
-from scipy.ndimage import binary_closing, binary_fill_holes, binary_erosion, center_of_mass
-from scipy.ndimage.filters import minimum_filter
-from scipy.ndimage.morphology import generate_binary_structure
-from scipy.signal import wiener, argrelextrema
-
-from skimage.morphology import remove_small_objects
-from skimage.feature import canny
-from skimage.morphology import watershed
-from skimage.feature import peak_local_max
-from pytom.gui.mrcOperations import downsample
-
-from multiprocessing import Process, Event, Manager, Pool, cpu_count
-
-from pytom.gui.guiStructures import *
-from pytom.gui.guiFunctions import *
-from pytom.agnostic.io import read_size
 def sort_str( obj, nrcol ):
     obj.sort(key=lambda i: str(i[nrcol]))
 
-from numpy import zeros
 
 class TiltImage():
     def __init__(self, parent, imnr, excluded=0):
@@ -134,7 +108,6 @@ class TiltImage():
                     self.labels[n] = "{:03d}".format(m)
                     break
 
-import pyqtgraph as pg
 
 class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
     def __init__(self, parent=None, fname=''):
@@ -234,9 +207,9 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.main_image.scene().sigMouseClicked.connect(self.selectPartTiltImage)
         self.bottom_image.scene().sigMouseClicked.connect(self.manuallyAdjustFiducials)
 
-        self.img1a = pg.ImageItem(zeros((10,10)))
-        #self.img1b = pg.ImageItem(zeros((10,10)))
-        self.img1c = pg.ImageItem(zeros((10,10)))
+        self.img1a = pg.ImageItem(np.zeros((10,10)))
+        #self.img1b = pg.ImageItem(np.zeros((10,10)))
+        self.img1c = pg.ImageItem(np.zeros((10,10)))
 
         self.main_image.addItem(self.img1a)
         #self.top_image.addItem(self.img1b)
@@ -299,7 +272,6 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
     def manuallyAdjustFiducials(self,event):
         if self.idReferenceImage == -1:
             return
-
 
         if not self.dim: return
         pos = self.bottom_image.mapSceneToView(event.scenePos())
@@ -579,12 +551,12 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         self.metafile = [os.path.join(folder, line) for line in os.listdir(folder) if line.endswith('.meta')][0]
         try:
-            self.metadata = loadstar(self.metafile,dtype=datatype)
+            self.metadata = guiFunctions.loadstar(self.metafile,dtype=guiFunctions.datatype)
         except:
-            metadata_old = loadstar(self.metafile,dtype=datatype0)
-            self.metadata = numpy.rec.array([(0.,)*len(datatype),]*len(fnames), dtype=datatype)
+            metadata_old = guiFunctions.loadstar(self.metafile,dtype=guiFunctions.datatype0)
+            self.metadata = np.rec.array([(0.,)*len(guiFunctions.datatype),]*len(fnames), dtype=guiFunctions.datatype)
 
-            for key, value in datatype0:
+            for key, value in guiFunctions.datatype0:
                 print(key, value)
                 self.metadata[key] = metadata_old[key]
 
@@ -621,7 +593,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         self.tiltangles = self.metadata['TiltAngle']
         #cmd = "cat {} | grep TiltAngle | sort -nk3 | awk '{{print $3}}'".format(tiltfile)
-        #self.tiltangles = numpy.array([float(line) for line in os.popen(cmd).readlines()], dtype=float)
+        #self.tiltangles = np.array([float(line) for line in os.popen(cmd).readlines()], dtype=float)
 
         self.excluded = [0,]*len(fnames)
         for n, excl in enumerate(fnames):
@@ -688,7 +660,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.list_cx_cy_imnr = []
         self.coordinates = []
         self.user_coordinates = []
-        self.mark_frames = -1 * numpy.ones((len(self.fnames), 1, 2))
+        self.mark_frames = -1 * np.ones((len(self.fnames), 1, 2))
         self.tiltimages = []
 
         manager = Manager()
@@ -700,8 +672,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         temp = mrcfile.open(fnames[0], permissive=True)
         dimx, dimy = temp.data.shape
         temp.close()
-        self.frames_adj = zeros((len(self.fnames), dimy, dimx))
-        self.dataRaw = zeros_like(self.frames_adj)
+        self.frames_adj = np.zeros((len(self.fnames), dimy, dimx))
+        self.dataRaw = np.zeros_like(self.frames_adj)
 
         procs = []
 
@@ -712,7 +684,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                            args=(fnames[proc_id::nr_procs], proc_id, nr_procs, f, ff, raw, True))
             procs.append(proc)
             proc.start()
-            atexit.register(kill_proc, proc)
+            atexit.register(guiFunctions.kill_proc, proc)
 
         while len(procs):
             procs = [proc for proc in procs if proc.is_alive()]
@@ -720,8 +692,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
 
 
-        self.frames = zeros((len(fnames), f[0].shape[0], f[0].shape[1]) )
-        self.frames_full = zeros((len(fnames),ff[0].shape[0],ff[0].shape[1]) )
+        self.frames = np.zeros((len(fnames), f[0].shape[0], f[0].shape[1]) )
+        self.frames_full = np.zeros((len(fnames),ff[0].shape[0],ff[0].shape[1]) )
         for i in range(len(fnames)):
             self.frames[i, :, :] = f[i]
             self.frames_full[i, :, :] = ff[i]
@@ -730,10 +702,10 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         for n in range(len(self.fnames)):
             self.tiltimages.append(TiltImage(self, n, excluded=self.excluded[n]))
 
-        self.imnr = numpy.abs(self.tiltangles).argmin()
+        self.imnr = np.abs(self.tiltangles).argmin()
         self.settings.widgets['ref_frame'].setValue( int(round(self.imnr)) )
 
-        self.markermove = numpy.zeros_like(self.frames_full[self.imnr])
+        self.markermove = np.zeros_like(self.frames_full[self.imnr])
 
         self.dim = self.frames_full[0].shape[0]
         #self.update()
@@ -744,7 +716,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         self.mark_frames = [[], ] * len(self.fnames)
 
-        self.idReferenceImage = numpy.abs(self.metadata['TiltAngle']).argmin()
+        self.idReferenceImage = np.abs(self.metadata['TiltAngle']).argmin()
 
         self.widgets['findButton'].setEnabled(True)
         self.widgets['createMarkerfile'].setEnabled(True)
@@ -778,10 +750,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
     def create_average_markers(self, start_frame, end_frame, display=False, markersize=128):
         r = markersize // 2
         dimx, dimy = self.frames_adj[0,:,:].shape
-        image = numpy.zeros((r, r))
+        image = np.zeros((r, r))
         total = 0
-        from numpy.fft import ifftn, fftn, fftshift
-        from numpy import zeros, ones_like, median, array
 
         for nn in range(start_frame, end_frame):
 
@@ -797,9 +767,9 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                     imp = self.frames_adj[nn, x - r // 2:x + r // 2, y - r // 2:y + r // 2]
                     print(imp.sum())
                     if image.sum():
-                        ar = fftshift(fftn(imp))
-                        br = numpy.conj(fftshift(fftn(image)))
-                        dd = fftshift(abs(ifftn(fftshift(ar * br))))
+                        ar = np.fft.fftshift(np.fft.fftn(imp))
+                        br = np.conj(np.fft.fftshift(np.fft.fftn(image)))
+                        dd = np.fft.fftshift(abs(np.fft.ifftn(np.fft.fftshift(ar * br))))
 
                         ddd = dd.flatten()
                         cx, cy = ddd.argmax() // r - r // 2, ddd.argmax() % r - r // 2
@@ -813,9 +783,9 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         image /= total
         print(total, image.sum())
-        imgx, imgy = array(image.shape) // 2
-        marker = ones_like(self.frames_adj[0,:,:]) * median(image)
-        mx, my = array(marker.shape) // 2
+        imgx, imgy = np.array(image.shape) // 2
+        marker = np.ones_like(self.frames_adj[0,:,:]) * np.median(image)
+        mx, my = np.array(marker.shape) // 2
         marker[mx - imgx:mx + imgx, my - imgy:my + imgy] = image
         from pylab import imshow, show
 
@@ -841,7 +811,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         if self.settings.widgets['applyToAll'].isChecked():
             self.list_cx_cy_imnr = []
 
-        self.cent = numpy.zeros_like(self.frames_full[self.imnr])
+        self.cent = np.zeros_like(self.frames_full[self.imnr])
         self.bin = 4
         self.mf = True
 
@@ -854,8 +824,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         threshold = float(self.settings.widgets['threshold'].value())
         radius = float(self.settings.widgets['radius_watershed'].value())
         average_marker = None
-        self.mark_frames = -1 * numpy.ones((len(self.fnames), 3000, 2), dtype=float)
-        # self.assignedFiducials = -1 * numpy.ones((len(self.fnames), 3000), dtype=int)
+        self.mark_frames = -1 * np.ones((len(self.fnames), 3000, 2), dtype=float)
+        # self.assignedFiducials = -1 * np.ones((len(self.fnames), 3000), dtype=int)
 
         if len(self.mark_frames[ref_frame]) > 2 and self.algorithm == 'cross_correlation':
             average_marker = self.create_average_markers(ref_frame - 5, ref_frame + 6)
@@ -903,7 +873,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                                                     num_procs, average_marker, threshold, radius ))
                 procs.append(proc)
                 proc.start()
-                atexit.register(kill_proc, proc)
+                atexit.register(guiFunctions.kill_proc, proc)
 
         #time.sleep(0.1)
 
@@ -915,9 +885,9 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                 self.list_cx_cy_imnr += [el for el in out[i]]
 
 
-        sort(self.list_cx_cy_imnr, 1)
+        guiFunctions.sort(self.list_cx_cy_imnr, 1)
 
-        cntr = numpy.zeros((200), dtype=int)
+        cntr = np.zeros((200), dtype=int)
 
         # Clear existing fiducials in tiltimages
         for n in range(len(self.tiltimages)):
@@ -926,31 +896,31 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         for cx, cy, imnr in self.list_cx_cy_imnr:
             CX,CY =cx*self.bin_alg*1./self.bin_read,cy*self.bin_alg*1./self.bin_read
             self.tiltimages[imnr].add_fiducial(CX-self.xmin,CY-self.ymin,CX,CY, check=False,draw=self.imnr==imnr)
-            self.mark_frames[imnr][cntr[imnr]][:] = numpy.array((cy, cx))
+            self.mark_frames[imnr][cntr[imnr]][:] = np.array((cy, cx))
             # self.assignedFiducials[imnr][cntr[imnr]] = 0
             cntr[imnr] += 1
 
         self.mark_frames = self.mark_frames[:, :cntr.max(), :]
         # self.assignedFiducials = self.assignedFiducials[:, :cntr.max()]
 
-        self.coordinates = numpy.zeros_like(self.mark_frames)
-        self.user_coordinates = numpy.zeros_like(self.mark_frames)
+        self.coordinates = np.zeros_like(self.mark_frames)
+        self.user_coordinates = np.zeros_like(self.mark_frames)
 
         self.bin = 0
         self.widgets['detectButton'].setEnabled(True)
         self.widgets['createMarkerfile'].setEnabled(True)
         print('fid finding jobs finished')
-        self.idReferenceImage = numpy.abs(self.metadata['TiltAngle']).argmin()
+        self.idReferenceImage = np.abs(self.metadata['TiltAngle']).argmin()
 
         self.replot2()
 
     def update_mark(self):
 
-        self.mark_frames = -1 * numpy.ones((len(self.fnames), 3000, 2), dtype=float)
-        cntr = numpy.zeros((200), dtype=int)
+        self.mark_frames = -1 * np.ones((len(self.fnames), 3000, 2), dtype=float)
+        cntr = np.zeros((200), dtype=int)
         for tiltNr in range(len(self.fnames)):
-            #print(numpy.array(self.tiltimages[tiltNr].fiducials))
-            try: temp_fid = numpy.array(self.tiltimages[tiltNr].fiducials)[:,:2]
+            #print(np.array(self.tiltimages[tiltNr].fiducials))
+            try: temp_fid = np.array(self.tiltimages[tiltNr].fiducials)[:,:2]
             except: continue
             dx,dy = temp_fid.shape
             data = temp_fid.flatten()[::-1].reshape(dx,dy)[::-1]
@@ -981,8 +951,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.update_mark()
         # Ensure all markers are frame shifted
         tx, ty, tz = self.mark_frames.shape
-        temp = zeros((tx, ty, tz), dtype=float)
-        cnt = zeros((tx, ty, 1))
+        temp = np.zeros((tx, ty, tz), dtype=float)
+        cnt = np.zeros((tx, ty, 1))
 
         tiltnr, marknr, dummy = self.mark_frames.shape
         for itilt in range(tiltnr):
@@ -1005,7 +975,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                                                                           zero_angle=ref_frame, excluded=self.excluded,
                                                                           diag=True, add_marker=self.add_markers,
                                                                           cut=max_shift, tiltaxis=tiltaxis)
-        #numpy.save(os.path.join(self.projectname,'mark_frames.npy'), self.mark_frames)
+        #np.save(os.path.join(self.projectname,'mark_frames.npy'), self.mark_frames)
 
         projIndices = np.array(list(range(self.coordinates.shape[0])))[(1-np.array(self.excluded)) > 0.5]
 
@@ -1020,7 +990,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.errorsModel, self.shiftXModel, self.shiftYModel, self.diffXModel, self.diffYModel, x,y,z, psi = a
 
 
-        self.frame_shifts = numpy.array(list(zip(self.shiftXModel, self.shiftYModel)))
+        self.frame_shifts = np.array(list(zip(self.shiftXModel, self.shiftYModel)))
 
         self.centersModel = list(zip(x,y,z))
         self.psiindeg = psi
@@ -1039,7 +1009,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         # self.coordinates -= self.frame_shifts_sorted
         if len(self.user_coordinates) == 0:
-            self.user_coordinates = numpy.zeros_like(self.coordinates)
+            self.user_coordinates = np.zeros_like(self.coordinates)
 
         # try:
         #    self.recenter_fid()
@@ -1085,8 +1055,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
 
         # Exclude the excluded frames.
-        projIndices = numpy.arange(len(self.frames))
-        take = 1 - numpy.array(self.excluded, dtype=int)
+        projIndices = np.arange(len(self.frames))
+        take = 1 - np.array(self.excluded, dtype=int)
         projIndices = list(projIndices[take.astype(bool)])
         prefix = '{}/{}/sorted/sorted'.format(self.tomofolder, self.tomogram_name)
 
@@ -1104,7 +1074,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         self.ref_coords /= (self.bin_alg* 1.)
 
-        self.old_coords = numpy.zeros_like(self.coordinates)
+        self.old_coords = np.zeros_like(self.coordinates)
 
 
 
@@ -1197,7 +1167,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
                 imark = int(name.split('_')[-1])
                 markIndices.append(imark)
         else:
-            for name in range(num_markers):
+            for iid in range(num_markers):
                 name = self.manual_adjust_marker.MRMmodel.data(self.manual_adjust_marker.MRMmodel.index(iid, 0))
                 imark = int(name.split('_')[-1])
                 markIndices.append(imark)
@@ -1206,13 +1176,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             print ('No markerfile selected', "No markers selected, no markerfile saved.")
             return num_markers
 
-        projIndices = numpy.arange(len(self.frames))
-        take = 1 - numpy.array(self.excluded, dtype=int)
+        projIndices = np.arange(len(self.frames))
+        take = 1 - np.array(self.excluded, dtype=int)
         projIndices = list(projIndices[take.astype(bool)])
         locX, locY = 1, 2
 
         if output_type == 'mrc':
-            markerFileVol = -1. * numpy.ones((num_markers, len(projIndices), 12), dtype='float64')
+            markerFileVol = -1. * np.ones((num_markers, len(projIndices), 12), dtype='float64')
             for num, imark in enumerate(markIndices):
                 for (itilt, iproj) in enumerate(projIndices):
                     markerFileVol[num][itilt][0] = self.tiltangles[iproj]
@@ -1240,7 +1210,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         elif output_type == 'txt':
             from pytom.basic.datatypes import HEADER_MARKERFILE, FMT_MARKERFILE as fmtMarkerfile
-            markerFile = numpy.ones((num_markers,len(projIndices),4))*-1
+            markerFile = np.ones((num_markers,len(projIndices),4))*-1
             for iMark, Marker in enumerate(markIndices):
                 markerFile[iMark,:,0] = iMark
 
@@ -1265,13 +1235,14 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
             if not markfilename or not os.path.exists(markfilename): return
 
-            mark_frames = read_markerfile(markfilename,self.tiltangles)
+            mark_frames = guiFunctions.read_markerfile(markfilename,self.tiltangles)
 
             if markfilename.endswith('.wimp'):
                 imodShiftFile = QFileDialog.getOpenFileName(self, 'Open file', self.projectname, "Imod transf file (*.xf)")[0]
                 if not imodShiftFile: return
-                shifts = parseImodShiftFile(imodShiftFile)
-                mark_frames, shift = addShiftToMarkFrames(mark_frames, shifts, self.metadata, self.excluded)
+                shifts = guiFunctions.parseImodShiftFile(imodShiftFile)
+                mark_frames, shift = guiFunctions.addShiftToMarkFrames(mark_frames, shifts, self.metadata,
+                                                                       self.excluded)
 
             self.deleteAllMarkers()
 
@@ -1281,8 +1252,8 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
             self.mark_frames = mark_frames / float(self.bin_read)
             self.coordinates = copy.deepcopy(self.mark_frames)
-            self.fs = numpy.zeros( (len(self.fnames),2) )
-            self.frame_shifts = numpy.zeros( (len(self.fnames),2) )
+            self.fs = np.zeros( (len(self.fnames),2) )
+            self.frame_shifts = np.zeros( (len(self.fnames),2) )
 
             for n in range(len(self.tiltimages)):
                 self.tiltimages[n].clear()
@@ -1401,7 +1372,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         w = self.widgets['bin_alg'].value()
 
         if v % w != 0:
-            w = numpy.around(((w+v-1)//v)*v,0)
+            w = np.around(((w+v-1)//v)*v,0)
 
         self.widgets['bin_read'].setValue(v)
         self.widgets['bin_alg'].setValue(w)
@@ -1421,7 +1392,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
         if metafile:
             metadata = self.parent().metadata
             metadata['InPlaneRotation'] = tilt_axis
-            savestar(metafile, metadata, fmt=fmt, header=headerText)
+            guiFunctions.savestar(metafile, metadata, fmt=guiFunctions.fmt, header=guiFunctions.headerText)
 
     def update_radius(self):
         w = self.widgets
@@ -1436,7 +1407,7 @@ class SettingsFiducialAssignment(QMainWindow, CommonFunctions):
             metadata = self.parent().metadata
             metadata['PixelSpacing'] = pixel_size
             metadata['MarkerDiameter'] = fiducial_size
-            savestar(metafile, metadata, fmt=fmt, header=headerText)
+            guiFunctions.savestar(metafile, metadata, fmt=guiFunctions.fmt, header=guiFunctions.headerText)
 
         if self.parent().loaded_data: self.parent().replot2()
 
@@ -1688,7 +1659,7 @@ class ManuallyAdjustMarkers(QMainWindow, CommonFunctions):
         numim = len(self.parent().fnames)
         if sel_marker > -1:
             imnr = self.parent().imnr
-            for i in numpy.arange(imnr, -1, -1):
+            for i in np.arange(imnr, -1, -1):
                 tx, ty = self.parent().coordinates[i, sel_marker]
                 if tx < 0.01 or ty < 0.01:
                     found = False
@@ -1907,32 +1878,6 @@ class ItemSample(GraphicsWidget):
             path = pg.graphicsItems.ScatterPlotItem.drawSymbol(p, symbol, size, pen, brush)
 
 
-
-def projectMarkerToFrame(center, tiltangleindeg, psiindeg, shift0, shift1):
-    import numpy
-    from numpy import sin, cos, pi
-
-    cpsi, spsi = cos(psiindeg * numpy.pi / 180), sin(psiindeg * numpy.pi / 180)
-    ctlt, stlt = cos(tiltangleindeg * numpy.pi / 180), sin(tiltangleindeg * numpy.pi / 180)
-    cx, cy, cz = center
-
-    cx -= shift0[0]
-    cy -= shift0[1]
-
-    cy1 = cy * cpsi - cx * spsi
-    cx1 = cy * spsi + cx * cpsi
-
-    cy2 = cy1 * ctlt  - cz * stlt
-
-    cx = cx1 * cpsi - cy2 * spsi
-    cy = cx1 * spsi + cy2 * cpsi
-
-    cx += shift1[0]
-    cy += shift1[1]
-
-    return numpy.array((cx, cy))
-
-
 class ErrorWindow(QMainWindow, CommonFunctions):
     def __init__(self, parent=None, logfile=''):
         super(ErrorWindow, self).__init__(parent)
@@ -2007,13 +1952,13 @@ class ErrorWindow(QMainWindow, CommonFunctions):
             d = points[0].viewPos()
             x, y = d.x(), d.y()
 
-            incl = 1 - numpy.array(self.parent().excluded)
+            incl = 1 - np.array(self.parent().excluded)
 
-            itiltFull = numpy.abs(self.parent().tilt_angles - float(x)).argmin()
-            id = numpy.abs(self.parent().tilt_angles[incl > 0.5] - float(x)).argmin()
-            ireftilt = numpy.abs(self.parent().tilt_angles[incl > 0.5]).argmin()
-            itilt = int(numpy.around(id))
-            smallest_difference_angle = numpy.abs(self.parent().tilt_angles[incl > 0.5] - float(x)).min()
+            itiltFull = np.abs(self.parent().tilt_angles - float(x)).argmin()
+            id = np.abs(self.parent().tilt_angles[incl > 0.5] - float(x)).argmin()
+            ireftilt = np.abs(self.parent().tilt_angles[incl > 0.5]).argmin()
+            itilt = int(np.around(id))
+            smallest_difference_angle = np.abs(self.parent().tilt_angles[incl > 0.5] - float(x)).min()
             imark = int(self.dataView.selectedIndexes()[0].data().split("_")[-1])
 
             bin_read, bin_alg = self.parent().bin_read, self.parent().bin_alg
@@ -2031,8 +1976,8 @@ class ErrorWindow(QMainWindow, CommonFunctions):
             # diffX, diffY = self.parent().diffXModel[itilt][imark], self.parent().diffYModel[itilt][imark]
             # shiftX, shiftY = self.parent().shiftXModel[itilt], self.parent().shiftYModel[itilt]
             sizeCut, (sizeX, sizeY) = self.parent().sizeCut, self.parent().frames_full[0,:,:].shape
-            # gx = int(numpy.around(cx*bin_alg/bin_read + (diffX-shiftX)*bin_read/bin_alg))
-            # gy = int(numpy.around(cy*bin_alg/bin_read + (diffY-shiftY)*bin_read/bin_alg))
+            # gx = int(np.around(cx*bin_alg/bin_read + (diffX-shiftX)*bin_read/bin_alg))
+            # gy = int(np.around(cy*bin_alg/bin_read + (diffY-shiftY)*bin_read/bin_alg))
 
 
 
@@ -2058,14 +2003,13 @@ class ErrorWindow(QMainWindow, CommonFunctions):
             return
         if not os.path.exists(fname) or id < 0: return
 
-        from pytom.gui.guiFunctions import ALIGNMENT_ERRORS, loadstar
-        data = loadstar(fname,dtype=ALIGNMENT_ERRORS)
+        data = guiFunctions.loadstar(fname,dtype=guiFunctions.ALIGNMENT_ERRORS)
 
         markID = data['MarkerIndex']
         angles = data['TiltAngle']
         errors = data['AlignmentError']
 
-        pos = numpy.array(list(zip(list(angles[markID == id]), list(errors[markID==id]))))
+        pos = np.array(list(zip(list(angles[markID == id]), list(errors[markID==id]))))
         self.s1.clear()
         spots = [{'pos': pos[i, :], 'data': 1} for i in range(len(pos)) if pos[i,1] > -0.001]
         self.s1.addPoints(spots)

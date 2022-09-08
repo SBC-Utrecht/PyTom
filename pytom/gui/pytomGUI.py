@@ -1,9 +1,9 @@
 #!/usr/bin/env python
+
+# python basic imports
 import sys
 import os
-import pickle, json
-import numpy as np
-
+import json
 
 global PID
 
@@ -48,17 +48,20 @@ def update_env_vars(pytompath):
 # TODO be removed)
 # update_env_vars(pytompath)
 
+
+# pyqt imports
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from PyQt5 import QtCore, QtGui, QtWidgets
 
-from pytom.gui.guiStyleSheets import *
-from pytom.gui.frameDataTransfer import *#CollectPreprocess, TomographReconstruct, CommonFunctions
+# pytom gui related imports
+from pytom.gui.guiFunctions import create_project_filestructure
+from pytom.gui.frameDataTransfer import CollectPreprocess
 from pytom.gui.frameTomographicReconstruction import TomographReconstruct
 from pytom.gui.frameParticlePicking import ParticlePick
 from pytom.gui.frameSubtomogramAnalysis import SubtomoAnalysis
-from pytom.gui.guiStructures import NewProject, View2d, View3d, PlotWindow
+from pytom.gui.guiStructures import NewProject, View2d, View3d, PlotWindow, CommonFunctions, DisplayText, \
+    GeneralSettings, ExecutedJobs
 
 
 class PyTomGui(QMainWindow, CommonFunctions):
@@ -107,11 +110,11 @@ class PyTomGui(QMainWindow, CommonFunctions):
                         ('ParticlePick', "Particle Picking"),
                         ('SubtomoAnalysis', "Subtomogram Analysis"))
 
-        dmp = dropdown_menu_project = ("Project", ('New', 'Open', 'Save', 'Settings', 'Quit'), self.processtrigger)
-        dmf = dropdown_menu_file = ("File", ('Open', 'Save', 'Close'), self.filetrigger)
-        dmt = dropdown_menu_tools = ("Tools", ('Plot', 'Queue', 'View2D', 'View3D', 'Convert', 'Help'), self.processtrigger)
+        dmp = ("Project", ('New', 'Open', 'Save', 'Settings', 'Quit'), self.processtrigger)
+        dmf = ("File", ('Open', 'Save', 'Close'), self.filetrigger)
+        dmt = ("Tools", ('Plot', 'Queue', 'View2D', 'View3D', 'Convert', 'Help'), self.processtrigger)
 
-        self.drs = dropdown_menu_stage = (
+        self.drs = (
         "Enable Stage", ("Tomographic Reconstruction", "Particle Picking", "Subtomogram Analysis"),
         self.processtrigger)
 
@@ -167,14 +170,14 @@ class PyTomGui(QMainWindow, CommonFunctions):
         # IF USER HAS SUPPLIED A FOLDER, CHECK IF FOLDER IS A PYTOMGUI FOLDER.. IF SO, OPEN THE PROJECT.
         try:
             if os.path.isdir(sys.argv[-1]):
-                if sys.argv[-1] == './' or sys.argv[-1]== '.':
+                if sys.argv[-1] == './' or sys.argv[-1] == '.':
                     sys.argv[-1] = ''
-                self.projectname = os.path.join(os.getcwd(), sys.argv[-1])
+                self.projectname = os.path.normpath(os.path.join(os.getcwd(), sys.argv[-1]))
                 # if self.projectname.endswith('/'): self.projectname = self.projectname[:-1]  # this is not a problem
                 if self.is_pytomgui_project(self.projectname):
                     print(f'Opening existing pytomGUI project: {self.projectname}')
                     self.setWindowTitle('PyTom -- ' + os.path.basename(self.projectname))
-                    guiFunctions.create_project_filestructure(projectdir=self.projectname)
+                    create_project_filestructure(projectdir=self.projectname)
                     self.createCentralWidgets()
         except Exception as e:
             print(e)
@@ -235,7 +238,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         elif self.projectname and self.is_pytomgui_project(self.projectname):
             print(f'Opening existing pytomGUI project: {self.projectname}')
             self.setWindowTitle(os.path.basename('PyTom -- ' + self.projectname))
-            guiFunctions.create_project_filestructure(projectdir=self.projectname)
+            create_project_filestructure(projectdir=self.projectname)
             self.createCentralWidgets()
 
     def save_logfile(self):
@@ -332,7 +335,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         for t, text in self.targets:
             self.logbook['00_framebutton_{}'.format(t)] = (t == self.targets[0][0])
 
-        guiFunctions.create_project_filestructure(projectdir=self.projectname)
+        create_project_filestructure(projectdir=self.projectname)
         self.createCentralWidgets()
 
     def createCentralWidgets(self):
@@ -352,7 +355,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.topright = QStackedWidget(self)
 
         self.topright.setContentsMargins(10,10,10,10)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(1)
         sizePolicy.setVerticalStretch(1)
 
@@ -391,7 +394,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
                     self.logbook['00_framebutton_{}'.format(i)] = False
                     self.stage_buttons[-1].setEnabled(False)
 
-            icon = QtGui.QIcon(self.iconnames[nn])
+            icon = QIcon(self.iconnames[nn])
             widget.setIcon(icon)
 
         self.topleft_layout.addWidget(QLabel(''), Qt.AlignHCenter)

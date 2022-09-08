@@ -804,7 +804,7 @@ class ProjectionList(PyTomClass):
     # ================== Tomogram reconstruction ============================
     def reconstructVolume(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0],
                           recon_interpolation='filt_bspline', binning=1, weighting=0, specimen_angle=0,
-                          low_pass_ny_fraction=0.9, apply_circle_filter=True, scale_factor=1.,
+                          low_pass_ny_fraction=0.9, apply_circle_filter=True, scale_factor=1., tilt_range=None,
                           show_progress_bar=True, verbose=False, num_procs=1):
         """ reconstruct a a single 3D volume from weighted and aligned projections on either a gpu or a cpu
 
@@ -838,20 +838,21 @@ class ProjectionList(PyTomClass):
                                             weighting=weighting, specimen_angle=specimen_angle,
                                             low_pass_ny_fraction=low_pass_ny_fraction,
                                             apply_circle_filter=apply_circle_filter, scale_factor=scale_factor,
-                                            show_progress_bar=show_progress_bar, verbose=verbose)
+                                            tilt_range=tilt_range, show_progress_bar=show_progress_bar, verbose=verbose)
         else:
             vol = self.reconstructVolumeCPU(dims=dims, reconstructionPosition=reconstructionPosition,
                                             recon_interpolation=recon_interpolation, binning=binning,
                                             weighting=weighting, specimen_angle=specimen_angle,
                                             low_pass_ny_fraction=low_pass_ny_fraction,
                                             apply_circle_filter=apply_circle_filter, scale_factor=scale_factor,
-                                            show_progress_bar=show_progress_bar, verbose=verbose, num_procs=num_procs)
+                                            tilt_range=tilt_range, show_progress_bar=show_progress_bar,
+                                            verbose=verbose, num_procs=num_procs)
         return vol
 
     def reconstructVolumeGPU(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0],
                              recon_interpolation='filt_bspline', binning=1, weighting=0,
                              specimen_angle=0, low_pass_ny_fraction=0.9, apply_circle_filter=True, scale_factor=1.,
-                             show_progress_bar=True, verbose=False):
+                             tilt_range=None, show_progress_bar=True, verbose=False):
         """
         reconstruct a single 3D volume from weighted and aligned projections on a gpu
 
@@ -895,7 +896,7 @@ class ProjectionList(PyTomClass):
         projections, vol_phi, proj_angles, vol_offsetProjections = self.to_projection_stack_gpu(
             weighting=weighting, binning=binning, low_pass_freq=low_pass_ny_fraction,
             apply_circle_filter=apply_circle_filter, scale_factor_particle=scale_factor, angle_specimen=specimen_angle,
-            show_progress_bar=show_progress_bar, verbose=verbose)
+            tilt_range=tilt_range, show_progress_bar=show_progress_bar, verbose=verbose)
 
         # volume storing reconstruction offset from center (x,y,z)
         recPosVol = xp.zeros((projections.shape[2], 3), dtype=xp.float32)
@@ -919,7 +920,7 @@ class ProjectionList(PyTomClass):
     def reconstructVolumeCPU(self, dims=[512, 512, 128], reconstructionPosition=[0, 0, 0],
                              recon_interpolation='filt_bspline', binning=1, weighting=0,
                              specimen_angle=0, low_pass_ny_fraction=0.9, apply_circle_filter=True, scale_factor=1.,
-                             show_progress_bar=True, verbose=False, num_procs=1):
+                             tilt_range=None, show_progress_bar=True, verbose=False, num_procs=1):
         """
         reconstruct a single 3D volume from weighted and aligned projections on a CPU
 
@@ -967,12 +968,13 @@ class ProjectionList(PyTomClass):
             vol_img, vol_phi, vol_the, vol_offsetProjections = self.to_projection_stack(
                 weighting=weighting, binning=binning, low_pass_freq=low_pass_ny_fraction,
                 apply_circle_filter=apply_circle_filter, scale_factor_particle=scale_factor,
-                angle_specimen=specimen_angle, show_progress_bar=show_progress_bar, verbose=verbose)
+                angle_specimen=specimen_angle, tilt_range=tilt_range, show_progress_bar=show_progress_bar, \
+                                                                                      verbose=verbose)
 
         elif isinstance(num_procs, int) and num_procs > 1:
             vol_img, vol_phi, vol_the, vol_offsetProjections = self.to_projection_stack_parallel(
                 weighting=weighting, binning=binning, low_pass_freq=low_pass_ny_fraction,
-                apply_circle_filter=apply_circle_filter, scale_factor_particle=scale_factor,
+                apply_circle_filter=apply_circle_filter, scale_factor_particle=scale_factor, tilt_range=tilt_range,
                 angle_specimen=specimen_angle, num_procs=num_procs, show_progress_bar=show_progress_bar, verbose=verbose)
 
         else:
@@ -999,7 +1001,8 @@ class ProjectionList(PyTomClass):
     # ====================== Subtomogram reconstruction =============
     def reconstructVolumes(self, particles, cube_size, binning=1, weighting=0, low_pass_ny_fraction=0.9,
                            apply_circle_filter=True,  pre_scale_factor=1., post_scale=1., num_procs=1,
-                           ctfcenter=None, polishResultFile='', specimen_angle=0., show_progress_bar=False,
+                           ctfcenter=None, polishResultFile='', specimen_angle=0.,
+                           tilt_range=None, show_progress_bar=False,
                            verbose=False, gpuIDs=None):
         """
         reconstructVolumes: reconstruct a subtomogram given a particle object.
@@ -1062,7 +1065,7 @@ class ProjectionList(PyTomClass):
                                                             low_pass_freq=low_pass_ny_fraction,
                                                             apply_circle_filter=apply_circle_filter,
                                                             scale_factor_particle=pre_scale_factor,
-                                                            angle_specimen=specimen_angle,
+                                                            angle_specimen=specimen_angle, tilt_range=tilt_range,
                                                             show_progress_bar=show_progress_bar, verbose=verbose,
                                                             num_procs=num_procs)
             else:
@@ -1070,7 +1073,7 @@ class ProjectionList(PyTomClass):
                                                    low_pass_freq=low_pass_ny_fraction,
                                                    apply_circle_filter=apply_circle_filter,
                                                    scale_factor_particle=pre_scale_factor,
-                                                   angle_specimen=specimen_angle,
+                                                   angle_specimen=specimen_angle, tilt_range=tilt_range,
                                                    show_progress_bar=show_progress_bar, verbose=verbose)
         else:
             # Running on the GPU
@@ -1078,7 +1081,7 @@ class ProjectionList(PyTomClass):
                                                    low_pass_freq=low_pass_ny_fraction,
                                                    apply_circle_filter=apply_circle_filter,
                                                    scale_factor_particle=pre_scale_factor,
-                                                   angle_specimen=specimen_angle,
+                                                   angle_specimen=specimen_angle, tilt_range=tilt_range,
                                                    show_progress_bar=show_progress_bar, verbose=verbose)
             # stacks = [x.get() for x in stacks]
 
@@ -1489,7 +1492,7 @@ class ProjectionList(PyTomClass):
     # ====== new general to_projection_stack functions ===================
     def to_projection_stack(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
                             scale_factor_particle=1., angle_specimen=0., particle_diameter=280, pixel_size=2.62,
-                            show_progress_bar=False, verbose=False):
+                            tilt_range=None, show_progress_bar=False, verbose=False):
         """
         Create a projection stack from current Projections in the ProjectionList by weighting the projections.
         Alignment is applied if aligned parameters have been initialized on the Projections.
@@ -1532,6 +1535,9 @@ class ProjectionList(PyTomClass):
             low_pass_freq = 1.
             print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
 
+        if tilt_range is None:
+            tilt_range = (int(round(min(self._tilt_angles))), int(round(max(self._tilt_angles))))
+
         imdimX = self[0].getXSize()
         imdimY = self[0].getYSize()
 
@@ -1542,16 +1548,19 @@ class ProjectionList(PyTomClass):
         imdim = max(imdimX, imdimY)
 
         # prepare stacks
-        stack = vol(imdim, imdim, len(self))
+        tilts_in_range = [t for t in self._tilt_angles if tilt_range[0] <= int(round(t)) <= tilt_range[1]]
+        projections = [p for t, p in zip(self._tilt_angles, self._list) if tilt_range[0] <= int(round(t)) <=
+                                                                         tilt_range[1]]
+        stack = vol(imdim, imdim, len(tilts_in_range))
         stack.setAll(0.0)
 
-        phiStack = vol(1, 1, len(self))
+        phiStack = vol(1, 1, len(tilts_in_range))
         phiStack.setAll(0.0)
 
-        thetaStack = vol(1, 1, len(self))
+        thetaStack = vol(1, 1, len(tilts_in_range))
         thetaStack.setAll(0.0)
 
-        offsetStack = vol(1, 2, len(self))
+        offsetStack = vol(1, 2, len(tilts_in_range))
         offsetStack.setAll(0.0)
 
         # design filters
@@ -1582,9 +1591,9 @@ class ProjectionList(PyTomClass):
             progressBar.update(0)
 
         if verbose:
-            print('projections to go over: ', [i for i, _ in enumerate(zip(self._tilt_angles, self._list))])
+            print('projections to go over: ', [i for i, _ in enumerate(tilts_in_range)])
 
-        for i, (tilt_angle, projection) in enumerate(zip(self._tilt_angles, self._list)):
+        for i, (tilt_angle, projection) in enumerate(zip(tilts_in_range, projections)):
 
             if projection._filename.split('.')[-1] == 'st':
                 image = read(file=projection.getFilename(),
@@ -1653,14 +1662,14 @@ class ProjectionList(PyTomClass):
 
         return [stack, phiStack, thetaStack, offsetStack]
 
-    def _create_shared_stack(self, imdim):
+    def _create_shared_stack(self, imdim, n_tilts):
         import numpy as np
         import ctypes
         import multiprocessing as mp
         # create shared arrays
         self._shared_dtype = np.float32
-        self._shared_stack_shape = (imdim, imdim, len(self))
-        self._shared_stack = mp.Array(ctypes.c_float, imdim * imdim * len(self))
+        self._shared_stack_shape = (imdim, imdim, n_tilts)
+        self._shared_stack = mp.Array(ctypes.c_float, imdim * imdim * n_tilts)
         self._shared_stack_np = np.frombuffer(self._shared_stack.get_obj(),
                                                 dtype=self._shared_dtype).reshape(self._shared_stack_shape,
                                                                                   order='F')
@@ -1674,7 +1683,8 @@ class ProjectionList(PyTomClass):
 
     def to_projection_stack_parallel(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
                                      scale_factor_particle=1., angle_specimen=0., particle_diameter=280,
-                                     pixel_size=2.62, num_procs=1, show_progress_bar=False, verbose=False):
+                                     pixel_size=2.62, tilt_range=None, num_procs=1, show_progress_bar=False,
+                                     verbose=False):
         """
         Parallel version.
         Create a projection stack from current Projections in the ProjectionList by weighting the projections.
@@ -1715,6 +1725,9 @@ class ProjectionList(PyTomClass):
             low_pass_freq = 1.
             print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
 
+        if tilt_range is None:
+            tilt_range = (int(round(min(self._tilt_angles))), int(round(max(self._tilt_angles))))
+
         imdimX = self[0].getXSize()
         imdimY = self[0].getYSize()
 
@@ -1729,20 +1742,23 @@ class ProjectionList(PyTomClass):
         # set slice width for exact filter
         slice_width = (pixel_size * binning * imdim) / particle_diameter
 
-        self._create_shared_stack(imdim)
+        tilts_in_range = [t for t in self._tilt_angles if tilt_range[0] <= int(round(t)) <= tilt_range[1]]
+        projections = [p for t, p in zip(self._tilt_angles, self._list) if tilt_range[0] <= int(round(t)) <=
+                                                                         tilt_range[1]]
+        self._create_shared_stack(imdim, len(tilts_in_range))
 
         if verbose:
-            print('projections to go over: ', [i for i, _ in enumerate(zip(self._tilt_angles, self._list))])
+            print('projections to go over: ', [i for i, _ in enumerate(tilts_in_range)])
 
         with closing(mp.Pool(num_procs, initializer=init_pool_processes, initargs=(self._shared_stack, ))) as p:
-            results = p.map(partial(align_single_projection, projection_list=self._list,
-                                    tilt_angles=self._tilt_angles, shared_dtype=self._shared_dtype,
+            results = p.map(partial(align_single_projection, projection_list=projections,
+                                    tilt_angles=tilts_in_range, shared_dtype=self._shared_dtype,
                                     shared_stack_shape=self._shared_stack_shape, weighting=weighting, binning=binning,
                                     low_pass_freq=low_pass_freq, apply_circle_filter=apply_circle_filter,
                                     scale_factor_particle=scale_factor_particle, angle_specimen=angle_specimen,
                                     verbose=verbose, show_progress=show_progress_bar, imdim=imdim, imdimX=imdimX,
                                     imdimY=imdimY, slice_width=slice_width),
-                               [i for i, _ in enumerate(zip(self._tilt_angles, self._list))])
+                            [i for i, _ in enumerate(tilts_in_range)])
         p.join()
         # map could also iter over range(len(self._list)), however i explicitly zip _tilt_angles and the _list to
         # make sure that they are both present
@@ -1751,16 +1767,16 @@ class ProjectionList(PyTomClass):
             print('========== All processes finished alignment ============')
 
         # get the stack as a pytom volume
-        stack = vol(imdim, imdim, len(self))
+        stack = vol(imdim, imdim, len(tilts_in_range))
         self._retrieve_shared_stack(stack)
 
-        phiStack = vol(1, 1, len(self))
+        phiStack = vol(1, 1, len(tilts_in_range))
         phiStack.setAll(0.0)
 
-        thetaStack = vol(1, 1, len(self))
+        thetaStack = vol(1, 1, len(tilts_in_range))
         thetaStack.setAll(0.0)
 
-        offsetStack = vol(1, 2, len(self))
+        offsetStack = vol(1, 2, len(tilts_in_range))
         offsetStack.setAll(0.0)
 
         # fill the stacks
@@ -1774,7 +1790,7 @@ class ProjectionList(PyTomClass):
 
     def to_projection_stack_gpu(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
                                 scale_factor_particle=1., angle_specimen=0., particle_diameter=270, pixel_size=2.62,
-                                show_progress_bar=False, verbose=False):
+                                tilt_range=None, show_progress_bar=False, verbose=False):
         from pytom.agnostic.io import read
         from pytom.agnostic.tools import taper_edges, paste_in_center
         from pytom.agnostic.filter import circle_filter, ramp_filter, exact_filter, ellipse_filter, bandpass_circle
@@ -1790,6 +1806,9 @@ class ProjectionList(PyTomClass):
             low_pass_freq = 1.
             print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
 
+        if tilt_range is None:
+            tilt_range = (int(round(min(self._tilt_angles))), int(round(max(self._tilt_angles))))
+
         imdimX = self[0].getXSize()
         imdimY = self[0].getYSize()
 
@@ -1800,10 +1819,13 @@ class ProjectionList(PyTomClass):
         imdim = max(imdimY, imdimX)
 
         # prepare stacks for function return
-        stack = xp.zeros((imdim, imdim, len(self)), dtype=xp.float32)
-        phiStack = xp.zeros((len(self)), dtype=xp.float32)
-        thetaStack = xp.zeros((len(self)), dtype=xp.float32)
-        offsetStack = xp.zeros((len(self), 2), dtype=xp.int32)
+        tilts_in_range = [t for t in self._tilt_angles if tilt_range[0] <= int(round(t)) <= tilt_range[1]]
+        projections = [p for t, p in zip(self._tilt_angles, self._list) if tilt_range[0] <= int(round(t)) <=
+                       tilt_range[1]]
+        stack = xp.zeros((imdim, imdim, len(tilts_in_range)), dtype=xp.float32)
+        phiStack = xp.zeros((len(tilts_in_range)), dtype=xp.float32)
+        thetaStack = xp.zeros((len(tilts_in_range)), dtype=xp.float32)
+        offsetStack = xp.zeros((len(tilts_in_range), 2), dtype=xp.int32)
 
         # set slice width for exact filter, smaller objects will have a higher overlap frequency
         # cut off is calculated as: cut == f_ij / Ny * (dim // 2)
@@ -1824,13 +1846,13 @@ class ProjectionList(PyTomClass):
             circleSlice = xp.ones((imdim, imdim))
 
         if verbose:
-            print('projections to go over: ', [i for i, _ in enumerate(zip(self._tilt_angles, self._list))])
+            print('projections to go over: ', [i for i, _ in enumerate(tilts_in_range)])
 
         if show_progress_bar:
             progressBar = FixedProgBar(0, len(self), 'Creating aligned and weighted projections')
             progressBar.update(0)
 
-        for i, (tilt_angle, projection) in enumerate(zip(self._tilt_angles, self._list)):
+        for i, (tilt_angle, projection) in enumerate(zip(tilts_in_range, projections)):
 
             if projection._filename.split('.')[-1] == 'st':
                 # image = read(projection.getFilename(), deviceID=device)[:, :, i].squeeze()

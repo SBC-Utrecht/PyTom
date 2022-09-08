@@ -1,165 +1,22 @@
 import sys
 import os
-import random
 import glob
-import numpy
 import time
 import atexit
 
-from multiprocessing import Manager, Event, Process
-from ftplib import FTP_TLS, FTP
+from multiprocessing import Event, Process
+from ftplib import FTP_TLS
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from PyQt5 import QtCore, QtGui, QtWidgets
 
-from pytom.gui.fiducialAssignment import FiducialAssignment
-from pytom.gui.guiStyleSheets import *
-from pytom.gui.guiStructures import *
+from pytom.gui.guiStyleSheets import DEFAULT_STYLE_PROGRESSBAR
+from pytom.gui.guiStructures import GuiTabWidget, Worker
 from pytom.gui.guiFunctions import avail_gpu
-from pytom.gui.guiSupportCommands import *
+from pytom.gui.guiSupportCommands import templateMotionCorrection
 import pytom.gui.guiFunctions as guiFunctions
 
-
-class BrowseWindowRemote(QMainWindow):
-    '''This class creates a new windows for browsing'''
-    def __init__(self, parent=None, initdir='/',filter=[''],search='file',credentials=['','',''],outputline=''):
-        super(BrowseWindowRemote, self).__init__(parent)
-        self.setGeometry(50, 50, 400, 300)
-        self.pathdisplay = QLineEdit()
-        self.pathdisplay.setEnabled(False)
-        splitter0 = QSplitter(Qt.Vertical)
-        self.qtype = self.parent().qtype
-        self.qcommand = self.parent().qcommand
-        self.topleft = QListWidget()
-        self.topleft.itemDoubleClicked.connect(self.repopulate_folder_list)
-        self.topright = QListWidget()
-
-        if search == 'file': self.topright.itemDoubleClicked.connect(self.select_file)
-        splitter1 = QSplitter(Qt.Horizontal)
-        splitter1.addWidget(self.topleft)
-        splitter1.addWidget(self.topright)
-        splitter1.setSizes([200,200])
-
-        bottom_layout = QHBoxLayout()
-        ok_button = QPushButton(text='OK')
-        ok_button.clicked.connect(self.select_item)
-        cancel_button = QPushButton(text='Cancel')
-        cancel_button.clicked.connect(self.cancel)
-
-        bottom = QWidget()
-        bottom_layout.addWidget(ok_button)
-        bottom_layout.addWidget(cancel_button)
-        bottom_layout.addStretch(1)
-        bottom.setLayout(bottom_layout)
-
-        splitter0.addWidget(self.pathdisplay)
-        splitter0.addWidget(splitter1)
-        splitter0.addWidget(bottom)
-
-        self.success = False
-        self.ftps=None
-        self.initdir = initdir
-        self.folderpath = initdir
-        self.filters = filter
-        self.search = search
-        self.outputline = outputline
-        self.activeProcesses = {}
-
-        try:
-            self.servername = str(credentials[0])
-            self.username   = str(credentials[1])
-            self.password   = str(credentials[2])
-        except:
-            pass
-            #self.servername,self.username,self.password = 'emsquare1.science.uu.nl','emuser','#99@3584cg'
-
-        try:
-            self.connect_ftp_server(self.servername, self.username, self.password)
-            self.setCentralWidget(splitter0)
-            self.success = True
-            self.add_folders()
-            self.show()
-        except:
-            QMessageBox().critical(self, "Credentials not valid.",
-                                   "Please provide a valid combination of servername, username, and password",
-                                   QMessageBox.Ok)
-            #self.destroy(True,True)
-            self.close()
-
-
-
-
-
-    def select_item(self):
-        if self.outputline: self.outputline.setText(self.folderpath)
-        self.close()
-
-    def select_file(self):
-        self.folderpath = os.path.join(self.folderpath, self.topright.currentItem().text())
-        self.outputline.setText(self.folderpath)
-        self.close()
-
-    def cancel(self):
-        #self.pathselect = self.initdir
-        self.close()
-
-    def connect_ftp_server(self,servername, username, password):
-        self.ftps = FTP_TLS(servername,username,password)
-        self.ftps.prot_p()
-
-    def append(self,line):
-        words = line.split(None, 3)
-        datestamp = words[0]
-        timestamp = words[1]
-        folder = words[2]
-        filename = words[3]
-        size = None
-        if folder == '<DIR>':
-            folder = True
-        else:
-            size = int(folder)
-            folder = False
-        if folder:
-            self.subdirs.append(filename)
-        else:
-            self.matchingfiles.append(filename)
-
-    def add_folders(self, folders=[]):
-        self.data()
-
-        self.topleft.clear()
-        self.topright.clear()
-
-        self.topleft.insertItems(0,self.subdirs)
-        self.topright.insertItems(0,self.matchingfiles)
-
-        #if self.search == 'file': self.topleft.itemDoubleClicked.connect(self.repopulate_folder_list)
-
-    def data(self):
-        self.subdirs = [os.pardir]
-        self.matchingfiles = []
-
-
-        self.ftps.cwd(self.folderpath)
-        self.ftps.retrlines('LIST', self.append)
-
-        matchingfiles = []
-        for pat in self.filters:
-            matchingfiles += [line for line in self.matchingfiles if line.endswith(pat.split('.')[-1])]
-        self.matchingfiles = matchingfiles
-
-    def repopulate_folder_list(self):
-
-        extra = self.topleft.currentItem().text()
-        if extra != '..':
-            self.folderpath = os.path.join(self.folderpath, extra)
-
-        elif len(self.folderpath) >1:
-            self.folderpath = os.path.dirname(self.folderpath)
-        self.pathdisplay.setText(self.folderpath)
-        self.add_folders()
 
 class CollectPreprocess(GuiTabWidget):
     '''Collect Preprocess Widget'''
@@ -178,7 +35,7 @@ class CollectPreprocess(GuiTabWidget):
 
     def tab0UI(self):
         '''Fill out the second tab of the collect & preprocess widget.'''
-        gridLayout = QtWidgets.QGridLayout()
+        gridLayout = QGridLayout()
         gridLayout.setContentsMargins(10, 10, 10, 10)
 
         rows, columns = 20, 20
@@ -237,7 +94,7 @@ class CollectPreprocess(GuiTabWidget):
 
     def tab3UI(self):
         '''Fill out the second tab of the collect & preprocess widget.'''
-        gridLayout = QtWidgets.QGridLayout()
+        gridLayout = QGridLayout()
         gridLayout.setContentsMargins(10, 10, 10, 10)
 
         rows, columns = 20, 20
@@ -257,7 +114,7 @@ class CollectPreprocess(GuiTabWidget):
         # NANOGRAPH ROW
         self.insert_label(parent, text=' - Nanograph Folder', cstep=1,
                           tooltip='Select the folder and the data format in which the nanographs are stored.')
-        self.insert_checkbox(parent, 'v01_batch_remote_nanograph', cstep=1, alignment=QtCore.Qt.AlignHCenter,
+        self.insert_checkbox(parent, 'v01_batch_remote_nanograph', cstep=1, alignment=Qt.AlignHCenter,
                              logvar=True)
         self.insert_combobox(parent, 'v01_batch_filetype_nanographs', ['tif', 'mrc', 'em'], cstep=1, logvar=True)
         self.insert_lineedit(parent, 'v01_batch_folder_nanographs', cstep=1, logvar=True)
@@ -268,7 +125,7 @@ class CollectPreprocess(GuiTabWidget):
                                        self.widgets['v01_batch_remote_nanograph']])
 
         # MDOC LINE
-        self.insert_checkbox(parent, 'v01_batch_collect_mdoc', cstep=1, alignment=QtCore.Qt.AlignHCenter, logvar=True)
+        self.insert_checkbox(parent, 'v01_batch_collect_mdoc', cstep=1, alignment=Qt.AlignHCenter, logvar=True)
         self.insert_label(parent, text=' - Mdoc Folder', cstep=1,
                           tooltip='If you have accompanying mdoc files, select the folder where these files are stored')
         self.insert_checkbox(parent, 'v01_batch_remote_mdoc', cstep=1, logvar=True)
@@ -363,7 +220,7 @@ class CollectPreprocess(GuiTabWidget):
 
 
         # MDOC LINE
-        #self.insert_checkbox(parent, mode +'collect_mdoc', cstep=1, alignment=QtCore.Qt.AlignHCenter,
+        #self.insert_checkbox(parent, mode +'collect_mdoc', cstep=1, alignment=Qt.AlignHCenter,
         #                     logvar=True, width=20)
         self.insert_label(parent, text=' - Mdoc Folder', cstep=1, width=120,
                       tooltip='If you hae accompanying mdoc files, select the folder where these files are stored')
@@ -410,7 +267,7 @@ class CollectPreprocess(GuiTabWidget):
                                        self.widgets[mode + 'remote_nanograph']])
 
         #self.gain_correct = self.insert_checkbox(parent, mode+'gaincorrection', cstep=1, logvar=True, width=20)
-        self.insert_label(parent, text=' - Gain File', cstep=1, alignment=QtCore.Qt.AlignLeft,width=120,
+        self.insert_label(parent, text=' - Gain File', cstep=1, alignment=Qt.AlignLeft,width=120,
                           tooltip='Apply gain correction using the file specified in entry line.')
         self.widgets[mode+'remote_gainfile'] = QCheckBox()
         self.insert_combobox(parent, mode+'filetype_gaincorrection', ['dm4', 'mrc'], cstep=1)
@@ -421,19 +278,19 @@ class CollectPreprocess(GuiTabWidget):
                                                 self.widgets[mode + 'remote_gainfile']])
 
         # Gpu ID's
-        self.insert_label(parent, text=" - Gpu IDs", cstep=2, alignment=QtCore.Qt.AlignLeft, width=120,
+        self.insert_label(parent, text=" - Gpu IDs", cstep=2, alignment=Qt.AlignLeft, width=120,
                           tooltip='Gpu ID"s of the gpus you want to use. Multiple gpu IDs need to be separated by a space.')
         self.insert_lineedit(parent, mode + 'gpuId', cstep=self.column * -1, rstep=1, columnspan=3, value='0',
                              logvar=True)
 
         # Patch Size
-        self.insert_label(parent, text=' - Patch Size', cstep=2, alignment=QtCore.Qt.AlignLeft, width=120,
+        self.insert_label(parent, text=' - Patch Size', cstep=2, alignment=Qt.AlignLeft, width=120,
                           tooltip='Sets the size of the patches used for motioncorrection (NxN).')
         self.insert_lineedit(parent, mode + 'patchSize', cstep=self.column * -1 , rstep=1, columnspan=3,
                              validator=QIntValidator(), logvar=True)
 
         # FtBin Size
-        self.insert_label(parent, text=' - FtBin Factor', cstep=2, alignment=QtCore.Qt.AlignLeft, width=120,
+        self.insert_label(parent, text=' - FtBin Factor', cstep=2, alignment=Qt.AlignLeft, width=120,
                           tooltip='Sets the binning factor for Fourier binning of your tilt images.')
         self.insert_lineedit(parent, mode+'ftBin', cstep=2 , rstep=1, columnspan=3,
                              validator=QIntValidator(), logvar=True)

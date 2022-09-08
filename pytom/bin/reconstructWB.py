@@ -81,6 +81,9 @@ if __name__ == '__main__':
                                  'Fraction of nyquist for low-pass filter that is applied to projections after '
                                  'binning.',
                                  'float', 'optional', 0.9),
+                   ScriptOption2(['--tilt-range'],
+                                 'Restrict reconstruction to the specified tilt range.',
+                                 'int,int', 'optional'),
                    ScriptOption2(['-n', '--numProcesses'],
                                  'Number of processes to split the job over. In case of GPUs this will be overwritten '
                                  'by the number of GPUs.',
@@ -92,8 +95,8 @@ if __name__ == '__main__':
 
     tomogram, particle_list_xml, projection_list_xml, projection_directory, projection_prefix, weighting, size, \
     coordinate_binning, rec_offset, projection_binning, metafile, align_result_file, scale_factor_particle, \
-    particle_polish_file, ctf_center, specimen_angle, low_pass_ny, nprocs, gpuIDs = parse_script_options2(sys.argv[
-                                                                                                          1:], helper)
+    particle_polish_file, ctf_center, specimen_angle, low_pass_ny, tilt_range, nprocs, gpuIDs \
+        = parse_script_options2(sys.argv[1:], helper)
 
     # parse the gpuIDs and overwrite the nprocs if neccessary
     gpuIDs = None if gpuIDs is None else list(map(int, gpuIDs.split(',')))
@@ -150,7 +153,8 @@ if __name__ == '__main__':
         vol = projection_list.reconstructVolume(dims=size, reconstructionPosition=rec_offset,
                                                 binning=projection_binning, weighting=weighting,
                                                 specimen_angle=specimen_angle, low_pass_ny_fraction=low_pass_ny,
-                                                scale_factor=scale_factor_particle, num_procs=nprocs)
+                                                scale_factor=scale_factor_particle, tilt_range=tilt_range,
+                                                num_procs=nprocs)
         write(tomogram, vol)
 
     elif particle_list_xml is not None:
@@ -205,8 +209,8 @@ if __name__ == '__main__':
         projection_list.reconstructVolumes(particles=particle_list, cube_size=cube_size, binning=projection_binning,
                                            weighting=weighting, low_pass_ny_fraction=low_pass_ny,
                                            post_scale=scale_factor_particle, num_procs=nprocs, ctfcenter=ctf_center,
-                                           polishResultFile=particle_polish_file, show_progress_bar=True,
-                                           gpuIDs=gpuIDs)
+                                           polishResultFile=particle_polish_file, tilt_range=tilt_range,
+                                           show_progress_bar=True, gpuIDs=gpuIDs)
 
     else:
         print('No valid tomogram or particle list provided. Exiting...')

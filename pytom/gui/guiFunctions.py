@@ -1,28 +1,16 @@
-import matplotlib
-try:
-    import matplotlib.backends.backend_qt5agg
-    matplotlib.use('Qt5Agg')
-except:
-    pass
-
 import os
-import numpy
+import numpy as np
+import mrcfile
 import copy
-import time
-from numpy.fft import fft2, ifft2, fftshift
-from numpy import int32, arange, conj, zeros, ones, bool8, sqrt, newaxis
+
+# pytom imports
 from pytom_volume import read
-from pytom.tools.files import checkFileExists, checkDirExists
-from pytom.basic.files import read as read_pytom
 from pytom.basic.files import read_em_header
 from pytom.gui.mrcOperations import read_mrc, read_angle
 from pytom_numpy import vol2npy
 from pytom.gui.guiSupportCommands import multiple_alignment
-import mrcfile
-import copy
-from pytom.basic.files import write_em
-
 from pytom.basic.files import loadtxt as loadstar, savetxt as savestar
+
 
 def kill_proc(runner):
     '''kill_proc kills a running process
@@ -73,7 +61,7 @@ def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, fi
     # elif radius is tuple and any([r < 1 for r in radius]):
     #     return 0
 
-    Y, X, Z = numpy.meshgrid(numpy.arange(y), numpy.arange(x), numpy.arange(z))
+    Y, X, Z = np.meshgrid(np.arange(y), np.arange(x), np.arange(z))
     X = X.astype('float32')
     Y = Y.astype('float32')
     Z = Z.astype('float32')
@@ -82,15 +70,15 @@ def initSphere(x, y, z, radius=-1, smooth=0, cent_x=-1, cent_y=-1, cent_z=-1, fi
     Y -= y - cent_y - 0.5
     Z -= z - cent_z - 0.5
 
-    R = numpy.sqrt(X ** 2 + Y ** 2 + Z ** 2)
+    R = np.sqrt(X ** 2 + Y ** 2 + Z ** 2)
     R2 = R.copy()
-    sphere = numpy.zeros((x, y, z), dtype='float32')
+    sphere = np.zeros((x, y, z), dtype='float32')
     sphere[R <= radius] = 1.
 
     if smooth:
         R2[R <= radius] = radius
-        sphere = numpy.exp(-1 * ((R2 - radius) / smooth) ** 2)
-        sphere[sphere <= numpy.exp(-cutoff_SD**2/2.)] = 0
+        sphere = np.exp(-1 * ((R2 - radius) / smooth) ** 2)
+        sphere[sphere <= np.exp(-cutoff_SD**2/2.)] = 0
     if filename:
         import mrcfile
         mrcfile.new(filename.replace('.em', '.mrc'), sphere,overwrite=True)
@@ -111,10 +99,9 @@ def write_markerfile(markerFileName, markerfile, tiltangles, bin_factor=1):
 
     '''
     from pytom.basic.datatypes import HEADER_MARKERFILE, FMT_MARKERFILE as fmtMarkerfile
-    import numpy as np
     num_projs, num_markers, c = markerfile.shape
 
-    markerFile = numpy.ones((num_markers, num_projs, 4)) * -1
+    markerFile = np.ones((num_markers, num_projs, 4)) * -1
     for iMark, Marker in enumerate(list(range(num_markers))):
         markerFile[iMark, :, 0] = iMark
 
@@ -204,11 +191,11 @@ def txt2markerfile(filename, tiltangles):
     else:
         x,y = datalen // num_angles, num_angles
         mark_frames_small = data.reshape(x, y, 4)[:, :, 2:].transpose(1, 0, 2)
-        mark_frames = -1*numpy.ones((len(tiltangles), x, 2), dtype=numpy.float32)
+        mark_frames = -1*np.ones((len(tiltangles), x, 2), dtype=np.float32)
         ang_selected = data[:num_angles, 1]
         runner = 0
         for n, angle in enumerate(tiltangles):
-            if numpy.abs(ang_selected-angle).min() < 1E-5:
+            if np.abs(ang_selected-angle).min() < 1E-5:
                 mark_frames[n,:,:] = mark_frames_small[runner,:,:]
                 runner += 1
 
@@ -224,7 +211,7 @@ def npy2markerfile(filename,tiltangles):
     @return: mark_frames object (num_tilts, num_marks, 2)
     @type mark_frames: L{numpy.ndarray}
     '''
-    return numpy.load(filename)
+    return np.load(filename)
 
 def wimp2markerfile(filename, tiltangles, write=False):
     '''imports a markerfile in wimp format to an array used by the GUI
@@ -242,7 +229,7 @@ def wimp2markerfile(filename, tiltangles, write=False):
         if '# of object' in data[i]:
             num_markers = int(data[i].split()[-1])
 
-    markerset = numpy.ones((len(tiltangles),num_markers,2))*-1.
+    markerset = np.ones((len(tiltangles),num_markers,2))*-1.
 
     for line in data:
         if 'Object #:' in line:
@@ -274,7 +261,7 @@ def mrc2markerfile(filename, tiltangles):
         mf = copy.deepcopy(m.data)
         m.close()
     num,angles,d = mf.shape
-    markers = -1 * numpy.ones((len(tiltangles), mf.shape[0], 2))
+    markers = -1 * np.ones((len(tiltangles), mf.shape[0], 2))
     for i in range(num):
         for j in range(angles):
             for n, angle in enumerate(tiltangles):
@@ -304,7 +291,7 @@ def em2markerfile(filename, tiltangles):
     # print mf.shape
     locX, locY = 1, 2
 
-    mark_frames = -1 * numpy.ones((len(tiltangles), num, 2))
+    mark_frames = -1 * np.ones((len(tiltangles), num, 2))
 
     # print mf[0,:,1:3].shape,self.coordinates[:,0,:].shape
     markers = []
@@ -401,7 +388,7 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
     module_load = ''
     queue_command = ''
 
-    modules = list(numpy.unique(numpy.array(modules)))
+    modules = list(np.unique(np.array(modules)))
     if modules:
         module_load = 'module load '
     for module in modules:
@@ -547,18 +534,18 @@ def Radial_average(image, mask=None):
     import pylab
     [cx,cy] = image.shape
     if mask == None:
-        mask = ones((cx,cy), dtype='bool8')
+        mask = np.ones((cx,cy), dtype='bool8')
     else:
-        mask = bool8(mask)
-    axis_values = [arange(0,l) - l/2. + 0.5 for l in image.shape]
-    radius = zeros((image.shape[-1]))
+        mask = np.bool8(mask)
+    axis_values = [np.arange(0,l) - l/2. + 0.5 for l in image.shape]
+    radius = np.zeros((image.shape[-1]))
     for i in range(len(image.shape)):
-        radius = radius + ((axis_values[-(1+i)][(slice(0, None), ) + (newaxis, )*i])**2)
-    radius = int32(sqrt(radius))
+        radius = radius + ((axis_values[-(1+i)][(slice(0, None), ) + (np.newaxis, )*i])**2)
+    radius = np.int32(np.sqrt(radius))
    
     number_of_bins = radius[mask].max() + 1
-    radial_sum = zeros(number_of_bins)
-    weight = zeros(number_of_bins)
+    radial_sum = np.zeros(number_of_bins)
+    weight = np.zeros(number_of_bins)
     for value, this_radius in zip(image[mask], radius[mask]):
         radial_sum[this_radius] += value
         weight[this_radius] += 1.
@@ -575,7 +562,8 @@ def detect_shift(arr0,arr1,image=[]):
     @return: 2d cross correlation arr0 and arr1, shiftx, shifty, max 2d cross-correlation
     '''
     x,y = image.shape
-    cross = abs(fftshift( ifft2(fftshift(fftshift(fft2(arr0))*conj(fftshift(fft2(arr1)))))))**2
+    cross = abs(np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(np.fft.fftshift(np.fft.fft2(arr0))*np.conj(np.fft.fftshift(
+        np.fft.fft2(arr1)))))))**2
     locx,locy =  (abs((cross))**2).flatten().argmax()%y, (abs((cross))**2).flatten().argmax()/y
     return cross, locx-y/2, locy-x/2, cross[int(locy)][int(locx)]
     
@@ -917,8 +905,8 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
                 metadata.append(tuple(data))
 
         if len(metadata) == 0: continue
-        a = numpy.rec.array(metadata, dtype=datatype)
-        a = numpy.sort(a,order='TiltAngle')
+        a = np.rec.array(metadata, dtype=datatype)
+        a = np.sort(a,order='TiltAngle')
 
         outname = mdocfilepath.replace('mdoc','meta')
         if target: outname = os.path.join(target, mdocfile.replace('mdoc','meta'))
@@ -939,16 +927,16 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
                 if k.split('.')[-1] in ('mrc', 'em'):
                     vol = read(os.path.join(nanographfolder,k))
                     data = copy.deepcopy(vol2npy(vol))
-                    size[tomoname] = numpy.min(data.shape)
+                    size[tomoname] = np.min(data.shape)
                 else:
 
                     #try:
                     #    data = imread( os.path.join(nanographfolder,k) )
-                    #    size[tomoname] = numpy.min(data.shape)
+                    #    size[tomoname] = np.min(data.shape)
                     #except:
                     aa = os.popen('header {} | grep "Number of columns, rows, sections" '.format( os.path.join(nanographfolder,k) )).read()[:-1]
                     dd = list(map(int, aa.split()[-3:-1]))
-                    size[tomoname] = numpy.min(dd)
+                    size[tomoname] = np.min(dd)
 
             #Find tiltangle
 
@@ -966,8 +954,6 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
         if v == 'st':
             from pytom.agnostic.io import read as readNPY, read_size, read_pixelsize
-            from numpy import loadtxt
-
 
             stackfile  = os.path.join(nanographfolder,k)
             tltfile = stackfile.replace('.st', '.tlt')
@@ -981,11 +967,11 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
                 print(f'failed for {tltfile}')
                 continue
 
-            tiltangles = loadtxt(tltfile)
+            tiltangles = np.loadtxt(tltfile)
 
             tomoname = k[:-3]
 
-            metadata = numpy.zeros((len(tiltangles)),dtype=datatype)
+            metadata = np.zeros((len(tiltangles)),dtype=datatype)
 
             for i, tiltangle in enumerate(tiltangles):
 
@@ -1000,7 +986,7 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
                 metadata['AmplitudeContrast'][i] = 0.8
                 metadata['MarkerDiameter'][i] = 100
 
-            a = numpy.sort(metadata, order='TiltAngle')
+            a = np.sort(metadata, order='TiltAngle')
 
             outname = '{}/{}.meta'.format(nanographfolder, tomoname)
             print(outname)
@@ -1009,7 +995,7 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
 
     for NR, (k, v) in enumerate(tomo_from_filename.items()):
 
-        neg = numpy.array( [0,]*len(v[0][0]), dtype=int)
+        neg = np.array( [0,]*len(v[0][0]), dtype=int)
         tiltangles_header = []
         for list2, angle, fname in v:
             tiltangles_header.append(angle)
@@ -1018,12 +1004,12 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
                     neg[n] += 1
 
 
-        loc = numpy.argmax(neg[neg < len(v)])
+        loc = np.argmax(neg[neg < len(v)])
 
         if not neg[loc] > 0:
             loc = -1
 
-        tiltangles_header = numpy.array(tiltangles_header)
+        tiltangles_header = np.array(tiltangles_header)
         metadata = [[0., ] * len(datatype), ] * len(v)
 
         for NR, (d,t) in enumerate(datatype):
@@ -1041,7 +1027,7 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
                 if datatype[-3][0] == 'ImageSize':  metadata[i][-3] = size[k]
                 metadata[i] = tuple(metadata[i])
 
-        elif len(numpy.unique(numpy.round(tiltangles_header).astype(int))) == len(tiltangles_header):
+        elif len(np.unique(np.round(tiltangles_header).astype(int))) == len(tiltangles_header):
             for i in range(len(v)):
                 metadata[i][NR] = float(tiltangles_header[i])
                 metadata[i][-1] = v[i][2]
@@ -1051,8 +1037,8 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
         else:
             continue
 
-        a = numpy.rec.array(metadata, dtype=datatype)
-        a = numpy.sort(a, order='TiltAngle')
+        a = np.rec.array(metadata, dtype=datatype)
+        a = np.sort(a, order='TiltAngle')
 
         outname = '{}/{}.meta'.format(nanographfolder, v[0][0][0])
         savestar(outname, a, fmt=fmt, header=headerText)
@@ -1140,7 +1126,6 @@ def addShiftToMarkFrames(mark_frames, shifts, metadata, excluded):
 
 def convert_markerfile(filename, outname):
     from pytom.agnostic.io import read
-    import numpy as np
     from pytom.basic.datatypes import HEADER_MARKERFILE, FMT_MARKERFILE as fmtMarkerfile
 
     a = read(filename)
@@ -1159,6 +1144,7 @@ def convert_markerfile(filename, outname):
             np.savetxt(outfile, data_slice, fmt=fmtMarkerfile)
 
 def readPolishResultFile(filename, tilt_angles=None, non_stacked=False):
+    # TODO remove: this function does not work
     try:
         from pytom.gui.guiFunctions import LOCAL_ALIGNMENT_RESULTS, loadstar
 
@@ -1211,7 +1197,6 @@ def plotCurve(data, num_rows=1, num_cols=1, s=5, e=None, h=None):
             if e is None and (h is None):
                 ax.scatter(range(len(d)), d)
             elif not (h is None):
-                import numpy as np
                 x = np.random.normal(size=50000)
                 y = x * 3 + np.random.normal(size=50000)
                 #print(len(h[1]), len(h[0]))

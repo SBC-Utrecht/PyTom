@@ -1,32 +1,24 @@
-import sys
 import os
-import random
 import glob
 import numpy
 import time
 import shutil
-import copy
 import atexit
-
-from os.path import dirname, basename
-from ftplib import FTP_TLS, FTP
-from multiprocessing import Manager, Event, Process, cpu_count
+from multiprocessing import Manager, Process, cpu_count
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from PyQt5 import QtCore, QtGui, QtWidgets
 
-from pytom.gui.guiStyleSheets import *
+# pytom gui imports
+from pytom.gui.guiStyleSheets import DEFAULT_STYLE_PROGRESSBAR
 from pytom.gui.fiducialAssignment import FiducialAssignment
-from pytom.gui.guiStructures import *
-from pytom.gui.guiFunctions import avail_gpu, sort, axis_angle_from_ar_file
-from pytom.gui.guiSupportCommands import *
-from pytom.basic.files import read
-from pytom_numpy import vol2npy
-from pytom.gui.mrcOperations import read_mrc
+from pytom.gui.guiStructures import GuiTabWidget, SimpleTable, Worker
+from pytom.gui.guiFunctions import sort, axis_angle_from_ar_file
+from pytom.gui.guiSupportCommands import templateAlignment, templateWBP, templateCTFPlotter, \
+    templateCTFCorrectionImod, ParamsFileCTFPlotter, multiple_alignment, templateINFR
 import pytom.gui.guiFunctions as guiFunctions
-from pytom.gui.mrcOperations import square_mrc, remove_hot_pixels
+from pytom.gui.mrcOperations import remove_hot_pixels
 from pytom.agnostic.io import read_size
 from pytom.gui.guiFunctions import loadstar
 from pytom.basic.datatypes import DATATYPE_METAFILE
@@ -79,19 +71,19 @@ class TomographReconstruct(GuiTabWidget):
         metadata_dict = {}
 
         for i in processed:
-            processed_dict[basename(i)] = i
+            processed_dict[os.path.basename(i)] = i
 
-        processed_fn = [basename(line) for line in processed]
+        processed_fn = [os.path.basename(line) for line in processed]
         unprocessed = sorted(glob.glob('{}/*.meta'.format(self.rawnanographs_folder)))
         unprocessed = numpy.array(unprocessed + sorted(glob.glob('{}/import*/*.meta'.format(self.rawnanographs_folder))))
 
         ff = []
 
         for u_item in unprocessed:
-            bn = basename(u_item)
+            bn = os.path.basename(u_item)
             if bn in processed_fn:
                 if not bn in metadata_dict.keys():
-                    metadata_dict[bn] = loadstar(processed_dict[basename(u_item)],dtype=DATATYPE_METAFILE)
+                    metadata_dict[bn] = loadstar(processed_dict[os.path.basename(u_item)],dtype=DATATYPE_METAFILE)
                 c = loadstar(u_item,dtype=DATATYPE_METAFILE)
 
                 if len(metadata_dict[bn]['TiltAngle']) != len(c['TiltAngle']):

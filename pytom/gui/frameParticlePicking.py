@@ -1,33 +1,26 @@
-import sys
 import os
 import random
 import glob
 import numpy
-import time
+from copy import deepcopy
 
-
-from ftplib import FTP_TLS, FTP
-from os.path import dirname, basename
-from multiprocessing import Manager, Event, Process
+# from ftplib import FTP_TLS, FTP
+# from os.path import dirname, basename
+# from multiprocessing import Manager, Event, Process
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from PyQt5 import QtCore, QtGui, QtWidgets
 
-from pytom.gui.guiStyleSheets import *
-from pytom.gui.fiducialAssignment import FiducialAssignment
-from pytom.gui.guiStructures import * #GuiTabWidget, CommonFunctions, SimpleTable, ParticlePicker, CreateMaskFile, ConvertEM2PDB
-from pytom.gui.guiFunctions import avail_gpu
-import pytom.gui.guiFunctions as guiFunctions
-from pytom.gui.guiSupportCommands import *
-from pytom.basic.structures import ParticleList, Rotation
+# pytom gui imports
+from pytom.gui.guiStructures import GuiTabWidget, SelectFiles, ParticlePicker, Worker, CreateMaskFile, ConvertEM2PDB
+from pytom.gui.guiSupportCommands import templateTM, templateXML, templateExtractCandidates, createParticleList
+from pytom.gui import guiFunctions
 from pytom.basic.files import read
 from pytom.convert.coords2PL import convertCoords2PL
-from pytom.bin.updateParticleList import updatePL, mirrorParticleList
-from copy import deepcopy
+from pytom.bin.updateParticleList import updatePL
 from pytom_numpy import vol2npy
-import random
+
 
 class ParticlePick(GuiTabWidget):
     '''Collect Preprocess Widget'''
@@ -625,6 +618,9 @@ class ParticlePick(GuiTabWidget):
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
             self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Templ. Match',
                                            num_submitted_jobs=num_submitted_jobs)
+        else:
+            self.popup_messagebox('Info', 'Submission Status', 'Failed at starting template matching jobs. Check if '
+                                                               'tomograms exist.')
 
     def populate_batch_extract_cand(self,id='tab23'):
         self.batchEC.close()

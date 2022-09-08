@@ -1,29 +1,10 @@
-
-import sys
-import os
-import glob
-from typing import Any, Union
-
-import numpy
-import pytom.gui.mrcOperations
-from time import time
-from pytom.gui.mrcOperations import downsample
-from numpy.fft  import fft2, ifft2, fftshift
-from numpy import *
-from numpy import int32, arange, conj, zeros, ones, bool8, sqrt, newaxis, tan, median
-from pytom.gui.mrcOperations import read_mrc as read
-
-from numpy import tan
-
-from scipy.ndimage import gaussian_filter, laplace, label, median_filter, maximum_filter, convolve, gaussian_laplace
-from scipy.ndimage import binary_closing, binary_fill_holes, binary_erosion, binary_dilation, center_of_mass
+import numpy as np
+from pytom.gui.mrcOperations import downsample, read_mrc as read
+from scipy.ndimage import gaussian_filter, laplace, label, gaussian_laplace, center_of_mass
 from scipy.ndimage.filters import minimum_filter
-from scipy.ndimage.morphology import generate_binary_structure
-from scipy.signal import wiener, argrelextrema
-from skimage.morphology import remove_small_objects, watershed
-from skimage.feature import canny, peak_local_max
-from numpy.fft import fftn, ifftn, fftshift
-import mrcfile
+from scipy.signal import wiener
+from skimage.morphology import remove_small_objects
+from skimage.feature import peak_local_max
 
 
 class PickingFunctions():
@@ -31,13 +12,13 @@ class PickingFunctions():
         pass
 
     def diff(self, vec0, vec1):
-        return numpy.linalg.norm(vec0-vec1)
+        return np.linalg.norm(vec0-vec1)
 
     def closest_point(self, ref_vec, points, cutoff=3.4, it=0, alpha=270):
 
         if alpha < 0.: alpha += 360
 
-        c = numpy.zeros(len(points), dtype=float)
+        c = np.zeros(len(points), dtype=float)
         for n, p in enumerate(points):
             c[n] = self.diff(ref_vec, p)
             if abs(self.distance(p, ref_vec, alpha))> cutoff:
@@ -49,12 +30,11 @@ class PickingFunctions():
             return -1
 
     def dist_z(self, y0,y1,a1):
-        z1 = (y1-y0*numpy.cos(a1) )/ (numpy.sin(a1))
+        z1 = (y1-y0*np.cos(a1) )/ (np.sin(a1))
         return z1
 
 
     def calc_matrix(self, cur, ref, cutoff, alpha):
-        import numpy as np
         alpha = alpha % 360
         distance = np.ones((len(cur), len(ref))) * 9999
         for n, p in enumerate(cur):
@@ -74,8 +54,8 @@ class PickingFunctions():
                 tiltaxis=0):
         angle = tiltaxis
         dist_map = [1000] * (ref.shape[0])
-        index_map = numpy.zeros((ref.shape[0]), dtype=int)
-        coordinates = numpy.zeros_like(ref)
+        index_map = np.zeros((ref.shape[0]), dtype=int)
+        coordinates = np.zeros_like(ref)
         #distance_matrix = calc_matrix(cur, ref, cutoff, tiltaxis)
         for i, p in enumerate(cur):
             if p.sum() == 0: continue
@@ -88,22 +68,22 @@ class PickingFunctions():
                 # if index == tgt :
                 #    if pos == 1: d_theta = tiltangles[imnr] - tiltangles[imnr-1]
                 #    else: d_theta = tiltangles[imnr]-tiltangles[imnr+1]
-                # print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(index+1, imnr, int(numpy.round(p[0])), int(numpy.round(p[1])), dist_z(ref[index][0], p[0], d_theta*numpy.pi/180.) ), p[0]
-                # print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(tgt+2, imnr, int(numpy.round(d_theta)), int(numpy.round(tiltangles[imnr])), dist_z(ref[tgt+1][0], p[0], d_theta*numpy.pi/180.) ), p[0]
+                # print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(index+1, imnr, int(np.round(p[0])), int(np.round(p[1])), dist_z(ref[index][0], p[0], d_theta*np.pi/180.) ), p[0]
+                # print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(tgt+2, imnr, int(np.round(d_theta)), int(np.round(tiltangles[imnr])), dist_z(ref[tgt+1][0], p[0], d_theta*np.pi/180.) ), p[0]
 
                 # if index == tgt+1 :
                 #    if pos == 1: d_theta = tiltangles[imnr] - tiltangles[imnr-1]
                 #    else: d_theta = tiltangles[imnr]-tiltangles[imnr+1]
-                # print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(tgt+1, imnr, int(numpy.round(p[0])), int(numpy.round(p[1])), dist_z(ref[tgt][0], p[0], d_theta*numpy.pi/180.) ), p[0]
-                # print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(index+1, imnr, int(numpy.round(p[0])), int(numpy.round(p[1])), dist_z(ref[index][0], p[0], d_theta*numpy.pi/180.) ), p[0]
+                # print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(tgt+1, imnr, int(np.round(p[0])), int(np.round(p[1])), dist_z(ref[tgt][0], p[0], d_theta*np.pi/180.) ), p[0]
+                # print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(index+1, imnr, int(np.round(p[0])), int(np.round(p[1])), dist_z(ref[index][0], p[0], d_theta*np.pi/180.) ), p[0]
 
         count = 0
         # print
 
-        while count < 10 and len(index_map) != len(numpy.unique(index_map)) + (1 * (index_map == 0)).sum() - 1:
+        while count < 10 and len(index_map) != len(np.unique(index_map)) + (1 * (index_map == 0)).sum() - 1:
             # if 1: print imnr, index_map
 
-            for ind in numpy.unique(index_map):
+            for ind in np.unique(index_map):
                 if ind == 0: continue
 
                 closest, second = [], []
@@ -140,7 +120,7 @@ class PickingFunctions():
                     c1, c2 = candidates
                     dist, dis, d1, d2 = c1[2], c1[4], c2[2], c2[4]
 
-                    std2, std1 = numpy.std([d1, dis]), numpy.std([d2, dist])
+                    std2, std1 = np.std([d1, dis]), np.std([d2, dist])
 
                     # if imnr == 15:
                     #    print c1
@@ -170,12 +150,12 @@ class PickingFunctions():
                                 index_map[c1[0]] = c1[3]
                                 m = c2
 
-                    elif numpy.std([d1, dis]) < numpy.std([d2, dist]) and d2 < cutoff_dist and dis < cutoff_dist:
+                    elif np.std([d1, dis]) < np.std([d2, dist]) and d2 < cutoff_dist and dis < cutoff_dist:
                         index_map[c1[0]] = c1[3]
                         m = c2
                         if v: print (count, 'option a')
 
-                    elif numpy.std([d1, dis]) < numpy.std([d2, dist]) and d2 < cutoff_dist and dis < cutoff_dist:
+                    elif np.std([d1, dis]) < np.std([d2, dist]) and d2 < cutoff_dist and dis < cutoff_dist:
                         index_map[c2[0]] = c2[3]
                         m = c1
                         if v: print (count, 'option b')
@@ -218,8 +198,8 @@ class PickingFunctions():
     def compare_fast(self, cur, ref, imnr, cutoff=3.4,v=False,tiltangles=[],y0=0,a0=0,pos=1,cutoff_dist=10,tiltaxis=0):
         angle = tiltaxis
         dist_map = [1000]*(ref.shape[0])
-        index_map = numpy.zeros((ref.shape[0]),dtype=int)
-        coordinates = numpy.zeros_like(ref)
+        index_map = np.zeros((ref.shape[0]),dtype=int)
+        coordinates = np.zeros_like(ref)
         distance_matrix = self.calc_matrix(cur, ref, cutoff, tiltaxis)
         for i,p in enumerate(cur):
             if p.sum() == 0: continue
@@ -233,22 +213,22 @@ class PickingFunctions():
                 #if index == tgt :
                 #    if pos == 1: d_theta = tiltangles[imnr] - tiltangles[imnr-1]
                 #    else: d_theta = tiltangles[imnr]-tiltangles[imnr+1]
-                    #print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(index+1, imnr, int(numpy.round(p[0])), int(numpy.round(p[1])), dist_z(ref[index][0], p[0], d_theta*numpy.pi/180.) ), p[0]
-                    #print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(tgt+2, imnr, int(numpy.round(d_theta)), int(numpy.round(tiltangles[imnr])), dist_z(ref[tgt+1][0], p[0], d_theta*numpy.pi/180.) ), p[0]
+                    #print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(index+1, imnr, int(np.round(p[0])), int(np.round(p[1])), dist_z(ref[index][0], p[0], d_theta*np.pi/180.) ), p[0]
+                    #print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(tgt+2, imnr, int(np.round(d_theta)), int(np.round(tiltangles[imnr])), dist_z(ref[tgt+1][0], p[0], d_theta*np.pi/180.) ), p[0]
 
                 #if index == tgt+1 :
                 #    if pos == 1: d_theta = tiltangles[imnr] - tiltangles[imnr-1]
                 #    else: d_theta = tiltangles[imnr]-tiltangles[imnr+1]
-                    #print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(tgt+1, imnr, int(numpy.round(p[0])), int(numpy.round(p[1])), dist_z(ref[tgt][0], p[0], d_theta*numpy.pi/180.) ), p[0]
-                    #print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(index+1, imnr, int(numpy.round(p[0])), int(numpy.round(p[1])), dist_z(ref[index][0], p[0], d_theta*numpy.pi/180.) ), p[0]
+                    #print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(tgt+1, imnr, int(np.round(p[0])), int(np.round(p[1])), dist_z(ref[tgt][0], p[0], d_theta*np.pi/180.) ), p[0]
+                    #print '{:4d} {:4d} {:4d} {:4d} {:6.0f}'.format(index+1, imnr, int(np.round(p[0])), int(np.round(p[1])), dist_z(ref[index][0], p[0], d_theta*np.pi/180.) ), p[0]
 
         count = 0
         #print
 
-        while count < 10 and len(index_map) != len(numpy.unique(index_map))+(1*(index_map==0)).sum()-1:
+        while count < 10 and len(index_map) != len(np.unique(index_map))+(1*(index_map==0)).sum()-1:
             #if 1: print imnr, index_map
 
-            for ind in numpy.unique(index_map):
+            for ind in np.unique(index_map):
                 if ind == 0: continue
 
                 closest, second = [], []
@@ -286,7 +266,7 @@ class PickingFunctions():
                     c1,c2 =candidates
                     dist,dis,d1,d2 = c1[2],c1[4],c2[2],c2[4]
 
-                    std2,std1 = numpy.std( [d1,dis] ), numpy.std( [d2,dist] )
+                    std2,std1 = np.std( [d1,dis] ), np.std( [d2,dist] )
 
                     #if imnr == 15:
                     #    print c1
@@ -316,12 +296,12 @@ class PickingFunctions():
                                 index_map[c1[0]] = c1[3]
                                 m = c2
 
-                    elif numpy.std( [d1,dis] ) < numpy.std( [d2,dist] ) and d2 < cutoff_dist and dis < cutoff_dist:
+                    elif np.std( [d1,dis] ) < np.std( [d2,dist] ) and d2 < cutoff_dist and dis < cutoff_dist:
                         index_map[c1[0]] = c1[3]
                         m = c2
                         if v: print (count,'option a')
 
-                    elif numpy.std( [d1,dis] ) < numpy.std( [d2,dist] ) and d2 < cutoff_dist and dis < cutoff_dist:
+                    elif np.std( [d1,dis] ) < np.std( [d2,dist] ) and d2 < cutoff_dist and dis < cutoff_dist:
                         index_map[c2[0]] = c2[3]
                         m = c1
                         if v: print (count, 'option b')
@@ -364,21 +344,21 @@ class PickingFunctions():
         if p0.sum() == 0: return 9999
         dx = p1[0]-p0[0]
         dy = p1[1]-p0[1]
-        a = arctan2(dy, dx)
-        v = sqrt(dx**2+dy**2)
-        diff_angle = a-angle*pi/180.
-        distx = v*cos(diff_angle)
-        disty = v * sin(diff_angle)
+        a = np.arctan2(dy, dx)
+        v = np.sqrt(dx**2+dy**2)
+        diff_angle = a-angle*np.pi/180.
+        distx = v*np.cos(diff_angle)
+        disty = v * np.sin(diff_angle)
         if distx > cutoff: return 9999
         return distx
 
     def distance(self, p0, p1, angle):
         dx = p1[0]-p0[0]
         dy = p1[1]-p0[1]
-        a = arctan2(dy, dx)
-        v = sqrt(dx**2+dy**2)
-        diff_angle = a-angle*pi/180.
-        dist = v*cos(diff_angle)
+        a = np.arctan2(dy, dx)
+        v = np.sqrt(dx**2+dy**2)
+        diff_angle = a-angle*np.pi/180.
+        dist = v*np.cos(diff_angle)
         return dist
 
     def sort(self, obj, nrcol ):
@@ -390,9 +370,9 @@ class PickingFunctions():
             assert im0.shape[i] == im1.shape[i]
             assert im0.shape[i] > 0
 
-        ft_im0 = (fftn(im0))
-        ft_im1 = (fftn(im1))
-        cc = fftshift(abs(ifftn((ft_im0 * ft_im1))))
+        ft_im0 = (np.fft.fftn(im0))
+        ft_im1 = (np.fft.fftn(im1))
+        cc = np.fft.fftshift(abs(np.fft.ifftn((ft_im0 * ft_im1))))
         return cc
 
     def detect_shifts_many(self, mark_frames, max_shiftx=5.5,max_shifty=2.,sd=1,diag=False, image=[]):
@@ -403,12 +383,12 @@ class PickingFunctions():
 
         tilt_nr,mark_nr, k = mark_frames.shape
         dimx,dimy = image.shape
-        factor = max(1,numpy.ceil(dimx / 1024.))
+        factor = max(1,np.ceil(dimx / 1024.))
         factor = 1
-        out = numpy.zeros((dimx//factor,dimy//factor,tilt_nr))
+        out = np.zeros((dimx//factor,dimy//factor,tilt_nr))
 
-        frame_shifts = numpy.zeros((tilt_nr,mark_nr,2),dtype=float)
-        fs = numpy.zeros((tilt_nr,2),dtype=float)
+        frame_shifts = np.zeros((tilt_nr,mark_nr,2),dtype=float)
+        fs = np.zeros((tilt_nr,2),dtype=float)
         outline_detect_shifts = ''
         num_shifts = 0
 
@@ -429,14 +409,15 @@ class PickingFunctions():
                 num_shifts +=1
                 outline_detect_shifts += "\t{:2d}-{:2d} {:4.0f} {:4.0f} {:4.3f}\n".format(itilt,itilt+1,shiftx,shifty,m)
 
-        frame_shifts *= (mark_frames.sum(axis=-1) > 0)[:,:,numpy.newaxis]
+        frame_shifts *= (mark_frames.sum(axis=-1) > 0)[:,:,np.newaxis]
         if diag: print ('detect frame shifts: {:.0f} msec'.format(1000*(time()-s)))
 
         return frame_shifts, num_shifts, outline_detect_shifts, fs
 
     def detect_shift(self, arr0,arr1,image=[]):
         x,y = image.shape
-        cross = abs(fftshift( ifft2(fftshift(fftshift(fft2(arr0))*conj(fftshift(fft2(arr1)))))))**2
+        cross = abs(np.fft.fftshift( np.fft.ifft2(np.fft.fftshift(np.fft.fftshift(
+            np.fft.fft2(arr0))*np.conj(np.fft.fftshift(np.fft.fft2(arr1)))))))**2
         locx,locy =  (abs((cross))**2).flatten().argmax()%y, (abs((cross))**2).flatten().argmax()/y
         return cross, locx-y/2, locy-x/2, cross[int(locy)][int(locx)]
 
@@ -446,54 +427,54 @@ class PickingFunctions():
 
         x,y,z = mark_frames.shape
 
-        distance_matrix = 1000*numpy.ones((x-1,y),dtype=float)
-        shift = numpy.zeros_like(mark_frames)
-        size_shift = numpy.ones((x-1,y),dtype=float)
+        distance_matrix = 1000*np.ones((x-1,y),dtype=float)
+        shift = np.zeros_like(mark_frames)
+        size_shift = np.ones((x-1,y),dtype=float)
 
         for ii in range(x-1):
             distance_matrix[ii,:], shift[ii,:,:], size_shift[ii,:] = self.pair(mark_frames[ii],mark_frames[ii+1],pr=(ii==8))
             #print ii, distance_matrix[ii]
-        frame_shifts = numpy.zeros((x,y,2),dtype=float)
-        fs = numpy.zeros((x,2),dtype=float)
+        frame_shifts = np.zeros((x,y,2),dtype=float)
+        fs = np.zeros((x,2),dtype=float)
         num_shifts = 0
 
         outline_detect_shifts = ''
         for iii in range(x-1):
             sel = (distance_matrix[iii]<maxshift)*(size_shift[iii]<150)
             d_shift = size_shift[iii][sel]
-            shifty, shiftx = numpy.median(shift[iii,:,1][sel]), numpy.median(shift[iii,:,0][sel])
+            shifty, shiftx = np.median(shift[iii,:,1][sel]), np.median(shift[iii,:,0][sel])
             #if iii == 31: print sorted(d_shift)
-            #print iii, numpy.std(d_shift), d_shift
+            #print iii, np.std(d_shift), d_shift
 
-            n, h = numpy.histogram(d_shift, bins=10, range=None, normed=False, weights=None, density=None)
+            n, h = np.histogram(d_shift, bins=10, range=None, normed=False, weights=None, density=None)
             #if iii == 31:
             #    print n, h
-                #print numpy.std(h[n.argmax():n.argmax()+1]
+                #print np.std(h[n.argmax():n.argmax()+1]
             #distance_matrix[iii], d_shift, shift[iii]
             if abs(shifty) > max_shifty or abs(shiftx) > max_shiftx :
-                if numpy.std(d_shift) > 5:
+                if np.std(d_shift) > 5:
                     sel = (distance_matrix[iii]<maxshift)*(size_shift[iii]<85)
                     d_shift = size_shift[iii][sel]
-                    shifty, shiftx = numpy.median(shift[iii,:,1][sel]), numpy.median(shift[iii,:,0][sel])
-                    #print iii, numpy.std(d_shift), d_shift
+                    shifty, shiftx = np.median(shift[iii,:,1][sel]), np.median(shift[iii,:,0][sel])
+                    #print iii, np.std(d_shift), d_shift
                     #print
 
-                if numpy.std(d_shift) > 5:
+                if np.std(d_shift) > 5:
                     #diff = h[-1]-h[0]
                     #total = len(d_shift)
                     sel = (distance_matrix[iii]<maxshift)*(size_shift[iii]< h[min(len(n),n.argmax()+1)] )*(size_shift[iii]>h[n.argmax()])
                     d_shift = size_shift[iii][sel]
-                    shifty, shiftx = numpy.median(shift[iii,:,1][sel]), numpy.median(shift[iii,:,0][sel])
+                    shifty, shiftx = np.median(shift[iii,:,1][sel]), np.median(shift[iii,:,0][sel])
 
 
-                if numpy.std(d_shift) > 5:
+                if np.std(d_shift) > 5:
                     continue
-                outline_detect_shifts += "\t{:2d}-{:2d} {:4.1f} {:4.1f} {:4.1f} | {:4.0f} {:4.0f}\n".format(iii,iii+1, numpy.median(d_shift ), numpy.std(d_shift), numpy.mean(d_shift), shiftx,shifty)
+                outline_detect_shifts += "\t{:2d}-{:2d} {:4.1f} {:4.1f} {:4.1f} | {:4.0f} {:4.0f}\n".format(iii,iii+1, np.median(d_shift ), np.std(d_shift), np.mean(d_shift), shiftx,shifty)
                 frame_shifts[iii+1:] += [ shiftx, shifty]
                 fs[iii+1:] += [ shiftx, shifty]
                 num_shifts +=1
 
-        frame_shifts *= (mark_frames.sum(axis=-1) > 0)[:,:,numpy.newaxis]
+        frame_shifts *= (mark_frames.sum(axis=-1) > 0)[:,:,np.newaxis]
         print ("encountered {} frame shifts.".format(num_shifts))
         print (outline_detect_shifts   )
 
@@ -503,8 +484,8 @@ class PickingFunctions():
 
     def pair(self, l1,l2,pr=0):
         len_l1,len_l2 = len(l1), len(l2)
-        com1 = numpy.zeros((len_l1,len_l1,2))
-        com2 = numpy.zeros((len_l2,len_l2,2))
+        com1 = np.zeros((len_l1,len_l1,2))
+        com2 = np.zeros((len_l2,len_l2,2))
 
         for i in range(len_l1):
             com1[i,:,:] = l1-l1[i]
@@ -512,14 +493,14 @@ class PickingFunctions():
             com2[j,:,:] = l2-l2[j]
 
 
-        dl = numpy.ones((len_l1))*1000
-        sl = numpy.ones_like(l1)*1000
+        dl = np.ones((len_l1))*1000
+        sl = np.ones_like(l1)*1000
         nl = dl.copy()
 
         for n, el in enumerate(com1.reshape(len_l1**2,2)):
             if el.sum() == 0:
                 continue
-            diff = numpy.linalg.norm(com2-el,axis=-1)
+            diff = np.linalg.norm(com2-el,axis=-1)
 
             n2,distance=diff.argmin(),diff.min()
 
@@ -527,7 +508,7 @@ class PickingFunctions():
             x2,y2=n2//len_l1, n2%len_l1
 
             shift = (l1[x1]+l1[y1])/2-(l2[x2]+l2[y2])/2
-            norm = numpy.linalg.norm(shift)
+            norm = np.linalg.norm(shift)
 
 
             if dl[x1] > distance and l1[x1].sum() and l1[y1].sum() and l2[x2].sum() and l2[y2].sum():
@@ -558,8 +539,8 @@ class PickingFunctions():
 
         mark_frames += frame_shifts.astype(float)
 
-        coordinates_sorted = numpy.zeros_like(mark_frames)
-        index_map = -1*numpy.ones((r,len(mark_frames[0])),dtype=int)
+        coordinates_sorted = np.zeros_like(mark_frames)
+        index_map = -1*np.ones((r,len(mark_frames[0])),dtype=int)
 
         num_images = 100
         cur = 1
@@ -574,9 +555,9 @@ class PickingFunctions():
             ref_fid = coordinates_sorted[tiltangle-1,:].copy()
             c =ref_fid[:,:]
 
-            for temp_i in numpy.arange(tiltangle-1,zero_angle,-1):
+            for temp_i in np.arange(tiltangle-1,zero_angle,-1):
                 markers = coordinates_sorted[temp_i-1,:].copy()
-                absent = (((ref_fid == [0,0]).sum(axis=1) ==2)*1)[:,numpy.newaxis]*markers
+                absent = (((ref_fid == [0,0]).sum(axis=1) ==2)*1)[:,np.newaxis]*markers
                 ref_fid += absent
 
             #print cur_fid.T
@@ -592,13 +573,13 @@ class PickingFunctions():
             coordinates_sorted[tiltangle,:] = coordinates_cur_sorted
 
 
-        for tiltangle in numpy.arange(zero_angle-1,max(-1,zero_angle-1-num_images),-1):
+        for tiltangle in np.arange(zero_angle-1,max(-1,zero_angle-1-num_images),-1):
             cur_fid = mark_frames[tiltangle,:].copy()
             ref_fid = coordinates_sorted[tiltangle+1,:].copy()
 
-            for temp_i in numpy.arange(tiltangle+1,zero_angle,+1):
+            for temp_i in np.arange(tiltangle+1,zero_angle,+1):
                 markers = coordinates_sorted[temp_i+1,:]
-                absent = (((ref_fid == [0,0]).sum(axis=1) ==2)*1)[:,numpy.newaxis]*markers
+                absent = (((ref_fid == [0,0]).sum(axis=1) ==2)*1)[:,np.newaxis]*markers
                 ref_fid += absent
 
             index_cur_fid, coordinates_cur_sorted = self.compare_fast(cur_fid, ref_fid, tiltangle, cutoff=cut, tiltangles=tiltangles, pos=0, tiltaxis=tiltaxis)
@@ -611,9 +592,9 @@ class PickingFunctions():
         cntr = 0
         tot = 0
         listdx= []
-        #for nr in numpy.unique(index_map)[:]:
+        #for nr in np.unique(index_map)[:]:
 
-        outc = numpy.zeros_like(coordinates_sorted)
+        outc = np.zeros_like(coordinates_sorted)
         imark = 0
         for i in range(len(frames)):
             if excluded[i]:
@@ -681,12 +662,12 @@ class PickingFunctions():
 
         outc = outc[:,:imark,:]
 
-        frame_shifts_sorted = numpy.zeros_like(frame_shifts)
+        frame_shifts_sorted = np.zeros_like(frame_shifts)
 
         '''
         for j in range(frame_shifts.shape[0]):
             for i in range(frame_shifts.shape[1]):
-                if numpy.abs(coordinates_sorted[j][i]).sum() > 0.1:
+                if np.abs(coordinates_sorted[j][i]).sum() > 0.1:
                     frame_shifts_sorted[j][i] = frame_shifts[j][0]
         '''
         if diag:
@@ -713,7 +694,7 @@ class PickingFunctions():
             #if len(fid_list) and not imnr==target: continue
             st = time()
             image =  gaussian_filter(frames[imnr,:,:],1)
-            #cf = numpy.zeros_like(frames_full[0])
+            #cf = np.zeros_like(frames_full[0])
             lap = laplace(image.copy())
             
             lap -= lap.min()
@@ -726,7 +707,7 @@ class PickingFunctions():
                 cx,cy = center_of_mass(label_im==n)
 
                 #refine center by checking its position on large frame
-                ccx, ccy =  cx,cy#int(numpy.round(cx)),int(numpy.round(cy) )
+                ccx, ccy =  cx,cy#int(np.round(cx)),int(np.round(cy) )
 
 
                 xmin,xmax = max(0,int(ccx*fact)-ss), int(ccx*fact)+ss
@@ -738,10 +719,10 @@ class PickingFunctions():
                 l = laplace((cutout.max()-cutout)/cutout.max())
 
                 gfl = gaussian_filter((l.max()-l ),5)
-                gfl[gfl<numpy.median(gfl)*1.1] = numpy.median(gfl)*1.1
+                gfl[gfl<np.median(gfl)*1.1] = np.median(gfl)*1.1
                 gfl -= gfl.min()
                 if gfl.max(): gfl /= gfl.max()
-                local_maxi = peak_local_max(gfl, indices=False, footprint=numpy.ones((5, 5)) )
+                local_maxi = peak_local_max(gfl, indices=False, footprint=np.ones((5, 5)) )
                 lm = local_maxi.copy()
                 #imshow(lm+cutout2*(lm==0))
                 #show()
@@ -751,7 +732,7 @@ class PickingFunctions():
                     #if abs(cy-226) < 8: print imnr,cx,cy
                     add = True
                     for a,b,c in list_cx_cy_imnr:
-                        if sqrt(abs(cx- a)**2+abs(cy-b)**2) < 4 and imnr*num_procs+proc_id ==c:
+                        if np.sqrt(abs(cx- a)**2+abs(cy-b)**2) < 4 and imnr*num_procs+proc_id ==c:
                             add = False
                             break
                     if add and cx*fact+16 < frames_full[0].shape[1] and cy*fact+16 < frames_full[0].shape[0]:
@@ -771,7 +752,7 @@ class PickingFunctions():
                         # sometimes the algorithm gives two adjacent peaks. We do not keep the second.
                         add = True
                         for a,b,c in list_cx_cy_imnr:
-                            if sqrt(abs((rx)/fact - a)**2+abs((ry)/fact-b)**2) < 4 and imnr*num_procs+proc_id == c:
+                            if np.sqrt(abs((rx)/fact - a)**2+abs((ry)/fact-b)**2) < 4 and imnr*num_procs+proc_id == c:
                                 add = False
                                 break
                         if add and cx+16 < y and cy+16 < x:
@@ -786,7 +767,7 @@ class PickingFunctions():
                         local_maxi[int(cx)][int(cy)] = False
 
         if sen==False: fid_list += list_cx_cy_imnr
-        return numpy.zeros_like(self.frames_full[0]), list_cx_cy_imnr
+        return np.zeros_like(self.frames_full[0]), list_cx_cy_imnr
 
     def find_potential_fiducials_sensitive(self, frames, frames_full, raw, bin, bin_full, cropsize=32,target=0,fid_list=[],proc_id=0,num_procs=1,
                                            average_marker=None, threshold=1.7, mrcdata=[], aa=20, radius=10):
@@ -801,30 +782,30 @@ class PickingFunctions():
             ds2 = ds.copy()
             for xx in range(0,len(ds)):
                 for yy in range(0,len(ds[0])):
-                    dd = median(ds[max(0,xx-10):xx+10,max(0,yy-10):yy+10])
+                    dd = np.median(ds[max(0,xx-10):xx+10,max(0,yy-10):yy+10])
 
 
                     ds2[xx,yy] = ds[xx,yy]-dd
             ds = ds2
 
-            minf = minimum_filter( gaussian_filter(ds - gaussian_filter(ds, 5),.1) , footprint=ones((1,1)) )
+            minf = minimum_filter( gaussian_filter(ds - gaussian_filter(ds, 5),.1) , footprint=np.ones((1,1)) )
 
             hpf = minf - gaussian_filter(minf,4)
             hpf -= hpf.min()
-            hpf /= median(hpf)
+            hpf /= np.median(hpf)
             hpf = 1-hpf
 
             gg = ((gaussian_filter(hpf,.1) )  )
             gg -= gg.min()
-            gg /= median(gg)
+            gg /= np.median(gg)
 
             rr = gaussian_filter( laplace( gaussian_filter( (1- gg/gg.max()), .1) ) , 1)
             rr -= rr.min()
             rr /= rr.max()
             rr += 0.0001
 
-            tot = zeros_like(rr)
-            for ii in arange(4.1,3.59,-0.05):
+            tot = np.zeros_like(rr)
+            for ii in np.arange(4.1,3.59,-0.05):
                 rrr = rr.copy()
                 tot += self.testing_done(rrr,aa=aa,ff=ii)
 
@@ -865,7 +846,7 @@ class PickingFunctions():
 
 
 
-        return numpy.zeros_like(frames_full[0]), list_cx_cy_imnr
+        return np.zeros_like(frames_full[0]), list_cx_cy_imnr
 
     def find_potential_fiducials_crosscorr(self, frames, frames_full, raw, bin, bin_full, cropsize=50, target=0, fid_list=[],
                                            proc_id=0, num_procs=1, average_marker=None, threshold=1.7, radius=10):
@@ -897,7 +878,7 @@ class PickingFunctions():
                 cx, cy = center_of_mass(label_imgg == n)
 
                 # refine center by checking its position on large frame
-                ccx, ccy = int(round(cx)), int(round(cy))  # int(numpy.round(cx)),int(numpy.round(cy) )
+                ccx, ccy = int(round(cx)), int(round(cy))  # int(np.round(cx)),int(np.round(cy) )
 
                 xmin, xmax = max(0, int(ccx * fact) - ss), int(ccx * fact) + ss
                 ymin, ymax = max(0, int(ccy * fact) - ss), int(ccy * fact) + ss
@@ -908,7 +889,7 @@ class PickingFunctions():
                 l = laplace((cutout.max() - cutout) / cutout.max())
 
                 gfl = gaussian_filter((l.max() - l), 5)
-                gfl[gfl < numpy.median(gfl) * 1.1] = numpy.median(gfl) * 1.1
+                gfl[gfl < np.median(gfl) * 1.1] = np.median(gfl) * 1.1
                 gfl -= gfl.min()
                 if gfl.max(): gfl /= gfl.max()
 
@@ -925,7 +906,7 @@ class PickingFunctions():
                 temp /= temp.max()
 
                 # local_maxi = peak_local_max(temp, indices=False, threshold_rel=0.75 )
-                local_maxi = peak_local_max(temp, indices=False, footprint=numpy.ones((5, 5)), threshold_rel=0.6,
+                local_maxi = peak_local_max(temp, indices=False, footprint=np.ones((5, 5)), threshold_rel=0.6,
                                             exclude_border=12)
                 lm = local_maxi.copy()
 
@@ -984,10 +965,9 @@ class PickingFunctions():
         from skimage.morphology import watershed, label
         import scipy, skimage
         from skimage.feature import peak_local_max
-        import numpy as np
 
         refine_points = True
-        image = zeros_like(self.frames_full[0, :, :])
+        image = np.zeros_like(self.frames_full[0, :, :])
         list_cx_cy_imnr = []
 
         binning = bin_full
@@ -1062,7 +1042,6 @@ class PickingFunctions():
         from skimage.morphology import watershed, label
         import scipy, skimage
         from skimage.feature import peak_local_max
-        import numpy as np
 
         binning = bin_full
         fact = 1.*bin/bin_full
@@ -1097,8 +1076,6 @@ class PickingFunctions():
 
     def refineStdv(self, cx, cy, frame, imnr, fact, cropsize):
         '''This function finds the maxima in a 2D frame'''
-        import numpy
-        import numpy as np
         
         if len(frame.shape) != 2: raise Exception('wrong shape of input frame')
         try:
@@ -1121,11 +1098,11 @@ class PickingFunctions():
         l = laplace((cutout.max() - cutout) / cutout.max())
 
         gfl = gaussian_filter((l.max() - l), 5)
-        gfl[gfl < numpy.median(gfl) * 1.1] = numpy.median(gfl) * 1.1
+        gfl[gfl < np.median(gfl) * 1.1] = np.median(gfl) * 1.1
         gfl -= gfl.min()
         if gfl.max(): gfl /= gfl.max()
 
-        local_maxi = peak_local_max(gfl, indices=False, footprint=numpy.ones((5, 5)))
+        local_maxi = peak_local_max(gfl, indices=False, footprint=np.ones((5, 5)))
         lm = local_maxi.copy()
 
         tot = local_maxi.sum()
@@ -1178,7 +1155,7 @@ class PickingFunctions():
 
         ss = cropsize//2
 
-        ccx, ccy =  cx,cy#int(numpy.round(cx)),int(numpy.round(cy) )
+        ccx, ccy =  cx,cy#int(np.round(cx)),int(np.round(cy) )
 
         cutout2 = (frame[max(0,int(ccx*fact)-ss):int(ccx*fact)+ss,max(0,int(ccy*fact)-ss):int(ccy*fact)+ss]).copy()
         cutout = cutout2-cutout2.min()
@@ -1187,10 +1164,10 @@ class PickingFunctions():
         l = laplace((cutout.max()-cutout)/cutout.max())
 
         gfl = gaussian_filter((l.max()-l ),5)
-        gfl[gfl<numpy.median(gfl)*1.1] = numpy.median(gfl)*1.1
+        gfl[gfl<np.median(gfl)*1.1] = np.median(gfl)*1.1
         gfl -= gfl.min()
         if gfl.max(): gfl /= gfl.max()
-        local_maxi = peak_local_max(gfl, indices=False, footprint=numpy.ones((5, 5)) )
+        local_maxi = peak_local_max(gfl, indices=False, footprint=np.ones((5, 5)) )
         lm = local_maxi.copy()
         # fig,ax = subplots(1,1)
         # ax.imshow(lm+cutout2*(lm==0))
@@ -1226,7 +1203,7 @@ class PickingFunctions():
         d1 = rr.copy()
         d2 = rr.copy()
 
-        edge = zeros_like(rr)
+        edge = np.zeros_like(rr)
 
         for xx in range(0,len(rr),aa):
             for yy in range(0,len(rr[0]),aa):
@@ -1238,7 +1215,7 @@ class PickingFunctions():
                 #else:
                     #print 'tast', std(dd), dd.min(), dd.max()
 
-                dd[dd < median(dd)+std(dd)*ff] = 0
+                dd[dd < np.median(dd)+np.std(dd)*ff] = 0
                 d1[xx:xx+aa,yy:yy+aa] = dd
 
         ll1,nn1 = label(remove_small_objects(d1>0,2))
@@ -1251,7 +1228,7 @@ class PickingFunctions():
                     #print dd.min()
                     edge[xx:xx+aa,yy:yy+aa] = 1
                     #print median(dd),median(dd)+std(dd)*2, median(dd)*1.2
-                dd[dd < median(dd)+std(dd)*ff] = 0
+                dd[dd < np.median(dd)+np.std(dd)*ff] = 0
                 d2[max(0,xx):xx+aa,max(0,yy):yy+aa] = dd
 
         ll2,nn2 = label(remove_small_objects(d2>0,2))
@@ -1271,7 +1248,7 @@ class PickingFunctions():
 
             w = wiener(dataf)
             hpf = dataf - gaussian_filter(dataf,10)*0
-            data = mrcOperations.downsample( w+hpf, int(round(bin*1./bin_full)))
+            data = downsample( w+hpf, int(round(bin*1./bin_full)))
                 #data = vol2npy(f).copy()
                 #data = read_mrc(fname)
             data -= data.min()
@@ -1288,7 +1265,6 @@ class PickingFunctions():
 
 
     def calculate_error(self, coordinates, tilt_angles, projIndices, imdimX, imdimY, fname='alignmentErrors.txt', reference_marker=1):
-        import numpy as np
         from pytom.reconstruction.tiltAlignmentFunctions import alignmentFixMagRot
         from pytom.reconstruction.TiltAlignmentStructures import Marker
         from pytom.gui.guiFunctions import ALIGNMENT_ERRORS, fmtAE as fmt, headerAlignmentErrors
@@ -1403,7 +1379,7 @@ class PickingFunctions():
 
         #centers = self.redoCenters(coordinates, tilt_angles, imdimX, imdimY, max_angle=10)
 
-        # for ang in numpy.arange(10, abs(tilt_angles).max(), 10):
+        # for ang in np.arange(10, abs(tilt_angles).max(), 10):
         #     centers = self.redoCenters(coordinates, tilt_angles, imdimX, imdimY, max_angle=ang)
         #
         #     shift = list(zip(shiftX, shiftY))
@@ -1480,13 +1456,11 @@ class PickingFunctions():
                     Markers[imark].set_yProj(itilt, -1)
 
     def redoCenters(self, coordinates, tilt_angles, imdimX, imdimY, max_angle=10):
-        import numpy
-        import numpy as np
         from pytom.reconstruction.tiltAlignmentFunctions import alignmentFixMagRot
         from pytom.reconstruction.TiltAlignmentStructures import Marker
         from pytom.gui.guiFunctions import ALIGNMENT_ERRORS, fmtAE as fmt, headerAlignmentErrors
 
-        projIndices = numpy.arange(0, len(coordinates), 1).astype(np.int)[abs(tilt_angles) <= max_angle + 0.1]
+        projIndices = np.arange(0, len(coordinates), 1).astype(np.int)[abs(tilt_angles) <= max_angle + 0.1]
         Markers = []
 
         for markerID in range(coordinates.shape[1]):
@@ -1532,8 +1506,6 @@ class PickingFunctions():
 
     def calcscore(self, Markers, cTilt, sTilt, ireftilt, imdimX, imdimY, projIndices, irefmark):
         from pytom.reconstruction.tiltAlignmentFunctions import alignmentFixMagRot
-        import numpy as np
-
 
         irefmark = irefmark if irefmark < len(Markers) else 0
 
@@ -1562,8 +1534,7 @@ class PickingFunctions():
         return [psiindeg, errors, shiftX, shiftY, diffX, diffY, x,y,z]
 
     def determine_markerdata(self, coordinates, errors, excluded, add_marker):
-        import numpy
-        incl = 1- numpy.array(excluded,dtype=numpy.int)
+        incl = 1- np.array(excluded,dtype=np.int)
 
         for markerID in range(coordinates.shape[1]):
             coords = coordinates[:,markerID,:]
@@ -1576,89 +1547,24 @@ class PickingFunctions():
                 add_marker([f'Marker_{markerID:03d}', f'{num_hits:02d}/{incl.sum():02d}', f'{errors[markerID]:.2f}'])
 
 
+def projectMarkerToFrame(center, tiltangleindeg, psiindeg, shift0, shift1):
 
-if __name__ == '__main__':
-    import glob
-    from matplotlib.patches import Circle
-    from matplotlib.collections import PatchCollection
-    from time import time 
-    from find_fiducials_refined import get_positions_potential_fiducials
-    
-    cmap = ['r','purple','orange','lightgreen','yellow','cyan','magenta','b','pink','lightgreen','violet','brown']
-    
-    exp = "{}/03_Tomographic_Reconstruction/tomogram_{:03d}/sorted/".format(sys.argv[1].strip('/'), int(sys.argv[2]))
-    bin, bin_full = int(sys.argv[3]),int(sys.argv[4])
-    fnames = numpy.sort( numpy.array( [ exp+line.split('/')[-1] for line in os.listdir( exp ) if line.endswith('mrc') ] ) )
+    cpsi, spsi = np.cos(psiindeg * np.pi / 180), np.sin(psiindeg * np.pi / 180)
+    ctlt, stlt = np.cos(tiltangleindeg * np.pi / 180), np.sin(tiltangleindeg * np.pi / 180)
+    cx, cy, cz = center
 
-    s = time()
-    frames, frames_full = read_data(fnames[:],bin,bin_full)
-    print ("Read time: ", time()-s)
-    s = time()
+    cx -= shift0[0]
+    cy -= shift0[1]
 
-    fiducials, list_cx_cy_imnr = find_potential_fiducials(frames, frames_full, bin, bin_full)
+    cy1 = cy * cpsi - cx * spsi
+    cx1 = cy * spsi + cx * cpsi
 
-    #print list_cx_cy_imnr
-    #list_cx_cy_imnr = []
-    #for i in range(len(frames)):
-    #    list_cx_cy_imnr,fiducials,ds2 = get_positions_potential_fiducials(frames_full[i],i,list_cx_cy_imnr,n=bin/bin_full,aa=20)
-        
-    print ("Find Fid time: ", time()-s)
-    s = time()           
-    coordinates, mark_frames, index_map, frame_shifts = index_potential_fiducials(fnames, list_cx_cy_imnr,plot=True)
-    print ("Index time: ", time() -s)
-    
-    coord_orig = coordinates-frame_shifts
-    mark_frames_orig = mark_frames-frame_shifts
-    
-    t = len(frames)
-    c =8
-    r= max(2,int(numpy.ceil(t/(c*1.))))
-    fig,ax = subplots(r,c,figsize=(c*1.8,r*1.8))
-    for nr in range(r):
-        for nc in range(c):
-            ax[nr][nc].get_xaxis().set_visible(False)
-            ax[nr,nc].get_yaxis().set_visible(False)
-    
-    fig.tight_layout(pad=0)
-    subplots_adjust(left=0, right=1, top=1, bottom=0)
+    cy2 = cy1 * ctlt  - cz * stlt
 
-    for imnr in range(len(frames)):
-        rr,cc = imnr/c,imnr%c
-        ax[rr][cc].imshow(frames_full[imnr],cmap='gray')
-        for n in range(len(mark_frames_orig[0])):
-            mp = mark_frames_orig[imnr][n]
-            #print imnr, n, index_map[imnr][n],mark_frames[imnr][n][0],mark_frames[imnr][n][1]
-            #for index in range(len(coordinates[0])):
-            #p = coord_orig[imnr][index]
-            if mp.sum() != 0 and mp.astype(int) in coord_orig.astype(int):
-                if cmap[(index_map[imnr][n]%9)] == 'r': continue
-                circle = Circle((int( (mp[1]*bin/bin_full) ), int( (mp[0]*bin/bin_full)) ), radius=5, facecolor='none',edgecolor=cmap[(index_map[imnr][n]%9)])
-                ax[rr][cc].add_patch(circle)
-                #frames_full[imnr][round(p[0]*4.),round(p[1]*4.)] = frames_full[imnr].max()
-    
+    cx = cx1 * cpsi - cy2 * spsi
+    cy = cx1 * spsi + cy2 * cpsi
 
-            elif mp.sum() !=0:
-                
-                circle = Circle((int( (mp[1]*bin/bin_full) ), int( (mp[0]*bin/bin_full)) ), radius=5, facecolor='none',edgecolor='red')
-                #ax[rr][cc].add_patch(circle)
-    '''
-    for imnr in range(len(frames)):
-        rr,cc = imnr/c,imnr%c
-        for index in range(len(mark_frames[0])):
-            p = mark_frames_orig[imnr][index]
+    cx += shift1[0]
+    cy += shift1[1]
 
-            if abs(mark_frames[imnr][index][1] - 226) < 5:
-                print p[1],p[0]
-            
-            if p.sum() != 0:
-                
-                if not p in coord_orig:
-                    circle = Circle((int( (p[1]*4.) ), int( (p[0]*4.)) ), radius=5, facecolor='none',edgecolor='red')
-                    ax[rr][cc].add_patch(circle)
-                #frames_full[imnr][round(p[0]*4.)-1:round(p[0]*4)+2,round(p[1]*4.)-1:round(p[1]*4.)+2] = frames_full[imnr].max()
-            
-        ax[rr][cc].imshow(frames_full[imnr],cmap='gray')
-    '''        
-    #plt.plot((fiducials).sum(axis=0))
-    fig.canvas.draw()
-    show()
+    return np.array((cx, cy))

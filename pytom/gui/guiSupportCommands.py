@@ -191,15 +191,16 @@ createParticleList = 'coords2PL.py -c {d[0]}  -s {d[1]} -w {d[2]},{d[3]} -p {d[4
 extractParticles = '''cd {d[8]}
 
 reconstructWB.py --particleList {d[0]} \\
---projectionDirectory {d[1]} \\
+--alignResultFile {d[1]} \\
+--projectionDirectory {d[12]} \\
 --coordinateBinning {d[2]} \\
 --size {d[3]} \\
 --applyWeighting {d[9]} \\
 --projBinning {d[4]} \\
 --recOffset {d[5]},{d[6]},{d[7]} \\
---metafile {d[10]} \\
+--tilt-range {d[13]},{d[14]} \\
 --numProcesses {d[11]} \\
-{d[12]}'''
+{d[15]}'''
 
 
 polishParticles = '''cd {d[0]}

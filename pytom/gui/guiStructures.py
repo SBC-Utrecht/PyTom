@@ -2,40 +2,37 @@ import os
 import copy
 import pickle
 import glob
-import atexit
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
 import multiprocessing
 import getpass
 import re
 
-# import pyqtgraph.opengl as gl
-
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-from PyQt5 import QtWidgets, QtCore, QtGui
-from pytom.agnostic.io import read, write
-from pytom_numpy import vol2npy
 
-#from pytom.basic.functions import initSphere
-from pytom.basic.files import pdb2em, pdb2mrc
-from pytom.gui.guiStyleSheets import *
-from pytom.gui.mrcOperations import *
-from pytom.gui.guiStyleSheets import *
+from pytom.basic.files import pdb2mrc
+from pytom.gui.mrcOperations import read_mrc
+from pytom.gui.guiStyleSheets import MAINC, BARS, DEFAULT_STYLE_PROGRESSBAR, WHITE
 from pytom.gui.guiFunctions import initSphere
-from pytom.agnostic.transform import rotate3d
-import pytom.gui.guiFunctions as guiFunctions
+from pytom.gui import guiFunctions
 from pytom.gui.guiSupportCommands import templateConvertData
-import traceback
-from numpy import zeros, meshgrid, arange, sqrt
 import numpy as np
 
 from scipy.ndimage.filters import gaussian_filter
-from ftplib import FTP_TLS, FTP
+from ftplib import FTP_TLS
 import lxml.etree as et
 
-from multiprocessing import Manager, Event, Process
+from multiprocessing import Manager, Event
+
+
+colorsHEX = ['00ffff', 'f5f5dc', '0000ff', 'a52a2a', '7fff00', 'd2691e', 'daa520', 'ff7f50', '00ffff',
+                     'dc143c', '00008b', '006400', '7fffd4', 'ff00ff', 'ffd700', '008000', '4b0082', 'f0e68c', 'add8e6',
+                     '90ee90', 'ff00ff', '800000', '808000', 'ffa500', 'ff4500', 'da70d6', 'ffc0cb', '800080', 'dda0dd',
+                     'fa8072', 'fa8072', '008080', 'ffff00', '40e0d0', '9acd32', ] * 15
+
+html = '<div style="text-align: center"><span style="color: #{}; font-size: 20pt;">{}</span></div>'
+
 
 class BrowseWindowRemote(QMainWindow):
     '''This class creates a new window for remote file browsing'''
@@ -48,7 +45,7 @@ class BrowseWindowRemote(QMainWindow):
         self.pathdisplay.setEnabled(False)
         self.splitter0 = splitter0 = QSplitter(Qt.Vertical)
         self.topleft = QListWidget()
-        self.topleft.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.topleft.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.topleft.setStyleSheet(WHITE)
         self.topleft.itemDoubleClicked.connect(self.repopulate_folder_list)
         self.topright = QListWidget()
@@ -105,7 +102,7 @@ class BrowseWindowRemote(QMainWindow):
             if validate:
                 QMessageBox().critical(self, "Credentials not valid.",
                                        "Please provide a valid combination of servername, username, and password",
-                                       QMessageBox.Ok)
+                                                 QMessageBox.Ok)
                 #self.destroy(True,True)
                 self.close()
 
@@ -288,94 +285,6 @@ class CommonFunctions():
         self.sizePolicyC.setHorizontalStretch(0)
         self.sizePolicyC.setVerticalStretch(0)
 
-    '''
-    def submit_multi_job(self, exefilename, command, queue=True):
-
-        try:
-            exefile = open(exefilename, 'w')
-            exefile.write(command)
-            exefile.close()
-
-            if queue:
-
-                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
-                text = dd.read()[:-1]
-                id = text.split()[-1]
-                logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
-                os.system(f'cp {exefilename} {logcopy}')
-            else:
-                os.system('sh {}'.format(exefilename))
-        except:
-            print ('Please check your input parameters. They might be incomplete.')
-
-    def addProgressBarToStatusBar(self, qids=[], key='', job_description='Queue'):
-        if not key or not len(qids): return
-
-
-        counters = [0, ] * len(qids)
-
-        manager = Manager()
-
-        ID = qids[0]
-
-        self.progressBarCounters[ID] = manager.list(counters)
-        self.generateStatusBar(len(qids), ID, job_description)
-
-        proc = Worker(fn=self.checkRun, args=(ID, qids, job_description))
-        proc.signals.result1.connect(self.updateProgressBar)
-        proc.signals.finished_queue.connect(self.deleteProgressBar)
-        proc.start()
-        event = Event()
-        self.queueEvents[job_description] = event
-
-    def generateStatusBar(self, nrJobs, key, job_description):
-        widget = QWidget(self)
-        layout = QHBoxLayout()
-        widget.setLayout(layout)
-
-        self.progressBars[key] = QProgressBar()
-
-        self.progressBars[key].setSizePolicy(self.sizePolicyA)
-        self.progressBars[key].setStyleSheet(DEFAULT_STYLE_PROGRESSBAR)
-        self.progressBars[key].setFormat(f'{job_description}: %v/%m')
-        self.progressBars[key].setSizePolicy(self.sizePolicyB)
-        self.progressBars[key].setMaximum(nrJobs)
-        layout.addWidget(self.progressBars[key])
-        self.statusBar.addPermanentWidget(self.progressBars[key], stretch=1)
-
-    def whichRunning(self, qids):
-        runningJobs = [rid[:-1] for rid in os.popen(" squeue | awk 'NR > 1 {print $1}' ").readlines()]
-        inQueue = [str(int(qid)) for qid in qids if qid in runningJobs]
-        return inQueue
-
-    def checkRun(self, id, qids, job_description, signals):
-        import time
-
-        inQueue = self.whichRunning(qids)
-        while len(inQueue):
-            total = len(qids) - len(inQueue)
-            signals.result1.emit([id, total])
-            time.sleep(1)
-            inQueue = self.whichRunning(qids)
-            if self.queueEvents[job_description].is_set():
-                print(f'exit {job_description} loop')
-                return
-        #self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
-        signals.finished_queue.emit([id, job_description, qids])
-        #self.popup_messagebox("Info", "Completion", f'Finished Queue Jobs {job_description}')
-
-    def updateProgressBar(self, keys):
-        key, total = keys
-        self.progressBars[key].setValue(total)
-
-    def deleteProgressBar(self, keys):
-        key, job_description, qids = keys
-        self.statusBar.removeWidget(self.progressBars[key])
-        if len(qids)>1:
-            self.popup_messagebox("Info", "Completion", f'Finished {job_description} Jobs {qids[0]}-{qids[-1]}')
-        elif len(qids) > 0:
-            self.popup_messagebox("Info", "Completion", f'Finished {job_description} Job {qids[0]}')
-    '''
     def add_toolbar(self, decider, new=False, open=True, save=True,
                     newText='Create New Project', openText='Load Project', saveText="Save Project"):
         self.setStyleSheet(MAINC)
@@ -402,7 +311,7 @@ class CommonFunctions():
     def insert_slider(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=0, cstep=0, tickinterval=1,
                         alignment=Qt.AlignCenter, tooltip='', logvar=False, width=0, value=15, minimum=0, maximum=50):
 
-        widget = QtWidgets.QSlider(Qt.Horizontal)
+        widget = QSlider(Qt.Horizontal)
         widget.setStyleSheet("QSlider{background:none;}")
         widget.setMinimum(minimum)
         widget.setMaximum(maximum)
@@ -422,7 +331,7 @@ class CommonFunctions():
     def insert_checkbox(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=0, cstep=0,
                         alignment=Qt.AlignCenter, tooltip='', logvar=False,width=0):
 
-        widget = QtWidgets.QCheckBox(self)
+        widget = QCheckBox(self)
         widget.setStyleSheet("QCheckBox{background:none;}")
         if logvar:
             if wname in self.logbook.keys():
@@ -436,7 +345,7 @@ class CommonFunctions():
         if text:
             widget.setText(text)
         else:
-            sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+            sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             sizePolicy.setHorizontalStretch(0)
             sizePolicy.setVerticalStretch(0)
             sizePolicy.setHeightForWidth(widget.sizePolicy().hasHeightForWidth())
@@ -452,7 +361,7 @@ class CommonFunctions():
 
     def insert_label(self, parent, text='', rowspan=1, columnspan=1, rstep=0, cstep=0,transparent=True,
                      tooltip='', alignment=Qt.AlignLeft, value=None, width=0, sizepolicy=''):
-        widget = QtWidgets.QLabel(self)
+        widget = QLabel(self)
 
         if transparent:
             widget.setStyleSheet("QLabel{background:transparent;} \nQToolTip { background-color: white; }")
@@ -460,7 +369,7 @@ class CommonFunctions():
         if text:
             widget.setText(text)
         elif width == 0:
-            sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+            sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             sizePolicy.setHorizontalStretch(0)
             sizePolicy.setVerticalStretch(0)
             sizePolicy.setHeightForWidth(widget.sizePolicy().hasHeightForWidth())
@@ -477,7 +386,7 @@ class CommonFunctions():
 
     def insert_combobox(self, parent, wname, labels, text='', rowspan=1, columnspan=1, rstep=0, cstep=0,
                         width=80, tooltip='', logvar=False):
-        widget = QtWidgets.QComboBox(self)
+        widget = QComboBox(self)
         widget.addItems(labels)
 
         if logvar:
@@ -494,7 +403,7 @@ class CommonFunctions():
         if tooltip: widget.setToolTip(tooltip)
         widget.setStyleSheet("QComboBox{background:white; selection-background-color: #1989ac;}")
         widget.setFixedWidth(width)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
+        sizePolicy = QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         sizePolicy.setHorizontalStretch(1)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(widget.sizePolicy().hasHeightForWidth())
@@ -518,7 +427,7 @@ class CommonFunctions():
 
     def insert_label_modules(self, parent, wname, text='', rstep=1, cstep=-1, width=0, tooltip='', height=0,
                              logvar=False, options=[], mode=''):
-        self.insert_label(parent, text=text, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
+        self.insert_label(parent, text=text, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
         self.insert_module(parent, wname=wname, cstep=cstep, rstep=rstep, options=options, mode=mode)
 
     def insert_pgSpinbox(self, parent, wname, text='',rowspan=1, columnspan=1, rstep=0, cstep=0, decimals=0,width=0,
@@ -598,7 +507,7 @@ class CommonFunctions():
 
     def insert_lineedit(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=0, cstep=0,width=0, height=0,
                         validator=None, password=False, tooltip='', logvar=False, value=None, att=False, enabled=True):
-        widget = QtWidgets.QLineEdit(self)
+        widget = QLineEdit(self)
 
         if logvar:
             try:
@@ -644,7 +553,7 @@ class CommonFunctions():
 
     def insert_pushbutton(self, parent, text='', rowspan=1, columnspan=1, rstep=0, cstep=0, action=None,
                           tooltip='', width=0, params=['file', '', '', False], iconpath='', wname='', state=True):
-        widget = QtWidgets.QPushButton(self)
+        widget = QPushButton(self)
 
         if wname:
             self.widgets[wname] = widget
@@ -653,7 +562,7 @@ class CommonFunctions():
         if text:
             widget.setText(text)
         elif width==0:
-            sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+            sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             sizePolicy.setHorizontalStretch(0)
             sizePolicy.setVerticalStretch(0)
             sizePolicy.setHeightForWidth(widget.sizePolicy().hasHeightForWidth())
@@ -665,7 +574,7 @@ class CommonFunctions():
             else:
                 widget.clicked.connect(lambda ignore: action())
         if iconpath:
-            icon = QtGui.QPixmap(iconpath)
+            icon = QPixmap(iconpath)
             widget.setIcon(icon)
         parent.addWidget(widget, self.row, self.column, rowspan, columnspan)
         if width: widget.setFixedWidth(width)
@@ -702,7 +611,7 @@ class CommonFunctions():
                              validator=None, tooltip='', value=None, att=False, enabled=True, maximum=0, minimum=0,
                              wtype=QSpinBox, stepsize=0, logvar=True, decimals=0):
 
-        self.insert_label(parent, text=text, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
+        self.insert_label(parent, text=text, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
         self.insert_spinbox(parent, wname, validator=validator, width=width, enabled=enabled,
                             maximum=maximum, minimum=minimum, cstep=cstep, rstep=rstep, value=value,
                             widgetType=wtype, stepsize=stepsize, logvar=logvar, decimals=decimals)
@@ -715,7 +624,7 @@ class CommonFunctions():
             action = self.browse
 
 
-        self.insert_label(parent, text=textlabel, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
+        self.insert_label(parent, text=textlabel, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
         self.insert_lineedit(parent, wname, cstep=1, logvar=True, text='',validator=validator,width=width,enabled=enabled)
 
         if initdir:
@@ -737,7 +646,7 @@ class CommonFunctions():
 
         if action == '':
             return
-        self.insert_label(parent, text=textlabel, cstep=1, alignment=QtCore.Qt.AlignRight, tooltip=tooltip)
+        self.insert_label(parent, text=textlabel, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
         self.insert_pushbutton(parent, cstep=cstep, rstep=rstep, text=pushtext, width=width, action=action, params=params, wname=wname)
 
     def insert_label_line(self, parent, textlabel, wname, tooltip='', value='', cstep=-1, rstep=1, validator=None,
@@ -910,33 +819,6 @@ class CommonFunctions():
 
 
         self.widgets[mode + 'ExecutePushButton'].setEnabled(True)
-
-    '''
-    def getLocalID(self):
-        import os
-        try:
-            idfile = os.path.join(self.logfolder, 'Local/.idcounter.txt')
-
-            if os.path.exists(idfile):
-                ID = open(idfile, 'r').readlines()[0].split()[0].zfill(8)
-            else:
-                ID = '0'.zfill(8)
-        except:
-            ID = '0'.zfill(8)
-
-        out = open(idfile, 'w')
-        out.write(str(int(ID) + 1) + '\n')
-        out.close()
-
-        return ID
-
-    def submit_local_job(self, execfilename, ID):
-        logcopy = os.path.join(self.logfolder, f'Local/{ID}-{os.path.basename(execfilename)}')
-        os.system(f'cp {execfilename} {logcopy}')
-        os.system(f'sh {execfilename} >> {os.path.splitext(logcopy)[0]}.out')
-
-        self.localqID[ID] = 1
-    '''
 
     def countNumberOfParticles(self, wname):
         filename = self.widgets[wname].text()
@@ -1221,7 +1103,7 @@ class CommonFunctions():
         groupbox.setCheckable(True)
         groupbox.setChecked(False)
         groupbox.setSizePolicy(sizepol)
-        parent = QtWidgets.QGridLayout()
+        parent = QGridLayout()
         groupbox.setLayout(parent)
         return groupbox, parent
 
@@ -1710,15 +1592,23 @@ class CreateFSCMaskFile(QMainWindow, CommonFunctions):
 
 
 class MyCircleOverlay(pg.EllipseROI):
-    def __init__(self, pos, size, **args):
+    def __init__(self, pos, size, label='', **args):
         self.path = None
         pg.ROI.__init__(self, pos, size, **args)
         self.aspectLocked = True
 
+        if label:
+            self.label = QGraphicsTextItem(label, self)
+            # for d in dir(self.label): print (d)
+            self.label.setHtml(html.format(colorsHEX[int(label)], int(label)))
+            self.label.setPos(
+                QPoint(self.boundingRect().center().x() - (self.label.boundingRect().width() / 2) * 0,
+                              self.state['size'][1] / 1.5))
 
-def circle(pos, size=2, color=Qt.blue, pensize=16):
+
+def circle(pos, size=2, label='', color=Qt.blue, pensize=16):
     pensize = 0.02*40./pensize
-    return MyCircleOverlay(pos=pos, size=size, pen=QtGui.QPen(color, pensize), movable=False)
+    return MyCircleOverlay(pos=pos, size=size, label=label, pen=QPen(color, pensize), movable=False)
 
 
 class SimpleTable(QMainWindow, CommonFunctions):
@@ -1726,7 +1616,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
     def __init__(self, headers, types, values, sizes=[], tooltip=[] , connect=0, sorting=False, id=''):
         super(SimpleTable, self).__init__()
         self.size_policies()
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.FramelessWindowHint)
 
         #self.scrollarea.setGeometry(0, 0, 700, 1000)
         central_widget = QWidget(self)
@@ -1759,7 +1649,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
         for i in range(len(headers)):
 
             if i+1 == len(headers):
-                hh.setResizeMode(i, QtGui.QHeaderView.Stretch)
+                hh.setResizeMode(i, QHeaderView.Stretch)
             elif sizes[i] == 0:
                 hh.setSectionResizeMode(i,QHeaderView.ResizeToContents)
             else:
@@ -2015,7 +1905,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
             elif 'widget_{}_{}'.format(i,rowIndex) in self.widgets.keys() and widgetType=='lineedit':
                 self.widgets['widget_{}_{}'.format(i,rowIndex)].setText(self.general_widgets[rowIndex].text())
 
-        self.table.horizontalHeader().setResizeMode(len(self.headers)-1, QtGui.QHeaderView.Stretch)
+        self.table.horizontalHeader().setResizeMode(len(self.headers)-1, QHeaderView.Stretch)
 
         for i in range(self.table.columnCount()):
             self.table2.setColumnWidth(i, self.table.columnWidth(i))
@@ -2043,7 +1933,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
         self.scrollarea.setGeometry(0,0,sizeX,sizeY)
         self.scrollarea.setFrameShape(QFrame.NoFrame)
 
-        self.tabWidget = QtWidgets.QTabWidget(self.scrollarea)
+        self.tabWidget = QTabWidget(self.scrollarea)
         self.tabWidget.setContentsMargins(0,0,0,0)
         self.tabWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
 
@@ -2212,7 +2102,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
 
 
 class KeyPressGraphicsWindow(pg.GraphicsWindow):
-    sigKeyPress = QtCore.pyqtSignal(object)
+    sigKeyPress = pyqtSignal(object)
 
     def __init__(self, *args, **kwargs):
         super(KeyPressGraphicsWindow,self).__init__(*args, **kwargs)
@@ -2327,7 +2217,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
 
         self.subtomo_plots = PlotterSubPlots(self)
         self.subtomo_plots.show()
-        pg.QtGui.QApplication.processEvents()
+        QApplication.processEvents()
 
     def wheelEvent(self, event):
 
@@ -2359,8 +2249,8 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
             self.close()
 
     def add_controls(self,prnt):
-        vDouble = QtGui.QDoubleValidator()
-        vInt = QtGui.QIntValidator()
+        vDouble = QDoubleValidator()
+        vInt = QIntValidator()
         self.widgets = {}
         self.row, self.column = 0, 1
         rows, columns = 20, 20
@@ -2395,13 +2285,14 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
         width = self.widgets['show_mask'].text()
 
         if w.isChecked():
-            Y,Z,X= numpy.meshgrid(numpy.arange(float(self.dim)),numpy.arange(float(self.dim)),numpy.arange(float(self.dim)))
+            Y,Z,X= np.meshgrid(np.arange(float(self.dim)),np.arange(float(self.dim)),np.arange(float(
+                self.dim)))
 
             if len(self.particleList):
                 try:
                     self.mask += 0
                 except:
-                    self.mask = numpy.zeros_like(self.vol)
+                    self.mask = np.zeros_like(self.vol)
 
                 for x,y,z,r in self.particleList:
 
@@ -2411,7 +2302,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
                     X -= self.dim - x -0.5
                     Y -= self.dim - y -0.5
                     Z -= self.dim - z -0.5
-                    R = numpy.sqrt(X**2+Y**2+Z**2)
+                    R = np.sqrt(X**2+Y**2+Z**2)
                     self.mask[R<=r] = 1
                     X += self.dim - x -0.5
                     Y += self.dim - y -0.5
@@ -2550,7 +2441,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
         #self.centcanvas.removeItem(self.hist)
         #self.hist = pg.HistogramLUTItem()
         self.hist.setImageItem(self.img1m)
-        self.hist.setLevels(numpy.median(crop)-crop.std()*3,numpy.median(crop)+crop.std()*3)
+        self.hist.setLevels(np.median(crop)-crop.std()*3,np.median(crop)+crop.std()*3)
         #self.centcanvas.addItem(self.hist)
 
     def mouseHasMoved(self, evt):
@@ -2569,7 +2460,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
 
         num_deleted_items = 0
         for n, (x,y,z,s) in enumerate(self.particleList):
-            if 1:#sqrt( (x-pos.x())**2 + (y-pos.y())**2 + (z-self.slice)**2 ) < self.radius:
+            if 1:#np.sqrt( (x-pos.x())**2 + (y-pos.y())**2 + (z-self.slice)**2 ) < self.radius:
                 add = False
                 if remove:
                     self.remove_point(n-num_deleted_items,z)
@@ -2587,7 +2478,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
     def remove_from_coords(self,coords):
         cx,cy,cz = coords[:3]
         for n, (x,y,z,s) in enumerate(self.particleList):
-            if sqrt( (x-cx)**2 + (y-cy)**2 + (z-cz)**2 ) < self.radius:
+            if np.sqrt( (x-cx)**2 + (y-cy)**2 + (z-cz)**2 ) < self.radius:
                 self.remove_point(n, z)
                 self.subtomo_plots.delete_subplot([x, y, z])
                 break
@@ -2659,7 +2550,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
         self.vol[ self.vol < self.vol.min()] = self.vol.min()
 
         self.volg = self.vol
-        self.mask = numpy.zeros_like(self.vol)
+        self.mask = np.zeros_like(self.vol)
         self.dim = self.vol.shape[0]
         self.slice = self.d = int(self.dim / 2)
 
@@ -2689,7 +2580,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
             
             radius = 0
             if abs(cz - self.slice) <= cs:
-                radius = sqrt(cs ** 2 - (cz - self.slice)**2)
+                radius = np.sqrt(cs ** 2 - (cz - self.slice)**2)
 
             if self.xmlfile and len(plist) > 100:
                 add = False
@@ -2761,7 +2652,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
 
         self.add_controls(self.layout_operationbox)
 
-        pg.QtGui.QApplication.processEvents()
+        QApplication.processEvents()
 
     def wheelEvent(self, event):
 
@@ -2792,8 +2683,8 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
             self.close()
 
     def add_controls(self, prnt):
-        vDouble = QtGui.QDoubleValidator()
-        vInt = QtGui.QIntValidator()
+        vDouble = QDoubleValidator()
+        vInt = QIntValidator()
         self.widgets = {}
         self.row, self.column = 0, 1
         rows, columns = 20, 20
@@ -2829,24 +2720,24 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
         width = self.widgets['show_mask'].text()
 
         if w.isChecked():
-            # Y,Z,X= numpy.meshgrid(numpy.arange(float(self.dim)),numpy.arange(float(self.dim)),numpy.arange(float(self.dim)))
+            # Y,Z,X= np.meshgrid(np.arange(float(self.dim)),np.arange(float(self.dim)),np.arange(float(self.dim)))
 
             if len(self.particleList):
                 try:
                     self.mask += 0
                 except:
-                    self.mask = numpy.zeros_like(self.vol)
+                    self.mask = np.zeros_like(self.vol)
 
                 self.mask *= 0
 
                 for x, y, z, r in self.particleList:
                     dim = r * 2. + 2.
-                    Y, Z, X = numpy.meshgrid(numpy.arange(dim), numpy.arange(dim), numpy.arange(dim))
+                    Y, Z, X = np.meshgrid(np.arange(dim), np.arange(dim), np.arange(dim))
 
                     X -= dim / 2 - 0.5
                     Y -= dim / 2 - 0.5
                     Z -= dim / 2 - 0.5
-                    R = numpy.sqrt(X ** 2 + Y ** 2 + Z ** 2)
+                    R = np.sqrt(X ** 2 + Y ** 2 + Z ** 2)
 
                     startx, endx = int(max(0, x - dim // 2)), int(min(self.dim, x + dim // 2))
                     starty, endy = int(max(0, y - dim // 2)), int(min(self.dim, y + dim // 2))
@@ -3011,7 +2902,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
         # self.centcanvas.removeItem(self.hist)
         # self.hist = pg.HistogramLUTItem()
         self.hist.setImageItem(self.img1m)
-        self.hist.setLevels(numpy.median(crop) - crop.std() * 3, numpy.median(crop) + crop.std() * 3)
+        self.hist.setLevels(np.median(crop) - crop.std() * 3, np.median(crop) + crop.std() * 3)
         # self.centcanvas.addItem(self.hist)
         del crop
 
@@ -3031,7 +2922,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
 
         num_deleted_items = 0
         for n, (x, y, z, s) in enumerate(self.particleList):
-            if sqrt((x - pos.x()) ** 2 + (y - pos.y()) ** 2 + (z - self.slice) ** 2) < self.radius:
+            if np.sqrt((x - pos.x()) ** 2 + (y - pos.y()) ** 2 + (z - self.slice) ** 2) < self.radius:
                 add = False
                 if remove:
                     self.remove_point(n - num_deleted_items, z)
@@ -3050,7 +2941,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
     def remove_from_coords(self, coords):
         cx, cy, cz = coords[:3]
         for n, (x, y, z, s) in enumerate(self.particleList):
-            if sqrt((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2) < self.radius:
+            if np.sqrt((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2) < self.radius:
                 self.remove_point(n, z)
                 break
 
@@ -3134,7 +3025,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
         self.vol[self.vol < self.vol.min()] = self.vol.min()
 
         self.volg = self.vol
-        self.mask = numpy.zeros_like(self.vol)
+        self.mask = np.zeros_like(self.vol)
         self.dim = self.vol.shape[0]
         self.slice = self.d = int(self.dim / 2)
 
@@ -3162,7 +3053,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
         for n, (cx, cy, cz, cs) in enumerate(self.particleList):
             radius = 0
             if abs(cz - self.slice) <= cs:
-                radius = sqrt(cs ** 2 - (cz - self.slice) ** 2)
+                radius = np.sqrt(cs ** 2 - (cz - self.slice) ** 2)
 
             add = False
             self.add_points(self.pos, cx, cy, cz, cs, radius, add=add, score=cs, new=False)
@@ -3191,34 +3082,6 @@ class LinearRegionItem(pg.LinearRegionItem):
         self.other.lines[0].setValue(self.lines[0].value())
         self.other.lines[1].setValue(self.lines[1].value())
         self.sigRegionChangeFinished.emit(self)
-
-
-class PointsItem(QtGui.QGraphicsItem):
-    def __init__(self, x=None, y=None):
-        QtGui.QGraphicsItem.__init__(self)
-        self.setData(x, y)
-
-    def setData(self, x, y):
-        if x is None:
-            x = np.array([])
-            y = np.array([])
-        self.data = np.empty((len(x), 2), dtype=np.float)
-        self.data[:, 0] = x
-        self.data[:, 1] = y
-        xmin = x.min()
-        xmax = x.max()
-        ymin = y.min()
-        ymax = y.max()
-        self.bounds = QtCore.QRectF(xmin, ymin, xmax - xmin, ymax - ymin)
-        self.prepareGeometryChange()
-
-    def boundingRect(self):
-        return self.bounds
-
-    def paint(self, p, *args):
-        p.setPen(pg.mkPen((255, 255, 255, 80)))
-        ptr = ctypes.c_void_p(sip.unwrapinstance(p))
-        drawPoints(ptr, self.data.ctypes, self.data.shape[0])
 
 
 class ParticlePicker(QMainWindow, CommonFunctions):
@@ -3317,7 +3180,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.leftimage.addItem(self.lineL)
 
         self.replot()
-        pg.QtGui.QApplication.processEvents()
+        QApplication.processEvents()
 
     def closeEvent(self, event):
 
@@ -3406,8 +3269,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         #         print(e)
 
     def add_controls(self,prnt):
-        vDouble = QtGui.QDoubleValidator()
-        vInt = QtGui.QIntValidator()
+        vDouble = QDoubleValidator()
+        vInt = QIntValidator()
         self.widgets = {}
         self.row, self.column = 0, 1
         rows, columns = 20, 20
@@ -3596,7 +3459,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         asked = False
 
-        cc = 180./ numpy.pi
+        cc = 180./ np.pi
 
         plOld = ParticleList()
         plOld.fromXMLFile(self.xmlfile)
@@ -3800,7 +3663,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         #self.centcanvas.removeItem(self.hist)
         #self.hist = pg.HistogramLUTItem()
         self.hist.setImageItem(self.img1m)
-        self.hist.setLevels(numpy.median(crop)-crop.std()*3,numpy.median(crop)+crop.std()*3)
+        self.hist.setLevels(np.median(crop)-crop.std()*3,np.median(crop)+crop.std()*3)
         self.writeLabelText(z=self.slice)
 
         if self.activateLine == 0 and self.activate == 0:
@@ -3826,7 +3689,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
         num_deleted_items = 0
         for n, (x,y,z,s) in enumerate(self.particleList):
-            if sqrt( (x-pos.x())**2 + (y-pos.y())**2 + (z-self.slice)**2 ) < self.radius:
+            if np.sqrt( (x-pos.x())**2 + (y-pos.y())**2 + (z-self.slice)**2 ) < self.radius:
                 add = False
                 if remove:
                     self.remove_point(n-num_deleted_items,z)
@@ -3876,7 +3739,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
     def remove_from_coords(self, coords):
         cx,cy,cz = coords[:3]
         for n, (x,y,z,s) in enumerate(self.particleList):
-            if sqrt( (x-cx)**2 + (y-cy)**2 + (z-cz)**2 ) < self.radius:
+            if np.sqrt( (x-cx)**2 + (y-cy)**2 + (z-cz)**2 ) < self.radius:
                 self.remove_point(n, z)
                 self.subtomo_plots.delete_subplot([x, y, z])
                 break
@@ -4013,7 +3876,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
 
             # if it should be plotted, calculate radius of this slice of the sphere
             if abs(cz - self.slice) < self.radius:
-                radius = sqrt(self.radius ** 2 - (cz - self.slice)**2)
+                radius = np.sqrt(self.radius ** 2 - (cz - self.slice)**2)
 
             # if we have a particle list larger than 100 we should not add to side views to save time
             # but why do we need to update this while scrolling, could be set immediately
@@ -4132,584 +3995,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.popup_messagebox('Info', 'Angle file written', f'Specimen Angle {self.angleLine*-1 + used_angle} '
                                                             f'written in {os.path.basename(sra_file)}.\n'
                                                             f'This includes the specimen angle {used_angle} used for the reconstruction.' )
-
-
-'''
-class FlexWindow(gl.GLViewWidget):
-    def __init__(self, parent=None, controlWindow=None):
-        super(FlexWindow, self).__init__(parent)
-
-        self.controlWindow = controlWindow
-        self.offset = np.array((0,0,0),dtype=np.float32)
-
-        self.recenterParticle = QCheckBox()
-        self.reorientParticle = QCheckBox()
-
-    def asCartesian(self, r=1, azimuth=0, elev=0):
-
-        # takes list rthetaphi (single coord)
-        r = r
-        phi = (azimuth) * np.pi / 180  # to radian
-        theta = (90 - elev) * np.pi / 180
-        x = r * np.sin(theta) * np.cos(phi)
-        y = r * np.sin(theta) * np.sin(phi)
-        z = r * np.cos(theta)
-        return np.array([x, y, z])
-
-    def orbit(self, azim, elev):
-        """Orbits the camera around the center position. *azim* and *elev* are given in degrees."""
-
-        v0 = self.asCartesian(1, self.opts['azimuth'], self.opts['elevation'])
-        print(self.opts['azimuth'], self.opts['elevation'])
-        self.opts['azimuth'] = (self.opts['azimuth'] + azim) % 360
-        self.opts['elevation'] = (self.opts['elevation'] + elev)
-
-        if self.opts['elevation'] < -359: self.opts['elevation'] += 360
-        if self.opts['elevation'] > 359: self.opts['elevation'] -= 360
-
-        if (self.opts['elevation']) in (90,270,-90,-270):
-            self.opts['elevation'] += 1
-
-        # print(self.opts['azimuth'], self.opts['elevation'])
-        v1 = self.asCartesian(1, self.opts['azimuth'], self.opts['elevation'])
-        x, y, z = vc = np.cross(v1, v0)
-        ang = np.rad2deg(np.arccos(np.clip(np.dot(v1, v0), -1.0, 1.0)))
-
-        if self.reorientParticle.isChecked():
-            try:
-                self.xmesh.rotate(-ang, x, y, z)
-                self.ymesh.rotate(-ang, x, y, z)
-                self.zmesh.rotate(-ang, x, y, z)
-            except:
-                pass
-
-        self.update()
-
-    def pan(self, dx, dy, dz, relative=False):
-        """
-        Moves the center (look-at) position while holding the camera in place.
-
-        If relative=True, then the coordinates are interpreted such that x
-        if in the global xy plane and points to the right side of the view, y is
-        in the global xy plane and orthogonal to x, and z points in the global z
-        direction. Distances are scaled roughly such that a value of 1.0 moves
-        by one pixel on screen.
-
-        """
-
-        if not relative:
-            self.opts['center'] += QtGui.QVector3D(dx, dy, dz)
-            xScale = 1
-            xVec = QtGui.QVector3D(1,0,0)
-            yVec = QtGui.QVector3D(0,1,0)
-            zVec = QtGui.QVector3D(0,0,1)
-        else:
-            cPos = self.cameraPosition()
-            cVec = self.opts['center'] - cPos
-            dist = cVec.length()  ## distance from camera to center
-            xDist = dist * 2. * np.tan(0.5 * self.opts['fov'] * np.pi / 180.)  ## approx. width of view at distance of center point
-            xScale = xDist / self.width()
-            yVec = QtGui.QVector3D(0, 0, 1)
-            xVec = QtGui.QVector3D.crossProduct(yVec, cVec).normalized()
-            zVec = QtGui.QVector3D.crossProduct(xVec, yVec).normalized()
-            for n, v in enumerate((cPos, cVec)):
-                print(n, v.x(), v.y(), v.z())
-
-            if self.recenterParticle.isChecked():
-                self.move_origin_now( xVec * xScale * dx , yVec * xScale * dy , zVec * xScale * dz, cPos)
-            else:
-                self.opts['center'] = self.opts['center'] + xVec * xScale * dx + yVec * xScale * dy + zVec * xScale * dz
-
-        self.update()
-
-    def move_origin_now(self, vx, vy, vz, vc, update=True):
-        vector = vx+vy+vz
-        el,az = self.opts['elevation'], self.opts['azimuth']
-
-        d = {True:1, False:-1}
-
-
-        f = 1 if abs(el) < 90 or abs(el) > 270 else -1
-        dx, dy, dz = int(np.around(-vector.x())), int(np.around(-vector.y()*f)), int(np.around(-vector.z()))
-        # print(dx, dy, dz)
-        self.zmesh.translate(dx, dy, dz)
-        self.ymesh.translate(dx, dy, dz)
-        self.xmesh.translate(dx, dy, dz)
-        self.offset = self.offset + np.array((dx,dy,dz))
-
-        if update:
-            for name, value in (('cX', self.offset[0]), ('cY', self.offset[1]), ('cZ', self.offset[2])):
-                self.controlWindow.widgets[name].blockSignals(True)
-                self.controlWindow.widgets[name].setValue(value)
-                self.controlWindow.widgets[name].blockSignals(False)
-
-    def deleteGrids(self):
-        try:
-            for item in (self.xmesh, self.ymesh, self.zmesh):
-                self.removeItem(item)
-        except:
-            pass
-
-    def resetView(self, grids=True):
-        self.orbit(-self.opts['azimuth'], -self.opts['elevation'])
-
-        if grids:
-            self.xmesh = gl.GLGridItem()
-            self.xmesh.scale(4, 4, 1)
-
-            self.ymesh = gl.GLGridItem()
-            self.ymesh.rotate(90,1,0,0)
-            self.ymesh.scale(5,5,1)
-
-            self.zmesh = gl.GLGridItem()
-            self.zmesh.rotate(90,0,1,0)
-            self.zmesh.scale(6,6,1)
-
-            self.addItem(self.xmesh)
-            self.addItem(self.ymesh)
-            self.addItem(self.zmesh)
-
-
-class Viewer3DSurface(QMainWindow, CommonFunctions):
-    def __init__(self, parent=None, fname=''):
-        super(Viewer3DSurface, self).__init__(parent)
-        self.size_policies()
-        self.layout = QGridLayout(self)
-        self.cw = QWidget(self)
-        self.cw.setLayout(self.layout)
-        self.setCentralWidget(self.cw)
-        self.setGeometry(0, 0, 800, 800)
-        self.operationbox = QWidget()
-        self.layout_operationbox = prnt = QGridLayout()
-        self.operationbox.setLayout(self.layout_operationbox)
-        self.logbook = {}
-        self.radius = 8
-        self.jump = 1
-        self.current_width = 0.
-        self.pos = QPoint(0, 0)
-        self.max_score = 1.
-        self.min_score = 0.
-        self.xmlfile = ''
-        self.filetype = 'txt'
-        self.failed = False
-        self.mode = 'Viewer3DSurface_'
-        self.list_operations = []
-        self.controlWindow = ControlWindowSurface(self)
-        self.controlWindow.show()
-        self.opacity=0.125
-        self.shader = 'shaded'
-
-
-        self.centcanvas = w = FlexWindow(self, self.controlWindow)
-        w.show()
-        w.setWindowTitle('pyqtgraph example: GLIsosurface')
-        w.setCameraPosition(distance=200)
-        w.opts['azimuth'] = 0
-        w.opts['elevation'] = 0
-        # w.setGLOptions('translucent')
-        # w.setBackgroundColor('w')
-        w.update()
-
-        self.layout.addWidget(w, 0, 1)
-        import sys
-
-        if fname and os.path.exists(fname):
-            self.title = fname
-        else:
-            try:
-                if os.path.exists(sys.argv[1]):
-                    self.title = sys.argv[1]
-                else:
-                    return
-            except:
-                return
-
-        if not os.path.exists(self.title):
-            return
-
-        self.setWindowTitle("Manual Particle Selection From: {}".format(os.path.basename(self.title)))
-        self.load_image()
-
-
-
-        pg.QtGui.QApplication.processEvents()
-
-    def wheelEvent(self, event):
-        return
-        step = event.angleDelta().y() / 120
-        increment = int(self.widgets['step_size'].text()) * step
-        if self.slice + increment < self.vol.shape[0] and self.slice + increment > -1:
-            self.slice += increment
-            self.replot()
-
-    def keyPressEvent(self, evt):
-        return
-        if Qt.Key_G == evt.key():
-            w = self.widgets['apply_gaussian_filter']
-            w.setChecked(w.isChecked() == False)
-
-        if Qt.Key_Right == evt.key():
-            if self.slice + int(self.widgets['step_size'].text()) < self.dim:
-                update = int(self.widgets['step_size'].text())
-                self.slice += update
-                self.replot()
-
-        if Qt.Key_Left == evt.key():
-            if self.slice > int(self.widgets['step_size'].text()) - 1:
-                update = -1 * int(self.widgets['step_size'].text())
-                self.slice += update
-                self.replot()
-
-        if evt.key() == Qt.Key_Escape:
-            self.subtomo_plots.close()
-            self.close()
-
-    def add_controls(self, parent, mode):
-        vDouble = QtGui.QDoubleValidator()
-        vInt = QtGui.QIntValidator()
-        self.widgets = {}
-        self.row, self.column = 0, 1
-        rows, columns = 20, 20
-        self.items = [['', ] * columns, ] * rows
-
-
-
-        # self.insert_label(prnt, sizepolicy=self.sizePolicyA)
-
-    def empty(self):
-        pass
-
-    def stateGaussianChanged(self):
-        w = self.widgets['apply_gaussian_filter']
-        width = self.widgets['width_gaussian_filter'].text()
-
-        if w.isChecked():
-            if len(width) > 0 and abs(self.current_width - float(width)) > 0.01:
-                self.vol = self.volg = gaussian_filter(self.backup, float(width))
-                self.current_width = float(width)
-            else:
-                self.vol = self.volg
-        else:
-            self.vol = self.backup.copy()
-        self.replot_all()
-
-    def replot_all(self):
-        self.replot()
-        volA, volB = self.getSideWindowsIndices()
-        print(self.vol.shape)
-        self.img1a.setImage(image=volA)
-        self.img1b.setImage(image=volB)
-
-    def sliceVol(self):
-        if self.slicedir == 'x':
-            crop = self.vol[:, :, int(self.slice)]
-        elif self.slicedir == 'y':
-            crop = self.vol[:, int(self.slice), :]
-        else:
-            crop = self.vol[int(self.slice), :, :]
-        return crop
-
-    def getSideWindowsIndices(self):
-        if self.slicedir == 'x':
-            return self.vol.sum(axis=1).T, self.vol.sum(axis=0)
-        elif self.slicedir == 'y':
-            return self.vol.sum(axis=0), self.vol.sum(axis=2)
-        else:
-            return self.vol.sum(axis=2), self.vol.sum(axis=1).T
-
-    def replot(self):
-        crop = self.sliceVol()
-        self.img1m.setImage(image=crop.T)
-        self.hist.setImageItem(self.img1m)
-        self.hist.setLevels(numpy.median(crop) - crop.std() * 3, numpy.median(crop) + crop.std() * 3)
-
-    def mouseHasMoved(self, evt):
-        pass
-
-    def mouseHasMovedBottom(self, evt):
-        pos = self.bottomimage.mapSceneToView(evt.scenePos())
-        if pos.y() < 0 or pos.y() >= self.vol.shape[2]: return
-        step = pos.y() - self.slice
-        self.slice += step
-        self.replot()
-
-    def mouseHasMovedLeft(self, evt):
-        pos = self.leftimage.mapSceneToView(evt.scenePos())
-        if pos.x() < 0 or pos.x() >= self.vol.shape[1]: return
-
-        step = pos.x() - self.slice
-        self.slice += step
-        self.replot()
-
-    def load_image(self):
-        import time
-        if not self.title: return
-        if not os.path.exists(self.title):
-            self.popup_messagebox('Error', 'File does not exist', 'File does not exist. Please provide a valid filename.')
-            self.failed = True
-            return
-
-        if self.title.endswith('em'):
-            t = time.time()
-            self.vol = data = read(self.title)
-            self.vol = data = self.vol.T
-            print(time.time()-t)
-        elif self.title.endswith('mrc'):
-            t = time.time()
-            self.vol = data = read(self.title, order='C').copy()
-
-            print(time.time()-t)
-        self.mask = numpy.ones_like(self.vol)
-        # self.vol[self.vol < -4.] = -4.
-        self.backup = self.vol.copy()
-        t = time.time()
-        verts, faces = pg.isosurface(data, data.mean() - data.std() * self.controlWindow.widgets['IsoSurface'].value())
-        print(time.time()-t)
-        t = time.time()
-        md = gl.MeshData(vertexes=verts, faces=faces)
-
-        colors = np.ones((md.faceCount(), 4), dtype=float)
-        colors[:, 3] = self.opacity
-        colors[:, 2] = np.linspace(0, 0.95, colors.shape[0])
-        md.setFaceColors(colors)
-
-        # m1 = gl.GLMeshItem(meshdata=md, smooth=False, shader='balloon')
-        # m1.setGLOptions('additive')
-        #
-        # w.addItem(m1)
-        # m1.translate(-100, -100, -100)
-
-        self.m2 = gl.GLMeshItem(meshdata=md, smooth=True, shader=self.shader)
-        self.m2.setGLOptions('additive')
-        self.centcanvas.addItem(self.m2)
-
-        self.m2.translate(-data.shape[0]//2, -data.shape[1]//2, -data.shape[2]//2)
-
-        #self.centcanvas.orbit(60,50)
-        print(time.time() - t)
-
-    def reload_image(self, params):
-        from numpy import cos, sin, arccos, arcsin
-        from pytom.agnostic.transform import rotate3d
-
-        if self.centcanvas.reorientParticle.isChecked():
-            azimuth = np.deg2rad(self.centcanvas.opts['azimuth'])
-            elevation = np.deg2rad( self.centcanvas.opts['elevation'])
-
-            Z1 = (-np.rad2deg(azimuth)-90) % 360
-            Z2 = 90
-            X  =  (np.rad2deg(elevation)) % 360
-
-            self.list_operations.append(['rotation_zxz',[Z1, X, Z2]])
-
-            self.vol = data = rotate3d(self.vol, phi=Z1, the=X, psi=Z2)
-
-            self.centcanvas.removeItem(self.m2)
-            verts, faces = pg.isosurface(data, data.mean() - data.std() * self.controlWindow.widgets['IsoSurface'].value())
-            md = gl.MeshData(vertexes=verts, faces=faces)
-
-            colors = np.ones((md.faceCount(), 4), dtype=float)
-            colors[:, 3] = self.opacity
-            colors[:, 2] = np.linspace(0, 0.95, colors.shape[0])
-            md.setFaceColors(colors)
-
-            self.m2 = gl.GLMeshItem(meshdata=md, smooth=True, shader=self.shader)
-            self.m2.setGLOptions('additive')
-
-            self.centcanvas.addItem(self.m2)
-            self.m2.translate(-data.shape[0]//2, -data.shape[1]//2, -data.shape[2]//2)
-            self.centcanvas.resetView(grids=False)
-            print('reloaded')
-
-
-            print(f'new orientation (Z1, Z2, X): {Z1}, {Z2}, {X}')
-            self.controlWindow.widgets['Z1'].setValue(Z1)
-            self.controlWindow.widgets['Z2'].setValue(Z2)
-            self.controlWindow.widgets['X'].setValue(X)
-
-
-            for name, value in (('cX', 0), ('cY', 0), ('cZ', 0)):
-                #self.controlWindow.widgets[name].blockSignals(True)
-                self.controlWindow.widgets[name].setValue(value)
-                #self.controlWindow.widgets[name].blockSignals(False)
-
-
-        else:
-            print('No regridding done!')
-
-    def redrawImage(self):
-        data = self.vol
-        self.centcanvas.removeItem(self.m2)
-        verts, faces = pg.isosurface(data, data.mean() - data.std() * self.controlWindow.widgets['IsoSurface'].value())
-        md = gl.MeshData(vertexes=verts, faces=faces)
-
-        colors = np.ones((md.faceCount(), 4), dtype=float)
-        colors[:, 3] = self.opacity
-        colors[:, 2] = np.linspace(0, 0.95, colors.shape[0])
-        md.setFaceColors(colors)
-
-        self.m2 = gl.GLMeshItem(meshdata=md, smooth=True, shader=self.shader)
-        self.m2.setGLOptions('additive')
-
-        self.centcanvas.addItem(self.m2)
-        self.m2.translate(-100, -100, -100)
-        self.centcanvas.resetView(grids=False)
-
-
-class ControlWindowSurface(QMainWindow, CommonFunctions):
-    def __init__(self,parent=None, mode = ''):
-        super(ControlWindowSurface, self).__init__(parent)
-        self.setGeometry(900, 0, 300, 100)
-        self.layout = self.grid = QGridLayout(self)
-        self.setWindowTitle('Control Window Surface')
-        self.settings = QWidget(self)
-        self.settings.setLayout(self.layout)
-        self.setCentralWidget(self.settings)
-
-        self.row, self.column = 0, 0
-        self.logbook = {}
-        self.widgets = {}
-        rows, columns = 20, 20
-
-
-
-        self.items = [['', ] * columns, ] * rows
-
-        self.insert_label(self.grid, '', rstep=1, cstep=0)
-        self.insert_checkbox_label_spinbox(self.grid, mode + 'reorientParticle', 'Reorient Subtomogram -- Z (deg)',
-                                           mode + 'Z1', value=0, wtype=QDoubleSpinBox, decimals=2, rstep=1, cstep=-1, maximum=360)
-        self.insert_label_spinbox(self.grid, mode + 'X', 'X (deg)', value=0, wtype=QDoubleSpinBox, decimals=2, rstep=1, maximum=360)
-        self.insert_label_spinbox(self.grid, mode + 'Z2', 'Z (deg)', value=0, wtype=QDoubleSpinBox, decimals=2, rstep=1,
-                                  maximum=360, cstep=0, enabled=False)
-        self.insert_pushbutton(self.grid, 'Rotate!', action=self.parent().reload_image, rstep=1, cstep=0,
-                               wname='rotateButton',state=False)
-
-        self.insert_label(self.grid, text='', cstep=-2, rstep=1)
-        self.insert_checkbox_label_spinbox(self.grid, mode + 'recenterParticle', 'Recenter Subtomogram -- X (px)',
-                                           mode + 'cX', value=0, wtype=QSpinBox, rstep=1, cstep=-1, minimum=-1300)
-        self.insert_label_spinbox(self.grid, mode + 'cY', 'Y (px)', value=0, wtype=QSpinBox, rstep=1, minimum=-1300)
-        self.insert_label_spinbox(self.grid, mode + 'cZ', 'Z (px)', value=0, wtype=QSpinBox, minimum=-1300, cstep=0, rstep=1)
-        self.insert_pushbutton(self.grid, 'Save Image!', action=self.save_image, rstep=1, cstep=0, wname='saveImage')
-
-        self.insert_label(self.grid, text='', cstep=-1, rstep=1)
-        self.insert_label_line_push(self.grid, 'Particle List (Optional)', 'particleList', filetype='xml',rstep=1, cstep=-1)
-        self.insert_pushbutton(self.grid, 'Adjust!', action=self.adjustPL, rstep=1, cstep=0,
-                               wname='adjustPL', state=False)
-        self.insert_label(self.grid, text='', cstep=-1, rstep=1)
-        self.insert_label_spinbox(self.grid, mode + 'IsoSurface', 'IsoSurface', value=4., wtype=QDoubleSpinBox,
-                                  decimals=2,
-                                  maximum=360, stepsize=0.1, rstep=1, cstep=0)
-
-        self.insert_label(self.grid, text='', cstep=-1, rstep=1)
-
-
-        #CONNECT
-        self.widgets[mode + 'cX'].valueChanged.connect(self.centerChanged)
-        self.widgets[mode + 'cY'].valueChanged.connect(self.centerChanged)
-        self.widgets[mode + 'cZ'].valueChanged.connect(self.centerChanged)
-        self.widgets[mode + 'Z1'].valueChanged.connect(self.orientationChanged)
-        self.widgets[mode + 'X'].valueChanged.connect(self.orientationChanged)
-        self.widgets[mode + 'Z2'].valueChanged.connect(self.orientationChanged)
-        self.widgets[mode + 'recenterParticle'].stateChanged.connect(self.centerStateChanged)
-        self.widgets[mode + 'reorientParticle'].stateChanged.connect(self.orientStateChanged)
-        self.widgets[mode + 'IsoSurface'].valueChanged.connect(self.parent().redrawImage)
-
-
-    def save_image(self,params=None):
-        from pytom.agnostic.io import read, write
-        fname = str(QFileDialog.getSaveFileName(self, 'Save image.', '', filter="MRC File (*.mrc);; EM File (*.em)")[0])
-        if fname:
-            if not (fname.split('.')[-1] in ('mrc', 'em')):
-                fname += '.mrc'
-
-            out = np.zeros_like(self.parent().vol)
-            dx, dy, dz = -self.get_shifts()
-            cx, cy, cz = out.shape[0] // 2, out.shape[1] // 2, out.shape[2] // 2
-            x,y,z = out.shape
-            sx,sy,sz = max(0,dx), max(0,dy), max(0,dz)
-            ex,ey,ez = min(x, 2 * cx + dx), min(y, 2 * cy + dy), min(z, 2 * cz + dz)
-            try:
-                out[sx-dx:ex-dx,sy-dy:ey-dy,sz-dz:ez-dz] = self.parent().vol[sx:ex,sy:ey,sz:ez]
-                vol = rotate3d(out, 90, -90, 90)
-                write(fname, vol, order='C')
-            except Exception as e:
-               print(e)
-               print(sx,ex,sy,ey,sz,ez)
-               print(dx,dy,dz)
-               print('writing failed.')
-
-    def adjustPL(self, params=None):
-        from pytom.basic.combine_transformations import generate_rotation_matrix
-        from pytom.bin.updateParticleList import updatePL
-
-        pl = self.widgets('particleList').text()
-        fname = str(
-            QFileDialog.getSaveFileName(self, 'Save particle list.', '', filter="XML File (*.xml)")[0])
-
-        if not pl or not fname:
-            return
-
-        shape = self.parent().vol.shape
-        new_center = -self.get_shifts() +  np.array((shape[0]//2, shape[1]//2, shape[2]//2))
-        rot_matrix = zeros((3,3),dtype=np.float32)
-        for type, angles in [['rotation_zxz',[0,0,0]]] + self.parent().list_rotations + ['rotation_zxz',[90,90,-90]]:
-            rot_matrix = np.matmul(rot_matrix, generate_rotation_matrix(angles[0], angles[1], angles[2]))
-
-
-        from numpy import cos, sin, arccos, arcsin, rad2deg
-        X = arccos(rot_matrix[2,2])
-        Z2 = arccos(rot_matrix[2,1] / sin(X))
-        Z1 = arccos(rot_matrix[1,2] / -sin(Z2))
-
-        Z1, X, Z2 = rad2deg(Z1), rad2deg(X), rad2deg(Z2)
-
-        updatePL(pl, fname, rotation=[Z1,X,Z2], new_center=new_center)
-
-
-    def centerChanged(self):
-        x,y,z = self.parent().centcanvas.offset
-        xVec = QtGui.QVector3D(x, 0, 0)
-        yVec = QtGui.QVector3D(0, y, 0)
-        zVec = QtGui.QVector3D(0, 0, z)
-        self.parent().centcanvas.move_origin_now(xVec, yVec, zVec, True, update=False)
-
-        nx,ny,nz = self.get_shifts()
-        xVec = QtGui.QVector3D(nx, 0, 0)
-        yVec = QtGui.QVector3D(0, ny, 0)
-        zVec = QtGui.QVector3D(0, 0, nz)
-        self.parent().centcanvas.move_origin_now(xVec, yVec, zVec, True, update=False)
-
-    def get_shifts(self):
-        return np.array((self.widgets['cX'].value(), self.widgets['cY'].value(), self.widgets['cZ'].value()))
-
-    def get_rotation_angles(self):
-        return self.widgets['Z1'].value(), self.widgets['X'].value(), self.widgets['Z2'].value()
-
-    def orientationChanged(self):
-        pass
-
-    def centerStateChanged(self):
-        state = self.widgets['recenterParticle'].isChecked()
-        self.widgets['reorientParticle'].setChecked(False)
-        self.widgets['recenterParticle'].setChecked(state)
-        self.parent().centcanvas.recenterParticle.setChecked(state)
-        if state:
-            self.parent().centcanvas.resetView()
-            nx, ny, nz = self.widgets['cX'].value(), self.widgets['cY'].value(), self.widgets['cZ'].value()
-            xVec = QtGui.QVector3D(nx, 0, 0)
-            yVec = QtGui.QVector3D(0, ny, 0)
-            zVec = QtGui.QVector3D(0, 0, nz)
-            self.parent().centcanvas.move_origin_now(xVec, yVec, zVec, True, update=False)
-        else:
-            self.parent().centcanvas.deleteGrids()
-
-    def orientStateChanged(self):
-        state = self.widgets['reorientParticle'].isChecked()
-        self.widgets['recenterParticle'].setChecked(False)
-        self.parent().centcanvas.reorientParticle.setChecked(state)
-        self.widgets['reorientParticle'].setChecked(state)
-        self.widgets['rotateButton'].setEnabled(state)
-'''
 
 
 class QParams():
@@ -5051,7 +4336,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         xmax = min(tomo.shape[2], x + int(self.size_subtomo / 2))
         ymin = max(0, y - int(self.size_subtomo / 2))
         ymax = min(tomo.shape[1], y + int(self.size_subtomo / 2))
-        subtomo = zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
+        subtomo = np.zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
         subtomo[:xmax-xmin,:ymax-ymin] = (tomo[position[2]-4:position[2]+4].sum(axis=0).T)[xmin:xmax, ymin:ymax]
 
         self.position = position
@@ -5088,7 +4373,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
             ymin = max(0, y - int(self.size_subtomo / 2))
             ymax = min(volume.shape[1], y + int(self.size_subtomo / 2))
 
-            subtomo = zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
+            subtomo = np.zeros((int(self.size_subtomo),int(self.size_subtomo)),dtype=float)
             try:subtomo[:xmax-xmin,:ymax-ymin] = (volume[z-4:z+4].sum(axis=0).T)[xmin:xmax, ymin:ymax]
             except: pass
             if n < len(self.iItemList):
@@ -5110,7 +4395,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
     def delete_subplot(self, position, start=0):
         for x,y,z,s, index in self.coordinates[start:]:
             if x == position[0] and y == position[1] and z == position[2]:
-                blank = zeros((int(self.size_subtomo), int(self.size_subtomo)), dtype=float)
+                blank = np.zeros((int(self.size_subtomo), int(self.size_subtomo)), dtype=float)
                 try:
                     self.iItemList[index].setImage(image=blank)
                 except:
@@ -5231,7 +4516,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         ymin = max(0, y - int(size_subtomo / 2))
         ymax = min(tomo.shape[2], y + int(size_subtomo / 2))
 
-        subtomo = zeros((int(size_subtomo),int(size_subtomo)),dtype=float)
+        subtomo = np.zeros((int(size_subtomo),int(size_subtomo)),dtype=float)
         subtomo[:xmax-xmin,:ymax-ymin] = (tomo[z-size_subtomo//2:z+size_subtomo//2].sum(axis=0).T)[xmin:xmax, ymin:ymax]
 
 
@@ -5299,7 +4584,7 @@ class NewProject(QMainWindow, CommonFunctions):
         parent = self.gridLayout
 
         self.row, self.column = 0, 1
-        self.insert_label(parent, text='Project name', rstep=1, alignment=QtCore.Qt.AlignHCenter,
+        self.insert_label(parent, text='Project name', rstep=1, alignment=Qt.AlignHCenter,
                           tooltip='Provide the foldername of a new project. The foldername must not exist.')
         self.insert_lineedit(parent, 'projectname', cstep=1)
         self.insert_pushbutton(parent, cstep=self.column * -1+1, rstep=1, text='Browse',
@@ -5337,13 +4622,13 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
             time = int(self.logbook[self.stage + 'time'])
             queue = self.logbook[self.stage + 'default_queue']
         except:
-            queue_system, done4 = QtWidgets.QInputDialog.getItem(self, 'Name Queuing system',
+            queue_system, done4 = QInputDialog.getItem(self, 'Name Queuing system',
                                                                  'Queuing system you are using:',
                                                                  self.qcommanddict.keys())
             if queue_system != 'none':
-                queue, done1 = QtWidgets.QInputDialog.getText(self, 'Name default queue', 'Enter the name of default queue:', text='defq')
-                time, done2 = QtWidgets.QInputDialog.getInt(self, 'Default Time-out time', 'After how many hours does a queued job time out:', 24)
-                num_cores, done3 = QtWidgets.QInputDialog.getInt(self, 'Default number of cores per node', 'How many cores does one node have:',max(1,multiprocessing.cpu_count()-4))
+                queue, done1 = QInputDialog.getText(self, 'Name default queue', 'Enter the name of default queue:', text='defq')
+                time, done2 = QInputDialog.getInt(self, 'Default Time-out time', 'After how many hours does a queued job time out:', 24)
+                num_cores, done3 = QInputDialog.getInt(self, 'Default number of cores per node', 'How many cores does one node have:',max(1,multiprocessing.cpu_count()-4))
             else:  # if nothing provided set some default values
                 queue_system, queue, time, num_cores = 'slurm', 'defq', '24', '20'
             self.logbook[self.stage + 'queue_system'] = queue_system
@@ -5611,24 +4896,6 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def tab2UI(self):
         pass
-
-    def tabxx(self):
-
-        self.insert_label(parent, rstep=1, cstep=0, sizepolicy=self.sizePolicyB, width=w)
-        self.insert_label_line_push(parent, 'FSC File (ascii)', mode + 'FSCFilename', mode='file', width=w,
-                                    initdir=self.projectname,
-                                    filetype='dat', tooltip='Select a particleList which you want to plot.\n')
-        self.insert_label_spinbox(parent, mode + 'BoxSize', text='Dimension of Image', tooltip='Box size of 3D object',
-                                  value=64, minimum=1, maximum=4000, stepsize=1, width=w)
-        self.insert_label_spinbox(parent, mode + 'PixelSize', text='Pixel Size',
-                                  tooltip='Pixel size of a voxel in teh object.',
-                                  value=2.62, minimum=1, stepsize=1, wtype=QDoubleSpinBox, decimals=2, width=w)
-        self.insert_label_spinbox(parent, mode + 'CutOff', text='Resolution Cutoff', value=0, minimum=0, stepsize=0.1,
-                                  wtype=QDoubleSpinBox, decimals=3, width=w, cstep=0,
-                                  tooltip='Cut-off used to determine the resolution of your object from the FSC curve. \nTypical values are 0.5 or 0.143')
-
-        self.insert_pushbutton(parent, 'Plot!', action=self.showFSCPlot, params=mode, rstep=1, cstep=0)
-        self.insert_label(parent, cstep=1, rstep=1, sizepolicy=self.sizePolicyA)
 
     def showFSCPlot(self, mode):
         from pytom.plotting.plotFSC import plot_FSC
@@ -5913,7 +5180,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                 tomogram = os.path.basename(indata.split('cd ')[1].split('\n')[0])
                 if tomogram in tomograms: continue
                 tomograms[tomogram] = 1
-                alignmentscore = str(numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
+                alignmentscore = str(np.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
                 firstangle = logdata.split('tiltAngle=')[1].split(')')[0]
                 lastangle = logdata.split('tiltAngle=')[-1].split(')')[0]
                 refindex = indata.split('--referenceIndex ')[1].split(' ')[0]
@@ -6033,12 +5300,12 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                         first, last = os.path.basename(dname(dname(dname(logfile)))).split('_')[-1].split(',')
                         if not d: continue
                         alignmentscore = str(
-                            numpy.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
-                        firstangle = str(numpy.around(metadata['TiltAngle'][d['firstProj']], 1))
-                        lastangle = str(numpy.around(metadata['TiltAngle'][d['lastProj']], 1))
+                            np.around(float(logdata.split('Score after optimization: ')[1].split('\n')[0]), 3))
+                        firstangle = str(np.around(metadata['TiltAngle'][d['firstProj']], 1))
+                        lastangle = str(np.around(metadata['TiltAngle'][d['lastProj']], 1))
                         refindex = str(d['ireftilt'])
                         refmarker = str(d['irefmark'])
-                        expected = str(int(numpy.around(180 * float(d['handflip'] / numpy.pi))))
+                        expected = str(int(np.around(180 * float(d['handflip'] / np.pi))))
                         logfal = logdata.split('Alignment successful. See ')[1].split(' ')[0]
                         path = os.path.join(self.projectname, '03_Tomographic_Reconstruction', tomofolder, logfal)
                         angles = guiFunctions.loadstar(path, dtype=guiFunctions.datatypeAR)['InPlaneRotation'].mean()
@@ -6742,7 +6009,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
 
         self.add_controls(self.layout_operationbox)
 
-        pg.QtGui.QApplication.processEvents()
+        QApplication.processEvents()
         self.load_image()
 
     def wheelEvent(self, event):
@@ -6784,8 +6051,8 @@ class Viewer2D(QMainWindow, CommonFunctions):
         self.datalabel.setText(f"value = {v:7.3f} x = {x:6.0f} y={y:6.0f} z = {z:4.0f}")
 
     def add_controls(self, prnt):
-        vDouble = QtGui.QDoubleValidator()
-        vInt = QtGui.QIntValidator()
+        vDouble = QDoubleValidator()
+        vInt = QIntValidator()
         self.widgets = {}
         self.row, self.column = 0, 1
         rows, columns = 20, 20
@@ -6845,7 +6112,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
             except:
                 self.ps = self.backup.copy()
                 for i in range(self.dim):
-                    self.ps[i,:,:] = numpy.log10(numpy.abs(numpy.fft.fftshift(numpy.fft.fftn(self.ps[i,:,:]))))
+                    self.ps[i,:,:] = np.log10(np.abs(np.fft.fftshift(np.fft.fftn(self.ps[i,:,:]))))
 
                 self.vol = self.ps.copy()
         else:
@@ -6870,7 +6137,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
             except:
                 self.ph = self.vol.copy()
                 for i in range(self.dim):
-                    self.ph[i,:,:] = numpy.angle(numpy.fft.fftshift(numpy.fft.fftn(self.ph[i,:,:])))
+                    self.ph[i,:,:] = np.angle(np.fft.fftshift(np.fft.fftn(self.ph[i,:,:])))
                 self.vol = self.ph.copy()
         else:
             self.vol = self.backup.copy()
@@ -6888,7 +6155,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
         # self.centcanvas.removeItem(self.hist)
         # self.hist = pg.HistogramLUTItem()
         self.hist.setImageItem(self.img1m)
-        self.hist.setLevels(numpy.median(crop) - crop.std() * 3, numpy.median(crop) + crop.std() * 3)
+        self.hist.setLevels(np.median(crop) - crop.std() * 3, np.median(crop) + crop.std() * 3)
         # self.centcanvas.addItem(self.hist)
         self.writeLabelText(z=self.slice)
 
@@ -6922,7 +6189,7 @@ class Viewer2D(QMainWindow, CommonFunctions):
 
         try:
             dx, dy, dz = read_size(files[0])
-            self.vol = numpy.zeros((len(files), dx//bin, dy//bin))
+            self.vol = np.zeros((len(files), dx//bin, dy//bin))
             for n, fname in enumerate(files):
                 data = read(fname).squeeze()
                 if len(data.shape) >2:
@@ -7072,7 +6339,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
             self.leftimage.setXRange(0, self.vol.shape[0])
             self.add_controls(self.layout_operationbox)
 
-        pg.QtGui.QApplication.processEvents()
+        QApplication.processEvents()
 
     def wheelEvent(self, event):
 
@@ -7124,8 +6391,8 @@ class Viewer3D(QMainWindow, CommonFunctions):
         self.datalabel.setText(f"value = {v:7.3f} x = {x:6.0f} y={y:6.0f} z = {z:4.0f}")
 
     def add_controls(self, prnt):
-        vDouble = QtGui.QDoubleValidator()
-        vInt = QtGui.QIntValidator()
+        vDouble = QDoubleValidator()
+        vInt = QIntValidator()
         self.widgets = {}
         self.row, self.column = 0, 1
         rows, columns = 20, 20
@@ -7188,7 +6455,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
         crop = self.sliceVol()
         self.img1m.setImage(image=crop.T)
         self.hist.setImageItem(self.img1m)
-        self.hist.setLevels(numpy.median(crop) - crop.std() * 3, numpy.median(crop) + crop.std() * 3)
+        self.hist.setLevels(np.median(crop) - crop.std() * 3, np.median(crop) + crop.std() * 3)
         self.writeLabelText(z=self.slice)
 
     def mouseHasMoved(self, evt):
@@ -7223,12 +6490,12 @@ class Viewer3D(QMainWindow, CommonFunctions):
                 from pytom_numpy import vol2npy
                 self.vol = read(self.title)
                 self.vol = self.vol.T
-                #self.vol = numpy.fft.fftshift(numpy.abs(numpy.fft.fftn(self.vol))**2)
+                #self.vol = np.fft.fftshift(np.abs(np.fft.fftn(self.vol))**2)
 
             elif self.title.split('.')[-1] in ('mrc', 'mrcs', 'rec', 'st', 'map'):
                 self.vol = read_mrc(self.title)
 
-            # self.mask = numpy.ones_like(self.vol)
+            # self.mask = np.ones_like(self.vol)
             # self.vol[self.vol < -4.] = -4.
             self.backup = self.vol.copy()
 
