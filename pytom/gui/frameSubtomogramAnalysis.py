@@ -255,6 +255,7 @@ class SubtomoAnalysis(GuiTabWidget):
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
 
+        self.tomogram = None
         self.row, self.column = 0, 1
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
@@ -310,7 +311,6 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'polishFlag'] = QLineEdit('')
         self.widgets[mode + 'projectionDir'] = QLineEdit('')
         self.widgets[mode + 'alignmentResultsFile'] = QLineEdit('')
-        self.tomogram = None
 
         # self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateMeta(m))
         self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.update_alignment_options(m))
@@ -1471,49 +1471,52 @@ class SubtomoAnalysis(GuiTabWidget):
 
     def update_alignment_options(self, mode):
         pl = self.widgets[mode + 'particlelist'].text()
-        try:  # to get the tomogram id from the particle list  # TODO could be improved by reading tomogram from list
-            tomo_id = int(pl.split('_tomogram_')[-1][:3])
-            self.tomogram = 'tomogram_{:03d}'.format(tomo_id)
+        # to get the tomogram id from the particle list  # TODO could be improved by reading tomogram from list
+        tomo_id = int(pl.split('_tomogram_')[-1][:3])
+        self.tomogram = 'tomogram_{:03d}'.format(tomo_id)
 
-            # get alignment options
-            self.widgets[mode + 'alignment'].disconnect()
-            self.widgets[mode + 'alignment'].clear()
-            alignment_dir = os.path.join(self.tomogram_folder, self.tomogram, 'alignment')
-            alignments = [d for d in os.listdir(alignment_dir) if os.path.isdir(os.path.join(alignment_dir, d))]
-            self.widgets[mode + 'alignment'].currentIndexChanged.connect(
-                lambda d, m=mode: self.update_alignment_choice(m))
-            self.widgets[mode + 'alignment'].addItems(alignments)
+        # clear previous alignment choices
+        self.widgets[mode + 'alignment'].disconnect()
+        self.widgets[mode + 'alignment'].clear()
+        # atttempt to find valid alignments
+        alignment_dir = os.path.join(self.tomogram_folder, self.tomogram, 'alignment')
+        alignment_choices = []
+        for alignment in os.listdir(alignment_dir):
+            d = os.path.join(alignment_dir, alignment)
+            if os.path.exists(d) and os.path.isdir(d):
+                for pointer in os.listdir(os.path.join(d, 'GlobalAlignment')):
+                    f = os.path.join(d, 'GlobalAlignment', pointer, 'alignmentResults.txt')
+                    if os.path.exists(f):
+                        alignment_choices.append(alignment)
+                        break
+                # we might have found an alignment file
+        # set the alignment options
+        self.widgets[mode + 'alignment'].currentIndexChanged.connect(
+            lambda d, m=mode: self.update_alignment_choice(m))
+        self.widgets[mode + 'alignment'].addItems(alignment_choices)
 
-            # get ctf options
-            self.widgets[mode + 'ctfCorrChoice'].disconnect()
-            self.widgets[mode + 'ctfCorrChoice'].clear()
-            sorted_dir = os.path.join(self.tomogram_folder, self.tomogram, 'sorted')
-            ctf_sorted_dir = os.path.join(self.tomogram_folder, self.tomogram, 'ctf',
-                                          'sorted_ctf')
-            tilt_choices = []
-            if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
-                tilt_choices.append('sorted')
-            if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
-                tilt_choices.append('sorted_ctf')
-            # set choices in the widget
-            self.widgets[mode + 'ctfCorrChoice'].currentIndexChanged.connect(
-                lambda d, m=mode: self.update_ctf_corr_choice(m))
-            self.widgets[mode + 'ctfCorrChoice'].addItems(tilt_choices)
-        except Exception as e:
-            print(e)
-            pass
+        # get ctf options
+        self.widgets[mode + 'ctfCorrChoice'].disconnect()
+        self.widgets[mode + 'ctfCorrChoice'].clear()
+        sorted_dir = os.path.join(self.tomogram_folder, self.tomogram, 'sorted')
+        ctf_sorted_dir = os.path.join(self.tomogram_folder, self.tomogram, 'ctf',
+                                      'sorted_ctf')
+        tilt_choices = []
+        if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
+            tilt_choices.append('sorted')
+        if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+            tilt_choices.append('sorted_ctf')
+        # set choices in the widget
+        self.widgets[mode + 'ctfCorrChoice'].currentIndexChanged.connect(
+            lambda d, m=mode: self.update_ctf_corr_choice(m))
+        self.widgets[mode + 'ctfCorrChoice'].addItems(tilt_choices)
 
     def update_alignment_choice(self, mode):
-        alignment_choice = self.widgets[mode + 'alignment'].currentText()
+        folder = os.path.join(self.tomogram_folder, self.widgets[mode + 'tomogram'].currentText(), 'alignment',
+                              self.widgets[mode + 'alignment'].currentText(), 'GlobalAlignment')
         try:
-            ac_dir = os.path.join(self.tomogram_folder, self.tomogram, 'alignment', alignment_choice, 'GlobalAlignment')
-            pointer_options = [f for f in os.listdir(ac_dir) if os.path.isdir(os.path.join(ac_dir, f)) and 'sorted'
-                               in f]
-            align_result = 'sorted' if 'sorted' in pointer_options else pointer_options[0]
-            self.widgets[mode + 'alignmentResultsFile'].setText(os.path.join(self.tomogram_folder,
-                                                                             self.tomogram, 'alignment',
-                                                                             alignment_choice, 'GlobalAlignment',
-                                                                             align_result, 'alignmentResults.txt'))
+            pointer = [d for d in os.listdir(folder) if 'sorted' in d][0]
+            self.widgets[mode + 'alignmentResultsFile'].setText(os.path.join(folder, pointer, 'alignmentResults.txt'))
 
             # if an alignment file has been selected, we can start looking for angle range
             if os.path.exists(self.widgets[mode + 'alignmentResultsFile'].text()):
@@ -1534,7 +1537,7 @@ class SubtomoAnalysis(GuiTabWidget):
             self.widgets[mode + 'lastAngle'].setValue(max_angle)
 
         except IndexError:
-            print('No alignment result files found in tomogram directory')
+            print('No alignment result files found in alignment directory')
 
     def update_ctf_corr_choice(self, mode):
         sorted_choice = self.widgets[mode + 'ctfCorrChoice'].currentText()

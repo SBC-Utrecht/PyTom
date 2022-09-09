@@ -55,16 +55,17 @@ generateAlignedTiltImages.py \\
 templateWBP       = '''cd {d[0]}
 
 reconstructWB.py \\
-    --alignResultFile {d[15]} \\
-    --tomogram reconstruction/WBP/{d[7]}_WBP.mrc \\
-    --projBinning {d[6]} \\
-    --applyWeighting {d[10]}  \\
-    --size {d[9]},{d[13]},{d[14]} \\
-    {d[12]}
+    --alignResultFile {d[10]} \\
+    --projectionDirectory {d[12]} \\
+    --tomogram reconstruction/WBP/{d[3]}_WBP.mrc \\
+    --projBinning {d[2]} \\
+    --applyWeighting {d[5]}  \\
+    --size {d[4]},{d[8]},{d[9]} \\
+    --tilt-range {d[13]},{d[14]} \\
+    {d[7]} {d[11]}
 
-
-unlink ../../04_Particle_Picking/Tomograms/{d[7]}_WBP.mrc
-ln -s {d[0]}/reconstruction/WBP/{d[7]}_WBP.mrc ../../04_Particle_Picking/Tomograms/{d[7]}_WBP.mrc'''
+unlink ../../04_Particle_Picking/Tomograms/{d[3]}_WBP.mrc
+ln -s {d[0]}/reconstruction/WBP/{d[3]}_WBP.mrc ../../04_Particle_Picking/Tomograms/{d[3]}_WBP.mrc'''
 
 
 templateWBP_old    = '''cd {d[0]}

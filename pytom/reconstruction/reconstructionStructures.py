@@ -50,7 +50,7 @@ def put_in_shared_stack(stack_dtype, stack_shape, image, index):
 
 def align_single_projection(index, projection_list, tilt_angles, shared_dtype, shared_stack_shape, weighting, binning,
                             low_pass_freq, apply_circle_filter, scale_factor_particle, angle_specimen, verbose,
-                            show_progress, imdim, imdimX, imdimY, slice_width):
+                            show_progress, imdim, imdimX, imdimY, slice_width, offset):
     """
     For parallel alignment of tilt series.
 
@@ -93,8 +93,8 @@ def align_single_projection(index, projection_list, tilt_angles, shared_dtype, s
     from pytom.basic.files import read
     import pytom_freqweight
 
-    projection = projection_list[index]
-    tilt_angle = tilt_angles[index]
+    projection = projection_list[index + offset]
+    tilt_angle = tilt_angles[index + offset]
 
     # pre-determine analytical weighting function and lowpass for speedup
     if weighting == -1:
@@ -120,7 +120,7 @@ def align_single_projection(index, projection_list, tilt_angles, shared_dtype, s
 
     if projection._filename.split('.')[-1] == 'st':
         image = read(file=projection.getFilename(),
-                     subregion=[0, 0, index - 1, imdim, imdim, 1],
+                     subregion=[0, 0, index - 1 + offset, imdim, imdim, 1],
                      sampling=[0, 0, 0], binning=[0, 0, 0])
     else:
         image = read(projection.getFilename())
@@ -605,7 +605,7 @@ class ProjectionList(PyTomClass):
             possible_files = [line for line in sorted(os.listdir(directory))
                               if '.meta' == os.path.splitext(line)[1]]
             if len(possible_files) == 1:  # if we find a metafile, assign it
-                metafile = possible_files[0]
+                metafile = os.path.join(directory, possible_files[0])
         if metafile is not None:  # if we have a metafile, load its tilt angles
             metadata = loadstar(metafile, dtype=DATATYPE_METAFILE)
             tiltAngles = metadata['TiltAngle']
@@ -1547,10 +1547,15 @@ class ProjectionList(PyTomClass):
 
         imdim = max(imdimX, imdimY)
 
-        # prepare stacks
+        # get a list of tilt angles that are in the range
         tilts_in_range = [t for t in self._tilt_angles if tilt_range[0] <= int(round(t)) <= tilt_range[1]]
-        projections = [p for t, p in zip(self._tilt_angles, self._list) if tilt_range[0] <= int(round(t)) <=
-                                                                         tilt_range[1]]
+
+        # find the offset of the lower limit of provided tilt-range
+        offset = 0
+        while int(round(self._tilt_angles[offset])) < tilt_range[0]:
+            offset += 1
+
+        # prep stacks for output
         stack = vol(imdim, imdim, len(tilts_in_range))
         stack.setAll(0.0)
 
@@ -1587,13 +1592,16 @@ class ProjectionList(PyTomClass):
             #                               low_pass_freq / 5. * imdim)
 
         if show_progress_bar:
-            progressBar = FixedProgBar(0, len(self), 'Creating aligned and weighted projections')
+            progressBar = FixedProgBar(0, len(tilts_in_range), 'Creating aligned and weighted projections')
             progressBar.update(0)
 
         if verbose:
             print('projections to go over: ', [i for i, _ in enumerate(tilts_in_range)])
 
-        for i, (tilt_angle, projection) in enumerate(zip(tilts_in_range, projections)):
+        for i, (tilt_angle, projection) in enumerate(zip(self._tilt_angles, self._list)):
+
+            if not (tilt_range[0] <= int(round(tilt_angle)) <= tilt_range[1]):
+                continue
 
             if projection._filename.split('.')[-1] == 'st':
                 image = read(file=projection.getFilename(),
@@ -1648,14 +1656,14 @@ class ProjectionList(PyTomClass):
                 weightSlice = fourierFilterShift(exactFilter(self._tilt_angles, tilt_angle, imdim, imdim, slice_width))
                 image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
 
-            phiStack(projection.getAlignmentAxisAngle(), 0, 0, i)
-            thetaStack(tilt_angle - angle_specimen, 0, 0, i)  # TODO why round + int?
-            offsetStack(int(round(projection.getOffsetX())), 0, 0, i)
-            offsetStack(int(round(projection.getOffsetY())), 0, 1, i)
-            paste(image, stack, 0, 0, i)
+            phiStack(projection.getAlignmentAxisAngle(), 0, 0, i - offset)
+            thetaStack(tilt_angle - angle_specimen, 0, 0, i - offset)  # TODO why round + int?
+            offsetStack(int(round(projection.getOffsetX())), 0, 0, i - offset)
+            offsetStack(int(round(projection.getOffsetY())), 0, 1, i - offset)
+            paste(image, stack, 0, 0, i - offset)
 
             if show_progress_bar:
-                progressBar.update(i)
+                progressBar.update(i - offset)
 
             if verbose:
                 print(tilt_angle, projection.getOffsetX(), projection.getOffsetY())
@@ -1742,22 +1750,28 @@ class ProjectionList(PyTomClass):
         # set slice width for exact filter
         slice_width = (pixel_size * binning * imdim) / particle_diameter
 
+        # get a list of tilt angles that are in the range
         tilts_in_range = [t for t in self._tilt_angles if tilt_range[0] <= int(round(t)) <= tilt_range[1]]
-        projections = [p for t, p in zip(self._tilt_angles, self._list) if tilt_range[0] <= int(round(t)) <=
-                                                                         tilt_range[1]]
+
+        # find the offset of the lower limit of provided tilt-range
+        offset = 0
+        while int(round(self._tilt_angles[offset])) < tilt_range[0]:
+            offset += 1
+
+        # prepare the image stack shared between the processes
         self._create_shared_stack(imdim, len(tilts_in_range))
 
         if verbose:
             print('projections to go over: ', [i for i, _ in enumerate(tilts_in_range)])
 
         with closing(mp.Pool(num_procs, initializer=init_pool_processes, initargs=(self._shared_stack, ))) as p:
-            results = p.map(partial(align_single_projection, projection_list=projections,
-                                    tilt_angles=tilts_in_range, shared_dtype=self._shared_dtype,
+            results = p.map(partial(align_single_projection, projection_list=self._list,
+                                    tilt_angles=self._tilt_angles, shared_dtype=self._shared_dtype,
                                     shared_stack_shape=self._shared_stack_shape, weighting=weighting, binning=binning,
                                     low_pass_freq=low_pass_freq, apply_circle_filter=apply_circle_filter,
                                     scale_factor_particle=scale_factor_particle, angle_specimen=angle_specimen,
                                     verbose=verbose, show_progress=show_progress_bar, imdim=imdim, imdimX=imdimX,
-                                    imdimY=imdimY, slice_width=slice_width),
+                                    imdimY=imdimY, slice_width=slice_width, offset=offset),
                             [i for i, _ in enumerate(tilts_in_range)])
         p.join()
         # map could also iter over range(len(self._list)), however i explicitly zip _tilt_angles and the _list to
@@ -1818,10 +1832,15 @@ class ProjectionList(PyTomClass):
 
         imdim = max(imdimY, imdimX)
 
-        # prepare stacks for function return
+        # get a list of tilt angles that are in the range
         tilts_in_range = [t for t in self._tilt_angles if tilt_range[0] <= int(round(t)) <= tilt_range[1]]
-        projections = [p for t, p in zip(self._tilt_angles, self._list) if tilt_range[0] <= int(round(t)) <=
-                       tilt_range[1]]
+
+        # find the offset of the lower limit of provided tilt-range
+        offset = 0
+        while int(round(self._tilt_angles[offset])) < tilt_range[0]:
+            offset += 1
+
+        # prep stacks for output
         stack = xp.zeros((imdim, imdim, len(tilts_in_range)), dtype=xp.float32)
         phiStack = xp.zeros((len(tilts_in_range)), dtype=xp.float32)
         thetaStack = xp.zeros((len(tilts_in_range)), dtype=xp.float32)
@@ -1845,14 +1864,21 @@ class ProjectionList(PyTomClass):
         else:
             circleSlice = xp.ones((imdim, imdim))
 
+        # initialize taper_mask variable
+        taper_mask = None
+        outputImage = None
+
         if verbose:
             print('projections to go over: ', [i for i, _ in enumerate(tilts_in_range)])
 
         if show_progress_bar:
-            progressBar = FixedProgBar(0, len(self), 'Creating aligned and weighted projections')
+            progressBar = FixedProgBar(0, len(tilts_in_range), 'Creating aligned and weighted projections')
             progressBar.update(0)
 
-        for i, (tilt_angle, projection) in enumerate(zip(tilts_in_range, projections)):
+        for i, (tilt_angle, projection) in enumerate(zip(self._tilt_angles, self._list)):
+
+            if not (tilt_range[0] <= int(round(tilt_angle)) <= tilt_range[1]):
+                continue
 
             if projection._filename.split('.')[-1] == 'st':
                 # image = read(projection.getFilename(), deviceID=device)[:, :, i].squeeze()
@@ -1874,7 +1900,7 @@ class ProjectionList(PyTomClass):
             image = (image - immean) / immean  # maybe only division by mean and not subtraction
 
             # 2 -- smoothen borders to prevent high contrast oscillations
-            if i == 0:
+            if taper_mask is None:
                 image, taper_mask = taper_edges(image, imdim // 30)
             else:
                 image *= taper_mask
@@ -1894,7 +1920,7 @@ class ProjectionList(PyTomClass):
             # TODO lots of arrays created, can this be more effiecient?
             inputImage = xp.expand_dims(image, 2)
 
-            if i == 0:
+            if outputImage is None:
                 outputImage = xp.zeros_like(inputImage, dtype=xp.float32)
             else:
                 outputImage *= 0
@@ -1936,13 +1962,13 @@ class ProjectionList(PyTomClass):
                 image = xp.fft.ifftn(xp.fft.fftn(image) * weightSlice * circleSlice).real
 
             # thetaStack[ii] = float(round(tilt_angle - angle_specimen))  # TODO why round + int?
-            thetaStack[i] = tilt_angle - angle_specimen
-            offsetStack[i, :] = xp.array([int(round(projection.getOffsetX())),
+            thetaStack[i - offset] = tilt_angle - angle_specimen
+            offsetStack[i - offset, :] = xp.array([int(round(projection.getOffsetX())),
                                           int(round(projection.getOffsetY()))])
-            stack[:, :, i] = image
+            stack[:, :, i - offset] = image
 
             if show_progress_bar:
-                progressBar.update(i)
+                progressBar.update(i - offset)
 
             if verbose:
                 print(tilt_angle, projection.getOffsetX(), projection.getOffsetY())

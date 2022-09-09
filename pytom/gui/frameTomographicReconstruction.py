@@ -14,14 +14,14 @@ from PyQt5.QtWidgets import *
 from pytom.gui.guiStyleSheets import DEFAULT_STYLE_PROGRESSBAR
 from pytom.gui.fiducialAssignment import FiducialAssignment
 from pytom.gui.guiStructures import GuiTabWidget, SimpleTable, Worker
-from pytom.gui.guiFunctions import sort, axis_angle_from_ar_file
+from pytom.gui.guiFunctions import sort, axis_angle_from_ar_file, loadstar
 from pytom.gui.guiSupportCommands import templateAlignment, templateWBP, templateCTFPlotter, \
     templateCTFCorrectionImod, ParamsFileCTFPlotter, multiple_alignment, templateINFR
 import pytom.gui.guiFunctions as guiFunctions
 from pytom.gui.mrcOperations import remove_hot_pixels
 from pytom.agnostic.io import read_size
-from pytom.gui.guiFunctions import loadstar
-from pytom.basic.datatypes import DATATYPE_METAFILE
+from pytom.basic.datatypes import DATATYPE_METAFILE, DATATYPE_ALIGNMENT_RESULTS_RO as ALIGNRESULTS_ORDER, \
+    DATATYPE_ALIGNMENT_RESULTS as ALIGNRESULTS_OLD
 
 
 class TomographReconstruct(GuiTabWidget):
@@ -475,76 +475,86 @@ class TomographReconstruct(GuiTabWidget):
 
     def tab52UI(self, id=''):
         alg = 'ReconstructWBP'
-        h = mode = 'v02_{}_'.format(alg)
+        mode = 'v02_{}_'.format(alg)
         self.row, self.column = 0,0
         rows, columns = 20, 20
         self.items = [['', ] * columns, ] * rows
         parent = self.table_layouts[id]
 
+        available_tomograms = [os.path.basename(d) for d in sorted(glob.glob('{}/tomogram_*'.format(
+            self.tomogram_folder)))]
 
-        last,reftilt = 10, 5
-
-        self.widgets[h + 'Voldims'] = QLineEdit()
-
-        self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB,width=400 )
-        self.insert_label_line_push(parent,'Folder Sorted Tilt Images', h+'FolderSorted',
-                                    'Select the folder where the sorted tiltimages are located.\n')
-        self.insert_label_spinbox(parent, mode+'FirstAngle', text='First Angle', tooltip='Tilt angle of first image (deg).',
-                                  value=-60,minimum=-90,maximum=90, stepsize=1)
-        self.insert_label_spinbox(parent, mode +'LastAngle', text='Last Angle', tooltip='Tilt Angle of last image (deg).',
-                                  value=60, minimum=-90, maximum=90, stepsize=1)
-        self.insert_label_spinbox(parent, mode +'RefTiltIndex', text='Reference Tilt Image', value=reftilt,minimum=1,
-                                  tooltip='Index of reference tilt image. Typically zeros degree image.')
-        self.insert_label_spinbox(parent, mode +'RefMarkerIndex', text='Reference Marker', value=1,
-                                  tooltip='Index of reference marker. See previous step.')
+        self.insert_label(parent, cstep=1, sizepolicy=self.sizePolicyB, width=400)
+        self.insert_label_combobox(parent, 'Tomogram', mode + 'tomogram', labels=available_tomograms,
+                                   tooltip='Select the tomogram to be reconstructed.')
+        self.insert_label_combobox(parent, 'Alignment', mode + 'alignment', labels=[],
+                                   tooltip='Select the type of alingment to be used.')
+        self.insert_label_spinbox(parent, mode + 'firstAngle', 'First Angle',
+                                  'Select the first angle of the angular range used for reconstruction.',
+                                  minimum=-90, maximum=90, stepsize=1, value=0)
+        self.insert_label_spinbox(parent, mode + 'lastAngle', 'Last Angle',
+                                  'Select the last angle of the angular range used for reconstruction.',
+                                  minimum=-90, maximum=90, stepsize=1, value=0)
+        self.insert_label_combobox(parent, 'Ctf corrected', mode + 'ctfCorrChoice', labels=[],
+                                   tooltip='Select original (sorted) or ctf corrected images (sorted_ctf).')
         self.insert_label_spinbox(parent, mode + 'SpecimenAngle', text='Specimen angle (degrees)',
                                   value=0, minimum=-90, maximum=90,
                                   tooltip='Angle of the specimen, will be added to the tilt axis rotation. Can be '
                                           'used to place the sample horizontally in the tomogram.')
         self.insert_label_spinbox(parent, mode + 'WeightingType', text='Weighting Type',
-                                  value=1, minimum=-1, maximum=3000, stepsize=1,
+                                  value=1, minimum=-1, maximum=1, stepsize=1,
                                   tooltip='Select weighting type:\n\t 0: no weighting\n\t-1: analytical weighting'+
                                           '\n\t 1: "exact" weighting')
-        self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor',value=8, minimum=1, cstep=0,
+        self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor', value=8, minimum=1,
                                   tooltip='Binning factor used for reconstruction')
+        self.insert_label_line(parent, "GPU's", mode + 'gpuID', cstep=0, validator=QIntValidator(),
+                               tooltip="Which GPU's do you want to reserve. If you want to use multiple GPUs "
+                                       "separate them using a comma, e.g. 0,1,2 ")
 
-        for name in ('tomofolder', 'tomogramNR','FirstIndex', 'LastIndex', 'Reduced', 'tiltSeriesName', 'markerfile',
-                     'RotationTiltAxis', 'SpecimenAngleFlag', 'DimY', 'DimX', 'DimZ', 'AlignFile'):
-            self.widgets[mode + name] = QLineEdit()
+        # initialize backend info for reconstruction
+        for name in ('tomofolder', 'SpecimenAngleFlag', 'DimY', 'DimX', 'DimZ', 'Voldims', 'RotationTiltAxis',
+                     'alignmentResultsFile', 'projectionDir', 'gpuString'):
+            self.widgets[mode + name] = QLineEdit('')
 
+        # update all alignment options whenever tomogram is changed
+        self.widgets[mode + 'tomogram'].currentIndexChanged.connect(lambda dummy, m=mode:
+                                                                    self.update_tomogram_reconstruction(m))
+        self.update_tomogram_reconstruction(mode)
+
+        # set the specimen angle flag if a value is selected
         self.widgets[mode + 'SpecimenAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateSpecimenAngle(m))
         self.updateSpecimenAngle(mode)
 
-        self.widgets[h + 'FolderSorted'].textChanged.connect(lambda dummy, m=mode: self.updateTomoFolder(m))
-        self.updateTomoFolder(mode)
+        # volume dims can change for different bin, rotation axis, and projections
+        self.widgets[mode + 'BinningFactor'].valueChanged.connect(lambda dummy, m=mode: self.update_vol_dims(m))
+        self.widgets[mode + 'RotationTiltAxis'].textChanged.connect(lambda dummy, m=mode: self.update_vol_dims(m))
+        self.widgets[mode + 'projectionDir'].textChanged.connect(lambda dummy, m=mode: self.update_vol_dims(m))
+        self.update_vol_dims(mode)
 
-        self.widgets[mode + 'FirstAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
-        self.widgets[mode + 'LastAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
-        self.widgets[mode + 'RefMarkerIndex'].valueChanged.connect(lambda dummy, m=mode: self.updateIndex(m))
-        self.updateIndex(mode)
-
-        self.widgets[h + 'BinningFactor'].valueChanged.connect(lambda dummy, m=mode: self.updateVoldims(m))
-        self.updateVoldims(mode)
+        # update gpu string
+        self.widgets[mode + 'gpuID'].textChanged.connect(lambda d, m=mode: self.updateGpuString(m))
 
         execfilename = [mode + 'tomofolder', 'reconstruction/WBP/WBP_Reconstruction.sh']
 
         # TODO Remove these parameters as these should not be used. Instead we should just stick with the qparams.
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'ReconstructionWBP'
-        paramsSbatch[ 'folder' ] = self.logfolder #os.path.dirname(execfilename)
+        paramsSbatch[ 'folder' ] = self.logfolder
         # paramsSbatch['partition'] = 'fastq'
         paramsSbatch['time'] = 1
         paramsSbatch['num_jobs_per_node'] = 1
         paramsSbatch['id'] = 'ReconstructWBP'
 
-        paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'FirstIndex', mode + 'LastIndex',
-                     mode + 'RefTiltIndex', mode + 'RefMarkerIndex', mode + 'BinningFactor', mode + 'tomogramNR',
-                     'mrc', mode + 'Voldims', mode + 'WeightingType', mode + 'RotationTiltAxis',
-                     mode + 'SpecimenAngleFlag', mode + 'DimY', mode + 'DimZ', mode + 'AlignFile', templateWBP]
+        paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'BinningFactor', mode + 'tomogram',
+                     mode + 'Voldims', mode + 'WeightingType', mode + 'RotationTiltAxis',
+                     mode + 'SpecimenAngleFlag', mode + 'DimY', mode + 'DimZ', mode + 'alignmentResultsFile',
+                     mode + 'gpuString', mode + 'projectionDir', mode + 'firstAngle', mode + 'lastAngle',
+                     templateWBP]
 
-        self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename,
-                                 paramsAction=[mode, 'reconstruction/WBP', 'sorted'], paramsSbatch=paramsSbatch,
-                                 paramsCmd=paramsCmd, mandatory_fill=[h+'FolderSorted'])
+        self.insert_gen_text_exe(parent, mode, exefilename=execfilename, paramsSbatch=paramsSbatch,
+                                 paramsCmd=paramsCmd, mandatory_fill=[mode + 'tomofolder',
+                                                                      mode + 'alignmentResultsFile'],
+                                 paramsAction=[mode, 'reconstruction/WBP', 'sorted'], jobfield=False)
 
         label = QLabel()
         label.setSizePolicy(self.sizePolicyA)
@@ -586,6 +596,8 @@ class TomographReconstruct(GuiTabWidget):
         markerfiles = sorted(markerfiles)
         values = []
 
+        # TODO table should not be populated based on markerfile presence! Should be populated based on alignment
+        # results??
         for markerfile in markerfiles:
             qmarkerfile = os.path.join(os.path.dirname(markerfile), '*.meta')
             qsortedfiles = os.path.join(os.path.dirname(markerfile), 'sorted_*.mrc')
@@ -831,7 +843,7 @@ class TomographReconstruct(GuiTabWidget):
                                  paramsCmd=paramsCmd, paramsAction=[mode],
                                  mandatory_fill=[mode+'DefocusFile', mode+'AngleFile', mode+'OutputFile', mode+'InputStack'])
 
-        self.updateGpuString(mode)
+        # self.updateGpuString(mode)
         self.updateCTFCorrectionImod(mode)
 
         label = QLabel()
@@ -1212,7 +1224,7 @@ class TomographReconstruct(GuiTabWidget):
 
         self.widgets[mode + 'markerfile'].setText(markerfile)
 
-    def updateVoldims(self,mode, rotation_axis=None):
+    def updateVoldims(self, mode, rotation_axis=None):
         folderSorted = self.widgets[mode+'FolderSorted'].text()
         if not folderSorted: return
         files = [line for line in os.listdir(folderSorted) if line.startswith('sorted') and line.endswith('.mrc')]
@@ -1389,21 +1401,21 @@ class TomographReconstruct(GuiTabWidget):
             self.popup_messagebox('Error', 'Update MetaData Failed',
                                   'Update metadata has failed. Your job is not using the paramaters from the selected defocus file.')
 
-    def updateGpuString(self, mode, adjust=0):
-        id = self.widgets[mode + 'gpuID'].text()
+    def updateGpuString(self, mode):
+        gpu_id = self.widgets[mode + 'gpuID'].text()
+        if gpu_id == '':
+            self.widgets[mode + 'gpuString'].setText('')
+            return
         try:
-            if id:
-                a = int(id)
-        except:
+            gpu_id = int(gpu_id)
+        except ValueError:
             self.widgets[mode + 'gpuID'].setText('')
+            self.widgets[mode + 'gpuString'].setText('')
             self.popup_messagebox('Warning', 'Invalid value in field',
-                                  'Impossible to parse gpu IDs, field has been cleared.')
+                                  'Reconstruction can only use a single GPU')
             return
 
-        if len(id) > 0:
-            self.widgets[mode + 'gpuString'].setText(f' -gpu {int(id)+adjust}')
-        else:
-            self.widgets[mode + 'gpuString'].setText('')
+        self.widgets[mode + 'gpuString'].setText(f'--gpuID {gpu_id} ')
 
     def updateConfigHeader(self, mode):
         if self.widgets[mode + 'ConfigFile'].text():
@@ -1487,6 +1499,121 @@ class TomographReconstruct(GuiTabWidget):
                     widgets['widget_{}_{}'.format(row, 3)].setText('')
 
         table.resizeColumnsToContents()
+
+    def update_tomogram_reconstruction(self, mode):
+        # set tomofolder
+        self.widgets[mode + 'tomofolder'].setText(os.path.join(self.tomogram_folder,
+                                                         self.widgets[mode + 'tomogram'].currentText()))
+
+        # remove previous alignment choices
+        self.widgets[mode + 'alignment'].disconnect()
+        self.widgets[mode + 'alignment'].clear()
+
+        # find available alignments
+        alignment_dir = os.path.join(self.tomogram_folder, self.widgets[mode + 'tomogram'].currentText(), 'alignment')
+        alignment_choices = []
+        for alignment in os.listdir(alignment_dir):
+            d = os.path.join(alignment_dir, alignment)
+            if os.path.exists(d) and os.path.isdir(d):
+                for pointer in os.listdir(os.path.join(d, 'GlobalAlignment')):
+                    f = os.path.join(d, 'GlobalAlignment', pointer, 'alignmentResults.txt')
+                    if os.path.exists(f):
+                        alignment_choices.append(alignment)
+                        break
+                # we might have found an alignment file
+
+        # set the choices for alignment in the GUI
+        self.widgets[mode + 'alignment'].currentIndexChanged.connect(
+            lambda d, m=mode: self.update_alignment_choice(m))
+        self.widgets[mode + 'alignment'].addItems(alignment_choices)
+
+        # get ctf options
+        self.widgets[mode + 'ctfCorrChoice'].disconnect()
+        self.widgets[mode + 'ctfCorrChoice'].clear()
+        sorted_dir = os.path.join(self.tomogram_folder, self.widgets[mode + 'tomogram'].currentText(), 'sorted')
+        ctf_sorted_dir = os.path.join(self.tomogram_folder, self.widgets[mode + 'tomogram'].currentText(), 'ctf',
+                                      'sorted_ctf')
+        tilt_choices = []
+        if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
+            tilt_choices.append('sorted')
+        if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+            tilt_choices.append('sorted_ctf')
+        # set choices in the widget
+        self.widgets[mode + 'ctfCorrChoice'].currentIndexChanged.connect(
+            lambda d, m=mode: self.update_ctf_corr_choice(m))
+        self.widgets[mode + 'ctfCorrChoice'].addItems(tilt_choices)
+
+    def update_alignment_choice(self, mode):
+        folder = os.path.join(self.tomogram_folder, self.widgets[mode + 'tomogram'].currentText(), 'alignment',
+                              self.widgets[mode + 'alignment'].currentText(), 'GlobalAlignment')
+        try:
+            pointer = [d for d in os.listdir(folder) if 'sorted' in d][0]
+            self.widgets[mode + 'alignmentResultsFile'].setText(os.path.join(folder, pointer, 'alignmentResults.txt'))
+
+            # if an alignment file has been selected, we can start looking for angle range
+            if os.path.exists(self.widgets[mode + 'alignmentResultsFile'].text()):
+                try:
+                    alignment = loadstar(self.widgets[mode + 'alignmentResultsFile'].text(), dtype=ALIGNRESULTS_ORDER)
+                except:
+                    alignment = loadstar(self.widgets[mode + 'alignmentResultsFile'].text(), dtype=ALIGNRESULTS_OLD)
+            tilt_angles = alignment['TiltAngle']
+            min_angle = int(round(tilt_angles.min()))
+            max_angle = int(round(tilt_angles.max()))
+            # set bounds of first angle and set to min value
+            self.widgets[mode + 'firstAngle'].setMinimum(min_angle)
+            self.widgets[mode + 'firstAngle'].setMaximum(max_angle)
+            self.widgets[mode + 'firstAngle'].setValue(min_angle)
+            # set bounds of last angle and set to max value
+            self.widgets[mode + 'lastAngle'].setMinimum(min_angle)
+            self.widgets[mode + 'lastAngle'].setMaximum(max_angle)
+            self.widgets[mode + 'lastAngle'].setValue(max_angle)
+
+            # set rotation axis for tomogram dims
+            self.widgets[mode + 'RotationTiltAxis'].setText(str(alignment['InPlaneRotation'][0]))
+        except IndexError:
+            print('No sorted or sorted_ctf folder in the alignment directory.')
+
+    def update_ctf_corr_choice(self, mode):
+        sorted_choice = self.widgets[mode + 'ctfCorrChoice'].currentText()
+        if 'ctf' in sorted_choice:
+            self.widgets[mode + 'projectionDir'].setText(os.path.join(self.tomogram_folder,
+                                                                      self.widgets[mode + 'tomogram'].currentText(),
+                                                                      'ctf', 'sorted_ctf'))
+        else:
+            self.widgets[mode + 'projectionDir'].setText(os.path.join(self.tomogram_folder,
+                                                                      self.widgets[mode + 'tomogram'].currentText(),
+                                                                      'sorted'))
+
+    def update_vol_dims(self, mode):
+        # check if files exist
+        projection_dir = self.widgets[mode+'projectionDir'].text()
+        if not projection_dir:
+            return  # exit if not projection dir provided
+        files = [line for line in os.listdir(projection_dir) if line.startswith('sorted') and line.endswith('.mrc')]
+        if len(files) == 0:
+            return  # exit if no files found
+
+        # run calculation of volume dims
+        files = files[0]
+        imdims = read_size(os.path.join(projection_dir, files))
+
+        dimx = str(int(float(imdims[0])/float(self.widgets[mode+'BinningFactor'].text())+.5))
+        dimy = str(int(float(imdims[1])/float(self.widgets[mode+'BinningFactor'].text())+.5))
+
+        if self.widgets[mode+'RotationTiltAxis'].text() != '':
+            expected_rotation = float(self.widgets[mode+'RotationTiltAxis'].text())
+        else:
+            expected_rotation = 0
+
+        if abs(90 - (expected_rotation % 180)) < 45:
+            dx, dy, dz = dimy, dimx, dimy
+        else:
+            dx, dy, dz = dimx, dimy, dimx
+
+        self.widgets[mode+'Voldims'].setText(f'{dx}')  # needed ??
+        self.widgets[mode + 'DimX'].setText(f'{dx}')
+        self.widgets[mode + 'DimY'].setText(f'{dy}')
+        self.widgets[mode + 'DimZ'].setText(f'{dz}')
 
     def convert_em(self,params):
         mode = params[0]
