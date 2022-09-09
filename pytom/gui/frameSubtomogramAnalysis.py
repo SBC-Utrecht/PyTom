@@ -1512,7 +1512,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'ctfCorrChoice'].addItems(tilt_choices)
 
     def update_alignment_choice(self, mode):
-        folder = os.path.join(self.tomogram_folder, self.widgets[mode + 'tomogram'].currentText(), 'alignment',
+        folder = os.path.join(self.tomogram_folder, self.tomogram, 'alignment',
                               self.widgets[mode + 'alignment'].currentText(), 'GlobalAlignment')
         try:
             pointer = [d for d in os.listdir(folder) if 'sorted' in d][0]
