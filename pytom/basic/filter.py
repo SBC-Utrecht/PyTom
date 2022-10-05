@@ -44,7 +44,7 @@ def profile2FourierVol( profile, dim=None, reduced=False):
     if reduced:
         centx = 0
     else:
-        centx = dim//2 + 1
+        centx = int(dim/2)
         centy = centx
         centz = centx
     for ix in range(0,nx):
@@ -669,24 +669,6 @@ def gaussian_filter(vol, sigma):
     @return: resulting volume
     @rtype: L{pytom_volume.vol}
     """
-#    # construct the Gaussian kernel
-#    import numpy as np
-#    from scipy import mgrid, exp
-#    sizex = vol.sizeX()
-#    sizey = vol.sizeY()
-#    sizez = vol.sizeZ()
-#    
-#    [x, y, z] = mgrid[-(sizex/2):(sizex+1)/2, -(sizey/2):(sizey+1)/2, -(sizez/2):(sizez+1)/2]
-#    g = exp(-(x**2+y**2+z**2)/(2*float(sigma)**2))
-#    g /= g.sum()
-#    
-#    # transfer to vol obj and do the filtering
-#    from pytom_numpy import npy2vol
-#    kernel = npy2vol(np.array(g, dtype='float32', order='F'), 3)
-#    
-#    from pytom.basic.fourier import convolute
-#    res = convolute(vol, kernel, False)
-
     import numpy as np
     from pytom_numpy import vol2npy, npy2vol
     from scipy.ndimage.filters import gaussian_filter
