@@ -600,33 +600,67 @@ def conv3d(data, kernel):
     d = convolve(data, kernel)
     return d
 
-def fourier_reduced2full(data, isodd=False):
+def fourier_reduced2full(data, isodd=False, reduced_axis=2):
     """Return an Hermitian symmetried data.
+    Only defined for volumes
     """
-    # get the original shape
-    sx = data.shape[0]
-    sy = data.shape[1]
-    if isodd:
-        sz = (data.shape[2]-1)*2+1
+    # get the output shape
+    new_shape = [0, ] * 3
+    for i, s in enumerate(data.shape):
+        if i == reduced_axis:
+            if isodd:
+                new_shape[i] = (s - 1) * 2 + 1
+            else:
+                new_shape[i] = (s - 1) * 2
+        else:
+            new_shape[i] = s
+
+    sx, sy, sz = new_shape
+    res = xp.zeros(tuple(new_shape), dtype=data.dtype)
+
+    if reduced_axis == 2:
+        res[:, :, 0:data.shape[2]] = data
+
+        # calculate the coodinates accordingly
+        szz = sz - data.shape[2]
+        x, y, z = xp.indices((sx, sy, szz))
+        ind = [xp.mod(sx - x, sx), xp.mod(sy - y, sy), szz - z]
+
+        # do the complex conjugate of the second part
+        res[:, :, data.shape[2]:] = xp.conj(data[tuple(ind)])
+    elif reduced_axis == 1:
+        res[:, 0:data.shape[1], :] = data
+
+        # calculate the coodinates accordingly
+        syy = sy - data.shape[1]
+        x, y, z = xp.indices((sx, syy, sz))
+        ind = [xp.mod(sx - x, sx), syy - y, xp.mod(sz - z, sz)]
+
+        # do the complex conjugate of the second part
+        res[:, data.shape[1]:, :] = xp.conj(data[tuple(ind)])
     else:
-        sz = (data.shape[2]-1)*2
+        res[0:data.shape[0], :, :] = data
 
-    res = xp.zeros((sx, sy, sz), dtype=data.dtype)
-    res[:, :, 0:data.shape[2]] = data
+        # calculate the coodinates accordingly
+        sxx = sx - data.shape[0]
+        x, y, z = xp.indices((sxx, sy, sz))
+        ind = [sxx - x, xp.mod(sy - y, sy), xp.mod(sz - z, sz)]
 
-    # calculate the coodinates accordingly
-    szz = sz - data.shape[2]
-    x, y, z = xp.indices((sx, sy, szz))
-    ind = [xp.mod(sx-x, sx), xp.mod(sy-y, sy), szz-z]
-
-    # do the complex conjugate of the second part
-    res[:, :, data.shape[2]:] = xp.conj(data[tuple(ind)])
+        # do the complex conjugate of the second part
+        res[data.shape[0]:, :, :] = xp.conj(data[tuple(ind)])
 
     return res
 
-def fourier_full2reduced(data):
-    assert len(data.shape) > 1, 'functionality only defined for arrays with at least two dimensions'
-    return data[..., 0:data.shape[-1]//2+1]
+
+def fourier_full2reduced(data, reduced_axis=-1):
+    assert len(data.shape) in [2, 3], 'functionality only defined for arrays with at least two dimensions'
+    if reduced_axis == 0:
+        return data[0:data.shape[0] // 2 + 1, :, :] if len(data.shape) == 3 else data[0:data.shape[0] // 2 + 1, :]
+    elif reduced_axis == 1 and len(data.shape) == 3:
+        return data[:, 0:data.shape[1] // 2 + 1, :]
+    else:
+        return data[..., 0:data.shape[-1]//2+1]
+
 
 def fourier_filter(data, fltr, human=True):
     if human:

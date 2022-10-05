@@ -1125,7 +1125,7 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
     vg2 = vol(vg.sizeX(), vg.sizeY(), vg.sizeZ())
     lowpass_vf = lowpassFilter(vf, max_freq, max_freq/10.)[0]
     # apply vg's wedge to vf
-    lowpass_vf = wg.apply(lowpass_vf)
+    # lowpass_vf = wg.apply(lowpass_vf)  # commented out, it should be applied during iterations
 
     max_position = None
     max_orientation = None

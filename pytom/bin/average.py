@@ -28,160 +28,6 @@ def splitParticleList(particleList, setParticleNodesRatio=3, numberOfNodes=10):
     splitLists = particleList.splitNSublists(splitFactor)  # somehow ...
     return splitLists
 
-def averageold( particleList, averageName, showProgressBar=False, verbose=False,
-        createInfoVolumes=False, weighting=False, norm=False):
-    """
-    average : Creates new average from a particleList
-    @param particleList: The particles
-    @param averageName: Filename of new average 
-    @param verbose: Prints particle information. Disabled by default. 
-    @param createInfoVolumes: Create info data (wedge sum, inverted density) too? False by default.
-    @param weighting: apply weighting to each average according to its correlation score
-    @param norm: apply normalization for each particle
-    @return: A new Reference object
-    @rtype: L{pytom.basic.structures.Reference}
-    @author: Thomas Hrabe
-    @change: limit for wedgeSum set to 1% or particles to avoid division by small numbers - FF
-    """
-    from pytom_volume import read,vol,reducedToFull,limit, complexRealMult
-    from pytom.basic.filter import lowpassFilter, rotateWeighting
-    from pytom_volume import transformSpline as transform
-    from pytom.basic.fourier import convolute
-    from pytom.basic.structures import Reference
-    from pytom.basic.normalise import mean0std1
-    from pytom.tools.ProgressBar import FixedProgBar
-    from math import exp
-    import os
-
-    if len(particleList) == 0:
-        raise RuntimeError('The particle list is empty. Aborting!')
-    
-    if showProgressBar:
-        progressBar = FixedProgBar(0,len(particleList),'Particles averaged ')
-        progressBar.update(0)
-        numberAlignedParticles = 0
-    
-    result = []
-    wedgeSum = []
-
-    newParticle = None
-    # pre-check that scores != 0
-    if weighting:
-        wsum = 0.
-        for particleObject in particleList:
-            wsum += particleObject.getScore().getValue()
-        if wsum < 0.00001:
-            weighting = False
-            print("Warning: all scores have been zero - weighting not applied")
-
-
-    for particleObject in particleList:
-        if 0 and verbose:
-            print(particleObject)
-
-    
-        if not os.path.exists(particleObject.getFilename()):
-            continue
-        particle = read(particleObject.getFilename())
-        if norm: # normalize the particle
-            mean0std1(particle) # happen inplace
-        
-        wedgeInfo = particleObject.getWedge()
-        # apply its wedge to itself
-        particle = wedgeInfo.apply(particle)
-
-        if not result:
-            sizeX = particle.sizeX() 
-            sizeY = particle.sizeY()
-            sizeZ = particle.sizeZ()
-
-            newParticle = vol(sizeX,sizeY,sizeZ)
-            
-            centerX = sizeX/2 
-            centerY = sizeY/2 
-            centerZ = sizeZ/2 
-            
-            result = vol(sizeX,sizeY,sizeZ)
-            result.setAll(0.0)
-
-            if analytWedge:
-                wedgeSum = wedgeInfo.returnWedgeVolume(wedgeSizeX=sizeX, wedgeSizeY=sizeY, wedgeSizeZ=sizeZ)
-            else:
-                # > FF bugfix
-                wedgeSum = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
-                # < FF
-                # > TH bugfix
-                #wedgeSum = vol(sizeX,sizeY,sizeZ)
-                # < TH
-                #wedgeSum.setAll(0)
-            assert wedgeSum.sizeX() == sizeX and wedgeSum.sizeY() == sizeY and wedgeSum.sizeZ() == sizeZ/2+1, \
-                    "wedge initialization result in wrong dims :("
-            wedgeSum.setAll(0)
-
-        ### create spectral wedge weighting
-        rotation = particleObject.getRotation()
-        rotinvert =  rotation.invert()
-        if analytWedge:
-            # > analytical buggy version
-            wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False, rotinvert)
-        else:
-            # > FF: interpol bugfix
-            wedge = rotateWeighting( weighting=wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False),
-                                     z1=rotinvert[0], z2=rotinvert[1], x=rotinvert[2], mask=None,
-                                     isReducedComplex=True, returnReducedComplex=True)
-            # < FF
-            # > TH bugfix
-            #wedgeVolume = wedgeInfo.returnWedgeVolume(wedgeSizeX=sizeX, wedgeSizeY=sizeY, wedgeSizeZ=sizeZ,
-            #                                    humanUnderstandable=True, rotation=rotinvert)
-            #wedge = rotate(volume=wedgeVolume, rotation=rotinvert, imethod='linear')
-            # < TH
-
-        ### shift and rotate particle
-        shiftV = particleObject.getShift()
-        newParticle.setAll(0)
-            
-        transform(particle,newParticle,-rotation[1],-rotation[0],-rotation[2],
-                  centerX,centerY,centerZ,-shiftV[0],-shiftV[1],-shiftV[2],0,0,0)
-        
-        if weighting:
-            weight = 1.-particleObject.getScore().getValue()
-            #weight = weight**2
-            weight = exp(-1.*weight)
-            result = result + newParticle * weight
-            wedgeSum = wedgeSum + wedge * weight
-        else:
-            result = result + newParticle
-            wedgeSum = wedgeSum + wedge
-        
-        if showProgressBar:
-            numberAlignedParticles = numberAlignedParticles + 1
-            progressBar.update(numberAlignedParticles)
-    ###apply spectral weighting to sum
-
-    result = lowpassFilter(result, sizeX/2-1, 0.)[0]
-    #if createInfoVolumes:
-    result.write(averageName[:len(averageName)-3]+'-PreWedge.em')
-    wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumUnscaled.em')
-        
-    invert_WedgeSum( invol=wedgeSum, r_max=sizeX/2-2., lowlimit=.05*len(particleList), lowval=.05*len(particleList))
-    
-    if createInfoVolumes:
-        wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumInverted.em')
-        
-    result = convolute(v=result, k=wedgeSum, kernel_in_fourier=True)
-
-    # do a low pass filter
-    #result = lowpassFilter(result, sizeX/2-2, (sizeX/2-1)/10.)[0]
-    result.write(averageName)
-    
-    if createInfoVolumes:
-        resultINV = result * -1
-        #write sign inverted result to disk (good for chimera viewing ... )
-        resultINV.write(averageName[:len(averageName)-3]+'-INV.em')
-    newReference = Reference(averageName,particleList)
-    
-    return newReference
-
 def average(particleList, averageName, showProgressBar=False, verbose=False,
             createInfoVolumes=False, weighting=False, norm=False, gpuId=None):
     """
@@ -197,18 +43,15 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
     @author: Thomas Hrabe
     @change: limit for wedgeSum set to 1% or particles to avoid division by small numbers - FF
     """
-    from pytom_volume import read, vol, reducedToFull, limit, complexRealMult
+    from pytom_volume import read, vol, reducedToFull
     from pytom.basic.filter import lowpassFilter, rotateWeighting
     from pytom_volume import transformSpline as transform
     from pytom.basic.fourier import convolute
-    from pytom.basic.structures import Reference, Rotation
+    from pytom.basic.structures import Reference
     from pytom.basic.normalise import mean0std1
     from pytom.tools.ProgressBar import FixedProgBar
     from math import exp
     import os
-    from pytom.basic.functions import initSphere
-    from pytom.basic.filter import filter
-
     if len(particleList) == 0:
         raise RuntimeError('The particle list is empty. Aborting!')
 
@@ -232,12 +75,9 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
 
     n = 0
 
-
-
     for particleObject in particleList:
         if 0 and verbose:
             print(particleObject)
-
 
         if not os.path.exists(particleObject.getFilename()):
             continue
@@ -277,11 +117,10 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
             assert wedgeSum.sizeX() == sizeX and wedgeSum.sizeY() == sizeY and wedgeSum.sizeZ() == sizeZ / 2 + 1, \
                 "wedge initialization result in wrong dims :("
             wedgeSum.setAll(0)
-            wedgeFilter = wedgeInfo.returnWedgeFilter(particle.sizeX(), particle.sizeY(), particle.sizeZ())
+            # wedgeFilter = wedgeInfo.returnWedgeFilter(particle.sizeX(), particle.sizeY(), particle.sizeZ())
 
-        particle = particle
-
-        particle = list(filter(particle, wedgeFilter))[0]
+        if wedgeInfo._type in ['SingleTiltWedge', 'DoubleTiltWedge']:
+            particle = wedgeInfo.apply(particle)  # dont for 3d ctf, because particle is premult with ctf
 
         ### create spectral wedge weighting
         if analytWedge:
@@ -300,6 +139,9 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
             #                                    humanUnderstandable=True, rotation=rotinvert)
             # wedge = rotate(volume=wedgeVolume, rotation=rotinvert, imethod='linear')
             # < TH
+
+        if wedgeInfo._type == 'Wedge3dCTF':  # square the 3d ctf for the weighting
+            wedge = wedge * wedge
 
         ### shift and rotate particle
         shiftV = particleObject.getShift()
@@ -376,8 +218,8 @@ def allocateProcess(pl, shared_array, n=0, total=1, size=200):
     procs.append(p)
     return procs
 
-def averageGPU2(particleList, averageName, showProgressBar=False, verbose=False,
-            createInfoVolumes=False, weighting=False, norm=False, gpuId=None, profile=True):
+def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
+            createInfoVolumes=False, weighting=False, norm=False, gpuId=None, profile=False):
     """
     average : Creates new average from a particleList
     @param particleList: The particles
@@ -692,6 +534,8 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     # convolute unweighted average with inverse of wedge sum
     invert_WedgeSum( invol=wedgeSum, r_max=unweiAv.sizeX()/2-2., lowlimit=.05*len(particleList),
                      lowval=.05*len(particleList))
+    invert_WedgeSum(invol=wedgeSum, r_max=unweiAv.sizeX() / 2 - 2., lowlimit=.05 * len(particleList),
+                    lowval=.05 * len(particleList))
 
     if createInfoVolumes:
         wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumINV.em')
@@ -758,7 +602,7 @@ def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose
         wedgeList.append(averageName + '_dist' + str(ii) + '-WedgeSumUnscaled.em')
 
     #####
-    averageGPU2(splitLists[0],avgNameList[0], showProgressBar,verbose,createInfoVolumes, weighting, norm, gpuID)
+    averageGPU(splitLists[0],avgNameList[0], showProgressBar,verbose,createInfoVolumes, weighting, norm, gpuID)
 #averageList = mpi.parfor( average, list(zip(splitLists, avgNameList, [showProgressBar]*splitFactor,
 #                                       [verbose]*splitFactor, [createInfoVolumes]*splitFactor,
 #                                            [weighting]*splitFactor, [norm]*splitFactor)), verbose=True)
@@ -770,7 +614,7 @@ def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose
     os.system('rm ' + avgNameList[0])
     os.system('rm ' + preList[0])
     for ii in range(1, splitFactor):
-        print(preList[ii], wedgeList[ii], avgNameList[ii])
+        # print(preList[ii], wedgeList[ii], avgNameList[ii])
         av = read(preList[ii])
         unweiAv += av
         os.system('rm ' + preList[ii])

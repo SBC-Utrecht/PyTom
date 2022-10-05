@@ -1,5 +1,8 @@
 from pytom.gpu.initialize import xp, device
 from pytom.basic.structures import Rotation as RotationPytomC
+from pytom.agnostic.io import read
+from pytom.agnostic.transform import fftshift, fourier_reduced2full
+from pytom.agnostic.filter import applyFourierFilter
 
 
 class PyTomClassError(Exception):
@@ -1065,29 +1068,31 @@ class Wedge(PyTomClass):
     Wedge: used as an dummy class to distinguish between single tilt axis wedge and double tilt axis wedge in fromXML
     """
 
-    def __init__(self, wedgeAngles=[0.0, 0.0], cutoffRadius=0.0, tiltAxis='Y', smooth=0.0):
+    def __init__(self, wedgeAngles=[0.0, 0.0], cutoffRadius=0.0, tiltAxis='Y', smooth=0.0, wedge_3d_ctf_file=''):
         """
         __init__: This constructor is compatible to L{pytom.agnostic.structures.SingleTiltWedge} and L{pytom.agnostic.structures.DoubleTiltWedge}.
         """
+        if wedge_3d_ctf_file != '':
+            # we need to initialize the 3d
+            self._wedgeObject = Wedge3dCTF(filename=wedge_3d_ctf_file)
+            self._type = 'Wedge3dCTF'
+        else:
+            try:
 
-        from pytom.agnostic.structures import DoubleTiltWedge, SingleTiltWedge
+                if wedgeAngles.__class__ == list and wedgeAngles[0].__class__ == list and len(wedgeAngles[0]) == 2 and \
+                        wedgeAngles[1].__class__ == list and len(wedgeAngles[1]) == 2:
+                    self._wedgeObject = DoubleTiltWedge(wedgeAngles=wedgeAngles, tiltAxis1='Y', rotation12=tiltAxis,
+                                                        cutoffRadius=cutoffRadius, smooth=smooth)
+                    self._type = 'DoubleTiltWedge'
+                else:
 
-        try:
-
-            if wedgeAngles.__class__ == list and wedgeAngles[0].__class__ == list and len(wedgeAngles[0]) == 2 and \
-                    wedgeAngles[1].__class__ == list and len(wedgeAngles[1]) == 2:
-                self._wedgeObject = DoubleTiltWedge(wedgeAngles=wedgeAngles, tiltAxis1='Y', rotation12=tiltAxis,
-                                                    cutoffRadius=cutoffRadius, smooth=smooth)
-                self._type = 'DoubleTiltWedge'
-            else:
-
-                raise RuntimeError('Do SingleTiltWedge')
-        except:
-            if wedgeAngles.__class__ == list and wedgeAngles[0].__class__ == list and wedgeAngles[1].__class__ == list:
-                raise TypeError('Wrong parameters for SingleTiltWedge object error thrown by Wedge object!')
-            self._wedgeObject = SingleTiltWedge(wedgeAngles, cutoffRadius=cutoffRadius, tiltAxis=tiltAxis,
-                                                smooth=smooth)
-            self._type = 'SingleTiltWedge'
+                    raise RuntimeError('Do SingleTiltWedge')
+            except:
+                if wedgeAngles.__class__ == list and wedgeAngles[0].__class__ == list and wedgeAngles[1].__class__ == list:
+                    raise TypeError('Wrong parameters for SingleTiltWedge object error thrown by Wedge object!')
+                self._wedgeObject = SingleTiltWedge(wedgeAngles, cutoffRadius=cutoffRadius, tiltAxis=tiltAxis,
+                                                    smooth=smooth)
+                self._type = 'SingleTiltWedge'
 
     def returnWedgeFilter(self, wedgeSizeX=None, wedgeSizeY=None, wedgeSizeZ=None, rotation=None):
         """
@@ -1099,8 +1104,11 @@ class Wedge(PyTomClass):
         @return: Weighting object. Remember, the wedge will be cutoff at sizeX/2 if no cutoff provided in constructor or cutoff == 0!
         @author: Thomas Hrabe
         """
-
-        return self._wedgeObject.returnWedgeFilter(wedgeSizeX, wedgeSizeY, wedgeSizeZ, rotation)
+        if self._type == 'Wedge3dCTF':
+            print('ERROR: wedge filter object not available for 3d ctf. exiting...')
+            raise PyTomClassError
+        else:
+            return self._wedgeObject.returnWedgeFilter(wedgeSizeX, wedgeSizeY, wedgeSizeZ, rotation)
 
     def returnWedgeVolume(self, wedgeSizeX=None, wedgeSizeY=None, wedgeSizeZ=None, humanUnderstandable=False,
                           rotation=None):
@@ -1122,7 +1130,11 @@ class Wedge(PyTomClass):
         """
         get angles of wedge
         """
-        return self._wedgeObject.getWedgeAngle()
+        if self._type == 'Wedge3dCTF':
+            print('ERROR: wedge filter object not available for 3d ctf. exiting...')
+            raise PyTomClassError
+        else:
+            return self._wedgeObject.getWedgeAngle()
 
     def apply(self, volume, rotation=None):
         """
@@ -1164,7 +1176,7 @@ class Wedge(PyTomClass):
         @param xmlObj: A xml object
         @type xmlObj: L{lxml.etree._Element}
         """
-        if not xmlObj.tag in ['Wedge', 'WedgeInfo', 'SingleTiltWedge', 'DoubleTiltWedge', 'GeneralWedge']:
+        if not xmlObj.tag in ['Wedge', 'WedgeInfo', 'SingleTiltWedge', 'DoubleTiltWedge', 'GeneralWedge', 'Wedge3dCTF']:
             raise TypeError('You must provide a XML-Wedge object.')
 
         wedgeType = []
@@ -1194,13 +1206,33 @@ class Wedge(PyTomClass):
             self._wedgeObject = GeneralWedge()
             self._wedgeObject.fromXML(xmlObj)
 
+        elif wedgeType == 'Wedge3dCTF':
+            self._wedgeObject = Wedge3dCTF()
+            self._wedgeObject.fromXML(xmlObj)
+
         else:
             raise TypeError('The xml object provided does not contain wedge information!')
 
         self._type = wedgeType
 
     def setWedgeAngles(self, wedgeangles):
-        self._wedgeObject.setWedgeAngles(wedgeangles)
+        if self._type == 'Wedge3dCTF':
+            print('ERROR: wedge filter object not available for 3d ctf. exiting...')
+            raise PyTomClassError
+        else:
+            self._wedgeObject.setWedgeAngles(wedgeangles)
+
+    def getFilename(self):
+        if self._type != 'Wedge3dCTF':
+            print('filename only implemented for 3d ctf wedge')
+        else:
+            return self._wedgeObject.getFilename()
+
+    def setFilename(self, filename):
+        if self._type != 'Wedge3dCTF':
+            print('filename only implemented for 3d ctf wedge')
+        else:
+            return self._wedgeObject.setFilename(filename)
 
 
 class SingleTiltWedge(PyTomClass):
@@ -1381,41 +1413,7 @@ class SingleTiltWedge(PyTomClass):
         @param radius: Radius in frequency. Not used for SingleTiltWedge.
         @return: a spherical function in numpy.array
         """
-        from pytom.agnostic.interpolation import splineInterpolation
-        assert (b <= 128)
-        r = 45  # this radius and the volume size should be sufficient for sampling b <= 128
-        if self._wedge_vol is None:
-            self._wedge_vol = self.returnWedgeVolume(100, 100, 100, True)
-
-        if self._bw == b and self._sf is not None:
-            return self._sf
-        else:
-            self._bw = b
-
-        # start sampling
-        from numpy import pi, sin, cos
-        res = []
-
-        for j in range(2 * b):
-            for k in range(2 * b):
-                the = pi * (2 * j + 1) / (4 * b)  # (0,pi)
-                phi = pi * k / b  # [0,2*pi)
-
-                # this part actually has interpolation, opposed to basic.structures wedge
-                x = cos(phi) * sin(the) * r + 50
-                y = sin(phi) * sin(the) * r + 50
-                z = cos(the) * r + 50
-                v = splineInterpolation(self._wedge_vol, x,y,z)
-
-                if v > 0.5:  # if the value is bigger than 0.5, we include it
-                    res.append(1.0)
-                else:
-                    res.append(0.0)
-
-        # store it so that we don't have to recompute it next time
-        self._sf = xp.array(res)
-
-        return self._sf
+        raise NotImplementedError
 
     def fromXML(self, xmlObj):
         """
@@ -1584,39 +1582,7 @@ be generated. If omitted / 0, filter is fixed to size/2.
         @param radius: Radius in frequency. Not used for DoubleTiltWedge.
         @return: a spherical function in numpy.array
         """
-        assert (b <= 128)
-        r = 45  # this radius and the volume size should be sufficient for sampling b <= 128
-        if self._wedge_vol is None:
-            self._wedge_vol = self.returnWedgeVolume(100, 100, 100, True)
-
-        if self._bw == b and self._sf is not None:
-            return self._sf
-        else:
-            self._bw = b
-
-        # start sampling
-        from np import pi, sin, cos
-        res = []
-
-        for j in range(2 * b):
-            for k in range(2 * b):
-                the = pi * (2 * j + 1) / (4 * b)  # (0,pi)
-                phi = pi * k / b  # [0,2*pi)
-
-                # this part actually needs interpolation
-                x = int(cos(phi) * sin(the) * r + 50)
-                y = int(sin(phi) * sin(the) * r + 50)
-                z = int(cos(the) * r + 50)
-
-                if self._wedge_vol[x, y, z] > 0.5:  # if the value is bigger than 0.5, we include it
-                    res.append(1.0)
-                else:
-                    res.append(0.0)
-
-        # store it so that we don't have to recompute it next time
-        self._sf = xp.array(res)
-
-        return self._sf
+        raise NotImplementedError
 
     def fromXML(self, xmlObj):
         """
@@ -1674,6 +1640,93 @@ be generated. If omitted / 0, filter is fixed to size/2.
         result = applyFourierFilter(volume, wedgeVolume)
 
         return result
+
+
+class Wedge3dCTF(PyTomClass):
+    """
+    This is a class to allow pytom running with 3d ctf volumes from warp or relion as the missing wedge.
+    Class handles reading of the wedge file from disk. Before being able to use the 3d ctf from warp it
+    first needs to be converted to have the z axis as the reduced fourier space dimension.
+    """
+
+    def __init__(self, filename=''):
+        """
+        Class is mainly an io wrapper for the 3d ctf volumes so only needs a filename.
+        @param filename: path to .mrc/.em file
+        """
+        self._filename = filename
+
+        # for FRM
+        self._wedge_vol = None  # cache for storing the wedge volume
+        self._bw = None
+        self._sf = None
+
+    def getFilename(self):
+        return self._filename
+
+    def setFilename(self, filename):
+        self._filename = filename
+
+    def returnWedgeVolume(self, wedgeSizeX=None, wedgeSizeY=None, wedgeSizeZ=None, humanUnderstandable=False,
+                          rotation=None):
+        """parameters here are not needed but for compat with the wedge class"""
+        if wedgeSizeX is not None or wedgeSizeY is not None or wedgeSizeZ is not None:
+            print('WARNING! Wedge size specification wont have effect for 3d ctf wedge!')
+        if rotation is not None:
+            print('WARNING! Wedge rotation wont have effect for 3d ctf wedge!')
+        wedge = read(self._filename)
+        if not humanUnderstandable:
+            return wedge
+        else:
+            return fftshift(fourier_reduced2full(wedge))
+
+    def apply(self, volume, rotation=None):
+
+        if rotation is not None:
+            print('Warning: rotation will not be applied for 3d ctf wedge')
+
+        if volume.__class__ is not xp.ndarray:
+            raise TypeError('Wedge3dCTF: You must provide a numpy/cupy array here!')
+
+        wedge = self.returnWedgeVolume()
+
+        return applyFourierFilter(volume, wedge)
+
+    def toSphericalFunc(self, b, radius=None):
+        """Convert the wedge from real space to a spherical function.
+        This function serves as an interface to FRM.
+        @param b: Bandwidth of the spherical function.
+        @param radius: Radius in frequency. Not used for SingleTiltWedge.
+        @return: a spherical function in numpy.array
+        """
+        raise NotImplementedError
+
+    def fromXML(self, xmlObj):
+        """
+        fromXML: Assigns values to result attributes from XML object
+        @param xmlObj: A xml object
+        @type xmlObj: L{lxml.etree._Element}
+        @author: Thomas Hrabe
+        """
+
+        from lxml.etree import _Element
+
+        if xmlObj.__class__ != _Element:
+            raise TypeError('Is not a lxml.etree._Element! You must provide a valid XML-Wedge object.')
+
+        self._filename = xmlObj.get('Filename')
+
+    def toXML(self):
+        """
+        toXML : Compiles a XML file from result object
+        rtype : L{lxml.etree._Element}
+        @author: Thomas Hrabe
+        """
+        from lxml import etree
+
+        wedgeElement = etree.Element('Wedge3dCTF', Filename=self._filename)
+
+        return wedgeElement
 
 
 class GeneralWedge(PyTomClass):

@@ -1,3 +1,6 @@
+from pytom_volume import reducedToFull
+from math import sqrt, ceil
+
 
 class FourierTuple(object):
     """
@@ -393,5 +396,45 @@ def powerspectrum(volume):
                 temp = temp*temp.conjugate()*sf
                 ps.setV(float(temp.real),ix,iy,iz)
     return ps
+
+def radialaverage(volume, isreduced=True):
+    """
+    Calculate the radial average from a Fourier space volume.
+    @param volume: input fourier space volume with 0 frequency in center
+    @type volume: L{pytom_volume.vol}
+    @param isreduced: if reduced will be made to full and then ftshift'ed
+    @type isreduced: L{bool}
+
+    @return: List that contains the radial average
+    @rtype: L{list}
+    """
+    if isreduced:
+        fvol = ftshift(reducedToFull(volume), inplace=False)
+    else:
+        fvol = volume
+
+    sx, sy, sz = fvol.sizeX(), fvol.sizeY(), fvol.sizeZ()
+    assert sx == sy == sz, 'radial average only implemented for cubic volumes'
+    centerx, centery, centerz = sx // 2 + 1, sy // 2 + 1, sz // 2 + 1  # fourier space center
+
+    sum = [0, ] * int(ceil(sx / 2))
+    n_elem = [0, ] * int(ceil(sx / 2))
+    rmax = int(ceil(sx / 2)) - 1
+
+    for x in range(sx):
+        for y in range(sy):
+            for z in range(sz):
+                r = int(round(sqrt((x - centerx) ** 2 + (y - centery) ** 2 + (z - centerz)**2)))
+                if r > rmax:
+                    continue
+                else:
+                    sum[r] += fvol.getV(x, y, z)
+                    n_elem[r] += 1
+
+    res = []
+    for s, n in zip(sum, n_elem):
+        res.append(s / n)
+
+    return res
 
 

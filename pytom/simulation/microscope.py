@@ -242,16 +242,20 @@ def radial_average(image):
 
     @author: Marten Chaillet
     """
-    assert len(image.shape) == 2, "radial average calculation only works for 2d image arrays"
+    assert len(image.shape) in [2, 3], "radial average calculation only works for 2d image arrays"
     assert len(set(image.shape)) == 1, 'differently size dimension, cannot perform radial averaging'
 
     size = image.shape[0]
-    center = (size - 1) / 2
-    x, y = xp.meshgrid(xp.arange(size), xp.arange(size))
-    R = xp.sqrt((x - center) ** 2 + (y - center) ** 2)
+    center = size // 2 + 1  # fourier space center
+    if len(image.shape) == 3:
+        x, y, z = xp.meshgrid(xp.arange(size), xp.arange(size), xp.arange(size))
+        R = xp.sqrt((x - center) ** 2 + (y - center) ** 2 + (z - center)**2)
+    else:
+        x, y = xp.meshgrid(xp.arange(size), xp.arange(size))
+        R = xp.sqrt((x - center) ** 2 + (y - center) ** 2)
 
     f = lambda r: image[(R >= r - .5) & (R < r + .5)].mean()
-    r = xp.linspace(1, size // 2, num=size // 2)
+    r = xp.linspace(0, size // 2)
     mean = xp.vectorize(f)(r)
 
     return r, mean

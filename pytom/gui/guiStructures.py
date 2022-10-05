@@ -1307,6 +1307,86 @@ class CommonFunctions():
             self.parent().parent().parent().logbook['00_framebutton_{}'.format(self.parent().parent().parent().targets[stage_id][0])] = True
             self.parent().parent().parent().save_logfile()
 
+    def update_cores_flag(self, widget_cores, widget_cores_flag, suppress_message=False):
+        """
+        Set the cores command line flag for an algorithm.
+        Pass widget that holds user cores input, and one that holds the flag.
+        @param widget_cores: text widget for user gpu ids
+        @param widget_cores_flag: text widget with gpu flag
+        @param suppress_message: dont show qmessage box if input is wrong
+        """
+        n_cores = widget_cores.text()
+        if n_cores == '':
+            widget_cores_flag.setText('')
+            return
+        try:
+            n_cores = int(n_cores)
+        except ValueError:
+            widget_cores.setText('')
+            widget_cores_flag.setText('')
+
+            if suppress_message:
+                return
+            else:
+                self.popup_messagebox('Warning', 'Invalid value in field',
+                                      'Can only fill in integer number of cpu cores')
+                return
+
+        widget_cores_flag.setText(f'--numProcesses {n_cores} ')
+
+    def update_gpu_flag(self, widget_gpu_ids, widget_gpu_flag, single_gpu=False, widget_mpi_cores=None,
+                        suppress_message=False):
+        """
+        Set the gpu command line flag for an algorithm.
+        Pass widget that holds user gpu ids input, and one that holds the flag.
+
+        @param widget_gpu_ids: text widget for user gpu ids
+        @param widget_gpu_flag: text widget with gpu flag
+        @param single_gpu: restrict to parse only one gpu
+        @param widget_mpi_cores: set mpi number of cores widget for algos that use openmpi for gpu parallel
+        @param suppress_message: dont show qmessage box if input is wrong
+        """
+        gpu_ids = widget_gpu_ids.text()
+
+        if gpu_ids == '':
+            widget_gpu_flag.setText('')
+            return
+
+        if single_gpu:
+            try:
+                gpu = int(gpu_ids)
+            except ValueError:
+                widget_gpu_ids.setText('')
+                widget_gpu_flag.setText('')
+
+                if suppress_message:
+                    return
+                else:
+                    self.popup_messagebox('Warning', 'Invalid value in field',
+                                          'Only single gpu allowed for this algorithm.')
+                    return
+
+            widget_gpu_flag.setText(f'--gpuID {gpu} ')
+
+        else:
+            try:
+                gpu = list(map(int, [g for g in gpu_ids.split(',') if g != '']))
+            except ValueError:
+                widget_gpu_ids.setText('')
+                widget_gpu_flag.setText('')
+
+                if suppress_message:
+                    return
+                else:
+                    self.popup_messagebox('Warning', 'Invalid value in field',
+                                          'Could not parse gpu field, should be of form: 0,3,4 ')
+                    return
+
+            widget_gpu_flag.setText(f'--gpuID {gpu_ids} ')
+
+            if widget_mpi_cores is not None:
+                widget_mpi_cores.setText(f'{len(gpu)+1}')
+
 
 class SelectFiles(BrowseWindowRemote, CommonFunctions):
     def __init__(self, parent=None, initdir='/', filter=[''], search='file', credentials=['', '', ''], outputline='',
@@ -1542,11 +1622,11 @@ class CreateFSCMaskFile(QMainWindow, CommonFunctions):
 
         self.insert_label_line_push(parent, 'Volume (Filtered)', 'volume', mode='file',
                                     filetype=['em', 'mrc'], enabled=True,
-                                    tooltip='Volume path.')
+                                    tooltip='Volume path.', initdir=self.folder)
         self.insert_label_line_push(parent, 'Mask (Optional)', 'mask', mode='file',
                                     filetype=['em', 'mrc'], enabled=True,
                                     tooltip='The mask is used to only select a part of the model for resolution '
-                                            'determination.')
+                                            'determination.', initdir=self.folder)
         self.insert_label_spinbox(parent, 'numstd', text='Threshold: #std below mean', rstep=1, cstep=-1,
                                   minimum=0, maximum=100, value=1, wtype=QDoubleSpinBox,
                                   tooltip='This parameter sets the threshold value for what is a particle.\n '
@@ -2039,6 +2119,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
 
                     tab = self.tabs_dict[tt]
                     tab.setLayout(self.table_layouts[tt])
+
     def addGeneralVariables(self):
 
         self.pytompath = self.parent().pytompath
@@ -4391,7 +4472,6 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
         for nn in range(len(particleList), len(self.iItemList)):
             self.delete_subplot(self.coordinates[nn], start=len(particleList))
 
-
     def delete_subplot(self, position, start=0):
         for x,y,z,s, index in self.coordinates[start:]:
             if x == position[0] and y == position[1] and z == position[2]:
@@ -4431,7 +4511,7 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
 
             for id, vb in enumerate(self.vBoxList):
                 P = vb.mapSceneToView(event.scenePos())
-                if P.x() > -0.0001 and P.y() > 0.0001 and P.x() < self.size_subtomo and P.y() < self.size_subtomo:
+                if P.x() > 0.0001 and P.y() > 0.0001 and P.x() < self.size_subtomo and P.y() < self.size_subtomo:
                     ID = id
                     break
         except:
@@ -5835,18 +5915,9 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
         self.insert_label_line(parent, 'Output Name (Optional)', mode + 'OutputName',
                                'What is the file name off your output file (Optional).\n',width=w)
         self.insert_label_line(parent, 'Wedge Angle(s) (Optional)', mode + 'WedgeAngles',
-                               'What are the wedgeAngles. Example 30 or 30,30.\n',width=w)
-
-
-        self.insert_label_spinbox(parent, mode+'BinPyTom', text='Linear Binning Factor PyTom',
-                                  tooltip='Linear Binning Factor used in PyTom Reconstruction.',
-                                  value=1,minimum=1,maximum=90, stepsize=1)
-        self.insert_label_spinbox(parent, mode +'BinWarpM', text='Linear Binning Factor Warp/M',
-                                  tooltip='Linear Binning Factor used in reconstruction of subtomo.',
-                                  wtype=QDoubleSpinBox, minimum=1., stepsize=1., value=1.,
-                                  )
+                               'What are the wedgeAngles. Example: 30 or 30,30.\n',width=w)
         self.insert_label_spinbox(parent, mode + 'PixelSize', 'Pixel Size (A)',
-                                  wtype=QDoubleSpinBox, minimum=0.1, stepsize=0.1, value=1.75)
+                                  wtype=QDoubleSpinBox, minimum=0.1, stepsize=0.1, value=1.0)
         self.insert_label_line_push(parent, 'Alignment result file IMOD (.xf)', wname=mode+'AlignXF',width=w, initdir=self.tomogramfolder,
                                     tooltip='Select the tomogram file used for template matching.',
                                     filetype=['xf'], mode='file')
@@ -5855,8 +5926,9 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
 
         self.flags_dict = {}
         for name, flag in (('InputFile', '-f'), ('InputFolder', '-d'), ('PrefixQuery', '--prefixQuery'),
-                           ('SuffixQuery', '--suffixQuery'), ('OutputName', '--outname'),('WedgeAngles', ''),
-                           ('AlignXF', '--alignxf'), ('SortedFolder', '--sortedFolder')):
+                           ('SuffixQuery', '--suffixQuery'), ('OutputName', '--outname'),
+                           ('WedgeAngles', '--wedgeAngles'), ('AlignXF', '--alignxf'),
+                           ('SortedFolder', '--sortedFolder')):
             self.widgets[mode + 'flag' + name] = QLineEdit()
             self.widgets[mode + name].textChanged.connect(lambda dummy, m=mode, ff=flag, nn=name: self.updateFlag(m, ff, nn))
             self.updateFlag(mode, flag, name)
@@ -5866,7 +5938,7 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
         paramsSbatch = guiFunctions.createGenericDict(fname='ConvertData', folder=self.logfolder)
         paramsCmd    = [mode + 'TargetFolder', mode + 'flagInputFile', mode + 'flagInputFolder',
                         mode + 'flagPrefixQuery', mode + 'flagSuffixQuery', mode + 'OutputType',
-                        mode + 'flagOutputName', mode + 'BinPyTom', mode+'BinWarpM', mode + 'PixelSize', mode + 'flagAlignXF',
+                        mode + 'flagOutputName', mode + 'PixelSize', mode + 'flagAlignXF',
                         mode + 'flagSortedFolder', mode + 'flagWedgeAngles', templateConvertData]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch = paramsSbatch,
@@ -5878,7 +5950,6 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
 
     def updateFlag(self, mode, flag, name):
         a = self.widgets[mode + name].text()
-        print(a)
         if a:
             self.widgets[mode+'flag'+name].setText(f'{flag} {a} ')
         else:

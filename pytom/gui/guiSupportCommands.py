@@ -62,7 +62,7 @@ reconstructWB.py \\
     --applyWeighting {d[5]}  \\
     --size {d[4]},{d[8]},{d[9]} \\
     --tilt-range {d[13]},{d[14]} \\
-    {d[7]} {d[11]}
+    {d[7]}{d[11]}{d[15]}
 
 unlink ../../04_Particle_Picking/Tomograms/{d[3]}_WBP.mrc
 ln -s {d[0]}/reconstruction/WBP/{d[3]}_WBP.mrc ../../04_Particle_Picking/Tomograms/{d[3]}_WBP.mrc'''
@@ -122,7 +122,7 @@ ln -s {d[0]}/reconstruction/INFR/{d[8]}_INFR.em ../../04_Particle_Picking/Tomogr
 
 templateFRMJob    = '''<FRMJob Destination='{d[15]}' BandwidthRange='[{d[0]},{d[1]}]' Frequency='{d[2]}' MaxIterations='{d[3]}' PeakOffset='{d[4]}' RScore='{d[5]}' WeightedAverage='{d[6]}' Binning='{d[10]}'>
     <Reference PreWedge="" File="{d[7]}" Weighting="{d[8]}"/>
-    <Mask Filename="{d[9]}" Binning=1 isSphere="{d[11]}"/>
+    <Mask Filename="{d[9]}" Binning="1" isSphere="{d[11]}"/>
     <SampleInformation PixelSize="{d[12]}" ParticleDiameter="{d[13]}"/>
     <ParticleListLocation Path="{d[14]}"/>
 </FRMJob>
@@ -193,15 +193,14 @@ extractParticles = '''cd {d[8]}
 
 reconstructWB.py --particleList {d[0]} \\
 --alignResultFile {d[1]} \\
---projectionDirectory {d[12]} \\
+--projectionDirectory {d[11]} \\
 --coordinateBinning {d[2]} \\
 --size {d[3]} \\
 --applyWeighting {d[9]} \\
 --projBinning {d[4]} \\
 --recOffset {d[5]},{d[6]},{d[7]} \\
---tilt-range {d[13]},{d[14]} \\
---numProcesses {d[11]} \\
-{d[15]}'''
+--tilt-range {d[12]},{d[13]} \\
+{d[10]}{d[14]}{d[15]}{d[16]}'''
 
 
 polishParticles = '''cd {d[0]}
@@ -348,5 +347,5 @@ average.py -p {d[2]} -a {d[3]} -c {d[4]} {d[5]}'''
 
 templateConvertData = '''cd {d[0]}
 
-convert.py -t ./ {d[1]}{d[2]}{d[3]}{d[4]} -o {d[5]} {d[6]} --binPyTom {d[7]} --binWarpM {d[8]} --pixelSize {d[9]} \\
-{d[10]}{d[11]}{d[12]}'''
+convert.py -t ./ {d[1]}{d[2]}{d[3]}{d[4]} -o {d[5]} {d[6]} --pixelSize {d[7]} \\
+{d[8]}{d[9]}{d[10]}'''

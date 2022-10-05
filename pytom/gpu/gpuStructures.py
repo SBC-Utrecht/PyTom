@@ -353,7 +353,10 @@ class GLocalAlignmentPlan():
 
         # Allocate wedge-related objects
         self.wedge         = wedge
-        self.wedgeAngles   = wedge.getWedgeAngle()
+        if wedge._type != 'Wedge3dCTF':
+            self.wedgeAngles = wedge.getWedgeAngle()
+        else:
+            self.wedgeAngles = None
         wedgePart          = wedge.returnWedgeVolume(*self.volume.shape, humanUnderstandable=True).get()
         self.rotatedWedge  = cp.array(wedgePart, dtype=cp.float32)
         self.wedgePart     = cp.fft.fftshift(wedgePart).astype(cp.float32)
@@ -703,20 +706,32 @@ class GLocalAlignmentPlan():
     def updateWedge(self, wedge, interpolation='filt_bspline'):
         from pytom.voltools import StaticVolume
 
-        wedgeAngles = wedge.getWedgeAngle()
-        if type(wedgeAngles) == float: wedgeAngles = [wedgeAngles, wedgeAngles]
-        if type(self.wedgeAngles) == float: self.wedgeAngles = [self.wedgeAngles, self.wedgeAngles]
-
-        if wedgeAngles[0] == self.wedgeAngles[0] and wedgeAngles[1] == self.wedgeAngles[1]:
-            return
+        if wedge._type == 'Wedge3dCTF':
+            self.wedgeAngles = None
+            self.wedge = wedge
+            wedgePart = wedge.returnWedgeVolume(*self.volume.shape, humanUnderstandable=True).astype(
+                self.cp.float32).get()
+            self.rotatedWedge = self.cp.array(wedgePart, dtype=self.cp.float32)
+            self.wedgePart = self.cp.fft.fftshift(wedgePart)
+            self.wedgeTex = StaticVolume(self.rotatedWedge.copy(), device=self.device, interpolation=interpolation)
 
         else:
-            self.wedgeAngles  = wedgeAngles
-            self.wedge        = wedge
-            wedgePart         = wedge.returnWedgeVolume(*self.volume.shape, humanUnderstandable=True).astype(self.cp.float32).get()
-            self.rotatedWedge = self.cp.array(wedgePart, dtype=self.cp.float32)
-            self.wedgePart    = self.cp.fft.fftshift(wedgePart)
-            self.wedgeTex     = StaticVolume(self.rotatedWedge.copy(), device=self.device, interpolation=interpolation)
+            wedgeAngles = wedge.getWedgeAngle()
+            if type(wedgeAngles) == float: wedgeAngles = [wedgeAngles, wedgeAngles]
+            if type(self.wedgeAngles) == float: self.wedgeAngles = [self.wedgeAngles, self.wedgeAngles]
+
+            if wedgeAngles[0] == self.wedgeAngles[0] and wedgeAngles[1] == self.wedgeAngles[1]:
+                return
+
+            else:
+                self.wedgeAngles  = wedgeAngles
+                self.wedge        = wedge
+                wedgePart         = wedge.returnWedgeVolume(*self.volume.shape,
+                                                            humanUnderstandable=True).astype(self.cp.float32).get()
+                self.rotatedWedge = self.cp.array(wedgePart, dtype=self.cp.float32)
+                self.wedgePart    = self.cp.fft.fftshift(wedgePart)
+                self.wedgeTex     = StaticVolume(self.rotatedWedge.copy(), device=self.device,
+                                                 interpolation=interpolation)
 
 
 def rotate3d(data, phi=0, psi=0, the=0, center=None, order=1, output=None):

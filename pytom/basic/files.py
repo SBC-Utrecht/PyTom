@@ -1113,8 +1113,8 @@ def txt2pl(filename, target, prefix='', outname='', subtomoPrefix=None, wedgeAng
     pl.toXMLFile(particleList_file)
 
 
-def  pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
-    from pytom.agnostic.tools import zxz2zyz
+def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
+    from pytom.agnostic.tools import convert_angles
     from pytom.basic.structures import ParticleList
     from pytom.basic.datatypes import RELION31_PICKPOS_STAR, fmtR31S, headerRelion31Subtomo
     import os
@@ -1140,9 +1140,11 @@ def  pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binning
     for n, p in enumerate(pl):
         x, y, z = p.getPickPosition().toVector()
 
-        stardata['CoordinateX'][n] = x * binningPyTom / binningWarpM
-        stardata['CoordinateY'][n] = y * binningPyTom / binningWarpM
-        stardata['CoordinateZ'][n] = z * binningPyTom / binningWarpM
+        # this is not needed as Warp requires filling in A spacing for subtomo positions
+        # factor = binningPyTom / binningWarpM
+        stardata['CoordinateX'][n] = x  # * factor
+        stardata['CoordinateY'][n] = y  # * factor
+        stardata['CoordinateZ'][n] = z  # * factor
 
         stardata['MicrographName'][n] = p.getPickPosition().getOriginFilename()
 
@@ -1153,61 +1155,81 @@ def  pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binning
         stardata['GroupNumber'][n] = p.getClass()
 
         z0, z1, x = p.getRotation().toVector()
+        z0, y, z1 = convert_angles((z0, x, z1), rotation_order='zxz', return_order='zyz')
 
-        z0, y, z1 = zxz2zyz(z0, x, z1)
-
+        # relion uses internal axis, while pytom external, or the other way around
+        # anyway, need to invert the values
         stardata['AngleRot'][n] = -z0
-        stardata['AngleTilt'][n] = y
+        stardata['AngleTilt'][n] = -y
         stardata['AnglePsi'][n] = -z1
 
     newFilename = name_to_format(filename if outname == '' else outname, target, "star")
 
-
     np.savetxt(newFilename, stardata, fmt=fmtR31S, header=headerRelion31Subtomo, comments='')
+
 
 def star2xml(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
     star2pl(filename, target, prefix, pixelsize, binningPyTom, binningWarpM, outname, wedgeAngles)
 
-def  star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
-    from pytom.agnostic.tools import zxz2zyz, zyz2zxz
-    from pytom.basic.structures import ParticleList, Particle
-    from pytom.basic.datatypes import RELION31_PICKPOS_STAR, fmtR31S, headerRelion31Subtomo
-    import os
-    import numpy as np
 
-    stardata= loadtxt(filename, dtype=RELION31_PICKPOS_STAR)
+def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None,
+            prexf='', sorted_folder=''):
+    from pytom.agnostic.tools import convert_angles
+    from pytom.agnostic.io import read_star
+    from pytom.basic.structures import ParticleList, Particle, PickPosition, Rotation, Shift
+    from pytom.basic.score import FLCFScore
+
+    stardata = read_star(filename)
 
     pl = ParticleList()
 
     for n in range(len(stardata['CoordinateX'])):
 
-        x, y, z = stardata['CoordinateX'][n], stardata['CoordinateX'][n], stardata['CoordinateX'][n]
+        if 'ImageName' in stardata.dtype.names:
+            p = Particle(filename=stardata['ImageName'][n])
+        else:
+            p = Particle()
 
-        p = Particle(stardata['MicrographName'][n])
+        # ===== pick position in tomogram
+        p.setPickPosition(PickPosition(stardata['CoordinateX'][n],
+                                       stardata['CoordinateY'][n],
+                                       stardata['CoordinateZ'][n],
+                                       originFilename=stardata['MicrographName'][n]))
 
-        factor = binningWarpM / binningPyTom
+        # ======= set shifts
+        if 'OriginXAngst' in stardata.dtype.names:
+            star_pixel_size = stardata['PixelSize'][n]
+            x_shift, y_shift, z_shift = stardata['OriginXAngst'][n], stardata['OriginYAngst'][n], \
+                                        stardata['OriginZAngst'][n]
 
-        p.getShift().setX(x * factor)
-        p.getShift().setY(y * factor)
-        p.getShift().setZ(z * factor)
+            p.setShift(Shift(x=x_shift / star_pixel_size, y=y_shift / star_pixel_size, z=z_shift / star_pixel_size))
 
+            # factor = binningWarpM / binningPyTom
+            # p.getShift().setX(x * factor)
+            # p.getShift().setY(y * factor)
+            # p.getShift().setZ(z * factor)
 
-        p.setClass(stardata['GroupNumber'][n])
+        # ======= class info from relion
+        if 'GroupNumber' in stardata.dtype.names:
+            p.setClass(stardata['GroupNumber'][n])
 
-        z0, z1, x = p.getRotation().toVector()
-
+        # ======= convert and set rotation
+        # relion uses internal axis, while pytom external, or the other way around
+        # anyway, need to invert the values
         z0 = -stardata['AngleRot'][n]
-        y  = stardata['AngleTilt'][n]
+        y  = -stardata['AngleTilt'][n]
         z1 = -stardata['AnglePsi'][n]
 
+        z0, x, z1 = convert_angles((z0, y, z1), rotation_order='zyz', return_order='zxz')
 
-        z0, x, z1 = zyz2zxz(z0, y, z1)
+        p.setRotation(Rotation(z1=z0, x=x, z2=z1, paradigm='ZXZ'))
 
-        p.getRotation().setZ1(z0)
-        p.getRotation().setZ2(z1)
-        p.getRotation().setX(x)
-        if not wedgeAngles is None:
+        # ====== set wedge angles
+        if wedgeAngles is not None:
             p.getWedge().setWedgeAngles(wedgeAngles)
+
+        # ===== set empty score
+        p.setScore(FLCFScore())
 
         pl.append(p)
 
@@ -1242,30 +1264,26 @@ def log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
         m = transform_matrix(rotation=(ta['Rotation'][n], 0, 0),
                              rotation_order='rzxz',
                              scale=(ta['Mag'][n], ) * 3)[:2, :2]
-        # m[0, 0] = numpy.cos(ar['InPlaneRotation'][n]*numpy.pi/180.)  # why multiply with pp (==0) before??
-        # m[0, 1] = numpy.sin(ar['InPlaneRotation'][n]*numpy.pi/180.)
-        # m[1, 0] = -numpy.sin(ar['InPlaneRotation'][n]*numpy.pi/180.)
-        # m[1, 1] = numpy.cos(ar['InPlaneRotation'][n]*numpy.pi/180.)
-        # m[0, 0], m[0, 1], m[1, 0], m[1, 1] = mat[0], mat[2], mat[1], mat[3]
 
         # dot multiply the rotation with the translation
-        # puts the translation in the reference frame??
-        # shift[n, -2:] = numpy.dot(m, numpy.array((shx, shy)))
+        # puts the translation in the reference frame?
         # Warp does (-shx, -shy) and then dot(m.T, shifts)
         shift_t = np.dot(m.T, np.array((shx, shy)))
-
-        # denom = mat[0] ** 2 + mat[1] ** 2
-        # scale = np.sqrt(denom)
-        # scaleY = (mat[0] * mat[3] - mat[2] * mat[1]) / scaleX
-        # skew = np.rad2deg(np.arctan2(mat[0] * mat[2] + mat[1] * mat[3], denom))
-        # skewY = 0
-        # ar['InPlaneRotation'][n] = -zxz[2]
-
-        # set output
-        # ar['InPlaneRotation'][n] = - np.rad2deg(np.arctan2(mat[1], mat[0]))
-        # ar['Magnification'][n] = scale
         ar['AlignmentTransX'][n] = shift_t[0]
         ar['AlignmentTransY'][n] = shift_t[1]
+
+        # ========== This is the method that WARP uses
+        # other option is to get the transform matrix from IMOD, for me this did not give good results
+        # m[0, 0], m[0, 1], m[1, 0], m[1, 1] = mat[0], mat[2], mat[1], mat[3]
+        # ======== then extract the params
+        # denom = mat[0] ** 2 + mat[1] ** 2
+        # scale = np.sqrt(denom)
+        # # scaleY = (mat[0] * mat[3] - mat[2] * mat[1]) / scaleX
+        # skew = np.rad2deg(np.arctan2(mat[0] * mat[2] + mat[1] * mat[3], denom))
+        # skewY = 0
+        # ar['InPlaneRotation'][n] = - np.rad2deg(np.arctan2(mat[1], mat[0]))
+        # ar['Magnification'][n] = scale
+        # shift_t = np.dot(m.T, np.array((-shx, -shy)))
 
     # set sorted filenames in pytomproject folder
     ar['FileName'] = sorted([os.path.join(folder, fname) for fname in os.listdir(folder) if fname.startswith(prefix) and fname.endswith('.'+filetype)])

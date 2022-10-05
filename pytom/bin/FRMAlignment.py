@@ -331,6 +331,12 @@ class FRMWorker():
                 
                 # write the new particle list to the disk
                 pl.toXMLFile(os.path.join(job.destination, 'aligned_pl_iter'+str(i)+'.xml'))
+
+                # store temp results
+                all_even_pre.write(os.path.join(self.destination, 'fsc_' + str(i) + '_even_pre.em'))
+                all_odd_pre.write(os.path.join(self.destination, 'fsc_' + str(i) + '_odd_pre.em'))
+                all_even_wedge.write(os.path.join(self.destination, 'fsc_' + str(i) + '_even_wedge.em'))
+                all_odd_wedge.write(os.path.join(self.destination, 'fsc_' + str(i) + '_odd_wedge.em'))
                 
                 # create half sets
                 even = self.create_average(all_even_pre, all_even_wedge)
@@ -368,7 +374,8 @@ class FRMWorker():
                 
                 # low pass filter the reference and write it to the disk
                 filtered = lowpassFilter(average, ceil(resolutionBand), ceil(resolutionBand)/10)
-                filtered_ref_name = os.path.join(self.destination, 'average_iter'+str(i)+'_res'+str(current_resolution)+'.em')
+                filtered_ref_name = os.path.join(self.destination, 'average_iter' + str(i) + '_res' +
+                                                 f'{current_resolution:.2f}' + '.em')
                 filtered[0].write(filtered_ref_name)
                 
                 # if the position/orientation is not improved, break it

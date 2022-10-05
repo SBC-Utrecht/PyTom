@@ -304,29 +304,45 @@ class SubtomoAnalysis(GuiTabWidget):
                                   'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping' +
                                   ' in the z-dimension.',
                                   value=0, stepsize=1, minimum=-4000, maximum=4000)
-        self.insert_label_line_push(parent, 'Result file particle polishing', mode + 'polishFile', mode='file',
-                                    filetype='txt', initdir=self.polishfolder, cstep=-1, rstep=1,
-                                    tooltip='Select a resultfile from particle polishing (Optional).')
+        # self.insert_label_line_push(parent, 'Result file particle polishing', mode + 'polishFile', mode='file',
+        #                             filetype='txt', initdir=self.polishfolder, # cstep=-1,
+        #                             tooltip='Select a resultfile from particle polishing (Optional).')
+        self.insert_label_line(parent, 'cores', mode + 'cores', validator=QIntValidator(),
+                               tooltip="Integer number of cpu cores to use if running on cpu" )
+        self.insert_label_line(parent, "GPU's", mode + 'gpuID', width=w, cstep=0, validator=QIntValidator(),
+                               tooltip="Which GPU's do you want to reserve. If you want to use multiple GPUs "
+                                       "separate them using a comma, e.g. 0,1,2 ")
 
-        self.widgets[mode + 'polishFlag'] = QLineEdit('')
+        # TODO have taken out polishing as this is currently not enabled in GUI
+        # self.widgets[mode + 'polishFlag'] = QLineEdit('')
         self.widgets[mode + 'projectionDir'] = QLineEdit('')
         self.widgets[mode + 'alignmentResultsFile'] = QLineEdit('')
+        self.widgets[mode + 'gpuString'] = QLineEdit('')
+        self.widgets[mode + 'numberMpiCores'] = QLineEdit('')
+        self.widgets[mode + 'cores_flag'] = QLineEdit('')
 
         # self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateMeta(m))
+        # self.widgets[mode + 'polishFile'].textChanged.connect(lambda d, m=mode: self.updatePolishFlag(m))
         self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.update_alignment_options(m))
-        self.widgets[mode + 'polishFile'].textChanged.connect(lambda d, m=mode: self.updatePolishFlag(m))
+        self.widgets[mode + 'gpuID'].textChanged.connect(lambda d, ids=self.widgets[mode + 'gpuID'],
+                                                                flag=self.widgets[mode+'gpuString']:
+                                                         self.update_gpu_flag(ids, flag))
+        self.widgets[mode + 'cores'].textChanged.connect(lambda d, cores=self.widgets[mode + 'cores'],
+                                                         flag=self.widgets[mode + 'cores_flag']:
+                                                         self.update_cores(cores, flag))
 
         execfilename = os.path.join(self.subtomodir, 'Reconstruction/reconstructSubtomograms.sh')
         paramsSbatch = guiFunctions.createGenericDict(fname='subtomoReconstr', folder=self.logfolder,
                                                       id='SingleSubtomoReconstruct')
         paramsCmd = [mode + 'particlelist', mode + 'alignmentResultsFile', mode + 'BinFactorReconstruction',
                      mode + 'SizeSubtomos', mode + 'BinFactorSubtomos', mode + 'OffsetX', mode + 'OffsetY',
-                     mode + 'OffsetZ', self.subtomodir, mode + 'WeightingFactor', mode + 'MetaFile', '20',
-                     mode + 'projectionDir', mode + 'firstAngle', mode + 'lastAngle',
-                     mode + 'polishFlag', extractParticles]  # mode + projectionDir
+                     mode + 'OffsetZ', self.subtomodir, mode + 'WeightingFactor',
+                     mode + 'cores_flag', mode + 'projectionDir', mode + 'firstAngle', mode + 'lastAngle',
+                     mode + 'gpuString', extractParticles]
+        # mode + projectionDir  # mode + 'polishFlag'
         mandatory_fill = [mode + 'particlelist', mode + 'alignmentResultsFile']
 
-        self.updatePolishFlag(mode)
+        self.update_gpu_flag(self.widgets[mode + 'gpuID'], self.widgets[mode + 'gpuString'])
 
         self.insert_gen_text_exe(parent, mode, paramsCmd=paramsCmd, exefilename=execfilename, paramsSbatch=paramsSbatch,
                                  mandatory_fill=mandatory_fill)
@@ -335,134 +351,124 @@ class SubtomoAnalysis(GuiTabWidget):
 
     def populateSubtomoReconBatchTable(self, key='tab12'):
         self.mass_extract.close()
-        particleFilesStart = sorted(self.extractLists.text().split('\n'))
-        particleFiles = []
+        particle_files_start = sorted(self.extractLists.text().split('\n'))
+        particle_files = []
+        tomograms = []
 
-        for particleFile in particleFilesStart:
-            if '_tomogram_' in particleFile:
-                particleFiles.append(particleFile)
-            else:
-                pl = ParticleList()
-                pl.fromXMLFile(particleFile)
-                pls = pl.splitByProjectDir()
+        for particle_file in particle_files_start:
+            pl = ParticleList()
+            pl.fromXMLFile(particle_file)
+            pls = pl.splitByProjectDir()
+            # set a flag if there was a project split
+            proj_split = True if len(pls) > 1 else False
 
-                for pp in pls:
-                    if len(pp) == 0: continue
-                    projdir = os.path.basename(pp[0].getInfoGUI().getProjectDir())
-                    projdir = os.path.basename(self.projectname) if projdir == '' else projdir
+            for pp in pls:
+                if len(pp) == 0: continue
 
-                    if projdir[-1] == '/': projdir = projdir[:-1]
-                    if projdir: projdir+='_'
-                    dirname = os.path.splitext(os.path.basename(particleFile))[0]
-                    output_folder = os.path.join(self.pickpartdir, dirname)
-                    if not os.path.exists(output_folder):
-                        os.mkdir(output_folder)
+                ppts = pp.splitByTomoName()
 
-                    ppts = pp.splitByTomoName()
-                    for ppt in ppts:
-                        tomogram_name = os.path.splitext(os.path.basename(ppt[0].getPickPosition().getOriginFilename()))[0]
-                        ppt.toXMLFile(f'{output_folder}/particleList_{projdir}{tomogram_name}.xml')
-                        particleFiles.append(f'{output_folder}/particleList_{projdir}{tomogram_name}.xml')
+                # if there is only one project and only one tomo,
+                # then we dont need to save any split lists
+                if len(ppts) == 1 and not proj_split:
+                    particle_files.append(particle_file)
+                    continue
 
-        particleFiles = sorted(particleFiles)
+                projdir = os.path.basename(os.path.normpath(pp[0].getInfoGUI().getProjectDir()))
+                projdir = os.path.basename(os.path.normpath(self.projectname)) if projdir in ['', '.'] else projdir
+                dirname = os.path.splitext(os.path.basename(particle_file))[0]
 
-        headers = ["Filename particleList", "Run", "Alignment", "Mode", "Origin", 'Bin factor recon',
-                   'Weighting', "Size subtomos", "Bin subtomos", "Offset X", "Offset Y", "Offset Z", 'Scale Factor',
-                   'GPU IDs', 'Polish Result', '']
-        types = ['txt', 'checkbox', 'combobox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'lineedit',
-                 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit',  'comboboxF', 'txt']
-        a = 40
-        sizes = [0, 0, 80, 80, 90, a, a, a, a, a, a, a, a, a, 80, a, a]
+                # create a dir to store the split output lists
+                output_folder = os.path.join(self.pickpartdir, dirname)
+                if not os.path.exists(output_folder):
+                    os.mkdir(output_folder)
 
-        tooltip = ['Names of the particleList files',
+                # save a list per tomogram (reconstruction algo works per on a per tomogram basis)
+                # + get the tomogram from the particle list file
+                for ppt in ppts:
+                    picking_origin = os.path.basename(ppt[0].getPickPosition().getOriginFilename())
+                    if 'WBP' in picking_origin or 'INFR' in picking_origin:
+                        tomogram = picking_origin.split('_WBP')[0] if 'WBP' in picking_origin else picking_origin.split(
+                            '_INFR')[0]
+                    else:
+                        tomogram = os.path.splitext(picking_origin)[0]
+                    tomograms.append(tomogram)
+                    ppt.toXMLFile(f'{output_folder}/particleList_{projdir}_{tomogram}.xml')
+                    particle_files.append(f'{output_folder}/particleList_{projdir}_{tomogram}.xml')
+
+        # organize based on tomogram name
+        particle_files = [x for _, x in sorted(zip(tomograms, particle_files), key=lambda pair: pair[0])]
+        tomograms = sorted(tomograms)
+
+        headers = ['particle_list', 'tilt-series', 'run', 'alignment', 'first angle', 'last angle', 'ctf',
+                   'bin factor tomo', 'weighting', 'subtomo size', 'subtomo bin', 'offset x', 'offset y', 'offset z',
+                   'scale factor', 'gpu ids', 'polish result', '']
+        types = ['txt', 'txt', 'checkbox', 'combobox', 'lineedit', 'lineedit', 'combobox', 'lineedit', 'lineedit',
+                 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'comboboxF', '']
+        tooltip = ['Particle list file', 'tilt-series for which particles will be reconstructed.',
                    'Check this box to run subtomogram reconstruction.',
-                   'Which Marker is used as reference marker',
-                   'Which Alignment protocol has been used','Folder in which the alignment results are stored',
-                   'Binning factor used for the reconstruction.',
+                   'Alignment type selection.',
+                   'Negative limit tilt angles.', 'Positive limit tilt angles.',
+                   'Origin folder of projections, either sorted or ctf corrected.',
+                   'Binning factor in the tomographic reconstruction where the particles were located.',
                    'Weighting Type.\n0: No Weighting,\n1: Analytical Weighting.\n-1: Ramp Weighting',
-                   'Size Subtomograms', 'Binning factor for subtomograms (--projBinning)', 'Offset in X-dimension',
-                   'Offset in Y-dimension', 'Offset in Z-dimension', 'Scaling factor to compensate for magnification differences between datasets',
-                   'One or more GPU IDs (separated by a comma: 0,4,5)'
+                   'Size of the subtomograms after binning.', 'Binning factor for subtomograms.',
+                   'Offset in X-dimension', 'Offset in Y-dimension', 'Offset in Z-dimension',
+                   'Scaling factor to compensate for magnification differences between datasets',
+                   'One or more GPU IDs (separated by a comma, e.g. 0,4,5 )',
                    'Results files from particle polishing.']
+        sizes = [0, ] * (len(headers) - 1)
 
         values = []
-        refmarkindices = []
+        project_tomograms = sorted([d for d in os.listdir(self.tomogram_folder) if (not 'jobscripts' in d and
+                                                                                    not d.startswith('.'))])
+        skip_pop_up_shown = False
 
-        for n, particleFile in enumerate(particleFiles):
-            if not particleFile: continue
-            base, ext = os.path.splitext(
-                os.path.basename(particleFile).replace('particleList_', '').replace('coords_', '').replace('_flipped',''))
+        for n, (tomogram, particle_file) in enumerate(zip(tomograms, particle_files)):
 
-            if '_tomogram_' in base:
-                base = 'tomogram_' + base.split('_tomogram_')[1]
+            tomo_folder = os.path.join(self.tomogram_folder, tomogram)
 
-            for t in ('WBP', 'INFR'):
-                if t in base: base = base.split(t)[0] + t
+            # check if the tomogram is available in this pytom project, otherwise skip and put pop up message
+            if not tomogram in project_tomograms or not os.path.exists(tomo_folder):
+                if not skip_pop_up_shown:
+                    self.popup_messagebox('Warning', 'Invalid particles found',
+                                          'Some of the provided particles were picked in tilt-series that are not in '
+                                          'the current project.')
+                    skip_pop_up_shown = True
+                continue
 
-            tomoindex = base.split('tomogram_')[1].split('_')[0]
+            # find available alignments
+            alignment_dir = os.path.join(tomo_folder, 'alignment')
+            alignment_choices = []
+            for alignment in os.listdir(alignment_dir):
+                d = os.path.join(alignment_dir, alignment)
+                if os.path.exists(d) and os.path.isdir(d):
+                    for pointer in os.listdir(os.path.join(d, 'GlobalAlignment')):
+                        f = os.path.join(d, 'GlobalAlignment', pointer, 'alignmentResults.txt')
+                        if os.path.exists(f):
+                            alignment_choices.append(alignment)
+                            break
+                    # we might have found an alignment file
 
-            polishfiles = glob.glob(f'{self.polishfolder}/resultsPolish*tomogram_{tomoindex}*.txt')
-            polishfiles += glob.glob(f'{self.polishfolder}/*/resultsPolish*tomogram_{tomoindex}*.txt')
+            # get ctf options
+            sorted_dir = os.path.join(tomo_folder, 'sorted')
+            ctf_sorted_dir = os.path.join(tomo_folder, 'ctf', 'sorted_ctf')
+            tilt_choices = []
+            if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
+                tilt_choices.append('sorted')
+            if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+                tilt_choices.append('sorted_ctf')
+
+            # get tomogram binning from particle list
+            particles = ParticleList()
+            particles.fromXMLFile(particle_file)
+            tomogram_binning = int(particles[0].xpath('PickPosition')[0].get('Binning'))
+
+            polishfiles = glob.glob(f'{self.polishfolder}/resultsPolish*{tomogram}*.txt')
+            polishfiles += glob.glob(f'{self.polishfolder}/*/resultsPolish*{tomogram}*.txt')
             polishfiles += ['']
 
-
-            if base + '.mrc' in os.listdir(self.tomogramfolder) or base + '.em' in os.listdir(self.tomogramfolder):
-                if os.path.exists(os.path.join(self.tomogramfolder, base + '.mrc')):
-                    folder = os.popen('ls -alrt {}.mrc'.format(os.path.join(self.tomogramfolder, base))).read()[:-1]
-                elif os.path.exists(os.path.join(self.tomogramfolder, base + '.em')):
-                    folder = os.popen('ls -alrt {}.em'.format(os.path.join(self.tomogramfolder, base))).read()[:-1]
-                else:
-                    folder = ''
-                if not folder: continue
-                folder = os.path.dirname(folder.split()[-1])
-
-                # markerfile  = os.path.join(folder, 'markerfile.txt')
-                # markerdata = readMarkerfile(markerfile,61)
-
-                al = os.path.join(os.path.dirname(os.path.dirname(folder)), 'alignment')
-                ctf = os.path.join(os.path.dirname(os.path.dirname(folder)), 'ctf')
-                choices = [al + '/' + f for f in os.listdir(al) if os.path.isdir(al + '/' + f)]
-                # choices = list(map(str,range(markerdata.sizeZ()))) # + ['closest']
-                # a = sorted(glob.glob('{}/Reconstruction*-*.out'.format(folder)))[-1]
-
-                try:
-                    from lxml import etree
-                    xmlObj = etree.parse(particleFile)
-                    particles = xmlObj.xpath('Particle')
-                    binning = int(particles[0].xpath('PickPosition')[0].get('Binning'))
-                    refmarkindex = int(particles[0].xpath('PickPosition')[0].get('RefMarkIndex'))
-                except:
-                    print('Default values used for {}:\n\tbin recon = 8\n\t ref mark index = 1'.format(
-                        os.path.basename(particleFile)))
-                    binning = 8
-                    refmarkindex = 1
-                # binning = os.popen('cat {} | grep "--referenceMarkerIndex" '.format(a)).read()[:-1]
-                # print(binning)
-
-                closest_options = []
-                for c in choices:
-                    split = os.path.basename(c).split('_')
-                    if len(split) == 3:
-                        # print(c)
-                        align_folder = os.path.dirname(c)
-                        mm, markID, angles = split
-                        closestTemp = f'{align_folder}/{mm}_CLOSEST_{angles}'
-                        if not closestTemp in closest_options: closest_options.append(closestTemp)
-
-                if choices:
-                    aligntype = [f'{choices[0]}/{f}' for f in os.listdir(choices[0]) if os.path.isdir(f'{choices[0]}/{f}')]
-                    if aligntype:
-                        origin = [f'{aligntype[0]}/{f}' for f in os.listdir(aligntype[0]) if os.path.isdir(f'{aligntype[0]}/{f}')]
-                    else:
-                        origin = []
-
-                else:
-                    aligntype, origin = [],[]
-
-                choices += closest_options
-
-                values.append([particleFile, True, choices, aligntype, origin, binning, -1, 128, 1, 0, 0, 0, 1, '', polishfiles, ''])
-                refmarkindices.append(refmarkindex)
+            values.append([particle_file, tomogram, True, alignment_choices, 0, 0, tilt_choices, tomogram_binning,
+                           -1, 128, 1, 0, 0, 0, 1, '', polishfiles, ''])
 
         try:
             self.num_nodes[key].setParent(None)
@@ -470,157 +476,153 @@ class SubtomoAnalysis(GuiTabWidget):
             pass
 
         if values:
-            self.valuesBatchSubtomoReconstruction = values
-            self.fill_tab(key, headers, types, values, sizes, tooltip=tooltip, nn=True, wname=self.stage + 'BatchSubtomoReconstruct_')
+            self.fill_tab(key, headers, types, values, sizes, tooltip=tooltip, nn=True,
+                          wname=self.stage + 'BatchSubtomoReconstruct_')
             self.tab12_widgets = self.tables[key].widgets
-            for n, index in enumerate(refmarkindices):
-                self.tab12_widgets['widget_{}_3'.format(n)].setCurrentIndex(index)
+            self.tab12_widgets['gpu_flag'] = QLineEdit('')
 
             for row in range(len(values)):
-                w = self.tab12_widgets['widget_{}_2'.format(row)]
-                w.currentIndexChanged.connect(lambda d, r=row, k=key: self.updateChoices(r, k))
+                w = self.tab12_widgets['widget_{}_3'.format(row)]  # alignment choice widget
+                w.currentIndexChanged.connect(lambda d, r=row, k=key: self.update_alignment_choice_batch(r, k))
+                self.update_alignment_choice_batch(row, key)
 
-                ww = self.tab12_widgets['widget_{}_3'.format(row)]
-                ww.currentIndexChanged.connect(lambda d, r=row, k=key: self.updateAlignmentType(r, k))
+                # gpu flag is not used but just to check if the input is valid
+                w = self.tab12_widgets['widget_{}_15'.format(row)]
+                w.textChanged.connect(lambda d, ids=w, flag=self.tab12_widgets['gpu_flag']:
+                                        self.update_gpu_flag(ids, flag, suppress_message=True))
 
-
-            self.particleFilesBatchExtract = particleFiles
             self.pbs[key].clicked.connect(lambda dummy, pid=key, v=values: self.massExtractParticles(pid, v))
         else:
             return
 
-        for i in range(len(values)):
-            self.updateChoices(i, key)
-
     def massExtractParticles(self, pid, values):
         num_nodes = int(self.num_nodes[pid].value())
-        qIDs = []
         jobCode = {}
         execfilenames = {}
-        num_submitted_jobs = nsj = 0
-        values = self.valuesBatchSubtomoReconstruction
+        nsj = 0
+
         try:
             for row in range(self.tables[pid].table.rowCount()):
-                if self.tab12_widgets['widget_{}_1'.format(row)].isChecked():
-                    particleXML = values[row][0] #[row][0]
-                    tomoindex = particleXML.split('_tomogram_')[-1][:3]
-                    markerPath = values[row][2][self.tab12_widgets['widget_{}_{}'.format(row,2)].currentIndex()]
-                    folder_align_type = values[row][3][self.tab12_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
-                    folder_origin      = values[row][4][self.tab12_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
+                if self.tab12_widgets['widget_{}_2'.format(row)].isChecked():
+                    particleXML = values[row][0]
+                    tomogram = values[row][1]
+                    alignment = self.tab12_widgets['widget_{}_{}'.format(row, 3)].currentText()
+                    # folder_align_type = self.tab12_widgets['widget_{}_{}'.format(row, 3)].currentText()
+                    min_angle = int(self.tab12_widgets['widget_{}_{}'.format(row, 4)].text())
+                    max_angle = int(self.tab12_widgets['widget_{}_{}'.format(row, 5)].text())
+                    folder_origin = self.tab12_widgets['widget_{}_{}'.format(row, 6)].currentText()
 
-                    metafile = glob.glob('{}/03_Tomographic_Reconstruction/tomogram_{}/sorted/*.meta'.format(self.projectname,tomoindex))
-                    if not metafile: continue
-                    metafile = metafile[0]
-                    #q = '{}/03_Tomographic_Reconstruction/tomogram_{}/alignment/unweighted_unbinned_marker_{}'
-                    #folder_aligned = q.format(self.projectname,tomoindex,ref_marker)
-                    bin_read = self.tab12_widgets['widget_{}_{}'.format(row,5)].text()
-                    weight = self.tab12_widgets['widget_{}_{}'.format(row, 6)].text()
-                    size = self.tab12_widgets['widget_{}_{}'.format(row, 7)].text()
-                    bin_subtomo = self.tab12_widgets['widget_{}_{}'.format(row,8)].text()
-                    offx = self.tab12_widgets['widget_{}_{}'.format(row, 9)].text()
-                    offy = self.tab12_widgets['widget_{}_{}'.format(row, 10)].text()
-                    offz = self.tab12_widgets['widget_{}_{}'.format(row, 11)].text()
-                    scale = self.tab12_widgets['widget_{}_{}'.format(row, 12)].text()
+                    # get the alignment results file
+                    al_dir = os.path.join(self.tomogram_folder, tomogram, 'alignment', alignment, 'GlobalAlignment')
+                    point = [o for o in os.listdir(al_dir) if 'sorted' in o][0]
+                    ar_file = os.path.join(al_dir, point, 'alignmentResults.txt')
+                    projection_dir = os.path.join(self.tomogram_folder, tomogram,
+                                                  folder_origin if not 'ctf' in folder_origin else 'ctf/sorted_ctf')
+
+                    bin_read = int(self.tab12_widgets['widget_{}_{}'.format(row, 7)].text())
+                    weight = int(self.tab12_widgets['widget_{}_{}'.format(row, 8)].text())
+                    size = int(self.tab12_widgets['widget_{}_{}'.format(row, 9)].text())
+                    bin_subtomo = int(self.tab12_widgets['widget_{}_{}'.format(row, 10)].text())
+                    offx = int(self.tab12_widgets['widget_{}_{}'.format(row, 11)].text())
+                    offy = int(self.tab12_widgets['widget_{}_{}'.format(row, 12)].text())
+                    offz = int(self.tab12_widgets['widget_{}_{}'.format(row, 13)].text())
+
+                    # set gpu flag
+                    self.update_gpu_flag(self.tab12_widgets['widget_{}_{}'.format(row, 15)],
+                                         self.tab12_widgets['gpu_flag'])
+                    gpu_ids_flag = self.tab12_widgets['gpu_flag'].text()
+                    gpu_ids = self.tab12_widgets['widget_{}_{}'.format(row, 15)].text()
+                    # set scale flag
+                    scale = self.tab12_widgets['widget_{}_{}'.format(row, 14)].text()
                     scale = None if (scale == '1' or scale == '') else float(scale)
-                    gpuIDs = self.tab12_widgets['widget_{}_{}'.format(row, 13)].text()
-                    gpuIDflag = '' if not gpuIDs else f' --gpuID {gpuIDs}'
-                    ppfile = values[row][14][self.tab12_widgets['widget_{}_{}'.format(row, 14)].currentIndex()]
-                    ppflag = f'--particlePolishResultFile {ppfile}' if ppfile else ''
+                    scale_flag = '' if scale is None else f'--scaleFactorParticle {scale} '
+                    # add polish file
+                    pp_file = self.tab12_widgets['widget_{}_{}'.format(row, 16)].currentText()
+                    pp_flag = f'--particlePolishResultFile {ppfile} ' if pp_file else ''
 
-                    ppflag +=  '' if scale is None else f' --scaleFactorParticle {scale}'
+                    # no closest marker reconstruction
+                    if not 'closest' in alignment.lower():
 
-                    ppflag += gpuIDflag
-
-                    refid = os.path.basename(markerPath).split('_')[1]
-
-                    if refid.lower() != 'closest':
-
-                        outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_Refmarker_{}.sh'.format(int(tomoindex),refid)
+                        outname = f'Reconstruction/reconstruct_subtomograms_{tomogram}.sh'
                         execfilename = os.path.join(self.subtomodir, outname)
                         qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchSubtomoReconstruct'].values()
 
-                        paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
-                                     self.subtomodir, weight, metafile,  str(cores*n_nodes), ppflag]
+                        paramsCmd = [particleXML, ar_file, bin_read, size, bin_subtomo, offx, offy, offz,
+                                     self.subtomodir, weight, f'--numProcesses {cores} ', projection_dir,
+                                     min_angle, max_angle, scale_flag, pp_flag, gpu_ids_flag]
 
                         txt = extractParticles.format(d=paramsCmd)
-                        jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder,
-                                                               name='SubtomoRecon_{}'.format(nsj % num_nodes),
-                                                               num_jobs_per_node=cores, time=time, partition=qname,
-                                                               modules=modules, num_nodes=n_nodes, singleton=True,
-                                                               cmd=qcmd) + txt
 
                     else:
+                        # TODO remove this, closest marker reconstruction will no longer be supported
                         outname = 'Reconstruction/reconstruct_subtomograms_{:03d}_refmarker_{}.sh'
-                        outname = outname.format(int(tomoindex), refid)
-                        execfilename = os.path.join(self.subtomodir, outname)
+                        # outname = outname.format(int(tomoindex), refid)
+                        # execfilename = os.path.join(self.subtomodir, outname)
+                        #
+                        # folder_origin = os.path.join(markerPath, folder_align_type, folder_origin)
+                        #
+                        #
+                        # tomodir = os.path.dirname(os.path.dirname(metafile))
+                        #
+                        # reconAlg = None
+                        # for alg in ('WBP', 'INFR'):
+                        #     if alg in particleXML:
+                        #         reconAlg = alg
+                        #
+                        # if not reconAlg:
+                        #     print('FAIL: subtomogram reconstruction for {} failed. No INFR or WBP in xml path to particle.')
+                        #     continue
+                        #
+                        # # Find the most recent markerLocation file
+                        # end = 'reconstruction/{}/markerLocations*_irefmark_*.txt'
+                        # end = end.format(reconAlg, tomoindex, reconAlg)
+                        # logfilequery = os.path.join(tomodir, end)
+                        # logfiles = glob.glob(logfilequery)
+                        # logfiles.sort(key=os.path.getmtime)
+                        # logfile = logfiles[-1]
+                        #
+                        # qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchSubtomoReconstruct'].values()
+                        #
+                        # paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
+                        #              self.subtomodir, weight, metafile, logfile, str(cores*n_nodes), 'sorted_aligned']
+                        #
+                        # txt = extractParticlesClosestMarker.format(d=paramsCmd)
 
-                        folder_origin = os.path.join(markerPath, folder_align_type, folder_origin)
-
-
-                        tomodir = os.path.dirname(os.path.dirname(metafile))
-
-                        reconAlg = None
-                        for alg in ('WBP', 'INFR'):
-                            if alg in particleXML:
-                                reconAlg = alg
-
-                        if not reconAlg:
-                            print('FAIL: subtomogram reconstruction for {} failed. No INFR or WBP in xml path to particle.')
-                            continue
-
-                        # Find the most recent markerLocation file
-                        end = 'reconstruction/{}/markerLocations*_irefmark_*.txt'
-                        end = end.format(reconAlg, tomoindex, reconAlg)
-                        logfilequery = os.path.join(tomodir, end)
-                        logfiles = glob.glob(logfilequery)
-                        logfiles.sort(key=os.path.getmtime)
-                        logfile = logfiles[-1]
-
-                        qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchSubtomoReconstruct'].values()
-
-                        paramsCmd = [particleXML, folder_origin, bin_read, size, bin_subtomo, offx, offy, offz,
-                                     self.subtomodir, weight, metafile, logfile, str(cores*n_nodes), 'sorted_aligned']
-
-
-                        txt = extractParticlesClosestMarker.format(d=paramsCmd)
-
-                        jobtxt = guiFunctions.gen_queue_header(folder=self.logfolder, singleton=True, num_nodes=n_nodes,
-                                                               name='SubtomoRecon_{}'.format(nsj % num_nodes),
-                                                               partition=qname,num_jobs_per_node=cores, time=time,
-                                                               modules=modules, cmd=qcmd) + txt
-
-                    fname = 'SubtomoRecon_{}'.format(nsj % num_nodes)
+                    job_name = 'SubtomoRecon_{}'.format(nsj % num_nodes)
                     timed = time
                     cmd = txt
 
-                    if gpuIDs and not gpuIDs in jobCode.keys():
-                        job = guiFunctions.gen_queue_header(folder=self.logfolder,name=fname,
-                                                            time=timed, num_nodes=n_nodes, partition=qname, modules=modules,
-                                                            num_jobs_per_node=cores, gpus=gpuIDs,
-                                                            cmd=qcmd)*self.checkbox[
-                            pid].isChecked() + cmd
-                        execfilenames[gpuIDs] = execfilename
-                        jobCode[gpuIDs] = job
+                    if gpu_ids and not gpu_ids in jobCode.keys():
+                        if self.checkbox[pid].isChecked():
+                            job = guiFunctions.gen_queue_header(folder=self.logfolder, name=job_name,
+                                                                time=timed, num_nodes=n_nodes, partition=qname,
+                                                                modules=modules, num_jobs_per_node=cores, gpus=gpu_ids,
+                                                                cmd=qcmd) + cmd
+                        else:
+                            job = cmd
+
+                        execfilenames[gpu_ids] = execfilename
+                        jobCode[gpu_ids] = job
                         nsj += 1
 
-                    elif gpuIDs and gpuIDs in jobCode.keys():
-                        jobCode[gpuIDs] += f'\nwait\n\n{cmd}\n'
+                    elif gpu_ids and gpu_ids in jobCode.keys():
+                        jobCode[gpu_ids] += f'\nwait\n\n{cmd}\n'
 
                     elif not f'noGPU_{nsj % num_nodes}' in jobCode.keys():
-                        job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname,
-                                                            time=timed, num_nodes=n_nodes, partition=qname,
-                                                            modules=modules, num_jobs_per_node=cores, cmd=qcmd) + cmd
+                        if self.checkbox[pid].isChecked():
+                            job = guiFunctions.gen_queue_header(folder=self.logfolder, name=job_name,
+                                                                time=timed, num_nodes=n_nodes, partition=qname,
+                                                                modules=modules, num_jobs_per_node=cores,
+                                                                cmd=qcmd) + cmd
+                        else:
+                            job = cmd
+
                         execfilenames[f'noGPU_{nsj % num_nodes}'] = execfilename
                         jobCode[f'noGPU_{nsj % num_nodes}'] = job
                         nsj += 1
 
                     else:
                         jobCode[f'noGPU_{nsj % num_nodes}'] += f'\nwait\n\n{cmd}\n'
-
-
-                    # ID, num = self.submitBatchJob(execfilename, pid, jobtxt)
-                    # nsj += 1
-                    # qIDs.append(ID)
 
             wid = []
             todoList = {}
@@ -644,9 +646,9 @@ class SubtomoAnalysis(GuiTabWidget):
                 self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
                 self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Subtom Recon Batch')
 
-        except Exception as e:
-            print('Submission failed due to following error: ')
-            print(e)
+        except ValueError:
+            self.popup_messagebox('Warning', 'Invalid value in field',
+                                  'One of filled in values could not be parsed as an integer/float.')
 
     def addParticlePolishFields(self, mode='', title=''):
         # title = "Particle Polish (Single)"
@@ -1003,8 +1005,11 @@ class SubtomoAnalysis(GuiTabWidget):
                                   value=64, minimum=0, stepsize=1,
                                   tooltip='The maximal order of the polynomial used for spherical harmonics alignment.')
         self.insert_label_spinbox(parent, mode + 'frequency', 'Frequency (px)',
-                                  value=8, minimum=0, stepsize=1,
-                                  tooltip='The minimal frequency used for reconstruction.')
+                                  value=8, minimum=2, stepsize=1,
+                                  tooltip='The maximum frequency to consider for the first iteration (in fourier \n'
+                                          'space pixels from the center). If the reference has a known resolution \n'
+                                          'you can provide this as the starting max resolution. If the reference has \n'
+                                          'no known resolution set to the minimum value of 2')
         self.insert_label_spinbox(parent, mode + 'maxIterations', 'Maximum Iterations',
                                   value=8, minimum=1, stepsize=1,
                                   tooltip='Sets the maximal number of iterations of alignmment.')
@@ -1472,7 +1477,7 @@ class SubtomoAnalysis(GuiTabWidget):
     def update_alignment_options(self, mode):
         pl = self.widgets[mode + 'particlelist'].text()
         # to get the tomogram id from the particle list  # TODO could be improved by reading tomogram from list
-        tomo_id = int(pl.split('_tomogram_')[-1][:3])
+        tomo_id = int(pl.split('_tomogram_')[-1][:3])  # TODO this formattting i really dont like
         self.tomogram = 'tomogram_{:03d}'.format(tomo_id)
 
         # clear previous alignment choices
@@ -1538,6 +1543,30 @@ class SubtomoAnalysis(GuiTabWidget):
 
         except IndexError:
             print('No alignment result files found in alignment directory')
+
+    def update_alignment_choice_batch(self, row_id, table_id):
+        w_tomogram = self.tables[table_id].widgets['widget_{}_1'.format(row_id)]
+        w_alignment = self.tables[table_id].widgets['widget_{}_3'.format(row_id)]
+        w_first_angle = self.tables[table_id].widgets['widget_{}_4'.format(row_id)]
+        w_last_angle = self.tables[table_id].widgets['widget_{}_5'.format(row_id)]
+
+        # set the alignment file but if sorted exists, if not get sorted_ctf
+        ar_file = os.path.join(self.tomogram_folder, w_tomogram.text(), 'alignment',
+                               w_alignment.currentText(), 'GlobalAlignment', 'sorted', 'alignmentResults.txt')
+        if not os.path.exists(ar_file):
+            ar_file = os.path.join(self.tomogram_folder, w_tomogram.text(), 'alignment',
+                                   w_alignment.currentText(), 'GlobalAlignment', 'sorted_ctf', 'alignmentResults.txt')
+        # read old and new type of alignment-results
+        try:  # TODO same, dit werkt niet
+            alignment = loadstar(ar_file, dtype=ALIGNRESULTS_ORDER)
+        except:
+            alignment = loadstar(ar_file, dtype=ALIGNRESULTS_OLD)
+        # get min max tilt angles from alignment
+        tilt_angles = alignment['TiltAngle']
+        min_angle = int(round(tilt_angles.min()))
+        max_angle = int(round(tilt_angles.max()))
+        w_first_angle.setText(str(min_angle))
+        w_last_angle.setText(str(max_angle))
 
     def update_ctf_corr_choice(self, mode):
         sorted_choice = self.widgets[mode + 'ctfCorrChoice'].currentText()
@@ -1642,46 +1671,12 @@ class SubtomoAnalysis(GuiTabWidget):
                     if not to in origin:
                         origin.append(to)
 
-        #
-        # closest_choices = {}
-        #
-        # for choice in choices:
-        #     f = os.path.dirname(choice)
-        #     try: a = choice.split('marker_')[1]
-        #     except: continue
-        #     if ',' in a:
-        #
-        #         try:
-        #             aS, aE = a.split('_')[1].split(',')
-        #             angleS = '{:4.1f}'.format( float(aS) )
-        #             angleE = '{:4.1f}'.format( float(aE) )
-        #
-        #             if 'ctf' in a: ctf = '_ctf'
-        #             else: ctf = ''
-        #
-        #
-        #             key = '{}/marker_CLOSEST_{},{}{}'.format(f, angleS, angleE, ctf)
-        #             value = '{}/marker_CLOSEST_{},{}{}'.format(f, aS, aE, ctf)
-        #
-        #
-        #             closest_choices[key] = value
-        #         except:
-        #             pass
-        #
-        #     elif 'marker_' in a:
-        #         closest_choices['{}/marker_CLOSEST'.format(f)] = 1
-        #     elif 'sorted' in a:
-        #         closest_choices[choice] = 1
-        #
-        # choices  = list(closest_choices.values()) + choices
-        #
         self.valuesBatchSubtomoReconstruction[rowID][3] = aligntype
         self.valuesBatchSubtomoReconstruction[rowID][4] = origin
 
         for item in aligntype:
             self.tab12_widgets['widget_{}_3'.format(rowID)].addItem(os.path.basename(item))
-        # for item in origin:
-        #     self.tab12_widgets['widget_{}_4'.format(rowID)].addItem(os.path.basename(item))
+
         if aligntype:
             self.updateAlignmentType(rowID, table_id)
         self.updateHeaderChoices(rowID, table_id)

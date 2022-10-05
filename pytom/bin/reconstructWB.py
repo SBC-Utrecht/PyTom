@@ -11,6 +11,7 @@ from pytom.tools.parse_script_options import parse_script_options2
 from pytom.basic.structures import ParticleList, PickPosition, PyTomClassError
 from pytom.reconstruction.reconstructionStructures import ProjectionList
 from pytom.agnostic.io import write
+from multiprocessing import cpu_count
 
 
 if __name__ == '__main__':
@@ -92,6 +93,7 @@ if __name__ == '__main__':
                                  'Which GPUs do you want to use? This can be a single gpu (0) or multiple (1,'
                                  '3). Multiple GPUs is only implemented for subtomogram reconstruction.',
                                  'string', 'optional')])
+    # TODO add alignment origin option. that way imod alignment center can be passed to function.
 
     tomogram, particle_list_xml, projection_list_xml, projection_directory, projection_prefix, weighting, size, \
     coordinate_binning, rec_offset, projection_binning, metafile, align_result_file, scale_factor_particle, \
@@ -101,6 +103,8 @@ if __name__ == '__main__':
     # parse the gpuIDs and overwrite the nprocs if neccessary
     gpuIDs = None if gpuIDs is None else list(map(int, gpuIDs.split(',')))
     nprocs = len(gpuIDs) if not gpuIDs is None else nprocs
+    if nprocs > cpu_count():  # reduce cpus if not available
+        nprocs = cpu_count()
     size = list(map(int, size.split(',')))
 
     # check if tomogram output directory is viable

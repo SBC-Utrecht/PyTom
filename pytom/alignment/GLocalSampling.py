@@ -167,8 +167,11 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                     raise ValueError("mainAlignmentLoop: set particle diameter or switch off adaptive resolution")
                 angularIncrement = angleFromResolution(resolution=resolutionAngstrom,
                             particleDiameter=alignmentJob.samplingParameters.sampleInformation.getParticleDiameter())
-                angularIncrement = xp.around(alignmentJob.samplingParameters.adaptive_res * angularIncrement, 1)
-                print(">>>>>>>>> Iteration "+str(ii)+": Resolution = %3.2f A; angularIncrement= %2.1f deg." % \
+                if round(alignmentJob.samplingParameters.adaptive_res * angularIncrement, 2) < 0.3:
+                    angularIncrement = round(alignmentJob.samplingParameters.adaptive_res * angularIncrement, 2)
+                else:
+                    angularIncrement = round(alignmentJob.samplingParameters.adaptive_res * angularIncrement, 1)
+                print(">>>>>>>>> Iteration "+str(ii)+": Resolution = %3.2f A; angularIncrement= %2.2f deg." % \
                       (resolutionAngstrom, angularIncrement))
                 alignmentJob.samplingParameters.rotations.setIncrement(increment=angularIncrement)
             else:
@@ -447,7 +450,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
 
             # resolution hokus pokus -> estimate fsc for all particles (this is what RELION does)
             for (ii, fscel) in enumerate(fsc):
-                fsc[ii] = 2. * fscel / (1. + fscel)
+                fsc[ii] = 2. * fscel / (1. + fscel)  # also square root??
 
             try:
                 write_fsc2Ascii(fsc=fsc, filename=alignmentJob.destination + "/FSC-Final.dat")
@@ -624,6 +627,7 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
         particle.setShift(bestPeak.getShift())
         angDiff = differenceAngleOfTwoRotations(rotation1=bestPeak.getRotation(), rotation2=oldRot)
         t2 = time()  # end time after alignment
+        # if verbose:
         shifts_print = bestPeak.getShift().toVector()
         print(f"{fname}: Angular diff before and after alignment {angDiff:2.2f} and shift "
               f"{shifts_print[0]:.4f}, {shifts_print[1]:.4f}, {shifts_print[2]:.4f}... "
@@ -760,11 +764,12 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
                                  progressBar=progressBar, binning=binning, bestPeak=None, verbose=verbose)
     angDiff = differenceAngleOfTwoRotations(rotation1=bestPeak.getRotation(), rotation2=oldRot)
     t2 = time()
-    # print(bestPeak.getRotation())
-    shifts_print = bestPeak.getShift().toVector()
-    print(f"{fname}: Angular diff before and after alignment {angDiff:2.2f} and shift "
-          f"{shifts_print[0]:.4f}, {shifts_print[1]:.4f}, {shifts_print[2]:.4f}... "
-          f"took {t2-t1:3.1f} seconds...")
+
+    if verbose:
+        shifts_print = bestPeak.getShift().toVector()
+        print(f"{fname}: Angular diff before and after alignment {angDiff:2.2f} and shift "
+              f"{shifts_print[0]:.4f}, {shifts_print[1]:.4f}, {shifts_print[2]:.4f}... "
+              f"took {t2-t1:3.1f} seconds...")
     rotations.reset()
 
     particle.setRotation(bestPeak.getRotation())
@@ -802,7 +807,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     assert splitFactor > 0, "splitFactor == 0, issue with parallelization"
     print(f'Device = {device}')
     if 'gpu' in device:
-        from pytom.bin.average import averageGPU2 as average
+        from pytom.bin.average import averageGPU as average
         from pytom.agnostic.structures import Reference
         from pytom.agnostic.io import read, write
 

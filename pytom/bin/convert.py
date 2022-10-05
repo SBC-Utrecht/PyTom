@@ -10,9 +10,6 @@ To join the conversion scripts scattered all around the bin folder into one sing
 
 import pytom.basic.files as f
 import os
-import re
-import numpy
-#from pytom.gui.guiFunctions import createMetaDataFiles
 
 # The lookup tables for the conversion functions
 extensions = all_extensions = ["em", "mrc", "ccp4", "pl", "meta", "pdb", "mmCIF", 'mrcs', 'st', 'mdoc', 'h5', 'star', 'txt', 'wimp', 'xml', 'log']
@@ -300,7 +297,8 @@ if __name__ == '__main__':
         chaindata['wedgeAngles'] = wedge_angles
 
     if filename:
-        warn_if_file_exists(f.name_to_format(filename, target, format) if outname == '' else outname)
+        warn_if_file_exists(f.name_to_format(filename, target, format) if outname == ''
+                            else f.name_to_format(outname, target, format))
 
         num, ex = convertfile(filename, format, target, chaindata, subtomo_prefix, wedge_angles)
 

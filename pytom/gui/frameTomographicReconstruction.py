@@ -497,23 +497,25 @@ class TomographReconstruct(GuiTabWidget):
                                   minimum=-90, maximum=90, stepsize=1, value=0)
         self.insert_label_combobox(parent, 'Ctf corrected', mode + 'ctfCorrChoice', labels=[],
                                    tooltip='Select original (sorted) or ctf corrected images (sorted_ctf).')
-        self.insert_label_spinbox(parent, mode + 'SpecimenAngle', text='Specimen angle (degrees)',
-                                  value=0, minimum=-90, maximum=90,
-                                  tooltip='Angle of the specimen, will be added to the tilt axis rotation. Can be '
-                                          'used to place the sample horizontally in the tomogram.')
+        # self.insert_label_spinbox(parent, mode + 'SpecimenAngle', text='Specimen angle (degrees)',
+        #                           value=0, minimum=-90, maximum=90,
+        #                           tooltip='Angle of the specimen, will be added to the tilt axis rotation. Can be '
+        #                                   'used to place the sample horizontally in the tomogram.')
         self.insert_label_spinbox(parent, mode + 'WeightingType', text='Weighting Type',
                                   value=1, minimum=-1, maximum=1, stepsize=1,
                                   tooltip='Select weighting type:\n\t 0: no weighting\n\t-1: analytical weighting'+
                                           '\n\t 1: "exact" weighting')
         self.insert_label_spinbox(parent, mode + 'BinningFactor', text='Binning Factor', value=8, minimum=1,
                                   tooltip='Binning factor used for reconstruction')
-        self.insert_label_line(parent, "GPU's", mode + 'gpuID', cstep=0, validator=QIntValidator(),
+        self.insert_label_line(parent, "GPU's", mode + 'gpuID', validator=QIntValidator(),
                                tooltip="Which GPU's do you want to reserve. If you want to use multiple GPUs "
                                        "separate them using a comma, e.g. 0,1,2 ")
+        self.insert_label_line(parent, "Cores", mode + 'cores', cstep=0, validator=QIntValidator(),
+                               tooltip="How many procs to use if run on cpus")
 
         # initialize backend info for reconstruction
         for name in ('tomofolder', 'SpecimenAngleFlag', 'DimY', 'DimX', 'DimZ', 'Voldims', 'RotationTiltAxis',
-                     'alignmentResultsFile', 'projectionDir', 'gpuString'):
+                     'alignmentResultsFile', 'projectionDir', 'gpuString', 'cores_flag'):
             self.widgets[mode + name] = QLineEdit('')
 
         # update all alignment options whenever tomogram is changed
@@ -522,8 +524,8 @@ class TomographReconstruct(GuiTabWidget):
         self.update_tomogram_reconstruction(mode)
 
         # set the specimen angle flag if a value is selected
-        self.widgets[mode + 'SpecimenAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateSpecimenAngle(m))
-        self.updateSpecimenAngle(mode)
+        # self.widgets[mode + 'SpecimenAngle'].valueChanged.connect(lambda dummy, m=mode: self.updateSpecimenAngle(m))
+        # self.updateSpecimenAngle(mode)
 
         # volume dims can change for different bin, rotation axis, and projections
         self.widgets[mode + 'BinningFactor'].valueChanged.connect(lambda dummy, m=mode: self.update_vol_dims(m))
@@ -532,24 +534,24 @@ class TomographReconstruct(GuiTabWidget):
         self.update_vol_dims(mode)
 
         # update gpu string
-        self.widgets[mode + 'gpuID'].textChanged.connect(lambda d, m=mode: self.updateGpuString(m))
+        self.widgets[mode + 'gpuID'].textChanged.connect(lambda d, ids=self.widgets[mode + 'gpuID'],
+                                                         flag=self.widgets[mode + 'gpuString']:
+                                                         self.update_gpu_flag(ids, flag, single_gpu=True))
+        self.widgets[mode + 'cores'].textChanged.connect(lambda d, inp=self.widgets[mode + 'cores'],
+                                                         flag=self.widgets[mode + 'cores_flag']:
+                                                         self.update_cores_flag(inp, flag, suppress_message=False))
 
         execfilename = [mode + 'tomofolder', 'reconstruction/WBP/WBP_Reconstruction.sh']
 
         # TODO Remove these parameters as these should not be used. Instead we should just stick with the qparams.
-        paramsSbatch = guiFunctions.createGenericDict()
-        paramsSbatch['fname'] = 'ReconstructionWBP'
-        paramsSbatch[ 'folder' ] = self.logfolder
-        # paramsSbatch['partition'] = 'fastq'
-        paramsSbatch['time'] = 1
-        paramsSbatch['num_jobs_per_node'] = 1
-        paramsSbatch['id'] = 'ReconstructWBP'
+        paramsSbatch = guiFunctions.createGenericDict(fname='ReconstructionWBP', folder=self.logfolder,
+                                                      id='ReconstructWBP')
 
         paramsCmd = [mode + 'tomofolder', self.parent().pytompath, mode + 'BinningFactor', mode + 'tomogram',
                      mode + 'Voldims', mode + 'WeightingType', mode + 'RotationTiltAxis',
                      mode + 'SpecimenAngleFlag', mode + 'DimY', mode + 'DimZ', mode + 'alignmentResultsFile',
                      mode + 'gpuString', mode + 'projectionDir', mode + 'firstAngle', mode + 'lastAngle',
-                     templateWBP]
+                     mode + 'cores_flag', templateWBP]
 
         self.insert_gen_text_exe(parent, mode, exefilename=execfilename, paramsSbatch=paramsSbatch,
                                  paramsCmd=paramsCmd, mandatory_fill=[mode + 'tomofolder',
@@ -560,80 +562,80 @@ class TomographReconstruct(GuiTabWidget):
         label.setSizePolicy(self.sizePolicyA)
         self.table_layouts[id].addWidget(label)
 
-    def tab53UI(self, id=''):
+    def tab53UI(self, key='tab53'):
         # TODO INFR option needs to be put back in
-        # headers = ["name tomogram", "INFR", 'WBP', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker',
-        #            'Bin Factor', 'Weighting Type', 'Specimen Angle', '']
-        # types = ['txt', 'checkbox', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit',
-        #          'lineedit', 'lineedit', 'lineedit', 'txt']
-        # sizes = [0, 80, 80, 0, 0, 0, 0, 0, 0, 0, 0]
-
-        headers = ["name tomogram", 'WBP', 'First Angle', "Last Angle", 'Ref. Image', 'Ref. Marker',
-                   'Bin Factor', 'Weighting Type', 'Specimen Angle', '']
-        types = ['txt', 'checkbox', 'lineedit', 'lineedit', 'lineedit', 'lineedit',
-                 'lineedit', 'lineedit', 'lineedit', 'txt']
-        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-
+        # TODO specimen angle back in?
+        headers = ['name tomogram', 'WBP', 'alignment', 'first angle', 'last angle', 'ctf', 'weighting for WBP',
+                   'binning', 'gpu id', '']
+        types = ['txt', 'checkbox', 'combobox', 'lineedit', 'lineedit', 'combobox', 'lineedit', 'lineedit',
+                 'lineedit', '']
+        sizes = [0, 80, 0, 0, 0, 0, 0, 0, 0, 0]
         tooltip = ['Names of existing tomogram folders.',
                    # 'Do INFR Reconstruction.',
                    'Do WBP Reconstruction.',
+                   'Select alignment type',
                    'First angle of tiltimages',
                    'Last angle of tiltimages',
-                   'Reference Image number.',
-                   'Reference Marker number.',
+                   'Whether to use ctf corrected images',
                    'Binning factor applied to images.',
                    'Weighting type: -1 ramp weighting, 1 analytical weighting, 0 no weighting',
-                   'Angle of specimen around tilt-axis']
+                   'GPU ID, only applicable for WPB currently (e.g 3)']  # 'Angle of specimen around tilt-axis',
 
-        markerfiles = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.txt'.format(self.tomogram_folder)))
+        # ctf combobox can be filled from beginning as the tomogram does not change
+        # alignment options can as well be filled from beginning
+        # there should be a link between alignment and the first/last angle. Everytime alignment is changed the first
+        # last angle should be updated
 
-        markerfilesEM = sorted(glob.glob('{}/tomogram_*/sorted/markerfile.em'.format(self.tomogram_folder)))
+        # get all tomograms present in the project
+        tomogram_folders = sorted(glob.glob('{}/*'.format(self.tomogram_folder)))
+        tomogram_folders = [t for t in tomogram_folders if not 'jobscripts' in os.path.basename(t)]
+        tomograms = [os.path.basename(d) for d in tomogram_folders]
 
-        novel = [markerfile for markerfile in markerfilesEM if not markerfile[:-3]+'.txt' in markerfiles]
-
-        markerfiles += novel
-        markerfiles += sorted(glob.glob('{}/tomogram_*/sorted/alignmentResults.txt'.format(self.tomogram_folder)))
-        markerfiles = sorted(markerfiles)
+        # initialize list for data per tomo
         values = []
 
-        # TODO table should not be populated based on markerfile presence! Should be populated based on alignment
-        # results??
-        for markerfile in markerfiles:
-            qmarkerfile = os.path.join(os.path.dirname(markerfile), '*.meta')
-            qsortedfiles = os.path.join(os.path.dirname(markerfile), 'sorted_*.mrc')
+        # get info per tomogram about alignment options and ctf options
+        for tomo_name, tomo_folder in zip(tomograms, tomogram_folders):
 
-            metafile = glob.glob( qmarkerfile )[0]
+            # find available alignments
+            alignment_dir = os.path.join(tomo_folder, 'alignment')
+            alignment_choices = []
+            for alignment in os.listdir(alignment_dir):
+                d = os.path.join(alignment_dir, alignment)
+                if os.path.exists(d) and os.path.isdir(d):
+                    for pointer in os.listdir(os.path.join(d, 'GlobalAlignment')):
+                        f = os.path.join(d, 'GlobalAlignment', pointer, 'alignmentResults.txt')
+                        if os.path.exists(f):
+                            alignment_choices.append(alignment)
+                            break
+                    # we might have found an alignment file
 
-            metadata = loadstar(metafile, dtype=guiFunctions.datatype)
-            tilt_angles = metadata['TiltAngle'].copy()
-            files = [f for f in os.listdir(os.path.dirname(markerfile)) if f.startswith('sorted') and f.endswith('mrc')]
-            for ntilt, t in enumerate(tilt_angles):
-                if not 'sorted_{:02d}.mrc'.format(ntilt) in files:
-                    tilt_angles[ntilt] = 100000.
+            # get ctf options
+            sorted_dir = os.path.join(tomo_folder, 'sorted')
+            ctf_sorted_dir = os.path.join(tomo_folder, 'ctf', 'sorted_ctf')
+            tilt_choices = []
+            if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
+                tilt_choices.append('sorted')
+            if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+                tilt_choices.append('sorted_ctf')
 
-            index_zero_angle = numpy.argmin(numpy.abs(tilt_angles))
-            files =  os.listdir( os.path.dirname(markerfile) )
-            fnames = sorted([fname for fname in files if fname.startswith('sorted') and fname.endswith('mrc') ])
+            # add to table fill, angles will be set in a bit
+            values.append([tomo_name, True, alignment_choices, 0, 0, tilt_choices, -1, 8, '', ''])
 
-            try:
-                query = os.path.join(os.path.dirname(metafile), '../reconstruction/*/specimen_rotation_angle.txt')
-                file_list = glob.glob(query)
-                if file_list:
-                    file_list.sort(key=os.path.getmtime)
-                    specimen_angle_file = file_list[-1]
-                    angle = float(open(specimen_angle_file,'r').read()[:-1])
-                else:
-                    angle=0
-            except Exception as e:
-                print(e)
-                angle=0
+        # set the base values and the connect alignment type with angle reading
+        self.fill_tab(key, headers, types, values, sizes, tooltip=tooltip, wname=self.stage + 'BatchReconstruct')
+        self.widgets[key + 'gpu_flag'] = QLineEdit('')
+        for row in range(len(values)):
+            w = self.tables[key].widgets['widget_{}_2'.format(row)]  # alignment choice widget
+            w.currentIndexChanged.connect(lambda d, r=row, k=key: self.update_alignment_choice_batch(r, k))
+            self.update_alignment_choice_batch(row, key)
 
-            values.append( [markerfile.split('/')[-3], True,
-                            numpy.floor(tilt_angles.min()), numpy.ceil(tilt_angles[tilt_angles < 200].max()),
-                            index_zero_angle, 1, 8, -1, angle, ''] )
+            # gpu flag is not used but just to check if the input is valid
+            w = self.tables[key].widgets['widget_{}_8'.format(row)]
+            w.textChanged.connect(lambda d, ids=w, flag=self.widgets[key + 'gpu_flag']:
+                                  self.update_gpu_flag(ids, flag, single_gpu=True, suppress_message=True))
 
-        self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, wname=self.stage+'BatchReconstruct')
-        self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.run_multi_reconstruction(pid, v))
+        self.pbs[key].clicked.connect(lambda dummy, pid=key: self.run_multi_reconstruction(pid))
 
     def fill_tab(self, id, headers, types, values, sizes, tooltip=[], connect=0, nn=False, nc=False, wname=''):
         try:
@@ -662,18 +664,6 @@ class TomographReconstruct(GuiTabWidget):
         except:
             self.num_nodes = {}
             self.num_nodes[id] = 0   # should this not be num_nodes ??
-
-        # if nc:
-        #     num_cores = QSpinBox()
-        #     num_cores.setValue(1)
-        #     num_cores.setRange(1, )
-        #     num_cores.setPrefix('Number of cores: ')
-        #
-        # try:
-        #     self.num_cores[id] = num_cores
-        # except:
-        #     self.num_cores = {}
-        #     self.num_cores[id] = num_cores
 
         for n, a in enumerate((self.tables[id], self.num_nodes[id], self.checkbox[id], self.pbs[id], self.ends[id])):
             if n==1 and not nn: continue
@@ -1552,7 +1542,7 @@ class TomographReconstruct(GuiTabWidget):
 
             # if an alignment file has been selected, we can start looking for angle range
             if os.path.exists(self.widgets[mode + 'alignmentResultsFile'].text()):
-                try:
+                try:  # TODO dit werkt niet als verwacht
                     alignment = loadstar(self.widgets[mode + 'alignmentResultsFile'].text(), dtype=ALIGNRESULTS_ORDER)
                 except:
                     alignment = loadstar(self.widgets[mode + 'alignmentResultsFile'].text(), dtype=ALIGNRESULTS_OLD)
@@ -1572,6 +1562,30 @@ class TomographReconstruct(GuiTabWidget):
             self.widgets[mode + 'RotationTiltAxis'].setText(str(alignment['InPlaneRotation'][0]))
         except IndexError:
             print('No sorted or sorted_ctf folder in the alignment directory.')
+
+    def update_alignment_choice_batch(self, row_id, table_id):
+        w_tomogram = self.tables[table_id].widgets['widget_{}_0'.format(row_id)]
+        w_alignment = self.tables[table_id].widgets['widget_{}_2'.format(row_id)]
+        w_first_angle = self.tables[table_id].widgets['widget_{}_3'.format(row_id)]
+        w_last_angle = self.tables[table_id].widgets['widget_{}_4'.format(row_id)]
+
+        # set the alignment file but if sorted exists, if not get sorted_ctf
+        ar_file = os.path.join(self.tomogram_folder, w_tomogram.text(), 'alignment',
+                               w_alignment.currentText(), 'GlobalAlignment', 'sorted', 'alignmentResults.txt')
+        if not os.path.exists(ar_file):
+            ar_file = os.path.join(self.tomogram_folder, w_tomogram.text(), 'alignment',
+                                   w_alignment.currentText(), 'GlobalAlignment', 'sorted_ctf', 'alignmentResults.txt')
+        # read old and new type of alignment-results
+        try:  # TODO same, dit werkt niet
+            alignment = loadstar(ar_file, dtype=ALIGNRESULTS_ORDER)
+        except:
+            alignment = loadstar(ar_file, dtype=ALIGNRESULTS_OLD)
+        # get min max tilt angles from alignment
+        tilt_angles = alignment['TiltAngle']
+        min_angle = int(round(tilt_angles.min()))
+        max_angle = int(round(tilt_angles.max()))
+        w_first_angle.setText(str(min_angle))
+        w_last_angle.setText(str(max_angle))
 
     def update_ctf_corr_choice(self, mode):
         sorted_choice = self.widgets[mode + 'ctfCorrChoice'].currentText()
@@ -1614,6 +1628,22 @@ class TomographReconstruct(GuiTabWidget):
         self.widgets[mode + 'DimX'].setText(f'{dx}')
         self.widgets[mode + 'DimY'].setText(f'{dy}')
         self.widgets[mode + 'DimZ'].setText(f'{dz}')
+
+    def update_cores(self, mode):
+        n_cores = self.widgets[mode + 'cores'].text()
+        if n_cores == '':
+            self.widgets[mode + 'cores_flag'].setText('')
+            return
+        try:
+            n_cores = int(n_cores)
+        except ValueError:
+            self.widgets[mode + 'cores'].setText('')
+            self.widgets[mode + 'cores_flag'].setText('')
+            self.popup_messagebox('Warning', 'Invalid value in field',
+                                  'Can only fill in integer number of cpu cores')
+            return
+
+        self.widgets[mode + 'cores_flag'].setText(f'--numProcesses {n_cores} ')
 
     def convert_em(self,params):
         mode = params[0]
@@ -1884,139 +1914,163 @@ class TomographReconstruct(GuiTabWidget):
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
             self.addProgressBarToStatusBar(submissionIDs, key='QJobs', job_description='CTF Correction Batch')
 
-    def run_multi_reconstruction(self, id, values):
+    def run_multi_reconstruction(self, id):
         print('multi_reconstructions', id)
 
-        qIDs = []
-        n = len(sorted(glob.glob('{}/tomogram_*/sorted/*.meta'.format(self.tomogram_folder))))
         table = self.tables[id].table
         widgets = self.tables[id].widgets
         mode = 'batch_recon_'
-        dd = {1:'reconstruction/INFR', 2:'reconstruction/WBP'}
+        dd = {1: ('INFR', 'reconstruction/INFR'), 2: ('WBP', 'reconstruction/WBP')}
 
-        for name in ('FirstAngle', 'LastAngle', 'FirstIndex', 'LastIndex', 'Reduced', 'DimY'):
+        # initialize widgets for calculating tomogam dims
+        for name in ('Voldims', 'DimX', 'DimY', 'DimZ', 'RotationTiltAxis', 'FolderSorted',
+                     'BinningFactor', 'gpu_flag'):
             if mode + name in self.widgets.keys():
                 continue
             self.widgets[mode + name] = QLineEdit()
 
+        # initialize for job submission
+        nsj = 0
+        jobCode = {}
+        execfilenames = {}
 
-        num_submitted_jobs = 0
-        for row in range(table.rowCount()):
-            tomofolder = os.path.join(self.tomogram_folder, values[row][0])
-            metafile = glob.glob(os.path.join(tomofolder,'sorted/*.meta'))
+        try:
+            for row in range(table.rowCount()):
+                tomogram = widgets['widget_{}_0'.format(row)].text()
+                tomofolder = os.path.join(self.tomogram_folder, tomogram)
 
-            firstAngle       = widgets['widget_{}_{}'.format(row, 2)].text()
-            lastAngle        = widgets['widget_{}_{}'.format(row, 3)].text()
-            refTiltImage     = widgets['widget_{}_{}'.format(row, 4)].text()
-            refmarkindex     = widgets['widget_{}_{}'.format(row, 5)].text()
-            binningFactor    = widgets['widget_{}_{}'.format(row, 6)].text()
-            weightingType    = widgets['widget_{}_{}'.format(row, 7)].text()
-            specimenAngle    = widgets['widget_{}_{}'.format(row, 8)].text()
+                # TODO increment by 1 when INFR is added back in
+                alignment       = widgets['widget_{}_{}'.format(row, 2)].currentText()
+                first_angle     = int(widgets['widget_{}_{}'.format(row, 3)].text())
+                last_angle      = int(widgets['widget_{}_{}'.format(row, 4)].text())
+                projection_dir  = widgets['widget_{}_{}'.format(row, 5)].currentText()
+                weighting       = int(widgets['widget_{}_{}'.format(row, 6)].text())
+                binning         = int(widgets['widget_{}_{}'.format(row, 7)].text())
+                specimen_angle  = ''  # if activate => float(widgets['widget_{}_{}'.format(row, 8)].text())
+                gpu_id          = ''  # set as empty as INFR cannot use gpus
+                self.update_gpu_flag(widgets['widget_{}_{}'.format(row, 8)],
+                                     self.widgets[mode + 'gpu_flag'], single_gpu=True, suppress_message=True)
 
-            try:
-                metadata = loadstar(metafile[-1], dtype=guiFunctions.datatype)
-            except:
-                self.popup_messagebox('Warning', 'Failed submission reconstruction',
-                                      'Cannot load {}.'.format(os.path.basename(metafile)))
-                continue
+                sorted_folder = os.path.join(tomofolder, 'ctf', 'sorted_ctf') if 'ctf' in projection_dir else \
+                    os.path.join(tomofolder, 'sorted')
 
-            sortedFolder = os.path.join(tomofolder, 'sorted')
-            self.widgets[mode + 'tomofolder'] = QLineEdit(text=tomofolder)
-            self.widgets[mode + 'FolderSorted'] = QLineEdit(text=sortedFolder)
-            self.widgets[mode + 'BinningFactor'] = QLineEdit(text=binningFactor)
-
-            for i in (1, 2):  # TODO add INFR back in by looping over 1, 2
-                # ======= skip filling for INFR
-                if i == 2:
-                    continue
-
-                widget = 'widget_{}_{}'.format(row, i)
-                i += 1
-                # ========
-
-                if widgets[widget].isChecked():
-
-                    for name in ('FirstAngle', 'LastAngle', 'FirstIndex', 'LastIndex', 'Reduced', 'Voldims',
-                                 'RotationTiltAxis', 'DimX', 'DimY', 'DimZ'):
-                        if mode + name in self.widgets.keys():
-                            continue
-                        self.widgets[mode + name] = QLineEdit()
-
-                    uudir = 'marker_{:04d}_{:.1f},{:.1f}'.format(int(refmarkindex), float(firstAngle),
-                                                                 float(lastAngle))
-                    alignment_file = os.path.join('alignment', uudir, 'GlobalAlignment', 'sorted',
-                                                  'alignmentResults.txt')
-                    expectedRotation = axis_angle_from_ar_file(os.path.join(
-                        self.widgets[mode + 'tomofolder'].text(), alignment_file))
-
-                    self.widgets[mode+'FirstAngle'].setText(firstAngle)
-                    self.widgets[mode+'LastAngle'].setText(lastAngle)
-                    self.widgets[mode+'RotationTiltAxis'].setText(str(expectedRotation))
-
-                    self.updateIndex(mode)
-                    firstIndex, lastIndex = int(self.widgets[mode+'FirstIndex'].text()), int(self.widgets[mode+'LastIndex'].text())
-
-                    params = [mode,dd[i],'sorted']
-                    self.convert_em(params)
-
-                    execfilename = os.path.join(tomofolder, '{}/{}_Reconstruction.sh'.format(dd[i], dd[i].split('/')[-1]))
-                    paramsSbatch = guiFunctions.createGenericDict()
-                    paramsSbatch['folder'] = self.logfolder #os.path.dirname(execfilename)
-                    paramsSbatch['id'] = 'BatchReconstruct'
-
-                    if i == 1:
-                        paramsCmd = [tomofolder, self.pytompath, firstIndex + 1, lastIndex + 1, int(refTiltImage) + 1,
-                                     refmarkindex, binningFactor, self.pytompath, os.path.basename(tomofolder)]
-                        commandText = templateINFR.format(d=paramsCmd)
-                        paramsSbatch['fname'] = 'Reconstruction_{}_INFR.sh'.format(os.path.basename(tomofolder))
-                    elif i==2:
-                        specimenAngleFlag = '' if specimenAngle == 0 or specimenAngle == '' else \
-                            f'--specimenAngle {specimenAngle} '
-                        self.updateVoldims(mode)
-                        voldims = self.widgets[mode + 'Voldims'].text()
-                        dimy = self.widgets[mode + 'DimY'].text()
-
-                        if abs(90-(expectedRotation%180)) < 45:
-                            dx,dy,dz = dimy, voldims, dimy
-                        else:
-                            dx,dy,dz  = voldims, dimy, voldims
-
-                        paramsCmd = [tomofolder, self.pytompath, firstIndex, lastIndex, refTiltImage, refmarkindex,
-                                     binningFactor, os.path.basename(tomofolder), 'mrc', dx, weightingType,
-                                     None, specimenAngleFlag, dy, dz, alignment_file]
-
-                        commandText= templateWBP.format(d=paramsCmd)
-                        paramsSbatch['fname'] = 'Reconstruction_{}_WBP.sh'.format(os.path.basename(tomofolder))
-                    else:
-                        print( 'No Batch Submission' )
+                for dd_key, (method, method_folder) in dd.items():  # TODO add INFR back in by looping over 1, 2
+                    # ======= skip filling for INFR
+                    if method == 'INFR':
+                        widget = 'widget_{}_{}'.format(row, dd_key)
                         continue
+                    else:
+                        widget = 'widget_{}_{}'.format(row, 1)  # should be dd_key if INFR is added back
+                    # ========
 
-                    if self.checkbox[id].isChecked():
+                    if widgets[widget].isChecked():
+
+                        alignment_folder = os.path.join(tomofolder, 'alignment', alignment, 'GlobalAlignment')
+                        pointer = [d for d in os.listdir(alignment_folder) if 'sorted' in d][0]
+                        ar_file = os.path.join(alignment_folder, pointer, 'alignmentResults.txt')
+                        rotation_tilt_axis = axis_angle_from_ar_file(ar_file)
+                        self.widgets[mode + 'RotationTiltAxis'].setText(str(rotation_tilt_axis))
+                        self.widgets[mode + 'FolderSorted'].setText(sorted_folder)
+                        self.widgets[mode + 'BinningFactor'].setText(str(binning))
+                        # determine dims based on rotation axis (same as imod)
+                        self.updateVoldims(mode)
+                        dx, dy, dz = (int(self.widgets[mode + 'DimX'].text()),
+                                      int(self.widgets[mode + 'DimY'].text()),
+                                      int(self.widgets[mode + 'DimZ'].text()))
+
                         qname, n_nodes, cores, time, modules, qcmd = self.qparams['BatchReconstruct'].values()
-                        header = guiFunctions.gen_queue_header(name=paramsSbatch['fname'],
-                                                               folder=paramsSbatch['folder'],
-                                                               modules=modules, time=1, num_jobs_per_node=1,
-                                                               partition=qname, cmd=qcmd)
-                        commandText = header + commandText
+                        execfilename = os.path.join(tomofolder, '{}/{}_Reconstruction.sh'.format(method_folder,
+                                                                                                 method))
 
-                    ID, num = self.submitBatchJob(execfilename, id, commandText)
-                    num_submitted_jobs += 1
-                    qIDs.append(ID)
+                        if method == 'INFR':
+                            paramsCmd = [tomofolder, self.pytompath, first_angle, last_angle,
+                                         binning, sorted_folder, ar_file, specimen_angle, os.path.basename(tomofolder)]
+                            txt = templateINFR.format(d=paramsCmd)
 
-                    # else:
-                    #     print(f'Submitting job {self.workerID}')
-                    #     proc = Worker(fn=self.submitBatchJob, args=((execfilename, id, commandText)), sig=False, results=True)
-                    #     proc.signals.results.connect(self.retrieveJobID)
-                    #     self.threadPool.start(proc)
-                    #
-                    #     self.workerID += 1
-                    # params = [execfilename, commandText]
-                    # self.submit_multi_recon_job(params)
-                    # num_submitted_jobs += 1
+                        elif method == 'WBP':
+                            specimen_angle_flag = '' if specimen_angle == 0 or specimen_angle == '' else \
+                                f'--specimenAngle {specimen_angle} '
+                            gpu_flag = self.widgets[mode + 'gpu_flag'].text()
+                            gpu_id = widgets['widget_{}_{}'.format(row, 8)].text()
+                            cores_flag = '' if gpu_flag != '' else f'--numProcesses {cores} '
 
-        if num_submitted_jobs > 0:
-            self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
-            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Tom. Reconstr. Batch')
+                            paramsCmd = [tomofolder, self.pytompath, binning, tomogram, dx, weighting,
+                                         rotation_tilt_axis, specimen_angle_flag, dy, dz, ar_file, gpu_flag,
+                                         sorted_folder, first_angle, last_angle, cores_flag]
+
+                            txt = templateWBP.format(d=paramsCmd)
+
+                        else:
+                            print('No Batch Submission')
+                            continue
+
+                        # what about gpus in slurm???
+                        job_name = 'TomoRecon_{}'.format(nsj % n_nodes)  # ??
+                        cmd = txt
+
+                        if gpu_id != '' and method == 'WBP':  # force that only WBP can use GPUs (might be changed in
+                            # future if INFR is ported to GPU)
+                            job_code_key = method + '_' + str(gpu_id)
+
+                            if not job_code_key in jobCode.keys():
+                                if self.checkbox[id].isChecked():
+                                    job = guiFunctions.gen_queue_header(folder=self.logfolder, name=job_name,
+                                                                        time=time, num_nodes=n_nodes, partition=qname,
+                                                                        modules=modules,
+                                                                        num_jobs_per_node=cores, gpus=gpu_id,
+                                                                        cmd=qcmd) + cmd
+                                else:
+                                    job = cmd
+                                execfilenames[job_code_key] = execfilename
+                                jobCode[job_code_key] = job
+                                nsj += 1
+
+                            elif job_code_key in jobCode.keys():
+                                jobCode[job_code_key] += f'\nwait\n\n{cmd}\n'
+
+                        else:  # set up CPU jobs
+                            job_code_key = method + '_' + f'noGPU_{nsj % n_nodes}'
+                            if not job_code_key in jobCode.keys():
+                                if self.checkbox[id].isChecked():
+                                    job = guiFunctions.gen_queue_header(folder=self.logfolder, name=job_name,
+                                                                        time=time, num_nodes=n_nodes, partition=qname,
+                                                                        modules=modules, num_jobs_per_node=cores,
+                                                                        cmd=qcmd) + cmd
+                                else:
+                                    job = cmd
+
+                                execfilenames[job_code_key] = execfilename
+                                jobCode[job_code_key] = job
+                                nsj += 1
+
+                            else:
+                                jobCode[job_code_key] += f'\nwait\n\n{cmd}\n'
+
+            wid = []
+            todoList = {}
+
+            for key in jobCode.keys():
+                if not key in todoList:
+                    todoList[key] = []
+                todoList[key].append([execfilenames[key], id, jobCode[key]])
+
+            from time import sleep
+            for key in todoList.keys():
+                print(f'starting {len(todoList[key])} jobs on device {key}')
+                self.localJobs[self.workerID] = []
+                wid.append(self.workerID)
+                proc = Worker(fn=self.multiSeq, args=((self.submitBatchJob, todoList[key], self.workerID)))
+                self.threadPool.start(proc)
+                self.workerID += 1
+                sleep(.01)
+
+            if nsj > 0:
+                self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
+                self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Tom. Reconstr. Batch')
+
+        except ValueError:
+            self.popup_messagebox('Warning', 'Invalid value in field',
+                                  'One of filled in values could not be parsed as an integer/float.')
 
     def submit_multi_recon_job(self, params):
 

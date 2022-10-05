@@ -1,3 +1,9 @@
+import numpy as np
+from pytom.basic.fourier import radialaverage, ftshift, iftshift
+from pytom_volume import reducedToFull, fullToReduced, vol, max
+from math import sqrt
+
+
 def profile2FourierVol( profile, dim=None, reduced=False):
     """
     create Volume from 1d radial profile, e.g., to modulate signal with \
@@ -38,7 +44,7 @@ def profile2FourierVol( profile, dim=None, reduced=False):
     if reduced:
         centx = 0
     else:
-        centx = int(dim/2)
+        centx = dim//2 + 1
         centy = centx
         centz = centx
     for ix in range(0,nx):
@@ -689,6 +695,82 @@ def gaussian_filter(vol, sigma):
     res = npy2vol(np.array(r, dtype='float32', order='F'), 3)
     
     return res
+
+def wiener_filter(fsc, even_ctf_sum, odd_ctf_sum, fudge=1):
+    """
+    Generate relion type wiener filters for the even and odd averages.
+
+    @param fsc: fsc curve of even and odd averages
+    @type fsc: L{list}
+    @param even_ctf_sum: even ctf sum volume, normalized over the number of particles in the half set, reduced complex
+    @type even_ctf_sum: L{pytom_volume.vol}
+    @param odd_ctf_sum: odd ctf sum volume, normalized over the number of particles in the half set, reduced complex
+    @type odd_ctf_sum: L{pytom_volume.vol}
+    @param fudge: relion fudge factor (T)
+    @type fudge: L[float}
+    @return: returns two filters for the odd and even half map filter1, filter2
+    @rtype: L{[pytom_volume.vol, pytom_volume.vol]}
+    """
+    assert even_ctf_sum.sizeX() == even_ctf_sum.sizeY() and even_ctf_sum.sizeX() // 2 + 1 == even_ctf_sum.sizeZ(), \
+        'even volume does not have correct dimensions'
+    assert even_ctf_sum.sizeX() == odd_ctf_sum.sizeX() and even_ctf_sum.sizeY() == odd_ctf_sum.sizeY() and \
+           even_ctf_sum.sizeZ() == odd_ctf_sum.sizeZ(), 'even and odd ctf volumes not matching'
+
+    # get a radial profile of the summed wedges
+    wedge_ctf_sum = even_ctf_sum + odd_ctf_sum
+    radial = radialaverage(wedge_ctf_sum, isreduced=True)
+
+    # get full complex version of the ctf volumes
+    even_ctf_full = ftshift(reducedToFull(even_ctf_sum), inplace=False)
+    odd_ctf_full = ftshift(reducedToFull(odd_ctf_sum), inplace=False)
+    # sum_ctf_full = ftshift(reducedToFull(wedge_ctf_sum), inplace=False)
+    sx, sy, sz = even_ctf_full.sizeX(), even_ctf_full.sizeY(), even_ctf_full.sizeZ()
+    centerx, centery, centerz = sx // 2 + 1, sy // 2 + 1, sz // 2 + 1
+
+    # find the first zero crossing of the ctf
+    fsc = np.array(fsc)
+    zero_crossings = np.where(np.diff(fsc > 0))[0] + 1
+    if len(zero_crossings) != 0:
+        rmax = zero_crossings[0]
+    else:
+        rmax = sx // 2 - 1
+    fsc[rmax:] = 0  # set to 0 after first crossing to prevent artifacts
+
+    # turn radial average profile and fsc profile into volumes
+    fsc_vol = profile2FourierVol(fsc, dim=sx)
+    radial_vol = profile2FourierVol(radial, dim=sx)
+
+    even_filter = vol(sx, sy, sz)
+    even_filter.setAll(0.)
+    odd_filter = vol(sx, sy, sz)
+    odd_filter.setAll(0.)
+    # final_average_filter = vol(sx, sy, sz)
+    # final_average_filter.setAll(0.)
+
+    for x in range(sx):
+        for y in range(sy):
+            for z in range(sz):
+                r = sqrt((x - centerx) ** 2 + (y - centery) ** 2 + (z - centerz) ** 2)
+                if r > (rmax - 0.5):  # after this needs to be zero
+                    continue
+                elif r == 0:  # center should always be 1
+                    even_filter.setV(0, x, y, z)
+                    odd_filter.setV(0, x, y, z)
+                else:
+                    fsc_val = fsc_vol.getV(x, y, z)
+                    snr = fsc_val / (1 - fsc_val)
+                    tau2 = snr / radial_vol.getV(x, y, z)
+                    even_filter.setV(1 / (even_ctf_full.getV(x, y, z) + 1 / (fudge * tau2)), x, y, z)
+                    odd_filter.setV(1 / (odd_ctf_full.getV(x, y, z) + 1 / (fudge * tau2)), x, y, z)
+                    # fsc_prime = sqrt(2 * fsc_val / (1 + fsc_val))
+                    # snr = fsc_prime / (1 - fsc_prime)
+
+    even_filter.setV(max(even_filter), centerx, centery, centerz)
+    odd_filter.setV(max(odd_filter), centerx, centery, centerz)
+
+    return fullToReduced(iftshift(even_filter, inplace=False)), fullToReduced(iftshift(odd_filter, inplace=False))
+
+
 
 
 

@@ -27,7 +27,7 @@ if __name__ == '__main__':
         description='Generate a template for template matching!',
         authors='Marten Chaillet',
         options=[
-            ScriptOption2(['-f', '--file'], 'Protein structure file, either pdb or cif.', 'file', 'required'),
+            ScriptOption2(['-f', '--file'], 'Protein structure file, either pdb/cif or mrc/em.', 'file', 'required'),
             ScriptOption2(['-d', '--destination'], 'Folder where output should be stored.', 'directory', 'required'),
             ScriptOption2(['-o', '--output-name'], 'Name of file to write as output, with extension (mrc or em).',
                           'string', 'optional'),

@@ -388,7 +388,8 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
         
         wedgeInfo = particleObject.getWedge()
         # apply its wedge to itself
-        particle = wedgeInfo.apply(particle)
+        if wedgeInfo._type in ['SingleTiltWedge', 'DoubleTiltWedge']:
+            particle = wedgeInfo.apply(particle)
         
         if result == []:
             sizeX = particle.sizeX() 
@@ -434,6 +435,9 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             #                                    humanUnderstandable=True, rotation=rotinvert)
             #wedge = rotate(volume=wedgeVolume, rotation=rotinvert, imethod='linear')
             # < TH
+
+        if wedgeInfo._type == 'Wedge3dCTF':
+            wedge = wedge * wedge
 
         ### shift and rotate particle
         shiftV = particleObject.getShift()

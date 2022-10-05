@@ -342,6 +342,8 @@ class FRMWorker():
                 # write the half set to the disk
                 even.write(os.path.join(self.destination, 'fsc_'+str(i)+'_even.em'))
                 odd.write(os.path.join(self.destination, 'fsc_'+str(i)+'_odd.em'))
+                all_even_wedge.write(os.path.join(self.destination, 'fsc_' + str(i) + '_even_wedge.em'))
+                all_odd_wedge.write(os.path.join(self.destination, 'fsc_' + str(i) + '_odd_wedge.em'))
                 
                 # determine the resolution
                 if verbose:
@@ -366,7 +368,8 @@ class FRMWorker():
                 
                 # low pass filter the reference and write it to the disk
                 filtered = lowpassFilter(average, ceil(resolutionBand), ceil(resolutionBand)/10)
-                filtered_ref_name = os.path.join(self.destination, 'average_iter'+str(i)+'_res'+str(current_resolution)+'.em')
+                filtered_ref_name = os.path.join(self.destination, 'average_iter'+str(i)+'_res'+
+                                                 f'{current_resolution:.2f}'+'.em')
                 filtered[0].write(filtered_ref_name)
                 
                 # if the position/orientation is not improved, break it

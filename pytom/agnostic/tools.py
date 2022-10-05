@@ -2,10 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from pytom.gpu.initialize import xp, device
-
-from pytom.agnostic.filter import gaussian3d
-from numpy.random import standard_normal
-
+import numpy as np
 from pytom.agnostic.transform import resize as RESIZE
 
 epsilon = 1E-8
@@ -112,7 +109,7 @@ def add_noise(data, snr=0.1, m=0):
     vn = vs/snr
     sd = xp.sqrt(vn)
     s = xp.ndarray(data.shape)
-    noise = sd*standard_normal(s.shape)+m
+    noise = sd*np.standard_normal(s.shape)+m
     t = data + noise
     return t
 
@@ -419,12 +416,12 @@ def rotation_matrix_x(angle):
 
     @return: rotation matrix.
     """
-    angle = xp.deg2rad(angle)
-    mtx = xp.zeros((3, 3))
-    mtx[1, 1] = xp.cos(angle)
-    mtx[2, 1] = xp.sin(angle)
-    mtx[2, 2] = xp.cos(angle)
-    mtx[1, 2] = -xp.sin(angle)
+    angle = np.deg2rad(angle)
+    mtx = np.zeros((3, 3))
+    mtx[1, 1] = np.cos(angle)
+    mtx[2, 1] = np.sin(angle)
+    mtx[2, 2] = np.cos(angle)
+    mtx[1, 2] = -np.sin(angle)
     mtx[0, 0] = 1
 
     return mtx
@@ -437,12 +434,12 @@ def rotation_matrix_y(angle):
 
     @return: rotation matrix.
     """
-    angle = xp.deg2rad(angle)
-    mtx = xp.zeros((3, 3))
-    mtx[0, 0] = xp.cos(angle)
-    mtx[2, 0] = -xp.sin(angle)
-    mtx[2, 2] = xp.cos(angle)
-    mtx[0, 2] = xp.sin(angle)
+    angle = np.deg2rad(angle)
+    mtx = np.zeros((3, 3))
+    mtx[0, 0] = np.cos(angle)
+    mtx[2, 0] = -np.sin(angle)
+    mtx[2, 2] = np.cos(angle)
+    mtx[0, 2] = np.sin(angle)
     mtx[1, 1] = 1
 
     return mtx
@@ -455,12 +452,12 @@ def rotation_matrix_z(angle):
 
     @return: rotation matrix.
     """
-    angle = xp.deg2rad(angle)
-    mtx = xp.zeros((3, 3))
-    mtx[0, 0] = xp.cos(angle)
-    mtx[1, 0] = xp.sin(angle)
-    mtx[1, 1] = xp.cos(angle)
-    mtx[0, 1] = -xp.sin(angle)
+    angle = np.deg2rad(angle)
+    mtx = np.zeros((3, 3))
+    mtx[0, 0] = np.cos(angle)
+    mtx[1, 0] = np.sin(angle)
+    mtx[1, 1] = np.cos(angle)
+    mtx[0, 1] = -np.sin(angle)
     mtx[2, 2] = 1
 
     return mtx
@@ -483,7 +480,7 @@ def rotation_matrix_zxz(zxz):
     xm = rotation_matrix_x(x)
     zm2 = rotation_matrix_z(z2)
 
-    res = xp.dot(zm2, xp.dot(xm, zm1))
+    res = np.dot(zm2, np.dot(xm, zm1))
 
     return res
 
@@ -505,7 +502,7 @@ def rotation_matrix_zyz(zyz):
     xm = rotation_matrix_y(y)
     zm2 = rotation_matrix_z(z2)
 
-    res = xp.dot(zm2, xp.dot(xm, zm1))
+    res = np.dot(zm2, np.dot(xm, zm1))
 
     return res
 
@@ -520,15 +517,15 @@ def rotation_distance(ang1, ang2, rotation_order='zxz'):
     """
     mtx1 = rotation_matrix_zxz(ang1)
     mtx2 = rotation_matrix_zxz(ang2)
-    res = xp.dot(mtx1, xp.linalg.inv(mtx2))  # elementwise multiplication
-    trace = xp.sum(res)
+    res = np.dot(mtx1, np.linalg.inv(mtx2))  # elementwise multiplication
+    trace = np.sum(res)
 
     temp = 0.5 * (trace - 1.0)
     if temp >= 1.0:
         return 0.0
     if temp <= -1.0:
         return 180
-    return xp.arccos(temp) * 180 / xp.pi
+    return np.arccos(temp) * 180 / np.pi
 
 
 def rotation_matrix(angles, rotation_order='zxz', multiplication='post'):
@@ -543,9 +540,9 @@ def rotation_matrix(angles, rotation_order='zxz', multiplication='post'):
         mtxs.append(mat_dict[rot](-angle) if multiplication == 'post' else mat_dict[rot](angle))
 
     if multiplication == 'post':
-        return xp.dot(xp.dot(mtxs[0], mtxs[1]), mtxs[2])
+        return np.dot(np.dot(mtxs[0], mtxs[1]), mtxs[2])
     else:
-        return xp.dot(mtxs[2], xp.dot(mtxs[1], mtxs[0]))
+        return np.dot(mtxs[2], np.dot(mtxs[1], mtxs[0]))
 
 
 def convert_angles(angles, rotation_order='zxz', return_order='zyz', multiplication='post'):
@@ -567,7 +564,7 @@ def mat2ord(rotation_matrix, return_order='zyz', multiplication='post'):
                     'xyx': mat2xyx, 'xzx': mat2xzx, 'yxy': mat2yxy, 'yzy': mat2yzy, 'zxz': mat2zxz, 'zyz': mat2zyz}
 
     # if 'pre' multiplication, invert the matrix
-    res = return_funcs[return_order](xp.linalg.inv(rotation_matrix)) if \
+    res = return_funcs[return_order](np.linalg.inv(rotation_matrix)) if \
         multiplication == 'pre' else return_funcs[return_order](rotation_matrix)
 
     # always take negative of angles
@@ -575,157 +572,157 @@ def mat2ord(rotation_matrix, return_order='zyz', multiplication='post'):
 
 
 def mat2xyz(r):
-    y = xp.rad2deg(xp.arcsin(r[0, 2]))
+    y = np.rad2deg(np.arcsin(r[0, 2]))
 
-    if xp.abs(90 - y) < epsilon or xp.abs(90 + y) < epsilon:
-        z = xp.rad2deg(xp.arctan2(r[1,0], r[1,1]))
+    if np.abs(90 - y) < epsilon or np.abs(90 + y) < epsilon:
+        z = np.rad2deg(np.arctan2(r[1,0], r[1,1]))
         x = 0
     else:
-        x = xp.rad2deg(xp.arctan2(-r[1, 2], r[2, 2]))
-        z = xp.rad2deg(xp.arctan2(-r[0, 1], r[0, 0]))
+        x = np.rad2deg(np.arctan2(-r[1, 2], r[2, 2]))
+        z = np.rad2deg(np.arctan2(-r[0, 1], r[0, 0]))
 
     return (x, y, z)
 
 
 def mat2xzy(r):
-    z = xp.rad2deg(xp.arcsin(-r[0, 1]))
+    z = np.rad2deg(np.arcsin(-r[0, 1]))
 
-    if xp.abs(90 - z) < epsilon or xp.abs(90 + z) < epsilon:
-        y = xp.rad2deg(xp.arctan2(-r[2, 0], r[2, 2]))
+    if np.abs(90 - z) < epsilon or np.abs(90 + z) < epsilon:
+        y = np.rad2deg(np.arctan2(-r[2, 0], r[2, 2]))
         x = 0
     else:
-        x = xp.rad2deg(xp.arctan2(r[2, 1], r[1, 1]))
-        y = xp.rad2deg(xp.arctan2(r[0, 2], r[0, 0]))
+        x = np.rad2deg(np.arctan2(r[2, 1], r[1, 1]))
+        y = np.rad2deg(np.arctan2(r[0, 2], r[0, 0]))
 
     return (x, z, y)
 
 
 def mat2yxz(r):
-    x = xp.rad2deg(xp.arcsin(-r[1, 2]))
+    x = np.rad2deg(np.arcsin(-r[1, 2]))
 
-    if xp.abs(90 - x) < epsilon or xp.abs(90 + x) < epsilon:
-        z = xp.rad2deg(xp.arctan2(-r[0, 1], r[0,0]))
+    if np.abs(90 - x) < epsilon or np.abs(90 + x) < epsilon:
+        z = np.rad2deg(np.arctan2(-r[0, 1], r[0,0]))
         y = 0
     else:
-        y = xp.rad2deg(xp.arctan2(r[0, 2], r[2, 2]))
-        z = xp.rad2deg(xp.arctan2(r[1, 0], r[1, 1]))
+        y = np.rad2deg(np.arctan2(r[0, 2], r[2, 2]))
+        z = np.rad2deg(np.arctan2(r[1, 0], r[1, 1]))
 
     return (y, x, z)
 
 
 def mat2yzx(r):
-    z = xp.rad2deg(xp.arcsin(r[1, 0]))
+    z = np.rad2deg(np.arcsin(r[1, 0]))
 
-    if xp.abs(90- z) < epsilon or xp.abs(90 + z) < epsilon:
-        x = xp.rad2deg(xp.arctan2(r[2, 1], r[2, 2]))
+    if np.abs(90- z) < epsilon or np.abs(90 + z) < epsilon:
+        x = np.rad2deg(np.arctan2(r[2, 1], r[2, 2]))
         y = 0
     else:
-        y = xp.rad2deg(xp.arctan2(-r[2, 0], r[0, 0]))
-        x = xp.rad2deg(xp.arctan2(-r[1, 2], r[1, 1]))
+        y = np.rad2deg(np.arctan2(-r[2, 0], r[0, 0]))
+        x = np.rad2deg(np.arctan2(-r[1, 2], r[1, 1]))
 
     return (y, z, x)
 
 
 def mat2zxy(r):
-    x = xp.rad2deg(xp.arcsin(r[2, 1]))
+    x = np.rad2deg(np.arcsin(r[2, 1]))
 
-    if xp.abs(90 - x) < epsilon or xp.abs(90 + x) < epsilon:
-        y = xp.rad2deg(xp.arctan2(r[0, 2], r[0, 0]))
+    if np.abs(90 - x) < epsilon or np.abs(90 + x) < epsilon:
+        y = np.rad2deg(np.arctan2(r[0, 2], r[0, 0]))
         z = 0
     else:
-        z = xp.rad2deg(xp.arctan2(-r[0, 1], r[1, 1]))
-        y = xp.rad2deg(xp.arctan2(-r[2, 0], r[2, 2]))
+        z = np.rad2deg(np.arctan2(-r[0, 1], r[1, 1]))
+        y = np.rad2deg(np.arctan2(-r[2, 0], r[2, 2]))
 
     return (z, x, y)
 
 
 def mat2zyx(r):
-    y = xp.rad2deg(xp.arcsin(-r[2, 0]))
+    y = np.rad2deg(np.arcsin(-r[2, 0]))
 
-    if xp.abs(90 - y) < epsilon or xp.abs(90 + y) < epsilon:
-        x = xp.rad2deg(xp.arctan2(-r[1, 2], r[1, 1]))
+    if np.abs(90 - y) < epsilon or np.abs(90 + y) < epsilon:
+        x = np.rad2deg(np.arctan2(-r[1, 2], r[1, 1]))
         z = 0
     else:
-        z = xp.rad2deg(xp.arctan2(r[1, 0], r[0, 0]))
-        x = xp.rad2deg(xp.arctan2(r[2, 1], r[2, 2]))
+        z = np.rad2deg(np.arctan2(r[1, 0], r[0, 0]))
+        x = np.rad2deg(np.arctan2(r[2, 1], r[2, 2]))
 
     return (z, y, x)
 
 
 def mat2xyx(r):
-    y = xp.rad2deg(xp.arccos(r[0, 0]))
+    y = np.rad2deg(np.arccos(r[0, 0]))
 
-    if xp.abs(180 - y) < epsilon or xp.abs(y) < epsilon:
-        x1 = xp.rad2deg(xp.arctan2(-r[1, 2], r[1, 1]))
+    if np.abs(180 - y) < epsilon or np.abs(y) < epsilon:
+        x1 = np.rad2deg(np.arctan2(-r[1, 2], r[1, 1]))
         x0 = 0
     else:
-        x0 = xp.rad2deg(xp.arctan2(r[1, 0], -r[2, 0]))
-        x1 = xp.rad2deg(xp.arctan2(r[0, 1], r[0, 2]))
+        x0 = np.rad2deg(np.arctan2(r[1, 0], -r[2, 0]))
+        x1 = np.rad2deg(np.arctan2(r[0, 1], r[0, 2]))
 
     return (x0, y, x1)
 
 
 def mat2xzx(r):
-    z = xp.rad2deg(xp.arccos(r[0, 0]))
+    z = np.rad2deg(np.arccos(r[0, 0]))
 
-    if xp.abs(180 - z) < epsilon or xp.abs(z) < epsilon:
-        x1 = xp.rad2deg(xp.arctan2(r[2, 1], r[2, 2]))
+    if np.abs(180 - z) < epsilon or np.abs(z) < epsilon:
+        x1 = np.rad2deg(np.arctan2(r[2, 1], r[2, 2]))
         x0 = 0
     else:
-        x0 = xp.rad2deg(xp.arctan2(r[2, 0], r[1, 0]))
-        x1 = xp.rad2deg(xp.arctan2(r[0, 2], -r[0, 1]))
+        x0 = np.rad2deg(np.arctan2(r[2, 0], r[1, 0]))
+        x1 = np.rad2deg(np.arctan2(r[0, 2], -r[0, 1]))
 
     return (x0, z, x1)
 
 
 def mat2yxy(r):
-    x = xp.rad2deg(xp.arccos(r[1, 1]))
+    x = np.rad2deg(np.arccos(r[1, 1]))
 
-    if xp.abs(180 - x) < epsilon or xp.abs(x) < epsilon:
-        y1 = xp.rad2deg(xp.arctan2(r[0, 2], r[0, 0]))
+    if np.abs(180 - x) < epsilon or np.abs(x) < epsilon:
+        y1 = np.rad2deg(np.arctan2(r[0, 2], r[0, 0]))
         y0 = 0
     else:
-        y0 = xp.rad2deg(xp.arctan2(r[0, 1], r[2, 1]))
-        y1 = xp.rad2deg(xp.arctan2(r[1, 0], -r[1, 2]))
+        y0 = np.rad2deg(np.arctan2(r[0, 1], r[2, 1]))
+        y1 = np.rad2deg(np.arctan2(r[1, 0], -r[1, 2]))
 
     return (y0, x, y1)
 
 
 def mat2yzy(r):
-    z = xp.rad2deg(xp.arccos(r[1, 1]))
+    z = np.rad2deg(np.arccos(r[1, 1]))
 
-    if xp.abs(180 - z) < epsilon or xp.abs(z) < epsilon:
-        y1 = xp.rad2deg(xp.arctan2(-r[2, 0], r[2, 2]))
+    if np.abs(180 - z) < epsilon or np.abs(z) < epsilon:
+        y1 = np.rad2deg(np.arctan2(-r[2, 0], r[2, 2]))
         y0 = 0
     else:
-        y0 = xp.rad2deg(xp.arctan2(r[2, 1], -r[0, 1]))
-        y1 = xp.rad2deg(xp.arctan2(r[1, 2], r[1, 0]))
+        y0 = np.rad2deg(np.arctan2(r[2, 1], -r[0, 1]))
+        y1 = np.rad2deg(np.arctan2(r[1, 2], r[1, 0]))
 
     return (y0, z, y1)
 
 
 def mat2zxz(r):
-    x = xp.rad2deg(xp.arccos(r[2,2]))
+    x = np.rad2deg(np.arccos(r[2,2]))
 
-    if xp.abs(180 - x) < epsilon or xp.abs(x) < epsilon:
-        z1 = xp.rad2deg(xp.arctan2(-r[0,1], r[0,0]))
+    if np.abs(180 - x) < epsilon or np.abs(x) < epsilon:
+        z1 = np.rad2deg(np.arctan2(-r[0,1], r[0,0]))
         z0 = 0
     else:
-        z0 = xp.rad2deg(xp.arctan2(r[0,2], -r[1,2]))
-        z1 = xp.rad2deg(xp.arctan2(r[2,0], r[2,1]))
+        z0 = np.rad2deg(np.arctan2(r[0,2], -r[1,2]))
+        z1 = np.rad2deg(np.arctan2(r[2,0], r[2,1]))
 
     return (z0, x, z1)
 
 
 def mat2zyz(r):
-    y = xp.rad2deg(xp.arccos(r[2,2]))
+    y = np.rad2deg(np.arccos(r[2,2]))
 
-    if xp.abs(180 - y) < epsilon or xp.abs(y) < epsilon:
-        z1 = xp.rad2deg(xp.arctan2(r[1,0], r[1,1]))
+    if np.abs(180 - y) < epsilon or np.abs(y) < epsilon:
+        z1 = np.rad2deg(np.arctan2(r[1,0], r[1,1]))
         z0 = 0
     else:
-        z0 = xp.rad2deg(xp.arctan2(r[1,2], r[0,2]))
-        z1 = xp.rad2deg(xp.arctan2(r[2,1], -r[2,0]))
+        z0 = np.rad2deg(np.arctan2(r[1,2], r[0,2]))
+        z1 = np.rad2deg(np.arctan2(r[2,1], -r[2,0]))
 
     return (z0, y, z1)
 
