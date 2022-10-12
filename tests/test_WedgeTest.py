@@ -7,6 +7,7 @@ import unittest
 import numpy as np
 from pytom.basic.structures import Wedge, Rotation
 from pytom.agnostic.correlation import nxcc
+from pytom.agnostic.structures import Wedge as WedgeNp
 from pytom_numpy import vol2npy
 
 
@@ -21,7 +22,7 @@ class pytom_NumpyTest(unittest.TestCase):
 
     def wedge_pytom_vs_numpy_red(self, w1=30., w2=30., known_error=0):
         w = Wedge([w1, w2])
-        w_np = w.convert2numpy()
+        w_np = WedgeNp([w1, w2])
 
         # here there is no problem
         SX, SY, SZ = self.SX, self.SY, self.SZ
@@ -62,7 +63,7 @@ class pytom_NumpyTest(unittest.TestCase):
                 pass
             import matplotlib.pyplot as plt
 
-            SX, SY, SZ = self.SX, self.SY, self.SZ
+            SX, SY, SZ = self.SX_uneven, self.SY, self.SZ
             temp = w.returnWedgeVolume(SX, SY, SZ)
             wedge_pytom = vol2npy(temp).copy().astype(np.float32)
             wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
@@ -201,7 +202,7 @@ class pytom_NumpyTest(unittest.TestCase):
     def test_conversion(self):
         # (wedge 1, wedge 2, known error)
         wedges = [(30., 30., 365), (5., 85., 317), (34.23, 51.02, 375)]
-        error_red = [(630, 174, 365), (394, 132, 317), (514, 138, 375)]
+        error_red = [(630, 174, 365), (394, 132, 317), (514, 138, 375)]  # number of pixels that have different values
         error_full = [(1090, 312), (668, 212), (920, 240)]
         for w, errred, errfull in zip(wedges, error_red, error_full):
             # ======== reduced test

@@ -13,7 +13,7 @@ class TemplateMatchingPlan():
 
         cp.cuda.Device(deviceid).use()
 
-        self.volume = cp.asarray(volume,dtype=cp.float32,order='C')
+        self.volume = cp.asarray(volume, dtype=cp.float32, order='C')
 
         self.sPad = volume.shape
 
@@ -22,7 +22,7 @@ class TemplateMatchingPlan():
         self.sOrg = mask.shape
         pad(self.mask, self.maskPadded, self.sPad, self.sOrg)
 
-        self.templateOrig = cp.asarray(template, dtype=cp.float32,order='C')
+        self.templateOrig = cp.asarray(template, dtype=cp.float32, order='C')
 
         write('te.em', template)
         self.templateVol = readC('te.em')
@@ -31,7 +31,7 @@ class TemplateMatchingPlan():
         self.texture = vt.StaticVolume(self.template, interpolation='filt_bspline', device=f'gpu:{deviceid}')
         self.templatePadded = cp.zeros_like(self.volume)
 
-        self.wedge = cp.asarray(wedge,order='C')
+        self.wedge = cp.asarray(wedge, order='C', dtype=cp.float32)
         #self.volume_fft = cp.fft.rfftn(self.volume) #* cp.array(wedgeVolume,dtype=cp.float32)
         calc_stdV(self)
         cp.cuda.stream.get_current_stream().synchronize()
@@ -155,9 +155,9 @@ class TemplateMatchingGPU(threading.Thread):
                 #self.plan.template *= self.plan.mask
             else:
                 rotate(self.plan.templateVol, ref, angles[0], angles[1], angles[2])
-                self.plan.template = xp.array(vol2npy(ref).copy(), dtype=xp.float32)
+                self.plan.template = self.cp.asarray(vol2npy(ref).copy(), dtype=self.cp.float32, order='C')
 
-            # Add wedge
+            # Add wedgeexit
             self.plan.template = self.irfftn(self.rfftn(self.plan.template) * self.plan.wedge, s=self.plan.template.shape)
 
             # Normalize template

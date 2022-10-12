@@ -345,6 +345,7 @@ def wiener_like_filter(shape, spacing_angstrom, defocus, snrfalloff, deconvstren
 
 
 class Wedge(object):
+    # TODO class not used => remove
     """Defines the missing wedge filter in Fourier space."""
     def __init__(self):
         super(Wedge, self).__init__()
@@ -357,6 +358,7 @@ class Wedge(object):
 
 
 class GeneralWedge(Wedge):
+    # TODO class not used => remove
     """General wedge."""
     def __init__(self, wedge_vol, half=True, isodd=False):
         """Initialize a general wedge with given Fourier volume.
@@ -405,6 +407,7 @@ class GeneralWedge(Wedge):
 
 
 class SingleTiltWedge(Wedge):
+    # TODO class not used => remove
     """Missing wedge of single tilt geometry. Assume Y axis is the rotation axis."""
     def __init__(self, start_ang=30, end_ang=30, smooth=0):
         super(SingleTiltWedge, self).__init__()
@@ -585,7 +588,7 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
     if rotation is None:
         # numpy meshgrid by default returns indexing with cartesian coordinates (xy)
         # shape N, M, P returns meshgrid with M, N, P (see numpy meshgrid documentation)
-        # the naming here is therefore weird => would be more logical to assign to y, x, z
+        # the naming here is therefore weird
         z, y, x = xp.meshgrid(xp.abs(xp.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2, 1.)),
                               xp.abs(xp.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2, 1.)),
                               xp.arange(0, sizeZ // 2 + 1, 1.))
