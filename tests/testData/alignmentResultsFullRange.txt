@@ -1,0 +1,68 @@
+# data_
+# loop_
+# _AlignmentTransX (px)
+# _AlignmentTransY (px)
+# _TiltAngle (degrees)
+# _InPlaneRotation (degrees)
+# _Magnification 
+# _FileName 
+# 
+ 255.0620727539   39.3485221863  -60.0000000000 -355.0960388184    0.9987181425 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_00.mrc
+ 256.3796081543   36.9266471863  -58.0000000000 -355.1313781738    0.9989678264 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_01.mrc
+ 247.1560363770   34.5405006409  -56.0000000000 -355.1683044434    0.9991286993 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_02.mrc
+ 251.1581573486   30.7355155945  -54.0000000000 -355.1921386719    0.9991455674 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_03.mrc
+ 253.7339477539   29.9317665100  -52.0000000000 -355.2438354492    0.9993101358 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_04.mrc
+ 240.8716888428   29.3159618378  -50.0000000000 -355.3168640137    0.9995914698 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_05.mrc
+ 240.0503082275   22.7102222443  -48.0000000000 -355.3298645020    0.9997339249 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_06.mrc
+ 234.7359161377   20.6725559235  -46.0000000000 -355.3533630371    0.9997054935 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_07.mrc
+ 230.9965515137   18.1748256683  -44.0000000000 -355.3590393066    0.9998118281 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_08.mrc
+ 233.3889160156   17.1496467590  -42.0000000000 -355.3801574707    0.9998509884 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_09.mrc
+ 226.8274993896    9.1726045609  -40.0000000000 -355.3931274414    0.9999322295 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_10.mrc
+ 216.0375366211    5.4905285835  -38.0000000000 -355.4036254883    0.9998633862 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_11.mrc
+ 207.8196105957    2.3743031025  -36.0000000000 -355.4175415039    0.9998880625 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_12.mrc
+ 207.5168609619    0.4754261076  -34.0000000000 -355.4300537109    1.0000993013 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_13.mrc
+ 197.3791351318   -3.9545545578  -32.0000000000 -355.4412536621    1.0001449585 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_14.mrc
+ 185.7787322998   -6.1007261276  -30.0000000000 -355.4633789062    1.0000871420 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_15.mrc
+ 180.9054870605   -8.6624984741  -28.0000000000 -355.4786987305    1.0001944304 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_16.mrc
+ 170.1615142822  -10.1586275101  -26.0000000000 -355.4900512695    1.0002838373 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_17.mrc
+ 160.2630767822  -10.5856389999  -24.0000000000 -355.5081481934    1.0002548695 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_18.mrc
+ 151.1668243408  -11.8554430008  -22.0000000000 -355.5248718262    1.0003277063 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_19.mrc
+ 144.7167358398  -13.4602203369  -20.0000000000 -355.5387268066    1.0001915693 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_20.mrc
+ 123.4197616577   -9.7185602188  -18.0000000000 -355.5511474609    1.0002545118 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_21.mrc
+ 107.7800750732  -10.9987154007  -16.0000000000 -355.5606079102    1.0001580715 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_22.mrc
+  94.4258422852   -9.9898614883  -14.0000000000 -355.5762939453    1.0003255606 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_23.mrc
+  82.1135330200   -9.5320816040  -12.0000000000 -355.5864257812    1.0003929138 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_24.mrc
+  71.1650390625   -6.5614843369  -10.0000000000 -355.6009826660    1.0001626015 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_25.mrc
+  58.2185173035   -4.6545329094   -8.0000000000 -355.6081237793    1.0001208782 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_26.mrc
+  41.8529472351   -4.5457744598   -6.0000000000 -355.6148681641    1.0000206232 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_27.mrc
+  30.8229503632   -4.2892136574   -4.0000000000 -355.6245117188    0.9999866486 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_28.mrc
+  17.3687305450   -3.8712484837   -2.0000000000 -355.6311645508    1.0000473261 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_29.mrc
+   0.8502547741   -0.0510586612    0.0000000000 -355.6342773438    1.0000000000 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_30.mrc
+ -13.4365844727    3.1719727516    2.0000000000 -355.6379089355    0.9998428822 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_31.mrc
+ -29.7835025787    2.4744043350    4.0000000000 -355.6398925781    0.9996079206 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_32.mrc
+ -39.0127677917    6.4597282410    6.0000000000 -355.6367797852    0.9992591143 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_33.mrc
+ -54.1619529724    7.7727723122    8.0000000000 -355.6227111816    0.9985784292 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_34.mrc
+ -64.3453140259    9.3632268906   10.0000000000 -355.5897521973    0.9975650311 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_35.mrc
+ -71.4549789429   10.4317321777   12.0000000000 -355.5286560059    0.9959248304 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_36.mrc
+ -78.1947402954    7.3732185364   14.0000000000 -355.4239807129    0.9935873151 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_37.mrc
+ -75.0338287354    1.8837120533   16.0000000000 -355.2960510254    0.9905697107 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_38.mrc
+ -23.1732940674   30.2799701691   18.0000000000 -355.7372741699    1.0008554459 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_39.mrc
+ -19.0590438843   31.5885372162   20.0000000000 -355.7442321777    1.0008263588 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_40.mrc
+ -24.9547882080   32.2242126465   22.0000000000 -355.7559814453    1.0007828474 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_41.mrc
+ -31.0200939178   32.0007095337   24.0000000000 -355.7628479004    1.0007449389 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_42.mrc
+ -28.8346195221   35.6687316895   26.0000000000 -355.7745666504    1.0007479191 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_43.mrc
+ -35.0848388672   36.2215461731   28.0000000000 -355.7810363770    1.0007396936 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_44.mrc
+ -38.8423194885   38.3746185303   30.0000000000 -355.7845153809    1.0007961988 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_45.mrc
+ -39.2935905457   39.1647911072   32.0000000000 -355.7899475098    1.0007771254 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_46.mrc
+ -47.7641868591   40.6128540039   34.0000000000 -355.8033142090    1.0005695820 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_47.mrc
+ -51.6777343750   41.9221076965   36.0000000000 -355.8120117188    1.0007119179 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_48.mrc
+ -56.9800796509   41.5924720764   38.0000000000 -355.8159790039    1.0005282164 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_49.mrc
+ -61.8315544128   42.9650726318   40.0000000000 -355.8309020996    1.0004804134 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_50.mrc
+ -64.7248382568   44.1804046631   42.0000000000 -355.8260803223    1.0003921986 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_51.mrc
+ -60.5607986450   44.6013832092   44.0000000000 -355.8202209473    1.0002366304 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_52.mrc
+ -70.7972869873   47.0178146362   46.0000000000 -355.8421936035    1.0003452301 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_53.mrc
+ -65.3184280396   45.5943222046   48.0000000000 -355.8314819336    1.0001995564 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_54.mrc
+ -76.5753402710   47.5145759583   50.0000000000 -355.8482360840    1.0001986027 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_55.mrc
+ -79.5785217285   48.7351341248   52.0000000000 -355.8626403809    1.0002307892 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_56.mrc
+ -77.8923645020   46.3593635559   54.0000000000 -355.8658447266    1.0000890493 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_57.mrc
+ -75.1998367310   44.6945419312   56.0000000000 -355.8565979004    0.9998421669 /data2/emuser01/test/stuart/tomo/03_Tomographic_Reconstruction/tomogram_000/sorted/sorted_58.mrc

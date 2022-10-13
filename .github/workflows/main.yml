@@ -1,0 +1,28 @@
+name: Run unit tests in docker container
+
+on:
+  # This workflow triggers on push or pull requests to master branch
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+  # This allows running workflow manually from Actions tab
+  workflow_dispatch:
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository with submodules
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Build docker image
+        run: docker build -t pytom .
+
+      - name: Run tests inside the container
+        run: docker run -w /app/tests/ pytom pytom -m unittest discover
