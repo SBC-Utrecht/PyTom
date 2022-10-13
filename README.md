@@ -6,7 +6,7 @@ PyTom is a toolbox developed for interpreting cryo electron tomography data. All
 
 ### Prerequisites
 
-PyTomGUI is designed to run on linux systems. All required packages are managed via conda. For further info see the wiki [installation page](https://github.com/FridoF/PyTomPrivate/wiki/Installation).
+PyTomGUI is designed to run on linux systems. All required packages are managed via conda. For further info see the wiki [installation page](https://github.com/FridoF/PyTom/wiki/Installation).
 
 If you want to make use of PyTomGUI interfacing with motioncor2 and IMOD's ctf correction, you will need to install these:
 
@@ -17,7 +17,7 @@ If you want to make use of PyTomGUI interfacing with motioncor2 and IMOD's ctf c
 
 ### Installing
 
-The software packages git needs to be installed. Git can be installed by sudo apt install git or yum install git. After git has been installed, clone the pytom repository and enter it:
+Git needs to be installed to clone the repository. Git can be installed by sudo apt install git or yum install git. After git has been installed, clone the pytom repository and enter it:
 
 ```
 mkdir pytom
@@ -33,20 +33,20 @@ bash installMiniconda.sh
 
 Please remember the location where miniconda is installed [CONDA_INSTALL_DIR], because we need it later on. By default it will be installed in the homo directory ~/miniconda3.
 
-Now we are ready to create the conda environment that pytom will be installed to:
+Now we are ready to create the conda environment for pytom (solving all the dependencies might take a moment):
 
 ```
 conda env create -f environments/pytom_py3.8_cu10.1.yaml --name pytom_env
 ```
 
-Activate the environment and run the pytom installation scripts that will compile the backend:
+Activate the environment and run the pytom installation scripts to compile the backend (will take ~5 minutes):
 
 ```
 conda activate pytom_env
 python3.8 setup.py install --prefix [CONDA_INSTALL_DIR]/envs/pytom_env
 ```
 
-Now should be setup to start pytom. You can start the GUI by running the following:
+Now everything should be setup to start pytom. You can start the GUI by running the following:
 
 ```
 pytomGUI
