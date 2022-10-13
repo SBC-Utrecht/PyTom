@@ -6,7 +6,7 @@ PyTom is a toolbox developed for interpreting cryo electron tomography data. All
 
 ### Prerequisites
 
-PyTomGUI is designed to run on linux systems, but can also be installed on MacOSX. All required packages are managed via conda. For further info see the wiki [installation page](https://github.com/FridoF/PyTomPrivate/wiki/Installation).
+PyTomGUI is designed to run on linux systems. All required packages are managed via conda. For further info see the wiki [installation page](https://github.com/FridoF/PyTomPrivate/wiki/Installation).
 
 If you want to make use of PyTomGUI interfacing with motioncor2 and IMOD's ctf correction, you will need to install these:
 
@@ -17,42 +17,75 @@ If you want to make use of PyTomGUI interfacing with motioncor2 and IMOD's ctf c
 
 ### Installing
 
-Before you can install PyTom, you need to create an account on github. And to the github account you need to link a token for online identification. For more information click on the following link.
-
-Furthermore, the software packages git needs to be installed. Git can be installed by sudo apt install git or yum install git. After git has been installed, run the following lines:
+The software packages git needs to be installed. Git can be installed by sudo apt install git or yum install git. After git has been installed, clone the pytom repository and enter it:
 
 ```
-git clone git@github.com:FridoF/PyTomPrivate.git
-cd PyTomPrivate
-bash installMiniconda.sh (ONLY IF NOT YET INSTALLED!)
+mkdir pytom
+git clone https://github.com/FridoF/PyTom.git pytom
+cd pytom
+```
+
+Only in case you do not have the miniconda environment manager installed, run the following (otherwise continue with the next step):
+
+```
+bash installMiniconda.sh
+```
+
+Please remember the location where miniconda is installed [CONDA_INSTALL_DIR], because we need it later on. By default it will be installed in the homo directory ~/miniconda3.
+
+Now we are ready to create the conda environment that pytom will be installed to:
+
+```
 conda env create -f environments/pytom_py3.8_cu10.1.yaml --name pytom_env
 ```
 
-Please remember the location where you decide to install conda (CONDA_INSTALL_DIR). 
+Activate the environment and run the pytom installation scripts that will compile the backend:
 
 ```
 conda activate pytom_env
 python3.8 setup.py install --prefix [CONDA_INSTALL_DIR]/envs/pytom_env
 ```
 
+Now should be setup to start pytom. You can start the GUI by running the following:
+
+```
+pytomGUI
+```
+
+Whenever you want to open pytomGUI in a new shell, first run:
+
+```
+conda activate pytom_env
+```
+
+For more information on running pytom, see the [tutorial and wiki on github](https://github.com/FridoF/PyTom/wiki)
+
 ### Installing on WSL2 (windows for linux subsystem)
 
-PATH environment variable will contain windows directories in the /mnt folder of your linux subsystem. Pytom will have an issue with reading the PATH because of the white spaces ( arrrrg :( ). Make sure to update the PATH by removing the windows directories.
+For WSL2 you need at least Windows 10 Pro with HyperV support. To check if your machine can run of wsl, please type 'systeminfo' into the command prompt. The lines about HyperV should all return Yes.
 
-For WSL2 you need at least Windows 10 Pro with HyperV support.
+To activate wsl, follow the following tutorial: https://www.omgubuntu.co.uk/how-to-install-wsl2-on-windows-10
 
-to check if your machine can run of wsl, please type 'systeminfo' into the command prompt. The lines about HyperV should all return Yes.
+You also need a custom setup of the CUDA toolkit. A GPU driver needs to be installed on windows, and the CUDA toolkit isntallation in WSL2 requires installation of special packages, see the nvidia docs for more info: https://docs.nvidia.com/cuda/wsl-user-guide/index.html
 
-To activate wsl, follow the following tutorial.
-https://www.omgubuntu.co.uk/how-to-install-wsl2-on-windows-10
+For installation you should be able to follow the instructions as above, however you need to update the .yaml environment file. From the dependencies remove: cudatoolkit, cudnn, cupy. Then add something to the bottom row (tqdm + joblib only placed for illustration) of the file, where [VERSION] should be replaced with CUDA tookit version, e.g. 116 if you have 11.6 of the CUDA toolkit. 
 
+```
+...
+  - tqdm=4.62.1
+  - joblib=1.0.1
+  - pip:
+    - cupy-cuda[VERSION]
+```
+
+Afterwards you should be able to follow the installation steps as above.
 
 ### Docker container
 
 You can also use dockerfile to easily build pytom image on any platform.  
 **Note:** Out of the box the image does not support GPU operations or pytomGUI.
 ```
-git clone git@github.com:FridoF/PyTomPrivate.git && cd PyTomPrivate
+git clone https://github.com/FridoF/PyTom.git && cd PyTom
 docker build -t pytom .
 ```
 
