@@ -64,11 +64,11 @@ For more information on running pytom, see the [tutorial and wiki on github](htt
 
 For WSL2 you need at least Windows 10 Pro with HyperV support. To check if your machine can run of wsl, please type 'systeminfo' into the command prompt. The lines about HyperV should all return Yes.
 
-To activate wsl, follow the following tutorial: https://www.omgubuntu.co.uk/how-to-install-wsl2-on-windows-10
+To activate wsl, see the following tutorial: https://www.omgubuntu.co.uk/how-to-install-wsl2-on-windows-10
 
 You also need a custom setup of the CUDA toolkit. A GPU driver needs to be installed on windows, and the CUDA toolkit isntallation in WSL2 requires installation of special packages, see the nvidia docs for more info: https://docs.nvidia.com/cuda/wsl-user-guide/index.html
 
-For installation you should be able to follow the instructions as above, however you need to update the .yaml environment file. From the dependencies remove: cudatoolkit, cudnn, cupy. Then add something to the bottom row (tqdm + joblib only placed for illustration) of the file, where [VERSION] should be replaced with CUDA tookit version, e.g. 116 if you have 11.6 of the CUDA toolkit. 
+For installation you should be able to follow the instructions as above, however you need to update the .yaml environment file. From the dependencies remove: cudatoolkit, cudnn, cupy. Then add the following to the bottom row (tqdm + joblib only placed for illustration) of the file, where [VERSION] should be replaced with CUDA tookit version, e.g. 116 if you have 11.6 of the CUDA toolkit. 
 
 ```
 ...
