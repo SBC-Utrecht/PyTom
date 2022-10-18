@@ -518,13 +518,13 @@ class PyTomGui(QMainWindow, CommonFunctions):
         h  = self.splitter.frameGeometry().height()
         for frame in (self.CD, self.TR, self.PP, self.SA):
             for scrollarea in frame.scrollareas:
-                scrollarea.resize(w-280,h-20)
+                scrollarea.resize(int(w-280),int(h-20))
 
     def init_size(self,w,h):
         self.resize(1200, 800)
         for frame in (self.CD, self.TR, self.PP, self.SA):
-            for n, scrollarea in enumerate( frame.scrollareas):
-                scrollarea.resize(w-280-frame.scrolloffset[n]/2,h-80-frame.scrolloffset[n])
+            for n, scrollarea in enumerate(frame.scrollareas):
+                scrollarea.resize(int(w-280-frame.scrolloffset[n]/2),int(h-80-frame.scrolloffset[n]))
 
     def is_pytomgui_project(self, projectname):
         if os.path.exists(os.path.join(projectname, 'logfile.js')):

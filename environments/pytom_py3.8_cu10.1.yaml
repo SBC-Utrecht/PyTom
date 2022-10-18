@@ -39,5 +39,5 @@ dependencies:
   - swig=3.0.12
   - tqdm=4.62.1
   - joblib=1.0.1
-  pip:
+  - pip:
     - pyqt5

@@ -1501,6 +1501,10 @@ class TomographReconstruct(GuiTabWidget):
 
         # find available alignments
         alignment_dir = os.path.join(self.tomogram_folder, self.widgets[mode + 'tomogram'].currentText(), 'alignment')
+
+        if not os.path.exists(alignment_dir):  # exit if not yet exists
+            return
+
         alignment_choices = []
         for alignment in os.listdir(alignment_dir):
             d = os.path.join(alignment_dir, alignment)
