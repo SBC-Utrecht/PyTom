@@ -591,6 +591,9 @@ class TomographReconstruct(GuiTabWidget):
         tomogram_folders = [t for t in tomogram_folders if not 'jobscripts' in os.path.basename(t)]
         tomograms = [os.path.basename(d) for d in tomogram_folders]
 
+        if len(tomograms) == 0:  # if there are no tomograms yet, just exit
+            return
+
         # initialize list for data per tomo
         values = []
 
@@ -616,8 +619,9 @@ class TomographReconstruct(GuiTabWidget):
             tilt_choices = []
             if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
                 tilt_choices.append('sorted')
-            if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
-                tilt_choices.append('sorted_ctf')
+            if os.path.exists(ctf_sorted_dir):
+                if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+                    tilt_choices.append('sorted_ctf')
 
             # add to table fill, angles will be set in a bit
             values.append([tomo_name, True, alignment_choices, 0, 0, tilt_choices, -1, 8, '', ''])
