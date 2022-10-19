@@ -29,7 +29,6 @@ dependencies:
   - numba
   - openmpi=4.0.2
   - pip
-  - pyqt=5.9.2
   - pyqtgraph=0.11.0
   - conda-forge::pytest=6.2.5
   - conda-forge::pytest-qt=3.1.0
@@ -40,3 +39,5 @@ dependencies:
   - swig=3.0.12
   - tqdm=4.62.1
   - joblib=1.0.1
+  - pip:
+    - pyqt5
