@@ -2,6 +2,7 @@ from pytom.gpu.gpuStructures import TemplateMatchingGPU
 from pytom.agnostic.io import read
 from pytom.agnostic.structures import Wedge
 from pytom.angles.globalSampling import GlobalSampling
+from pytom.voltools.transforms import transform
 import unittest
 import numpy as np
 import time
@@ -14,6 +15,7 @@ class pytom_LocalTest(unittest.TestCase):
     def setUp(self):
         """set up"""
         self.testfilename = f'../testData/emd_1480.map.em_bin_4.em'
+        self.rotation = (25, 40, 10)
 
     def run_localization(self, gpu_id):
         template = read(self.testfilename)
@@ -21,7 +23,7 @@ class pytom_LocalTest(unittest.TestCase):
         sx, sy, sz = template.shape
         # volume = np.zeros((int(sx * 1.5), int(sy * 2), sz))
         # volume[0:sx, 0:sy, :] = template.copy()
-        volume = template.copy()
+        volume = transform(template.copy(), rotation_order='rzxz', rotation=self.rotation)
         SX, SY, SZ = volume.shape
         wedge = Wedge([30., 30.])
         angles = GlobalSampling('angles_38.53_256.em')[:]
@@ -42,6 +44,12 @@ class pytom_LocalTest(unittest.TestCase):
         while tm_process.is_alive() and sleep_time < max_sleep_time:
             time.sleep(1)
             sleep_time += 1
+
+        scores, angles = tm_process.plan.scores.get(), tm_process.plan.angles.get()
+        ind = scores.argmax()
+        angle = angles[ind]
+        print(self.rotation)
+        print(angle)
 
         self.assertTrue(tm_process.completed, msg='something went wrong with TM, process did not complete')
 
