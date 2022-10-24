@@ -66,15 +66,17 @@ class TemplateMatchingGPU(threading.Thread):
         import pytom.voltools as vt
         from cupyx.scipy.ndimage import map_coordinates
 
-
-        if 1:
+        try:
             from cupyx.scipy.fftpack.fft import get_fft_plan
             from cupyx.scipy.fftpack.fft import fftn as fftnP
             from cupyx.scipy.fftpack.fft import ifftn as ifftnP
-            self.fftnP = fftnP
-            self.ifftnP = ifftnP
-        else:
-            get_fft_plan = None
+        except ModuleNotFoundError:  # TODO go to 'from cupyx.scipy.fftpack import ...' once fully moved to cupy > 8.3
+            from cupyx.scipy.fftpack import get_fft_plan
+            from cupyx.scipy.fftpack import fftn as fftnP
+            from cupyx.scipy.fftpack import ifftn as ifftnP
+
+        self.fftnP = fftnP
+        self.ifftnP = ifftnP
 
         self.cp = cp
         self.map_coordinates = map_coordinates
@@ -321,12 +323,18 @@ class GLocalAlignmentPlan():
         from pytom.voltools import StaticVolume
         from pytom.agnostic.tools import taper_edges
         from pytom.agnostic.transform import fourier_reduced2full
-        from cupyx.scipy.fftpack.fft import get_fft_plan
-        from cupyx.scipy.fftpack.fft import fftn as fftnP
-        from cupyx.scipy.fftpack.fft import ifftn as ifftnP
         from pytom.agnostic.io import read_size, write
         from pytom.agnostic.transform import resize
         from pytom.gpu.kernels import argmax_text, meanStdv_text
+
+        try:
+            from cupyx.scipy.fftpack.fft import get_fft_plan
+            from cupyx.scipy.fftpack.fft import fftn as fftnP
+            from cupyx.scipy.fftpack.fft import ifftn as ifftnP
+        except ModuleNotFoundError:  # TODO go to 'from cupyx.scipy.fftpack import ...' once fully moved to cupy > 8.3
+            from cupyx.scipy.fftpack import get_fft_plan
+            from cupyx.scipy.fftpack import fftn as fftnP
+            from cupyx.scipy.fftpack import ifftn as ifftnP
 
         # particle shape and binned shape
         assert isinstance(binning, int) and binning >= 1, "invalid binning type for glocal plan"
@@ -821,15 +829,17 @@ class GLocalAlignmentGPU(threading.Thread):
         from pytom.agnostic.io import write
         from cupyx.scipy.ndimage import map_coordinates
 
-
-        if 1:
+        try:
             from cupyx.scipy.fftpack.fft import get_fft_plan
             from cupyx.scipy.fftpack.fft import fftn as fftnP
             from cupyx.scipy.fftpack.fft import ifftn as ifftnP
-            self.fftnP = fftnP
-            self.ifftnP = ifftnP
-        else:
-            get_fft_plan = None
+        except ModuleNotFoundError:  # TODO go to 'from cupyx.scipy.fftpack import ...' once fully moved to cupy > 8.3
+            from cupyx.scipy.fftpack import get_fft_plan
+            from cupyx.scipy.fftpack import fftn as fftnP
+            from cupyx.scipy.fftpack import ifftn as ifftnP
+
+        self.fftnP = fftnP
+        self.ifftnP = ifftnP
 
         self.cp = cp
         self.map_coordinates = map_coordinates
@@ -1060,11 +1070,17 @@ class CCCPlan():
         from pytom.voltools import transform, StaticVolume
         from pytom.agnostic.tools import taper_edges
         from pytom.agnostic.transform import fourier_reduced2full, resize
-        from cupyx.scipy.fftpack.fft import get_fft_plan
-        from cupyx.scipy.fftpack.fft import fftn as fftnP
-        from cupyx.scipy.fftpack.fft import ifftn as ifftnP
         from pytom.agnostic.io import read_size, read, write
         from pytom.agnostic.tools import create_sphere
+
+        try:
+            from cupyx.scipy.fftpack.fft import get_fft_plan
+            from cupyx.scipy.fftpack.fft import fftn as fftnP
+            from cupyx.scipy.fftpack.fft import ifftn as ifftnP
+        except ModuleNotFoundError:  # TODO go to 'from cupyx.scipy.fftpack import ...' once fully moved to cupy > 8.3
+            from cupyx.scipy.fftpack import get_fft_plan
+            from cupyx.scipy.fftpack import fftn as fftnP
+            from cupyx.scipy.fftpack import ifftn as ifftnP
 
         maskFull = read(maskname)
 

@@ -240,12 +240,18 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
     from pytom.agnostic.normalise import mean0std1
     from pytom.agnostic.tools import invert_WedgeSum
     from pytom.agnostic.transform import fourier_full2reduced
-    from cupyx.scipy.fftpack.fft import fftn as fftnP
-    from cupyx.scipy.fftpack.fft import ifftn as ifftnP
-    from cupyx.scipy.fftpack.fft import get_fft_plan
     from pytom.tools.ProgressBar import FixedProgBar
     import cupy as xp
     import os
+
+    try:
+        from cupyx.scipy.fftpack.fft import fftn as fftnP
+        from cupyx.scipy.fftpack.fft import ifftn as ifftnP
+        from cupyx.scipy.fftpack.fft import get_fft_plan
+    except ModuleNotFoundError:  # TODO go to 'from cupyx.scipy.fftpack import ...' once fully moved to cupy > 8.3
+        from cupyx.scipy.fftpack import fftn as fftnP
+        from cupyx.scipy.fftpack import ifftn as ifftnP
+        from cupyx.scipy.fftpack import get_fft_plan
 
     if not gpuId is None:
         device = f'gpu:{gpuId}'
