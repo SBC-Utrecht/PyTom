@@ -41,3 +41,4 @@ dependencies:
   - joblib=1.0.1
   - pip:
     - pyqt5
+    - gnureadline
