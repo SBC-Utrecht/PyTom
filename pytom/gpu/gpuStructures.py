@@ -22,20 +22,13 @@ class TemplateMatchingPlan():
         self.sOrg = mask.shape
         pad(self.mask, self.maskPadded, self.sPad, self.sOrg)
 
-        self.templateOrig = cp.asarray(template, dtype=cp.float32, order='C')
-
-        write('te.em', template)
-        self.templateVol = readC('te.em')
-        self.where = 'cpu'
-        self.template = cp.asarray(template, dtype=cp.float32,order='C')
-        self.texture = vt.StaticVolume(self.template, interpolation='filt_bspline', device=f'gpu:{deviceid}')
+        self.template = cp.asarray(template, dtype=cp.float32, order='C')
+        self.texture = vt.StaticVolume(self.template, interpolation='linear', device=f'gpu:{deviceid}')
         self.templatePadded = cp.zeros_like(self.volume)
 
         self.wedge = cp.asarray(wedge, order='C', dtype=cp.float32)
-        #self.volume_fft = cp.fft.rfftn(self.volume) #* cp.array(wedgeVolume,dtype=cp.float32)
         calc_stdV(self)
         cp.cuda.stream.get_current_stream().synchronize()
-        # del self.volume_fft
 
         self.ccc_map = cp.zeros_like(self.volume)
 
@@ -50,7 +43,7 @@ class TemplateMatchingPlan():
             self.fftplan = None
             self.volume_fft2 = None
 
-        os.remove('te.em')
+        # os.remove('te.em')
         cp.cuda.stream.get_current_stream().synchronize()
 
 
@@ -128,18 +121,18 @@ class TemplateMatchingGPU(threading.Thread):
     def run(self):
         print("RUN")
         self.Device(self.deviceid).use()
-        if 1:
-            self.template_matching_gpu(self.input[4], self.input[5])
-            self.completed = True
-        else:
-            self.completed = False
+        # if 1:
+        self.template_matching_gpu(self.input[4], self.input[5])
+        self.completed = True
+        # else:
+        #     self.completed = False
         self.active = False
 
     def template_matching_gpu(self, angle_list, dims, isSphere=True, verbose=True, debug=False):
         from pytom_numpy import vol2npy
         from pytom_volume import rotateSpline as rotate, vol
         import time
-        ref = vol(self.plan.templateVol.sizeX(), self.plan.templateVol.sizeY(), self.plan.templateVol.sizeZ())
+
         self.Device(self.deviceid).use()
 
         sx, sy, sz = self.plan.template.shape
@@ -150,14 +143,8 @@ class TemplateMatchingGPU(threading.Thread):
 
         for angleId, angles in enumerate(angle_list):
             # Rotate
-            #self.plan.template = self.rotate3d(self.plan.templateOrig, phi=phi,the=the,psi=psi)
-
-            if self.plan.where == 'gpu':
-                self.plan.texture.transform(rotation=(angles[0], angles[2], angles[1]), rotation_order='rzxz', output=self.plan.template)
-                #self.plan.template *= self.plan.mask
-            else:
-                rotate(self.plan.templateVol, ref, angles[0], angles[1], angles[2])
-                self.plan.template = self.cp.asarray(vol2npy(ref).copy(), dtype=self.cp.float32, order='C')
+            self.plan.texture.transform(rotation=(angles[0], angles[2], angles[1]), rotation_order='rzxz',
+                                        output=self.plan.template)
 
             # Add wedgeexit
             self.plan.template = self.irfftn(self.rfftn(self.plan.template) * self.plan.wedge, s=self.plan.template.shape)
@@ -171,18 +158,11 @@ class TemplateMatchingGPU(threading.Thread):
             # Paste in center
             self.plan.templatePadded[CX-cx:CX+cx+mx, CY-cy:CY+cy+my,CZ-cz:CZ+cz+mz] = self.plan.template
 
-            # write('volume_gpu.em', self.ifftnP(self.plan.volume_fft2, plan=self.plan.fftplan).real)
-            # write('template_gpu.em', self.plan.templatePadded)
-            # write('m_gpu.em', self.plan.maskPadded)
-            # write('stdV_gpu.em', self.plan.stdV)
-
             # Cross-correlate and normalize by stdV
             self.plan.ccc_map = self.normalized_cross_correlation(self.plan.volume_fft2, self.plan.templatePadded, self.plan.stdV, self.plan.p, plan=self.plan.fftplan)
 
             # Update the scores and angles
             self.updateResFromIdx(self.plan.scores, self.plan.angles, self.plan.ccc_map, angleId, self.plan.scores, self.plan.angles)
-            #self.cp.cuda.stream.get_current_stream().synchronize()
-
 
     def is_alive(self):
         return self.active
@@ -232,16 +212,6 @@ class TemplateMatchingGPU(threading.Thread):
 
     def normalized_cross_correlation(self, volume_fft, template, norm, p=1, plan=None):
         return self.fftshift(self.ifftnP(volume_fft * self.fftnP(template, plan=plan).conj(), plan=plan)).real / (p * norm)
-        # #print(volume_fft.shape)
-        #
-        # print('cc')
-        # cc = xp.conj(xp.fft.fftn(template))
-        # print('ccc')
-        # aa = xp.fft.fftn(template)
-        # res = xp.abs(xp.fft.fftshift(xp.fft.ifftn(aa * cc )) )
-        # #res = xp.abs(xp.fft.fftshift(xp.fft.ifftn(volume_fft * xp.fft.fftn(template).conj() )) / (p * norm))
-        # return res
-
 
     def pad(self, volume, out, sPad, sOrg):
         SX, SY, SZ = sPad

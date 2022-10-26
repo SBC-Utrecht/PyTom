@@ -20,10 +20,10 @@ class pytom_LocalTest(unittest.TestCase):
     def run_localization(self, gpu_id):
         template = read(self.testfilename)
         mask = template.copy()
+        mask = (mask - mask.min()) / (mask.max() - mask.min())  # mask between 0 and 1
         sx, sy, sz = template.shape
-        # volume = np.zeros((int(sx * 1.5), int(sy * 2), sz))
-        # volume[0:sx, 0:sy, :] = template.copy()
-        volume = transform(template.copy(), rotation_order='rzxz', rotation=self.rotation)
+        volume = np.zeros((int(sx * 1.5), int(sy * 2), sz))
+        volume[0:sx, 0:sy, :] = template.copy()
         SX, SY, SZ = volume.shape
         wedge = Wedge([30., 30.])
         angles = GlobalSampling('angles_38.53_256.em')[:]
@@ -46,11 +46,13 @@ class pytom_LocalTest(unittest.TestCase):
             sleep_time += 1
 
         scores, angles = tm_process.plan.scores.get(), tm_process.plan.angles.get()
-        ind = scores.argmax()
-        angle = angles[ind]
-        print(self.rotation)
+        ind = np.unravel_index(scores.argmax(), scores.shape)
+        angle = tm_process.input[4][int(angles[ind])]
         print(angle)
 
+        self.assertTrue(np.abs(np.array(angle) -
+                               np.array([179.99995036744298, -179.9999230466863, 2.8313936621696674])).sum() < 1,
+                        msg='angle deviates too much from expected')
         self.assertTrue(tm_process.completed, msg='something went wrong with TM, process did not complete')
 
     def test_localization(self):
