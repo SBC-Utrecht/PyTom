@@ -43,7 +43,7 @@ Activate the environment and run the pytom installation scripts to compile the b
 
 ```
 conda activate pytom_env
-python3.8 setup.py install --prefix [CONDA_INSTALL_DIR]/envs/pytom_env
+python setup.py install --prefix [CONDA_INSTALL_DIR]/envs/pytom_env
 ```
 
 Now everything should be setup to start pytom. You can start the GUI by running the following:
