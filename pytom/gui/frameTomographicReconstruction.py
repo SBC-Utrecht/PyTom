@@ -1534,7 +1534,8 @@ class TomographReconstruct(GuiTabWidget):
         tilt_choices = []
         if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
             tilt_choices.append('sorted')
-        if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+        if (os.path.exists(ctf_sorted_dir) and 
+			len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0):  # at least
             tilt_choices.append('sorted_ctf')
         # set choices in the widget
         self.widgets[mode + 'ctfCorrChoice'].currentIndexChanged.connect(
