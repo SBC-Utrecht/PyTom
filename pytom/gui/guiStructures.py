@@ -4837,6 +4837,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                                                     cores=self.num_cores, modules=self.parent().modules)
                 except:
                     self.qparams[jobname] = QParams(modules=self.parent().modules)
+                self.qparams[jobname].update_settings(self, store=True)  # write to pickle
 
         id = 'tab1'
         self.row, self.column = 0, 1
