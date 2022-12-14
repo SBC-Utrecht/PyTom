@@ -202,13 +202,13 @@ class ParticlePick(GuiTabWidget):
         self.insert_label_line_push(parent, 'Template file', wname=mode + 'templateFname',width=w,initdir=self.ccfolder,
                                     tooltip='Select the tomogram file used for template matching.',
                                     filetype=['em', 'mrc'], mode='file', rstep=0,cstep=1)
-        #self.insert_label(parent, 'PDB2EM', cstep=2, alignment=Qt.AlignRight)
         self.insert_pushbutton(parent, 'Create', action=self.pdb2em, params=[mode + 'templateFname', mode], cstep=-3, rstep=1)
         self.insert_label_line_push(parent, 'Mask file', wname=mode+'maskFname',width=w,initdir=self.ccfolder,
                                     tooltip='Select the tomogram file used for template matching.',
                                     filetype=['em', 'mrc'], mode='file',cstep=1,rstep=0)
-        #self.insert_label(parent,'Create Mask',cstep=2, alignment=Qt.AlignRight)
         self.insert_pushbutton(parent,'Create',action=self.create_maskfile,params=[mode+'maskFname'],cstep=-3,rstep=1)
+        self.insert_label_combobox(parent, 'Spherical mask', mode + 'sphericalMask', labels=['True', 'False'],
+                                   tooltip='Set to true for spherical masks to save much calculation time')
         self.insert_label_spinbox(parent, mode + 'startZ', 'Start index of object in Z-dimension', width=w,
                                   value=0, stepsize=1, minimum=0, maximum=1000,
                                   tooltip='The tomogram might consist of empty space. Please determine the z-index where the object starts.')
@@ -249,7 +249,6 @@ class ParticlePick(GuiTabWidget):
         self.execfilenameTM = os.path.join( self.templatematchfolder, 'templateMatch.sh')
         self.xmlfilename  = os.path.join( self.templatematchfolder, 'job.xml')
 
-
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'TemplateMatching'
         paramsSbatch[ 'folder' ] = self.logfolder #[mode + 'outfolderTM']
@@ -258,13 +257,13 @@ class ParticlePick(GuiTabWidget):
 
         mandatory_fill = [mode + 'templateFname', mode + 'tomoFname', mode+'maskFname']
 
-
         self.updateTM(mode)
 
         self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=[mode+'outfolderTM','templateMatch.sh'], paramsSbatch=paramsSbatch,
                                  paramsXML=[mode + 'tomoFname', mode + 'templateFname', mode+'maskFname', mode + 'Wedge1',
                                             mode + 'Wedge2', mode+'angleFname', mode + 'outfolderTM', mode + 'startZ',
-                                            mode + 'widthX', mode + 'widthY', mode + 'widthZ', templateXML],
+                                            mode + 'widthX', mode + 'widthY', mode + 'widthZ',
+                                            mode + 'sphericalMask', templateXML],
                                  paramsCmd=[mode + 'outfolderTM', mode + 'numCores', self.pytompath, mode + 'jobName' ,
                                             mode + 'numX', mode + 'numY', mode + 'numZ',
                                             mode + 'gpuString', templateTM],
