@@ -290,7 +290,7 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
 
     print(f'dimensions of template and mask: {reference.shape} {mask.shape} ')
 
-    input = (volume, reference, mask, wedge, angles, volume.shape)
+    input = (volume, reference, mask, wedge, angles, maskIsSphere)
 
     tm_process = TemplateMatchingGPU(jobid, kwargs['gpuID'], input=input)
     tm_process.start()
