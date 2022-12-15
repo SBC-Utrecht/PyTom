@@ -208,7 +208,7 @@ class ParticlePick(GuiTabWidget):
                                     filetype=['em', 'mrc'], mode='file',cstep=1,rstep=0)
         self.insert_pushbutton(parent,'Create',action=self.create_maskfile,params=[mode+'maskFname'],cstep=-3,rstep=1)
         self.insert_label_combobox(parent, 'Spherical mask', mode + 'sphericalMask', labels=['True', 'False'],
-                                   tooltip='Set to true for spherical masks to save much calculation time')
+                                   tooltip='Set to true if the mask is spherical to save calculation time.')
         self.insert_label_spinbox(parent, mode + 'startZ', 'Start index of object in Z-dimension', width=w,
                                   value=0, stepsize=1, minimum=0, maximum=1000,
                                   tooltip='The tomogram might consist of empty space. Please determine the z-index where the object starts.')
@@ -360,20 +360,23 @@ class ParticlePick(GuiTabWidget):
             print('\n\nPlease select at least one tomogram, template and mask file.\n\n')
             return
 
-        headers = ["Filename Tomogram", "Run", "Mirrored", "Optional Templates", 'Optional Masks', 'Wedge Angle 1',
-                   "Wedge Angle 2", 'Angle List', 'Start Z', 'End Z', 'GPU ID', '']
-        types = ['txt', 'checkbox', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox','lineedit', 'lineedit', 'lineedit', 'txt']
-        sizes = [0, 0, 0, 80, 80, 0, 0, 0, 0 ,0 ,0]
+        headers = ['Filename Tomogram', 'Run', 'Mirrored', 'Optional Templates', 'Optional Masks', 'Spherical mask',
+                   'Wedge Angle 1', 'Wedge Angle 2', 'Angle List', 'Start Z', 'End Z', 'GPU ID', '']
+        types = ['txt', 'checkbox', 'checkbox', 'combobox', 'combobox', 'combobox', 'lineedit', 'lineedit',
+                 'combobox', 'lineedit', 'lineedit', 'lineedit', 'txt']
+        sizes = [0, 0, 0, 80, 80, 80, 0, 0, 0, 0, 0, 0]
 
         tooltip = ['Name of tomogram files.',
                    'Check this box if you want to do template matching using the optional settings.',
-                   'Check this box if you want to do template matching using a mirrored version of the template. If both run and mirrored are checked template matching will be deployed twice for that tomogram.',
+                   'Check this box if you want to do template matching using a mirrored version of the template. '
+                   'If both run and mirrored are checked template matching will be deployed twice for that tomogram.',
                    'Optional templates.',
                    'Optional masks.',
+                   'Set to true if the mask is spherical to save calculation time.',
                    'Angle between the lowest tilt angle and -90.',
                    'Angle between 90 and the highest tilt angle.',
                    'Optional angle lists.',
-                   'At which Z-slice does your object start?', 'At which Z-slice does your object end?', 'GPU ID' ]
+                   'At which Z-slice does your object start?', 'At which Z-slice does your object end?', 'GPU ID']
 
         values = []
 
@@ -389,9 +392,10 @@ class ParticlePick(GuiTabWidget):
                 else:
                     start, end = 0,0
 
-
-                folderm = os.path.join(self.tomogram_folder, os.path.basename(tomogramFile)[:len('tomogram_000')], 'sorted')
-                metafiles = [ os.path.join(folderm, dir) for dir in os.listdir(folderm) if not os.path.isdir(dir) and dir.endswith('.meta')]
+                folderm = os.path.join(self.tomogram_folder,
+                                       os.path.basename(tomogramFile)[:len('tomogram_000')], 'sorted')
+                metafiles = [os.path.join(folderm, dir) for dir in os.listdir(folderm)
+                             if not os.path.isdir(dir) and dir.endswith('.meta')]
                 if metafiles:
                     from pytom.gui.guiFunctions import datatype, loadstar
 
@@ -406,7 +410,8 @@ class ParticlePick(GuiTabWidget):
                 print(e)
                 start, end = 0, 0
                 w1,w2 = 30,30
-            values.append([tomogramFile, 1, 1, templateFiles, maskFiles, w1, w2, angleLists, start, end, '', ''])
+            values.append([tomogramFile, 1, 1, templateFiles, maskFiles, ['True', 'False'], w1, w2,
+                           angleLists, start, end, '', ''])
 
         try:
             self.num_nodes[id].setParent(None)
@@ -415,9 +420,7 @@ class ParticlePick(GuiTabWidget):
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True, wname=self.stage + 'BatchTemplateMatch_')
 
-
         self.tab22_widgets = self.tables[id].widgets
-
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_submitTM(pid, v))
 
@@ -439,12 +442,13 @@ class ParticlePick(GuiTabWidget):
                 tomogramFile = values[row][0]
                 templateFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
                 maskFile = values[row][4][self.tab22_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
-                w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
-                w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 6)].text())
-                angleList = self.tab22_widgets['widget_{}_{}'.format(row, 7)].currentText()
-                start = self.tab22_widgets['widget_{}_{}'.format(row, 8)].text()
-                end = self.tab22_widgets['widget_{}_{}'.format(row, 9)].text()
-                gpuID = self.tab22_widgets['widget_{}_{}'.format(row, 10)].text()
+                mask_is_spherical = values[row][5][self.tab22_widgets['widget_{}_{}'.format(row, 5)].currentIndex()]
+                w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 6)].text())
+                w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 7)].text())
+                angleList = self.tab22_widgets['widget_{}_{}'.format(row, 8)].currentText()
+                start = self.tab22_widgets['widget_{}_{}'.format(row, 9)].text()
+                end = self.tab22_widgets['widget_{}_{}'.format(row, 10)].text()
+                gpuID = self.tab22_widgets['widget_{}_{}'.format(row, 11)].text()
                 if not gpuID in todoList.keys():
                     todoList[gpuID] = []
 
@@ -505,7 +509,7 @@ class ParticlePick(GuiTabWidget):
                         mm = ''
 
                     XMLParams = [tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory,
-                                 start, widthX, widthY, widthZ]
+                                 start, widthX, widthY, widthZ, mask_is_spherical]
 
                     jobxml = templateXML.format(d=XMLParams)
                     template = os.path.basename(templateFile).split('.')[0]
