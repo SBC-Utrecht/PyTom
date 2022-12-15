@@ -1,25 +1,5 @@
 
-#def updateResult(resVol, newVol, orientVol, index):
-#    '''
-#    Created on May 17, 2010
-#    @param resVol: result score volume that is about to update
-#    @type resVol: L{pytom_volume.vol}
-#    @param newVol: the new score volume that is about to compare to the result volume
-#    @type newVol: L{pytom_volume.vol}
-#    @param orientvol: orientation volume that stores the index of the rotation information
-#    @type orientVol: L{pytom_volume.vol}
-#    @param index: index of the loop
-#    @type index: int
-#    @author: chen
-#    '''
-#    
-#    for i in xrange(resVol.sizeX()):
-#        for j in xrange(resVol.sizeY()):
-#            for k in xrange(resVol.sizeZ()):
-#                if resVol.getV(i,j,k) < newVol.getV(i,j,k):
-#                    resVol.setV(newVol.getV(i,j,k), i,j,k)
-#                    orientVol.setV(index, i,j,k)
-    
+
 def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsSphere=False, wedgeInfo=None, debug=False,
                  **kwargs):
     '''
@@ -42,12 +22,6 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     @rtype: L{pytom_volume.vol}
     @author: chen
     '''
-#    from pytom.tools.timing import timing
-#    t = timing(); t.start()
-    
-    # parse the parameters
-
-
     nodeName = kwargs.get('nodeName', '')
     verbose = kwargs.get('verboseMode', True)
     if verbose not in [True, False]:
@@ -61,7 +35,6 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     from pytom_volume import vol, pasteCenter
     from pytom_volume import rotateSpline as rotate  # for more accuracy
     from pytom_volume import updateResFromIdx
-    from pytom.basic.files import write_em
 
     if scoreFnc == None:
         scoreFnc = FLCF
@@ -128,7 +101,8 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
                 m = mask
         
         # compute the score
-        # if mask is sphere and it is the first run, compute the standard deviation of the volume under mask for late use
+        # if mask is sphere and it is the first run,
+        # compute the standard deviation of the volume under mask for late use
         if scoreFnc == FLCF and index == 0 and maskIsSphere == True:
             # compute standard deviation of the volume under mask
             maskV = m
@@ -144,7 +118,6 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
             if debug:
                 volume.write('volume_cpu.mrc')
                 meanV.write('meanV_cpu.mrc')
-
 
         if scoreFnc == FLCF:
             if maskIsSphere == True:
@@ -169,14 +142,9 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         
         currentRotation = rotations.nextRotation()
         index = index+1
-        
-#    if moreInfo:
-#        sumV = sumV/rotations.numberRotations()
-#        sqrV = sqrV/rotations.numberRotations()
-
-#    time = t.end(); print 'The overall execution time: %f' % time
 
     return [result, orientation, sumV, sqrV]
+
 
 def create_structured_wedge(tilt_angles, angle2=None, cutoffRadius=10, sizeX=10, sizeY=10, sizeZ=10, smooth=0, rotation=None, c=1):
     from pytom.gpu.initialize import xp
@@ -225,12 +193,9 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     @author: GvdS
     '''
 
-    from pytom_numpy import vol2npy
-    from pytom.agnostic.filter import create_wedge, applyFourierFilter
-    from pytom.agnostic.io import write
+    from pytom.agnostic.filter import create_wedge
     from pytom.gpu.gpuStructures import TemplateMatchingGPU
     from pytom.tools.calcFactors import calc_fast_gpu_dimensions
-    import time
     import numpy as np
     from pytom.gpu.initialize import xp
 
@@ -240,7 +205,6 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     xp.cuda.Device(kwargs['gpuID']).use()
 
     angles = rotations[:]
-    #volume = wedgeInfo.apply(volume)
     SX,SY,SZ = volume.shape
     sx,sy,sz = reference.shape
     angle = wedgeInfo.getWedgeAngle()
@@ -276,11 +240,8 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     else:
         wedge = np.ones((sx,sy,sz//2+1),dtype='float32')
 
-    scrs = np.zeros_like(volume,dtype=np.float32)
-
+    dimx, dimy, dimz = volume.shape
     if padding:
-        dimx, dimy, dimz = volume.shape
-
         cx = max(reference.shape[0], calc_fast_gpu_dimensions(dimx - 2, 4000)[0])
         cy = max(reference.shape[1], calc_fast_gpu_dimensions(dimy - 2, 4000)[0])
         cz = max(reference.shape[2], calc_fast_gpu_dimensions(dimz - 2, 4000)[0])
@@ -289,6 +250,7 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
         volume = voluNDAs
 
     print(f'dimensions of template and mask: {reference.shape} {mask.shape} ')
+    print(f'dimensions of tomogram: {volume.shape}')
 
     input = (volume, reference, mask, wedge, angles, maskIsSphere)
 
@@ -304,9 +266,12 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     if tm_process.completed:
         print(f'Templated matching completed successfully on {kwargs["gpuID"]}')
         if padding:
-            angs = np.zeros_like(scrs,dtype=np.float32)
-            scrs[:min(cx, dimx), :min(cy, dimy),:min(cz, dimz)] = tm_process.plan.scores.get()[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)]
-            angs[:min(cx, dimx), :min(cy, dimy),:min(cz, dimz)] = tm_process.plan.angles.get()[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)]
+            # change shape to original size
+            scrs, angs = np.zeros((dimx, dimy, dimz), dtype=np.float32), np.zeros((dimx, dimy, dimz), dtype=np.float32)
+            scrs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = tm_process.plan.scores.get()[:min(cx, dimx),
+                                                                   :min(cy, dimy), :min(cz, dimz)]
+            angs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = tm_process.plan.angles.get()[:min(cx, dimx),
+                                                                   :min(cy, dimy), :min(cz, dimz)]
             return [scrs, angs, None, None]
         else:
             return [tm_process.plan.scores.get(), tm_process.plan.angles.get(), None, None]
