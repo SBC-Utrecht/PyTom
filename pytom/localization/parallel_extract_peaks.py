@@ -5,6 +5,9 @@ Created on May 20, 2010
 '''
 import numpy as np
 import os
+from pytom_volume import vol, updateResFromVol
+from pytom_numpy import vol2npy, npy2vol
+from pytom.agnostic.tools import subvolume, putSubVolume
 
 
 def getMsgStr():
@@ -64,8 +67,6 @@ class PeakWorker(object):
         @param msg: received message
         @type msg: L{pytom.localization.peak_job_msg.PeakJobMsg}
         """
-        from pytom.localization.peak_job_msg import PeakJobMsg
-        from pytom.localization.peak_job import PeakJob
         job = msg.getJob()
         self.setJob(job)
         if msg.getSender() != '':
@@ -79,9 +80,6 @@ class PeakWorker(object):
         @return: result of calculation
         @rtype: L{pytom.localization.peak_job.PeakResult}
         """
-        from pytom_numpy import vol2npy, npy2vol
-        from pytom_volume import vol, sum
-
         v = self.volume.getVolume(self.volume.subregion)
         ref = self.reference.getVolume()
         maskFilename = self.mask.getFilename()
@@ -105,7 +103,7 @@ class PeakWorker(object):
             from pytom.localization.extractPeaks import extractPeaks
         else:
             from pytom.localization.extractPeaks import templateMatchingGPU as extractPeaks
-            v, ref, m = [vol2npy(vol).copy() for vol in (v, ref, m)]
+            v, ref, m = [vol2npy(x).copy() for x in (v, ref, m)]
             g = gpuID[self.mpi_id]
 
         if verbose==True:
@@ -199,8 +197,6 @@ class PeakLeader(PeakWorker):
         @param msg: received message
         @type msg: L{pytom.localization.peak_job_msg.PeakJobMsg}
         """
-        from pytom.localization.peak_job_msg import PeakJobMsg
-        from pytom.localization.peak_job import PeakJob
         job = msg.getJob()
         sendID = int(msg.getSender())
         if sendID != self.mpi_id: # make sure that the result will not send back to itself
@@ -439,7 +435,6 @@ class PeakLeader(PeakWorker):
         
         @rtype: L{pytom.localization.peak_job.PeakResult}
         """
-        from pytom.agnostic.io import read, write
 
 
         if jobID != None:
@@ -449,12 +444,8 @@ class PeakLeader(PeakWorker):
             resFilename = self.dstDir + self.name + '_res.em'
             orientFilename = self.dstDir + self.name + '_orient.em'
 
-        try:
-            resV.write(resFilename)
-            orientV.write(orientFilename)
-        except:
-            write(resFilename, resV)
-            write(orientFilename, orientV)
+        resV.write(resFilename)
+        orientV.write(orientFilename)
 
         from pytom.localization.structures import Volume, Orientation
         res = Volume(resFilename)
@@ -496,13 +487,11 @@ class PeakLeader(PeakWorker):
             orientV = orientV + offset
             
             if self.resVolA is None or self.resOrientA is None:
-                from pytom_volume import vol
                 self.resVolA = vol(resV.sizeX(), resV.sizeY(), resV.sizeZ())
                 self.resOrientA = vol(orientV.sizeX(), orientV.sizeY(), orientV.sizeZ())
                 self.resVolA.copyVolume(resV)
                 self.resOrientA.copyVolume(orientV)
             else:
-                from pytom_volume import updateResFromVol
                 updateResFromVol(self.resVolA, resV, self.resOrientA, orientV)
                 
             if self.jobInfoPool["numDoneJobsA"] == self.jobInfoPool["numJobsA"] and self.jobInfoPool["numJobsV"]>0:
@@ -512,18 +501,11 @@ class PeakLeader(PeakWorker):
             self.jobInfoPool["numDoneJobsV"] = self.jobInfoPool["numDoneJobsV"] + 1
             [originX, originY, originZ] = self.jobInfoPool[jobID].origin
             if self.resVol is None or self.resOrient is None:
-                from pytom_volume import vol
                 [vsizeX, vsizeY, vsizeZ] = self.jobInfoPool[jobID].originalSize
-
-                try:
-                    resV.shape
-                    self.resVol = np.zeros((vsizeX, vsizeY, vsizeZ), dtype=np.float32)
-                    self.resOrient = np.zeros((vsizeX, vsizeY, vsizeZ), dtype=np.float32)
-                except:
-                    self.resVol = vol(vsizeX, vsizeY, vsizeZ)
-                    self.resVol.setAll(0)
-                    self.resOrient = vol(vsizeX, vsizeY, vsizeZ)
-                    self.resOrient.setAll(0)
+                self.resVol = vol(vsizeX, vsizeY, vsizeZ)
+                self.resVol.setAll(0)
+                self.resOrient = vol(vsizeX, vsizeY, vsizeZ)
+                self.resOrient.setAll(0)
             
             [vsizeX, vsizeY, vsizeZ] = self.jobInfoPool[jobID].originalSize
             [sizeX ,sizeY, sizeZ] = self.jobInfoPool[jobID].splitSize
@@ -534,7 +516,6 @@ class PeakLeader(PeakWorker):
             stepSizeY = min(vsizeY-sub_start[1], sizeY)
             stepSizeZ = min(vsizeZ-sub_start[2], sizeZ)
 
-            from pytom.agnostic.tools import subvolume, putSubVolume
             sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
             sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
 

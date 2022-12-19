@@ -4638,8 +4638,53 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
                     break
 
 
-# Windows Connected to Icons in header bar.
+# Select folder with tomograms to load them all at once for batch template matching
+class SelectTomogramDir(QMainWindow, CommonFunctions):
+    '''This class lets you browse to a directory to load all .mrc or .em tomos in it.'''
+    def __init__(self, parent):
+        super(SelectTomogramDir, self).__init__(parent)
+        self.setGeometry(50, 50, 300, 100)
+        self.cwidget = QWidget()
+        self.gridLayout = QGridLayout()
+        self.setWindowModality(Qt.ApplicationModal)
 
+        #self.gridLayout.setContentrsMargins(10, 10, 10, 10)
+        self.setStyleSheet('background: #{};'.format(self.parent().middlec) )
+        self.cwidget.setLayout(self.gridLayout)
+        self.setCentralWidget(self.cwidget)
+        self.fill()
+
+    def fill(self):
+        columns, rows = 5, 5
+
+        self.items, self.widgets = [['', ] * columns, ] * rows, {}
+        parent = self.gridLayout
+
+        self.row, self.column = 0, 1
+        self.insert_label(parent, text='Select tomogram directory', rstep=1, alignment=Qt.AlignHCenter,
+                          tooltip='Provide the foldername where a bunch of tomograms are located.')
+        self.insert_lineedit(parent, 'tomogramdir', cstep=1)
+        self.insert_pushbutton(parent, cstep=self.column * -1+1, rstep=1, text='Browse',
+                               action=self.browse, params=['folder', self.items[self.row][self.column - 1], ''])
+        self.insert_pushbutton(parent, cstep=self.column * -1+1, rstep=1, text='Select',
+                               action=self.return_value)
+
+    def return_value(self):
+        path = self.widgets['tomogramdir'].text()
+
+        files = [os.path.join(path, fname) for fname in os.listdir(path) if fname.endswith('.em') or fname.endswith(
+                '.mrc')]
+
+        self.parent().tomogramlist = files
+
+        if len(files):
+            QMessageBox().warning(self, "No tomograms in folder",
+                                  "Folder needs to contain tomograms in .mrc or .em format.", QMessageBox.Ok)
+
+        self.close()
+
+
+# Windows Connected to Icons in header bar.
 class NewProject(QMainWindow, CommonFunctions):
     '''This class creates a new windows for browsing'''
     def __init__(self,parent,label):
