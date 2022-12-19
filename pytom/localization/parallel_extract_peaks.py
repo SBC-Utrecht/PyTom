@@ -3,7 +3,9 @@ Created on May 20, 2010
 
 @author: chen
 '''
-import numpy
+import numpy as np
+import os
+
 
 def getMsgStr():
     '''
@@ -14,6 +16,7 @@ def getMsgStr():
     import pytom_mpi
     mpi_msgString = pytom_mpi.receive()
     return mpi_msgString
+
 
 class PeakWorker(object):
     '''
@@ -77,6 +80,7 @@ class PeakWorker(object):
         @rtype: L{pytom.localization.peak_job.PeakResult}
         """
         from pytom_numpy import vol2npy, npy2vol
+        from pytom_volume import vol, sum
 
         v = self.volume.getVolume(self.volume.subregion)
         ref = self.reference.getVolume()
@@ -96,13 +100,11 @@ class PeakWorker(object):
             if verbose: print('Bandpass added!')
             ref = self.bandpass.filter(ref)
         
-        # calculate the result volume
-        if gpuID is None:
+        g = None
+        if gpuID is None:  # gpu dependent import of functions
             from pytom.localization.extractPeaks import extractPeaks
-            g=None
         else:
             from pytom.localization.extractPeaks import templateMatchingGPU as extractPeaks
-
             v, ref, m = [vol2npy(vol).copy() for vol in (v, ref, m)]
             g = gpuID[self.mpi_id]
 
@@ -113,79 +115,14 @@ class PeakWorker(object):
                                                    jobid=self.mpi_id)
         self.runtimes = self.runtimes + 1
 
-        if gpuID is not None:
-            # convert back to pytom_vol
-            [resV, orientV, sumV, sqrV] = [npy2vol(r.copy(order='F'), len(r.shape))
-                                           for r in [resV, orientV, sumV, sqrV]]
-
+        if g is not None:  # convert the results back to pytomvol for merging between procs
+            # vol2npy returns a pytom volume view of a numpy array
+            # need to ensure the returned variable does not refer to a locally existing variable
+            copy1, copy2 = np.asfortranarray(resV), np.asfortranarray(orientV)
+            tmp_res, tmp_orient = npy2vol(copy1, 3), npy2vol(copy2, 3)
+            resV, orientV = vol(*resV.shape), vol(*orientV.shape)
+            [resV.copyVolume(tmp_res), orientV.copyVolume(tmp_orient)]
         return [resV, orientV, sumV, sqrV]
-
-    # TODO this function does not seem to be used => for removal
-    # def parallelRun(self, verbose=True, **kwargs):
-    #     '''
-    #     parallelRun: Run the worker in parallel status and send the result message back
-    #     @param verbose: verbose mode
-    #     @type verbose: boolean
-    #     '''
-    #
-    #     from pytom.parallel.messages import StatusMessage,MessageError
-    #     from pytom.basic.exceptions import ParameterError
-    #     from pytom.basic.structures import PyTomClassError
-    #
-    #
-    #     end = False
-    #
-    #     while not end:
-    #         # get the message string
-    #         mpi_msgString = getMsgStr()
-    #
-    #         try:
-    #             msg = self.getJobMsg(mpi_msgString)
-    #             self.jobFromMsg(msg)
-    #
-    #             if verbose==True:
-    #                 print(self.name + ': running...')
-    #             [resV, orientV, sumV, sqrV] = self.run(verbose, moreInfo=True)
-    #
-    #             # write the result volume back to the disk
-    #             resFilename = self.name + '_job' + str(self.jobID) + '_res.em'
-    #             orientFilename = self.name + '_job' + str(self.jobID) + '_orient.em'
-    #
-    #
-    #             resV.write(resFilename)
-    #             orientV.write(orientFilename)
-    #
-    #             if sumV and sqrV:
-    #                 sumFilename = self.name + '_job' + str(self.jobID) + '_sum.em'
-    #                 sqrFilename = self.name + '_job' + str(self.jobID) + '_sqr.em'
-    #                 sumV.write(sumFilename)
-    #                 sqrV.write(sqrFilename)
-    #
-    #             from pytom.localization.structures import Volume, Orientation
-    #             res = Volume(resFilename, self.volume.subregion)
-    #             orient = Orientation(orientFilename)
-    #
-    #             # construct the result
-    #             from pytom.localization.peak_job import PeakResult
-    #             result = PeakResult(res, orient, self.jobID)
-    #
-    #             # sent the result back
-    #             if verbose==True:
-    #                 print(self.name + ': sending back result')
-    #             result.send(self.mpi_id, self.backTo)
-    #
-    #         except (MessageError,PyTomClassError,ParameterError):
-    #             try:
-    #                 # get the message as StatusMessage and finish
-    #                 msg = StatusMessage('','')
-    #                 msg.fromStr(mpi_msgString)
-    #                 if msg.getStatus() == 'End':
-    #                     end = True
-    #                 if verbose==True:
-    #                     print(self.name + ': ending...')
-    #             except (MessageError,PyTomClassError,ParameterError):
-    #                 print('Error parsing message. Message either unknown or invalid.')
-    #                 assert False
 
 
 class PeakLeader(PeakWorker):
@@ -304,11 +241,7 @@ class PeakLeader(PeakWorker):
         
         totalNum = job.rotations.numberRotations()
         
-#        # initialize the jobInfo structure
-#        self.jobInfo["numDoneJobs"] = 0
-#        self.jobInfo["numJobs"] = 0
-#        self.jobInfo["originalJobID"] = job.jobID
-#        self.jobInfo["splitType"] = "Ang"
+        # initialize the jobInfo structure
         originalJobID = job.jobID
         
         while self.members > 1 and totalNum > 1:
@@ -329,10 +262,6 @@ class PeakLeader(PeakWorker):
                 print(self.name+': send number of %d rotations to node %d' % (subJob2.rotations.numberRotations(), self.mpi_id+subMem1))
             subJob2.send(self.mpi_id, self.mpi_id+subMem1)
             
-#            self.jobInfo["numJobs"] = self.jobInfo["numJobs"] + 1
-#            # set offset
-#            self.jobInfo[subJob1.jobID] = 0
-#            self.jobInfo[subJob2.jobID] = numEach*subMem1
             self.jobInfoPool["numJobsA"] = self.jobInfoPool["numJobsA"] + 1
             from pytom.localization.peak_job import JobInfo
             info = JobInfo(subJob1.jobID, originalJobID, "Ang")
@@ -346,8 +275,7 @@ class PeakLeader(PeakWorker):
             job = subJob1
             totalNum = job.rotations.numberRotations()
             self.setJob(job)
-            
-#        self.jobInfo["numJobs"] = self.jobInfo["numJobs"] + 1
+        
         self.jobInfoPool["numJobsA"] = self.jobInfoPool["numJobsA"] + 1
             
 
@@ -380,14 +308,7 @@ class PeakLeader(PeakWorker):
         if rsizeX>sizeX or rsizeY>sizeY or rsizeZ>sizeZ:
             raise RuntimeError("Not big enough volume to split!")
         
-#        # initialize the jobInfo structure
-#        self.jobInfo["numDoneJobs"] = 0
-#        self.jobInfo["numJobs"] = 0
-#        self.jobInfo["originalJobID"] = job.jobID
-#        self.jobInfo["splitType"] = "Vol"
-#
-#        self.jobInfo["originalSize"] = [vsizeX, vsizeY, vsizeZ]
-#        self.jobInfo["splitSize"] = [sizeX, sizeY, sizeZ]
+        # initialize the jobInfo structure
         originalJobID = job.jobID
             
         # read the target volume, calculate the respective subregion
@@ -424,10 +345,10 @@ class PeakLeader(PeakWorker):
             
             size = [end[j]-start[j] for j in range(len(start))]
             
-#            # make sure that the last dimension is not odd
-#            if size[2]%2 == 1:
-#                size[2] = size[2] - 1
-#                end[2] = end[2] - 1
+            # make sure that the last dimension is not odd
+            # if size[2]%2 == 1:
+            #     size[2] = size[2] - 1
+            #     end[2] = end[2] - 1
             
             # for reassembling the result
             whole_start = start[:]
@@ -442,7 +363,6 @@ class PeakLeader(PeakWorker):
                 whole_start[2] = start[2]+rsizeZ//2
                 sub_start[2] = rsizeZ//2
             
-#            self.jobInfo[subJobID] = [sub_start, whole_start]
             subJobID = job.jobID+i+1
             subVol = Volume(job.volume.getFilename(),
                             [start[0], start[1], start[2], size[0], size[1], size[2]])
@@ -597,7 +517,6 @@ class PeakLeader(PeakWorker):
 
                 try:
                     resV.shape
-                    import numpy as np
                     self.resVol = np.zeros((vsizeX, vsizeY, vsizeZ), dtype=np.float32)
                     self.resOrient = np.zeros((vsizeX, vsizeY, vsizeZ), dtype=np.float32)
                 except:
@@ -714,7 +633,6 @@ class PeakLeader(PeakWorker):
         
         if self.mpi_id == 0:
             # delete the temporary files on the disk
-            import os
             files = os.listdir(self.dstDir)
             for name in files:
                 if 'job' in name and '.em' in name and not 'sum' in name and not 'sqr' in name:
@@ -756,7 +674,6 @@ class PeakLeader(PeakWorker):
                 from pytom.tools.files import checkDirExists
                 new_dir = job.dstDir + 'Job_' + str(i)
                 if not checkDirExists(new_dir):
-                    import os
                     os.mkdir(new_dir)
                 job.dstDir = new_dir
             

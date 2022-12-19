@@ -222,35 +222,28 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
         # replace with Wedge.convert2numpy() and the returnWedgeVolume
         cutoff = wedgeInfo._wedgeObject._cutoffRadius
         smooth = wedgeInfo._wedgeObject._smooth
-        wedge = create_wedge(w1, w2, cutoff, sx, sy, sz, smooth).astype(np.complex64).get()
-
-        wedgeVolume = create_wedge(w1, w2, cutoff, SX, SY, SZ, smooth).astype(np.float32)
-
-        try:
-            wedge = wedge.get()
-            wedgeVolume = wedgeVolume.get()
-        except:
-            pass
+        wedge = create_wedge(w1, w2, cutoff, sx, sy, sz, smooth).get().astype(np.float32)
+        wedge_tomogram = create_wedge(w1, w2, cutoff, SX, SY, SZ, smooth).get().astype(np.float32)
 
         # convolve the search volume with the wedge
-        volume = np.real(np.fft.irfftn(np.fft.rfftn(volume) * wedgeVolume.get()))
+        volume = np.real(np.fft.irfftn(np.fft.rfftn(volume) * wedge_tomogram, s=volume.shape))
 
-        del wedgeVolume
+        del wedge_tomogram
         print('Wedge filter applied to volume')
     else:
         wedge = np.ones((sx,sy,sz//2+1),dtype='float32')
-
+    
+    print('dim of tomogram ', volume.shape)
     dimx, dimy, dimz = volume.shape
     if padding:
-        cx = max(reference.shape[0], calc_fast_gpu_dimensions(dimx - 2, 4000)[0])
-        cy = max(reference.shape[1], calc_fast_gpu_dimensions(dimy - 2, 4000)[0])
-        cz = max(reference.shape[2], calc_fast_gpu_dimensions(dimz - 2, 4000)[0])
+        cx = max(reference.shape[0], calc_fast_gpu_dimensions(SX - 2, 4000)[0])
+        cy = max(reference.shape[1], calc_fast_gpu_dimensions(SY - 2, 4000)[0])
+        cz = max(reference.shape[2], calc_fast_gpu_dimensions(SZ - 2, 4000)[0])
         voluNDAs = np.zeros([cx, cy, cz], dtype=np.float32)
-        voluNDAs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = volume[:min(cx, dimx), :min(cy, dimy),:min(cz, dimz)]
+        voluNDAs[:min(cx, SX), :min(cy, SY), :min(cz, SZ)] = volume[:min(cx, SX), :min(cy, SY),:min(cz, SZ)]
         volume = voluNDAs
 
     print(f'dimensions of template and mask: {reference.shape} {mask.shape} ')
-    print(f'dimensions of tomogram: {volume.shape}')
 
     input = (volume, reference, mask, wedge, angles, maskIsSphere)
 
@@ -267,11 +260,11 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
         print(f'Templated matching completed successfully on {kwargs["gpuID"]}')
         if padding:
             # change shape to original size
-            scrs, angs = np.zeros((dimx, dimy, dimz), dtype=np.float32), np.zeros((dimx, dimy, dimz), dtype=np.float32)
-            scrs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = tm_process.plan.scores.get()[:min(cx, dimx),
-                                                                   :min(cy, dimy), :min(cz, dimz)]
-            angs[:min(cx, dimx), :min(cy, dimy), :min(cz, dimz)] = tm_process.plan.angles.get()[:min(cx, dimx),
-                                                                   :min(cy, dimy), :min(cz, dimz)]
+            scrs, angs = np.zeros((SX, SY, SZ), dtype=np.float32), np.zeros((SX, SY, SZ), dtype=np.float32)
+            scrs[:min(cx, SX), :min(cy, SY), :min(cz, SZ)] = tm_process.plan.scores.get()[:min(cx, SX),
+                                                                   :min(cy, SY), :min(cz, SZ)]
+            angs[:min(cx, SX), :min(cy, SY), :min(cz, SZ)] = tm_process.plan.angles.get()[:min(cx, SX),
+                                                                   :min(cy, SY), :min(cz, SZ)]
             return [scrs, angs, None, None]
         else:
             return [tm_process.plan.scores.get(), tm_process.plan.angles.get(), None, None]

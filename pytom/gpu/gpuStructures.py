@@ -143,7 +143,7 @@ class TemplateMatchingGPU(threading.Thread):
 
             # Add wedge to the template after rotating
             self.plan.template = self.irfftn(self.rfftn(self.plan.template) * self.plan.wedge,
-                                             s=self.plan.template.shape)
+                                             s=self.plan.template.shape).real
 
             # Normalize template
             meanT = self.meanUnderMask(self.plan.template, self.plan.mask, p=self.plan.p)

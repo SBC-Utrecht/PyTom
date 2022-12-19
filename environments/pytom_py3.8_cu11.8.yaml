@@ -7,10 +7,7 @@ channels:
   - defaults
 dependencies:
   - boost=1.73.0
-  - cuda-toolkit=11.8
-  - cudnn
   - cupy=8.3.0
-    #   - fastrlock=0.6
   - fftw-mpi=3.3.6
   - gcc_impl_linux-64=7.3.0
   - gcc_linux-64=7.3.0
