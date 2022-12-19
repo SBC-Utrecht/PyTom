@@ -95,24 +95,21 @@ class ParticlePick(GuiTabWidget):
         except:
             self.jobFiles = QLineEdit()
 
-        self.tomogramlist = []
-
-        widget = SelectTomogramDir(self)
-        widget.show()
-
-        if len(self.tomogramlist) == 0:
-            print('no tomograms found')
-            return  #?
-
-        try: self.templateFiles.text()
-        except: self.templateFiles = QLineEdit()
-        self.batchTM.close()
-        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'], id=key,
+        try:
+            self.templateFiles.text()
+        except:
+            self.templateFiles = QLineEdit()
+        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em', 'mrc'], id=key,
                                    outputline=self.templateFiles, run_upon_complete=self.getMaskFiles,
                                    title='Select Template')
         # self.batchTM = SelectFiles(self, initdir=self.tomogramfolder, search='file', filter=['em', 'mrc'],
         #                            outputline=self.jobFiles, run_upon_complete=self.getTemplateFiles, id=key,
         #                            title='Select Tomograms.')
+
+        self.tomogramlist = []
+
+        widget = SelectTomogramDir(self)
+        widget.show()
 
     def tab23UI(self, key=''):
 
@@ -197,16 +194,13 @@ class ParticlePick(GuiTabWidget):
         grid.addWidget(pushbutton, n + 1, 0)
         grid.addWidget(label, n + 2, 0)
 
-
-    # Methods to fill tabs with input fields or an input table
-
     def templateMatch(self, mode, title=''):
         tooltip = 'Run pytom template matching routine.'
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
 
         self.row, self.column = 0, 1
-        rows, columns = 20, 20
+        rows, columns = 25, 20
         self.items = [['', ] * columns, ] * rows
         w=170
 
@@ -241,8 +235,9 @@ class ParticlePick(GuiTabWidget):
         self.insert_label_combobox(parent,'Angular Sampling Filename',mode+'angleFname',
                                    labels=os.listdir(os.path.join( self.parent().pytompath, 'angles/angleLists') ),
                                    tooltip='Select the file that describes the angular sampling of the template model',
-                                   width=w,cstep=-1)
-        self.insert_label_spinbox(parent, mode + 'splitX', 'x split', width=w, value=1, minimum=1, maximum=100,
+                                   width=w, cstep=-1)
+        self.insert_label_spinbox(parent, mode + 'splitX', 'x split', width=w, value=1, stepsize=1,
+                                  minimum=1, maximum=100,
                                   tooltip='Split the volume along the x dimensions this many times. '
                                           'Total subvolumes are determined by splitx * splity * splitz. '
                                           'Each subvolume will be assigned to an mpi process. So if you have 16 '
@@ -250,7 +245,8 @@ class ParticlePick(GuiTabWidget):
                                           'If you have 4 gpus, each managed by 1 mpi proc, you can maximally '
                                           'split the tomogram into 4 subvolumes. Then setup can have the following '
                                           'parameters: splitx=2, splity=2, splitz=1, gpus=0,1,2,3')
-        self.insert_label_spinbox(parent, mode + 'splitY', 'y split', width=w, value=1, minimum=1, maximum=100,
+        self.insert_label_spinbox(parent, mode + 'splitY', 'y split', width=w, value=1, stepsize=1,
+                                  minimum=1, maximum=100,
                                   tooltip='Split the volume along the y dimensions this many times. '
                                           'Total subvolumes are determined by splitx * splity * splitz. '
                                           'Each subvolume will be assigned to an mpi process. So if you have 16 '
@@ -258,7 +254,8 @@ class ParticlePick(GuiTabWidget):
                                           'If you have 4 gpus, each managed by 1 mpi proc, you can maximally '
                                           'split the tomogram into 4 subvolumes. Then setup can have the following '
                                           'parameters: splitx=2, splity=2, splitz=1, gpus=0,1,2,3')
-        self.insert_label_spinbox(parent, mode + 'splitZ', 'z split', width=w, value=1, minimum=1, maximum=100,
+        self.insert_label_spinbox(parent, mode + 'splitZ', 'z split', width=w, value=1, stepsize=1,
+                                  minimum=1, maximum=100,
                                   tooltip='Split the volume along the z dimensions this many times. '
                                           'Total subvolumes are determined by splitx * splity * splitz. '
                                           'Each subvolume will be assigned to an mpi process. So if you have 16 '
@@ -441,7 +438,6 @@ class ParticlePick(GuiTabWidget):
         for n, tomogramFile in enumerate(self.tomogramlist):
             try:
                 folder = os.path.dirname(os.popen(f'ls -alrt {tomogramFile}').read()[:-1].split(' ')[-1])
-                print(folder)
                 widthfile = os.path.join(folder, 'z_limits.txt')
                 if os.path.exists( widthfile):
 
@@ -452,7 +448,7 @@ class ParticlePick(GuiTabWidget):
                 folderm = os.path.join(self.tomogram_folder,
                                        os.path.basename(tomogramFile)[:len('tomogram_000')], 'sorted')
                 metafiles = [os.path.join(folderm, dir) for dir in os.listdir(folderm)
-                             if not os.path.isdir(dir) and dir.endswith('.meta')]
+                             if not os.path.isdir(dir) and dir.endswith('.meta')] if os.path.exists(folderm) else []
                 if metafiles:
                     from pytom.gui.guiFunctions import datatype, loadstar
 

@@ -4647,9 +4647,8 @@ class SelectTomogramDir(QMainWindow, CommonFunctions):
         self.cwidget = QWidget()
         self.gridLayout = QGridLayout()
         self.setWindowModality(Qt.ApplicationModal)
+        self.p = parent
 
-        #self.gridLayout.setContentrsMargins(10, 10, 10, 10)
-        self.setStyleSheet('background: #{};'.format(self.parent().middlec) )
         self.cwidget.setLayout(self.gridLayout)
         self.setCentralWidget(self.cwidget)
         self.fill()
@@ -4669,15 +4668,15 @@ class SelectTomogramDir(QMainWindow, CommonFunctions):
         self.insert_pushbutton(parent, cstep=self.column * -1+1, rstep=1, text='Select',
                                action=self.return_value)
 
-    def return_value(self):
+    def return_value(self, params):
         path = self.widgets['tomogramdir'].text()
 
         files = [os.path.join(path, fname) for fname in os.listdir(path) if fname.endswith('.em') or fname.endswith(
                 '.mrc')]
 
-        self.parent().tomogramlist = files
+        self.p.tomogramlist = files
 
-        if len(files):
+        if len(files) == 0:
             QMessageBox().warning(self, "No tomograms in folder",
                                   "Folder needs to contain tomograms in .mrc or .em format.", QMessageBox.Ok)
 
