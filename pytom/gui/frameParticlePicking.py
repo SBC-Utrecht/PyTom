@@ -263,7 +263,7 @@ class ParticlePick(GuiTabWidget):
                                           'If you have 4 gpus, each managed by 1 mpi proc, you can maximally '
                                           'split the tomogram into 4 subvolumes. Then setup can have the following '
                                           'parameters: splitx=2, splity=2, splitz=1, gpus=0,1,2,3')
-        self.insert_label_line(parent, "GPU's", mode + 'gpuID', width=w, cstep=0, validator=QIntValidator(),
+        self.insert_label_line(parent, "GPU's", mode + 'gpuID', width=w, cstep=0,
                                   tooltip="Which GPU's do you want to reserve. If you want to use multiple GPUs separate them using a comma, e.g. 0,1,2 ")
 
         self.widgets[mode + 'widthZ'] = QLineEdit('0')
@@ -1159,16 +1159,16 @@ class ParticlePick(GuiTabWidget):
             if not key == name: self.widgets[key].setText(self.widgets[name].text())
 
     def updateGpuString(self, mode):
-        id = self.widgets[mode + 'gpuID'].text()
+        gpu_ids = self.widgets[mode + 'gpuID'].text()
         try:
-            a = map(int,[el for el in id.split(',') if el != ''])
+            a = list(map(int, [el for el in gpu_ids.split(',') if el != '']))
         except:
             self.widgets[mode + 'gpuID'].setText('')
             self.popup_messagebox('Warning', 'Invalid value in field', 'Impossible to parse gpu IDs, field has been cleared.')
             return
 
-        if len(id) > 0:
-            self.widgets[mode + 'gpuString'].setText(f'--gpuID {id}')
+        if len(a) > 0:
+            self.widgets[mode + 'gpuString'].setText(f'--gpuID {gpu_ids}')
         else:
             self.widgets[mode + 'gpuString'].setText('')
 
