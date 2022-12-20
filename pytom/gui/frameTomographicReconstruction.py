@@ -622,9 +622,9 @@ class TomographReconstruct(GuiTabWidget):
             tilt_choices = []
             if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
                 tilt_choices.append('sorted')
-            if os.path.exists(ctf_sorted_dir):
-                if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
-                    tilt_choices.append('sorted_ctf')
+            if os.path.exists(ctf_sorted_dir) and \
+                    len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+                tilt_choices.append('sorted_ctf')
 
             # add to table fill, angles will be set in a bit
             values.append([tomo_name, True, alignment_choices, 0, 0, tilt_choices, -1, 8, '', ''])
