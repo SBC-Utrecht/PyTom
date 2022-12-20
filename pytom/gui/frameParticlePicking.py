@@ -644,27 +644,21 @@ class ParticlePick(GuiTabWidget):
             except Exception as e:
                 print(e)
 
-        wid = []
+        qIDs = []
 
         for key in jobCode.keys():
             if not key in todoList:
                 todoList[key] = []
             todoList[key].append([execfilenames[key], pid, jobCode[key]])
 
-        from time import sleep
-        for key in todoList.keys():
-            print(f'starting {len(todoList[key])} jobs on device {key}')
-            self.localJobs[self.workerID] = []
-            wid.append(self.workerID)
-            proc = Worker(fn=self.multiSeq, args=((self.submitBatchJob, todoList[key], self.workerID)))
-            self.threadPool.start(proc)
-            self.workerID += 1
-            sleep(1)
+        for key, values in todoList.items():
+            ID, num = self.submitBatchJob(values[0], values[1], values[2])
+            qIDs.append(ID)
 
         if num_submitted_jobs:
-            print(wid)
+            print(qIDs)
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
-            self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Templ. Match',
+            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Templ. Match',
                                            num_submitted_jobs=num_submitted_jobs)
         else:
             self.popup_messagebox('Info', 'Submission Status', 'Failed at starting template matching jobs. Check if '
@@ -746,8 +740,7 @@ class ParticlePick(GuiTabWidget):
                     job           = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, singleton=True,
                                                                   time=time, num_nodes=n_nodes, partition=qname,
                                                                   modules=modules, num_jobs_per_node=cores,
-                                                                  cmd=qcmd) + cmd
-
+                                                                  cmd=qcmd) * self.checkbox[pid].isChecked() + cmd
 
                     execfilename = os.path.join(os.path.dirname(jobFile), f'extractCandidatesBatch_{self.ECCounter}.sh')
                     ID, num = self.submitBatchJob(execfilename, pid, job)

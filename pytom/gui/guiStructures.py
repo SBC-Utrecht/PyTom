@@ -1136,16 +1136,10 @@ class CommonFunctions():
             return 'Local_'+ID, 0
 
     def multiSeq(self, func, params, wID=0, threaded=False):
-        import time
-        maxtime = 600
         for execfilename, pid, job in params:
-            sleeptime = 0
             ID, num = func(execfilename, pid, job, threaded=threaded)
             if num == 0:
                 self.localJobs[wID].append(ID)
-                # while self.localqID[ID.split('_')[-1]] == 0 and sleeptime < maxtime:
-                #     time.sleep(5)
-                #     sleeptime += 5
 
     def getLocalID(self):
         import os
