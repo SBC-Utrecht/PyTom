@@ -272,9 +272,9 @@ class ParticlePick(GuiTabWidget):
         self.widgets[mode + 'gpuString'] = QLineEdit('')
         self.widgets[mode + 'jobName'] = QLineEdit()
         self.widgets[mode + 'outfolderTM'] = QLineEdit(self.ccfolder)
-        self.widgets[mode + 'numCores'] = str(self.widgets[mode + 'splitX'].value() *
-                                              self.widgets[mode + 'splitY'].value() *
-                                              self.widgets[mode + 'splitZ'].value())
+        self.widgets[mode + 'numCores'] = QLineEdit(str(self.widgets[mode + 'splitX'].value() *
+                                                    self.widgets[mode + 'splitY'].value() *
+                                                    self.widgets[mode + 'splitZ'].value()))
 
         self.widgets[mode + 'tomoFname'].textChanged.connect(lambda d, m=mode: self.updateTM(m))
         self.widgets[mode + 'startZ'].valueChanged.connect(lambda d, m=mode: self.updateZWidth(m))
@@ -300,7 +300,7 @@ class ParticlePick(GuiTabWidget):
                                             mode + 'Wedge2', mode+'angleFname', mode + 'outfolderTM', mode + 'startZ',
                                             mode + 'widthX', mode + 'widthY', mode + 'widthZ',
                                             mode + 'sphericalMask', templateXML],
-                                 paramsCmd=[mode + 'outfolderTM', mode + 'numCores', self.pytompath, mode + 'jobName',
+                                 paramsCmd=[mode + 'outfolderTM', self.pytompath, mode + 'jobName', mode + 'numCores',
                                             mode + 'splitX', mode + 'splitY', mode + 'splitZ',
                                             mode + 'gpuString', templateTM],
                                  xmlfilename=[mode+'outfolderTM', mode + 'jobName'], mandatory_fill=mandatory_fill)
@@ -1162,7 +1162,6 @@ class ParticlePick(GuiTabWidget):
         id = self.widgets[mode + 'gpuID'].text()
         try:
             a = map(int,[el for el in id.split(',') if el != ''])
-            print(list(a))
         except:
             self.widgets[mode + 'gpuID'].setText('')
             self.popup_messagebox('Warning', 'Invalid value in field', 'Impossible to parse gpu IDs, field has been cleared.')
