@@ -257,7 +257,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         self.tomogram = None
         self.row, self.column = 0, 1
-        rows, columns = 20, 20
+        rows, columns = 25, 20  # ?
         self.items = [['', ] * columns, ] * rows
         w = 170
 
@@ -304,9 +304,9 @@ class SubtomoAnalysis(GuiTabWidget):
                                   'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping' +
                                   ' in the z-dimension.',
                                   value=0, stepsize=1, minimum=-4000, maximum=4000)
-        # self.insert_label_line_push(parent, 'Result file particle polishing', mode + 'polishFile', mode='file',
-        #                             filetype='txt', initdir=self.polishfolder, # cstep=-1,
-        #                             tooltip='Select a resultfile from particle polishing (Optional).')
+        self.insert_label_line(parent, 'Scale factor', mode + 'scale_factor_particle',
+                               validator=QDoubleValidator(bottom=0), value='1',
+                               tooltip="Integer number of cpu cores to use if running on cpu")
         self.insert_label_line(parent, 'cores', mode + 'cores', validator=QIntValidator(),
                                tooltip="Integer number of cpu cores to use if running on cpu" )
         self.insert_label_line(parent, "GPU's", mode + 'gpuID', width=w, cstep=0, validator=QIntValidator(),
@@ -320,6 +320,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'gpuString'] = QLineEdit('')
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('')
         self.widgets[mode + 'cores_flag'] = QLineEdit('')
+        self.widgets[mode + 'particle_polish_flag'] = QLineEdit('')
 
         # self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateMeta(m))
         # self.widgets[mode + 'polishFile'].textChanged.connect(lambda d, m=mode: self.updatePolishFlag(m))
@@ -338,8 +339,9 @@ class SubtomoAnalysis(GuiTabWidget):
                      mode + 'SizeSubtomos', mode + 'BinFactorSubtomos', mode + 'OffsetX', mode + 'OffsetY',
                      mode + 'OffsetZ', self.subtomodir, mode + 'WeightingFactor',
                      mode + 'cores_flag', mode + 'projectionDir', mode + 'firstAngle', mode + 'lastAngle',
+                     mode + 'scale_factor', mode + 'particle_polish_flag',
                      mode + 'gpuString', extractParticles]
-        # mode + projectionDir  # mode + 'polishFlag'
+
         mandatory_fill = [mode + 'particlelist', mode + 'alignmentResultsFile']
 
         self.update_gpu_flag(self.widgets[mode + 'gpuID'], self.widgets[mode + 'gpuString'])
@@ -428,7 +430,7 @@ class SubtomoAnalysis(GuiTabWidget):
             tomo_folder = os.path.join(self.tomogram_folder, tomogram)
 
             # check if the tomogram is available in this pytom project, otherwise skip and put pop up message
-            if not tomogram in project_tomograms or not os.path.exists(tomo_folder):
+            if tomogram not in project_tomograms or not os.path.exists(tomo_folder):
                 if not skip_pop_up_shown:
                     self.popup_messagebox('Warning', 'Invalid particles found',
                                           'Some of the provided particles were picked in tilt-series that are not in '
@@ -448,6 +450,13 @@ class SubtomoAnalysis(GuiTabWidget):
                             alignment_choices.append(alignment)
                             break
                     # we might have found an alignment file
+
+            if len(alignment_choices) == 0:
+                self.popup_messagebox('Warning', 'Tilt-series without alignment',
+                                      f'Tilt-series {tomogram} does not have alignment parameters (perhaps more '
+                                      f'series). '
+                                      f'Add an alignment for this series before continuing with reconstruction.')
+                return
 
             # get ctf options
             sorted_dir = os.path.join(tomo_folder, 'sorted')
@@ -1542,8 +1551,8 @@ class SubtomoAnalysis(GuiTabWidget):
             self.widgets[mode + 'lastAngle'].setMaximum(max_angle)
             self.widgets[mode + 'lastAngle'].setValue(max_angle)
 
-        except IndexError:
-            print('No alignment result files found in alignment directory')
+        except (IndexError, FileNotFoundError):
+            print(f'No alignment result files found in alignment directory for {self.tomogram}.')
 
     def update_alignment_choice_batch(self, row_id, table_id):
         w_tomogram = self.tables[table_id].widgets['widget_{}_1'.format(row_id)]
@@ -1551,7 +1560,8 @@ class SubtomoAnalysis(GuiTabWidget):
         w_first_angle = self.tables[table_id].widgets['widget_{}_4'.format(row_id)]
         w_last_angle = self.tables[table_id].widgets['widget_{}_5'.format(row_id)]
 
-        # set the alignment file but if sorted exists, if not get sorted_ctf
+        # dont try this part, its better if the gui crashes, you should not be able to do anything for the tomogram
+        # in batch mode if no alignment is available. instead i built a check before to prevent crashing at this point.
         ar_file = os.path.join(self.tomogram_folder, w_tomogram.text(), 'alignment',
                                w_alignment.currentText(), 'GlobalAlignment', 'sorted', 'alignmentResults.txt')
         if not os.path.exists(ar_file):
