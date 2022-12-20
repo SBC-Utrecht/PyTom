@@ -483,7 +483,7 @@ class ParticlePick(GuiTabWidget):
         qIDs = []
         jobCode = {}
         execfilenames = {}
-        
+
         for row in range(self.tables[pid].table.rowCount()):
             try:
                 normal = self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked()
@@ -584,6 +584,7 @@ class ParticlePick(GuiTabWidget):
                     suffix = "_" + os.path.basename(outDirectory)
                     qname, n_nodes, cores, timed, modules, qcmd = self.qparams['BatchTemplateMatch'].values()
 
+                    # TODO this should have some extra checks for combi of queue subm and gpus
                     if gpuID and not gpuID in jobCode.keys():
                         job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix,
                                                             time=timed, num_nodes=n_nodes, partition=qname,
@@ -612,7 +613,7 @@ class ParticlePick(GuiTabWidget):
                         outjob = open(os.path.join(outDirectory, f'templateMatchingBatch{mm}.sh'), 'w')
                         outjob.write(job)
                         outjob.close()
-
+                        num_submitted_jobs += 1
 
                     elif not f'noGPU_{num_submitted_jobs % num_nodes}' in jobCode.keys():
                         job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix,
@@ -637,18 +638,19 @@ class ParticlePick(GuiTabWidget):
                         outjob = open(os.path.join(outDirectory, f'templateMatchingBatch{mm}.sh'), 'w')
                         outjob.write(job)
                         outjob.close()
+                        num_submitted_jobs += 1
 
             except Exception as e:
                 print(e)
 
-        qIDs = []
+        qIDs, num_submitted_jobs = [], 0
 
         for key, values in jobCode.items():
             ID, num = self.submitBatchJob(execfilenames[key], pid, values)
             qIDs.append(ID)
+            num_submitted_jobs += 1
 
-        if num_submitted_jobs:
-            print(qIDs)
+        if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
             self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Templ. Match',
                                            num_submitted_jobs=num_submitted_jobs)
