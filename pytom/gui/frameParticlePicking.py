@@ -483,8 +483,7 @@ class ParticlePick(GuiTabWidget):
         qIDs = []
         jobCode = {}
         execfilenames = {}
-
-        todoList = {}
+        
         for row in range(self.tables[pid].table.rowCount()):
             try:
                 normal = self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked()
@@ -505,8 +504,6 @@ class ParticlePick(GuiTabWidget):
                 splity = int(self.tab22_widgets['widget_{}_{}'.format(row, 12)].text())
                 splitz = int(self.tab22_widgets['widget_{}_{}'.format(row, 13)].text())
                 gpuID = self.tab22_widgets['widget_{}_{}'.format(row, 14)].text()
-                if not gpuID in todoList.keys():
-                    todoList[gpuID] = []
 
                 if gpuID:
                     gpuIDFlag = f'--gpuID {gpuID}'
@@ -646,13 +643,8 @@ class ParticlePick(GuiTabWidget):
 
         qIDs = []
 
-        for key in jobCode.keys():
-            if not key in todoList:
-                todoList[key] = []
-            todoList[key].append([execfilenames[key], pid, jobCode[key]])
-
-        for key, values in todoList.items():
-            ID, num = self.submitBatchJob(values[0], values[1], values[2])
+        for key, values in jobCode.items():
+            ID, num = self.submitBatchJob(execfilenames[key], pid, values)
             qIDs.append(ID)
 
         if num_submitted_jobs:
