@@ -4,6 +4,7 @@
 import sys
 import os
 import json
+import subprocess
 
 global PID
 
@@ -559,8 +560,6 @@ if __name__ == '__main__':
     sys.excepthook = exception_hook
 
     for fname, module in [( 'motioncor2', 'motioncor2/1.2.1' ), ('header', 'imod/4.10.25')]:
-        if 1:
-            result = os.popen('which {}'.format(fname)).read()[:-1]
-            if not result:
-                print('Please load the {} module'.format(module))
+        if subprocess.run(['which', fname], capture_output=True, text=True).returncode != 0:
+            print('Please load the {} module'.format(module))
     main()

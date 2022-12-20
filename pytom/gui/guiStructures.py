@@ -6,6 +6,7 @@ import pyqtgraph as pg
 import multiprocessing
 import getpass
 import re
+import subprocess
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -4912,7 +4913,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         # inexperienced with queueing systems.
         existing_queues = []
         for n, value in enumerate(self.qcommanddict.values()):
-            if value != 'none' and os.path.exists(os.popen('which {}'.format(value)).read()[:-1]):
+            if subprocess.run(['which', value], capture_output=True, text=True).returncode == 0:
                 existing_queues.append(n)
         queue_index = self.queue_system_options.index(self.queue_system)
         if queue_index in existing_queues:
