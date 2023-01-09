@@ -1229,7 +1229,7 @@ def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
             p.getWedge().setWedgeAngles(wedgeAngles)
 
         # ===== set empty score
-        p.setScore(FLCFScore())
+        p.setScore(FLCFScore(1.))
 
         pl.append(p)
 
