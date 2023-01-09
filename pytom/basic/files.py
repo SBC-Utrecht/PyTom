@@ -1191,9 +1191,9 @@ def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
             p = Particle()
 
         # ===== pick position in tomogram
-        p.setPickPosition(PickPosition(stardata['CoordinateX'][n],
-                                       stardata['CoordinateY'][n],
-                                       stardata['CoordinateZ'][n],
+        p.setPickPosition(PickPosition(stardata['CoordinateX'][n] * (binningWarpM / binningPyTom),
+                                       stardata['CoordinateY'][n] * (binningWarpM / binningPyTom),
+                                       stardata['CoordinateZ'][n] * (binningWarpM / binningPyTom),
                                        originFilename=stardata['MicrographName'][n]))
 
         # ======= set shifts
