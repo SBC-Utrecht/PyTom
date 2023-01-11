@@ -3,7 +3,7 @@
 __all__ = ["alignment", "angles", "basic", "bin", "classification", "gui", "gpu", "localization", "parallel", "pytomc",
            "plotting", "reconstruction", "simulation", 'agnostic', "tools", 'voltools']
 
-__version__ = "v1.0"
+__version__ = "1.0"
 
 try:
     import pytom_volume
