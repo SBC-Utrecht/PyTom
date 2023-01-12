@@ -35,8 +35,6 @@ def check4specialchars(path):
             outpath += "\\" + char
         else:
             outpath += char
-    print(path)
-    print(outpath)
     return outpath
 
 
@@ -73,7 +71,9 @@ for path in libPaths:
     if os.path.exists(newPath):
         includePaths.append(newPath)
 
-print(includePaths)
+print('exe paths:', exePaths)
+print('lib paths:', libPaths)
+print('include paths:', includePaths)
 
 # prerequisites
 need_exes = ["mpic++"]
