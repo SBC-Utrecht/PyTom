@@ -1113,7 +1113,7 @@ def txt2pl(filename, target, prefix='', outname='', subtomoPrefix=None, wedgeAng
     pl.toXMLFile(particleList_file)
 
 
-def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
+def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, angle_file='', sorted_folder=''):
     from pytom.agnostic.tools import convert_angles
     from pytom.basic.structures import ParticleList
     from pytom.basic.datatypes import RELION31_PICKPOS_STAR, fmtR31S, headerRelion31Subtomo
@@ -1168,12 +1168,12 @@ def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
     np.savetxt(newFilename, stardata, fmt=fmtR31S, header=headerRelion31Subtomo, comments='')
 
 
-def star2xml(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
+def star2xml(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, angle_file='', sorted_folder=''):
     star2pl(filename, target, prefix, pixelsize, binningPyTom, binningWarpM, outname, wedgeAngles)
 
 
 def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None,
-            prexf='', sorted_folder=''):
+            angle_file='', sorted_folder=''):
     from pytom.agnostic.tools import convert_angles
     from pytom.agnostic.io import read_star
     from pytom.basic.structures import ParticleList, Particle, PickPosition, Rotation, Shift
@@ -1237,14 +1237,77 @@ def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
 
     pl.toXMLFile(newFilename)
 
-def log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
+
+def xf2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None,
+           angle_file='', sorted_folder=''):
+    """
+    Conversion of IMOD or AreTomo alignment parameters to pytom. These alignments are always stored in an .xf file.
+    Tilt angles can be provided via the angle_file parameters, this should be an .tlt or .rawtlt file.
+
+    :param filename: .xf file
+    :param target: target dir to write to
+    :param angle_file: .tlt or .rawtlt file
+    :param sorted_folder: folder where unpacked sorted tilt series is stored
+    (Unused: :param prefix:
+        :param pixelsize:
+        :param binningPyTom:
+        :param binningWarpM:
+        :param outname:
+        :param wedgeAngles:)
+    Output is written to: target + alignmentResults.txt
+
+    @author: Marten Chaillet
+    """
+    from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO, \
+        FMT_ALIGNMENT_RESULTS_RO, HEADER_ALIGNMENT_RESULTS_RO
+
+    assert angle_file.endswith('.tlt') or angle_file.endswith('.rawtlt'), 'angle file in wrong format'
+
+    # set projection prefix name
+    prefix, filetype = 'sorted_', 'mrc'
+
+    # load imod .xf file and .tlt file
+    xf_data = np.loadtxt(filename)
+    tilt_angles = np.loadtxt(angle_file)
+
+    assert len(xf_data) == len(tilt_angles), '.xf and .tlt do not have the same length'
+
+    # initialize empty pytom tilt alignment datatype
+    alignment = np.zeros(len(tilt_angles), dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
+
+    for n, ((shx, shy), mat, tilt) in enumerate(zip(xf_data[:-2:], xf_data[:, :4], tilt_angles)):
+        # put matrix elements into 2d affine matrix
+        mxf = np.stack([mat[:2], mat[2:4]])
+
+        # get the transformation parameters
+        x_shift, y_shift = np.dot(mxf, np.array((shx, shy)))
+        scale = np.sqrt(mxf[0, 0] ** 2 + mxf[1, 0] ** 2)
+        in_plane_rotation = np.rad2deg(np.arctan2(mxf[1, 0], mxf[0, 0]))
+
+        alignment['TiltAngle'][n] = tilt
+        alignment['AlignmentTransX'][n] = x_shift
+        alignment['AlignmentTransY'][n] = y_shift
+        alignment['InPlaneRotation'][n] = in_plane_rotation
+        alignment['Magnification'][n] = scale
+        alignment['OperationOrder'][n] = 'TRS'
+
+    # set sorted filenames in pytomproject folder
+    alignment['FileName'] = sorted([os.path.join(sorted_folder, fname) for fname in os.listdir(sorted_folder) if
+                                    fname.startswith(prefix) and fname.endswith('.' + filetype)])
+
+    # save alignmentresults text files in the target location
+    savetxt(os.path.join(target, 'alignmentResults.txt'), alignment, fmt=FMT_ALIGNMENT_RESULTS_RO,
+            header=HEADER_ALIGNMENT_RESULTS_RO)
+
+
+def log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, angle_file='', sorted_folder=''):
     import numpy as np
     from pytom.basic.datatypes import DATATYPE_TASOLUTION as dtype_ta, DATATYPE_ALIGNMENT_RESULTS_RO, FMT_ALIGNMENT_RESULTS_RO, HEADER_ALIGNMENT_RESULTS_RO
     from pytom.voltools.utils import transform_matrix
     import os
 
-    ta_fname = filename
-    shift_fname = prexf
+    ta_fname = angle_file
+    shift_fname = filename
     prefix, filetype, folder = 'sorted_', 'mrc', sorted_folder
 
     if folder == '': folder =target

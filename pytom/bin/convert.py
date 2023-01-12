@@ -12,7 +12,7 @@ import pytom.basic.files as f
 import os
 
 # The lookup tables for the conversion functions
-extensions = all_extensions = ["em", "mrc", "ccp4", "pl", "meta", "pdb", "mmCIF", 'mrcs', 'st', 'mdoc', 'h5', 'star', 'txt', 'wimp', 'xml', 'log']
+extensions = all_extensions = ["em", "mrc", "ccp4", "pl", "meta", "pdb", "mmCIF", 'mrcs', 'st', 'mdoc', 'h5', 'star', 'txt', 'wimp', 'xml', 'xf']
 special = ['pl']
 
 lookuptable = []
@@ -225,14 +225,15 @@ if __name__ == '__main__':
                  ScriptOption2(['--pixelSize'], 'Pixelsize in Angstrom of original nanographs.', 'float', 'optional', 1),
                  ScriptOption2(['--binPyTom'], '(Linear) Binning factor of the pytom tomogram.', 'float', 'optional', 1),
                  ScriptOption2(['--binWarpM'], '(Linear) Binning factor of the warp/m volumes.', 'float', 'optional', 1),
-                 ScriptOption2(['--alignxf'], 'Final shift file from IMOD (ending with xf). ', 'file', 'optional', ''),
+                 ScriptOption2(['--tlt-file'], 'Either .tlt file or .rawtlt in case tilt angles have not been '
+                                               'optimized during alignment. ', 'file', 'optional', ''),
                  ScriptOption2(['--sortedFolder'], 'Sorted Images are located in this folder (either sorted or sorted_ctf)', 'directory', 'optional', ''),
         ])
 
     #TODO write --filter to filter input files maybe on (glob) pattern or else on extension or similar
 
     filename, directory, target, format, outname, chaindata, subtomo_prefix, w, prefix, suffix, pixelsize, binningFactorPyTom,\
-    binningFactorWarpM, prexf, sorted_folder = parse_script_options2(sys.argv[1:], helper)
+    binningFactorWarpM, tlt_file, sorted_folder = parse_script_options2(sys.argv[1:], helper)
 
     try:
         if w:
@@ -292,7 +293,7 @@ if __name__ == '__main__':
         chaindata['binningPyTom'] = binningFactorPyTom
         outname = f'dummy.{format}' if (outname == '' and directory) else outname
         chaindata['outname'] = outname
-        chaindata['prexf'] = prexf
+        chaindata['tlt_file'] = tlt_file
         chaindata['sorted_folder'] = sorted_folder
         chaindata['wedgeAngles'] = wedge_angles
 
