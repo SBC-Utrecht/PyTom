@@ -7,7 +7,6 @@ channels:
 - defaults
 dependencies:
 - boost=1.73.0
-- cupy=10.6.0
 - fftw-mpi=3.3.6
 - gcc_impl_linux-64=7.3.0
 - gcc_linux-64=7.3.0
@@ -21,7 +20,7 @@ dependencies:
 - make=4.2.1
 - matplotlib=3.1.2
 - mpi=1.0
-- nccl=2.14.3.1
+  #- nccl=2.14.3.1
 - numba=0.56.3
 - numpy=1.22.3
 - openmpi=4.0.2
@@ -36,3 +35,4 @@ dependencies:
 - pip:
   - gnureadline
   - pyqt5
+  - cupy-cuda116
