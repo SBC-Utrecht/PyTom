@@ -1141,10 +1141,10 @@ def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
         x, y, z = p.getPickPosition().toVector()
 
         # this is not needed as Warp requires filling in A spacing for subtomo positions
-        # factor = binningPyTom / binningWarpM
-        stardata['CoordinateX'][n] = x  # * factor
-        stardata['CoordinateY'][n] = y  # * factor
-        stardata['CoordinateZ'][n] = z  # * factor
+        factor = binningPyTom / binningWarpM
+        stardata['CoordinateX'][n] = x * factor
+        stardata['CoordinateY'][n] = y * factor
+        stardata['CoordinateZ'][n] = z * factor
 
         stardata['MicrographName'][n] = p.getPickPosition().getOriginFilename()
 
