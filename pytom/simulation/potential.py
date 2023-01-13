@@ -100,21 +100,21 @@ void iasa_integrate(float3 *atoms, unsigned char *elements, float *b_factors, fl
                     for (j = 0; j < 5; j++) {
                         sqrt_b = sqrt(b[j]);
                         pi2_sqrt_b = pi2 / sqrt_b;
-                        factor3 = pow(sqrt_b / (4 * sqrt_pi), 3);
+                        factor3 = powf(sqrt_b / (4 * sqrt_pi), 3);
                         
                         integral_x = (erf(voxel_bound_max.x * pi2_sqrt_b) - erf(voxel_bound_min.x * pi2_sqrt_b));
                         integral_y = (erf(voxel_bound_max.y * pi2_sqrt_b) - erf(voxel_bound_min.y * pi2_sqrt_b));
                         integral_z = (erf(voxel_bound_max.z * pi2_sqrt_b) - erf(voxel_bound_min.z * pi2_sqrt_b));
                         integral_voxel = integral_x * integral_y * integral_z * factor3;
                         
-                        atom_voxel_pot += (a[j] / pow(b[j], (float)3 / 2)) * integral_voxel;
+                        atom_voxel_pot += (a[j] / powf(b[j], (float)3 / 2)) * integral_voxel;
                     };
                     
                     potent_idx = l * potential_dims[1] * potential_dims[2] + m * potential_dims[2] + n;
                     atomicAdd( potential + potent_idx, atom_voxel_pot );
                     
                     if (exclude_solvent == 1) {
-                        factor3 = pow(sqrt_pi * r0 / 2, 3);
+                        factor3 = powf(sqrt_pi * r0 / 2, 3);
                         
                         integral_x = erf(voxel_bound_max.x / r0) - erf(voxel_bound_min.x / r0);
                         integral_y = erf(voxel_bound_max.y / r0) - erf(voxel_bound_min.y / r0);
