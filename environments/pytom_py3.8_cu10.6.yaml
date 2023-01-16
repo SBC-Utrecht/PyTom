@@ -8,6 +8,7 @@ channels:
 dependencies:
 - boost=1.73.0
 - fftw-mpi=3.3.6
+- cupy=10.6.0
 - gcc_impl_linux-64=7.3.0
 - gcc_linux-64=7.3.0
 - gxx_impl_linux-64=7.3.0
@@ -20,13 +21,17 @@ dependencies:
 - make=4.2.1
 - matplotlib=3.1.2
 - mpi=1.0
-  #- nccl=2.14.3.1
+- mpi4py=3.0.3
+- mrcfile=1.3.0
+- nccl=2.14.3.1
 - numba=0.56.3
 - numpy=1.22.3
 - openmpi=4.0.2
 - pip=22.2.2
 - pyqtgraph=0.11.0
 - python=3.8.15
+- pytest=6.2.5
+- pytest-qt=3.1.0
 - pyyaml=5.4.1
 - scikit-image=0.19.2
 - scipy=1.7.3
@@ -35,4 +40,3 @@ dependencies:
 - pip:
   - gnureadline
   - pyqt5
-  - cupy-cuda116

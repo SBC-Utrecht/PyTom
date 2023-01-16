@@ -19,6 +19,7 @@ dependencies:
 - brunsli=0.1
 - bzip2=1.0.8
 - c-ares=1.18.1
+- c-blosc2=2.6.1
 - ca-certificates=2022.10.11
 - certifi=2022.9.24
 - cfitsio=3.470
@@ -71,7 +72,7 @@ dependencies:
 - krb5=1.19.2
 - lcms2=2.12
 - lerc=3.0
-- libaec=1.0.4
+- libaec=1.0.6
 - libboost=1.73.0
 - libbrotlicommon=1.0.9
 - libbrotlidec=1.0.9
@@ -187,6 +188,7 @@ dependencies:
 - zfp=0.5.5
 - zipp=3.8.0
 - zlib=1.2.13
+- zlib-ng=2.0.6
 - zstd=1.5.2
 - pip:
   - gnureadline
