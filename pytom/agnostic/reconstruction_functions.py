@@ -2,42 +2,49 @@ from pytom.gpu.initialize import xp, device
 from pytom.voltools import transform
 import numpy
 
-def backProjectGPU2(projections, vol_bp, vol_phi, proj_angles, recPosVol=[0,0,0], vol_offsetProjections=[0,0,0], interpolation='filt_bspline'):
-
-    assert len(proj_angles) == projections.shape[2] #'Number of angles and projections should match'
-
-    for n in range(projections.shape[2]):
-        vol_bp += back_projection(projections[:,:,n], proj_angles[n], interpolation)
-
-    return vol_bp
-
-def back_projection(image, angle, interpolation=None):
-    '''
-    back_projection: Returns 3D volume with values projected under an angle
-    @param image: 2d projection image
-    @type image: 2d numpy/cupy array of floats
-    @param angle: Tilt angle of projection
-    @type angle: float32
-    @param interpolation: interpolation type using in rotation. filtered bspline is recommended.
-    @return:
-    @author Gijs van der Schot
-    '''
-
-    dimx, dimy = image.shape
-    dims = [dimx, dimy, dimx]
-
-    ndim = (dimx*3)//2
-
-    out = xp.dstack([image] * (ndim))
-
-    bp = xp.zeros_like(out)
-    transform(out, output=bp, rotation=(0, angle, 0), rotation_order='sxyz', interpolation=interpolation,
-              center=numpy.array([dims[0] // 2, dims[1] // 2, ndim//2]), device=device)
-
-    return bp[:,:,ndim//2-dimx//2:ndim//2+dimx//2].copy()
 
 def backProjectGPU(projections, reconstruction, vol_phi, proj_angles, recPosVol=None, vol_offsetProjections=None,
                    interpolation=''):
+    """
+    Docstring generated with chatGPT!
+
+    ===> This is the stand-up comedian version:
+
+    "Alright folks, are you ready to backproject like a pro? I present to you: the backProjectGPU function. It's like
+    taking a trip back in time, but instead of dinosaurs, you got 3D volumes.
+
+    Here's how it works. You give it some projections, a reconstruction and some angles, and it'll give you back a 3D
+    volume that's been backprojected using the GPU. It's like magic, but with less rabbits and top hats.
+
+    Now, I know what you're thinking: "But wait, what's a vol_phi?" Well, it's just a fancy way of saying the angles
+    of the projections in radians. But don't worry, you don't need to know what radians are, just trust me on this one.
+
+    And if you're feeling adventurous, you can even give it a recPosVol and vol_offsetProjections. But just like with
+    radians, you don't really need to know what they are, just trust the process.
+
+    So, give it a try, backproject like a pro, and let me know how it goes! And remember, always backproject
+    responsibly."
+
+    ===> This is the proper version:
+
+    backProjectGPU: Returns 3D volume by backprojecting the projections using the GPU
+    @param projections: 3D array with projections
+    @type projections: cupy array of floats
+    @param reconstruction: 3D array for the reconstruction volume
+    @type reconstruction: cupy array of floats
+    @param vol_phi: 1D array of tilt angles (y-axis rotation) of projections in degrees
+    @type vol_phi: cupy array of floats
+    @param proj_angles: 1D array of skew angle (x-axis rotation) of projections in degrees
+    @type proj_angles: cupy array of floats
+    @param recPosVol: position of the volume in the reconstruction space
+    @type recPosVol: list of integers
+    @param vol_offsetProjections: projection offset in the projection space
+    @type vol_offsetProjections: list of integers
+    @param interpolation: interpolation type using in rotation. filtered bspline is recommended.
+    @type interpolation: str
+    @return: reconstruction
+    @author Gijs van der Schot, Marten Chaillet
+    """
     from pytom.gpu.initialize import xp, device
     from pytom.gpu.kernels import reconstruction_wbp_text
 
@@ -82,22 +89,29 @@ def backProjectGPU(projections, reconstruction, vol_phi, proj_angles, recPosVol=
         tr32 = sin(Y)*sin(Z2)
         tr = xp.array([tr11, tr21, tr31, tr12, tr22, tr32],dtype=xp.float32)
 
-        reconstruction_wbp((nblocks,1,1,), (nthreads,1,1), (src, center_proj[n,:], dims_proj, reconstruction, center_recon, dims, tr, reconstruction.size))
+        reconstruction_wbp((nblocks,1,1,), (nthreads,1,1), (src, center_proj[n,:], dims_proj, reconstruction,
+                                                            center_recon, dims, tr, reconstruction.size))
 
 
 def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     """
     exactFilter: Generates the exact weighting function required for weighted backprojection - y-axis is tilt axis
     Reference : Optik, Exact filters for general geometry three dimensional reconstuction, vol.73,146,1986.
-    @param tilt_angles: list of all the tilt angles in one tilt series
-    @param titlAngle: tilt angle for which the exact weighting function is calculated
-    @param sizeX: size of weighted image in X
-    @param sizeY: size of weighted image in Y
-
-    @return: filter volume
-
+    @param tilt_angles: List of tilt angles
+    @type tilt_angles: list  of floats
+    @param tiltAngle: Tilt angle of projection
+    @type tiltAngle: float
+    @param sX: size of the x-axis
+    @type sX: int
+    @param sY: size of the y-axis
+    @type sY: int
+    @param sliceWidth: width slice through the object
+    @type sliceWidth: int
+    @param arr: array
+    @type arr: list
+    @return: 2D weight array of floats
+    @author Gijs van der Schot
     """
-
     from cupy import array, matrix, sin, pi, arange, float32, column_stack, argmin, clip, ones, ceil
 
     # Using Friedel Symmetry in Fourier space.
@@ -121,7 +135,24 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
         ([(wfuncCrowther), ] * (sY))).astype(float32)
     return wfunc
 
+
 def fourierReconstructGPU(vol_img, vol_bp, vol_phi, vol_the, recPosVol=[0,0,0], vol_offsetProjections=[0,0,0]):
+    """
+    fourierReconstructGPU: Reconstructs a 3D volume from a set of 2D projections, using Fourier reconstruction method.
+    @param vol_img: 3D volume of projections
+    @type vol_img: cupy array of floats
+    @param vol_bp: 3D volume of back-projections
+    @type vol_bp: cupy array of floats
+    @param vol_phi: 1D array of angles in degrees
+    @type vol_phi: cupy array of floats
+    @param vol_the: 1D array of theta angles in degrees
+    @type vol_the: cupy array of floats
+    @param recPosVol: Position of the reconstruction in the 3D volume, default is [0,0,0]
+    @type recPosVol: List of integers
+    @param vol_offsetProjections: Offset of the projections in the 3D volume, default is [0,0,0]
+    @type vol_offsetProjections: List of integers
+    @return: 3D volume of reconstructed values
+    """
     from pytom_numpy import vol2npy
     import cupy as cp
     from pytom.voltools import transform
@@ -135,20 +166,15 @@ def fourierReconstructGPU(vol_img, vol_bp, vol_phi, vol_the, recPosVol=[0,0,0], 
     dims = (projections.shape[0], projections.shape[0], projections.shape[0])
     tot = cp.zeros(dims, cp.complex64)
 
-    
     for n in range(projections.shape[2]):
         org = cp.zeros(dims, dtype=cp.complex64)
         rot = cp.zeros(dims, dtype=cp.complex64)
-        ff = fftshift(fftn(fftshift(projections[:,:,n])))
-
+        ff = fftshift(fftn(fftshift(projections[:, :, n])))
         org[:, :, dims[0]//2] = ff
-        #print(n,ff.shape, org.shape)
-        if 0:
-            rot.real = rotate(org.real, proj_angles[n], axes=(2, 0), reshape=False)
-            rot.imag = rotate(org.imag, proj_angles[n], axes=(2, 0), reshape=False)
-        else:
-            rot.real = transform(org.real, rotation=(0, proj_angles[n],0), rotation_order='sxyz',interpolation=interpolation)
-            rot.imag = transform(org.imag, rotation=(0, proj_angles[n],0), rotation_order='sxyz',interpolation=interpolation)
+        rot.real = transform(org.real, rotation=(0, proj_angles[n],0), rotation_order='sxyz',
+                             interpolation=interpolation)
+        rot.imag = transform(org.imag, rotation=(0, proj_angles[n],0), rotation_order='sxyz',
+                             interpolation=interpolation)
         tot += rot
         del org, rot
     
