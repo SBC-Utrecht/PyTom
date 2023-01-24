@@ -36,7 +36,7 @@ Please remember the location where miniconda is installed [CONDA_INSTALL_DIR], b
 Now we are ready to create the conda environment for pytom (solving all the dependencies might take a moment):
 
 ```
-conda env create -f environments/pytom_py3.8_cu10.1.yaml --name pytom_env
+conda env create -f environments/pytom_py3.8_cu10.6_full.yaml --name pytom_env
 ```
 
 Activate the environment and run the pytom installation scripts to compile the backend (will take ~5 minutes):
@@ -103,7 +103,7 @@ After installation you can run pytom unit tests that check the functionality of 
 
 ```
 cd tests
-pytom -m unittest discover
+./runPyTomUnitTests.py
 ```
 
 ## Versioning
