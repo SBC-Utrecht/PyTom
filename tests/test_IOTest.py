@@ -22,7 +22,7 @@ class pytom_IOTest(unittest.TestCase):
             os.mkdir(self.outfolder)
 
     def tearDown(self):
-        from tests.helper_functions import remove_tree
+        from helper_functions import remove_tree
         remove_tree(self.outfolder)
 
     def read(self):
@@ -160,7 +160,7 @@ class pytom_IOTest(unittest.TestCase):
     def read_header(self):
         from pytom.agnostic.io import read_header
         header = read_header(self.fnames[1])
-        assert header
+        assert header.any()
 
     def write_rotation_angle(self):
         from pytom.agnostic.io import write_rotation_angles
