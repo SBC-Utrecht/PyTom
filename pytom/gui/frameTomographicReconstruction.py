@@ -2042,6 +2042,7 @@ class TomographReconstruct(GuiTabWidget):
 
                             elif job_code_key in jobCode.keys():
                                 jobCode[job_code_key] += f'\nwait\n\n{cmd}\n'
+                                nsj += 1
 
                         else:  # set up CPU jobs
                             job_code_key = method + '_' + f'noGPU_{nsj % n_nodes}'
@@ -2060,28 +2061,19 @@ class TomographReconstruct(GuiTabWidget):
 
                             else:
                                 jobCode[job_code_key] += f'\nwait\n\n{cmd}\n'
+                                nsj += 1
 
-            wid = []
-            todoList = {}
+            qIDs, num_submitted_jobs = [], 0
 
-            for key in jobCode.keys():
-                if not key in todoList:
-                    todoList[key] = []
-                todoList[key].append([execfilenames[key], id, jobCode[key]])
+            for key, values in jobCode.items():
+                ID, num = self.submitBatchJob(execfilenames[key], id, values)
+                qIDs.append(ID)
+                num_submitted_jobs += 1
 
-            from time import sleep
-            for key in todoList.keys():
-                print(f'starting {len(todoList[key])} jobs on device {key}')
-                self.localJobs[self.workerID] = []
-                wid.append(self.workerID)
-                proc = Worker(fn=self.multiSeq, args=((self.submitBatchJob, todoList[key], self.workerID)))
-                self.threadPool.start(proc)
-                self.workerID += 1
-                sleep(.01)
-
-            if nsj > 0:
-                self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
-                self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Tom. Reconstr. Batch')
+            if num_submitted_jobs > 0:
+                self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+                self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Tom. Reconstr. Batch',
+                                               num_submitted_jobs=num_submitted_jobs)
 
         except ValueError:
             self.popup_messagebox('Warning', 'Invalid value in field',

@@ -21,6 +21,9 @@ if __name__ == '__main__':
                           options=[ScriptOption(['-v','--volume'], 'Volume : the big volume', arg=True, optional=False),
                                    ScriptOption(['-r','--reference'], 'Reference : the molecule searched', arg=True, optional=False),
                                    ScriptOption(['-m','--mask'], 'Mask : a mask ', arg=True, optional=False),
+                                   ScriptOption(['--spherical_mask'], 'Set this option if the mask is spherical to '
+                                                                      'speed up the calculation.',
+                                                arg=False, optional=True),
                                    ScriptOption(['--wedge1'], 'Wedge : first tilt angle. Must be 90-tilt!', arg=True, optional=False),
                                    ScriptOption(['--wedge2'], 'Wedge : second tilt angle.  Must be 90-tilt!', arg=True, optional=False),
                                    ScriptOption(['-a','--angles'], '''Angles : name of angle list. Either : 
@@ -42,18 +45,14 @@ if __name__ == '__main__':
                                                 optional=True),
                                    ScriptOption(['-b','--band'], 'Lowpass filter : band - in pixels', arg=True,
                                                 optional=True),
-                                   ScriptOption(['--splitX'], 'Into how many parts do you want to split volume (X dimension)', arg=True, optional=False),
-                                   ScriptOption(['--splitY'], 'Into how many parts do you want to split volume (Y dimension)', arg=True, optional=False),
-                                   ScriptOption(['--splitZ'], 'Into how many parts do you want to split volume (Z dimension)', arg=True, optional=False),
                                    ScriptOption(['-j','--jobName'], 'Specify job.xml filename', arg=True, optional=False),
                                    ScriptOption(['-h', '--help'], 'Help.', arg=False, optional=True)])
-    
-    
+
     if len(sys.argv) <= 2:
         print(helper)
         sys.exit()
     try:
-        volume, reference, mask, wedge1,wedge2,angles,destination,zstart,zend,band,sx,sy,sz,jobName,\
+        volume, reference, mask, mask_is_spherical, wedge1,wedge2,angles,destination,zstart,zend,band,jobName,\
         help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
@@ -62,6 +61,9 @@ if __name__ == '__main__':
     if help is True:
         print(helper)
         sys.exit()
+
+    if mask_is_spherical is None:
+        mask_is_spherical = False
     
     if not checkFileExists(volume):
         raise RuntimeError('Volume file ' + volume + ' does not exist!')
@@ -89,7 +91,6 @@ if __name__ == '__main__':
     from pytom.angles.globalSampling import GlobalSampling
     from pytom.basic.score import FLCFScore
     from pytom.localization.peak_job import PeakJob
-    # from pytom.frontend.serverpages.createLocalizationJob import createRunscripts
     
     v = Volume(volume, subregion=subregion)
     r = Reference(reference)
@@ -102,5 +103,3 @@ if __name__ == '__main__':
                   dstDir=destination, bandpass=bp)
     
     job.toXMLFile(jobName)
-    
-    # createRunscripts(jobName[:-3] + 'sh',jobName,int(sx),int(sy),int(sz))

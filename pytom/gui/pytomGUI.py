@@ -220,7 +220,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.projectname = ''
         self.label = QLineEdit(self)
         self.label.textChanged.connect(lambda ignore: self.prepareStartProject())
-        widget = NewProject(self,self.label)
+        widget = NewProject(self, self.label)
         widget.show()
 
     def open_project(self, name=None):

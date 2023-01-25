@@ -1136,18 +1136,6 @@ class CommonFunctions():
 
             return 'Local_'+ID, 0
 
-    def multiSeq(self, func, params, wID=0, threaded=False):
-        import time
-        maxtime = 600
-        for execfilename, pid, job in params:
-            sleeptime = 0
-            ID, num = func(execfilename, pid, job, threaded=threaded)
-            if num == 0:
-                self.localJobs[wID].append(ID)
-                # while self.localqID[ID.split('_')[-1]] == 0 and sleeptime < maxtime:
-                #     time.sleep(5)
-                #     sleeptime += 5
-
     def getLocalID(self):
         import os
         try:
@@ -4639,8 +4627,52 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
                     break
 
 
-# Windows Connected to Icons in header bar.
+# Select folder with tomograms to load them all at once for batch template matching
+class SelectTomogramDir(QMainWindow, CommonFunctions):
+    '''This class lets you browse to a directory to load all .mrc or .em tomos in it.'''
+    def __init__(self, parent):
+        super(SelectTomogramDir, self).__init__(parent)
+        self.setGeometry(50, 50, 300, 100)
+        self.cwidget = QWidget()
+        self.gridLayout = QGridLayout()
+        self.setWindowModality(Qt.ApplicationModal)
+        self.p = parent
 
+        self.cwidget.setLayout(self.gridLayout)
+        self.setCentralWidget(self.cwidget)
+        self.fill()
+
+    def fill(self):
+        columns, rows = 5, 5
+
+        self.items, self.widgets = [['', ] * columns, ] * rows, {}
+        parent = self.gridLayout
+
+        self.row, self.column = 0, 1
+        self.insert_label(parent, text='Select tomogram directory', rstep=1, alignment=Qt.AlignHCenter,
+                          tooltip='Provide the foldername where a bunch of tomograms are located.')
+        self.insert_lineedit(parent, 'tomogramdir', cstep=1)
+        self.insert_pushbutton(parent, cstep=self.column * -1+1, rstep=1, text='Browse',
+                               action=self.browse, params=['folder', self.items[self.row][self.column - 1], ''])
+        self.insert_pushbutton(parent, cstep=self.column * -1+1, rstep=1, text='Select',
+                               action=self.return_value)
+
+    def return_value(self, params):
+        path = self.widgets['tomogramdir'].text()
+
+        files = [os.path.join(path, fname) for fname in os.listdir(path) if fname.endswith('.em') or fname.endswith(
+                '.mrc')]
+
+        self.p.tomogramlist = files
+
+        if len(files) == 0:
+            QMessageBox().warning(self, "No tomograms in folder",
+                                  "Folder needs to contain tomograms in .mrc or .em format.", QMessageBox.Ok)
+
+        self.close()
+
+
+# Windows Connected to Icons in header bar.
 class NewProject(QMainWindow, CommonFunctions):
     '''This class creates a new windows for browsing'''
     def __init__(self,parent,label):
@@ -4838,6 +4870,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                                                     cores=self.num_cores, modules=self.parent().modules)
                 except:
                     self.qparams[jobname] = QParams(modules=self.parent().modules)
+                self.qparams[jobname].update_settings(self, store=True)  # write to pickle
 
         id = 'tab1'
         self.row, self.column = 0, 1

@@ -13,7 +13,8 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 # pytom gui imports
-from pytom.gui.guiStructures import GuiTabWidget, SelectFiles, ParticlePicker, Worker, CreateMaskFile, ConvertEM2PDB
+from pytom.gui.guiStructures import GuiTabWidget, SelectFiles, ParticlePicker, Worker
+from pytom.gui.guiStructures import CreateMaskFile, ConvertEM2PDB, SelectTomogramDir
 from pytom.gui.guiSupportCommands import templateTM, templateXML, templateExtractCandidates, createParticleList
 from pytom.gui import guiFunctions
 from pytom.basic.files import read
@@ -94,9 +95,21 @@ class ParticlePick(GuiTabWidget):
         except:
             self.jobFiles = QLineEdit()
 
-        self.batchTM = SelectFiles(self, initdir=self.tomogramfolder, search='file', filter=['em', 'mrc'],
-                                   outputline=self.jobFiles, run_upon_complete=self.getTemplateFiles, id=key,
-                                   title='Select Tomograms.')
+        try:
+            self.templateFiles.text()
+        except:
+            self.templateFiles = QLineEdit()
+        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em', 'mrc'], id=key,
+                                   outputline=self.templateFiles, run_upon_complete=self.getMaskFiles,
+                                   title='Select Template')
+        # self.batchTM = SelectFiles(self, initdir=self.tomogramfolder, search='file', filter=['em', 'mrc'],
+        #                            outputline=self.jobFiles, run_upon_complete=self.getTemplateFiles, id=key,
+        #                            title='Select Tomograms.')
+
+        self.tomogramlist = []
+
+        widget = SelectTomogramDir(self)
+        widget.show()
 
     def tab23UI(self, key=''):
 
@@ -181,16 +194,13 @@ class ParticlePick(GuiTabWidget):
         grid.addWidget(pushbutton, n + 1, 0)
         grid.addWidget(label, n + 2, 0)
 
-
-    # Methods to fill tabs with input fields or an input table
-
     def templateMatch(self, mode, title=''):
         tooltip = 'Run pytom template matching routine.'
         sizepol = self.sizePolicyB
         groupbox, parent = self.create_groupbox(title, tooltip, sizepol)
 
         self.row, self.column = 0, 1
-        rows, columns = 20, 20
+        rows, columns = 25, 20
         self.items = [['', ] * columns, ] * rows
         w=170
 
@@ -202,13 +212,13 @@ class ParticlePick(GuiTabWidget):
         self.insert_label_line_push(parent, 'Template file', wname=mode + 'templateFname',width=w,initdir=self.ccfolder,
                                     tooltip='Select the tomogram file used for template matching.',
                                     filetype=['em', 'mrc'], mode='file', rstep=0,cstep=1)
-        #self.insert_label(parent, 'PDB2EM', cstep=2, alignment=Qt.AlignRight)
         self.insert_pushbutton(parent, 'Create', action=self.pdb2em, params=[mode + 'templateFname', mode], cstep=-3, rstep=1)
         self.insert_label_line_push(parent, 'Mask file', wname=mode+'maskFname',width=w,initdir=self.ccfolder,
                                     tooltip='Select the tomogram file used for template matching.',
                                     filetype=['em', 'mrc'], mode='file',cstep=1,rstep=0)
-        #self.insert_label(parent,'Create Mask',cstep=2, alignment=Qt.AlignRight)
         self.insert_pushbutton(parent,'Create',action=self.create_maskfile,params=[mode+'maskFname'],cstep=-3,rstep=1)
+        self.insert_label_combobox(parent, 'Spherical mask', mode + 'sphericalMask', labels=['True', 'False'],
+                                   tooltip='Set to true if the mask is spherical to save calculation time.')
         self.insert_label_spinbox(parent, mode + 'startZ', 'Start index of object in Z-dimension', width=w,
                                   value=0, stepsize=1, minimum=0, maximum=1000,
                                   tooltip='The tomogram might consist of empty space. Please determine the z-index where the object starts.')
@@ -225,20 +235,46 @@ class ParticlePick(GuiTabWidget):
         self.insert_label_combobox(parent,'Angular Sampling Filename',mode+'angleFname',
                                    labels=os.listdir(os.path.join( self.parent().pytompath, 'angles/angleLists') ),
                                    tooltip='Select the file that describes the angular sampling of the template model',
-                                   width=w,cstep=-1)
-        self.insert_label_line(parent, "GPU's", mode + 'gpuID', width=w, cstep=0, validator=QIntValidator(),
+                                   width=w, cstep=-1)
+        self.insert_label_spinbox(parent, mode + 'splitX', 'x split', width=w, value=1, stepsize=1,
+                                  minimum=1, maximum=100,
+                                  tooltip='Split the volume along the x dimensions this many times. '
+                                          'Total subvolumes are determined by splitx * splity * splitz. '
+                                          'Each subvolume will be assigned to an mpi process. So if you have 16 '
+                                          'subvolumes, you will need 16 cores on your machine to run the job. '
+                                          'If you have 4 gpus, each managed by 1 mpi proc, you can maximally '
+                                          'split the tomogram into 4 subvolumes. Then setup can have the following '
+                                          'parameters: splitx=2, splity=2, splitz=1, gpus=0,1,2,3')
+        self.insert_label_spinbox(parent, mode + 'splitY', 'y split', width=w, value=1, stepsize=1,
+                                  minimum=1, maximum=100,
+                                  tooltip='Split the volume along the y dimensions this many times. '
+                                          'Total subvolumes are determined by splitx * splity * splitz. '
+                                          'Each subvolume will be assigned to an mpi process. So if you have 16 '
+                                          'subvolumes, you will need 16 cores on your machine to run the job. '
+                                          'If you have 4 gpus, each managed by 1 mpi proc, you can maximally '
+                                          'split the tomogram into 4 subvolumes. Then setup can have the following '
+                                          'parameters: splitx=2, splity=2, splitz=1, gpus=0,1,2,3')
+        self.insert_label_spinbox(parent, mode + 'splitZ', 'z split', width=w, value=1, stepsize=1,
+                                  minimum=1, maximum=100,
+                                  tooltip='Split the volume along the z dimensions this many times. '
+                                          'Total subvolumes are determined by splitx * splity * splitz. '
+                                          'Each subvolume will be assigned to an mpi process. So if you have 16 '
+                                          'subvolumes, you will need 16 cores on your machine to run the job. '
+                                          'If you have 4 gpus, each managed by 1 mpi proc, you can maximally '
+                                          'split the tomogram into 4 subvolumes. Then setup can have the following '
+                                          'parameters: splitx=2, splity=2, splitz=1, gpus=0,1,2,3')
+        self.insert_label_line(parent, "GPU's", mode + 'gpuID', width=w, cstep=0,
                                   tooltip="Which GPU's do you want to reserve. If you want to use multiple GPUs separate them using a comma, e.g. 0,1,2 ")
 
         self.widgets[mode + 'widthZ'] = QLineEdit('0')
         self.widgets[mode + 'widthX'] = QLineEdit('0')
         self.widgets[mode + 'widthY'] = QLineEdit('0')
-        self.widgets[mode + 'numZ'] = QLineEdit('1')
-        self.widgets[mode + 'numX'] = QLineEdit('4')
-        self.widgets[mode + 'numY'] = QLineEdit('4')
-        self.widgets[mode + 'numCores'] = QLineEdit('16')
         self.widgets[mode + 'gpuString'] = QLineEdit('')
         self.widgets[mode + 'jobName'] = QLineEdit()
         self.widgets[mode + 'outfolderTM'] = QLineEdit(self.ccfolder)
+        self.widgets[mode + 'numCores'] = QLineEdit(str(self.widgets[mode + 'splitX'].value() *
+                                                    self.widgets[mode + 'splitY'].value() *
+                                                    self.widgets[mode + 'splitZ'].value()))
 
         self.widgets[mode + 'tomoFname'].textChanged.connect(lambda d, m=mode: self.updateTM(m))
         self.widgets[mode + 'startZ'].valueChanged.connect(lambda d, m=mode: self.updateZWidth(m))
@@ -246,31 +282,30 @@ class ParticlePick(GuiTabWidget):
         self.widgets[mode + 'templateFname'].textChanged.connect(lambda d, m=mode: self.updateJobName(m))
         self.widgets[mode + 'gpuID'].textChanged.connect(lambda d, m=mode: self.updateGpuString(m))
 
-        self.execfilenameTM = os.path.join( self.templatematchfolder, 'templateMatch.sh')
-        self.xmlfilename  = os.path.join( self.templatematchfolder, 'job.xml')
-
+        self.execfilenameTM = os.path.join(self.templatematchfolder, 'templateMatch.sh')
+        self.xmlfilename  = os.path.join(self.templatematchfolder, 'job.xml')
 
         paramsSbatch = guiFunctions.createGenericDict()
         paramsSbatch['fname'] = 'TemplateMatching'
-        paramsSbatch[ 'folder' ] = self.logfolder #[mode + 'outfolderTM']
+        paramsSbatch['folder'] = self.logfolder
         paramsSbatch['id'] = 'SingleTemplateMatch'
         paramsSbatch['gpu'] = self.widgets[mode + 'gpuID']
 
         mandatory_fill = [mode + 'templateFname', mode + 'tomoFname', mode+'maskFname']
-
 
         self.updateTM(mode)
 
         self.insert_gen_text_exe(parent, mode, jobfield=True, exefilename=[mode+'outfolderTM','templateMatch.sh'], paramsSbatch=paramsSbatch,
                                  paramsXML=[mode + 'tomoFname', mode + 'templateFname', mode+'maskFname', mode + 'Wedge1',
                                             mode + 'Wedge2', mode+'angleFname', mode + 'outfolderTM', mode + 'startZ',
-                                            mode + 'widthX', mode + 'widthY', mode + 'widthZ', templateXML],
-                                 paramsCmd=[mode + 'outfolderTM', mode + 'numCores', self.pytompath, mode + 'jobName' ,
-                                            mode + 'numX', mode + 'numY', mode + 'numZ',
+                                            mode + 'widthX', mode + 'widthY', mode + 'widthZ',
+                                            mode + 'sphericalMask', templateXML],
+                                 paramsCmd=[mode + 'outfolderTM', self.pytompath, mode + 'jobName', mode + 'numCores',
+                                            mode + 'splitX', mode + 'splitY', mode + 'splitZ',
                                             mode + 'gpuString', templateTM],
                                  xmlfilename=[mode+'outfolderTM', mode + 'jobName'], mandatory_fill=mandatory_fill)
 
-        self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
+        self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA, rstep=1)
 
         self.updateTM(mode)
 
@@ -335,7 +370,6 @@ class ParticlePick(GuiTabWidget):
                    mode+'particleList', mode+'particlePath', mode+'Size', mode+'NumberOfCandidates',
                    mode+'MinimalScoreValue', mode+'maskGenerate', templateExtractCandidates]
 
-
         mandatory_fill = [mode + 'jobXML', mode + 'scoreFile', mode + 'anglesFile', mode + 'particleList',mode + 'particlePath' ]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch=paramsSbatch,
@@ -346,43 +380,64 @@ class ParticlePick(GuiTabWidget):
 
         setattr(self, mode + 'gb_extractCandidates', groupbox)
         return groupbox
-        self.insert_label(parent, cstep=-self.column, sizepolicy=self.sizePolicyA,rstep=1)
-        setattr(self, mode + 'gb_extractCandidates', groupbox)
-        return groupbox
 
     def populate_batch_templatematch(self, id='tab22'):
         print('multiple template matching job-submissions')
         self.batchTM.close()
-        tomogramFiles = sorted(self.jobFiles.text().split('\n'))
         templateFiles = sorted(self.templateFiles.text().split('\n'))
         maskFiles     = sorted(self.maskFiles.text().split('\n'))
 
-        if len(maskFiles) == 0 or len(templateFiles) == 0 or len(tomogramFiles) == 0:
+        if len(maskFiles) == 0 or len(templateFiles) == 0 or len(self.tomogramlist) == 0:
             print('\n\nPlease select at least one tomogram, template and mask file.\n\n')
             return
 
-        headers = ["Filename Tomogram", "Run", "Mirrored", "Optional Templates", 'Optional Masks', 'Wedge Angle 1',
-                   "Wedge Angle 2", 'Angle List', 'Start Z', 'End Z', 'GPU ID', '']
-        types = ['txt', 'checkbox', 'checkbox', 'combobox', 'combobox', 'lineedit', 'lineedit', 'combobox','lineedit', 'lineedit', 'lineedit', 'txt']
-        sizes = [0, 0, 0, 80, 80, 0, 0, 0, 0 ,0 ,0]
+        headers = ['Filename Tomogram', 'Run', 'Mirrored', 'Optional Templates', 'Optional Masks', 'Spherical mask',
+                   'Wedge Angle 1', 'Wedge Angle 2', 'Angle List', 'Start Z', 'End Z', 'x split', 'y split',
+                   'z split', 'GPU ID', '']
+        types = ['txt', 'checkbox', 'checkbox', 'combobox', 'combobox', 'combobox', 'lineedit', 'lineedit',
+                 'combobox', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'lineedit', 'txt']
+        sizes = [0, 0, 0, 80, 80, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
         tooltip = ['Name of tomogram files.',
                    'Check this box if you want to do template matching using the optional settings.',
-                   'Check this box if you want to do template matching using a mirrored version of the template. If both run and mirrored are checked template matching will be deployed twice for that tomogram.',
+                   'Check this box if you want to do template matching using a mirrored version of the template. '
+                   'If both run and mirrored are checked template matching will be deployed twice for that tomogram.',
                    'Optional templates.',
                    'Optional masks.',
+                   'Set to true if the mask is spherical to save calculation time.',
                    'Angle between the lowest tilt angle and -90.',
                    'Angle between 90 and the highest tilt angle.',
                    'Optional angle lists.',
-                   'At which Z-slice does your object start?', 'At which Z-slice does your object end?', 'GPU ID' ]
+                   'At which Z-slice does your object start?', 'At which Z-slice does your object end?',
+                   'Split the volume along the x dimensions this many times. '
+                   'Total subvolumes are determined by splitx * splity * splitz. '
+                   'Each subvolume will be assigned to an mpi process. So if you have 16 '
+                   'subvolumes, you will need 16 cores on your machine to run the job. '
+                   'If you have 4 gpus, each managed by 1 mpi proc, you can maximally '
+                   'split the tomogram into 4 subvolumes. Then setup can have the following '
+                   'parameters: splitx=2, splity=2, splitz=1, gpus=0,1,2,3',
+                   'Split the volume along the y dimensions this many times. '
+                   'Total subvolumes are determined by splitx * splity * splitz. '
+                   'Each subvolume will be assigned to an mpi process. So if you have 16 '
+                   'subvolumes, you will need 16 cores on your machine to run the job. '
+                   'If you have 4 gpus, each managed by 1 mpi proc, you can maximally '
+                   'split the tomogram into 4 subvolumes. Then setup can have the following '
+                   'parameters: splitx=2, splity=2, splitz=1, gpus=0,1,2,3',
+                   'Split the volume along the z dimensions this many times. '
+                   'Total subvolumes are determined by splitx * splity * splitz. '
+                   'Each subvolume will be assigned to an mpi process. So if you have 16 '
+                   'subvolumes, you will need 16 cores on your machine to run the job. '
+                   'If you have 4 gpus, each managed by 1 mpi proc, you can maximally '
+                   'split the tomogram into 4 subvolumes. Then setup can have the following '
+                   'parameters: splitx=2, splity=2, splitz=1, gpus=0,1,2,3',
+                   'GPU ID']
 
         values = []
 
         angleLists = os.listdir(os.path.join(self.pytompath, 'angles/angleLists'))
-        for n, tomogramFile in enumerate(tomogramFiles):
+        for n, tomogramFile in enumerate(self.tomogramlist):
             try:
                 folder = os.path.dirname(os.popen(f'ls -alrt {tomogramFile}').read()[:-1].split(' ')[-1])
-                print(folder)
                 widthfile = os.path.join(folder, 'z_limits.txt')
                 if os.path.exists( widthfile):
 
@@ -390,9 +445,10 @@ class ParticlePick(GuiTabWidget):
                 else:
                     start, end = 0,0
 
-
-                folderm = os.path.join(self.tomogram_folder, os.path.basename(tomogramFile)[:len('tomogram_000')], 'sorted')
-                metafiles = [ os.path.join(folderm, dir) for dir in os.listdir(folderm) if not os.path.isdir(dir) and dir.endswith('.meta')]
+                folderm = os.path.join(self.tomogram_folder,
+                                       os.path.basename(tomogramFile)[:len('tomogram_000')], 'sorted')
+                metafiles = [os.path.join(folderm, dir) for dir in os.listdir(folderm)
+                             if not os.path.isdir(dir) and dir.endswith('.meta')] if os.path.exists(folderm) else []
                 if metafiles:
                     from pytom.gui.guiFunctions import datatype, loadstar
 
@@ -407,7 +463,8 @@ class ParticlePick(GuiTabWidget):
                 print(e)
                 start, end = 0, 0
                 w1,w2 = 30,30
-            values.append([tomogramFile, 1, 1, templateFiles, maskFiles, w1, w2, angleLists, start, end, '', ''])
+            values.append([tomogramFile, 1, 1, templateFiles, maskFiles, ['True', 'False'], w1, w2,
+                           angleLists, start, end, 1, 1, 1, '', ''])
 
         try:
             self.num_nodes[id].setParent(None)
@@ -416,9 +473,7 @@ class ParticlePick(GuiTabWidget):
 
         self.fill_tab(id, headers, types, values, sizes, tooltip=tooltip, nn=True, wname=self.stage + 'BatchTemplateMatch_')
 
-
         self.tab22_widgets = self.tables[id].widgets
-
 
         self.pbs[id].clicked.connect(lambda dummy, pid=id, v=values: self.mass_submitTM(pid, v))
 
@@ -429,7 +484,6 @@ class ParticlePick(GuiTabWidget):
         jobCode = {}
         execfilenames = {}
 
-        todoList = {}
         for row in range(self.tables[pid].table.rowCount()):
             try:
                 normal = self.tab22_widgets['widget_{}_{}'.format(row, 1)].isChecked()
@@ -440,14 +494,16 @@ class ParticlePick(GuiTabWidget):
                 tomogramFile = values[row][0]
                 templateFile = values[row][3][self.tab22_widgets['widget_{}_{}'.format(row, 3)].currentIndex()]
                 maskFile = values[row][4][self.tab22_widgets['widget_{}_{}'.format(row, 4)].currentIndex()]
-                w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 5)].text())
-                w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 6)].text())
-                angleList = self.tab22_widgets['widget_{}_{}'.format(row, 7)].currentText()
-                start = self.tab22_widgets['widget_{}_{}'.format(row, 8)].text()
-                end = self.tab22_widgets['widget_{}_{}'.format(row, 9)].text()
-                gpuID = self.tab22_widgets['widget_{}_{}'.format(row, 10)].text()
-                if not gpuID in todoList.keys():
-                    todoList[gpuID] = []
+                mask_is_spherical = values[row][5][self.tab22_widgets['widget_{}_{}'.format(row, 5)].currentIndex()]
+                w1 = float(self.tab22_widgets['widget_{}_{}'.format(row, 6)].text())
+                w2 = float(self.tab22_widgets['widget_{}_{}'.format(row, 7)].text())
+                angleList = self.tab22_widgets['widget_{}_{}'.format(row, 8)].currentText()
+                start = self.tab22_widgets['widget_{}_{}'.format(row, 9)].text()
+                end = self.tab22_widgets['widget_{}_{}'.format(row, 10)].text()
+                splitx = int(self.tab22_widgets['widget_{}_{}'.format(row, 11)].text())
+                splity = int(self.tab22_widgets['widget_{}_{}'.format(row, 12)].text())
+                splitz = int(self.tab22_widgets['widget_{}_{}'.format(row, 13)].text())
+                gpuID = self.tab22_widgets['widget_{}_{}'.format(row, 14)].text()
 
                 if gpuID:
                     gpuIDFlag = f'--gpuID {gpuID}'
@@ -506,7 +562,7 @@ class ParticlePick(GuiTabWidget):
                         mm = ''
 
                     XMLParams = [tomogramFile, templateFile, maskFile, w1, w2, angleList, outDirectory,
-                                 start, widthX, widthY, widthZ]
+                                 start, widthX, widthY, widthZ, mask_is_spherical]
 
                     jobxml = templateXML.format(d=XMLParams)
                     template = os.path.basename(templateFile).split('.')[0]
@@ -515,23 +571,20 @@ class ParticlePick(GuiTabWidget):
                     outjob.write(jobxml)
                     outjob.close()
 
-                    # try:
-                    #     outjobdir = os.path.join(os.path.dirname(outDirectory), 'jobfiles', jobname)
-                    #     if os.path.exists(outjobdir): os.system(f'unlink {outjobdir}')
-                    #     os.system(f'ln -s {outjobdir} {jobxml}')
-                    # except Exception as e:
-                    #     print(e)
-
-                    x, y, z = 4, 4, 1
-                    if gpuIDFlag:
-                        x, y, z = 1, 1, 1
+                    # check number of splits is not larger than number of gpus
+                    if gpuIDFlag and len(list(map(int, gpuID.split(',')))) < splitx * splity * splitz:
+                        self.popup_messagebox('Warning', 'Number of gpus is less than the number of subvolumes a '
+                                                         'tomogram is split into, this will crash.')
+                        return
 
                     fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
                     folder = outDirectory
-                    cmd = templateTM.format(d=[outDirectory, x * y * z, self.pytompath, jobname, x, y, z, gpuIDFlag])
+                    cmd = templateTM.format(d=[outDirectory, splitx * splity * splitz, self.pytompath, jobname,
+                                               splitx, splity, splitz, gpuIDFlag])
                     suffix = "_" + os.path.basename(outDirectory)
                     qname, n_nodes, cores, timed, modules, qcmd = self.qparams['BatchTemplateMatch'].values()
 
+                    # TODO this should have some extra checks for combi of queue subm and gpus
                     if gpuID and not gpuID in jobCode.keys():
                         job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix,
                                                             time=timed, num_nodes=n_nodes, partition=qname,
@@ -560,7 +613,7 @@ class ParticlePick(GuiTabWidget):
                         outjob = open(os.path.join(outDirectory, f'templateMatchingBatch{mm}.sh'), 'w')
                         outjob.write(job)
                         outjob.close()
-
+                        num_submitted_jobs += 1
 
                     elif not f'noGPU_{num_submitted_jobs % num_nodes}' in jobCode.keys():
                         job = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, suffix=suffix,
@@ -585,38 +638,21 @@ class ParticlePick(GuiTabWidget):
                         outjob = open(os.path.join(outDirectory, f'templateMatchingBatch{mm}.sh'), 'w')
                         outjob.write(job)
                         outjob.close()
-
-                    # ID, num = self.submitBatchJob(execfilename, pid, job)
-                    # QtGui.QApplication.processEvents()
-
-                    # if num:
-                    #     num_submitted_jobs += num
-                    #     qIDs.append(ID)
+                        num_submitted_jobs += 1
 
             except Exception as e:
                 print(e)
 
-        wid = []
+        qIDs, num_submitted_jobs = [], 0
 
-        for key in jobCode.keys():
-            if not key in todoList:
-                todoList[key] = []
-            todoList[key].append([execfilenames[key], pid, jobCode[key]])
+        for key, values in jobCode.items():
+            ID, num = self.submitBatchJob(execfilenames[key], pid, values)
+            qIDs.append(ID)
+            num_submitted_jobs += 1
 
-        from time import sleep
-        for key in todoList.keys():
-            print(f'starting {len(todoList[key])} jobs on device {key}')
-            self.localJobs[self.workerID] = []
-            wid.append(self.workerID)
-            proc = Worker(fn=self.multiSeq, args=((self.submitBatchJob, todoList[key], self.workerID)))
-            self.threadPool.start(proc)
-            self.workerID += 1
-            sleep(1)
-
-        if num_submitted_jobs:
-            print(wid)
+        if num_submitted_jobs > 0:
             self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
-            self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Templ. Match',
+            self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Templ. Match',
                                            num_submitted_jobs=num_submitted_jobs)
         else:
             self.popup_messagebox('Info', 'Submission Status', 'Failed at starting template matching jobs. Check if '
@@ -698,8 +734,7 @@ class ParticlePick(GuiTabWidget):
                     job           = guiFunctions.gen_queue_header(folder=self.logfolder, name=fname, singleton=True,
                                                                   time=time, num_nodes=n_nodes, partition=qname,
                                                                   modules=modules, num_jobs_per_node=cores,
-                                                                  cmd=qcmd) + cmd
-
+                                                                  cmd=qcmd) * self.checkbox[pid].isChecked() + cmd
 
                     execfilename = os.path.join(os.path.dirname(jobFile), f'extractCandidatesBatch_{self.ECCounter}.sh')
                     ID, num = self.submitBatchJob(execfilename, pid, job)
@@ -1111,21 +1146,18 @@ class ParticlePick(GuiTabWidget):
             if not key == name: self.widgets[key].setText(self.widgets[name].text())
 
     def updateGpuString(self, mode):
-        id = self.widgets[mode + 'gpuID'].text()
+        gpu_ids = self.widgets[mode + 'gpuID'].text()
         try:
-            a = map(int,[el for el in id.split(',') if el != ''])
-            print(list(a))
+            a = list(map(int, [el for el in gpu_ids.split(',') if el != '']))
         except:
             self.widgets[mode + 'gpuID'].setText('')
             self.popup_messagebox('Warning', 'Invalid value in field', 'Impossible to parse gpu IDs, field has been cleared.')
             return
 
-        if len(id) > 0:
-            for key, value in zip(['numCores', 'numX', 'numY', 'numZ', 'gpuString'], [1, 1, 1, 1, f'--gpuID {id}']):
-                self.widgets[mode + key].setText(str(value))
+        if len(a) > 0:
+            self.widgets[mode + 'gpuString'].setText(f'--gpuID {gpu_ids}')
         else:
-            for key, value in zip(['numCores', 'numX', 'numY', 'numZ', 'gpuString'], [16, 4, 4, 1, '']):
-                self.widgets[mode + key].setText(str(value))
+            self.widgets[mode + 'gpuString'].setText('')
 
     def updateJobName(self, mode):
         template = os.path.basename(self.widgets[mode+'templateFname'].text()).split('.')[0]
@@ -1273,15 +1305,6 @@ class ParticlePick(GuiTabWidget):
     def pdb2em(self, params):
         print(params)
         ConvertEM2PDB(self, emfname=params[0],folder=self.widgets[params[1]+'outfolderTM'].text())
-
-    def getTemplateFiles(self, key=''):
-        print(key)
-        try: self.templateFiles.text()
-        except: self.templateFiles = QLineEdit()
-        self.batchTM.close()
-        self.batchTM = SelectFiles(self, initdir=self.ccfolder, search='file', filter=['em','mrc'], id=key,
-                                   outputline=self.templateFiles, run_upon_complete=self.getMaskFiles,
-                                   title='Select Template')
 
     def getMaskFiles(self, key=''):
         try: self.maskFiles.text()
