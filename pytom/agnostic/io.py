@@ -2142,7 +2142,7 @@ def write_mrc(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnific
     f = open(filename, 'wb')
     try:
         f.write(header)
-        f.write(data.tostring(order=order))  # fortran-order array
+        f.write(data.tobytes(order=order))  # fortran-order array
     finally:
         f.close()
 
@@ -2186,8 +2186,8 @@ def write_em(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnifica
 
     f = open(filename, 'wb')
     try:
-        f.write(header.tostring())
-        f.write(data.tostring(order=order))  # fortran-order array
+        f.write(header.tobytes())
+        f.write(data.tobytes(order=order))  # fortran-order array
     finally:
         f.close()
 
@@ -2199,8 +2199,8 @@ def write_rotation_angles(filename, z1=0, z2=0, x=0):
     data = read(filename)
     f = open(filename, 'wb')
     try:
-        f.write(header.tostring())
-        f.write(data.tostring(order='F'))  # fortran-order array
+        f.write(header.tobytes())
+        f.write(data.tobytes(order='F'))  # fortran-order array
     finally:
         f.close()
 
@@ -2217,7 +2217,7 @@ def write_tilt_angle(filename, tilt_angle):
     f = open(filename, 'wb')
     try:
         f.write(tostring(header))
-        f.write(data.tostring(order='F'))  # fortran-order array
+        f.write(data.tobytes(order='F'))  # fortran-order array
     finally:
         f.close()
 
@@ -2234,7 +2234,7 @@ def tostring(header):
 
 def binary_string(values, type):
     import numpy as np
-    return np.array(values, type).tostring()
+    return np.array(values, type).tobytes()
 
 
 def n2v(data):
