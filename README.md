@@ -31,8 +31,6 @@ Only in case you do not have the miniconda environment manager installed, run th
 bash installMiniconda.sh
 ```
 
-Please remember the location where miniconda is installed [CONDA_INSTALL_DIR], because we need it later on. By default it will be installed in the homo directory ~/miniconda3.
-
 Now we are ready to create the conda environment for pytom (solving all the dependencies might take a moment):
 
 ```
@@ -43,7 +41,7 @@ Activate the environment and run the pytom installation scripts to compile the b
 
 ```
 conda activate pytom_env
-python setup.py install --prefix [CONDA_INSTALL_DIR]/envs/pytom_env
+python setup.py install --prefix $CONDA_PREFIX
 ```
 
 Now everything should be setup to start pytom. You can start the GUI by running the following:
