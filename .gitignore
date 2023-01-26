@@ -62,3 +62,6 @@ pytom/pytomc/sh_alignment/SpharmonicKit27/test_stability_naive
 
 # compiled docs
 doc/epydoc/
+
+# swap files
+*.swp

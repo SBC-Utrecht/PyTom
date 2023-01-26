@@ -66,7 +66,10 @@ class pytom_InterpolationTest(unittest.TestCase):
     @unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False),
                      "The test below uses a GPU and cannot execute in a docker environment")
     def test_voltools_gpu(self):
-        import cupy as cp
+        try:
+            import cupy as cp
+        except ImportError:
+            raise unittest.SkipTest("No working cupy install found.")
         box = cp.zeros(self.dims, dtype=cp.float32)
         box[self.point[0], self.point[1], self.point[2]] = 1.
 
