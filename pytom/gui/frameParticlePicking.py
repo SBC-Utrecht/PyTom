@@ -300,7 +300,7 @@ class ParticlePick(GuiTabWidget):
                                             mode + 'Wedge2', mode+'angleFname', mode + 'outfolderTM', mode + 'startZ',
                                             mode + 'widthX', mode + 'widthY', mode + 'widthZ',
                                             mode + 'sphericalMask', templateXML],
-                                 paramsCmd=[mode + 'outfolderTM', self.pytompath, mode + 'jobName', mode + 'numCores',
+                                 paramsCmd=[mode + 'outfolderTM', mode + 'numCores', self.pytompath, mode + 'jobName',
                                             mode + 'splitX', mode + 'splitY', mode + 'splitZ',
                                             mode + 'gpuString', templateTM],
                                  xmlfilename=[mode+'outfolderTM', mode + 'jobName'], mandatory_fill=mandatory_fill)
