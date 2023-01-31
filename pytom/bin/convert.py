@@ -293,7 +293,7 @@ if __name__ == '__main__':
         chaindata['binningPyTom'] = binningFactorPyTom
         outname = f'dummy.{format}' if (outname == '' and directory) else outname
         chaindata['outname'] = outname
-        chaindata['tlt_file'] = tlt_file
+        chaindata['angle_file'] = tlt_file
         chaindata['sorted_folder'] = sorted_folder
         chaindata['wedgeAngles'] = wedge_angles
 
