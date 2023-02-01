@@ -22,7 +22,7 @@ class CustomInstall(install):
     def run(self):
         condadir = self.prefix
         version = f'{sys.version_info[0]}.{sys.version_info[1]}'
-        commandInstall = f'python{version} compile.py --target all'
+        commandInstall = f'{sys.executable} compile.py --target all'
         if os.path.exists(condadir): commandInstall += f' --minicondaEnvDir {condadir}' 
         process = subprocess.Popen(commandInstall, shell=True, cwd="pytom/pytomc")
         process.wait()
