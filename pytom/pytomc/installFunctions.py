@@ -1,4 +1,5 @@
 import os
+import sys
 
 def help():
     print('PyTom compile script')
@@ -211,7 +212,7 @@ def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None,python_version
 def generatePyTomScript(pytomDirectory,python_version):
     
     pytomCommand = f"""#!/usr/bin/env bash
-cat {pytomDirectory}/../LICENSE.txt
+cat {sys.prefix}/pytom_data/LICENSE.txt
 source {pytomDirectory}/bin/paths.sh
 
 FID=0
@@ -252,7 +253,7 @@ def generatePyTomGuiScript(pytomDirectory, python_version):
 def generateIPyTomScript(pytomDirectory):
 
     ipytomCommand = '#!/usr/bin/env bash\n'
-    ipytomCommand += 'cat ' + pytomDirectory + os.sep + '../LICENSE.txt\n'
+    ipytomCommand += f'cat {sys.prefix}/pytom_data/LICENSE.txt\n'
     ipytomCommand += 'source ' + pytomDirectory + os.sep + 'bin' + os.sep + 'paths.sh\n'
     ipytomCommand += 'ipython $* -i\n'
     

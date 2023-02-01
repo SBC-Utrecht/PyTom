@@ -3,4 +3,4 @@ include pytom/lib/*.py
 include pytom/bin/pytom
 include pytom/bin/ipytom
 include pytom/bin/pytomGUI
-
+include LICENSE.txt
