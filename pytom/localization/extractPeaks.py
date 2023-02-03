@@ -251,7 +251,7 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     tm_process.start()
 
     import time
-    sleep_time, max_sleep_time = 0, 3600
+    sleep_time, max_sleep_time = 0, 3600 * 12  # set max runtime for gpu to 12 hours
     while tm_process.is_alive() and sleep_time < max_sleep_time:
         time.sleep(1)
         sleep_time += 1
