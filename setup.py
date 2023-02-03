@@ -22,12 +22,11 @@ class CustomInstall(install):
     def run(self):
         condadir = self.prefix
         version = f'{sys.version_info[0]}.{sys.version_info[1]}'
-        commandInstall = f'python{version} compile.py --target all'
+        commandInstall = f'{sys.executable} compile.py --target all'
         if os.path.exists(condadir): commandInstall += f' --minicondaEnvDir {condadir}' 
         process = subprocess.Popen(commandInstall, shell=True, cwd="pytom/pytomc")
         process.wait()
         install.run(self)
-
 
 setup(
     name='pytom',
@@ -35,6 +34,7 @@ setup(
     packages=find_packages(),
     package_dir={'pytom':'pytom'},
     package_data={'pytom/angles/angleLists': find_angle_lists('pytom/angles/angleLists')},
+    data_files=[("pytom_data", ["./LICENSE.txt"])], # This is a relative dir to sys.prefix
     include_package_data=True,
     author='`FridoF',
     author_email='gijsschot@gmail.com',
