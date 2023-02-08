@@ -10,8 +10,8 @@ from math import pi, sin, cos
 from scipy.ndimage.interpolation import map_coordinates
 from pytom.basic.files import read
 from pytom.basic.filter import rotateWeighting
-from pytom_volume import reducedToFull, vol
-from pytom_numpy import vol2npy
+from pytom.lib.pytom_volume import reducedToFull, vol
+from pytom.lib.pytom_numpy import vol2npy
 from pytom.basic.fourier import convolute, ftshift
 analytWedge=False
 
@@ -244,8 +244,7 @@ class Mask(PyTomClass):
             if not checkFileExists(self._filename):
                 raise IOError('Could not find mask named: ' + self._filename)
             
-            from pytom_volume import read
-            from pytom_volume import read
+            from pytom.lib.pytom_volume import read
             from pytom.tools.files import checkFileExists
             from pytom.basic.transformations import resize
 
@@ -263,7 +262,7 @@ class Mask(PyTomClass):
 	        #self._binning,self._binning)
             
         if rotation and not(self._isSphere):
-            from pytom_volume import vol,transform 
+            from pytom.lib.pytom_volume import vol,transform 
             from pytom.basic.maths import determineRotationCenter
             
             if rotation.__class__ == list:
@@ -477,7 +476,7 @@ class Reference(PyTomClass):
         """
         
 
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.tools.files import checkFileExists
         from pytom.basic.transformations import resize
 
@@ -499,7 +498,7 @@ class Reference(PyTomClass):
         @return: Sum of wedges
         """
         
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.tools.files import checkFileExists
         
         if self._referenceWeighting == '':
@@ -516,7 +515,7 @@ class Reference(PyTomClass):
         @return: Reference before wedge weighting
         """
         
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.tools.files import checkFileExists
         
         if self._preWedgeFile == '':
@@ -535,12 +534,12 @@ class Reference(PyTomClass):
         @param verbose: talkative
         @type verbose: bool
         @return: [newReferenceVolume,newSumOfWedges]
-        @rtype: [L{pytom_volume.vol},L{pytom_volume.vol}]
+        @rtype: [L{pytom.lib.pytom_volume.vol},L{pytom.lib.pytom_volume.vol}]
         @change: more accurate binning now in Fourier space - FF
         """
         #if flag is set and both files exist, do subtract particle from reference 
 
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.basic.fourier import convolute
         from pytom.basic.filter import rotateWeighting
         from pytom.alignment.alignmentFunctions import invert_WedgeSum
@@ -838,7 +837,7 @@ class Wedge(PyTomClass):
         @param wedgeSizeX: volume size for x (original size)
         @param wedgeSizeY: volume size for y (original size)
         @param wedgeSizeZ: volume size for z (original size)
-        @rtype: L{pytom_freqweight.weight}
+        @rtype: L{pytom.lib.pytom_freqweight.weight}
         @return: Weighting object. Remember, the wedge will be cutoff at sizeX/2 if no cutoff provided in constructor or cutoff == 0!
         @author: Thomas Hrabe   
         """
@@ -857,7 +856,7 @@ class Wedge(PyTomClass):
         @param humanUnderstandable: if True (default is False), the volume will be transformed from reducedComplex to full and shifted afterwards
         @param rotation: rotation of wedge
 
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe 
         """
         
@@ -877,9 +876,9 @@ class Wedge(PyTomClass):
         """
         apply: Applies this wedge to a given volume
         @param volume: The volume to be filtered
-        @type volume: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+        @type volume: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
         @return: The filtered volume
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe
         """
         
@@ -1078,11 +1077,11 @@ class SingleTiltWedge(PyTomClass):
         @param wedgeSizeZ: volume size for z (original size)
         @param rotation: Apply rotation to the wedge
         @type rotation: L{pytom.basic.structures.Rotation}  
-        @rtype: L{pytom_freqweight.weight}
+        @rtype: L{pytom.lib.pytom_freqweight.weight}
         @return: Weighting object. Remember, the wedge will be cutoff at sizeX/2 if no cutoff provided in constructor or cutoff == 0!
         @author: Thomas Hrabe   
         """
-        from pytom_freqweight import weight
+        from pytom.lib.pytom_freqweight import weight
         from pytom.basic.structures import Rotation
         if self._cutoffRadius  == 0.0:
             cut = wedgeSizeX//2
@@ -1109,13 +1108,13 @@ class SingleTiltWedge(PyTomClass):
         be transformed from reducedComplex to full and shifted afterwards
         @param rotation: rotation of wedge
 
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe 
         """
         wedgeVolume = None
 
         if self._wedgeAngle1 == 0 and self._wedgeAngle2 == 0:
-            from pytom_volume import vol
+            from pytom.lib.pytom_volume import vol
             
             if not humanUnderstandable:
                 wedgeVolume = vol(wedgeSizeX,wedgeSizeY,int(wedgeSizeZ/2)+1)
@@ -1132,8 +1131,8 @@ class SingleTiltWedge(PyTomClass):
                 
             if humanUnderstandable:
                 # applies hermitian symmetry to full and ftshift so that even humans do understand
-                from pytom_fftplan import fftShift
-                from pytom_volume import reducedToFull
+                from pytom.lib.pytom_fftplan import fftShift
+                from pytom.lib.pytom_volume import reducedToFull
                 wedgeVolume = reducedToFull(wedgeVolume)
                 
                 fftShift(wedgeVolume,True)
@@ -1148,17 +1147,17 @@ class SingleTiltWedge(PyTomClass):
         """
         apply: Applies this wedge to a given volume
         @param volume: The volume to be filtered
-        @type volume: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+        @type volume: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
         @param rotation: rotate the wedge
         @type rotation: L{pytom.basic.structures.Rotation}
         @return: The filtered volume
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         
         if not volume.__class__ == vol:
-            raise TypeError('SingleTiltWedge: You must provide a pytom_volume.vol here!')
+            raise TypeError('SingleTiltWedge: You must provide a pytom.lib.pytom_volume.vol here!')
         
         if self._wedgeAngle1 > 0 or self._wedgeAngle2 > 0:
             
@@ -1358,10 +1357,10 @@ be generated. If omitted / 0, filter is fixed to size/2.
             be transformed from reducedComplex to full and shifted afterwards
         @param rotation: rotation of 2nd wedge with respect to 1st
         @return: average of both wedges
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe 
         """
-        from pytom_volume import vol, limit
+        from pytom.lib.pytom_volume import vol, limit
         
         w1 = self._wedge1.returnWedgeVolume(wedgeSizeX, wedgeSizeY, wedgeSizeZ, humanUnderstandable, rotation)
         w2 = self._wedge2.returnWedgeVolume(wedgeSizeX, wedgeSizeY, wedgeSizeZ, humanUnderstandable, rotation)
@@ -1456,17 +1455,17 @@ be generated. If omitted / 0, filter is fixed to size/2.
         """
         apply: Applies this wedge to a given volume
         @param volume: The volume to be filtered
-        @type volume: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+        @type volume: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
         @param rotation: rotate the wedge
         @type rotation: L{pytom.basic.structures.Rotation}
         @return: The filtered volume
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe
         """
-        from pytom_volume import vol,complexRealMult
+        from pytom.lib.pytom_volume import vol,complexRealMult
         from pytom.basic.fourier import fft,ifft
         if not volume.__class__ == vol:
-            raise TypeError('You must provide a pytom_volume.vol here!')
+            raise TypeError('You must provide a pytom.lib.pytom_volume.vol here!')
     
         wedgeVolume = self.returnWedgeVolume(volume.sizeX(),volume.sizeY(),volume.sizeZ(),
                            humanUnderstandable = False,rotation=rotation)
@@ -1524,7 +1523,7 @@ class Wedge3dCTF(PyTomClass):
     def apply(self, volume, rotation=None):
 
         if not volume.__class__ == vol:
-            raise TypeError('Wedge3dCTF: You must provide a pytom_volume.vol here!')
+            raise TypeError('Wedge3dCTF: You must provide a pytom.lib.pytom_volume.vol here!')
 
         wedge = self.returnWedgeVolume(rotation=rotation)
 
@@ -1616,7 +1615,7 @@ class GeneralWedge(PyTomClass):
     
     def _read_weight(self):
         if self._weight_vol is None:
-            from pytom_volume import read
+            from pytom.lib.pytom_volume import read
             w = read(self._wedge_filename)
             
             self._weight_vol = w
@@ -1630,7 +1629,7 @@ class GeneralWedge(PyTomClass):
         self._wedge_filename = filename
     
     def returnWedgeFilter(self, wedgeSizeX=None, wedgeSizeY=None, wedgeSizeZ=None, rotation=None):
-        from pytom_freqweight import weight
+        from pytom.lib.pytom_freqweight import weight
         from pytom.basic.structures import Rotation
         
         self._read_weight()
@@ -1649,8 +1648,8 @@ class GeneralWedge(PyTomClass):
             
         if humanUnderstandable:
             # applies hermitian symmetry to full and ftshift so that even humans do understand 
-            from pytom_fftplan import fftShift
-            from pytom_volume import reducedToFull
+            from pytom.lib.pytom_fftplan import fftShift
+            from pytom.lib.pytom_volume import reducedToFull
             wedgeVolume = reducedToFull(wedgeVolume)
                 
             fftShift(wedgeVolume,True)
@@ -1658,9 +1657,9 @@ class GeneralWedge(PyTomClass):
         return wedgeVolume
     
     def apply(self, volume, rotation=None):
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         if not volume.__class__ == vol:
-            raise TypeError('You must provide a pytom_volume.vol here!')
+            raise TypeError('You must provide a pytom.lib.pytom_volume.vol here!')
         
         from pytom.basic.filter import filter
         wedgeFilter = self.returnWedgeFilter(None, None, None, rotation)
@@ -1688,7 +1687,7 @@ class GeneralWedge(PyTomClass):
         # start sampling
         import numpy as np
         from math import pi, sin, cos
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         from scipy.ndimage.interpolation import map_coordinates
         v = vol2npy(self._weight_vol)
         
@@ -1866,10 +1865,10 @@ class Particle(PyTomClass):
         @param binning: binning factor (e.g., 2 makes it 2 times smaller in each dim)
         @type binning: int or float
         @return: volume
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @change: FF
         """
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.tools.files import checkFileExists
         from pytom.basic.transformations import resize
         
@@ -2111,7 +2110,7 @@ class Particle(PyTomClass):
         getTransformedVolume: Returns particle volume with applied inverse rotation and inverse shift
         @param binning: binning factor
         @type binning: C{int}
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
         from pytom.basic.structures import Shift,Rotation
         volume = self.getVolume(binning)
@@ -2120,7 +2119,7 @@ class Particle(PyTomClass):
         rotation = self.getRotation()
         
         if rotation != Rotation(0,0,0) or shift != Shift(0,0,0):
-            from pytom_volume import vol, transformSpline
+            from pytom.lib.pytom_volume import vol, transformSpline
             
             volumeTransformed = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
         
@@ -2428,7 +2427,7 @@ class ParticleList(PyTomClass):
         @param particleStartOffset: Offset in particle indexing. Motls generated with MATLAB will most likely start with a 1 as first particle (not with 0 as in C or Python) 
         @type particleStartOffset: C{int}
         """
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.tools.files import checkFileExists
         
         from pytom.basic.structures import Rotation,Shift,PickPosition,Particle
@@ -2470,7 +2469,7 @@ class ParticleList(PyTomClass):
         @warning: Resulting MOTL - Particle Index (4th entry) is increment 1:numberParticles. Does not neccessarily match to the particleFilename! Check L{copyFiles} for that.
         @param filename: The filename  
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         
         numberParticles = len(self)
         
@@ -2964,7 +2963,7 @@ class ParticleList(PyTomClass):
         @type progressBar: bool
         """
         from pytom.tools.files import checkDirExists
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         
         if not checkDirExists(directory):
             raise RuntimeError('Directory specified does not exist!')
@@ -2974,7 +2973,7 @@ class ParticleList(PyTomClass):
         for i in range(len(pls)):
             particle = pls[i][0]
             className = particle.getClassName()
-            pls[i].average(directory + '/class_' + str(className) + '.em',progressBar,False,pytom_mpi.isInitialised())
+            pls[i].average(directory + '/class_' + str(className) + '.em',progressBar,False, pytom_mpi.isInitialised())
             
     def splitOddEven(self, verbose=False):
         """
@@ -3037,10 +3036,10 @@ class ParticleList(PyTomClass):
         if len(self) < 2:
             raise RuntimeError('ParticleList must have at least 2 elements to determine resolution!')
     
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.basic.correlation import FSC, determineResolution
-        import pytom_mpi
-        from pytom_numpy import vol2npy
+        import pytom.lib.pytom_mpi as pytom_mpi
+        from pytom.lib.pytom_numpy import vol2npy
 
         import os 
         
@@ -3274,13 +3273,13 @@ class ParticleList(PyTomClass):
         """
         Calculate the variance map on the aligned particle list.
         @param average: average of the aligned particle list
-        @type average: L{pytom_volume.vol}
+        @type average: L{pytom.lib.pytom_volume.vol}
         @param verbose: verbose mode
         @type verbose: L{boolean}
         @return: 3D variance map
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
-        from pytom_volume import power, complexDiv, mean, variance
+        from pytom.lib.pytom_volume import power, complexDiv, mean, variance
         from pytom.basic.fourier import fft,ifft
         from math import sqrt
         from pytom.tools.ProgressBar import FixedProgBar
@@ -3333,17 +3332,17 @@ class ParticleList(PyTomClass):
         Calculate the standard deviation map using getVarianceMap function.
 
         @param average: average of the aligned particle list
-        @type average: L{pytom_volume.vol}
+        @type average: L{pytom.lib.pytom_volume.vol}
         @param verbose: verbose mode
         @type verbose: L{boolean}
         @return: 3D standard deviation map
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
         if average is None:
             from pytom.alignment.alignmentFunctions import average2
             average, fsc = average2(self, False, False, False, mask, verbose=verbose)
         
-        from pytom_volume import abs, power
+        from pytom.lib.pytom_volume import abs, power
         vm = self.getVarianceMap(average, verbose)
         
         std_map = abs(vm) # sometimes it can have negative values
@@ -3359,7 +3358,7 @@ class ParticleList(PyTomClass):
     def getCVMap(self, average=None, std_map=None, threshold=None, negative_density=True, verbose=True):
         """Calculate the coefficient of variance map.
         """
-        from pytom_volume import vol, limit, variance, mean, abs
+        from pytom.lib.pytom_volume import vol, limit, variance, mean, abs
         if average is None:
             from pytom.alignment.alignmentFunctions import average2
             average, fsc = average2(self, False, False, False, verbose=verbose)
@@ -4485,8 +4484,8 @@ class PointSymmetry(Symmetry):
         from pytom.angles.localSampling import LocalSampling
         from pytom.basic.correlation import nxcc
         from pytom.basic.structures import Mask
-        from pytom_volume import vol
-        from pytom_volume import rotateSpline as rotate
+        from pytom.lib.pytom_volume import vol
+        from pytom.lib.pytom_volume import rotateSpline as rotate
          
         if axis == 'Z' or axis.__class__ != list:
             rotations = LocalSampling(0,angularIncrement)
@@ -4531,7 +4530,7 @@ class PointSymmetry(Symmetry):
         applyToParticle: symmetrize particle 
         @param volume: The volume
         """
-        from pytom_volume import vol, rotateSpline
+        from pytom.lib.pytom_volume import vol, rotateSpline
         from pytom.basic.structures import Rotation
         
         sizeX = volume.sizeX()
@@ -4697,7 +4696,7 @@ class HelicalSymmetry(Symmetry):
         return newList
 
     def applyToPatricle(self,particle):
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from pytom.basic.structures import Rotation,Shift
         from pytom.basic.transformations import rotate,shift
         

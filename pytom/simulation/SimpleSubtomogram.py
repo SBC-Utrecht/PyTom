@@ -10,7 +10,7 @@ def simpleSimulation(volume,rotation,shiftV,wedgeInfo=None,SNR=0.1,mask=None):
     @param mask: Apodisation mask 
     @return: a simple cryo em simulation of volume 
     """
-    from pytom_volume import vol,rotate,shift,initSphere
+    from pytom.lib.pytom_volume import vol,rotate,shift,initSphere
     from pytom.simulation.support import add_white_noise
     
     if not rotation == [0,0,0]:

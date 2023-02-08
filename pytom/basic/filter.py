@@ -1,6 +1,6 @@
 import numpy as np
 from pytom.basic.fourier import radialaverage, ftshift, iftshift
-from pytom_volume import reducedToFull, fullToReduced, vol, max
+from pytom.lib.pytom_volume import reducedToFull, fullToReduced, vol, max
 from math import sqrt
 
 
@@ -11,17 +11,17 @@ def profile2FourierVol( profile, dim=None, reduced=False):
     for sampling.
 
     @param profile: profile
-    @type profile: 1-d L{pytom_volume.vol} or 1-d python array
+    @type profile: 1-d L{pytom.lib.pytom_volume.vol} or 1-d python array
     @param dim: dimension of (cubic) output
     @type dim: L{int}
     @param reduced: If true reduced Fourier representation (N/2+1, N, N) is generated.
     @type reduced: L{bool}
 
     @return: 3-dim complex volume with spherically symmetrical profile
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     @author: FF
     """
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     from math import sqrt
 
     if not dim:
@@ -86,11 +86,11 @@ def filter_volume_by_profile( volume, profile):
     """
     filter volume by 1-d profile
     @param volume: volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param profile: 1-d profile
-    @type profile: L{pytom_volume.vol}
+    @type profile: L{pytom.lib.pytom_volume.vol}
     @return: outvol
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     @author: FF
     """
     from pytom.basic.filter import profile2FourierVol
@@ -108,9 +108,9 @@ def gridCTF(x_array, y_array, z_array):
     @type y_array: 1-dim array
     @type z_array: 1-dim array
     @return: 3-dim volumes with x, y, z values in x,y,z dimension, respectively
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     """
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     
     cubeSizeX = len(x_array)  
     cubeSizeY = len(y_array) 
@@ -152,9 +152,9 @@ def volCTF(defocus, x_dim, y_dim, z_dim, pixel_size=None, voltage=None, Cs=None,
     @param y_dim: dimension of volume in y
     @param z_dim: dimension of volume in z
     @return: 3-dim volumes with x, y, z values in x,y,z dimension, respectively
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     """
-    from pytom_volume import vol, power
+    from pytom.lib.pytom_volume import vol, power
     from pytom.tools.macros import frange
     import math
     
@@ -215,17 +215,17 @@ def convolutionCTF(volume, defocus, pixelSize=None, voltage=None, Cs=None, sigma
     """
     convolutionCTF:
     @param volume: input volume to be convolved with CTF
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param defocus: Negative value = underfocus (in microns)
     @param pixelSize: Size of pixels / voxels (in Anstroms)
     @param voltage: 
     @param Cs:
     @param sigma: 
     @return: CTF filtered volume
-    @rtype L{pytom_volume.vol}
+    @rtype L{pytom.lib.pytom_volume.vol}
     @author: FF
     """
-    from pytom_volume import subvolume, complexRealMult
+    from pytom.lib.pytom_volume import subvolume, complexRealMult
     from pytom.basic.fourier import ftshift, fft, ifft
     from pytom.basic.filter import volCTF
     
@@ -245,7 +245,7 @@ def fourierFilterShift(filter):
     fourierFilterShift: NEEDS Documentation
     @param filter: NEEDS Documentation 
     """
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     
     widthX = filter.sizeX()
     centerX = filter.sizeX()//2
@@ -273,7 +273,7 @@ def fourierFilterShift_ReducedComplex(filter):
     fourierFilterShift: NEEDS Documentation
     @param filter: NEEDS Documentation
     """
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
 
     widthX = filter.sizeX()
     centerX = filter.sizeX()//2
@@ -303,7 +303,7 @@ def circleFilter(sizeX,sizeY, radiusCutoff):
     @param sizeY: NEEDS Documentation
     @param radiusCutoff: NEEDS Documentation
     """
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     
     centerX = sizeX//2
         
@@ -333,7 +333,7 @@ def rampFilter( sizeX, sizeY, crowtherFreq=None, N=None):
     @return: filter volume
     
     """
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     from math import exp
 
     centerX = sizeX//2
@@ -372,9 +372,9 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     @return: filter volume
 
     """
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     from pytom.basic.files import read
-    from pytom_numpy import npy2vol
+    from pytom.lib.pytom_numpy import npy2vol
     from numpy import array, matrix, sin, pi, arange, float32, column_stack, argmin, clip, ones, ceil
 
 
@@ -422,9 +422,9 @@ def rotateFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     """
     from numpy import zeros_like, ones, column_stack, sin, abs, zeros, pi, ceil, floor, float32, array
     from scipy.ndimage import rotate
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     from pytom.basic.files import read
-    from pytom_numpy import npy2vol
+    from pytom.lib.pytom_numpy import npy2vol
 
     tilt_angles = array(tilt_angles)
 
@@ -470,7 +470,7 @@ def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, retu
     """
     rotateWeighting: Rotates a frequency weighting volume around the center. If the volume provided is reduced complex, it will be rescaled to full size, ftshifted, rotated, iftshifted and scaled back to reduced size.
     @param weighting: A weighting volume
-    @type weighting: L{pytom_volume.vol}
+    @type weighting: L{pytom.lib.pytom_volume.vol}
     @param z1: Z1 rotation angle
     @type z1: float
     @param z2: Z2 rotation angle
@@ -479,7 +479,7 @@ def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, retu
     @type x: float
     @param mask:=None is there a rotation mask? A mask with all = 1 will be generated otherwise. Such mask should be \
         provided anyway.
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param isReducedComplex: Either set to True or False. Will be determined otherwise
     @type isReducedComplex: bool
     @param returnReducedComplex: Return as reduced complex? (Default is False)
@@ -487,18 +487,17 @@ def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, retu
     @param binarize: binarize weighting
     @type binarize: bool
     @return: weight as reduced complex volume
-    @rtype: L{pytom_volume.vol_comp}
+    @rtype: L{pytom.lib.pytom_volume.vol_comp}
     """
-    from pytom_volume import vol, limit, vol_comp
-    from pytom_volume import rotate
+    from pytom.lib.pytom_volume import vol, limit, vol_comp, rotate
     assert type(weighting) == vol or  type(weighting) == vol_comp, "rotateWeighting: input neither vol nor vol_comp"
     
     isReducedComplex = isReducedComplex or int(weighting.sizeX()/2)+1 == weighting.sizeZ();
 
     if isReducedComplex:
         #scale weighting to full size
-        from pytom_fftplan import fftShift
-        from pytom_volume import reducedToFull
+        from pytom.lib.pytom_fftplan import fftShift
+        from pytom.lib.pytom_volume import reducedToFull
         weighting = reducedToFull(weighting)
         fftShift(weighting, True)
 
@@ -512,8 +511,8 @@ def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, retu
     weightingRotated = weightingRotated * mask
     
     if returnReducedComplex:
-        from pytom_fftplan import fftShift
-        from pytom_volume import fullToReduced
+        from pytom.lib.pytom_fftplan import fftShift
+        from pytom.lib.pytom_volume import fullToReduced
         fftShift(weightingRotated,True)
         returnVolume = fullToReduced(weightingRotated)
     else:
@@ -528,7 +527,7 @@ def wedgeFilter(volume,angle,radius=0,angleIsHalf=True,fourierOnly=False):
     """
     wedgeFilter: performs a single wedge filtering of volume.
     @param volume: The volume filtered.
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param angle: Opening angle of the wedge.
     @type angle: C{float}
     @param radius: cutoff radius (means lowpass filter radius - 0 by default)
@@ -537,7 +536,7 @@ def wedgeFilter(volume,angle,radius=0,angleIsHalf=True,fourierOnly=False):
     @return: The wedge filtered volume,the filter and the filtered volume in fourier space  
     @author: Thomas Hrabe
     """
-    import pytom_freqweight
+    import pytom.lib.pytom_freqweight as pytom_freqweight
     
     if angle <= 0:
         return volume
@@ -554,7 +553,7 @@ def bandpassFilter(volume, lowestFrequency, highestFrequency, bpf=None, smooth=0
     """
     bandpassFilter: Performs bandpass filtering of volume.
     @param volume: The volume to be filtered
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param lowestFrequency: The lowest frequency in the filter as absolute pixel value
     @type lowestFrequency: L{float}
     @param highestFrequency: The highest frequency in the filter as absolute pixel value
@@ -565,8 +564,8 @@ def bandpassFilter(volume, lowestFrequency, highestFrequency, bpf=None, smooth=0
     @author: Thomas Hrabe
     """
 
-    import pytom_freqweight
-    import pytom_volume
+    import pytom.lib.pytom_freqweight as pytom_freqweight
+    import pytom.lib.pytom_volume as pytom_volume
     
     if volume.__class__ == pytom_volume.vol:
         from pytom.basic.fourier import fft
@@ -584,15 +583,15 @@ def lowpassFilter(volume,band,smooth=0,fourierOnly=False):
     """
     lowpassFilter: 
     @param volume: The volume filtered
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param band: Upper end of band(in pixels)
     @param smooth: Adjusts the size of gaussian falloff around each band end.
     @return: The lowpass filtered volume,the filter and the filtered volume in fourier space
     @author: Thomas Hrabe 
     """
         
-    import pytom_freqweight
-    import pytom_volume
+    import pytom.lib.pytom_freqweight as pytom_freqweight
+    import pytom.lib.pytom_volume as pytom_volume
     
     if volume.__class__ == pytom_volume.vol:
         from pytom.basic.fourier import fft
@@ -608,14 +607,14 @@ def highpassFilter(volume,band,smooth=0,fourierOnly=False):
     """
     highpassFilter:
     @param volume:  The volume filtered
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param band: Lower end of band (in pixels)
     @param smooth: Adjusts the size of gaussian falloff around each band end.
     @return: The highpass filtered volume,the filter and the filtered volume in fourier space
     @author: Thomas Hrabe 
     """
-    import pytom_freqweight
-    import pytom_volume
+    import pytom.lib.pytom_freqweight as pytom_freqweight
+    import pytom.lib.pytom_volume as pytom_volume
     
     if volume.__class__ == pytom_volume.vol:
         from pytom.basic.fourier import fft
@@ -631,14 +630,14 @@ def filter(volume,filterObject,fourierOnly=False):
     """
     filter: A generic filter method.
     @param volume: The volume to be filtered
-    @type volume: L{pytom_volume.vol}
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param filterObject: A filter object (either wedgeFilter, bandpassFilter, ...)
     @return: The filtered volume,the filter and the filtered volume in fourier space
     @author: Thomas Hrabe
     """
     from pytom.basic.fourier import fft, ifft
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     
     if volume.__class__ == pytom_volume.vol:
         fvolume = fft(volume)
@@ -663,14 +662,14 @@ def filter(volume,filterObject,fourierOnly=False):
 def gaussian_filter(vol, sigma):
     """
     @param vol: input volume
-    @type vol: L{pytom_volume.vol}
+    @type vol: L{pytom.lib.pytom_volume.vol}
     @param sigma: xxx
     @type sigma: xxx
     @return: resulting volume
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     """
     import numpy as np
-    from pytom_numpy import vol2npy, npy2vol
+    from pytom.lib.pytom_numpy import vol2npy, npy2vol
     from scipy.ndimage.filters import gaussian_filter
     v = vol2npy(vol)
     r = gaussian_filter(v, sigma)
@@ -685,13 +684,13 @@ def wiener_filter(fsc, even_ctf_sum, odd_ctf_sum, fudge=1):
     @param fsc: fsc curve of even and odd averages
     @type fsc: L{list}
     @param even_ctf_sum: even ctf sum volume, normalized over the number of particles in the half set, reduced complex
-    @type even_ctf_sum: L{pytom_volume.vol}
+    @type even_ctf_sum: L{pytom.lib.pytom_volume.vol}
     @param odd_ctf_sum: odd ctf sum volume, normalized over the number of particles in the half set, reduced complex
-    @type odd_ctf_sum: L{pytom_volume.vol}
+    @type odd_ctf_sum: L{pytom.lib.pytom_volume.vol}
     @param fudge: relion fudge factor (T)
     @type fudge: L[float}
     @return: returns two filters for the odd and even half map filter1, filter2
-    @rtype: L{[pytom_volume.vol, pytom_volume.vol]}
+    @rtype: L{[pytom.lib.pytom_volume.vol, pytom.lib.pytom_volume.vol]}
     """
     assert even_ctf_sum.sizeX() == even_ctf_sum.sizeY() and even_ctf_sum.sizeX() // 2 + 1 == even_ctf_sum.sizeZ(), \
         'even volume does not have correct dimensions'

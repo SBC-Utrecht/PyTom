@@ -334,7 +334,7 @@ def add_white_noise(volume, SNR=1):
         return volume
 
     from math import sqrt
-    from pytom_volume import vol, mean, variance, gaussianNoise
+    from pytom.lib.pytom_volume import vol, mean, variance, gaussianNoise
 
     m = mean(volume)
     s = sqrt(variance(volume, False) / SNR)  # SNR = Var(signal) / Var(noise)

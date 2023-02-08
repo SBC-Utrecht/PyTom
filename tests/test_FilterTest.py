@@ -9,11 +9,10 @@ class pytom_FilterTest(unittest.TestCase):
         """
         test wedge filter functions and their consistency
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol, complexRealMult
         from pytom.basic.structures import WedgeInfo,Rotation,Shift
         from pytom.basic.filter import filter
         from pytom.basic.fourier import fft, ifft
-        from pytom_volume import complexRealMult
 
         v = vol(32,32,32)
         v.setAll(0.0)
@@ -36,11 +35,9 @@ class pytom_FilterTest(unittest.TestCase):
     def test_wedgeRotation(self):
         """
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol, rotate, complexRealMult
         from pytom.basic.structures import Wedge, Rotation
-        from pytom_volume import rotate
         from pytom.basic.fourier import fft, ifft
-        from pytom_volume import complexRealMult
         from pytom.basic.filter import rotateWeighting
 
         dim = 24
@@ -83,7 +80,7 @@ class pytom_FilterTest(unittest.TestCase):
         """
         Why is this one here?
         """
-        import pytom_volume
+        import pytom.lib.pytom_volume as pytom_volume
         from pytom.basic import correlation
         s = pytom_volume.vol(32,32,32)
         s2 = pytom_volume.vol(32,32,32)
@@ -101,7 +98,7 @@ class pytom_FilterTest(unittest.TestCase):
 
     def test_bandpassFilter(self):
 
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from pytom.basic.filter import bandpassFilter
 
         refNoise = vol(64,64,64)
@@ -122,9 +119,9 @@ class pytom_FilterTest(unittest.TestCase):
         """
 	    output of filtering should be almost equal to input
         """
-        import pytom_volume
+        import pytom.lib.pytom_volume as pytom_volume
         from pytom.basic.filter import filter
-        from pytom_freqweight import weight
+        from pytom.lib.pytom_freqweight import weight
         
         vol1 = pytom_volume.vol(64,64,64)
         vol2 = pytom_volume.vol(64,64,64)
@@ -148,7 +145,7 @@ class pytom_FilterTest(unittest.TestCase):
         """
         output of ramp filtering
         """
-        from pytom_volume import vol, complexRealMult, peak
+        from pytom.lib.pytom_volume import vol, complexRealMult, peak
         from pytom.basic.filter import filter as fil
         from pytom.basic.filter import circleFilter,rampFilter,fourierFilterShift
         from pytom.basic.fourier import fft,ifft
@@ -188,7 +185,7 @@ class pytom_FilterTest(unittest.TestCase):
         os.system('rm weiproj.em')
         
     def test_complexDiv(self):
-        from pytom_volume import vol, complexDiv,abs,peak
+        from pytom.lib.pytom_volume import vol, complexDiv,abs,peak
         from pytom.basic.fourier import fft,ifft
         
         v = vol(64,64,64)
@@ -218,7 +215,7 @@ class pytom_FilterTest(unittest.TestCase):
         """test filter by 1-d profile"""
         from pytom.basic.filter import profile2FourierVol
         from pytom.basic.fourier import convolute, powerspectrum
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from math import sqrt
         
         #generate radial Fourier Filter

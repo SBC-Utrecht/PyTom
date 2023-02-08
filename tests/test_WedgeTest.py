@@ -8,7 +8,7 @@ import numpy as np
 from pytom.basic.structures import Wedge, Rotation
 from pytom.agnostic.correlation import nxcc
 from pytom.agnostic.structures import Wedge as WedgeNp
-from pytom_numpy import vol2npy
+from pytom.lib.pytom_numpy import vol2npy
 
 
 class pytom_NumpyTest(unittest.TestCase):

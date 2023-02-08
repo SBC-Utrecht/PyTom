@@ -6,8 +6,8 @@ COPY environments/pytom_py3.8_cu10.6_full.yaml .
 RUN conda env create -f pytom_py3.8_cu10.6_full.yaml --name pytom_env
 
 # activate the environment
-RUN echo "source activate pytom_env" > ~/.bashrc
-ENV PATH /opt/conda/envs/pytom_env/bin:$PATH
+RUN conda init
+RUN echo "conda activate pytom_env" >> ~/.bashrc
 SHELL ["conda", "run", "-n", "pytom_env", "/bin/bash", "-c"]
 
 # move required files to Docker, separately for better image caching during
@@ -21,9 +21,10 @@ ADD tutorials /app/doc
 ADD MANIFEST.in LICENSE LICENSE.txt .gitmodules .gitignore setup.py /app/
 
 # compile/setup pytom
-RUN python3.8 setup.py install --prefix /opt/conda/envs/pytom_env
+RUN python setup.py install --prefix $CONDA_PREFIX
 
 # MPI and test flags
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 ENV AM_I_IN_A_DOCKER_CONTAINER=1
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "pytom_env", "/bin/bash", "-c"]

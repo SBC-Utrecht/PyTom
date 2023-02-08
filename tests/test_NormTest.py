@@ -6,7 +6,7 @@ class pytom_NormTest(unittest.TestCase):
     
     def mean0std1_Test(self):
 
-        import pytom_volume
+        import pytom.lib.pytom_volume as pytom_volume
         from pytom.basic.normalise import mean0std1
         from helper_functions import create_RandomParticleList, installdir
 
@@ -21,7 +21,7 @@ class pytom_NormTest(unittest.TestCase):
         assert 1+epsilon >= var >= 1-epsilon
 
     def zeroVol_Test(self):
-        import pytom_volume
+        import pytom.lib.pytom_volume as pytom_volume
         from pytom.basic.normalise import normaliseUnderMask
         #from pytom_volume import vol, initSphere
 

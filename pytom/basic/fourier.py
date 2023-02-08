@@ -1,4 +1,4 @@
-from pytom_volume import reducedToFull
+from pytom.lib.pytom_volume import reducedToFull
 from math import sqrt, ceil
 
 
@@ -41,7 +41,7 @@ class FtSingleton(object):
         """
         findInFt: Checks for Fourier Tuple with same volume size. 
         @param volume:
-        @type volume: L{pytom_volume.vol} 
+        @type volume: L{pytom.lib.pytom_volume.vol} 
         @return: 
         @author: Thomas Hrabe 
         """
@@ -101,17 +101,17 @@ def fft(data, scaling=''):
     """
     fft: Performs Fourier Transformation on input. The result is NOT scaled in any way (1/N , 1/sqrt(n),...)  
     @param data: The source volume.  
-    @type data: pytom_volume.vol
+    @type data: pytom.lib.pytom_volume.vol
     @param scaling: Describes the type of scaling is applied. 'N' 1/N, 'sqrtN' 1/sqrt(N). '' no scaling (default)
     @type scaling: str
-    @rtype: pytom_volume.vol_comp
+    @rtype: pytom.lib.pytom_volume.vol_comp
     @return: The fourier transformed data 
     @author: Thomas Hrabe
     """
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     
     if not data.__class__ == pytom_volume.vol:
-        raise TypeError('Data must be of type pytom_volume.vol')
+        raise TypeError('Data must be of type pytom.lib.pytom_volume.vol')
     
     
     ftSingleton = FtSingleton()
@@ -142,7 +142,7 @@ def fft(data, scaling=''):
         return returnValue
     
     else:  
-        import pytom_fftplan
+        import pytom.lib.pytom_fftplan as pytom_fftplan
     
         real = pytom_volume.vol(data.sizeX(),data.sizeY(),data.sizeZ())
         real.copyVolume(data)
@@ -180,17 +180,17 @@ def ifft(Fdata, scaling=''):
     """
     ifft: Performs inverse Fourier Transformation on input. The result is NOT scaled in any way (1/N , 1/sqrt(n),...)
     @param Fdata: The source volume (must be complex). If FData does not have shape information of the real volume, PyTom will assume that x==y==z (See line 198)   
-    @type Fdata: pytom_volume.vol_comp
+    @type Fdata: pytom.lib.pytom_volume.vol_comp
     @param scaling: Describes the type of scaling is applied. 'N' 1/N, 'sqrtN' 1/sqrt(N). '' no scaling (default)
     @type scaling: str
-    @rtype: pytom_volume.vol
+    @rtype: pytom.lib.pytom_volume.vol
     @return: The inverse fourier transformed data
     @author: Thomas Hrabe
     """
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     
     if not Fdata.__class__ == pytom_volume.vol_comp:
-        raise TypeError('Data must be of type pytom_volume.vol_comp')
+        raise TypeError('Data must be of type pytom.lib.pytom_volume.vol_comp')
     
     if scaling: Fdata = Fdata/Fdata.getFtSizeX()/Fdata.getFtSizeY()/Fdata.getFtSizeZ()
 
@@ -216,7 +216,7 @@ def ifft(Fdata, scaling=''):
         return returnValue
     
     else:  
-        import pytom_fftplan
+        import pytom.lib.pytom_fftplan as pytom_fftplan
     
         complexVolume = pytom_volume.vol_comp(Fdata.sizeX(),Fdata.sizeY(),Fdata.sizeZ())
         complexVolume.copyVolume(Fdata)
@@ -260,18 +260,18 @@ def ftshift(data, inplace = True):
     """
     ftshift: Performs a forward fourier shift of data. Data must be full, the center is not determined accordingly. Assumes center is always size/2.
     @param data: - a volume
-    @type data: pytom_volume.vol or pytom_volume.vol_comp
+    @type data: pytom.lib.pytom_volume.vol or pytom.lib.pytom_volume.vol_comp
     @param inplace: true by default
     @type inplace: boolean
     @return: data shifted
     @author: Thomas Hrabe
     """
-    import pytom_fftplan
+    import pytom.lib.pytom_fftplan as pytom_fftplan
     if inplace:
         pytom_fftplan.fftShift(data,False)
         return None
     else:
-        from pytom_volume import vol, vol_comp
+        from pytom.lib.pytom_volume import vol, vol_comp
         if data.__class__ == vol:
             dummy = vol(data)
         elif data.__class__ == vol_comp:
@@ -283,16 +283,16 @@ def iftshift(data, inplace = True):
     """
     iftshift: Performs a inverse fourier shift of data. Data must be full, the center is not determined accordingly. Assumes center is always size/2.
     @param data: - a volume
-    @type data: pytom_volume.vol or pytom_volume.vol_comp 
+    @type data: pytom.lib.pytom_volume.vol or pytom.lib.pytom_volume.vol_comp 
     @return: data inverse shifted
     @author: Thomas Hrabe
     """
-    import pytom_fftplan
+    import pytom.lib.pytom_fftplan as pytom_fftplan
     if inplace:
         pytom_fftplan.fftShift(data,True)
         return data
     else:
-        from pytom_volume import vol, vol_comp
+        from pytom.lib.pytom_volume import vol, vol_comp
         if data.__class__ == vol:
             dummy = vol(data)
         elif data.__class__ == vol_comp:
@@ -303,21 +303,21 @@ def iftshift(data, inplace = True):
 def convolute(v, k, kernel_in_fourier=False):
     """
     @param v: the volume to be convolute
-    @type v: L{pytom_volume.vol}
+    @type v: L{pytom.lib.pytom_volume.vol}
     @param k: the convolution kernel in real space
-    @type k: L{pytom_volume.vol}
+    @type k: L{pytom.lib.pytom_volume.vol}
     @param kernel_in_fourier: the given kernel is already in Fourier space or not (full size, shifted in the center! \
         or reduced size). Default is False.
     @type kernel_in_fourier: L{bool}
     @return: Volume convoluted with kernel
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     """
     fv = fft(v)
     if not kernel_in_fourier:
         fk = fft(k)
         res = fv*fk
     else:
-        from pytom_volume import complexRealMult, fullToReduced
+        from pytom.lib.pytom_volume import complexRealMult, fullToReduced
         if k.sizeZ() == k.sizeX():
             fk = fullToReduced(ftshift(k, inplace=False))
         else:
@@ -372,15 +372,14 @@ def powerspectrum(volume):
     compute power spectrum of a volume
     
     @param volume: input volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @return: power spectrum of vol
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
 
     @author: FF
     """
     from pytom.basic.fourier import fft, ftshift
-    from pytom_volume import vol
-    from pytom_volume import reducedToFull
+    from pytom.lib.pytom_volume import vol, reducedToFull
 
     fvol = ftshift(reducedToFull(fft(volume)),inplace=False)
     nx=fvol.sizeX()
@@ -401,7 +400,7 @@ def radialaverage(volume, isreduced=True):
     """
     Calculate the radial average from a Fourier space volume.
     @param volume: input fourier space volume with 0 frequency in center
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param isreduced: if reduced will be made to full and then ftshift'ed
     @type isreduced: L{bool}
 

@@ -121,7 +121,7 @@ def matToZXZ(rotMatrix,inRad=False):
     @return: [z1,z2,x] 
     @author: Friedrich Forster
     """
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     import math
     from pytom.basic.structures import Rotation
     from pytom.angles.angle import rad2deg

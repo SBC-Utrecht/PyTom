@@ -196,7 +196,7 @@ class Matrix(object):
         @param sizeY: size in Z
         @type sizeY: int
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         
         if sizeX.__class__ == vol:
             self._matrix = sizeX
@@ -457,10 +457,10 @@ def pcacov(matrix):
     from numpy import sum,max,diag
     from scipy.linalg import svd
     
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     
     if matrix.__class__ == vol:
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         matrix = vol2npy(matrix)
     
     [x,latent,coeff] = svd(matrix)

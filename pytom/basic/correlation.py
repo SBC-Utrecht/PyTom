@@ -2,18 +2,18 @@ def xcc(volume,template,mask=None, volumeIsNormalized=False):
     """
     xcc: Calculates the cross correlation coefficient in real space
     @param volume: A volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param template: A template that is searched in volume. Must be of same size as volume.
-    @type template:  L{pytom_volume.vol}
+    @type template:  L{pytom.lib.pytom_volume.vol}
     @param mask: mask to constrain correlation
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param volumeIsNormalized: only used for compatibility with nxcc - not used
     @type volumeIsNormalized: L{bool}
     @return: A unscaled value
     @raise exception: Raises a runtime error if volume and template have a different size.  
     @author: Thomas Hrabe 
     """
-    from pytom_volume import sum
+    from pytom.lib.pytom_volume import sum
     from pytom.tools.macros import volumesSameSize
     
     if not volumesSameSize(volume,template):
@@ -34,11 +34,11 @@ def nxcc(volume, template, mask=None, volumeIsNormalized=False):
     """
     nxcc: Calculates the normalized cross correlation coefficient in real space
     @param volume: A volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param template: A template that is searched in volume. Must be of same size as volume.
-    @type template:  L{pytom_volume.vol}
+    @type template:  L{pytom.lib.pytom_volume.vol}
     @param mask: mask to constrain correlation
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param volumeIsNormalized: speed up if volume is already normalized
     @type volumeIsNormalized: L{bool}
     @return: A value between -1 and 1
@@ -47,7 +47,7 @@ def nxcc(volume, template, mask=None, volumeIsNormalized=False):
     @change: flag for pre-normalized volume, FF
     """
 
-    from pytom_volume import vol,sum,limit
+    from pytom.lib.pytom_volume import vol,sum,limit
     from pytom.tools.macros import volumesSameSize
     
     if not volumesSameSize(volume,template):
@@ -61,7 +61,7 @@ def nxcc(volume, template, mask=None, volumeIsNormalized=False):
         p = volume.numelem()
         result = v*t
     else:
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         from pytom.basic.normalise import normaliseUnderMask
         if not volumeIsNormalized:
             (v,p) = normaliseUnderMask(volume, mask)
@@ -85,17 +85,17 @@ def xcf(volume, template, mask=None, stdV=None):
     result is scaled only by the square of the number of elements.
 
     @param volume : The search volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param template : The template searched (this one will be used for conjugate complex multiplication)
-    @type template: L{pytom_volume.vol}
+    @type template: L{pytom.lib.pytom_volume.vol}
     @param mask: changed: will be used if specified
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param stdV: Will be unused, only for compatibility reasons with FLCF 
     @return: XCF volume
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     @author: Thomas Hrabe
     """
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     from pytom.basic import fourier
 
     if mask != None:
@@ -141,12 +141,12 @@ def nXcf(volume,template,mask=None, stdV=None):
 
     @param volume: The search volume
     @param template: The template searched (this one will be used for conjugate complex multiplication)
-    @type template: L{pytom_volume.vol}
+    @type template: L{pytom.lib.pytom_volume.vol}
     @param mask: template mask. If not given, a default sphere mask will be generated which has the same size with the given template.
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param stdV: Will be unused, only for compatibility reasons with FLCF
     @return: the calculated nXcf volume
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     @author: Thomas Hrabe
     @change: masking of template implemented
     """
@@ -169,16 +169,16 @@ def meanValueUnderMask(volume, mask=None, p=None):
     """
     meanValueUnderMask: Determines the mean value under a mask
     @param volume: The volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param mask:  The mask
-    @type mask:  L{pytom_volume.vol}
+    @type mask:  L{pytom.lib.pytom_volume.vol}
     @param p: precomputed number of voxels in mask
     @type p: float
     @return: A value (scalar)
     @rtype: single
     @change: support None as mask, FF 08.07.2014
     """
-    from pytom_volume import vol, sum
+    from pytom.lib.pytom_volume import vol, sum
   
     if not volume.__class__ == vol:
         raise TypeError("meanValueUnderMask: Volume parameter must be of type vol!")
@@ -198,17 +198,17 @@ def stdValueUnderMask(volume, mask, meanValue, p=None):
     stdValueUnderMask: Determines the std value under a mask
 
     @param volume: input volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param mask: mask
-    @type mask:  L{pytom_volume.vol}
+    @type mask:  L{pytom.lib.pytom_volume.vol}
     @param p: non zero value numbers in the mask
     @type p: L{float} or L{int}
     @return: A value
     @rtype: L{float}
     @change: support None as mask, FF 08.07.2014
     """
-    from pytom_volume import sum
-    from pytom_volume import vol, power, variance
+    from pytom.lib.pytom_volume import sum
+    from pytom.lib.pytom_volume import vol, power, variance
     
     assert volume.__class__ == vol
     if mask:
@@ -236,19 +236,19 @@ def meanUnderMask(volume, mask, p):
     """
     meanUnderMask: calculate the mean volume under the given mask (Both should have the same size)
     @param volume: input volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param mask: mask
-    @type mask:  L{pytom_volume.vol}
+    @type mask:  L{pytom.lib.pytom_volume.vol}
     @param p: non zero value numbers in the mask
     @type p: L{int} or L{float}
     @return: the calculated mean volume under mask
-    @rtype:  L{pytom_volume.vol}
+    @rtype:  L{pytom.lib.pytom_volume.vol}
     @author: Yuxiang Chen
     """
     size = volume.numelem()
     
     from pytom.basic.fourier import fft, ifft, iftshift
-    from pytom_volume import conjugate
+    from pytom.lib.pytom_volume import conjugate
     # for some reason, this has to be conjugated. (Otherwise the asym mask won't work)
     fMask = fft(mask)
     conjugate(fMask)
@@ -261,19 +261,19 @@ def stdUnderMask(volume, mask, p, meanV):
     """
     stdUnderMask: calculate the std volume under the given mask
     @param volume: input volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param mask: mask
-    @type mask:  L{pytom_volume.vol}
+    @type mask:  L{pytom.lib.pytom_volume.vol}
     @param p: non zero value numbers in the mask
     @type p: L{int}
     @param meanV: mean volume under mask, which should already been caculated
-    @type meanV:  L{pytom_volume.vol}
+    @type meanV:  L{pytom.lib.pytom_volume.vol}
     @return: the calculated std volume under mask
-    @rtype:  L{pytom_volume.vol}
+    @rtype:  L{pytom.lib.pytom_volume.vol}
     @author: Yuxiang Chen
     """
     from pytom.basic.fourier import fft, ifft, iftshift
-    from pytom_volume import vol, power, limit
+    from pytom.lib.pytom_volume import vol, power, limit
     
     copyV = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
     copyV.copyVolume(volume)
@@ -285,7 +285,7 @@ def stdUnderMask(volume, mask, p, meanV):
 
     result = meanUnderMask(copyV, mask, p) - copyMean
 
-    # from pytom_volume import abs
+    # from pytom.lib.pytom_volume import abs
     # abs(result)
     limit(result, 1e-09, 1, 0, 0, True, False)  # this step is needed to set all those value (close to 0) to 1
     power(result, 0.5)
@@ -299,24 +299,22 @@ def FLCF(volume, template, mask=None, stdV=None, wedge=1):
     This functions works only when the mask is in the middle.
     
     @param volume: target volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param template: template to be searched. It can have smaller size then target volume.
-    @type template: L{pytom_volume.vol}
+    @type template: L{pytom.lib.pytom_volume.vol}
     @param mask: template mask. If not given, a default sphere mask will be generated which has the same size with the given template.
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param stdV: standard deviation of the target volume under mask, which do not need to be calculated again when the mask is identical.
-    @type stdV: L{pytom_volume.vol}
+    @type stdV: L{pytom.lib.pytom_volume.vol}
     @return: the local correlation function
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     
     @author: Yuxiang Chen
     '''
-    from pytom_volume import vol, pasteCenter
+    from pytom.lib.pytom_volume import vol, pasteCenter, conjugate, sum
     from pytom.basic.files import read
     from pytom.basic.fourier import fft, ifft, iftshift
-    from pytom_volume import conjugate
     from pytom.basic.structures import Mask
-    from pytom_volume import sum
     from pytom.basic.files import write_em
 
     if volume.__class__ != vol and template.__class__ != vol:
@@ -327,7 +325,7 @@ def FLCF(volume, template, mask=None, stdV=None, wedge=1):
 
     # generate the mask 
     if mask.__class__ != vol:
-        from pytom_volume import initSphere
+        from pytom.lib.pytom_volume import initSphere
         mask = vol(template.sizeX(), template.sizeY(), template.sizeZ())
         mask.setAll(0)
         initSphere(mask, template.sizeX()/2,0,0,template.sizeX()/2, template.sizeY()/2, template.sizeZ()/2)
@@ -377,16 +375,16 @@ def bandCC(volume,reference,band,verbose = False):
     """
     bandCC: Determines the normalised correlation coefficient within a band
     @param volume: The volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param reference: The reference
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param band: [a,b] - specify the lower and upper end of band.
     @return: First parameter - The correlation of the two volumes in the specified band. 
              Second parameter - The bandpass filter used.
-    @rtype: List - [float,L{pytom_freqweight.weight}]
+    @rtype: List - [float,L{pytom.lib.pytom_freqweight.weight}]
     @author: Thomas Hrabe    
     """
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     from pytom.basic.filter import bandpassFilter
     from pytom.basic.correlation import xcf
     from math import sqrt
@@ -439,19 +437,19 @@ def weightedXCC(volume,reference,numberOfBands,wedgeAngle=-1):
         """
         weightedXCC: Determines the band weighted correlation coefficient for a volume and reference. Notation according Steward/Grigorieff paper
         @param volume: A volume
-        @type volume: L{pytom_volume.vol}
+        @type volume: L{pytom.lib.pytom_volume.vol}
         @param reference: A reference of same size as volume
-        @type reference: L{pytom_volume.vol}
+        @type reference: L{pytom.lib.pytom_volume.vol}
         @param numberOfBands: Number of bands
         @param wedgeAngle: A optional wedge angle
         @return: The weighted correlation coefficient
         @rtype: float  
         @author: Thomas Hrabe   
         """    
-        import pytom_volume
+        import pytom.lib.pytom_volume as pytom_volume
         from pytom.basic.fourier import fft
         from math import sqrt
-        import pytom_freqweight
+        import pytom.lib.pytom_freqweight as pytom_freqweight
         result = 0
         numberVoxels = 0
         
@@ -518,9 +516,9 @@ def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1):
     """
     FSCSum: Determines the sum of the Fourier Shell Correlation coefficient for a volume and reference. 
     @param volume: A volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param reference: A reference of same size as volume
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param numberOfBands: Number of bands
     @param wedgeAngle: A optional wedge angle
     @return: The sum FSC coefficient
@@ -529,10 +527,10 @@ def FSCSum(volume,reference,numberOfBands,wedgeAngle=-1):
     """    
     
     from pytom.basic.correlation import bandCC
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     from pytom.basic.fourier import fft
     from math import sqrt
-    import pytom_freqweight
+    import pytom.lib.pytom_freqweight as pytom_freqweight
     result = 0
     numberVoxels = 0
     
@@ -568,11 +566,11 @@ def bandCF(volume,reference,band=[0,100]):
     @param band: [a,b] - specify the lower and upper end of band. [0,1] if not set.
     @return: First parameter - The correlation of the two volumes in the specified ring. 
              Second parameter - The bandpass filter used.
-    @rtype: List - [L{pytom_volume.vol},L{pytom_freqweight.weight}]
+    @rtype: List - [L{pytom.lib.pytom_volume.vol},L{pytom.lib.pytom_freqweight.weight}]
     @author: Thomas Hrabe   
     @todo: does not work yet -> test is disabled
     """
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     from math import sqrt
     from pytom.basic import fourier
     from pytom.basic.filter import bandpassFilter
@@ -620,15 +618,15 @@ def weightedXCF(volume,reference,numberOfBands,wedgeAngle=-1):
     @param numberOfBands:Number of bands
     @param wedgeAngle: A optional wedge angle
     @return: The weighted correlation function 
-    @rtype: L{pytom_volume.vol} 
+    @rtype: L{pytom.lib.pytom_volume.vol} 
     @author: Thomas Hrabe 
     @todo: does not work yet -> test is disabled
     """
     from pytom.basic.correlation import bandCF
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     from math import sqrt
-    import pytom_freqweight
-    
+    import pytom.lib.pytom_freqweight as pytom_freqweight
+
     result = pytom_volume.vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
     result.setAll(0)
     cc2 = pytom_volume.vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
@@ -692,9 +690,9 @@ def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
     """
     FSC - Calculates the Fourier Shell Correlation for two volumes
     @param volume1: volume one
-    @type volume1: L{pytom_volume.vol}
+    @type volume1: L{pytom.lib.pytom_volume.vol}
     @param volume2: volume two
-    @type volume2: L{pytom_volume.vol}
+    @type volume2: L{pytom.lib.pytom_volume.vol}
     @param numberBands: number of shells for FSC
     @type numberBands: int
     @param filename: write FSC to ascii file if specified
@@ -708,7 +706,7 @@ def FSC(volume1,volume2,numberBands,mask=None,verbose=False, filename=None):
     from pytom.basic.correlation import bandCC
     from pytom.tools.macros import volumesSameSize
     from pytom.basic.structures import Mask
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     
     if not volumesSameSize(volume1, volume2):
         raise RuntimeError('Volumes must have the same size!')
@@ -819,9 +817,9 @@ def soc(volume,reference,mask=None, stdV=None):
     """
     soc : Second Order Correlation. Correlation of correlation peaks.
     @param volume: The volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param reference: The reference / template
-    @type reference:  L{pytom_volume.vol}
+    @type reference:  L{pytom.lib.pytom_volume.vol}
     @author: Thomas Hrabe   
     """
     referencePeak = FLCF(reference,reference,mask)
@@ -839,7 +837,7 @@ def subPixelPeakParabolic(scoreVolume, coordinates, verbose=False):
     @type verbose: bool
     @return: Returns [peakValue,peakCoordinates] with sub pixel accuracy
     """
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     assert type(scoreVolume) == vol, "scoreVolume must be vol!"
     if (coordinates[0] == 0 or coordinates[0] == scoreVolume.sizeX()-1 or
                 coordinates[1] == 0 or coordinates[1] == scoreVolume.sizeY()-1 or
@@ -913,7 +911,7 @@ def subPixelPeak(scoreVolume, coordinates, cubeLength=8, interpolation='Spline',
     if (interpolation.lower() == 'quadratic') or (interpolation.lower() == 'parabolic'):
         (peakValue,peakCoordinates) = subPixelPeakParabolic(scoreVolume=scoreVolume, coordinates=coordinates, verbose=verbose)
         return [peakValue,peakCoordinates]
-    from pytom_volume import vol,subvolume,rescaleSpline,peak
+    from pytom.lib.pytom_volume import vol,subvolume,rescaleSpline,peak
     from pytom.basic.transformations import resize
   
     #extend function for 2D
@@ -987,18 +985,18 @@ def dev(volume, template, mask=None, volumeIsNormalized=False):
     """
     dev: Calculates the squared deviation of volume and template in real space
     @param volume: A volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param template: A template that is searched in volume. Must be of same size as volume.
-    @type template:  L{pytom_volume.vol}
+    @type template:  L{pytom.lib.pytom_volume.vol}
     @param mask: mask to constrain correlation
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param volumeIsNormalized: speed up if volume is already normalized
     @type volumeIsNormalized: L{bool}
     @return: deviation
     @raise exception: Raises a runtime error if volume and template have a different size.
     @author: FF
     """
-    from pytom_volume import vol,sum
+    from pytom.lib.pytom_volume import vol,sum
     from pytom.tools.macros import volumesSameSize
 
     assert type(volume) == vol, "dev: volume has to be of type vol!"

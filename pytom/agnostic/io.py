@@ -2011,7 +2011,7 @@ def write(filename, data, tilt_angle=0, pixel_size=1, order='F', fmt=None, heade
 
     """
     import os
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
 
     # Define the allowed file formats and related write function.
     write_functions = {'em': write_em,
@@ -2027,7 +2027,7 @@ def write(filename, data, tilt_angle=0, pixel_size=1, order='F', fmt=None, heade
 
     # If data is instance of vol datatype, convert data to numpy array. Needed because header is defined differently.
     if isinstance(data, vol):
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         try:
             data_npy = vol2npy(data).copy()
             # Write data to file, using respective write function
@@ -2244,8 +2244,8 @@ def n2v(data):
     @param data: data to convert.
     """
     try:
-        from pytom_volume import vol
-        from pytom_numpy import npy2vol
+        from pytom.lib.pytom_volume import vol
+        from pytom.lib.pytom_numpy import npy2vol
     except:
         raise ImportError("Pytom library is not installed or set properly!")
 

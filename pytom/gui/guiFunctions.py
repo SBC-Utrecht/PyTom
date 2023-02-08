@@ -4,10 +4,10 @@ import mrcfile
 import copy
 
 # pytom imports
-from pytom_volume import read
+from pytom.lib.pytom_volume import read
 from pytom.basic.files import read_em_header
 from pytom.gui.mrcOperations import read_mrc, read_angle
-from pytom_numpy import vol2npy
+from pytom.lib.pytom_numpy import vol2npy
 from pytom.gui.guiSupportCommands import multiple_alignment
 from pytom.basic.files import loadtxt as loadstar, savetxt as savestar
 
@@ -156,7 +156,7 @@ def readMarkerfile(filename, num_tilt_images=0):
 
     if filename.endswith('.em'):
         from pytom.basic.files import read
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         markerfile = read(filename)
         markerdata = vol2npy(markerfile).copy()
         return markerdata

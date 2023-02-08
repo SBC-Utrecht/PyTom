@@ -9,7 +9,7 @@ def mean0std1(volume,copyFlag=False):
     @return: If copyFlag == True, then return a normalised copy.
     @author: Thomas Hrabe
     """
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     from math import sqrt
     from pytom.tools.maths import epsilon
     
@@ -60,7 +60,7 @@ def normaliseUnderMask(volume, mask, p=None):
     from pytom.tools.maths import epsilon
     #from math import sqrt
     if not p:
-        from pytom_volume import sum
+        from pytom.lib.pytom_volume import sum
         p = sum(mask)
     #meanT = sum(volume) / p
     ## subtract mean and mask
@@ -86,13 +86,13 @@ def subtractMeanUnderMask(volume, mask):
     subtract mean from volume/image under mask 
 
     @param volume: volume/image
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param mask: mask
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @return: volume/image
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     """
-    from pytom_volume import sum as sumvol
+    from pytom.lib.pytom_volume import sum as sumvol
     from pytom.tools.maths import epsilon
     #npix = volume.sizeX() * volume.sizeY() * volume.sizeZ()
     normvol = volume*mask

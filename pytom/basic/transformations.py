@@ -18,7 +18,7 @@ def shift(volume,shiftX,shiftY,shiftZ,imethod='fourier',twice=False):
     @author: Yuxiang Chen and Thomas Hrabe 
     """
     if imethod == 'fourier':
-        from pytom_volume import vol_comp,reducedToFull,fullToReduced,shiftFourier
+        from pytom.lib.pytom_volume import vol_comp,reducedToFull,fullToReduced,shiftFourier
         from pytom.basic.fourier import fft,ifft,ftshift, iftshift
 
         fvolume = fft(volume)
@@ -35,13 +35,13 @@ def shift(volume,shiftX,shiftY,shiftZ,imethod='fourier',twice=False):
         return v
         
     else:
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         if imethod == 'linear':
-            from pytom_volume import transform
+            from pytom.lib.pytom_volume import transform
         elif imethod == 'cubic':
-            from pytom_volume import transformCubic as transform
+            from pytom.lib.pytom_volume import transformCubic as transform
         elif imethod == 'spline':
-            from pytom_volume import transformSpline as transform
+            from pytom.lib.pytom_volume import transformSpline as transform
         # now results should be consistent with python2
         centerX = int(volume.sizeX()//2)
         centerY = int(volume.sizeY()//2)
@@ -80,13 +80,13 @@ def rotate(volume,rotation,x=None,z2=None,imethod='spline',twice=False):
         return transformFourierSpline(volume,z1,z2,x,0,0,0,twice)
         
     else:
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         if imethod == 'linear':
-            from pytom_volume import transform
+            from pytom.lib.pytom_volume import transform
         elif imethod == 'cubic':
-            from pytom_volume import transformCubic as transform
+            from pytom.lib.pytom_volume import transformCubic as transform
         elif imethod == 'spline':
-            from pytom_volume import transformSpline as transform
+            from pytom.lib.pytom_volume import transformSpline as transform
             
         centerX = volume.sizeX()/2
         centerY = volume.sizeY()/2
@@ -112,7 +112,7 @@ def transformFourierSpline(volume,z1,z2,x,shiftX,shiftY,shiftZ,twice=False):
     @author: Yuxiang Chen and Thomas Hrabe
     """
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, pasteCenter, subvolume, transformFourierSpline
+    from pytom.lib.pytom_volume import vol, pasteCenter, subvolume, transformFourierSpline
     
     if z1 == 0 and z2 == 0 and x == 0:
         return vol(volume)
@@ -148,7 +148,7 @@ def rotateFourierSpline(volume,z1,z2,x,twice=False):
     """
     
 #    from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-#    from pytom_volume import vol, pasteCenter, subvolume, rotateSplineInFourier
+#    from pytom.lib.pytom_volume import vol, pasteCenter, subvolume, rotateSplineInFourier
 #    
 #    if z1 == 0 and z2 == 0 and x == 0:
 #        return vol(volume)
@@ -179,7 +179,7 @@ def scale(volume,factor,interpolation='Spline'):
     scale: Scale a volume by a factor in REAL SPACE - see also resize function for more accurate operation in Fourier \
     space
     @param volume: input volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param factor: a factor > 0. Factors < 1 will de-magnify the volume, factors > 1 will magnify.
     @type factor: L{float}
     @param interpolation: Can be Spline (default), Cubic or Linear
@@ -192,15 +192,15 @@ def scale(volume,factor,interpolation='Spline'):
     if factor <=0:
         raise RuntimeError('Scaling factor must be > 0!')
     
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     from math import ceil
     
     if interpolation == 'Spline':
-        from pytom_volume import rescaleSpline as rescale
+        from pytom.lib.pytom_volume import rescaleSpline as rescale
     elif interpolation == 'Cubic':
-        from pytom_volume import rescaleCubic as rescale
+        from pytom.lib.pytom_volume import rescaleCubic as rescale
     elif interpolation == 'Linear':
-        from pytom_volume import rescale
+        from pytom.lib.pytom_volume import rescale
          
     
     sizeX = volume.sizeX()
@@ -219,14 +219,14 @@ def resize(volume, factor, interpolation='Fourier'):
     """
     resize volume in real or Fourier space
     @param volume: input volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param factor: a factor > 0. Factors < 1 will de-magnify the volume, factors > 1 will magnify.
     @type factor: L{float}
     @param interpolation: Can be 'Fourier' (default), 'Spline', 'Cubic' or 'Linear'
     @type interpolation: L{str}
 
     @return: The re-sized volume
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     @author: FF
     """
 
@@ -246,14 +246,14 @@ def resizeFourier(fvol, factor):
     resize Fourier transformed by factor
 
     @param fvol: Fourier transformed of a volume  - reduced complex
-    @type fvol: L{pytom_volume.vol_comp}
+    @type fvol: L{pytom.lib.pytom_volume.vol_comp}
     @param factor:  a factor > 0. Factors < 1 will de-magnify the volume, factors > 1 will magnify.
     @type factor: float
     @return: resized Fourier volume (deruced complex)
-    @rtype: L{pytom_volume.vol_comp}
+    @rtype: L{pytom.lib.pytom_volume.vol_comp}
     @author: FF
     """
-    from pytom_volume import vol_comp
+    from pytom.lib.pytom_volume import vol_comp
 
     assert isinstance(fvol, vol_comp), "fvol must be reduced complex"
 
@@ -362,7 +362,7 @@ def mirror(volume,axis = 'x',copyFlag = True):
     centerZ = volume.sizeZ()
     
     if copyFlag:
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         returnVolume = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
         
         for x in range(volume.sizeX()):
@@ -473,7 +473,7 @@ def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2],
     AND magnification!
 
     @param v: volume
-    @type v: L{pytom_volume.vol}
+    @type v: L{pytom.lib.pytom_volume.vol}
     @param rot: rotate
     @type rot: pytom.basic.structures.Rotate or list
     @param shift: shift
@@ -485,13 +485,13 @@ def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2],
     @type order: list
     @param center: optional list with center coordinates in pixels
     @type center: list of 3 floats
-    @return: pytom_volume
+    @return: pytom.lib.pytom_volume
 
     @author: FF
     """
-    from pytom_volume import vol, general_transform
+    from pytom.lib.pytom_volume import vol, general_transform
     if not isinstance(v,vol):
-        raise TypeError('general_transform_crop: v must be of type pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
+        raise TypeError('general_transform_crop: v must be of type pytom.lib.pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
 
     mtx = general_transform_matrix([v.sizeX(), v.sizeY(), v.sizeZ()], rot=rot, shift=shift, scale=scale, order=order,
                                    center=center)
@@ -503,7 +503,7 @@ def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2],
 def general_transform(v, rot=None, shift=None, scale=None, order=[0, 1, 2], center=None):
     """Perform general transformation using 3rd order spline interpolation.
     @param v: volume
-    @type v: L{pytom_volume.vol}
+    @type v: L{pytom.lib.pytom_volume.vol}
     @param rot: rotate
     @type rot: pytom.basic.structures.Rotate or list
     @param shift: shift
@@ -514,11 +514,11 @@ def general_transform(v, rot=None, shift=None, scale=None, order=[0, 1, 2], cent
     @type order: list
     @param center: optional list with center coordinates in pixels
     @type center: list of 3 floats
-    @return: pytom_volume
+    @return: pytom.lib.pytom_volume
     """
-    from pytom_volume import vol, general_transform
+    from pytom.lib.pytom_volume import vol, general_transform
     if not isinstance(v,vol):
-        raise TypeError('general_transform: v must be of type pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
+        raise TypeError('general_transform: v must be of type pytom.lib.pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
 
     mtx = general_transform_matrix([v.sizeX(), v.sizeY(), v.sizeZ()], rot=rot, shift=shift, scale=scale, order=order,
                                    center=center)
@@ -530,7 +530,7 @@ def general_transform(v, rot=None, shift=None, scale=None, order=[0, 1, 2], cent
 def general_transform2d(v, rot=None, shift=None, scale=None, order=[0, 1, 2], crop=True, center=None ):
     """Perform general transformation of 2D data using 3rd order spline interpolation.
     @param v: volume in 2d (it's got to be an image)
-    @type v: L{pytom_volume.vol}
+    @type v: L{pytom.lib.pytom_volume.vol}
     @param rot: rotate
     @type rot: float
     @param shift: shift
@@ -544,16 +544,16 @@ def general_transform2d(v, rot=None, shift=None, scale=None, order=[0, 1, 2], cr
     @type crop: boolean
     @param center: optional list with center coordinates in pixels
     @type center: list of 3 floats
-    @return: pytom_volume
+    @return: pytom.lib.pytom_volume
     """
     from pytom.basic.structures import Shift
 
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     if not isinstance(v,vol):
         if isinstance(v,tuple) and isinstance(v[0],vol):
             v = v[0]
         else:
-            raise TypeError('general_transform2d: v must be of type pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
+            raise TypeError('general_transform2d: v must be of type pytom.lib.pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
     if v.sizeZ() != 1:
         raise RuntimeError('general_transform2d: v must be 2D!')
     if rot is None:
@@ -578,22 +578,22 @@ def project(v, rot, verbose=False):
     """
     rotate and subsequently project volume along z
     @param v: volume
-    @type v: L{pytom_volume.vol}
+    @type v: L{pytom.lib.pytom_volume.vol}
     @param rot: rotation - either Rotation object or single angle interpreted as rotation along y-axis
     @type rot: L{pytom.basic.structures.Rotation} or float
     @return: projection (2D image)
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     @author: FF
     """
-    from pytom_volume import vol
-    from pytom_numpy import vol2npy, npy2vol
+    from pytom.lib.pytom_volume import vol
+    from pytom.lib.pytom_numpy import vol2npy, npy2vol
     from numpy import ndarray, float32
     from pytom.basic.transformations import general_transform_crop
     from pytom.basic.structures import Rotation
     from numpy import sum as proj
 
     if not isinstance(v, vol):
-        raise TypeError('project: v must be of type pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
+        raise TypeError('project: v must be of type pytom.lib.pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
     if isinstance(rot, float):
         rot = Rotation(z1=90., z2=270., x=rot, paradigm='ZXZ')
     if not isinstance(rot, Rotation):

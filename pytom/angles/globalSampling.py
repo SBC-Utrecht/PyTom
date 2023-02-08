@@ -70,7 +70,7 @@ class GlobalSampling(AngleObject):
         self._angleList = [] 
         
         if not filename == '':
-            import pytom_volume
+            import pytom.lib.pytom_volume as pytom_volume
             from pytom.angles.angle import rad2deg
             
             try:

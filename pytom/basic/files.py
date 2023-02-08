@@ -20,7 +20,7 @@ def readProxy(fileName, subregion1=0, subregion2=0, subregion3=0,
               subregion4=0, subregion5=0, subregion6=0, sampling1=0,
               sampling2=0, sampling3=0, binning1=0, binning2=0, binning3=0):
     """
-    readProxy: Proxy function to easily replace pytom_volume calls with read \
+    readProxy: Proxy function to easily replace pytom.lib.pytom_volume calls with read \
     function below
     """
 
@@ -46,11 +46,11 @@ def read(file, subregion=[0, 0, 0, 0, 0, 0], sampling=[0, 0, 0], binning=[0, 0, 
     2 will bin with a kernelsize of 2 pixels along each dimension, 3 will bin
     with a kernelsize of 3 pixels along each dimension and so forth.
     @type binning:  List of 3 integers
-    @return: A volume object. L{pytom_volume.vol}
+    @return: A volume object. L{pytom.lib.pytom_volume.vol}
     @author: Thomas Hrabe
     """
     from pytom.tools.files import checkFileExists
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
 
     if not isinstance(file, str):
         raise TypeError('File parameter must be a string!')
@@ -90,7 +90,7 @@ def readSubvolumeFromFourierspaceFile(filename, sizeX, sizeY, sizeZ):
     @return: A subvolume
     @author: Thomas Hrabe
     """
-    from pytom_volume import vol, subvolume, paste
+    from pytom.lib.pytom_volume import vol, subvolume, paste
     from pytom.basic.fourier import fourierSizeOperation
     [newX, newY, newZ] = fourierSizeOperation(sizeX, sizeY, sizeZ,
                                               reducedToFull=False)
@@ -325,7 +325,7 @@ def atomList2em(atomList, pixelSize, cubeSize, densityNegative=False):
     @return:
     """
     from math import floor
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
 
     if len(atomList) == 0:
         raise RuntimeError('atomList2em : Your atom list is empty!')
@@ -408,7 +408,7 @@ def recenterVolume(volume, densityNegative=False):
     from pytom.agnostic.io import read, write
     from pytom.agnostic.tools import paste_in_center
     from pytom.gpu.initialize import xp
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     import os
 
     try:
@@ -455,7 +455,7 @@ def initSphere(cubeSize, radius, smoothing=0, centerX=None, centerY=None, center
     @param centerY: Center of shpere along Y axis
     @param centerZ: Center of shpere along Z axis
     """
-    from pytom_volume import vol, initSphere
+    from pytom.lib.pytom_volume import vol, initSphere
 
     sphere = vol(cubeSize, cubeSize, cubeSize)
     sphere.setAll(0)
@@ -482,7 +482,7 @@ def cutParticlesFromTomogram(particleList, cubeSize, sourceTomogram, coordinateB
     @param cubeSize: Size of cut out cubes
     @type cubeSize: int
     @param sourceTomogram: The source tomogram (either file name or volume).
-    @type sourceTomogram: L{str} or L{pytom_volume.vol}
+    @type sourceTomogram: L{str} or L{pytom.lib.pytom_volume.vol}
     @param coordinateBinning: binning factor affecting coordinates. was template matching processed on binned data? use fractions (1/2 , 1/4) if tomogram is binned and coordinates are from unbinned...
     @param binningFactorOut: binning factor for final cubes
     @author: Thomas Hrabe
@@ -496,7 +496,7 @@ def cutParticlesFromTomogram(particleList, cubeSize, sourceTomogram, coordinateB
         raise RuntimeError(
             'The destination directory ' + destinationDirectory + ' does not exist. Create directory first.')
 
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
 
     cubeRadius = cubeSize / 2
 
@@ -768,7 +768,7 @@ def read_em(filename, binning=None):
     @type binning: 3-dim array
     @return: [data, header]
     """
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
 
     # read the header
     header = read_em_header(filename)
@@ -795,7 +795,7 @@ def write_em(filename, data, header=None):
     @param filename: filename
     @type filename: str
     @param data: volume data
-    @type data: pytom_volume.vol
+    @type data: pytom.lib.pytom_volume.vol
     @param header: em header
     @type header: EMHeader
     """
@@ -879,7 +879,7 @@ def mdoc2meta(filename, target, prefix=None, outname=''):
     numpy.savetxt(newFilename, metadata, fmt=fmt, header=header)
 
 def ccp42em(filename, target, prefix='sorted_', outname=None):
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
 
@@ -896,7 +896,7 @@ def ccp42em(filename, target, prefix='sorted_', outname=None):
     emfile.write(newFilename, 'em')
 
 def ccp42mrc(filename, target, prefix='sorted_', outname=None):
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
 
@@ -931,7 +931,7 @@ def em2mrc(filename, target, prefix='sorted_', outname=None):
     write(newFilename, data, tilt_angle=tilt_angle)
 
 def em2ccp4(filename, target, prefix='sorted_', outname=None):
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
 
@@ -948,7 +948,7 @@ def em2ccp4(filename, target, prefix='sorted_', outname=None):
     emfile.write(newFilename, 'ccp4')
 
 def mrc2ccp4(filename, target, prefix='sorted_', outname=None):
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
 
@@ -1011,7 +1011,7 @@ def pdb2em(filename, target, prefix='', pixelSize=1, cubeSize=200, chain=None, i
     @author: Thomas Hrabe & Luis Kuhn
     """
     from math import floor
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
 
     pdbPath = filename
 
@@ -1042,7 +1042,7 @@ def pdb2mrc(pdbPath, pixelSize=1, cubeSize=200, chain=None, invertDensity=False,
 
     if fname:
         from pytom.agnostic.io import write as writeNPY
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
 
         writeNPY(fname, vol2npy(vol))
 
@@ -1059,7 +1059,7 @@ def mmCIF2em(mmCIFPath, pixelSize=1, cubeSize=200, chain=None, densityNegative=F
     @author: Thomas Hrabe
     """
     from math import floor
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
 
     atomList = mmCIFParser(mmCIFPath, chain)
 
@@ -1084,7 +1084,7 @@ def mmCIF2mrc(mmCIFPath, pixelSize=1, cubeSize=200, chain=None, densityNegative=
     @author: Thomas Hrabe
     """
     from math import floor
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
 
     atomList = mmCIFParser(mmCIFPath, chain)
 
@@ -1095,7 +1095,7 @@ def mmCIF2mrc(mmCIFPath, pixelSize=1, cubeSize=200, chain=None, densityNegative=
 
     if fname:
         from pytom.agnostic.io import write as writeNPY
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
 
         writeNPY(fname, vol2npy(vol))
 

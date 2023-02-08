@@ -78,7 +78,7 @@ class pytom_MathTest(unittest.TestCase):
                     msg='Rotation incorrect')
     
     def test_Pcacov(self):
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from pytom.tools.maths import pcacov
         from numpy import zeros,sum
         

@@ -206,14 +206,12 @@ def generateExecuteables(libPaths=None,binPaths=None,pyPaths=None,python_version
     os.chdir(pytomDirectory + os.sep + 'pytomc')
     generatePyTomScript(pytomDirectory, python_version)
     generateIPyTomScript(pytomDirectory)
-    generatePathsFile(pytomDirectory,libPaths,binPaths,pyPaths)
     generatePyTomGuiScript(pytomDirectory, python_version)
 
 def generatePyTomScript(pytomDirectory,python_version):
     
     pytomCommand = f"""#!/usr/bin/env bash
 cat {sys.prefix}/pytom_data/LICENSE.txt
-source {pytomDirectory}/bin/paths.sh
 
 FID=0
 export PYTOM_GPU=-1
@@ -254,7 +252,6 @@ def generateIPyTomScript(pytomDirectory):
 
     ipytomCommand = '#!/usr/bin/env bash\n'
     ipytomCommand += f'cat {sys.prefix}/pytom_data/LICENSE.txt\n'
-    ipytomCommand += 'source ' + pytomDirectory + os.sep + 'bin' + os.sep + 'paths.sh\n'
     ipytomCommand += 'ipython $* -i\n'
     
     f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'ipytom','w')
@@ -263,44 +260,6 @@ def generateIPyTomScript(pytomDirectory):
     
     os.system('chmod 755 ' + pytomDirectory + os.sep + 'bin' + os.sep + 'ipytom')
 
-def generatePathsFile(pytomDirectory,libPaths, binPaths, pyPaths):
-        os.chdir(pytomDirectory + os.sep + '..')
-        oneAbove = os.getcwd()
-        os.chdir(pytomDirectory)
-        
-        libString = ''
-        
-        if libPaths.__class__ == list and len(libPaths) > 0:
-            for lib in libPaths:
-                if not lib == None and lib.__class__ == str:
-                    libString += lib + ':'
-        
-        pyString = ''
-        if pyPaths.__class__ == list and len(pyPaths) > 0:
-            for p in pyPaths:
-                if p is not None:
-                    pyString += p + ':'
-        
-        cshCommands  = '#!/usr/bin/env bash\n'
-        cshCommands += "export LD_LIBRARY_PATH='" + libString + pytomDirectory + os.sep +  "lib':$LD_LIBRARY_PATH\n"
-
-        if binPaths.__class__ == list and len(binPaths) > 0:    
-
-            binString = ''
-            
-            for bin in binPaths:
-                if not bin == None:
-                    binString += bin +':'
-            binString = binString[0:-1]
-             
-            cshCommands += "export PATH='" + binString + ":" + pytomDirectory + os.sep + 'convert' + os.sep + ":" + pytomDirectory + os.sep + 'lib'  + "':$PATH\n"
-                        
-        cshCommands += "export PYTHONPATH='" + pyString + oneAbove + ":" + pytomDirectory + os.sep + "lib':$PYTHONPATH\n"
-
- 
-        f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'paths.sh','w')
-        f.write(cshCommands)
-        f.close()
     
 def checkCompileDirsExist():
     

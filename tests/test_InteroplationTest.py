@@ -2,7 +2,7 @@ import unittest, os, numba
 import numpy as np
 import pytom.voltools as vt
 import time
-from pytom_volume import vol, transform, transformCubic, transformSpline, transformFourierSpline, variance
+from pytom.lib.pytom_volume import vol, transform, transformCubic, transformSpline, transformFourierSpline, variance
 from pytom.agnostic.interpolation import fill_values_real_spline, fill_values_real_spline_parallel
 
 

@@ -10,7 +10,7 @@ import pytom.voltools as vt
 from pytom.basic.structures import Rotation
 from pytom.angles.angleFnc import matToZXZ
 from math import modf
-from pytom_numpy import vol2npy, npy2vol
+from pytom.lib.pytom_numpy import vol2npy, npy2vol
 from pytom.agnostic.tools import rotation_matrix, convert_angles, mat2ord
 from scipy.ndimage import affine_transform
 from pytom.agnostic.correlation import nxcc

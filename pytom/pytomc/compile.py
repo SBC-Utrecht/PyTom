@@ -457,12 +457,8 @@ if os.path.isfile("../lib/_pytom_fftplan.so") \
     genexelibs = list(set([lib_mpi, lib_fftw, lib_python] + sh_ld_library_paths[:1]))
     genexeincl = sh_python_paths
 
-    
-    
     generateExecuteables(genexelibs, exePaths, genexeincl, python_version=pythonVersion)
 
     if minicondaDir:
         print('link c-libs')
-        os.system(f'cp lib/lib*.so {minicondaDir}/lib')
-        os.system(f'cp lib/_pytom*.so {minicondaDir}/lib/python{pythonVersion}/site-packages/')
-        os.system(f'cp lib/*.py {minicondaDir}/lib/python{pythonVersion}/site-packages/')
+        os.system(f'cp ../lib/lib*.so {minicondaDir}/lib')

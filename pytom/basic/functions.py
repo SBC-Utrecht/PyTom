@@ -22,7 +22,7 @@ def initSphere(sizeX, sizeY, sizeZ, radius, smooth=0, maxradius=0, cent=None, fi
     @type cent: array (3-dim)
     @param filename: If specified by the user, the spherical mask will be written to disk.    
     """
-    from pytom_volume import initSphere, vol
+    from pytom.lib.pytom_volume import initSphere, vol
     
         
     v = vol(sizeX,sizeY,sizeZ)
@@ -46,7 +46,7 @@ def taper_edges(image, width, taper_mask=None):
     @param width: width of edge
     @type width: int
     @param taper_mask: mask for tapering - if None it will be generated
-    @type taper_mask: L{pytom_volume.vol}
+    @type taper_mask: L{pytom.lib.pytom_volume.vol}
 
     @return: image with smoothened edges, taper_mask
     @rtype: array-like
@@ -54,10 +54,10 @@ def taper_edges(image, width, taper_mask=None):
     @author: FF
     """
     import numpy
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     from math import cos, pi
 
-    assert type(image) == vol, "taper_edges: image must be type pytom_volume.vol"
+    assert type(image) == vol, "taper_edges: image must be type pytom.lib.pytom_volume.vol"
     dims = [image.sizeX(), image.sizeY(), image.sizeZ()]
     assert dims[0]>1, "taper_edges: image must be 2D or 3D"
     assert dims[1]>1, "taper_edges: image must be 2D or 3D"
@@ -108,7 +108,7 @@ def limit_in_sphere( invol, r_max=None, lowlimit=None, lowval=0., hilimit=None, 
     limit grey values of volume within center radius
 
     @param invol: input volume
-    @type invol: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+    @type invol: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
     @param r_max: radius
     @type r_max: L{int}
     @param lowlimit: lower limit - all values below this value that lie in the specified radius will be replaced \
@@ -178,15 +178,15 @@ def scale(volume,factor,interpolation='Spline'):
     if factor <=0:
         raise RuntimeError('Scaling factor must be > 0!')
     
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     from math import ceil
     
     if interpolation == 'Spline':
-        from pytom_volume import rescaleSpline as rescale
+        from pytom.lib.pytom_volume import rescaleSpline as rescale
     elif interpolation == 'Lagrange':
-        from pytom_volume import rescaleCubic as rescale
+        from pytom.lib.pytom_volume import rescaleCubic as rescale
     elif interpolation == 'Linear':
-        from pytom_volume import rescale
+        from pytom.lib.pytom_volume import rescale
          
     
     sizeX = volume.sizeX()
@@ -224,7 +224,7 @@ def mirror(volume,axis = 'x',copyFlag = True):
     centerZ = volume.sizeZ()
     
     if copyFlag:
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         returnVolume = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
         
         for x in range(volume.sizeX()):
