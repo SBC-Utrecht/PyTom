@@ -113,6 +113,14 @@ class pytom_InterpolationTest(unittest.TestCase):
     @unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False),
                      "The test below uses multiple cores and cannot execute in a docker environment")
     def test_numba_interpolation_parallel(self):
+        """
+        This currently report the following deprecation warning in openMP. This has to do with how numba calls
+        openMP, so it is not easily fixable for us.
+
+        ###############################
+        .OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+        ###############################
+        """
         print('before parallel: ', numba.get_num_threads())
         numba.set_num_threads(4)
         print('after setting for parallel: ', numba.get_num_threads())

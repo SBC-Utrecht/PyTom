@@ -1,5 +1,6 @@
 include pytom/lib/*.so
 include pytom/lib/*.py
+include pytom/voltools/kernels/*.h
 include pytom/bin/pytom
 include pytom/bin/ipytom
 include pytom/bin/pytomGUI
