@@ -573,8 +573,9 @@ class ParticlePick(GuiTabWidget):
 
                     # check number of splits is not larger than number of gpus
                     if gpuIDFlag and len(list(map(int, gpuID.split(',')))) < splitx * splity * splitz:
-                        self.popup_messagebox('Warning', 'Number of gpus is less than the number of subvolumes a '
-                                                         'tomogram is split into, this will crash.')
+                        self.popup_messagebox('Warning', 'Parameter issue',
+                                              'Number of gpus is less than the number of subvolumes a '
+                                              'tomogram is split into, this will crash.')
                         return
 
                     fname = 'TM_Batch_ID_{}'.format(num_submitted_jobs % num_nodes)
