@@ -6,6 +6,26 @@ from pytom.lib.pytom_volume import vol, transform, transformCubic, transformSpli
 from pytom.agnostic.interpolation import fill_values_real_spline, fill_values_real_spline_parallel
 
 
+def print_warning():
+    print(''
+          '################################################################'
+          '################################################################'
+          '##                                                            ##'
+          '##                                                            ##'
+          '##                       DONT PANIC! But...,                  ##'
+          '##         gpu functionality cannot be tested because         ##'
+          '##               CUPY cannot be imported.                     ##'
+          '##                                                            ##'
+          '##                                                            ##'
+          '################################################################'
+          '################################################################'
+          '')
+
+
+if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+    print_warning()
+
+
 class pytom_InterpolationTest(unittest.TestCase):
     def setUp(self):
         """set up"""
@@ -69,6 +89,7 @@ class pytom_InterpolationTest(unittest.TestCase):
         try:
             import cupy as cp
         except ImportError:
+            print_warning()
             raise unittest.SkipTest("No working cupy install found.")
         box = cp.zeros(self.dims, dtype=cp.float32)
         box[self.point[0], self.point[1], self.point[2]] = 1.
@@ -114,8 +135,8 @@ class pytom_InterpolationTest(unittest.TestCase):
                      "The test below uses multiple cores and cannot execute in a docker environment")
     def test_numba_interpolation_parallel(self):
         """
-        This currently report the following deprecation warning in openMP. This has to do with how numba calls
-        openMP, so it is not easily fixable for us.
+        This currently reports the following deprecation warning in openMP. This has to do with how numba calls
+        openMP to set the number of threads, so it is not easily fixable for us.
 
         ###############################
         .OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.

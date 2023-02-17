@@ -5,21 +5,21 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     '''
     Created on May 17, 2010
     @param volume: target volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param reference: reference
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param rotations: rotation angle list
     @type rotations: L{pytom.angles.globalSampling.GlobalSampling}
     @param scoreFnc: score function that is used
     @type scoreFnc: L{pytom.basic.correlation}
     @param mask: mask volume
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param maskIsSphere: flag to indicate whether the mask is sphere or not
     @type maskIsSphere: boolean
     @param wedgeInfo: wedge information
     @type wedgeInfo: L{pytom.basic.structures.WedgeInfo}
     @return: both the score volume and the corresponding rotation index volume
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     @author: chen
     '''
     nodeName = kwargs.get('nodeName', '')
@@ -32,9 +32,9 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     
     from pytom.basic.correlation import FLCF
     from pytom.basic.structures import WedgeInfo, Wedge
-    from pytom_volume import vol, pasteCenter
-    from pytom_volume import rotateSpline as rotate  # for more accuracy
-    from pytom_volume import updateResFromIdx
+    from pytom.lib.pytom_volume import vol, pasteCenter
+    from pytom.lib.pytom_volume import rotateSpline as rotate  # for more accuracy
+    from pytom.lib.pytom_volume import updateResFromIdx
 
     if scoreFnc == None:
         scoreFnc = FLCF
@@ -42,7 +42,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     # only FLCF needs mask
     if scoreFnc == FLCF:
         if mask.__class__ != vol: # construct a sphere mask by default
-            from pytom_volume import initSphere
+            from pytom.lib.pytom_volume import initSphere
             mask = vol(reference.sizeX(), reference.sizeY(), reference.sizeZ())
             mask.setAll(0)
             initSphere(mask, reference.sizeX()/2,0,0,reference.sizeX()/2, reference.sizeX()/2,reference.sizeX()/2)
@@ -110,7 +110,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
                 maskV = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
                 maskV.setAll(0)
                 pasteCenter(m, maskV)
-            from pytom_volume import sum
+            from pytom.lib.pytom_volume import sum
             p = sum(m);
             from pytom.basic.correlation import meanUnderMask, stdUnderMask
             meanV = meanUnderMask(volume, maskV, p)
@@ -197,7 +197,7 @@ def templateMatchingGPU(volume, reference, rotations, scoreFnc=None, mask=None, 
     from pytom.gpu.gpuStructures import TemplateMatchingGPU
     from pytom.tools.calcFactors import calc_fast_gpu_dimensions
     import numpy as np
-    from pytom.gpu.initialize import xp
+    from pytom.gpu.initialize import xp, device
 
     if not kwargs['gpuID'] is None:
         import cupy as xp

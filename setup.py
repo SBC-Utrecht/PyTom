@@ -31,8 +31,12 @@ setup(
     name='pytom',
     version=__version__,
     packages=find_namespace_packages(include=['pytom*']),
-    package_dir={'pytom':'pytom'},
-    package_data={'pytom/angles/angleLists': find_angle_lists('pytom/angles/angleLists')},
+    package_dir={'pytom': 'pytom'},
+    package_data={
+        'pytom.angles.angleLists': ['*.em'],
+        'pytom.simulation.detectors': ['*.csv'],
+        'pytom.simulation.membrane_models': ['*.pdb']
+    },
     data_files=[("pytom_data", ["./LICENSE.txt"])], # This is a relative dir to sys.prefix
     include_package_data=True,
     author='`FridoF',

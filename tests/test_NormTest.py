@@ -23,22 +23,21 @@ class pytom_NormTest(unittest.TestCase):
     def zeroVol_Test(self):
         import pytom.lib.pytom_volume as pytom_volume
         from pytom.basic.normalise import normaliseUnderMask
-        #from pytom_volume import vol, initSphere
+        from pytom.basic.correlation import stdValueUnderMask, meanValueUnderMask
 
         vol = pytom_volume.vol(64,64,64)
+        vol.setAll(.0)
+        vol.setV(1., 32, 32, 32)
         mask = pytom_volume.vol(64,64,64)
         pytom_volume.initSphere(mask,13,0,0,33,33,33)
-        try:
-            (v,p) = normaliseUnderMask(vol, mask)
-        except ValueError:
-            # TODO: this test is unstable, crashes every other run
-            # squareV in correlation.py / stdValueUnderMask / around line 223 becomes NaN
-            # skip for now
-            pass
+        normalised, p = normaliseUnderMask(vol, mask)
+        std = stdValueUnderMask(normalised, mask, meanValueUnderMask(normalised, mask, p), p)
+        self.assertTrue(1 + epsilon >= std >= 1 - epsilon)
 
     def runTest(self):
         self.mean0std1_Test()
         self.zeroVol_Test()
+
 
 if __name__ == '__main__':
     unittest.main()
