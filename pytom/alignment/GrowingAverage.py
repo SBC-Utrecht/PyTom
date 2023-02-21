@@ -26,7 +26,7 @@ class GAWorker(PyTomClass):
 
     def run(self):
         
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         from pytom.parallel.messages import StatusMessage,MessageError
         from pytom.basic.exceptions import ParameterError
         from pytom.basic.structures import PyTomClassError
@@ -64,7 +64,7 @@ class GAWorker(PyTomClass):
         """
         
         from pytom.basic.structures import Reference
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom_fftplan import fftShift
         
         #create reference object - as self.reference and weighting on disk
@@ -222,7 +222,7 @@ class GAManager(PyTomClass):
                 
 def growingAverage(particleClassLists,score,angleObject,mask,destinationDirectory,preprocessing,verbose=False):
     
-    import pytom_mpi
+    import pytom.lib.pytom_mpi as pytom_mpi
     
     
     if not pytom_mpi.isInitialised():

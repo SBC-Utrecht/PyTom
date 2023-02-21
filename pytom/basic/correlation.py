@@ -312,10 +312,7 @@ def FLCF(volume, template, mask=None, stdV=None, wedge=1):
     @author: Yuxiang Chen
     '''
     from pytom.lib.pytom_volume import vol, pasteCenter, conjugate, sum
-    from pytom.basic.files import read
     from pytom.basic.fourier import fft, ifft, iftshift
-    from pytom.basic.structures import Mask
-    from pytom.basic.files import write_em
 
     if volume.__class__ != vol and template.__class__ != vol:
         raise RuntimeError('Wrong input type!')
@@ -386,7 +383,6 @@ def bandCC(volume,reference,band,verbose = False):
     """
     import pytom.lib.pytom_volume as pytom_volume
     from pytom.basic.filter import bandpassFilter
-    from pytom.basic.correlation import xcf
     from math import sqrt
     
     if verbose:

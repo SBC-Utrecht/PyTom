@@ -5,7 +5,7 @@ Created on Sep 3, 2012
 '''
 
 from pytom.basic.structures import PyTomClass
-import pytom_mpi
+import pytom.lib.pytom_mpi as pytom_mpi
 import os
 
 class FRMJob(PyTomClass): # i need to rename the class, but for now it works
@@ -279,10 +279,10 @@ class FRMWorker():
                 print(self.node_name + 'Transform of even set to match the odd set - shift: '+str(pos)+' rotation: '+str(angle))
                 
                 # transform the odd set accordingly
-                from pytom_volume import vol, transformSpline
+                from pytom.lib.pytom_volume import vol, transformSpline
                 from pytom.basic.fourier import ftshift
-                from pytom_volume import reducedToFull
-                from pytom_freqweight import weight
+                from pytom.lib.pytom_volume import reducedToFull
+                from pytom.lib.pytom_freqweight import weight
                 transformed_odd_pre = vol(odd.sizeX(), odd.sizeY(), odd.sizeZ())
                 full_all_odd_wedge = reducedToFull(all_odd_wedge)
                 ftshift(full_all_odd_wedge)
@@ -422,7 +422,7 @@ class FRMWorker():
     def retrieve_res_vols(self, name_prefix):
         """For master node, retrieve the sub-averages and do the cleaning.
         """
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         pre = read(name_prefix+'-PreWedge.em')
         wedge = read(name_prefix+'-WedgeSumUnscaled.em')
         
@@ -440,7 +440,7 @@ class FRMWorker():
     def create_average(self, pre, wedge):
         """For the master node, create the average according to the pre-wedge and wedge volumes.
         """
-        from pytom_volume import complexDiv, limit
+        from pytom.lib.pytom_volume import complexDiv, limit
         from pytom.basic.fourier import fft,ifft
         
         limit(wedge, 0.1, 0, 0,0,True,False) # set all the values below the specified value to 0

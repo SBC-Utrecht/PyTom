@@ -2,23 +2,23 @@ def power(volume,exponent,inplace=False):
     """
     power: Pixelwise power 
     @param volume: The volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param exponent: The exponent
     @type exponent: L{float}
     @param inplace: Perform power inplace? Default is False   
     @type inplace: L{bool}
     @return: volume
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     """
 
     if inplace:
-        from pytom_volume import power
+        from pytom.lib.pytom_volume import power
         
         power(volume,exponent)
 
     else:
         #return new volume object
-        from pytom_volume import vol,power
+        from pytom.lib.pytom_volume import vol,power
         
         volume2 = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
         volume2.copyVolume(volume)
@@ -32,14 +32,14 @@ def determineRotationCenter(particle, binning):
     """
     determineRotationCenter:
     @param particle: The particle 
-    @type particle: Either L{pytom_volume.vol} or string specifying the particle file name 
+    @type particle: Either L{pytom.lib.pytom_volume.vol} or string specifying the particle file name
     @param binning: Binning factor
     @return: [centerX,centerY,centerZ]  
 
     @author: Thomas Hrabe
     """
     if particle.__class__ == str:
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         particle = read(particle)
     
     centerX = particle.sizeX() / 2.0 * (1.0/float(binning)) 

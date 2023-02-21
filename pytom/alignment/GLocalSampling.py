@@ -154,7 +154,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                             numberOfBands=len(fsc), upscale=1)
             # read un-corrected averages back in for compoundWedge
             if alignmentJob.scoringParameters.compoundWedge:
-                from pytom_volume import read
+                from pytom.lib.pytom_volume import read
                 averageEven = read(alignmentJob.destination+"/"+str(ii)+f'-EvenFiltered-PreWedge.{filetype}')
                 averageOdd  = read(alignmentJob.destination+"/"+str(ii)+f'-OddFiltered-PreWedge.{filetype}')
                 evenCompoundWedgeFile = alignmentJob.destination+"/"+str(ii)+f"-EvenFiltered-WedgeSumUnscaled.{filetype}"
@@ -495,7 +495,7 @@ def alignParticleList(pl, reference, referenceWeightingFile, rotationsFilename,
     @type pl: L{pytom.basic.structures.ParticleList}
     #@param particleFilename:
     @param reference: reference volume
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param referenceWeightingFile: File for Fourier weighting of the reference (sum of wedges for instance) = CompoundWedge
     @type referenceWeightingFile: str
     @param rotationsFilename: name of rotations xml file
@@ -528,7 +528,7 @@ def alignParticleList(pl, reference, referenceWeightingFile, rotationsFilename,
     mask.fromXMLFile(filename=maskFilename)
 
     if referenceWeightingFile:
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         referenceWeighting = read(referenceWeightingFile)
     else:
         referenceWeighting = None
@@ -559,7 +559,7 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     @type pl: L{pytom.basic.structures.ParticleList}
     #@param particleFilename:
     @param reference: reference volume
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param referenceWeightingFile: File for Fourier weighting of the reference (sum of wedges for instance) = CompoundWedge
     @type referenceWeightingFile: str
     @param rotationsFilename: name of rotations xml file
@@ -608,8 +608,10 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     if verbose:
         print("alignParticleList: rank "+str(mpi.rank))
         print("alignParticleList: angleObject: "+str(rotations))
-        print("alignParticleList: scoreObject: "+str(scoreObject))
         print("alignParticleList: mask:        "+str(mask))
+
+        # scoreobject is not needed for GPU?
+        # print("alignParticleList: scoreObject: "+str(scoreObject))
 
     bestPeaks = []
     for n, particle in enumerate(pl):
@@ -627,11 +629,11 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
         particle.setShift(bestPeak.getShift())
         angDiff = differenceAngleOfTwoRotations(rotation1=bestPeak.getRotation(), rotation2=oldRot)
         t2 = time()  # end time after alignment
-        # if verbose:
-        shifts_print = bestPeak.getShift().toVector()
-        print(f"{fname}: Angular diff before and after alignment {angDiff:2.2f} and shift "
-              f"{shifts_print[0]:.4f}, {shifts_print[1]:.4f}, {shifts_print[2]:.4f}... "
-              f"took {t2-t1:3.1f} seconds...")
+        if verbose:
+            shifts_print = bestPeak.getShift().toVector()
+            print(f"{fname}: Angular diff before and after alignment {angDiff:2.2f} and shift "
+                  f"{shifts_print[0]:.4f}, {shifts_print[1]:.4f}, {shifts_print[2]:.4f}... "
+                  f"took {t2-t1:3.1f} seconds...")
 
     plan.clean()
     return [bestPeaks, plan]
@@ -646,7 +648,7 @@ def alignOneParticleWrapper(particle, reference, referenceWeighting=None, rotati
     @type particle: L{pytom.basic.structures.Particle}
     #@param particleFilename:
     @param reference: reference volume
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param referenceWeighting: Fourier weighting of the reference (sum of wedges for instance)
     @type referenceWeighting: L{pytom.basic.structures.vol}
     @param scoreXMLFilename: name of XML File of score object
@@ -795,7 +797,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     @author: FF
 
     """
-    from pytom_volume import read, complexRealMult
+    from pytom.lib.pytom_volume import read, complexRealMult
     from pytom.basic.fourier import fft,ifft
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Reference
@@ -805,13 +807,12 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     splitLists = splitParticleList(particleList, setParticleNodesRatio=setParticleNodesRatio)
     splitFactor = len(splitLists)
     assert splitFactor > 0, "splitFactor == 0, issue with parallelization"
-    print(f'Device = {device}')
     if 'gpu' in device:
         from pytom.bin.average import averageGPU as average
         from pytom.agnostic.structures import Reference
         from pytom.agnostic.io import read, write
 
-        print('Averaging volumes on gpu.')
+        print(f'Averaging particles on {device} for {averageName}.')
 
     else:
         gpuIDs = [None,]*splitFactor

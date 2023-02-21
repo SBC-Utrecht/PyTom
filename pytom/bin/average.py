@@ -43,9 +43,9 @@ def average(particleList, averageName, showProgressBar=False, verbose=False,
     @author: Thomas Hrabe
     @change: limit for wedgeSum set to 1% or particles to avoid division by small numbers - FF
     """
-    from pytom_volume import read, vol, reducedToFull
+    from pytom.lib.pytom_volume import read, vol, reducedToFull
     from pytom.basic.filter import lowpassFilter, rotateWeighting
-    from pytom_volume import transformSpline as transform
+    from pytom.lib.pytom_volume import transformSpline as transform
     from pytom.basic.fourier import convolute
     from pytom.basic.structures import Reference
     from pytom.basic.normalise import mean0std1
@@ -357,7 +357,6 @@ def averageGPU(particleList, averageName, showProgressBar=False, verbose=False,
         cstream.synchronize()
         n+=1
 
-    print('averaged particles')
     ###apply spectral weighting to sum
 
     root, ext = os.path.splitext(averageName)
@@ -395,7 +394,7 @@ def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
     invert wedge sum - avoid division by zero and boost of high frequencies
 
     @param invol: input volume
-    @type invol: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+    @type invol: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
     @param r_max: radius
     @type r_max: L{int}
     @param lowlimit: lower limit - all values below this value that lie in the specified radius will be replaced \
@@ -476,7 +475,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     @author: FF
 
     """
-    from pytom_volume import read, complexRealMult
+    from pytom.lib.pytom_volume import read, complexRealMult
     from pytom.basic.fourier import fft,ifft
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Reference
@@ -586,12 +585,12 @@ def averageParallelGPU(particleList, averageName, showProgressBar=False, verbose
     @author: FF
 
     """
-    from pytom_volume import read, complexRealMult
+    from pytom.lib.pytom_volume import read, complexRealMult
     from pytom.basic.fourier import fft, ifft
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Reference
     from pytom.agnostic.tools import invert_WedgeSum
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from pytom.agnostic.io import write, read
     import os
 

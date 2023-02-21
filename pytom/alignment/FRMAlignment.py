@@ -6,7 +6,7 @@ Created on Mar 5, 2012
 '''
 
 from pytom.basic.structures import PyTomClass
-import pytom_mpi
+import pytom.lib.pytom_mpi as pytom_mpi
 import os
 
 class FRMJob(PyTomClass): # i need to rename the class, but for now it works
@@ -532,7 +532,7 @@ class FRMWorker():
            @param name_prefix: name prefix output densities
            @type name_prefix: C{str}
         """
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         even_pre = read(name_prefix+'even'+'-PreWedge.em')
         even_wedge = read(name_prefix+'even'+'-WedgeSumUnscaled.em')
         odd_pre = read(name_prefix+'odd'+'-PreWedge.em')
@@ -557,13 +557,13 @@ class FRMWorker():
     def create_average(self, pre, wedge):
         """For the master node, create the average according to the pre-wedge and wedge volumes.
            @param pre: density prior to weighting
-           @type pre: L{pytom_volume.vol}
+           @type pre: L{pytom.lib.pytom_volume.vol}
            @param wedge: wedge 
            @type wedge: L{pytom.basic.Wedge}
            @return: wedge-weighted density
-           @rtype: L{pytom_volume.vol}
+           @rtype: L{pytom.lib.pytom_volume.vol}
         """
-        from pytom_volume import complexDiv, limit
+        from pytom.lib.pytom_volume import complexDiv, limit
         from pytom.basic.fourier import fft,ifft
         
         limit(wedge, 0.1, 0, 0,0,True,False) # set all the values below the specified value to 0

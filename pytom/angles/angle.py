@@ -344,7 +344,7 @@ class AngleObject(PyTomClass):
         @param filename: Name of file to save to 
         @param inputIsRadians: 
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         
         no = self.numberRotations()
          
@@ -376,7 +376,7 @@ class AngleObject(PyTomClass):
         """
         from pytom.tools.toImage import volumeToPNG
         from pytom.tools.files import dump2TextFile
-        from pytom_volume import vol,rotateSpline
+        from pytom.lib.pytom_volume import vol,rotateSpline
         from pytom.tools.files import getPytomPath,readStringFile
         from pytom.frontend.htmlDefines import headResponse200,copyright
     
@@ -429,10 +429,10 @@ class AngleObject(PyTomClass):
         """
         rotationDistanceMatrix: Generate a matrix of rotation distances. The 
         distance is determined by L{pytom.angles.quaternions.Quaternion.distance}.
-        @return: L{pytom_volume.vol} of rotation distances
+        @return: L{pytom.lib.pytom_volume.vol} of rotation distances
         @author: Thomas Hrabe
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from pytom.tools.maths import rotation_distance
         numberOfRotations = len(self)
 

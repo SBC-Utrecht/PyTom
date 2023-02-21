@@ -11,7 +11,7 @@ def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
     invert wedge sum - avoid division by zero and boost of high frequencies
 
     @param invol: input volume
-    @type invol: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+    @type invol: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
     @param r_max: radius
     @type r_max: L{int}
     @param lowlimit: lower limit - all values below this value that lie in the specified radius will be replaced \
@@ -152,8 +152,8 @@ def applySymmetryToVolume(volume,symmetryObject,wedgeInfo):
     applySymmetryToVolume
     @deprecated: use L{pytom.basic.structures.Symmetry.apply} instead!
     """
-    from pytom_volume import read,rotate,shift,vol,initSphere,complexDiv
-    from pytom_freqweight import weight
+    from pytom.lib.pytom_volume import read,rotate,shift,vol,initSphere,complexDiv
+    from pytom.lib.pytom_freqweight import weight
     from pytom.basic.fourier import fft,ifft,ftshift
     from pytom.basic.filter import filter
     from pytom.alignment.structures import ExpectationResult
@@ -208,11 +208,11 @@ def _disrtibuteAverageMPI(particleList,averageName,showProgressBar = False,verbo
     @author: Thomas Hrabe
     """
     
-    import pytom_mpi
+    import pytom.lib.pytom_mpi as pytom_mpi
     from pytom.alignment.structures import ExpectationJob
     from pytom.parallel.parallelWorker import ParallelWorker
     from pytom.parallel.alignmentMessages import ExpectationJobMsg
-    from pytom_volume import read,complexDiv,complexRealMult
+    from pytom.lib.pytom_volume import read,complexDiv,complexRealMult
     from pytom.basic.fourier import fft,ifft
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Reference
@@ -303,7 +303,7 @@ def distributeAverage(particleList,averageName,showProgressBar = False,verbose=F
     @author: Thomas Hrabe
     """
 
-    import pytom_mpi
+    import pytom.lib.pytom_mpi as pytom_mpi
     
     mpiInitialized = pytom_mpi.isInitialised()
     mpiAvailable = False
@@ -345,9 +345,9 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
     @author: Thomas Hrabe
     @change: limit for wedgeSum set to 1% or particles to avoid division by small numbers - FF
     """
-    from pytom_volume import read,vol,reducedToFull,limit, complexRealMult
+    from pytom.lib.pytom_volume import read,vol,reducedToFull,limit, complexRealMult
     from pytom.basic.filter import lowpassFilter, rotateWeighting
-    from pytom_volume import transformSpline as transform
+    from pytom.lib.pytom_volume import transformSpline as transform
     from pytom.basic.fourier import convolute
     from pytom.basic.structures import Reference
     from pytom.basic.normalise import mean0std1
@@ -491,8 +491,8 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
     2nd version of average function. Will not write the averages to the disk. Also support internal \
     resolution determination.
     """
-    from pytom_volume import read, vol, complexDiv, complexRealMult
-    from pytom_volume import transformSpline as transform
+    from pytom.lib.pytom_volume import read, vol, complexDiv, complexRealMult
+    from pytom.lib.pytom_volume import transformSpline as transform
     from pytom.basic.fourier import fft, ifft, convolute
     from pytom.basic.normalise import mean0std1
     from pytom.tools.ProgressBar import FixedProgBar
@@ -667,11 +667,11 @@ def _rotateWedgeReference(reference,rotation,wedgeInfo,mask,rotationCenter):
     @param wedgeInfo: Wedge info object
     @type wedgeInfo: L{pytom.basic.structures.Wedge}
     @param mask: The mask object (a volume) or None
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @return:
     @change: support mask == None, FF
     """
-    from pytom_volume import vol, transform as transform #developers: your can also import transformSpline for more accurate rotation!
+    from pytom.lib.pytom_volume import vol, transform as transform #developers: your can also import transformSpline for more accurate rotation!
     
     rotatedVolume = vol(reference.sizeX(),reference.sizeY(),reference.sizeZ())
     transform(reference,rotatedVolume,rotation[0],rotation[1],rotation[2],rotationCenter[0],rotationCenter[1],rotationCenter[2],0,0,0,0,0,0)
@@ -688,9 +688,9 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     """
     bestAlignment: Determines best alignment of particle relative to the reference
     @param particle: A particle
-    @type particle: L{pytom_volume.vol}
+    @type particle: L{pytom.lib.pytom_volume.vol}
     @param reference: A reference
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param referenceWeighting: Fourier weighting of the reference (sum of wedges for instance)
     @type referenceWeighting: L{pytom.basic.structures.vol}
     @param wedgeInfo: What does the wedge look alike?
@@ -713,7 +713,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     """
     from pytom.basic.correlation import subPixelPeak, subPixelPeakParabolic
     from pytom.alignment.structures import Peak
-    from pytom_volume import peak, vol, vol_comp
+    from pytom.lib.pytom_volume import peak, vol, vol_comp
     from pytom.basic.filter import filter,rotateWeighting
     from pytom.basic.structures import Rotation, Shift, Particle, Mask
     from pytom.angles.angle import AngleObject
@@ -772,7 +772,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     particleCopy.copyVolume(particle)
 
     if mask:
-        from pytom_volume import sum
+        from pytom.lib.pytom_volume import sum
         from pytom.basic.correlation import meanUnderMask, stdUnderMask
         p = sum(m)
         meanV = meanUnderMask(particle, m, p)
@@ -791,7 +791,6 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
             # print('Mask is sphere: ', mask.isSphere(), scoreObject._type)
 
             if (not mask.isSphere()) and (scoreObject._type=='FLCFScore'):
-                if 1: print('recalc meanV en stdV')
                 meanV   = meanUnderMask(particle, m, p)
                 stdV    = stdUnderMask(particle, m, p, meanV)
         else:
@@ -802,7 +801,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         
         #weight particle
         if not referenceWeighting.__class__ == str:
-            from pytom_freqweight import weight
+            from pytom.lib.pytom_freqweight import weight
             weightingRotated = rotateWeighting(weighting=referenceWeighting, z1=currentRotation[0],
                                                z2=currentRotation[1], x=currentRotation[2], isReducedComplex=True,
                                                returnReducedComplex=True, binarize=False)
@@ -882,9 +881,9 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
     """
     bestAlignment: Determines best alignment of particle relative to the reference
     @param particle: A particle
-    @type particle: L{pytom_volume.vol}
+    @type particle: L{pytom.lib.pytom_volume.vol}
     @param reference: A reference
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param referenceWeighting: Fourier weighting of the reference (sum of wedges for instance)
     @type referenceWeighting: L{pytom.basic.structures.vol}
     @param wedgeInfo: What does the wedge look alike?
@@ -986,7 +985,7 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
     @author: Thomas Hrabe
     """
 
-    from pytom_volume import vol,transformSpline
+    from pytom.lib.pytom_volume import vol,transformSpline
     from pytom.basic.filter import filter,rotateWeighting
     from pytom.angles.angleList import OneAngleList
     
@@ -1030,7 +1029,7 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
     simulatedVol = preprocessing.apply(simulatedVol,True)
 
     if not referenceWeighting.__class__ == str:
-        from pytom_freqweight import weight
+        from pytom.lib.pytom_freqweight import weight
         
         weightingRotated = rotateWeighting(weighting=referenceWeighting, z1=currentRotation[0], z2=currentRotation[1],
                                            x=currentRotation[2], isReducedComplex=None, returnReducedComplex=True,

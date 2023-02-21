@@ -14,13 +14,13 @@ class Alignment:
         alignment of a particle against a reference
 
         @param vol1: (constant) volume
-        @type vol1: L{pytom_volume.vol}
+        @type vol1: L{pytom.lib.pytom_volume.vol}
         @param vol2: volume that is matched to reference
-        @type vol2: L{pytom_volume.vol}
+        @type vol2: L{pytom.lib.pytom_volume.vol}
         @param score: score for alignment - e.g., pytom.basic.correlation.nxcc
         @type score: L{pytom.basic.correlation}
         @param mask: mask correlation is constrained on
-        @type mask: L{pytom_volume.vol}
+        @type mask: L{pytom.lib.pytom_volume.vol}
         @param iniRot: initial rotation of vol2
         @type iniRot: L{pytom.basic.Rotation}
         @param iniTrans: initial translation of vol2
@@ -34,7 +34,7 @@ class Alignment:
         """
         from pytom.basic.normalise import normaliseUnderMask, mean0std1
         from pytom.tools.macros import volumesSameSize
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from pytom.basic.structures import Rotation, Shift
         assert isinstance(interpolation, str), "interpolation must be of type str"
 
@@ -150,7 +150,7 @@ class Alignment:
         set search volume (vol1 internally)
 
         @param vol1: search volume
-        @type vol1: L{pytom_volume.vol}
+        @type vol1: L{pytom.lib.pytom_volume.vol}
 
         """
         from pytom.basic.normalise import normaliseUnderMask, mean0std1
@@ -171,7 +171,7 @@ class Alignment:
         @type rot_trans: L{list}
         @author: FF
         """
-        from pytom_volume import transformSpline, transform
+        from pytom.lib.pytom_volume import transformSpline, transform
         if self.interpolation.lower() == 'spline':
             transformSpline(self.vol2, self.rotvol2, rot_trans[0], rot_trans[1], rot_trans[2],
                             self.centX,self.centY,self.centZ,0,0,0,
@@ -195,7 +195,7 @@ class Alignment:
         @rtype: L{float}
         @author: FF
         """
-        from pytom_volume import transformSpline
+        from pytom.lib.pytom_volume import transformSpline
 
         #transform vol2
         transformSpline( self.vol2, self.rotvol2, rot[0], rot[1], rot[2],
@@ -266,7 +266,7 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
     @param vol1: volume 1
     @param vol2: volume 2
     @mask: mask volume
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param nband: Number of bands
     @type nband: L{int}
     @param iniRot: initial guess for rotation
@@ -282,7 +282,7 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
         note: filvol2 is NOT rotated and translated!
     @author: FF
     """
-    from pytom_volume import transformSpline, vol
+    from pytom.lib.pytom_volume import transformSpline, vol
     from pytom.basic.correlation import FSC
     from pytom.basic.filter import filter_volume_by_profile
     from pytom.alignment.localOptimization import Alignment
@@ -381,33 +381,3 @@ def design_fsc_filter(fsc, fildim=None, fsc_criterion=0.143):
         else:
             fil[ii] = fsc_fil[ii]
     return fil
-
-
-def alignVolumes(particle, reference, referenceWeighting, wedgeInfo, iniRot, iniTrans,
-                 scoreObject=0, mask=None, preprocessing=None, progressBar=False, binning=1,
-                 bestPeak=None, verbose=False):
-    """
-    Analog to bestAlignment function for local optimization
-    @param particle: A particle
-    @type particle: L{pytom_volume.vol}
-    @param reference: A reference
-    @type reference: L{pytom_volume.vol}
-    @param referenceWeighting: Fourier weighting of the reference (sum of wedges for instance)
-    @type referenceWeighting: L{pytom.basic.structures.vol}
-    @param wedgeInfo: What does the wedge look alike?
-    @type wedgeInfo: L{pytom.basic.structures.Wedge}
-    @param iniRot: initial guess for rotation
-    @param iniTrans: initial guess for translation
-    @param scoreObject:
-    @type scoreObject: L{pytom.score.score.Score}
-    @param mask: real-space mask for correlation function
-    @type mask: L{pytom.basic.structures.Particle}
-    @param preprocessing: Class storing preprocessing of particle and reference such as bandpass
-    @type preprocessing: L{pytom.alignment.preprocessing.Preprocessing}
-    @param progressBar: Display progress bar of alignment. False by default.
-    @param binning: Is binning applied (currently not properly functioning)
-    @param bestPeak: Initialise best peak with old values.
-    @param verbose: Print out infos. Writes CC volume to disk!!! Default is False
-    @return: Returns the best rotation for particle and the corresponding scoring result.
-
-    """

@@ -346,7 +346,7 @@ class ExMaxJob(PyTomClass):
         """
         
         from pytom.tools.files import checkFileExists,checkDirExists
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         
         self._particleList.check()
         
@@ -385,7 +385,7 @@ class ExMaxWorker(object):
         @param verbose: Print debug messages (False by default) 
         """
     
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         from pytom.parallel.alignmentMessages import MaximisationJobMsg,MaximisationResultMsg,ExpectationJobMsg,ExpectationResultMsg
         from pytom.parallel.messages import StatusMessage,MessageError
         from pytom.basic.exceptions import ParameterError
@@ -488,7 +488,7 @@ class ExMaxWorker(object):
         
         
         if self._particle.__class__ == Particle:
-            from pytom_volume import read
+            from pytom.lib.pytom_volume import read
             particleFile    = self._particle.getFilename()
             # changed FF: binning now solely done in bestAlignment
             particle        = read(particleFile,0,0,0,0,0,0,0,0,0,
@@ -520,7 +520,7 @@ class ExMaxWorker(object):
             referenceObject = self._reference
         else:
             if self._reference.__class__ == Reference:
-                from pytom_volume import read
+                from pytom.lib.pytom_volume import read
                 referenceObject     = self._reference
                 referenceFile       = self._reference.getReferenceFilename()
                 # changed FF: binning only in bestAlignment function
@@ -530,10 +530,10 @@ class ExMaxWorker(object):
            
             if self._referenceWeighting == str and len(self._referenceWeighting) > 0:
                 # changed FF: binning only in bestAlignment function
-                from pytom_volume import read
+                from pytom.lib.pytom_volume import read
                 self._referenceWeighting        = read(self._referenceWeighting)
                 #if self._binning == 1:
-                #    from pytom_volume import read
+                #    from pytom.lib.pytom_volume import read
                 #    self._referenceWeighting        = read(self._referenceWeighting)
                 #else:
                 #    from pytom.basic.files import readSubvolumeFromFourierspaceFile
@@ -688,7 +688,7 @@ class ExMaxManager(PyTomClass):
         distributeAlignment: Distribute job in worker pool
         """
         
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         from pytom.alignment.structures import MaximisationJob,ExpectationJob
         from pytom.tools.files import checkFileExists,checkDirExists
         from pytom.parallel.alignmentMessages import MaximisationJobMsg,MaximisationResultMsg
@@ -843,7 +843,7 @@ class ExMaxManager(PyTomClass):
         parallelEnd : Sends status message = end to all workers. All workers will terminate upon receiving this message.
         @author: Thomas Hrabe
         """
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         from pytom.parallel.messages import StatusMessage
         
         mpi_numberNodes = pytom_mpi.size()
@@ -863,7 +863,7 @@ class ExMaxManager(PyTomClass):
         @author: Thomas Hrabe
         """
         from pytom.basic.correlation import FSC,determineResolution
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.basic.score import RScore
         self._saveForFSC(self._destination + filename)
         
@@ -898,7 +898,7 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
     from pytom.basic.structures import Reference
     mpiWorks = True
     try: 
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
     
         if not pytom_mpi.isInitialised():
             if verbose:
@@ -916,7 +916,7 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
     if pytom_mpi.size() >1:
         
         if mpi_myid == 0:
-            from pytom_volume import read
+            from pytom.lib.pytom_volume import read
             from pytom.basic.filter import lowpassFilter
             from pytom.alignment.alignmentFunctions import _disrtibuteAverageMPI,alignmentProgressToHTML
             
@@ -1100,7 +1100,7 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
     @param sendFinishMessage: Send finish message to worker nodes. True by default, False for multi ref alignment for instance 
     """
         
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.basic.filter import lowpassFilter
     from pytom.alignment.alignmentFunctions import average,alignmentProgressToHTML
     from pytom.alignment.structures import AlignmentList

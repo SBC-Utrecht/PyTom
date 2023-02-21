@@ -2,6 +2,7 @@
 test GLocal Alignment
 """
 import unittest
+import os
 
 
 class pytom_GLocalTest(unittest.TestCase):
@@ -9,7 +10,7 @@ class pytom_GLocalTest(unittest.TestCase):
     def setUp(self):
         from helper_functions import create_RandomParticleList, installdir
         from pytom.agnostic.io import read_size
-        from pytom_volume import vol, initSphere
+        from pytom.lib.pytom_volume import vol, initSphere
 
         self.installdir = installdir
         self.reffile = f'../testData/ribo.em'
@@ -28,27 +29,21 @@ class pytom_GLocalTest(unittest.TestCase):
         initSphere(maskvol, 30,5, 0, int(dims[0]/2), int(dims[1]/2), int(dims[2]/2))
         maskvol.write(self.settings["mask"])
         self.settings["destination"] = './'
-        #self.settings["score"] = 'nxcf'
-        self.settings["score"] = 'flcf'
+        self.settings["score"] = 'nxcf'
         self.settings["pixelsize"] = 2.
         self.settings["diameter"] = 250.
         self.settings["job"] = './myGLocal.xml'
-
-    #def tearDown(self):
-        #self.cleanUp()
 
     def cleanUp(self):
         """
         check that files are written and remove them
         """
-        from helper_functions import cleanUp_RandomParticleList
-        from os import system
 
         for ii in range(0, self.settings["niteration"]):
             fname = str(ii)+'-All.em'
             self.remove_file( filename=fname)
             fname = str(ii)+'-AllFiltered*.em'
-            system('rm '+fname)
+            os.system('rm '+fname)
             fname = str(ii)+'-Even.em'
             self.remove_file( filename=fname)
             fname = str(ii)+'-EvenFiltered.em'
@@ -89,72 +84,68 @@ class pytom_GLocalTest(unittest.TestCase):
         self.remove_file( filename='average-Final-Odd-PreWedge.em')
         self.remove_file( filename='average-Final-Odd-WedgeSumUnscaled.em')
         fname='average-FinalFiltered_*.em'
-        system('rm '+fname)
-        system(f'rm {self.pl_filename}')
-        #cleanUp_RandomParticleList( pl_filename=self.pl_filename, pdir=self.pdir)
+        os.system('rm '+fname)
+        os.system(f'rm {self.pl_filename}')
 
     def remove_file(self, filename):
         """
         assert that file exists end remove it
         """
-        from os import remove
-        from os import path
-
-        filecheck = path.exists(filename)
+        filecheck = os.path.exists(filename)
         if not filecheck:
             print(filename+" does not exist")
         self.assertTrue( filecheck, msg="file "+filename+" does not exist")
         if filecheck:
-            remove(filename)
+            os.remove(filename)
 
-
-    def xtest_Score(self):
+    def test_flcf_cpu(self):
         """
-        test implementation of different scores
+        test glocal cpu with fast local correlation function
         """
-        import os
-
-        cmd = f'mpirun -np 2 {self.installdir}/bin/pytom {self.installdir}/bin/GLocalJob.py'
+        cmd = f'mpirun -n 1 GLocalJob.py'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -m ' + str(self.settings["mask"])
+        cmd = cmd + ' --SphericalMask'
         cmd = cmd + ' -b ' + str(self.settings["binning"])
         cmd = cmd + ' -n ' + str(self.settings["niteration"])
         cmd = cmd + ' -d ' + str(self.settings["destination"])
-        cmd = cmd + ' -s ' + str(self.settings["score"])
+        cmd = cmd + ' -s ' + 'flcf'
         cmd = cmd + ' --pixelSize ' + str(self.settings["pixelsize"])
         cmd = cmd + ' --particleDiameter ' + str(self.settings["diameter"])
         cmd = cmd + ' -j ' + str(self.settings["job"])
-        #cmd = cmd + ' -r ' + str(self.settings["reference"])
         print(cmd)
         os.system(cmd)
         self.cleanUp()
 
-    def test_nXcf(self):
+    def test_flcf_gpu(self):
         """
-        test implementation of different scores
+        test glocal cpu with fast local correlation function
         """
-        import os
-
-        self.settings["score"] = 'nxcf'
-
-        cmd = f'mpirun -np 2 {self.installdir}/bin/pytom {self.installdir}/bin/GLocalJob.py -g 0'
+        cmd = f'mpirun -n 1 GLocalJob.py -g 0'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -m ' + str(self.settings["mask"])
+        cmd = cmd + ' --SphericalMask'
         cmd = cmd + ' -b ' + str(self.settings["binning"])
         cmd = cmd + ' -n ' + str(self.settings["niteration"])
         cmd = cmd + ' -d ' + str(self.settings["destination"])
-        cmd = cmd + ' -s ' + str(self.settings["score"])
+        cmd = cmd + ' -s ' + 'flcf'
         cmd = cmd + ' --pixelSize ' + str(self.settings["pixelsize"])
         cmd = cmd + ' --particleDiameter ' + str(self.settings["diameter"])
         cmd = cmd + ' -j ' + str(self.settings["job"])
-        #cmd = cmd + ' -r ' + str(self.settings["reference"])
         print(cmd)
         os.system(cmd)
-        # self.cleanUp()
+        self.cleanUp()
 
-        cmd = f'mpirun -np 2 {self.installdir}/bin/pytom {self.installdir}/bin/GLocalJob.py '
+    def test_nxcf_gpu(self):
+        """
+        test glocal gpu with normalised cross correlation function (nxcf)
+        """
+        # had to change number of mpi procs to 1 to comply with running on single gpu
+        # BUT: All the docs say that the number of mpi processes should be ( number_of_gpus + 1 )
+        cmd = f'mpirun -n 1 GLocalJob.py -g 0'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -m ' + str(self.settings["mask"])
+        cmd = cmd + ' --SphericalMask'
         cmd = cmd + ' -b ' + str(self.settings["binning"])
         cmd = cmd + ' -n ' + str(self.settings["niteration"])
         cmd = cmd + ' -d ' + str(self.settings["destination"])
@@ -162,7 +153,25 @@ class pytom_GLocalTest(unittest.TestCase):
         cmd = cmd + ' --pixelSize ' + str(self.settings["pixelsize"])
         cmd = cmd + ' --particleDiameter ' + str(self.settings["diameter"])
         cmd = cmd + ' -j ' + str(self.settings["job"])
-        # cmd = cmd + ' -r ' + str(self.settings["reference"])
+        print(cmd)
+        os.system(cmd)
+        self.cleanUp()
+
+    def test_nxcf_cpu(self):
+        """
+        test glocal cpu with normalised cross correlation function (nxcf)
+        """
+        cmd = f'mpirun -n 1 GLocalJob.py '
+        cmd = cmd + ' -p ' + self.pl_filename
+        cmd = cmd + ' -m ' + str(self.settings["mask"])
+        cmd = cmd + ' --SphericalMask'
+        cmd = cmd + ' -b ' + str(self.settings["binning"])
+        cmd = cmd + ' -n ' + str(self.settings["niteration"])
+        cmd = cmd + ' -d ' + str(self.settings["destination"])
+        cmd = cmd + ' -s ' + str(self.settings["score"])
+        cmd = cmd + ' --pixelSize ' + str(self.settings["pixelsize"])
+        cmd = cmd + ' --particleDiameter ' + str(self.settings["diameter"])
+        cmd = cmd + ' -j ' + str(self.settings["job"])
         print(cmd)
         os.system(cmd)
         self.cleanUp()

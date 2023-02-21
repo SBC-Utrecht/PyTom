@@ -13,7 +13,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
     @param doFinalize: Send finalize msgs to workers or not. Default is true  
     @param verbose: Default is false
     """
-    import pytom_mpi
+    import pytom.lib.pytom_mpi as pytom_mpi
     
     if doFinalize:
         pytom_mpi.init()

@@ -5,7 +5,7 @@ Created on Apr 11, 2012
 '''
 
 from pytom.basic.structures import PyTomClass
-import pytom_mpi
+import pytom.lib.pytom_mpi as pytom_mpi
 from pytom.alignment.FRMAlignment import FRMJob, FRMScore, FRMResult, FRMResult, FRMWorker
 
 class ParticleListPair(PyTomClass):
@@ -74,7 +74,7 @@ class ParticleListPair(PyTomClass):
         return pl
     
     def get_ctf_sqr_vol(self):
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         v = read(self.ctf_sqr)
         return v
 
@@ -289,7 +289,7 @@ class MultiDefocusWorker(FRMWorker):
             from pytom.basic.filter import lowpassFilter
             from math import ceil
             from pytom.basic.fourier import convolute
-            from pytom_volume import vol, power, read
+            from pytom.lib.pytom_volume import vol, power, read
             
             new_reference = job.reference
             old_freq = job.freq
@@ -431,7 +431,7 @@ class MultiDefocusWorker(FRMWorker):
         from pytom.basic.structures import Shift, Rotation
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import convolute
-        from pytom_volume import read, power
+        from pytom.lib.pytom_volume import read, power
         
         while True:
             # get the job
@@ -456,7 +456,7 @@ class MultiDefocusWorker(FRMWorker):
             
             if job.bfactor and job.bfactor != 'None':
 #                restore_kernel = create_bfactor_restore_vol(ref.sizeX(), job.sampleInformation.getPixelSize(), job.bfactor)
-                from pytom_volume import vol, read
+                from pytom.lib.pytom_volume import vol, read
                 bfactor_kernel = read(job.bfactor)
                 unit = vol(bfactor_kernel)
                 unit.setAll(1)
@@ -524,8 +524,8 @@ class MultiDefocusWorker(FRMWorker):
     def sum_sub_pl(self, pl, name_prefix):
         """This is a sub-routine for average_sub_pl.
         """
-        from pytom_volume import vol
-        from pytom_volume import transformSpline as transform
+        from pytom.lib.pytom_volume import vol
+        from pytom.lib.pytom_volume import transformSpline as transform
         from pytom.basic.normalise import mean0std1
         
         result = None
@@ -572,7 +572,7 @@ class MultiDefocusWorker(FRMWorker):
     def create_average(self, sum_ctf_conv, sum_ctf_squared, wedge_weight):
         """For the master node, this function is rewritten.
         """
-        from pytom_volume import vol, complexDiv, fullToReduced, initSphere, complexRealMult, limit
+        from pytom.lib.pytom_volume import vol, complexDiv, fullToReduced, initSphere, complexRealMult, limit
         from pytom.basic.fourier import fft, ifft, ftshift
         from pytom.basic.normalise import mean0std1
         
