@@ -102,7 +102,7 @@ class pytom_GLocalTest(unittest.TestCase):
         """
         test glocal cpu with fast local correlation function
         """
-        cmd = f'mpirun -n 1 GLocalJob.py'
+        cmd = f'mpirun -n 2 GLocalJob.py'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -m ' + str(self.settings["mask"])
         cmd = cmd + ' --SphericalMask'
@@ -121,7 +121,7 @@ class pytom_GLocalTest(unittest.TestCase):
         """
         test glocal cpu with fast local correlation function
         """
-        cmd = f'mpirun -n 1 GLocalJob.py -g 0'
+        cmd = f'mpirun -n 2 GLocalJob.py -g 0'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -m ' + str(self.settings["mask"])
         cmd = cmd + ' --SphericalMask'
@@ -140,9 +140,7 @@ class pytom_GLocalTest(unittest.TestCase):
         """
         test glocal gpu with normalised cross correlation function (nxcf)
         """
-        # had to change number of mpi procs to 1 to comply with running on single gpu
-        # BUT: All the docs say that the number of mpi processes should be ( number_of_gpus + 1 )
-        cmd = f'mpirun -n 1 GLocalJob.py -g 0'
+        cmd = f'mpirun -n 2 GLocalJob.py -g 0'
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -m ' + str(self.settings["mask"])
         cmd = cmd + ' --SphericalMask'
@@ -161,7 +159,7 @@ class pytom_GLocalTest(unittest.TestCase):
         """
         test glocal cpu with normalised cross correlation function (nxcf)
         """
-        cmd = f'mpirun -n 1 GLocalJob.py '
+        cmd = f'mpirun -n 2 GLocalJob.py '
         cmd = cmd + ' -p ' + self.pl_filename
         cmd = cmd + ' -m ' + str(self.settings["mask"])
         cmd = cmd + ' --SphericalMask'
