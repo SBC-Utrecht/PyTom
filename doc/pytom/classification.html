@@ -336,7 +336,7 @@ In order to merge classes by hirarchical clustering, you have to run the followi
     <div class="codeFragment">
       <code>
         $ ipytom <br/>
-        from pytom_volume import read<br/>
+        from pytom.lib.pytom_volume import read<br/>
         from pytom.tools.files import writeMatrix2RMatrix<br/>
         m = read('correlationMatrix.em')<br/>
         writeMatrix2RMatrix(m,'correlationMatrix-R.txt')<br/>
@@ -349,8 +349,8 @@ In order to merge classes by hirarchical clustering, you have to run the followi
       <code>
         $ ipytom <br/>
         from pytom.basic.files import read<br/>
-        from pytom_volume import abs<br/>
-        from pytom_numpy import vol2npy<br/>
+        from pytom.lib.pytom_volume import abs<br/>
+        from pytom.lib.pytom_numpy import vol2npy<br/>
         from scipy.cluster.hierarchy import linkage,dendrogram<br/>
         from matplotlib.pyplot import show<br/><br/>
         matrix = abs(read('correlationMatrix.em')-1)<br/>

@@ -41,7 +41,7 @@ def put_in_shared_stack(stack_dtype, stack_shape, image, index):
     @rtype:
     """
     import numpy as np
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     # create a np view to global shared_stack
     _shared_stack_np = np.frombuffer(shared_stack.get_obj(),
                                                        dtype=stack_dtype).reshape(stack_shape, order='F')
@@ -84,14 +84,14 @@ def align_single_projection(index, projection_list, tilt_angles, shared_dtype, s
 
     @author: Marten Chaillet
     """
-    from pytom_volume import complexRealMult, vol, pasteCenter, mean
+    from pytom.lib.pytom_volume import complexRealMult, vol, pasteCenter, mean
     from pytom.basic.functions import taper_edges
     from pytom.basic.transformations import general_transform2d, resize
     from pytom.basic.fourier import ifft, fft
     from pytom.basic.filter import filter, circleFilter, rampFilter, exactFilter, fourierFilterShift, \
         fourierFilterShift_ReducedComplex
     from pytom.basic.files import read
-    import pytom_freqweight
+    import pytom.lib.pytom_freqweight as pytom_freqweight
 
     projection = projection_list[index + offset]
     tilt_angle = tilt_angles[index + offset]
@@ -826,7 +826,7 @@ class ProjectionList(PyTomClass):
         @type specimen_angle: float
 
         @return: reconstructed volume
-        @rtype: L{pytom_volume.vol} or L{numpy.ndarray}
+        @rtype: L{pytom.lib.pytom_volume.vol} or L{numpy.ndarray}
         """
         from pytom.gpu.initialize import device
 
@@ -942,12 +942,12 @@ class ProjectionList(PyTomClass):
         @type specimen_angle: float
 
         @return: reconstructed volume
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
 
         @author: FF
         last change: include binning in reconstructionPosition
         """
-        from pytom_volume import vol, backProject
+        from pytom.lib.pytom_volume import vol, backProject
         import time
         import sys
 
@@ -1030,7 +1030,7 @@ class ProjectionList(PyTomClass):
         import time, os, sys
         from pytom.agnostic.io import write
         # from pytom.basic.files import write_em
-        from pytom_volume import vol, backProject, rescaleSpline
+        from pytom.lib.pytom_volume import vol, backProject, rescaleSpline
         from pytom.tools.ProgressBar import FixedProgBar
         from multiprocessing import Process, set_start_method
 
@@ -1247,7 +1247,7 @@ class ProjectionList(PyTomClass):
 
     def extract_single_particle(self, particles, pid, verbose, binning, post_scale, cube_size, filename_ppr,
                                 gpuID, temp_dir):
-        from pytom_volume import vol, backProject, rescaleSpline
+        from pytom.lib.pytom_volume import vol, backProject, rescaleSpline
         from pytom.basic.files import read
         import numpy as np
         import time
@@ -1345,7 +1345,7 @@ class ProjectionList(PyTomClass):
         @param verbose:
         @param outputScale: Scale the output by a factor. 1 will leave as it is, 2 will scale by 2, 3 by 3, 4 by 4...
         """
-        from pytom_volume import vol, complexRealMult, rescaleSpline
+        from pytom.lib.pytom_volume import vol, complexRealMult, rescaleSpline
         from pytom.basic.files import readProxy as read
         from pytom.reconstruction.reconstructionFunctions import positionInProjection
         from pytom.tools.files import writeSpider, checkDirExists
@@ -1521,7 +1521,7 @@ class ProjectionList(PyTomClass):
 
         @author: Marten Chaillet
         """
-        from pytom_volume import complexRealMult, vol, paste, pasteCenter, mean
+        from pytom.lib.pytom_volume import complexRealMult, vol, paste, pasteCenter, mean
         from pytom.basic.functions import taper_edges
         from pytom.basic.transformations import general_transform2d, resize
         from pytom.basic.fourier import ifft, fft
@@ -1529,7 +1529,7 @@ class ProjectionList(PyTomClass):
             fourierFilterShift_ReducedComplex
         from pytom.basic.files import read
         from pytom.tools.ProgressBar import FixedProgBar
-        import pytom_freqweight
+        import pytom.lib.pytom_freqweight as pytom_freqweight
 
         if low_pass_freq > 1.:
             low_pass_freq = 1.
@@ -1684,7 +1684,7 @@ class ProjectionList(PyTomClass):
         self._shared_stack_np[:] = np.zeros(self._shared_stack_shape, dtype=self._shared_dtype, order='F')
 
     def _retrieve_shared_stack(self, stack_vol):
-        from pytom_numpy import npy2vol
+        from pytom.lib.pytom_numpy import npy2vol
         copy = self._shared_stack_np.copy(order='F')
         del self._shared_stack_np, self._shared_stack
         stack_vol.copyVolume(npy2vol(copy, len(copy.shape)))
@@ -1724,7 +1724,7 @@ class ProjectionList(PyTomClass):
 
         @author: Marten Chaillet
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from functools import partial
         import multiprocessing as mp
         from contextlib import closing
@@ -1813,7 +1813,7 @@ class ProjectionList(PyTomClass):
         from pytom.agnostic.transform import resize
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.transformations import general_transform_matrix
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         import numpy as np
 
         if low_pass_freq > 1.:
@@ -1998,14 +1998,14 @@ class ProjectionList(PyTomClass):
 
         @return: Will return a stack of projections - [Imagestack,phiStack,thetaStack,offsetStack]
         """
-        from pytom_volume import vol, paste, complexRealMult, pasteCenter, mean
+        from pytom.lib.pytom_volume import vol, paste, complexRealMult, pasteCenter, mean
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import fft, ifft
         from pytom.basic.filter import filter, circleFilter, rampFilter, exactFilter, fourierFilterShift, \
             fourierFilterShift_ReducedComplex
         from pytom.agnostic.io import read_size
-        import pytom_freqweight
+        import pytom.lib.pytom_freqweight as pytom_freqweight
 
         # determine image dimensions according to first image in projection list
         imdimX = read_size(self._list[0].getFilename(), 'x')
@@ -2134,7 +2134,7 @@ class ProjectionList(PyTomClass):
 
            @author: GS
         """
-        from pytom_volume import complexRealMult, vol, paste, pasteCenter, mean
+        from pytom.lib.pytom_volume import complexRealMult, vol, paste, pasteCenter, mean
         from pytom.basic.functions import taper_edges
         from pytom.basic.transformations import general_transform2d, resize
         from pytom.basic.fourier import ifft, fft
@@ -2144,7 +2144,7 @@ class ProjectionList(PyTomClass):
         from pytom.gui.guiFunctions import datatypeAR, loadstar
         from pytom.agnostic.io import read_size  # TODO is this needed?
         from pytom.tools.ProgressBar import FixedProgBar
-        import pytom_freqweight
+        import pytom.lib.pytom_freqweight as pytom_freqweight
 
         print(f"Create aligned images from {alignmentResultsFile}")
 
@@ -2322,17 +2322,16 @@ class ProjectionList(PyTomClass):
         @author: GS
         """
         import numpy
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         from pytom.basic.files import read
         from pytom.basic.filter import circleFilter as cf, rampFilter, exactFilter, fourierFilterShift, \
             fourierFilterShift_ReducedComplex
-        from pytom_volume import complexRealMult, vol, paste, pasteCenter
-        import pytom_freqweight
+        from pytom.lib.pytom_volume import complexRealMult, vol, paste, pasteCenter
+        import pytom.lib.pytom_freqweight as pytom_freqweight
         from pytom.basic.transformations import resize, rotate
         from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
         from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO
         from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
-        from pytom_numpy import vol2npy
         import time, os
         from multiprocessing import Process
         from pytom.agnostic.io import read_size
@@ -2475,10 +2474,10 @@ class ProjectionList(PyTomClass):
         from pytom.basic.filter import filter as filterFunction, bandpassFilter
         from pytom.basic.filter import circleFilter as cf, rampFilter, exactFilter, fourierFilterShift, \
             fourierFilterShift_ReducedComplex
-        from pytom_volume import complexRealMult, vol, paste, pasteCenter
-        import pytom_freqweight
+        from pytom.lib.pytom_volume import complexRealMult, vol, paste, pasteCenter
+        import pytom.lib.pytom_freqweight as pytom_freqweight
         from pytom.basic.transformations import resize
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         import time
 
         s = time.time()
@@ -2589,8 +2588,8 @@ class ProjectionList(PyTomClass):
 
         @return: Will return a stack of projections - [Imagestack,phiStack,thetaStack,offsetStack]
         """
-        from pytom_numpy import vol2npy
-        from pytom_volume import vol, paste, complexRealMult
+        from pytom.lib.pytom_numpy import vol2npy
+        from pytom.lib.pytom_volume import vol, paste, complexRealMult
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import fft, ifft
@@ -2800,7 +2799,7 @@ class ProjectionList(PyTomClass):
 
     # TODO Bottom three functions are currently useless
     def read_projections(self, pid, num_procs, imgDim, applyWeighting, verbose, binning):
-        from pytom_volume import vol, paste, complexRealMult
+        from pytom.lib.pytom_volume import vol, paste, complexRealMult
         from pytom.basic.files import readProxy as read
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import fft, ifft

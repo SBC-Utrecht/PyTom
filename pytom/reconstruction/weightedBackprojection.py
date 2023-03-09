@@ -6,10 +6,7 @@ Created on Mar 2, 2011
 
 def theta_vol_projection(vol_src, theta):
         
-    from pytom_volume import vol
-    from pytom_volume import rotate
-    from pytom_volume import subvolume
-    from pytom_volume import sum
+    from pytom.lib.pytom_volume import vol, rotate, subvolume, sum
     
     vol_src_dim_x = vol_src.sizeX()
     vol_src_dim_y = vol_src.sizeY()
@@ -36,8 +33,7 @@ def theta_vol_projection(vol_src, theta):
 
 def getWeightedProjectionCube(sourceVolume, thetaAngles):
     
-    from pytom_volume import vol, paste
-    from pytom_volume import complexRealMult
+    from pytom.lib.pytom_volume import vol, paste, complexRealMult
     
     from pytom.basic.fourier import fft
     from pytom.basic.fourier import ifft

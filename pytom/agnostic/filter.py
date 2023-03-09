@@ -554,7 +554,7 @@ def create_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, sm
     @type smooth: float
     @return: 3D array determining the wedge object.
     @rtype: ndarray of np.float64'''
-    # TODO update so that uneven values for sizeZ still match with pytom_volume
+    # TODO update so that uneven values for sizeZ still match with pytom.lib.pytom.lib.pytom_volume
 
     import numpy as np
 
@@ -874,10 +874,10 @@ def rotateWeighting(weighting, rotation, mask=None, binarize=False):
         provided anyway.
     @type mask: cupy or numpy ndarray
     @return: weight as reduced complex volume
-    @rtype: L{pytom_volume.vol_comp}
+    @rtype: L{pytom.lib.pytom_volume.vol_comp}
     """
-    from pytom_volume import vol, limit, vol_comp
-    from pytom_volume import rotate
+    from pytom.lib.pytom_volume import vol, limit, vol_comp
+    from pytom.lib.pytom_volume import rotate
     from pytom.voltools import transform
     assert type(weighting) == vol or type(weighting) == vol_comp, "rotateWeighting: input neither vol nor vol_comp"
     from pytom.agnostic.transform import fourier_reduced2full, fourier_full2reduced
@@ -909,14 +909,14 @@ def profile2FourierVol(profile, dim=None, reduced=False):
     for sampling.
 
     @param profile: profile
-    @type profile: 1-d L{pytom_volume.vol} or 1-d python array
+    @type profile: 1-d L{pytom.lib.pytom_volume.vol} or 1-d python array
     @param dim: dimension of (cubic) output
     @type dim: L{int}
     @param reduced: If true reduced Fourier representation (N/2+1, N, N) is generated.
     @type reduced: L{bool}
 
     @return: 3-dim complex volume with spherically symmetrical profile
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     @author: FF
     """
 
@@ -998,11 +998,11 @@ def filter_volume_by_profile(volume, profile):
     """
     filter volume by 1-d profile
     @param volume: volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param profile: 1-d profile
-    @type profile: L{pytom_volume.vol}
+    @type profile: L{pytom.lib.pytom_volume.vol}
     @return: outvol
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     @author: FF
     """
     from pytom.agnostic.filter import applyFourierFilter, applyFourierFilterFull

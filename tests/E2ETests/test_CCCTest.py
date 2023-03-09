@@ -17,7 +17,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         # set parameters for ACL
         self.settings = {}
         self.settings["frequency"] = 40
-        self.settings["outputDirectory"] = 'outputCCC/'
+        self.settings["outputDirectory"] = 'outputCCC'
         if not os.path.exists(self.settings["outputDirectory"]):
             os.mkdir(self.settings["outputDirectory"])
 
@@ -29,7 +29,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         #self.settings["offset"] = None
         #self.settings["mask"] = options.mask
 
-        self.settings["mask"] = f'./testData/mask_45.em'
+        self.settings["mask"] = f'../testData/mask_45.em'
 
 
         #self.settings["fmask"] = None

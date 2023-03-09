@@ -17,7 +17,7 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
     
     """
     from pytom.basic.structures import Particle, ParticleList, Rotation, Shift, Wedge
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.basic.transformations import general_transform_crop
     from pytom.basic.functions import initSphere
     from pytom.simulation.support import add_white_noise as addNoise

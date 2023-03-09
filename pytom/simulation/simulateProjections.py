@@ -13,8 +13,8 @@ except:
     pass
 from pylab import *
 from pytom.basic.transformations import rotate
-from pytom_volume import read
-from pytom_numpy import vol2npy
+from pytom.lib.pytom_volume import read
+from pytom.lib.pytom_numpy import vol2npy
 import os
 import mrcfile
 from numpy import *

@@ -91,14 +91,15 @@ def convertfile(file, format, target, chaindata, subtomo_prefix=None, wedge_angl
             return 1, "Exception while converting coordinatesfile {:s} to a particlelist".format(file)
 
 
-    if (in_ex == "pl" and format == "star") or (in_ex == "star" and format == "xml") or (in_ex == "log" and format == "txt"):
+    if (in_ex == "pl" and format == "star") or (in_ex == "star" and format == "xml") or \
+            (in_ex == "xf" and format == "txt"):
         try:
             func(file, target, **chaindata)
             return 0,""
 
         except Exception as e:
             print(e)
-            return 1, "Exception while converting {:s} file {:s} to a star file".format(in_ex, file)
+            return 1, "Exception while converting {:s} file {:s} to a {:s} file".format(in_ex, file, format)
 
 
     if func is None:
@@ -251,37 +252,6 @@ if __name__ == '__main__':
     except Exception as e:
         print_errors("The parsing of the wedge angle was not successful.\n{:s}".format(str(e)))
 
-
-
-
-    # Parse the pattern
-
-    # if pattern:
-    #     # Escape the filter so that it can be compiled without issues
-    #     pattern = re.escape(pattern)
-    #     # Create the pattern matches
-    #     pattern = pattern.replace('?', '??').replace('$', '.*?')
-    #
-    #     if len(pattern.split('/')) > 1:
-    #         flags = pattern.split('/')[-1]
-    #         pattern = '/'.join(pattern.split('/')[:-1])
-    #     else:
-    #         flags = ''
-    #         pattern = pattern
-    #
-    #     if 'f' in flags:
-    #         pattern = '^' + pattern + '$'
-    #
-    #     try:
-    #         if 'i' in flags:
-    #             input_filter = re.compile(pattern, re.IGNORECASE)
-    #         else:
-    #             input_filter = re.compile(pattern)
-    #     except:
-    #         print_errors("The parsing of the filter pattern was not successful.")
-    # else:
-    #     input_filter = None
-
     # Test for validity of the arguments passed, will stop execution if an error is found
     test_validity(filename, directory, target, format, chaindata)
 
@@ -293,9 +263,9 @@ if __name__ == '__main__':
         chaindata['binningPyTom'] = binningFactorPyTom
         outname = f'dummy.{format}' if (outname == '' and directory) else outname
         chaindata['outname'] = outname
+        chaindata['wedgeAngles'] = wedge_angles
         chaindata['angle_file'] = tlt_file
         chaindata['sorted_folder'] = sorted_folder
-        chaindata['wedgeAngles'] = wedge_angles
 
     if filename:
         warn_if_file_exists(f.name_to_format(filename, target, format) if outname == ''

@@ -7,7 +7,7 @@ import sys
 import glob
 from pytom.basic.structures import ParticleList, Rotation
 from pytom.basic.files import read
-from pytom_numpy import vol2npy
+from pytom.lib.pytom_numpy import vol2npy
 # import matplotlib
 # matplotlib.use('Qt5Agg')
 # from pylab import *

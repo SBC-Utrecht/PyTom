@@ -208,7 +208,7 @@ if 'gpu' in device:
 
     }''', 'argmax')
 else:
-    argmax = xp.argmax()
+    argmax = xp.argmax
 
 
 def invert_first_last_axis(volume):

@@ -4,7 +4,7 @@ Created on May 7, 2012
 @author: yuxiangchen
 '''
 
-import pytom_mpi
+import pytom.lib.pytom_mpi as pytom_mpi
 import pickle
 import os
 import numpy
@@ -72,7 +72,7 @@ class CMWorkerGPU():
         pytom_mpi.finalise()
 
     def run(self, verbose=False):
-        from pytom_volume import read, sum
+        from pytom.lib.pytom_volume import read, sum
         from pytom.basic.filter import lowpassFilter
         from pytom.basic.correlation import nxcc
         from pytom.basic.structures import Rotation
@@ -304,7 +304,7 @@ class CMWorker():
         pytom_mpi.finalise()
     
     def run(self, verbose=False):
-        from pytom_volume import read, sum
+        from pytom.lib.pytom_volume import read, sum
         from pytom.basic.filter import lowpassFilter
         from pytom.basic.correlation import nxcc
         from pytom.basic.structures import Rotation

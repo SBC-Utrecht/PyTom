@@ -1,7 +1,6 @@
 #!/usr/bin/env pytom
 
 def mrc2em(filename,destination):
-    #from pytom_volume import read
     from pytom.basic.files import read
     from pytom.tools.files import checkFileExists,checkDirExists
     import os

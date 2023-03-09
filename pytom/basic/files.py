@@ -1275,14 +1275,14 @@ def xf2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWa
     # initialize empty pytom tilt alignment datatype
     alignment = np.zeros(len(tilt_angles), dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
 
-    for n, ((shx, shy), mat, tilt) in enumerate(zip(xf_data[:-2:], xf_data[:, :4], tilt_angles)):
+    for n, ((shx, shy), mat, tilt) in enumerate(zip(xf_data[:, -2:], xf_data[:, :4], tilt_angles)):
         # put matrix elements into 2d affine matrix
-        mxf = np.stack([mat[:2], mat[2:4]])
+        mxf = np.stack([mat[:2], mat[2:4]]).T  # == np.array([mat[0], mat[2]], [mat[1], mat[3]])
 
         # get the transformation parameters
-        x_shift, y_shift = np.dot(mxf, np.array((shx, shy)))
+        x_shift, y_shift = np.dot(mxf.T, np.array((-shx, -shy)))
         scale = np.sqrt(mxf[0, 0] ** 2 + mxf[1, 0] ** 2)
-        in_plane_rotation = np.rad2deg(np.arctan2(mxf[1, 0], mxf[0, 0]))
+        in_plane_rotation = - np.rad2deg(np.arctan2(mxf[1, 0], mxf[0, 0]))
 
         alignment['TiltAngle'][n] = tilt
         alignment['AlignmentTransX'][n] = x_shift

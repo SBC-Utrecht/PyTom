@@ -174,9 +174,9 @@ def meanUnderMask(volume, mask=None, p=1, gpu=False):
     """
     meanValueUnderMask: Determines the mean value under a mask
     @param volume: The volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param mask:  The mask
-    @type mask:  L{pytom_volume.vol}
+    @type mask:  L{pytom.lib.pytom_volume.vol}
     @param p: precomputed number of voxels in mask
     @type p: float
     @return: A value (scalar)
@@ -191,9 +191,9 @@ def stdUnderMask(volume, mask, meanValue, p=None, gpu=False):
     stdValueUnderMask: Determines the std value under a mask
 
     @param volume: input volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param mask: mask
-    @type mask:  L{pytom_volume.vol}
+    @type mask:  L{pytom.lib.pytom_volume.vol}
     @param p: non zero value numbers in the mask
     @type p: L{float} or L{int}
     @return: A value
@@ -257,16 +257,16 @@ if __name__=='__main__':
 
     import sys
     from scipy.ndimage import rotate as ROTATE
-    from pytom_freqweight import weight
-    from pytom_numpy import vol2npy
-    import pytom_volume
+    from pytom.lib.pytom_freqweight import weight
+    from pytom.lib.pytom_numpy import vol2npy
+    import pytom.lib.pytom_volume as pytom_volume
 
     from pytom.agnostic.correlation import meanVolUnderMask, stdVolUnderMask
     import pytom.basic.correlation as corr
     from pytom.basic.files import read as readd
     from pytom.basic.files import write_em
-    from pytom_numpy import vol2npy, npy2vol
-    from pytom_volume import pasteCenter, vol
+    from pytom.lib.pytom_numpy import vol2npy, npy2vol
+    from pytom.lib.pytom_volume import pasteCenter, vol
     import numpy as np
 
     num_angles, size = map(int, sys.argv[1:3])

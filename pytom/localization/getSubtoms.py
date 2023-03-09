@@ -42,7 +42,7 @@ if __name__ == '__main__':
     if not dest_dir:
         dest_dir = '.'
     
-    from pytom_volume import read, subvolume
+    from pytom.lib.pytom_volume import read, subvolume
     v = read(vol_filename)
     
     from pytom.basic.structures import ParticleList, Particle, WedgeInfo

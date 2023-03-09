@@ -397,7 +397,7 @@ class MultiDefocusWorker(FRMWorker):
                 
                 # determine the transformation between even and odd
                 # here we assume the wedge from both sets are fully sampled
-                from sh_alignment.frm import frm_align
+                from pytom.lib.frm import frm_align
                 pos, angle, score = frm_align(odd, None, even, None, job.bw_range, new_freq, job.peak_offset)
                 print(self.node_name + ': transform of even set to match the odd set - shift: '+str(pos)+' rotation: '+str(angle))
                 
@@ -486,7 +486,7 @@ class MultiDefocusWorker(FRMWorker):
             self.run(verbose)
     
     def run(self, verbose=False):
-        from sh_alignment.frm import frm_align
+        from pytom.lib.frm import frm_align
         from pytom.basic.structures import Shift, Rotation
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import convolute

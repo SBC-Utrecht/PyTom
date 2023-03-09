@@ -1,14 +1,13 @@
 '''
 Structures for alignment of tilt series using fiducial markers
 '''
-from pytom_volume import read
+from pytom.lib.pytom_volume import read, vol
 import numpy
 import os
 from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
 from pytom.reconstruction.tiltAlignmentFunctions import alignmentFixMagRot
 from pytom.basic.structures import PyTomClass
-from pytom_volume import vol
-from pytom_numpy import vol2npy
+from pytom.lib.pytom_numpy import vol2npy
 from pytom.gui.guiFunctions import loadstar
 
 class TiltSeries(PyTomClass):
@@ -440,7 +439,7 @@ class TiltSeries(PyTomClass):
         """
         from pytom.basic.files import read_em, write_em
         from pytom.basic.filter import filter as filterFunction
-        import pytom_freqweight
+        import pytom.lib.pytom_freqweight as pytom_freqweight
         from pytom.basic.transformations import resize
 
         if binning:

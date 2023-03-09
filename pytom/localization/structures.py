@@ -42,9 +42,9 @@ class Volume(PyTomClass):
         @param binning: binning [factorX, factorY, factorZ]
         @type binning: list
         
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.tools.files import checkFileExists
         
         if not checkFileExists(self._filename):
@@ -176,9 +176,9 @@ class FoundParticle(PyTomClass):
         """
         getVolume: Get volume of the found particle
         
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.tools.files import checkFileExists
         
         if not checkFileExists(self._filename):

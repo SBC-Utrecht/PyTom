@@ -34,7 +34,7 @@ def combinations(iterable, r):
 def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, align=True, sigma=None, threshold=0.4):
     """mask if for alignment, while focus_mask is for difference map.
     """
-    from pytom_volume import vol, power, abs, limit, transformSpline, mean, max, min
+    from pytom.lib.pytom_volume import vol, power, abs, limit, transformSpline, mean, max, min
     from pytom.basic.normalise import mean0std1
     from pytom.basic.filter import lowpassFilter
 
@@ -44,7 +44,7 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
 
     # do alignment of two volumes, if required. v1 is used as reference.
     if align:
-        from sh_alignment.frm import frm_align
+        from pytom.lib.frm import frm_align
         band = int(band1 if band1<band2 else band2)
         pos, angle, score = frm_align(lv2, None, lv1, None, [4,64], band, lv1.sizeX()//4, mask)
         shift = [pos[0]-v1.sizeX()//2, pos[1]-v1.sizeY()//2, pos[2]-v1.sizeZ()//2]
@@ -116,7 +116,7 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
 
 
 def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binning, iteration, sigma, threshold, outdir='./'):
-    from pytom_volume import read, vol, pasteCenter
+    from pytom.lib.pytom_volume import read, vol, pasteCenter
     from pytom.basic.structures import Particle
     import os
 
@@ -182,8 +182,8 @@ def paverage(particleList, norm, binning, verbose, outdir='./', gpuID=None):
 
     if 'cpu' in device:
         # print(f'averaging particles on cpu')
-        from pytom_volume import read, vol
-        from pytom_volume import transformSpline as transform
+        from pytom.lib.pytom_volume import read, vol
+        from pytom.lib.pytom_volume import transformSpline as transform
         from pytom.basic.structures import Particle
         from pytom.basic.normalise import mean0std1
         from pytom.tools.ProgressBar import FixedProgBar
@@ -351,11 +351,11 @@ def calculate_averages(pl, binning, mask, outdir='./', gpuIDs=None):
     last change: Jan 18 2020: error message for too few processes, FF
     """
     import os
-    from pytom_volume import complexDiv, vol
+    from pytom.lib.pytom_volume import complexDiv, vol
     from pytom.basic.fourier import fft,ifft
     from pytom.basic.correlation import FSC, determineResolution
-    from pytom_fftplan import fftShift
-    from pytom_volume import reducedToFull
+    from pytom.lib.pytom_fftplan import fftShift
+    from pytom.lib.pytom_volume import reducedToFull
 
     pls = pl.copy().splitByClass()
     res = {}
@@ -414,7 +414,7 @@ def calculate_averages(pl, binning, mask, outdir='./', gpuIDs=None):
                 raise ParameterError('cannot split odd / even. Likely you used only one processor - use: mpirun -np 2 (or higher!)?!')
 
             if mask and mask.__class__ == str:
-                from pytom_volume import read, pasteCenter, vol
+                from pytom.lib.pytom_volume import read, pasteCenter, vol
 
                 maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
                 if even_a.sizeX() != maskBin.sizeX() or even_a.sizeY() != maskBin.sizeY() or even_a.sizeZ() != maskBin.sizeZ():
@@ -446,9 +446,9 @@ def calculate_averages(pl, binning, mask, outdir='./', gpuIDs=None):
 
 
 def frm_proxy(p, ref, freq, offset, binning, mask):
-    from pytom_volume import read, pasteCenter, vol
+    from pytom.lib.pytom_volume import read, pasteCenter, vol
     from pytom.basic.structures import Shift, Rotation
-    from sh_alignment.frm import frm_align
+    from pytom.lib.frm import frm_align
 
     v = p.getVolume(binning)
 
@@ -465,7 +465,7 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
         pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
 
     else:
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         from pytom.agnostic.frm import frm_align
 
         vgpu = xp.array(vol2npy(v).copy())
@@ -726,7 +726,7 @@ def compare_pl(old_pl, new_pl):
 
 def distance(p, ref, freq, mask, binning):
     from pytom.basic.correlation import nxcc
-    from pytom_volume import vol, initSphere, read, pasteCenter
+    from pytom.lib.pytom_volume import vol, initSphere, read, pasteCenter
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.transformations import resize
     v = p.getTransformedVolume(binning)

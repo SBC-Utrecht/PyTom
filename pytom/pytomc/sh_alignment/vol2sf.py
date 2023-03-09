@@ -13,7 +13,7 @@ def vol2sf(vol, r, b, center=None):
     Parameters
     ----------
     vol: Target volume
-         pytom_volume.vol
+         pytom.lib.pytom_volume.vol
 
     r: The radius of shell you want to get from the volume (in voxel)
        Integer
@@ -34,8 +34,8 @@ def vol2sf(vol, r, b, center=None):
     elif r <= 0:
         raise RuntimeError("Radius should be larger than the 0!")
     
-    from pytom_volume import volTOsf
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_volume import volTOsf
+    from pytom.lib.pytom_numpy import vol2npy
     if center:
         m_x, m_y, m_z = center
     else:
@@ -100,7 +100,7 @@ def fvol2sf(vol, r, b):
     elif r <= 0:
         raise RuntimeError("Radius should be larger than the 0!")
     
-    from pytom_volume import fvolTOsf
+    from pytom.lib.pytom_volume import fvolTOsf
     res = fvolTOsf(vol, r, b)
     
     return res
@@ -110,7 +110,7 @@ def vol2sf_mean(vol, b, max_radius=None, center=None):
     """Obsolete.
     """
     from math import pi, sin, cos
-    from pytom_volume import interpolate
+    from pytom.lib.pytom_volume import interpolate
     res = []
     
     if max_radius is None:
@@ -194,7 +194,7 @@ if __name__ == '__main__':
         if o in ("-o"):
             filename = a
     
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     vol = read(vol_name)
     sf = vol2sf(vol, radius, bw)
     sf2file(sf, filename, conv)

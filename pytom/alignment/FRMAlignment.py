@@ -149,7 +149,7 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
         
         # for the constraint
         try:
-            from sh_alignment.constrained_frm import AngularConstraint
+            from pytom.lib.constrained_frm import AngularConstraint
             con = jobDescription.xpath('AngularConstraint')
             if len(con) != 0:
                 ac = AngularConstraint()
@@ -417,8 +417,8 @@ class FRMWorker():
         pytom_mpi.finalise()
     
     def run(self, verbose=False):
-        from sh_alignment.frm import frm_align
-        from sh_alignment.constrained_frm import frm_constrained_align, AngularConstraint
+        from pytom.lib.frm import frm_align
+        from pytom.lib.constrained_frm import frm_constrained_align, AngularConstraint
         from pytom.basic.structures import Shift, Rotation
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.transformations import resize, resizeFourier

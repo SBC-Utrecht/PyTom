@@ -10,12 +10,12 @@ class FiducialLessAlignment():
         from scipy import misc
         import numpy as np
         import scipy.optimize
-        from pytom_volume import transformSpline, vol
+        from pytom.lib.pytom_volume import transformSpline, vol
         from pytom.basic.correlation import xcc, nxcc
         from pytom.basic.transformations import scale, general_transform2d
         from pytom.reconstruction.ccAlign import modelProjCrop, vol_projection, punchHole, cylindricalMask, create_cylindrical_mask, reAlignWeightReconstruct, reAlignWeight
         from pytom.basic.files import read, read_em, write_em, read_em_header, write_em_header
-        from pytom_volume import vol, read, subvolume
+        from pytom.lib.pytom_volume import vol, read, subvolume
         from pytom.reconstruction.reconstructionFunctions import alignWeightReconstruct
         from pytom.reconstruction.TiltAlignmentStructures import TiltSeries
         from pytom.reconstruction.writeAlignedProjections import writeAlignedProjections
@@ -233,7 +233,7 @@ class FiducialLessAlignment():
         """
         evaluate the scoring function for given rotation and translation and isotropic isoMagnification
         @param param: rotIP for RotationInPlane, shiftX and shiftY are traslations in X and Y axis, isoMag is the isotropic isoMagnification
-        @type param: L{pytom.basic.transformations.general_transform2d}, L{pytom_volume.vol}
+        @type param: L{pytom.basic.transformations.general_transform2d}, L{pytom.lib.pytom_volume.vol}
         @return: Score
         @rtype: L{float}
         @author: GvdS
@@ -331,7 +331,7 @@ class FiducialLessAlignment():
         from scipy import misc
         import numpy as np
         import scipy.optimize
-        from pytom_volume import transformSpline, vol
+        from pytom.lib.pytom_volume import transformSpline, vol
         from pytom.reconstruction.ccAlign import modelProjCrop
         from pytom.basic.files import read_em, write_em, read_em_header, write_em_header
         from pytom.basic.files import read as read_c

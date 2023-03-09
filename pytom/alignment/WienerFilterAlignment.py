@@ -427,7 +427,7 @@ class MultiDefocusWorker(FRMWorker):
             self.run(verbose)
     
     def run(self, verbose=False):
-        from sh_alignment.frm import frm_align
+        from pytom.lib.frm import frm_align
         from pytom.basic.structures import Shift, Rotation
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.fourier import convolute

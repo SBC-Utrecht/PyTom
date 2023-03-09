@@ -163,13 +163,13 @@ def xcf_mult(volume, template, mask, stdV=None, ):
     result is scaled only by the square of the number of elements.
 
     @param volume : The search volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param template : The template searched (this one will be used for conjugate complex multiplication)
-    @type template: L{pytom_volume.vol}
+    @type template: L{pytom.lib.pytom_volume.vol}
     @param mask: Will be unused, only for compatibility reasons with FLCF
     @param stdV: Will be unused, only for compatibility reasons with FLCF
     @return: XCF volume
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     @author: Thomas Hrabe
     """
 
@@ -294,14 +294,14 @@ def weightedXCF(volume, reference, numberOfBands, wedgeAngle=-1):
     @param numberOfBands:Number of bands
     @param wedgeAngle: A optional wedge angle
     @return: The weighted correlation function
-    @rtype: L{pytom_volume.vol}
+    @rtype: L{pytom.lib.pytom_volume.vol}
     @author: Thomas Hrabe
     @todo: does not work yet -> test is disabled
     """
     from pytom.agnostic.correlation import bandCF
     from pytom.agnostic.transforms import fourier_reduced2full
     from math import sqrt
-    import pytom_freqweight
+    import pytom.lib.pytom_freqweight as pytom_freqweight
 
     result = xp.zeros_like(volume)
 
@@ -483,7 +483,7 @@ def bandCF(volume, reference, band=[0, 100]):
     @param band: [a,b] - specify the lower and upper end of band. [0,1] if not set.
     @return: First parameter - The correlation of the two volumes in the specified ring.
              Second parameter - The bandpass filter used.
-    @rtype: List - [L{xp.ndarray},L{pytom_freqweight.weight}]
+    @rtype: List - [L{xp.ndarray},L{pytom.lib.pytom_freqweight.weight}]
     @author: Thomas Hrabe
     @todo: does not work yet -> test is disabled
     """
@@ -905,7 +905,7 @@ def subPixelPeak(scoreVolume, coordinates, cubeLength=8, interpolation='Spline',
                                                              verbose=verbose)
         return [peakValue, peakCoordinates]
 
-    from pytom_volume import vol, subvolume, rescaleSpline, peak
+    from pytom.lib.pytom_volume import vol, subvolume, rescaleSpline, peak
     from pytom.basic.transformations import resize
 
     # extend function for 2D

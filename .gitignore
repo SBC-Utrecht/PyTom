@@ -65,3 +65,6 @@ doc/epydoc/
 
 # swap files
 *.swp
+
+# ignore testparticles folder
+tests/E2ETests/testparticles

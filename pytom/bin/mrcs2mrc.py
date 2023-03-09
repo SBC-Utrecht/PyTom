@@ -1,21 +1,15 @@
 #!/usr/bin/env pytom
 
 import mrcfile
-import sys, os
-from pytom.agnostic.io import read, write
-from pytom.agnostic.mpi import MPI
+import os
 
-
-# mpi = MPI()
 
 def extract_single_image(dataSlice, sliceId, out_name, origdir, outdir, prefix):
-    print(dataSlice.shape)
     if origdir:
         outname = os.path.join(outdir, out_name.replace('sorted_', prefix))
     else:
         outname = os.path.join(outdir, '{}{:02d}.mrc'.format(prefix, sliceId))
     print(f'extracted {os.path.basename(outname)} into {outdir}')
-    # write(outname, data[:,:,sliceId], tilt_angle=tiltangle)
     mrcfile.new(outname, dataSlice.astype('float32'), overwrite=True)
 
 

@@ -20,7 +20,7 @@ from pytom.gui import guiFunctions
 from pytom.basic.files import read
 from pytom.convert.coords2PL import convertCoords2PL
 from pytom.bin.updateParticleList import updatePL
-from pytom_numpy import vol2npy
+from pytom.lib.pytom_numpy import vol2npy
 
 
 class ParticlePick(GuiTabWidget):
@@ -518,7 +518,7 @@ class ParticlePick(GuiTabWidget):
                         widthZ = 0
                         start = 0
                     if widthZ:
-                        from pytom_volume import read
+                        from pytom.lib.pytom_volume import read
                         v = read(tomogramFile)
                         widthX = v.sizeX()
                         widthY = v.sizeY()
@@ -536,7 +536,7 @@ class ParticlePick(GuiTabWidget):
                     outDirectory = os.path.join(self.ccfolder, os.path.basename(tomofile))
                     if not os.path.exists(outDirectory): os.mkdir(outDirectory)
 
-                    from pytom_volume import read, vol, mirrorVolume
+                    from pytom.lib.pytom_volume import read, vol, mirrorVolume
                     for n, input_filename in enumerate([templateFile, maskFile]):
                         v = read(input_filename)
                         res = vol(v)

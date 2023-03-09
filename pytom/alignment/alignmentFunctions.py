@@ -1101,7 +1101,7 @@ def FRMAlignmentWrapper(particle,wedgeParticle, reference, wedgeReference,bandwi
     """
     from pytom.basic.structures import Particle,Reference,Mask,Wedge,Shift,Rotation
     from pytom.basic.score import PeakPrior
-    from sh_alignment.frm import frm_align
+    from pytom.lib.frm import frm_align
     
     if particle.__class__ == Particle:
         particle = particle.getVolume()

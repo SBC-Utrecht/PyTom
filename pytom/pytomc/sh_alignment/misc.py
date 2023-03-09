@@ -21,9 +21,9 @@ def frm_determine_orientation_rscore(vf, wf, vg, wg, b, radius=None, weights=Non
         raise RuntimeError("Argument b is not valid!")
     
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, rescale, abs, real
+    from pytom.lib.pytom_volume import vol, reducedToFull, rescale, abs, real
     from .vol2sf import vol2sf
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from math import log, ceil, pow
 
     # IMPORTANT!!! Should firstly do the IFFTSHIFT on the volume data (NOT FFTSHIFT since for odd-sized data it matters!),
@@ -88,9 +88,9 @@ def frm_fourier_adaptive_wedge_vol_rscore(vf, wf, vg, wg, b, radius=None, weight
         raise RuntimeError("Argument b is not valid!")
 
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, real, imag, rescale
+    from pytom.lib.pytom_volume import vol, reducedToFull, real, imag, rescale
     from .vol2sf import vol2sf
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from math import log, ceil, pow
 
     # IMPORTANT!!! Should firstly do the IFFTSHIFT on the volume data (NOT FFTSHIFT since for odd-sized data it matters!),
@@ -137,13 +137,12 @@ def frm_fourier_adaptive_wedge_vol_rscore(vf, wf, vg, wg, b, radius=None, weight
 def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None, weights=None, position=None):
     """Obsolete.
     """
-    from pytom_volume import vol, rotateSpline, peak
+    from pytom.lib.pytom_volume import vol, rotateSpline, peak, initSphere
     from pytom.basic.transformations import shift
     from pytom.basic.correlation import xcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Mask
-    from pytom_volume import initSphere
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
 
     if vf.sizeX()!=vg.sizeX() or vf.sizeY()!=vg.sizeY() or vf.sizeZ()!=vg.sizeZ():
         raise RuntimeError('Two volumes must have the same size!')
@@ -240,13 +239,13 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     Parameters
     ----------
     vf: The volume you want to match.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: The single tilt wedge information of volume vf.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
 
     vg: The reference volume.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: The single tilt wedge information of volume vg.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
@@ -267,11 +266,10 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     The best translation and rotation (Euler angle, ZXZ convention [Phi, Psi, Theta]) to transform vg to match vf.
     (best_translation, best_rotation, correlation_score)
     """
-    from pytom_volume import vol, rotateSpline, max, peak
+    from pytom.lib.pytom_volume import vol, rotateSpline, max, peak, initSphere
     from pytom.basic.correlation import nXcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import WedgeInfo
-    from pytom_volume import initSphere
 
     if not radius: # set the radius
         radius = vf.sizeX()/2
@@ -289,9 +287,9 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
         raise RuntimeError('Peak offset is given wrong!')
     
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, rescale, abs, real
+    from pytom.lib.pytom_volume import vol, reducedToFull, rescale, abs, real
     from .vol2sf import vol2sf
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from math import log, ceil, pow
 
     # IMPORTANT!!! Should firstly do the IFFTSHIFT on the volume data (NOT FFTSHIFT since for odd-sized data it matters!),
@@ -334,13 +332,13 @@ def frm_fourier_adaptive_wedge_vol(vf, wf, vg, wg, b, radius=None, weights=None,
     Parameters
     ----------
     vf: The volume you want to match.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: The single tilt wedge information of volume vf.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
 
     vg: The reference volume.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: The single tilt wedge information of volume vg.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
@@ -380,9 +378,9 @@ def frm_fourier_adaptive_wedge_vol(vf, wf, vg, wg, b, radius=None, weights=None,
         raise RuntimeError("Argument b is not valid!")
 
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, real, imag, rescale
+    from pytom.lib.pytom_volume import vol, reducedToFull, real, imag, rescale
     from .vol2sf import vol2sf
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from math import log, ceil, pow
 
     # IMPORTANT!!! Should firstly do the IFFTSHIFT on the volume data (NOT FFTSHIFT since for odd-sized data it matters!),
@@ -442,13 +440,13 @@ def frm_determine_orientation(vf, wf, vg, wg, b, radius=None, weights=None, r_sc
     Parameters
     ----------
     vf: The volume you want to match.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: The single tilt wedge information of volume vf.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
 
     vg: The reference volume.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: The single tilt wedge information of volume vg.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
@@ -488,9 +486,9 @@ def frm_determine_orientation(vf, wf, vg, wg, b, radius=None, weights=None, r_sc
         raise RuntimeError("Argument b is not valid!")
     
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, rescale, abs, real
+    from pytom.lib.pytom_volume import vol, reducedToFull, rescale, abs, real
     from .vol2sf import vol2sf
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from math import log, ceil, pow
 
     # IMPORTANT!!! Should firstly do the IFFTSHIFT on the volume data (NOT FFTSHIFT since for odd-sized data it matters!),
@@ -551,13 +549,13 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
     Parameters
     ----------
     vf: The volume you want to match.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: The single tilt wedge information of volume vf.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
 
     vg: The reference volume.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: The single tilt wedge information of volume vg.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
@@ -579,13 +577,12 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
     The best translation and rotation (Euler angle, ZXZ convention [Phi, Psi, Theta]) to transform vg to match vf.
     (best_translation, best_rotation, correlation_score)
     """
-    from pytom_volume import vol, rotateSpline, peak
+    from pytom.lib.pytom_volume import vol, rotateSpline, peak, initSphere
     from pytom.basic.transformations import shift
     from pytom.basic.correlation import nXcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Mask
-    from pytom_volume import initSphere
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
 
     if vf.sizeX()!=vg.sizeX() or vf.sizeY()!=vg.sizeY() or vf.sizeZ()!=vg.sizeZ():
         raise RuntimeError('Two volumes must have the same size!')

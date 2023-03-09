@@ -1,4 +1,4 @@
-from pytom_volume import read
+from pytom.lib.pytom_volume import read
 import sys
 
 a = read(sys.argv[1])

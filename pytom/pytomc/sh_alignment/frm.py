@@ -5,7 +5,7 @@ Created on Sep 16, 2011
 '''
 
 import numpy as np
-import swig_frm # the path of this swig module should be set correctly in $PYTHONPATH
+import pytom.lib.swig_frm as swig_frm
 from .vol2sf import vol2sf
 
 
@@ -306,10 +306,10 @@ def frm_vol(v1, v2, b, radius=None):
     Parameters
     ----------
     v1: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     v2: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     b: Bandwidth of spherical harmonics.
        Integer
@@ -338,13 +338,13 @@ def frm_constrained_vol(v1, m1, v2, m2, b, radius=None):
     Parameters
     ----------
     v1: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     m1: Spherical mask of volume Nr. 1
         numpy.array
 
     v2: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     m2: Spherical mask of v2
         numpy.array
@@ -474,10 +474,10 @@ def frm_find_best_angluar_match(v1, v2, b, radius=None):
     Parameters
     ----------
     v1: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     v2: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     b: Bandwidth of spherical harmonics.
        Integer
@@ -884,13 +884,13 @@ def frm_correlate(vf, wf, vg, wg, b, max_freq, weights=None, ps=False, denominat
     Parameters
     ----------
     vf: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: Mask of vf in Fourier space.
         pytom.basic.structures.Wedge
 
     vg: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: Mask of vg in Fourier space.
         pytom.basic.structures.Wedge
@@ -927,7 +927,7 @@ def frm_correlate(vf, wf, vg, wg, b, max_freq, weights=None, ps=False, denominat
         weights = [1 for i in range(max_freq)]
 
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, abs, real, imag, rescale
+    from pytom.lib.pytom_volume import vol, reducedToFull, abs, real, imag, rescale
     from .vol2sf import vol2sf
     from math import log, ceil, pow
 
@@ -1022,13 +1022,13 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
     Parameters
     ----------
     vf: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: Mask of vf in Fourier space.
         pytom.basic.structures.Wedge. If none, no missing wedge.
 
     vg: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: Mask of vg in Fourier space.
         pytom.basic.structures.Wedge. If none, no missing wedge.
@@ -1044,10 +1044,10 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
     peak_offset: The maximal offset which allows the peak of the score to be.
                  Or simply speaking, the maximal distance allowed to shift vg to match vf.
                  This parameter is needed to prevent shifting the reference volume out of the frame.
-                 pytom_volume.vol / Integer. By default is half of the volume radius.
+                 pytom.lib.pytom_volume.vol / Integer. By default is half of the volume radius.
 
     mask: Mask volume for vg in real space.
-          pytom_volume.vol
+          pytom.lib.pytom_volume.vol
 
     weights: Obsolete.
 
@@ -1062,13 +1062,13 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
     (The best translation and rotation (Euler angle, ZXZ convention [Phi, Psi, Theta]) to transform vg to match vf.
     (best_translation, best_rotation, correlation_score)
     """
-    from pytom_volume import vol, rotateSpline, peak
+    from pytom.lib.pytom_volume import vol, rotateSpline, peak
     from pytom.basic.transformations import shift
     from pytom.basic.correlation import FLCF
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Mask, SingleTiltWedge, Rotation
-    from pytom_volume import initSphere
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_volume import initSphere
+    from pytom.lib.pytom_numpy import vol2npy
 
     if vf.sizeX()!=vg.sizeX() or vf.sizeY()!=vg.sizeY() or vf.sizeZ()!=vg.sizeZ():
         raise RuntimeError('Two volumes must have the same size!')

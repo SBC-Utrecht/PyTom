@@ -11,8 +11,8 @@ if __name__ == '__main__':
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
     from pytom.reconstruction.reconstructionFunctions import alignWeightReconstruct
-    from pytom_volume import read
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_volume import read
+    from pytom.lib.pytom_numpy import vol2npy
     import os
     from multiprocessing import Process
     import time

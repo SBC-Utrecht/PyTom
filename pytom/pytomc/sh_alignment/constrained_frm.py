@@ -241,13 +241,13 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
     Parameters
     ----------
     vf: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: Mask of vf in Fourier space.
         pytom.basic.structures.Wedge. If none, no missing wedge.
 
     vg: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: Mask of vg in Fourier space.
         pytom.basic.structures.Wedge. If none, no missing wedge.
@@ -263,13 +263,13 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
     peak_offset: The maximal offset which allows the peak of the score to be.
                  Or simply speaking, the maximal distance allowed to shift vg to match vf.
                  This parameter is needed to prevent shifting the reference volume out of the frame.
-                 pytom_volume.vol / Integer. By default is half of the volume radius.
+                 pytom.lib.pytom_volume.vol / Integer. By default is half of the volume radius.
 
     mask: Mask volume for vg in real space.
-          pytom_volume.vol
+          pytom.lib.pytom_volume.vol
 
     constraint: Angular constraint
-                sh_alignment.constrained_frm.AngularConstraint
+                pytom.lib.constrained_frm.AngularConstraint
 
     weights: Obsolete.
 
@@ -284,13 +284,13 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
     (The best translation and rotation (Euler angle, ZXZ convention [Phi, Psi, Theta]) to transform vg to match vf.
     (best_translation, best_rotation, correlation_score)
     """
-    from pytom_volume import vol, rotateSpline, peak
+    from pytom.lib.pytom_volume import vol, rotateSpline, peak
     from pytom.basic.transformations import shift
     from pytom.basic.correlation import FLCF
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Mask, SingleTiltWedge
-    from pytom_volume import initSphere
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_volume import initSphere
+    from pytom.lib.pytom_numpy import vol2npy
 
     if vf.sizeX()!=vg.sizeX() or vf.sizeY()!=vg.sizeY() or vf.sizeZ()!=vg.sizeZ():
         raise RuntimeError('Two volumes must have the same size!')

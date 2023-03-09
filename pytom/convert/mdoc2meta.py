@@ -24,7 +24,7 @@ if not pytompath:
 def update_env_vars(pytompath):
     '''Make sure all pytom functionality can be imported from within the script. '''
     try:
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
     except:
         update_vars = False
         for search in ('LD_LIBRARY_PATH','PATH','PYTHONPATH'):

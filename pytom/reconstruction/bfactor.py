@@ -85,8 +85,8 @@ def create_bfactor_vol(size, ps, bfactor, FSC=None, apply_range=None):
     v = sph2cart(decay, size)
     
     # transfer to the volume format and multiple with the mask
-    from pytom_volume import vol, initSphere
-    from pytom_numpy import npy2vol
+    from pytom.lib.pytom_volume import vol, initSphere
+    from pytom.lib.pytom_numpy import npy2vol
     vv = npy2vol(np.array(v, dtype='float32', order='F'), 3)
     
     if apply_range_pixel[0] == 1:
@@ -113,7 +113,7 @@ def sph2cart(data, size):
     return out
 
 def create_bfactor_restore_vol(size, ps, bfactor, FSC=None, apply_range=None):
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     v = create_bfactor_vol(size, ps, bfactor, FSC, apply_range)
     unit = vol(v)
     unit.setAll(1)

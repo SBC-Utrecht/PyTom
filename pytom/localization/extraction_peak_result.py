@@ -81,14 +81,14 @@ class ExPeakResult:
         """
         maskOut: Set part of mask volume to all zero. The region is specified by center and size.
         @param mask: volume that you handle with
-        @type mask: L{pytom_volume.vol}
+        @type mask: L{pytom.lib.pytom_volume.vol}
         @param center: center of the region
         @type center: [x,y,z]
         @param size: size of the region
         @type size: [sizeX, sizeY, sizeZ] or radius
         """
         
-        from pytom_volume import vol, putSubVolume
+        from pytom.lib.pytom_volume import vol, putSubVolume
             
         if size.__class__ == list:
             p_sizeX = size[0]
@@ -152,7 +152,7 @@ class ExPeakResult:
             subV = vol(sizeX, sizeY, sizeZ)
             subV.setAll(0)
         elif size.__class__ == vol:
-            from pytom_volume import limit, subvolume
+            from pytom.lib.pytom_volume import limit, subvolume
             subV = (mm-1)/-1
             limit(subV, 0.999, 0, 0, 0, True, False)
             subV = subvolume(subV, sub_startX, sub_startY, sub_startZ, sizeX, sizeY, sizeZ)
@@ -160,7 +160,7 @@ class ExPeakResult:
             subV = subV*tempV # AND operation
         elif not structured_mask is None:
             from pytom.basic.transformations import rotate
-            from pytom_volume import initSphere, subvolume
+            from pytom.lib.pytom_volume import initSphere, subvolume
             subV = rotate(structured_mask, orientation[0], z2=orientation[1], x=orientation[2])
 
             tempV = vol(structured_mask.sizeX(), structured_mask.sizeY(), structured_mask.sizeZ())
@@ -171,7 +171,7 @@ class ExPeakResult:
             subV = subV * tempV
 
         else:
-            from pytom_volume import initSphere, subvolume
+            from pytom.lib.pytom_volume import initSphere, subvolume
             subV = vol(radius*2, radius*2, radius*2)
             initSphere(subV, radius, 0, 0, radius, radius, radius)
             tempV = vol(radius*2, radius*2, radius*2)
@@ -201,7 +201,7 @@ class ExPeakResult:
         @return: list of found particles
         @rtype: L{pytom.localization.structures.FoundParticle}
         """
-        from pytom_volume import vol, peak, putSubVolume, read
+        from pytom.lib.pytom_volume import vol, peak, putSubVolume, read
         from pytom.localization.structures import FoundParticle
 
         if not structured_mask is None:

@@ -1,7 +1,7 @@
 #!/usr/bin/env pytom
 
 def em2mrc(filename,target):
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.tools.files import checkFileExists,checkDirExists
     import os
 

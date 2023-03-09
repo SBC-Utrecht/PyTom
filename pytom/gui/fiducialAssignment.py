@@ -27,10 +27,11 @@ try:
     from pytom.reconstruction.tiltAlignmentFunctions import alignmentFixMagRot
     from pytom.reconstruction.TiltAlignmentStructures import Marker
     from pytom.basic.files import write_em
-    from pytom_volume import vol, read, transform
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_volume import vol, read, transform
+    from pytom.lib.pytom_numpy import vol2npy
     mf_write=1
 except Exception as e:
+    # TODO this is a broad exception
     print(e)
     print('marker file refinement is not possible')
     mf_write = 0

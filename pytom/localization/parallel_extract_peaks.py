@@ -5,8 +5,8 @@ Created on May 20, 2010
 '''
 import numpy as np
 import os
-from pytom_volume import vol, updateResFromVol
-from pytom_numpy import vol2npy, npy2vol
+from pytom.lib.pytom_volume import vol, updateResFromVol
+from pytom.lib.pytom_numpy import vol2npy, npy2vol
 from pytom.agnostic.tools import subvolume, putSubVolume
 
 
@@ -16,7 +16,7 @@ def getMsgStr():
     @return: message string
     @rtype: str
     '''
-    import pytom_mpi
+    import pytom.lib.pytom_mpi as pytom_mpi
     mpi_msgString = pytom_mpi.receive()
     return mpi_msgString
 
@@ -27,7 +27,7 @@ class PeakWorker(object):
     @author: Chen
     '''
     def __init__(self):
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         
         if not pytom_mpi.isInitialised():
             pytom_mpi.init()
@@ -128,7 +128,7 @@ class PeakLeader(PeakWorker):
     PeakLeader: Class for parallel running of jobs (new architecture)
     """
     def __init__(self,suffix=''):
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
 
         if not pytom_mpi.isInitialised():
             pytom_mpi.init()
@@ -427,9 +427,9 @@ class PeakLeader(PeakWorker):
         """
         writeRes: Write the result back to the disk, and return the PeakJobResult.
         @param resV: result volume
-        @type resV: L{pytom_volume.vol}
+        @type resV: L{pytom.lib.pytom_volume.vol}
         @param orientV: orientation volume
-        @type orientV: L{pytom_volume.vol}
+        @type orientV: L{pytom.lib.pytom_volume.vol}
         @param jobID: ID of job
         @type jobID: integer
         
@@ -556,7 +556,7 @@ class PeakLeader(PeakWorker):
         @param splitZ: split part along the z dimension
         @type splitZ: integer
         """
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         if self.mpi_id == 0: # send the first message
             if not pytom_mpi.isInitialised():
                 pytom_mpi.init()
@@ -635,7 +635,7 @@ class PeakLeader(PeakWorker):
         """
         parallelEnd: End the parallel running of the program.
         """
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         from pytom.parallel.messages import StatusMessage
         
         if verbose == True:

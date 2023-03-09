@@ -197,7 +197,7 @@ def determineRotationCenter(particle, binning):
     """
     determineRotationCenter:
     @param particle: The particle
-    @type particle: Either L{pytom_volume.vol} or string specifying the particle file name
+    @type particle: Either L{pytom.lib.pytom_volume.vol} or string specifying the particle file name
     @param binning: Binning factor
     @return: [centerX,centerY,centerZ]
 
@@ -223,7 +223,7 @@ def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
     invert wedge sum - avoid division by zero and boost of high frequencies
 
     @param invol: input volume
-    @type invol: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+    @type invol: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
     @param r_max: radius
     @type r_max: L{int}
     @param lowlimit: lower limit - all values below this value that lie in the specified radius will be replaced \
@@ -265,7 +265,7 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
     @param vol1: volume 1
     @param vol2: volume 2
     @mask: mask volume
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param nband: Number of bands
     @type nband: L{int}
     @param iniRot: initial guess for rotation
@@ -381,7 +381,7 @@ def design_fsc_filter(fsc, fildim=None, fsc_criterion=0.143):
 
 
 def subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, stepSizeZ):
-    from pytom_volume import vol, subvolume
+    from pytom.lib.pytom_volume import vol, subvolume
 
     if volume.__class__ != vol:
         return volume[sub_startX:sub_startX+stepSizeX, sub_startY:sub_startY+stepSizeY, sub_startZ:sub_startZ+stepSizeZ]
@@ -389,8 +389,8 @@ def subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, 
         return subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, stepSizeZ)
 
 def putSubVolume(subvolume, volume, startX, startY, startZ):
-    from pytom_volume import vol, putSubVolume
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_volume import vol, putSubVolume
+    from pytom.lib.pytom_numpy import vol2npy
 
     if volume.__class__ == vol and subvolume.__class__ == vol:
         putSubVolume(subvolume, volume, startX, startY, startZ)

@@ -172,7 +172,7 @@ Test the installation by running <code>ipytom</code> (in <code>pytom/bin</code>)
 <div class="codeFragment">
 <code>
 import pytom # should not fail<br/>
-from pytom_volume import read <br/>
+from pytom.lib.pytom_volume import read <br/>
 read('')<br/>
 #should give:<br/>
 #RuntimeError: : Wrong file format or file doesn't exist!<br/>
@@ -245,7 +245,7 @@ After the compilation is finished, you can check if SH Alignment is successfully
 <div class="codeFragment">
 <code>
 pytom<br/>
->>> from sh_alignment.frm import frm_align
+>>> from pytom.lib.frm import frm_align
 </code>
 </div>
 </p>
