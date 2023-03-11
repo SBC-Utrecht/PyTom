@@ -43,7 +43,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
 
         filetype = 'em'
 
-    assert isinstance(object=alignmentJob, class_or_type_or_tuple=GLocalSamplingJob), \
+    assert isinstance(alignmentJob, GLocalSamplingJob), \
         "mainAlignmentLoop: alignmentJob must be of type GLocalSamplingJob"
     mpi.begin()
     print("particleList    = "+str(alignmentJob.particleList.getFileName()))
@@ -578,7 +578,8 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     @author: FF
     """
     from pytom.angles.angle import AngleObject
-    from pytom.agnostic.structures import Mask, ParticleList
+    from pytom.basic.structures import ParticleList
+    from pytom.agnostic.structures import Mask
     from pytom.agnostic.transform import resize
     from pytom.alignment.alignmentFunctions import bestAlignmentGPU
     from pytom.gpu.gpuStructures import GLocalAlignmentPlan
@@ -719,7 +720,7 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
     @author: FF
     """
     from pytom.basic.structures import Particle, Reference, Mask, Wedge, WedgeInfo
-    from pytom.angles.angleList import AngleList
+    from pytom.angles.angle import AngleObject
     from pytom.alignment.alignmentFunctions import bestAlignment
     from pytom.basic.score import Score
     from pytom.alignment.preprocessing import Preprocessing
@@ -746,11 +747,11 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
     refVol = preprocessing.apply(volume=refVol, bypassFlag=True)
 
     wedge = particle.getWedge()
-    assert type(scoreObject) == Score, "alignOneParticle: score not of type Score"
+    assert isinstance(scoreObject, Score), "alignOneParticle: score not of type Score"
     if mask:
         assert type(mask) == Mask, "alignOneParticle: mask not of type Mask"
 
-    assert type(rotations) == AngleList, "alignOneParticle: rotations not of type AngleList"
+    assert isinstance(rotations, AngleObject), "alignOneParticle: rotations not of type AngleList"
 
     oldRot = particle.getRotation()
     rotations.setStartRotation(oldRot)
@@ -928,7 +929,7 @@ def writeParticleListToUniqueFile(pl, dirName=None):
     """
     from uuid import uuid4
     from pytom.basic.structures import ParticleList
-    assert isinstance(object=pl, class_or_type_or_tuple=ParticleList), \
+    assert isinstance(pl, ParticleList), \
         "writeParticleListToUniqueFile: pl must be of type ParticleList"
     fname = str(uuid4())
     if dirName:

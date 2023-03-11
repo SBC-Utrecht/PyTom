@@ -4088,7 +4088,7 @@ class Shift(PyTomClass):
         @return: rotated shift (note: shift itself remains unaltered)
         @rtype: L{pytom.basic.structures.Shift}
         """
-        assert isinstance(object=rot, class_or_type_or_tuple=Rotation), "rot must be of type Rotation"
+        assert isinstance(rot, Rotation), "rot must be of type Rotation"
         m = rot.toMatrix(fourByfour=True) * self.toMatrix()
         return Shift(x=m.getColumn(3)[0], y=m.getColumn(3)[1], z=m.getColumn(3)[2])
     
