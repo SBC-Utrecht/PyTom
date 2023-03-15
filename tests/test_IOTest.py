@@ -74,14 +74,13 @@ class pytom_IOTest(unittest.TestCase):
 
     def write_read_STAR(self):
         from pytom.agnostic.io import write, read
-        from pytom.basic.datatypes import DATATYPE_RELION31_EXTENDED, fmtR31EXTENDED, headerRelion31EXTENDEDSubtomo
 
         fname = f'testData/example_starfile.star'
 
-        data2 = read(fname, dtype=DATATYPE_RELION31_EXTENDED)
+        data2 = read(fname)
         oname = f'{self.outfolder}/dummy_star.star'
         self.fnames.append(oname)
-        write(oname, data2, fmt=fmtR31EXTENDED, header=headerRelion31EXTENDEDSubtomo)
+        write(oname, data2)
         self.assertTrue(os.path.exists(oname))
 
         data2 = read(fname)

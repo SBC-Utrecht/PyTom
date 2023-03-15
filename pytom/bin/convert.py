@@ -229,12 +229,16 @@ if __name__ == '__main__':
                  ScriptOption2(['--tlt-file'], 'Either .tlt file or .rawtlt in case tilt angles have not been '
                                                'optimized during alignment. ', 'file', 'optional', ''),
                  ScriptOption2(['--sortedFolder'], 'Sorted Images are located in this folder (either sorted or sorted_ctf)', 'directory', 'optional', ''),
+                 ScriptOption2(['--rln-voltage'], 'Voltage for relion3 starfiles', 'float', 'optional'),
+                 ScriptOption2(['--rln-spherical-aberration'], 'Spherical aberration for relion3 starfiles', 'float',
+                               'optional')
         ])
 
     #TODO write --filter to filter input files maybe on (glob) pattern or else on extension or similar
 
-    filename, directory, target, format, outname, chaindata, subtomo_prefix, w, prefix, suffix, pixelsize, binningFactorPyTom,\
-    binningFactorWarpM, tlt_file, sorted_folder = parse_script_options2(sys.argv[1:], helper)
+    filename, directory, target, format, outname, chaindata, subtomo_prefix, w, prefix, suffix, pixelsize, \
+    binningFactorPyTom, binningFactorWarpM, tlt_file, sorted_folder, rln_voltage, rln_spherical_aberration = \
+        parse_script_options2(sys.argv[1:], helper)
 
     try:
         if w:
@@ -266,6 +270,8 @@ if __name__ == '__main__':
         chaindata['wedgeAngles'] = wedge_angles
         chaindata['angle_file'] = tlt_file
         chaindata['sorted_folder'] = sorted_folder
+        chaindata['rln_voltage'] = rln_voltage
+        chaindata['rln_spherical_aberration'] = rln_spherical_aberration
 
     if filename:
         warn_if_file_exists(f.name_to_format(filename, target, format) if outname == ''

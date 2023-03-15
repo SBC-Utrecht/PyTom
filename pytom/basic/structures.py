@@ -807,13 +807,14 @@ class Wedge(PyTomClass):
     """
     Wedge: used as an dummy class to distinguish between single tilt axis wedge and double tilt axis wedge in fromXML
     """
-    def __init__(self, wedgeAngles=[0.0,0.0], cutoffRadius=0.0, tiltAxis='Y', smooth=0.0, wedge_3d_ctf_file=''):
+    def __init__(self, wedgeAngles=[0.0,0.0], cutoffRadius=0.0, tiltAxis='Y', smooth=0.0, wedge_3d_ctf_file='',
+                 ctf_max_resolution=0.):
         """
         __init__: This constructor is compatible to L{pytom.basic.structures.SingleTiltWedge} and L{pytom.basic.structures.DoubleTiltWedge}.
         """
         if wedge_3d_ctf_file != '':
             # we need to initialize the 3d
-            self._wedgeObject = Wedge3dCTF(filename=wedge_3d_ctf_file)
+            self._wedgeObject = Wedge3dCTF(filename=wedge_3d_ctf_file, ctf_max_resolution=ctf_max_resolution)
             self._type = 'Wedge3dCTF'
 
         else:
@@ -871,6 +872,9 @@ class Wedge(PyTomClass):
             raise PyTomClassError
         else:
             return self._wedgeObject.getWedgeAngle()
+
+    def getType(self):
+        return self._type
     
     def apply(self,volume,rotation=None):
         """
@@ -963,7 +967,8 @@ class Wedge(PyTomClass):
         from pytom.agnostic.structures import Wedge
 
         if self._type == 'Wedge3dCTF':
-            wedge = Wedge(wedge_3d_ctf_file=self._wedgeObject.getFilename())
+            wedge = Wedge(wedge_3d_ctf_file=self._wedgeObject.getFilename(),
+                          ctf_max_resolution=self._wedgeObject.get_ctf_max_resolution())
             return wedge
         else:
             angle = self.getWedgeAngle()
@@ -1485,12 +1490,13 @@ class Wedge3dCTF(PyTomClass):
     first needs to be converted to have the z axis as the reduced fourier space dimension.
     """
 
-    def __init__(self, filename=''):
+    def __init__(self, filename='', ctf_max_resolution=0.):
         """
         Class is mainly an io wrapper for the 3d ctf volumes so only needs a filename.
         @param filename: path to .mrc/.em file
         """
         self._filename = filename
+        self._ctf_max_resolution = ctf_max_resolution
 
         # for FRM
         self._wedge_vol = None  # cache for storing the wedge volume
@@ -1502,6 +1508,12 @@ class Wedge3dCTF(PyTomClass):
 
     def setFilename(self, filename):
         self._filename = filename
+
+    def get_ctf_max_resolution(self):
+        return self._ctf_max_resolution
+
+    def set_ctf_max_resolution(self, ctf_max_resolution):
+        self._ctf_max_resolution = ctf_max_resolution
 
     def returnWedgeVolume(self, wedgeSizeX=None, wedgeSizeY=None, wedgeSizeZ=None, humanUnderstandable=False,
                           rotation=None, as_numpy=False):
@@ -1588,6 +1600,7 @@ class Wedge3dCTF(PyTomClass):
             raise TypeError('Is not a lxml.etree._Element! You must provide a valid XML-Wedge object.')
 
         self._filename = xmlObj.get('Filename')
+        self._ctf_max_resolution = float(xmlObj.get('CtfMaxResolution'))
 
     def toXML(self):
         """
@@ -1597,7 +1610,8 @@ class Wedge3dCTF(PyTomClass):
         """
         from lxml import etree
 
-        wedgeElement = etree.Element('Wedge3dCTF', Filename=self._filename)
+        wedgeElement = etree.Element('Wedge3dCTF', Filename=self._filename,
+                                     CtfMaxResolution=str(self._ctf_max_resolution))
 
         return wedgeElement
 
