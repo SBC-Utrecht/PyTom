@@ -43,13 +43,13 @@ if __name__ == '__main__':
             ScriptOption2(['-b', '--boxSize'], 'Size of edge of box (in pixels)', 'int', 'required'),
             ScriptOption2(['-r', '--radius'], 'Length of the major axis of the ellipse (in pixels).', 'float',
                           'required'),
-            ScriptOption2(['-m', '--minor'], 'Length of the first minor axis of the ellipse (in pixels), will be set '
+            ScriptOption2(['-m', '--minor1'], 'Length of the first minor axis of the ellipse (in pixels), will be set '
                                              'equal to major axis if not provided.', 'float', 'optional'),
             ScriptOption2(['-n', '--minor2'], 'Length of the smallest asis ellipse (in pixels), will be set '
                                               'equal to major axis if not provided.', 'float', 'optional'),
             ScriptOption2(['-s', '--sigma'], 'SD of gaussian dropoff of smoothing kernel (in pixels)', 'float',
                           'optional', 0),
-            ScriptOption2(['-c', '--cuttoff'], 'How many SDs (in pixels) will be sampled for the smoothing', 'int',
+            ScriptOption2(['-c', '--cutoff'], 'How many SDs (in pixels) will be sampled for the smoothing', 'int',
                           'optional', 3)])
 
     options = parse_script_options2(sys.argv[1:], helper)

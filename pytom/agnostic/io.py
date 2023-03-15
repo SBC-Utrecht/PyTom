@@ -2015,7 +2015,7 @@ def write(filename, data, tilt_angle=0, pixel_size=1, order='F', fmt=None, heade
 
     # Define the allowed file formats and related write function.
     write_functions = {'em': write_em,
-                       'mrc': write_mrc, 'rec': write_mrc, 'st': write_mrc,
+                       'mrc': write_mrc, 'rec': write_mrc, 'st': write_mrc, 'mrcs': write_mrc,
                        'txt': write_txt, 'log': write_txt, 'star': write_star, 'meta': write_txt}
 
     # Extension determines which write function is called

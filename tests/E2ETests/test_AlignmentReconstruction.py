@@ -123,7 +123,7 @@ class pytom_AlignmentReconstructionTest(unittest.TestCase):
 
     def test_pytom_vs_imod_reconstruction(self):
         if shutil.which('submfg') is None:
-            raise Exception('Cannot run unittest. IMOD not installed.')
+            raise unittest.SkipTest('Cannot run unittest. IMOD not installed.')
 
         self.run_imod()
         self.create_alignment_file()

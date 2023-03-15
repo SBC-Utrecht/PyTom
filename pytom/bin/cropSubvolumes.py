@@ -17,8 +17,8 @@ def writeCroppedParticles(particleListName, output, center, cubesize):
 
     """
     from pytom.basic.structures import ParticleList, Particle, Shift
-    from pytom_volume import transformSpline as transform
-    from pytom_volume import subvolume, vol
+    from pytom.lib.pytom_volume import transformSpline as transform
+    from pytom.lib.pytom_volume import subvolume, vol
 
 
     pl = ParticleList()

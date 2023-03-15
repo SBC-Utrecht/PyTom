@@ -99,7 +99,7 @@ if __name__ == '__main__':
         if verbose: print('FSC:\n', f)
 
         import pytom.agnostic.correlation as correlation
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         import numpy as np
         from pytom.agnostic.io import write
 
