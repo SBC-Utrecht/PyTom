@@ -2413,7 +2413,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
 
         if self.title.endswith('em'):
             from pytom.basic.files import read
-            from pytom_numpy import vol2npy
+            from pytom.lib.pytom_numpy import vol2npy
             vol  = read(self.title)
             self.mask = copy.deepcopy( vol2npy(vol) )
             self.mask = self.mask.T
@@ -2606,7 +2606,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
 
         if self.title.endswith('em'):
             from pytom.basic.files import read
-            from pytom_numpy import vol2npy
+            from pytom.lib.pytom_numpy import vol2npy
             vol  = read(self.title)
             self.vol = copy.deepcopy( vol2npy(vol) )
             self.vol = self.vol.T
@@ -2877,7 +2877,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
 
         if self.title.endswith('em'):
             from pytom.basic.files import read
-            from pytom_numpy import vol2npy
+            from pytom.lib.pytom_numpy import vol2npy
             vol = read(self.title)
             self.mask = copy.deepcopy(vol2npy(vol))
             self.mask = self.mask.T
@@ -3081,7 +3081,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
 
         if self.title.endswith('em'):
             from pytom.basic.files import read
-            from pytom_numpy import vol2npy
+            from pytom.lib.pytom_numpy import vol2npy
             vol = read(self.title)
             self.vol = copy.deepcopy(vol2npy(vol))
             self.vol = self.vol.T
@@ -3393,7 +3393,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 # read as em or mrc file
                 if fname.endswith('.em'):
                     from pytom.basic.files import read
-                    from pytom_numpy import vol2npy
+                    from pytom.lib.pytom_numpy import vol2npy
                     vol = read(fname)
                     self.mask = copy.deepcopy(vol2npy(vol))
                     self.mask = self.mask.T  # why transpose ?
@@ -3852,7 +3852,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         try:
             if self.title.endswith('em'):
                 from pytom.basic.files import read
-                from pytom_numpy import vol2npy
+                from pytom.lib.pytom_numpy import vol2npy
                 vol  = read(self.title)
                 self.vol = copy.deepcopy( vol2npy(vol) )
                 self.vol = self.vol.T
@@ -6592,7 +6592,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
         try:
             if self.title.endswith('em'):
                 from pytom.agnostic.io import read
-                from pytom_numpy import vol2npy
+                from pytom.lib.pytom_numpy import vol2npy
                 self.vol = read(self.title)
                 self.vol = self.vol.T
                 #self.vol = np.fft.fftshift(np.abs(np.fft.fftn(self.vol))**2)
