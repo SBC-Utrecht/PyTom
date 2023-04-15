@@ -372,45 +372,35 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     @return: filter volume
 
     """
-    from pytom.lib.pytom_volume import vol
-    from pytom.basic.files import read
-    from pytom.lib.pytom_numpy import npy2vol
-    from numpy import array, matrix, sin, pi, arange, float32, column_stack, argmin, clip, ones, ceil
-
-
     # Using Friedel Symmetry in Fourier space.
     sY = sY//2+1
 
     # Calculate the relative angles in radians.
-    diffAngles = (array(tilt_angles)-tiltAngle)*pi/180.
+    sampling = np.sin(np.abs((np.array(tilt_angles) - tiltAngle) * np.pi / 180.))
+    smallest_sampling = np.min(sampling[sampling > 0.001])
 
+    if sliceWidth / smallest_sampling > sX // 2:  # crowther crit can be to nyquist freq (i.e. sX // 2)
+        sliceWidth = smallest_sampling * (sX // 2)  # adjust sliceWidth if too large
 
-    # Closest angle to tiltAngle (but not tiltAngle) sets the maximal frequency of overlap (Crowther's frequency).
-    # Weights only need to be calculated up to this frequency.
-    sampling =  min(abs(diffAngles)[abs(diffAngles)>0.001])
-    # TODO this should be slicewidth instead of 1 (probably), unless frequencies are differently defined here
-    crowtherFreq = min(sX//2, int(ceil(1 / sin( sampling ))))
-    arrCrowther = matrix(abs(arange(-crowtherFreq, min(sX//2, crowtherFreq+1))))
+    crowtherFreq = min(sX // 2, int(np.ceil(sliceWidth / smallest_sampling)))
+    arrCrowther = np.abs(np.arange(-crowtherFreq, min(sX // 2, crowtherFreq + 1)))
 
-    # Calculate weights
-    wfuncCrowther = 1. / (clip(1 - array(matrix(abs(sin(diffAngles))).T * arrCrowther)**2, 0, 2)).sum(axis=0)
+    # as in the paper: 1 - frequency / overlap_frequency
+    # where frequency = arrCrowther, and 1 / overlap_frequency = sampling/sliceWidth
+    wfuncCrowther = 1. / np.clip(1 - ((sampling / sliceWidth)[:, np.newaxis] * arrCrowther) ** 2, 0, 2).sum(axis=0)
 
     # Create full with weightFunc
-    wfunc = ones((sX, sY, 1), dtype=float32)
-    wfunc[sX//2-crowtherFreq:sX//2+min(sX//2,crowtherFreq+1),:, 0] = column_stack(([(wfuncCrowther), ] * (sY))).astype(float32)
-
+    wfunc = np.ones((sX, sY, 1), dtype=float)
+    wfunc[sX//2-crowtherFreq:sX//2+min(sX//2,crowtherFreq+1),:, 0] = np.tile(wfuncCrowther, (sY, 1)).T
 
     weightFunc = vol(sX, sY, 1)
     weightFunc.setAll(0.0)
 
     # use npy2vol instead??
-
+    # weightFunc = npy2vol(array(wfunc, dtype='float32', order='F'), 3)
     for ix in range(0, sX):
         for iy in range(0, sY):
-            #print(ix,iy)
             weightFunc.setV(float(wfunc[ix][iy]), ix, iy, 0)
-    
-    #weightFunc = npy2vol(array(wfunc, dtype='float32', order='F'), 3)
         
     return weightFunc
 

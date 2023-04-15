@@ -1491,7 +1491,7 @@ class ProjectionList(PyTomClass):
 
     # ====== new general to_projection_stack functions ===================
     def to_projection_stack(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
-                            scale_factor_particle=1., angle_specimen=0., particle_diameter=280, pixel_size=2.62,
+                            scale_factor_particle=1., angle_specimen=0., particle_diameter=None, pixel_size=2.62,
                             tilt_range=None, show_progress_bar=False, verbose=False):
         """
         Create a projection stack from current Projections in the ProjectionList by weighting the projections.
@@ -1568,9 +1568,12 @@ class ProjectionList(PyTomClass):
         offsetStack = vol(1, 2, len(tilts_in_range))
         offsetStack.setAll(0.0)
 
-        # design filters
-        # sliceWidth = imdim  # this should be relative to the particle size as that determines the crowther freq
-        slice_width = (pixel_size * binning * imdim) / particle_diameter
+        if particle_diameter is None:  # if no particle diameter provided we set slice width relative to full image size
+            slice_width = 1
+        elif particle_diameter <= 0: # Particle diameter should be bigger than 0
+            raise ValueError("particle diameter must be greater than 0")
+        else:  # ideal slice width for exact filter is relative to particle diameter
+            slice_width = (pixel_size * binning * imdim) / particle_diameter
 
         # pre-determine analytical weighting function and lowpass for speedup
         if weighting == -1:
@@ -1690,7 +1693,7 @@ class ProjectionList(PyTomClass):
         stack_vol.copyVolume(npy2vol(copy, len(copy.shape)))
 
     def to_projection_stack_parallel(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
-                                     scale_factor_particle=1., angle_specimen=0., particle_diameter=280,
+                                     scale_factor_particle=1., angle_specimen=0., particle_diameter=None,
                                      pixel_size=2.62, tilt_range=None, num_procs=1, show_progress_bar=False,
                                      verbose=False):
         """
@@ -1745,10 +1748,12 @@ class ProjectionList(PyTomClass):
 
         imdim = max(imdimX, imdimY)
 
-        # design filters
-        # sliceWidth = imdim  # this should be relative to the particle size as that determines the crowther freq
-        # set slice width for exact filter
-        slice_width = (pixel_size * binning * imdim) / particle_diameter
+        if particle_diameter is None:  # if no particle diameter provided we set slice width relative to full image size
+            slice_width = 1
+        elif particle_diameter <= 0: # Particle diameter should be bigger than 0
+            raise ValueError("particle diameter must be greater than 0")
+        else:  # ideal slice width for exact filter is relative to particle diameter
+            slice_width = (pixel_size * binning * imdim) / particle_diameter
 
         # get a list of tilt angles that are in the range
         tilts_in_range = [t for t in self._tilt_angles if tilt_range[0] <= int(round(t)) <= tilt_range[1]]
@@ -1803,7 +1808,7 @@ class ProjectionList(PyTomClass):
         return [stack, phiStack, thetaStack, offsetStack]
 
     def to_projection_stack_gpu(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
-                                scale_factor_particle=1., angle_specimen=0., particle_diameter=270, pixel_size=2.62,
+                                scale_factor_particle=1., angle_specimen=0., particle_diameter=None, pixel_size=2.62,
                                 tilt_range=None, show_progress_bar=False, verbose=False):
         from pytom.agnostic.io import read
         from pytom.agnostic.tools import taper_edges, paste_in_center
@@ -1846,11 +1851,12 @@ class ProjectionList(PyTomClass):
         thetaStack = xp.zeros((len(tilts_in_range)), dtype=xp.float32)
         offsetStack = xp.zeros((len(tilts_in_range), 2), dtype=xp.int32)
 
-        # set slice width for exact filter, smaller objects will have a higher overlap frequency
-        # cut off is calculated as: cut == f_ij / Ny * (dim // 2)
-        # f_ij = 1 / (D * sin th_ij)   => the max overlap frequency of projection i and j
-        # ny = 1 / (2 * px)
-        slice_width = particle_diameter / (pixel_size * binning)
+        if particle_diameter is None: # if no particle diameter provided we set slice width relative to full image size
+            slice_width = 1
+        elif particle_diameter <= 0: # Particle diameter should be bigger than 0
+            raise ValueError("particle diameter must be greater than 0")
+        else:  # ideal slice width for exact filter is relative to particle diameter
+            slice_width = (pixel_size * binning * imdim) / particle_diameter
 
         # pre-determine analytical weighting function and lowpass for speedup
         if weighting == -1:

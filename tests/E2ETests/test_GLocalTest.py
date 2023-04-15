@@ -3,6 +3,12 @@ test GLocal Alignment
 """
 import unittest
 import os
+try:
+    import cupy
+    GPU=True
+except ImportError:
+    # No GPU available
+    GPU=False
 
 
 class pytom_GLocalTest(unittest.TestCase):
@@ -116,7 +122,8 @@ class pytom_GLocalTest(unittest.TestCase):
         print(cmd)
         os.system(cmd)
         self.cleanUp()
-
+    
+    @unittest.skipUnless(GPU, 'could not import cupy')
     def test_flcf_gpu(self):
         """
         test glocal cpu with fast local correlation function
@@ -136,6 +143,7 @@ class pytom_GLocalTest(unittest.TestCase):
         os.system(cmd)
         self.cleanUp()
 
+    @unittest.skipUnless(GPU, 'could not import cupy')
     def test_nxcf_gpu(self):
         """
         test glocal gpu with normalised cross correlation function (nxcf)

@@ -712,7 +712,7 @@ def create_project_filestructure(projectdir='.'):
         "Images": ''
     }
     if not os.path.exists(projectdir):
-        os.mkdir(projectdir)
+        os.makedirs(projectdir)
     create_folderstructure(folderstructure, projectdir)
 
 datatype0 = [('DefocusU', 'f4'),

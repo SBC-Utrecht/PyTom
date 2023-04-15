@@ -58,7 +58,7 @@ def tiltalignment_all_markers(start, end, tiltSeriesName, targets, fname):
 
             # generate alignment is not run with the write options, which means the actual images wont be aligned and
             # written, only the alignmentresults will be written to the projectionsTargets folder
-            cmd = '''cd {}; pytom {}/reconstruction/generateAlignedTiltImages.py \
+            cmd = '''cd {}; generateAlignedTiltImages.py \
                                 --tiltSeriesName {}  \
                                 --firstIndex {} \
                                 --lastIndex {} \

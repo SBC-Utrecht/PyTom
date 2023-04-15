@@ -805,7 +805,7 @@ def ramp_filter(sizeX, sizeY, crowtherFreq=None, N=None):
 
     return rampfilter
 
-def exact_filter(tilt_angles, tiltAngle, sX, sY, sliceWidth=1, arr=[]):
+def exact_filter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     """
     exactFilter: Generates the exact weighting function required for weighted backprojection - y-axis is tilt axis
     Reference : Optik, Exact filters for general geometry three dimensional reconstuction, vol.73,146,1986.
@@ -817,47 +817,25 @@ def exact_filter(tilt_angles, tiltAngle, sX, sY, sliceWidth=1, arr=[]):
     @return: filter volume
 
     """
-    import numpy as xp
-
     # Calculate the relative angles in radians.
-    diffAngles = (xp.array(tilt_angles) - tiltAngle) * xp.pi / 180.
+    sampling = xp.sin(xp.abs((xp.array(tilt_angles) - tiltAngle) * xp.pi / 180.))
+    smallest_sampling = xp.min(sampling[sampling > 0.001])
 
-    # Closest angle to tiltAngle (but not tiltAngle) sets the maximal frequency of overlap (Crowther's frequency).
-    # Weights only need to be calculated up to this frequency.
-    sampling = xp.abs(diffAngles)[xp.abs(diffAngles) > 0.001]
-    # minimum = xp.min(sampling)
-    # sampling = xp.min(xp.abs(diffAngles)[xp.abs(diffAngles) > 0.001])
-    if ((sX / sliceWidth) / xp.sin(sampling.min())) > (sX // 2):
-        sliceWidth = 2 / xp.sin(sampling.min())
+    if sliceWidth / smallest_sampling > sX // 2:  # crowther crit can be to nyquist freq (i.e. sX // 2)
+        sliceWidth = smallest_sampling * (sX // 2)  # adjust sliceWidth if too large
 
-    # slice width should be object diameter
-    overlap_freqs = np.minimum(sX // 2, xp.int32(xp.ceil((sX / sliceWidth) / xp.sin(sampling))))
-    crowtherFreq = max(overlap_freqs)
-    # crowtherFreq = min(sX // 2, xp.int32(xp.ceil(sliceWidth / xp.sin(minimum))))
-    # arrCrowther = xp.matrix(xp.abs(xp.arange(-crowtherFreq, min(sX // 2, crowtherFreq + 1))))
+    crowtherFreq = min(sX // 2, int(xp.ceil(sliceWidth / smallest_sampling)))
     arrCrowther = xp.abs(xp.arange(-crowtherFreq, min(sX // 2, crowtherFreq + 1)))
 
-    interaction = xp.ones(arrCrowther.shape, dtype=xp.float32)
-    interaction_ij = xp.zeros(arrCrowther.shape, dtype=xp.float32)
+    # as in the paper: 1 - frequency / overlap_frequency
+    # where frequency = arrCrowther, and 1 / overlap_frequency = sampling/sliceWidth
+    wfuncCrowther = 1. / xp.clip(1 - ((sampling / sliceWidth)[:, xp.newaxis] * arrCrowther) ** 2, 0, 2).sum(axis=0)
 
-    for i, f in enumerate(overlap_freqs):
-        # set to zero
-        interaction_ij.fill(.0)
-
-        # calculate interaction of projection i and j
-        interaction_ij[arrCrowther <= f] = xp.sinc(arrCrowther / f)[arrCrowther <= f]
-        # interaction_ij[arrCrowther <= f] = (1 - (arrCrowther[arrCrowther <= f] / f))
-        interaction += interaction_ij
-
-    # Calculate weights
-    wfuncCrowther = 1 / interaction
-    # wfuncCrowther = 1. / (xp.clip(1 - (xp.matrix(xp.abs(xp.sin(diffAngles))).T * arrCrowther) ** 2, 0, 2)).sum(axis=0)
-
-    # Create full with weightFunc
+    # Create full width weightFunc
     wfunc = xp.ones((sX, sY), dtype=xp.float32)
 
     # row_stack is not implemented in cupy
-    weightingFunc = xp.column_stack([(wfuncCrowther), ] * (sY))
+    weightingFunc = xp.tile(wfuncCrowther, (sY, 1)).T
 
     wfunc[sX // 2 - crowtherFreq:sX // 2 + min(sX // 2, crowtherFreq + 1), :] = weightingFunc
 

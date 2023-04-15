@@ -117,10 +117,13 @@ def paste_in_center(volume, volume2, gpu=False):
     if 0:
         pass#raise Exception('pasteCenter not defined for gpu yet.')
     else:
-        l,l2 = len(volume.shape), len(volume.shape)
-        assert l == l2
-        for i in range(l):
-            assert volume.shape[i] <= volume2.shape[i]
+        l,l2 = len(volume.shape), len(volume2.shape)
+        if l != l2:
+            raise ValueError(f"Can't overlap a volume with dimension {l} with a volume of dimension {l2}")
+
+        if not (all(i <= j for i,j in zip(volume.shape, volume2.shape)) or
+                all(i >= j for i,j in zip(volume.shape, volume2.shape))):
+            raise ValueError(f"Do not know how to overlap shape {volume.shape} with shape {volume2.shape}")
 
         if len(volume.shape) == 3:
             sx,sy,sz = volume.shape
@@ -138,7 +141,12 @@ def paste_in_center(volume, volume2, gpu=False):
         if len(volume.shape) == 2:
             sx,sy = volume.shape
             SX, SY = volume2.shape
-            volume2[SX//2-sx//2:SX//2+sx//2+sx%2,SY//2-sy//2:SY//2+sy//2+sy%2] = volume
+            if SX <= sx:
+                volume2[:,:,:] = volume[sx//2-SX//2:sx//2+SX//2+SX%2,
+                                        sy//2-SY//2:sy//2+SY//2+SY%2]
+            else:
+                volume2[SX//2-sx//2:SX//2+sx//2+sx%2,
+                        SY//2-sy//2:SY//2+sy//2+sy%2] = volume
             return volume2
 
 

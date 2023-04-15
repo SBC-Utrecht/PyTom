@@ -3,6 +3,12 @@ test auto-focused classification
 """
 import unittest
 import os
+try:
+    import cupy
+    GPU=True
+except ImportError:
+    # No GPU
+    GPU=False
 
 class pytom_MyFunctionTest(unittest.TestCase):
 
@@ -105,8 +111,8 @@ class pytom_MyFunctionTest(unittest.TestCase):
         print(cmd)
         os.system(cmd)
         self.cleanUp()
-
-    def CCC_GPU(self):
+    @unittest.skipUnless(GPU, 'No GPU available')
+    def test_CCC_GPU(self):
         """
         test gpu implementation
         """

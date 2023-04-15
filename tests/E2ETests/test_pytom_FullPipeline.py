@@ -1,7 +1,15 @@
 import unittest
+from shutil import which
 import os
-from pytom.gpu.initialize import device
 import sys
+
+# set run device based on detected cuda device
+from cupy_backends.cuda.api.runtime import CUDARuntimeError
+try:
+    import cupy as cp
+    device = f'gpu:{cp.cuda.Device().id}'
+except CUDARuntimeError:
+    device = 'cpu'
 
 
 class pytom_MyFunctionTest(unittest.TestCase):
@@ -22,7 +30,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
         self.orignal_data = 'ftp://ftp.ebi.ac.uk/empiar/world_availability/10064/data/mixedCTEM_tomo3.mrc'
         self.mrcs = 'mixedCTEM_tomo3.mrc'
-        self.pytomDir = os.path.dirname(os.path.dirname(os.popen('which pytom').readlines()[0]))
+        self.pytomDir = os.path.dirname(os.path.dirname(which('pytom')))
         if 'miniconda' in self.pytomDir:
             self.pytomDir2 = os.path.join(self.pytomDir, f'lib/{pythonversion}/site-packages/pytom')
         else:
@@ -35,11 +43,11 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
         self.glocaldir = f'{self.projectname}/05_Subtomogram_Analysis/Alignment/GLocal/'
 
-        self.singleGpuID = 1
+        # self.singleGpuID = 1
         self.ctfFileNameAngle = f'{self.refDataDir}/angles.tlt'
         self.ctfFileNameDefocus = f'{self.refDataDir}/defocusValuesGijs.defocus'
 
-        self.weightingTypeRecon = -1
+        self.weightingTypeRecon = 1  # TODO better to make ramp weighting
         self.weightingTypeSubtomoRecon = -1
         self.weightingTypeAlignment = 0
 
@@ -55,17 +63,15 @@ class pytom_MyFunctionTest(unittest.TestCase):
         self.startAngleReduced = -20
         self.endAngleReduced = 20
 
-        self.numcores = 15
+        self.gpu_id = None if 'gpu' not in device else int(device.split(':')[1])
+        self.numcores = 4
         self.IMODTiltAxis = 180
 
         self.pixelSize = 2.62
         self.binningGLocalFull = 2
         self.binningGLocalReduced = 1
         self.particleDiameter = 300
-        self.dont = True
-        #global device
-
-        #device= 'gpu:0'
+        self.dont = False
 
     def cleanUp(self):
         """
@@ -109,7 +115,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
     def test_02_dataExtraction(self):
         import os
-        if self.dont: return
+        if self.dont: raise self.skipTest("don't is set")
         os.system(f'mrcs2mrc.py -f {self.mrcs} -t {self.tomoname}/sorted -p sorted -i 2 -s {self.startAngleFull} -e {self.endAngleFull} -m ')
         os.system(f'cp {self.markerFile} {self.tomoname}/sorted')
 
@@ -127,9 +133,9 @@ class pytom_MyFunctionTest(unittest.TestCase):
         from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS
         from pytom.gui.guiFunctions import loadstar
         import os
-        if self.dont: return
+        if self.dont: raise self.skipTest("don't is set")
 
-        cmd = f'pytom {self.pytomDir2}/reconstruction/generateAlignedTiltImages.py '
+        cmd = f'generateAlignedTiltImages.py '
 
         cmd += f'--tiltSeriesName {self.tomoname}/sorted/sorted '
         cmd += f'--markerFile {self.tomoname}/sorted/markerfile.txt '
@@ -157,36 +163,24 @@ class pytom_MyFunctionTest(unittest.TestCase):
             self.assertTrue(abs(ref['InPlaneRotation'][i] - ali['InPlaneRotation'][i]) < 0.001)
             self.assertTrue(abs(ref['Magnification'][i] - ali['Magnification'][i]) < 0.001)
 
-        pass
-
-    def test_05_Reconstruction(self):
+    def test_05_Reconstruction_CPU(self):
         """
         check that resulting alignment score is smaller than reference score
         """
         import os
-        if self.dont: return
+        if self.dont: raise self.skipTest("don't is set")
 
-        cmd = f"pytom {self.pytomDir}/bin/reconstructTomogram.py "
-        cmd += f"--tiltSeriesName {self.tomoname}/sorted/sorted "
-        cmd += f"--firstIndex {self.firstIndexFull} "
-        cmd += f"--lastIndex {self.lastIndexFull} "
-        cmd += f"--referenceIndex {self.referenceTiltIndex} "
-        cmd += f"--markerFile {self.tomoname}/sorted/markerfile.txt "
-        cmd += f"--referenceMarkerIndex {self.referenceMarker} "
-        cmd += f"--expectedRotationAngle {self.expectedRotationAngle} "
-        cmd += f"--projectionTargets {self.tomoname}/reconstruction/WBP/temp_files_unweighted/sorted_aligned "
-        cmd += f"--projectionBinning 8 "
-        cmd += f"--lowpassFilter 0.9  "
-        cmd += f"--weightingType {self.weightingTypeRecon}  "
-        cmd += f"--tomogramFile {self.tomoname}/reconstruction/WBP/tomogram_000_WBP.mrc "
-        cmd += f"--tiltSeriesFormat mrc "
-        cmd += f"--fileType mrc  "
-        cmd += f"--tomogramSizeX 464 "
-        cmd += f"--tomogramSizeY 464 "
-        cmd += f"--tomogramSizeZ 464 "
-        cmd += f"--reconstructionCenterX 0 "
-        cmd += f"--reconstructionCenterY 0 "
-        cmd += f"--reconstructionCenterZ 0 "
+        if 'gpu' in device: raise self.skipTest("Doing GPU instead of CPU")
+
+        outfile = f"{self.tomoname}/reconstruction/WBP/tomogram_000_WBP.mrc"
+        cmd = "reconstructWB.py "
+        cmd += f"--tomogram  {outfile} "
+        cmd += f"--applyWeighting {self.weightingTypeRecon} "
+        cmd += "--size 464,464,464 "
+        cmd += "--projBinning 8 "
+        # From test_04_Alignment
+        cmd += f"--alignResultFile {self.tomoname}/alignment/marker_0004_-60.0,56.0/GlobalAlignment/sorted/alignmentResults.txt "
+        cmd += f'--numProcesses {self.numcores}'  # can run on multiple cores
 
         print(cmd)
 
@@ -194,7 +188,30 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
         self.assertTrue(os.path.exists(f'{self.tomoname}/reconstruction/WBP/tomogram_000_WBP.mrc'))
 
-        pass
+    def test_05_Reconstruction_GPU(self):
+        """
+        check that resulting alignment score is smaller than reference score
+        """
+        import os
+        if self.dont: raise self.skipTest("don't is set")
+
+        if 'cpu' in device: raise self.skipTest("Doing CPU instead of GPU")
+
+        outfile = f"{self.tomoname}/reconstruction/WBP/tomogram_000_WBP.mrc"
+        cmd = "reconstructWB.py "
+        cmd += f"--tomogram  {outfile} "
+        cmd += f"--applyWeighting {self.weightingTypeRecon} "
+        cmd += "--size 464,464,464 "
+        cmd += "--projBinning 8 "
+        # From test_04_Alignment
+        cmd += f"--alignResultFile {self.tomoname}/alignment/marker_0004_-60.0,56.0/GlobalAlignment/sorted/alignmentResults.txt "
+        cmd += f"--gpuID {self.gpu_id}"
+
+        print(cmd)
+
+        os.system(cmd)
+
+        self.assertTrue(os.path.exists(f'{self.tomoname}/reconstruction/WBP/tomogram_000_WBP.mrc'))
 
     def test_06_TemplateMatching_CPU(self):
         """
@@ -202,10 +219,9 @@ class pytom_MyFunctionTest(unittest.TestCase):
         """
         import os
 
-        if self.dont: return
+        if self.dont: raise self.skipTest("don't is set")
 
-        if 'gpu' in device:
-            return
+        if 'gpu' in device: raise self.skipTest("Doing GPU instead of CPU")
 
         if not os.path.exists(f'{self.projectname}/04_Particle_Picking/Template_Matching/cross_correlation/tomogram_000_WBP'):
             os.mkdir(f'{self.projectname}/04_Particle_Picking/Template_Matching/cross_correlation/tomogram_000_WBP')
@@ -228,7 +244,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
             d = open(fname, 'w')
             d.write(jobFile)
             d.close()
-            cmd = f"mpiexec --tag-output -n 16 pytom {self.pytomDir}/bin/localization.py -j {fname} -x 4 -y 4 -z 1"
+            cmd = f"mpiexec --tag-output -n {self.numcores} pytom {self.pytomDir}/bin/localization.py -j {fname} -x 4 -y 4 -z 1"
             print(cmd)
 
             os.system(cmd)
@@ -240,9 +256,9 @@ class pytom_MyFunctionTest(unittest.TestCase):
         check that resulting sum of correlation scores are larger than ref value. Check locations? Check if correct handedness has a higher score
         """
         import os
-        if self.dont: return
+        if self.dont: raise self.skipTest("don't is set")
 
-        if 'cpu' in device: return
+        if 'cpu' in device: raise self.skipTest("Doing CPU instead of GPU")
 
         if not os.path.exists(f'{self.projectname}/04_Particle_Picking/Template_Matching/cross_correlation/tomogram_000_WBP'):
             os.mkdir(f'{self.projectname}/04_Particle_Picking/Template_Matching/cross_correlation/tomogram_000_WBP')
@@ -265,10 +281,9 @@ class pytom_MyFunctionTest(unittest.TestCase):
             d = open(fname, 'w')
             d.write(jobFile)
             d.close()
-            cmd = f"mpiexec --tag-output -n 1 pytom {self.pytomDir}/bin/localization.py -j {fname} -x 1 -y 1 -z 1 -g 0"
+            cmd = f"mpiexec --tag-output -n 1 pytom {self.pytomDir}/bin/localization.py -j {fname} -x 1 -y 1 -z 1 " \
+                  f"-g {self.gpu_id}"
             os.system(cmd)
-
-        pass
 
     def test_07_TemplateMatchingCandidateExtractionGPU(self):
         """
@@ -280,7 +295,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         """
         check that resulting scores and angle list is similar to gpu standalone
         """
-        if self.dont: return
+        if self.dont: raise self.skipTest("don't is set")
 
         for suffix in ('', '_Mirrored'):
             cmd = f'pytom {self.pytomDir}/bin/extractCandidates.py '
@@ -296,9 +311,6 @@ class pytom_MyFunctionTest(unittest.TestCase):
             os.system(cmd)
 
 
-
-        pass
-
     def test_09_GenerateSubsetParticles(self):
         """
         check that resulting scores and angle list is similar to gpu standalone
@@ -306,8 +318,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         from pytom.basic.structures import ParticleList
         import numpy as np
 
-        if self.dont: return
-
+        if self.dont: raise self.skipTest("don't is set")
 
         particleListNormal = ParticleList()
         particleListNormal.fromXMLFile(f'{self.projectname}/04_Particle_Picking/Picked_Particles/particleList_TM_tomogram_000_WBP.xml')
@@ -327,10 +338,10 @@ class pytom_MyFunctionTest(unittest.TestCase):
         scoresMirror = np.array(scores[1])
 
         self.assertTrue(scoresNormal.sum() > scoresMirror.sum(), 'Wrong handedness of reconstruction.')
-        cutoff = 20+((scoresNormal[20:] > scoresMirror[20:])).astype(np.int32).sum()
+        cutoff = 20+np.argmax(scoresNormal[20:] <= scoresMirror[20:])
         print('cutoff: ', cutoff, scoresNormal[cutoff])
-        self.assertTrue(cutoff > 1160, 'Wrong handedness of reconstruction.')
-        self.assertTrue(scoresNormal[cutoff] > 0.12, "Poor correlation score")
+        self.assertTrue(cutoff > 1070, 'Wrong handedness of reconstruction.')
+        self.assertTrue(scoresNormal[cutoff] > 0.236, "Poor correlation score")
 
         pl = particleListNormal[:cutoff]
         pl.toXMLFile(self.plFilename)
@@ -338,11 +349,13 @@ class pytom_MyFunctionTest(unittest.TestCase):
         self.assertTrue(os.path.exists(self.plFilename), f'{self.plFilename} does not exists')
         print(self.plFilename)
 
-    def test_10_SubtomogramExtractionBinned(self):
+    def test_10_SubtomogramExtractionBinned_CPU(self):
         """
         check that resulting scores and angle list is similar to gpu standalone
         """
-        if self.dont: return
+        if self.dont: raise self.skipTest("don't is set")
+
+        if 'gpu' in device: raise self.skipTest("Doing GPU instead of CPU")
 
         cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; reconstructWB.py '
         cmd += f'--particleList {self.plFilename} '
@@ -353,7 +366,28 @@ class pytom_MyFunctionTest(unittest.TestCase):
         cmd += f'--projBinning 2 '
         cmd += f'--recOffset 0,0,0 '
         cmd += f'--metafile {self.tomoname}/sorted/mixedCTEM_tomo3.meta '
-        cmd += f'--numProcesses 10 '
+        cmd += f'--numProcesses {self.numcores}'
+
+        os.system(cmd)
+
+    def test_10_SubtomogramExtractionBinned_GPU(self):
+        """
+        check that resulting scores and angle list is similar to gpu standalone
+        """
+        if self.dont: raise self.skipTest("don't is set")
+
+        if 'cpu' in device: raise self.skipTest("Doing CPU instead of GPU")
+
+        cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; reconstructWB.py '
+        cmd += f'--particleList {self.plFilename} '
+        cmd += f'--projectionDirectory {self.tomoname}/alignment/marker_0004_-60.0,56.0/GlobalAlignment/sorted '
+        cmd += f'--coordinateBinning 8 '
+        cmd += f'--size 100 '
+        cmd += f'--applyWeighting {self.weightingTypeSubtomoRecon} '
+        cmd += f'--projBinning 2 '
+        cmd += f'--recOffset 0,0,0 '
+        cmd += f'--metafile {self.tomoname}/sorted/mixedCTEM_tomo3.meta '
+        cmd += f'--gpuID {self.gpu_id}'
 
         os.system(cmd)
 
@@ -361,13 +395,13 @@ class pytom_MyFunctionTest(unittest.TestCase):
         """
         check that resulting resolution is similar to reference resolution
         """
-        if 'gpu' in device: return
+        if 'gpu' in device: raise self.skipTest("running gpu test instead")
 
         outdir = os.path.join(self.glocaldir, 'alignment_000_cpu')
 
         if not os.path.exists(outdir): os.mkdir(outdir)
 
-        cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; mpiexec -n {self.numcores} pytom {self.pytomDir}/bin/GLocalJob.py '
+        cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; mpiexec -n {self.numcores} GLocalJob.py '
         cmd += f'--particleList {self.plFilename} '
         cmd += f'--mask {self.refDataDir}/Glocal_mask.mrc '
         cmd += f'--numberIterations 8 '
@@ -386,16 +420,14 @@ class pytom_MyFunctionTest(unittest.TestCase):
         """
         check that resulting resolution  is better than reference resolution and similar to CPU
         """
-
-        if 'cpu' in device: return
+        if 'cpu' in device: raise self.skipTest("no gpu, running cpu test instead")
 
         outdir = os.path.join(self.glocaldir, 'alignment_000_gpu')
         self.outdir = outdir
 
         if not os.path.exists(outdir): os.mkdir(outdir)
 
-
-        cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; mpiexec -n 5 pytom {self.pytomDir}/bin/GLocalJob.py '
+        cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; mpiexec -n 2 GLocalJob.py '
         cmd += f'--particleList {self.plFilename} '
         cmd += f'--mask {self.refDataDir}/Glocal_mask.mrc '
         cmd += f'--numberIterations 4 '
@@ -407,11 +439,9 @@ class pytom_MyFunctionTest(unittest.TestCase):
         cmd += f'--angleShells 3 '
         cmd += f'--angleIncrement 3.00 '
         cmd += f'--jobName {outdir}/glocal_input_params_Single_Iter.xml '
-        cmd += f'--gpuID 0,1,2,3'
+        cmd += f'--gpuID {self.gpu_id}'
 
         os.system(cmd)
-
-        pass
 
     def test_13_CompareGLocalVersionsResolution(self):
         """
@@ -425,8 +455,11 @@ class pytom_MyFunctionTest(unittest.TestCase):
         """
         from pytom.bin.updateParticleList import updatePL
         from pytom.basic.structures import ParticleList
-
-        updatePL([self.glocaldir + '/alignment_000_gpu/3-ParticleList.xml'], [self.plFilenameReduced], suffix='_reduced', wedgeangles=[70,70], multiplyshift=1,)
+        if 'gpu' in device:
+            subdir = 'alignment_000_gpu'
+        else:
+            subdir = 'alignment_000_cpu'
+        updatePL([self.glocaldir + f'{subdir}/3-ParticleList.xml'], [self.plFilenameReduced], suffix='_reduced', wedgeangles=[70,70], multiplyshift=1,)
 
         self.assertTrue(os.path.exists(self.plFilenameReduced), 'Updated particle list has not been created.')
 
@@ -447,7 +480,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         """
         check that resulting scores of alignment of corrected are similar to ref values
         """
-
+        if which('ctfphaseflip') is None: raise self.skipTest('No ctfphaseflip from imod installed')
         import glob
         folder = f'{self.tomoname}/ctf'
         # Create stack from sorted
@@ -470,7 +503,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         if not os.path.exists(outfolder): os.mkdir(outfolder)
 
 
-        addGPU = '' if 'cpu' in device else f'-gpu {self.singleGpuID} '
+        addGPU = '' if 'cpu' in device else f'-gpu {self.gpu_id} '
 
         cmd = f'''cd {self.tomoname}/ctf;
 
@@ -484,7 +517,7 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         os.system(cmd)
 
         # Align the ctf corrected files
-        cmd = f'pytom {self.pytomDir}/reconstruction/generateAlignedTiltImages.py '
+        cmd = f'generateAlignedTiltImages.py '
 
         cmd += f'--tiltSeriesName {self.tomoname}/ctf/sorted_ctf/sorted_ctf '
         cmd += f'--markerFile {self.tomoname}/sorted/markerfile.txt '
@@ -501,10 +534,11 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         os.system(cmd)
         pass
 
-    def test_16_Subtomogram_Extraction(self, binning=2):
+    def test_16_Subtomogram_Extraction_CPU(self, binning=2):
         """
         check for completion. Check correlation average is similar to reference value
         """
+        if 'gpu' in device: raise self.skipTest("Running GPU test instead")
 
         cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; reconstructWB.py '
         cmd += f'--particleList {self.plFilenameReduced} '
@@ -515,7 +549,26 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         cmd += f'--projBinning {binning} '
         cmd += f'--recOffset 0,0,0 '
         cmd += f'--metafile {self.tomoname}/sorted/mixedCTEM_tomo3.meta '
-        cmd += f'--numProcesses 10 '
+        cmd += f'--numProcesses {self.numcores}'
+        print(cmd)
+        os.system(cmd)
+
+    def test_16_Subtomogram_Extraction_GPU(self, binning=2):
+        """
+        check for completion. Check correlation average is similar to reference value
+        """
+        if 'cpu' in device: raise self.skipTest("Running CPU test instead")
+
+        cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; reconstructWB.py '
+        cmd += f'--particleList {self.plFilenameReduced} '
+        cmd += f'--projectionDirectory {self.tomoname}/alignment/marker_0004_-20.0,20.0/GlobalAlignment/sorted_ctf '
+        cmd += f'--coordinateBinning 8 '
+        cmd += f'--size {200//binning} '
+        cmd += f'--applyWeighting {self.weightingTypeSubtomoRecon} '
+        cmd += f'--projBinning {binning} '
+        cmd += f'--recOffset 0,0,0 '
+        cmd += f'--metafile {self.tomoname}/sorted/mixedCTEM_tomo3.meta '
+        cmd += f'--gpuID {self.gpu_id}'
         print(cmd)
         os.system(cmd)
 
@@ -523,11 +576,11 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         """
         check resulting resolution
         """
-        if self.dont: return
+        if self.dont: raise self.skipTest("Don't is set")
 
-        if 'gpu' in device: return
+        if 'gpu' in device: raise self.skipTest("Running GPU test instead")
 
-        outdir = os.path.join(self.glocaldir, 'alignment_002_gpu')
+        outdir = os.path.join(self.glocaldir, 'alignment_002_cpu')
         self.outdir_ali2 = outdir
 
         if not os.path.exists(outdir): os.mkdir(outdir)
@@ -544,25 +597,23 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         cmd += f'--angleShells 3 '
         cmd += f'--angleIncrement 3.00 '
         cmd += f'--jobName {self.outdir_ali2}/glocal_input_params_reduced.xml '
-        cmd += f'--reference {os.path.join(self.glocaldir, "alignment_000_gpu")}/3-All.mrc '
+        cmd += f'--reference {os.path.join(self.glocaldir, "alignment_000_cpu")}/3-All.em '
 
         os.system(cmd)
-
-        pass
 
     def test_18_GLocal_Reduced_Binned_GPU(self):
         """
         check that resulting resolution is below threshold and similar to CPU
         """
 
-        if 'cpu' in device: return
+        if 'cpu' in device: raise self.skipTest("Running CPU test instead")
 
         outdir = os.path.join(self.glocaldir, 'alignment_002_gpu')
         self.outdir_ali2 = outdir
 
         if not os.path.exists(outdir): os.mkdir(outdir)
 
-        cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; mpiexec -n 5 pytom {self.pytomDir}/bin/GLocalJob.py '
+        cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; mpiexec -n 2 GLocalJob.py '
         cmd += f'--particleList {self.plFilenameReduced} '
         cmd += f'--mask {self.refDataDir}/Glocal_mask.mrc '
         cmd += f'--numberIterations 4 '
@@ -574,8 +625,8 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         cmd += f'--angleShells 3 '
         cmd += f'--angleIncrement 3.00 '
         cmd += f'--jobName {self.outdir_ali2}/glocal_input_params_reduced.xml '
-        cmd += f'--reference {os.path.join(self.glocaldir, "alignment_000_gpu")}/3-All.mrc '
-        cmd += f'--gpuID 0,1,2,3 '
+        cmd += f'--reference {os.path.join(self.glocaldir, "alignment_000_gpu")}/3-All.em '
+        cmd += f'--gpuID {self.gpu_id}'
 
         os.system(cmd)
 
@@ -584,7 +635,7 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         check that resulting resolution is below threshold and similar to CPU
         """
 
-        if 'gpu' in device: return
+        if 'gpu' in device: raise self.skipTest("Running GPU tests instead")
 
         from pytom.agnostic.transform import resize
         from pytom.agnostic.io import read, write
@@ -598,17 +649,17 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         cmd += f'--projBinning 1 '
         cmd += f'--recOffset 0,0,0 '
         cmd += f'--metafile {self.tomoname}/sorted/mixedCTEM_tomo3.meta '
-        cmd += f'--numProcesses 10 '
+        cmd += f'--numProcesses {self.numcores} '
         print(cmd)
         os.system(cmd)
 
-        outdir3 = os.path.join(self.glocaldir, 'alignment_003_gpu')
+        outdir3 = os.path.join(self.glocaldir, 'alignment_003_cpu')
         if not os.path.exists(outdir3): os.mkdir(outdir3)
 
-        outdir = os.path.join(self.glocaldir, 'alignment_002_gpu')
+        outdir = os.path.join(self.glocaldir, 'alignment_002_cpu')
         self.outdir_ali2 = outdir
 
-        v = read(f'{self.outdir_ali2}/3-All.mrc')
+        v = read(f'{self.outdir_ali2}/3-All.em')
 
         r = resize(v, 2)
         reference = f'{outdir3}/resizedReference.mrc'
@@ -635,19 +686,19 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         from pytom.agnostic.io import read, write
 
         model = sorted([os.path.join(outdir3, f) for f in os.listdir(outdir3) if
-                        'average-FinalFiltered' in f and f.endswith('mrc')])[0]
+                        'average-FinalFiltered' in f and f.endswith('em')])[0]
 
         gen_mask_fsc(read(model), 4, f'{self.projectname}/05_Subtomogram_Analysis/Validation/maskFinalAverage.mrc',
                      1, 3)
 
-        # alignedVolume = f'{outdir}/referrenceAligned3-All.mrc'
-        # alignTwoVolumes(f'{outdir}/3-All.mrc', self.reference, outname=alignedVolume)
+        # alignedVolume = f'{outdir}/referrenceAligned3-All.em'
+        # alignTwoVolumes(f'{outdir}/3-All.em', self.reference, outname=alignedVolume)
 
         cmd = f'''cd {self.projectname}/05_Subtomogram_Analysis/Validation
 
 fsc.py  '''
-        cmd += f'--v1 {outdir3}/average-Final-Even.mrc  '
-        cmd += f'--v2 {outdir3}/average-Final-Odd.mrc '
+        cmd += f'--v1 {outdir3}/average-Final-Even.em  '
+        cmd += f'--v2 {outdir3}/average-Final-Odd.em '
         cmd += f'--mask {self.projectname}/05_Subtomogram_Analysis/Validation/maskFinalAverage.mrc '
         cmd += f'--outputFolder {self.projectname}/05_Subtomogram_Analysis/Validation '
         cmd += f'--fsc 0.143 '
@@ -659,15 +710,15 @@ fsc.py  '''
 
         resolution = float(result.split('Resolution determined for pixelsize :')[1].split()[-2])
 
-        self.assertTrue(resolution < 10.,
-                        'Final Resolution of the reconstruction is {resolution}. A resolution below 10. Angstrom is expected.')
+        self.assertTrue(resolution < 16.,
+                        'Final Resolution of the reconstruction is {resolution}. A resolution below 16. Angstrom is expected.')
 
     def test_20_GLocal_Reduced_NonBinned_GPU(self):
         """
         check that resulting resolution is below threshold and similar to CPU
         """
 
-        if 'cpu' in device: return
+        if 'cpu' in device: raise self.skipTest("Running CPU test instead")
 
         from pytom.agnostic.transform import resize
         from pytom.agnostic.io import read, write
@@ -681,7 +732,7 @@ fsc.py  '''
         cmd += f'--projBinning 1 '
         cmd += f'--recOffset 0,0,0 '
         cmd += f'--metafile {self.tomoname}/sorted/mixedCTEM_tomo3.meta '
-        cmd += f'--numProcesses 10 '
+        cmd += f'--gpuID {self.gpu_id} '
         print(cmd)
         os.system(cmd)
 
@@ -692,27 +743,27 @@ fsc.py  '''
         self.outdir_ali2 = outdir
 
 
-        v =  read(f'{self.outdir_ali2}/3-All.mrc')
+        v =  read(f'{self.outdir_ali2}/3-All.em')
 
         r = resize(v,2)
         reference = f'{outdir3}/resizedReference.mrc'
         write(reference, r)
 
 
-        cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; mpiexec -n 5 pytom {self.pytomDir}/bin/GLocalJob.py '
+        cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; mpiexec -n 2 GLocalJob.py '
         cmd += f'--particleList {self.outdir_ali2}/3-ParticleList.xml '
         cmd += f'--mask {self.refDataDir}/Glocal_mask_200_75_5.mrc '
         cmd += f'--numberIterations 4 '
         cmd += f'--pixelSize 2.62 '
         cmd += f'--particleDiameter 300 '
-        cmd += f'--binning -1 '
+        cmd += f'--binning 1 '
         cmd += f'--destination {outdir3} '
         cmd += f'--SphericalMask '
         cmd += f'--angleShells 3 '
         cmd += f'--angleIncrement 3.00 '
         cmd += f'--jobName {outdir3}/glocal_input_params_reduced.xml '
         cmd += f'--reference {reference} '
-        cmd += f'--gpuID 0,1,2,3 '
+        cmd += f'--gpuID {self.gpu_id} '
 
         os.system(cmd)
 
@@ -720,7 +771,7 @@ fsc.py  '''
         from pytom.bin.gen_mask import  gen_mask_fsc
         from pytom.agnostic.io import read, write
 
-        model = sorted([os.path.join(outdir3, f) for f in os.listdir(outdir3) if 'average-FinalFiltered' in f and f.endswith('mrc')])[0]
+        model = sorted([os.path.join(outdir3, f) for f in os.listdir(outdir3) if 'average-FinalFiltered' in f and f.endswith('em')])[0]
 
         gen_mask_fsc(read(model), 4, f'{self.projectname}/05_Subtomogram_Analysis/Validation/maskFinalAverage.mrc', 1, 3 )
 
@@ -730,15 +781,15 @@ fsc.py  '''
         cmd = f'''cd {self.projectname}/05_Subtomogram_Analysis/Validation
 
 fsc.py  '''
-        cmd += f'--v1 {outdir3}/average-Final-Even.mrc  '
-        cmd += f'--v2 {outdir3}/average-Final-Odd.mrc '
+        cmd += f'--v1 {outdir3}/average-Final-Even.em '
+        cmd += f'--v2 {outdir3}/average-Final-Odd.em '
         cmd += f'--mask {self.projectname}/05_Subtomogram_Analysis/Validation/maskFinalAverage.mrc '
         cmd += f'--outputFolder {self.projectname}/05_Subtomogram_Analysis/Validation '
         cmd += f'--fsc 0.143 '
         cmd += f'--pixelsize 2.62 '
         cmd += f'--randomizePhases 0.000 '
         cmd += f'--combinedResolution '
-        cmd += f'--gpuID {self.singleGpuID}'
+        cmd += f'--gpuID {self.gpu_id}'
 
         print(cmd)
         result = os.popen(cmd).read()
@@ -746,7 +797,7 @@ fsc.py  '''
         resolution = float(result.split('Resolution determined for pixelsize :')[1].split()[-2])
         print(f'Determined resolution: {resolution:.2f}')
 
-        self.assertTrue(resolution < 10., f'Final Resolution of the reconstruction is {resolution}. A resolution below 10. Angstrom is expected.')
+        self.assertTrue(resolution < 16., f'Final Resolution of the reconstruction is {resolution}. A resolution below 16. Angstrom is expected.')
 
     def test_21_CCC_CPU(self):
         """

@@ -16,7 +16,7 @@ class TemplateMatchingPlan():
         self.maskPadded = cp.zeros_like(self.volume).astype(cp.float32)
 
         self.template = cp.asarray(template, dtype=cp.float32, order='C')
-        self.template_texture = vt.StaticVolume(self.template, interpolation='linear', device=f'gpu:{deviceid}')
+        self.template_texture = vt.StaticVolume(self.template, interpolation='filt_bspline', device=f'gpu:{deviceid}')
         self.templatePadded = cp.zeros_like(self.volume)
 
         # wedge for the template
@@ -121,6 +121,8 @@ class TemplateMatchingGPU(threading.Thread):
         CX, CY, CZ = SX // 2, SY // 2, SZ // 2
         cx, cy, cz = sx // 2, sy // 2, sz // 2
         mx, my, mz = sx % 2, sy % 2, sz % 2
+        # rotation center needs to be set, voltools uses (s - 1) / 2 by default, but pytom_volume s // 2 + s % 2
+        rotation_center = (cx + mx, cy + my, cz + mz)
 
         if self.mask_is_spherical:  # then we only need to calculate std volume once
             self.plan.maskPadded[CX - cx:CX + cx + mx, CY - cy:CY + cy + my, CZ - cz:CZ + cz + mz] = \
@@ -131,7 +133,7 @@ class TemplateMatchingGPU(threading.Thread):
 
             if not self.mask_is_spherical:
                 self.plan.mask_texture.transform(rotation=(angles[0], angles[2], angles[1]), rotation_order='rzxz',
-                                        output=self.plan.mask)
+                                        output=self.plan.mask, center=rotation_center)
                 self.plan.maskPadded[CX - cx:CX + cx + mx, CY - cy:CY + cy + my, CZ - cz:CZ + cz + mz] = \
                     self.plan.mask
                 # std volume needs to be recalculated for every rotation of the mask, expensive step
@@ -139,7 +141,7 @@ class TemplateMatchingGPU(threading.Thread):
 
             # Rotate template
             self.plan.template_texture.transform(rotation=(angles[0], angles[2], angles[1]), rotation_order='rzxz',
-                                                 output=self.plan.template)
+                                                 output=self.plan.template, center=rotation_center)
 
             # Add wedge to the template after rotating
             self.plan.template = self.irfftn(self.rfftn(self.plan.template) * self.plan.wedge,

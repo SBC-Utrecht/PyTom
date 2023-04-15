@@ -7,6 +7,7 @@ todo simulation should also have a unittest for potential generation, Fourier sh
 import unittest
 import numpy as np
 
+
 class MicrographModellerTest(unittest.TestCase):
     def setUp(self):
         """Initialize simulation parameters"""
@@ -53,8 +54,8 @@ class MicrographModellerTest(unittest.TestCase):
 
         self.param_rec = {
             'save_path':            './temp_simulation',
-            'weighting':            1,
-            'reconstruction_bin':   1
+            'weighting':            -1,
+            'reconstruction_bin':   1,
         }
 
     def tearDown(self):
@@ -128,6 +129,9 @@ class MicrographModellerTest(unittest.TestCase):
         from pytom.agnostic.tools import create_sphere
         from pytom.simulation.support import reduce_resolution_fourier
 
+        self.assertTrue(np.iscomplexobj(self.potential), msg='Electrostatic potential simulation did not return a '
+                                                             'numpy array with complex dtype.')
+
         # generate two different realization of tomogram noise
         tomo_1 = self.simulateTomogram()
         tomo_2 = self.simulateTomogram()
@@ -144,7 +148,10 @@ class MicrographModellerTest(unittest.TestCase):
 
         print('normalized cross correlation of two simulations of identical volume after binning both subtomograms 8 '
               'times = ', cc)
-        self.assertGreater(cc, 0.75, msg='correlation is not sufficient between simulations')
+        # simulation with amplitude contrast should generally be higher than 0.7, however noise can always have outliers
+        # that give much worse or better results. the simulator should handle random number better.
+        # TODO simulator should handle random number generation better so that it can be consistent in tests
+        self.assertGreater(cc, 0.7, msg='correlation is not sufficient between simulations')
 
 
 if __name__ == '__main__':

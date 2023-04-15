@@ -136,7 +136,7 @@ SubFramePath = X:\{}
     if mdoc:
         mdocfile.close()
         try:
-            os.system(f'mdoc2meta.py -f {mdocname} -t {outdir}')
+            os.system(f'convert.py -f {mdocname} -o meta -t {outdir}')
         except Exception as e:
             print(e)
 

@@ -1068,7 +1068,7 @@ def generate_tilt_series_cpu(save_path,
             grandcell = grandcell.astype(xp_type)
             solvent_amplitude = 0.0
     else:
-        if grandcell.dtype == complex:
+        if xp.iscomplexobj(grandcell):
             solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
             # set dtype to be complex64 to save memory
             xp_type = xp.complex64
@@ -1401,7 +1401,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
             grandcell = grandcell.astype(xp.float32)
             solvent_amplitude = 0.0
     else:
-        if grandcell.dtype == complex:
+        if xp.iscomplexobj(grandcell):
             solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
             # set dtype to be complex64 to save memory
             grandcell = grandcell.astype(xp.complex64)
@@ -1921,7 +1921,7 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
     vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0, 0, 0], binning=reconstruction_bin,
                                         weighting=weighting)
     vol.write(filename_output)
-    os.system(f'em2mrc.py -f {filename_output} -t {os.path.dirname(filename_output)}')
+    os.system(f'convert.py -f {filename_output} -o mrc -t {os.path.dirname(filename_output)}')
     os.system(f'rm {filename_output}')
 
     # only if binning during reconstruction is used or the scaled projections are used, ground truth annotation needs
