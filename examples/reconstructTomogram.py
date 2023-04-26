@@ -1,4 +1,4 @@
-#!/usr/bin/env pytom
+#!/usr/bin/env python
 '''
 script to align projections based on fiducials, generate weighted and 
 aligned projections, and reconstruct a tomogram using weighted 

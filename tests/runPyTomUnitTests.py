@@ -1,4 +1,4 @@
-#!/usr/bin/env pytom
+#!/usr/bin/env python
 import os
 
 # change working directory to tests folder

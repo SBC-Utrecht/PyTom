@@ -1,4 +1,4 @@
-#!/usr/bin/env pytom
+#!/usr/bin/env python
 from pytom.agnostic.io import read, write
 import sys, os
 try:

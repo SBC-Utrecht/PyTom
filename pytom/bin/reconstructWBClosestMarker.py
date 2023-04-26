@@ -1,4 +1,4 @@
-#!/usr/bin/env pytom
+#!/usr/bin/env python
 """
 Reconstruction of subtomograms taking into account closest markers.
 Created on Jul 19, 2011

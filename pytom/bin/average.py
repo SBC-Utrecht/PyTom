@@ -1,4 +1,4 @@
-#!/usr/bin/env pytom
+#!/usr/bin/env python
 from pytom.basic.structures import PyTomClass
 from pytom.basic.structures import ParticleList
 from pytom.angles.localSampling import LocalSampling

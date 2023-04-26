@@ -1,4 +1,4 @@
-#!/usr/bin/env pytom
+#!/usr/bin/env python
 
 from pytom.basic.files import read
 from pytom.basic.files import read_em_header

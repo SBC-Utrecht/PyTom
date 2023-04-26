@@ -1,4 +1,4 @@
-#!/usr/bin/env pytom
+#!/usr/bin/env python
 import sys, os, numpy as np
 from scipy.spatial.distance import cdist
 from pytom.agnostic.io import read

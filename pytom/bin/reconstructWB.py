@@ -1,4 +1,4 @@
-#!/usr/bin/env pytom
+#!/usr/bin/env python
 """
 - Created on Jul 19, 2011
 - Updated to accomodate updates to the ProjectionList structure on August, 2022

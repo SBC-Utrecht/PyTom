@@ -1,4 +1,4 @@
-#!/usr/bin/env pytom
+#!/usr/bin/env python
 if __name__ == '__main__':
     # parse command line arguments
     import sys

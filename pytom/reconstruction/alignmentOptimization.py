@@ -1,4 +1,4 @@
-#!/usr/bin/env pytom
+#!/usr/bin/env python
 '''
 Created on jan 2021
 @author: Gvd

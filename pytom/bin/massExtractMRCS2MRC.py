@@ -1,4 +1,4 @@
-#!/usr/bin/env pytom
+#!/usr/bin/env python
 
 d = '''#!/usr/bin/bash
 #SBATCH --time        3:00:00
