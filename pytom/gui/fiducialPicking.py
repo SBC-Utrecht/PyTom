@@ -1460,7 +1460,7 @@ class PickingFunctions():
         from pytom.reconstruction.TiltAlignmentStructures import Marker
         from pytom.gui.guiFunctions import ALIGNMENT_ERRORS, fmtAE as fmt, headerAlignmentErrors
 
-        projIndices = np.arange(0, len(coordinates), 1).astype(np.int)[abs(tilt_angles) <= max_angle + 0.1]
+        projIndices = np.arange(0, len(coordinates), 1).astype(int)[abs(tilt_angles) <= max_angle + 0.1]
         Markers = []
 
         for markerID in range(coordinates.shape[1]):
@@ -1534,7 +1534,7 @@ class PickingFunctions():
         return [psiindeg, errors, shiftX, shiftY, diffX, diffY, x,y,z]
 
     def determine_markerdata(self, coordinates, errors, excluded, add_marker):
-        incl = 1- np.array(excluded,dtype=np.int)
+        incl = 1 - np.array(excluded, dtype=int)
 
         for markerID in range(coordinates.shape[1]):
             coords = coordinates[:,markerID,:]
