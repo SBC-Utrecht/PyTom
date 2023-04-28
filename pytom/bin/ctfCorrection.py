@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 
 from cupyx.scipy.fftpack.fft import get_fft_plan
 from cupyx.scipy.fftpack.fft import fftn as fftnP

@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env pytom
 
 if __name__ == '__main__':
     # parse command line arguments

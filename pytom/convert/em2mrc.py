@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 
 def em2mrc(filename,target):
     from pytom.lib.pytom_volume import read

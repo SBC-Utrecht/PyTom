@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 
 def mrc2em(filename,destination):
     from pytom.basic.files import read

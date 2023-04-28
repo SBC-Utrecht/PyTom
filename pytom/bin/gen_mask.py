@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 from pytom.agnostic.io import read, write
 import sys, os
 # import matplotlib

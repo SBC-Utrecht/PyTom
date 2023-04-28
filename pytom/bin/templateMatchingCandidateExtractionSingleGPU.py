@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env pytom
 
 def getBinningFactorAndReferenceMarker(volumeFileName):
     import os

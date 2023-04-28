@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 """
 Non functional script for reconstructing tomograms without alignment?? Can probably be removed.
 Created on Jul 20, 2013

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 
 """
 Determine orientation of membrane-bound particles in relation to the segmentation map of a membrane.

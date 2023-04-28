@@ -134,7 +134,7 @@ def simulationDescriptionToParticleList(directory,prefix = ''):
 def generateCorrelationMatrixStartScript(startScriptName, xmlFilename):
     
     
-    string = '''#!/usr/bin/env python
+    string = '''#!/usr/bin/env pytom
 from pytom.cluster.structures import CorrelationMatrixJob
 from pytom.cluster.correlationMatrix import distributedCorrelationMatrix 
 

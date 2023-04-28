@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 """
     little script to create particle lists based on originating tomogram and closest marker. Supply particleList and
     log file from reconstruction with marker positions (as written by gui).

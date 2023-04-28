@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 import sys
 import os
 from pytom.localization.peak_job import PeakJob

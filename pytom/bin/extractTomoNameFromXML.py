@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 """
     little script to create new particle list of particles that belong to selected classes
     GvdS May 2019

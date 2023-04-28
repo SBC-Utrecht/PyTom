@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 
 import sys
 from pytom.gui.mrcOperations import read_mrc, downsample

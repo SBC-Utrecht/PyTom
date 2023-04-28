@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 
 from numpy import arange, meshgrid, float32, zeros, sqrt, exp
 import sys

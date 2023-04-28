@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 '''
 Created on Mar 26, 2010
 redone Jan 8, FF

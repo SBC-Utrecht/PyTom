@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 """
     little script to convert coordinate list to particle list xml file
     FF Jan 2013

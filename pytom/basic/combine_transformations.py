@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 """
 this is code from a bachelor project. at this point, the code still has fundamental flaws.
 when unit tests have been supplied, this disclaimer can be removed.

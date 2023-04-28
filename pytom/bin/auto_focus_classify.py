@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 
 from pytom.gpu.initialize import device, xp
 import numpy as np

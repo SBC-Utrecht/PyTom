@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 
 """
 This is a test script for tomogram reconstruction on a GPU. Created on Sep 02, 2019

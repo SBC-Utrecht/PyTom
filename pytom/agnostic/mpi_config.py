@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pytom
 
 from pytom.agnostic.mpi import MPI
 global mpi
