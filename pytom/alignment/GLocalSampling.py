@@ -4,10 +4,9 @@ Created July/Aug 2014
 
 @author: FF
 '''
-from pytom.basic.structures import PyTomClass
 from pytom.gpu.initialize import xp, device
 from pytom.angles.localSampling import LocalSampling
-from pytom.alignment.alignmentStructures import GLocalSamplingJob, ScoringParameters, FLCFScore, SamplingParameters
+from pytom.alignment.alignmentStructures import GLocalSamplingJob
 from pytom.agnostic.mpi import MPI
 mpi = MPI()
 
@@ -89,7 +88,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         useExternalRef = True
 
     for ii in range(0, alignmentJob.max_iter):
-        print(f'running iteration {ii}/{alignmentJob.max_iter}')
+        print(f'running iteration {ii}/{alignmentJob.max_iter-1}')
         if 'gpu' in device:
             alignmentJob.scoringParameters.mask = alignmentJob.scoringParameters.mask.convert2numpy()
 
