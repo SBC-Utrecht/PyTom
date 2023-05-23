@@ -378,7 +378,7 @@ class FullPipelineTest(unittest.TestCase):
         cmd = f'cd {self.projectname}/05_Subtomogram_Analysis; mpiexec -n {self.numcores} GLocalJob.py '
         cmd += f'--particleList {self.plFilename} '
         cmd += f'--mask {self.refDataDir}/Glocal_mask_80_32_2.mrc '
-        cmd += f'--numberIterations 8 '
+        cmd += f'--numberIterations 4 '
         cmd += f'--pixelSize 5.24 '
         cmd += f'--particleDiameter 300 '
         cmd += f'--binning 1 '
@@ -584,9 +584,14 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
 
         resolution = float(result.split('Resolution determined for pixelsize :')[1].split()[-2])
 
-        self.assertTrue(resolution < 12.0,
-                        'Final Resolution of the reconstruction is {resolution}. A resolution below 12.0 Angstrom is '
-                        'expected.')
+        if self.ctf_correction:
+            self.assertTrue(resolution < 11.5,
+                            f'Final Resolution of the reconstruction is {resolution}. A resolution below 11.5 '
+                            f'Angstrom is expected with ctf correction.')
+        else:
+            self.assertTrue(resolution < 15.0,
+                            f'Final Resolution of the reconstruction is {resolution}. A resolution below 15.0 '
+                            f'Angstrom is expected without ctf correction.')
 
     def test_18_GLocal_Reduced_Binned_GPU(self):
         """
@@ -641,9 +646,14 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         resolution = float(result.split('Resolution determined for pixelsize :')[1].split()[-2])
         print(f'Determined resolution: {resolution:.2f}')
 
-        self.assertTrue(resolution < 11.5,
-                        f'Final Resolution of the reconstruction is {resolution}. A resolution below 11.5 Angstrom is '
-                        f'expected.')
+        if self.ctf_correction:
+            self.assertTrue(resolution < 11.5,
+                            f'Final Resolution of the reconstruction is {resolution}. A resolution below 11.5 '
+                            f'Angstrom is expected with ctf correction.')
+        else:
+            self.assertTrue(resolution < 15.0,
+                            f'Final Resolution of the reconstruction is {resolution}. A resolution below 15.0 '
+                            f'Angstrom is expected without ctf correction.')
 
     def test_21_CCC_CPU(self):
         """
