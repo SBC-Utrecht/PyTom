@@ -158,7 +158,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.circles_list = [self.circles_left, self.circles_cent, self.circles_bottom]
         self.particleList = []
 
-        self.main_canvas = w0 = pg.GraphicsWindow(size=(600, 600), border=True)
+        self.main_canvas = w0 = pg.GraphicsLayoutWidget(size=(600, 600), border=True)
         self.main_image = w0.addViewBox(row=0, col=0, lockAspect=True)
         self.main_image.setMouseEnabled(False)
         self.main_image.invertY(True)
@@ -195,7 +195,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         self.actionwidget.setLayout(self.al)
 
-        self.bottom_canvas = w2 = pg.GraphicsWindow(size=(300, 300), border=True)
+        self.bottom_canvas = w2 = pg.GraphicsLayoutWidget(size=(300, 300), border=True)
         self.bottom_image = w2.addViewBox(row=0, col=0, lockAspect=True)
         #self.bottom_image.setMouseEnabled(False, False)
         self.bottom_image.setMenuEnabled(False)
@@ -228,7 +228,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
         self.main_circles = []
         self.raise_window(self.settings)
         self.settings.show()
-        pg.QtGui.QApplication.processEvents()
+        pg.QtWidgets.QApplication.processEvents()
         self.loaded_data = False
 
 
@@ -261,7 +261,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             self.replot()
         #self.top_image.scen().mouseHasMoved()
 
-        pg.QtGui.QApplication.processEvents()
+        pg.QtWidgets.QApplication.processEvents()
 
     def updatePartTiltImageGuess(self, x, y):
 
@@ -369,13 +369,13 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
             for i in range(len(self.fnames)):
                 self.imnr = i
                 self.replot2()
-                pg.QtGui.QApplication.processEvents()
+                pg.QtWidgets.QApplication.processEvents()
                 time.sleep(0.04)
 
             for i in range(len(self.fnames)):
                 self.imnr -= 1
                 self.replot2()
-                pg.QtGui.QApplication.processEvents()
+                pg.QtWidgets.QApplication.processEvents()
                 time.sleep(0.04)
 
         elif Qt.Key_P == evt.key():
@@ -542,7 +542,7 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
         for name in ('findButton','indexButton', 'detectButton', 'adjustManually', 'errorButton'):
             self.widgets[name].setEnabled(False)
-        pg.QtGui.QApplication.processEvents()
+        pg.QtWidgets.QApplication.processEvents()
 
         self.tomogram_name = self.settings.widgets['tomogram_name'].currentText()
         folder = os.path.join(self.tomofolder, self.tomogram_name, 'sorted/')
@@ -1709,7 +1709,7 @@ import pyqtgraph as pg
 
 from pyqtgraph.graphicsItems.GraphicsWidget import GraphicsWidget
 from pyqtgraph.graphicsItems.LabelItem import LabelItem
-from pyqtgraph.Qt import QtGui, QtCore
+from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
 import pyqtgraph.functions as fn
 from pyqtgraph.Point import Point
 from pyqtgraph.graphicsItems.GraphicsWidgetAnchor import GraphicsWidgetAnchor
@@ -1747,7 +1747,7 @@ class LegendItemGUI(GraphicsWidget, GraphicsWidgetAnchor):
         GraphicsWidget.__init__(self)
         GraphicsWidgetAnchor.__init__(self)
         self.setFlag(self.ItemIgnoresTransformations)
-        self.layout = QtGui.QGraphicsGridLayout()
+        self.layout = QtWidgets.QGraphicsGridLayout()
         self.setLayout(self.layout)
         self.items = []
         self.size = size

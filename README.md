@@ -36,7 +36,7 @@ bash installMiniconda.sh
 Now we are ready to create the conda environment for pytom (solving all the dependencies might take a moment):
 
 ```
-conda env create -f environments/pytom_py3.8_cu10.6_full.yaml --name pytom_env
+conda env create -f environments/pytom_full.yaml --name pytom_env
 ```
 
 Activate the environment and run the pytom installation scripts to compile the backend (will take ~5 minutes):

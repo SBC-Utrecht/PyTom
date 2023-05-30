@@ -229,7 +229,7 @@ do
     fi
 done
 
-python{python_version} -O $*
+{sys.executable} -O $*
 """
 
     f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'pytom','w')
@@ -240,7 +240,7 @@ python{python_version} -O $*
 
 def generatePyTomGuiScript(pytomDirectory, python_version):
     pytomguiCommand = '# !/bin/bash\n'
-    pytomguiCommand += f'python{python_version} {pytomDirectory}/gui/pytomGUI.py $1\n'
+    pytomguiCommand += f'{sys.executable} {pytomDirectory}/gui/pytomGUI.py $1\n'
 
     f = open(pytomDirectory + os.sep + 'bin' + os.sep + 'pytomGUI', 'w')
     f.write(pytomguiCommand)

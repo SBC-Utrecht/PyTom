@@ -59,7 +59,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         check that files are written and remove them
         """
         from helper_functions import cleanUp_RandomParticleList
-        import os
+        import shutil
         # for iclass in range(0, self.settings["ncluster"]):
         #     tline = 'initial_'+str(iclass)+'.em'
         #     self.remove_file( filename=tline)
@@ -79,8 +79,8 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
         self.remove_file( filename=f'{self.settings["outputDirectory"]}/correlation_matrix.csv')
 
-        cleanUp_RandomParticleList( pl_filename=self.pl_filename, pdir=self.pdir)
-        os.removedirs(self.settings["outputDirectory"])
+        cleanUp_RandomParticleList(pl_filename=self.pl_filename, pdir=self.pdir)
+        shutil.rmtree(self.settings["outputDirectory"])
 
     def remove_file(self, filename):
         """

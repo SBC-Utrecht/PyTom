@@ -465,7 +465,7 @@ class CommonFunctions():
 
     def insert_spinbox(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=0, cstep=0,width=0, height=0,
                        validator=None, password=False, tooltip='', logvar=False, value=None, att=False, enabled=True,
-                       maximum=0, minimum=0, stepsize=0, widgetType=QSpinBox, decimals=0):
+                       maximum=0, minimum=0, stepsize: int=0, widgetType=QSpinBox, decimals=0):
 
         widget = widgetType(self)
         widget.setLocale(QLocale('.'))
@@ -610,12 +610,13 @@ class CommonFunctions():
 
     def insert_label_spinbox(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=1, cstep=-1, width=0, height=0,
                              validator=None, tooltip='', value=None, att=False, enabled=True, maximum=0, minimum=0,
-                             wtype=QSpinBox, stepsize=0, logvar=True, decimals=0):
+                             wtype=QSpinBox, stepsize: int=0, logvar=True, decimals=0):
 
         self.insert_label(parent, text=text, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
+        # TODO: remove the typecast after typing of this file is complete
         self.insert_spinbox(parent, wname, validator=validator, width=width, enabled=enabled,
                             maximum=maximum, minimum=minimum, cstep=cstep, rstep=rstep, value=value,
-                            widgetType=wtype, stepsize=stepsize, logvar=logvar, decimals=decimals)
+                            widgetType=wtype, stepsize=int(stepsize), logvar=logvar, decimals=decimals)
 
     def insert_label_line_push(self, parent, textlabel, wname, tooltip='', text='', cstep=-2, rstep=1, validator=None,
                                mode='folder', remote=False, pushtext='Browse', width=150, filetype='',action='',
@@ -1718,7 +1719,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
         for i in range(len(headers)):
 
             if i+1 == len(headers):
-                hh.setResizeMode(i, QHeaderView.Stretch)
+                hh.setSectionResizeMode(i, QHeaderView.Stretch)
             elif sizes[i] == 0:
                 hh.setSectionResizeMode(i,QHeaderView.ResizeToContents)
             else:
@@ -1974,7 +1975,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
             elif 'widget_{}_{}'.format(i,rowIndex) in self.widgets.keys() and widgetType=='lineedit':
                 self.widgets['widget_{}_{}'.format(i,rowIndex)].setText(self.general_widgets[rowIndex].text())
 
-        self.table.horizontalHeader().setResizeMode(len(self.headers)-1, QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(len(self.headers)-1, QHeaderView.Stretch)
 
         for i in range(self.table.columnCount()):
             self.table2.setColumnWidth(i, self.table.columnWidth(i))
@@ -2171,7 +2172,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
         self.ECCounter = 0
 
 
-class KeyPressGraphicsWindow(pg.GraphicsWindow):
+class KeyPressGraphicsWindow(pg.GraphicsLayoutWidget):
     sigKeyPress = pyqtSignal(object)
 
     def __init__(self, *args, **kwargs):
@@ -2252,7 +2253,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
         self.circles_list = [self.circles_left, self.circles_cent, self.circles_bottom]
         self.particleList = []
 
-        self.leftcanvas = w1 = pg.GraphicsWindow(size=(250, 750), border=True)
+        self.leftcanvas = w1 = pg.GraphicsLayoutWidget(size=(250, 750), border=True)
         self.leftimage  = w1.addViewBox(row=0, col=0)
         self.leftimage.setMouseEnabled(False, False)
 
@@ -2261,7 +2262,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
         self.centimage.setMenuEnabled(False)
         self.target = w3 = pg.ImageView()
 
-        self.bottomcanvas = w2 = pg.GraphicsWindow(size=(750, 250), border=True)
+        self.bottomcanvas = w2 = pg.GraphicsLayoutWidget(size=(750, 250), border=True)
         self.bottomimage  = w2.addViewBox(row=0, col=0 )
         self.bottomimage.setMouseEnabled(False, False)
 
@@ -2691,7 +2692,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
         self.circles_list = [self.circles_left, self.circles_cent, self.circles_bottom]
         self.particleList = []
 
-        self.leftcanvas = w1 = pg.GraphicsWindow(size=(250, 750), border=True)
+        self.leftcanvas = w1 = pg.GraphicsLayoutWidget(size=(250, 750), border=True)
         self.leftimage = w1.addViewBox(row=0, col=0)
         self.leftimage.setMouseEnabled(False, False)
 
@@ -2700,7 +2701,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
         self.centimage.setMenuEnabled(False)
         self.target = w3 = pg.ImageView()
 
-        self.bottomcanvas = w2 = pg.GraphicsWindow(size=(750, 250), border=True)
+        self.bottomcanvas = w2 = pg.GraphicsLayoutWidget(size=(750, 250), border=True)
         self.bottomimage = w2.addViewBox(row=0, col=0)
         self.bottomimage.setMouseEnabled(False, False)
 
@@ -3192,7 +3193,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.circles_list = [self.circles_left, self.circles_cent, self.circles_bottom]
         self.particleList = []
 
-        self.leftcanvas = w1 = pg.GraphicsWindow(size=(200, 600), border=True)
+        self.leftcanvas = w1 = pg.GraphicsLayoutWidget(size=(200, 600), border=True)
         self.leftimage  = w1.addViewBox(row=0, col=0)
         self.leftimage.setMouseEnabled(False, False)
 
@@ -3205,7 +3206,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.target = w3 = pg.ImageView()
         self.title = parent.widgets['v03_manualpp_tomogramFname'].text()
 
-        self.bottomcanvas = w2 = pg.GraphicsWindow(size=(600, 200), border=True)
+        self.bottomcanvas = w2 = pg.GraphicsLayoutWidget(size=(600, 200), border=True)
         self.bottomimage  = w2.addViewBox(row=0, col=0 )
         self.bottomimage.setMouseEnabled(False, False)
 
@@ -6405,7 +6406,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
         self.dirId = self.parent().widgets[self.mode + 'sliceDirection'].currentIndex()
         self.slicedir = self.parent().widgets[self.mode + 'sliceDirection'].currentText()
 
-        self.leftcanvas = w1 = pg.GraphicsWindow(size=(200, 600), border=True)
+        self.leftcanvas = w1 = pg.GraphicsLayoutWidget(size=(200, 600), border=True)
         self.leftimage = w1.addViewBox(row=0, col=0)
         self.leftimage.setMouseEnabled(False, False)
 
@@ -6416,7 +6417,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
         self.datalabel = pg.LabelItem(justify='right')
         self.centcanvas.addItem(self.datalabel, row=0, col=0,)
 
-        self.bottomcanvas = w2 = pg.GraphicsWindow(size=(600, 200), border=True)
+        self.bottomcanvas = w2 = pg.GraphicsLayoutWidget(size=(600, 200), border=True)
         self.bottomimage = w2.addViewBox(row=0, col=0)
         self.bottomimage.setMouseEnabled(False, False)
 
