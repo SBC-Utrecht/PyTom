@@ -293,7 +293,7 @@ def resize(volume, factor, interpolation='Fourier'):
         return scale(volume, factor, interpolation=interpolation)
     else:
         fvol = xp.fft.rfftn(volume)
-        outsize= tuple((numpy.around(numpy.array(volume.shape)*factor,0)).astype(numpy.int))
+        outsize= tuple((numpy.around(numpy.array(volume.shape)*factor,0)).astype(int))
         newfvol = resizeFourier(fvol=fvol, factor=factor, isodd=volume.shape[-1]%2)
 
         newvol = xp.fft.irfftn(newfvol, s=outsize)
