@@ -36,9 +36,9 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=1)
     volume = data #* mask2
 
     meanV = meanVolUnderMask(volume, mask)
-    stdV = stdVolUnderMask(volume, mask, meanV)
+    std_v = stdVolUnderMask(volume, mask, meanV)
 
-    return stdV
+    return std_v
 
 
 
@@ -72,7 +72,7 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
     volume = data #* mask2
 
     meanV = meanVolUnderMask(volume, mask)
-    stdV = stdVolUnderMask(volume, mask, meanV)
+    std_v = stdVolUnderMask(volume, mask, meanV)
 
     if 0 and verbose:
         if 1:
@@ -81,20 +81,20 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
                 r=6
                 import scipy
                 import numpy as np
-                stdV[stdV < stdV.mean() + stdV.std()*2] = 0
-                stdV /= stdV.max() / 100
-                stdV = stdV.get()
-                stdV[:, :r, :] = 0
-                stdV[:r,:, :] = 0
-                stdV[-r:, :, :] = 0
-                stdV[:, -r:, :] = 0
+                std_v[std_v < std_v.mean() + std_v.std()*2] = 0
+                std_v /= std_v.max() / 100
+                std_v = std_v.get()
+                std_v[:, :r, :] = 0
+                std_v[:r,:, :] = 0
+                std_v[-r:, :, :] = 0
+                std_v[:, -r:, :] = 0
 
-                a = np.zeros((stdV.shape[0], stdV.shape[1])).astype(np.uint8)
-                xm, ym = np.ogrid[0:stdV.shape[0]:10, 0:stdV.shape[1]:10]
+                a = np.zeros((std_v.shape[0], std_v.shape[1])).astype(np.uint8)
+                xm, ym = np.ogrid[0:std_v.shape[0]:10, 0:std_v.shape[1]:10]
                 markers = np.zeros_like(a).astype(np.int16)
                 markers[xm, ym] = np.arange(xm.size * ym.size).reshape((xm.size, ym.size))
-                print(markers.shape, stdV.shape)
-                res2 = scipy.ndimage.watershed_ift(stdV.astype(np.uint8).squeeze(), markers)
+                print(markers.shape, std_v.shape)
+                res2 = scipy.ndimage.watershed_ift(std_v.astype(np.uint8).squeeze(), markers)
                 res2[xm, ym] = res2[xm - 1, ym - 1]  # remove the isolate seeds
                 res2[res2 > res2.max()-1] = -1
 
@@ -112,7 +112,7 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
                 from skimage.segmentation import watershed
                 from skimage.feature import peak_local_max
 
-                image = stdV.get().squeeze()
+                image = std_v.get().squeeze()
 
                 # Now we want to separate the two objects in image
                 # Generate the markers as local maxima of the distance to the background
@@ -147,17 +147,17 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
                 from skimage.feature import peak_local_max
                 import numpy as np
 
-                stdV[:, :r, :] = 0
-                stdV[:r, :, :] = 0
-                stdV[-r:, :, :] = 0
-                stdV[:, -r:, :] = 0
-                stdV[stdV < stdV.mean() + stdV.std() * 4] = 0
-                stdV /= stdV.max() / 100
+                std_v[:, :r, :] = 0
+                std_v[:r, :, :] = 0
+                std_v[-r:, :, :] = 0
+                std_v[:, -r:, :] = 0
+                std_v[std_v < std_v.mean() + std_v.std() * 4] = 0
+                std_v /= std_v.max() / 100
 
 
                 footprint = np.ones((int(radius), int(radius)))
 
-                image = restoration.denoise_tv_chambolle(stdV.get().squeeze(), weight=0.1)
+                image = restoration.denoise_tv_chambolle(std_v.get().squeeze(), weight=0.1)
 
 
                 distance = scipy.ndimage.distance_transform_edt(image)
@@ -167,8 +167,8 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
 
                 labels_ws = watershed(-distance, markers, mask=image)
                 #labels_ws = label(image > 0)
-                x, y = np.indices((stdV.shape[0], stdV.shape[1]))
-                out = np.zeros((stdV.shape[0], stdV.shape[1]))
+                x, y = np.indices((std_v.shape[0], std_v.shape[1]))
+                out = np.zeros((std_v.shape[0], std_v.shape[1]))
                 particles = np.unique(labels_ws)
                 for particle in particles[particles > 0]:
                     x1,y1 = scipy.ndimage.center_of_mass(labels_ws*(labels_ws == particle))
@@ -182,15 +182,15 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
                 ax[2].imshow(data.squeeze().T.get())
                 show()
 
-            write(outname, stdV)
+            write(outname, std_v)
         # except Exception as e:
         #     print(e)
         #     pass
 
-    stdV *= mask2
-    stdV[mask2<0.5] = stdV.min()*0
+    std_v *= mask2
+    std_v[mask2<0.5] = std_v.min()*0
 
-    proj = xp.expand_dims((stdV).sum(axis=1), 2)
+    proj = xp.expand_dims((std_v).sum(axis=1), 2)
     rot = xp.zeros_like(proj, dtype=xp.float32)
 
     axis = 0
@@ -200,7 +200,7 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
     curve = []
     curve_norm = []
 
-    reference_line = (stdV[stdV>0].min()*mask2).sum(axis=2).sum(axis=1)
+    reference_line = (std_v[std_v>0].min()*mask2).sum(axis=2).sum(axis=1)
 
     if verbose:
         fig, ax = subplots(1, 3, figsize=(15, 5))
@@ -317,8 +317,8 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
         ax[2].legend()
         print(vol.shape)
         ax[0].imshow(vol.squeeze().get(),cmap='gray')
-        ax[0].vlines(left, 0, stdV.shape[2], lw=1, colors='#54d777', label='Cut off left')
-        ax[0].vlines(right,0,stdV.shape[2], lw=1, colors='#54d777', label='Cut off left')
+        ax[0].vlines(left, 0, std_v.shape[2], lw=1, colors='#54d777', label='Cut off left')
+        ax[0].vlines(right,0,std_v.shape[2], lw=1, colors='#54d777', label='Cut off left')
 
         try:
             savefig(f'{folder}/anglethickness.png')

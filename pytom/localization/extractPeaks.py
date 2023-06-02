@@ -30,17 +30,17 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     if moreInfo not in [True, False]:
         moreInfo = False
     
-    from pytom.basic.correlation import FLCF
+    from pytom.basic.correlation import flcf
     from pytom.basic.structures import WedgeInfo, Wedge
     from pytom.lib.pytom_volume import vol, pasteCenter
     from pytom.lib.pytom_volume import rotateSpline as rotate  # for more accuracy
     from pytom.lib.pytom_volume import updateResFromIdx
 
     if scoreFnc == None:
-        scoreFnc = FLCF
+        scoreFnc = flcf
     
     # only FLCF needs mask
-    if scoreFnc == FLCF:
+    if scoreFnc == flcf:
         if mask.__class__ != vol: # construct a sphere mask by default
             from pytom.lib.pytom_volume import initSphere
             mask = vol(reference.sizeX(), reference.sizeY(), reference.sizeZ())
@@ -93,7 +93,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         if debug: ref.write('wedge_rot_cpu.em')
 
         # rotate the mask if it is asymmetric
-        if scoreFnc == FLCF:
+        if scoreFnc == flcf:
             if maskIsSphere == False: # if mask is not a sphere, then rotate it
                 m = vol(mask.sizeX(),mask.sizeY(),mask.sizeZ())
                 rotate(mask, m, currentRotation[0], currentRotation[1], currentRotation[2])
@@ -103,7 +103,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         # compute the score
         # if mask is sphere and it is the first run,
         # compute the standard deviation of the volume under mask for late use
-        if scoreFnc == FLCF and index == 0 and maskIsSphere == True:
+        if scoreFnc == flcf and index == 0 and maskIsSphere == True:
             # compute standard deviation of the volume under mask
             maskV = m
             if volume.sizeX() != m.sizeX() or volume.sizeY() != m.sizeY() or volume.sizeZ() != m.sizeZ():
@@ -114,14 +114,14 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
             p = sum(m);
             from pytom.basic.correlation import meanUnderMask, stdUnderMask
             meanV = meanUnderMask(volume, maskV, p)
-            stdV = stdUnderMask(volume, maskV, p, meanV)
+            std_v = stdUnderMask(volume, maskV, p, meanV)
             if debug:
                 volume.write('volume_cpu.mrc')
                 meanV.write('meanV_cpu.mrc')
 
-        if scoreFnc == FLCF:
+        if scoreFnc == flcf:
             if maskIsSphere == True:
-                score = scoreFnc(volume, ref, m, stdV, wedge=1)
+                score = scoreFnc(volume, ref, m, std_v, wedge=1)
             else:
                 score = scoreFnc(volume, ref, m)
         else: # not FLCF, so doesn't need mask as parameter and perhaps the reference should have the same size

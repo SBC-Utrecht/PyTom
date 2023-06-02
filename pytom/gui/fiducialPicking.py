@@ -989,22 +989,22 @@ class PickingFunctions():
             volume = data  # * mask2
 
             meanV = meanVolUnderMask(volume, mask)
-            stdV = stdVolUnderMask(volume, mask, meanV)
+            std_v = stdVolUnderMask(volume, mask, meanV)
 
 
 
             r = 8
 
 
-            stdV[:, :r] = 0
-            stdV[:r, :] = 0
-            stdV[-r:, :] = 0
-            stdV[:, -r:] = 0
-            stdV[stdV < stdV.mean() + stdV.std() * threshold] = 0
-            stdV /= stdV.max() / 100
+            std_v[:, :r] = 0
+            std_v[:r, :] = 0
+            std_v[-r:, :] = 0
+            std_v[:, -r:] = 0
+            std_v[std_v < std_v.mean() + std_v.std() * threshold] = 0
+            std_v /= std_v.max() / 100
 
             footprint = np.ones((int(radius), int(radius)))
-            image = restoration.denoise_tv_chambolle(stdV.squeeze(), weight=0.1)
+            image = restoration.denoise_tv_chambolle(std_v.squeeze(), weight=0.1)
             # distance = scipy.ndimage.distance_transform_edt(image)
             # local_maxi = peak_local_max(image, indices=False, footprint=footprint)
             #

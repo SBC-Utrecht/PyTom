@@ -8,7 +8,7 @@ from pytom.agnostic.transform import resize as RESIZE
 epsilon = 1E-8
 
 
-def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False):
+def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False) -> xp.ndarray[float]:
     """Create a 3D sphere volume.
     @param size: size of the resulting volume.
     @param radius: radius of the sphere inside the volume.
@@ -37,7 +37,7 @@ def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False)
 
     return sphere
 
-def create_circle(size, radius=-1, sigma=0, num_sigma=3, center=None):
+def create_circle(size, radius=-1, sigma=0, num_sigma=3, center=None) -> xp.ndarray[float]:
     """Create a 3D sphere volume.
 
     @param size: size of the resulting volume.
@@ -289,15 +289,15 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
         note: filvol2 is NOT rotated and translated!
     @author: FF
     """
-    from pytom.agnostic.correlation import FSC
+    from pytom.agnostic.correlation import fsc
     from pytom.agnostic.filter import filter_volume_by_profile
     from pytom.agnostic.structures import Alignment
     from pytom.agnostic.correlation import nxcc
     from pytom.voltools import transform
 
     # filter volumes prior to alignment according to SNR
-    fsc = FSC(volume1=vol1, volume2=vol2, numberBands=nband)
-    fil = design_fsc_filter(fsc=fsc, fildim=int(vol2.shape[2]//2))
+    calc_fsc = fsc(volume1=vol1, volume2=vol2, number_bands=nband)
+    fil = design_fsc_filter(fsc=calc_fsc, fildim=int(vol2.shape[2]//2))
     #filter only one volume so that resulting CCC is weighted by SNR only once
     filvol2 = filter_volume_by_profile(volume=vol2, profile=fil)
     # align vol2 to vol1
@@ -324,13 +324,13 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
     # finally compute FSC and filter of both volumes
     if not nband:
         nband = int(vol2.sizeX()/2)
-    fsc = FSC(volume1=vol1, volume2=vol2_alig, numberBands=nband)
-    fil = design_fsc_filter(fsc=fsc, fildim=int(vol2.shape[0]//2), fsc_criterion=fsc_criterion)
+    calc_fsc = fsc(volume1=vol1, volume2=vol2_alig, number_bands=nband)
+    fil = design_fsc_filter(fsc=calc_fsc, fildim=int(vol2.shape[0]//2), fsc_criterion=fsc_criterion)
     filvol1 = filter_volume_by_profile(volume=vol1, profile=fil)
     #filvol2 = filter_volume_by_profile( volume=vol2_alig, profile=fil)
     filvol2 = filter_volume_by_profile(volume=vol2, profile=fil)
 
-    return (filvol1, filvol2, fsc, fil, optiRot, optiTrans)
+    return (filvol1, filvol2, calc_fsc, fil, optiRot, optiTrans)
 
 
 def design_fsc_filter(fsc, fildim=None, fsc_criterion=0.143):

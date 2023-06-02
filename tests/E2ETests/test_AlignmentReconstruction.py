@@ -6,7 +6,7 @@ import unittest
 from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO, fmtAlignmentResultsRo as fmt, \
     HEADER_ALIGNMENT_RESULTS_RO as header
 from pytom.basic.files import loadtxt, savetxt
-from pytom.agnostic.correlation import FLCF, nxcc
+from pytom.agnostic.correlation import flcf, nxcc
 from pytom.agnostic.io import read
 from pytom.agnostic.tools import create_circle
 from numpy.fft import fftshift, fftn, ifftn
@@ -142,7 +142,7 @@ class pytom_AlignmentReconstructionTest(unittest.TestCase):
         a = read(fname1)
         b = read(fname2)
 
-        c = FLCF(a, b)
+        c = flcf(a, b)
 
         loc = np.unravel_index(c.argmax(), c.shape)
         shift = (loc[0]-b.shape[0]//2, loc[1]-b.shape[1]//2, loc[2]-b.shape[2]//2)

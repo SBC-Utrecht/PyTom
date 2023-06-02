@@ -359,7 +359,7 @@ class ImageStack(PyTomClass):
         @type mask: L{pytom.lib.pytom_volume.vol}
         @author: FF
         """
-        from pytom.basic.correlation import nXcf, subPixelPeak
+        from pytom.basic.correlation import norm_xcf, sub_pixel_peak
         from pytom.lib.pytom_volume import peak
 
         for iexMax in range(0, niter):
@@ -371,11 +371,11 @@ class ImageStack(PyTomClass):
             self.average(mask=mask)
             # Ex-step
             for ii in range(0, len(self.images)):
-                ccf = nXcf(volume=self.images[ii].data,
+                ccf = norm_xcf(volume=self.images[ii].data,
                            template=self.subtractImageFromAverage(ii=ii, mask=mask))
                 pos = peak(ccf)
-                peakinfo = subPixelPeak(scoreVolume=ccf, coordinates=pos,
-                                        cubeLength=8, verbose=self.verbose)
+                peakinfo = sub_pixel_peak(score_volume=ccf, coordinates=pos,
+                                        cube_length=8, verbose=self.verbose)
                 peakval = peakinfo[0]
                 pos = peakinfo[1]
                 self.images[ii].shiftX = float(pos[0] - self.dimX)

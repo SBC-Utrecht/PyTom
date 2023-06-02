@@ -1064,7 +1064,7 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
     """
     from pytom.lib.pytom_volume import vol, rotateSpline, peak
     from pytom.basic.transformations import shift
-    from pytom.basic.correlation import FLCF
+    from pytom.basic.correlation import flcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Mask, SingleTiltWedge, Rotation
     from pytom.lib.pytom_volume import initSphere
@@ -1142,7 +1142,7 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
             vg2 = wf.apply(vg2) # then apply the wedge
             vg2 = lowpassFilter(vg2, max_freq, max_freq/10.)[0]
             vf2 = wg.apply(lowpass_vf, Rotation(orientation)) # apply vg's wedge to vf with rotation!
-            score = FLCF(vf2, vg2, mask2) # find the position
+            score = flcf(vf2, vg2, mask2) # find the position
             pos = peak(score, peak_offset)
             pos, val = find_subpixel_peak_position(vol2npy(score), pos)
             if val > lm_value:

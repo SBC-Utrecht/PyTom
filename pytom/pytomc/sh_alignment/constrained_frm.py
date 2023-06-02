@@ -286,7 +286,7 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
     """
     from pytom.lib.pytom_volume import vol, rotateSpline, peak
     from pytom.basic.transformations import shift
-    from pytom.basic.correlation import FLCF
+    from pytom.basic.correlation import flcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Mask, SingleTiltWedge
     from pytom.lib.pytom_volume import initSphere
@@ -357,7 +357,7 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
             rotateSpline(mask, mask2, orientation[0], orientation[1], orientation[2]) # rotate the mask as well
             vg2 = wf.apply(vg2) # then apply the wedge
             vg2 = lowpassFilter(vg2, max_freq, max_freq/10.)[0]
-            score = FLCF(lowpass_vf, vg2, mask2) # find the position
+            score = flcf(lowpass_vf, vg2, mask2) # find the position
             pos = peak(score, peak_offset)
             pos, val = find_subpixel_peak_position(vol2npy(score), pos)
             if val > lm_value:

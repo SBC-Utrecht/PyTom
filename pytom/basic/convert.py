@@ -895,10 +895,10 @@ def mrc2em(filename, target):
 
 
 def convertCoords2PL(coordinate_file, particleList_file, subtomoPrefix=None,
-        wedgeAngle=None):
+        wedge_angle=None):
     pl = ParticleList()
     pl.loadCoordinateFile( filename=coordinate_file, name_prefix=subtomoPrefix,
-        wedgeAngle=wedgeAngle)
+        wedge_angle=wedge_angle)
     pl.toXMLFile(particleList_file)
 
 

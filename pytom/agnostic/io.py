@@ -3,11 +3,13 @@
 
 from pytom.gpu.initialize import xp, device
 import numpy as np
-
+#typing imports
+import pytom.lib as pytom_lib
 
 # Reading functions
+from typing import Union
 
-def read(filename, ndarray=True, order='F', keepnumpy=False, deviceID=None, dtype=None, read_optics_group=False):
+def read(filename, ndarray=True, order='F', keepnumpy=False, deviceID=None, dtype=None, read_optics_group=False) -> Union[xp.ndarray[float], pytom_lib.pytom_volume.vol]:
     """General reading function. Can read em, mrc, st, rec, txt, log and star file. For EM and MRC files: only support read the type float32 on little-endian machines.
 
     @param filename: file name to read.

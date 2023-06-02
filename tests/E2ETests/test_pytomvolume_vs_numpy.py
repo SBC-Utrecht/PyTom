@@ -49,7 +49,7 @@ class NumericalTest(unittest.TestCase):
     def wedgePyTomVol(self):
         from pytom.basic.structures import Wedge
         from pytom.lib.pytom_numpy import vol2npy
-        w = Wedge(wedgeAngles=self.wedge_angles, cutoffRadius=self.cutoff)
+        w = Wedge(wedge_angles=self.wedge_angles, cutoffRadius=self.cutoff)
         wedge = w.returnWedgeVolume(*self.dims)
         wedge_np = vol2npy(wedge).copy()
         return wedge_np.astype(np.float32)
@@ -88,15 +88,15 @@ class NumericalTest(unittest.TestCase):
         from pytom.lib.pytom_volume import sum
         p = sum(self.mask_vol)
         meanV = meanUnderMask(self.random_vol, self.mask_vol, p)
-        stdV = stdUnderMask(self.random_vol, self.mask_vol, p, meanV)
-        stdV_np = vol2npy(stdV).copy()
-        return stdV_np.astype(np.float32)
+        std_v = stdUnderMask(self.random_vol, self.mask_vol, p, meanV)
+        std_v_np = vol2npy(std_v).copy()
+        return std_v_np.astype(np.float32)
 
     def calcStdvNpCp(self):
         from pytom.agnostic.normalise import meanVolUnderMask, stdVolUnderMask
         meanV = meanVolUnderMask(self.random_np, self.mask_np)
-        stdV = stdVolUnderMask(self.random_np, self.mask_np, meanV)
-        return stdV
+        std_v = stdVolUnderMask(self.random_np, self.mask_np, meanV)
+        return std_v
 
     def rmsd(self, pytomvol, npcp):
         return np.sqrt(((pytomvol - npcp) ** 2).sum() / npcp.size)

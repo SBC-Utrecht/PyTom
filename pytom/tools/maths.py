@@ -473,10 +473,10 @@ def pcacov(matrix):
     
     abscoeff = abs(coeff)
        
-    maxIndex = abscoeff.argmax(1)
+    max_index = abscoeff.argmax(1)
 
     for x in range(sizeX):
-        if coeff[x,maxIndex[x]] < 0:
+        if coeff[x,max_index[x]] < 0:
             coeff[x,:] = coeff[x,:] * -1
 
     return [coeff,latent,explained]

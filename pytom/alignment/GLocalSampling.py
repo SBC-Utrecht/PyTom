@@ -150,7 +150,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             resolutionBand = getResolutionBandFromFSC(fsc, criterion=alignmentJob.scoringParameters.fsc_criterion)
             resolutionAngstrom = bandToAngstrom( band=resolutionBand,
                             pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),
-                            numberOfBands=len(fsc), upscale=1)
+                            number_of_bands=len(fsc), upscale=1)
             # read un-corrected averages back in for compoundWedge
             if alignmentJob.scoringParameters.compoundWedge:
                 from pytom.lib.pytom_volume import read
@@ -289,9 +289,9 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                             showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                             weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                             setParticleNodesRatio=setParticleNodesRatio)
-            from pytom.basic.correlation import FSC
-            fsc = FSC(volume1=evenAverage.getVolume(), volume2=oddAverage.getVolume(),
-                      numberBands=int(evenAverage.getVolume().sizeX()/2))
+            from pytom.basic.correlation import fsc
+            fsc = fsc(volume1=evenAverage.getVolume(), volume2=oddAverage.getVolume(),
+                      number_bands=int(evenAverage.getVolume().sizeX()/2))
             #resolution hokus pokus -> estimate fsc for all particles
             for (ii, fscel) in enumerate(fsc):
                 fsc[ii] = 2.*fscel/(1.+fscel)
@@ -300,7 +300,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             resolutionBand = getResolutionBandFromFSC(fsc, criterion=0.143)
             resolutionAngstrom = bandToAngstrom(band=resolutionBand,
                                                 pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),
-                                                numberOfBands=len(fsc), upscale=1)
+                                                number_of_bands=len(fsc), upscale=1)
             print(">>>>>>>>>> Final Resolution = %3.2f A." % resolutionAngstrom)
 
             # filter final average according to resolution
@@ -442,10 +442,10 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                             setParticleNodesRatio=setParticleNodesRatio,gpuIDs=alignmentJob.gpu)
             xp.cuda.Device(alignmentJob.gpu[0]).use()
 
-            from pytom.agnostic.correlation import FSC
+            from pytom.agnostic.correlation import fsc
 
-            fsc = FSC(volume1=cvols['Even'], volume2=oddAverage,
-                      numberBands=int(cvols['Even'].shape[0]// 2))
+            fsc = fsc(volume1=cvols['Even'], volume2=oddAverage,
+                      number_bands=int(cvols['Even'].shape[0]// 2))
 
             # resolution hokus pokus -> estimate fsc for all particles (this is what RELION does)
             for (ii, fscel) in enumerate(fsc):
@@ -459,7 +459,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             resolutionBand = getResolutionBandFromFSC(fsc, criterion=0.143)
             resolutionAngstrom = bandToAngstrom(band=resolutionBand,
                                                 pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),
-                                                numberOfBands=len(fsc), upscale=1)
+                                                number_of_bands=len(fsc), upscale=1)
 
             print(">>>>>>>>>> Final Resolution = %3.2f A." % resolutionAngstrom)
 

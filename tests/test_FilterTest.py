@@ -48,12 +48,12 @@ class pytom_FilterTest(unittest.TestCase):
         rot = Rotation(90.,0.,30.)
         wangle = 30.
 
-        wedgeInfo = Wedge(wedgeAngles=wangle, cutoffRadius=0.0, tiltAxis='Y', smooth=3.0)
+        wedgeInfo = Wedge(wedge_angles=wangle, cutoffRadius=0.0, tiltAxis='Y', smooth=3.0)
         tmp = wedgeInfo.apply(v)
         vfil1 = vol(v.sizeX(),v.sizeY(),v.sizeZ())
         rotate(tmp, vfil1, rot[0], rot[1], rot[2])
 
-        wedgeInfoRot = Wedge(wedgeAngles=wangle, cutoffRadius=0.0,tiltAxis=rot,smooth = 3.0)
+        wedgeInfoRot = Wedge(wedge_angles=wangle, cutoffRadius=0.0,tiltAxis=rot,smooth = 3.0)
         vfil2 = wedgeInfoRot.apply(v)
         #vfil2.write('xxx2.em')
 

@@ -353,7 +353,7 @@ def calculate_averages(pl, binning, mask, outdir='./', gpuIDs=None):
     import os
     from pytom.lib.pytom_volume import complexDiv, vol
     from pytom.basic.fourier import fft,ifft
-    from pytom.basic.correlation import FSC, determineResolution
+    from pytom.basic.correlation import fsc, determine_resolution
     from pytom.lib.pytom_fftplan import fftShift
     from pytom.lib.pytom_volume import reducedToFull
 
@@ -425,8 +425,8 @@ def calculate_averages(pl, binning, mask, outdir='./', gpuIDs=None):
                     mask = maskBin
 
 
-            fsc = FSC(even_a, odd_a, int(even_a.sizeX()//2), mask)
-            band = determineResolution(fsc, 0.5)[1]
+            calc_fsc = fsc(even_a, odd_a, int(even_a.sizeX()//2), mask)
+            band = determine_resolution(calc_fsc, 0.5)[1]
 
             aa = even_a + odd_a
             ww = even_w + odd_w

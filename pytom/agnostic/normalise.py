@@ -1,6 +1,8 @@
 from pytom.gpu.initialize import xp, device
+# Typing imports
+from typing import Tuple
 
-def mean0std1(volume, copyFlag=False):
+def mean0std1(volume, copyFlag=False) -> xp.ndarray[float]:
     """
     mean0std1: normalises input volume to mean 0 and std 1. Procedure is performed inplace if copyFlag is unspecified!!!
     @param volume: Data containing either an image or a volume
@@ -36,7 +38,7 @@ def mean0std1(volume, copyFlag=False):
 
         return (volumeCopy - volume.mean()) / volumeStd
 
-def normaliseUnderMask(volume, mask, p=None):
+def normaliseUnderMask(volume, mask, p=None) -> Tuple[xp.ndarray[float], float]:
     """
     normalize volume within a mask - take care: only normalization, but NOT multiplication with mask!
 
@@ -50,6 +52,7 @@ def normaliseUnderMask(volume, mask, p=None):
     @rtype: C{list}
     @author: FF
     """
+    # TODO: fix this circular import, both of these functions point back to this file
     from pytom.agnostic.correlation import meanUnderMask, stdUnderMask
     # from math import sqrt
     if not p:
@@ -83,7 +86,7 @@ def subtractMeanUnderMask(volume, mask):
     normvol = xp.sum(normvol) / xp.sum(mask)
     return normvol
 
-def meanUnderMask(volume, mask=None, p=1, gpu=False):
+def meanUnderMask(volume, mask=None, p=1, gpu=False) -> float:
     """
     meanValueUnderMask: Determines the mean value under a mask
     @param volume: The volume
@@ -99,7 +102,7 @@ def meanUnderMask(volume, mask=None, p=1, gpu=False):
 
     return (volume*mask).sum() / p
 
-def stdUnderMask(volume, mask, meanValue, p=1, gpu=False):
+def stdUnderMask(volume, mask, meanValue, p=1, gpu=False) -> float:
     """
     stdValueUnderMask: Determines the std value under a mask
 
@@ -115,7 +118,7 @@ def stdUnderMask(volume, mask, meanValue, p=1, gpu=False):
     """
     return (meanUnderMask(volume**2, mask, p) - meanValue**2)**0.5
 
-def meanVolUnderMask(volume, mask):
+def meanVolUnderMask(volume, mask) -> xp.ndarray[float]:
     """
     meanUnderMask: calculate the mean volume under the given mask (Both should have the same size)
     @param volume: input volume
@@ -133,7 +136,7 @@ def meanVolUnderMask(volume, mask):
     res = xp.fft.fftshift(xp.fft.ifftn(xp.fft.fftn(volume) * xp.conj(xp.fft.fftn(mask)))) / mask.sum()
     return res.real
 
-def stdVolUnderMask(volume, mask, meanV):
+def stdVolUnderMask(volume, mask, meanV) -> xp.ndarray[float]:
     """
     stdUnderMask: calculate the std volume under the given mask
     @param volume: input volume

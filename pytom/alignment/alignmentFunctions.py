@@ -599,7 +599,7 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
             progressBar.update(numberAlignedParticles)
 
     # determine resolution if needed
-    fsc = None
+    calc_fsc = None
     if determine_resolution:
         # apply spectral weighting to sum
         f_even = fft(even)
@@ -612,8 +612,8 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
         w_odd = ifft(w_odd)        
         w_odd.shiftscale(0.0,1/float(sizeX*sizeY*sizeZ))
         
-        from pytom.basic.correlation import FSC
-        fsc = FSC(w_even, w_odd, sizeX/2, mask, verbose=False)
+        from pytom.basic.correlation import fsc
+        calc_fsc = fsc(w_even, w_odd, sizeX/2, mask, verbose=False)
     
     # add together
     result = even+odd
@@ -625,7 +625,7 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
     # do a low pass filter
     #result = lowpassFilter(result, sizeX/2-2, (sizeX/2-1)/10.)[0]
     
-    return (result, fsc)
+    return (result, calc_fsc)
 
 
 def alignTwoVolumes(particle,reference,angleObject,mask,score,preprocessing,progressBar=False):
@@ -711,7 +711,7 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     @return: Returns the best rotation for particle and the corresponding scoring result.
     @author: Thomas Hrabe
     """
-    from pytom.basic.correlation import subPixelPeak, subPixelPeakParabolic
+    from pytom.basic.correlation import sub_pixel_peak, sub_pixel_peak_parabolic
     from pytom.alignment.structures import Peak
     from pytom.lib.pytom_volume import peak, vol, vol_comp
     from pytom.basic.filter import filter,rotateWeighting
@@ -776,23 +776,23 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         from pytom.basic.correlation import meanUnderMask, stdUnderMask
         p = sum(m)
         meanV = meanUnderMask(particle, m, p)
-        stdV = stdUnderMask(particle, m, p, meanV)
+        std_v = stdUnderMask(particle, m, p, meanV)
     else:
         meanV = None
-        stdV = None
+        std_v = None
     cntr = 0
     while currentRotation != [None,None,None]:
         if mask:
             m = mask.getVolume(currentRotation)
             if binning != 1:
                 m = resize(volume=m, factor=1./binning, interpolation='Spline')
-            #update stdV if mask is not a sphere
+            #update std_v if mask is not a sphere
             # compute standard deviation volume really only if needed
             # print('Mask is sphere: ', mask.isSphere(), scoreObject._type)
 
             if (not mask.isSphere()) and (scoreObject._type=='FLCFScore'):
                 meanV   = meanUnderMask(particle, m, p)
-                stdV    = stdUnderMask(particle, m, p, meanV)
+                std_v    = stdUnderMask(particle, m, p, meanV)
         else:
             m = None
         
@@ -810,14 +810,14 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
             particleCopy = r[0]
 
 
-        scoringResult = scoreObject.score(particleCopy, simulatedVol, m, stdV)
+        scoringResult = scoreObject.score(particleCopy, simulatedVol, m, std_v)
 
         pk = peak(scoringResult)
 
-        # with subPixelPeak
-        [peakValue,peakPosition] = subPixelPeak(scoreVolume=scoringResult, coordinates=pk,
+        # with sub_pixel_peak
+        [peakValue,peakPosition] = sub_pixel_peak(score_volume=scoringResult, coordinates=pk,
                                                interpolation='Quadratic', verbose=False)
-        #[peakValue,peakPosition] = subPixelPeakParabolic(scoreVolume=scoringResult, coordinates=pk, verbose=False)
+        #[peakValue,peakPosition] = sub_pixel_peak_parabolic(score_volume=scoringResult, coordinates=pk, verbose=False)
 
         # determine shift relative to center
         shiftX = (peakPosition[0] - centerX) * binning
@@ -857,11 +857,11 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         if mask and scoreObject._type=='FLCFScore':
             p = sum(m)
             meanV = meanUnderMask(volume=particleUnbinned, mask=m, p=p)
-            stdV  = stdUnderMask(volume=particleUnbinned, mask=m, p=p, meanV=meanV)
+            std_v  = stdUnderMask(volume=particleUnbinned, mask=m, p=p, meanV=meanV)
         scoreObject._peakPrior.reset_weight()
-        scoringResult = scoreObject.score(particle=particleUnbinned, reference=simulatedVol, mask=m, stdV=stdV)
+        scoringResult = scoreObject.score(particle=particleUnbinned, reference=simulatedVol, mask=m, std_v=std_v)
         pk = peak(scoringResult)
-        [peakValue,peakPosition] = subPixelPeak(scoreVolume=scoringResult, coordinates=pk, interpolation='Quadratic',
+        [peakValue,peakPosition] = sub_pixel_peak(score_volume=scoringResult, coordinates=pk, interpolation='Quadratic',
                                                 verbose=False)
         shiftX = (peakPosition[0] - centerX)
         shiftY = (peakPosition[1] - centerY)
@@ -913,7 +913,7 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
     plan.volume = plan.cp.array(particle, dtype=plan.cp.float32) * plan.taperMask
     plan.updateWedge(wedgeInfo)
     plan.wedgeParticle()
-    plan.calc_stdV()
+    plan.calc_std_v()
     currentRotation = rotations.nextRotation()
     if currentRotation == [None, None, None]:
         raise Exception('bestAlignment: No rotations are sampled! Something is wrong with input rotations')
@@ -929,7 +929,7 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
                                 center=centerCoordinates, rotation_order=rotation_order)
             plan.p = plan.rotatedMask.sum()
             plan.mask_fft = plan.fftnP(plan.rotatedMask.astype(plan.cp.complex64),plan=plan.fftplan)
-            plan.calc_stdV()
+            plan.calc_std_v()
 
         # Rotate reference
         plan.referenceTex.transform(rotation=(float(currentRotation[0]), float(currentRotation[2]),
@@ -945,8 +945,7 @@ def bestAlignmentGPU(particle, rotations, plan, preprocessing=None, wedgeInfo=No
         # Calculate normalized crosscorrelation
         plan.cross_correlation()
 
-        # Find subPixelPeak
-        # [peakValue, peakShifts] = plan.subPixelMax3D(ignore_border=border, k=0.1, profile=profile)
+        # Find sub_pixel_peak
         peakValue, peakShifts = plan.subPixelMaxSpline()
         newPeak = Peak(float(peakValue), Rotation(currentRotation), Shift(*peakShifts))
 

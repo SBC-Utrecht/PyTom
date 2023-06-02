@@ -854,15 +854,15 @@ class ExMaxManager(PyTomClass):
             msg.setStatus("End")
             pytom_mpi.send(str(msg),i)
     
-    def determineResolution(self,filename,numberShells = None , resolutionCriterion=0.125):
+    def determine_resolution(self,filename,numberShells = None , resolution_criterion=0.125):
         """
-        determineResolution: determines resolution of current alignment. Sets the L{pytom.alignment.preprocessing} bandpass to current resolution + x.
+        determine_resolution: determines resolution of current alignment. Sets the L{pytom.alignment.preprocessing} bandpass to current resolution + x.
         @param filename: Filenames for FSC 
         @param numberShells: How many shells do we use
-        @param resolutionCriterion: 
+        @param resolution_criterion: 
         @author: Thomas Hrabe
         """
-        from pytom.basic.correlation import FSC,determineResolution
+        from pytom.basic.correlation import fsc, determine_resolution
         from pytom.lib.pytom_volume import read
         from pytom.basic.score import RScore
         self._saveForFSC(self._destination + filename)
@@ -878,9 +878,9 @@ class ExMaxManager(PyTomClass):
             numberShells = int(odd.sizeX())
             """@ivar numberShells: max. number of shells"""
         
-        fsc = FSC(odd,even,numberShells)
+        calc_fsc = fsc(odd,even,numberShells)
         
-        resolution = determineResolution(fsc,resolutionCriterion)
+        resolution = determine_resolution(calc_fsc,resolution_criterion)
         
         return resolution
      
@@ -995,24 +995,24 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
                         print('Determine resolution.')
                     if symmetry.getNFold() == 1:
                         #here we get the current resolution in nyquist / the band  and returns the number of bands used
-                        [resNyquist,resolutionBand,numberBands]  = newParticleList.determineResolution( 
-                                                                   criterion=exMaxJob.getFSCCriterion(), numberBands = cubeSize / 2, 
+                        [resNyquist,resolutionBand,number_bands]  = newParticleList.determine_resolution( 
+                                                                   criterion=exMaxJob.getFSCCriterion(), number_bands = cubeSize / 2, 
                                                                    mask=exMaxJob.getMask(), keepHalfsetAverages = True, 
                                                                    halfsetPrefix=exMaxJob.getDestination() + 'fsc-'+str(iteration)+'-', 
                                                                    verbose=verbose )
                     else:
                         if verbose:
                             print('Applying ', symmetry.getNFold(), 'fold symmetry to resolution')
-                        [resNyquist,resolutionBand,numberBands]  = symmetrizedParticleList.determineResolution(
-                                                                   criterion=exMaxJob.getFSCCriterion(), numberBands = cubeSize / 2, 
+                        [resNyquist,resolutionBand,number_bands]  = symmetrizedParticleList.determine_resolution(
+                                                                   criterion=exMaxJob.getFSCCriterion(), number_bands = cubeSize / 2, 
                                                                    mask=exMaxJob.getMask(), keepHalfsetAverages = True, 
                                                                    halfsetPrefix=exMaxJob.getDestination() + 'fsc-'+str(iteration)+'-', 
                                                                    verbose=verbose )
                     
                     #here we convert the current resolution to angstroms.    
                     resolutionAngstrom = bandToAngstrom( resolutionBand,
-                                                         sampleInfo.getPixelSize(),numberBands,1 )
-		        #sampleInfo.getPixelSize(),numberBands,exMaxJob.getBinning() )
+                                                         sampleInfo.getPixelSize(),number_bands,1 )
+		        #sampleInfo.getPixelSize(),number_bands,exMaxJob.getBinning() )
 
                     if verbose:
                         print('Current resolution :' + str(resolutionAngstrom) + ' Angstrom')
@@ -1032,7 +1032,7 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
                         #convert upper value to BAND
                         newResolutionBand = int( ceil( angstromToBand( 
                                                 newResolution,sampleInfo.getPixelSize(),
-                                                numberBands,1) ))
+                                                number_bands,1) ))
                         #update job
                         preprocessing.setHighestFrequency(newResolutionBand)
                         exMaxJob.setPreprocessing(preprocessing)
@@ -1170,20 +1170,20 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
             if verbose:
                 print('Determine resolution.')
             if symmetry.getNFold() == 1:
-                [resNyquist,resolutionBand,numberBands]  = newParticleList.determineResolution(
-                    criterion=exMaxJob.getFSCCriterion(), numberBands=cubeSize/2, mask=exMaxJob.getMask(),
+                [resNyquist,resolutionBand,number_bands]  = newParticleList.determine_resolution(
+                    criterion=exMaxJob.getFSCCriterion(), number_bands=cubeSize/2, mask=exMaxJob.getMask(),
                     keepHalfsetAverages = True, halfsetPrefix=exMaxJob.getDestination() + 'fsc-'+str(iteration)+'-',
                     verbose=verbose )
             else:
                 if verbose:
                     print('Applying ', symmetry.getNFold(), 'fold symmetry to resolution')
-                [resNyquist,resolutionBand,numberBands]  = symmetrizedParticleList.determineResolution(
-                    criterion=exMaxJob.getFSCCriterion(), numberBands =cubeSize/2, mask=exMaxJob.getMask(),
+                [resNyquist,resolutionBand,number_bands]  = symmetrizedParticleList.determine_resolution(
+                    criterion=exMaxJob.getFSCCriterion(), number_bands =cubeSize/2, mask=exMaxJob.getMask(),
                     keepHalfsetAverages=True, halfsetPrefix=exMaxJob.getDestination() + 'fsc-'+str(iteration)+'-',
                     verbose=verbose )
                 
-            resolutionAngstrom = bandToAngstrom( resolutionBand,sampleInfo.getPixelSize(),numberBands,1 )
-            #resolutionAngstrom = bandToAngstrom( resolutionBand,sampleInfo.getPixelSize(),numberBands,exMaxJob.getBinning() )
+            resolutionAngstrom = bandToAngstrom( resolutionBand,sampleInfo.getPixelSize(),number_bands,1 )
+            #resolutionAngstrom = bandToAngstrom( resolutionBand,sampleInfo.getPixelSize(),number_bands,exMaxJob.getBinning() )
 
             if verbose:
                 print('Current resolution :' + str(resolutionAngstrom) + ' Angstrom')
@@ -1200,8 +1200,8 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
                 newResolution = resolutionAngstrom * (1 - exMaxJob.getAdaptiveOffset()) #determine better resolution (in ANGSTROM)        
                 newResolutionBand = int( ceil( angstromToBand(resolution=newResolution,
                                                               pixelSize=sampleInfo.getPixelSize(),
-                                                              numberOfBands=numberBands, scale=1))) # FF: fixed bug!
-                                #numberOfBands=numberBands, scale=exMaxJob.getBinning()))) #convert upper value to BANDS
+                                                              number_of_bands=number_bands, scale=1))) # FF: fixed bug!
+                                #number_of_bands=number_bands, scale=exMaxJob.getBinning()))) #convert upper value to BANDS
                 #update job
                 preprocessing.setHighestFrequency(newResolutionBand)
                 exMaxJob.setPreprocessing(preprocessing)

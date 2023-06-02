@@ -3,7 +3,9 @@ Created on Apr 29, 2011
 
 @author: hrabe
 '''
-
+#Typing imports
+from typing import Tuple
+from pytom.lib import pytom_volume
 
 def shift(volume,shiftX,shiftY,shiftZ,imethod='fourier',twice=False):
     """
@@ -215,7 +217,7 @@ def scale(volume,factor,interpolation='Spline'):
     
     return newVolume
 
-def resize(volume, factor, interpolation='Fourier'):
+def resize(volume, factor, interpolation='Fourier') -> Tuple[pytom_volume.vol, pytom_volume.vol]:
     """
     resize volume in real or Fourier space
     @param volume: input volume

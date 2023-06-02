@@ -1605,7 +1605,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     return
 
 
-def FSS(fimage1, fimage2, numberBands, verbose=False):
+def FSS(fimage1, fimage2, number_bands, verbose=False):
     """
     algorithm FSS = Fourier Shell Scaling
     Scale the values of fimage1 to the values in fimage2 per band in fourier space. The mean of each band is calculated
@@ -1616,8 +1616,8 @@ def FSS(fimage1, fimage2, numberBands, verbose=False):
     @type  fimage1: L{np.ndarray}
     @param fimage2: the example fourier amplitudes, 2d array
     @type  fimage2: L{np.ndarray}
-    @param numberBands: number of rings to scale, determines precision
-    @type  numberBands: L{int}
+    @param number_bands: number of rings to scale, determines precision
+    @type  number_bands: L{int}
     @param verbose: be talkative
     @type  verbose: L{bool}
 
@@ -1635,7 +1635,7 @@ def FSS(fimage1, fimage2, numberBands, verbose=False):
     if verbose:
         print(f'shape of images is: {fimage1.shape}')
 
-    increment = int(fimage1.shape[0] / 2 * 1 / numberBands)
+    increment = int(fimage1.shape[0] / 2 * 1 / number_bands)
     band = [-1, -1]
 
     output = xp.zeros(fimage1.shape)
@@ -1675,7 +1675,7 @@ def FSS(fimage1, fimage2, numberBands, verbose=False):
     return output
 
 
-def scale_image(image1, image2, numberBands):
+def scale_image(image1, image2, number_bands):
     """
     Scale the amplitudes of image1 to those of image2 in fourier space. This function handles Fourier transforms and
     passes amplitude (absolute) to the Fourier shell scaling algorithm. Upon return the scaled amplitudes are recombined
@@ -1685,8 +1685,8 @@ def scale_image(image1, image2, numberBands):
     @type  image1: L{np.ndarray}
     @param image2: example image for scaling, 2d array
     @type  image2: L{np.ndarray}
-    @param numberBands: number of rings to use for scaling, determines the sharpness of scaling
-    @type  numberBands: L{int}
+    @param number_bands: number of rings to use for scaling, determines the sharpness of scaling
+    @type  number_bands: L{int}
 
     @return: scaled image1, 2d array
     @rtype:  L{np.ndarray}
@@ -1698,7 +1698,7 @@ def scale_image(image1, image2, numberBands):
 
     # scale the amplitudes of 1 to those of 2 using fourier shells
     scaled_amp = FSS(xp.abs(xp.fft.fftshift(xp.fft.fftn(image1))), xp.abs(xp.fft.fftshift(xp.fft.fftn(image2))),
-                     numberBands, verbose=False)
+                     number_bands, verbose=False)
     # construct the output volume with the scaled amplitudes and phase infomation of volume 1
     fout = xp.fft.ifftn(xp.fft.ifftshift(scaled_amp) * xp.exp(1j * xp.angle(xp.fft.fftn(image1))))
 

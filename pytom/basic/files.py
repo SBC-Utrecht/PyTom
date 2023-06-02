@@ -1103,17 +1103,17 @@ def mmCIF2mrc(mmCIFPath, pixelSize=1, cubeSize=200, chain=None, densityNegative=
         return vol
 
 
-def txt2pl(filename, target, prefix='', outname='', subtomoPrefix=None, wedgeAngle=None):
+def txt2pl(filename, target, prefix='', outname='', subtomoPrefix=None, wedge_angle=None):
     from pytom.basic.structures import ParticleList
     particleList_file = outname
     coordinate_file = outname if outname else name_to_format(filename, target, "pl")
     pl = ParticleList()
     pl.loadCoordinateFile( filename=coordinate_file, name_prefix=subtomoPrefix,
-        wedgeAngle=wedgeAngle)
+        wedge_angle=wedge_angle)
     pl.toXMLFile(particleList_file)
 
 
-def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None,
+def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedge_angles=None,
             angle_file='', sorted_folder='', rln_voltage=None, rln_spherical_aberration=None):
     from pytom.agnostic.tools import convert_angles
     from pytom.basic.structures import ParticleList
@@ -1202,13 +1202,13 @@ def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
                comments='')
 
 
-def star2xml(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None,
+def star2xml(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedge_angles=None,
              angle_file='', sorted_folder='', rln_voltage=None, rln_spherical_aberration=None):
-    star2pl(filename, target, prefix, pixelsize, binningPyTom, binningWarpM, outname, wedgeAngles, angle_file,
+    star2pl(filename, target, prefix, pixelsize, binningPyTom, binningWarpM, outname, wedge_angles, angle_file,
             sorted_folder, rln_voltage, rln_spherical_aberration)
 
 
-def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None,
+def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedge_angles=None,
             angle_file='', sorted_folder='', rln_voltage=None, rln_spherical_aberration=None):
     from pytom.agnostic.tools import convert_angles
     from pytom.agnostic.io import read_star
@@ -1257,8 +1257,8 @@ def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
         p.setRotation(Rotation(z1=z0, x=x, z2=z1, paradigm='ZXZ'))
 
         # ====== set wedge angles
-        if wedgeAngles is not None:  # wedge angles override a 3d ctf volume
-            p.getWedge().setWedgeAngles(wedgeAngles)
+        if wedge_angles is not None:  # wedge angles override a 3d ctf volume
+            p.getWedge().setWedgeAngles(wedge_angles)
         elif 'CtfImage' in stardata.dtype.names:
             p.setWedge(Wedge(wedge_3d_ctf_file=stardata['CtfImage'][n],
                              ctf_max_resolution=stardata['CtfMaxResolution'][n]))
@@ -1273,7 +1273,7 @@ def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
     pl.toXMLFile(newFilename)
 
 
-def xf2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None,
+def xf2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedge_angles=None,
            angle_file='', sorted_folder='', rln_voltage=None, rln_spherical_aberration=None):
     """
     Conversion of IMOD or AreTomo alignment parameters to pytom. These alignments are always stored in an .xf file.
@@ -1288,7 +1288,7 @@ def xf2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWa
         :param binningPyTom:
         :param binningWarpM:
         :param outname:
-        :param wedgeAngles:)
+        :param wedge_angles:)
     Output is written to: target + alignmentResults.txt
 
     @author: Marten Chaillet
@@ -1335,7 +1335,7 @@ def xf2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWa
             header=HEADER_ALIGNMENT_RESULTS_RO)
 
 
-def log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None,
+def log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedge_angles=None,
             angle_file='', sorted_folder='', rln_voltage=None, rln_spherical_aberration=None):
     import numpy as np
     from pytom.basic.datatypes import DATATYPE_TASOLUTION as dtype_ta, DATATYPE_ALIGNMENT_RESULTS_RO, FMT_ALIGNMENT_RESULTS_RO, HEADER_ALIGNMENT_RESULTS_RO

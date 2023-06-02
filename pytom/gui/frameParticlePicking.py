@@ -925,7 +925,7 @@ class ParticlePick(GuiTabWidget):
                     randomize = True
                     AL = deepcopy(angleList)
 
-                convertCoords2PL([c], pl, subtomoPrefix=[p], wedgeAngles=wedge, angleList=angleList, projDir=self.projectname)
+                convertCoords2PL([c], pl, subtomoPrefix=[p], wedge_angles=wedge, angleList=angleList, projDir=self.projectname)
                 #os.system(createParticleList.format(d=[c, p, wedge, pl]))
 
             except Exception as e:
@@ -934,7 +934,7 @@ class ParticlePick(GuiTabWidget):
                 return
 
 
-        convertCoords2PL(conf[0], fname, subtomoPrefix=conf[2], wedgeAngles=conf[3], angleList=AL, projDir=self.projectname)
+        convertCoords2PL(conf[0], fname, subtomoPrefix=conf[2], wedge_angles=conf[3], angleList=AL, projDir=self.projectname)
 
         fnamesPL2 = fnamesPL + [fname]
 
@@ -959,9 +959,9 @@ class ParticlePick(GuiTabWidget):
                                     action2=self.countNumberOfParticles)
         self.insert_checkbox_label_line(parent, mode+'adjustSuffix', 'Suffix', mode+'suffix', width=0, enabled=True)
         self.insert_checkbox_label_line(parent, mode + 'adjustDir', 'Change Directory', mode + 'directory',enabled=True)
-        self.insert_checkbox_label_spinbox(parent, mode + 'adjustWedgeAngles', 'Adjust Wedge Angle 1', mode + 'wedgeAngle1',
+        self.insert_checkbox_label_spinbox(parent, mode + 'adjustWedgeAngles', 'Adjust Wedge Angle 1', mode + 'wedge_angle1',
                                            cstep=-1, rstep=1, value=30, stepsize=1, wtype=QSpinBox)
-        self.insert_label_spinbox(parent, mode + 'wedgeAngle2', 'Wedge Angle 2', cstep=-2, value=30, wtype=QSpinBox)
+        self.insert_label_spinbox(parent, mode + 'wedge_angle2', 'Wedge Angle 2', cstep=-2, value=30, wtype=QSpinBox)
         self.insert_checkbox_label_spinbox(parent, mode + 'adjustBinning', 'Multiply Pick Positions', mode + 'binning',
                                            value=1, stepsize=1, minimum=0, maximum=32, wtype=QDoubleSpinBox)
         self.insert_checkbox_label_spinbox(parent, mode + 'multiplyShifts', 'Multiply Shifts',
@@ -1055,7 +1055,7 @@ class ParticlePick(GuiTabWidget):
             suffix = self.widgets[mode + 'suffix'].text()
             dir = self.widgets[mode + 'directory'].text()
 
-            w = [self.widgets[mode+'wedgeAngle1'].text(), self.widgets[mode+'wedgeAngle2'].text()]
+            w = [self.widgets[mode+'wedge_angle1'].text(), self.widgets[mode+'wedge_angle2'].text()]
             bin = self.widgets[mode + 'binning'].text()
             fmShifts = self.widgets[mode + 'factorMultiplyShifts'].text()
             outputName = self.requestOutputName(folder=self.pickpartfolder)

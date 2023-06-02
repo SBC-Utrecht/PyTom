@@ -15,7 +15,6 @@ from pytom.lib.pytom_numpy import vol2npy
 from pytom.basic.fourier import convolute, ftshift
 analytWedge=False
 
-
 class PyTomClassError(Exception):
        
     def __init__(self,value):
@@ -230,7 +229,7 @@ class Mask(PyTomClass):
         """
         self.setBinning(scaleFactor)
          
-    def getVolume(self,rotation=None,bufferedRead = False):
+    def getVolume(self,rotation=None,bufferedRead = False) -> vol:
         """
         getVolume: Returns this mask's volume. The volume returned is rotated only 
         if rotation is set and self._isSphere == False.
@@ -807,7 +806,7 @@ class Wedge(PyTomClass):
     """
     Wedge: used as an dummy class to distinguish between single tilt axis wedge and double tilt axis wedge in fromXML
     """
-    def __init__(self, wedgeAngles=[0.0,0.0], cutoffRadius=0.0, tiltAxis='Y', smooth=0.0, wedge_3d_ctf_file='',
+    def __init__(self, wedge_angles=[0.0,0.0], cutoffRadius=0.0, tiltAxis='Y', smooth=0.0, wedge_3d_ctf_file='',
                  ctf_max_resolution=0.):
         """
         __init__: This constructor is compatible to L{pytom.basic.structures.SingleTiltWedge} and L{pytom.basic.structures.DoubleTiltWedge}.
@@ -820,16 +819,16 @@ class Wedge(PyTomClass):
         else:
             try:
 
-                if wedgeAngles.__class__ == list and wedgeAngles[0].__class__ == list and len(wedgeAngles[0]) == 2 and wedgeAngles[1].__class__ == list and len(wedgeAngles[1]) == 2:
-                    self._wedgeObject = DoubleTiltWedge(wedgeAngles=wedgeAngles, tiltAxis1='Y', rotation12=tiltAxis, cutoffRadius=cutoffRadius, smooth = smooth)
+                if wedge_angles.__class__ == list and wedge_angles[0].__class__ == list and len(wedge_angles[0]) == 2 and wedge_angles[1].__class__ == list and len(wedge_angles[1]) == 2:
+                    self._wedgeObject = DoubleTiltWedge(wedge_angles=wedge_angles, tiltAxis1='Y', rotation12=tiltAxis, cutoffRadius=cutoffRadius, smooth = smooth)
                     self._type = 'DoubleTiltWedge'
                 else:
 
                     raise RuntimeError('Do SingleTiltWedge')
             except :
-                if wedgeAngles.__class__ == list and wedgeAngles[0].__class__ == list and wedgeAngles[1].__class__ == list:
+                if wedge_angles.__class__ == list and wedge_angles[0].__class__ == list and wedge_angles[1].__class__ == list:
                     raise TypeError('Wrong parameters for SingleTiltWedge object error thrown by Wedge object!')
-                self._wedgeObject = SingleTiltWedge(wedgeAngles,cutoffRadius=cutoffRadius,tiltAxis=tiltAxis,smooth=smooth)
+                self._wedgeObject = SingleTiltWedge(wedge_angles,cutoffRadius=cutoffRadius,tiltAxis=tiltAxis,smooth=smooth)
                 self._type = 'SingleTiltWedge'
         
     def returnWedgeFilter(self, wedgeSizeX=None, wedgeSizeY=None, wedgeSizeZ=None, rotation=None):
@@ -1001,10 +1000,10 @@ class SingleTiltWedge(PyTomClass):
     rotation. Supports asymmetric wedges.
     @author: Thomas Hrabe
     """
-    def __init__(self, wedgeAngle=0.0, rotation=None, cutoffRadius=0.0, tiltAxis='Y', smooth=0.0):
+    def __init__(self, wedge_angle=0.0, rotation=None, cutoffRadius=0.0, tiltAxis='Y', smooth=0.0):
         """
-        @param wedgeAngle: The wedge angle. In wedge halfs. 
-        @type wedgeAngle: either float (for symmetric wedge) or [float,float]  for \
+        @param wedge_angle: The wedge angle. In wedge halfs. 
+        @type wedge_angle: either float (for symmetric wedge) or [float,float]  for \
             asymmetric wedge.
         @param rotation: deprecated!!! Only leave it here for compatibility reason.
         @deprecated: rotation
@@ -1015,15 +1014,15 @@ class SingleTiltWedge(PyTomClass):
         @type tiltAxis: str or L{pytom.basic.structures.Rotation} 
         @param smooth: Smoothing size of wedge at the edges in degrees. Default is 0.
         """
-        if wedgeAngle.__class__ == list:
-            assert wedgeAngle[0] >= 0
-            assert wedgeAngle[1] >= 0
-            self._wedgeAngle1 = wedgeAngle[0]
-            self._wedgeAngle2 = wedgeAngle[1]
+        if wedge_angle.__class__ == list:
+            assert wedge_angle[0] >= 0
+            assert wedge_angle[1] >= 0
+            self._wedge_angle1 = wedge_angle[0]
+            self._wedge_angle2 = wedge_angle[1]
         else:
-            assert wedgeAngle >= 0
-            self._wedgeAngle1 = wedgeAngle
-            self._wedgeAngle2 = wedgeAngle
+            assert wedge_angle >= 0
+            self._wedge_angle1 = wedge_angle
+            self._wedge_angle2 = wedge_angle
 
         if rotation:
             pass#print("average: Warning - input rotation will not be used because deprecated!")
@@ -1054,14 +1053,14 @@ class SingleTiltWedge(PyTomClass):
        
     def getWedgeAngle(self):
         """
-        getWedgeAngle : Getter method for wedgeAngle
-        @return: self.wedgeAngle in openingAngle/2. If its an asymmetric wedge, a list [angle1,angle2] will be returned
+        getWedgeAngle : Getter method for wedge_angle
+        @return: self.wedge_angle in openingAngle/2. If its an asymmetric wedge, a list [angle1,angle2] will be returned
         @author: Thomas Hrabe
         """
-        if self._wedgeAngle1 == self._wedgeAngle2:
-            return self._wedgeAngle1
+        if self._wedge_angle1 == self._wedge_angle2:
+            return self._wedge_angle1
         else:
-            return [self._wedgeAngle1,self._wedgeAngle2]
+            return [self._wedge_angle1,self._wedge_angle2]
         
     def getTiltAxisRotation(self):
         from pytom.basic.structures import Rotation
@@ -1092,7 +1091,7 @@ class SingleTiltWedge(PyTomClass):
             cut = wedgeSizeX//2
         else:
             cut = self._cutoffRadius
-        weightObject = weight(self._wedgeAngle1,self._wedgeAngle2, cut, wedgeSizeX, wedgeSizeY, wedgeSizeZ, float(self._smooth))
+        weightObject = weight(self._wedge_angle1,self._wedge_angle2, cut, wedgeSizeX, wedgeSizeY, wedgeSizeZ, float(self._smooth))
 
         if not rotation.__class__ == Rotation:
             rotation = Rotation()
@@ -1118,7 +1117,7 @@ class SingleTiltWedge(PyTomClass):
         """
         wedgeVolume = None
 
-        if self._wedgeAngle1 == 0 and self._wedgeAngle2 == 0:
+        if self._wedge_angle1 == 0 and self._wedge_angle2 == 0:
             from pytom.lib.pytom_volume import vol
             
             if not humanUnderstandable:
@@ -1164,7 +1163,7 @@ class SingleTiltWedge(PyTomClass):
         if not volume.__class__ == vol:
             raise TypeError('SingleTiltWedge: You must provide a pytom.lib.pytom_volume.vol here!')
         
-        if self._wedgeAngle1 > 0 or self._wedgeAngle2 > 0:
+        if self._wedge_angle1 > 0 or self._wedge_angle2 > 0:
             
             from pytom.basic.filter import filter
             
@@ -1233,11 +1232,11 @@ class SingleTiltWedge(PyTomClass):
             raise TypeError('Is not a lxml.etree._Element! You must provide a valid XML-Wedge object.')
         
         if(xmlObj.get('Angle1')==None):
-            self._wedgeAngle1 = float(xmlObj.get('Angle'))
-            self._wedgeAngle2 = float(xmlObj.get('Angle'))
+            self._wedge_angle1 = float(xmlObj.get('Angle'))
+            self._wedge_angle2 = float(xmlObj.get('Angle'))
         else:
-            self._wedgeAngle1 = float(xmlObj.get('Angle1'))
-            self._wedgeAngle2 = float(xmlObj.get('Angle2'))
+            self._wedge_angle1 = float(xmlObj.get('Angle1'))
+            self._wedge_angle2 = float(xmlObj.get('Angle2'))
         
         self._cutoffRadius = float(xmlObj.get('CutoffRadius'))
         
@@ -1263,8 +1262,8 @@ class SingleTiltWedge(PyTomClass):
         """ 
         from lxml import etree
     
-        wedgeElement = etree.Element('SingleTiltWedge',Angle1 = str(self._wedgeAngle1), 
-	    Angle2 = str(self._wedgeAngle2), CutoffRadius = str(self._cutoffRadius), 
+        wedgeElement = etree.Element('SingleTiltWedge',Angle1 = str(self._wedge_angle1), 
+	    Angle2 = str(self._wedge_angle2), CutoffRadius = str(self._cutoffRadius), 
 	    Smooth = str(self._smooth))
         
         if((not isinstance(self._tiltAxisRotation, int)) or 
@@ -1282,7 +1281,7 @@ class SingleTiltWedge(PyTomClass):
     def setWedgeAngles(self, wedgeangles=(30,30)):
         if len(wedgeangles) == 1:
             wedgeangles = [wedgeangles[0],wedgeangles[1]]
-        self._wedgeAngle1, self._wedgeAngle2 = wedgeangles
+        self._wedge_angle1, self._wedge_angle2 = wedgeangles
 
 
 class WedgeInfo(SingleTiltWedge):        
@@ -1296,9 +1295,9 @@ class DoubleTiltWedge(SingleTiltWedge):
     """
     DoubleTiltWedge: Represents a wedge determined for a double tilt series of projections 
     """
-    def __init__(self, wedgeAngles=[[0,0],[0,0]], tiltAxis1='Y', rotation12=[90,0,0], cutoffRadius=0.0, smooth = 0.0):
+    def __init__(self, wedge_angles=[[0,0],[0,0]], tiltAxis1='Y', rotation12=[90,0,0], cutoffRadius=0.0, smooth = 0.0):
         """Initialize a double tilt wedge
-        @param wedgeAngles: List of the tilt parameters [[tilt1.1,tilt1.2],[tilt2.1,tilt2.2]]. \
+        @param wedge_angles: List of the tilt parameters [[tilt1.1,tilt1.2],[tilt2.1,tilt2.2]]. \
 The missing region. All should be positive degrees.
         @param tiltAxis1: Specify tilt axis of first tilt here. The first tilt axis \
 will be Y, the second might differ. Unless specified otherwise, it will \
@@ -1312,8 +1311,8 @@ be generated. If omitted / 0, filter is fixed to size/2.
         @param smooth: Smoothing size of wedge at the edges in degrees. Default is 0.  
         """
         from pytom.basic.structures import SingleTiltWedge
-        tilt1 = wedgeAngles[0]
-        tilt2 = wedgeAngles[1]
+        tilt1 = wedge_angles[0]
+        tilt2 = wedge_angles[1]
 
         if tilt1.__class__ != list or tilt2.__class__ != list:
             raise TypeError('These are the wrong parameters for double tilt wedge!')
@@ -1873,7 +1872,7 @@ class Particle(PyTomClass):
     def getInfoGUI(self):
         return self._infoGUI
 
-    def getVolume(self, binning=1):
+    def getVolume(self, binning=1) -> vol:
         """
         read Volume from disk. If specified volume will be resized in Fourier space
         @param binning: binning factor (e.g., 2 makes it 2 times smaller in each dim)
@@ -3030,12 +3029,12 @@ class ParticleList(PyTomClass):
                 self._particleList[ii] = odd[iodd]
                 iodd = iodd + 1
 
-    def determineResolution(self, criterion=0.5, numberBands=None, mask=None, verbose=False, plot='',
+    def determine_resolution(self, criterion=0.5, number_bands=None, mask=None, verbose=False, plot='',
                             keepHalfsetAverages=False, halfsetPrefix='', parallel=True, randomize=None, combinedResolution=False):
         """
-        determineResolution
+        determine_resolution
         @param criterion: The resolution criterion
-        @param numberBands: Will use cubesizeX / 2 as default if not specified
+        @param number_bands: Will use cubesizeX / 2 as default if not specified
         @param mask: A mask used for specifying location of particle. Can be None 
         @param verbose: Verbose mode. Default -> False
         @param plot: Plot FSC curve to disk? Provide svg or png filename here. Default is '' -> no plot!
@@ -3044,14 +3043,14 @@ class ParticleList(PyTomClass):
         @param parallel: If True (default), this function will enable parallel averaging if possible.
         @param randomize: if you want to correct your resolution using phases randomization set this variable to a value between 0 and 1.
         @type randomize: float
-        @return: [Resolution in Nyquist , resolution in band, numberBands]
+        @return: [Resolution in Nyquist , resolution in band, number_bands]
         @todo: Change return type to L{pytom.basic.structures.resolution} to make it clearer. 
         """
         if len(self) < 2:
             raise RuntimeError('ParticleList must have at least 2 elements to determine resolution!')
     
         from pytom.lib.pytom_volume import read
-        from pytom.basic.correlation import FSC, determineResolution
+        from pytom.basic.correlation import fsc, determine_resolution
         import pytom.lib.pytom_mpi as pytom_mpi
         from pytom.lib.pytom_numpy import vol2npy
 
@@ -3091,56 +3090,56 @@ class ParticleList(PyTomClass):
             os.system('rm '+halfsetPrefix+'even-PreWedge.em')
             os.system('rm '+halfsetPrefix+'even-WedgeSumUnscaled.em')
         
-        if not numberBands:
-            numberBands = oddVolume.sizeX()/2
+        if not number_bands:
+            number_bands = oddVolume.sizeX()/2
         
         if verbose:
-            print('Using ', numberBands ,' shells for FSC')
+            print('Using ', number_bands ,' shells for FSC')
 
         #oddVolume = vol2npy(oddVolume).copy()
         #evenVolume = vol2npy(evenVolume).copy()
 
-        fsc = FSC(oddVolume, evenVolume, numberBands, mask, verbose)
+        calc_fsc = fsc(oddVolume, evenVolume, number_bands, mask, verbose)
 
         if randomize is None:
             if combinedResolution:
-                for (ii, fscel) in enumerate(fsc):
-                    fsc[ii] = 2.*fscel/(1.+fscel)
-            r = determineResolution(fsc, criterion, verbose)
+                for (ii, fscel) in enumerate(calc_fsc):
+                    calc_fsc[ii] = 2.*fscel/(1.+fscel)
+            r = determine_resolution(calc_fsc, criterion, verbose)
         else:
             import numpy as np
             from pytom.agnostic.io import write
-            from pytom.agnostic.correlation import randomizePhaseBeyondFreq, calc_FSC_true
-            randomizationFrequency    = np.floor(determineResolution(fsc, float(randomize), verbose)[1])
-            oddVolumeRandomizedPhase  = randomizePhaseBeyondFreq(vol2npy(oddVolume), randomizationFrequency)
-            evenVolumeRandomizedPhase = randomizePhaseBeyondFreq(vol2npy(evenVolume), randomizationFrequency)
+            from pytom.agnostic.correlation import randomize_phase_beyond_freq, calc_fsc_true
+            randomizationFrequency    = np.floor(determine_resolution(calc_fsc, float(randomize), verbose)[1])
+            oddVolumeRandomizedPhase  = randomize_phase_beyond_freq(vol2npy(oddVolume), randomizationFrequency)
+            evenVolumeRandomizedPhase = randomize_phase_beyond_freq(vol2npy(evenVolume), randomizationFrequency)
             write('randOdd.mrc', oddVolumeRandomizedPhase)
             write('randEven.mrc', evenVolumeRandomizedPhase)
             oddVolumeRandomizedPhase = read('randOdd.mrc')
             evenVolumeRandomizedPhase = read('randEven.mrc')
-            fsc2 = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
-            fsc_true = list(calc_FSC_true(np.array(fsc), np.array(fsc2)))
+            calc_fsc2 = fsc(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, number_bands, mask, verbose)
+            fsc_true = list(calc_fsc_true(np.array(calc_fsc), np.array(calc_fsc2)))
             if combinedResolution:
                 for (ii, fscel) in enumerate(fsc_true):
                     fsc_true[ii] = 2.*fscel/(1.+fscel)
-            r = determineResolution(fsc_true,criterion, verbose)
-        #randomizationFrequency = np.floor(determineResolution(fsc, 0.8, verbose)[1])
+            r = determine_resolution(fsc_true,criterion, verbose)
+        #randomizationFrequency = np.floor(determine_resolution(fsc, 0.8, verbose)[1])
 
-        #oddVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
-        #evenVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
-        #fsc2 = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
+        #oddVolumeRandomizedPhase = randomize_phase_beyond_freq(oddVolume, randomizationFrequency)
+        #evenVolumeRandomizedPhase = randomize_phase_beyond_freq(oddVolume, randomizationFrequency)
+        #calc_fsc2 = fsc(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, number_bands, mask, verbose)
         if verbose:
             print('FSC list:')
-            print(fsc)
+            print(calc_fsc)
             try:
-                print('FSC_Random:\n', fsc2)
+                print('FSC_Random:\n', calc_fsc2)
                 print('FSC_true:\n', fsc_true)
             except:
                 pass
         if not plot == '':
             try:
                 from pytom.basic.plot import plotFSC
-                plotFSC(fsc, plot)
+                plotFSC(calc_fsc, plot)
             except:
                 pass
         
@@ -3419,7 +3418,7 @@ class ParticleList(PyTomClass):
         
         return res
     
-    def loadCoordinateFile(self, filename, name_prefix=None, wedgeAngle=None, infoGUI=None, projDir=''):
+    def loadCoordinateFile(self, filename, name_prefix=None, wedge_angle=None, infoGUI=None, projDir=''):
         """
         Initialize the particle list using the given coordinate file.
         The coordinate file simply contains three columns of X, Y and Z separated 
@@ -3427,16 +3426,16 @@ class ParticleList(PyTomClass):
 
         @param filename: Coordinate file name.
         @param name_prefix: Particle name prefix
-        @param wedgeAngle: angle(s) specifying single axis tilt
-        @type wedgeAngle: float or 2-dim list of floats
+        @param wedge_angle: angle(s) specifying single axis tilt
+        @type wedge_angle: float or 2-dim list of floats
         """
         if not name_prefix:
             name_prefix = './particle_'
         
         try: self._particleList
         except: self._particleList = []
-        if wedgeAngle:
-            wedge = SingleTiltWedge( wedgeAngle=wedgeAngle)
+        if wedge_angle:
+            wedge = SingleTiltWedge( wedge_angle=wedge_angle)
         try:
             f = open(filename, 'r')
             ff = [line for line in f.readlines()]
@@ -3449,7 +3448,7 @@ class ParticleList(PyTomClass):
                 p = Particle(name_prefix+str(i)+'.em', rotation=None, shift=None,
                         wedge=None, className=0, pickPosition=PickPosition(x,y,z),
                         score=None, infoGUI=[projDir])
-                if wedgeAngle:
+                if wedge_angle:
                     p.setWedge(wedge)
                 self._particleList.append(p)
                 i += 1

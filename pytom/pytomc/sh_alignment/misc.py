@@ -267,7 +267,7 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     (best_translation, best_rotation, correlation_score)
     """
     from pytom.lib.pytom_volume import vol, rotateSpline, max, peak, initSphere
-    from pytom.basic.correlation import nXcf
+    from pytom.basic.correlation import norm_xcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import WedgeInfo
 
@@ -319,7 +319,7 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     rotateSpline(vg, tmp, ang[0], ang[1], ang[2])
     wedge_f = WedgeInfo(90+wf[0], 90-wf[1])
     wedge_g = WedgeInfo(90+wg[0], 90-wg[1])
-    cc = nXcf(lowpassFilter(wedge_g.apply(vf), radius, 0)[0], lowpassFilter(wedge_f.apply(tmp), radius, 0)[0])
+    cc = norm_xcf(lowpassFilter(wedge_g.apply(vf), radius, 0)[0], lowpassFilter(wedge_f.apply(tmp), radius, 0)[0])
     pos = peak(cc, peak_offset)
     pos, score = find_subpixel_peak_position(vol2npy(cc), pos)
 
@@ -579,7 +579,7 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
     """
     from pytom.lib.pytom_volume import vol, rotateSpline, peak, initSphere
     from pytom.basic.transformations import shift
-    from pytom.basic.correlation import nXcf
+    from pytom.basic.correlation import norm_xcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Mask
     from pytom.lib.pytom_numpy import vol2npy
@@ -647,7 +647,7 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
         rotateSpline(vg, vg2, orientation[0], orientation[1], orientation[2]) # first rotate
         vg2 = wedge.apply(vg2) # then apply the wedge
         vg2 = lowpassFilter(vg2, radius, 0)[0]
-        res = nXcf(lowpass_vf, vg2) # find the position
+        res = norm_xcf(lowpass_vf, vg2) # find the position
         pos = peak(res, peak_offset)
         # val = res(pos[0], pos[1], pos[2])
         pos, val = find_subpixel_peak_position(vol2npy(res), pos)

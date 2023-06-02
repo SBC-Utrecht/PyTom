@@ -48,12 +48,12 @@ if __name__ == '__main__':
                  ScriptOption2(['-t', '--template'], 'Filename of template', 'file', 'optional'),
                  ScriptOption2(['-m', '--mask'], 'Filename of mask', 'file', 'optional'),
                  ScriptOption2(['-a', '--angles'], 'Filename of angle file defining the sampling', 'file', 'optional'),
-                 ScriptOption2(['-w', '--wedgeAngles'], 'Missing wedge angles', 'float,float', 'optional',[30.,30.]),
+                 ScriptOption2(['-w', '--wedge_angles'], 'Missing wedge angles', 'float,float', 'optional',[30.,30.]),
                  ScriptOption2(['-s', '--scoreFunction'], 'Scoring function used', 'string', 'optional', 'FLCF'),
                  ScriptOption2(['-g', '--gpuID'], 'Index of used GPU', 'int', 'optional'),
                  ScriptOption2(['--startEndXYZ'], 'Region of interest in all dims. [startX, startY, startZ, endX, endY, endZ]', 'int,int,int,int,int,int', 'optional', [0,0,0,0,0,0]),
 
-                 ScriptOption2(['--scoreVolume'], 'Filename of volume', 'string', 'optional', 'scores.mrc'),
+                 ScriptOption2(['--score_volume'], 'Filename of volume', 'string', 'optional', 'scores.mrc'),
                  ScriptOption2(['--rotationVolume'], 'Filename of volume', 'string', 'optional', 'angles.mrc'),
 
                  ScriptOption2(['--extractPeaks'], 'This flag activates peaks extraction', 'no arguments', 'optional'),
@@ -94,11 +94,11 @@ if __name__ == '__main__':
             volume = bandpass(volume,0, 60, 3)
             template = bandpass(template,0, 60, 3)
 
-        [scoreVolume, angleVolume, a,b] = templateMatchingGPU(volume.get(), template.get(), rotations, scoreFunction, mask.get(),
+        [score_volume, angleVolume, a,b] = templateMatchingGPU(volume.get(), template.get(), rotations, scoreFunction, mask.get(),
                                                        wedgeInfo=wedge, gpuID=gpu)
 
         if not no_output:
-            write(scores, scoreVolume)
+            write(scores, score_volume)
             write(rots, angleVolume)
 
     if extractPeaks:

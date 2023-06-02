@@ -5950,7 +5950,7 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
         self.insert_label_line(parent, 'Output Name (Optional)', mode + 'OutputName',
                                'What is the file name off your output file (Optional).\n',width=w)
         self.insert_label_line(parent, 'Wedge Angle(s) (Optional)', mode + 'WedgeAngles',
-                               'What are the wedgeAngles. Example: 30 or 30,30.\n',width=w)
+                               'What are the wedge_angles. Example: 30 or 30,30.\n',width=w)
         self.insert_label_spinbox(parent, mode + 'PixelSize', 'Pixel Size (A)',
                                   wtype=QDoubleSpinBox, minimum=0.1, stepsize=0.1, value=1.0)
         self.insert_label_line_push(parent, 'Alignment result file IMOD (.xf)', wname=mode+'AlignXF',width=w, initdir=self.tomogramfolder,
@@ -5962,7 +5962,7 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
         self.flags_dict = {}
         for name, flag in (('InputFile', '-f'), ('InputFolder', '-d'), ('PrefixQuery', '--prefixQuery'),
                            ('SuffixQuery', '--suffixQuery'), ('OutputName', '--outname'),
-                           ('WedgeAngles', '--wedgeAngles'), ('AlignXF', '--alignxf'),
+                           ('WedgeAngles', '--wedge_angles'), ('AlignXF', '--alignxf'),
                            ('SortedFolder', '--sortedFolder')):
             self.widgets[mode + 'flag' + name] = QLineEdit()
             self.widgets[mode + name].textChanged.connect(lambda dummy, m=mode, ff=flag, nn=name: self.updateFlag(m, ff, nn))

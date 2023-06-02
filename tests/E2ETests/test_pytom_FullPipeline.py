@@ -433,7 +433,7 @@ class FullPipelineTest(unittest.TestCase):
             subdir = 'alignment_000_gpu'
         else:
             subdir = 'alignment_000_cpu'
-        updatePL([self.glocaldir + f'{subdir}/3-ParticleList.xml'], [self.plFilenameReduced], suffix='_reduced', wedgeangles=[70,70], multiplyshift=1,)
+        updatePL([self.glocaldir + f'{subdir}/3-ParticleList.xml'], [self.plFilenameReduced], suffix='_reduced', wedge_angles=[70,70], multiplyshift=1,)
 
         self.assertTrue(os.path.exists(self.plFilenameReduced), 'Updated particle list has not been created.')
 

@@ -6,6 +6,8 @@ basic filters operating on numpy arrays
 from pytom.gpu.initialize import xp, device
 import scipy
 import numpy as np
+#typing imports
+from typing import Union, Tuple
 
 def normalize(v):
     """Normalize the data according to standard deviation
@@ -54,7 +56,7 @@ def bandpass_circle(image, low=0, high=-1, sigma=0, ff=1):
 
     return res
 
-def bandpass(volume, low=0, high=-1, sigma=0, returnMask=False, mask=None, fourierOnly=False):
+def bandpass(volume, low=0, high=-1, sigma=0, returnMask=False, mask=None, fourierOnly=False) -> Union[Tuple[xp.ndarray[float], xp.ndarray[float]], xp.ndarray[float]]:
     """Do a bandpass filter on a given volume.
 
     @param volume: input volume.
@@ -536,12 +538,12 @@ class SingleTiltWedge(Wedge):
         return self._sf
 
 
-def create_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth=0, rotation=None):
+def create_wedge(wedge_angle1, wedge_angle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth=0, rotation=None):
     '''This function returns a wedge object. For speed reasons it decides whether to generate a symmetric or assymetric wedge.
-    @param wedgeAngle1: angle of wedge1 in degrees
-    @type wedgeAngle1: int
-    @param wedgeAngle2: angle of wedge2 in degrees
-    @type wedgeAngle2: int
+    @param wedge_angle1: angle of wedge1 in degrees
+    @type wedge_angle1: int
+    @param wedge_angle2: angle of wedge2 in degrees
+    @type wedge_angle2: int
     @param cutOffRadius: radius from center beyond which the wedge is set to zero.
     @type cutOffRadius: int
     @param sizeX: the size of the box in x-direction.
@@ -561,10 +563,10 @@ def create_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, sm
     if cutOffRadius < 1:
         cutOffRadius = sizeX // 2
 
-    if wedgeAngle1 == wedgeAngle2:
-        return create_symmetric_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth, rotation).astype(np.float32)
+    if wedge_angle1 == wedge_angle2:
+        return create_symmetric_wedge(wedge_angle1, wedge_angle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth, rotation).astype(np.float32)
     else:
-        return create_asymmetric_wedge(wedgeAngle1, wedgeAngle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth, rotation).astype(np.float32)
+        return create_asymmetric_wedge(wedge_angle1, wedge_angle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth, rotation).astype(np.float32)
 
 def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, smooth, rotation=None):
     '''This function returns a symmetric wedge object.

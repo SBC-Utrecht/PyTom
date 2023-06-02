@@ -600,7 +600,7 @@ def conv3d(data, kernel):
     d = convolve(data, kernel)
     return d
 
-def fourier_reduced2full(data, isodd=False, reduced_axis=2):
+def fourier_reduced2full(data, isodd=False, reduced_axis=2) -> xp.ndarray:
     """Return an Hermitian symmetried data.
     Only defined for volumes
     """

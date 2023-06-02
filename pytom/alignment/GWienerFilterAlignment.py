@@ -429,13 +429,13 @@ class MultiDefocusWorker(FRMWorker):
                 # with gold standard you should be careful about applying the symmetry!
                 even = job.symmetries.applyToParticle(even)
                 odd = job.symmetries.applyToParticle(odd)
-                resNyquist, resolutionBand, numberBands = self.determine_resolution(even, odd, job.fsc_criterion, None, job.mask, verbose)
+                resNyquist, resolutionBand, number_bands = self.determine_resolution(even, odd, job.fsc_criterion, None, job.mask, verbose)
                 
                 # write the half set to the disk
                 even.write('fsc_'+str(i)+'_even.em')
                 odd.write('fsc_'+str(i)+'_odd.em')
                 
-                current_resolution = bandToAngstrom(resolutionBand, job.sampleInformation.getPixelSize(), numberBands, 1)
+                current_resolution = bandToAngstrom(resolutionBand, job.sampleInformation.getPixelSize(), number_bands, 1)
                 if verbose:
                     print(self.node_name + ': current resolution ' + str(current_resolution), resNyquist)
                 
@@ -472,7 +472,7 @@ class MultiDefocusWorker(FRMWorker):
                         old_freq = new_freq
                 else:
                     old_freq = new_freq
-                if new_freq >= numberBands:
+                if new_freq >= number_bands:
                     print(self.node_name + ': Determined frequency too high. Terminate!')
                     break
                 

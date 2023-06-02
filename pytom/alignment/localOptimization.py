@@ -180,7 +180,7 @@ class Alignment:
             transform(self.vol2, self.rotvol2, rot_trans[0], rot_trans[1], rot_trans[2],
                       self.centX,self.centY,self.centZ,0,0,0,
                       rot_trans[3]/self.binning,rot_trans[4]/self.binning,rot_trans[5]/self.binning)
-        self.val = -1.*(self.score(volume=self.vol1, template=self.rotvol2, mask=self.mask, volumeIsNormalized=True))
+        self.val = -1.*(self.score(volume=self.vol1, template=self.rotvol2, mask=self.mask, volume_is_normalized=True))
         return self.val
 
     def cc(self, rot, trans):
@@ -203,7 +203,7 @@ class Alignment:
             trans[0]/self.binning, trans[1]/self.binning, trans[2]/self.binning)
         # compute CCC
         cc = self.score(volume=self.vol1, template=self.rotvol2,
-                        mask=self.mask, volumeIsNormalized=True)
+                        mask=self.mask, volume_is_normalized=True)
         return cc
 
     def localOpti( self, iniRot=None, iniTrans=None):
@@ -283,7 +283,7 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
     @author: FF
     """
     from pytom.lib.pytom_volume import transformSpline, vol
-    from pytom.basic.correlation import FSC
+    from pytom.basic.correlation import fsc
     from pytom.basic.filter import filter_volume_by_profile
     from pytom.alignment.localOptimization import Alignment
     from pytom.basic.correlation import nxcc
@@ -291,8 +291,8 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
     assert isinstance(vol1, vol), "alignVolumesAndFilterByFSC: vol1 must be of type vol"
     assert isinstance(vol2, vol), "alignVolumesAndFilterByFSC: vol2 must be of type vol"
     # filter volumes prior to alignment according to SNR
-    fsc = FSC(volume1=vol1, volume2=vol2, numberBands=nband)
-    fil = design_fsc_filter(fsc=fsc, fildim=int(vol2.sizeX()//2))
+    fsc_prior = fsc(volume1=vol1, volume2=vol2, number_bands=nband)
+    fil = design_fsc_filter(fsc=fsc_prior, fildim=int(vol2.sizeX()//2))
     #filter only one volume so that resulting CCC is weighted by SNR only once
     filvol2 = filter_volume_by_profile(volume=vol2, profile=fil)
     # align vol2 to vol1
@@ -320,13 +320,13 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
     # finally compute FSC and filter of both volumes
     if not nband:
         nband = int(vol2.sizeX()/2)
-    fsc = FSC(volume1=vol1, volume2=vol2_alig, numberBands=nband)
-    fil = design_fsc_filter(fsc=fsc, fildim=int(vol2.sizeX()/2), fsc_criterion=fsc_criterion)
+    fsc_out = fsc(volume1=vol1, volume2=vol2_alig, number_bands=nband)
+    fil = design_fsc_filter(fsc=fsc_out, fildim=int(vol2.sizeX()/2), fsc_criterion=fsc_criterion)
     filvol1 = filter_volume_by_profile(volume=vol1, profile=fil)
     #filvol2 = filter_volume_by_profile( volume=vol2_alig, profile=fil)
     filvol2 = filter_volume_by_profile(volume=vol2, profile=fil)
 
-    return (filvol1, filvol2, fsc, fil, optiRot, optiTrans)
+    return (filvol1, filvol2, fsc_out, fil, optiRot, optiTrans)
 
 
 def design_fsc_filter(fsc, fildim=None, fsc_criterion=0.143):

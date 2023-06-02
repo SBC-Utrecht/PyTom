@@ -238,7 +238,7 @@ def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position,
 
     # Cross correlate the templat
     # e and patch, this should give the pixel shift it is after
-    from pytom.agnostic.correlation import nXcf
+    from pytom.agnostic.correlation import norm_xcf
 
     # Get template
     # First rotate the template towards orientation of the particle, then to the tilt angle

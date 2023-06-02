@@ -84,7 +84,7 @@ def convertfile(file, format, target, chaindata, subtomo_prefix=None, wedge_angl
 
     if in_ex == "txt" and format == "pl":
         try:
-            f.txt2pl(f.name_to_format(file, target, format), file, subtomoPrefix=subtomo_prefix, wedgeAngle=wedge_angles)
+            f.txt2pl(f.name_to_format(file, target, format), file, subtomoPrefix=subtomo_prefix, wedge_angle=wedge_angles)
             return 0,""
 
         except:
@@ -211,7 +211,7 @@ if __name__ == '__main__':
                                          'Path and filename for subtomogram files (e.g., MyPath/particle_)',
                      'string', 'optional'),
                  ScriptOption2(
-                     ['-w', '--wedgeAngles'], 'Data needed for the conversion from coordinates to a particlelist. '
+                     ['-w', '--wedge_angles'], 'Data needed for the conversion from coordinates to a particlelist. '
                                               'Missing wedge angle(s) [counter-clock, clock] or single angle',
                      'has arguments', 'optional'),
 
@@ -267,7 +267,7 @@ if __name__ == '__main__':
         chaindata['binningPyTom'] = binningFactorPyTom
         outname = f'dummy.{format}' if (outname == '' and directory) else outname
         chaindata['outname'] = outname
-        chaindata['wedgeAngles'] = wedge_angles
+        chaindata['wedge_angles'] = wedge_angles
         chaindata['angle_file'] = tlt_file
         chaindata['sorted_folder'] = sorted_folder
         chaindata['rln_voltage'] = rln_voltage

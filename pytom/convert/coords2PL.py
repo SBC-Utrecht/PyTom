@@ -13,13 +13,13 @@ from pytom.lib.pytom_numpy import vol2npy
 import os
 
 
-def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, wedgeAngles=None, angleList=False, projDir=''):
+def convertCoords2PL(coordinate_files, particleList_file, subtomoPrefix=None, wedge_angles=None, angleList=False, projDir=''):
     pl = ParticleList()
     for n, coordinate_file in enumerate(coordinate_files):
-        wedgeAngle = wedgeAngles[2*n:2*(n+1)]
+        wedge_angle = wedge_angles[2*n:2*(n+1)]
         infoGUI = pl.loadCoordinateFileHeader(coordinate_file)
         l2 = len(pl)
-        pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedgeAngle=wedgeAngle,
+        pl.loadCoordinateFile(filename=coordinate_file, name_prefix=subtomoPrefix[n], wedge_angle=wedge_angle,
                               infoGUI=infoGUI, projDir=projDir)
 
         try:
@@ -41,7 +41,7 @@ if __name__ == '__main__':
                ScriptOption(['-c','--coords'], 'Coordinate List (ascii file from EMAN2)', True, False),
                ScriptOption(['-s','--subtomoPrefix'],'path and filename for subtomogram files (e.g., MyPath/particle_)',
                             True, True),
-               ScriptOption(['-w','--wedgeAngles'], 'missing wedge angle(s) [counter-clock, clock] or single angle',
+               ScriptOption(['-w','--wedge_angles'], 'missing wedge angle(s) [counter-clock, clock] or single angle',
                             True, True),
                ScriptOption(['-r', '--randomizeParticleOrientation'], 'Randomize the orientation of the particles.', False, True),
                ScriptOption(['-a', '--angleList'], 'Randomize the rotations of the particles, using the supplied angle list (em/mrc format).', True, True),
@@ -67,13 +67,13 @@ if __name__ == '__main__':
         sys.exit()
     if w:
         if len(w.split(',')) > 1:
-            wedgeAngle = []
+            wedge_angle = []
             for kk in w.split(','):
-                wedgeAngle.append(float(kk))
+                wedge_angle.append(float(kk))
         else:
-            wedgeAngle = float(w)
+            wedge_angle = float(w)
     else:
-        wedgeAngle = None
+        wedge_angle = None
 
     if r:
         if not angleList:
@@ -98,6 +98,6 @@ if __name__ == '__main__':
     coordName = coordName.split(',')
     subtomoPrefix = subtomoPrefix.split(',')
     assert len(coordName) == len(subtomoPrefix)
-    assert lem(wedgeAngle) == len(coordName)*2
+    assert len(wedge_angle) == len(coordName)*2
     convertCoords2PL(coordinate_files=coordName, particleList_file=plName, subtomoPrefix=subtomoPrefix,
-                     wedgeAngles=wedgeAngle,angleList=angleList)
+                     wedge_angles=wedge_angle,angleList=angleList)

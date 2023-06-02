@@ -18,7 +18,7 @@ class pytom_ScoreTest(unittest.TestCase):
         # there is a slight inconsistency when smoothing > 0 -
         # cleaner implementation would be multipliction with sqrt(mask) in corr function
         initSphere(self.mask,13,0,0,16,16,16)
-        self.wi = WedgeInfo(wedgeAngle=self.wedge, rotation=[10.0,20.0,30.0], 
+        self.wi = WedgeInfo(wedge_angle=self.wedge, rotation=[10.0,20.0,30.0], 
               cutoffRadius=0.0)
         self.s = simpleSimulation( volume=self.v, rotation=self.rotation, 
               shiftV=self.shift, wedgeInfo=self.wi, SNR=10.)

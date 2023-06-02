@@ -34,7 +34,7 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
     a = 0
 
 
-    wedge = Wedge(wedgeAngles=[30.0,30.0], cutoffRadius=50.0)
+    wedge = Wedge(wedge_angles=[30.0,30.0], cutoffRadius=50.0)
 
     pl = ParticleList( directory='./')
     ref1 = read(reffile)
