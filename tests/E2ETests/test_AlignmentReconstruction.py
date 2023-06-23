@@ -3,17 +3,16 @@ import pathlib
 import shutil
 import numpy as np
 import unittest
-from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO, fmtAlignmentResultsRo as fmt, \
-    HEADER_ALIGNMENT_RESULTS_RO as header
-from pytom.basic.files import loadtxt, savetxt
 from pytom.agnostic.correlation import flcf, nxcc
 from pytom.agnostic.io import read
 from pytom.agnostic.tools import create_circle
-from numpy.fft import fftshift, fftn, ifftn
+from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO, fmtAlignmentResultsRo as fmt, \
+    HEADER_ALIGNMENT_RESULTS_RO as header
+from pytom.basic.files import loadtxt, savetxt
+from pytom.basic.transformations import general_transform2d
 from pytom.lib.pytom_volume import read as readC
 from pytom.lib.pytom_numpy import vol2npy
-from pytom.basic.transformations import general_transform2d
-
+from pytom.gpu.initialize import xp
 
 only_run_cpu = False
 try:
@@ -21,7 +20,10 @@ try:
     initialize_gpu(0)
 except ImportError:
     only_run_cpu = True
-
+if only_run_cpu:
+    from numpy.fft import fftshift, fftn, ifftn
+else:
+    from cupy.fft import fftshift, fftn, ifftn
 
 imod_reconstruction_folder = pathlib.Path('ImodReconstruction')
 imod_aligned_images_folder = pathlib.Path('ImodAlignedImages')
@@ -159,6 +161,8 @@ class pytom_AlignmentReconstructionTest(unittest.TestCase):
 
         offset = 100
         indata = vol2npy(indata).copy()
+        # force cast to cupy if needed
+        indata = xp.array(indata)
         indata = indata[offset:-offset, offset:-offset]
         indata = gaussian_filter(indata, 30, 10)
         indata = (indata - indata.mean()) / indata.std()
@@ -184,6 +188,8 @@ class pytom_AlignmentReconstructionTest(unittest.TestCase):
         out = general_transform2d(data, shift=shift, scale=float(mag), rot=float(rot), order=[1, 0, 2], crop=True,
                                   center=center)
         res = vol2npy(out).copy()
+        # Force to cupy if needed
+        res = xp.array(res)
 
         # crop volumes
         res = res[offset:-offset, offset:-offset]

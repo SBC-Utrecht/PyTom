@@ -1,6 +1,8 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 from pytom.gpu.initialize import xp, device
+# Typing imports
+from pytom.gpu.initialize import xpt
 
 def rotate_axis(data, angle, axis='z'):
     """Rotate the volume around certain axis.
@@ -600,7 +602,7 @@ def conv3d(data, kernel):
     d = convolve(data, kernel)
     return d
 
-def fourier_reduced2full(data, isodd=False, reduced_axis=2) -> xp.ndarray:
+def fourier_reduced2full(data, isodd=False, reduced_axis=2) -> xpt.NDArray:
     """Return an Hermitian symmetried data.
     Only defined for volumes
     """

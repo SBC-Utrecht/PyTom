@@ -29,6 +29,9 @@ class pytom_NumpyTest(unittest.TestCase):
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+        # cast from cupy to numpy if required
+        if hasattr(wedge_numpy, 'get'):
+            wedge_numpy = wedge_numpy.get()
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "now there is a big issue")
 
         # test uneven X
@@ -36,6 +39,9 @@ class pytom_NumpyTest(unittest.TestCase):
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+        # cast from cupy to numpy if required
+        if hasattr(wedge_numpy, 'get'):
+            wedge_numpy = wedge_numpy.get()
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == known_error[0], "failing with uneven X")
 
         # test uneven Y
@@ -43,6 +49,10 @@ class pytom_NumpyTest(unittest.TestCase):
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+        # cast from cupy to numpy if required
+        if hasattr(wedge_numpy, 'get'):
+            wedge_numpy = wedge_numpy.get()
+ 
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == known_error[1], "failing with uneven Y")
 
         # test uneven Z
@@ -50,6 +60,10 @@ class pytom_NumpyTest(unittest.TestCase):
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+        # cast from cupy to numpy if required
+        if hasattr(wedge_numpy, 'get'):
+            wedge_numpy = wedge_numpy.get()
+ 
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == known_error[2], "failing with uneven Z")
 
         # FOR DEVELOPERS: set to true if you want to plot the wedges
@@ -98,6 +112,10 @@ class pytom_NumpyTest(unittest.TestCase):
         temp = w.returnWedgeVolume(SX, SY, SZ, humanUnderstandable=True)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ, humanUnderstandable=True)
+        # cast from cupy to numpy if required
+        if hasattr(wedge_numpy, 'get'):
+            wedge_numpy = wedge_numpy.get()
+ 
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == 0, "now there is a big issue")
 
         # test uneven X
@@ -105,6 +123,10 @@ class pytom_NumpyTest(unittest.TestCase):
         temp = w.returnWedgeVolume(SX, SY, SZ, humanUnderstandable=True)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ, humanUnderstandable=True)
+        # cast from cupy to numpy if required
+        if hasattr(wedge_numpy, 'get'):
+            wedge_numpy = wedge_numpy.get()
+ 
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == known_error[0], "failing with uneven X")
 
         # test uneven Y
@@ -112,6 +134,10 @@ class pytom_NumpyTest(unittest.TestCase):
         temp = w.returnWedgeVolume(SX, SY, SZ, humanUnderstandable=True)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ, humanUnderstandable=True)
+        # cast from cupy to numpy if required
+        if hasattr(wedge_numpy, 'get'):
+            wedge_numpy = wedge_numpy.get()
+ 
         self.assertTrue((wedge_pytom != wedge_numpy).sum() == known_error[1], "failing with uneven Y")
 
     def smoothed_wedge(self, w1, w2):
@@ -122,6 +148,10 @@ class pytom_NumpyTest(unittest.TestCase):
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+        # cast from cupy to numpy if required
+        if hasattr(wedge_numpy, 'get'):
+            wedge_numpy = wedge_numpy.get()
+ 
         self.assertTrue(nxcc(wedge_pytom, wedge_numpy) > 0.7, "now there is a big issue")
 
         # test uneven X
@@ -129,6 +159,10 @@ class pytom_NumpyTest(unittest.TestCase):
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+        # cast from cupy to numpy if required
+        if hasattr(wedge_numpy, 'get'):
+            wedge_numpy = wedge_numpy.get()
+ 
         self.assertTrue(nxcc(wedge_pytom, wedge_numpy) > 0.7, "failing with uneven X")
 
         # test uneven Y
@@ -136,6 +170,10 @@ class pytom_NumpyTest(unittest.TestCase):
         temp = w.returnWedgeVolume(SX, SY, SZ)
         wedge_pytom = vol2npy(temp).copy().astype(np.float32)
         wedge_numpy = w_np.returnWedgeVolume(SX, SY, SZ)
+        # cast from cupy to numpy if required
+        if hasattr(wedge_numpy, 'get'):
+            wedge_numpy = wedge_numpy.get()
+ 
         self.assertTrue(nxcc(wedge_pytom, wedge_numpy) > 0.7, "failing with uneven Y")
 
     def rotated_wedge(self, w1, w2):

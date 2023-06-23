@@ -18,8 +18,11 @@ from tqdm import tqdm
 # math
 # from pytom.basic.files import *
 import numpy as xp
+# TODO: see which code paths can become agnostic vs only numpy
+import numpy as np
 import random
 import pytom.simulation.physics as physics
+from pytom.lib.pytom_numpy import npy2vol
 
 # Plotting, use Qt5Agg to prevent conflict with tkinter in pylab on cluster
 # import matplotlib
@@ -820,6 +823,16 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     """
     from pytom.voltools import transform
     from pytom.simulation.microscope import transmission_function, fresnel_propagator
+    
+    # cast possible cupy to numpy for now
+    # TODO: see if this can be done on the gpu
+    if hasattr(ctf, 'get'):
+        ctf=ctf.get()
+    if hasattr(mtf, 'get'):
+        mtf=mtf.get()
+    if hasattr(dqe, 'get'):
+        dqe=dqe.get()
+
 
     print('Transforming sample for tilt/frame ', frame)
 
@@ -897,6 +910,9 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
 
     # calculate the fresnel propagator (identical for same dz)
     propagator = fresnel_propagator(image_size, pixel_size, voltage, msdz)
+    # cast to numpy if required
+    if hasattr(propagator, 'get'):
+        propagator = propagator.get()
 
     # Wave propagation with MULTISLICE method, psi_multislice is complex
     psi_multislice = xp.zeros((image_size,image_size), dtype=xp.complex64) + 1 # +1 for initial probability
@@ -911,6 +927,10 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
         msdz_end = num_px_last_slice * pixel_size
         psi_t[:, :, -1] = transmission_function(projected_potent_ms[:, :, -1], voltage, msdz_end)
         propagator_end = fresnel_propagator(image_size, pixel_size, voltage, msdz_end)
+        # cast to numpy if required
+        #TODO: remove once this becomes agnostic
+        if hasattr(propagator_end, 'get'):
+            propagator_end = propagator_end.get()
         wave_field = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, -1]) )
         psi_multislice = xp.fft.fftshift( xp.fft.ifftn( wave_field * xp.fft.ifftshift(propagator_end) ) )
 
@@ -1068,6 +1088,9 @@ def generate_tilt_series_cpu(save_path,
             grandcell = grandcell.astype(xp_type)
             solvent_amplitude = 0.0
     else:
+        # this will cast to numpy if input is cupy
+        if hasattr(grandcell,'get'):
+            grandcell = grandcell.get()
         if xp.iscomplexobj(grandcell):
             solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
             # set dtype to be complex64 to save memory
@@ -1920,6 +1943,12 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
     projections.load_alignment(filename_align)
     vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0, 0, 0], binning=reconstruction_bin,
                                         weighting=weighting)
+    # cast to numpy and then volume if not an vol already
+    if hasattr(vol, 'get'):
+        vol = vol.get()
+    if isinstance(vol, xp.ndarray):
+        vol = np.asfortranarray(vol)
+        vol = npy2vol(vol, vol.ndim)
     vol.write(filename_output)
     os.system(f'convert.py -f {filename_output} -o mrc -t {os.path.dirname(filename_output)}')
     os.system(f'rm {filename_output}')

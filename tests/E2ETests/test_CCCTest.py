@@ -126,8 +126,6 @@ class pytom_MyFunctionTest(unittest.TestCase):
         cmd += ' -g 0'
         print(cmd)
         os.system(cmd)
-        os.system(f'rm -rf {self.settings["outputDirectory"]}')
-
         self.cleanUp()
 
 

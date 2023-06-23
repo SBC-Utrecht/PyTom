@@ -1,8 +1,9 @@
 from pytom.gpu.initialize import xp, device
 # Typing imports
 from typing import Tuple
+from pytom.gpu.initialize import xpt
 
-def mean0std1(volume, copyFlag=False) -> xp.ndarray[float]:
+def mean0std1(volume, copyFlag=False) -> xpt.NDArray[float]:
     """
     mean0std1: normalises input volume to mean 0 and std 1. Procedure is performed inplace if copyFlag is unspecified!!!
     @param volume: Data containing either an image or a volume
@@ -38,7 +39,7 @@ def mean0std1(volume, copyFlag=False) -> xp.ndarray[float]:
 
         return (volumeCopy - volume.mean()) / volumeStd
 
-def normaliseUnderMask(volume, mask, p=None) -> Tuple[xp.ndarray[float], float]:
+def normaliseUnderMask(volume, mask, p=None) -> Tuple[xpt.NDArray[float], float]:
     """
     normalize volume within a mask - take care: only normalization, but NOT multiplication with mask!
 
@@ -118,7 +119,7 @@ def stdUnderMask(volume, mask, meanValue, p=1, gpu=False) -> float:
     """
     return (meanUnderMask(volume**2, mask, p) - meanValue**2)**0.5
 
-def meanVolUnderMask(volume, mask) -> xp.ndarray[float]:
+def meanVolUnderMask(volume, mask) -> xpt.NDArray[float]:
     """
     meanUnderMask: calculate the mean volume under the given mask (Both should have the same size)
     @param volume: input volume
@@ -136,7 +137,7 @@ def meanVolUnderMask(volume, mask) -> xp.ndarray[float]:
     res = xp.fft.fftshift(xp.fft.ifftn(xp.fft.fftn(volume) * xp.conj(xp.fft.fftn(mask)))) / mask.sum()
     return res.real
 
-def stdVolUnderMask(volume, mask, meanV) -> xp.ndarray[float]:
+def stdVolUnderMask(volume, mask, meanV) -> xpt.NDArray[float]:
     """
     stdUnderMask: calculate the std volume under the given mask
     @param volume: input volume

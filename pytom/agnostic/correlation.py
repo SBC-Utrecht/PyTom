@@ -26,14 +26,15 @@ from pytom.lib import pytom_volume
 
 # Typing imports
 from typing import Optional, Tuple, Any, List, Union, cast
+from pytom.gpu.initialize import xpt
 
 
 def flcf(
-    volume: xp.ndarray[float],
-    template: xp.ndarray[float],
-    mask: Optional[xp.ndarray[float]] = None,
+    volume: xpt.NDArray[float],
+    template: xpt.NDArray[float],
+    mask: Optional[xpt.NDArray[float]] = None,
     std_v: Optional[float] = None,
-) -> xp.ndarray[float]:
+) -> xpt.NDArray[float]:
     """Fast local correlation function
 
     @param volume: target volume
@@ -72,20 +73,20 @@ def flcf(
 
 
 def xcc(
-    volume: xp.ndarray[float],
-    template: xp.ndarray[float],
-    mask: Optional[xp.ndarray[float]] = None,
+    volume: xpt.NDArray[float],
+    template: xpt.NDArray[float],
+    mask: Optional[xpt.NDArray[float]] = None,
     volume_is_normalized: bool = False,
 ) -> float:
     """
     xcc: Calculates the cross correlation coefficient in real space
     @param volume: A volume
-    @type volume:  L{xp.ndarray}
+    @type volume:  L{xpt.NDArray}
     @param template: A template that is searched in volume.
                      Must have the same size as volume.
-    @type template:  L{xp.ndarray}
+    @type template:  L{xpt.NDArray}
     @param mask: mask to constrain correlation
-    @type mask: L{xp.ndarray}
+    @type mask: L{xpt.NDArray}
     @param volume_is_normalized: only used for compatibility with nxcc - not used
     @type volume_is_normalized: L{bool}
     @return: An unscaled value
@@ -110,20 +111,20 @@ def xcc(
 
 
 def nxcc(
-    volume: xp.ndarray[float],
-    template: xp.ndarray[float],
-    mask: Optional[xp.ndarray[float]] = None,
+    volume: xpt.NDArray[float],
+    template: xpt.NDArray[float],
+    mask: Optional[xpt.NDArray[float]] = None,
     volume_is_normalized: bool = False,
 ) -> float:
     """
     nxcc: Calculates the normalized cross correlation coefficient in real space
     @param volume: A volume
-    @type volume:  L{xp.ndarray}
+    @type volume:  L{xpt.NDArray}
     @param template: A template that is searched in volume.
                      Must have the same size as volume.
-    @type template:  L{xp.ndarray}
+    @type template:  L{xpt.NDArray}
     @param mask: mask to constrain correlation
-    @type mask: L{xp.ndarray}
+    @type mask: L{xpt.NDArray}
     @param volume_is_normalized: speed up if volume is already normalized
     @type volume_is_normalized: L{bool}
     @return: A value between -1 and 1
@@ -164,24 +165,24 @@ def nxcc(
 
 
 def xcf(
-    volume: xp.ndarray[float, complex],
-    template: xp.ndarray[float, complex],
+    volume: Union[xpt.NDArray[float], xpt.NDArray[complex]],
+    template: Union[xpt.NDArray[float], xpt.NDArray[complex]],
     mask: Any = None,
     std_v: Any = None,
-) -> xp.ndarray[float]:
+) -> xpt.NDArray[float]:
     """
     XCF: returns the non-normalised cross correlation function. The xcf
     result is scaled only by the square of the number of elements.
 
     @param volume : The search volume
-    @type volume: L{xp.ndarray}
+    @type volume: L{xpt.NDArray}
     @param template : The template searched (this one will be used for conjugate complex
                                              multiplication)
-    @type template: L{xp.ndarray}
+    @type template: L{xpt.NDArray}
     @param mask: Will be unused, only for compatibility reasons with FLCF
     @param std_v: Will be unused, only for compatibility reasons with FLCF
     @return: XCF volume
-    @rtype: L{xp.ndarray}
+    @rtype: L{xpt.NDArray}
     @author: Thomas Hrabe
     """
 
@@ -213,11 +214,11 @@ def xcf(
 
 
 def xcf_mult(
-    volume: xp.ndarray[float],
-    template: xp.ndarray[float],
+    volume: xpt.NDArray[float],
+    template: xpt.NDArray[float],
     mask: Any = None,
     std_v: Any = None,
-) -> xp.ndarray[float]:
+) -> xpt.NDArray[float]:
     """
     XCF: returns the non-normalised cross correlation function. The xcf
     result is scaled only by the square of the number of elements.
@@ -255,12 +256,12 @@ def xcf_mult(
 
 
 def norm_xcf(
-    volume: xp.ndarray[float],
-    template: xp.ndarray[float],
-    mask: Optional[xp.ndarray[float]] = None,
+    volume: xpt.NDArray[float],
+    template: xpt.NDArray[float],
+    mask: Optional[xpt.NDArray[float]] = None,
     std_v: Optional[float] = None,
     gpu: bool = False,
-) -> xp.ndarray[float]:
+) -> xpt.NDArray[float]:
     """
     nXCF: returns the normalised cross correlation function. Autocorrelation
     of two equal objects would yield a max nxcf peak of 1.
@@ -268,13 +269,13 @@ def norm_xcf(
     @param volume: The search volume
     @param template: The template searched (this one will be used for conjugate complex
                                             multiplication)
-    @type template: L{xp.ndarray}
+    @type template: L{xpt.NDArray}
     @param mask: template mask. If not given, a default sphere mask will be generated
                  which has the same size with the given template.
-    @type mask: L{xp.ndarray}
+    @type mask: L{xpt.NDArray}
     @param std_v: Will be unused, only for compatibility reasons with FLCF
     @return: the calculated norm_xcf volume
-    @rtype: L{xp.ndarray}
+    @rtype: L{xpt.NDArray}
     @author: Thomas Hrabe
     @change: masking of template implemented
     """
@@ -294,17 +295,17 @@ def norm_xcf(
 
 
 def soc(
-    volume: xp.ndarray[float],
-    reference: xp.ndarray[float],
-    mask: Optional[xp.ndarray[float]] = None,
+    volume: xpt.NDArray[float],
+    reference: xpt.NDArray[float],
+    mask: Optional[xpt.NDArray[float]] = None,
     std_v: Optional[float] = None,
-) -> xp.ndarray[float]:
+) -> xpt.NDArray[float]:
     """
     soc : Second Order Correlation. Correlation of correlation peaks.
     @param volume: The volume
-    @type volume:  L{xp.ndarray}
+    @type volume:  L{xpt.NDArray}
     @param reference: The reference / template
-    @type reference:  L{xp.ndarray}
+    @type reference:  L{xpt.NDArray}
     @author: Thomas Hrabe
     """
 
@@ -315,20 +316,20 @@ def soc(
 
 
 def dev(
-    volume: xp.ndarray[float],
-    template: xp.ndarray[float],
-    mask: Optional[xp.ndarray[float]] = None,
+    volume: xpt.NDArray[float],
+    template: xpt.NDArray[float],
+    mask: Optional[xpt.NDArray[float]] = None,
     volume_is_normalized: bool = False,
 ) -> float:
     """
     dev: Calculates the squared deviation of volume and template in real space
     @param volume: A volume
-    @type volume:  L{xp.ndarray}
+    @type volume:  L{xpt.NDArray}
     @param template: A template that is searched in volume. Must be of same size as
                      volume.
-    @type template:  L{xp.ndarray}
+    @type template:  L{xpt.NDArray}
     @param mask: mask to constrain correlation
-    @type mask: L{xp.ndarray}
+    @type mask: L{xpt.NDArray}
     @param volume_is_normalized: speed up if volume is already normalized
     @type volume_is_normalized: L{bool}
     @return: deviation
@@ -362,8 +363,8 @@ def dev(
 
 
 def band_cc(
-    volume: xp.ndarray[float],
-    reference: xp.ndarray[float],
+    volume: xpt.NDArray[float],
+    reference: xpt.NDArray[float],
     band: Tuple[float, float],
     verbose: bool = False,
     shared: None = None,
@@ -372,9 +373,9 @@ def band_cc(
     """
     band_cc: Determines the normalised correlation coefficient within a band
     @param volume: The volume
-    @type volume: L{xp.ndarray}
+    @type volume: L{xpt.NDArray}
     @param reference: The reference
-    @type reference: L{xp.ndarray}
+    @type reference: L{xpt.NDArray}
     @param band: [a,b] - specify the lower and upper end of band.
     @return: The correlation coefficient of the two volumes in the specified band.
     @rtype: L{float}
@@ -390,7 +391,7 @@ def band_cc(
         print("lowest freq : ", band[0], " highest freq", band[1])
 
     vf, m = bandpass(volume, band[0], band[1], returnMask=True, fourierOnly=True)
-    rf: xp.ndarray = bandpass(
+    rf: xpt.NDArray = bandpass(
         reference, band[0], band[1], mask=m, fourierOnly=True
     )  # ,vf[1])
 
@@ -430,10 +431,10 @@ def band_cc(
 
 
 def band_cf(
-    volume: xp.ndarray[float],
-    reference: xp.ndarray[float],
+    volume: xpt.NDArray[float],
+    reference: xpt.NDArray[float],
     band: Tuple[float, float] = (0, 100),
-) -> Tuple[xp.ndarray[float], xp.ndarray[float]]:
+) -> Tuple[xpt.NDArray[float], xpt.NDArray[float]]:
     """
     band_cf:
     @param volume: The volume
@@ -441,7 +442,7 @@ def band_cf(
     @param band: [a,b] - specify the lower and upper end of band. [0,1] if not set.
     @return: First parameter - The correlation of the two volumes in the specified ring.
              Second parameter - The bandpass filter used.
-    @rtype: List - [L{xp.ndarray},L{pytom.lib.pytom_freqweight.weight}]
+    @rtype: List - [L{xpt.NDArray},L{pytom.lib.pytom_freqweight.weight}]
     @author: Thomas Hrabe
     @todo: does not work yet -> test is disabled
     """
@@ -482,23 +483,23 @@ def band_cf(
 
 
 def fsc(
-    volume1: xp.ndarray[float],
-    volume2: xp.ndarray[float],
+    volume1: xpt.NDArray[float],
+    volume2: xpt.NDArray[float],
     number_bands: Optional[int] = None,
-    mask: Optional[Union[xp.ndarray[float], Mask, str]] = None,
+    mask: Optional[Union[xpt.NDArray[float], Mask, str]] = None,
     verbose: bool = False,
     filename: Optional[str] = None,
 ) -> List[float]:
     """
     FSC - Calculates the Fourier Shell Correlation for two volumes
     @param volume1: volume one
-    @type volume1: L{xp.ndarray}
+    @type volume1: L{xpt.NDArray}
     @param volume2: volume two
-    @type volume2: L{xp.ndarray}
+    @type volume2: L{xpt.NDArray}
     @param number_bands: number of shells for FSC
     @type number_bands: int
     @param mask: mask
-    @type mask: L{xp.ndarray}
+    @type mask: L{xpt.NDArray}
     @param verbose: flag to activate printing of info
     @type verbose: L{bool}
     @param filename: write FSC to ascii file if specified
@@ -594,12 +595,12 @@ def determine_resolution(
     @todo: Add test!
     """
 
-    fsc_arr: xp.ndarray = xp.array(fsc)
+    fsc_arr: xpt.NDArray = xp.array(fsc)
     number_bands = len(fsc)
 
     band = number_bands
 
-    randomized_fsc_arr: xp.ndarray
+    randomized_fsc_arr: xpt.NDArray
     if randomized_fsc is None:
         randomized_fsc_arr = xp.ones_like(fsc_arr) * (fsc_arr.min() - 0.1)
     else:
@@ -657,8 +658,8 @@ def determine_resolution(
 
 
 def calc_fsc_true(
-    fsc_t: xp.ndarray[float], fsc_n: xp.ndarray[float], ring_thickness: int = 1
-) -> xp.ndarray:
+    fsc_t: xpt.NDArray[float], fsc_n: xpt.NDArray[float], ring_thickness: int = 1
+) -> xpt.NDArray:
     """Calculates the true FSC as defined in Henderson
     @param fsc_t: array with FSC values without randomized phases.
     @type fsc_t: ndarray
@@ -689,7 +690,7 @@ def calc_fsc_true(
 
 def generate_random_phases_3d(
     shape: Union[Tuple[int, int], Tuple[int, int, int]], reduced_complex: bool = True
-) -> xp.ndarray[float]:
+) -> xpt.NDArray[float]:
     """This function returns a set of random phases (between -pi and pi),
        optionally centrosymmetric
     @shape: shape of array
@@ -726,16 +727,16 @@ def generate_random_phases_3d(
     return rnda
 
 
-def randomize_phase_beyond_freq(volume: xp.ndarray, frequency: int) -> xp.ndarray:
+def randomize_phase_beyond_freq(volume: xpt.NDArray, frequency: int) -> xpt.NDArray:
     """This function randomizes the phases beyond a given frequency,
     while preserving the Friedel symmetry.
     @param volume: target volume
-    @type volume: L{xp.ndarray}
+    @type volume: L{xpt.NDArray}
     @param frequency: frequency in pixel beyond which phases are randomized.
     @type frequency: int
 
     @return: 3d volume.
-    @rtype: L{xp.ndarray}
+    @rtype: L{xpt.NDArray}
     @author: GvdS"""
 
     dims = len(volume.shape)
@@ -790,7 +791,7 @@ def randomize_phase_beyond_freq(volume: xp.ndarray, frequency: int) -> xp.ndarra
 
 
 def sub_pixel_peak_parabolic(
-    score_volume: xp.ndarray[float],
+    score_volume: xpt.NDArray[float],
     coordinates: Union[Tuple[float, float, float], Tuple[float, float]],
     verbose: bool = False,
 ) -> Tuple[float, Union[Tuple[float, float, float], Tuple[float, float]]]:
@@ -859,7 +860,7 @@ def sub_pixel_peak_parabolic(
 
 
 def sub_pixel_peak(
-    score_volume: xp.ndarray,
+    score_volume: xpt.NDArray,
     coordinates: Tuple[int, int, int],
     cube_length: int = 8,
     interpolation: str = "Spline",
@@ -974,7 +975,7 @@ def sub_pixel_peak(
     return peak_value, out_peak_coordinates
 
 
-def max_index(volume: xp.ndarray, num_threads: int = 1024) -> Tuple[int, ...]:
+def max_index(volume: xpt.NDArray, num_threads: int = 1024) -> Tuple[int, ...]:
     nblocks = int(xp.ceil(volume.size / num_threads / 2))
     fast_sum = -1000000 * xp.ones((nblocks), dtype=xp.float32)
     max_id = xp.zeros((nblocks), dtype=xp.int32)
@@ -995,7 +996,7 @@ def max_index(volume: xp.ndarray, num_threads: int = 1024) -> Tuple[int, ...]:
     return indices
 
 
-def is_border_voxel(volume: xp.ndarray, coordinates: Tuple[float, ...]) -> bool:
+def is_border_voxel(volume: xpt.NDArray, coordinates: Tuple[float, ...]) -> bool:
     shape = volume.shape
     for n, pos in enumerate(coordinates):
         if pos < 1 or pos >= shape[n] - 1:

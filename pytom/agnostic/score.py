@@ -12,7 +12,7 @@ def Vol_G_Val(volume, value):
     """
     Vol_GE_Val: returns True when peak in volume greater than value
     @param volume: A volume
-    @type volume: L{xp.ndarray}
+    @type volume: L{xpt.NDArray}
     @param value: A value
     @type value: L{float}
     @return: True if peak in volume > value

@@ -10,6 +10,7 @@ from scipy.ndimage import label
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage import median_filter
 import numpy as np
+from pytom.gpu.initialize import xp
 
 
 def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2, maskD=None):
@@ -27,9 +28,13 @@ def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2, maskD=Non
     @:return return mask
     @:rtype ndarray of float32'''
 
+    # cast cupy to numpy if needed
+    if hasattr(data,'get'):
+        data = data.get()
     mask = np.zeros_like(data, dtype=int)
     print(data.std(), num_stds)
     mask[data < data.mean() - float(num_stds) * data.std()] = 1
+    
     mask = remove_small_objects(mask.astype(bool))
     mask = binary_fill_holes(mask)
 
@@ -55,11 +60,10 @@ def gen_mask_fsc(data, num_cycles, outname=None, num_stds=1, smooth=2, maskD=Non
     mask[mask > 78] = 78.
     mask /= mask.max()
 
-    if outname is None:
-        return mask
-    else:
+    if outname is not None:
         write(outname, mask.astype(np.float32))
-        return mask
+    #Wrap back to cupy if needed
+    return xp.array(mask)
 
 
 

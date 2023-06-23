@@ -2,7 +2,10 @@ import os
 from pytom.gpu.initialize import xp, device
 import pytom.simulation.physics as physics
 from scipy.optimize import curve_fit
-
+if 'gpu' in device:
+    from cupyx.scipy.ndimage import gaussian_filter
+else:
+    from scipy.ndimage import gaussian_filter
 
 def convert_defocusU_defocusV_to_defocus_astigmatism(defocusU, defocusV):
     return 0.5 * (defocusU + defocusV), -0.5 * (defocusU - defocusV)
@@ -168,7 +171,7 @@ def sinc_square(x, p1, p2, p3, p4):
     Sinc square function: M{f(x) = p1 * (sin(S{pi} * (x - p2) * p3) / (S{pi} * (x - p2) * p3))^2 + p4 }
 
     @param x: coordinate
-    @type  x: L{float}
+    @type  x: L{xp.ndarray}
     @param p1: parameter 1
     @type  p1: L{float}
     @param p2: parameter 2
@@ -183,7 +186,12 @@ def sinc_square(x, p1, p2, p3, p4):
 
     @author: Marten Chaillet
     """
-    return p1 * (xp.sin(xp.pi*(x-p2)*p3) / (xp.pi*(x-p2)*p3))**2 + p4
+    if 'gpu' in device:
+        # use correct module for input x (either cupy or numpy)
+        lxp = xp.get_array_module(x, p1, p2, p3, p4)
+    else:
+        lxp = xp
+    return p1 * (lxp.sin(lxp.pi*(x-p2)*p3) / (lxp.pi*(x-p2)*p3))**2 + p4
 
 
 def fit_sinc_square(xdata, ydata):
@@ -203,6 +211,12 @@ def fit_sinc_square(xdata, ydata):
     """
     assert len(xdata) == len(ydata), print("length of x and y coordinates lists of data to fit since square to does "
                                            "not match")
+    # Force to numpy if input are cupy arrays
+    if hasattr(xdata, 'get'):
+        xdata = xdata.get()
+    if hasattr(ydata, 'get'):
+        ydata = ydata.get()
+
     # Here you give the initial parameters for p0 which Python then iterates over
     # to find the best fit
     popt, pcov = curve_fit(sinc_square, xdata, ydata, p0=(1.0, 1.0, 1.0, 1.0))  # THESE PARAMETERS ARE USER DEFINED
@@ -412,14 +426,19 @@ def transmission_function(sliced_potential, voltage, dz):
 
     @author: Marten Chaillet
     """
+    # get correct local xp module
+    if 'gpu' in device:
+        lxp = xp.get_array_module(sliced_potential)
+    else:
+        lxp = xp
     # wavelength
     Lambda = physics.wavelength_eV2m(voltage)
     # relative mass
     relative_mass = physics.constants["me"] + physics.constants["el"] * voltage / (physics.constants["c"] ** 2)
     # sigma_transfer
-    sigma_transfer = 2 * xp.pi * relative_mass * physics.constants["el"] * Lambda / (physics.constants["h"] ** 2)
+    sigma_transfer = 2 * lxp.pi * relative_mass * physics.constants["el"] * Lambda / (physics.constants["h"] ** 2)
 
-    return xp.exp(1j * sigma_transfer * sliced_potential * dz)
+    return lxp.exp(1j * sigma_transfer * sliced_potential * dz)
 
 
 def fresnel_propagator(image_size, pixel_size, voltage, dz):
@@ -699,7 +718,6 @@ def create_complex_ctf(image_shape, pixel_size, defocus, voltage=300E3, Cs=2.7E-
 
     @author: Marten Chaillet
     """
-    from scipy.ndimage import gaussian_filter
 
     # print(locals())
 

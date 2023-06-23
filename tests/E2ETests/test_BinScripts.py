@@ -164,11 +164,12 @@ class pytom_MyFunctionTest(unittest.TestCase):
         outfile = merge(self.outdir, 'sel.xml')
         func = 'extractClassXML.py'
         cmd = f"{func} -p {plname}  -c 1,2 -o {outfile}"
-
         self.check_cmd(cmd, func, plname)
 
         pl = ParticleList()
-        pl.fromXMLFile(outfile)
+        #Mirror what the bin script does
+        real_out = outfile.replace('.xml','_deselected.xml')
+        pl.fromXMLFile(real_out)
         for p in pl:
             self.assertTrue( p.getClass() in ("1", '2'), 'wrong class')
 
@@ -353,7 +354,8 @@ class pytom_MyFunctionTest(unittest.TestCase):
         os.system(cmd)
 
     def test_localization(self):
-
+        # TODO: deal with this test
+        raise unittest.SkipTest('testjob.xml has disapeared, should be recovered')
         jobname = 'testjob.xml'
         mpi_procs = 4
         cmd = 'localization.py'

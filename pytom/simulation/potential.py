@@ -2,6 +2,7 @@
 
 import multiprocessing as mp
 import numpy as np
+from pytom.gpu.initialize import xp
 import pytom.simulation.physics as physics
 import os, sys
 # from numba import jit
@@ -138,7 +139,7 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
     non-integer.
 
     @param vol: input volume to be extended, 3d array
-    @type  vol: L{np.ndarray}
+    @type  vol: L{xp.ndarray}
     @param increment: list with increment value for each dimension
     @type  increment: L{list} - [L{int},] * 3
     @param pad_value: value to use as padding
@@ -151,7 +152,7 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
     @type  interpolation: L{string}
 
     @return: Extended volume, 3d array
-    @rtype:  L{np.ndarray}
+    @rtype:  L{xp.ndarray}
 
     @author: Marten Chaillet
     """
@@ -159,16 +160,16 @@ def extend_volume(vol, increment, pad_value=0, symmetrically=False, true_center=
         # condition = any([x%2 for x in increment])
         if true_center:
             from pytom.voltools import transform
-            new = np.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
+            new = xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
             return transform(new, translation=tuple([x/2 for x in increment]), interpolation=interpolation)
         else:
             from pytom.agnostic.tools import paste_in_center
-            new = np.zeros([a + b for a, b in zip(vol.shape, increment)])
+            new = xp.zeros([a + b for a, b in zip(vol.shape, increment)])
             if pad_value:
                 new += pad_value
             return paste_in_center(vol, new)
     else:
-        return np.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
+        return xp.pad(vol, tuple([(0, x) for x in increment]), 'constant', constant_values=pad_value)
 
 
 def call_chimera(filepath, output_folder):
@@ -545,7 +546,7 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
 
     @return: if imaginary is True, return tuple (real, imaginary), if false return only real. boxes real and imag are
     3d arrays.
-    @rtype: L{tuple} -> (L{np.ndarray},) * 2 or L{np.ndarray}
+    @rtype: L{tuple} -> (L{xp.ndarray},) * 2 or L{xp.ndarray}
 
     @author: Marten Chaillet
     """
@@ -557,23 +558,23 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
                                                             ' integer.')
 
     # select a random size for the gold marker in nm
-    diameter = np.random.uniform(low=4.0, high=10.0)
+    diameter = xp.random.uniform(low=4.0, high=10.0)
 
     # constants
     unit_cell_volume = 0.0679  # nm^3
     atoms_per_unit_cell = 4
-    C = 2 * np.pi * physics.constants['h_bar']**2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # nm^2
+    C = 2 * xp.pi * physics.constants['h_bar']**2 / (physics.constants['el'] * physics.constants['me']) * 1E20  # nm^2
     voxel_size_nm = (voxel_size/10) / oversampling
     voxel_volume = voxel_size_nm**3
 
     # dimension of gold box, always add 5 nm to the sides
-    dimension = int(np.ceil(diameter / voxel_size_nm)) * 3
+    dimension = int(xp.ceil(diameter / voxel_size_nm)) * 3
     # sigma half of radius?
     r = 0.8 * ((diameter * 0.5) / voxel_size_nm)  # fraction of radius due to extension with exponential smoothing
     ellipse = True
     if ellipse:
-        r2 = r * np.random.uniform(0.8, 1.2)
-        r3 = r * np.random.uniform(0.8, 1.2)
+        r2 = r * xp.random.uniform(0.8, 1.2)
+        r3 = r * xp.random.uniform(0.8, 1.2)
         bead = create_ellipse(dimension, r, r2, r3, smooth=2)
     else:
         bead = create_sphere((dimension,)*3, radius=r)
@@ -584,7 +585,7 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
     bead[bead < 0.9] = 0 # remove too small values
     # add random noise to gold particle to prevent perfect CTF ringing around the particle.
     # random noise also dependent on voxel size maybe?
-    # rounded_sphere = (rounded_sphere > 0) * (rounded_sphere * np.random.normal(1, 0.3, rounded_sphere.shape))
+    # rounded_sphere = (rounded_sphere > 0) * (rounded_sphere * xp.random.normal(1, 0.3, rounded_sphere.shape))
     # rounded_sphere[rounded_sphere < 0] = 0
 
     if imaginary:
@@ -602,7 +603,7 @@ def create_gold_marker(voxel_size, solvent_potential, oversampling=1, solvent_fa
     gold_atoms = unit_cells_per_voxel * atoms_per_unit_cell
 
     # interaction potential
-    gold_scattering_factors = np.array(physics.scattering_factors['AU']['g'])
+    gold_scattering_factors = xp.array(physics.scattering_factors['AU']['g'])
     # gold_scattering_factors[0:5].sum() == 10.57
     # C and scattering factor are in A units thus divided by 1000 A^3 = 1 nm^3 to convert
     gold_potential = gold_atoms * gold_scattering_factors[0:5].sum() * C / voxel_volume / 1000
