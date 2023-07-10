@@ -82,7 +82,7 @@ def subtractMeanUnderMask(volume, mask):
     @return: volume/image
     @rtype: L{pytom_volume.vol}
     """
-    # npix = volume.sizeX() * volume.sizeY() * volume.sizeZ()
+    # npix = volume.size_x() * volume.size_y() * volume.size_z()
     normvol = volume * mask
     normvol = xp.sum(normvol) / xp.sum(mask)
     return normvol

@@ -29,7 +29,7 @@ def vol2sf(vol, r, b, center=None):
     f(the_0, phi_0) ... f(the_0, phi_2B-1), f(the_2B-1, phi_0) ... f(the_2B-1, phi_2B-1)
     List
     """
-    if r>=vol.sizeX()/2 or r>=vol.sizeY()/2 or r>=vol.sizeZ()/2:
+    if r>=vol.size_x()/2 or r>=vol.size_y()/2 or r>=vol.size_z()/2:
         raise RuntimeError("Given radius is larger than the volume!")
     elif r <= 0:
         raise RuntimeError("Radius should be larger than the 0!")
@@ -40,7 +40,7 @@ def vol2sf(vol, r, b, center=None):
         m_x, m_y, m_z = center
     else:
         # the middle point of the volume
-        m_x = int(vol.sizeX()/2); m_y = int(vol.sizeY()/2); m_z = int(vol.sizeZ()/2)
+        m_x = int(vol.size_x()/2); m_y = int(vol.size_y()/2); m_z = int(vol.size_z()/2)
     res = volTOsf(vol, r, b, m_x, m_y, m_z)
     
     # transfer the data format from volume to numpy array
@@ -58,7 +58,7 @@ def vol2sf(vol, r, b, center=None):
 #        m_x, m_y, m_z = center
 #    else:
 #        # the middle point of the volume
-#        m_x = int(vol.sizeX()/2); m_y = int(vol.sizeY()/2); m_z = int(vol.sizeZ()/2)
+#        m_x = int(vol.size_x()/2); m_y = int(vol.size_y()/2); m_z = int(vol.size_z()/2)
 #    
 #    for j in xrange(2*b):
 #        for k in xrange(2*b):
@@ -95,7 +95,7 @@ def vol2sf(vol, r, b, center=None):
 def fvol2sf(vol, r, b):
     """Transfer a volume in Fourier space into a serial of spherical functions.
     """
-    if r>=vol.sizeX()/2 or r>=vol.sizeY()/2 or r>=vol.sizeZ()/2:
+    if r>=vol.size_x()/2 or r>=vol.size_y()/2 or r>=vol.size_z()/2:
         raise RuntimeError("Given radius is larger than the volume!")
     elif r <= 0:
         raise RuntimeError("Radius should be larger than the 0!")
@@ -114,12 +114,12 @@ def vol2sf_mean(vol, b, max_radius=None, center=None):
     res = []
     
     if max_radius is None:
-        max_radius = min([vol.sizeX()/2, vol.sizeY()/2, vol.sizeZ()/2])
+        max_radius = min([vol.size_x()/2, vol.size_y()/2, vol.size_z()/2])
     
     if center is not None:
         m_x, m_y, m_z = center
     else:
-        m_x = int(vol.sizeX()/2); m_y = int(vol.sizeY()/2); m_z = int(vol.sizeZ()/2)
+        m_x = int(vol.size_x()/2); m_y = int(vol.size_y()/2); m_z = int(vol.size_z()/2)
     
     for j in range(2*b):
         for k in range(2*b):

@@ -83,7 +83,7 @@ class GAWorker(PyTomClass):
         self._reference = Reference(referenceFile)
         
         wedgeInfo = reference.getWedgeInfo()
-        wedgeVolume = wedgeInfo.returnWedgeVolume(refVolume.sizeX(),refVolume.sizeY(),refVolume.sizeZ(),False)
+        wedgeVolume = wedgeInfo.returnWedgeVolume(refVolume.size_x(),refVolume.size_y(),refVolume.size_z(),False)
         
         #wedgeVolume.setAll(1);
         wedgeVolume.write(r + '-StartWeight.em')

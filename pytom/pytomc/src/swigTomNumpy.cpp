@@ -31,11 +31,11 @@ PyObject* volume_to_numpy(const swigTom::swigVolume<T,TSHIFT_SCALE>& vol){
 	}
 
 	std::size_t dimensions = 0;
-	if(vol.sizeX() > 1)
+	if(vol.size_x() > 1)
 		dimensions = 1;
-	if(vol.sizeY() > 1)
+	if(vol.size_y() > 1)
 		dimensions = 2;
-	if(vol.sizeZ() > 1)
+	if(vol.size_z() > 1)
 		dimensions = 3;
 	if(dimensions == 0)
 		throw std::runtime_error("Volume has size 0,0,0. Aborting!");
@@ -45,15 +45,15 @@ PyObject* volume_to_numpy(const swigTom::swigVolume<T,TSHIFT_SCALE>& vol){
 
 
 	if(dimensions >= 1){
-		dims[0] = vol.sizeX();
+		dims[0] = vol.size_x();
 		strides[0] = vol.strideX();
 	}
 	if(dimensions >= 2){
-		dims[1] = vol.sizeY();
+		dims[1] = vol.size_y();
 		strides[1] = vol.strideY();
 	}
 	if(dimensions >= 3){
-		dims[2] = vol.sizeZ();
+		dims[2] = vol.size_z();
 		strides[2] = vol.strideZ();
 	}
 

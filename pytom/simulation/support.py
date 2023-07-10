@@ -349,7 +349,7 @@ def add_white_noise(volume, SNR=1):
     #    elif s==0:
     #        s =1
 
-    noise = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+    noise = vol(volume.size_x(), volume.size_y(), volume.size_z())
 
     gaussianNoise(noise, m, s)  # s is actually the std
 

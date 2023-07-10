@@ -1505,13 +1505,13 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
         try:
             radius = int(self.widgets['radius'].text())
             smooth = float(self.widgets['smooth_factor'].value())
-            sizeX = int(self.widgets['size_template_x'].text())
-            sizeY = int(self.widgets['size_template_y'].text())
-            sizeZ = int(self.widgets['size_template_z'].text())
+            size_x = int(self.widgets['size_template_x'].text())
+            size_y = int(self.widgets['size_template_y'].text())
+            size_z = int(self.widgets['size_template_z'].text())
             try:
                 folder = params[4] if params[4] else self.parent().projectname
                 print(folder)
-                fname = os.path.join(folder, f'Mask_{sizeX}_{radius}_{smooth:.2f}.mrc')
+                fname = os.path.join(folder, f'Mask_{size_x}_{radius}_{smooth:.2f}.mrc')
             except Exception as e:
                 print(e)
                 tomoname = os.path.basename(self.parent().widgets['v03_TemplateMatch_tomoFname'].text())
@@ -1526,7 +1526,7 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
 
             if maskfilename and not maskfilename.endswith('.mrc'): maskfilename += '.mrc'
             try:
-                success = initSphere(sizeX, sizeY, sizeZ, radius=radius, smooth=smooth, filename=maskfilename)
+                success = initSphere(size_x, size_y, size_z, radius=radius, smooth=smooth, filename=maskfilename)
                 if success:
                     self.parent().widgets[params[3]].setText(maskfilename)
                 else:
@@ -1989,7 +1989,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
         self.addTabs(headers=headers, offx=offx, offy=offy, dimx=dimx, dimy=dimy,soff=50)
 
     def addTabs(self, headers, widget=QWidget, subheaders=[], offx=0,offy=0,dimx=900,dimy=721,soff=0,
-                sizeX=900,sizeY=700, tabUIs=None, tabs=None, tab_actions=None, static_tabs=None):
+                size_x=900,size_y=700, tabUIs=None, tabs=None, tab_actions=None, static_tabs=None):
 
         self.size_policies()
         self.scrollarea = QScrollArea(self)
@@ -2000,7 +2000,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
         self.scrollarea.setContentsMargins(0,0,0,0)
         #self.scrollarea.setGeometry(offx, offy, dimx, dimy)
 
-        self.scrollarea.setGeometry(0,0,sizeX,sizeY)
+        self.scrollarea.setGeometry(0,0,size_x,size_y)
         self.scrollarea.setFrameShape(QFrame.NoFrame)
 
         self.tabWidget = QTabWidget(self.scrollarea)
@@ -4759,7 +4759,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         headers = ['Queuing Parameters', 'Data Transfer', 'Tomographic Reconstruction', 'Particle Picking', 'Subtomogram Analysis']
         subheaders = [[], ] * len(headers)
 
-        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, sizeX=800, sizeY=500)
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, size_x=800, size_y=500)
 
         self.table_layouts = {}
         self.tables = {}
@@ -5091,7 +5091,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.tabs_dict, self.tab_actions = {}, {}
 
         self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict,
-                     tab_actions=self.tab_actions, sizeX=700, sizeY=300)
+                     tab_actions=self.tab_actions, size_x=700, size_y=300)
 
         self.table_layouts = {}
         self.tables = {}
@@ -5639,7 +5639,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         headers = ['Local Jobs', 'Queued Jobs']
         subheaders = [[], ] * len(headers)
 
-        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, sizeX=900, sizeY=550)
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, size_x=900, size_y=550)
         self.table_layouts = {}
         self.tables = {}
         self.pbs = {}
@@ -5919,7 +5919,7 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
         tabUIs = [[self.tab1UI]]
         static_tabs = [[True]]
         self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict,
-                     tab_actions=self.tab_actions, static_tabs=static_tabs, sizeY=800)
+                     tab_actions=self.tab_actions, static_tabs=static_tabs, size_y=800)
 
     def tab1UI(self, key, title='DataConversion'):
         tooltip = ''

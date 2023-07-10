@@ -73,8 +73,8 @@ class pytom_TransformationTest(unittest.TestCase):
         (resizeVol, resizefVol) = resize(volume=myVol, factor=2., interpolation='Fourier')
         #resizeVol.write('test1.em')
         ftresizeVol = fft(data=resizeVol)
-        for ix in range(resizefVol.sizeX()):
-            for iy in range(resizefVol.sizeY()):
+        for ix in range(resizefVol.size_x()):
+            for iy in range(resizefVol.size_y()):
                 diff = ftresizeVol.getV(ix,iy,0) - scf*4*resizefVol.getV(ix,iy,0)
                 self.assertTrue(expr=abs(diff) < .05, msg="inconsistency FFT/IFFT for magnification")
         (resizeVol, resizefVol) = resize(volume=resizeVol, factor=.5, interpolation='Fourier')

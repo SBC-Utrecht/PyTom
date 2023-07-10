@@ -33,10 +33,10 @@ class pytom_IOTest(unittest.TestCase):
         from pytom.basic.files import read
 
         v = read(f'./testData/ribo.em')
-        self.assertTrue( v.sizeX() == 100 and v.sizeY() == 100 and v.sizeZ() == 100)
+        self.assertTrue( v.size_x() == 100 and v.size_y() == 100 and v.size_z() == 100)
         
         v = read(f'./testData/ribo.em',binning=[4,4,4])
-        assert v.sizeX() == 25 and v.sizeY() == 25 and v.sizeZ() == 25
+        assert v.size_x() == 25 and v.size_y() == 25 and v.size_z() == 25
     
     def readem(self):
         """

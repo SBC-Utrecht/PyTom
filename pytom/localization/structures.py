@@ -35,7 +35,7 @@ class Volume(PyTomClass):
         Note the subregion, sampling and binning parameters are not the same as
         those attributes in the class.
 
-        @param subregion: subregion [startX, startY, startZ, sizeX, sizeY, sizeZ]
+        @param subregion: subregion [startX, startY, startZ, size_x, size_y, size_z]
         @type subregion: list
         @param sampling: sampling [factorX, factorY, factorZ]
         @type sampling: list

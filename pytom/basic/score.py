@@ -64,9 +64,9 @@ def peakCoef(self, volume, reference, mask=None):
         resFunction = self.scoringFunction(volume,reference,mask)
 
     # change FF: 07.01.2020
-    #centerX = resFunction.sizeX()//2 -1
-    #centerY = resFunction.sizeY()//2 -1
-    #centerZ = resFunction.sizeZ()//2 -1
+    #centerX = resFunction.size_x()//2 -1
+    #centerY = resFunction.size_y()//2 -1
+    #centerZ = resFunction.size_z()//2 -1
     
     pcoarse = peak(resFunction)
     
@@ -493,9 +493,9 @@ class FLCFScore(Score):
             resFunction = self.scoringFunction(volume, reference, mask)
 
         # change FF: 07.01.2020
-        # centerX = resFunction.sizeX()//2 -1
-        # centerY = resFunction.sizeY()//2 -1
-        # centerZ = resFunction.sizeZ()//2 -1
+        # centerX = resFunction.size_x()//2 -1
+        # centerY = resFunction.size_y()//2 -1
+        # centerZ = resFunction.size_z()//2 -1
 
         pcoarse = peak(resFunction)
 
@@ -688,7 +688,7 @@ class PeakPrior(PyTomClass):
         from pytom.tools.files import checkFileExists
         
         if not self.isInitialized() and (not checkFileExists(self._filename)):
-            self.initVolume(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+            self.initVolume(volume.size_x(),volume.size_y(),volume.size_z())
         elif not self.isInitialized():
             self.fromFile()
         
@@ -721,21 +721,21 @@ class PeakPrior(PyTomClass):
         del(self._weight)
 
         
-    def initVolume(self,sizeX,sizeY,sizeZ):
+    def initVolume(self,size_x,size_y,size_z):
         """
         initVolume:
-        @param sizeX:
-        @param sizeY:
-        @param sizeZ:
+        @param size_x:
+        @param size_y:
+        @param size_z:
         @return: 
         @author: Thomas Hrabe 
         """
         from pytom.lib.pytom_volume import vol,initSphere
         
-        self._weight = vol(sizeX,sizeY,sizeZ)
+        self._weight = vol(size_x,size_y,size_z)
         if self._radius > 0 or self._smooth > 0:
             initSphere(self._weight,self._radius,self._smooth,0.0, 
-	        sizeX/2, sizeY/2, sizeZ/2)
+	        size_x/2, size_y/2, size_z/2)
         else:
             self._weight.setAll(1)
         

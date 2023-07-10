@@ -1102,7 +1102,7 @@ class Wedge(PyTomClass):
         @param wedgeSizeY: volume size for y (original size)
         @param wedgeSizeZ: volume size for z (original size)
         @rtype: L{pytom.lib.pytom_freqweight.weight}
-        @return: Weighting object. Remember, the wedge will be cutoff at sizeX/2 if no cutoff provided in constructor or cutoff == 0!
+        @return: Weighting object. Remember, the wedge will be cutoff at size_x/2 if no cutoff provided in constructor or cutoff == 0!
         @author: Thomas Hrabe
         """
         if self._type == 'Wedge3dCTF':
@@ -1329,7 +1329,7 @@ class SingleTiltWedge(PyTomClass):
         @param rotation: Apply rotation to the wedge
         @type rotation: L{pytom.agnostic.structures.Rotation}
         @rtype: L{pytom.lib.pytom_freqweight.weight}
-        @return: Weighting object. Remember, the wedge will be cutoff at sizeX/2 if no cutoff provided in constructor or cutoff == 0!
+        @return: Weighting object. Remember, the wedge will be cutoff at size_x/2 if no cutoff provided in constructor or cutoff == 0!
         @author: Thomas Hrabe
         """
         # This import from own file ....
@@ -1638,7 +1638,7 @@ be generated. If omitted / 0, filter is fixed to size/2.
         if not volume.__class__ == xp.array:
             raise TypeError('You must provide a pytom.lib.pytom_volume.vol here!')
 
-        wedgeVolume = self.returnWedgeVolume(volume.sizeX(), volume.sizeY(), volume.sizeZ(),
+        wedgeVolume = self.returnWedgeVolume(volume.size_x(), volume.size_y(), volume.size_z(),
                                              humanUnderstandable=False, rotation=rotation)
 
         result = applyFourierFilter(volume, wedgeVolume)
@@ -1814,9 +1814,9 @@ class GeneralWedge(PyTomClass):
         # read the weight volume
         self._read_weight()
 
-        size_x = self._weight_vol.sizeX()
-        size_y = self._weight_vol.sizeY()
-        size_z = self._weight_vol.sizeZ()
+        size_x = self._weight_vol.size_x()
+        size_y = self._weight_vol.size_y()
+        size_z = self._weight_vol.size_z()
 
         # start sampling
         import numpy as np
@@ -2570,7 +2570,7 @@ class ParticleList(PyTomClass):
 
         motifList = read(motlFile)
 
-        numberParticles = motifList.sizeY()
+        numberParticles = motifList.size_y()
 
         for i in range(numberParticles):
 
@@ -3041,7 +3041,7 @@ class ParticleList(PyTomClass):
         """
         determine_resolution
         @param criterion: The resolution criterion
-        @param number_bands: Will use cubesizeX / 2 as default if not specified
+        @param number_bands: Will use cubesize_x / 2 as default if not specified
         @param mask: A mask used for specifying location of particle. Can be None
         @param verbose: Verbose mode. Default -> False
         @param plot: Plot FSC curve to disk? Provide svg or png filename here. Default is '' -> no plot!
@@ -3098,7 +3098,7 @@ class ParticleList(PyTomClass):
             os.system('rm ' + halfsetPrefix + 'even-WedgeSumUnscaled.em')
 
         if not number_bands:
-            number_bands = oddVolume.sizeX() / 2
+            number_bands = oddVolume.size_x() / 2
 
         if verbose:
             print('Using ', number_bands, ' shells for FSC')
@@ -4496,14 +4496,14 @@ class PointSymmetry(Symmetry):
             raise ParameterError("Symmetry object: axis must either be 'Z' or a list of two tilt angles")
 
         if not mask:
-            mask = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+            mask = vol(volume.size_x(), volume.size_y(), volume.size_z())
             mask.setAll(1)
         elif mask.__class__ == Mask:
             mask = mask.getVolume()
 
         ccList = []
 
-        rotatedVolume = xp.zeros((volume.sizeX(), volume.sizeY(), volume.sizeZ()), dtype=xp.float32)
+        rotatedVolume = xp.zeros((volume.size_x(), volume.size_y(), volume.size_z()), dtype=xp.float32)
 
         currentRotation = rotations.nextRotation()
 
@@ -4541,10 +4541,10 @@ class PointSymmetry(Symmetry):
 
         volumeTexture = StaticVolume(volume, device=device, interpolation=interpolation)
 
-        sizeX,sizeY,sizeZ = volume.shape
+        size_x,size_y,size_z = volume.shape
 
-        symVolume = xp.zeros((sizeX, sizeY, sizeZ), dtype=xp.float32)
-        rotVolume = xp.zeros((sizeX, sizeY, sizeZ), dtype=xp.float32)
+        symVolume = xp.zeros((size_x, size_y, size_z), dtype=xp.float32)
+        rotVolume = xp.zeros((size_x, size_y, size_z), dtype=xp.float32)
 
 
         symmetryAngle = 360 / float(self._nfold)
@@ -4563,7 +4563,7 @@ class PointSymmetry(Symmetry):
             # search for the best match after the symmetry rotation
             if self._search_ang != 0:
                 from pytom.agnostic.correlation import xcc
-                tmp = xp.zeros((sizeX, sizeY, sizeZ), dtype=xp.float32)
+                tmp = xp.zeros((size_x, size_y, size_z), dtype=xp.float32)
                 max_cc = None
                 best_ang = None
                 if isinstance(self._search_ang, int):
@@ -4923,7 +4923,7 @@ class BandPassFilter(PyTomClass):
     def filter(self, volume):
         from pytom.agnostic.filter import bandpass as bandpassFilter
 
-        if volume.sizeX() / 2 < self._highestFrequency or volume.sizeY() / 2 < self._highestFrequency or volume.sizeZ() / 2 < self._highestFrequency:
+        if volume.size_x() / 2 < self._highestFrequency or volume.size_y() / 2 < self._highestFrequency or volume.size_z() / 2 < self._highestFrequency:
             print("Warning: Highest frequency in bandpass is larger than volume size.")
 
         res = bandpassFilter(volume, self._lowestFrequency, self._highestFrequency, bpf=None, smooth=self._smooth,
@@ -4932,13 +4932,13 @@ class BandPassFilter(PyTomClass):
 
 
 class Weight():
-    def __init__(self, wedge_angle1=0, wedge_angle2=0, cutOffRadius=0, sizeX=0, sizeY=0, sizeZ=0, smooth=0, rotation=None):
+    def __init__(self, wedge_angle1=0, wedge_angle2=0, cutOffRadius=0, size_x=0, size_y=0, size_z=0, smooth=0, rotation=None):
         self.wedge_angle1 = wedge_angle1
         self.wedge_angle2 = wedge_angle2
         self.cutOffRadius = cutOffRadius
-        self.sizeX = sizeX
-        self.sizeY = sizeY
-        self.sizeZ = sizeZ
+        self.size_x = size_x
+        self.size_y = size_y
+        self.size_z = size_z
         self.smooth=smooth
         self.rotation = rotation
 
@@ -4956,7 +4956,7 @@ class Weight():
         from pytom.agnostic.filter import create_wedge
         from pytom.agnostic.transform import fourier_reduced2full
 
-        wedge = create_wedge(self.wedge_angle1, self.wedge_angle2, self.cutOffRadius, self.sizeX, self.sizeY, self.sizeZ, self.smooth, self.rotation)
+        wedge = create_wedge(self.wedge_angle1, self.wedge_angle2, self.cutOffRadius, self.size_x, self.size_y, self.size_z, self.smooth, self.rotation)
 
         if reducedComplex == False:
             wedge = fourier_reduced2full(wedge)

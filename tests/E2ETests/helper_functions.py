@@ -37,7 +37,7 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
 
     pl = ParticleList( directory='./')
     ref1 = read(reffile)
-    ref2 = initSphere(sizeX=ref1.sizeX(), sizeY=ref1.sizeY(), sizeZ=ref1.sizeZ(), radius=45)
+    ref2 = initSphere(size_x=ref1.size_x(), size_y=ref1.size_y(), size_z=ref1.size_z(), radius=45)
     #ref2.write('testData/mask_45.em')
     parts = {0:ref1, 1:ref2}
 
@@ -45,7 +45,7 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
         if not ii%2:
             ref = read(reffile)
         else:
-            ref = initSphere(sizeX=ref1.sizeX(), sizeY=ref1.sizeY(), sizeZ=ref1.sizeZ(), radius=30, smooth=30 / 10)
+            ref = initSphere(size_x=ref1.size_x(), size_y=ref1.size_y(), size_z=ref1.size_z(), radius=30, smooth=30 / 10)
 
         rot = Rotation(random.uniform(0,360), random.uniform(0,360), 
                        random.uniform(0,180))

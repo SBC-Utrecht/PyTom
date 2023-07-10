@@ -283,16 +283,16 @@ class FRMWorker():
                 from pytom.basic.fourier import ftshift
                 from pytom.lib.pytom_volume import reducedToFull
                 from pytom.lib.pytom_freqweight import weight
-                transformed_odd_pre = vol(odd.sizeX(), odd.sizeY(), odd.sizeZ())
+                transformed_odd_pre = vol(odd.size_x(), odd.size_y(), odd.size_z())
                 full_all_odd_wedge = reducedToFull(all_odd_wedge)
                 ftshift(full_all_odd_wedge)
                 odd_weight = weight(full_all_odd_wedge) # the funny part of pytom
-                transformed_odd = vol(odd.sizeX(), odd.sizeY(), odd.sizeZ())
+                transformed_odd = vol(odd.size_x(), odd.size_y(), odd.size_z())
                 
-                transformSpline(all_odd_pre,transformed_odd_pre,-angle[1],-angle[0],-angle[2],odd.sizeX()/2,odd.sizeY()/2,odd.sizeZ()/2,-(pos[0]-odd.sizeX()/2),-(pos[1]-odd.sizeY()/2),-(pos[2]-odd.sizeZ()/2),0,0,0)
+                transformSpline(all_odd_pre,transformed_odd_pre,-angle[1],-angle[0],-angle[2],odd.size_x()/2,odd.size_y()/2,odd.size_z()/2,-(pos[0]-odd.size_x()/2),-(pos[1]-odd.size_y()/2),-(pos[2]-odd.size_z()/2),0,0,0)
                 odd_weight.rotate(-angle[1],-angle[0],-angle[2])
                 transformed_odd_wedge = odd_weight.getWeightVolume(True)
-                transformSpline(odd,transformed_odd,-angle[1],-angle[0],-angle[2],odd.sizeX()/2,odd.sizeY()/2,odd.sizeZ()/2,-(pos[0]-odd.sizeX()/2),-(pos[1]-odd.sizeY()/2),-(pos[2]-odd.sizeZ()/2),0,0,0)
+                transformSpline(odd,transformed_odd,-angle[1],-angle[0],-angle[2],odd.size_x()/2,odd.size_y()/2,odd.size_z()/2,-(pos[0]-odd.size_x()/2),-(pos[1]-odd.size_y()/2),-(pos[2]-odd.size_z()/2),0,0,0)
                 
                 all_odd_pre = transformed_odd_pre
                 all_odd_wedge = transformed_odd_wedge
@@ -401,7 +401,7 @@ class FRMWorker():
                 
                 pos, angle, score = frm_align(v, p.getWedge(), ref, None, job.bw_range, job.freq, job.peak_offset, job.mask.getVolume())
                     
-                p.setShift(Shift([pos[0]-v.sizeX()/2, pos[1]-v.sizeY()/2, pos[2]-v.sizeZ()/2]))
+                p.setShift(Shift([pos[0]-v.size_x()/2, pos[1]-v.size_y()/2, pos[2]-v.size_z()/2]))
                 p.setRotation(Rotation(angle))
                 p.setScore(FRMScore(score))
                 
@@ -448,7 +448,7 @@ class FRMWorker():
         f_pre = fft(pre)
         r = complexDiv(f_pre, wedge)
         average = ifft(r)
-        average.shiftscale(0.0,1/float(average.sizeX()*average.sizeY()*average.sizeZ()))
+        average.shiftscale(0.0,1/float(average.size_x()*average.size_y()*average.size_z()))
         
         return average
     
@@ -458,7 +458,7 @@ class FRMWorker():
         from pytom.basic.correlation import fsc, determine_resolution
         
         if not number_bands:
-            number_bands = even.sizeX()/2
+            number_bands = even.size_x()/2
         
         calc_fsc = fsc(even, odd, number_bands, mask, verbose=False)
         if verbose:

@@ -24,16 +24,16 @@ def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
     """
     from math import sqrt
     if not r_max:
-        r_max=invol.sizeY()/2-1
+        r_max=invol.size_y()/2-1
 
     # full representation with origin in center
-    if invol.sizeZ() == invol.sizeX():
-        centX1 = int(invol.sizeX()/2)
-        centY1 = int(invol.sizeY()/2)
-        centZ  = int(invol.sizeZ()/2)
-        for ix in range(0,invol.sizeX()):
-            for iy in range(0,invol.sizeY()):
-                for iz in range(0,invol.sizeZ()):
+    if invol.size_z() == invol.size_x():
+        centX1 = int(invol.size_x()/2)
+        centY1 = int(invol.size_y()/2)
+        centZ  = int(invol.size_z()/2)
+        for ix in range(0,invol.size_x()):
+            for iy in range(0,invol.size_y()):
+                for iz in range(0,invol.size_z()):
                     dx = (ix-centX1)**2
                     dy = (iy-centY1)**2
                     dz = (iz-centZ)**2
@@ -49,13 +49,13 @@ def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
                     invol.setV( v, ix, iy, iz)
     else:
         centX1 = 0
-        centX2 = invol.sizeX()-1
+        centX2 = invol.size_x()-1
         centY1 = 0
-        centY2 = invol.sizeY()-1
+        centY2 = invol.size_y()-1
         centZ  = 0
-        for ix in range(0,invol.sizeX()):
-            for iy in range(0,invol.sizeY()):
-                for iz in range(0,invol.sizeZ()):
+        for ix in range(0,invol.size_x()):
+            for iy in range(0,invol.size_y()):
+                for iz in range(0,invol.size_z()):
                     d1 = (ix-centX1)**2
                     d2 = (ix-centX2)**2
                     dx = min(d1,d2)
@@ -167,16 +167,16 @@ def applySymmetryToVolume(volume,symmetryObject,wedgeInfo):
     if not symmetryObject.__class__ == Symmetry:
         raise Exception('You must provide a Symmetry object as second parameter to applySymmetryToObject')
     
-    result = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+    result = vol(volume.size_x(),volume.size_y(),volume.size_z())
     result.copyVolume(volume)
     
-    sizeX = volume.sizeX()
-    sizeY = volume.sizeY()
-    sizeZ = volume.sizeZ()
+    size_x = volume.size_x()
+    size_y = volume.size_y()
+    size_z = volume.size_z()
     
-    rot = vol(sizeX,sizeY,sizeZ)
+    rot = vol(size_x,size_y,size_z)
     
-    wedgeSum = vol(sizeX,sizeY,sizeZ/2+1)
+    wedgeSum = vol(size_x,size_y,size_z/2+1)
     wedgeSum.setAll(0.0)
     
     angleList = symmetryObject.getAngleList()
@@ -269,16 +269,16 @@ def _disrtibuteAverageMPI(particleList,averageName,showProgressBar = False,verbo
     result.write(averageName[:len(averageName)-3]+'-PreWedge.em')
     wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumUnscaled.em')
 
-    invert_WedgeSum( invol=wedgeSum, r_max=result.sizeX()/2-2., lowlimit=.05*len(particleList),
+    invert_WedgeSum( invol=wedgeSum, r_max=result.size_x()/2-2., lowlimit=.05*len(particleList),
                      lowval=.05*len(particleList))
     fResult = fft(result)
     r = complexRealMult(fResult,wedgeSum)
 
     result = ifft(r)
-    result.shiftscale(0.0,1/float(result.sizeX()*result.sizeY()*result.sizeZ()))
+    result.shiftscale(0.0,1/float(result.size_x()*result.size_y()*result.size_z()))
 
     # do a low pass filter
-    result = lowpassFilter(result, result.sizeX()/2-2, (result.sizeX()/2-1)/10.)[0]
+    result = lowpassFilter(result, result.size_x()/2-2, (result.size_x()/2-1)/10.)[0]
 
     result.write(averageName)
     
@@ -392,29 +392,29 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             particle = wedgeInfo.apply(particle)
         
         if result == []:
-            sizeX = particle.sizeX() 
-            sizeY = particle.sizeY()
-            sizeZ = particle.sizeZ()
+            size_x = particle.size_x() 
+            size_y = particle.size_y()
+            size_z = particle.size_z()
             
-            newParticle = vol(sizeX,sizeY,sizeZ)
+            newParticle = vol(size_x,size_y,size_z)
             
-            centerX = sizeX/2 
-            centerY = sizeY/2 
-            centerZ = sizeZ/2 
+            centerX = size_x/2 
+            centerY = size_y/2 
+            centerZ = size_z/2 
             
-            result = vol(sizeX,sizeY,sizeZ)
+            result = vol(size_x,size_y,size_z)
             result.setAll(0.0)
             if analytWedge:
-                wedgeSum = wedgeInfo.returnWedgeVolume(wedgeSizeX=sizeX, wedgeSizeY=sizeY, wedgeSizeZ=sizeZ)
+                wedgeSum = wedgeInfo.returnWedgeVolume(wedgeSizeX=size_x, wedgeSizeY=size_y, wedgeSizeZ=size_z)
             else:
                 # > FF bugfix
-                wedgeSum = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
+                wedgeSum = wedgeInfo.returnWedgeVolume(size_x,size_y,size_z)
                 # < FF
                 # > TH bugfix
-                #wedgeSum = vol(sizeX,sizeY,sizeZ)
+                #wedgeSum = vol(size_x,size_y,size_z)
                 # < TH
                 #wedgeSum.setAll(0)
-            assert wedgeSum.sizeX() == sizeX and wedgeSum.sizeY() == sizeY and wedgeSum.sizeZ() == sizeZ/2+1, \
+            assert wedgeSum.size_x() == size_x and wedgeSum.size_y() == size_y and wedgeSum.size_z() == size_z/2+1, \
                     "wedge initialization result in wrong dims :("
             wedgeSum.setAll(0)
 
@@ -423,15 +423,15 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
         rotinvert = rotation.invert()
         if analytWedge:
             # > analytical buggy version
-            wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False, rotinvert)
+            wedge = wedgeInfo.returnWedgeVolume(size_x,size_y,size_z,False, rotinvert)
         else:
             # > FF: interpol bugfix
-            wedge = rotateWeighting( weighting=wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False),
+            wedge = rotateWeighting( weighting=wedgeInfo.returnWedgeVolume(size_x,size_y,size_z,False),
                                      z1=rotinvert[0], z2=rotinvert[1], x=rotinvert[2], mask=None,
                                      isReducedComplex=True, returnReducedComplex=True)
             # < FF
             # > TH bugfix
-            #wedgeVolume = wedgeInfo.returnWedgeVolume(wedgeSizeX=sizeX, wedgeSizeY=sizeY, wedgeSizeZ=sizeZ,
+            #wedgeVolume = wedgeInfo.returnWedgeVolume(wedgeSizeX=size_x, wedgeSizeY=size_y, wedgeSizeZ=size_z,
             #                                    humanUnderstandable=True, rotation=rotinvert)
             #wedge = rotate(volume=wedgeVolume, rotation=rotinvert, imethod='linear')
             # < TH
@@ -461,12 +461,12 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
             progressBar.update(numberAlignedParticles)
 
     ###apply spectral weighting to sum
-    result = lowpassFilter(result, sizeX//2-1, 0.)[0]
+    result = lowpassFilter(result, size_x//2-1, 0.)[0]
     #if createInfoVolumes:
     result.write(averageName[:len(averageName)-3]+'-PreWedge.em')
     wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumUnscaled.em')
         
-    invert_WedgeSum( invol=wedgeSum, r_max=sizeX/2-2., lowlimit=.05*len(particleList), lowval=.05*len(particleList))
+    invert_WedgeSum( invol=wedgeSum, r_max=size_x/2-2., lowlimit=.05*len(particleList), lowval=.05*len(particleList))
     
     if createInfoVolumes:
         wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumInverted.em')
@@ -474,7 +474,7 @@ def average( particleList, averageName, showProgressBar=False, verbose=False,
     result = convolute(v=result, k=wedgeSum, kernel_in_fourier=True)
 
     # do a low pass filter
-    #result = lowpassFilter(result, sizeX/2-2, (sizeX/2-1)/10.)[0]
+    #result = lowpassFilter(result, size_x/2-2, (size_x/2-1)/10.)[0]
     result.write(averageName)
     
     if createInfoVolumes:
@@ -524,24 +524,24 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
         particle = wedgeInfo.apply(particle)
         
         if odd is None: # initialization
-            sizeX = particle.sizeX() 
-            sizeY = particle.sizeY()
-            sizeZ = particle.sizeZ()
+            size_x = particle.size_x() 
+            size_y = particle.size_y()
+            size_z = particle.size_z()
             
-            newParticle = vol(sizeX,sizeY,sizeZ)
+            newParticle = vol(size_x,size_y,size_z)
             
-            centerX = sizeX/2 
-            centerY = sizeY/2 
-            centerZ = sizeZ/2 
+            centerX = size_x/2 
+            centerY = size_y/2 
+            centerZ = size_z/2 
             
-            odd = vol(sizeX,sizeY,sizeZ)
+            odd = vol(size_x,size_y,size_z)
             odd.setAll(0.0)
-            even = vol(sizeX,sizeY,sizeZ)
+            even = vol(size_x,size_y,size_z)
             even.setAll(0.0)
             
-            wedgeSum_odd = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
+            wedgeSum_odd = wedgeInfo.returnWedgeVolume(size_x,size_y,size_z)
             wedgeSum_odd.setAll(0)
-            wedgeSum_even = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
+            wedgeSum_even = wedgeInfo.returnWedgeVolume(size_x,size_y,size_z)
             wedgeSum_even.setAll(0)
         
 
@@ -550,16 +550,16 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
         rotinvert =  rotation.invert()
         if analytWedge:
             # > original buggy version
-            wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False, rotinvert)
+            wedge = wedgeInfo.returnWedgeVolume(size_x,size_y,size_z,False, rotinvert)
             # < original buggy version
         else:
             # > FF: interpol bugfix
-            wedge = rotateWeighting( weighting=wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False),
+            wedge = rotateWeighting( weighting=wedgeInfo.returnWedgeVolume(size_x,size_y,size_z,False),
                                      z1=rotinvert[0], z2=rotinvert[1], x=rotinvert[2], mask=None,
                                      isReducedComplex=True, returnReducedComplex=True)
             # < FF
             # > TH bugfix
-            #wedgeVolume = wedgeInfo.returnWedgeVolume(wedgeSizeX=sizeX, wedgeSizeY=sizeY, wedgeSizeZ=sizeZ,
+            #wedgeVolume = wedgeInfo.returnWedgeVolume(wedgeSizeX=size_x, wedgeSizeY=size_y, wedgeSizeZ=size_z,
             #                                          humanUnderstandable=True, rotation=rotinvert)
             #wedge = rotate(volume=wedgeVolume, rotation=rotinvert, imethod='linear')
             # < TH
@@ -605,25 +605,25 @@ def average2(particleList, weighting=False, norm=False, determine_resolution=Fal
         f_even = fft(even)
         w_even = complexDiv(f_even, wedgeSum_even)
         w_even = ifft(w_even)        
-        w_even.shiftscale(0.0,1/float(sizeX*sizeY*sizeZ))
+        w_even.shiftscale(0.0,1/float(size_x*size_y*size_z))
         
         f_odd = fft(odd)
         w_odd = complexDiv(f_odd, wedgeSum_odd)
         w_odd = ifft(w_odd)        
-        w_odd.shiftscale(0.0,1/float(sizeX*sizeY*sizeZ))
+        w_odd.shiftscale(0.0,1/float(size_x*size_y*size_z))
         
         from pytom.basic.correlation import fsc
-        calc_fsc = fsc(w_even, w_odd, sizeX/2, mask, verbose=False)
+        calc_fsc = fsc(w_even, w_odd, size_x/2, mask, verbose=False)
     
     # add together
     result = even+odd
     wedgeSum = wedgeSum_even+wedgeSum_odd
 
-    invert_WedgeSum( invol=wedgeSum, r_max=sizeX/2-2., lowlimit=.05*len(particleList), lowval=.05*len(particleList))
+    invert_WedgeSum( invol=wedgeSum, r_max=size_x/2-2., lowlimit=.05*len(particleList), lowval=.05*len(particleList))
     #wedgeSum.write(averageName[:len(averageName)-3] + '-WedgeSumInverted.em')
     result = convolute(v=result, k=wedgeSum, kernel_in_fourier=True)
     # do a low pass filter
-    #result = lowpassFilter(result, sizeX/2-2, (sizeX/2-1)/10.)[0]
+    #result = lowpassFilter(result, size_x/2-2, (size_x/2-1)/10.)[0]
     
     return (result, calc_fsc)
 
@@ -673,7 +673,7 @@ def _rotateWedgeReference(reference,rotation,wedgeInfo,mask,rotationCenter):
     """
     from pytom.lib.pytom_volume import vol, transform as transform #developers: your can also import transformSpline for more accurate rotation!
     
-    rotatedVolume = vol(reference.sizeX(),reference.sizeY(),reference.sizeZ())
+    rotatedVolume = vol(reference.size_x(),reference.size_y(),reference.size_z())
     transform(reference,rotatedVolume,rotation[0],rotation[1],rotation[2],rotationCenter[0],rotationCenter[1],rotationCenter[2],0,0,0,0,0,0)
    
     if mask:
@@ -742,12 +742,12 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     if binning == 0:
         binning = 1
     if binning != 1:
-        particleUnbinned = vol(particle.sizeX(), particle.sizeY(), particle.sizeZ())
+        particleUnbinned = vol(particle.size_x(), particle.size_y(), particle.size_z())
         particleUnbinned.copyVolume(particle)
         particle = resize(volume=particle, factor=1./binning, interpolation=binningType)
         if type(particle) == tuple:
             particle = particle[0]
-        referenceUnbinned = vol(reference.sizeX(), reference.sizeY(), reference.sizeZ())
+        referenceUnbinned = vol(reference.size_x(), reference.size_y(), reference.size_z())
         referenceUnbinned.copyVolume(reference)
         reference = resize(volume=reference, factor=1./binning, interpolation=binningType)
         if type(reference) == tuple:
@@ -755,19 +755,19 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
         if mask:
             m = resize(volume=m, factor=1./binning, interpolation='Spline')
         if not referenceWeighting.__class__ == str:
-            referenceWeightingUnbinned = vol_comp(referenceWeighting.sizeX(), referenceWeighting.sizeY(),
-                                                  referenceWeighting.sizeZ())
+            referenceWeightingUnbinned = vol_comp(referenceWeighting.size_x(), referenceWeighting.size_y(),
+                                                  referenceWeighting.size_z())
             referenceWeightingUnbinned.copyVolume(referenceWeighting)
             if binning != 1:
                 referenceWeighting = resizeFourier(fvol=referenceWeighting, factor=1./binning)
-    centerX, centerY, centerZ = int(particle.sizeX()/2), int(particle.sizeY()/2), int(particle.sizeZ()/2)
+    centerX, centerY, centerZ = int(particle.size_x()/2), int(particle.size_y()/2), int(particle.size_z()/2)
 
     # create buffer volume for transformed particle 
-    particleCopy = vol(particle.sizeX(),particle.sizeY(),particle.sizeZ())
+    particleCopy = vol(particle.size_x(),particle.size_y(),particle.size_z())
     particle = wedgeInfo.apply(particle) #apply wedge to itself
     if preprocessing is None:
         preprocessing = Preprocessing()
-    preprocessing.setTaper( taper=particle.sizeX()/10.)
+    preprocessing.setTaper( taper=particle.size_x()/10.)
     particle = preprocessing.apply(volume=particle, bypassFlag=True)  # filter particle to some resolution
     particleCopy.copyVolume(particle)
 
@@ -849,8 +849,8 @@ def bestAlignment(particle, reference, referenceWeighting, wedgeInfo, rotations,
     # repeat ccf for binned sampling to get translation accurately
     if binning != 1:
         m = mask.getVolume(bestPeak.getRotation())
-        centerX, centerY, centerZ = int(particleUnbinned.sizeX()/2), int(particleUnbinned.sizeY()/2), \
-                                    int(particleUnbinned.sizeZ()/2)
+        centerX, centerY, centerZ = int(particleUnbinned.size_x()/2), int(particleUnbinned.size_y()/2), \
+                                    int(particleUnbinned.size_z()/2)
         simulatedVol = _rotateWedgeReference(referenceUnbinned, bestPeak.getRotation(), wedgeInfo, m,
                                              [centerX, centerY, centerZ])
         simulatedVol = preprocessing.apply(volume=simulatedVol, bypassFlag=True)
@@ -997,7 +997,7 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
         from pytom.basic.score import nxcfScore
         scoreObject = nxcfScore()
     
-    particleCopy = vol(particle.sizeX(),particle.sizeY(),particle.sizeZ())
+    particleCopy = vol(particle.size_x(),particle.size_y(),particle.size_z())
     
     #process particle   
     particle = wedgeInfo.apply(particle)
@@ -1007,16 +1007,16 @@ def compareTwoVolumes(particle,reference,referenceWeighting,wedgeInfo,rotations,
     #manipulate reference
     currentRotation = rotations.nextRotation()
     
-    sizeX = particle.sizeX() 
-    sizeY = particle.sizeY()
-    sizeZ = particle.sizeZ()
+    size_x = particle.size_x() 
+    size_y = particle.size_y()
+    size_z = particle.size_z()
     
-    centerX = sizeX/2.0 
-    centerY = sizeY/2.0 
-    centerZ = sizeZ/2.0 
+    centerX = size_x/2.0 
+    centerY = size_y/2.0 
+    centerZ = size_z/2.0 
     
     
-    simulatedVol= vol(sizeX,sizeY,sizeZ)
+    simulatedVol= vol(size_x,size_y,size_z)
 
     transformSpline(reference,simulatedVol,currentRotation[0],currentRotation[1],currentRotation[2],
                     centerX,centerY,centerZ,0,0,0,shift[0]/binning,shift[1]/binning,shift[2]/binning)
@@ -1124,5 +1124,5 @@ def FRMAlignmentWrapper(particle,wedgeParticle, reference, wedgeReference,bandwi
         
     pos, angle, score = frm_align(particle, wedgeParticle.getWedgeObject(), reference*mask, wedgeReference.getWedgeObject(), bandwidth, int(highestFrequency), peakPrior)
             
-    return [Shift([pos[0]-particle.sizeX()/2, pos[1]-particle.sizeY()/2, pos[2]-particle.sizeZ()/2]), Rotation(angle), score]
+    return [Shift([pos[0]-particle.size_x()/2, pos[1]-particle.size_y()/2, pos[2]-particle.size_z()/2]), Rotation(angle), score]
 

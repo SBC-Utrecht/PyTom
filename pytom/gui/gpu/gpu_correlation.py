@@ -310,8 +310,8 @@ if __name__=='__main__':
 
     vv = readd('tomo.mrc', subregion=[0, 0, start, 464, 464, end-start])
     mm = readd('mask.em')
-    if vv.sizeX() != mm.sizeX() or vv.sizeY() != mm.sizeY() or vv.sizeZ() != mm.sizeZ():
-        maskV = vol(vv.sizeX(), vv.sizeY(), vv.sizeZ())
+    if vv.size_x() != mm.size_x() or vv.size_y() != mm.size_y() or vv.size_z() != mm.size_z():
+        maskV = vol(vv.size_x(), vv.size_y(), vv.size_z())
         maskV.setAll(0)
         pasteCenter(mm, maskV)
 

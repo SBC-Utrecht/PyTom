@@ -1976,7 +1976,7 @@ class ErrorWindow(QMainWindow, CommonFunctions):
 
             # diffX, diffY = self.parent().diffXModel[itilt][imark], self.parent().diffYModel[itilt][imark]
             # shiftX, shiftY = self.parent().shiftXModel[itilt], self.parent().shiftYModel[itilt]
-            sizeCut, (sizeX, sizeY) = self.parent().sizeCut, self.parent().frames_full[0,:,:].shape
+            sizeCut, (size_x, size_y) = self.parent().sizeCut, self.parent().frames_full[0,:,:].shape
             # gx = int(np.around(cx*bin_alg/bin_read + (diffX-shiftX)*bin_read/bin_alg))
             # gy = int(np.around(cy*bin_alg/bin_read + (diffY-shiftY)*bin_read/bin_alg))
 
@@ -1984,8 +1984,8 @@ class ErrorWindow(QMainWindow, CommonFunctions):
 
             if smallest_difference_angle < 0.2:
                 self.parent().imnr = itiltFull
-                self.parent().xmin = min(max(0, int(round(ccx)) - sizeCut//2),sizeY-sizeCut//2)
-                self.parent().ymin = min(max(0, int(round(ccy)) - sizeCut//2),sizeX-sizeCut//2)
+                self.parent().xmin = min(max(0, int(round(ccx)) - sizeCut//2),size_y-sizeCut//2)
+                self.parent().ymin = min(max(0, int(round(ccy)) - sizeCut//2),size_x-sizeCut//2)
                 self.parent().replot2()
                 self.parent().updatePartTiltImageGuess(ccx, ccy)
 

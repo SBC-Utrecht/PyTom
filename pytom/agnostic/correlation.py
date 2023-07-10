@@ -955,9 +955,9 @@ def sub_pixel_peak(
     )
     if any(
         (
-            out_peak_coordinates_0 > score_volume.sizeX(),
-            out_peak_coordinates_1 > score_volume.sizeY(),
-            out_peak_coordinates_2 > score_volume.sizeZ(),
+            out_peak_coordinates_0 > score_volume.size_x(),
+            out_peak_coordinates_1 > score_volume.size_y(),
+            out_peak_coordinates_2 > score_volume.size_z(),
         )
     ):
         if verbose:

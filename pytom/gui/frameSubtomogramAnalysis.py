@@ -807,7 +807,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 al = os.path.join(os.path.dirname(os.path.dirname(folder)), 'alignment')
                 ctf = os.path.join(os.path.dirname(os.path.dirname(folder)), 'ctf')
                 choices = [al + '/' + f for f in os.listdir(al) if 'marker_' in f and os.path.isdir(al + '/' + f)]
-                # choices = list(map(str,range(markerdata.sizeZ()))) # + ['closest']
+                # choices = list(map(str,range(markerdata.size_z()))) # + ['closest']
                 # a = sorted(glob.glob('{}/Reconstruction*-*.out'.format(folder)))[-1]
 
                 try:

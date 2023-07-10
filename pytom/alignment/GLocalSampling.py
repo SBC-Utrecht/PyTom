@@ -119,7 +119,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             else:
                 evenAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+f'-Even.{filetype}')
                 oddAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+f'-Odd.{filetype}')
-                nband= evenAverage.getVolume().sizeX()/2
+                nband= evenAverage.getVolume().size_x()/2
                 temp_mask = alignmentJob.scoringParameters.mask.getVolume()
 
             t2 = time()
@@ -268,7 +268,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             (averageEven, averageOdd, fsc, fil, optiRot, optiTrans) = \
             alignVolumesAndFilterByFSC(vol1=evenAverage.getVolume(), vol2=oddAverage.getVolume(),
                                        mask=alignmentJob.scoringParameters.mask.getVolume(),
-                                       nband=evenAverage.getVolume().sizeX()/2,
+                                       nband=evenAverage.getVolume().size_x()/2,
                                        interpolation='linear',
                                        fsc_criterion=alignmentJob.scoringParameters.fsc_criterion,
                                        verbose=False)
@@ -291,7 +291,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                             setParticleNodesRatio=setParticleNodesRatio)
             from pytom.basic.correlation import fsc
             fsc = fsc(volume1=evenAverage.getVolume(), volume2=oddAverage.getVolume(),
-                      number_bands=int(evenAverage.getVolume().sizeX()/2))
+                      number_bands=int(evenAverage.getVolume().size_x()/2))
             #resolution hokus pokus -> estimate fsc for all particles
             for (ii, fscel) in enumerate(fsc):
                 fsc[ii] = 2.*fscel/(1.+fscel)
@@ -742,7 +742,7 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
     if preprocessing is None:
         preprocessing = Preprocessing()
     assert type(preprocessing) == Preprocessing, "alignOneParticle: preprocessing not of type Proprocessing"
-    preprocessing.setTaper( taper=refVol.sizeX()/10.)
+    preprocessing.setTaper( taper=refVol.size_x()/10.)
     refVol = preprocessing.apply(volume=refVol, bypassFlag=True)
 
     wedge = particle.getWedge()
@@ -869,14 +869,14 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
         wedgeSum.write(f'{root}-WedgeSumUnscaled{ext}')
 
         # convolute unweighted average with inverse of wedge sum
-        invert_WedgeSum( invol=wedgeSum, r_max=unweiAv.sizeX()/2-2., lowlimit=.05*len(particleList),
+        invert_WedgeSum( invol=wedgeSum, r_max=unweiAv.size_x()/2-2., lowlimit=.05*len(particleList),
                          lowval=.05*len(particleList))
         fResult = fft(unweiAv)
         r = complexRealMult(fResult,wedgeSum)
         unweiAv = ifft(r)
-        unweiAv.shiftscale(0.0,1/float(unweiAv.sizeX()*unweiAv.sizeY()*unweiAv.sizeZ()))
+        unweiAv.shiftscale(0.0,1/float(unweiAv.size_x()*unweiAv.size_y()*unweiAv.size_z()))
         # low pass filter to remove artifacts at fringes
-        unweiAv = lowpassFilter(volume=unweiAv, band=unweiAv.sizeX()/2-2, smooth=(unweiAv.sizeX()/2-1)/10.)[0]
+        unweiAv = lowpassFilter(volume=unweiAv, band=unweiAv.size_x()/2-2, smooth=(unweiAv.size_x()/2-1)/10.)[0]
 
         unweiAv.write(averageName)
 

@@ -380,7 +380,7 @@ class MultiDefocusWorker(FRMWorker):
                 
                 # bfactor
                 if job.bfactor and job.bfactor != 'None':
-#                    bfactor_kernel = create_bfactor_vol(sum_ctf_squared.sizeX(), job.sampleInformation.getPixelSize(), job.bfactor)
+#                    bfactor_kernel = create_bfactor_vol(sum_ctf_squared.size_x(), job.sampleInformation.getPixelSize(), job.bfactor)
                     bfactor_kernel = read(job.bfactor)
                     bfactor_kernel_sqr = vol(bfactor_kernel)
                     power(bfactor_kernel_sqr, 2)
@@ -406,20 +406,20 @@ class MultiDefocusWorker(FRMWorker):
                 from pytom.basic.fourier import ftshift
                 from pytom.lib.pytom_volume import reducedToFull
                 from pytom.lib.pytom_freqweight import weight
-                transformed_odd_pre = vol(odd.sizeX(), odd.sizeY(), odd.sizeZ())
+                transformed_odd_pre = vol(odd.size_x(), odd.size_y(), odd.size_z())
                 full_all_odd_wedge = reducedToFull(all_odd_wedge)
                 ftshift(full_all_odd_wedge)
                 odd_weight = weight(full_all_odd_wedge) # the funny part of pytom
-                transformed_odd = vol(odd.sizeX(), odd.sizeY(), odd.sizeZ())
+                transformed_odd = vol(odd.size_x(), odd.size_y(), odd.size_z())
                 
                 transformSpline(all_odd_pre,transformed_odd_pre,-angle[1],-angle[0],-angle[2],
-                                int(odd.sizeX()/2), int(odd.sizeY()/2), int(odd.sizeZ()/2),
-                                -(pos[0]-odd.sizeX()/2),-(pos[1]-odd.sizeY()/2),-(pos[2]-odd.sizeZ()/2),0,0,0)
+                                int(odd.size_x()/2), int(odd.size_y()/2), int(odd.size_z()/2),
+                                -(pos[0]-odd.size_x()/2),-(pos[1]-odd.size_y()/2),-(pos[2]-odd.size_z()/2),0,0,0)
                 odd_weight.rotate(-angle[1],-angle[0],-angle[2])
                 transformed_odd_wedge = odd_weight.getWeightVolume(True)
                 transformSpline(odd,transformed_odd,-angle[1],-angle[0],-angle[2],
-                                int(odd.sizeX()/2), int(odd.sizeY()/2), int(odd.sizeZ()/2),
-                                -(pos[0]-odd.sizeX()/2),-(pos[1]-odd.sizeY()/2),-(pos[2]-odd.sizeZ()/2),0,0,0)
+                                int(odd.size_x()/2), int(odd.size_y()/2), int(odd.size_z()/2),
+                                -(pos[0]-odd.size_x()/2),-(pos[1]-odd.size_y()/2),-(pos[2]-odd.size_z()/2),0,0,0)
                 
                 all_odd_pre = transformed_odd_pre
                 all_odd_wedge = transformed_odd_wedge
@@ -520,7 +520,7 @@ class MultiDefocusWorker(FRMWorker):
                 ref = [ref0, ref1]
             
             if job.bfactor and job.bfactor != 'None':
-#                restore_kernel = create_bfactor_restore_vol(ref.sizeX(), job.sampleInformation.getPixelSize(), job.bfactor)
+#                restore_kernel = create_bfactor_restore_vol(ref.size_x(), job.sampleInformation.getPixelSize(), job.bfactor)
                 from pytom.lib.pytom_volume import vol, read
                 bfactor_kernel = read(job.bfactor)
                 unit = vol(bfactor_kernel)
@@ -538,7 +538,7 @@ class MultiDefocusWorker(FRMWorker):
 #                    if job.bfactor == 0:
 #                        weights = [1 for k in xrange(job.freq)]
 #                    else:
-#                        restore_fnc = create_bfactor_restore_fnc(ref.sizeX(), job.sampleInformation.getPixelSize(), job.bfactor)
+#                        restore_fnc = create_bfactor_restore_fnc(ref.size_x(), job.sampleInformation.getPixelSize(), job.bfactor)
 #                        # cut out the corresponding part and square it to get the weights!
 #                        weights = restore_fnc[1:job.freq+1]**2
 
@@ -547,7 +547,7 @@ class MultiDefocusWorker(FRMWorker):
                 
                 pos, angle, score = frm_align(v, p.getWedge(), ref[int(p.getClass())], None, job.bw_range, job.freq, job.peak_offset, job.mask.getVolume())
                 
-                p.setShift(Shift([pos[0]-v.sizeX()/2, pos[1]-v.sizeY()/2, pos[2]-v.sizeZ()/2]))
+                p.setShift(Shift([pos[0]-v.size_x()/2, pos[1]-v.size_y()/2, pos[2]-v.size_z()/2]))
                 p.setRotation(Rotation(angle))
                 p.setScore(FRMScore(score))
                 
@@ -608,26 +608,26 @@ class MultiDefocusWorker(FRMWorker):
             wedgeInfo = p.getWedge()
             
             if result is None:
-                sizeX = particle.sizeX() 
-                sizeY = particle.sizeY()
-                sizeZ = particle.sizeZ()
+                size_x = particle.size_x() 
+                size_y = particle.size_y()
+                size_z = particle.size_z()
                 
-                newParticle = vol(sizeX,sizeY,sizeZ)
+                newParticle = vol(size_x,size_y,size_z)
                 # make consistent for python3
-                centerX = sizeX//2 
-                centerY = sizeY//2 
-                centerZ = sizeZ//2 
+                centerX = size_x//2 
+                centerY = size_y//2 
+                centerZ = size_z//2 
                 
-                result = vol(sizeX,sizeY,sizeZ)
+                result = vol(size_x,size_y,size_z)
                 result.setAll(0)
                 
-                wedgeSum = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
+                wedgeSum = wedgeInfo.returnWedgeVolume(size_x,size_y,size_z)
                 wedgeSum.setAll(0)
             
             # create wedge weighting
             rotation = p.getRotation()
             
-            wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False,rotation.invert())
+            wedge = wedgeInfo.returnWedgeVolume(size_x,size_y,size_z,False,rotation.invert())
             wedgeSum = wedgeSum + wedge
             
             # shift and rotate particle
@@ -654,7 +654,7 @@ class MultiDefocusWorker(FRMWorker):
         # for mask out the outside area
 #        mask = vol(sum_ctf_conv)
 #        mask.setAll(0)
-#        initSphere(mask, sum_ctf_conv.sizeX()/2-1, 0,0, sum_ctf_conv.sizeX()/2, sum_ctf_conv.sizeX()/2, sum_ctf_conv.sizeX()/2)
+#        initSphere(mask, sum_ctf_conv.size_x()/2-1, 0,0, sum_ctf_conv.size_x()/2, sum_ctf_conv.size_x()/2, sum_ctf_conv.size_x()/2)
 #        mask = fullToReduced(ftshift(mask, inplace=False))
         
         # Wiener filter
@@ -664,7 +664,7 @@ class MultiDefocusWorker(FRMWorker):
         r = complexDiv(numerator, denominator)
 #        average = ifft(complexRealMult(r, mask))
         average = ifft(r)
-        average.shiftscale(0.0,1/float(average.sizeX()*average.sizeY()*average.sizeZ()))
+        average.shiftscale(0.0,1/float(average.size_x()*average.size_y()*average.size_z()))
         
         # nomalize the average
         try:

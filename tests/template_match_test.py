@@ -40,7 +40,7 @@ class PytomTempMatchTest(unittest.TestCase):
     def test_localization_cpu(self):
         # read the template as pytom volume
         template, _ = read_em(self.testfilename)
-        sx, sy, sz = template.sizeX(), template.sizeY(), template.sizeZ()
+        sx, sy, sz = template.size_x(), template.size_y(), template.size_z()
 
         # make the mask the same as the template
         mask = vol(sx, sy, sz)

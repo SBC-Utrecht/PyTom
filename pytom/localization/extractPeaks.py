@@ -43,17 +43,17 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     if scoreFnc == flcf:
         if mask.__class__ != vol: # construct a sphere mask by default
             from pytom.lib.pytom_volume import initSphere
-            mask = vol(reference.sizeX(), reference.sizeY(), reference.sizeZ())
+            mask = vol(reference.size_x(), reference.size_y(), reference.size_z())
             mask.setAll(0)
-            initSphere(mask, reference.sizeX()/2,0,0,reference.sizeX()/2, reference.sizeX()/2,reference.sizeX()/2)
+            initSphere(mask, reference.size_x()/2,0,0,reference.size_x()/2, reference.size_x()/2,reference.size_x()/2)
             maskIsSphere = True
     
     # result volume which stores the score
-    result = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+    result = vol(volume.size_x(), volume.size_y(), volume.size_z())
     result.setAll(-1)
     
     # result orientation of the peak value (index)
-    orientation = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+    orientation = vol(volume.size_x(), volume.size_y(), volume.size_z())
     orientation.setAll(0)
     
     currentRotation = rotations.nextRotation()
@@ -64,9 +64,9 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         max = rotations.numberRotations()-1
         prog = FixedProgBar(0, max, nodeName)
     if moreInfo:
-        sumV = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+        sumV = vol(volume.size_x(), volume.size_y(), volume.size_z())
         sumV.setAll(0)
-        sqrV = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+        sqrV = vol(volume.size_x(), volume.size_y(), volume.size_z())
         sqrV.setAll(0)
     else:
         sumV = None
@@ -81,7 +81,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
             prog.update(index)
         from pytom.basic.files import read
         # rotate the reference
-        ref = vol(reference.sizeX(),reference.sizeY(),reference.sizeZ())
+        ref = vol(reference.size_x(),reference.size_y(),reference.size_z())
         rotate(reference, ref, currentRotation[0], currentRotation[1], currentRotation[2])
 
         if debug: ref.write('rot_cpu.em')
@@ -95,7 +95,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         # rotate the mask if it is asymmetric
         if scoreFnc == flcf:
             if maskIsSphere == False: # if mask is not a sphere, then rotate it
-                m = vol(mask.sizeX(),mask.sizeY(),mask.sizeZ())
+                m = vol(mask.size_x(),mask.size_y(),mask.size_z())
                 rotate(mask, m, currentRotation[0], currentRotation[1], currentRotation[2])
             else:
                 m = mask
@@ -106,8 +106,8 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
         if scoreFnc == flcf and index == 0 and maskIsSphere == True:
             # compute standard deviation of the volume under mask
             maskV = m
-            if volume.sizeX() != m.sizeX() or volume.sizeY() != m.sizeY() or volume.sizeZ() != m.sizeZ():
-                maskV = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+            if volume.size_x() != m.size_x() or volume.size_y() != m.size_y() or volume.size_z() != m.size_z():
+                maskV = vol(volume.size_x(), volume.size_y(), volume.size_z())
                 maskV.setAll(0)
                 pasteCenter(m, maskV)
             from pytom.lib.pytom_volume import sum
@@ -125,7 +125,7 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
             else:
                 score = scoreFnc(volume, ref, m)
         else: # not FLCF, so doesn't need mask as parameter and perhaps the reference should have the same size
-            _ref = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+            _ref = vol(volume.size_x(), volume.size_y(), volume.size_z())
             _ref.setAll(0)
             pasteCenter(ref, _ref)
             
@@ -146,14 +146,14 @@ def extractPeaks(volume, reference, rotations, scoreFnc=None, mask=None, maskIsS
     return [result, orientation, sumV, sqrV]
 
 
-def create_structured_wedge(tilt_angles, angle2=None, cutoffRadius=10, sizeX=10, sizeY=10, sizeZ=10, smooth=0, rotation=None, c=1):
+def create_structured_wedge(tilt_angles, angle2=None, cutoffRadius=10, size_x=10, size_y=10, size_z=10, smooth=0, rotation=None, c=1):
     from pytom.gpu.initialize import xp
     print(tilt_angles)
-    z, y, x = xp.meshgrid(xp.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2),
-                          xp.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2),
-                          xp.arange(0, sizeZ // 2 + 1))
+    z, y, x = xp.meshgrid(xp.arange(-size_y // 2 + size_y % 2, size_y // 2 + size_y % 2),
+                          xp.arange(-size_x // 2 + size_x % 2, size_x // 2 + size_x % 2),
+                          xp.arange(0, size_z // 2 + 1))
 
-    r = xp.sqrt((x*sizeX/sizeZ) ** 2 + (y) ** 2 + (z*sizeX/sizeY) ** 2)
+    r = xp.sqrt((x*size_x/size_z) ** 2 + (y) ** 2 + (z*size_x/size_y) ** 2)
 
     tot = xp.zeros_like(z)
 

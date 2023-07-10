@@ -327,7 +327,7 @@ def mcoEXMX(mcoEMJob,doFinalize=True,verbose=False):
                     className = classList[0].getClass()
                     
                     v = classList[0].getVolume()
-                    cubeSize = v.sizeX()
+                    cubeSize = v.size_x()
                     
                     resolution = classList.determine_resolution(criterion=0.5,number_bands = cubeSize / 2,mask=exMaxJob.getMask(),verbose=False,plot='',keepHalfsetAverages = False,halfsetPrefix='class' + str(className), parallel=True)
                     #resolution = [Resolution in Nyquist , resolution in band, number_bands]

@@ -352,7 +352,7 @@ class CMWorker():
                 wf_rotation = f.getRotation().invert()
 
                 # wf.setRotation(Rotation(-rotation[1],-rotation[0],-rotation[2]))
-                # wf_vol = wf.returnWedgeVolume(vf.sizeX(), vf.sizeY(), vf.sizeZ(), True, -rotation[1],-rotation[0],-rotation[2])
+                # wf_vol = wf.returnWedgeVolume(vf.size_x(), vf.size_y(), vf.size_z(), True, -rotation[1],-rotation[0],-rotation[2])
                 vf = lowpassFilter(vf, job["Frequency"], 0)[0]
 
                 if g.getFilename() != last_filename:
@@ -360,7 +360,7 @@ class CMWorker():
                     wg = g.getWedge().getWedgeObject()
                     wg_rotation = g.getRotation().invert()
                     # wg.setRotation(Rotation(-rotation[1],-rotation[0],-rotation[2]))
-                    # wg_vol = wg.returnWedgeVolume(vg.sizeX(), vg.sizeY(), vg.sizeZ(), True, -rotation[1],-rotation[0],-rotation[2])
+                    # wg_vol = wg.returnWedgeVolume(vg.size_x(), vg.size_y(), vg.size_z(), True, -rotation[1],-rotation[0],-rotation[2])
                     vg = lowpassFilter(vg, job["Frequency"], 0)[0]
 
                     last_filename = g.getFilename()

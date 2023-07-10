@@ -161,7 +161,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
 
             # 7 -- weighting
             if (weighting != None) and (weighting < 0):
-                image = (ifft( complexRealMult( fft( image), w_func) ) / (image.sizeX()*image.sizeY()*image.sizeZ()) )
+                image = (ifft( complexRealMult( fft( image), w_func) ) / (image.size_x()*image.size_y()*image.size_z()) )
             elif (weighting != None) and (weighting > 0):
                 if weighting > 1.5:
                     w_func = fourierFilterShift(rotateFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
@@ -169,7 +169,7 @@ def writeAlignedProjections(TiltSeries_, weighting=None,
                     w_func = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
 
                 image = (ifft( complexRealMult( fft( image), w_func) )/
-                      (image.sizeX()*image.sizeY()*image.sizeZ()) )
+                      (image.size_x()*image.size_y()*image.size_z()) )
             header.set_tiltangle(tilt_angles[ii])
 
             if newFilename.endswith('.mrc'):

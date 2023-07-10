@@ -184,7 +184,7 @@ class pytom_AlignmentReconstructionTest(unittest.TestCase):
         Yo = a21(Xi - Xc) + a22(Yi - Yc) + nyb/2. + yt
         """
         # imod center is (s - 1) / 2
-        center = ((data.sizeX() - 1) / 2., (data.sizeY() - 1) / 2., 0)
+        center = ((data.size_x() - 1) / 2., (data.size_y() - 1) / 2., 0)
         out = general_transform2d(data, shift=shift, scale=float(mag), rot=float(rot), order=[1, 0, 2], crop=True,
                                   center=center)
         res = vol2npy(out).copy()

@@ -4,7 +4,7 @@ def frm_determine_orientation_rscore(vf, wf, vg, wg, b, radius=None, weights=Non
     """Obsolete.
     """
     if not radius: # set the radius
-        radius = vf.sizeX()/2
+        radius = vf.size_x()/2
     if not weights: # set the weights
         weights = [1 for i in range(radius)]
     
@@ -71,7 +71,7 @@ def frm_fourier_adaptive_wedge_vol_rscore(vf, wf, vg, wg, b, radius=None, weight
     """Obsolete.
     """
     if not radius: # set the radius
-        radius = vf.sizeX()/2
+        radius = vf.size_x()/2
     if not weights: # set the weights
         weights = [1 for i in range(radius)]
 
@@ -145,30 +145,30 @@ def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=
     from pytom.lib.pytom_volume import initSphere
     from pytom.lib.pytom_numpy import vol2npy
 
-    if vf.sizeX()!=vg.sizeX() or vf.sizeY()!=vg.sizeY() or vf.sizeZ()!=vg.sizeZ():
+    if vf.size_x()!=vg.size_x() or vf.size_y()!=vg.size_y() or vf.size_z()!=vg.size_z():
         raise RuntimeError('Two volumes must have the same size!')
 
     if mask is None:
-        mask = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(mask, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        mask = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(mask, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif mask.__class__ == vol:
         pass
     elif mask.__class__ == Mask:
         mask = mask.getVolume()
     elif isinstance(mask, int):
         mask_radius = mask
-        mask = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(mask, mask_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        mask = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(mask, mask_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     else:
         raise RuntimeError('Given mask has wrong type!')
 
     if peak_offset is None:
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif isinstance(peak_offset, int):
         peak_radius = peak_offset
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, peak_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif peak_offset.__class__ == vol:
         pass
     else:
@@ -188,7 +188,7 @@ def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=
         orientations = frm_determine_orientation_rscore(vf, wf, vg, wg, b, radius, weights)
     else:
         # the position is given by the user
-        vf2 = shift(vf, -position[0]+vf.sizeX()/2, -position[1]+vf.sizeY()/2, -position[2]+vf.sizeZ()/2, 'spline')
+        vf2 = shift(vf, -position[0]+vf.size_x()/2, -position[1]+vf.size_y()/2, -position[2]+vf.size_z()/2, 'spline')
         res = frm_fourier_adaptive_wedge_vol_rscore(vf2, wf, vg, wg, b, radius, weights)
         orientation, max_value = frm_find_best_angle_interp(res)
 
@@ -200,7 +200,7 @@ def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=
     max_iter = 10 # maximal number of iterations
     wedge = WedgeInfo([90+wf[0], 90-wf[1]])
     old_pos = [-1, -1, -1]
-    vg2 = vol(vg.sizeX(), vg.sizeY(), vg.sizeZ())
+    vg2 = vol(vg.size_x(), vg.size_y(), vg.size_z())
     lowpass_vf = lowpassFilter(vf, radius, 0)[0]
     for i in range(max_iter):
         peak_value = 0.0
@@ -226,7 +226,7 @@ def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=
 
         # here we shift the target, not the reference
         # if you dont want the shift to change the energy landscape, use fourier shift
-        vf2 = shift(vf, -position[0]+vf.sizeX()/2, -position[1]+vf.sizeY()/2, -position[2]+vf.sizeZ()/2, 'fourier')
+        vf2 = shift(vf, -position[0]+vf.size_x()/2, -position[1]+vf.size_y()/2, -position[2]+vf.size_z()/2, 'fourier')
         res = frm_fourier_adaptive_wedge_vol_rscore(vf2, wf, vg, wg, b, radius, weights)
         orientations = frm_find_topn_angles_interp(res)
 
@@ -274,15 +274,15 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     from pytom.lib.pytom_volume import initSphere
 
     if not radius: # set the radius
-        radius = vf.sizeX()/2
+        radius = vf.size_x()/2
 
     if peak_offset is None:
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif isinstance(peak_offset, int):
         peak_radius = peak_offset
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, peak_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif peak_offset.__class__ == vol:
         pass
     else:
@@ -317,7 +317,7 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     corr = frm_constrained_corr(sf, mf, sg, mg)
     ang, val = frm_find_best_angle_interp(corr)
 
-    tmp = vol(vg.sizeX(),vg.sizeY(),vg.sizeZ())
+    tmp = vol(vg.size_x(),vg.size_y(),vg.size_z())
     rotateSpline(vg, tmp, ang[0], ang[1], ang[2])
     wedge_f = WedgeInfo(90+wf[0], 90-wf[1])
     wedge_g = WedgeInfo(90+wg[0], 90-wg[1])
@@ -363,7 +363,7 @@ def frm_fourier_adaptive_wedge_vol(vf, wf, vg, wg, b, radius=None, weights=None,
     The correlation function of Euler angle.
     """
     if not radius: # set the radius
-        radius = vf.sizeX()/2
+        radius = vf.size_x()/2
     if not weights: # set the weights
         weights = [1 for i in range(radius)]
 
@@ -471,7 +471,7 @@ def frm_determine_orientation(vf, wf, vg, wg, b, radius=None, weights=None, r_sc
     The angle (Euler angle, ZXZ convention [Phi, Psi, Theta]) to rotate vg to match vf.
     """
     if not radius: # set the radius
-        radius = vf.sizeX()/2
+        radius = vf.size_x()/2
     if not weights: # set the weights
         weights = [1 for i in range(radius)]
     
@@ -587,30 +587,30 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
     from pytom.lib.pytom_volume import initSphere
     from pytom.lib.pytom_numpy import vol2npy
 
-    if vf.sizeX()!=vg.sizeX() or vf.sizeY()!=vg.sizeY() or vf.sizeZ()!=vg.sizeZ():
+    if vf.size_x()!=vg.size_x() or vf.size_y()!=vg.size_y() or vf.size_z()!=vg.size_z():
         raise RuntimeError('Two volumes must have the same size!')
 
     if mask is None:
-        mask = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(mask, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        mask = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(mask, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif mask.__class__ == vol:
         pass
     elif mask.__class__ == Mask:
         mask = mask.getVolume()
     elif isinstance(mask, int):
         mask_radius = mask
-        mask = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(mask, mask_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        mask = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(mask, mask_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     else:
         raise RuntimeError('Given mask has wrong type!')
 
     if peak_offset is None:
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif isinstance(peak_offset, int):
         peak_radius = peak_offset
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, peak_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif peak_offset.__class__ == vol:
         pass
     else:
@@ -626,7 +626,7 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
         orientations = frm_determine_orientation(vf, wf, vg, wg, b, radius, None, None, False)
     else:
         # the position is given by the user
-        vf2 = shift(vf, -position[0]+vf.sizeX()/2, -position[1]+vf.sizeY()/2, -position[2]+vf.sizeZ()/2, 'spline')
+        vf2 = shift(vf, -position[0]+vf.size_x()/2, -position[1]+vf.size_y()/2, -position[2]+vf.size_z()/2, 'spline')
         res = frm_fourier_adaptive_wedge_vol(vf2, wf, vg, wg, b, radius, None, None, False)
         orientation, max_value = frm_find_best_angle_interp(res)
 
@@ -638,7 +638,7 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
     max_iter = 1 # maximal number of iterations
     wedge = WedgeInfo([90+wf[0], 90-wf[1]])
     old_pos = [-1, -1, -1]
-    vg2 = vol(vg.sizeX(), vg.sizeY(), vg.sizeZ())
+    vg2 = vol(vg.size_x(), vg.size_y(), vg.size_z())
     lowpass_vf = lowpassFilter(vf, radius, 0)[0]
     
     peak_value = 0.0

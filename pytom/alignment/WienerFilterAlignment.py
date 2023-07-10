@@ -355,7 +355,7 @@ class MultiDefocusWorker(FRMWorker):
                 
                 # bfactor
                 if job.bfactor and job.bfactor != 'None':
-#                    bfactor_kernel = create_bfactor_vol(sum_ctf_squared.sizeX(), job.sampleInformation.getPixelSize(), job.bfactor)
+#                    bfactor_kernel = create_bfactor_vol(sum_ctf_squared.size_x(), job.sampleInformation.getPixelSize(), job.bfactor)
                     bfactor_kernel = read(job.bfactor)
                     bfactor_kernel_sqr = vol(bfactor_kernel)
                     power(bfactor_kernel_sqr, 2)
@@ -455,7 +455,7 @@ class MultiDefocusWorker(FRMWorker):
                 ref = convolute(ref, ctf, True)
             
             if job.bfactor and job.bfactor != 'None':
-#                restore_kernel = create_bfactor_restore_vol(ref.sizeX(), job.sampleInformation.getPixelSize(), job.bfactor)
+#                restore_kernel = create_bfactor_restore_vol(ref.size_x(), job.sampleInformation.getPixelSize(), job.bfactor)
                 from pytom.lib.pytom_volume import vol, read
                 bfactor_kernel = read(job.bfactor)
                 unit = vol(bfactor_kernel)
@@ -473,7 +473,7 @@ class MultiDefocusWorker(FRMWorker):
 #                    if job.bfactor == 0:
 #                        weights = [1 for k in xrange(job.freq)]
 #                    else:
-#                        restore_fnc = create_bfactor_restore_fnc(ref.sizeX(), job.sampleInformation.getPixelSize(), job.bfactor)
+#                        restore_fnc = create_bfactor_restore_fnc(ref.size_x(), job.sampleInformation.getPixelSize(), job.bfactor)
 #                        # cut out the corresponding part and square it to get the weights!
 #                        weights = restore_fnc[1:job.freq+1]**2
 
@@ -482,7 +482,7 @@ class MultiDefocusWorker(FRMWorker):
                 
                 pos, angle, score = frm_align(v, p.getWedge(), ref, None, job.bw_range, job.freq, job.peak_offset, job.mask.getVolume())
                 
-                p.setShift(Shift([pos[0]-v.sizeX()/2, pos[1]-v.sizeY()/2, pos[2]-v.sizeZ()/2]))
+                p.setShift(Shift([pos[0]-v.size_x()/2, pos[1]-v.size_y()/2, pos[2]-v.size_z()/2]))
                 p.setRotation(Rotation(angle))
                 p.setScore(FRMScore(score))
                 
@@ -536,26 +536,26 @@ class MultiDefocusWorker(FRMWorker):
             wedgeInfo = p.getWedge()
             
             if result is None:
-                sizeX = particle.sizeX() 
-                sizeY = particle.sizeY()
-                sizeZ = particle.sizeZ()
+                size_x = particle.size_x() 
+                size_y = particle.size_y()
+                size_z = particle.size_z()
                 
-                newParticle = vol(sizeX,sizeY,sizeZ)
+                newParticle = vol(size_x,size_y,size_z)
                 
-                centerX = sizeX/2 
-                centerY = sizeY/2 
-                centerZ = sizeZ/2 
+                centerX = size_x/2 
+                centerY = size_y/2 
+                centerZ = size_z/2 
                 
-                result = vol(sizeX,sizeY,sizeZ)
+                result = vol(size_x,size_y,size_z)
                 result.setAll(0)
                 
-                wedgeSum = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
+                wedgeSum = wedgeInfo.returnWedgeVolume(size_x,size_y,size_z)
                 wedgeSum.setAll(0)
             
             # create wedge weighting
             rotation = p.getRotation()
             
-            wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False,rotation.invert())
+            wedge = wedgeInfo.returnWedgeVolume(size_x,size_y,size_z,False,rotation.invert())
             wedgeSum = wedgeSum + wedge
             
             # shift and rotate particle
@@ -581,7 +581,7 @@ class MultiDefocusWorker(FRMWorker):
         # for mask out the outside area
 #        mask = vol(sum_ctf_conv)
 #        mask.setAll(0)
-#        initSphere(mask, sum_ctf_conv.sizeX()/2-1, 0,0, sum_ctf_conv.sizeX()/2, sum_ctf_conv.sizeX()/2, sum_ctf_conv.sizeX()/2)
+#        initSphere(mask, sum_ctf_conv.size_x()/2-1, 0,0, sum_ctf_conv.size_x()/2, sum_ctf_conv.size_x()/2, sum_ctf_conv.size_x()/2)
 #        mask = fullToReduced(ftshift(mask, inplace=False))
         
         # Wiener filter
@@ -591,7 +591,7 @@ class MultiDefocusWorker(FRMWorker):
         r = complexDiv(numerator, denominator)
 #        average = ifft(complexRealMult(r, mask))
         average = ifft(r)
-        average.shiftscale(0.0,1/float(average.sizeX()*average.sizeY()*average.sizeZ()))
+        average.shiftscale(0.0,1/float(average.size_x()*average.size_y()*average.size_z()))
         
         # nomalize the average
         try:

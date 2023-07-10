@@ -270,7 +270,7 @@ class Mask(PyTomClass):
             
             rotationCenter = determineRotationCenter(self._filename,self._binning)
             
-            maskRot = vol(self._volume.sizeX(),self._volume.sizeY(),self._volume.sizeZ())
+            maskRot = vol(self._volume.size_x(),self._volume.size_y(),self._volume.size_z())
             transform(self._volume,maskRot,rotation.getZ1(),rotation.getZ2(),rotation.getX(),
 	        rotationCenter[0],rotationCenter[1],rotationCenter[2],0,0,0,0,0,0)
             
@@ -563,14 +563,14 @@ class Reference(PyTomClass):
         rotinvert =  particleRotation.invert()
         if analytWedge:
             # > buggy version
-            wedge = particleWedge.returnWedgeVolume(particleTransformed.sizeX(),particleTransformed.sizeY(),
-                                                    particleTransformed.sizeZ(),False,rotinvert)
+            wedge = particleWedge.returnWedgeVolume(particleTransformed.size_x(),particleTransformed.size_y(),
+                                                    particleTransformed.size_z(),False,rotinvert)
             # < buggy version
         else:
             # > FF bugfix
-            wedge = rotateWeighting( weighting=particleWedge.returnWedgeVolume(particleTransformed.sizeX(),
-                                                                               particleTransformed.sizeY(),
-                                                                               particleTransformed.sizeZ(),False),
+            wedge = rotateWeighting( weighting=particleWedge.returnWedgeVolume(particleTransformed.size_x(),
+                                                                               particleTransformed.size_y(),
+                                                                               particleTransformed.size_z(),False),
                                  z1=rotinvert[0], z2=rotinvert[1], x=rotinvert[2], mask=None,
                                  isReducedComplex=True, returnReducedComplex=True)
             # < FF
@@ -578,7 +578,7 @@ class Reference(PyTomClass):
         #substract particle and wedge, consistent with pytom.alignment.alignmentFunctions.average
         newRefPreWedge = preWedge - particleTransformed
         newWedgeSum = wedgeSum - wedge
-        invert_WedgeSum( invol=newWedgeSum, r_max=particleTransformed.sizeX()/2-2., lowlimit=.05*newWedgeSum.getV(0,0,0),
+        invert_WedgeSum( invol=newWedgeSum, r_max=particleTransformed.size_x()/2-2., lowlimit=.05*newWedgeSum.getV(0,0,0),
                          lowval=.05*newWedgeSum.getV(0,0,0))
 
         #weight new average
@@ -592,7 +592,7 @@ class Reference(PyTomClass):
             reference = resize(volume=referenceBig, factor=1./float(binning), interpolation='Fourier')[0]
             #reference = scaleVolume(referenceBig,1/float(binning))
             
-            newWedgeSum = readSubvolumeFromFourierspaceFile(newWedgeSum,reference.sizeX(),reference.sizeY(),reference.sizeZ())
+            newWedgeSum = readSubvolumeFromFourierspaceFile(newWedgeSum,reference.size_x(),reference.size_y(),reference.size_z())
             
         else:
             reference = referenceBig
@@ -838,7 +838,7 @@ class Wedge(PyTomClass):
         @param wedgeSizeY: volume size for y (original size)
         @param wedgeSizeZ: volume size for z (original size)
         @rtype: L{pytom.lib.pytom_freqweight.weight}
-        @return: Weighting object. Remember, the wedge will be cutoff at sizeX/2 if no cutoff provided in constructor or cutoff == 0!
+        @return: Weighting object. Remember, the wedge will be cutoff at size_x/2 if no cutoff provided in constructor or cutoff == 0!
         @author: Thomas Hrabe   
         """
         if self._type == 'Wedge3dCTF':
@@ -1082,7 +1082,7 @@ class SingleTiltWedge(PyTomClass):
         @param rotation: Apply rotation to the wedge
         @type rotation: L{pytom.basic.structures.Rotation}  
         @rtype: L{pytom.lib.pytom_freqweight.weight}
-        @return: Weighting object. Remember, the wedge will be cutoff at sizeX/2 if no cutoff provided in constructor or cutoff == 0!
+        @return: Weighting object. Remember, the wedge will be cutoff at size_x/2 if no cutoff provided in constructor or cutoff == 0!
         @author: Thomas Hrabe   
         """
         from pytom.lib.pytom_freqweight import weight
@@ -1167,7 +1167,7 @@ class SingleTiltWedge(PyTomClass):
             
             from pytom.basic.filter import filter
             
-            wedgeFilter = self.returnWedgeFilter(volume.sizeX(), volume.sizeY(), volume.sizeZ(), rotation)
+            wedgeFilter = self.returnWedgeFilter(volume.size_x(), volume.size_y(), volume.size_z(), rotation)
             
             result = list(filter(volume, wedgeFilter))
             result = result[0]
@@ -1471,13 +1471,13 @@ be generated. If omitted / 0, filter is fixed to size/2.
         if not volume.__class__ == vol:
             raise TypeError('You must provide a pytom.lib.pytom_volume.vol here!')
     
-        wedgeVolume = self.returnWedgeVolume(volume.sizeX(),volume.sizeY(),volume.sizeZ(),
+        wedgeVolume = self.returnWedgeVolume(volume.size_x(),volume.size_y(),volume.size_z(),
                            humanUnderstandable = False,rotation=rotation)
         fvolume     = fft(volume) 
         fresult     = complexRealMult(fvolume, wedgeVolume)
         
         result      = ifft(fresult) 
-        result.shiftscale(0.0,1/float(volume.sizeX()*volume.sizeY()*volume.sizeZ())) 
+        result.shiftscale(0.0,1/float(volume.size_x()*volume.size_y()*volume.size_z())) 
         
         return result
 
@@ -1693,9 +1693,9 @@ class GeneralWedge(PyTomClass):
         # read the weight volume
         self._read_weight()
         
-        size_x = self._weight_vol.sizeX()
-        size_y = self._weight_vol.sizeY()
-        size_z = self._weight_vol.sizeZ()
+        size_x = self._weight_vol.size_x()
+        size_y = self._weight_vol.size_y()
+        size_z = self._weight_vol.size_z()
         
         # start sampling
         import numpy as np
@@ -2134,10 +2134,10 @@ class Particle(PyTomClass):
         if rotation != Rotation(0,0,0) or shift != Shift(0,0,0):
             from pytom.lib.pytom_volume import vol, transformSpline
             
-            volumeTransformed = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+            volumeTransformed = vol(volume.size_x(),volume.size_y(),volume.size_z())
         
             transformSpline(volume,volumeTransformed,-rotation[1],-rotation[0],-rotation[2],
-                            int(volume.sizeX()/2), int(volume.sizeY()/2), int(volume.sizeZ()/2),
+                            int(volume.size_x()/2), int(volume.size_y()/2), int(volume.size_z()/2),
                             -shift[0]/binning,-shift[1]/binning,-shift[2]/binning,0,0,0)
             return volumeTransformed
         
@@ -2452,7 +2452,7 @@ class ParticleList(PyTomClass):
         
         motifList = read(motlFile)
         
-        numberParticles = motifList.sizeY()
+        numberParticles = motifList.size_y()
         
         for i in range(numberParticles):
             
@@ -3034,7 +3034,7 @@ class ParticleList(PyTomClass):
         """
         determine_resolution
         @param criterion: The resolution criterion
-        @param number_bands: Will use cubesizeX / 2 as default if not specified
+        @param number_bands: Will use cubesize_x / 2 as default if not specified
         @param mask: A mask used for specifying location of particle. Can be None 
         @param verbose: Verbose mode. Default -> False
         @param plot: Plot FSC curve to disk? Provide svg or png filename here. Default is '' -> no plot!
@@ -3091,7 +3091,7 @@ class ParticleList(PyTomClass):
             os.system('rm '+halfsetPrefix+'even-WedgeSumUnscaled.em')
         
         if not number_bands:
-            number_bands = oddVolume.sizeX()/2
+            number_bands = oddVolume.size_x()/2
         
         if verbose:
             print('Using ', number_bands ,' shells for FSC')
@@ -3310,9 +3310,9 @@ class ParticleList(PyTomClass):
             # rotate the wedge
             w = p.getWedge()
             if sum_w is None:
-                sum_w = w.returnWedgeVolume(v.sizeX(),v.sizeY(),v.sizeZ(), False, p.getRotation().invert())
+                sum_w = w.returnWedgeVolume(v.size_x(),v.size_y(),v.size_z(), False, p.getRotation().invert())
             else:
-                sum_w += w.returnWedgeVolume(v.sizeX(),v.sizeY(),v.sizeZ(), False, p.getRotation().invert())
+                sum_w += w.returnWedgeVolume(v.size_x(),v.size_y(),v.size_z(), False, p.getRotation().invert())
             
             # calculate the variance
             wa = w.apply(average, p.getRotation().invert())
@@ -3336,7 +3336,7 @@ class ParticleList(PyTomClass):
         r = complexDiv(fResult, sum_w)
     
         result = ifft(r)        
-        result.shiftscale(0.0,1/float(sum_var.sizeX()*sum_var.sizeY()*sum_var.sizeZ()))
+        result.shiftscale(0.0,1/float(sum_var.size_x()*sum_var.size_y()*sum_var.size_z()))
         
         return result
     
@@ -4508,14 +4508,14 @@ class PointSymmetry(Symmetry):
             raise ParameterError("Symmetry object: axis must either be 'Z' or a list of two tilt angles")
         
         if not mask:
-            mask = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+            mask = vol(volume.size_x(),volume.size_y(),volume.size_z())
             mask.setAll(1)
         elif mask.__class__ == Mask:
             mask = mask.getVolume() 
              
         ccList = []
         
-        rotatedVolume = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        rotatedVolume = vol(volume.size_x(),volume.size_y(),volume.size_z())
 
         currentRotation = rotations.nextRotation()    
         
@@ -4546,12 +4546,12 @@ class PointSymmetry(Symmetry):
         from pytom.lib.pytom_volume import vol, rotateSpline
         from pytom.basic.structures import Rotation
         
-        sizeX = volume.sizeX()
-        sizeY = volume.sizeY()
-        sizeZ = volume.sizeZ()
+        size_x = volume.size_x()
+        size_y = volume.size_y()
+        size_z = volume.size_z()
         
-        symVolume = vol(sizeX,sizeY,sizeZ)
-        rotVolume = vol(sizeX,sizeY,sizeZ)
+        symVolume = vol(size_x,size_y,size_z)
+        rotVolume = vol(size_x,size_y,size_z)
         
         symVolume.setAll(0)
             
@@ -4569,7 +4569,7 @@ class PointSymmetry(Symmetry):
             # search for the best match after the symmetry rotation
             if self._search_ang != 0:
                 from pytom.basic.correlation import xcc
-                tmp = vol(sizeX,sizeY,sizeZ)
+                tmp = vol(size_x,size_y,size_z)
                 max_cc = None
                 best_ang = None
                 if isinstance(self._search_ang, int):
@@ -4713,7 +4713,7 @@ class HelicalSymmetry(Symmetry):
         from pytom.basic.structures import Rotation,Shift
         from pytom.basic.transformations import rotate,shift
         
-        result = vol(particle.sizeX(),particle.sizeY(),particle.sizeZ()) 
+        result = vol(particle.size_x(),particle.size_y(),particle.size_z()) 
         result.setAll(0)
         
         factor = 1 if self._isRightSymmetry else -1
@@ -4917,7 +4917,7 @@ class BandPassFilter(PyTomClass):
     def filter(self,volume):
         from pytom.basic.filter import bandpassFilter
         
-        if volume.sizeX()/2 < self._highestFrequency or volume.sizeY()/2 < self._highestFrequency or volume.sizeZ()/2 < self._highestFrequency:
+        if volume.size_x()/2 < self._highestFrequency or volume.size_y()/2 < self._highestFrequency or volume.size_z()/2 < self._highestFrequency:
             print("Warning: Highest frequency in bandpass is larger than volume size.")
         
         res = bandpassFilter(volume,self._lowestFrequency,self._highestFrequency,bpf=None,smooth=self._smooth,fourierOnly=False)

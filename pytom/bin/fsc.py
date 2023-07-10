@@ -141,7 +141,7 @@ if __name__ == '__main__':
         if not number_bands:
             p = pl[0]
             pv = p.getVolume()
-            number_bands = int(pv.sizeX()/4)
+            number_bands = int(pv.size_x()/4)
             
         r = pl.determine_resolution(fscCriterion,number_bands,mask,verbose=verbose,plot='',keepHalfsetAverages = True,
                                    halfsetPrefix=os.path.join(outdir, 'plFSC'), randomize=randomize)

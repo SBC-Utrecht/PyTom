@@ -276,10 +276,10 @@ class TiltSeries(PyTomClass):
 
         if markerFileName.endswith('.em') or markerFileName.endswith('.mrc'):
             markerFileVol = read(markerFileName)
-            nproj = markerFileVol.sizeY()
+            nproj = markerFileVol.size_y()
             nproj -= self._firstIndex
             nproj -= self._lenPI - self._lastIndex
-            nmark = markerFileVol.sizeZ()
+            nmark = markerFileVol.size_z()
             markerFile = vol2npy(markerFileVol)
             markerFile = markerFile[:, self._firstIndex:self._lastIndex, :]
 
@@ -1797,7 +1797,7 @@ class TiltAlignment:
         from pytom.reconstruction.imageStructures import ImageStack
 
         # prepare mask
-        #mask = initSphere(sizeX=dimBox, sizeY=dimBox, sizeZ=1, radius=dimBox/5.,
+        #mask = initSphere(size_x=dimBox, size_y=dimBox, size_z=1, radius=dimBox/5.,
         #          smooth=dimBox/5., maxradius=0, cent=None)
         mask = None
 

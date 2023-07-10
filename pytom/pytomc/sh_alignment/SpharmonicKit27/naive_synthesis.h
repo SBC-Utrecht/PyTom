@@ -51,7 +51,7 @@ extern void Naive_Synthesize( int ,
 			      double *,
 			      double *);
 
-extern void Naive_SynthesizeX( double *,
+extern void Naive_Synthesize_x( double *,
 			       int ,
 			       int ,
 			       double *,

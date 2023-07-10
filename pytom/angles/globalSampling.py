@@ -83,7 +83,7 @@ class GlobalSampling(AngleObject):
                 
                 angs = pytom_volume.read(filename)
               
-            for i in range(angs.sizeY()):
+            for i in range(angs.size_y()):
                 phi = angs.getV(0,i,0)
                 psi = angs.getV(1,i,0)
                 the = angs.getV(2,i,0)

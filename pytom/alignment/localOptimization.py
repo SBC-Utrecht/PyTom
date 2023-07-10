@@ -50,7 +50,7 @@ class Alignment:
 
         self.vol1 = v
         self.vol2 = vol2
-        self.rotvol2 = vol(self.vol1.sizeX(), self.vol2.sizeY(), self.vol2.sizeZ())
+        self.rotvol2 = vol(self.vol1.size_x(), self.vol2.size_y(), self.vol2.size_z())
         self.mask = mask
         
         if iniRot is None:
@@ -61,9 +61,9 @@ class Alignment:
 
         self.score = score
         self.val = -100000.
-        self.centX = int(self.vol1.sizeX()//2)
-        self.centY = int(self.vol1.sizeY()//2)
-        self.centZ = int(self.vol1.sizeZ()//2)
+        self.centX = int(self.vol1.size_x()//2)
+        self.centY = int(self.vol1.size_y()//2)
+        self.centZ = int(self.vol1.size_z()//2)
         self.binning = 1
         self.interpolation = interpolation
 
@@ -292,7 +292,7 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
     assert isinstance(vol2, vol), "alignVolumesAndFilterByFSC: vol2 must be of type vol"
     # filter volumes prior to alignment according to SNR
     fsc_prior = fsc(volume1=vol1, volume2=vol2, number_bands=nband)
-    fil = design_fsc_filter(fsc=fsc_prior, fildim=int(vol2.sizeX()//2))
+    fil = design_fsc_filter(fsc=fsc_prior, fildim=int(vol2.size_x()//2))
     #filter only one volume so that resulting CCC is weighted by SNR only once
     filvol2 = filter_volume_by_profile(volume=vol2, profile=fil)
     # align vol2 to vol1
@@ -312,16 +312,16 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
         print("Alignment densities: Rotations: %2.3f, %2.3f, %2.3f; Translations: %2.3f, %2.3f, %2.3f " % (optiRot[0],
                                     optiRot[1], optiRot[2], optiTrans[0], optiTrans[1], optiTrans[2]))
         print("Orientation difference: %2.3f deg" % diffAng)
-    vol2_alig = vol(vol2.sizeX(), vol2.sizeY(), vol2.sizeZ())
+    vol2_alig = vol(vol2.size_x(), vol2.size_y(), vol2.size_z())
     transformSpline(vol2, vol2_alig, optiRot[0], optiRot[1], optiRot[2],
-                    int(vol2.sizeX()/2),int(vol2.sizeY()/2),int(vol2.sizeY()/2),
+                    int(vol2.size_x()/2),int(vol2.size_y()/2),int(vol2.size_y()/2),
                     0, 0, 0,
                     optiTrans[0], optiTrans[1], optiTrans[2])
     # finally compute FSC and filter of both volumes
     if not nband:
-        nband = int(vol2.sizeX()/2)
+        nband = int(vol2.size_x()/2)
     fsc_out = fsc(volume1=vol1, volume2=vol2_alig, number_bands=nband)
-    fil = design_fsc_filter(fsc=fsc_out, fildim=int(vol2.sizeX()/2), fsc_criterion=fsc_criterion)
+    fil = design_fsc_filter(fsc=fsc_out, fildim=int(vol2.size_x()/2), fsc_criterion=fsc_criterion)
     filvol1 = filter_volume_by_profile(volume=vol1, profile=fil)
     #filvol2 = filter_volume_by_profile( volume=vol2_alig, profile=fil)
     filvol2 = filter_volume_by_profile(volume=vol2, profile=fil)

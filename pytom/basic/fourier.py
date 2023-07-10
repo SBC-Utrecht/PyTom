@@ -48,15 +48,15 @@ class FtSingleton(object):
         length = len(self.ftList)
         found = False
         it = 0
-        x = volume.sizeX()
-        y = volume.sizeY()
-        z = volume.sizeZ()
+        x = volume.size_x()
+        y = volume.size_y()
+        z = volume.size_z()
         
         t = None
         while (not found) and (it < length):
             theTuple = self.ftList[it]
             
-            if x == theTuple.real.sizeX() and y == theTuple.real.sizeY() and z == theTuple.real.sizeZ():
+            if x == theTuple.real.size_x() and y == theTuple.real.size_y() and z == theTuple.real.size_z():
                 found = True
                 t = theTuple
             else:
@@ -81,15 +81,15 @@ class FtSingleton(object):
         z = volume.getFtSizeZ()
         
         if x == 0 and y == 0 and z == 0:
-            x = volume.sizeX() / 2
-            y = volume.sizeY() / 2
-            z = (volume.sizeZ() + 1)* 2
+            x = volume.size_x() / 2
+            y = volume.size_y() / 2
+            z = (volume.size_z() + 1)* 2
             
         t = None
         while (not found) and (it < length):
             theTuple = self.iftList[it]
             
-            if x == theTuple.real.sizeX() and y == theTuple.real.sizeY() and z == theTuple.real.sizeZ():
+            if x == theTuple.real.size_x() and y == theTuple.real.size_y() and z == theTuple.real.size_z():
                 found = True
                 t = theTuple
             else:
@@ -124,43 +124,43 @@ def fft(data, scaling=''):
         theTuple.real.copyVolume(data)
         plan.transform()
         
-        returnValue = pytom_volume.vol_comp(theTuple.complexVolume.sizeX(),theTuple.complexVolume.sizeY(),theTuple.complexVolume.sizeZ())
+        returnValue = pytom_volume.vol_comp(theTuple.complexVolume.size_x(),theTuple.complexVolume.size_y(),theTuple.complexVolume.size_z())
         returnValue.copyVolume(theTuple.complexVolume)
         
-        returnValue.setFtSizeX(data.sizeX())
-        returnValue.setFtSizeY(data.sizeY())
-        returnValue.setFtSizeZ(data.sizeZ())
+        returnValue.setFtSizeX(data.size_x())
+        returnValue.setFtSizeY(data.size_y())
+        returnValue.setFtSizeZ(data.size_z())
 
 
         if scaling=='sqrtN':
             from numpy import sqrt
-            returnValue = returnValue / sqrt(data.sizeX()*data.sizeY()*data.sizeZ())
+            returnValue = returnValue / sqrt(data.size_x()*data.size_y()*data.size_z())
         if scaling == 'N':
             from numpy import sqrt
-            returnValue = returnValue / (data.sizeX() * data.sizeY() * data.sizeZ())
+            returnValue = returnValue / (data.size_x() * data.size_y() * data.size_z())
 
         return returnValue
     
     else:  
         import pytom.lib.pytom_fftplan as pytom_fftplan
     
-        real = pytom_volume.vol(data.sizeX(),data.sizeY(),data.sizeZ())
+        real = pytom_volume.vol(data.size_x(),data.size_y(),data.size_z())
         real.copyVolume(data)
         
-        if(data.sizeZ() > 1):
-            complexVolume = pytom_volume.vol_comp(data.sizeX(),data.sizeY(),data.sizeZ()//2+1)
-            returnValue = pytom_volume.vol_comp(data.sizeX(),data.sizeY(),data.sizeZ()//2+1)
+        if(data.size_z() > 1):
+            complexVolume = pytom_volume.vol_comp(data.size_x(),data.size_y(),data.size_z()//2+1)
+            returnValue = pytom_volume.vol_comp(data.size_x(),data.size_y(),data.size_z()//2+1)
         else:
-            complexVolume = pytom_volume.vol_comp(data.sizeX(),data.sizeY()//2+1,1)
-            returnValue = pytom_volume.vol_comp(data.sizeX(),data.sizeY()//2+1,1)
+            complexVolume = pytom_volume.vol_comp(data.size_x(),data.size_y()//2+1,1)
+            returnValue = pytom_volume.vol_comp(data.size_x(),data.size_y()//2+1,1)
             
         plan = pytom_fftplan.plan(real,complexVolume)
         plan.transform()
         returnValue.copyVolume(complexVolume)
     
-        returnValue.setFtSizeX(data.sizeX())
-        returnValue.setFtSizeY(data.sizeY())
-        returnValue.setFtSizeZ(data.sizeZ())
+        returnValue.setFtSizeX(data.size_x())
+        returnValue.setFtSizeY(data.size_y())
+        returnValue.setFtSizeZ(data.size_z())
     
         theTuple = FourierTuple(plan,real,complexVolume)
         
@@ -168,10 +168,10 @@ def fft(data, scaling=''):
 
         if scaling=='sqrtN':
             from numpy import sqrt
-            returnValue = returnValue / sqrt(data.sizeX()*data.sizeY()*data.sizeZ())
+            returnValue = returnValue / sqrt(data.size_x()*data.size_y()*data.size_z())
         elif scaling == 'N':
             from numpy import sqrt
-            returnValue = returnValue / (data.sizeX() * data.sizeY() * data.sizeZ())
+            returnValue = returnValue / (data.size_x() * data.size_y() * data.size_z())
 
         return returnValue
 
@@ -204,21 +204,21 @@ def ifft(Fdata, scaling=''):
         theTuple.complexVolume.copyVolume(Fdata)
         plan.transform()
         
-        returnValue = pytom_volume.vol(theTuple.real.sizeX(),theTuple.real.sizeY(),theTuple.real.sizeZ())
+        returnValue = pytom_volume.vol(theTuple.real.size_x(),theTuple.real.size_y(),theTuple.real.size_z())
         returnValue.copyVolume(theTuple.real)
         if scaling=='sqrtN':
             from numpy import sqrt
-            returnValue = returnValue / sqrt(Fdata.sizeX()*Fdata.sizeY()*Fdata.sizeZ())
+            returnValue = returnValue / sqrt(Fdata.size_x()*Fdata.size_y()*Fdata.size_z())
         if scaling == 'N':
             from numpy import sqrt
-            returnValue = returnValue / (Fdata.sizeX() * Fdata.sizeY() * Fdata.sizeZ())
+            returnValue = returnValue / (Fdata.size_x() * Fdata.size_y() * Fdata.size_z())
 
         return returnValue
     
     else:  
         import pytom.lib.pytom_fftplan as pytom_fftplan
     
-        complexVolume = pytom_volume.vol_comp(Fdata.sizeX(),Fdata.sizeY(),Fdata.sizeZ())
+        complexVolume = pytom_volume.vol_comp(Fdata.size_x(),Fdata.size_y(),Fdata.size_z())
         complexVolume.copyVolume(Fdata)
         
         x = Fdata.getFtSizeX()
@@ -226,9 +226,9 @@ def ifft(Fdata, scaling=''):
         z = Fdata.getFtSizeZ()
         
         if x == 0 and y == 0 and z == 0:
-            x = Fdata.sizeX() 
-            y = Fdata.sizeY() 
-            z = (Fdata.sizeZ() - 1)* 2
+            x = Fdata.size_x() 
+            y = Fdata.size_y() 
+            z = (Fdata.size_z() - 1)* 2
             
             if x == y and abs(z-y) == 1:
                 #if x == y and x is odd, then z will be one pixel off. 
@@ -249,10 +249,10 @@ def ifft(Fdata, scaling=''):
         ftSingleton.addiFt(theTuple)
         if scaling=='sqrtN':
             from numpy import sqrt
-            returnValue = returnValue / sqrt(Fdata.sizeX()*Fdata.sizeY()*Fdata.sizeZ())
+            returnValue = returnValue / sqrt(Fdata.size_x()*Fdata.size_y()*Fdata.size_z())
         if scaling == 'N':
             from numpy import sqrt
-            returnValue = returnValue / (Fdata.sizeX() * Fdata.sizeY() * Fdata.sizeZ())
+            returnValue = returnValue / (Fdata.size_x() * Fdata.size_y() * Fdata.size_z())
 
         return returnValue
     
@@ -318,23 +318,23 @@ def convolute(v, k, kernel_in_fourier=False):
         res = fv*fk
     else:
         from pytom.lib.pytom_volume import complexRealMult, fullToReduced
-        if k.sizeZ() == k.sizeX():
+        if k.size_z() == k.size_x():
             fk = fullToReduced(ftshift(k, inplace=False))
         else:
             fk = k
         res = complexRealMult(fv, fk)
         
     out = ifft(res)
-    out.shiftscale(0.0,1/float(out.sizeX()*out.sizeY()*out.sizeZ()))
+    out.shiftscale(0.0,1/float(out.size_x()*out.size_y()*out.size_z()))
     
     return out
 
-def fourierSizeOperation(sizeX=0,sizeY=0,sizeZ=0,reducedToFull = True):
+def fourierSizeOperation(size_x=0,size_y=0,size_z=0,reducedToFull = True):
     """
     fourierSizeOperation: determines the fourier size given the three real-space size parameters and real-space size given three fourier-size parameters
-    @param sizeX: 
-    @param sizeY: 
-    @param sizeZ:
+    @param size_x: 
+    @param size_y: 
+    @param size_z:
     @param reducedToFull: 
     @return:  
     """
@@ -342,13 +342,13 @@ def fourierSizeOperation(sizeX=0,sizeY=0,sizeZ=0,reducedToFull = True):
     y=0
     z=0
     
-    if sizeX == 0 and sizeY == 0 and sizeZ == 0:
+    if size_x == 0 and size_y == 0 and size_z == 0:
         return [x,y,z] 
     
     if reducedToFull:
-        x = sizeX
-        y = sizeY 
-        z = (sizeZ - 1)* 2
+        x = size_x
+        y = size_y 
+        z = (size_z - 1)* 2
         
         if x == y and abs(z-y) == 1:
             #if x == y and x is odd, then z will be one pixel off. 
@@ -358,9 +358,9 @@ def fourierSizeOperation(sizeX=0,sizeY=0,sizeZ=0,reducedToFull = True):
             print('Warning: Check if that is consistent with your data!')
             
     else:
-        x = sizeX 
-        y = sizeY 
-        z = sizeZ / 2 + 1
+        x = size_x 
+        y = size_y 
+        z = size_z / 2 + 1
     
     if x < 0 or y < 0 or z < 0:
         raise ValueError('fourierSizeOperation: Size determined is negative!')
@@ -382,9 +382,9 @@ def powerspectrum(volume):
     from pytom.lib.pytom_volume import vol, reducedToFull
 
     fvol = ftshift(reducedToFull(fft(volume)),inplace=False)
-    nx=fvol.sizeX()
-    ny=fvol.sizeY()
-    nz=fvol.sizeZ()
+    nx=fvol.size_x()
+    ny=fvol.size_y()
+    nz=fvol.size_z()
     ps = vol(nx,ny,nz)
     sf = 1./(nx*ny*nz)
 
@@ -412,7 +412,7 @@ def radialaverage(volume, isreduced=True):
     else:
         fvol = volume
 
-    sx, sy, sz = fvol.sizeX(), fvol.sizeY(), fvol.sizeZ()
+    sx, sy, sz = fvol.size_x(), fvol.size_y(), fvol.size_z()
     assert sx == sy == sz, 'radial average only implemented for cubic volumes'
     centerx, centery, centerz = sx // 2 + 1, sy // 2 + 1, sz // 2 + 1  # fourier space center
 

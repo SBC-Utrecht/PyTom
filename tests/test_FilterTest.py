@@ -19,15 +19,15 @@ class pytom_FilterTest(unittest.TestCase):
         v.setV(1.,16,16,16)
 
         wedgeInfo = WedgeInfo(30.0)#,[10.0,20.0,30.0],0.0)
-        wvol = wedgeInfo.returnWedgeVolume(v.sizeX(), v.sizeY(), v.sizeZ())
-        wfil = wedgeInfo.returnWedgeFilter(v.sizeX(), v.sizeY(), v.sizeZ())
+        wvol = wedgeInfo.returnWedgeVolume(v.size_x(), v.size_y(), v.size_z())
+        wfil = wedgeInfo.returnWedgeFilter(v.size_x(), v.size_y(), v.size_z())
         vfil1 = wedgeInfo.apply(v)
         vfil2 = filter(v,wfil)
 
         fv = fft(v)
         fvol3 = complexRealMult(fv,wvol)
         vfil3 = ifft(fvol3)
-        vfil3.shiftscale(0.0,1/float(v.sizeX()*v.sizeY()*v.sizeZ()))
+        vfil3.shiftscale(0.0,1/float(v.size_x()*v.size_y()*v.size_z()))
 
         self.assertAlmostEqual(vfil1.getV(16,16,16),vfil2[0].getV(16,16,16),2,"Wedge Filter Inconsistency")
         self.assertAlmostEqual(vfil1.getV(16,16,16),vfil3.getV(16,16,16),2,"Wedge Filter Inconsistency")
@@ -50,26 +50,26 @@ class pytom_FilterTest(unittest.TestCase):
 
         wedgeInfo = Wedge(wedge_angles=wangle, cutoffRadius=0.0, tiltAxis='Y', smooth=3.0)
         tmp = wedgeInfo.apply(v)
-        vfil1 = vol(v.sizeX(),v.sizeY(),v.sizeZ())
+        vfil1 = vol(v.size_x(),v.size_y(),v.size_z())
         rotate(tmp, vfil1, rot[0], rot[1], rot[2])
 
         wedgeInfoRot = Wedge(wedge_angles=wangle, cutoffRadius=0.0,tiltAxis=rot,smooth = 3.0)
         vfil2 = wedgeInfoRot.apply(v)
         #vfil2.write('xxx2.em')
 
-        wrot = wedgeInfo.returnWedgeVolume(v.sizeX(), v.sizeY(), v.sizeZ(), False, rot)
+        wrot = wedgeInfo.returnWedgeVolume(v.size_x(), v.size_y(), v.size_z(), False, rot)
         fv = fft(v)
         fvol3 = complexRealMult(fv,wrot)
         vfil3 = ifft(fvol3)
-        vfil3.shiftscale(0.0,1/float(v.sizeX()*v.sizeY()*v.sizeZ()))
+        vfil3.shiftscale(0.0,1/float(v.size_x()*v.size_y()*v.size_z()))
         #vfil3.write('xxx3.em')
 
-        w = wedgeInfo.returnWedgeVolume(v.sizeX(), v.sizeY(), v.sizeZ(), False)
+        w = wedgeInfo.returnWedgeVolume(v.size_x(), v.size_y(), v.size_z(), False)
         wrot = rotateWeighting( weighting=w, z1=rot[0], z2=rot[1], x=rot[2], mask=None,
                                 isReducedComplex=None,returnReducedComplex=True)
         fvol4 = complexRealMult(fv,wrot)
         vfil4 = ifft(fvol4)
-        vfil4.shiftscale(0.0,1/float(v.sizeX()*v.sizeY()*v.sizeZ()))
+        vfil4.shiftscale(0.0,1/float(v.size_x()*v.size_y()*v.size_z()))
         #vfil4.write('xxx4.em')
 
         self.assertAlmostEqual(vfil1.getV(17,17,17),vfil2.getV(17,17,17),2,"Wedge Filter Rotation :(")
@@ -157,8 +157,8 @@ class pytom_FilterTest(unittest.TestCase):
 
         w = fourierFilterShift(rampFilter(64,64))
         
-        weiproj = ifft( complexRealMult( fft( im), w) )/(im.sizeX()*
-	          im.sizeY()*im.sizeZ())
+        weiproj = ifft( complexRealMult( fft( im), w) )/(im.size_x()*
+	          im.size_y()*im.size_z())
 
         pos = peak(weiproj)
         val = weiproj.getV(pos[0],pos[1],pos[2])
@@ -171,8 +171,8 @@ class pytom_FilterTest(unittest.TestCase):
         w = fourierFilterShift(rampFilter(64,64))
         w.write('wei.em')
 
-        weiproj = ifft( complexRealMult( fft( im), w) )/(im.sizeX()*
-	          im.sizeY()*im.sizeZ())
+        weiproj = ifft( complexRealMult( fft( im), w) )/(im.size_x()*
+	          im.size_y()*im.size_z())
         weiproj.write('weiproj.em')
 
         pos = peak(weiproj)
@@ -190,9 +190,9 @@ class pytom_FilterTest(unittest.TestCase):
         
         v = vol(64,64,64)
         w = vol(64,64,33)
-        sizeX = v.sizeX()
-        sizeY = v.sizeY()
-        sizeZ = v.sizeZ()
+        size_x = v.size_x()
+        size_y = v.size_y()
+        size_z = v.size_z()
         
         v.setAll(0)
         v.setV(1,33,33,33)
@@ -201,7 +201,7 @@ class pytom_FilterTest(unittest.TestCase):
         fv = fft(v);
         r = complexDiv(fv,w)
         result = ifft(r)       
-        result.shiftscale(0.0,1/float(sizeX*sizeY*sizeZ))
+        result.shiftscale(0.0,1/float(size_x*size_y*size_z))
         
         dif = v - result
         abs(dif)

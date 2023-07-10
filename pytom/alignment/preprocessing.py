@@ -97,8 +97,8 @@ class Preprocessing(PyTomClass):
             # if frequencies specified in Nyquist, 0.5 being highest
             # fixed wrong adjustment of frequencies upon binning - FF
             if self._highestFrequency < 1:
-                highestFrequency = self._highestFrequency*volume.sizeX()
-                lowestFrequency = self._lowestFrequency*volume.sizeX()
+                highestFrequency = self._highestFrequency*volume.size_x()
+                lowestFrequency = self._lowestFrequency*volume.size_x()
             else:
                 highestFrequency = self._highestFrequency
                 lowestFrequency = self._lowestFrequency
@@ -111,7 +111,7 @@ class Preprocessing(PyTomClass):
             
             from pytom.lib.pytom_volume import rotate
         
-            rot = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+            rot = vol(volume.size_x(),volume.size_y(),volume.size_z())
             rotation = self.prerotate
             rotate( volume, rot, rotation[0], rotation[1], rotation[2])
             volume = rot 

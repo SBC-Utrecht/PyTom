@@ -123,6 +123,6 @@ def create_bfactor_restore_vol(size, ps, bfactor, FSC=None, apply_range=None):
 
 def bfactor_restore(v, ps, bfactor, FSC=None, apply_range=None):
     from pytom.basic.fourier import convolute
-    kernel = create_bfactor_restore_vol(v.sizeX(), ps, bfactor, FSC, apply_range) # assuming the v is a cube!
+    kernel = create_bfactor_restore_vol(v.size_x(), ps, bfactor, FSC, apply_range) # assuming the v is a cube!
     out = convolute(v, kernel, True)
     return out

@@ -644,7 +644,7 @@ class PeakPrior(PyTomClass):
         from pytom.tools.files import checkFileExists
 
         if not self.isInitialized() and (not checkFileExists(self._filename)):
-            self.initVolume(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+            self.initVolume(volume.size_x(), volume.size_y(), volume.size_z())
         elif not self.isInitialized():
             self.fromFile()
 
@@ -672,21 +672,21 @@ class PeakPrior(PyTomClass):
         self._weight = None
         del (self._weight)
 
-    def initVolume(self, sizeX, sizeY, sizeZ):
+    def initVolume(self, size_x, size_y, size_z):
         """
         initVolume:
-        @param sizeX:
-        @param sizeY:
-        @param sizeZ:
+        @param size_x:
+        @param size_y:
+        @param size_z:
         @return:
         @author: Thomas Hrabe
         """
         from pytom.agnostic.tools import create_sphere
 
         if self._radius > 0 or self._smooth > 0:
-            self._weight = create_sphere((sizeX, sizeY, sizeZ), self._radius, self._smooth)
+            self._weight = create_sphere((size_x, size_y, size_z), self._radius, self._smooth)
         else:
-            self._weight = xp.ones((sizeX, sizeY, sizeZ), dtype=xp.float32)
+            self._weight = xp.ones((size_x, size_y, size_z), dtype=xp.float32)
 
     def toXML(self):
         """

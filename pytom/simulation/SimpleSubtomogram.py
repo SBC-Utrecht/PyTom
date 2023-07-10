@@ -16,19 +16,19 @@ def simpleSimulation(volume,rotation,shiftV,wedgeInfo=None,SNR=0.1,mask=None):
     if not rotation == [0,0,0]:
         #print '---ROTATE---'
         #print 'EMSimulation simpleSimulation: in rotation 1 ' + str(rotation)
-        rotatedCopy = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        rotatedCopy = vol(volume.size_x(),volume.size_y(),volume.size_z())
         rotate(volume,rotatedCopy,rotation[0],rotation[1],rotation[2])
     else:
-        rotatedCopy = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        rotatedCopy = vol(volume.size_x(),volume.size_y(),volume.size_z())
         rotatedCopy.copyVolume(volume)
     
     #print 'EMSimulation simpleSimulation: after rotation ' 
     
     if not mask:
         #print 'EMSimulation simpleSimulation: in mask 1' 
-        mask = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
-        initSphere(mask,volume.sizeX()//2-1,0,0, volume.sizeX()//2,
-	    volume.sizeX()//2, volume.sizeX()//2)
+        mask = vol(volume.size_x(),volume.size_y(),volume.size_z())
+        initSphere(mask,volume.size_x()//2-1,0,0, volume.size_x()//2,
+	    volume.size_x()//2, volume.size_x()//2)
         maskedCopy = rotatedCopy * mask
     if not mask.__class__ == vol:
         #print 'EMSimulation simpleSimulation: in mask 2'
@@ -44,15 +44,15 @@ def simpleSimulation(volume,rotation,shiftV,wedgeInfo=None,SNR=0.1,mask=None):
     
     if not shiftV == [0,0,0]:
         #print '--SHIFT---'
-        shiftedCopy = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        shiftedCopy = vol(volume.size_x(),volume.size_y(),volume.size_z())
         shift(maskedCopy,shiftedCopy,shiftV[0],shiftV[1],shiftV[2])
     else:
-        shiftedCopy = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        shiftedCopy = vol(volume.size_x(),volume.size_y(),volume.size_z())
         shiftedCopy.copyVolume(maskedCopy)
         
     if (shiftV == [0,0,0]) and (rotation==[0,0,0]):
         #no shift and no rotation -> simply take the original volume
-        c = vol(maskedCopy.sizeX(),volume.sizeY(),volume.sizeZ())
+        c = vol(maskedCopy.size_x(),volume.size_y(),volume.size_z())
         c.copyVolume(maskedCopy)
         noisyCopy = add_white_noise(c,SNR)
     else:

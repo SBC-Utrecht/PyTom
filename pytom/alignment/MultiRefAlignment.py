@@ -37,7 +37,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
         exMaxJob = multiRefJob.getExMaxJob()
         p = particleList[0]
         pVol = p.getVolume()
-        cubeSize = pVol.sizeX()
+        cubeSize = pVol.size_x()
         
         preprocessing = exMaxJob.getPreprocessing()
         sampleInfo = exMaxJob.getSampleInformation()

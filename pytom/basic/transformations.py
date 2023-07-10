@@ -26,7 +26,7 @@ def shift(volume,shiftX,shiftY,shiftZ,imethod='fourier',twice=False):
         fvolume = fft(volume)
         fullFVolume = reducedToFull(fvolume)
 
-        destFourier = vol_comp(fullFVolume.sizeX(),fullFVolume.sizeY(),fullFVolume.sizeZ())
+        destFourier = vol_comp(fullFVolume.size_x(),fullFVolume.size_y(),fullFVolume.size_z())
 
         shiftFourier(fullFVolume,destFourier,shiftX,shiftY,shiftZ)
         
@@ -45,11 +45,11 @@ def shift(volume,shiftX,shiftY,shiftZ,imethod='fourier',twice=False):
         elif imethod == 'spline':
             from pytom.lib.pytom_volume import transformSpline as transform
         # now results should be consistent with python2
-        centerX = int(volume.sizeX()//2)
-        centerY = int(volume.sizeY()//2)
-        centerZ = int(volume.sizeZ()//2)
+        centerX = int(volume.size_x()//2)
+        centerY = int(volume.size_y()//2)
+        centerZ = int(volume.size_z()//2)
         
-        res = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        res = vol(volume.size_x(),volume.size_y(),volume.size_z())
         transform(volume,res,0,0,0,centerX,centerY,centerZ,shiftX,shiftY,shiftZ,0,0,0)
         
         return res
@@ -90,11 +90,11 @@ def rotate(volume,rotation,x=None,z2=None,imethod='spline',twice=False):
         elif imethod == 'spline':
             from pytom.lib.pytom_volume import transformSpline as transform
             
-        centerX = volume.sizeX()/2
-        centerY = volume.sizeY()/2
-        centerZ = volume.sizeZ()/2
+        centerX = volume.size_x()/2
+        centerY = volume.size_y()/2
+        centerZ = volume.size_z()/2
         
-        res = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        res = vol(volume.size_x(),volume.size_y(),volume.size_z())
         transform(volume,res,z1,z2,x,centerX,centerY,centerZ,0,0,0,0,0,0)
         
         return res
@@ -121,7 +121,7 @@ def transformFourierSpline(volume,z1,z2,x,shiftX,shiftY,shiftZ,twice=False):
     
     if twice:
         # paste into a twice sized volume
-        v = vol(volume.sizeX()*2, volume.sizeY()*2, volume.sizeZ()*2)
+        v = vol(volume.size_x()*2, volume.size_y()*2, volume.size_z()*2)
         pasteCenter(volume, v)
     else:
         v = volume
@@ -134,7 +134,7 @@ def transformFourierSpline(volume,z1,z2,x,shiftX,shiftY,shiftZ,twice=False):
     
     if twice:
         # cut the center part back
-        res = subvolume(res, (volume.sizeX()+1)/2, (volume.sizeY()+1)/2, (volume.sizeZ()+1)/2, volume.sizeX(), volume.sizeY(), volume.sizeZ())
+        res = subvolume(res, (volume.size_x()+1)/2, (volume.size_y()+1)/2, (volume.size_z()+1)/2, volume.size_x(), volume.size_y(), volume.size_z())
     
     return res
     
@@ -157,7 +157,7 @@ def rotateFourierSpline(volume,z1,z2,x,twice=False):
 #    
 #    if twice:
 #        # paste into a twice sized volume
-#        v = vol(volume.sizeX()*2, volume.sizeY()*2, volume.sizeZ()*2)
+#        v = vol(volume.size_x()*2, volume.size_y()*2, volume.size_z()*2)
 #        pasteCenter(volume, v)
 #    else:
 #        v = volume
@@ -170,7 +170,7 @@ def rotateFourierSpline(volume,z1,z2,x,twice=False):
 #    
 #    if twice:
 #        # cut the center part back
-#        res = subvolume(res, (volume.sizeX()+1)/2, (volume.sizeY()+1)/2, (volume.sizeZ()+1)/2, volume.sizeX(), volume.sizeY(), volume.sizeZ())
+#        res = subvolume(res, (volume.size_x()+1)/2, (volume.size_y()+1)/2, (volume.size_z()+1)/2, volume.size_x(), volume.size_y(), volume.size_z())
 #    
 #    return res
     
@@ -205,12 +205,12 @@ def scale(volume,factor,interpolation='Spline'):
         from pytom.lib.pytom_volume import rescale
          
     
-    sizeX = volume.sizeX()
-    sizeY = volume.sizeY()
-    sizeZ = volume.sizeZ()
-    newSizeX = int(ceil(sizeX * float(factor)))
-    newSizeY = int(ceil(sizeY * float(factor)))
-    newSizeZ = int(ceil(sizeZ * float(factor)))
+    size_x = volume.size_x()
+    size_y = volume.size_y()
+    size_z = volume.size_z()
+    newSizeX = int(ceil(size_x * float(factor)))
+    newSizeY = int(ceil(size_y * float(factor)))
+    newSizeZ = int(ceil(size_z * float(factor)))
 
     newVolume = vol(newSizeX,newSizeY,newSizeZ)
     rescale(volume,newVolume)
@@ -259,9 +259,9 @@ def resizeFourier(fvol, factor):
 
     assert isinstance(fvol, vol_comp), "fvol must be reduced complex"
 
-    oldFNx = fvol.sizeX()
-    oldFNy = fvol.sizeY()
-    oldFNz = fvol.sizeZ()
+    oldFNx = fvol.size_x()
+    oldFNy = fvol.size_y()
+    oldFNz = fvol.size_z()
     oldNx = oldFNx
     oldNy = fvol.getFtSizeY()
     oldNz = fvol.getFtSizeZ()
@@ -359,17 +359,17 @@ def mirror(volume,axis = 'x',copyFlag = True):
     elif axis == 'z':
         transformation = [1,1,-1]
     
-    centerX = volume.sizeX()
-    centerY = volume.sizeY()
-    centerZ = volume.sizeZ()
+    centerX = volume.size_x()
+    centerY = volume.size_y()
+    centerZ = volume.size_z()
     
     if copyFlag:
         from pytom.lib.pytom_volume import vol
-        returnVolume = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        returnVolume = vol(volume.size_x(),volume.size_y(),volume.size_z())
         
-        for x in range(volume.sizeX()):
-            for y in range(volume.sizeY()):
-                for z in range(volume.sizeZ()):
+        for x in range(volume.size_x()):
+            for y in range(volume.size_y()):
+                for z in range(volume.size_z()):
                     
                     xMirrored = (x-centerX) * transformation[0] + centerX
                     yMirrored = (y-centerY) * transformation[1] + centerY
@@ -379,9 +379,9 @@ def mirror(volume,axis = 'x',copyFlag = True):
         return returnVolume
         
     else:
-        for x in range(volume.sizeX()):
-            for y in range(volume.sizeY()):
-                for z in range(volume.sizeZ()):
+        for x in range(volume.size_x()):
+            for y in range(volume.size_y()):
+                for z in range(volume.size_z()):
                     
                     tmp = volume.getV(x,y,z)
                     xMirrored = (x-centerX) * transformation[0] + centerX
@@ -495,10 +495,10 @@ def general_transform_crop(v, rot=None, shift=None, scale=None, order=[0, 1, 2],
     if not isinstance(v,vol):
         raise TypeError('general_transform_crop: v must be of type pytom.lib.pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
 
-    mtx = general_transform_matrix([v.sizeX(), v.sizeY(), v.sizeZ()], rot=rot, shift=shift, scale=scale, order=order,
+    mtx = general_transform_matrix([v.size_x(), v.size_y(), v.size_z()], rot=rot, shift=shift, scale=scale, order=order,
                                    center=center)
 
-    res = vol(v.sizeX(), v.sizeY(), v.sizeZ())
+    res = vol(v.size_x(), v.size_y(), v.size_z())
     general_transform(v, res, mtx._matrix)
     return res
 
@@ -522,10 +522,10 @@ def general_transform(v, rot=None, shift=None, scale=None, order=[0, 1, 2], cent
     if not isinstance(v,vol):
         raise TypeError('general_transform: v must be of type pytom.lib.pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
 
-    mtx = general_transform_matrix([v.sizeX(), v.sizeY(), v.sizeZ()], rot=rot, shift=shift, scale=scale, order=order,
+    mtx = general_transform_matrix([v.size_x(), v.size_y(), v.size_z()], rot=rot, shift=shift, scale=scale, order=order,
                                    center=center)
     
-    res = vol(int(v.sizeX()*scale[0]), int(v.sizeY()*scale[1]), int(v.sizeZ()*scale[2]))
+    res = vol(int(v.size_x()*scale[0]), int(v.size_y()*scale[1]), int(v.size_z()*scale[2]))
     general_transform(v, res, mtx._matrix)
     return res
 
@@ -556,7 +556,7 @@ def general_transform2d(v, rot=None, shift=None, scale=None, order=[0, 1, 2], cr
             v = v[0]
         else:
             raise TypeError('general_transform2d: v must be of type pytom.lib.pytom_volume.vol! Got ' + str(v.__class__) + ' instead!')
-    if v.sizeZ() != 1:
+    if v.size_z() != 1:
         raise RuntimeError('general_transform2d: v must be 2D!')
     if rot is None:
         rot = [0., 0., 0.]
@@ -605,7 +605,7 @@ def project(v, rot, verbose=False):
     rotvol = general_transform_crop(v=v, rot=rot, shift=None, scale=None, order=[0, 1, 2])
     # slightly awkward: projection in numpy ...
     npvol = vol2npy(rotvol)
-    npprojection = ndarray([v.sizeX(), v.sizeY(), 1], dtype=float32, buffer=None, offset=0, strides=npvol.strides,
+    npprojection = ndarray([v.size_x(), v.size_y(), 1], dtype=float32, buffer=None, offset=0, strides=npvol.strides,
                            order='F')
     proj(npvol, axis=2, dtype=float32, out=npprojection)
     projection = npy2vol(npprojection,3)

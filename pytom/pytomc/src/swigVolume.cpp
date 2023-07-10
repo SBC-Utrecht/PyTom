@@ -52,13 +52,13 @@ namespace swigTom{
     template<typename T, typename TSCALE_SHIFT>
 	swigVolume<std::complex<T>,TSCALE_SHIFT> swigVolume<T,TSCALE_SHIFT>::operator*(const std::complex<T> &value) const{
         
-		swigVolume<std::complex<T>,TSCALE_SHIFT> complexVol = swigVolume<std::complex<T>,TSCALE_SHIFT>(this->sizeX(),this->sizeY(),this->sizeZ());
+		swigVolume<std::complex<T>,TSCALE_SHIFT> complexVol = swigVolume<std::complex<T>,TSCALE_SHIFT>(this->size_x(),this->size_y(),this->size_z());
         
         T val=0;
         
-        for(std::size_t x = 0; x<this->sizeX();x++){
-            for(std::size_t y = 0; y<this->sizeY();y++){
-                for(std::size_t z = 0; z<this->sizeZ();z++){
+        for(std::size_t x = 0; x<this->size_x();x++){
+            for(std::size_t y = 0; y<this->size_y();y++){
+                for(std::size_t z = 0; z<this->size_z();z++){
                     val = this->get(x,y,z);
                     complexVol(val*value,x,y,z);
                 }

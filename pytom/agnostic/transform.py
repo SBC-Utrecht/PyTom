@@ -241,16 +241,16 @@ def scale(volume, factor, interpolation='Spline'):
 
     volume = volume.squeeze()
 
-    sizeX = volume.shape[0]
-    sizeY = volume.shape[1]
-    sizeZ = 1
-    newSizeX = int(xp.floor(sizeX * float(factor) + 0.5))
-    newSizeY = int(xp.floor(sizeY * float(factor) + 0.5))
+    size_x = volume.shape[0]
+    size_y = volume.shape[1]
+    size_z = 1
+    newSizeX = int(xp.floor(size_x * float(factor) + 0.5))
+    newSizeY = int(xp.floor(size_y * float(factor) + 0.5))
     newSizeZ = 1
 
     if len(volume.shape) == 3:
-        sizeZ = volume.shape[2]
-        newSizeZ = int(xp.floor(sizeZ * factor + 0.5))
+        size_z = volume.shape[2]
+        newSizeZ = int(xp.floor(size_z * factor + 0.5))
         scaleF = [1/factor, 1/factor, 1/factor]
     else:
         scaleF = [1/factor, 1/factor, 1]

@@ -391,14 +391,14 @@ class FiducialLessAlignment():
 
         startCoor = [ 104,0, 104]
 
-        imdim = max(recVolume.sizeX(), recVolume.sizeY())
+        imdim = max(recVolume.size_x(), recVolume.size_y())
 
         self.low_score = 9999
 
-        self.nblocks = int(xp.ceil(recVolume.sizeX()*recVolume.sizeY() / self.num_threads / 2))
+        self.nblocks = int(xp.ceil(recVolume.size_x()*recVolume.size_y() / self.num_threads / 2))
         self.fast_sum_mean = xp.zeros((self.nblocks ), dtype=xp.float32)
         self.fast_sum_stdv = xp.zeros((self.nblocks ), dtype=xp.float32)
-        self.mask = xp.ones((recVolume.sizeX(),recVolume.sizeY(),1),dtype=xp.float32)
+        self.mask = xp.ones((recVolume.size_x(),recVolume.size_y(),1),dtype=xp.float32)
         self.p = self.mask.size
 
         reconstruction = xp.zeros(voldims, dtype=xp.float32)

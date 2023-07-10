@@ -53,7 +53,7 @@ if __name__ == '__main__':
     if highestFrequency:
         highestFrequency = int(highestFrequency)
     else:
-        highestFrequency = v.sizeX()/2
+        highestFrequency = v.size_x()/2
     
     if smooth:
         smooth = int(smooth)

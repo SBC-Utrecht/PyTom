@@ -85,45 +85,45 @@ class ExPeakResult:
         @param center: center of the region
         @type center: [x,y,z]
         @param size: size of the region
-        @type size: [sizeX, sizeY, sizeZ] or radius
+        @type size: [size_x, size_y, size_z] or radius
         """
         
         from pytom.lib.pytom_volume import vol, putSubVolume
             
         if size.__class__ == list:
-            p_sizeX = size[0]
-            p_sizeY = size[1]
-            p_sizeZ = size[2]
+            p_size_x = size[0]
+            p_size_y = size[1]
+            p_size_z = size[2]
         elif size.__class__ == vol:
             mm = size
-            p_sizeX = mm.sizeX()
-            p_sizeY = mm.sizeY()
-            p_sizeZ = mm.sizeZ()
+            p_size_x = mm.size_x()
+            p_size_y = mm.size_y()
+            p_size_z = mm.size_z()
         elif not structured_mask is None:
             radius = size
-            p_sizeX = structured_mask.sizeX()
-            p_sizeY = structured_mask.sizeY()
-            p_sizeZ = structured_mask.sizeZ()
+            p_size_x = structured_mask.size_x()
+            p_size_y = structured_mask.size_y()
+            p_size_z = structured_mask.size_z()
         else:
             radius = size
-            p_sizeX = radius*2
-            p_sizeY = radius*2
-            p_sizeZ = radius*2
+            p_size_x = radius*2
+            p_size_y = radius*2
+            p_size_z = radius*2
             
         
-        maskSize = [mask.sizeX(), mask.sizeY(), mask.sizeZ()]
+        maskSize = [mask.size_x(), mask.size_y(), mask.size_z()]
         
         if maskSize < center:
             raise RuntimeError('Center out of range!')
         
         # [)
         # mask out double size. CHANGED!!!
-        startX = int(center[0]-p_sizeX/2)
-        endX = int(center[0]+p_sizeX/2)
-        startY = int(center[1]-p_sizeY/2)
-        endY = int(center[1]+p_sizeY/2)
-        startZ = int(center[2]-p_sizeZ/2)
-        endZ = int(center[2]+p_sizeZ/2)
+        startX = int(center[0]-p_size_x/2)
+        endX = int(center[0]+p_size_x/2)
+        startY = int(center[1]-p_size_y/2)
+        endY = int(center[1]+p_size_y/2)
+        startZ = int(center[2]-p_size_z/2)
+        endZ = int(center[2]+p_size_z/2)
         
         # only used for radius
         sub_startX = 0; sub_startY = 0; sub_startZ = 0
@@ -144,30 +144,30 @@ class ExPeakResult:
         if endZ > maskSize[2]:
             endZ = maskSize[2]
             
-        sizeX = endX - startX
-        sizeY = endY - startY
-        sizeZ = endZ - startZ
+        size_x = endX - startX
+        size_y = endY - startY
+        size_z = endZ - startZ
         
         if size.__class__ == list:
-            subV = vol(sizeX, sizeY, sizeZ)
+            subV = vol(size_x, size_y, size_z)
             subV.setAll(0)
         elif size.__class__ == vol:
             from pytom.lib.pytom_volume import limit, subvolume
             subV = (mm-1)/-1
             limit(subV, 0.999, 0, 0, 0, True, False)
-            subV = subvolume(subV, sub_startX, sub_startY, sub_startZ, sizeX, sizeY, sizeZ)
-            tempV = subvolume(mask, startX, startY, startZ, sizeX, sizeY, sizeZ)
+            subV = subvolume(subV, sub_startX, sub_startY, sub_startZ, size_x, size_y, size_z)
+            tempV = subvolume(mask, startX, startY, startZ, size_x, size_y, size_z)
             subV = subV*tempV # AND operation
         elif not structured_mask is None:
             from pytom.basic.transformations import rotate
             from pytom.lib.pytom_volume import initSphere, subvolume
             subV = rotate(structured_mask, orientation[0], z2=orientation[1], x=orientation[2])
 
-            tempV = vol(structured_mask.sizeX(), structured_mask.sizeY(), structured_mask.sizeZ())
+            tempV = vol(structured_mask.size_x(), structured_mask.size_y(), structured_mask.size_z())
             tempV.setAll(1)
             subV = tempV - subV
-            subV = subvolume(subV, sub_startX, sub_startY, sub_startZ, sizeX, sizeY, sizeZ)
-            tempV = subvolume(mask, startX, startY, startZ, sizeX, sizeY, sizeZ)
+            subV = subvolume(subV, sub_startX, sub_startY, sub_startZ, size_x, size_y, size_z)
+            tempV = subvolume(mask, startX, startY, startZ, size_x, size_y, size_z)
             subV = subV * tempV
 
         else:
@@ -177,8 +177,8 @@ class ExPeakResult:
             tempV = vol(radius*2, radius*2, radius*2)
             tempV.setAll(1)
             subV = tempV - subV
-            subV = subvolume(subV, sub_startX, sub_startY, sub_startZ, sizeX, sizeY, sizeZ)
-            tempV = subvolume(mask, startX, startY, startZ, sizeX, sizeY, sizeZ)
+            subV = subvolume(subV, sub_startX, sub_startY, sub_startZ, size_x, size_y, size_z)
+            tempV = subvolume(mask, startX, startY, startZ, size_x, size_y, size_z)
             subV = subV*tempV # AND operation
             
         putSubVolume(subV, mask, startX, startY, startZ)
@@ -208,12 +208,12 @@ class ExPeakResult:
             structured_mask = read(structured_mask)
 
         # prepare the mask
-        x = self.result.sizeX(); y = self.result.sizeY(); z = self.result.sizeZ()
+        x = self.result.size_x(); y = self.result.size_y(); z = self.result.size_z()
         
         if sizeParticle.__class__ == list:
             xP = sizeParticle[0]; yP = sizeParticle[1]; zP = sizeParticle[2]
         elif sizeParticle.__class__ == vol:
-            xP = sizeParticle.sizeX(); yP = sizeParticle.sizeY(); zP = sizeParticle.sizeZ()
+            xP = sizeParticle.size_x(); yP = sizeParticle.size_y(); zP = sizeParticle.size_z()
         else:
             radius = sizeParticle
             xP = 2*sizeParticle; yP = 2*sizeParticle; zP = 2*sizeParticle

@@ -520,8 +520,8 @@ class ParticlePick(GuiTabWidget):
                     if widthZ:
                         from pytom.lib.pytom_volume import read
                         v = read(tomogramFile)
-                        widthX = v.sizeX()
-                        widthY = v.sizeY()
+                        widthX = v.size_x()
+                        widthY = v.size_y()
                         del v
 
                 except:
@@ -1216,8 +1216,8 @@ class ParticlePick(GuiTabWidget):
         tomogramFile = self.widgets[mode + 'tomoFname'].text()
         if os.path.exists(tomogramFile):
             v = read(tomogramFile)
-            widthX = v.sizeX() if width else 0
-            widthY = v.sizeY() if width else 0
+            widthX = v.size_x() if width else 0
+            widthY = v.size_y() if width else 0
         else:
             widthX = widthY = width
         self.widgets[mode + 'widthX'].setText(str(int(round(widthX))))

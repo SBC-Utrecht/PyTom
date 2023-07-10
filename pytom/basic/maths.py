@@ -20,7 +20,7 @@ def power(volume,exponent,inplace=False):
         #return new volume object
         from pytom.lib.pytom_volume import vol,power
         
-        volume2 = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        volume2 = vol(volume.size_x(),volume.size_y(),volume.size_z())
         volume2.copyVolume(volume)
         
         power(volume2,exponent)
@@ -42,9 +42,9 @@ def determineRotationCenter(particle, binning):
         from pytom.lib.pytom_volume import read
         particle = read(particle)
     
-    centerX = particle.sizeX() / 2.0 * (1.0/float(binning)) 
-    centerY = particle.sizeY() / 2.0 * (1.0/float(binning))
-    centerZ = particle.sizeZ() / 2.0 * (1.0/float(binning))
+    centerX = particle.size_x() / 2.0 * (1.0/float(binning)) 
+    centerY = particle.size_y() / 2.0 * (1.0/float(binning))
+    centerZ = particle.size_z() / 2.0 * (1.0/float(binning))
     # 
     #if binning > 1:
     #   centerX = centerX - 0.25*(binning-1)

@@ -8,9 +8,9 @@ def theta_vol_projection(vol_src, theta):
         
     from pytom.lib.pytom_volume import vol, rotate, subvolume, sum
     
-    vol_src_dim_x = vol_src.sizeX()
-    vol_src_dim_y = vol_src.sizeY()
-    vol_src_dim_z = vol_src.sizeZ()
+    vol_src_dim_x = vol_src.size_x()
+    vol_src_dim_y = vol_src.size_y()
+    vol_src_dim_z = vol_src.size_z()
     
     vol_dst = vol(vol_src_dim_x, vol_src_dim_y, vol_src_dim_z)
     vol_dst.setAll(0.0)
@@ -43,8 +43,8 @@ def getWeightedProjectionCube(sourceVolume, thetaAngles):
     from pytom.basic.filter import rampFilter
     
     
-    dimX = sourceVolume.sizeX()
-    dimY = sourceVolume.sizeY()
+    dimX = sourceVolume.size_x()
+    dimY = sourceVolume.size_y()
         
     imageCube = vol(dimX, dimY, len(thetaAngles))
     imageCube.setAll(0.0)

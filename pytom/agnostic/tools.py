@@ -325,7 +325,7 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
               translation=(optiTrans[0], optiTrans[1], optiTrans[2]), device=device)
     # finally compute FSC and filter of both volumes
     if not nband:
-        nband = int(vol2.sizeX()/2)
+        nband = int(vol2.size_x()/2)
     calc_fsc = fsc(volume1=vol1, volume2=vol2_alig, number_bands=nband)
     fil = design_fsc_filter(fsc=calc_fsc, fildim=int(vol2.shape[0]//2), fsc_criterion=fsc_criterion)
     filvol1 = filter_volume_by_profile(volume=vol1, profile=fil)

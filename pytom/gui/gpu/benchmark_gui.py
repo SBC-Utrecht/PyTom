@@ -319,7 +319,7 @@ if __name__=='__main__':
                         np.int32(sox), np.int32(soy), np.int32(soz), block=(10, 10, 10), grid=(8,1,1))
     TCG = tempCentGPU.get()
 
-    tempCentVOL = vol(voluVOL.sizeX(), voluVOL.sizeY(), voluVOL.sizeZ())
+    tempCentVOL = vol(voluVOL.size_x(), voluVOL.size_y(), voluVOL.size_z())
     tempCentVOL.setAll(0)
     pasteCenter(tempVOL, tempCentVOL)
     TCV = vol2npy(tempCentVOL)
@@ -338,7 +338,7 @@ if __name__=='__main__':
                         np.int32(sox), np.int32(soy), np.int32(soz), block=(10, 10, 10), grid=(8,1,1))
     MCG = maskCentGPU.get()
 
-    maskCentVOL = vol(voluVOL.sizeX(), voluVOL.sizeY(), voluVOL.sizeZ())
+    maskCentVOL = vol(voluVOL.size_x(), voluVOL.size_y(), voluVOL.size_z())
     maskCentVOL.setAll(0)
     pasteCenter(maskVOL, maskCentVOL)
     MCV = vol2npy(maskCentVOL)

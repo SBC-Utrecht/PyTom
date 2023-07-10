@@ -186,12 +186,12 @@ def writeSpider(volume,filename,z1=0,y=0,z2=0,xOff=0,yOff=0,zOff=0):
     from math import ceil
     fileHandle = open(filename,'wb')
     
-    fileHandle.write(struct.pack("f", volume.sizeZ())) #nslice
-    fileHandle.write(struct.pack("f", volume.sizeX())) #nrows
+    fileHandle.write(struct.pack("f", volume.size_z())) #nslice
+    fileHandle.write(struct.pack("f", volume.size_x())) #nrows
     fileHandle.write(struct.pack("f", 0)) #irec
     fileHandle.write(struct.pack("f", 0)) #unused
     
-    if volume.sizeZ() > 1:
+    if volume.size_z() > 1:
         fileHandle.write(struct.pack("f", 3)) #iform
     else:
         fileHandle.write(struct.pack("f", 1)) #iform
@@ -202,8 +202,8 @@ def writeSpider(volume,filename,z1=0,y=0,z2=0,xOff=0,yOff=0,zOff=0):
     fileHandle.write(struct.pack("f", 0)) #av
     fileHandle.write(struct.pack("f", -1)) #sig
     fileHandle.write(struct.pack("f", 0)) #unused
-    fileHandle.write(struct.pack("f", volume.sizeY())) #nsam
-    fileHandle.write(struct.pack("f", ceil(256./volume.sizeY()))) #labrec
+    fileHandle.write(struct.pack("f", volume.size_y())) #nsam
+    fileHandle.write(struct.pack("f", ceil(256./volume.size_y()))) #labrec
     
     if z1 != 0 or y != 0 or z2 != 0:
         fileHandle.write(struct.pack("f", 1)) #iangle
@@ -219,18 +219,18 @@ def writeSpider(volume,filename,z1=0,y=0,z2=0,xOff=0,yOff=0,zOff=0):
     fileHandle.write(struct.pack("f", zOff)) #zoff
     
     fileHandle.write(struct.pack("f", 0)) #scale
-    fileHandle.write(struct.pack("f", ceil(256.0/float(volume.sizeY())) * volume.sizeY() * 4)) #labbyt
-    fileHandle.write(struct.pack("f", int(volume.sizeY() *4))) #lenbyt
+    fileHandle.write(struct.pack("f", ceil(256.0/float(volume.size_y())) * volume.size_y() * 4)) #labbyt
+    fileHandle.write(struct.pack("f", int(volume.size_y() *4))) #lenbyt
 
-    fillup = int(ceil(256.0/float(volume.sizeY())) * volume.sizeY() * 4 - fileHandle.tell())
+    fillup = int(ceil(256.0/float(volume.size_y())) * volume.size_y() * 4 - fileHandle.tell())
     
     
     for i in range(fillup):
         fileHandle.write(struct.pack('b',0)) # fill remaining empty bytes till header is full
 
-    for z in range(volume.sizeZ()):
-        for y in range(volume.sizeY()):
-            for x in range(volume.sizeX()):
+    for z in range(volume.size_z()):
+        for y in range(volume.size_y()):
+            for x in range(volume.size_x()):
                 fileHandle.write(struct.pack("f",volume.getV(x,y,z)))
          
     fileHandle.close()
@@ -261,9 +261,9 @@ def readSpider(filename):
     
     fileHandle.seek(int(ceil(256.0/float(y)) * y * 4))
     
-    for z in range(volume.sizeZ()):
-        for y in range(volume.sizeY()):
-            for x in range(volume.sizeX()):
+    for z in range(volume.size_z()):
+        for y in range(volume.size_y()):
+            for x in range(volume.size_x()):
                 value = float(struct.unpack('f',fileHandle.read(4))[0])
                 volume(value,x,y,z)
     
@@ -283,13 +283,13 @@ def writeMatrix2RMatrix(matrix,filename):
     if matrix.__class__ != vol:
         raise TypeError('Parameter provided must be a image of pytom_volume.vol type')
     
-    if matrix.sizeZ() > 1:
+    if matrix.size_z() > 1:
         raise RuntimeError('Parameter provided must be a N x M x 1 matrix, not a volume!')
     
     fileHandle = open(filename,'w')
     
-    for x in range(matrix.sizeX()):
-        for y in range(matrix.sizeY()):
+    for x in range(matrix.size_x()):
+        for y in range(matrix.size_y()):
             fileHandle.write(str(matrix(x,y,0)))
             fileHandle.write(' ')
         fileHandle.write('\n')

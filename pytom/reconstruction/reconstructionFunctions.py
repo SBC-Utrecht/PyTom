@@ -458,7 +458,7 @@ def alignImagesUsingAlignmentResultFile(alignmentResultsFile, weighting=None, lo
 
         # 7 -- weighting
         if (weighting != None) and (weighting < 0):
-            # image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
+            # image = (ifft(complexRealMult(fft(image), w_func)) / (image.size_x() * image.size_y() * image.size_z()))
             image = xp.fft.ifftn(xp.fft.fftn(image) * weightSlice * circleSlice).real
         elif (weighting != None) and (weighting > 0):
             weightSlice = xp.fft.fftshift(exact_filter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))

@@ -27,7 +27,7 @@ def mean0std1(volume,copyFlag=False):
     
         volume.shiftscale(0,1./float(volumeStd))
     else:
-        volumeCopy = pytom_volume.vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        volumeCopy = pytom_volume.vol(volume.size_x(),volume.size_y(),volume.size_z())
         volumeCopy.copyVolume(volume)
         volumeMean = pytom_volume.mean(volumeCopy)
         volumeCopy.shiftscale(-1.*volumeMean,1)
@@ -94,7 +94,7 @@ def subtractMeanUnderMask(volume, mask):
     """
     from pytom.lib.pytom_volume import sum as sumvol
     from pytom.tools.maths import epsilon
-    #npix = volume.sizeX() * volume.sizeY() * volume.sizeZ()
+    #npix = volume.size_x() * volume.size_y() * volume.size_z()
     normvol = volume*mask
     if stdT > epsilon:
         normvol = sumvol(normvol) / sumvol(mask)

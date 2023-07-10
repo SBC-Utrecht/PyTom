@@ -151,7 +151,7 @@ def align_single_projection(index, projection_list, tilt_angles, shared_dtype, s
 
     # IMOD Rotates around size/2 -0.5, wheras pytom defaults to rotating around size/2
     # so IMOD default order is scaling > rotation > translation, that seems a weird order...
-    center = ((image.sizeX() - 1) / 2., (image.sizeY() - 1) / 2., 0) if order == [1, 0, 2] else None
+    center = ((image.size_x() - 1) / 2., (image.size_y() - 1) / 2., 0) if order == [1, 0, 2] else None
 
     if not (rot == 0 and transX == 0 and transY == 0 and mag == 1):
         image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order,
@@ -293,7 +293,7 @@ class Projection(PyTomClass):
         from pytom.basic.files import readProxy as read
         
         proj = read(self._filename)
-        return proj.sizeX(), proj.sizeY(), proj.sizeZ()
+        return proj.size_x(), proj.size_y(), proj.size_z()
 
     def getFilename(self):
         return self._filename
@@ -477,8 +477,8 @@ class Projection(PyTomClass):
         """
         from pytom.basic.files import readProxy as read
         p = read(self._filename)
-        self._xSize = p.sizeX()
-        self._ySize = p.sizeY()
+        self._xSize = p.size_x()
+        self._ySize = p.size_y()
         
     def getXSize(self):
         """
@@ -982,9 +982,9 @@ class ProjectionList(PyTomClass):
             sys.exit(0)
 
         # volume storing reconstruction offset from center (x,y,z)
-        recPosVol = vol(3, vol_img.sizeZ(), 1)
+        recPosVol = vol(3, vol_img.size_z(), 1)
         recPosVol.setAll(0.0)
-        for iproj in range(0, vol_img.sizeZ()):
+        for iproj in range(0, vol_img.size_z()):
             for ii in range(0, 3):
                 recPosVol.setV(float(reconstructionPosition[ii] / binning), ii, iproj, 0)
 
@@ -1150,11 +1150,11 @@ class ProjectionList(PyTomClass):
 
                 vol_bp.setAll(0.0)
 
-                reconstructionPosition = vol(3, vol_img.sizeZ(), 1)
+                reconstructionPosition = vol(3, vol_img.size_z(), 1)
                 reconstructionPosition.setAll(0.0)
 
                 # adjust coordinates of subvolumes to binned reconstruction
-                for i in range(vol_img.sizeZ()):
+                for i in range(vol_img.size_z()):
                     reconstructionPosition(float(p.getPickPosition().getX() / binning), 0, i, 0)
                     reconstructionPosition(float(p.getPickPosition().getY() / binning), 1, i, 0)
                     reconstructionPosition(float(p.getPickPosition().getZ() / binning), 2, i, 0)
@@ -1264,7 +1264,7 @@ class ProjectionList(PyTomClass):
 
             # put in variables
             [vol_img, vol_phi, vol_the, vol_offsetProjections] = stacks
-            num_projections = vol_img.sizeZ()
+            num_projections = vol_img.size_z()
 
             vol_bp = vol(cube_size, cube_size, cube_size)
             vol_bp.setAll(0.0)
@@ -1362,12 +1362,12 @@ class ProjectionList(PyTomClass):
             numberParticleProjections = 0
 
         tmpImage = read(self._list[0].getFilename())
-        imgSizeX = tmpImage.sizeX()
-        imgSizeY = tmpImage.sizeY()
+        imgSizeX = tmpImage.size_x()
+        imgSizeY = tmpImage.size_y()
 
         if applyWeighting:
             weightSlice = fourierFilterShift(rampFilter(projectionSize, projectionSize))
-            circleFilterRadius = tmpImage.sizeX() / 2
+            circleFilterRadius = tmpImage.size_x() / 2
             circleSlice = fourierFilterShift(circleFilter(projectionSize, projectionSize, circleFilterRadius))
 
         for p in particles:
@@ -1639,7 +1639,7 @@ class ProjectionList(PyTomClass):
 
             # IMOD Rotates around size/2 -0.5, wheras pytom defaults to rotating around size/2
             # so IMOD default order is scaling > rotation > translation, default order usually
-            center = ((image.sizeX() - 1) / 2., (image.sizeY() - 1) / 2., 0) if order == [1, 0, 2] else None
+            center = ((image.size_x() - 1) / 2., (image.size_y() - 1) / 2., 0) if order == [1, 0, 2] else None
 
             if not (rot == 0 and transX == 0 and transY == 0 and mag == 1):
                 image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order,
@@ -2270,7 +2270,7 @@ class ProjectionList(PyTomClass):
                 order = str2list(operation_string)
 
             # IMOD Rotates around size/2 -0.5, wheras pytom defaults to rotating around size/2
-            center = (image.sizeX()/2-0.5, image.sizeY()/2-0.5, 0) if order == [1,2,0] else None
+            center = (image.size_x()/2-0.5, image.size_y()/2-0.5, 0) if order == [1,2,0] else None
 
             image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True,
                                         center=center)
@@ -2547,7 +2547,7 @@ class ProjectionList(PyTomClass):
 
         # IMOD Rotates around size/2 -0.5, wheras pytom rotates around size/2
 
-        center = (image.sizeX()/2-1, image.sizeY()/2-1, 0) if order == [1,2,0] else None
+        center = (image.size_x()/2-1, image.size_y()/2-1, 0) if order == [1,2,0] else None
 
         image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True, center=center)
 
@@ -2791,7 +2791,7 @@ class ProjectionList(PyTomClass):
 
             # 7 -- weighting
             if (weighting != None) and (weighting < 0):
-                # image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
+                # image = (ifft(complexRealMult(fft(image), w_func)) / (image.size_x() * image.size_y() * image.size_z()))
                 image = xp.fft.ifftn(xp.fft.fftn(image) * weightSlice * circleSlice).real
             elif (weighting != None) and (weighting > 0):
                 weightSlice = xp.fft.fftshift(exact_filter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))

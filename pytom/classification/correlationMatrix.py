@@ -63,10 +63,10 @@ def calculateCorrelationVector(particle,particleList,mask,particleIndex,applyWed
         
         #initialise memory for buffer volumes
         if not particleRotated:
-            particleRotated = vol(particleVolume.sizeX(),particleVolume.sizeY(),particleVolume.sizeZ())
-            otherParticleRotated = vol(particleVolume.sizeX(),particleVolume.sizeY(),particleVolume.sizeZ())
-            particleShifted = vol(particleVolume.sizeX(),particleVolume.sizeY(),particleVolume.sizeZ())
-            otherParticleShifted = vol(particleVolume.sizeX(),particleVolume.sizeY(),particleVolume.sizeZ())
+            particleRotated = vol(particleVolume.size_x(),particleVolume.size_y(),particleVolume.size_z())
+            otherParticleRotated = vol(particleVolume.size_x(),particleVolume.size_y(),particleVolume.size_z())
+            particleShifted = vol(particleVolume.size_x(),particleVolume.size_y(),particleVolume.size_z())
+            otherParticleShifted = vol(particleVolume.size_x(),particleVolume.size_y(),particleVolume.size_z())
             
         #get settings
         rotationOtherParticle = otherParticle.getRotation()
@@ -202,8 +202,8 @@ class CMManager():
             return
     
         assert vector.__class__ == CorrelationVector
-        assert particleIndex < self._correlationMatrix.sizeX()
-        assert len(vector) <= self._correlationMatrix.sizeX()
+        assert particleIndex < self._correlationMatrix.size_x()
+        assert len(vector) <= self._correlationMatrix.size_x()
         
         self._correlationMatrix.setV(1,particleIndex,particleIndex,0)
         
@@ -493,10 +493,10 @@ def decomposeMatrix(matrixFile):
     except ImportError:
         #numpy did not work. copy each entry into string and proceed, takes long time
         
-        for x in range(corrMatrix.sizeX()):
-            for y in range(corrMatrix.sizeY()):
+        for x in range(corrMatrix.size_x()):
+            for y in range(corrMatrix.size_y()):
                 matStr = matStr + ' ' + str(corrMatrix.getV(x,y,0))
-            if x < (corrMatrix.sizeX() -1):      
+            if x < (corrMatrix.size_x() -1):      
                 matStr = matStr + ';'
     
             mat = matrix(matStr) #generate numpy.matrix from string

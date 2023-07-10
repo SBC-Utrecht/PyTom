@@ -538,8 +538,8 @@ class ExMaxWorker(object):
                 #else:
                 #    from pytom.basic.files import readSubvolumeFromFourierspaceFile
                 #    self._referenceWeighting        = readSubvolumeFromFourierspaceFile(
-                #                                    self._referenceWeightingFile,reference.sizeX(),
-                #                                    reference.sizeY(),reference.sizeZ())
+                #                                    self._referenceWeightingFile,reference.size_x(),
+                #                                    reference.size_y(),reference.size_z())
         pScore = self._particle.getScore()
         
         if not pScore:
@@ -875,7 +875,7 @@ class ExMaxManager(PyTomClass):
         even = read(self._destination + filename+'even.em')
         
         if not numberShells:
-            numberShells = int(odd.sizeX())
+            numberShells = int(odd.size_x())
             """@ivar numberShells: max. number of shells"""
         
         calc_fsc = fsc(odd,even,numberShells)
@@ -930,7 +930,7 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
             r = exMaxJob.getReference()
             rVol = r.getVolume()
             
-            cubeSize = rVol.sizeX() 
+            cubeSize = rVol.size_x() 
             
             symmetry = exMaxJob.getSymmetry()
             
@@ -1113,7 +1113,7 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
     r = exMaxJob.getReference()
     rVol = r.getVolume()
     
-    cubeSize = rVol.sizeX() 
+    cubeSize = rVol.size_x() 
     
     symmetry = exMaxJob.getSymmetry()
     

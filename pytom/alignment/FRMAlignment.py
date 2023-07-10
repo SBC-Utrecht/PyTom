@@ -444,7 +444,7 @@ class FRMWorker():
                 if type(ref) == tuple:
                     ref = ref[0]
             # re-set max frequency in case it exceeds Nyquist - a bit brute force
-            job.freq = min(job.freq, ref.sizeX()//2-1)
+            job.freq = min(job.freq, ref.size_x()//2-1)
             # run the job
             for p in job.particleList:
                 if verbose:
@@ -487,12 +487,12 @@ class FRMWorker():
                                                 job.peak_offset, mask)
 
                 if job.binning > 1:
-                    pos[0] = job.binning*(pos[0]-v.sizeX()/2)
-                    pos[1] = job.binning*(pos[1]-v.sizeY()/2) 
-                    pos[2] = job.binning*(pos[2]-v.sizeZ()/2)
+                    pos[0] = job.binning*(pos[0]-v.size_x()/2)
+                    pos[1] = job.binning*(pos[1]-v.size_y()/2) 
+                    pos[2] = job.binning*(pos[2]-v.size_z()/2)
                     p.setShift(Shift([pos[0], pos[1], pos[2]]))
                 else:     
-                    p.setShift(Shift([pos[0]-v.sizeX()/2, pos[1]-v.sizeY()/2, pos[2]-v.sizeZ()/2]))
+                    p.setShift(Shift([pos[0]-v.size_x()/2, pos[1]-v.size_y()/2, pos[2]-v.size_z()/2]))
                 p.setRotation(Rotation(angle))
                 p.setScore(FRMScore(score))
                 
@@ -571,7 +571,7 @@ class FRMWorker():
         f_pre = fft(pre)
         r = complexDiv(f_pre, wedge)
         average = ifft(r)
-        average.shiftscale(0.0,1/float(average.sizeX()*average.sizeY()*average.sizeZ()))
+        average.shiftscale(0.0,1/float(average.size_x()*average.size_y()*average.size_z()))
         
         return average
     
@@ -585,7 +585,7 @@ class FRMWorker():
         from pytom.basic.correlation import fsc, determine_resolution
         
         if not number_bands:
-            number_bands = even.sizeX()/2
+            number_bands = even.size_x()/2
         
         calc_fsc = fsc(even, odd, number_bands, mask, verbose=False)
         if verbose:

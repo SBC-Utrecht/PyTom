@@ -108,16 +108,16 @@ class Image(PyTomClass):
                     raise ValueError("Value for mask radius must be > 0!")
                 from pytom.basic.functions import initSphere
 
-                mask = initSphere(sizeX=self.data.sizeX(), sizeY=self.data.sizeY(),
-                                  sizeZ=self.data.sizeZ(), radius=mask,
+                mask = initSphere(size_x=self.data.size_x(), size_y=self.data.size_y(),
+                                  size_z=self.data.size_z(), radius=mask,
                                   smooth=mask/10., maxradius=0, cent=None)
             # user-specified generic mask
             else:
                 if type(mask) != vol:
                     raise TypeError("Mask must be pytom.lib.pytom_volume.vol")
-                if ((mask.sizeX() != self.data.sizeX()) or
-                        (mask.sizeY() != self.data.sizeY()) or
-                        (mask.sizeZ() != self.data.sizeZ())):
+                if ((mask.size_x() != self.data.size_x()) or
+                        (mask.size_y() != self.data.size_y()) or
+                        (mask.size_z() != self.data.size_z())):
                     raise ValueError("Mask have same dimension as image")
 
             normvol, p = normaliseUnderMask(volume=self.data, mask=mask, p=p)
@@ -260,8 +260,8 @@ class ImageStack(PyTomClass):
             # copy working copy
             self.imageCopies.append(image.copy())
         if self.dimX == 0:
-            self.dimX = image.data.sizeX()
-            self.dimY = image.data.sizeY()
+            self.dimX = image.data.size_x()
+            self.dimY = image.data.size_y()
 
     def write(self, filename):
         """

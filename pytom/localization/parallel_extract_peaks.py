@@ -291,17 +291,17 @@ class PeakLeader(PeakWorker):
         if job.volume.subregion == [0,0,0,0,0,0]:
             v = job.volume.getVolume()
             origin = [0,0,0]
-            vsizeX = v.sizeX(); vsizeY = v.sizeY(); vsizeZ = v.sizeZ()
+            vsize_x = v.size_x(); vsize_y = v.size_y(); vsize_z = v.size_z()
         else:
             origin = job.volume.subregion[0:3]
-            vsizeX = job.volume.subregion[3]
-            vsizeY = job.volume.subregion[4]
-            vsizeZ = job.volume.subregion[5]
+            vsize_x = job.volume.subregion[3]
+            vsize_y = job.volume.subregion[4]
+            vsize_z = job.volume.subregion[5]
             
-        sizeX = vsizeX//splitX; sizeY = vsizeY//splitY; sizeZ = vsizeZ//splitZ
+        size_x = vsize_x//splitX; size_y = vsize_y//splitY; size_z = vsize_z//splitZ
         r = job.reference.getVolume()
-        rsizeX = r.sizeX(); rsizeY = r.sizeY(); rsizeZ = r.sizeZ()
-        if rsizeX>sizeX or rsizeY>sizeY or rsizeZ>sizeZ:
+        rsize_x = r.size_x(); rsize_y = r.size_y(); rsize_z = r.size_z()
+        if rsize_x>size_x or rsize_y>size_y or rsize_z>size_z:
             raise RuntimeError("Not big enough volume to split!")
         
         # initialize the jobInfo structure
@@ -310,8 +310,8 @@ class PeakLeader(PeakWorker):
         # read the target volume, calculate the respective subregion
         from pytom.localization.peak_job import PeakJob
         from pytom.localization.structures import Volume
-        _start = [-rsizeX//2+origin[0],-rsizeY//2+origin[1],-rsizeZ//2+origin[2]]
-        _size = [sizeX+rsizeX, sizeY+rsizeY, sizeZ+rsizeZ]
+        _start = [-rsize_x//2+origin[0],-rsize_y//2+origin[1],-rsize_z//2+origin[2]]
+        _size = [size_x+rsize_x, size_y+rsize_y, size_z+rsize_z]
         
         numPieces = splitX*splitY*splitZ
         totalMem = self.members
@@ -321,7 +321,7 @@ class PeakLeader(PeakWorker):
         for i in range(numPieces):
             strideZ = splitX*splitY; strideY = splitX
             incZ = i//strideZ; incY = (i%strideZ)//strideY; incX = i%strideY
-            _start = [-rsizeX//2+origin[0]+incX*sizeX,-rsizeY//2+origin[1]+incY*sizeY,-rsizeZ//2+origin[2]+incZ*sizeZ]
+            _start = [-rsize_x//2+origin[0]+incX*size_x,-rsize_y//2+origin[1]+incY*size_y,-rsize_z//2+origin[2]+incZ*size_z]
             
             start = _start[:]
             end = [start[j]+_size[j] for j in range(len(start))]
@@ -332,12 +332,12 @@ class PeakLeader(PeakWorker):
                 start[1]=origin[1]
             if start[2] < origin[2]:
                 start[2]=origin[2]
-            if end[0] > vsizeX+origin[0]:
-                end[0] = vsizeX+origin[0]
-            if end[1] > vsizeY+origin[1]:
-                end[1] = vsizeY+origin[1]
-            if end[2] > vsizeZ+origin[2]:
-                end[2] = vsizeZ+origin[2]
+            if end[0] > vsize_x+origin[0]:
+                end[0] = vsize_x+origin[0]
+            if end[1] > vsize_y+origin[1]:
+                end[1] = vsize_y+origin[1]
+            if end[2] > vsize_z+origin[2]:
+                end[2] = vsize_z+origin[2]
             
             size = [end[j]-start[j] for j in range(len(start))]
             
@@ -350,14 +350,14 @@ class PeakLeader(PeakWorker):
             whole_start = start[:]
             sub_start = [0, 0, 0]
             if start[0] != origin[0]:
-                whole_start[0] = start[0]+rsizeX//2
-                sub_start[0] = rsizeX//2
+                whole_start[0] = start[0]+rsize_x//2
+                sub_start[0] = rsize_x//2
             if start[1] != origin[1]:
-                whole_start[1] = start[1]+rsizeY//2
-                sub_start[1] = rsizeY//2
+                whole_start[1] = start[1]+rsize_y//2
+                sub_start[1] = rsize_y//2
             if start[2] != origin[2]:
-                whole_start[2] = start[2]+rsizeZ//2
-                sub_start[2] = rsizeZ//2
+                whole_start[2] = start[2]+rsize_z//2
+                sub_start[2] = rsize_z//2
             
             subJobID = job.jobID+i+1
             subVol = Volume(job.volume.getFilename(),
@@ -372,8 +372,8 @@ class PeakLeader(PeakWorker):
             info = JobInfo(subJob.jobID, originalJobID, "Vol")
             info.sub_start = sub_start
             info.whole_start = whole_start
-            info.originalSize = [vsizeX, vsizeY, vsizeZ]
-            info.splitSize = [sizeX, sizeY, sizeZ]
+            info.originalSize = [vsize_x, vsize_y, vsize_z]
+            info.splitSize = [size_x, size_y, size_z]
             info.origin = origin
             self.jobInfoPool[subJobID] = info
             
@@ -487,8 +487,8 @@ class PeakLeader(PeakWorker):
             orientV = orientV + offset
             
             if self.resVolA is None or self.resOrientA is None:
-                self.resVolA = vol(resV.sizeX(), resV.sizeY(), resV.sizeZ())
-                self.resOrientA = vol(orientV.sizeX(), orientV.sizeY(), orientV.sizeZ())
+                self.resVolA = vol(resV.size_x(), resV.size_y(), resV.size_z())
+                self.resOrientA = vol(orientV.size_x(), orientV.size_y(), orientV.size_z())
                 self.resVolA.copyVolume(resV)
                 self.resOrientA.copyVolume(orientV)
             else:
@@ -501,20 +501,20 @@ class PeakLeader(PeakWorker):
             self.jobInfoPool["numDoneJobsV"] = self.jobInfoPool["numDoneJobsV"] + 1
             [originX, originY, originZ] = self.jobInfoPool[jobID].origin
             if self.resVol is None or self.resOrient is None:
-                [vsizeX, vsizeY, vsizeZ] = self.jobInfoPool[jobID].originalSize
-                self.resVol = vol(vsizeX, vsizeY, vsizeZ)
+                [vsize_x, vsize_y, vsize_z] = self.jobInfoPool[jobID].originalSize
+                self.resVol = vol(vsize_x, vsize_y, vsize_z)
                 self.resVol.setAll(0)
-                self.resOrient = vol(vsizeX, vsizeY, vsizeZ)
+                self.resOrient = vol(vsize_x, vsize_y, vsize_z)
                 self.resOrient.setAll(0)
             
-            [vsizeX, vsizeY, vsizeZ] = self.jobInfoPool[jobID].originalSize
-            [sizeX ,sizeY, sizeZ] = self.jobInfoPool[jobID].splitSize
+            [vsize_x, vsize_y, vsize_z] = self.jobInfoPool[jobID].originalSize
+            [size_x ,size_y, size_z] = self.jobInfoPool[jobID].splitSize
             sub_start = self.jobInfoPool[jobID].sub_start
             start = self.jobInfoPool[jobID].whole_start
 
-            stepSizeX = min(vsizeX-sub_start[0], sizeX)
-            stepSizeY = min(vsizeY-sub_start[1], sizeY)
-            stepSizeZ = min(vsizeZ-sub_start[2], sizeZ)
+            stepSizeX = min(vsize_x-sub_start[0], size_x)
+            stepSizeY = min(vsize_y-sub_start[1], size_y)
+            stepSizeZ = min(vsize_z-sub_start[2], size_z)
 
             sub_resV = subvolume(resV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)
             sub_resO = subvolume(orientV, sub_start[0],sub_start[1],sub_start[2], stepSizeX,stepSizeY,stepSizeZ)

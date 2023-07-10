@@ -26,7 +26,7 @@ def profile2FourierVol( profile, dim=None, reduced=False):
 
     if not dim:
         if type(profile) == vol:
-            dim = 2*profile.sizeX()
+            dim = 2*profile.size_x()
         else:
             dim = 2*len(profile)
 
@@ -37,7 +37,7 @@ def profile2FourierVol( profile, dim=None, reduced=False):
 
     fkernel = vol( nx, dim, dim)
     if type(profile) == vol:
-        r_max = profile.sizeX()-1
+        r_max = profile.size_x()-1
     else:
         r_max = len(profile)-1
 
@@ -96,7 +96,7 @@ def filter_volume_by_profile( volume, profile):
     from pytom.basic.filter import profile2FourierVol
     from pytom.basic.fourier import convolute, powerspectrum
 
-    kernel = profile2FourierVol( profile=profile, dim=volume.sizeX(), reduced=False)
+    kernel = profile2FourierVol( profile=profile, dim=volume.size_x(), reduced=False)
     outvol = convolute(v=volume, k=kernel, kernel_in_fourier=True)
     return outvol
 
@@ -204,9 +204,9 @@ def volCTF(defocus, x_dim, y_dim, z_dim, pixel_size=None, voltage=None, Cs=None,
     
     vol = ( r4*Cs*(lam**3) - r2*2*Dz*lam )*math.pi/2
         
-    for i in range(vol.sizeX()):
-        for j in range(vol.sizeY()):
-            for k in range(vol.sizeZ()):
+    for i in range(vol.size_x()):
+        for j in range(vol.size_y()):
+            for k in range(vol.size_z()):
                 vol(math.sin(vol(i, j, k)) , i, j, k)    
     
     return vol
@@ -229,9 +229,9 @@ def convolutionCTF(volume, defocus, pixelSize=None, voltage=None, Cs=None, sigma
     from pytom.basic.fourier import ftshift, fft, ifft
     from pytom.basic.filter import volCTF
     
-    dimX = volume.sizeX()
-    dimY = volume.sizeY()
-    dimZ = volume.sizeZ()
+    dimX = volume.size_x()
+    dimY = volume.size_y()
+    dimZ = volume.size_z()
 
     ctf = volCTF(defocus, dimX, dimY, dimZ, pixelSize, voltage, Cs, sigma)
     filterCTF = subvolume(ftshift(ctf,inplace=False), 0, 0, 0, dimX, dimY, (dimZ/2)+1)
@@ -247,13 +247,13 @@ def fourierFilterShift(filter):
     """
     from pytom.lib.pytom_volume import vol
     
-    widthX = filter.sizeX()
-    centerX = filter.sizeX()//2
-    boxX = filter.sizeX()//2
+    widthX = filter.size_x()
+    centerX = filter.size_x()//2
+    boxX = filter.size_x()//2
     
-    widthY = filter.sizeY()
-    centerY = filter.sizeY()//2
-    boxY = filter.sizeY()//2
+    widthY = filter.size_y()
+    centerY = filter.size_y()//2
+    boxY = filter.size_y()//2
     
     shifted_filter = vol(widthX, widthY, 1)
     shifted_filter.setAll(0.0)
@@ -275,13 +275,13 @@ def fourierFilterShift_ReducedComplex(filter):
     """
     from pytom.lib.pytom_volume import vol
 
-    widthX = filter.sizeX()
-    centerX = filter.sizeX()//2
-    boxX = filter.sizeX()//2
+    widthX = filter.size_x()
+    centerX = filter.size_x()//2
+    boxX = filter.size_x()//2
 
-    widthY = filter.sizeY()
-    centerY = filter.sizeY()//2
-    boxY = filter.sizeY()//2
+    widthY = filter.size_y()
+    centerY = filter.size_y()//2
+    boxY = filter.size_y()//2
 
     shifted_filter = vol(widthX, widthY, 1)
     shifted_filter.setAll(0.0)
@@ -296,25 +296,25 @@ def fourierFilterShift_ReducedComplex(filter):
 
     return shifted_filter
 
-def circleFilter(sizeX,sizeY, radiusCutoff):
+def circleFilter(size_x,size_y, radiusCutoff):
     """
     circleFilter: NEEDS Documentation
-    @param sizeX: NEEDS Documentation 
-    @param sizeY: NEEDS Documentation
+    @param size_x: NEEDS Documentation 
+    @param size_y: NEEDS Documentation
     @param radiusCutoff: NEEDS Documentation
     """
     from pytom.lib.pytom_volume import vol
     
-    centerX = sizeX//2
+    centerX = size_x//2
         
-    centerY = sizeY//2
-    sizeY = (sizeY//2) +1
+    centerY = size_y//2
+    size_y = (size_y//2) +1
         
-    filter_vol = vol(sizeX, sizeY, 1)
+    filter_vol = vol(size_x, size_y, 1)
     filter_vol.setAll(0.0)
     
-    for i in range(sizeX):        
-        for j in range(sizeY):
+    for i in range(size_x):        
+        for j in range(size_y):
                         
             radius = ((i-centerX)*(i-centerX)+(j-centerY)*(j-centerY))**0.5
                                                 
@@ -323,12 +323,12 @@ def circleFilter(sizeX,sizeY, radiusCutoff):
                 
     return filter_vol
 
-def rampFilter( sizeX, sizeY, crowtherFreq=None, N=None):
+def rampFilter( size_x, size_y, crowtherFreq=None, N=None):
     """
     rampFilter: Generates the weighting function required for weighted backprojection - y-axis is tilt axis
 
-    @param sizeX: size of weighted image in X
-    @param sizeY: size of weighted image in Y
+    @param size_x: size of weighted image in X
+    @param size_y: size of weighted image in Y
 
     @return: filter volume
     
@@ -336,26 +336,26 @@ def rampFilter( sizeX, sizeY, crowtherFreq=None, N=None):
     from pytom.lib.pytom_volume import vol
     from math import exp
 
-    centerX = sizeX//2
+    centerX = size_x//2
     
-    centerY = sizeY//2
-    sizeY = (sizeY//2) +1
+    centerY = size_y//2
+    size_y = (size_y//2) +1
 
     N = 0 if N is None else 1 / N
 
     if crowtherFreq is None:
-        Ny = sizeX//2
+        Ny = size_x//2
     else:
         Ny = crowtherFreq
 
-    filter_vol = vol(sizeX, sizeY, 1)
+    filter_vol = vol(size_x, size_y, 1)
     filter_vol.setAll(0.0)
 
     # TODO this is very slow...
-    for i in range(sizeX):        
+    for i in range(size_x):        
         distX = abs(float(i-centerX))
         ratio = min(1, (distX/Ny)+N)
-        for j in range(sizeY):            
+        for j in range(size_y):            
             filter_vol.setV(ratio, i, j, 0)
 
     return filter_vol
@@ -366,8 +366,8 @@ def exactFilter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     Reference : Optik, Exact filters for general geometry three dimensional reconstuction, vol.73,146,1986.
     @param tilt_angles: list of all the tilt angles in one tilt series
     @param titlAngle: tilt angle for which the exact weighting function is calculated
-    @param sizeX: size of weighted image in X
-    @param sizeY: size of weighted image in Y
+    @param size_x: size of weighted image in X
+    @param size_y: size of weighted image in Y
 
     @return: filter volume
 
@@ -482,7 +482,7 @@ def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, retu
     from pytom.lib.pytom_volume import vol, limit, vol_comp, rotate
     assert type(weighting) == vol or  type(weighting) == vol_comp, "rotateWeighting: input neither vol nor vol_comp"
     
-    isReducedComplex = isReducedComplex or int(weighting.sizeX()/2)+1 == weighting.sizeZ();
+    isReducedComplex = isReducedComplex or int(weighting.size_x()/2)+1 == weighting.size_z();
 
     if isReducedComplex:
         #scale weighting to full size
@@ -492,10 +492,10 @@ def rotateWeighting(weighting, z1, z2, x, mask=None, isReducedComplex=None, retu
         fftShift(weighting, True)
 
     if not mask:
-        mask = vol(weighting.sizeX(),weighting.sizeY(),weighting.sizeZ())
+        mask = vol(weighting.size_x(),weighting.size_y(),weighting.size_z())
         mask.setAll(1)
 
-    weightingRotated = vol(weighting.sizeX(),weighting.sizeY(),weighting.sizeZ())
+    weightingRotated = vol(weighting.size_x(),weighting.size_y(),weighting.size_z())
 
     rotate(weighting,weightingRotated,z1,z2,x)
     weightingRotated = weightingRotated * mask
@@ -534,7 +534,7 @@ def wedgeFilter(volume,angle,radius=0,angleIsHalf=True,fourierOnly=False):
     if not angleIsHalf:
         angle = abs(angle/2) 
     
-    wf = pytom_freqweight.weight(angle,radius,volume.sizeX(),volume.sizeY(),volume.sizeZ())
+    wf = pytom_freqweight.weight(angle,radius,volume.size_x(),volume.size_y(),volume.size_z())
     
     
     return filter(volume,wf,fourierOnly)
@@ -565,7 +565,7 @@ def bandpassFilter(volume, lowestFrequency, highestFrequency, bpf=None, smooth=0
  
     if not bpf:
         bpf = pytom_freqweight.weight(lowestFrequency,highestFrequency,
-                                      fvolume.sizeX(),fvolume.sizeY(),fvolume.sizeZ(),smooth)    
+                                      fvolume.size_x(),fvolume.size_y(),fvolume.size_z(),smooth)    
 
     return filter(fvolume,bpf,fourierOnly)      
 
@@ -589,7 +589,7 @@ def lowpassFilter(volume,band,smooth=0,fourierOnly=False):
     else:
         fvolume = volume
         
-    lpf = pytom_freqweight.weight(0.0,band,fvolume.sizeX(),fvolume.sizeY(),fvolume.sizeZ(),smooth)
+    lpf = pytom_freqweight.weight(0.0,band,fvolume.size_x(),fvolume.size_y(),fvolume.size_z(),smooth)
     
     return filter(fvolume,lpf,fourierOnly)
     
@@ -612,7 +612,7 @@ def highpassFilter(volume,band,smooth=0,fourierOnly=False):
     else:
         fvolume = volume
     
-    hpf = pytom_freqweight.weight(band,fvolume.sizeX(),fvolume.sizeX(),fvolume.sizeY(),fvolume.sizeZ(),smooth)
+    hpf = pytom_freqweight.weight(band,fvolume.size_x(),fvolume.size_x(),fvolume.size_y(),fvolume.size_z(),smooth)
        
     return filter(fvolume,hpf,fourierOnly)
 
@@ -631,16 +631,16 @@ def filter(volume,filterObject,fourierOnly=False):
     
     if volume.__class__ == pytom_volume.vol:
         fvolume = fft(volume)
-        noPixels = volume.sizeX() * volume.sizeY() * volume.sizeZ()
+        noPixels = volume.size_x() * volume.size_y() * volume.size_z()
     else:
-        fvolume = pytom_volume.vol_comp(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        fvolume = pytom_volume.vol_comp(volume.size_x(),volume.size_y(),volume.size_z())
         fvolume.copyVolume(volume)
-        if (volume.sizeZ() == 1) and (volume.sizeY() == 1):
-            noPixels = 2 *(volume.sizeX()-1)
-        elif volume.sizeZ() == 1:
-            noPixels = volume.sizeX() *2 *(volume.sizeY()-1)
+        if (volume.size_z() == 1) and (volume.size_y() == 1):
+            noPixels = 2 *(volume.size_x()-1)
+        elif volume.size_z() == 1:
+            noPixels = volume.size_x() *2 *(volume.size_y()-1)
         else:
-            noPixels = volume.sizeX() * volume.sizeY() * 2*(volume.sizeZ()-1)
+            noPixels = volume.size_x() * volume.size_y() * 2*(volume.size_z()-1)
     filterObject.apply(fvolume)
     
     if not fourierOnly:
@@ -682,10 +682,10 @@ def wiener_filter(fsc, even_ctf_sum, odd_ctf_sum, fudge=1):
     @return: returns two filters for the odd and even half map filter1, filter2
     @rtype: L{[pytom.lib.pytom_volume.vol, pytom.lib.pytom_volume.vol]}
     """
-    assert even_ctf_sum.sizeX() == even_ctf_sum.sizeY() and even_ctf_sum.sizeX() // 2 + 1 == even_ctf_sum.sizeZ(), \
+    assert even_ctf_sum.size_x() == even_ctf_sum.size_y() and even_ctf_sum.size_x() // 2 + 1 == even_ctf_sum.size_z(), \
         'even volume does not have correct dimensions'
-    assert even_ctf_sum.sizeX() == odd_ctf_sum.sizeX() and even_ctf_sum.sizeY() == odd_ctf_sum.sizeY() and \
-           even_ctf_sum.sizeZ() == odd_ctf_sum.sizeZ(), 'even and odd ctf volumes not matching'
+    assert even_ctf_sum.size_x() == odd_ctf_sum.size_x() and even_ctf_sum.size_y() == odd_ctf_sum.size_y() and \
+           even_ctf_sum.size_z() == odd_ctf_sum.size_z(), 'even and odd ctf volumes not matching'
 
     # get a radial profile of the summed wedges
     wedge_ctf_sum = even_ctf_sum + odd_ctf_sum
@@ -695,7 +695,7 @@ def wiener_filter(fsc, even_ctf_sum, odd_ctf_sum, fudge=1):
     even_ctf_full = ftshift(reducedToFull(even_ctf_sum), inplace=False)
     odd_ctf_full = ftshift(reducedToFull(odd_ctf_sum), inplace=False)
     # sum_ctf_full = ftshift(reducedToFull(wedge_ctf_sum), inplace=False)
-    sx, sy, sz = even_ctf_full.sizeX(), even_ctf_full.sizeY(), even_ctf_full.sizeZ()
+    sx, sy, sz = even_ctf_full.size_x(), even_ctf_full.size_y(), even_ctf_full.size_z()
     centerx, centery, centerz = sx // 2 + 1, sy // 2 + 1, sz // 2 + 1
 
     # find the first zero crossing of the ctf

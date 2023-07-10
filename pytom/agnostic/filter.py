@@ -539,7 +539,7 @@ class SingleTiltWedge(Wedge):
         return self._sf
 
 
-def create_wedge(wedge_angle1, wedge_angle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth=0, rotation=None):
+def create_wedge(wedge_angle1, wedge_angle2, cutOffRadius, size_x, size_y, size_z, smooth=0, rotation=None):
     '''This function returns a wedge object. For speed reasons it decides whether to generate a symmetric or assymetric wedge.
     @param wedge_angle1: angle of wedge1 in degrees
     @type wedge_angle1: int
@@ -547,29 +547,29 @@ def create_wedge(wedge_angle1, wedge_angle2, cutOffRadius, sizeX, sizeY, sizeZ, 
     @type wedge_angle2: int
     @param cutOffRadius: radius from center beyond which the wedge is set to zero.
     @type cutOffRadius: int
-    @param sizeX: the size of the box in x-direction.
-    @type sizeX: int
-    @param sizeY: the size of the box in y-direction.
-    @type sizeY: int
-    @param sizeZ: the size of the box in z-direction.
-    @type sizeZ: int
+    @param size_x: the size of the box in x-direction.
+    @type size_x: int
+    @param size_y: the size of the box in y-direction.
+    @type size_y: int
+    @param size_z: the size of the box in z-direction.
+    @type size_z: int
     @param smooth: smoothing parameter that defines the amount of smoothing  at the edge of the wedge.
     @type smooth: float
     @return: 3D array determining the wedge object.
     @rtype: ndarray of np.float64'''
-    # TODO update so that uneven values for sizeZ still match with pytom.lib.pytom.lib.pytom_volume
+    # TODO update so that uneven values for size_z still match with pytom.lib.pytom.lib.pytom_volume
 
     import numpy as np
 
     if cutOffRadius < 1:
-        cutOffRadius = sizeX // 2
+        cutOffRadius = size_x // 2
 
     if wedge_angle1 == wedge_angle2:
-        return create_symmetric_wedge(wedge_angle1, wedge_angle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth, rotation).astype(np.float32)
+        return create_symmetric_wedge(wedge_angle1, wedge_angle2, cutOffRadius, size_x, size_y, size_z, smooth, rotation).astype(np.float32)
     else:
-        return create_asymmetric_wedge(wedge_angle1, wedge_angle2, cutOffRadius, sizeX, sizeY, sizeZ, smooth, rotation).astype(np.float32)
+        return create_asymmetric_wedge(wedge_angle1, wedge_angle2, cutOffRadius, size_x, size_y, size_z, smooth, rotation).astype(np.float32)
 
-def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, smooth, rotation=None):
+def create_symmetric_wedge(angle1, angle2, cutoffRadius, size_x, size_y, size_z, smooth, rotation=None):
     '''This function returns a symmetric wedge object.
     @param angle1: angle of wedge1 in degrees
     @type angle1: int
@@ -577,29 +577,29 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
     @type angle2: int
     @param cutOffRadius: radius from center beyond which the wedge is set to zero.
     @type cutOffRadius: int
-    @param sizeX: the size of the box in x-direction.
-    @type sizeX: int
-    @param sizeY: the size of the box in y-direction.
-    @type sizeY: int
-    @param sizeZ: the size of the box in z-direction.
-    @type sizeZ: int
+    @param size_x: the size of the box in x-direction.
+    @type size_x: int
+    @param size_y: the size of the box in y-direction.
+    @type size_y: int
+    @param size_z: the size of the box in z-direction.
+    @type size_z: int
     @param smooth: smoothing parameter that defines the amount of smoothing  at the edge of the wedge.
     @type smooth: float
     @return: 3D array determining the wedge object.
     @rtype: ndarray of np.float64'''
-    wedge = xp.zeros((sizeX, sizeY, sizeZ // 2 + 1), dtype=xp.float64)
+    wedge = xp.zeros((size_x, size_y, size_z // 2 + 1), dtype=xp.float64)
     if rotation is None:
         # numpy meshgrid by default returns indexing with cartesian coordinates (xy)
         # shape N, M, P returns meshgrid with M, N, P (see numpy meshgrid documentation)
         # the naming here is therefore weird
-        z, y, x = xp.meshgrid(xp.abs(xp.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2, 1.)),
-                              xp.abs(xp.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2, 1.)),
-                              xp.arange(0, sizeZ // 2 + 1, 1.))
+        z, y, x = xp.meshgrid(xp.abs(xp.arange(-size_y // 2 + size_y % 2, size_y // 2 + size_y % 2, 1.)),
+                              xp.abs(xp.arange(-size_x // 2 + size_x % 2, size_x // 2 + size_x % 2, 1.)),
+                              xp.arange(0, size_z // 2 + 1, 1.))
 
     else:
         # here its different again, but result is correct.
-        cx,cy,cz = [s//2 for s in (sizeX,sizeY,sizeZ)]
-        grid = xp.mgrid[-cx:sizeX - cx, -cy:sizeY - cy, :sizeZ // 2 + 1]
+        cx,cy,cz = [s//2 for s in (size_x,size_y,size_z)]
+        grid = xp.mgrid[-cx:size_x - cx, -cy:size_y - cy, :size_z // 2 + 1]
 
         phi, the, psi = rotation
 
@@ -648,11 +648,11 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
             wedge[xp.tan(xp.float32(angle1) * xp.pi / xp.float32(180.)) <= y / x] = 1
 
         if rotation is None:
-            wedge[sizeX // 2, :, 0] = 1
+            wedge[size_x // 2, :, 0] = 1
         else:
             phi,the,psi = rotation
             if phi < 1E-6 and psi < 1E-6 and the<1E-6:
-                wedge[sizeX // 2, :, 0] = 1
+                wedge[size_x // 2, :, 0] = 1
 
         if smooth:
             area = xp.abs(x - (y / xp.tan(angle1 * xp.pi / 180))) < range_angle1Smooth
@@ -664,7 +664,7 @@ def create_symmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, sm
     wedge[r > cutoffRadius] = 0
     return xp.fft.ifftshift(wedge, axes=(0, 1))  # TODO should be ifftshift, because centered is shifted to corner
 
-def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, smooth, rotation=None):
+def create_asymmetric_wedge(angle1, angle2, cutoffRadius, size_x, size_y, size_z, smooth, rotation=None):
     '''This function returns an asymmetric wedge object.
     @param angle1: angle of wedge1 in degrees
     @type angle1: int
@@ -672,29 +672,29 @@ def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, s
     @type angle2: int
     @param cutOffRadius: radius from center beyond which the wedge is set to zero.
     @type cutOffRadius: int
-    @param sizeX: the size of the box in x-direction.
-    @type sizeX: int
-    @param sizeY: the size of the box in y-direction.
-    @type sizeY: int
-    @param sizeZ: the size of the box in z-direction.
-    @type sizeZ: int
+    @param size_x: the size of the box in x-direction.
+    @type size_x: int
+    @param size_y: the size of the box in y-direction.
+    @type size_y: int
+    @param size_z: the size of the box in z-direction.
+    @type size_z: int
     @param smooth: smoothing parameter that defines the amount of smoothing  at the edge of the wedge.
     @type smooth: float
     @return: 3D array determining the wedge object.
     @rtype: ndarray of xp.float64'''
     range_angle1Smooth = smooth / xp.sin(angle1 * xp.pi / 180.)
     range_angle2Smooth = smooth / xp.sin(angle2 * xp.pi / 180.)
-    wedge = xp.zeros((sizeX, sizeY, sizeZ // 2 + 1))
+    wedge = xp.zeros((size_x, size_y, size_z // 2 + 1))
 
     if rotation is None:
         # see comment above with symmetric wedge function about meshgrid
-        z, y, x = xp.meshgrid(xp.arange(-sizeY // 2 + sizeY % 2, sizeY // 2 + sizeY % 2),
-                              xp.arange(-sizeX // 2 + sizeX % 2, sizeX // 2 + sizeX % 2),
-                              xp.arange(0, sizeZ // 2 + 1))
+        z, y, x = xp.meshgrid(xp.arange(-size_y // 2 + size_y % 2, size_y // 2 + size_y % 2),
+                              xp.arange(-size_x // 2 + size_x % 2, size_x // 2 + size_x % 2),
+                              xp.arange(0, size_z // 2 + 1))
 
     else:
-        cx, cy, cz = [s // 2 for s in (sizeX, sizeY, sizeZ)]
-        grid = xp.mgrid[-cx:sizeX - cx, -cy:sizeY - cy, :sizeZ // 2 + 1]
+        cx, cy, cz = [s // 2 for s in (size_x, size_y, size_z)]
+        grid = xp.mgrid[-cx:size_x - cx, -cy:size_y - cy, :size_z // 2 + 1]
 
         phi, the, psi = rotation
 
@@ -741,7 +741,7 @@ def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, s
     with np.errstate(all='ignore'):
         wedge[xp.tan(angle1 * xp.pi / 180) < y / x] = 1
         wedge[xp.tan(-angle2 * xp.pi / 180) > y / x] = 1
-    wedge[sizeX // 2, :, 0] = 1
+    wedge[size_x // 2, :, 0] = 1
 
     if smooth:
         area = xp.abs(x - (y / xp.tan(angle1 * xp.pi / 180))) <= range_angle1Smooth
@@ -756,55 +756,55 @@ def create_asymmetric_wedge(angle1, angle2, cutoffRadius, sizeX, sizeY, sizeZ, s
 
     return xp.fft.ifftshift(wedge, axes=(0, 1))  # TODO should be ifftshift, because centered is shifted to corner
 
-def circle_filter(sizeX, sizeY, radiusCutoff):
+def circle_filter(size_x, size_y, radiusCutoff):
     """
     circleFilter: NEEDS Documentation
-    @param sizeX: NEEDS Documentation
-    @param sizeY: NEEDS Documentation
+    @param size_x: NEEDS Documentation
+    @param size_y: NEEDS Documentation
     @param radiusCutoff: NEEDS Documentation
     """
-    X, Y = xp.meshgrid(xp.arange(-sizeX//2 + sizeX%2, sizeX//2+sizeX%2), xp.arange(-sizeY//2+sizeY%2, sizeY//2+sizeY%2))
+    X, Y = xp.meshgrid(xp.arange(-size_x//2 + size_x%2, size_x//2+size_x%2), xp.arange(-size_y//2+size_y%2, size_y//2+size_y%2))
     R = xp.sqrt(X**2 + Y**2)
 
-    filter = xp.zeros((sizeX, sizeY), dtype=xp.float32)
+    filter = xp.zeros((size_x, size_y), dtype=xp.float32)
     filter[R <= radiusCutoff] = 1
 
     return filter
 
-def ellipse_filter(sizeX, sizeY, radiusCutoffX, radiusCutoffY):
+def ellipse_filter(size_x, size_y, radiusCutoffX, radiusCutoffY):
     """
     circleFilter: NEEDS Documentation
-    @param sizeX: NEEDS Documentation
-    @param sizeY: NEEDS Documentation
+    @param size_x: NEEDS Documentation
+    @param size_y: NEEDS Documentation
     @param radiusCutoff: NEEDS Documentation
     """
-    X, Y = xp.meshgrid(xp.arange(-sizeY//2+sizeY%2, sizeY//2+sizeY%2), xp.arange(-sizeX//2 + sizeX%2, sizeX//2+sizeX%2))
+    X, Y = xp.meshgrid(xp.arange(-size_y//2+size_y%2, size_y//2+size_y%2), xp.arange(-size_x//2 + size_x%2, size_x//2+size_x%2))
     R = xp.sqrt((X/radiusCutoffX)**2 + (Y/radiusCutoffY)**2)
 
-    filter = xp.zeros((sizeX, sizeY), dtype=xp.float32)
+    filter = xp.zeros((size_x, size_y), dtype=xp.float32)
     #print(filter.shape, R.shape)
     filter[R <= 1] = 1
 
     return filter
 
-def ramp_filter(sizeX, sizeY, crowtherFreq=None, N=None):
+def ramp_filter(size_x, size_y, crowtherFreq=None, N=None):
     """
     rampFilter: Generates the weighting function required for weighted backprojection - y-axis is tilt axis
 
-    @param sizeX: size of weighted image in X
-    @param sizeY: size of weighted image in Y
+    @param size_x: size of weighted image in X
+    @param size_y: size of weighted image in Y
     @param crowtherFreq: size of weighted image in Y
     @return: filter volume
 
     """
-    if crowtherFreq is None: crowtherFreq = sizeX//2
+    if crowtherFreq is None: crowtherFreq = size_x//2
     N = 0 if N is None else 1/N
 
-    rampLine = xp.abs(xp.arange(-sizeX//2, sizeX//2)) / crowtherFreq + N
-    # should be: rampLine = xp.abs(xp.arange(-sizeX // 2, sizeX // 2)) / crowtherFreq + N
+    rampLine = xp.abs(xp.arange(-size_x//2, size_x//2)) / crowtherFreq + N
+    # should be: rampLine = xp.abs(xp.arange(-size_x // 2, size_x // 2)) / crowtherFreq + N
     rampLine[rampLine > 1] = 1
 
-    rampfilter = xp.column_stack(([(rampLine), ] * (sizeY)))
+    rampfilter = xp.column_stack(([(rampLine), ] * (size_y)))
 
     return rampfilter
 
@@ -814,8 +814,8 @@ def exact_filter(tilt_angles, tiltAngle, sX, sY, sliceWidth, arr=[]):
     Reference : Optik, Exact filters for general geometry three dimensional reconstuction, vol.73,146,1986.
     @param tilt_angles: list of all the tilt angles in one tilt series
     @param titlAngle: tilt angle for which the exact weighting function is calculated
-    @param sizeX: size of weighted image in X
-    @param sizeY: size of weighted image in Y
+    @param size_x: size of weighted image in X
+    @param size_y: size of weighted image in Y
 
     @return: filter volume
 

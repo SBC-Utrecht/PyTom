@@ -189,7 +189,7 @@ def meanValueUnderMask(volume, mask=None, p=None):
         resV = volume*mask
         res = sum(resV)/p
     else:
-        res = sum(volume)/(volume.sizeX()*volume.sizeY()*volume.sizeZ())
+        res = sum(volume)/(volume.size_x()*volume.size_y()*volume.size_z())
     
     return res
 
@@ -215,10 +215,10 @@ def stdValueUnderMask(volume, mask, meanValue, p=None):
         if not p:
             p = sum(mask)
     else:
-        p = volume.sizeX()*volume.sizeY()*volume.sizeZ()
+        p = volume.size_x()*volume.size_y()*volume.size_z()
     
     squareM = meanValue**2
-    squareV = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+    squareV = vol(volume.size_x(), volume.size_y(), volume.size_z())
     squareV.copyVolume(volume)
     power(squareV, 2)
     res = meanValueUnderMask(squareV, mask, p)
@@ -275,11 +275,11 @@ def stdUnderMask(volume, mask, p, meanV):
     from pytom.basic.fourier import fft, ifft, iftshift
     from pytom.lib.pytom_volume import vol, power, limit
     
-    copyV = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+    copyV = vol(volume.size_x(), volume.size_y(), volume.size_z())
     copyV.copyVolume(volume)
     power(copyV, 2)  #calculate the square of the volume
     
-    copyMean = vol(meanV.sizeX(), meanV.sizeY(), meanV.sizeZ())
+    copyMean = vol(meanV.size_x(), meanV.size_y(), meanV.size_z())
     copyMean.copyVolume(meanV)
     power(copyMean, 2)
 
@@ -317,17 +317,17 @@ def flcf(volume, template, mask=None, std_v=None, wedge=1):
     if volume.__class__ != vol and template.__class__ != vol:
         raise RuntimeError('Wrong input type!')
     
-    if volume.sizeX()<template.sizeX() or volume.sizeY()<template.sizeY() or volume.sizeZ()<template.sizeZ():
+    if volume.size_x()<template.size_x() or volume.size_y()<template.size_y() or volume.size_z()<template.size_z():
         raise RuntimeError('Template size is bigger than the target volume')
 
     # generate the mask 
     if mask.__class__ != vol:
         from pytom.lib.pytom_volume import initSphere
-        mask = vol(template.sizeX(), template.sizeY(), template.sizeZ())
+        mask = vol(template.size_x(), template.size_y(), template.size_z())
         mask.setAll(0)
-        initSphere(mask, template.sizeX()/2,0,0,template.sizeX()/2, template.sizeY()/2, template.sizeZ()/2)
+        initSphere(mask, template.size_x()/2,0,0,template.size_x()/2, template.size_y()/2, template.size_z()/2)
     else:
-        if template.sizeX()!=mask.sizeX() and template.sizeY()!=mask.sizeY() and template.sizeZ()!=mask.sizeZ():
+        if template.size_x()!=mask.size_x() and template.size_y()!=mask.size_y() and template.size_z()!=mask.size_z():
             raise RuntimeError('Template and mask size are not consistent!')
     
     # calculate the non-zeros
@@ -342,14 +342,14 @@ def flcf(volume, template, mask=None, std_v=None, wedge=1):
 
     # construct both the template and the mask which has the same size as target volume
     tempV = temp
-    if volume.sizeX() != temp.sizeX() or volume.sizeY() != temp.sizeY() or volume.sizeZ() != temp.sizeZ():
-        tempV = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+    if volume.size_x() != temp.size_x() or volume.size_y() != temp.size_y() or volume.size_z() != temp.size_z():
+        tempV = vol(volume.size_x(), volume.size_y(), volume.size_z())
         tempV.setAll(0)
         pasteCenter(temp, tempV)
     
     maskV = mask
-    if volume.sizeX() != mask.sizeX() or volume.sizeY() != mask.sizeY() or volume.sizeZ() != mask.sizeZ():
-        maskV = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+    if volume.size_x() != mask.size_x() or volume.size_y() != mask.size_y() or volume.size_z() != mask.size_z():
+        maskV = vol(volume.size_x(), volume.size_y(), volume.size_z())
         maskV.setAll(0)
         pasteCenter(mask, maskV)
     
@@ -391,7 +391,7 @@ def band_cc(volume,reference,band,verbose = False):
     vf = bandpassFilter(volume,band[0],band[1],fourierOnly=True)
     rf = bandpassFilter(reference,band[0],band[1],vf[1],fourierOnly=True)
     
-    ccVolume = pytom_volume.vol_comp(rf[0].sizeX(),rf[0].sizeY(),rf[0].sizeZ())
+    ccVolume = pytom_volume.vol_comp(rf[0].size_x(),rf[0].size_y(),rf[0].size_z())
     ccVolume.copyVolume(rf[0])
     
     pytom_volume.conj_mult(ccVolume,vf[0])
@@ -459,11 +459,11 @@ def weighted_xcc(volume,reference,number_of_bands,wedge_angle=-1):
         freference.shiftscale(0,1/float(numelem))
         from pytom.basic.structures import WedgeInfo
         wedge = WedgeInfo(wedge_angle)
-        wedgeVolume = wedge.returnWedgeVolume(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        wedgeVolume = wedge.returnWedgeVolume(volume.size_x(),volume.size_y(),volume.size_z())
         
-        increment = int(volume.sizeX()/2 * 1/number_of_bands)
+        increment = int(volume.size_x()/2 * 1/number_of_bands)
         band = [0,100]
-        for i in range(0,volume.sizeX()/2, increment):
+        for i in range(0,volume.size_x()/2, increment):
         
             band[0] = i
             band[1] = i + increment
@@ -543,8 +543,8 @@ def fsc_sum(volume,reference,number_of_bands,wedge_angle=-1):
     for i in range(number_of_bands):
         #process bandCorrelation
         band = []
-        band[0] = i*volume.sizeX()/number_of_bands 
-        band[1] = (i+1)*volume.sizeX()/number_of_bands
+        band[0] = i*volume.size_x()/number_of_bands 
+        band[1] = (i+1)*volume.size_x()/number_of_bands
         
         r = band_cc(fvolume,freference,band)
         cc = r[0]
@@ -623,20 +623,20 @@ def weighted_xcf(volume,reference,number_of_bands,wedge_angle=-1):
     from math import sqrt
     import pytom.lib.pytom_freqweight as pytom_freqweight
 
-    result = pytom_volume.vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+    result = pytom_volume.vol(volume.size_x(),volume.size_y(),volume.size_z())
     result.setAll(0)
-    cc2 = pytom_volume.vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+    cc2 = pytom_volume.vol(volume.size_x(),volume.size_y(),volume.size_z())
     cc2.setAll(0)
     q = 0
     
     if wedge_angle >=0:
-        wedgeFilter = pytom_freqweight.weight(wedge_angle,0,volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        wedgeFilter = pytom_freqweight.weight(wedge_angle,0,volume.size_x(),volume.size_y(),volume.size_z())
         wedgeVolume = wedgeFilter.getWeightVolume(True)
     else:
-        wedgeVolume = pytom_volume.vol(volume.sizeX(), volume.sizeY(), int(volume.sizeZ()/2+1))
+        wedgeVolume = pytom_volume.vol(volume.size_x(), volume.size_y(), int(volume.size_z()/2+1))
         wedgeVolume.setAll(1.0)
         
-    w = sqrt(1/float(volume.sizeX()*volume.sizeY()*volume.sizeZ()))
+    w = sqrt(1/float(volume.size_x()*volume.size_y()*volume.size_z()))
     
     numberVoxels = 0
     
@@ -645,8 +645,8 @@ def weighted_xcf(volume,reference,number_of_bands,wedge_angle=-1):
         notation according Steward/Grigorieff paper
         """
         band = [0,0]
-        band[0] = i*volume.sizeX()/number_of_bands 
-        band[1] = (i+1)*volume.sizeX()/number_of_bands
+        band[0] = i*volume.size_x()/number_of_bands 
+        band[1] = (i+1)*volume.size_x()/number_of_bands
         
         r = band_cf(volume,reference,band)
         
@@ -728,9 +728,9 @@ def fsc(volume1,volume2,number_bands,mask=None,verbose=False, filename=None):
     if type(number_bands) == tuple:
         number_bands = tuple[0]
     
-    increment = int(volume1.sizeX()/2 * 1/number_bands)
+    increment = int(volume1.size_x()/2 * 1/number_bands)
     
-    for i in range(0,volume1.sizeX()//2, increment):
+    for i in range(0,volume1.size_x()//2, increment):
         
         band[0] = i
         band[1] = i + increment
@@ -835,9 +835,9 @@ def sub_pixel_peak_parabolic(score_volume, coordinates, verbose=False):
     """
     from pytom.lib.pytom_volume import vol
     assert type(score_volume) == vol, "score_volume must be vol!"
-    if (coordinates[0] == 0 or coordinates[0] == score_volume.sizeX()-1 or
-                coordinates[1] == 0 or coordinates[1] == score_volume.sizeY()-1 or
-                coordinates[2] == 0 or coordinates[2] == score_volume.sizeZ()-1 ):
+    if (coordinates[0] == 0 or coordinates[0] == score_volume.size_x()-1 or
+                coordinates[1] == 0 or coordinates[1] == score_volume.size_y()-1 or
+                coordinates[2] == 0 or coordinates[2] == score_volume.size_z()-1 ):
         if verbose:
             print("sub_pixel_peak_parabolic: peak near borders - no interpolation done")
         return [score_volume.getV(coordinates[0], coordinates[1], coordinates[2]), coordinates]
@@ -848,7 +848,7 @@ def sub_pixel_peak_parabolic(score_volume, coordinates, verbose=False):
     (y, p2, a2) = qint(ym1=score_volume.getV(coordinates[0], coordinates[1]-1, coordinates[2]), 
                      y0=score_volume.getV(coordinates[0], coordinates[1], coordinates[2]), 
                      yp1=score_volume.getV(coordinates[0], coordinates[1]+1, coordinates[2]))
-    if score_volume.sizeZ() != 1:
+    if score_volume.size_z() != 1:
         (z, p3, a3) = qint(ym1=score_volume.getV(coordinates[0], coordinates[1], coordinates[2]-1), 
                          y0=score_volume.getV(coordinates[0], coordinates[1], coordinates[2]), 
                          yp1=score_volume.getV(coordinates[0], coordinates[1], coordinates[2]+1))
@@ -912,17 +912,17 @@ def sub_pixel_peak(score_volume, coordinates, cube_length=8, interpolation='Spli
   
     #extend function for 2D
     twoD = False
-    if score_volume.sizeZ() == 1:
+    if score_volume.size_z() == 1:
         twoD = True
 
     cubeStart = cube_length//2
-    sizeX = score_volume.sizeX()
-    sizeY = score_volume.sizeY()
-    sizeZ = score_volume.sizeZ()
+    size_x = score_volume.size_x()
+    size_y = score_volume.size_y()
+    size_z = score_volume.size_z()
     
     if twoD:
         if (coordinates[0]-cubeStart < 1 or coordinates[1]-cubeStart < 1) or\
-            (coordinates[0]-cubeStart + cube_length >= sizeX or coordinates[1]-cubeStart + cube_length >= sizeY):
+            (coordinates[0]-cubeStart + cube_length >= size_x or coordinates[1]-cubeStart + cube_length >= size_y):
             if verbose:
                 print ("SubPixelPeak: position too close to border for sub-pixel")
             return [score_volume(coordinates[0],coordinates[1],coordinates[2]),coordinates]
@@ -930,8 +930,8 @@ def sub_pixel_peak(score_volume, coordinates, cube_length=8, interpolation='Spli
         subVolume = subvolume(score_volume,coordinates[0]-cubeStart,coordinates[1]-cubeStart,0,cube_length,cube_length,1)
     else:
         if (coordinates[0]-cubeStart < 1 or coordinates[1]-cubeStart < 1 or coordinates[2]-cubeStart < 1) or \
-                (coordinates[0]-cubeStart + cube_length >= sizeX or coordinates[1]-cubeStart + cube_length >= sizeY or \
-                 coordinates[2]-cubeStart + cube_length >= sizeZ):
+                (coordinates[0]-cubeStart + cube_length >= size_x or coordinates[1]-cubeStart + cube_length >= size_y or \
+                 coordinates[2]-cubeStart + cube_length >= size_z):
             if verbose:
                 print ("SubPixelPeak: position too close to border for sub-pixel")
             return [score_volume(coordinates[0],coordinates[1],coordinates[2]),coordinates]
@@ -967,8 +967,8 @@ def sub_pixel_peak(score_volume, coordinates, cube_length=8, interpolation='Spli
         peakCoordinates[2] = 0
     else:
         peakCoordinates[2] = peakCoordinates[2]*scaleRatio - cubeStart + coordinates[2]
-    if ( peakCoordinates[0] > score_volume.sizeX() or peakCoordinates[1] > score_volume.sizeY() or
-            peakCoordinates[2] > score_volume.sizeZ() ):
+    if ( peakCoordinates[0] > score_volume.size_x() or peakCoordinates[1] > score_volume.size_y() or
+            peakCoordinates[2] > score_volume.size_z() ):
         if verbose:
             print ("SubPixelPeak: peak position too large :( return input value")
         #something went awfully wrong here. return regular value 
