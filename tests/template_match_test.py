@@ -8,14 +8,16 @@ only_run_cpu = False
 if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
     only_run_cpu = True
 else:
-    os.environ['PYTOM_GPU'] = '0'
+    if os.environ.get("PYTOM_GPU", None) is None:
+        os.environ['PYTOM_GPU'] = '0'
 
     from pytom.gpu.initialize import device
 
     if 'gpu' not in device:
         print('WARNING! GPU support could not be loaded for template matching unittest, only running CPU TM test.')
         only_run_cpu = True
-
+    else:
+        gpuID = int(device.split(':')[-1])
 
 # Remaining imports need to be done after setting GPU env variable:
 # * otherwise numpy/cupy backend and the device are globally set before the GPU env variable is specified
@@ -92,7 +94,7 @@ class PytomTempMatchTest(unittest.TestCase):
 
         # start gpu template matching
         scores, angles, _, _ = templateMatchingGPU(volume, template, rotations, mask=mask, maskIsSphere=True,
-                                                   wedgeInfo=wedge, gpuID=0)
+                                                   wedgeInfo=wedge, gpuID=gpuID)
 
         ind = np.unravel_index(scores.argmax(), scores.shape)
         angle = rotations[int(angles[ind])]

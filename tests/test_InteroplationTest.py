@@ -4,6 +4,7 @@ import pytom.voltools as vt
 import time
 from pytom.lib.pytom_volume import vol, transform, transformCubic, transformSpline, transformFourierSpline, variance
 from pytom.agnostic.interpolation import fill_values_real_spline, fill_values_real_spline_parallel
+from pytom.gpu.initialize import device
 
 
 def print_warning():
@@ -99,9 +100,9 @@ class pytom_InterpolationTest(unittest.TestCase):
 
         for name in self.vt_interpolation:
             vt.transform(box, rotation=self.forward, rotation_order=self.order, center=self.center, output=box_rot,
-                         device='gpu:0', interpolation=name)
+                         device=device, interpolation=name)
             vt.transform(box_rot, rotation=self.backward, rotation_order=self.order, center=self.center, output=box_org,
-                         device='gpu:0', interpolation=name)
+                         device=device, interpolation=name)
             print(f'variance for vt {name} interpolation on gpu: {(box - box_org).var()}')
             self.assertTrue(expr=(box - box_org).var() < self.eps,
                             msg=f"point box after forward backward rotation differs too much for vt gpu {name}")
