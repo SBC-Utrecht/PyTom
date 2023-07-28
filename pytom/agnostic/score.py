@@ -450,7 +450,7 @@ class FLCFScore(Score):
         @param value: Current value of score
         """
         from pytom.agnostic.correlation import flcf
-        self.ctor(flcf, self.coefFnc, Vol_G_Val
+        self.ctor(flcf, self.coefFnc, Vol_G_Val)
         self._type = 'FLCFScore'
 
         # if value and (isinstance(value, (int, long)) or value.__class__ == float):
