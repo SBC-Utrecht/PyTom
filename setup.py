@@ -10,7 +10,8 @@ from pytom import __version__
 
 def find_executables():
     bin_folder = pathlib.Path('pytom/bin')
-    executables = [str(path) for path in bin_folder.iterdir() if path.is_file() and '__' not in path.name]
+    # exclude entry points as well
+    executables = [str(path) for path in bin_folder.iterdir() if path.is_file() and '__' not in path.name and path.name != "coords2PL.py"]
     return executables + [str(bin_folder.joinpath(f)) for f in ['pytom', 'ipytom', 'pytomGUI']]
 
 
@@ -68,5 +69,7 @@ setup(
         'all': ['cupy', 'PyQt5', 'pyqtgraph', 'mrcfile']},
     cmdclass={'install': PyTomInstaller,
               'develop': PyTomDeveloper},
-    scripts=find_executables())
+    scripts=find_executables(),
+    entry_points={'console_scripts': ['coords2PL.py = pytom.convert.coords2PL:entry_point']}
+    )
 

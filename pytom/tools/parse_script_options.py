@@ -7,6 +7,9 @@ Created on Jun 29, 2011
 import sys
 from pytom.tools.files import checkFileExists, checkDirExists
 
+class RequiredError(Exception):
+    pass
+
 def parse_script_options(args, helper):
     """
     parse script options
@@ -40,7 +43,7 @@ def parse_script_options(args, helper):
                 else:
                     opt_str += name[1]
             else:
-                raise Exception("Option format invalid: %s" % name)
+                raise ValueError("Option format invalid: %s" % name)
     
     try:
         opts, args = getopt.getopt(args, opt_str, long_opt)
@@ -58,7 +61,7 @@ def parse_script_options(args, helper):
 
     for i,_ in enumerate(res):
         if res[i] is None and not helper.options[i].optional:
-            raise Exception("Required flag not passed, use any of the following: " + " ".join(helper.options[i].option_str))
+            raise RequiredError("Required flag not passed, use any of the following: " + " ".join(helper.options[i].option_str))
 
     return res
 
