@@ -704,7 +704,6 @@ class CommonFunctions():
     def insert_gen_text_exe(self, parent, mode, action='', paramsAction=[], paramsXML=[], paramsCmd=[],
                             paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, gpu=False,
                             queue=True, cs=3, mandatory_fill=[]):
-
         if not queue:
             self.insert_label_action(parent, 'Generate command', cstep=1, rstep=-1, sizepolicy=self.sizePolicyB,
                                            action=self.gen_action, wname=mode + 'GeneratePushButton',
@@ -743,7 +742,6 @@ class CommonFunctions():
                                                    action, paramsAction, mode])
 
     def exe_action(self, params):
-
         mode = params[6]
         if not self.widgets[mode + 'ExecutePushButton'].isEnabled():
             return
@@ -5931,50 +5929,99 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
         self.items = [['', ] * columns, ] * rows
         w = 170
 
-        self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB, width=400 )
+        self.insert_label(parent,cstep=0,sizepolicy=self.sizePolicyB, width=400 )
         self.insert_label_line_push(parent, 'Input file', wname=mode+'InputFile',width=w, initdir=self.tomogramfolder,
                                     tooltip='Select the tomogram file used for template matching.',
                                     filetype=['mrc', 'em', 'rec', 'st', 'log', 'txt', 'star', 'meta', 'xml'], mode='file')
         self.insert_label_line_push(parent,'Folder With Files', mode +'InputFolder',width=w,
                                     tooltip='Select the file where the sorted tiltimages are located.\n')
         self.insert_label_line_push(parent,'Output/Target Folder', mode +'TargetFolder',
-                                    'Select the folder where theoutput file(s) are saved.\n',width=w)
-        self.insert_label_line(parent, 'Prefix Query (Optional)', mode + 'PrefixQuery',
-                                    'With what symbols do the file names begin.\n',width=w)
-        self.insert_label_line(parent, 'Suffix Query (Optional)', mode + 'SuffixQuery',
-                                    'What do the filenames end with.\n',width=w)
+                                    'Select the folder where the output file(s) are saved.\n',width=w)
         self.insert_label_combobox(parent,'Output file type',mode+'OutputType',
                                    labels=['em', 'mrc', 'rec', 'st', 'txt', 'meta', 'log', 'star', 'xml'],
                                    tooltip='Select the file type of the output file',
                                    width=w,cstep=-1)
         self.insert_label_line(parent, 'Output Name (Optional)', mode + 'OutputName',
                                'What is the file name off your output file (Optional).\n',width=w)
+        self.insert_label_line(parent, 'Chain Data (Optional)', mode + 'ChainData',
+                               'Data needed for conversion from the special formats (pdb and mmCIF), \n'
+                               'in the format pixelsSize,cubeSize,invertDensity,chain (invertDensity is 1 or 0) (Optional).\n',
+                               width=w)
+        self.insert_label_line(parent, 'Prefix (Optional)', mode + 'Prefix',
+                                    'Data needed for the conversion from coordinates to a particle list.\n'
+                                    'Path and filename for subtomogram files (e.g., MyPath/particle_).\n',width=w)
         self.insert_label_line(parent, 'Wedge Angle(s) (Optional)', mode + 'WedgeAngles',
                                'What are the wedge_angles. Example: 30 or 30,30.\n',width=w)
+        self.insert_label_line(parent, 'Prefix Query (Optional)', mode + 'PrefixQuery',
+                                    'With what symbols do the file names begin.\n',width=w)
+        self.insert_label_line(parent, 'Suffix Query (Optional)', mode + 'SuffixQuery',
+                                    'What do the filenames end with.\n',width=w)
         self.insert_label_spinbox(parent, mode + 'PixelSize', 'Pixel Size (A)',
                                   wtype=QDoubleSpinBox, minimum=0.1, stepsize=0.1, value=1.0)
-        self.insert_label_line_push(parent, 'Alignment result file IMOD (.xf)', wname=mode+'AlignXF',width=w, initdir=self.tomogramfolder,
-                                    tooltip='Select the tomogram file used for template matching.',
-                                    filetype=['xf'], mode='file')
-        self.insert_label_line_push(parent, 'Folder Sorted Images', wname=mode+'SortedFolder',width=w, initdir=self.tomogramfolder,
-                                    tooltip='Select the fodler with sorted images used for reconstruction.', mode='folder', cstep=-1)
+        self.insert_label_spinbox(parent, mode + 'BinPytom', 'Linear binning factor for PyTom tomograms',
+                                  wtype=QSpinBox, minimum=1, value=1)
+        self.insert_label_spinbox(parent, mode + 'BinWarpM', 'Linear binning factor for warp/m volumes',
+                                  wtype=QSpinBox, minimum=1, value=1)
+        self.insert_label_line_push(parent,'Tilt file (optional)', mode +'TltFile',
+                                    'Select .tlt file or .rawtlt in case tile angles have not been optimized during alignment.\n',
+                                    filetype=['tlt','rawtlt'], mode='file',
+                                    width=w)
+        self.insert_label_line_push(parent, 'Folder Sorted Images (optional)', wname=mode+'SortedFolder',width=w, initdir=self.tomogramfolder,
+                                    tooltip='Select the folder with sorted images used for reconstruction.', mode='folder')
+        self.insert_label_line(parent, 'RELION voltage (Optional)', wname=mode + 'RlnVoltage',
+                               tooltip='Voltage for relion3 starfiles.',width=w)
 
+        #cstep needed here (last item) to align the generate box
+        self.insert_label_line(parent, 'RELION spherical aberration (Optional)', wname=mode + 'RlnSphericalAberration',
+                               tooltip='Spherical aberration for relion3 starfiles.',width=w, cstep=1) 
+ 
         self.flags_dict = {}
-        for name, flag in (('InputFile', '-f'), ('InputFolder', '-d'), ('PrefixQuery', '--prefixQuery'),
-                           ('SuffixQuery', '--suffixQuery'), ('OutputName', '--outname'),
-                           ('WedgeAngles', '--wedge_angles'), ('AlignXF', '--alignxf'),
-                           ('SortedFolder', '--sortedFolder')):
+        # Mimic pytom/bin/convert.py in order
+        for name, flag in (('InputFile', '-f'),
+                           ('InputFolder', '-d'),
+                           ('OutputType', '-o'),
+                           ('OutputName', '--outname'),
+                           ('ChainData', '-c'),
+                           ('Prefix', '-s'),
+                           ('WedgeAngles', '-w'),
+                           ('PrefixQuery', '--prefixQuery'),
+                           ('SuffixQuery', '--suffixQuery'),
+                           ('PixelSize', '--pixelSize'),
+                           ('BinPytom', '--binPyTom'),
+                           ('BinWarpM', '--binWarpM'),
+                           ('TltFile', '--tlt-file'),
+                           ('SortedFolder', '--sortedFolder'),
+                           ('RlnVoltage', '--rln-voltage'),
+                           ('RlnSphericalAberration', '--rln-spherical-aberration'),
+                           ):
             self.widgets[mode + 'flag' + name] = QLineEdit()
-            self.widgets[mode + name].textChanged.connect(lambda dummy, m=mode, ff=flag, nn=name: self.updateFlag(m, ff, nn))
+            if hasattr(self.widgets[mode + name], 'textChanged'):
+                self.widgets[mode + name].textChanged.connect(lambda dummy, m=mode, ff=flag, nn=name: self.updateFlag(m, ff, nn))
+            else: #Got QComboBox widget instead
+                 self.widgets[mode + name].currentTextChanged.connect(lambda dummy, m=mode, ff=flag, nn=name: self.updateFlag(m, ff, nn))
             self.updateFlag(mode, flag, name)
 
         execfilename = [mode + 'TargetFolder', 'convert.sh']
 
         paramsSbatch = guiFunctions.createGenericDict(fname='ConvertData', folder=self.logfolder)
-        paramsCmd    = [mode + 'TargetFolder', mode + 'flagInputFile', mode + 'flagInputFolder',
-                        mode + 'flagPrefixQuery', mode + 'flagSuffixQuery', mode + 'OutputType',
-                        mode + 'flagOutputName', mode + 'PixelSize', mode + 'flagAlignXF',
-                        mode + 'flagSortedFolder', mode + 'flagWedgeAngles', templateConvertData]
+        paramsCmd    = [mode + 'TargetFolder', 
+                        mode + 'flagInputFile',
+                        mode + 'flagInputFolder',
+                        mode + 'flagOutputType',
+                        mode + 'flagOutputName',
+                        mode + 'flagChainData',
+                        mode + 'flagPrefix',
+                        mode + 'flagWedgeAngles',
+                        mode + 'flagPrefixQuery',
+                        mode + 'flagSuffixQuery',
+                        mode + 'flagPixelSize',
+                        mode + 'flagBinPytom',
+                        mode + 'flagBinWarpM',
+                        mode + 'flagTltFile',
+                        mode + 'flagSortedFolder',
+                        mode + 'flagRlnVoltage',
+                        mode + 'flagRlnSphericalAberration',
+                        templateConvertData]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch = paramsSbatch,
                                  paramsCmd=paramsCmd, mandatory_fill = [mode + 'TargetFolder'])
@@ -5984,7 +6031,10 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
 
 
     def updateFlag(self, mode, flag, name):
-        a = self.widgets[mode + name].text()
+        if hasattr(self.widgets[mode + name], 'text'):
+            a = self.widgets[mode + name].text()
+        else:  # QComboBox instead
+            a = self.widgets[mode + name].currentText()
         if a:
             self.widgets[mode+'flag'+name].setText(f'{flag} {a} ')
         else:

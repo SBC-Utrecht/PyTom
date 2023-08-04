@@ -325,8 +325,7 @@ templateAverageParticleList = '''cd {d[0]}
 
 average.py -p {d[2]} -a {d[3]} -c {d[4]} {d[5]}'''
 
-
+# Hardcoded length for now due to str.format not allowing list slicing
 templateConvertData = '''cd {d[0]}
 
-convert.py -t ./ {d[1]}{d[2]}{d[3]}{d[4]} -o {d[5]} {d[6]} --pixelSize {d[7]} \\
-{d[8]}{d[9]}{d[10]}'''
+convert.py -t ./ ''' + ' '.join(f'{{d[{i}]}}' for i in range(1, 17))
