@@ -1,4 +1,7 @@
 import os
+import subprocess
+import shutil
+from pathlib import Path
 import numpy as np
 import mrcfile
 import copy
@@ -472,8 +475,7 @@ def avail_gpu(cutoff_busy=.25, cutoff_space = 0.5):
     @param cutoff_space: fraction of memeory of GPU available
     @return: list of gpu indices of available gpus
     '''
-    lines = [line.split() for line in os.popen('nvidia-smi').readlines()]
-
+    lines = [line.split() for line in subprocess.run(['nvidia-smi'], capture_output=True, text=True).stdout.splitlines()]
     list_gpu, available_gpu = [],[]
     busy_list = []
     for n, line in enumerate(lines):
@@ -585,8 +587,7 @@ def batch_tilt_alignment( fnames_tomograms='', projectfolder='.', num_procs=[], 
     Each job calculates the tilt aligment for each marker in a markerfile.
     It divides the number or jobs with respect to the num_procs.'''
     # TODO check if this function even works...
-
-    pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
+    pytompath = Path(shutil.which('pytom')).parents[1]
     num_submitted_jobs = 0
     for n in range(len(num_procs)-1):
         cmd = multiple_alignment.format( d=(projectfolder, pytompath, num_procs[n], num_procs[n+1], num_procs_per_proc,
@@ -934,7 +935,10 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
                     #    data = imread( os.path.join(nanographfolder,k) )
                     #    size[tomoname] = np.min(data.shape)
                     #except:
-                    aa = os.popen('header {} | grep "Number of columns, rows, sections" '.format( os.path.join(nanographfolder,k) )).read()[:-1]
+                    aa = subprocess.run(
+                            [f'header {os.path.join(nanographfolder, k)} | grep "Number of columns, rows, sections'],
+                            shell=True, capture_output=True, text=True
+                            ).stdout[:-1]
                     dd = list(map(int, aa.split()[-3:-1]))
                     size[tomoname] = np.min(dd)
 

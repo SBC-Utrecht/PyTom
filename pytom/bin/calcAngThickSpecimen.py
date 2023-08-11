@@ -21,10 +21,11 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=1)
     from pytom.agnostic.transform import resize
     import sys
     import os
+    import subprocess
 
     if verbose:
         print(fname)
-    folder = os.path.dirname(os.popen(f'ls -alrt {fname}').read().split()[-1])
+    folder = os.path.dirname(subprocess.run(['ls', '-alrt', fname], capture_output=True, text=True).stdout.split()[-1])
     print(folder)
     data = read(fname)
     if binning != 1:
@@ -54,11 +55,12 @@ def calculate_angle_thickness_specimen(fname, radius=5, verbose=True, binning=6,
     from pytom.agnostic.transform import resize
     import sys
     import os
+    import subprocess
 
 
     if verbose:
         print(fname)
-    folder = os.path.dirname(os.popen(f'ls -alrt {fname}').read().split()[-1])
+    folder = os.path.dirname(subprocess.run(['ls', '-alrt', fname], capture_output=True, text=True).stdout.split()[-1])
     print(folder)
     data = read(fname)
 

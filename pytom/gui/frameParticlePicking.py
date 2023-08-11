@@ -1,4 +1,5 @@
 import os
+import subprocess
 import random
 import glob
 import numpy
@@ -437,7 +438,10 @@ class ParticlePick(GuiTabWidget):
         angleLists = os.listdir(os.path.join(self.pytompath, 'angles/angleLists'))
         for n, tomogramFile in enumerate(self.tomogramlist):
             try:
-                folder = os.path.dirname(os.popen(f'ls -alrt {tomogramFile}').read()[:-1].split(' ')[-1])
+                folder = os.path.dirname(
+                    subprocess.run(['ls', '-alrt', tomogramFile], capture_output=True, text=True
+                        ).stdout[:-1].split(' ')[-1]
+                    )
                 widthfile = os.path.join(folder, 'z_limits.txt')
                 if os.path.exists( widthfile):
 
@@ -1176,7 +1180,10 @@ class ParticlePick(GuiTabWidget):
         self.widgets[mode + 'jobName'].setText(self.xmlfilename)
 
         try:
-            folder = os.path.dirname(os.popen(f'ls -alrt {self.widgets[mode+"tomoFname"].text()}').read()[:-1].split(' ')[-1])
+            folder = os.path.dirname(
+                    subprocess.run(['ls', '-alrt', f'{self.widgets[mode+"tomoFname"].text()}'],
+                        capture_output=True, text=True
+                        ).stdout[:-1].split(' ')[-1])
             widthfile = os.path.join(folder, 'z_limits.txt')
             if os.path.exists(widthfile):
                 start, end = map(int, list(numpy.loadtxt(widthfile)))

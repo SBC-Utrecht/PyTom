@@ -4,12 +4,13 @@
     FF Jan 2013
 """
 from pytom.basic.structures import ParticleList, Rotation
-
 from copy import deepcopy
 import random
 import numpy
 from pytom.lib.pytom_volume import read
 from pytom.lib.pytom_numpy import vol2npy
+from pathlib import Path
+import shutil
 import os
 
 
@@ -86,8 +87,8 @@ def entry_point():
 
     if r:
         if not angleList:
-            pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
-            angleList = os.path.join(pytompath, 'angles/angleLists/angles_18_3040.em')
+            pytompath = Path(shutil.which('pytom')).parents[1]
+            angleList = pytompath / 'angles/angleLists/angles_18_3040.em'
 
     if angleList:
         if not os.path.exists(angleList):

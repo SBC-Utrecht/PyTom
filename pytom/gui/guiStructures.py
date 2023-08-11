@@ -779,9 +779,9 @@ class CommonFunctions():
             exefile.close()
 
             if self.widgets[mode+'queue'].isChecked():
-                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
+                dd = subprocess.run([self.qcommand, exefilename], text=True, capture_output=True)
                 print('Submitted')
-                text = dd.read()[:-1]
+                text = dd.stdout[:-1]
                 id = text.split()[-1]
                 self.popup_messagebox('Info','Submitted job to the queue', text)
 
@@ -823,7 +823,12 @@ class CommonFunctions():
     def countNumberOfParticles(self, wname):
         filename = self.widgets[wname].text()
         if filename and os.path.exists(filename):
-            numberParticles = os.popen(f'grep Shift {filename} | wc -l').read()[:-1]
+            numberParticles = subprocess.run(
+                    [f'grep Shift {filename} | wc -l'],
+                    shell=True,
+                    text=True,
+                    capture_output=True
+                    ).stdout[:-1]
             self.popup_messagebox('Info', 'Number of Particles in ParticleList', f'Number of particles in {os.path.basename(filename)}: {numberParticles}')
 
     def checkLocalJob(self, ID):
@@ -1113,8 +1118,9 @@ class CommonFunctions():
         outjob.close()
 
         if self.checkbox[id].isChecked():
-            dd = os.popen('{} {}'.format(self.qcommand, execfilename))
-            text = dd.read()[:-1]
+            dd = subprocess.run([self.qcommand, execfilename],
+                    shell=True, text=True, capture_output=True)
+            text = dd.stdout[:-1]
             try:
                 ID = text.split()[-1]
             except:
@@ -1174,8 +1180,8 @@ class CommonFunctions():
 
             if queue:
 
-                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
-                text = dd.read()[:-1]
+                dd = subprocess.run([self.qcommand, exefilename], text=True, capture_output=True)
+                text = dd.stdout[:-1]
                 id = text.split()[-1]
                 logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
                 os.system(f'cp {exefilename} {logcopy}')
@@ -1235,7 +1241,7 @@ class CommonFunctions():
 
         qids = qt
 
-        runningJobs = [rid[:-1] for rid in os.popen(" squeue | awk 'NR > 1 {print $1}' ").readlines()]
+        runningJobs = [rid[:-1] for rid in subprocess.run([" squeue | awk 'NR > 1 {print $1}' "], shell=True, text=True, capture_output=True).stdout.splitlines()]
         inQueue = [str(int(qid)) for qid in qids if qid in runningJobs]
         inQueue += [qid[6:] for qid in qids if str(qid).startswith('Local_') and self.localqID[qid[6:]] == 0]
         if len(qt) < num_submitted_jobs:
@@ -3894,9 +3900,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.close()
 
     def setAngle(self):
+        folder = os.path.dirname(subprocess.run(['ls','-alrt', self.tomogram_name], text=True, capture_output=True).stdout.splitlines()[-1])
         try:
-            folder = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
-
             specimen_angle_file = os.path.join(folder, 'specimen_rotation_angle.txt')
             if os.path.exists(specimen_angle_file):
                 angle = float(open(specimen_angle_file,'r').read()[:-1])
@@ -3905,7 +3910,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         except Exception as e:
             print(e)
             angle=0
-        folder = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
         if os.path.exists(os.path.join(folder, 'WBP_Reconstruction.sh')):
             d = open(os.path.join(folder, 'WBP_Reconstruction.sh'), 'r').read()[:-1]
             try:
@@ -3994,7 +3998,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.leftimage.addItem(self.lineL)
             return
         try:
-            tt = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
+            tt = os.path.dirname(subprocess.run(['ls','-alrt', self.tomogram_name], text=True, capture_output=True).stdout.splitlines()[-1])
             self.folder = tt
             zlimitfile = os.path.join(tt, 'z_limits.txt')
 
@@ -4043,7 +4047,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             print('\n\n\n', e)
 
     def save_angle(self):
-        tt = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
+        tt = os.path.dirname(subprocess.run(['ls','-alrt',self.tomogram_name], text=True, capture_output=True).stdout.splitlines()[-1])
         self.folder = tt
         sra_file = os.path.join(tt, 'specimen_rotation_angle.txt')
         if os.path.exists(os.path.join(os.path.dirname(sra_file), 'WBP_Reconstruction.sh')):
@@ -4245,8 +4249,9 @@ class SelectModules(QWidget):
         self.p = parent
 
         q = "module avail --long 2>&1 | awk 'NR >2 {print $1}'"
-        avail = [line for line in os.popen(q).readlines() if not line.startswith('/')
-                 and not line.startswith('shared') and not 'intel' in line]
+        avail = [line for line in subprocess.run([q], shell=True, capture_output=True, text=True).stdout.splitlines() 
+                if not line.startswith('/')
+                and not line.startswith('shared') and not 'intel' in line]
         # only add pytom, imod, and motioncor, rest is contained now in the conda environment
         self.grouped = [mod.strip("\n") for mod in avail if 'motioncor' in mod
                         or 'imod' in mod or 'pytom' in mod or 'python' in mod
@@ -5281,7 +5286,6 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
             values = []
             tomograms = {}
             for logfile in logfiles[::-1]:
-                # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
                 dir = os.path.dirname(logfile)
                 ids = os.path.basename(logfile).split('-')[0]
                 infile = glob.glob(f"{dir}/{ids}_*.sh")
@@ -5396,7 +5400,6 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                     continue
                 for logfile in sorted(glob.glob(
                         f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/alignment/marker*/*/*/logfile*.txt')):
-                    # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
                     logdata = open(logfile, 'r').read()
                     try:
                         ctffolder = f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/ctf/sorted_ctf/'
@@ -5719,7 +5722,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         tooltip = []
         values = []
         added_jobs = []
-        processes = [pid for pid in os.popen(f'''ps -u {getpass.getuser()} -f ''').read().split('\n') if pid]
+        processes = [pid for pid in subprocess.run(['ps', '-u', f'{getpass.getuser()}', '-f'], capture_output=True, text=True).stdout.splitlines() if pid]
 
         self.localJobStrings = {}
         self.pids = []
@@ -5808,7 +5811,12 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
 
         import getpass
         whoami = getpass.getuser()
-        qjobs = [int(line.split()[0]) for line in os.popen(f'squeue -u {whoami} | grep -v JOBID').readlines()]
+        qjobs = [int(line.split()[0]) for line in 
+                subprocess.run([f'squeue -u {whoami} | grep -v JOBID'],
+                    shell=True,
+                    capture_output=True,
+                    text=True
+                    ).stdout.splitlines()]
         added_jobs = []
         for n, logfile in enumerate(self.jobFilesQueue):
             queueId = int(os.path.basename(logfile).split('-')[0])

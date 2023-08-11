@@ -1,4 +1,5 @@
 import os
+import subprocess
 import glob
 import numpy
 import time
@@ -2088,9 +2089,8 @@ class TomographReconstruct(GuiTabWidget):
             exefile.close()
 
             if len(params[1].split('SBATCH')) > 2:
-
-                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
-                text = dd.read()[:-1]
+                dd = subprocess.run([self.qcommand, exefilename], capture_output=True, text=True) 
+                text = dd.stdout[:-1]
                 id = text.split()[-1]
                 logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
                 os.system(f'cp {exefilename} {logcopy}')

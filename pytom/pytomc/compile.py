@@ -158,24 +158,11 @@ else:
     libraryFile,lib_python      = find("libpython" + pythonVersion + dynamicExtension,libPaths)
     lib_pythonFlag  = 'lpython' + pythonVersion
     
-#if include_fftw is None:
-#    
-#    includeNew = os.path.dirname(os.popen('locate fftw3.h').read().split()[0])
-#    if includeNew:
-#        includePaths = [includeNew] + includePaths
-
 includeFile,include_fftw = find("fftw3.h",includePaths)
     
 if include_fftw is None:
     print('FFTW include path not found!')
     exit(1)
-
-libraryFile,lib_fftw = find("libfftw3" + dynamicExtension,libPaths)
-
-#if lib_fftw is None:    
-#    libPathsNew = os.path.dirname(os.popen('locate libfftw3'+dynamicExtension).read().split()[0])
-#    if libPathsNew:
-#        libPaths = [libPathsNew] + libPaths
 
 libraryFile, lib_fftw = find("libfftw3"+ dynamicExtension, libPaths)
 
@@ -193,19 +180,14 @@ if include_boost:
 
 includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
 if include_numpy is None:
-    #includePathsNew = [p for p in os.popen('locate ndarrayobject.h').read().split() if pythonVersion in p]
-    #if includePathsNew:
-    #    includePaths = [includePathsNew] + includePaths
-    #    includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
-    if include_numpy is None:
-        try:
-            import numpy
-            path = os.path.join(numpy.__path__[0], 'core/include/numpy')
-            includePaths = [path] + includePaths
-            includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
-        except Exception as e:
-            print(e)
-            pass
+    try:
+        import numpy
+        path = os.path.join(numpy.__path__[0], 'core/include/numpy')
+        includePaths = [path] + includePaths
+        includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
+    except Exception as e:
+        print(e)
+        pass
 if include_numpy is None:
     print('Numpy include path not found!')
     exit(1)

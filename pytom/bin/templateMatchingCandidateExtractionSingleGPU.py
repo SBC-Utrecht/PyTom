@@ -2,7 +2,8 @@
 
 def getBinningFactorAndReferenceMarker(volumeFileName):
     import os
-    folder = os.path.dirname(os.popen(f'ls -alrt {volumeFileName}').read().split()[-1])
+    import subprocess
+    folder = os.path.dirname(subprocess.run(['ls', '-alrt', volumeFileName], capture_output=True, text=True).stdout.split()[-1])
 
     binning, ref = 8,1
 

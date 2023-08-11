@@ -3456,7 +3456,8 @@ class ParticleList(PyTomClass):
             f.close()
 
     def loadCoordinateFileHeader(self, filename):
-        header = [line.strip('#').split() for line in open(filename, 'r').readlines() if '#' in line]
+        with open(filename, 'r') as f:
+            header = [line.strip('#').split() for line in f.readlines() if '#' in line]
         headerInfo = ['', '', '']
 
         for l in header:

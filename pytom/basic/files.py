@@ -4,6 +4,8 @@ Created on Dec 7, 2010
 @author: hrabe
 """
 import os
+import shutil
+from pathlib import Path
 
 def get_install_folder():
     """
@@ -13,7 +15,7 @@ def get_install_folder():
     @rtype:  L{str}
     """
     import os
-    return os.path.dirname(os.path.dirname(os.popen('which pytom').read()[:-1]))
+    return Path(shutil.which('pytom')).parents[1]
 
 
 def readProxy(fileName, subregion1=0, subregion2=0, subregion3=0,

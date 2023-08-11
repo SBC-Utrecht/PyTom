@@ -3,6 +3,7 @@
 # python basic imports
 import sys
 import os
+import subprocess
 import json
 import subprocess
 
@@ -32,7 +33,9 @@ def update_env_vars(pytompath):
         for search in ('LD_LIBRARY_PATH','PATH','PYTHONPATH'):
             # Check if env vars include all paths set in paths.csh
             query_string = "cat {}/bin/paths.sh | grep 'export {}'".format(pytompath, search, search)
-            string = os.popen(query_string).read()[:-1].split("'")[1]
+            string = subprocess.run(
+                    [query_string], shell=True, capture_output=True, text=True
+                    ).stdout[:-1].split("'")[1]
             for new_lib in (string.split(':')):
                 new_lib = new_lib.replace("'","")
 
@@ -475,7 +478,9 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
         pids = []
 
-        for line in [pid for pid in os.popen(f"""ps -ef""").read().split('\n') if pid]:
+        for line in [pid 
+                for pid in subprocess.run(['ps','-ef'], capture_output=True, text=True).stdout.splitlines() 
+                if pid]:
             p = line.split()
             if p[0] == uid and query in line and p[1] != PID:
                 pids.append(p[1])

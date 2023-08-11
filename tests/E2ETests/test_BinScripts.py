@@ -1,5 +1,6 @@
 import os
 import sys
+import subprocess
 from pytom.agnostic.io import read, write
 import numpy as np
 import unittest
@@ -237,7 +238,8 @@ class pytom_MyFunctionTest(unittest.TestCase):
     def test_lenPL(self):
         fname = merge(self.outdir, 'len.xml')
         self.pl.toXMLFile(fname)
-        self.assertTrue('10' == os.popen(f'lenPL.py -f {fname}').read()[:-1].split()[-1], 'lenPL.py is not functional')
+        result = subprocess.run(['lenPL.py', '-f' , fname], text=True, capture_output=True).stdout
+        self.assertTrue('10' == result[:-1].split()[-1], 'lenPL.py is not functional')
 
     def create_folder(self, fname):
         if not os.path.exists(fname): os.mkdir(fname)

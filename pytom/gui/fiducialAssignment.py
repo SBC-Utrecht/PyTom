@@ -593,8 +593,6 @@ class FiducialAssignment(QMainWindow, CommonFunctions, PickingFunctions ):
 
 
         self.tiltangles = self.metadata['TiltAngle']
-        #cmd = "cat {} | grep TiltAngle | sort -nk3 | awk '{{print $3}}'".format(tiltfile)
-        #self.tiltangles = np.array([float(line) for line in os.popen(cmd).readlines()], dtype=float)
 
         self.excluded = [0,]*len(fnames)
         for n, excl in enumerate(fnames):

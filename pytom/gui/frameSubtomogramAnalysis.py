@@ -789,10 +789,12 @@ class SubtomoAnalysis(GuiTabWidget):
                 if t in base: base = base.split(t)[0] + t
 
             if base + '.mrc' in os.listdir(self.tomogramfolder) or base + '.em' in os.listdir(self.tomogramfolder):
-                if os.path.exists(os.path.join(self.tomogramfolder, base + '.mrc')):
-                    folder = os.popen('ls -alrt {}.mrc'.format(os.path.join(self.tomogramfolder, base))).read()[:-1]
-                elif os.path.exists(os.path.join(self.tomogramfolder, base + '.em')):
-                    folder = os.popen('ls -alrt {}.em'.format(os.path.join(self.tomogramfolder, base))).read()[:-1]
+                temp_mrc = os.path.join(self.tomogramfolder, base + '.mrc')
+                temp_em = os.path.join(self.tomogramfolder, base + '.em')
+                if os.path.exists(temp_mrc):
+                    folder = subprocess.run(['ls','-alrt',temp_mrc], capture_output=True, text=True).stdout[:-1]
+                elif os.path.exists(temp_em):
+                    folder = subprocess.run(['ls','-alrt', temp_em], capture_output=True, text=True).stdout[:-1]
                 else:
                     folder = ''
                 if not folder: continue
@@ -821,8 +823,6 @@ class SubtomoAnalysis(GuiTabWidget):
                         os.path.basename(particleFile)))
                     binning = 8
                     refmarkindex = 1
-                # binning = os.popen('cat {} | grep "--referenceMarkerIndex" '.format(a)).read()[:-1]
-                # print(binning)
                 origin = ['alignment', 'ctf', 'sorted']
                 metafiles = [os.path.join(sor, f) for f in os.listdir(sor) if f.endswith('.meta')] + ['']
 
@@ -1892,8 +1892,8 @@ class SubtomoAnalysis(GuiTabWidget):
         folder = self.widgets[key_outputDir].text()
         if not os.path.exists(folder): os.mkdir(folder)
         output_name = os.path.join( folder, 'average.em')
-
-        out = os.popen('cd {}; average.py -p {} -a {} -c 4'.format(self.subtomodir, particleList, output_name)).read()
+        out = subprocess.run(['average.py', '-p', particleList, '-a', output_name, '-c', '4'], cwd=self.subtomodir,
+                capture_output=True, text=True).stdout
         print(out)
         if not os.path.exists(particleList):
             self.popup_messagebox('Warning', 'Averaging Failed',

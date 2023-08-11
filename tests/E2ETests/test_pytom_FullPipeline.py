@@ -1,6 +1,7 @@
 import unittest
 import shutil
 import os
+import subprocess
 import glob
 import sys
 from pytom.bin.gen_mask import gen_mask_fsc
@@ -568,19 +569,17 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         gen_mask_fsc(read(model), 4, f'{self.projectname}/05_Subtomogram_Analysis/Validation/maskFinalAverage.mrc',
                      1, 3)
 
-        cmd = f'''cd {self.projectname}/05_Subtomogram_Analysis/Validation
-
-        fsc.py  '''
-        cmd += f'--v1 {outdir}/average-Final-Even.em  '
-        cmd += f'--v2 {outdir}/average-Final-Odd.em '
-        cmd += f'--mask {self.projectname}/05_Subtomogram_Analysis/Validation/maskFinalAverage.mrc '
-        cmd += f'--outputFolder {self.projectname}/05_Subtomogram_Analysis/Validation '
-        cmd += f'--fsc 0.143 '
-        cmd += f'--pixelsize 5.24 '
-        cmd += f'--randomizePhases 0.000 '
-        cmd += f'--combinedResolution '
-
-        result = os.popen(cmd).read()
+        cwd = f"{self.projectname}/05_Subtomogram_Analysis/Validation"
+        cmd = ['fsc.py',
+               f'--v1 {outdir}/average-Final-Even.em',
+               f'--v2 {outdir}/average-Final-Odd.em',
+               f'--mask {self.projectname}/05_Subtomogram_Analysis/Validation/maskFinalAverage.mrc',
+               f'--outputFolder {self.projectname}/05_Subtomogram_Analysis/Validation',
+               '--fsc 0.143',
+               '--pixelsize 5.24',
+               '--randomizePhases 0.000',
+               '--combinedResolution']
+        result = subprocess.run(cmd, cwd=cwd, text=True, capture_output=True).stdout
 
         resolution = float(result.split('Resolution determined for pixelsize :')[1].split()[-2])
 
@@ -627,21 +626,20 @@ mrcs2mrc.py -f ctfCorrected.st -t {self.tomoname}/ctf/sorted_ctf -p sorted_ctf -
         gen_mask_fsc(read(model), 2, f'{self.projectname}/05_Subtomogram_Analysis/Validation/maskFinalAverage.mrc', 1,
                      1.5)
 
-        cmd = f'''cd {self.projectname}/05_Subtomogram_Analysis/Validation
+        cwd = f'{self.projectname}/05_Subtomogram_Analysis/Validation'
+        cmd = ['fsc.py',
+                f'--v1 {outdir}/average-Final-Even.em',
+                f'--v2 {outdir}/average-Final-Odd.em',
+                f'--mask {self.projectname}/05_Subtomogram_Analysis/Validation/maskFinalAverage.mrc',
+                f'--outputFolder {self.projectname}/05_Subtomogram_Analysis/Validation',
+                '--fsc 0.143',
+                '--pixelsize 5.24',
+                '--randomizePhases 0.000',
+                '--combinedResolution',
+                f'--gpuID {self.gpu_id}']
 
-        fsc.py  '''
-        cmd += f'--v1 {outdir}/average-Final-Even.em '
-        cmd += f'--v2 {outdir}/average-Final-Odd.em '
-        cmd += f'--mask {self.projectname}/05_Subtomogram_Analysis/Validation/maskFinalAverage.mrc '
-        cmd += f'--outputFolder {self.projectname}/05_Subtomogram_Analysis/Validation '
-        cmd += f'--fsc 0.143 '
-        cmd += f'--pixelsize 5.24 '
-        cmd += f'--randomizePhases 0.000 '
-        cmd += f'--combinedResolution '
-        cmd += f'--gpuID {self.gpu_id}'
-
-        print(cmd)
-        result = os.popen(cmd).read()
+        print(' '.join(cmd))
+        result = subprocess.run(cmd, cwd=cwd, text=True, capture_output=True).stdout
 
         resolution = float(result.split('Resolution determined for pixelsize :')[1].split()[-2])
         print(f'Determined resolution: {resolution:.2f}')

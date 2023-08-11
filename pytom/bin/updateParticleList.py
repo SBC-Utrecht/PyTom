@@ -58,20 +58,22 @@ def mirrorParticleList(particleList, outname, directory='./'):
 
 def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='zxz'):
     import os
-
+    import subprocess
     assert os.path.exists(chimeraOutputFile)
 
 
 
     try:
-        vec = os.popen(
-            "cat " + chimeraOutputFile + " | grep rotation_axis | head -1 | awk '{print $5, $4, $3}'").read()[:-1]
+        vec = subprocess.run(
+                ["cat " + chimeraOutputFile + " | grep rotation_axis | head -1 | awk '{print $5, $4, $3}'"],
+                shell=True, capture_output=True, text=True).stdout[:-1]
         rotation_vector = [float(line) for line in vec.split(',') if line]
         rotation_vector[0] *= -1
         rotation_vector[1] *= -1
         rotation_vector[2] *= -1
-
-        rot = os.popen("cat " + chimeraOutputFile + " | grep rotation_angle | head -1 | awk '{print $2}'").read()[:-1]
+        
+        rot = subprocess.run(["cat " + chimeraOutputFile + " | grep rotation_angle | head -1 | awk '{print $2}'"],
+                shell=True, capture_output=True, text=True).stdout[:-1]
         rotation_angle = float(rot.replace(',', ''))
         r = R.from_rotvec((numpy.array(rotation_vector)))  # -numpy.array(ref_vector)))
         z1, x, z2 = r.as_euler("zxz", degrees=True)

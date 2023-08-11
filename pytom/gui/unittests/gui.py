@@ -1,6 +1,7 @@
 #!/cm/shared/apps/python3/3.7/bin/python3.7
 import sys
 import os
+import shutil
 import pickle, json
 import numpy as np
 
@@ -425,12 +426,8 @@ def main():
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
-
-
-    for fname,module in [( 'motioncor2','motioncor2/1.2.1' ),('header','imod/4.10.25')]:
-        if 1:
-            result = os.popen('which {}'.format(fname)).read()[:-1]
-            if not result:
-                #print('not found')
-                print('Please load the {} module'.format(module))
+    for fname, module in [( 'motioncor2','motioncor2/1.2.1' ),('header','imod/4.10.25')]:
+        result = shutil.which(fname)
+        if not result:
+            print('Please load the {} module'.format(module))
     main()
