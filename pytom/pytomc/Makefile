@@ -1,4 +1,7 @@
 CC = g++
+ifndef PYTOMC_DIR
+PYTOMC_DIR=./
+endif
 
 LIBTOMC_BASEDIR=./libs/libtomc
 
@@ -29,7 +32,7 @@ endif
 
 
 ifndef GCCSWIGFLAGS
-GCCSWIGFLAGS :=-fPIC -c -g3 -Wall -Wno-long-long -pedantic -ansi --std=c++98
+GCCSWIGFLAGS :=-fPIC -c -g3 -Wall -Wno-long-long -pedantic -ansi --std=c++11
 endif 
 
 PYMODULESPATH=../lib/
@@ -130,7 +133,7 @@ $(PYMODULESPATH)_pytom_freqweight.so: $(SWIGLIBS)pytom_freqweight_wrap.o
 $(SWIGCPP)pytom_numpy_wrap.cpp: $(SWIGCODE)pytom_numpy.i $(HEADERS) ./src/swigTomNumpy*c* ./src/swigVol*c*
 	swig $(SWIGFLAGS) $(SWIGINCLUDE) -o $@ $< 	
 $(SWIGLIBS)pytom_numpy_wrap.o: $(SWIGCPP)pytom_numpy_wrap.cpp
-	$(CC) -fPIC -c -g -Wall -Wno-long-long  -ansi --std=c++98 $(INCLUDE) $< -o $@ #-I$(NUMPYINCLUDE) 
+	$(CC) -fPIC -c -g -Wall -Wno-long-long  -ansi --std=c++11 $(INCLUDE) $< -o $@ #-I$(NUMPYINCLUDE) 
 $(PYMODULESPATH)_pytom_numpy.so: $(SWIGLIBS)pytom_numpy_wrap.o
 	$(CC)  $< -o $@  $(LDFLAGS) $(LIBS)
 

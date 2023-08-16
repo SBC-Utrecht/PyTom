@@ -42,7 +42,15 @@
 	
 	$result = list;
 }
-
+%typemap(out) std::tuple<std::size_t, std::size_t, std::size_t>{
+       PyObject * tuple = PyTuple_New(3);
+       
+       PyTuple_SetItem(tuple, 0, PyInt_FromLong(std::get<0>($1)));
+       PyTuple_SetItem(tuple, 1, PyInt_FromLong(std::get<1>($1)));
+       PyTuple_SetItem(tuple, 2, PyInt_FromLong(std::get<2>($1)));
+       
+       $result = tuple;
+}
 %nodefaultdtor swigTom::swigVolume;
 
 

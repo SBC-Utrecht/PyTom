@@ -66,7 +66,10 @@ public:
 	std::size_t size_z() const{
 		return this->getSizeZ();
 	};
-
+	/**
+	 * mimic numpy array shape attribute
+	 */
+	std::tuple<std::size_t, std::size_t, std::size_t> shape= std::make_tuple(this->getSizeX(), this->getSizeY(), this->getSizeZ());
 	float getFtSizeX() const{
 		return this->ftSizeX;
 	};
