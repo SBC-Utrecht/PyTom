@@ -507,21 +507,6 @@ class FLCFScore(Score):
 
         return p[0]
 
-def wXCCWrapper(self,volume,reference,mask=None):
-    from pytom.basic.correlation import weighted_xcc
-        
-    if self.getNumberOfBands() == 0:
-        raise RuntimeError('RScore: Number of bands is Zero! Abort.')
-    
-    return weighted_xcc(volume,reference,self.getNumberOfBands(),self.getWedgeAngle())
-
-def wXCFWrapper(self,volume,reference,mask=None):
-    from pytom.basic.correlation import weighted_xcf
-        
-    if self.getNumberOfBands() == 0:
-        raise RuntimeError('RScore: Number of bands is Zero! Abort.')
-    
-    return weighted_xcf(volume,reference,self.bands,self.wedge_angle)
 
 class RScore(Score):
     """
@@ -581,21 +566,21 @@ class RScore(Score):
 
 def FSCWrapper(self,volume,reference):
     from pytom.basic.correlation import fsc_sum
-        
+
     if self.number_of_bands == 0:
         from pytom.basic.exceptions import ParameterError
         raise ParameterError('Bands attribute is empty. Abort.')
-        
+
     return fsc_sum(volume,reference,self.bands,self.wedge_angle)
 
 def FSFWrapper(self,volume,reference):
     from pytom.basic.correlation import weighted_xcf
-        
+
     if self.number_of_bands == 0:
         from pytom.basic.exceptions import ParameterError
         raise ParameterError('Bands attribute is empty. Abort.')
-        
-    return weighted_xcf(volume,reference,self.bands,self.wedge_angle)   
+
+    return weighted_xcf(volume,reference,self.bands,self.wedge_angle)
 
 
 class FSCScore(Score):

@@ -166,7 +166,7 @@ def cut_patch(projection, ang, pick_position, vol_size=200, binning=8, dimz=0, o
 
 
 def normalize_image(image, mask, p):
-    from pytom.agnostic.correlation import meanUnderMask, stdUnderMask
+    from pytom.agnostic.normalise import meanUnderMask, stdUnderMask
     mp = meanUnderMask(image, mask, p)
     normalized_image = (image - mp) / stdUnderMask(image, mask, mp, p)
     return normalized_image * mask
@@ -213,7 +213,6 @@ def run_single_tilt_angle(subtomogram, ang, offset, vol_size, particle_position,
     from pytom.agnostic.transform import cut_from_projection
     from pytom.agnostic.filter import applyFourierFilterFull, bandpass_circle
     from pytom.agnostic.io import read, write
-    from pytom.agnostic.correlation import meanUnderMask, stdUnderMask
     import os
     import time
 

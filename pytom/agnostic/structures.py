@@ -3,6 +3,7 @@ from pytom.basic.structures import Rotation as RotationPytomC
 from pytom.agnostic.io import read
 from pytom.agnostic.transform import fftshift, fourier_reduced2full
 from pytom.agnostic.filter import applyFourierFilter
+import scipy.optimize
 
 
 class PyTomClassError(Exception):
@@ -292,7 +293,6 @@ class Preprocessing(PyTomClass):
 
         if self._weightingOn and (not bypassFlag):
             from pytom.agnostic.io import read
-            from pytom.agnostic.structures import Weight as weight
             from pytom.agnostic.filter import applyFourierFilter
 
             # TODO What exactly is read here? I interpreted this as a volume
@@ -960,107 +960,6 @@ class Reference(PyTomClass):
 
         if not checkFileExists(self._referenceFile):
             raise IOError('Could not find reference file: ' + str(self._referenceFile))
-
-
-class ReferenceList(PyTomClass):
-    """
-    ReferenceList: A list of references. Used for multi ref alignment and also for multi ref picking
-    """
-
-    def __init__(self):
-        self._referenceList = []
-
-    def append(self, reference):
-        self._referenceList.append(reference)
-
-    def toXML(self):
-        """
-        toXML : Compiles a XML file from job object
-        @author: Thomas Hrabe
-        """
-        from lxml import etree
-
-        listElement = etree.Element('ReferenceList')
-
-        for reference in self._referenceList:
-            listElement.append(reference.toXML())
-
-        return listElement
-
-    def fromXML(self, xmlObj):
-        """
-        fromXML : Assigns values to job attributes from XML object
-        @param xmlObj: A xml object
-        @type xmlObj: L{lxml.etree._Element}
-        @author: Thomas Hrabe
-        """
-
-        from lxml.etree import _Element
-
-        if xmlObj.__class__ != _Element:
-            raise TypeError('You must provide a valid XML-MaximisationJob object.')
-
-        references = xmlObj.xpath('Reference')
-
-        for reference in references:
-            ref = Reference('')
-            ref.fromXML(reference)
-
-            self._referenceList.append(ref)
-
-    def len(self):
-        # @deprecated: use len(x) instead
-        return len(self._referenceList)
-
-    def _getReferenceByName(self, referenceName):
-        """
-        _getReferenceByName: Selects a reference from this list. This is a private helper function, call ReferenceList[ReferenceName] instead
-        @return: The reference searched or None if not found
-        @rtype: L{pytom.agnostic.structures.Reference}
-        """
-        from pytom.agnostic.structures import Reference
-
-        refXML = self.xpath('/ReferenceList/Reference[@File="' + referenceName + '"]')
-
-        if len(refXML) == 0:
-            return None
-        else:
-            ref = Reference()
-            ref.fromXML(refXML[0])
-            return ref
-
-    def __len__(self):
-        return len(self._referenceList)
-
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            if key < self.len():
-                return self._referenceList[key]
-            else:
-                raise IndexError('Index out of range.')
-        elif key.__class__ == str:
-
-            reference = self._getReferenceByName(key)
-
-            if not reference:
-                raise IndexError('Reference named ' + key + ' not in list')
-
-            return reference
-        else:
-            assert False
-
-    def __setitem__(self, key, value):
-        """
-        @todo: implementation of a[key] = value for key=int and string and value test value.__class__==Reference
-        """
-
-        if isinstance(key, int):
-            if key < self.len():
-                self._referenceList[key] = value
-            else:
-                raise IndexError('Index out of range.')
-        else:
-            assert False
 
 
 class Wedge(PyTomClass):
@@ -4600,52 +4499,53 @@ class PointSymmetry(Symmetry):
         return symVolume
 
 
-class MultiSymmetries(PyTomClass):
-    """Multiple symmetries support.
-    """
-
-    def __init__(self, symmetries=None):
-        if symmetries is not None:
-            if symmetries.__class__ != list:
-                raise TypeError('The symmetries should be a list containing all the symmetries object!')
-            for s in symmetries:
-                if s.__class__ != Symmetry:
-                    raise TypeError('Each of the object in the list should be of type Symmetry!')
-            self.symmetries = symmetries
-        else:
-            self.symmetries = []
-
-    def toXML(self):
-        from lxml import etree
-
-        jobElement = etree.Element("MultiSymmetries")
-        for s in self.symmetries:
-            jobElement.append(s.toXML())
-
-        return jobElement
-
-    def fromXML(self, xmlObj):
-        from lxml.etree import _Element
-        if xmlObj.__class__ != _Element:
-            raise TypeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
-        if xmlObj.tag == 'MultiSymmetries':
-            element = xmlObj
-        else:
-            TypeError('MultiSymmetries: You must provide a valid MultiSymmetries XML object.')
-
-        symmetries_elements = element.xpath('Symmetry')
-        self.symmetries = []
-        for s in symmetries_elements:
-            sym = Symmetry()
-            sym = sym.fromXML(s)
-            self.symmetries.append(sym)
-
-    def applyToParticle(self, volume):
-        symVolume = volume
-        for sym in self.symmetries:
-            symVolume = sym.applyToParticle(symVolume)
-
-        return symVolume
+# TODO remove in next cleaning
+# class MultiSymmetries(PyTomClass):
+#     """Multiple symmetries support.
+#     """
+#
+#     def __init__(self, symmetries=None):
+#         if symmetries is not None:
+#             if symmetries.__class__ != list:
+#                 raise TypeError('The symmetries should be a list containing all the symmetries object!')
+#             for s in symmetries:
+#                 if s.__class__ != Symmetry:
+#                     raise TypeError('Each of the object in the list should be of type Symmetry!')
+#             self.symmetries = symmetries
+#         else:
+#             self.symmetries = []
+#
+#     def toXML(self):
+#         from lxml import etree
+#
+#         jobElement = etree.Element("MultiSymmetries")
+#         for s in self.symmetries:
+#             jobElement.append(s.toXML())
+#
+#         return jobElement
+#
+#     def fromXML(self, xmlObj):
+#         from lxml.etree import _Element
+#         if xmlObj.__class__ != _Element:
+#             raise TypeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
+#         if xmlObj.tag == 'MultiSymmetries':
+#             element = xmlObj
+#         else:
+#             TypeError('MultiSymmetries: You must provide a valid MultiSymmetries XML object.')
+#
+#         symmetries_elements = element.xpath('Symmetry')
+#         self.symmetries = []
+#         for s in symmetries_elements:
+#             sym = Symmetry()
+#             sym = sym.fromXML(s)
+#             self.symmetries.append(sym)
+#
+#     def applyToParticle(self, volume):
+#         symVolume = volume
+#         for sym in self.symmetries:
+#             symVolume = sym.applyToParticle(symVolume)
+#
+#         return symVolume
 
 
 class HelicalSymmetry(Symmetry):
@@ -4769,168 +4669,6 @@ class HelicalSymmetry(Symmetry):
         self._isRightSymmetry = symmetry_element.get('IsRightSymmetry') == 'True'
 
 
-class SampleInformation(PyTomClass):
-    """
-    SampleInformation: Contains aquisition details of image data such as pixelsize, diameter of the imaged complex.
-    Pixelsize and particle diameter are required for the adaptive filter adjustment.
-    This class can be further extended to carry other sample specific parameters that
-    might be required during localization / alignment / classification or other applications.
-    """
-
-    def __init__(self, pixelSize=-1, particleDiameter=-1):
-        """
-        __init__:
-        @type pixelSize: float
-        @param pixelSize: Pixelsize of the data used. Set in Angstroms!
-        @type particleDiameter: float
-        @param particleDiameter: Diameter of imaged complex. Set in Angstroms!
-        """
-        self._pixelSize = pixelSize
-        self._particleDiameter = particleDiameter
-
-    def getPixelSize(self):
-        return self._pixelSize
-
-    def getParticleDiameter(self):
-        return self._particleDiameter
-
-    def setPixelSize(self, value):
-        assert float(value) > 0
-        self._pixelSize = float(value)
-
-    def setParticleDiameter(self, value):
-        assert float(value) > 0
-        self._particleDiameter = float(value)
-
-    def toXML(self):
-        """
-        toXML : Compiles a XML file from result object
-        rtype : L{lxml.etree._Element}
-        @author: Thomas Hrabe
-        """
-        from lxml import etree
-
-        return etree.Element('SampleInformation', PixelSize=str(float(self._pixelSize)),
-                             ParticleDiameter=str(float(self._particleDiameter)))
-
-    def fromXML(self, xmlObj):
-        """
-        fromXML:
-        @param xmlObj: A xml object
-        @type xmlObj: L{lxml.etree._Element}
-        @author: Thomas Hrabe
-        """
-
-        from lxml.etree import _Element
-
-        if xmlObj.__class__ != _Element:
-            raise RuntimeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
-
-        if xmlObj.tag == 'SampleInformation':
-            symmetry_element = xmlObj
-        else:
-            raise RuntimeError('Is not a SampleInformation object! You must provide a valid SampleInformation.')
-
-        self._pixelSize = float(symmetry_element.get('PixelSize'))
-        self._particleDiameter = float(symmetry_element.get('ParticleDiameter'))
-
-
-class Resolution(PyTomClass):
-    """
-    Resolution: Stores current resolution information. Stores sample specific parameters
-    to keep track with which parameters this resolution was calculated.
-    """
-
-    def __init__(self, value, criterion, sampleInformation):
-        """
-        __init__: Will fill this object with information
-        @type value: float
-        @param value: The current resolution determined for a dataset. It depends on the values specified in sampleInformation.
-        @type criterion: float . Value in [0;1] !
-        @param criterion: The FSC criterion used to determine resolution.
-        @type sampleInformation: L{pytom.structures.basic.SampleInformation}
-        @param sampleInformation: Sample specific parameters.
-        """
-
-        self._value = value
-        self._criterion = criterion
-        self._sampleInformation = sampleInformation
-
-    def toXML(self):
-
-        from lxml import etree
-
-        element = etree.Element('Resolution', Value=str(self._value), Criterion=str(self._criterion))
-        element.append(self._sampleInformation.toXML())
-
-        return element
-
-    def fromXML(self, xmlObj):
-        from lxml.etree import _Element
-
-        if xmlObj.__class__ != _Element:
-            raise RuntimeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
-
-        if xmlObj.tag == 'Resolution':
-            element = xmlObj
-        else:
-            raise RuntimeError('Is not a Resolution object!')
-
-        self._value = str(element.get('Value'))
-        self._criterion = str(element.get('Criterion'))
-
-        self._sampleInformation = SampleInformation()
-        self._sampleInformation.fromXML(element.xpath('SampleInformation')[0])
-
-
-class BandPassFilter(PyTomClass):
-    def __init__(self, lowestFrequency, highestFrequency, smooth):
-        """
-        __init__: Will fill this object with information
-        @param lowestFrequency:
-        @param highestFrequency:
-        @param smooth:
-        """
-
-        self._lowestFrequency = lowestFrequency
-        self._highestFrequency = highestFrequency
-        self._smooth = smooth
-
-    def toXML(self):
-
-        from lxml import etree
-
-        element = etree.Element('BandPassFilter', LowestFrequency=str(self._lowestFrequency),
-                                HighestFrequency=str(self._highestFrequency), Smooth=str(self._smooth))
-
-        return element
-
-    def fromXML(self, xmlObj):
-        from lxml.etree import _Element
-
-        if xmlObj.__class__ != _Element:
-            raise TypeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
-
-        if xmlObj.tag == 'BandPassFilter':
-            element = xmlObj
-        else:
-            raise TypeError('BandPassFilter: Is not a BandPassFilter XML object!')
-
-        self._lowestFrequency = float(element.get('LowestFrequency'))
-        self._highestFrequency = float(element.get('HighestFrequency'))
-        self._smooth = float(element.get('Smooth'))
-
-    def filter(self, volume):
-        from pytom.agnostic.filter import bandpass as bandpassFilter
-
-        if volume.size_x() / 2 < self._highestFrequency or volume.size_y() / 2 < self._highestFrequency or volume.size_z() / 2 < self._highestFrequency:
-            print("Warning: Highest frequency in bandpass is larger than volume size.")
-
-        res = bandpassFilter(volume, self._lowestFrequency, self._highestFrequency, bpf=None, smooth=self._smooth,
-                             fourierOnly=False)
-        return res[0]
-
-
 class Weight():
     def __init__(self, wedge_angle1=0, wedge_angle2=0, cutOffRadius=0, size_x=0, size_y=0, size_z=0, smooth=0, rotation=None):
         self.wedge_angle1 = wedge_angle1
@@ -4962,9 +4700,6 @@ class Weight():
             wedge = fourier_reduced2full(wedge)
 
         return wedge
-
-
-import scipy.optimize
 
 
 class Alignment:

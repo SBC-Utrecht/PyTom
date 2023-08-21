@@ -1862,17 +1862,6 @@ def read_tilt_angle(filename):
     return tilt_angle
 
 
-def read_rotation_angles(filename):
-    f = open(filename, 'rb')
-    try:
-        header_data = np.fromfile(f, np.dtype('float32'), 256)
-        z1, x, z2 = header_data[43:46]
-    finally:
-        f.close()
-
-    return [z1, x, z2]
-
-
 def read_pixelsize(filename, dim=''):
     import sys
     import numpy as np
@@ -2195,45 +2184,7 @@ def write_em(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnifica
         f.close()
 
 
-def write_rotation_angles(filename, z1=0, z2=0, x=0):
-    assert filename.endswith('.mrc')
-    header = read_header(filename)
-    header[43:46] = [z1, x, z2]
-    data = read(filename)
-    f = open(filename, 'wb')
-    try:
-        f.write(header.tobytes())
-        f.write(data.tobytes(order='F'))  # fortran-order array
-    finally:
-        f.close()
-
-
-def write_tilt_angle(filename, tilt_angle):
-    emfile = filename.endswith('.em') * 1
-    header = read_header(filename)
-    if emfile:
-        header[42] = int(round(tilt_angle * 1000))
-    else:
-        header[43] = tilt_angle
-    data = read(filename)
-
-    f = open(filename, 'wb')
-    try:
-        f.write(tostring(header))
-        f.write(data.tobytes(order='F'))  # fortran-order array
-    finally:
-        f.close()
-
-
 # Supporting functions write
-def tostring(header):
-    strings = []
-    for value in header:
-        strings.append(binary_string(value, type(value)))
-
-    header = b"".join(strings)
-    return header
-
 
 def binary_string(values, type):
     import numpy as np

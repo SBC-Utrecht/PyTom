@@ -1,9 +1,8 @@
-import unittest, os, numba
+import unittest, os
 import numpy as np
 import pytom.voltools as vt
-import time
 from pytom.lib.pytom_volume import vol, transform, transformCubic, transformSpline, transformFourierSpline, variance
-from pytom.agnostic.interpolation import fill_values_real_spline, fill_values_real_spline_parallel
+from pytom.agnostic.interpolation import fill_values_real_spline
 from pytom.gpu.initialize import device
 
 
@@ -131,45 +130,6 @@ class pytom_InterpolationTest(unittest.TestCase):
         print(f'variance for spline interpolation with numba: {(box - box_org).var()}')
         self.assertTrue(expr=(box - box_org).var() < self.eps,
                         msg=f"point box after forward backward rotation differs too much for numba spline")
-
-    @unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False),
-                     "The test below uses multiple cores and cannot execute in a docker environment")
-    def test_numba_interpolation_parallel(self):
-        """
-        This currently reports the following deprecation warning in openMP. This has to do with how numba calls
-        openMP to set the number of threads, so it is not easily fixable for us.
-
-        ###############################
-        .OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
-        ###############################
-        """
-        print('before parallel: ', numba.get_num_threads())
-        numba.set_num_threads(4)
-        print('after setting for parallel: ', numba.get_num_threads())
-
-        box = np.zeros(self.dims, dtype=np.float32)
-        box[self.point[0], self.point[1], self.point[2]] = 1.
-        box_rot = np.zeros_like(box)
-        box_org = np.zeros_like(box)
-
-        mtx_forward = vt.utils.transform_matrix(rotation=self.forward, rotation_order=self.order, center=self.center)
-        mtx_backward = vt.utils.transform_matrix(rotation=self.backward, rotation_order=self.order, center=self.center)
-
-        fill_values_real_spline_parallel(box, box_rot, mtx_forward)
-        fill_values_real_spline_parallel(box_rot, box_org, mtx_backward)
-
-        # parallel function only becomes feasible for larger array dimensions than specified here
-        t1 = time.time()
-        for i in range(10):
-            box_rot *= 0
-            box_org *= 0
-            fill_values_real_spline_parallel(box, box_rot, mtx_forward)
-            fill_values_real_spline_parallel(box_rot, box_org, mtx_backward)
-        print('execution numba 4 threads: ', (time.time() - t1) / 10)
-
-        print(f'variance for spline interpolation with numba parallel: {(box - box_org).var()}')
-        self.assertTrue(expr=(box - box_org).var() < self.eps,
-                        msg=f"point box after forward backward rotation differs too much for numba spline parallel")
 
 
 if __name__ == '__main__':

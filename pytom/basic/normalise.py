@@ -80,25 +80,3 @@ def normaliseUnderMask(volume, mask, p=None):
         res = volume
     return (res,p)
 
-
-def subtractMeanUnderMask(volume, mask):
-    """
-    subtract mean from volume/image under mask 
-
-    @param volume: volume/image
-    @type volume: L{pytom.lib.pytom_volume.vol}
-    @param mask: mask
-    @type mask: L{pytom.lib.pytom_volume.vol}
-    @return: volume/image
-    @rtype: L{pytom.lib.pytom_volume.vol}
-    """
-    from pytom.lib.pytom_volume import sum as sumvol
-    from pytom.tools.maths import epsilon
-    #npix = volume.size_x() * volume.size_y() * volume.size_z()
-    normvol = volume*mask
-    if stdT > epsilon:
-        normvol = sumvol(normvol) / sumvol(mask)
-    else:
-        print("Mask empty - no subratction done")
-    return normvol
-

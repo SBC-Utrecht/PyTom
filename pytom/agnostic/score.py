@@ -148,19 +148,6 @@ def fromXML(xmlObj):
     return score
 
 
-def fromXMLFile(filename):
-    """
-    get score object from File
-    """
-    from lxml import etree
-    from pytom.tools.files import readStringFile
-
-    lines = readStringFile(filename)
-    xmlObj = etree.fromstring(lines)
-    score = fromXML(xmlObj)
-    return score
-
-
 class Score:
     """
     Score: Template class used for scoring alignments.
@@ -463,146 +450,6 @@ class FLCFScore(Score):
         return -10000000000
 
 
-def wXCCWrapper(self, volume, reference, mask=None):
-    from pytom.agnostic.correlation import weighted_xcc
-
-    if self.getNumberOfBands() == 0:
-        raise RuntimeError('RScore: Number of bands is Zero! Abort.')
-
-    return weighted_xcc(volume, reference, self.getNumberOfBands(), self.getWedgeAngle())
-
-
-def wXCFWrapper(self, volume, reference, mask=None):
-    from pytom.agnostic.correlation import weighted_xcf
-
-    if self.getNumberOfBands() == 0:
-        raise RuntimeError('RScore: Number of bands is Zero! Abort.')
-
-    return weighted_xcf(volume, reference, self.bands, self.wedge_angle)
-
-
-class RScore(Score):
-    """
-    RScore: Uses the weighted correlation function for scoring. See
-    Stewart, A. 2004 Ultramicroscopy - Noise bias in the refinement of structures derived from single particles
-    for more info. Implementation of this class is a little more complicated. wXCFWrapper and wXCCWrapper
-    @author: Thomas Hrabe
-    """
-
-    def __init__(self, value=None):
-        from pytom.agnostic.correlation import norm_xcf, weighted_xcc
-        self.ctor(norm_xcf, weighted_xcc, Vol_G_Val)
-        self._type = 'RScore'
-        self._number_of_bands = 0
-        self._wedge_angle = -1
-
-        if value:
-            self.setValue(value)
-        else:
-            self.setValue(self.getWorstValue())
-
-    def getWorstValue(self):
-        return -10000000000
-
-    def getNumberOfBands(self):
-        return self._number_of_bands
-
-    def getWedgeAngle(self):
-        return self._wedge_angle
-
-    def initAttributes(self, number_of_bands=10, wedge_angle=-1):
-        """
-        initBands: Must be called prior to the scoring. Initializes the bands used for wxcf.
-        @param number_of_bands:
-        @param wedge_angle:
-        @author: Thomas Hrabe
-        """
-        self._number_of_bands = number_of_bands
-        self._wedge_angle = wedge_angle
-
-    def toXML(self, value=-10000000):
-        """
-        toXML : Compiles a XML file from this object
-        @author: Thomas Hrabe
-        """
-        from lxml import etree
-
-        score_element = etree.Element("Score", Type=self._type, Value=str(self.scoreValue))
-
-        score_element.set('NumberBands', str(self._number_of_bands))
-        score_element.set('WedgeAngle', str(self._wedge_angle))
-
-        return score_element
-
-
-def FSCWrapper(self, volume, reference):
-    from pytom.agnostic.correlation import fsc_sum
-
-    if self.number_of_bands == 0:
-        from pytom.basic.exceptions import ParameterError
-        raise ParameterError('Bands attribute is empty. Abort.')
-
-    return fsc_sum(volume, reference, self.bands, self.wedge_angle)
-
-
-def FSFWrapper(self, volume, reference):
-    from pytom.agnostic.correlation import weighted_xcf
-
-    if self.number_of_bands == 0:
-        from pytom.basic.exceptions import ParameterError
-        raise ParameterError('Bands attribute is empty. Abort.')
-
-    return weighted_xcf(volume, reference, self.bands, self.wedge_angle)
-
-
-class FSCScore(Score):
-    """
-    FSCScore: Uses the Sum of the Fourier Shell Correlation function for scoring.
-    @author: Thomas Hrabe
-    """
-    FSC = FSCWrapper
-    FSF = FSFWrapper
-
-    def __init__(self):
-        from pytom.agnostic.correlation import norm_xcf
-        self.ctor(norm_xcf, self.FSC, Vol_G_Val)
-        self._type = 'FSCScore'
-        self._number_of_bands = 0
-        self._wedge_angle = 0
-
-    def initAttributes(self, number_of_bands=10, wedge_angle=-1):
-        """
-        initBands: Must be called prior to the scoring. Initialises the bands used for wxcf.
-        @param number_of_bands:
-        @param wedge_angle:
-        @author: Thomas Hrabe
-        """
-        self._number_of_bands = number_of_bands
-        self._bands = []
-
-        for i in range(self._number_of_bands):
-            self.bands.append([float(i) / self._number_of_bands * 1 / 2, float(i + 1) / self._number_of_bands * 1 / 2])
-
-        self._wedge_angle = wedge_angle
-
-    def toXML(self, value=-10000000):
-        """
-        toXML : Compiles a XML file from this object
-        @author: Thomas Hrabe
-        """
-        from lxml import etree
-
-        score_element = etree.Element("Score", Type=self._type, Value=str(value))
-
-        score_element.set('NumberBands', str(self._number_of_bands))
-        score_element.set('WedgeAngle', str(self._wedge_angle))
-
-        return score_element
-
-    def getWorstValue(self):
-        return -10000000000
-
-
 class PeakPrior(PyTomClass):
     """
     PeakPrior: Weights each correlation coefficient according it's peaks distance from the center
@@ -741,6 +588,131 @@ class PeakPrior(PyTomClass):
         return etree.tostring(tree, pretty_print=True).decode("utf-8")[:-1]
 
 
+# TODO All classes below might be dead.
+
+
+class RScore(Score):
+    """
+    RScore: Uses the weighted correlation function for scoring. See
+    Stewart, A. 2004 Ultramicroscopy - Noise bias in the refinement of structures derived from single particles
+    for more info. Implementation of this class is a little more complicated. wXCFWrapper and wXCCWrapper
+    @author: Thomas Hrabe
+    """
+
+    def __init__(self, value=None):
+        from pytom.agnostic.correlation import norm_xcf, weighted_xcc
+        self.ctor(norm_xcf, weighted_xcc, Vol_G_Val)
+        self._type = 'RScore'
+        self._number_of_bands = 0
+        self._wedge_angle = -1
+
+        if value:
+            self.setValue(value)
+        else:
+            self.setValue(self.getWorstValue())
+
+    def getWorstValue(self):
+        return -10000000000
+
+    def getNumberOfBands(self):
+        return self._number_of_bands
+
+    def getWedgeAngle(self):
+        return self._wedge_angle
+
+    def initAttributes(self, number_of_bands=10, wedge_angle=-1):
+        """
+        initBands: Must be called prior to the scoring. Initializes the bands used for wxcf.
+        @param number_of_bands:
+        @param wedge_angle:
+        @author: Thomas Hrabe
+        """
+        self._number_of_bands = number_of_bands
+        self._wedge_angle = wedge_angle
+
+    def toXML(self, value=-10000000):
+        """
+        toXML : Compiles a XML file from this object
+        @author: Thomas Hrabe
+        """
+        from lxml import etree
+
+        score_element = etree.Element("Score", Type=self._type, Value=str(self.scoreValue))
+
+        score_element.set('NumberBands', str(self._number_of_bands))
+        score_element.set('WedgeAngle', str(self._wedge_angle))
+
+        return score_element
+
+
+def FSCWrapper(self, volume, reference):
+    from pytom.agnostic.correlation import fsc_sum
+
+    if self.number_of_bands == 0:
+        from pytom.basic.exceptions import ParameterError
+        raise ParameterError('Bands attribute is empty. Abort.')
+
+    return fsc_sum(volume, reference, self.bands, self.wedge_angle)
+
+
+def FSFWrapper(self, volume, reference):
+    from pytom.agnostic.correlation import weighted_xcf
+
+    if self.number_of_bands == 0:
+        from pytom.basic.exceptions import ParameterError
+        raise ParameterError('Bands attribute is empty. Abort.')
+
+    return weighted_xcf(volume, reference, self.bands, self.wedge_angle)
+
+
+class FSCScore(Score):
+    """
+    FSCScore: Uses the Sum of the Fourier Shell Correlation function for scoring.
+    @author: Thomas Hrabe
+    """
+    FSC = FSCWrapper
+    FSF = FSFWrapper
+
+    def __init__(self):
+        from pytom.agnostic.correlation import norm_xcf
+        self.ctor(norm_xcf, self.FSC, Vol_G_Val)
+        self._type = 'FSCScore'
+        self._number_of_bands = 0
+        self._wedge_angle = 0
+
+    def initAttributes(self, number_of_bands=10, wedge_angle=-1):
+        """
+        initBands: Must be called prior to the scoring. Initialises the bands used for wxcf.
+        @param number_of_bands:
+        @param wedge_angle:
+        @author: Thomas Hrabe
+        """
+        self._number_of_bands = number_of_bands
+        self._bands = []
+
+        for i in range(self._number_of_bands):
+            self.bands.append([float(i) / self._number_of_bands * 1 / 2, float(i + 1) / self._number_of_bands * 1 / 2])
+
+        self._wedge_angle = wedge_angle
+
+    def toXML(self, value=-10000000):
+        """
+        toXML : Compiles a XML file from this object
+        @author: Thomas Hrabe
+        """
+        from lxml import etree
+
+        score_element = etree.Element("Score", Type=self._type, Value=str(value))
+
+        score_element.set('NumberBands', str(self._number_of_bands))
+        score_element.set('WedgeAngle', str(self._wedge_angle))
+
+        return score_element
+
+    def getWorstValue(self):
+        return -10000000000
+
+
 class SOCScore(Score):
     """
     SOCScore: Uses the Second Order Correlation function for scoring
@@ -755,28 +727,4 @@ class SOCScore(Score):
 
     def getWorstValue(self):
         return -10000000000.0
-
-
-class MFCScore(Score):
-    """
-    MFCScore : Uses the Mutual Correlation Function for scoring
-    @todo: Implementation
-    @author: Thomas Hrabe
-    """
-    coefFnc = peakCoef
-
-    def getWorstValue(self):
-        return -10000000000
-
-
-class POFScore(Score):
-    """
-    POFScore : Uses the Phase Only Correlation Function for scoring
-    @todo: Implementation
-    @author: Thomas Hrabe
-    """
-    coefFnc = peakCoef
-
-    def getWorstValue(self):
-        return -10000000000
 

@@ -53,8 +53,6 @@ def normaliseUnderMask(volume, mask, p=None) -> Tuple[xpt.NDArray[float], float]
     @rtype: C{list}
     @author: FF
     """
-    # TODO: fix this circular import, both of these functions point back to this file
-    from pytom.agnostic.correlation import meanUnderMask, stdUnderMask
     # from math import sqrt
     if not p:
         p = xp.sum(mask)
@@ -70,22 +68,6 @@ def normaliseUnderMask(volume, mask, p=None) -> Tuple[xpt.NDArray[float], float]
     stdT = stdUnderMask(volume, mask, meanT, p)
     res = (volume - meanT) / stdT
     return (res, p)
-
-def subtractMeanUnderMask(volume, mask):
-    """
-    subtract mean from volume/image under mask
-
-    @param volume: volume/image
-    @type volume: L{pytom_volume.vol}
-    @param mask: mask
-    @type mask: L{pytom_volume.vol}
-    @return: volume/image
-    @rtype: L{pytom_volume.vol}
-    """
-    # npix = volume.size_x() * volume.size_y() * volume.size_z()
-    normvol = volume * mask
-    normvol = xp.sum(normvol) / xp.sum(mask)
-    return normvol
 
 def meanUnderMask(volume, mask=None, p=1, gpu=False) -> float:
     """
@@ -156,49 +138,6 @@ def stdVolUnderMask(volume, mask, meanV) -> xpt.NDArray[float]:
     meanV2 = meanV * meanV
     vol2 = volume * volume
     var = meanVolUnderMask(vol2, mask) - meanV2
-    var[var<1E-09] = 1
-
-    return var**0.5
-
-def meanVolUnderMaskPlanned(volume, mask, ifftnP, fftnP, plan):
-    """
-    meanUnderMask: calculate the mean volume under the given mask (Both should have the same size)
-    @param volume: input volume
-    @type volume:  L{numpy.ndarray} L{cupy.ndarray}
-    @param mask: mask
-    @type mask:  L{numpy.ndarray} L{cupy.ndarray}
-    @param p: non zero value numbers in the mask
-    @type p: L{int} or L{float}
-    @param gpu: Boolean that indicates if the input volumes stored on a gpu.
-    @type gpu: L{bool}
-    @return: the calculated mean volume under mask
-    @rtype:  L{numpy.ndarray} L{cupy.ndarray}
-    @author: Gijs van der Schot
-    """
-    volume_fft = fftnP(volume.astype(xp.complex64), plan=plan)
-    mask_fft = fftnP(mask.astype(xp.complex64), plan=plan)
-    res = xp.fft.fftshift(ifftnP(volume_fft * xp.conj(mask_fft), plan=plan)) / mask.sum()
-    return res.real
-
-def stdVolUnderMaskPlanned(volume, mask, meanV, ifftnP, fftnP, plan):
-    """
-    stdUnderMask: calculate the std volume under the given mask
-    @param volume: input volume
-    @type volume:  L{numpy.ndarray} L{cupy.ndarray}
-    @param mask: mask
-    @type mask:  L{numpy.ndarray} L{cupy.ndarray}
-    @param p: non zero value numbers in the mask
-    @type p: L{int}
-    @param meanV: mean volume under mask, which should already been caculated
-    @type meanV:  L{numpy.ndarray} L{cupy.ndarray}
-    @return: the calculated std volume under mask
-    @rtype:  L{numpy.ndarray} L{cupy.ndarray}
-    @author: GvdS
-    """
-
-    meanV2 = meanV * meanV
-    vol2 = volume * volume
-    var = meanVolUnderMaskPlanned(vol2, mask, ifftnP, fftnP, plan) - meanV2
     var[var<1E-09] = 1
 
     return var**0.5

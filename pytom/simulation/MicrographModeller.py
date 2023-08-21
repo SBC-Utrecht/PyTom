@@ -1649,7 +1649,7 @@ def FSS(fimage1, fimage2, number_bands, verbose=False):
 
     @author: Marten Chaillet
     """
-    from pytom.agnostic.correlation import meanUnderMask
+    from pytom.agnostic.normalise import meanUnderMask
     from pytom.simulation.support import bandpass_mask
 
     assert fimage1.shape == fimage2.shape, "volumes not of same size"

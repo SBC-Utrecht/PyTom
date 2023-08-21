@@ -146,39 +146,10 @@ class pytom_IOTest(unittest.TestCase):
         self.assertTrue(xp.abs(a-self.tilt_angle) < self.epsilon,
                         f'Tilt Angle is not correct: found {a}, expected {self.tilt_angle}')
 
-    def write_tilt_angle(self):
-        from pytom.agnostic.io import write_tilt_angle, read_tilt_angle
-
-        fname = self.fnames[1]
-        self.rotation_angles[0] = ta = -23.123
-        write_tilt_angle(fname, self.rotation_angles[0])
-
-        a = read_tilt_angle(fname)
-        self.assertTrue(xp.abs(a-ta) < self.epsilon,
-                        f'Tilt Angle is not correct: found {a}, expected {ta}')
-
     def read_header(self):
         from pytom.agnostic.io import read_header
         header = read_header(self.fnames[1])
         assert header.any()
-
-    def write_rotation_angle(self):
-        from pytom.agnostic.io import write_rotation_angles
-        fname = self.fnames[1]
-        tas = [-23, 234.12, 121.22]
-        write_rotation_angles(fname,z1=tas[0],x=tas[1],z2=tas[2])
-
-        self.read_rotation_angle(tas=tas)
-
-    def read_rotation_angle(self, tas=None):
-        from pytom.agnostic.io import read_rotation_angles
-
-        tas = self.rotation_angles if tas is None else tas
-
-        a = read_rotation_angles(self.fnames[1])
-        for n, angle in enumerate(a):
-            self.assertTrue(xp.abs(angle - tas[n]) < self.epsilon,
-                        f'Rotation Angle {n} is not correct: found {angle}, expected {tas[n]}')
 
     def read_pixelsize(self):
         from pytom.agnostic.io import read_pixelsize
@@ -206,7 +177,7 @@ class pytom_IOTest(unittest.TestCase):
 
         self.assertTrue(xp.abs(data - data2).sum() < self.epsilon, f'reading {fname} failed: input and output files are different')
 
-    def runTest(self):
+    def test_run(self):
         self.read()
         self.readem()
         self.write_read_EM()
@@ -218,8 +189,6 @@ class pytom_IOTest(unittest.TestCase):
         self.write_read_STAR()
         self.read_size()
         self.read_tilt_angle()
-        self.write_tilt_angle()
-        self.write_rotation_angle()
         self.read_header()
         self.read_pixelsize()
 

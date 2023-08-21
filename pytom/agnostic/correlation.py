@@ -6,7 +6,6 @@ Created: unknown date
 restructured by @sroet in May 2023
 """
 from pytom.gpu.initialize import xp
-from pytom.gpu.gpuFunctions import argmax
 from pytom.agnostic.filter import bandpass
 from pytom.agnostic.io import read
 from pytom.agnostic.macros import volumesSameSize
@@ -19,10 +18,7 @@ from pytom.agnostic.normalise import (
     mean0std1,
 )
 from pytom.agnostic.tools import create_circle, create_sphere
-from pytom.agnostic.transform import fourier_reduced2full
-from pytom.basic.transformations import resize
 from pytom.basic.structures import Mask
-from pytom.lib import pytom_volume
 
 # Typing imports
 from typing import Optional, Tuple, Any, List, Union, cast
@@ -294,71 +290,6 @@ def norm_xcf(
     return result
 
 
-def soc(
-    volume: xpt.NDArray[float],
-    reference: xpt.NDArray[float],
-    mask: Optional[xpt.NDArray[float]] = None,
-    std_v: Optional[float] = None,
-) -> xpt.NDArray[float]:
-    """
-    soc : Second Order Correlation. Correlation of correlation peaks.
-    @param volume: The volume
-    @type volume:  L{xpt.NDArray}
-    @param reference: The reference / template
-    @type reference:  L{xpt.NDArray}
-    @author: Thomas Hrabe
-    """
-
-    reference_peak = flcf(reference, reference, mask)
-    peaks = flcf(volume, reference, mask)
-
-    return flcf(peaks, reference_peak, mask)
-
-
-def dev(
-    volume: xpt.NDArray[float],
-    template: xpt.NDArray[float],
-    mask: Optional[xpt.NDArray[float]] = None,
-    volume_is_normalized: bool = False,
-) -> float:
-    """
-    dev: Calculates the squared deviation of volume and template in real space
-    @param volume: A volume
-    @type volume:  L{xpt.NDArray}
-    @param template: A template that is searched in volume. Must be of same size as
-                     volume.
-    @type template:  L{xpt.NDArray}
-    @param mask: mask to constrain correlation
-    @type mask: L{xpt.NDArray}
-    @param volume_is_normalized: speed up if volume is already normalized
-    @type volume_is_normalized: L{bool}
-    @return: deviation
-    @raise exception: Raises a runtime error if volume and template have a different
-                      size.
-    @author: FF
-    """
-
-    assert volume.__class__ == xp.ndarray, "dev: volume has to be of type xp.ndarray!"
-    assert (
-        template.__class__ == xp.ndarray
-    ), "dev: template has to be of type xp.ndarray!"
-    if not volumesSameSize(volume, template):
-        raise RuntimeError("Volume and template must have same size!")
-
-    if not mask:
-        p = volume.size
-        result = volume - template
-    else:
-        assert mask.__class__ == xp.ndarray, "dev: mask has to be of type xp.ndarray!"
-        p = xp.sum(mask)
-        result = (volume - template) * mask
-
-    deviat: float = sum(result**2)
-    deviat = deviat / float(p)
-
-    return deviat
-
-
 # Band correlation
 
 
@@ -430,55 +361,6 @@ def band_cc(
     return float(cc)
 
 
-def band_cf(
-    volume: xpt.NDArray[float],
-    reference: xpt.NDArray[float],
-    band: Tuple[float, float] = (0, 100),
-) -> Tuple[xpt.NDArray[float], xpt.NDArray[float]]:
-    """
-    band_cf:
-    @param volume: The volume
-    @param reference: The reference
-    @param band: [a,b] - specify the lower and upper end of band. [0,1] if not set.
-    @return: First parameter - The correlation of the two volumes in the specified ring.
-             Second parameter - The bandpass filter used.
-    @rtype: List - [L{xpt.NDArray},L{pytom.lib.pytom_freqweight.weight}]
-    @author: Thomas Hrabe
-    @todo: does not work yet -> test is disabled
-    """
-
-    from math import sqrt
-
-    vf, vfm = bandpass(volume, band[0], band[1], fourierOnly=True, returnMask=True)
-    rf = bandpass(reference, band[0], band[1], vf[1], fourierOnly=True)
-
-    v = fourier_reduced2full(vf)
-    r = fourier_reduced2full(rf)
-
-    abs_v = xp.abs(v) ** 2
-    abs_r = xp.abs(r) ** 2
-
-    sum_v = abs(xp.sum(abs_v))
-    sum_r = abs(xp.sum(abs_r))
-
-    if sum_v == 0:
-        sum_v = 1
-
-    if sum_r == 0:
-        sum_r = 1
-
-    xp.conj(rf[0])
-
-    fresult = vf * rf
-
-    # transform back to real space
-    result = xp.fft.ifftshift(xp.fft.ifftn(fresult)).real
-
-    result *= 1 / float(sqrt(sum_v * sum_r))
-
-    return result, vfm
-
-
 # Fourier Shell Correlation and helper functions
 
 
@@ -509,8 +391,6 @@ def fsc(
     @author:GS
     @rtype: list[floats]
     """
-
-    from pytom.agnostic.correlation import band_cc
     import time
 
     time.time()
@@ -787,243 +667,22 @@ def randomize_phase_beyond_freq(volume: xpt.NDArray, frequency: int) -> xpt.NDAr
     return image.real
 
 
-# Sub Pixel Peak Methods
-
-
-def sub_pixel_peak_parabolic(
-    score_volume: xpt.NDArray[float],
-    coordinates: Union[Tuple[float, float, float], Tuple[float, float]],
-    verbose: bool = False,
-) -> Tuple[float, Union[Tuple[float, float, float], Tuple[float, float]]]:
+def soc(
+    volume: xpt.NDArray[float],
+    reference: xpt.NDArray[float],
+    mask: Optional[xpt.NDArray[float]] = None,
+    std_v: Optional[float] = None,
+) -> xpt.NDArray[float]:
     """
-    quadratic interpolation of three adjacent samples
-    @param score_volume: The score volume
-    @param coordinates: (x,y,z) coordinates where the sub pixel peak will be determined
-    @param verbose: be talkative
-    @type verbose: bool
-    @return: Returns (peak_value,peak_coordinates) with sub pixel accuracy
-    @rtype: float, tuple
+    soc : Second Order Correlation. Correlation of correlation peaks.
+    @param volume: The volume
+    @type volume:  L{xpt.NDArray}
+    @param reference: The reference / template
+    @type reference:  L{xpt.NDArray}
+    @author: Thomas Hrabe
     """
 
-    if is_border_voxel(score_volume, coordinates):
-        if verbose:
-            print("sub_pixel_peak_parabolic: peak near borders - no interpolation done")
-        return score_volume[coordinates], coordinates
+    reference_peak = flcf(reference, reference, mask)
+    peaks = flcf(volume, reference, mask)
 
-    dim = len(coordinates)
-    (x, a1, b1) = qint(
-        ym1=score_volume[tuple(xp.array(coordinates) - xp.array([1, 0, 0][:dim]))],
-        y0=score_volume[coordinates],
-        yp1=score_volume[tuple(xp.array(coordinates) + xp.array([1, 0, 0][:dim]))],
-    )
-    (y, a2, b2) = qint(
-        ym1=score_volume[tuple(xp.array(coordinates) - xp.array([0, 1, 0][:dim]))],
-        y0=score_volume[coordinates],
-        yp1=score_volume[tuple(xp.array(coordinates) + xp.array([0, 1, 0][:dim]))],
-    )
-    # some ealry declarations to help with typing
-    peak_value: float
-    peak_x: float
-    peak_y: float
-    peak_z: float
-    peak_coordinates: Union[Tuple[float, float, float], Tuple[float, float]]
-    if dim == 2:
-        peak_x, peak_y = cast(Tuple[float, float], coordinates)
-        peak_x += x
-        peak_y += y
-        peak_value = (
-            score_volume[coordinates] + a1 * x**2 + b1 * x + a2 * y**2 + b2 * y
-        )
-        peak_coordinates = (peak_x, peak_y)
-    else:
-        peak_x, peak_y, peak_z = cast(Tuple[float, float, float], coordinates)
-        (z, a3, b3) = qint(
-            ym1=score_volume[tuple(xp.array(coordinates) - xp.array([0, 0, 1]))],
-            y0=score_volume[coordinates],
-            yp1=score_volume[tuple(xp.array(coordinates) + xp.array([0, 0, 1]))],
-        )
-        peak_x += x
-        peak_y += y
-        peak_z += z
-        peak_value = (
-            score_volume[coordinates]
-            + a1 * x**2
-            + b1 * x
-            + a2 * y**2
-            + b2 * y
-            + a3 * z**2
-            + b3 * z
-        )
-        peak_coordinates = (peak_x, peak_y, peak_z)
-    # return coordinates as tuple for indexing
-    return peak_value, peak_coordinates
-
-
-def sub_pixel_peak(
-    score_volume: xpt.NDArray,
-    coordinates: Tuple[int, int, int],
-    cube_length: int = 8,
-    interpolation: str = "Spline",
-    verbose: bool = False,
-) -> Tuple[float, Tuple[float, float, float]]:
-    """
-    sub_pixel_peak: Will determine the sub pixel area of peak.
-                    Utilizes spline, fourier or parabolic interpolation.
-
-    @param verbose: be talkative
-    @type verbose: L{str}
-    @param score_volume: The score volume
-    @param coordinates: [x,y,z] coordinates where the sub pixel peak will be determined
-    @param cube_length: length of cube - only used for Spline and Fourier interpolation
-    @type cube_length: int (even)
-    @param interpolation: interpolation type: 'Spline', 'Quadratic', or 'Fourier'
-    @type interpolation: str
-    @return: Returns [peak_value,peak_coordinates] with sub pixel accuracy
-
-    change log:
-    - 02/07/2013 FF: 2D functionality added
-    - 17/05/2023 SR: removed broken 2D functionality
-    """
-    # Help with typing
-    if interpolation.lower() in ("quadratic", "parabolic"):
-        (peak_value, peak_coordinates) = sub_pixel_peak_parabolic(
-            score_volume=score_volume, coordinates=coordinates, verbose=verbose
-        )
-        # Using 'cast' to get arround mypy errors for now
-        peak_coordinates = cast(Tuple[float, float, float], peak_coordinates)
-
-        return peak_value, peak_coordinates
-
-    cube_start = cube_length // 2
-    # This fails for 2D and for pytom_volume.vol
-    size_x, size_y, size_z = score_volume.shape
-
-    if any(
-        (
-            coordinates[0] - cube_start < 1,
-            coordinates[1] - cube_start < 1,
-            coordinates[2] - cube_start < 1,
-            coordinates[0] - cube_start + cube_length >= size_x,
-            coordinates[1] - cube_start + cube_length >= size_y,
-            coordinates[2] - cube_start + cube_length >= size_z,
-        )
-    ):
-        if verbose:
-            print("SubPixelPeak: position too close to border for sub-pixel")
-        return (
-            score_volume(coordinates[0], coordinates[1], coordinates[2]),
-            coordinates,
-        )
-
-    sub_volume = pytom_volume.subvolume(
-        score_volume,
-        coordinates[0] - cube_start,
-        coordinates[1] - cube_start,
-        coordinates[2] - cube_start,
-        cube_length,
-        cube_length,
-        cube_length,
-    )
-
-    # size of interpolated volume
-    scale_size = 10 * cube_length
-
-    # ratio between interpolation area and large volume
-    scale_ratio = 1.0 * cube_length / scale_size
-
-    # resize into bigger volume
-    if interpolation == "Spline":
-        sub_volume_scaled = pytom_volume.vol(scale_size, scale_size, scale_size)
-        pytom_volume.rescaleSpline(sub_volume, sub_volume_scaled)
-    else:
-        sub_volume_scaled = resize(volume=sub_volume, factor=10)[0]
-
-    peak_coordinates = pytom_volume.peak(sub_volume_scaled)
-    peak_value = sub_volume_scaled(
-        peak_coordinates[0], peak_coordinates[1], peak_coordinates[2]
-    )
-
-    # calculate sub pixel coordinates of interpolated peak
-    out_peak_coordinates_0 = (
-        peak_coordinates[0] * scale_ratio - cube_start + coordinates[0]
-    )
-    out_peak_coordinates_1 = (
-        peak_coordinates[1] * scale_ratio - cube_start + coordinates[1]
-    )
-    out_peak_coordinates_2 = (
-        peak_coordinates[2] * scale_ratio - cube_start + coordinates[2]
-    )
-    if any(
-        (
-            out_peak_coordinates_0 > score_volume.size_x(),
-            out_peak_coordinates_1 > score_volume.size_y(),
-            out_peak_coordinates_2 > score_volume.size_z(),
-        )
-    ):
-        if verbose:
-            print("SubPixelPeak: peak position too large :( return input value")
-        # something went awfully wrong here. return regular value
-        return (
-            score_volume(coordinates[0], coordinates[1], coordinates[2]),
-            coordinates,
-        )
-    out_peak_coordinates = (
-        out_peak_coordinates_0,
-        out_peak_coordinates_1,
-        out_peak_coordinates_2,
-    )
-    return peak_value, out_peak_coordinates
-
-
-def max_index(volume: xpt.NDArray, num_threads: int = 1024) -> Tuple[int, ...]:
-    nblocks = int(xp.ceil(volume.size / num_threads / 2))
-    fast_sum = -1000000 * xp.ones((nblocks), dtype=xp.float32)
-    max_id = xp.zeros((nblocks), dtype=xp.int32)
-    argmax(
-        (
-            nblocks,
-            1,
-        ),
-        (num_threads, 1, 1),
-        (volume, fast_sum, max_id, volume.size),
-        shared_mem=16 * num_threads,
-    )
-    mm = min(max_id[fast_sum.argmax()], volume.size - 1)
-
-    # predefine to help with mypy typing
-    indices: Tuple[int, ...]
-    indices = xp.unravel_index(mm, volume.shape)
-    return indices
-
-
-def is_border_voxel(volume: xpt.NDArray, coordinates: Tuple[float, ...]) -> bool:
-    shape = volume.shape
-    for n, pos in enumerate(coordinates):
-        if pos < 1 or pos >= shape[n] - 1:
-            return True
-    return False
-
-
-def qint(ym1: float, y0: float, yp1: float) -> Tuple[float, float, float]:
-    """
-    quadratic interpolation of three adjacent samples
-
-    [p,y,a] = qint(ym1,y0,yp1)
-
-    returns the extremum location p, height y, and half-curvature a
-    of a parabolic fit through three points.
-    Parabola is given by y(x) = a*(x-p)^2+b,
-    where y(-1)=ym1, y(0)=y0, y(1)=yp1.
-    @param ym1: y(-1)
-    @type ym1: float
-    @param y0: y(0)
-    @type y0: float
-    @param yp1: y(+1)
-    @type yp1: float
-    @return: peak-ordinate, peak-value
-    """
-    p = (yp1 - ym1) / (2 * (2 * y0 - yp1 - ym1))
-    y = y0 - 0.25 * (ym1 - yp1) * p
-    a = 0.5 * (ym1 - 2 * y0 + yp1)
-    # b = y0 - a*(p**2)
-    return p, y, a
+    return flcf(peaks, reference_peak, mask)
