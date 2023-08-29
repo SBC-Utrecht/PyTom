@@ -23,7 +23,7 @@ Git needs to be installed to clone the repository. Git can be installed by sudo 
 
 ```
 mkdir pytom
-git clone https://github.com/SBC-Utrecht/PyTomPrivate.git pytom
+git clone https://github.com/SBC-Utrecht/PyTom.git pytom
 cd pytom
 ```
 
