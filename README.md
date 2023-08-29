@@ -101,7 +101,7 @@ After installation you can run pytom unit tests that check the functionality of 
 
 ```
 cd tests
-./runPyTomUnitTests.py
+python -m unittest discover
 ```
 
 ## Versioning
