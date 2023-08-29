@@ -100,7 +100,7 @@ update_scores_angles = cc_mod.get_function('update_scores_angles')
 paste_in_center_gpu = cc_mod.get_function("pasteCenter")
 
 class TemplateMatchingPlan():
-    def __init__(self, volume, template, mask, wedge, stdV, gpu=True):
+    def __init__(self, volume, template, mask, wedge, std_v, gpu=True):
         self.volume = gu.to_gpu(volume)
 
         self.template = Volume(template)
@@ -114,11 +114,11 @@ class TemplateMatchingPlan():
         rotate(self.mask, [0,0,0], self.maskPadded, self.sPad, self.sOrg)
         #paste_in_center_gpu(self.template.d_data, self.templatePadded, np.int32(self.sPad), np.int32(self.maskSize), block=(10, 10, 10), grid=(8,1,1))
         #rotate(self.template, [0, 0, 0], self.templatePadded, self.sPad, self.maskSize)
-        print(volume.shape, stdV.shape, wedge.shape)
+        print(volume.shape, std_v.shape, wedge.shape)
 
         self.wedge = gu.to_gpu(wedge)
-        self.stdV = gu.to_gpu(stdV)
-        self.meanV = gu.zeros_like(self.stdV)
+        self.std_v = gu.to_gpu(std_v)
+        self.meanV = gu.zeros_like(self.std_v)
 
         self.fwd_plan = Plan(volume.shape, volume.dtype, np.complex64)
         self.inv_plan = Plan(volume.shape, np.complex64, volume.dtype)
@@ -137,8 +137,8 @@ class TemplateMatchingPlan():
 
     pass
 
-def prepare_template_matching(volume, template, mask, wedge, stdV, gpu=True):
-    plan = TemplateMatchingPlan(volume, template, mask, wedge, stdV, gpu=gpu)
+def prepare_template_matching(volume, template, mask, wedge, std_v, gpu=True):
+    plan = TemplateMatchingPlan(volume, template, mask, wedge, std_v, gpu=gpu)
     return plan
 
 def cross_correlate(plan, normalize=True):
@@ -151,7 +151,7 @@ def cross_correlate(plan, normalize=True):
     volume_fft = plan.volume_fft * plan.template_fft
     ifft(volume_fft, plan.ccc_map, plan.inv_plan, scale=True)
 
-    plan.ccc_map /= np.float32(plan.p.get())*plan.stdV
+    plan.ccc_map /= np.float32(plan.p.get())*plan.std_v
 
 
 
@@ -176,16 +176,16 @@ def meanVolUnderMask(volume, mask, out, p=1):
 
 def stdVolUnderMask(plan):
     meanVolUnderMask(plan.volume, plan.maskPadded, plan.meanV, p=plan.p)
-    meanVolUnderMask(plan.volume ** 2, plan.maskPadded, plan.stdV,  p=plan.p)
-    plan.stdV = (plan.stdV - plan.meanV ** 2)**0.5
+    meanVolUnderMask(plan.volume ** 2, plan.maskPadded, plan.std_v,  p=plan.p)
+    plan.std_v = (plan.std_v - plan.meanV ** 2)**0.5
 
 def meanUnderMask(volume, mask=None, p=1, gpu=False):
     """
     meanValueUnderMask: Determines the mean value under a mask
     @param volume: The volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param mask:  The mask
-    @type mask:  L{pytom_volume.vol}
+    @type mask:  L{pytom.lib.pytom_volume.vol}
     @param p: precomputed number of voxels in mask
     @type p: float
     @return: A value (scalar)
@@ -200,9 +200,9 @@ def stdUnderMask(volume, mask, meanValue, p=None, gpu=False):
     stdValueUnderMask: Determines the std value under a mask
 
     @param volume: input volume
-    @type volume:  L{pytom_volume.vol}
+    @type volume:  L{pytom.lib.pytom_volume.vol}
     @param mask: mask
-    @type mask:  L{pytom_volume.vol}
+    @type mask:  L{pytom.lib.pytom_volume.vol}
     @param p: non zero value numbers in the mask
     @type p: L{float} or L{int}
     @return: A value
@@ -217,9 +217,9 @@ def update_temp(plan):
     stdT =  1. / stdUnderMask(plan.template.d_data, plan.mask.d_data, meanT, p=plan.p)
     linearAdd(plan.templatePadded, plan.maskPadded, np.float32(meanT.get()), np.float32(stdT.get()))
 
-def template_matching_gpu(volume, template, mask, wedge, stdV, angle_list=[], isSphere=True, return_cpu=False, normalize=True):
+def template_matching_gpu(volume, template, mask, wedge, std_v, angle_list=[], isSphere=True, return_cpu=False, normalize=True):
 
-    plan = prepare_template_matching(volume, template, mask, wedge, stdV)
+    plan = prepare_template_matching(volume, template, mask, wedge, std_v)
     plan.num_vox = np.int32(np.prod(volume.shape))
     dimx = np.int32(volume.shape[0])
     dimy = int(volume.shape[1])
@@ -231,7 +231,7 @@ def template_matching_gpu(volume, template, mask, wedge, stdV, angle_list=[], is
         #multiply_wedge(plan.template)
         #if isSphere:
         #rotate(plan.mask, angs)
-        #    calc_stdV(plan)
+        #    calc_std_v(plan)
 
         update_temp(plan)
         cross_correlate(plan)
@@ -266,9 +266,9 @@ if __name__=='__main__':
 
     import sys
     from scipy.ndimage import rotate as ROTATE
-    from pytom_freqweight import weight
-    from pytom_numpy import vol2npy
-    import pytom_volume
+    from pytom.lib.pytom_freqweight import weight
+    from pytom.lib.pytom_numpy import vol2npy
+    import pytom.lib.pytom_volume as pytom_volume
 
     num_angles, size = map(int, sys.argv[1:3])
     size2=int(sys.argv[3])
@@ -280,8 +280,8 @@ if __name__=='__main__':
         start, end = 0, csize
 
 
-    wedgeAngle = 30
-    wedgeFilter = weight(wedgeAngle,0,end-start, size, size)
+    wedge_angle = 30
+    wedgeFilter = weight(wedge_angle,0,end-start, size, size)
     wedgeVolume = wedgeFilter.getWeightVolume(True)
 
     filterVolume = pytom_volume.reducedToFull(wedgeVolume)
@@ -305,22 +305,22 @@ if __name__=='__main__':
     import pytom.basic.correlation as corr
     from pytom.basic.files import read as readd
     from pytom.basic.files import write_em
-    from pytom_numpy import vol2npy, npy2vol
-    from pytom_volume import pasteCenter, vol
+    from pytom.lib.pytom_numpy import vol2npy, npy2vol
+    from pytom.lib.pytom_volume import pasteCenter, vol
 
     vv = readd('tomo.mrc', subregion=[0, 0, start, 464, 464, end-start])
     mm = readd('mask.em')
-    if vv.sizeX() != mm.sizeX() or vv.sizeY() != mm.sizeY() or vv.sizeZ() != mm.sizeZ():
-        maskV = vol(vv.sizeX(), vv.sizeY(), vv.sizeZ())
+    if vv.size_x() != mm.size_x() or vv.size_y() != mm.size_y() or vv.size_z() != mm.size_z():
+        maskV = vol(vv.size_x(), vv.size_y(), vv.size_z())
         maskV.setAll(0)
         pasteCenter(mm, maskV)
 
     meanV = corr.meanUnderMask(vv, maskV, mask.sum())
     stdVol = corr.stdUnderMask(vv, maskV, mask.sum(), meanV)
     write_em('stdV.em', stdVol)
-    stdV = vol2npy(stdVol).copy()
-    stdV = stdV.transpose(2,1,0).copy()
-    assert stdV.shape == volume.shape
+    std_v = vol2npy(stdVol).copy()
+    std_v = std_v.transpose(2,1,0).copy()
+    assert std_v.shape == volume.shape
     #mask = paste_in_center(mask, np.zeros_like(volume))
 
 
@@ -329,7 +329,7 @@ if __name__=='__main__':
 
     start.record()
  
-    scores, angles, plan = template_matching_gpu(volume, temp, mask, wedgeV, np.fft.fftshift(stdV).astype(np.float32), [[0,0,0],]*num_angles, return_cpu=True)
+    scores, angles, plan = template_matching_gpu(volume, temp, mask, wedgeV, np.fft.fftshift(std_v).astype(np.float32), [[0,0,0],]*num_angles, return_cpu=True)
 
     end.record()
     end.synchronize()

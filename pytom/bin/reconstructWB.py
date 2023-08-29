@@ -42,7 +42,9 @@ if __name__ == '__main__':
                                  'variants of the same projection.',
                                  'string', 'optional'),
                    ScriptOption2(['-w', '--applyWeighting'],
-                                 'If projections are not weighted, apply weighting before. If omited, no weighting.',
+                                 'If projections are not weighted, apply weighting before. '
+                                 'Options are {-1: ramp weighting, 0: no weighting, 1: exact weighting}. If omitted, '
+                                 'no weighting is applied.',
                                  'int', 'optional', 0),
                    ScriptOption2(['-s', '--size'],
                                  'Size of particle cube / tomogram. Can provide single integer, or 3 separate by '

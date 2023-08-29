@@ -4,6 +4,8 @@ Created on May 28, 2010
 @author: chen
 '''
 import unittest
+import os
+
 
 class pytom_LocalTest(unittest.TestCase):
     """
@@ -14,7 +16,7 @@ class pytom_LocalTest(unittest.TestCase):
         self.testfilename = f'./testData/emd_1480.map.em_bin_4.em'
 
     # Module Structures---------------------------------
-    def Volume_Test(self):
+    def test_volume(self):
         from pytom.localization.structures import Volume
         
         filename = self.testfilename
@@ -30,7 +32,7 @@ class pytom_LocalTest(unittest.TestCase):
         self.assertTrue( b.getFilename() == filename, 
             msg='filename not updated in volume structure')
         
-    def Orientation_Test(self):
+    def test_orientation(self):
         from pytom.localization.structures import Orientation
         
         a = Orientation(self.testfilename)
@@ -45,7 +47,7 @@ class pytom_LocalTest(unittest.TestCase):
         self.assertTrue( b.getFilename() == self.testfilename,
             msg='filename not stored in copied Orientation structure')
         
-    def FoundParticle_Test(self):
+    def test_foundparticle(self):
         from pytom.localization.structures import FoundParticle
         from pytom.basic.structures import PickPosition, Rotation
         from pytom.basic.score import FLCFScore
@@ -71,7 +73,7 @@ class pytom_LocalTest(unittest.TestCase):
             msg='particle filename not transferred from xml')
         
     # Module PeakJob------------------------------------
-    def PeakJob_Test(self):
+    def test_peakjob(self):
         from pytom.localization.peak_job import PeakJob
         from pytom.basic.structures import Mask, Reference, WedgeInfo
         from pytom.localization.structures import Volume
@@ -104,7 +106,7 @@ class pytom_LocalTest(unittest.TestCase):
         self.assertTrue( b.score.getScoreFunc() == a.score.getScoreFunc(),
             msg='')
         
-    def PeakResult_Test(self):
+    def test_peakresult(self):
         from pytom.localization.peak_job import PeakResult
         from pytom.localization.structures import Volume, Orientation
         
@@ -124,7 +126,7 @@ class pytom_LocalTest(unittest.TestCase):
             msg='')
         
     # Module PeakJobMsg------------------------------------
-    def PeakJobMsg_Test(self):
+    def test_peakjobmsg(self):
         from pytom.localization.peak_job_msg import PeakJobMsg
         from pytom.localization.peak_job import PeakJob
         from pytom.basic.structures import Mask, Reference, WedgeInfo
@@ -153,7 +155,7 @@ class pytom_LocalTest(unittest.TestCase):
         self.assertTrue( b.getRecipient() == a.getRecipient(),
             msg='')
         
-    def PeakResultMsg_Test(self):
+    def test_peakresultmsg(self):
         from pytom.localization.peak_job_msg import PeakResultMsg
         from pytom.localization.peak_job import PeakResult
         from pytom.localization.structures import Volume, Orientation
@@ -173,36 +175,23 @@ class pytom_LocalTest(unittest.TestCase):
         self.assertTrue( b.getRecipient() == a.getRecipient(),
             msg='')
         
-    
-    #def BackwardCompatibility_Test(self):
-    #    from pytom.localization.peak_job import PeakJob
-    #    job = PeakJob()
-    #    job.fromXMLFile('./testData/xmlFiles/localizationJob.xml')
+    def test_call_template_matching(self):
+        """
+        This runs the unittest for template matching, which are located in template_match_test.py.
 
-        
-    
-        
-def local_TestSuite():
-    """
-    local_TestSuite: Create a test suite for package localization
-    """
-    from unittest import TestSuite
-    suite = TestSuite()
-    
-    suite.addTest(pytom_LocalTest("Volume_Test"))
-    suite.addTest(pytom_LocalTest("Orientation_Test"))
-    suite.addTest(pytom_LocalTest("FoundParticle_Test"))
-    suite.addTest(pytom_LocalTest("PeakJob_Test"))
-    suite.addTest(pytom_LocalTest("PeakResult_Test"))
-    suite.addTest(pytom_LocalTest("PeakJobMsg_Test"))
-    suite.addTest(pytom_LocalTest("PeakResultMsg_Test"))
-    
-    return suite
+        The tests need to called with a fresh python environment because otherwise GPU functionality cannot be loaded.
+        PyTom runs GPU code by setting the environment variable PYTOM_GPU, which agnostic libraries then use to load
+        either numpy or cupy. This is done through pytom.gpu.initialize from which libraries can load the xp module.
+        For the GPU template matching test we therefore need to set PYTOM_GPU in the test.
+
+        However, because modules are only imported once, some tests will have already called pytom.gpu.initialize
+        when PYTOM_GPU was not yet set. After updating the environment, the module will not be reimported and the GPU
+        backend is then not available.
+
+        ====> so I now set it up to call the test with a fresh environment...
+        """
+        os.system('python -m unittest template_match_test.py')
+
 
 if __name__ == '__main__':
-    
-    suite = local_TestSuite()
-    
-    from unittest import TextTestRunner
-    runner = TextTestRunner()
-    runner.run(suite)
+    unittest.main()

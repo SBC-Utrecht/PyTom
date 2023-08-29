@@ -1,49 +1,75 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 from setuptools.command.install import install
+from setuptools.command.develop import develop
 
 import subprocess
 import sys
-import os
+import pathlib
 from pytom import __version__
 
 
-def find_angle_lists(folder):
-    return [e for e in os.listdir(folder) if e.endswith('.em') and e.startswith('angles_')]
-
-
 def find_executables():
-    folder = 'pytom/bin'
-    a = [f'{folder}/{e}' for e in os.listdir(folder) if os.path.isfile(f'{folder}/{e}') and not '__' in e] + \
-        ['pytom/bin/pytom', 'pytom/bin/ipytom', 'pytom/bin/pytomGUI']
-    return a
+    bin_folder = pathlib.Path('pytom/bin')
+    # exclude entry points as well
+    executables = [str(path) for path in bin_folder.iterdir() if path.is_file() and '__' not in path.name and path.name != "coords2PL.py"]
+    return executables + [str(bin_folder.joinpath(f)) for f in ['pytom', 'ipytom', 'pytomGUI']]
 
 
-class CustomInstall(install):
+def compile_pytom(miniconda_dir):
+    install_command = f'{sys.executable} compile.py --target all'
+    if miniconda_dir.exists():
+        install_command += f' --minicondaEnvDir {miniconda_dir}'
+    process = subprocess.Popen(install_command, shell=True, cwd="pytom/pytomc")
+    process.wait()
+
+
+class PyTomInstaller(install):
     def run(self):
-        condadir = self.prefix
-        version = f'{sys.version_info[0]}.{sys.version_info[1]}'
-        commandInstall = f'python{version} compile.py --target all'
-        if os.path.exists(condadir): commandInstall += f' --minicondaEnvDir {condadir}' 
-        process = subprocess.Popen(commandInstall, shell=True, cwd="pytom/pytomc")
-        process.wait()
+        compile_pytom(pathlib.Path(self.prefix))
         install.run(self)
+
+
+class PyTomDeveloper(develop):
+    def run(self):
+        compile_pytom(pathlib.Path(self.prefix))
+        develop.run(self)
+
+        """Hacky solution, but we cannot rely on the script linking of pip in develop-mode. Pip will put scripts in the 
+        miniconda bin that have a different shebang than the original ones. However, we need the pytom shebang for GPU 
+        scripts to execute. Only then is the GPU environment variable properly set. Updating gpu code to the cupy 
+        advised agnostic setup (as put in PyTomPrivate issue #117) should also solve this."""
+        miniconda_bin = pathlib.Path(self.prefix)
+        scripts = find_executables()
+        for script in scripts:
+            script_path = pathlib.Path(script)
+            symlink_path = miniconda_bin.joinpath('bin', script_path.name)
+            symlink_path.unlink()
+            symlink_path.symlink_to(script_path.absolute())
 
 
 setup(
     name='pytom',
     version=__version__,
-    packages=find_packages(),
-    package_dir={'pytom':'pytom'},
-    package_data={'pytom/angles/angleLists': find_angle_lists('pytom/angles/angleLists')},
+    packages=find_namespace_packages(include=['pytom*']),
+    package_dir={'pytom': 'pytom'},
+    package_data={
+        'pytom.angles.angleLists': ['*.em'],
+        'pytom.simulation.detectors': ['*.csv'],
+        'pytom.simulation.membrane_models': ['*.pdb']
+    },
+    data_files=[("pytom_data", ["./LICENSE.txt"])],  # This is a relative dir to sys.prefix
     include_package_data=True,
     author='`FridoF',
-    author_email='gijsschot@gmail.com',
-    url='https://github.com/FridoF/PyTomPrivate.git',
-    install_requires=['lxml', 'PyFFTW', 'scipy', 'boost', 'numpy'],
+    author_email='strubi.pytom@uu.nl',
+    url='https://github.com/SBC-Utrecht/PyTom.git',
+    install_requires=['lxml', 'scipy', 'boost', 'numpy'],
     extras_require={
         'gpu': ['cupy'],
         'gui': ['PyQt5', 'pyqtgraph', 'mrcfile'],
         'all': ['cupy', 'PyQt5', 'pyqtgraph', 'mrcfile']},
-    cmdclass={'install': CustomInstall},
-    scripts=find_executables())
+    cmdclass={'install': PyTomInstaller,
+              'develop': PyTomDeveloper},
+    scripts=find_executables(),
+    entry_points={'console_scripts': ['coords2PL.py = pytom.convert.coords2PL:entry_point']}
+    )
 

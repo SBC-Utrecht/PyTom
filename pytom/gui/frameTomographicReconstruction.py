@@ -1,4 +1,5 @@
 import os
+import subprocess
 import glob
 import numpy
 import time
@@ -612,6 +613,9 @@ class TomographReconstruct(GuiTabWidget):
                             alignment_choices.append(alignment)
                             break
                     # we might have found an alignment file
+            if len(alignment_choices) == 0:
+                print(f'No alignments found for {tomo_name}, not adding it to the batch reconstruction table.')
+                continue
 
             # get ctf options
             sorted_dir = os.path.join(tomo_folder, 'sorted')
@@ -619,9 +623,9 @@ class TomographReconstruct(GuiTabWidget):
             tilt_choices = []
             if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
                 tilt_choices.append('sorted')
-            if os.path.exists(ctf_sorted_dir):
-                if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
-                    tilt_choices.append('sorted_ctf')
+            if os.path.exists(ctf_sorted_dir) and \
+                    len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+                tilt_choices.append('sorted_ctf')
 
             # add to table fill, angles will be set in a bit
             values.append([tomo_name, True, alignment_choices, 0, 0, tilt_choices, -1, 8, '', ''])
@@ -1534,7 +1538,8 @@ class TomographReconstruct(GuiTabWidget):
         tilt_choices = []
         if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
             tilt_choices.append('sorted')
-        if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+        if (os.path.exists(ctf_sorted_dir) and 
+            len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0):  # at least
             tilt_choices.append('sorted_ctf')
         # set choices in the widget
         self.widgets[mode + 'ctfCorrChoice'].currentIndexChanged.connect(
@@ -1568,8 +1573,9 @@ class TomographReconstruct(GuiTabWidget):
 
             # set rotation axis for tomogram dims
             self.widgets[mode + 'RotationTiltAxis'].setText(str(alignment['InPlaneRotation'][0]))
-        except IndexError:
-            print('No sorted or sorted_ctf folder in the alignment directory.')
+        except (IndexError, FileNotFoundError):
+            print(f"No sorted or sorted_ctf folder in the alignment directory for "
+                  f"{self.widgets[mode + 'tomogram'].currentText()}.")
 
     def update_alignment_choice_batch(self, row_id, table_id):
         w_tomogram = self.tables[table_id].widgets['widget_{}_0'.format(row_id)]
@@ -1577,12 +1583,14 @@ class TomographReconstruct(GuiTabWidget):
         w_first_angle = self.tables[table_id].widgets['widget_{}_3'.format(row_id)]
         w_last_angle = self.tables[table_id].widgets['widget_{}_4'.format(row_id)]
 
-        # set the alignment file but if sorted exists, if not get sorted_ctf
+        # dont try this part, its better if the gui crashes, you should not be able to do anything for the tomogram
+        # in batch mode if no alignment is available. instead i built a check before to prevent crashing at this point.
         ar_file = os.path.join(self.tomogram_folder, w_tomogram.text(), 'alignment',
                                w_alignment.currentText(), 'GlobalAlignment', 'sorted', 'alignmentResults.txt')
         if not os.path.exists(ar_file):
             ar_file = os.path.join(self.tomogram_folder, w_tomogram.text(), 'alignment',
-                                   w_alignment.currentText(), 'GlobalAlignment', 'sorted_ctf', 'alignmentResults.txt')
+                                   w_alignment.currentText(), 'GlobalAlignment', 'sorted_ctf',
+                                   'alignmentResults.txt')
         # read old and new type of alignment-results
         try:  # TODO same, dit werkt niet
             alignment = loadstar(ar_file, dtype=ALIGNRESULTS_ORDER)
@@ -2035,6 +2043,7 @@ class TomographReconstruct(GuiTabWidget):
 
                             elif job_code_key in jobCode.keys():
                                 jobCode[job_code_key] += f'\nwait\n\n{cmd}\n'
+                                nsj += 1
 
                         else:  # set up CPU jobs
                             job_code_key = method + '_' + f'noGPU_{nsj % n_nodes}'
@@ -2053,28 +2062,19 @@ class TomographReconstruct(GuiTabWidget):
 
                             else:
                                 jobCode[job_code_key] += f'\nwait\n\n{cmd}\n'
+                                nsj += 1
 
-            wid = []
-            todoList = {}
+            qIDs, num_submitted_jobs = [], 0
 
-            for key in jobCode.keys():
-                if not key in todoList:
-                    todoList[key] = []
-                todoList[key].append([execfilenames[key], id, jobCode[key]])
+            for key, values in jobCode.items():
+                ID, num = self.submitBatchJob(execfilenames[key], id, values)
+                qIDs.append(ID)
+                num_submitted_jobs += 1
 
-            from time import sleep
-            for key in todoList.keys():
-                print(f'starting {len(todoList[key])} jobs on device {key}')
-                self.localJobs[self.workerID] = []
-                wid.append(self.workerID)
-                proc = Worker(fn=self.multiSeq, args=((self.submitBatchJob, todoList[key], self.workerID)))
-                self.threadPool.start(proc)
-                self.workerID += 1
-                sleep(.01)
-
-            if nsj > 0:
-                self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
-                self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Tom. Reconstr. Batch')
+            if num_submitted_jobs > 0:
+                self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+                self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Tom. Reconstr. Batch',
+                                               num_submitted_jobs=num_submitted_jobs)
 
         except ValueError:
             self.popup_messagebox('Warning', 'Invalid value in field',
@@ -2089,9 +2089,8 @@ class TomographReconstruct(GuiTabWidget):
             exefile.close()
 
             if len(params[1].split('SBATCH')) > 2:
-
-                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
-                text = dd.read()[:-1]
+                dd = subprocess.run([self.qcommand, exefilename], capture_output=True, text=True) 
+                text = dd.stdout[:-1]
                 id = text.split()[-1]
                 logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
                 os.system(f'cp {exefilename} {logcopy}')

@@ -5,7 +5,7 @@ Created on Sep 3, 2012
 '''
 
 from pytom.basic.structures import PyTomClass
-import pytom_mpi
+import pytom.lib.pytom_mpi as pytom_mpi
 import os
 
 class FRMJob(PyTomClass): # i need to rename the class, but for now it works
@@ -274,38 +274,38 @@ class FRMWorker():
                 
                 # determine the transformation between even and odd
                 # here we assume the wedge from both sets are fully sampled
-                from sh_alignment.frm import frm_align
+                from pytom.lib.frm import frm_align
                 pos, angle, score = frm_align(odd, None, even, None, job.bw_range, new_freq, job.peak_offset)
                 print(self.node_name + 'Transform of even set to match the odd set - shift: '+str(pos)+' rotation: '+str(angle))
                 
                 # transform the odd set accordingly
-                from pytom_volume import vol, transformSpline
+                from pytom.lib.pytom_volume import vol, transformSpline
                 from pytom.basic.fourier import ftshift
-                from pytom_volume import reducedToFull
-                from pytom_freqweight import weight
-                transformed_odd_pre = vol(odd.sizeX(), odd.sizeY(), odd.sizeZ())
+                from pytom.lib.pytom_volume import reducedToFull
+                from pytom.lib.pytom_freqweight import weight
+                transformed_odd_pre = vol(odd.size_x(), odd.size_y(), odd.size_z())
                 full_all_odd_wedge = reducedToFull(all_odd_wedge)
                 ftshift(full_all_odd_wedge)
                 odd_weight = weight(full_all_odd_wedge) # the funny part of pytom
-                transformed_odd = vol(odd.sizeX(), odd.sizeY(), odd.sizeZ())
+                transformed_odd = vol(odd.size_x(), odd.size_y(), odd.size_z())
                 
-                transformSpline(all_odd_pre,transformed_odd_pre,-angle[1],-angle[0],-angle[2],odd.sizeX()/2,odd.sizeY()/2,odd.sizeZ()/2,-(pos[0]-odd.sizeX()/2),-(pos[1]-odd.sizeY()/2),-(pos[2]-odd.sizeZ()/2),0,0,0)
+                transformSpline(all_odd_pre,transformed_odd_pre,-angle[1],-angle[0],-angle[2],odd.size_x()/2,odd.size_y()/2,odd.size_z()/2,-(pos[0]-odd.size_x()/2),-(pos[1]-odd.size_y()/2),-(pos[2]-odd.size_z()/2),0,0,0)
                 odd_weight.rotate(-angle[1],-angle[0],-angle[2])
                 transformed_odd_wedge = odd_weight.getWeightVolume(True)
-                transformSpline(odd,transformed_odd,-angle[1],-angle[0],-angle[2],odd.sizeX()/2,odd.sizeY()/2,odd.sizeZ()/2,-(pos[0]-odd.sizeX()/2),-(pos[1]-odd.sizeY()/2),-(pos[2]-odd.sizeZ()/2),0,0,0)
+                transformSpline(odd,transformed_odd,-angle[1],-angle[0],-angle[2],odd.size_x()/2,odd.size_y()/2,odd.size_z()/2,-(pos[0]-odd.size_x()/2),-(pos[1]-odd.size_y()/2),-(pos[2]-odd.size_z()/2),0,0,0)
                 
                 all_odd_pre = transformed_odd_pre
                 all_odd_wedge = transformed_odd_wedge
                 odd = transformed_odd
                 
                 # determine resolution
-                resNyquist, resolutionBand, numberBands = self.determine_resolution(even, odd, job.fsc_criterion, None, job.mask, verbose)
+                resNyquist, resolutionBand, number_bands = self.determine_resolution(even, odd, job.fsc_criterion, None, job.mask, verbose)
                 
                 # write the half set to the disk
                 even.write(os.path.join(self.destination, 'fsc_'+str(i)+'_even.em'))
                 odd.write(os.path.join(self.destination, 'fsc_'+str(i)+'_odd.em'))
                 
-                current_resolution = bandToAngstrom(resolutionBand, job.sampleInformation.getPixelSize(), numberBands, 1)
+                current_resolution = bandToAngstrom(resolutionBand, job.sampleInformation.getPixelSize(), number_bands, 1)
                 if verbose:
                     print(self.node_name + ': current resolution ' + str(current_resolution), resNyquist)
                 
@@ -344,7 +344,7 @@ class FRMWorker():
                         old_freq = new_freq
                 else:
                     old_freq = new_freq
-                if new_freq >= numberBands:
+                if new_freq >= number_bands:
                     print(self.node_name + ': New frequency too high. Terminate!')
                     break
                 
@@ -374,7 +374,7 @@ class FRMWorker():
         pytom_mpi.finalise()
     
     def run(self, verbose=False):
-        from sh_alignment.frm import frm_align
+        from pytom.lib.frm import frm_align
         from pytom.basic.structures import Shift, Rotation
         from pytom.tools.ProgressBar import FixedProgBar
         
@@ -401,7 +401,7 @@ class FRMWorker():
                 
                 pos, angle, score = frm_align(v, p.getWedge(), ref, None, job.bw_range, job.freq, job.peak_offset, job.mask.getVolume())
                     
-                p.setShift(Shift([pos[0]-v.sizeX()/2, pos[1]-v.sizeY()/2, pos[2]-v.sizeZ()/2]))
+                p.setShift(Shift([pos[0]-v.size_x()/2, pos[1]-v.size_y()/2, pos[2]-v.size_z()/2]))
                 p.setRotation(Rotation(angle))
                 p.setScore(FRMScore(score))
                 
@@ -422,7 +422,7 @@ class FRMWorker():
     def retrieve_res_vols(self, name_prefix):
         """For master node, retrieve the sub-averages and do the cleaning.
         """
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         pre = read(name_prefix+'-PreWedge.em')
         wedge = read(name_prefix+'-WedgeSumUnscaled.em')
         
@@ -440,7 +440,7 @@ class FRMWorker():
     def create_average(self, pre, wedge):
         """For the master node, create the average according to the pre-wedge and wedge volumes.
         """
-        from pytom_volume import complexDiv, limit
+        from pytom.lib.pytom_volume import complexDiv, limit
         from pytom.basic.fourier import fft,ifft
         
         limit(wedge, 0.1, 0, 0,0,True,False) # set all the values below the specified value to 0
@@ -448,23 +448,23 @@ class FRMWorker():
         f_pre = fft(pre)
         r = complexDiv(f_pre, wedge)
         average = ifft(r)
-        average.shiftscale(0.0,1/float(average.sizeX()*average.sizeY()*average.sizeZ()))
+        average.shiftscale(0.0,1/float(average.size_x()*average.size_y()*average.size_z()))
         
         return average
     
-    def determine_resolution(self, even, odd, criterion, numberBands, mask, verbose=False):
+    def determine_resolution(self, even, odd, criterion, number_bands, mask, verbose=False):
         """For the master node, determine the resolution.
         """
-        from pytom.basic.correlation import FSC, determineResolution
+        from pytom.basic.correlation import fsc, determine_resolution
         
-        if not numberBands:
-            numberBands = even.sizeX()/2
+        if not number_bands:
+            number_bands = even.size_x()/2
         
-        fsc = FSC(even, odd, numberBands, mask, verbose=False)
+        calc_fsc = fsc(even, odd, number_bands, mask, verbose=False)
         if verbose:
-            print(self.node_name + ': FSC: ' + str(fsc))
+            print(self.node_name + ': FSC: ' + str(calc_fsc))
         
-        return determineResolution(fsc, criterion, verbose=False)
+        return determine_resolution(calc_fsc, criterion, verbose=False)
     
     def send_job(self, job, dest):
         pytom_mpi.send(str(job), dest)

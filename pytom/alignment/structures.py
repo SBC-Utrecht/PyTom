@@ -641,7 +641,7 @@ class AlignmentList(PyTomClass):
         @type filename: L{str}
         @todo: add unit test
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         l = self.len()
         motif = vol(20,l,1)
         motif.setAll(0)

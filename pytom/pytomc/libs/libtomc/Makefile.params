@@ -15,10 +15,10 @@ else
     else
 	    
 	    ifndef OSX
-			CFLAGS_:=-Wall -fPIC -Wno-long-long -pedantic -ansi --std=c++98 -gdwarf-2 -g3 -fpermissive
+			CFLAGS_:=-Wall -fPIC -Wno-long-long -pedantic -ansi --std=c++11 -gdwarf-2 -g3 -fpermissive
 	    else
 	    	#OSX gcc does not work with gdwarf and -gX
-	        CFLAGS_:=-Wall -fPIC -Wno-long-long -pedantic -ansi --std=c++98 -fpermissive
+	        CFLAGS_:=-Wall -fPIC -Wno-long-long -pedantic -ansi --std=c++11 -fpermissive
 	    endif
 	        
     endif
@@ -85,9 +85,11 @@ else
     WLFLAGS=
 endif
 
+ifndef PYTOMC_DIR
+PYTOMC_DIR=./
+endif
 
-
-LIBDIR=$(PYTOMC_DIR)/../lib/
+LIBDIR=$(PYTOMC_DIR)/../lib
 
 
 LDFLAGS_FFTW?=-lfftw3 -lfftw3f

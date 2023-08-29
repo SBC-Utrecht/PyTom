@@ -989,22 +989,22 @@ class PickingFunctions():
             volume = data  # * mask2
 
             meanV = meanVolUnderMask(volume, mask)
-            stdV = stdVolUnderMask(volume, mask, meanV)
+            std_v = stdVolUnderMask(volume, mask, meanV)
 
 
 
             r = 8
 
 
-            stdV[:, :r] = 0
-            stdV[:r, :] = 0
-            stdV[-r:, :] = 0
-            stdV[:, -r:] = 0
-            stdV[stdV < stdV.mean() + stdV.std() * threshold] = 0
-            stdV /= stdV.max() / 100
+            std_v[:, :r] = 0
+            std_v[:r, :] = 0
+            std_v[-r:, :] = 0
+            std_v[:, -r:] = 0
+            std_v[std_v < std_v.mean() + std_v.std() * threshold] = 0
+            std_v /= std_v.max() / 100
 
             footprint = np.ones((int(radius), int(radius)))
-            image = restoration.denoise_tv_chambolle(stdV.squeeze(), weight=0.1)
+            image = restoration.denoise_tv_chambolle(std_v.squeeze(), weight=0.1)
             # distance = scipy.ndimage.distance_transform_edt(image)
             # local_maxi = peak_local_max(image, indices=False, footprint=footprint)
             #
@@ -1460,7 +1460,7 @@ class PickingFunctions():
         from pytom.reconstruction.TiltAlignmentStructures import Marker
         from pytom.gui.guiFunctions import ALIGNMENT_ERRORS, fmtAE as fmt, headerAlignmentErrors
 
-        projIndices = np.arange(0, len(coordinates), 1).astype(np.int)[abs(tilt_angles) <= max_angle + 0.1]
+        projIndices = np.arange(0, len(coordinates), 1).astype(int)[abs(tilt_angles) <= max_angle + 0.1]
         Markers = []
 
         for markerID in range(coordinates.shape[1]):
@@ -1534,7 +1534,7 @@ class PickingFunctions():
         return [psiindeg, errors, shiftX, shiftY, diffX, diffY, x,y,z]
 
     def determine_markerdata(self, coordinates, errors, excluded, add_marker):
-        incl = 1- np.array(excluded,dtype=np.int)
+        incl = 1 - np.array(excluded, dtype=int)
 
         for markerID in range(coordinates.shape[1]):
             coords = coordinates[:,markerID,:]

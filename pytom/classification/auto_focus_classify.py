@@ -33,7 +33,7 @@ def combinations(iterable, r):
 def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, align=True, sigma=None, threshold=0.4):
     """mask if for alignment, while focus_mask is for difference map.
     """
-    from pytom_volume import vol, power, abs, limit, transformSpline, mean, max, min
+    from pytom.lib.pytom_volume import vol, power, abs, limit, transformSpline, mean, max, min
     from pytom.basic.normalise import mean0std1
     from pytom.basic.filter import lowpassFilter
 
@@ -43,14 +43,14 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
 
     # do alignment of two volumes, if required. v1 is used as reference.
     if align:
-        from sh_alignment.frm import frm_align
+        from pytom.lib.frm import frm_align
         band = int(band1 if band1<band2 else band2)
-        pos, angle, score = frm_align(lv2, None, lv1, None, [4,64], band, lv1.sizeX()//4, mask)
-        shift = [pos[0]-v1.sizeX()//2, pos[1]-v1.sizeY()//2, pos[2]-v1.sizeZ()//2]
+        pos, angle, score = frm_align(lv2, None, lv1, None, [4,64], band, lv1.size_x()//4, mask)
+        shift = [pos[0]-v1.size_x()//2, pos[1]-v1.size_y()//2, pos[2]-v1.size_z()//2]
 
         # transform v2
         lvv2 = vol(lv2)
-        transformSpline(lv2, lvv2, -angle[1],-angle[0],-angle[2],lv2.sizeX()//2,lv2.sizeY()//2,lv2.sizeZ()//2,-shift[0],-shift[1],-shift[2],0,0,0)
+        transformSpline(lv2, lvv2, -angle[1],-angle[0],-angle[2],lv2.size_x()//2,lv2.size_y()//2,lv2.size_z()//2,-shift[0],-shift[1],-shift[2],0,0,0)
     else:
         lvv2 = lv2
 
@@ -99,11 +99,11 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
     limit(std_map, threshold, 0, threshold, 1, True, True)
 
     # do a lowpass filtering
-    std_map1 = lowpassFilter(std_map, v1.sizeX()//4, v1.sizeX()/40.)[0]
+    std_map1 = lowpassFilter(std_map, v1.size_x()//4, v1.size_x()/40.)[0]
 
     if align:
         std_map2 = vol(std_map)
-        transformSpline(std_map1, std_map2, angle[0],angle[1],angle[2],v1.sizeX()//2,v1.sizeY()//2,v1.sizeZ()//2,0,0,0,shift[0],shift[1],shift[2])
+        transformSpline(std_map1, std_map2, angle[0],angle[1],angle[2],v1.size_x()//2,v1.size_y()//2,v1.size_z()//2,0,0,0,shift[0],shift[1],shift[2])
     else:
         std_map2 = std_map1
 
@@ -115,7 +115,7 @@ def calculate_difference_map(v1, band1, v2, band2, mask=None, focus_mask=None, a
 
 
 def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binning, iteration, sigma, threshold, outdir='./'):
-    from pytom_volume import read, vol, pasteCenter
+    from pytom.lib.pytom_volume import read, vol, pasteCenter
     from pytom.basic.structures import Particle
     import os
 
@@ -123,8 +123,8 @@ def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binni
     v2 = r2.getVolume()
     if mask:
         maskBin = read(mask, 0,0,0,0,0,0,0,0,0, binning, binning, binning)
-        if v1.sizeX() != maskBin.sizeX() or v1.sizeY() != maskBin.sizeY() or v1.sizeZ() != maskBin.sizeZ():
-            mask = vol(v1.sizeX(), v1.sizeY(), v1.sizeZ())
+        if v1.size_x() != maskBin.size_x() or v1.size_y() != maskBin.size_y() or v1.size_z() != maskBin.size_z():
+            mask = vol(v1.size_x(), v1.size_y(), v1.size_z())
             mask.setAll(0)
             pasteCenter(maskBin, mask)
         else:
@@ -135,8 +135,8 @@ def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binni
 
     if focus_mask:
         focusBin = read(focus_mask, 0,0,0,0,0,0,0,0,0, binning, binning, binning)
-        if v1.sizeX() != focusBin.sizeX() or v1.sizeY() != focusBin.sizeY() or v1.sizeZ() != focusBin.sizeZ():
-            focus_mask = vol(v1.sizeX(), v1.sizeY(), v1.sizeZ())
+        if v1.size_x() != focusBin.size_x() or v1.size_y() != focusBin.size_y() or v1.size_z() != focusBin.size_z():
+            focus_mask = vol(v1.size_x(), v1.size_y(), v1.size_z())
             focus_mask.setAll(0)
             pasteCenter(focusBin, focus_mask)
         else:
@@ -145,7 +145,7 @@ def calculate_difference_map_proxy(r1, band1, r2, band2, mask, focus_mask, binni
         focus_mask = None
 
     if not focus_mask is None and not mask is None:
-        if mask.sizeX() != focus_mask.sizeX():
+        if mask.size_x() != focus_mask.size_x():
             raise Exception('Focussed mask and alignment mask do not have the same dimensions. This cannot be correct.')
 
     (dmap1, dmap2) = calculate_difference_map(v1, band1, v2, band2, mask, focus_mask, True, sigma, threshold)
@@ -181,8 +181,8 @@ def paverage(particleList, norm, binning, verbose, outdir='./', gpuID=None):
 
     if 'cpu' in device:
         # print(f'averaging particles on cpu')
-        from pytom_volume import read, vol
-        from pytom_volume import transformSpline as transform
+        from pytom.lib.pytom_volume import read, vol
+        from pytom.lib.pytom_volume import transformSpline as transform
         from pytom.basic.structures import Particle
         from pytom.basic.normalise import mean0std1
         from pytom.tools.ProgressBar import FixedProgBar
@@ -213,24 +213,24 @@ def paverage(particleList, norm, binning, verbose, outdir='./', gpuID=None):
 
             wedgeInfo = particleObject.getWedge()
             if result is None: # initialization
-                sizeX = particle.sizeX()
-                sizeY = particle.sizeY()
-                sizeZ = particle.sizeZ()
+                size_x = particle.size_x()
+                size_y = particle.size_y()
+                size_z = particle.size_z()
 
-                newParticle = vol(sizeX,sizeY,sizeZ)
+                newParticle = vol(size_x,size_y,size_z)
 
-                centerX = sizeX//2
-                centerY = sizeY//2
-                centerZ = sizeZ//2
+                centerX = size_x//2
+                centerY = size_y//2
+                centerZ = size_z//2
 
-                result = vol(sizeX,sizeY,sizeZ)
+                result = vol(size_x,size_y,size_z)
                 result.setAll(0.0)
-                wedgeSum = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ)
+                wedgeSum = wedgeInfo.returnWedgeVolume(size_x,size_y,size_z)
                 wedgeSum.setAll(0)
 
             # create spectral wedge weighting
             rotation = particleObject.getRotation()
-            wedge = wedgeInfo.returnWedgeVolume(sizeX,sizeY,sizeZ,False, rotation.invert())
+            wedge = wedgeInfo.returnWedgeVolume(size_x,size_y,size_z,False, rotation.invert())
 
             wedgeSum += wedge
 
@@ -291,23 +291,23 @@ def paverage(particleList, norm, binning, verbose, outdir='./', gpuID=None):
             wedgeInfo = particleObject.getWedge().convert2numpy()
 
             if result is None:  # initialization
-                sizeX, sizeY, sizeZ = particle.shape
+                size_x, size_y, size_z = particle.shape
 
 
-                newParticle = xp.zeros((sizeX, sizeY, sizeZ), dtype=xp.float32)
+                newParticle = xp.zeros((size_x, size_y, size_z), dtype=xp.float32)
 
-                centerX = sizeX // 2
-                centerY = sizeY // 2
-                centerZ = sizeZ // 2
+                centerX = size_x // 2
+                centerY = size_y // 2
+                centerZ = size_z // 2
 
-                result = xp.zeros((sizeX, sizeY, sizeZ),dtype=xp.float32)
+                result = xp.zeros((size_x, size_y, size_z),dtype=xp.float32)
 
-                wedgeSum = wedgeInfo.returnWedgeVolume(sizeX, sizeY, sizeZ)
+                wedgeSum = wedgeInfo.returnWedgeVolume(size_x, size_y, size_z)
                 wedgeSum *= 0
 
             # create spectral wedge weighting
             rotation = particleObject.getRotation()
-            wedge = wedgeInfo.returnWedgeVolume(sizeX, sizeY, sizeZ, False, rotation.invert())
+            wedge = wedgeInfo.returnWedgeVolume(size_x, size_y, size_z, False, rotation.invert())
 
             wedgeSum += wedge
 
@@ -350,11 +350,11 @@ def calculate_averages(pl, binning, mask, outdir='./', gpuIDs=None):
     last change: Jan 18 2020: error message for too few processes, FF
     """
     import os
-    from pytom_volume import complexDiv, vol
+    from pytom.lib.pytom_volume import complexDiv, vol
     from pytom.basic.fourier import fft,ifft
-    from pytom.basic.correlation import FSC, determineResolution
-    from pytom_fftplan import fftShift
-    from pytom_volume import reducedToFull
+    from pytom.basic.correlation import fsc, determine_resolution
+    from pytom.lib.pytom_fftplan import fftShift
+    from pytom.lib.pytom_volume import reducedToFull
 
     pls = pl.copy().splitByClass()
     res = {}
@@ -413,26 +413,26 @@ def calculate_averages(pl, binning, mask, outdir='./', gpuIDs=None):
                 raise ParameterError('cannot split odd / even. Likely you used only one processor - use: mpirun -np 2 (or higher!)?!')
 
             if mask and mask.__class__ == str:
-                from pytom_volume import read, pasteCenter, vol
+                from pytom.lib.pytom_volume import read, pasteCenter, vol
 
                 maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
-                if even_a.sizeX() != maskBin.sizeX() or even_a.sizeY() != maskBin.sizeY() or even_a.sizeZ() != maskBin.sizeZ():
-                    mask = vol(even_a.sizeX(), even_a.sizeY(), even_a.sizeZ())
+                if even_a.size_x() != maskBin.size_x() or even_a.size_y() != maskBin.size_y() or even_a.size_z() != maskBin.size_z():
+                    mask = vol(even_a.size_x(), even_a.size_y(), even_a.size_z())
                     mask.setAll(0)
                     pasteCenter(maskBin, mask)
                 else:
                     mask = maskBin
 
 
-            fsc = FSC(even_a, odd_a, int(even_a.sizeX()//2), mask)
-            band = determineResolution(fsc, 0.5)[1]
+            calc_fsc = fsc(even_a, odd_a, int(even_a.size_x()//2), mask)
+            band = determine_resolution(calc_fsc, 0.5)[1]
 
             aa = even_a + odd_a
             ww = even_w + odd_w
             fa = fft(aa)
             r = complexDiv(fa, ww)
             rr = ifft(r)
-            rr.shiftscale(0.0, 1./(rr.sizeX()*rr.sizeY()*rr.sizeZ()))
+            rr.shiftscale(0.0, 1./(rr.size_x()*rr.size_y()*rr.size_z()))
             
             res[class_label] = rr
             freqs[class_label] = band
@@ -445,16 +445,16 @@ def calculate_averages(pl, binning, mask, outdir='./', gpuIDs=None):
 
 
 def frm_proxy(p, ref, freq, offset, binning, mask):
-    from pytom_volume import read, pasteCenter, vol
+    from pytom.lib.pytom_volume import read, pasteCenter, vol
     from pytom.basic.structures import Shift, Rotation
-    from sh_alignment.frm import frm_align
+    from pytom.lib.frm import frm_align
 
     v = p.getVolume(binning)
 
     if mask.__class__ == str:
         maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
-        if v.sizeX() != maskBin.sizeX() or v.sizeY() != maskBin.sizeY() or v.sizeZ() != maskBin.sizeZ():
-            mask = vol(v.sizeX(), v.sizeY(), v.sizeZ())
+        if v.size_x() != maskBin.size_x() or v.size_y() != maskBin.size_y() or v.size_z() != maskBin.size_z():
+            mask = vol(v.size_x(), v.size_y(), v.size_z())
             mask.setAll(0)
             pasteCenter(maskBin, mask)
         else:
@@ -464,7 +464,8 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
         pos, angle, score = frm_align(v, p.getWedge(), ref.getVolume(), None, [4,64], freq, offset, mask)
 
     else:
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
+        #TODO figure out where this file went
         from pytom.agnostic.frm import frm_align
 
         vgpu = xp.array(vol2npy(v).copy())
@@ -474,7 +475,7 @@ def frm_proxy(p, ref, freq, offset, binning, mask):
         print('init gooes')
         pos, angle, score = frm_align(vgpu, p.getWedge().convert2numpy(), refgpu, None, [4, 64], freq, offset, maskgpu)
 
-    return (Shift([pos[0]-v.sizeX()//2, pos[1]-v.sizeY()//2, pos[2]-v.sizeZ()//2]), 
+    return (Shift([pos[0]-v.size_x()//2, pos[1]-v.size_y()//2, pos[2]-v.size_z()//2]), 
             Rotation(angle), score, p.getFilename())
 
 
@@ -725,7 +726,7 @@ def compare_pl(old_pl, new_pl):
 
 def distance(p, ref, freq, mask, binning):
     from pytom.basic.correlation import nxcc
-    from pytom_volume import vol, initSphere, read, pasteCenter
+    from pytom.lib.pytom_volume import vol, initSphere, read, pasteCenter
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.transformations import resize
     v = p.getTransformedVolume(binning)
@@ -736,12 +737,12 @@ def distance(p, ref, freq, mask, binning):
 
     if not mask:
         mask = vol(r)
-        initSphere(mask, r.sizeX()//2-3, 3, 0, r.sizeX()//2, r.sizeY()//2, r.sizeZ()//2)
+        initSphere(mask, r.size_x()//2-3, 3, 0, r.size_x()//2, r.size_y()//2, r.size_z()//2)
     else:
         #THE MASK is binning (sampled every n-points). This does lead to a reduction of the smoothing of the edges.
         maskBin = read(mask, 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, binning)
-        if a.sizeX() != maskBin.sizeX() or a.sizeY() != maskBin.sizeY() or a.sizeZ() != maskBin.sizeZ():
-            mask = vol(a.sizeX(), a.sizeY(), a.sizeZ())
+        if a.size_x() != maskBin.size_x() or a.size_y() != maskBin.size_y() or a.size_z() != maskBin.size_z():
+            mask = vol(a.size_x(), a.size_y(), a.size_z())
             mask.setAll(0)
             pasteCenter(maskBin, mask)
         else:

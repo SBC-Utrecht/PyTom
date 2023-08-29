@@ -189,31 +189,31 @@ class Matrix(object):
     @todo: Add Unit Test
     """
     
-    def __init__(self,sizeX,sizeY=None):
+    def __init__(self,size_x,size_y=None):
         """
-        @param sizeX: size in X
-        @type sizeX: int
-        @param sizeY: size in Z
-        @type sizeY: int
+        @param size_x: size in X
+        @type size_x: int
+        @param size_y: size in Z
+        @type size_y: int
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         
-        if sizeX.__class__ == vol:
-            self._matrix = sizeX
-        elif sizeY == None:
+        if size_x.__class__ == vol:
+            self._matrix = size_x
+        elif size_y == None:
             raise TypeError('Size x and y of the matrix must be set!')
         else:
-            self._matrix = vol(sizeX,sizeY,1)
+            self._matrix = vol(size_x,size_y,1)
             self._matrix.setAll(0)
         
     def getMatrix(self):
         return self._matrix
     
     def getSizeX(self):
-        return self._matrix.sizeX()
+        return self._matrix.size_x()
     
     def getSizeY(self):
-        return self._matrix.sizeY()
+        return self._matrix.size_y()
     
     def __getitem__(self,key):
         assert key[0] < self.getSizeX()
@@ -306,7 +306,7 @@ class Matrix(object):
         return tmp
     
     def elementwise_mult(self, m):
-        if self._matrix.sizeX() != m.getSizeX() or self._matrix.sizeY() != m.getSizeY():
+        if self._matrix.size_x() != m.getSizeX() or self._matrix.size_y() != m.getSizeY():
             raise RuntimeError('Matrices must be of same size for elementwise multiplication!')
         
         result = self._matrix * m.getMatrix()
@@ -345,8 +345,8 @@ class Matrix(object):
             #multiply by matrix
             
             otherMatrix = value
-            assert self._matrix.sizeX() == otherMatrix.getSizeY()
-            assert self._matrix.sizeY() == otherMatrix.getSizeX()
+            assert self._matrix.size_x() == otherMatrix.getSizeY()
+            assert self._matrix.size_y() == otherMatrix.getSizeX()
             
             if self.isIdentity():
                 return otherMatrix
@@ -368,10 +368,10 @@ class Identity(Matrix):
     Identity: Identity matrix of arbitraty size
     """
     
-    def __init__(self,sizeX,sizeY):
-        super(Identity,self).__init__(sizeX,sizeY)
+    def __init__(self,size_x,size_y):
+        super(Identity,self).__init__(size_x,size_y)
 
-        for x in range(sizeX):
+        for x in range(size_x):
             self._matrix(1,x,x,0)
     
     def __setitem__(self,key,value):
@@ -457,10 +457,10 @@ def pcacov(matrix):
     from numpy import sum,max,diag
     from scipy.linalg import svd
     
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     
     if matrix.__class__ == vol:
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         matrix = vol2npy(matrix)
     
     [x,latent,coeff] = svd(matrix)
@@ -469,14 +469,14 @@ def pcacov(matrix):
     
     explained = 100*latent / totalvar
     
-    [sizeX,sizeY] = coeff.shape
+    [size_x,size_y] = coeff.shape
     
     abscoeff = abs(coeff)
        
-    maxIndex = abscoeff.argmax(1)
+    max_index = abscoeff.argmax(1)
 
-    for x in range(sizeX):
-        if coeff[x,maxIndex[x]] < 0:
+    for x in range(size_x):
+        if coeff[x,max_index[x]] < 0:
             coeff[x,:] = coeff[x,:] * -1
 
     return [coeff,latent,explained]

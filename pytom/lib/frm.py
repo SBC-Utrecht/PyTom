@@ -5,7 +5,7 @@ Created on Sep 16, 2011
 '''
 
 import numpy as np
-import swig_frm # the path of this swig module should be set correctly in $PYTHONPATH
+import pytom.lib.swig_frm as swig_frm
 from .vol2sf import vol2sf
 
 
@@ -306,10 +306,10 @@ def frm_vol(v1, v2, b, radius=None):
     Parameters
     ----------
     v1: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     v2: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     b: Bandwidth of spherical harmonics.
        Integer
@@ -323,7 +323,7 @@ def frm_vol(v1, v2, b, radius=None):
     numpy.array
     """
     if not radius:
-        radius = v1.sizeX()/2
+        radius = v1.size_x()/2
     
     res = np.zeros((2*b, 2*b, 2*b))
     for r in range(1, radius+1):
@@ -338,13 +338,13 @@ def frm_constrained_vol(v1, m1, v2, m2, b, radius=None):
     Parameters
     ----------
     v1: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     m1: Spherical mask of volume Nr. 1
         numpy.array
 
     v2: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     m2: Spherical mask of v2
         numpy.array
@@ -361,7 +361,7 @@ def frm_constrained_vol(v1, m1, v2, m2, b, radius=None):
     numpy.array
     """
     if not radius:
-        radius = v1.sizeX()/2
+        radius = v1.size_x()/2
     
     res = np.zeros((2*b, 2*b, 2*b))
     for r in range(1, radius+1):
@@ -474,10 +474,10 @@ def frm_find_best_angluar_match(v1, v2, b, radius=None):
     Parameters
     ----------
     v1: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     v2: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     b: Bandwidth of spherical harmonics.
        Integer
@@ -884,13 +884,13 @@ def frm_correlate(vf, wf, vg, wg, b, max_freq, weights=None, ps=False, denominat
     Parameters
     ----------
     vf: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: Mask of vf in Fourier space.
         pytom.basic.structures.Wedge
 
     vg: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: Mask of vg in Fourier space.
         pytom.basic.structures.Wedge
@@ -927,7 +927,7 @@ def frm_correlate(vf, wf, vg, wg, b, max_freq, weights=None, ps=False, denominat
         weights = [1 for i in range(max_freq)]
 
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, abs, real, imag, rescale
+    from pytom.lib.pytom_volume import vol, reducedToFull, abs, real, imag, rescale
     from .vol2sf import vol2sf
     from math import log, ceil, pow
 
@@ -1022,13 +1022,13 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
     Parameters
     ----------
     vf: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: Mask of vf in Fourier space.
         pytom.basic.structures.Wedge. If none, no missing wedge.
 
     vg: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: Mask of vg in Fourier space.
         pytom.basic.structures.Wedge. If none, no missing wedge.
@@ -1044,10 +1044,10 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
     peak_offset: The maximal offset which allows the peak of the score to be.
                  Or simply speaking, the maximal distance allowed to shift vg to match vf.
                  This parameter is needed to prevent shifting the reference volume out of the frame.
-                 pytom_volume.vol / Integer. By default is half of the volume radius.
+                 pytom.lib.pytom_volume.vol / Integer. By default is half of the volume radius.
 
     mask: Mask volume for vg in real space.
-          pytom_volume.vol
+          pytom.lib.pytom_volume.vol
 
     weights: Obsolete.
 
@@ -1062,15 +1062,15 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
     (The best translation and rotation (Euler angle, ZXZ convention [Phi, Psi, Theta]) to transform vg to match vf.
     (best_translation, best_rotation, correlation_score)
     """
-    from pytom_volume import vol, rotateSpline, peak
+    from pytom.lib.pytom_volume import vol, rotateSpline, peak
     from pytom.basic.transformations import shift
-    from pytom.basic.correlation import FLCF
+    from pytom.basic.correlation import flcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Mask, SingleTiltWedge, Rotation
-    from pytom_volume import initSphere
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_volume import initSphere
+    from pytom.lib.pytom_numpy import vol2npy
 
-    if vf.sizeX()!=vg.sizeX() or vf.sizeY()!=vg.sizeY() or vf.sizeZ()!=vg.sizeZ():
+    if vf.size_x()!=vg.size_x() or vf.size_y()!=vg.size_y() or vf.size_z()!=vg.size_z():
         raise RuntimeError('Two volumes must have the same size!')
 
     if wf is None:
@@ -1083,20 +1083,20 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
         vg = wg.apply(vg)
 
     if peak_offset is None:
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, vf.sizeX()/4, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, vf.size_x()/4, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif isinstance(peak_offset, int):
         peak_radius = peak_offset
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, peak_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif peak_offset.__class__ == vol:
         pass
     else:
         raise RuntimeError('Peak offset is given wrong!')
 
     # cut out the outer part which normally contains nonsense
-    m = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-    initSphere(m, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+    m = vol(vf.size_x(), vf.size_y(), vf.size_z())
+    initSphere(m, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     vf = vf*m
     vg = vg*m
     if mask is None:
@@ -1112,7 +1112,7 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
         res = frm_find_topn_angles_interp2(score, num_seeds, get_adaptive_bw(max_freq, b)/16.)
     else:
         # the position is given by the user
-        vf2 = shift(vf, -position[0]+vf.sizeX()/2, -position[1]+vf.sizeY()/2, -position[2]+vf.sizeZ()/2, 'fourier')
+        vf2 = shift(vf, -position[0]+vf.size_x()/2, -position[1]+vf.size_y()/2, -position[2]+vf.size_z()/2, 'fourier')
         score = frm_correlate(vf2, wf, vg, wg, b, max_freq, weights, ps=False)
         orientation, max_value = frm_find_best_angle_interp(score)
 
@@ -1121,8 +1121,8 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
     # iteratively refine the position & orientation
     from pytom.tools.maths import euclidianDistance
     max_iter = 10 # maximal number of iterations
-    mask2 = vol(mask.sizeX(), mask.sizeY(), mask.sizeZ()) # store the rotated mask
-    vg2 = vol(vg.sizeX(), vg.sizeY(), vg.sizeZ())
+    mask2 = vol(mask.size_x(), mask.size_y(), mask.size_z()) # store the rotated mask
+    vg2 = vol(vg.size_x(), vg.size_y(), vg.size_z())
     lowpass_vf = lowpassFilter(vf, max_freq, max_freq/10.)[0]
     # apply vg's wedge to vf
     lowpass_vf = wg.apply(lowpass_vf)
@@ -1142,7 +1142,7 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
             vg2 = wf.apply(vg2) # then apply the wedge
             vg2 = lowpassFilter(vg2, max_freq, max_freq/10.)[0]
             vf2 = wg.apply(lowpass_vf, Rotation(orientation)) # apply vg's wedge to vf with rotation!
-            score = FLCF(vf2, vg2, mask2) # find the position
+            score = flcf(vf2, vg2, mask2) # find the position
             pos = peak(score, peak_offset)
             pos, val = find_subpixel_peak_position(vol2npy(score), pos)
             if val > lm_value:
@@ -1163,7 +1163,7 @@ def frm_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=None, weights=
 
             # here we shift the target, not the reference
             # if you dont want the shift to change the energy landscape, use fourier shift
-            vf2 = shift(vf, -lm_pos[0]+vf.sizeX()/2, -lm_pos[1]+vf.sizeY()/2, -lm_pos[2]+vf.sizeZ()/2, 'fourier')
+            vf2 = shift(vf, -lm_pos[0]+vf.size_x()/2, -lm_pos[1]+vf.size_y()/2, -lm_pos[2]+vf.size_z()/2, 'fourier')
             score = frm_correlate(vf2, wf, vg, wg, b, max_freq, weights, False, denominator1, denominator2, True)
             # orientation, val = frm_find_topn_angles_interp(score, 1, 3)[0]
             orientation, val = frm_find_best_angle_interp(score)

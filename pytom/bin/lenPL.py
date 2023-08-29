@@ -2,6 +2,7 @@
 
 import mrcfile
 import sys, os
+import subprocess
 
 if __name__=='__main__':
     
@@ -32,6 +33,6 @@ if __name__=='__main__':
         print(helper)
         sys.exit()
 
-    numberParticles = os.popen(f'grep Shift {filename} | wc -l').read()[:-1]
+    numberParticles = subprocess.run([f'grep Shift {filename} | wc -l'], shell=True, capture_output=True, text=True).stdout[:-1]
 
     print(f'number of particles in {os.path.basename(filename)}: ', numberParticles)

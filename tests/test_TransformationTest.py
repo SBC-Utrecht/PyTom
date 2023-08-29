@@ -1,5 +1,5 @@
 import unittest
-from pytom_volume import vol
+from pytom.lib.pytom_volume import vol
 from numpy import array
 from pytom.basic.transformations import general_transform2d
 from pytom.tools.maths import rotate_vector
@@ -59,7 +59,7 @@ class pytom_TransformationTest(unittest.TestCase):
         test re-sizing in Fourier space
         """
         from pytom.basic.transformations import resize
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from pytom.basic.fourier import fft
 
         dim = 32
@@ -73,12 +73,12 @@ class pytom_TransformationTest(unittest.TestCase):
         (resizeVol, resizefVol) = resize(volume=myVol, factor=2., interpolation='Fourier')
         #resizeVol.write('test1.em')
         ftresizeVol = fft(data=resizeVol)
-        for ix in range(resizefVol.sizeX()):
-            for iy in range(resizefVol.sizeY()):
+        for ix in range(resizefVol.size_x()):
+            for iy in range(resizefVol.size_y()):
                 diff = ftresizeVol.getV(ix,iy,0) - scf*4*resizefVol.getV(ix,iy,0)
                 self.assertTrue(expr=abs(diff) < .05, msg="inconsistency FFT/IFFT for magnification")
         (resizeVol, resizefVol) = resize(volume=resizeVol, factor=.5, interpolation='Fourier')
-        from pytom_volume import variance
+        from pytom.lib.pytom_volume import variance
         diff = myVol - resizeVol
         self.assertTrue(expr=variance(diff, False) < .0000001, msg="2D image before and after rescales differs")
 
@@ -88,7 +88,7 @@ class pytom_TransformationTest(unittest.TestCase):
         test 3D re-sizing in Fourier space
         """
         from pytom.basic.transformations import resize
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
 
         dim = 32
         px = 11
@@ -99,7 +99,7 @@ class pytom_TransformationTest(unittest.TestCase):
         myVol.setV(1., px, py, pz)
         (resizeVol, resizefVol) = resize(volume=myVol, factor=2., interpolation='Fourier')
         (resizeVol, resizefVol) = resize(volume=resizeVol, factor=.5, interpolation='Fourier')
-        from pytom_volume import variance
+        from pytom.lib.pytom_volume import variance
         diff = myVol - resizeVol
         self.assertTrue(expr=variance(diff, False) < .0000001, msg="2D image before and after rescales differs")
 

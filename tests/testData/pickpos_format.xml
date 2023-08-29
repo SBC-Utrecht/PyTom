@@ -1,0 +1,153 @@
+<!-- PyTom Version: 1.0 -->
+<ParticleList>
+  <Particle Filename="./testparticles/particle_0.em">
+    <Rotation Z1="303.99186654901735" Z2="272.8635850585089" X="75.7028845495521" Paradigm="ZXZ"/>
+    <Shift X="-0.0" Y="0.0" Z="-0.0"/>
+    <PickPosition X="0.0" Y="0.0" Z="0.0" Origin="tomo1.tomostar" Binning="1" RefMarkIndex="1"/>
+    <Wedge Type="SingleTiltWedge">
+      <SingleTiltWedge Angle1="30.0" Angle2="30.0" CutoffRadius="50.0" Smooth="0.0">
+        <TiltAxisRotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </SingleTiltWedge>
+    </Wedge>
+    <InfoGUI ProjectDir=""/>
+    <Score Type="FLCFScore" Value="0.0" RemoveAutocorr="False">
+      <PeakPrior Filename="" Radius="0.0" Smooth="-1.0"/>
+    </Score>
+    <Class Name="0"/>
+  </Particle>
+  <Particle Filename="./testparticles/particle_1.em">
+    <Rotation Z1="282.1674920525181" Z2="109.19258138841388" X="85.78745174742404" Paradigm="ZXZ"/>
+    <Shift X="0.0" Y="0.0" Z="0.0"/>
+    <PickPosition X="0.0" Y="0.0" Z="0.0" Origin="tomo1.tomostar" Binning="1" RefMarkIndex="1"/>
+    <Wedge Type="SingleTiltWedge">
+      <SingleTiltWedge Angle1="30.0" Angle2="30.0" CutoffRadius="50.0" Smooth="0.0">
+        <TiltAxisRotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </SingleTiltWedge>
+    </Wedge>
+    <InfoGUI ProjectDir=""/>
+    <Score Type="FLCFScore" Value="0.0" RemoveAutocorr="False">
+      <PeakPrior Filename="" Radius="0.0" Smooth="-1.0"/>
+    </Score>
+    <Class Name="0"/>
+  </Particle>
+  <Particle Filename="./testparticles/particle_2.em">
+    <Rotation Z1="101.46162398389338" Z2="272.0895134966006" X="111.3064194015597" Paradigm="ZXZ"/>
+    <Shift X="-0.0" Y="0.0" Z="0.0"/>
+    <PickPosition X="0.0" Y="0.0" Z="0.0" Origin="tomo1.tomostar" Binning="1" RefMarkIndex="1"/>
+    <Wedge Type="SingleTiltWedge">
+      <SingleTiltWedge Angle1="30.0" Angle2="30.0" CutoffRadius="50.0" Smooth="0.0">
+        <TiltAxisRotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </SingleTiltWedge>
+    </Wedge>
+    <InfoGUI ProjectDir=""/>
+    <Score Type="FLCFScore" Value="0.0" RemoveAutocorr="False">
+      <PeakPrior Filename="" Radius="0.0" Smooth="-1.0"/>
+    </Score>
+    <Class Name="0"/>
+  </Particle>
+  <Particle Filename="./testparticles/particle_3.em">
+    <Rotation Z1="291.67820495877226" Z2="324.77974215824975" X="55.826562477479875" Paradigm="ZXZ"/>
+    <Shift X="0.0" Y="0.0" Z="0.0"/>
+    <PickPosition X="0.0" Y="0.0" Z="0.0" Origin="tomo1.tomostar" Binning="1" RefMarkIndex="1"/>
+    <Wedge Type="SingleTiltWedge">
+      <SingleTiltWedge Angle1="30.0" Angle2="30.0" CutoffRadius="50.0" Smooth="0.0">
+        <TiltAxisRotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </SingleTiltWedge>
+    </Wedge>
+    <InfoGUI ProjectDir=""/>
+    <Score Type="FLCFScore" Value="0.0" RemoveAutocorr="False">
+      <PeakPrior Filename="" Radius="0.0" Smooth="-1.0"/>
+    </Score>
+    <Class Name="0"/>
+  </Particle>
+  <Particle Filename="./testparticles/particle_4.em">
+    <Rotation Z1="169.9713775629768" Z2="36.25243490461169" X="78.15093038168106" Paradigm="ZXZ"/>
+    <Shift X="0.0" Y="0.0" Z="0.0"/>
+    <PickPosition X="0.0" Y="0.0" Z="0.0" Origin="tomo1.tomostar" Binning="1" RefMarkIndex="1"/>
+    <Wedge Type="SingleTiltWedge">
+      <SingleTiltWedge Angle1="30.0" Angle2="30.0" CutoffRadius="50.0" Smooth="0.0">
+        <TiltAxisRotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </SingleTiltWedge>
+    </Wedge>
+    <InfoGUI ProjectDir=""/>
+    <Score Type="FLCFScore" Value="0.0" RemoveAutocorr="False">
+      <PeakPrior Filename="" Radius="0.0" Smooth="-1.0"/>
+    </Score>
+    <Class Name="0"/>
+  </Particle>
+  <Particle Filename="./testparticles/particle_5.em">
+    <Rotation Z1="171.72351955897813" Z2="311.51157399779044" X="46.8886158705527" Paradigm="ZXZ"/>
+    <Shift X="0.0" Y="0.0" Z="-0.0"/>
+    <PickPosition X="0.0" Y="0.0" Z="0.0" Origin="tomo1.tomostar" Binning="1" RefMarkIndex="1"/>
+    <Wedge Type="SingleTiltWedge">
+      <SingleTiltWedge Angle1="30.0" Angle2="30.0" CutoffRadius="50.0" Smooth="0.0">
+        <TiltAxisRotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </SingleTiltWedge>
+    </Wedge>
+    <InfoGUI ProjectDir=""/>
+    <Score Type="FLCFScore" Value="0.0" RemoveAutocorr="False">
+      <PeakPrior Filename="" Radius="0.0" Smooth="-1.0"/>
+    </Score>
+    <Class Name="0"/>
+  </Particle>
+  <Particle Filename="./testparticles/particle_6.em">
+    <Rotation Z1="259.0936871054235" Z2="143.57647520073675" X="148.47209588668196" Paradigm="ZXZ"/>
+    <Shift X="0.0" Y="-0.0" Z="-0.0"/>
+    <PickPosition X="0.0" Y="0.0" Z="0.0" Origin="tomo1.tomostar" Binning="1" RefMarkIndex="1"/>
+    <Wedge Type="SingleTiltWedge">
+      <SingleTiltWedge Angle1="30.0" Angle2="30.0" CutoffRadius="50.0" Smooth="0.0">
+        <TiltAxisRotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </SingleTiltWedge>
+    </Wedge>
+    <InfoGUI ProjectDir=""/>
+    <Score Type="FLCFScore" Value="0.0" RemoveAutocorr="False">
+      <PeakPrior Filename="" Radius="0.0" Smooth="-1.0"/>
+    </Score>
+    <Class Name="0"/>
+  </Particle>
+  <Particle Filename="./testparticles/particle_7.em">
+    <Rotation Z1="312.33699917740114" Z2="87.80791567936751" X="58.53678529453021" Paradigm="ZXZ"/>
+    <Shift X="0.0" Y="-0.0" Z="0.0"/>
+    <PickPosition X="0.0" Y="0.0" Z="0.0" Origin="tomo1.tomostar" Binning="1" RefMarkIndex="1"/>
+    <Wedge Type="SingleTiltWedge">
+      <SingleTiltWedge Angle1="30.0" Angle2="30.0" CutoffRadius="50.0" Smooth="0.0">
+        <TiltAxisRotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </SingleTiltWedge>
+    </Wedge>
+    <InfoGUI ProjectDir=""/>
+    <Score Type="FLCFScore" Value="0.0" RemoveAutocorr="False">
+      <PeakPrior Filename="" Radius="0.0" Smooth="-1.0"/>
+    </Score>
+    <Class Name="0"/>
+  </Particle>
+  <Particle Filename="./testparticles/particle_8.em">
+    <Rotation Z1="85.90173430147927" Z2="348.3144901044516" X="144.57230447037662" Paradigm="ZXZ"/>
+    <Shift X="-0.0" Y="-0.0" Z="-0.0"/>
+    <PickPosition X="0.0" Y="0.0" Z="0.0" Origin="tomo1.tomostar" Binning="1" RefMarkIndex="1"/>
+    <Wedge Type="SingleTiltWedge">
+      <SingleTiltWedge Angle1="30.0" Angle2="30.0" CutoffRadius="50.0" Smooth="0.0">
+        <TiltAxisRotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </SingleTiltWedge>
+    </Wedge>
+    <InfoGUI ProjectDir=""/>
+    <Score Type="FLCFScore" Value="0.0" RemoveAutocorr="False">
+      <PeakPrior Filename="" Radius="0.0" Smooth="-1.0"/>
+    </Score>
+    <Class Name="0"/>
+  </Particle>
+  <Particle Filename="./testparticles/particle_9.em">
+    <Rotation Z1="182.8586313074066" Z2="335.82017672168644" X="19.63041226759866" Paradigm="ZXZ"/>
+    <Shift X="0.0" Y="0.0" Z="0.0"/>
+    <PickPosition X="0.0" Y="0.0" Z="0.0" Origin="tomo1.tomostar" Binning="1" RefMarkIndex="1"/>
+    <Wedge Type="SingleTiltWedge">
+      <SingleTiltWedge Angle1="30.0" Angle2="30.0" CutoffRadius="50.0" Smooth="0.0">
+        <TiltAxisRotation Z1="0.0" Z2="0.0" X="0.0"/>
+      </SingleTiltWedge>
+    </Wedge>
+    <InfoGUI ProjectDir=""/>
+    <Score Type="FLCFScore" Value="0.0" RemoveAutocorr="False">
+      <PeakPrior Filename="" Radius="0.0" Smooth="-1.0"/>
+    </Score>
+    <Class Name="0"/>
+  </Particle>
+</ParticleList>

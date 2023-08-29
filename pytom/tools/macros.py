@@ -11,7 +11,7 @@ def volumesSameSize(v1,v2):
     volumesSameSize: checks sizes of v1 and v2
     @return: True if both volumes have the same size.
     """
-    return (v1.sizeX() == v2.sizeX() and v1.sizeY() == v2.sizeY() and v1.sizeZ() == v2.sizeZ())
+    return (v1.size_x() == v2.size_x() and v1.size_y() == v2.size_y() and v1.size_z() == v2.size_z())
 
 def frange(start,stop,step):
     """

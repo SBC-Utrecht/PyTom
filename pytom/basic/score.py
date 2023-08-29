@@ -4,14 +4,14 @@ def Vol_G_Val(volume,value):
     """
     Vol_GE_Val: returns True when peak in volume greater than value
     @param volume: A volume
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param value: A value
-    @type value: L{pytom_volume.vol}
+    @type value: L{pytom.lib.pytom_volume.vol}
     @return: True if peak in volume > value
     @rtype: boolean
     @author: Thomas Hrabe
     """
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     
     if value.__class__ == pytom_volume.vol:
         p = pytom_volume.peak(value)
@@ -23,23 +23,23 @@ def Vol_G_Val(volume,value):
         
     return volume > value
 
-def weightedCoefficient(self,volume,reference,mask=None,stdV=None):
+def weightedCoefficient(self,volume,reference,mask=None,std_v=None):
     """
     weightedCoefficient: Determines the peak coefficient of the scoring function. 
     The distance from the center contributes to the peak value. Must be activated by hand. 
     @param volume: A volume.
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param reference: A reference.
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param mask: A mask.
-    @type mask: L{pytom_volume.vol}
-    @param stdV: Deviation volume of volume  
-    @type stdV: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
+    @param std_v: Deviation volume of volume  
+    @type std_v: L{pytom.lib.pytom_volume.vol}
     @return: The highest coefficient determined.
     @author: Thomas Hrabe
     """
 
-    resFunction = self.scoringFunction(volume,reference,mask,stdV)
+    resFunction = self.scoringFunction(volume,reference,mask,std_v)
     resFunction = self._peakPrior.apply(resFunction)
     
     return resFunction
@@ -48,15 +48,15 @@ def peakCoef(self, volume, reference, mask=None):
     """
     peakCoef: Determines the coefficient of the scoring function.
     @param volume: A volume.
-    @type volume: L{pytom_volume.vol}
+    @type volume: L{pytom.lib.pytom_volume.vol}
     @param reference: A reference.
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @return: The highest coefficient determined.
     @author: Thomas Hrabe, FF
     """
-    from pytom_volume import peak
+    from pytom.lib.pytom_volume import peak
     from pytom.tools.maths import euclidianDistance
-    from pytom.basic.correlation import subPixelPeak
+    from pytom.basic.correlation import sub_pixel_peak
     
     if mask is None:
         resFunction = self.scoringFunction(volume,reference)
@@ -64,14 +64,14 @@ def peakCoef(self, volume, reference, mask=None):
         resFunction = self.scoringFunction(volume,reference,mask)
 
     # change FF: 07.01.2020
-    #centerX = resFunction.sizeX()//2 -1
-    #centerY = resFunction.sizeY()//2 -1
-    #centerZ = resFunction.sizeZ()//2 -1
+    #centerX = resFunction.size_x()//2 -1
+    #centerY = resFunction.size_y()//2 -1
+    #centerZ = resFunction.size_z()//2 -1
     
     pcoarse = peak(resFunction)
     
-    p = subPixelPeak(scoreVolume=resFunction, coordinates=pcoarse)
-    #p = subPixelPeak(scoreVolume=resFunction, coordinates=[centerX,centerY,centerZ])
+    p = sub_pixel_peak(score_volume=resFunction, coordinates=pcoarse)
+    #p = sub_pixel_peak(score_volume=resFunction, coordinates=[centerX,centerY,centerZ])
     
     #if euclidianDistance([centerX,centerY,centerZ],p[1]) <= 1.4142135623730951:
     #    c = p[0]
@@ -198,20 +198,20 @@ class Score:
         self.setRemoveAutocorrelation( flag=removeAutocorr)
         self._type = 'undefined'
         
-    def score(self, particle, reference, mask=None,stdV=None):
+    def score(self, particle, reference, mask=None,std_v=None):
         """
         returns weighted Coefficient
         @param volume: A volume.
-        @type volume: L{pytom_volume.vol}
+        @type volume: L{pytom.lib.pytom_volume.vol}
         @param reference: A reference.
-        @type reference: L{pytom_volume.vol}
+        @type reference: L{pytom.lib.pytom_volume.vol}
         @param mask: A mask.
-        @type mask: L{pytom_volume.vol}
-        @param stdV: Deviation volume of volume  
-        @type stdV: L{pytom_volume.vol}
+        @type mask: L{pytom.lib.pytom_volume.vol}
+        @param std_v: Deviation volume of volume  
+        @type std_v: L{pytom.lib.pytom_volume.vol}
         @return: The highest coefficient determined.
         """
-        return self.weightedCoefficient(self, particle, reference, mask, stdV)
+        return self.weightedCoefficient(self, particle, reference, mask, std_v)
         
     def getScoreFunc(self):
         """
@@ -435,8 +435,8 @@ class nxcfScore(Score):
         __init__ : Assigns the normalized xcf (nxcf) as scoringFunction, peakCoef as scoringCoefficient and Vol_G_Val as scoringCriterion
         @param value: Current value of score
         """
-        from pytom.basic.correlation import nXcf,nxcc
-        self.ctor(nXcf,nxcc,Vol_G_Val)   
+        from pytom.basic.correlation import norm_xcf,nxcc
+        self.ctor(norm_xcf,nxcc,Vol_G_Val)   
         self._type = 'nxcfScore'
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):
         if value and (value.__class__ == int or value.__class__ == int or value.__class__ == float):
@@ -459,9 +459,9 @@ class FLCFScore(Score):
         __init__ : Assigns the fast local correlation as scoringFunction, peakCoef as scoringCoefficient and Vol_G_Val as scoringCriterion
         @param value: Current value of score
         """
-        from pytom.basic.correlation import FLCF
+        from pytom.basic.correlation import flcf
 
-        self.ctor(FLCF, self.coefFnc, Vol_G_Val)
+        self.ctor(flcf, self.coefFnc, Vol_G_Val)
         self._type = 'FLCFScore'
         
         #if value and (isinstance(value, (int, long)) or value.__class__ == float):
@@ -477,15 +477,15 @@ class FLCFScore(Score):
         """
         peakCoef: Determines the coefficient of the scoring function.
         @param volume: A volume.
-        @type volume: L{pytom_volume.vol}
+        @type volume: L{pytom.lib.pytom_volume.vol}
         @param reference: A reference.
-        @type reference: L{pytom_volume.vol}
+        @type reference: L{pytom.lib.pytom_volume.vol}
         @return: The highest coefficient determined.
         @author: Thomas Hrabe, FF
         """
-        from pytom_volume import peak
+        from pytom.lib.pytom_volume import peak
         from pytom.tools.maths import euclidianDistance
-        from pytom.basic.correlation import subPixelPeak
+        from pytom.basic.correlation import sub_pixel_peak
 
         if mask is None:
             resFunction = self.scoringFunction(volume, reference)
@@ -493,35 +493,20 @@ class FLCFScore(Score):
             resFunction = self.scoringFunction(volume, reference, mask)
 
         # change FF: 07.01.2020
-        # centerX = resFunction.sizeX()//2 -1
-        # centerY = resFunction.sizeY()//2 -1
-        # centerZ = resFunction.sizeZ()//2 -1
+        # centerX = resFunction.size_x()//2 -1
+        # centerY = resFunction.size_y()//2 -1
+        # centerZ = resFunction.size_z()//2 -1
 
         pcoarse = peak(resFunction)
 
-        p = subPixelPeak(scoreVolume=resFunction, coordinates=pcoarse)
-        # p = subPixelPeak(scoreVolume=resFunction, coordinates=[centerX,centerY,centerZ])
+        p = sub_pixel_peak(score_volume=resFunction, coordinates=pcoarse)
+        # p = sub_pixel_peak(score_volume=resFunction, coordinates=[centerX,centerY,centerZ])
 
         # if euclidianDistance([centerX,centerY,centerZ],p[1]) <= 1.4142135623730951:
         #    c = p[0]
 
         return p[0]
 
-def wXCCWrapper(self,volume,reference,mask=None):
-    from pytom.basic.correlation import weightedXCC
-        
-    if self.getNumberOfBands() == 0:
-        raise RuntimeError('RScore: Number of bands is Zero! Abort.')
-    
-    return weightedXCC(volume,reference,self.getNumberOfBands(),self.getWedgeAngle())
-
-def wXCFWrapper(self,volume,reference,mask=None):
-    from pytom.basic.correlation import weightedXCF
-        
-    if self.getNumberOfBands() == 0:
-        raise RuntimeError('RScore: Number of bands is Zero! Abort.')
-    
-    return weightedXCF(volume,reference,self.bands,self.wedgeAngle)
 
 class RScore(Score):
     """
@@ -532,11 +517,11 @@ class RScore(Score):
     """
     
     def __init__(self,value=None):
-        from pytom.basic.correlation import nXcf,weightedXCC
-        self.ctor(nXcf,weightedXCC,Vol_G_Val)
+        from pytom.basic.correlation import norm_xcf, weighted_xcc
+        self.ctor(norm_xcf,weighted_xcc,Vol_G_Val)
         self._type = 'RScore'
-        self._numberOfBands=0
-        self._wedgeAngle =-1
+        self._number_of_bands=0
+        self._wedge_angle =-1
 
         if value:
             self.setValue(value)
@@ -547,22 +532,22 @@ class RScore(Score):
         return -10000000000
     
     def getNumberOfBands(self):
-        return self._numberOfBands
+        return self._number_of_bands
     
     def getWedgeAngle(self):
-        return self._wedgeAngle
+        return self._wedge_angle
     
     
     
-    def initAttributes(self,numberOfBands=10,wedgeAngle=-1):
+    def initAttributes(self,number_of_bands=10,wedge_angle=-1):
         """
         initBands: Must be called prior to the scoring. Initializes the bands used for wxcf.
-        @param numberOfBands:   
-        @param wedgeAngle: 
+        @param number_of_bands:   
+        @param wedge_angle: 
         @author: Thomas Hrabe
         """
-        self._numberOfBands = numberOfBands
-        self._wedgeAngle = wedgeAngle
+        self._number_of_bands = number_of_bands
+        self._wedge_angle = wedge_angle
         
     def toXML(self,value=-10000000):
         """
@@ -573,29 +558,29 @@ class RScore(Score):
             
         score_element = etree.Element("Score",Type=self._type,Value = str(self.scoreValue))
         
-        score_element.set('NumberBands',str(self._numberOfBands))
-        score_element.set('WedgeAngle',str(self._wedgeAngle))
+        score_element.set('NumberBands',str(self._number_of_bands))
+        score_element.set('WedgeAngle',str(self._wedge_angle))
         
         return score_element
 
 
 def FSCWrapper(self,volume,reference):
-    from pytom.basic.correlation import FSCSum
-        
-    if self.numberOfBands == 0:
+    from pytom.basic.correlation import fsc_sum
+
+    if self.number_of_bands == 0:
         from pytom.basic.exceptions import ParameterError
         raise ParameterError('Bands attribute is empty. Abort.')
-        
-    return FSCSum(volume,reference,self.bands,self.wedgeAngle)
+
+    return fsc_sum(volume,reference,self.bands,self.wedge_angle)
 
 def FSFWrapper(self,volume,reference):
-    from pytom.basic.correlation import weightedXCF
-        
-    if self.numberOfBands == 0:
+    from pytom.basic.correlation import weighted_xcf
+
+    if self.number_of_bands == 0:
         from pytom.basic.exceptions import ParameterError
         raise ParameterError('Bands attribute is empty. Abort.')
-        
-    return weightedXCF(volume,reference,self.bands,self.wedgeAngle)   
+
+    return weighted_xcf(volume,reference,self.bands,self.wedge_angle)
 
 
 class FSCScore(Score):
@@ -607,26 +592,26 @@ class FSCScore(Score):
     FSF = FSFWrapper
     
     def __init__(self):
-        from pytom.basic.correlation import nXcf
-        self.ctor(nXcf,self.FSC,Vol_G_Val)
+        from pytom.basic.correlation import norm_xcf
+        self.ctor(norm_xcf,self.FSC,Vol_G_Val)
         self._type = 'FSCScore'
-        self._numberOfBands = 0
-        self._wedgeAngle = 0
+        self._number_of_bands = 0
+        self._wedge_angle = 0
         
-    def initAttributes(self,numberOfBands=10,wedgeAngle=-1):
+    def initAttributes(self,number_of_bands=10,wedge_angle=-1):
         """
         initBands: Must be called prior to the scoring. Initialises the bands used for wxcf.
-        @param numberOfBands:   
-        @param wedgeAngle: 
+        @param number_of_bands:   
+        @param wedge_angle: 
         @author: Thomas Hrabe
         """
-        self._numberOfBands = numberOfBands
+        self._number_of_bands = number_of_bands
         self._bands = []
         
-        for i in range(self._numberOfBands):
-            self.bands.append([float(i)/self._numberOfBands*1/2,float(i+1)/self._numberOfBands*1/2])
+        for i in range(self._number_of_bands):
+            self.bands.append([float(i)/self._number_of_bands*1/2,float(i+1)/self._number_of_bands*1/2])
             
-        self._wedgeAngle = wedgeAngle
+        self._wedge_angle = wedge_angle
         
     def toXML(self,value=-10000000):
         """
@@ -637,8 +622,8 @@ class FSCScore(Score):
             
         score_element = etree.Element("Score",Type=self._type,Value = str(value))
         
-        score_element.set('NumberBands',str(self._numberOfBands))
-        score_element.set('WedgeAngle',str(self._wedgeAngle))
+        score_element.set('NumberBands',str(self._number_of_bands))
+        score_element.set('WedgeAngle',str(self._wedge_angle))
         
         return score_element
 
@@ -674,7 +659,7 @@ class PeakPrior(PyTomClass):
         return self._smooth()
     
     def isInitialized(self):
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         return self._weight.__class__ == vol
              
     def apply(self,volume):
@@ -688,18 +673,18 @@ class PeakPrior(PyTomClass):
         from pytom.tools.files import checkFileExists
         
         if not self.isInitialized() and (not checkFileExists(self._filename)):
-            self.initVolume(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+            self.initVolume(volume.size_x(),volume.size_y(),volume.size_z())
         elif not self.isInitialized():
             self.fromFile()
         
         assert volumesSameSize(self._weight,volume)#make sure both have same size
 
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
 
         return (self._weight * volume) #- (self._weight <= 0.000001)*2
     
     def fromFile(self,filename=None):
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.tools.files import checkFileExists
         
         filename = filename or self._filename
@@ -721,21 +706,21 @@ class PeakPrior(PyTomClass):
         del(self._weight)
 
         
-    def initVolume(self,sizeX,sizeY,sizeZ):
+    def initVolume(self,size_x,size_y,size_z):
         """
         initVolume:
-        @param sizeX:
-        @param sizeY:
-        @param sizeZ:
+        @param size_x:
+        @param size_y:
+        @param size_z:
         @return: 
         @author: Thomas Hrabe 
         """
-        from pytom_volume import vol,initSphere
+        from pytom.lib.pytom_volume import vol,initSphere
         
-        self._weight = vol(sizeX,sizeY,sizeZ)
+        self._weight = vol(size_x,size_y,size_z)
         if self._radius > 0 or self._smooth > 0:
             initSphere(self._weight,self._radius,self._smooth,0.0, 
-	        sizeX/2, sizeY/2, sizeZ/2)
+	        size_x/2, size_y/2, size_z/2)
         else:
             self._weight.setAll(1)
         

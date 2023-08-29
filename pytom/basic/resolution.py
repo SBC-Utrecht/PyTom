@@ -39,12 +39,12 @@ def saveForFSC(newReferenceName,particleList,verbose=False):
 
             
 
-def bandToAngstrom(band,pixelSize,numberOfBands,upscale=1):
+def bandToAngstrom(band,pixelSize,number_of_bands,upscale=1):
     """
     bandToAngstrom: Calculate resolution in Angstrom
     @param band: The current resolution in pixels (python convention, i.e., start from 0)
     @param pixelSize: Pixelsize in original sized subtomogram 
-    @param numberOfBands: Number of bands used
+    @param number_of_bands: Number of bands used
     @param upscale: Was band determined for downscaled tomograms? Scale band up to original size.
     @author: Thomas Hrabe 
     """
@@ -54,23 +54,23 @@ def bandToAngstrom(band,pixelSize,numberOfBands,upscale=1):
     
     frequency = band * upscale
     
-    resolution = 2 * pixelSize * numberOfBands / (frequency+1)
+    resolution = 2 * pixelSize * number_of_bands / (frequency+1)
     
     return resolution
     
-def angstromToBand(resolution, pixelSize,numberOfBands,scale = 1):
+def angstromToBand(resolution, pixelSize,number_of_bands,scale = 1):
     """
     angstromToBand: 
     @param resolution:
     @param pixelSize:
-    @param numberOfBands:   
+    @param number_of_bands:   
     @param scale: 
     """
     
     if resolution <= 0:
         raise RuntimeError('pytom.basic.resolution.angstromToBand: Resolution <= 0. Check your parameters!')
     
-    band = 2 * pixelSize * numberOfBands / (resolution * scale) -1
+    band = 2 * pixelSize * number_of_bands / (resolution * scale) -1
     
     return band
     

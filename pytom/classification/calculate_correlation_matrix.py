@@ -4,7 +4,7 @@ Created on May 7, 2012
 @author: yuxiangchen
 '''
 
-import pytom_mpi
+import pytom.lib.pytom_mpi as pytom_mpi
 import pickle
 import os
 import numpy
@@ -72,7 +72,7 @@ class CMWorkerGPU():
         pytom_mpi.finalise()
 
     def run(self, verbose=False):
-        from pytom_volume import read, sum
+        from pytom.lib.pytom_volume import read, sum
         from pytom.basic.filter import lowpassFilter
         from pytom.basic.correlation import nxcc
         from pytom.basic.structures import Rotation
@@ -304,7 +304,7 @@ class CMWorker():
         pytom_mpi.finalise()
     
     def run(self, verbose=False):
-        from pytom_volume import read, sum
+        from pytom.lib.pytom_volume import read, sum
         from pytom.basic.filter import lowpassFilter
         from pytom.basic.correlation import nxcc
         from pytom.basic.structures import Rotation
@@ -351,7 +351,7 @@ class CMWorker():
                 wf_rotation = f.getRotation().invert()
 
                 # wf.setRotation(Rotation(-rotation[1],-rotation[0],-rotation[2]))
-                # wf_vol = wf.returnWedgeVolume(vf.sizeX(), vf.sizeY(), vf.sizeZ(), True, -rotation[1],-rotation[0],-rotation[2])
+                # wf_vol = wf.returnWedgeVolume(vf.size_x(), vf.size_y(), vf.size_z(), True, -rotation[1],-rotation[0],-rotation[2])
                 vf = lowpassFilter(vf, job["Frequency"], 0)[0]
 
                 if g.getFilename() != last_filename:
@@ -359,7 +359,7 @@ class CMWorker():
                     wg = g.getWedge().getWedgeObject()
                     wg_rotation = g.getRotation().invert()
                     # wg.setRotation(Rotation(-rotation[1],-rotation[0],-rotation[2]))
-                    # wg_vol = wg.returnWedgeVolume(vg.sizeX(), vg.sizeY(), vg.sizeZ(), True, -rotation[1],-rotation[0],-rotation[2])
+                    # wg_vol = wg.returnWedgeVolume(vg.size_x(), vg.size_y(), vg.size_z(), True, -rotation[1],-rotation[0],-rotation[2])
                     vg = lowpassFilter(vg, job["Frequency"], 0)[0]
 
                     last_filename = g.getFilename()

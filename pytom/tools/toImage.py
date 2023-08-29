@@ -18,14 +18,14 @@ def _display(volume,sliceNumber = 0,projectionAxis='z'):
     from math import sqrt
     
     if projectionAxis == 'x':
-        size1 = volume.sizeY()
-        size2 = volume.sizeZ()
+        size1 = volume.size_y()
+        size2 = volume.size_z()
     if projectionAxis == 'y':
-        size1 = volume.sizeX()
-        size2 = volume.sizeZ()    
+        size1 = volume.size_x()
+        size2 = volume.size_z()    
     if projectionAxis == 'z':
-        size1 = volume.sizeX()
-        size2 = volume.sizeY()
+        size1 = volume.size_x()
+        size2 = volume.size_y()
 
     img = Image.new('L',(size1,size2))
     
@@ -38,8 +38,8 @@ def _display(volume,sliceNumber = 0,projectionAxis='z'):
         elif projectionAxis == 'z':
             volume = subvolume(volume,0,0,sliceNumber,size1,size2,1)
          
-    elif sliceNumber == 0 and volume.sizeZ() > 1:
-        sliceNumber = int(volume.sizeZ()/2)
+    elif sliceNumber == 0 and volume.size_z() > 1:
+        sliceNumber = int(volume.size_z()/2)
         
         if projectionAxis == 'x':
             volume = subvolume(volume,sliceNumber,0,0,1,size1,size2)
@@ -103,11 +103,11 @@ def volumeSequenceToPNGs(volume,sequenceDirectory,sliceStep,projectionAxis='z'):
     @author: Thomas Hrabe
     """
     if projectionAxis == 'x':
-        size = volume.sizeX()
+        size = volume.size_x()
     elif projectionAxis == 'y':
-        size = volume.sizeY()
+        size = volume.size_y()
     elif projectionAxis == 'z':
-        size = volume.sizeZ()
+        size = volume.size_z()
     else:
         raise ValueError('projectionAxis must either be x,y, or z!')
     
@@ -129,32 +129,32 @@ def _dspcub(volume,sigma=None,projectionAxis='z'):
     @@author: Pia Unverdorben 
     """
     
-    if volume.sizeZ() == 1:
+    if volume.size_z() == 1:
         raise Exception('You can use ')
     
     import Image
     from pytom_volume import min,max,mean,variance,limit,subvolume
     from math import sqrt, ceil, floor
     
-    sizeX=volume.sizeX()
-    sizeY=volume.sizeY()
-    sizeZ=volume.sizeZ()
+    size_x=volume.size_x()
+    size_y=volume.size_y()
+    size_z=volume.size_z()
     
     if projectionAxis == 'x':
-        imagesPerRow=int(floor(sqrt(sizeX)))
-        size1 = float(sizeX)
-        sizeI = sizeY
-        sizeJ = sizeZ
+        imagesPerRow=int(floor(sqrt(size_x)))
+        size1 = float(size_x)
+        sizeI = size_y
+        sizeJ = size_z
     elif projectionAxis == 'y':
-        imagesPerRow=int(floor(sqrt(sizeY)))
-        size1 = float(sizeY)
-        sizeI = sizeX
-        sizeJ = sizeZ
+        imagesPerRow=int(floor(sqrt(size_y)))
+        size1 = float(size_y)
+        sizeI = size_x
+        sizeJ = size_z
     elif projectionAxis == 'z':
-        imagesPerRow=int(floor(sqrt(sizeZ)))
-        size1=float(sizeZ)
-        sizeI = sizeX
-        sizeJ = sizeY
+        imagesPerRow=int(floor(sqrt(size_z)))
+        size1=float(size_z)
+        sizeI = size_x
+        sizeJ = size_y
         
     numberIterations=imagesPerRow*imagesPerRow
     
@@ -166,11 +166,11 @@ def _dspcub(volume,sigma=None,projectionAxis='z'):
     iterationSteps = int(iterationSteps)
     
     if projectionAxis == 'x':
-        img=Image.new('L', (sizeY*imagesPerRow, sizeZ*imagesPerRow))
+        img=Image.new('L', (size_y*imagesPerRow, size_z*imagesPerRow))
     elif projectionAxis == 'y':
-        img=Image.new('L', (sizeX*imagesPerRow, sizeZ*imagesPerRow))
+        img=Image.new('L', (size_x*imagesPerRow, size_z*imagesPerRow))
     elif projectionAxis == 'z':
-        img=Image.new('L', (sizeX*imagesPerRow, sizeY*imagesPerRow))    
+        img=Image.new('L', (size_x*imagesPerRow, size_y*imagesPerRow))    
 
     # normalize according to standard deviation if sigma is specified
     if sigma:
@@ -185,20 +185,20 @@ def _dspcub(volume,sigma=None,projectionAxis='z'):
     for sliceNumber in range(0,numberIterations, iterationSteps):
         
         if projectionAxis == 'x':
-            png=Image.new('L', (sizeY, sizeZ))
+            png=Image.new('L', (size_y, size_z))
         elif projectionAxis == 'y':
-            png=Image.new('L', (sizeX, sizeZ))
+            png=Image.new('L', (size_x, size_z))
         elif projectionAxis == 'z':
-            png=Image.new('L', (sizeX, sizeY))
+            png=Image.new('L', (size_x, size_y))
             
         (yvalue,xvalue)=divmod(sliceNumber, imagesPerRow)
         
         if projectionAxis == 'x':
-            vol = subvolume(volume,sliceNumber,0,0,1,sizeY,sizeZ)
+            vol = subvolume(volume,sliceNumber,0,0,1,size_y,size_z)
         elif projectionAxis == 'y':
-            vol = subvolume(volume,0,sliceNumber,0,sizeX,1,sizeZ)
+            vol = subvolume(volume,0,sliceNumber,0,size_x,1,size_z)
         elif projectionAxis == 'z':
-            vol = subvolume(volume,0,0,sliceNumber,sizeX,sizeY,1)
+            vol = subvolume(volume,0,0,sliceNumber,size_x,size_y,1)
             
         vol.shiftscale(-minValue,1)
         vol.shiftscale(0,255/maxValue)

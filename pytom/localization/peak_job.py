@@ -200,7 +200,7 @@ class PeakJob(PyTomClass):
     def send(self, source, destination):
         """
         send: Send the job-relevant message from source to destination
-        @param source: source machine id gained from pytom_mpi
+        @param source: source machine id gained from pytom.lib.pytom_mpi
         @type source: int
         @param destination: destination machine id
         @type destination: int
@@ -213,8 +213,7 @@ class PeakJob(PyTomClass):
         msg = PeakJobMsg(str(source), str(destination))
         msg.setJob(self)
         
-        import pytom_mpi
-        print(f'destination: {destination}\ntype: {type(destination)}')
+        import pytom.lib.pytom_mpi as pytom_mpi
 
         pytom_mpi.send(str(msg), int(destination))
 
@@ -309,7 +308,7 @@ class PeakResult(PyTomClass):
         msg = PeakResultMsg(str(source), str(destination))
         msg.setResult(self)
         
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         print(f'destination: {destination}\ntype: {source}')
         pytom_mpi.send(str(msg), int(destination))
 

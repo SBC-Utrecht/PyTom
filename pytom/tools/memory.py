@@ -100,7 +100,7 @@ class VolumeStorage(object):
         
         from pytom_volume import vol
         
-        returnVolume = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        returnVolume = vol(volume.size_x(),volume.size_y(),volume.size_z())
         
         returnVolume.copyVolume(volume)
         

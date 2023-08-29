@@ -15,7 +15,7 @@ if __name__ == '__main__':
     options = [ScriptOption(['-d','--directory'], 'folder with particle Lists', True, True),
                ScriptOption(['-o','--outputName'], 'Output name of xml', True, False),
                ScriptOption(['-f','--FileNames'], 'Series of xml filesnames joined by a comma.', True, True),
-               ScriptOption(['-w', '--wedgeAngles'],'Up to two wedge angles per xml file joined by a comma.'+
+               ScriptOption(['-w', '--wedge_angles'],'Up to two wedge angles per xml file joined by a comma.'+
                                                     'The Wedge angle is defined as the angle between 90 degrees and '+
                                                     'the first tilt angle.\n\n NB: only wedge parameters of particles '+
                                                     'from files for which there are two given wedgeangles are updated.'+
@@ -34,7 +34,7 @@ if __name__ == '__main__':
         print(helper)
         sys.exit()
     try:
-        directory, outname, XMLfnames, wedgeangles, help = parse_script_options(sys.argv[1:], helper)
+        directory, outname, XMLfnames, wedge_angles, help = parse_script_options(sys.argv[1:], helper)
         #print(directory, outname, XMLfnames, wedgeangles)
     except Exception as e:
         print(e)
@@ -47,11 +47,10 @@ if __name__ == '__main__':
 
 
     fnames = []
-
-    if wedgeangles:
-        wedgeangles = wedgeangles.split(',')
+    if wedge_angles:
+        wedge_angles = wedge_angles.split(',')
     else:
-        wedgeangle= []
+        wedge_angle= []
 
     if directory:
         fnames = [line for line in glob.glob(os.path.join(directory, '*.xml')) if line.endswith('.xml')]
@@ -62,7 +61,7 @@ if __name__ == '__main__':
 
     pl = ParticleList()
 
-    if wedgeangles: wedgelen = len(wedgeangles)
+    if wedge_angles: wedgelen = len(wedge_angles)
     else: wedgelen = 0
 
     for n, xmlfile in enumerate(fnames):
@@ -71,7 +70,7 @@ if __name__ == '__main__':
         for particle in tempPL:
             if not wedgelen >  n + 1: continue
             w = particle.getWedge()
-            w.setWedgeAngles(wedgeangles[n*2:n*2+2])
+            w.setWedgeAngles(wedge_angles[n*2:n*2+2])
         pl += tempPL
 
     a = pl.toXMLFile(outname)

@@ -12,7 +12,7 @@ import pytom.basic.files as f
 import os
 
 # The lookup tables for the conversion functions
-extensions = all_extensions = ["em", "mrc", "ccp4", "pl", "meta", "pdb", "mmCIF", 'mrcs', 'st', 'mdoc', 'h5', 'star', 'txt', 'wimp', 'xml', 'log']
+extensions = all_extensions = ["em", "mrc", "ccp4", "pl", "meta", "pdb", "mmCIF", 'mrcs', 'st', 'mdoc', 'h5', 'star', 'txt', 'wimp', 'xml', 'xf']
 special = ['pl']
 
 lookuptable = []
@@ -84,21 +84,22 @@ def convertfile(file, format, target, chaindata, subtomo_prefix=None, wedge_angl
 
     if in_ex == "txt" and format == "pl":
         try:
-            f.txt2pl(f.name_to_format(file, target, format), file, subtomoPrefix=subtomo_prefix, wedgeAngle=wedge_angles)
+            f.txt2pl(f.name_to_format(file, target, format), file, subtomoPrefix=subtomo_prefix, wedge_angle=wedge_angles)
             return 0,""
 
         except:
             return 1, "Exception while converting coordinatesfile {:s} to a particlelist".format(file)
 
 
-    if (in_ex == "pl" and format == "star") or (in_ex == "star" and format == "xml") or (in_ex == "log" and format == "txt"):
+    if (in_ex == "pl" and format == "star") or (in_ex == "star" and format == "xml") or \
+            (in_ex == "xf" and format == "txt"):
         try:
             func(file, target, **chaindata)
             return 0,""
 
         except Exception as e:
             print(e)
-            return 1, "Exception while converting {:s} file {:s} to a star file".format(in_ex, file)
+            return 1, "Exception while converting {:s} file {:s} to a {:s} file".format(in_ex, file, format)
 
 
     if func is None:
@@ -210,7 +211,7 @@ if __name__ == '__main__':
                                          'Path and filename for subtomogram files (e.g., MyPath/particle_)',
                      'string', 'optional'),
                  ScriptOption2(
-                     ['-w', '--wedgeAngles'], 'Data needed for the conversion from coordinates to a particlelist. '
+                     ['-w', '--wedge_angles'], 'Data needed for the conversion from coordinates to a particlelist. '
                                               'Missing wedge angle(s) [counter-clock, clock] or single angle',
                      'has arguments', 'optional'),
 
@@ -225,14 +226,19 @@ if __name__ == '__main__':
                  ScriptOption2(['--pixelSize'], 'Pixelsize in Angstrom of original nanographs.', 'float', 'optional', 1),
                  ScriptOption2(['--binPyTom'], '(Linear) Binning factor of the pytom tomogram.', 'float', 'optional', 1),
                  ScriptOption2(['--binWarpM'], '(Linear) Binning factor of the warp/m volumes.', 'float', 'optional', 1),
-                 ScriptOption2(['--alignxf'], 'Final shift file from IMOD (ending with xf). ', 'file', 'optional', ''),
+                 ScriptOption2(['--tlt-file'], 'Either .tlt file or .rawtlt in case tilt angles have not been '
+                                               'optimized during alignment. ', 'file', 'optional', ''),
                  ScriptOption2(['--sortedFolder'], 'Sorted Images are located in this folder (either sorted or sorted_ctf)', 'directory', 'optional', ''),
+                 ScriptOption2(['--rln-voltage'], 'Voltage for relion3 starfiles', 'float', 'optional'),
+                 ScriptOption2(['--rln-spherical-aberration'], 'Spherical aberration for relion3 starfiles', 'float',
+                               'optional')
         ])
 
     #TODO write --filter to filter input files maybe on (glob) pattern or else on extension or similar
 
-    filename, directory, target, format, outname, chaindata, subtomo_prefix, w, prefix, suffix, pixelsize, binningFactorPyTom,\
-    binningFactorWarpM, prexf, sorted_folder = parse_script_options2(sys.argv[1:], helper)
+    filename, directory, target, format, outname, chaindata, subtomo_prefix, w, prefix, suffix, pixelsize, \
+    binningFactorPyTom, binningFactorWarpM, tlt_file, sorted_folder, rln_voltage, rln_spherical_aberration = \
+        parse_script_options2(sys.argv[1:], helper)
 
     try:
         if w:
@@ -250,37 +256,6 @@ if __name__ == '__main__':
     except Exception as e:
         print_errors("The parsing of the wedge angle was not successful.\n{:s}".format(str(e)))
 
-
-
-
-    # Parse the pattern
-
-    # if pattern:
-    #     # Escape the filter so that it can be compiled without issues
-    #     pattern = re.escape(pattern)
-    #     # Create the pattern matches
-    #     pattern = pattern.replace('?', '??').replace('$', '.*?')
-    #
-    #     if len(pattern.split('/')) > 1:
-    #         flags = pattern.split('/')[-1]
-    #         pattern = '/'.join(pattern.split('/')[:-1])
-    #     else:
-    #         flags = ''
-    #         pattern = pattern
-    #
-    #     if 'f' in flags:
-    #         pattern = '^' + pattern + '$'
-    #
-    #     try:
-    #         if 'i' in flags:
-    #             input_filter = re.compile(pattern, re.IGNORECASE)
-    #         else:
-    #             input_filter = re.compile(pattern)
-    #     except:
-    #         print_errors("The parsing of the filter pattern was not successful.")
-    # else:
-    #     input_filter = None
-
     # Test for validity of the arguments passed, will stop execution if an error is found
     test_validity(filename, directory, target, format, chaindata)
 
@@ -292,9 +267,11 @@ if __name__ == '__main__':
         chaindata['binningPyTom'] = binningFactorPyTom
         outname = f'dummy.{format}' if (outname == '' and directory) else outname
         chaindata['outname'] = outname
-        chaindata['prexf'] = prexf
+        chaindata['wedge_angles'] = wedge_angles
+        chaindata['angle_file'] = tlt_file
         chaindata['sorted_folder'] = sorted_folder
-        chaindata['wedgeAngles'] = wedge_angles
+        chaindata['rln_voltage'] = rln_voltage
+        chaindata['rln_spherical_aberration'] = rln_spherical_aberration
 
     if filename:
         warn_if_file_exists(f.name_to_format(filename, target, format) if outname == ''

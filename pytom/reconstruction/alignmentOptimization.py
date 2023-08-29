@@ -10,12 +10,12 @@ class FiducialLessAlignment():
         from scipy import misc
         import numpy as np
         import scipy.optimize
-        from pytom_volume import transformSpline, vol
+        from pytom.lib.pytom_volume import transformSpline, vol
         from pytom.basic.correlation import xcc, nxcc
         from pytom.basic.transformations import scale, general_transform2d
         from pytom.reconstruction.ccAlign import modelProjCrop, vol_projection, punchHole, cylindricalMask, create_cylindrical_mask, reAlignWeightReconstruct, reAlignWeight
         from pytom.basic.files import read, read_em, write_em, read_em_header, write_em_header
-        from pytom_volume import vol, read, subvolume
+        from pytom.lib.pytom_volume import vol, read, subvolume
         from pytom.reconstruction.reconstructionFunctions import alignWeightReconstruct
         from pytom.reconstruction.TiltAlignmentStructures import TiltSeries
         from pytom.reconstruction.writeAlignedProjections import writeAlignedProjections
@@ -184,7 +184,7 @@ class FiducialLessAlignment():
 
         # Shift raw image and calculated the cross-correlation and score
         optTrans = cr_projTrans.transform(translation=[shiftX, shiftY,0], rotation=[0,0,rot], rotation_order='rzxz')
-        nccVal = nxcc(cr_simProj.squeeze(), optTrans.squeeze(), volumeIsNormalized=True)
+        nccVal = nxcc(cr_simProj.squeeze(), optTrans.squeeze(), volume_is_normalized=True)
 
         return (1 - nccVal)
 
@@ -233,7 +233,7 @@ class FiducialLessAlignment():
         """
         evaluate the scoring function for given rotation and translation and isotropic isoMagnification
         @param param: rotIP for RotationInPlane, shiftX and shiftY are traslations in X and Y axis, isoMag is the isotropic isoMagnification
-        @type param: L{pytom.basic.transformations.general_transform2d}, L{pytom_volume.vol}
+        @type param: L{pytom.basic.transformations.general_transform2d}, L{pytom.lib.pytom_volume.vol}
         @return: Score
         @rtype: L{float}
         @author: GvdS
@@ -297,7 +297,7 @@ class FiducialLessAlignment():
 
         sx,ex,sy,ey = 10, 60,240,-20
 
-        nccVal = nxcc((self.maskWBP*self.refImage)[sx-1:ex-1,sy-1:ey-1], (self.maskWBP*(self.reconstruction.sum(axis=2)+rec.sum(axis=2)))[sx:ex,sy:ey], volumeIsNormalized=False)
+        nccVal = nxcc((self.maskWBP*self.refImage)[sx-1:ex-1,sy-1:ey-1], (self.maskWBP*(self.reconstruction.sum(axis=2)+rec.sum(axis=2)))[sx:ex,sy:ey], volume_is_normalized=False)
 
         if show:
             print(params)
@@ -331,7 +331,7 @@ class FiducialLessAlignment():
         from scipy import misc
         import numpy as np
         import scipy.optimize
-        from pytom_volume import transformSpline, vol
+        from pytom.lib.pytom_volume import transformSpline, vol
         from pytom.reconstruction.ccAlign import modelProjCrop
         from pytom.basic.files import read_em, write_em, read_em_header, write_em_header
         from pytom.basic.files import read as read_c
@@ -391,14 +391,14 @@ class FiducialLessAlignment():
 
         startCoor = [ 104,0, 104]
 
-        imdim = max(recVolume.sizeX(), recVolume.sizeY())
+        imdim = max(recVolume.size_x(), recVolume.size_y())
 
         self.low_score = 9999
 
-        self.nblocks = int(xp.ceil(recVolume.sizeX()*recVolume.sizeY() / self.num_threads / 2))
+        self.nblocks = int(xp.ceil(recVolume.size_x()*recVolume.size_y() / self.num_threads / 2))
         self.fast_sum_mean = xp.zeros((self.nblocks ), dtype=xp.float32)
         self.fast_sum_stdv = xp.zeros((self.nblocks ), dtype=xp.float32)
-        self.mask = xp.ones((recVolume.sizeX(),recVolume.sizeY(),1),dtype=xp.float32)
+        self.mask = xp.ones((recVolume.size_x(),recVolume.size_y(),1),dtype=xp.float32)
         self.p = self.mask.size
 
         reconstruction = xp.zeros(voldims, dtype=xp.float32)
@@ -566,9 +566,9 @@ class FiducialLessAlignment():
                     start_time = time.time()
                 #optParam = scipy.optimize.fmin_cg(self.calcScore, param, maxiter=5, epsilon=eps)
 
-                from pytom.agnostic.correlation import FLCF
+                from pytom.agnostic.correlation import flcf
                 for i in range(len(alignmentResults['TiltAngle'])):
-                    res = FLCF(self.craw_images[i], self.csim_images[i])
+                    res = flcf(self.craw_images[i], self.csim_images[i])
                     px, py = xp.unravel_index(res.argmax(),res.shape)
                     self.params[i*3:i*3+2] = [px-sx//2,py-sy//2]
                     print(i, res.max(), px-sx//2, py-sy//2)

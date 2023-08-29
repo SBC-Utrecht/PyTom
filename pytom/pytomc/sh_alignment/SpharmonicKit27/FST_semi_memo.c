@@ -484,14 +484,14 @@ void InvFST_semi_memo(double *rcoeffs, double *icoeffs,
 	{
 	  /* first do the real part */
 	
-	  Naive_SynthesizeX(rdataptr,
+	  Naive_Synthesize_x(rdataptr,
 			    bw,
 			    m,
 			    rinvfltres,
 			    transpose_seminaive_naive_table[m]);
 
 	  /* now do the imaginary */	
-	  Naive_SynthesizeX(idataptr,
+	  Naive_Synthesize_x(idataptr,
 			    bw,
 			    m,
 			    iminvfltres,
@@ -1231,7 +1231,7 @@ void InvFST_semi_memo(double *rcoeffs,
       {
 	/* first do the real part */
 	
-	Naive_SynthesizeX(rdataptr,
+	Naive_Synthesize_x(rdataptr,
 			  bw,
 			  m,
 			  tmp_ptr,
@@ -1245,7 +1245,7 @@ void InvFST_semi_memo(double *rcoeffs,
 	  {
 	    
 	    /* now do the imaginary */	
-	    Naive_SynthesizeX(idataptr,
+	    Naive_Synthesize_x(idataptr,
 			      bw,
 			      m,
 			      tmp_ptr,

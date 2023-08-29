@@ -1,13 +1,16 @@
 import os
+import subprocess
+import shutil
+from pathlib import Path
 import numpy as np
 import mrcfile
 import copy
 
 # pytom imports
-from pytom_volume import read
+from pytom.lib.pytom_volume import read
 from pytom.basic.files import read_em_header
 from pytom.gui.mrcOperations import read_mrc, read_angle
-from pytom_numpy import vol2npy
+from pytom.lib.pytom_numpy import vol2npy
 from pytom.gui.guiSupportCommands import multiple_alignment
 from pytom.basic.files import loadtxt as loadstar, savetxt as savestar
 
@@ -156,7 +159,7 @@ def readMarkerfile(filename, num_tilt_images=0):
 
     if filename.endswith('.em'):
         from pytom.basic.files import read
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         markerfile = read(filename)
         markerdata = vol2npy(markerfile).copy()
         return markerdata
@@ -411,7 +414,7 @@ def gen_queue_header(name='TemplateMatch', folder='./', cmd='', num_nodes=1, ema
             pass
         numgpus = len(gpus.split(','))
         #numgpus = int(gpus)+1
-        gpus = f'\n#SBATCH --gres=gpu:{numgpus}\n\nexport CUDA_VISIBLE_DEVICES={gpus}'
+        gpus = f'\n#SBATCH --gres=gpu:{numgpus}\n'
 
     if qtype == 'slurm':
         queue_command = '''#!/usr/bin/bash
@@ -472,8 +475,7 @@ def avail_gpu(cutoff_busy=.25, cutoff_space = 0.5):
     @param cutoff_space: fraction of memeory of GPU available
     @return: list of gpu indices of available gpus
     '''
-    lines = [line.split() for line in os.popen('nvidia-smi').readlines()]
-
+    lines = [line.split() for line in subprocess.run(['nvidia-smi'], capture_output=True, text=True).stdout.splitlines()]
     list_gpu, available_gpu = [],[]
     busy_list = []
     for n, line in enumerate(lines):
@@ -585,8 +587,7 @@ def batch_tilt_alignment( fnames_tomograms='', projectfolder='.', num_procs=[], 
     Each job calculates the tilt aligment for each marker in a markerfile.
     It divides the number or jobs with respect to the num_procs.'''
     # TODO check if this function even works...
-
-    pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
+    pytompath = Path(shutil.which('pytom')).parents[1]
     num_submitted_jobs = 0
     for n in range(len(num_procs)-1):
         cmd = multiple_alignment.format( d=(projectfolder, pytompath, num_procs[n], num_procs[n+1], num_procs_per_proc,
@@ -712,7 +713,7 @@ def create_project_filestructure(projectdir='.'):
         "Images": ''
     }
     if not os.path.exists(projectdir):
-        os.mkdir(projectdir)
+        os.makedirs(projectdir)
     create_folderstructure(folderstructure, projectdir)
 
 datatype0 = [('DefocusU', 'f4'),
@@ -934,7 +935,10 @@ def createMetaDataFiles(nanographfolder, mdocfiles=[], target='', mdoc_only=Fals
                     #    data = imread( os.path.join(nanographfolder,k) )
                     #    size[tomoname] = np.min(data.shape)
                     #except:
-                    aa = os.popen('header {} | grep "Number of columns, rows, sections" '.format( os.path.join(nanographfolder,k) )).read()[:-1]
+                    aa = subprocess.run(
+                            [f'header {os.path.join(nanographfolder, k)} | grep "Number of columns, rows, sections'],
+                            shell=True, capture_output=True, text=True
+                            ).stdout[:-1]
                     dd = list(map(int, aa.split()[-3:-1]))
                     size[tomoname] = np.min(dd)
 

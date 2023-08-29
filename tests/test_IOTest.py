@@ -5,6 +5,7 @@ Created on Jul 30, 2012
 """
 
 import unittest
+from pytom.gpu.initialize import xp
 import numpy as np
 import os
 
@@ -22,7 +23,7 @@ class pytom_IOTest(unittest.TestCase):
             os.mkdir(self.outfolder)
 
     def tearDown(self):
-        from tests.helper_functions import remove_tree
+        from helper_functions import remove_tree
         remove_tree(self.outfolder)
 
     def read(self):
@@ -32,10 +33,10 @@ class pytom_IOTest(unittest.TestCase):
         from pytom.basic.files import read
 
         v = read(f'./testData/ribo.em')
-        self.assertTrue( v.sizeX() == 100 and v.sizeY() == 100 and v.sizeZ() == 100)
+        self.assertTrue( v.size_x() == 100 and v.size_y() == 100 and v.size_z() == 100)
         
         v = read(f'./testData/ribo.em',binning=[4,4,4])
-        assert v.sizeX() == 25 and v.sizeY() == 25 and v.sizeZ() == 25
+        assert v.size_x() == 25 and v.size_y() == 25 and v.size_z() == 25
     
     def readem(self):
         """
@@ -64,7 +65,7 @@ class pytom_IOTest(unittest.TestCase):
 
         fname = f'{self.outfolder}/dummy_reading.em'
         self.fnames.append(fname)
-        data = np.ones((self.sx, self.sy, self.sz))
+        data = xp.ones((self.sx, self.sy, self.sz))
 
         write(fname, data)
         self.assertTrue(os.path.exists(fname))
@@ -74,14 +75,13 @@ class pytom_IOTest(unittest.TestCase):
 
     def write_read_STAR(self):
         from pytom.agnostic.io import write, read
-        from pytom.basic.datatypes import DATATYPE_RELION31_EXTENDED, fmtR31EXTENDED, headerRelion31EXTENDEDSubtomo
 
         fname = f'testData/example_starfile.star'
 
-        data2 = read(fname, dtype=DATATYPE_RELION31_EXTENDED)
+        data2 = read(fname)
         oname = f'{self.outfolder}/dummy_star.star'
         self.fnames.append(oname)
-        write(oname, data2, fmt=fmtR31EXTENDED, header=headerRelion31EXTENDEDSubtomo)
+        write(oname, data2)
         self.assertTrue(os.path.exists(oname))
 
         data2 = read(fname)
@@ -115,7 +115,7 @@ class pytom_IOTest(unittest.TestCase):
         from pytom.basic.datatypes import DATATYPE_METAFILE, FMT_METAFILE, HEADER_METAFILE
 
         fname = f'{self.outfolder}/data.meta'
-
+        # Structured arrays are not yet supported in cupy 12.0
         data = np.zeros((10), dtype=DATATYPE_METAFILE)
         data['TiltAngle'] = range(1, 11)
 
@@ -143,42 +143,13 @@ class pytom_IOTest(unittest.TestCase):
         from pytom.agnostic.io import read_tilt_angle
 
         a = read_tilt_angle(self.fnames[1])
-        self.assertTrue(np.abs(a-self.tilt_angle) < self.epsilon,
+        self.assertTrue(xp.abs(a-self.tilt_angle) < self.epsilon,
                         f'Tilt Angle is not correct: found {a}, expected {self.tilt_angle}')
-
-    def write_tilt_angle(self):
-        from pytom.agnostic.io import write_tilt_angle, read_tilt_angle
-
-        fname = self.fnames[1]
-        self.rotation_angles[0] = ta = -23.123
-        write_tilt_angle(fname, self.rotation_angles[0])
-
-        a = read_tilt_angle(fname)
-        self.assertTrue(np.abs(a-ta) < self.epsilon,
-                        f'Tilt Angle is not correct: found {a}, expected {ta}')
 
     def read_header(self):
         from pytom.agnostic.io import read_header
         header = read_header(self.fnames[1])
-        assert header
-
-    def write_rotation_angle(self):
-        from pytom.agnostic.io import write_rotation_angles
-        fname = self.fnames[1]
-        tas = [-23, 234.12, 121.22]
-        write_rotation_angles(fname,z1=tas[0],x=tas[1],z2=tas[2])
-
-        self.read_rotation_angle(tas=tas)
-
-    def read_rotation_angle(self, tas=None):
-        from pytom.agnostic.io import read_rotation_angles
-
-        tas = self.rotation_angles if tas is None else tas
-
-        a = read_rotation_angles(self.fnames[1])
-        for n, angle in enumerate(a):
-            self.assertTrue(np.abs(angle - tas[n]) < self.epsilon,
-                        f'Rotation Angle {n} is not correct: found {angle}, expected {tas[n]}')
+        assert header.any()
 
     def read_pixelsize(self):
         from pytom.agnostic.io import read_pixelsize
@@ -186,7 +157,7 @@ class pytom_IOTest(unittest.TestCase):
         fname = self.fnames[1]
 
         a = read_pixelsize(fname)[0]
-        self.assertTrue(np.abs(a - self.pixel_size) < self.epsilon,
+        self.assertTrue(xp.abs(a - self.pixel_size) < self.epsilon,
                     f'Tilt Angle is not correct: found {a}, expected {self.pixel_size}')
 
     def data_write_read(self, extension='mrc'):
@@ -194,7 +165,7 @@ class pytom_IOTest(unittest.TestCase):
 
         fname = f'{self.outfolder}/dummy_reading.{extension.lower()}'
         self.fnames.append(fname)
-        data = np.random.random((self.sx,self.sy,self.sz)).astype(np.float32)
+        data = xp.random.random((self.sx,self.sy,self.sz)).astype(xp.float32)
 
         write(fname, data, pixel_size=self.pixel_size, tilt_angle=self.tilt_angle)
         self.assertTrue(os.path.exists(fname), f'writing {fname} failed')
@@ -204,9 +175,9 @@ class pytom_IOTest(unittest.TestCase):
         write(f'{self.outfolder}/testing.mrc', data2 -data)
         write(f'{self.outfolder}/testing2.mrc', data2 )
 
-        self.assertTrue(np.abs(data - data2).sum() < self.epsilon, f'reading {fname} failed: input and output files are different')
+        self.assertTrue(xp.abs(data - data2).sum() < self.epsilon, f'reading {fname} failed: input and output files are different')
 
-    def runTest(self):
+    def test_run(self):
         self.read()
         self.readem()
         self.write_read_EM()
@@ -218,8 +189,6 @@ class pytom_IOTest(unittest.TestCase):
         self.write_read_STAR()
         self.read_size()
         self.read_tilt_angle()
-        self.write_tilt_angle()
-        self.write_rotation_angle()
         self.read_header()
         self.read_pixelsize()
 

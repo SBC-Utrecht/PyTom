@@ -61,9 +61,9 @@ if __name__ == '__main__':
     newParticleList = ParticleList()
     
     vol = read(volFilename)
-    volX = vol.sizeX()
-    volY = vol.sizeY()
-    volZ = vol.sizeZ()
+    volX = vol.size_x()
+    volY = vol.size_y()
+    volZ = vol.size_z()
 
     i = 0
     for particle in particleList:

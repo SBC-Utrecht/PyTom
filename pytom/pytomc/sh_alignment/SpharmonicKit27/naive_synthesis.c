@@ -819,7 +819,7 @@ void Naive_AnalysisX(double *data,
 
 */
 
-void Naive_SynthesizeX(double *coeffs,
+void Naive_Synthesize_x(double *coeffs,
 		       int bw,
 		       int m,
 		       double *result,

@@ -8,7 +8,7 @@ Created on Jul 21, 2011
 
 
 def mrc2ccp4(filename,target):
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.tools.files import checkFileExists,checkDirExists
     import os
     

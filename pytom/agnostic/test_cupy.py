@@ -81,7 +81,7 @@ if __name__=='__main__':
         mask2 = paste_in_center(mask, maskV, gpu=gpu)
 
     meanV = meanVolUnderMask(vcp, temp2, gpu=gpu)
-    stdV = stdVolUnderMask(vcp, mask2, meanV, gpu=gpu)
+    std_v = stdVolUnderMask(vcp, mask2, meanV, gpu=gpu)
 
 
 
@@ -91,7 +91,7 @@ if __name__=='__main__':
     s = time.time()
     for i in range(num_angles):
         tcp2 = xp.array(rotate3d(temp, 10, 10, 10))
-        m = FLCF(vcp, temp2, mask=mask2, stdV=stdV, gpu=gpu)
+        m = flcf(vcp, temp2, mask=mask2, std_v=std_v, gpu=gpu)
 
     print((time.time()-s))
 

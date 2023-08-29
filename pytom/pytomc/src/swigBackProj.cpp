@@ -239,13 +239,13 @@ void mexFunction( int nlhs, mxArray *plhs[],
 //	int off1, off2, off3;
 //	int img_num;
 //
-//	vol_x = dst.sizeX();
-//	vol_y = dst.sizeY();
-//	vol_z = dst.sizeZ();
+//	vol_x = dst.size_x();
+//	vol_y = dst.size_y();
+//	vol_z = dst.size_z();
 //
-//	img_x = src.sizeX();
-//	img_y = src.sizeY();
-//	img_num = src.sizeZ();
+//	img_x = src.size_x();
+//	img_y = src.size_y();
+//	img_num = src.size_z();
 //
 //	off1 = offset.getV(0, 0, 0);
 //	off2 = offset.getV(0, 0, 1);

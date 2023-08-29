@@ -14,13 +14,13 @@ class Alignment:
         alignment of a particle against a reference
 
         @param vol1: (constant) volume
-        @type vol1: L{pytom_volume.vol}
+        @type vol1: L{pytom.lib.pytom_volume.vol}
         @param vol2: volume that is matched to reference
-        @type vol2: L{pytom_volume.vol}
+        @type vol2: L{pytom.lib.pytom_volume.vol}
         @param score: score for alignment - e.g., pytom.basic.correlation.nxcc
         @type score: L{pytom.basic.correlation}
         @param mask: mask correlation is constrained on
-        @type mask: L{pytom_volume.vol}
+        @type mask: L{pytom.lib.pytom_volume.vol}
         @param iniRot: initial rotation of vol2
         @type iniRot: L{pytom.basic.Rotation}
         @param iniTrans: initial translation of vol2
@@ -34,7 +34,7 @@ class Alignment:
         """
         from pytom.basic.normalise import normaliseUnderMask, mean0std1
         from pytom.tools.macros import volumesSameSize
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from pytom.basic.structures import Rotation, Shift
         assert isinstance(interpolation, str), "interpolation must be of type str"
 
@@ -50,7 +50,7 @@ class Alignment:
 
         self.vol1 = v
         self.vol2 = vol2
-        self.rotvol2 = vol(self.vol1.sizeX(), self.vol2.sizeY(), self.vol2.sizeZ())
+        self.rotvol2 = vol(self.vol1.size_x(), self.vol2.size_y(), self.vol2.size_z())
         self.mask = mask
         
         if iniRot is None:
@@ -61,9 +61,9 @@ class Alignment:
 
         self.score = score
         self.val = -100000.
-        self.centX = int(self.vol1.sizeX()//2)
-        self.centY = int(self.vol1.sizeY()//2)
-        self.centZ = int(self.vol1.sizeZ()//2)
+        self.centX = int(self.vol1.size_x()//2)
+        self.centY = int(self.vol1.size_y()//2)
+        self.centZ = int(self.vol1.size_z()//2)
         self.binning = 1
         self.interpolation = interpolation
 
@@ -150,7 +150,7 @@ class Alignment:
         set search volume (vol1 internally)
 
         @param vol1: search volume
-        @type vol1: L{pytom_volume.vol}
+        @type vol1: L{pytom.lib.pytom_volume.vol}
 
         """
         from pytom.basic.normalise import normaliseUnderMask, mean0std1
@@ -171,7 +171,7 @@ class Alignment:
         @type rot_trans: L{list}
         @author: FF
         """
-        from pytom_volume import transformSpline, transform
+        from pytom.lib.pytom_volume import transformSpline, transform
         if self.interpolation.lower() == 'spline':
             transformSpline(self.vol2, self.rotvol2, rot_trans[0], rot_trans[1], rot_trans[2],
                             self.centX,self.centY,self.centZ,0,0,0,
@@ -180,7 +180,7 @@ class Alignment:
             transform(self.vol2, self.rotvol2, rot_trans[0], rot_trans[1], rot_trans[2],
                       self.centX,self.centY,self.centZ,0,0,0,
                       rot_trans[3]/self.binning,rot_trans[4]/self.binning,rot_trans[5]/self.binning)
-        self.val = -1.*(self.score(volume=self.vol1, template=self.rotvol2, mask=self.mask, volumeIsNormalized=True))
+        self.val = -1.*(self.score(volume=self.vol1, template=self.rotvol2, mask=self.mask, volume_is_normalized=True))
         return self.val
 
     def cc(self, rot, trans):
@@ -195,7 +195,7 @@ class Alignment:
         @rtype: L{float}
         @author: FF
         """
-        from pytom_volume import transformSpline
+        from pytom.lib.pytom_volume import transformSpline
 
         #transform vol2
         transformSpline( self.vol2, self.rotvol2, rot[0], rot[1], rot[2],
@@ -203,7 +203,7 @@ class Alignment:
             trans[0]/self.binning, trans[1]/self.binning, trans[2]/self.binning)
         # compute CCC
         cc = self.score(volume=self.vol1, template=self.rotvol2,
-                        mask=self.mask, volumeIsNormalized=True)
+                        mask=self.mask, volume_is_normalized=True)
         return cc
 
     def localOpti( self, iniRot=None, iniTrans=None):
@@ -266,7 +266,7 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
     @param vol1: volume 1
     @param vol2: volume 2
     @mask: mask volume
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param nband: Number of bands
     @type nband: L{int}
     @param iniRot: initial guess for rotation
@@ -282,17 +282,17 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
         note: filvol2 is NOT rotated and translated!
     @author: FF
     """
-    from pytom_volume import transformSpline, vol
-    from pytom.basic.correlation import FSC
+    from pytom.lib.pytom_volume import transformSpline, vol
+    from pytom.basic.correlation import fsc
     from pytom.basic.filter import filter_volume_by_profile
     from pytom.alignment.localOptimization import Alignment
     from pytom.basic.correlation import nxcc
 
-    assert isinstance(object=vol1, class_or_type_or_tuple=vol), "alignVolumesAndFilterByFSC: vol1 must be of type vol"
-    assert isinstance(object=vol2, class_or_type_or_tuple=vol), "alignVolumesAndFilterByFSC: vol2 must be of type vol"
+    assert isinstance(vol1, vol), "alignVolumesAndFilterByFSC: vol1 must be of type vol"
+    assert isinstance(vol2, vol), "alignVolumesAndFilterByFSC: vol2 must be of type vol"
     # filter volumes prior to alignment according to SNR
-    fsc = FSC(volume1=vol1, volume2=vol2, numberBands=nband)
-    fil = design_fsc_filter(fsc=fsc, fildim=int(vol2.sizeX()//2))
+    fsc_prior = fsc(volume1=vol1, volume2=vol2, number_bands=nband)
+    fil = design_fsc_filter(fsc=fsc_prior, fildim=int(vol2.size_x()//2))
     #filter only one volume so that resulting CCC is weighted by SNR only once
     filvol2 = filter_volume_by_profile(volume=vol2, profile=fil)
     # align vol2 to vol1
@@ -312,21 +312,21 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
         print("Alignment densities: Rotations: %2.3f, %2.3f, %2.3f; Translations: %2.3f, %2.3f, %2.3f " % (optiRot[0],
                                     optiRot[1], optiRot[2], optiTrans[0], optiTrans[1], optiTrans[2]))
         print("Orientation difference: %2.3f deg" % diffAng)
-    vol2_alig = vol(vol2.sizeX(), vol2.sizeY(), vol2.sizeZ())
+    vol2_alig = vol(vol2.size_x(), vol2.size_y(), vol2.size_z())
     transformSpline(vol2, vol2_alig, optiRot[0], optiRot[1], optiRot[2],
-                    int(vol2.sizeX()/2),int(vol2.sizeY()/2),int(vol2.sizeY()/2),
+                    int(vol2.size_x()/2),int(vol2.size_y()/2),int(vol2.size_y()/2),
                     0, 0, 0,
                     optiTrans[0], optiTrans[1], optiTrans[2])
     # finally compute FSC and filter of both volumes
     if not nband:
-        nband = int(vol2.sizeX()/2)
-    fsc = FSC(volume1=vol1, volume2=vol2_alig, numberBands=nband)
-    fil = design_fsc_filter(fsc=fsc, fildim=int(vol2.sizeX()/2), fsc_criterion=fsc_criterion)
+        nband = int(vol2.size_x()/2)
+    fsc_out = fsc(volume1=vol1, volume2=vol2_alig, number_bands=nband)
+    fil = design_fsc_filter(fsc=fsc_out, fildim=int(vol2.size_x()/2), fsc_criterion=fsc_criterion)
     filvol1 = filter_volume_by_profile(volume=vol1, profile=fil)
     #filvol2 = filter_volume_by_profile( volume=vol2_alig, profile=fil)
     filvol2 = filter_volume_by_profile(volume=vol2, profile=fil)
 
-    return (filvol1, filvol2, fsc, fil, optiRot, optiTrans)
+    return (filvol1, filvol2, fsc_out, fil, optiRot, optiTrans)
 
 
 def design_fsc_filter(fsc, fildim=None, fsc_criterion=0.143):
@@ -381,33 +381,3 @@ def design_fsc_filter(fsc, fildim=None, fsc_criterion=0.143):
         else:
             fil[ii] = fsc_fil[ii]
     return fil
-
-
-def alignVolumes(particle, reference, referenceWeighting, wedgeInfo, iniRot, iniTrans,
-                 scoreObject=0, mask=None, preprocessing=None, progressBar=False, binning=1,
-                 bestPeak=None, verbose=False):
-    """
-    Analog to bestAlignment function for local optimization
-    @param particle: A particle
-    @type particle: L{pytom_volume.vol}
-    @param reference: A reference
-    @type reference: L{pytom_volume.vol}
-    @param referenceWeighting: Fourier weighting of the reference (sum of wedges for instance)
-    @type referenceWeighting: L{pytom.basic.structures.vol}
-    @param wedgeInfo: What does the wedge look alike?
-    @type wedgeInfo: L{pytom.basic.structures.Wedge}
-    @param iniRot: initial guess for rotation
-    @param iniTrans: initial guess for translation
-    @param scoreObject:
-    @type scoreObject: L{pytom.score.score.Score}
-    @param mask: real-space mask for correlation function
-    @type mask: L{pytom.basic.structures.Particle}
-    @param preprocessing: Class storing preprocessing of particle and reference such as bandpass
-    @type preprocessing: L{pytom.alignment.preprocessing.Preprocessing}
-    @param progressBar: Display progress bar of alignment. False by default.
-    @param binning: Is binning applied (currently not properly functioning)
-    @param bestPeak: Initialise best peak with old values.
-    @param verbose: Print out infos. Writes CC volume to disk!!! Default is False
-    @return: Returns the best rotation for particle and the corresponding scoring result.
-
-    """

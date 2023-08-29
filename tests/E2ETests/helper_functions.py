@@ -16,7 +16,7 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
     
     """
     from pytom.basic.structures import Particle, ParticleList, Rotation, Shift, Wedge
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.basic.transformations import general_transform_crop
     from pytom.basic.functions import initSphere
     from pytom.simulation.support import add_white_noise as addNoise
@@ -33,11 +33,11 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
     a = 0
 
 
-    wedge = Wedge(wedgeAngles=[30.0,30.0], cutoffRadius=50.0)
+    wedge = Wedge(wedge_angles=[30.0,30.0], cutoffRadius=50.0)
 
     pl = ParticleList( directory='./')
     ref1 = read(reffile)
-    ref2 = initSphere(sizeX=ref1.sizeX(), sizeY=ref1.sizeY(), sizeZ=ref1.sizeZ(), radius=45)
+    ref2 = initSphere(size_x=ref1.size_x(), size_y=ref1.size_y(), size_z=ref1.size_z(), radius=45)
     #ref2.write('testData/mask_45.em')
     parts = {0:ref1, 1:ref2}
 
@@ -45,7 +45,7 @@ def create_RandomParticleList( reffile, pl_filename='pl.xml', pdir='./testpartic
         if not ii%2:
             ref = read(reffile)
         else:
-            ref = initSphere(sizeX=ref1.sizeX(), sizeY=ref1.sizeY(), sizeZ=ref1.sizeZ(), radius=30, smooth=30 / 10)
+            ref = initSphere(size_x=ref1.size_x(), size_y=ref1.size_y(), size_z=ref1.size_z(), radius=30, smooth=30 / 10)
 
         rot = Rotation(random.uniform(0,360), random.uniform(0,360), 
                        random.uniform(0,180))

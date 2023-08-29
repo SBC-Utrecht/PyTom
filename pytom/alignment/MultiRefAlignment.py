@@ -13,7 +13,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
     @param doFinalize: Send finalize msgs to workers or not. Default is true  
     @param verbose: Default is false
     """
-    import pytom_mpi
+    import pytom.lib.pytom_mpi as pytom_mpi
     
     if doFinalize:
         pytom_mpi.init()
@@ -37,7 +37,7 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
         exMaxJob = multiRefJob.getExMaxJob()
         p = particleList[0]
         pVol = p.getVolume()
-        cubeSize = pVol.sizeX()
+        cubeSize = pVol.size_x()
         
         preprocessing = exMaxJob.getPreprocessing()
         sampleInfo = exMaxJob.getSampleInformation()
@@ -91,11 +91,11 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
             for classIterator in range(len(particleLists)):
                 currentParticleList = particleLists[classIterator]
                 if len(currentParticleList) > 1:
-                    [resNyquist,resolutionBand,numberBands] = currentParticleList.determineResolution( criterion= exMaxJob.getFSCCriterion(), numberBands = cubeSize / 2, mask= exMaxJob.getMask(), keepHalfsetAverages = False, halfsetPrefix=iterationDirectory +'resolution/' + 'class'+str(classIterator)+'_fsc-', verbose=verbose )
+                    [resNyquist,resolutionBand,number_bands] = currentParticleList.determine_resolution( criterion= exMaxJob.getFSCCriterion(), number_bands = cubeSize / 2, mask= exMaxJob.getMask(), keepHalfsetAverages = False, halfsetPrefix=iterationDirectory +'resolution/' + 'class'+str(classIterator)+'_fsc-', verbose=verbose )
                 else:
                     continue
-                resolutionAngstrom = bandToAngstrom(resolutionBand,sampleInfo.getPixelSize(),numberBands,1 )
-                #resolutionAngstrom = bandToAngstrom(resolutionBand,sampleInfo.getPixelSize(),numberBands,exMaxJob.getBinning() )
+                resolutionAngstrom = bandToAngstrom(resolutionBand,sampleInfo.getPixelSize(),number_bands,1 )
+                #resolutionAngstrom = bandToAngstrom(resolutionBand,sampleInfo.getPixelSize(),number_bands,exMaxJob.getBinning() )
                 
                 if resolutionBand > maxRes:
                     maxRes = resolutionBand
@@ -110,11 +110,11 @@ def multiRef_EXMXAlign(multiRefJob,doFinalize=True,verbose=False):
             if not multiRefJob.getUseMaxResolution():
                 band = minRes
             
-            if band == numberBands:   
-                #determineResolution returns numberBands for filter if fsc result is invalid. in that case, use nyquist /2 as filter setting
+            if band == number_bands:   
+                #determine_resolution returns number_bands for filter if fsc result is invalid. in that case, use nyquist /2 as filter setting
                 print('Warning MultiRefAlignment.py: LL 114')
                 print('Warning: Resolution determined for all classes was invalid. Will use Nyquist/2 for current iteration') 
-                band = numberBands / 2
+                band = number_bands / 2
                 
             preprocessing.setHighestFrequency(band)
             exMaxJob.setPreprocessing(preprocessing)

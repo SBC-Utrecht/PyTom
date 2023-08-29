@@ -4,10 +4,9 @@ Created July/Aug 2014
 
 @author: FF
 '''
-from pytom.basic.structures import PyTomClass
 from pytom.gpu.initialize import xp, device
 from pytom.angles.localSampling import LocalSampling
-from pytom.alignment.alignmentStructures import GLocalSamplingJob, ScoringParameters, FLCFScore, SamplingParameters
+from pytom.alignment.alignmentStructures import GLocalSamplingJob
 from pytom.agnostic.mpi import MPI
 mpi = MPI()
 
@@ -43,7 +42,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
 
         filetype = 'em'
 
-    assert isinstance(object=alignmentJob, class_or_type_or_tuple=GLocalSamplingJob), \
+    assert isinstance(alignmentJob, GLocalSamplingJob), \
         "mainAlignmentLoop: alignmentJob must be of type GLocalSamplingJob"
     mpi.begin()
     print("particleList    = "+str(alignmentJob.particleList.getFileName()))
@@ -89,7 +88,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         useExternalRef = True
 
     for ii in range(0, alignmentJob.max_iter):
-        print(f'running iteration {ii}/{alignmentJob.max_iter}')
+        print(f'running iteration {ii}/{alignmentJob.max_iter-1}')
         if 'gpu' in device:
             alignmentJob.scoringParameters.mask = alignmentJob.scoringParameters.mask.convert2numpy()
 
@@ -120,7 +119,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             else:
                 evenAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+f'-Even.{filetype}')
                 oddAverage.getVolume().write(alignmentJob.destination+"/"+str(ii)+f'-Odd.{filetype}')
-                nband= evenAverage.getVolume().sizeX()/2
+                nband= evenAverage.getVolume().size_x()/2
                 temp_mask = alignmentJob.scoringParameters.mask.getVolume()
 
             t2 = time()
@@ -151,10 +150,10 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             resolutionBand = getResolutionBandFromFSC(fsc, criterion=alignmentJob.scoringParameters.fsc_criterion)
             resolutionAngstrom = bandToAngstrom( band=resolutionBand,
                             pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),
-                            numberOfBands=len(fsc), upscale=1)
+                            number_of_bands=len(fsc), upscale=1)
             # read un-corrected averages back in for compoundWedge
             if alignmentJob.scoringParameters.compoundWedge:
-                from pytom_volume import read
+                from pytom.lib.pytom_volume import read
                 averageEven = read(alignmentJob.destination+"/"+str(ii)+f'-EvenFiltered-PreWedge.{filetype}')
                 averageOdd  = read(alignmentJob.destination+"/"+str(ii)+f'-OddFiltered-PreWedge.{filetype}')
                 evenCompoundWedgeFile = alignmentJob.destination+"/"+str(ii)+f"-EvenFiltered-WedgeSumUnscaled.{filetype}"
@@ -269,7 +268,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             (averageEven, averageOdd, fsc, fil, optiRot, optiTrans) = \
             alignVolumesAndFilterByFSC(vol1=evenAverage.getVolume(), vol2=oddAverage.getVolume(),
                                        mask=alignmentJob.scoringParameters.mask.getVolume(),
-                                       nband=evenAverage.getVolume().sizeX()/2,
+                                       nband=evenAverage.getVolume().size_x()/2,
                                        interpolation='linear',
                                        fsc_criterion=alignmentJob.scoringParameters.fsc_criterion,
                                        verbose=False)
@@ -290,9 +289,9 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                             showProgressBar=progressBar, verbose=False, createInfoVolumes=False,
                                             weighting=alignmentJob.scoringParameters.weighting, norm=norm,
                                             setParticleNodesRatio=setParticleNodesRatio)
-            from pytom.basic.correlation import FSC
-            fsc = FSC(volume1=evenAverage.getVolume(), volume2=oddAverage.getVolume(),
-                      numberBands=int(evenAverage.getVolume().sizeX()/2))
+            from pytom.basic.correlation import fsc
+            fsc = fsc(volume1=evenAverage.getVolume(), volume2=oddAverage.getVolume(),
+                      number_bands=int(evenAverage.getVolume().size_x()/2))
             #resolution hokus pokus -> estimate fsc for all particles
             for (ii, fscel) in enumerate(fsc):
                 fsc[ii] = 2.*fscel/(1.+fscel)
@@ -301,7 +300,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             resolutionBand = getResolutionBandFromFSC(fsc, criterion=0.143)
             resolutionAngstrom = bandToAngstrom(band=resolutionBand,
                                                 pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),
-                                                numberOfBands=len(fsc), upscale=1)
+                                                number_of_bands=len(fsc), upscale=1)
             print(">>>>>>>>>> Final Resolution = %3.2f A." % resolutionAngstrom)
 
             # filter final average according to resolution
@@ -443,10 +442,10 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                             setParticleNodesRatio=setParticleNodesRatio,gpuIDs=alignmentJob.gpu)
             xp.cuda.Device(alignmentJob.gpu[0]).use()
 
-            from pytom.agnostic.correlation import FSC
+            from pytom.agnostic.correlation import fsc
 
-            fsc = FSC(volume1=cvols['Even'], volume2=oddAverage,
-                      numberBands=int(cvols['Even'].shape[0]// 2))
+            fsc = fsc(volume1=cvols['Even'], volume2=oddAverage,
+                      number_bands=int(cvols['Even'].shape[0]// 2))
 
             # resolution hokus pokus -> estimate fsc for all particles (this is what RELION does)
             for (ii, fscel) in enumerate(fsc):
@@ -460,7 +459,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
             resolutionBand = getResolutionBandFromFSC(fsc, criterion=0.143)
             resolutionAngstrom = bandToAngstrom(band=resolutionBand,
                                                 pixelSize=alignmentJob.samplingParameters.sampleInformation.getPixelSize(),
-                                                numberOfBands=len(fsc), upscale=1)
+                                                number_of_bands=len(fsc), upscale=1)
 
             print(">>>>>>>>>> Final Resolution = %3.2f A." % resolutionAngstrom)
 
@@ -495,7 +494,7 @@ def alignParticleList(pl, reference, referenceWeightingFile, rotationsFilename,
     @type pl: L{pytom.basic.structures.ParticleList}
     #@param particleFilename:
     @param reference: reference volume
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param referenceWeightingFile: File for Fourier weighting of the reference (sum of wedges for instance) = CompoundWedge
     @type referenceWeightingFile: str
     @param rotationsFilename: name of rotations xml file
@@ -528,7 +527,7 @@ def alignParticleList(pl, reference, referenceWeightingFile, rotationsFilename,
     mask.fromXMLFile(filename=maskFilename)
 
     if referenceWeightingFile:
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         referenceWeighting = read(referenceWeightingFile)
     else:
         referenceWeighting = None
@@ -559,7 +558,7 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     @type pl: L{pytom.basic.structures.ParticleList}
     #@param particleFilename:
     @param reference: reference volume
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param referenceWeightingFile: File for Fourier weighting of the reference (sum of wedges for instance) = CompoundWedge
     @type referenceWeightingFile: str
     @param rotationsFilename: name of rotations xml file
@@ -578,7 +577,8 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     @author: FF
     """
     from pytom.angles.angle import AngleObject
-    from pytom.agnostic.structures import Mask, ParticleList
+    from pytom.basic.structures import ParticleList
+    from pytom.agnostic.structures import Mask
     from pytom.agnostic.transform import resize
     from pytom.alignment.alignmentFunctions import bestAlignmentGPU
     from pytom.gpu.gpuStructures import GLocalAlignmentPlan
@@ -608,8 +608,10 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
     if verbose:
         print("alignParticleList: rank "+str(mpi.rank))
         print("alignParticleList: angleObject: "+str(rotations))
-        print("alignParticleList: scoreObject: "+str(scoreObject))
         print("alignParticleList: mask:        "+str(mask))
+
+        # scoreobject is not needed for GPU?
+        # print("alignParticleList: scoreObject: "+str(scoreObject))
 
     bestPeaks = []
     for n, particle in enumerate(pl):
@@ -627,11 +629,11 @@ def alignParticleListGPU(pl, reference, referenceWeightingFile, rotationsFilenam
         particle.setShift(bestPeak.getShift())
         angDiff = differenceAngleOfTwoRotations(rotation1=bestPeak.getRotation(), rotation2=oldRot)
         t2 = time()  # end time after alignment
-        # if verbose:
-        shifts_print = bestPeak.getShift().toVector()
-        print(f"{fname}: Angular diff before and after alignment {angDiff:2.2f} and shift "
-              f"{shifts_print[0]:.4f}, {shifts_print[1]:.4f}, {shifts_print[2]:.4f}... "
-              f"took {t2-t1:3.1f} seconds...")
+        if verbose:
+            shifts_print = bestPeak.getShift().toVector()
+            print(f"{fname}: Angular diff before and after alignment {angDiff:2.2f} and shift "
+                  f"{shifts_print[0]:.4f}, {shifts_print[1]:.4f}, {shifts_print[2]:.4f}... "
+                  f"took {t2-t1:3.1f} seconds...")
 
     plan.clean()
     return [bestPeaks, plan]
@@ -646,7 +648,7 @@ def alignOneParticleWrapper(particle, reference, referenceWeighting=None, rotati
     @type particle: L{pytom.basic.structures.Particle}
     #@param particleFilename:
     @param reference: reference volume
-    @type reference: L{pytom_volume.vol}
+    @type reference: L{pytom.lib.pytom_volume.vol}
     @param referenceWeighting: Fourier weighting of the reference (sum of wedges for instance)
     @type referenceWeighting: L{pytom.basic.structures.vol}
     @param scoreXMLFilename: name of XML File of score object
@@ -717,7 +719,7 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
     @author: FF
     """
     from pytom.basic.structures import Particle, Reference, Mask, Wedge, WedgeInfo
-    from pytom.angles.angleList import AngleList
+    from pytom.angles.angle import AngleObject
     from pytom.alignment.alignmentFunctions import bestAlignment
     from pytom.basic.score import Score
     from pytom.alignment.preprocessing import Preprocessing
@@ -740,15 +742,15 @@ def alignOneParticle( particle, reference, referenceWeighting, rotations,
     if preprocessing is None:
         preprocessing = Preprocessing()
     assert type(preprocessing) == Preprocessing, "alignOneParticle: preprocessing not of type Proprocessing"
-    preprocessing.setTaper( taper=refVol.sizeX()/10.)
+    preprocessing.setTaper( taper=refVol.size_x()/10.)
     refVol = preprocessing.apply(volume=refVol, bypassFlag=True)
 
     wedge = particle.getWedge()
-    assert type(scoreObject) == Score, "alignOneParticle: score not of type Score"
+    assert isinstance(scoreObject, Score), "alignOneParticle: score not of type Score"
     if mask:
         assert type(mask) == Mask, "alignOneParticle: mask not of type Mask"
 
-    assert type(rotations) == AngleList, "alignOneParticle: rotations not of type AngleList"
+    assert isinstance(rotations, AngleObject), "alignOneParticle: rotations not of type AngleList"
 
     oldRot = particle.getRotation()
     rotations.setStartRotation(oldRot)
@@ -795,7 +797,7 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     @author: FF
 
     """
-    from pytom_volume import read, complexRealMult
+    from pytom.lib.pytom_volume import read, complexRealMult
     from pytom.basic.fourier import fft,ifft
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Reference
@@ -805,13 +807,12 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
     splitLists = splitParticleList(particleList, setParticleNodesRatio=setParticleNodesRatio)
     splitFactor = len(splitLists)
     assert splitFactor > 0, "splitFactor == 0, issue with parallelization"
-    print(f'Device = {device}')
     if 'gpu' in device:
         from pytom.bin.average import averageGPU as average
         from pytom.agnostic.structures import Reference
         from pytom.agnostic.io import read, write
 
-        print('Averaging volumes on gpu.')
+        print(f'Averaging particles on {device} for {averageName}.')
 
     else:
         gpuIDs = [None,]*splitFactor
@@ -868,14 +869,14 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
         wedgeSum.write(f'{root}-WedgeSumUnscaled{ext}')
 
         # convolute unweighted average with inverse of wedge sum
-        invert_WedgeSum( invol=wedgeSum, r_max=unweiAv.sizeX()/2-2., lowlimit=.05*len(particleList),
+        invert_WedgeSum( invol=wedgeSum, r_max=unweiAv.size_x()/2-2., lowlimit=.05*len(particleList),
                          lowval=.05*len(particleList))
         fResult = fft(unweiAv)
         r = complexRealMult(fResult,wedgeSum)
         unweiAv = ifft(r)
-        unweiAv.shiftscale(0.0,1/float(unweiAv.sizeX()*unweiAv.sizeY()*unweiAv.sizeZ()))
+        unweiAv.shiftscale(0.0,1/float(unweiAv.size_x()*unweiAv.size_y()*unweiAv.size_z()))
         # low pass filter to remove artifacts at fringes
-        unweiAv = lowpassFilter(volume=unweiAv, band=unweiAv.sizeX()/2-2, smooth=(unweiAv.sizeX()/2-1)/10.)[0]
+        unweiAv = lowpassFilter(volume=unweiAv, band=unweiAv.size_x()/2-2, smooth=(unweiAv.size_x()/2-1)/10.)[0]
 
         unweiAv.write(averageName)
 
@@ -927,7 +928,7 @@ def writeParticleListToUniqueFile(pl, dirName=None):
     """
     from uuid import uuid4
     from pytom.basic.structures import ParticleList
-    assert isinstance(object=pl, class_or_type_or_tuple=ParticleList), \
+    assert isinstance(pl, ParticleList), \
         "writeParticleListToUniqueFile: pl must be of type ParticleList"
     fname = str(uuid4())
     if dirName:

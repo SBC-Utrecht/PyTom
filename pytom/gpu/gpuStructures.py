@@ -1,49 +1,39 @@
 import threading
 import importlib
+import cupy as cp
 from pytom.agnostic.io import read, write
 from pytom.gpu.initialize import device, xp
 
 
 class TemplateMatchingPlan():
-    def __init__(self, volume, template, mask, wedge, cp, vt, calc_stdV, pad, get_fft_plan, deviceid):
-        from pytom.agnostic.io import read
-        from pytom.basic.files import read as readC
+    def __init__(self, volume, template, mask, wedge, get_fft_plan, deviceid):
         import pytom.voltools as vt
-        import os
-
-        cp.cuda.Device(deviceid).use()
 
         self.volume = cp.asarray(volume, dtype=cp.float32, order='C')
 
-        self.sPad = volume.shape
-
         self.mask = cp.asarray(mask, dtype=cp.float32, order='C')
+        self.mask_texture = vt.StaticVolume(self.mask, interpolation='linear', device=f'gpu:{deviceid}')
         self.maskPadded = cp.zeros_like(self.volume).astype(cp.float32)
-        self.sOrg = mask.shape
-        pad(self.mask, self.maskPadded, self.sPad, self.sOrg)
 
         self.template = cp.asarray(template, dtype=cp.float32, order='C')
-        self.texture = vt.StaticVolume(self.template, interpolation='linear', device=f'gpu:{deviceid}')
+        self.template_texture = vt.StaticVolume(self.template, interpolation='filt_bspline', device=f'gpu:{deviceid}')
         self.templatePadded = cp.zeros_like(self.volume)
 
+        # wedge for the template
         self.wedge = cp.asarray(wedge, order='C', dtype=cp.float32)
-        calc_stdV(self)
-        cp.cuda.stream.get_current_stream().synchronize()
 
+        # initialize result volumes
         self.ccc_map = cp.zeros_like(self.volume)
-
         self.scores = cp.ones_like(self.volume)*-1000
         self.angles = cp.ones_like(self.volume)*-1000
+
+        # weight of the mask
         self.p = self.mask.sum()
 
-        if not get_fft_plan is None:
-            self.volume_fft2 = cp.fft.fftn(self.volume)
-            self.fftplan = get_fft_plan(self.volume.astype(cp.complex64))
-        else:
-            self.fftplan = None
-            self.volume_fft2 = None
+        # assign fft plan
+        self.volume_fft2 = cp.fft.fftn(self.volume)
+        self.fftplan = get_fft_plan(self.volume.astype(cp.complex64))
 
-        # os.remove('te.em')
         cp.cuda.stream.get_current_stream().synchronize()
 
 
@@ -51,12 +41,10 @@ class TemplateMatchingGPU(threading.Thread):
     def __init__(self, jobid, deviceid, input):
         threading.Thread.__init__(self)
 
-        import cupy as cp
         cp.cuda.Device(deviceid).use()
 
         from cupy import sqrt, float32
         from cupy.fft import fftshift, rfftn, irfftn, ifftn, fftn
-        import pytom.voltools as vt
         from cupyx.scipy.ndimage import map_coordinates
 
         try:
@@ -71,13 +59,15 @@ class TemplateMatchingGPU(threading.Thread):
         self.fftnP = fftnP
         self.ifftnP = ifftnP
 
-        self.cp = cp
         self.map_coordinates = map_coordinates
         self.Device = cp.cuda.Device
         self.jobid = jobid
         self.deviceid = deviceid
         self.active = True
+        self.completed = False
         self.input = input
+        self.mask_is_spherical = input[5]  # whether mask is spherical
+        self.angle_list = input[4]
 
         self.fftn = fftn
         self.ifftn = ifftn
@@ -86,7 +76,6 @@ class TemplateMatchingGPU(threading.Thread):
         self.irfftn = irfftn
         self.sqrt = sqrt
         self.float32 = float32
-
 
         self.update_scores_angles = cp.RawKernel(r"""
         extern "C"  __global__ void update_scores_angles(float *scores, float *angles, float *ccc_map, float angleId, int num_elements, int dimx)
@@ -107,47 +96,56 @@ class TemplateMatchingGPU(threading.Thread):
         }
         """, 'update_scores_angles')
 
-
         self.updateResFromIdx = cp.ElementwiseKernel(
             'float32 scores, float32 angles, float32 ccc_map, float32 angleId',
             'float32 out, float32 out2',
             'if (scores < ccc_map) {out = ccc_map; out2 = angleId;}',
             'updateResFromIdx')
 
-        self.plan = TemplateMatchingPlan(input[0], input[1], input[2], input[3], cp, vt, self.calc_stdV, self.pad, get_fft_plan, deviceid)
+        self.plan = TemplateMatchingPlan(input[0], input[1], input[2], input[3],
+                                         get_fft_plan, deviceid)
 
         print("Initialized job_{:03d} on device {:d}".format(self.jobid, self.deviceid))
 
     def run(self):
         print("RUN")
         self.Device(self.deviceid).use()
-        # if 1:
-        self.template_matching_gpu(self.input[4], self.input[5])
+        self.template_matching_gpu()
         self.completed = True
-        # else:
-        #     self.completed = False
         self.active = False
 
-    def template_matching_gpu(self, angle_list, dims, isSphere=True, verbose=True, debug=False):
-        from pytom_numpy import vol2npy
-        from pytom_volume import rotateSpline as rotate, vol
-        import time
-
-        self.Device(self.deviceid).use()
+    def template_matching_gpu(self):
 
         sx, sy, sz = self.plan.template.shape
         SX, SY, SZ = self.plan.templatePadded.shape
         CX, CY, CZ = SX // 2, SY // 2, SZ // 2
         cx, cy, cz = sx // 2, sy // 2, sz // 2
-        mx, my, mz = sx %  2, sy %  2, sz %  2
+        mx, my, mz = sx % 2, sy % 2, sz % 2
+        # rotation center needs to be set, voltools uses (s - 1) / 2 by default, but pytom_volume s // 2 + s % 2
+        rotation_center = (cx + mx, cy + my, cz + mz)
 
-        for angleId, angles in enumerate(angle_list):
-            # Rotate
-            self.plan.texture.transform(rotation=(angles[0], angles[2], angles[1]), rotation_order='rzxz',
-                                        output=self.plan.template)
+        if self.mask_is_spherical:  # then we only need to calculate std volume once
+            self.plan.maskPadded[CX - cx:CX + cx + mx, CY - cy:CY + cy + my, CZ - cz:CZ + cz + mz] = \
+                self.plan.mask
+            std_v = self.calc_std_v(self.plan.volume, self.plan.maskPadded, self.plan.p)
 
-            # Add wedgeexit
-            self.plan.template = self.irfftn(self.rfftn(self.plan.template) * self.plan.wedge, s=self.plan.template.shape)
+        for angleId, angles in enumerate(self.angle_list):
+
+            if not self.mask_is_spherical:
+                self.plan.mask_texture.transform(rotation=(angles[0], angles[2], angles[1]), rotation_order='rzxz',
+                                        output=self.plan.mask, center=rotation_center)
+                self.plan.maskPadded[CX - cx:CX + cx + mx, CY - cy:CY + cy + my, CZ - cz:CZ + cz + mz] = \
+                    self.plan.mask
+                # std volume needs to be recalculated for every rotation of the mask, expensive step
+                std_v = self.calc_std_v(self.plan.volume, self.plan.maskPadded, self.plan.p)
+
+            # Rotate template
+            self.plan.template_texture.transform(rotation=(angles[0], angles[2], angles[1]), rotation_order='rzxz',
+                                                 output=self.plan.template, center=rotation_center)
+
+            # Add wedge to the template after rotating
+            self.plan.template = self.irfftn(self.rfftn(self.plan.template) * self.plan.wedge,
+                                             s=self.plan.template.shape).real
 
             # Normalize template
             meanT = self.meanUnderMask(self.plan.template, self.plan.mask, p=self.plan.p)
@@ -156,130 +154,55 @@ class TemplateMatchingGPU(threading.Thread):
             self.plan.template = ((self.plan.template - meanT) / stdT) * self.plan.mask
 
             # Paste in center
-            self.plan.templatePadded[CX-cx:CX+cx+mx, CY-cy:CY+cy+my,CZ-cz:CZ+cz+mz] = self.plan.template
+            self.plan.templatePadded[CX-cx:CX+cx+mx, CY-cy:CY+cy+my, CZ-cz:CZ+cz+mz] = self.plan.template
 
-            # Cross-correlate and normalize by stdV
-            self.plan.ccc_map = self.normalized_cross_correlation(self.plan.volume_fft2, self.plan.templatePadded, self.plan.stdV, self.plan.p, plan=self.plan.fftplan)
+            # Cross-correlate and normalize by std_v
+            self.plan.ccc_map = self.normalized_cross_correlation(self.plan.volume_fft2, self.plan.templatePadded,
+                                                                  std_v, self.plan.p, fft_plan=self.plan.fftplan)
 
             # Update the scores and angles
-            self.updateResFromIdx(self.plan.scores, self.plan.angles, self.plan.ccc_map, angleId, self.plan.scores, self.plan.angles)
+            self.updateResFromIdx(self.plan.scores, self.plan.angles, self.plan.ccc_map,
+                                  angleId, self.plan.scores, self.plan.angles)
 
     def is_alive(self):
+        """
+        whether process is running
+        """
         return self.active
 
-    def calc_stdV(self, plan):
-        self.Device(self.deviceid).use()
-
-        stdV = self.meanVolUnderMask2(plan.volume**2, plan) - self.meanVolUnderMask2(plan.volume, plan)**2
-        stdV[stdV <= self.float32(1e-09)] = 1
-        plan.stdV = self.sqrt(stdV)
-
-    def meanVolUnderMask2(self, volume, plan):
-        self.Device(self.deviceid).use()
-        res = self.fftshift(self.ifftn(self.fftn(volume) * self.fftn(plan.maskPadded).conj())) / plan.mask.sum()
-        return res.real
-
-    def meanUnderMask(self,volume, mask=None, p=1, gpu=False):
+    def calc_std_v(self, volume, padded_mask, p):
         """
-        meanValueUnderMask: Determines the mean value under a mask
-        @param volume: The volume
-        @type volume:  L{pytom_volume.vol}
-        @param mask:  The mask
-        @type mask:  L{pytom_volume.vol}
-        @param p: precomputed number of voxels in mask
-        @type p: float
-        @return: A value (scalar)
-        @rtype: single
-        @change: support None as mask, FF 08.07.2014
+        std convolution of volume and mask
+        """
+        std_v = self.meanVolUnderMask2(volume**2, padded_mask, p) - self.meanVolUnderMask2(volume, padded_mask, p)**2
+        std_v[std_v <= self.float32(1e-09)] = 1
+        return self.sqrt(std_v)
+
+    def meanVolUnderMask2(self, volume, mask, p):
+        """
+        mean convolution of volume and mask
+        """
+        return (self.fftshift(self.ifftn(self.fftn(volume) * self.fftn(mask).conj())) / p).real
+
+    def meanUnderMask(self, volume, mask, p):
+        """
+        mean value of the template under the mask
         """
         return (volume * mask).sum() / p
 
-    def stdUnderMask(self, volume, mask, meanValue, p=None, gpu=False):
+    def stdUnderMask(self, volume, mask, mean, p):
         """
-        stdValueUnderMask: Determines the std value under a mask
-
-        @param volume: input volume
-        @type volume:  L{pytom_volume.vol}
-        @param mask: mask
-        @type mask:  L{pytom_volume.vol}
-        @param p: non zero value numbers in the mask
-        @type p: L{float} or L{int}
-        @return: A value
-        @rtype: L{float}
-        @change: support None as mask, FF 08.07.2014
+        standard deviation of the template under the mask
         """
-        return self.sqrt(self.meanUnderMask(volume**2, mask, p=p) - meanValue**2)
+        return self.sqrt(self.meanUnderMask(volume**2, mask, p) - mean**2)
 
-    def normalized_cross_correlation(self, volume_fft, template, norm, p=1, plan=None):
-        return self.fftshift(self.ifftnP(volume_fft * self.fftnP(template, plan=plan).conj(), plan=plan)).real / (p * norm)
-
-    def pad(self, volume, out, sPad, sOrg):
-        SX, SY, SZ = sPad
-        sx, sy, sz = sOrg
-        out[SX // 2 - sx // 2:SX // 2 + sx // 2 + sx % 2, SY // 2 - sy // 2:SY // 2 + sy // 2 + sy % 2,
-            SZ // 2 - sz // 2:SZ // 2 + sz // 2 + sz % 2] = volume
-
-    def rotate3d(self, data, phi=0, psi=0, the=0, center=None, order=1, output=None):
-        """Rotate a 3D data using ZXZ convention (phi: z1, the: x, psi: z2).
-
-        @param data: data to be rotated.
-        @param phi: 1st rotate around Z axis, in degree.
-        @param psi: 3rd rotate around Z axis, in degree.
-        @param the: 2nd rotate around X axis, in degree.
-        @param center: rotation center.
-
-        @return: the data after rotation.
+    def normalized_cross_correlation(self, volume_fft, template, norm, p, fft_plan=None):
         """
-        # Figure out the rotation center
-        if center is None:
-            cx = data.shape[0] / 2
-            cy = data.shape[1] / 2
-            cz = data.shape[2] / 2
-        else:
-            assert len(center) == 3
-            (cx, cy, cz) = center
-
-        # Transfer the angle to Euclidean
-        phi = -float(phi) * self.cp.pi / 180.0
-        the = -float(the) * self.cp.pi / 180.0
-        psi = -float(psi) * self.cp.pi / 180.0
-        sin_alpha = self.cp.sin(phi)
-        cos_alpha = self.cp.cos(phi)
-        sin_beta = self.cp.sin(the)
-        cos_beta = self.cp.cos(the)
-        sin_gamma = self.cp.sin(psi)
-        cos_gamma = self.cp.cos(psi)
-
-
-
-        # Calculate inverse rotation matrix
-        Inv_R = self.cp.zeros((3, 3), dtype=self.cp.float32)
-
-        Inv_R[0][0] = cos_alpha * cos_gamma - cos_beta * sin_alpha * sin_gamma
-        Inv_R[0][1] = -cos_alpha * sin_gamma - cos_beta * sin_alpha * cos_gamma
-        Inv_R[0][2] = sin_beta * sin_alpha
-
-        Inv_R[1][0] = sin_alpha * cos_gamma + cos_beta * cos_alpha * sin_gamma
-        Inv_R[1][1] = -sin_alpha * sin_gamma + cos_beta * cos_alpha * cos_gamma
-        Inv_R[1][2] = -sin_beta * cos_alpha
-
-        Inv_R[2][0] = sin_beta * sin_gamma
-        Inv_R[2][1] = sin_beta * cos_gamma
-        Inv_R[2][2] = cos_beta
-
-
-
-        grid = self.cp.mgrid[-cx:data.shape[0]-cx, -cy:data.shape[1]-cy, -cz:data.shape[2]-cz]
-        temp = grid.reshape((3, grid.size // 3))
-        temp = self.cp.dot(Inv_R, temp)
-        grid = self.cp.reshape(temp, grid.shape)
-        grid[0] += cx
-        grid[1] += cy
-        grid[2] += cz
-
-        # Interpolation
-        #self.map_coordinates(data, grid, output=output)
-        return self.map_coordinates(data, grid.reshape(len(grid), -1), order=order).reshape(grid.shape[1:])
+        fast local correlation function between volume and template, norm is the standard deviation at each point in
+        the volume in the masked area
+        """
+        return self.fftshift(self.ifftnP(volume_fft * self.fftnP(template, plan=fft_plan).conj(),
+                                         plan=fft_plan)).real / (p * norm)
 
 
 class GLocalAlignmentPlan():
@@ -332,9 +255,9 @@ class GLocalAlignmentPlan():
         # Allocate wedge-related objects
         self.wedge         = wedge
         if wedge._type != 'Wedge3dCTF':
-            self.wedgeAngles = wedge.getWedgeAngle()
+            self.wedge_angles = wedge.getWedgeAngle()
         else:
-            self.wedgeAngles = None
+            self.wedge_angles = None
         wedgePart          = wedge.returnWedgeVolume(*self.volume.shape, humanUnderstandable=True).get()
         self.rotatedWedge  = cp.array(wedgePart, dtype=cp.float32)
         self.wedgePart     = cp.fft.fftshift(wedgePart).astype(cp.float32)
@@ -356,7 +279,7 @@ class GLocalAlignmentPlan():
         del dummy, taperMask
 
         # Allocate required volumes
-        self.stdV          = cp.zeros_like(self.volume, dtype=cp.float32)
+        self.std_v         = cp.zeros_like(self.volume, dtype=cp.float32)
         self.ccc_map       = cp.zeros_like(self.volume, dtype=cp.float32)
         self.sumParticles  = cp.zeros_like(self.volume, dtype=cp.float32)
         self.sumWeights    = cp.zeros_like(self.wedgePart[:,:,:self.volume.shape[2]//2+1], dtype=cp.float32)
@@ -391,7 +314,7 @@ class GLocalAlignmentPlan():
         # del croppedForZoom
 
         # Kernels
-        self.normalize     = cp.ElementwiseKernel('T ref, T mask, raw T mean, raw T stdV ', 'T z', 'z = ((ref - mean[i*0]) / stdV[i*0]) * mask', 'norm2')
+        self.normalize     = cp.ElementwiseKernel('T ref, T mask, raw T mean, raw T std_v ', 'T z', 'z = ((ref - mean[i*0]) / std_v[i*0]) * mask', 'norm2')
         self.sumMeanStdv   = cp.RawKernel(meanStdv_text, 'sumMeanStdv')
         self.argmax        = self.cp.RawKernel(argmax_text, 'argmax')
 
@@ -405,7 +328,7 @@ class GLocalAlignmentPlan():
         del self.fftnP
         del self.cp
 
-        del self.stdV
+        del self.std_v
         del self.ccc_map
 
         del self.volume_fft
@@ -415,7 +338,7 @@ class GLocalAlignmentPlan():
         del self.wedgePart
         del self.wedgeTex
         del self.rotatedWedge
-        del self.wedgeAngles
+        del self.wedge_angles
 
         del self.referenceTex
         del self.rotatedRef
@@ -452,7 +375,7 @@ class GLocalAlignmentPlan():
     def cross_correlation(self):
         self.simulatedVolume = self.fftnP(self.simulatedVolume.astype(self.cp.complex64), plan=self.fftplan)
         self.ccc_map = ( self.cp.fft.ifftshift(self.ifftnP(self.volume_fft * self.simulatedVolume.conj(), plan=self.fftplan))).real
-        self.ccc_map *= self.stdV
+        self.ccc_map *= self.std_v
 
     def wedgeRotatedRef(self):
         self.simulatedVolume = self.ifftnP(self.fftnP(self.rotatedRef.astype(self.cp.complex64), plan=self.fftplan) * self.wedgePart,
@@ -520,95 +443,7 @@ class GLocalAlignmentPlan():
         # return as list
         return peak_value, peak_shift
 
-    def subPixelMax3D(self, ignore_border=1, k=0.1, profile=False, check=True):
-
-        from pytom.voltools import transform
-
-        ox, oy, oz = self.ccc_map.shape
-        ib = ignore_border
-        cropped_volume = self.ccc_map[ib:ox - ib, ib:oy - ib, ib:oz - ib].astype(self.cp.float32)
-        if profile:
-            stream = self.cp.cuda.Stream.null
-            t_start = stream.record()
-
-        # x,y,z = self.cp.array(maxIndex(cropped_volume)) + ignore_border
-        x, y, z = self.cp.array(self.cp.unravel_index(cropped_volume.argmax(), cropped_volume.shape)) + ignore_border
-
-        dx, dy, dz = self.ccc_map.shape
-        translation = (dx // 2 - x, dy // 2 - y, dz // 2 - z)
-
-        if profile:
-            t_end = stream.record()
-            t_end.synchronize()
-
-            time_took = self.cp.cuda.get_elapsed_time(t_start, t_end)
-            print(f'initial find max time: \t{time_took:.3f}ms')
-            t_start = stream.record()
-
-        b = border = max(0, int(self.ccc_map.shape[0] // 2 - 4 / k))
-        if b> 0:
-            zx, zy, zz = self.ccc_map.shape
-            out = self.ccc_map[b:zx - b, b:zy - b, b:zz - b].astype(self.cp.float32)
-            self.zoomed *= 0
-            # does this do the right thing??
-            transform(out, output=self.zoomed, scale=(k, k, k), device=self.device, translation=translation,
-                      interpolation='filt_bspline')
-
-            if profile:
-                t_end = stream.record()
-                t_end.synchronize()
-
-                time_took = self.cp.cuda.get_elapsed_time(t_start, t_end)
-                print(f'transform finished in \t{time_took:.3f}ms')
-                t_start = stream.record()
-            num_threads = self.num_threads
-            nblocks = int(self.cp.ceil(self.zoomed.size / num_threads / 2 ))
-            self.max_id *= 0
-            self.fast_sum *= 0
-
-            self.argmax((nblocks, 1,), (num_threads, 1, 1), (self.zoomed, self.fast_sum, self.max_id, self.zoomed.size),
-                        shared_mem=8 * num_threads)
-
-            # if check:
-            #     zzz = self.zoomed.argmax()
-            #     a = self.zoomed.max()
-            #
-            #     if self.max_id[self.fast_sum.argmax()] != zzz:
-            #         print(a, self.fast_sum.max())
-            #         print(self.cp.unravel_index(self.max_id[self.fast_sum.argmax()], self.zoomed.shape))
-            #         print(self.cp.unravel_index(zzz, self.zoomed.shape))
-
-            x2, y2, z2 = self.cp.unravel_index(self.max_id[self.fast_sum.argmax()], self.zoomed.shape)
-
-
-        else:
-            out = self.ccc_map.copy().astype(self.cp.float32)
-            self.zoomed *= 0
-            transform(out, output=self.zoomed, scale=(k, k, k), device=self.device, translation=translation,
-                      interpolation='filt_bspline')
-            zx, zy, zz = self.ccc_map.shape
-            x2, y2, z2 = self.cp.unravel_index(self.zoomed.argmax(), self.zoomed.shape)
-
-        peakValue = self.zoomed[x2][y2][z2]
-        peakShift = [x + (x2 - self.zoomed.shape[0] // 2) * k - zx // 2,
-                     y + (y2 - self.zoomed.shape[1] // 2) * k - zy // 2,
-                     z + (z2 - self.zoomed.shape[2] // 2) * k - zz // 2]
-
-        # x2 * k
-        # peakCoordinates[0] * scaleRatio - cubeStart + coordinates[0]
-
-        if profile:
-            t_end = stream.record()
-            t_end.synchronize()
-
-            time_took = self.cp.cuda.get_elapsed_time(t_start, t_end)
-            print(f'argmax finished in \t{time_took:.3f}ms')
-            t_start = stream.record()
-            print()
-
-        return [peakValue, peakShift]
-
-    def maxIndex(self, volume, num_threads=1024):
+    def max_index(self, volume, num_threads=1024):
         nblocks = int(self.cp.ceil(volume.size / num_threads / 2))
         fast_sum = -1000000 * self.cp.ones((nblocks), dtype=self.cp.float32)
         max_id = self.cp.zeros((nblocks), dtype=self.cp.int32)
@@ -618,9 +453,9 @@ class GLocalAlignmentPlan():
         indices = self.cp.unravel_index(mm, volume.shape)
         return indices
 
-    def calc_stdV(self):
+    def calc_std_v(self):
         meanV = (self.cp.fft.fftshift(self.ifftnP(self.volume_fft * self.cp.conj(self.mask_fft), plan=self.fftplan))/self.p).real
-        self.stdV = 1 / (self.stdVolUnderMaskPlanned(self.volume, meanV) * self.p)
+        self.std_v = 1 / (self.stdVolUnderMaskPlanned(self.volume, meanV) * self.p)
         del meanV
 
     def meanVolUnderMaskPlanned(self, volume):
@@ -685,7 +520,7 @@ class GLocalAlignmentPlan():
         from pytom.voltools import StaticVolume
 
         if wedge._type == 'Wedge3dCTF':
-            self.wedgeAngles = None
+            self.wedge_angles = None
             self.wedge = wedge
             wedgePart = wedge.returnWedgeVolume(*self.volume.shape, humanUnderstandable=True).astype(
                 self.cp.float32).get()
@@ -694,15 +529,15 @@ class GLocalAlignmentPlan():
             self.wedgeTex = StaticVolume(self.rotatedWedge.copy(), device=self.device, interpolation=interpolation)
 
         else:
-            wedgeAngles = wedge.getWedgeAngle()
-            if type(wedgeAngles) == float: wedgeAngles = [wedgeAngles, wedgeAngles]
-            if type(self.wedgeAngles) == float: self.wedgeAngles = [self.wedgeAngles, self.wedgeAngles]
+            wedge_angles = wedge.getWedgeAngle()
+            if type(wedge_angles) == float: wedge_angles = [wedge_angles, wedge_angles]
+            if type(self.wedge_angles) == float: self.wedge_angles = [self.wedge_angles, self.wedge_angles]
 
-            if wedgeAngles[0] == self.wedgeAngles[0] and wedgeAngles[1] == self.wedgeAngles[1]:
+            if wedge_angles[0] == self.wedge_angles[0] and wedge_angles[1] == self.wedge_angles[1]:
                 return
 
             else:
-                self.wedgeAngles  = wedgeAngles
+                self.wedge_angles  = wedge_angles
                 self.wedge        = wedge
                 wedgePart         = wedge.returnWedgeVolume(*self.volume.shape,
                                                             humanUnderstandable=True).astype(self.cp.float32).get()
@@ -854,7 +689,7 @@ class GLocalAlignmentGPU(threading.Thread):
             'if (scores < ccc_map) {out = ccc_map; out2 = angleId;}',
             'updateResFromIdx')
 
-        self.plan = TemplateMatchingPlan(input[0], input[1], input[2], input[3], cp, vt, self.calc_stdV, self.pad, get_fft_plan, deviceid)
+        self.plan = TemplateMatchingPlan(input[0], input[1], input[2], input[3], cp, vt, self.calc_std_v, self.pad, get_fft_plan, deviceid)
 
         print("Initialized job_{:03d} on device {:d}".format(self.jobid, self.deviceid))
 
@@ -894,8 +729,8 @@ class GLocalAlignmentGPU(threading.Thread):
 
             # write('template_gpu.em', self.plan.templatePadded)
 
-            # Cross-correlate and normalize by stdV
-            self.plan.ccc_map = self.normalized_cross_correlation(self.plan.volume_fft2, self.plan.template, self.plan.stdV, self.plan.p, plan=self.plan.fftplan)
+            # Cross-correlate and normalize by std_v
+            self.plan.ccc_map = self.normalized_cross_correlation(self.plan.volume_fft2, self.plan.template, self.plan.std_v, self.plan.p, plan=self.plan.fftplan)
 
             # Update the scores and angles
             self.updateResFromIdx(self.plan.scores, self.plan.angles, self.plan.ccc_map, angleId, self.plan.scores, self.plan.angles)
@@ -905,10 +740,10 @@ class GLocalAlignmentGPU(threading.Thread):
     def is_alive(self):
         return self.active
 
-    def calc_stdV(self, plan):
-        stdV = self.meanVolUnderMask2(plan.volume**2, plan) - self.meanVolUnderMask2(plan.volume, plan)**2
-        stdV[stdV < self.float32(1e-09)] = 1
-        plan.stdV = self.sqrt(stdV)
+    def calc_std_v(self, plan):
+        std_v = self.meanVolUnderMask2(plan.volume**2, plan) - self.meanVolUnderMask2(plan.volume, plan)**2
+        std_v[std_v < self.float32(1e-09)] = 1
+        plan.std_v = self.sqrt(std_v)
 
     def meanVolUnderMask2(self, volume, plan):
         res = self.fftshift(self.ifftn(self.fftn(volume) * self.fftn(plan.maskPadded).conj())) / plan.mask.sum()
@@ -1118,10 +953,10 @@ class CCCPlan():
 
         self.normalize = cp.RawKernel(r'''
 extern "C" __global__
-void normalize( float* volume, const float* mask, float mean, float stdV, int n ){
+void normalize( float* volume, const float* mask, float mean, float std_v, int n ){
      int tid = blockDim.x * blockIdx.x + threadIdx.x;
      
-     if (tid < n) { volume[tid] = ((volume[tid] - mean)/ stdV) * mask[tid];}
+     if (tid < n) { volume[tid] = ((volume[tid] - mean)/ std_v) * mask[tid];}
 }
 ''', 'normalize')
 
@@ -1349,8 +1184,6 @@ void normalize( float* volume, const float* mask, float mean, float stdV, int n 
         @type template:  L{pytom_volume.vol}
         @param mask: mask to constrain correlation
         @type mask: L{pytom_volume.vol}
-        @param volumeIsNormalized: speed up if volume is already normalized
-        @type volumeIsNormalized: L{bool}
         @return: A value between -1 and 1
         @raise exception: Raises a runtime error if volume and template have a different size.
         @author: Thomas Hrabe

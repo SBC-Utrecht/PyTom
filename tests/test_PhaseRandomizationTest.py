@@ -19,6 +19,9 @@ class pytom_PhaseRandomizationTest(unittest.TestCase):
 
         amplitude = abs(ft)
         phase = generate_random_phases_3d(ft.shape, reduced_complex=True)
+        # cast from cupy to numpy if required
+        if hasattr(phase, 'get'):
+            phase = phase.get()
         
         self.assertTrue( np.fft.irfftn((amplitude * np.exp(1j * phase))).imag.std() < 1E-8 )
 
@@ -35,6 +38,9 @@ class pytom_PhaseRandomizationTest(unittest.TestCase):
 
         amplitude = abs(ft)
         phase = generate_random_phases_3d(ft.shape, reduced_complex=True)
+        # cast from cupy to numpy if required
+        if hasattr(phase, 'get'):
+            phase = phase.get()
         
         self.assertTrue( np.fft.irfftn((amplitude * np.exp(1j * phase))).imag.std() < 1E-8 )
 

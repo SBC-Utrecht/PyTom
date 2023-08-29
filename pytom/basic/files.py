@@ -4,6 +4,8 @@ Created on Dec 7, 2010
 @author: hrabe
 """
 import os
+import shutil
+from pathlib import Path
 
 def get_install_folder():
     """
@@ -13,14 +15,14 @@ def get_install_folder():
     @rtype:  L{str}
     """
     import os
-    return os.path.dirname(os.path.dirname(os.popen('which pytom').read()[:-1]))
+    return Path(shutil.which('pytom')).parents[1]
 
 
 def readProxy(fileName, subregion1=0, subregion2=0, subregion3=0,
               subregion4=0, subregion5=0, subregion6=0, sampling1=0,
               sampling2=0, sampling3=0, binning1=0, binning2=0, binning3=0):
     """
-    readProxy: Proxy function to easily replace pytom_volume calls with read \
+    readProxy: Proxy function to easily replace pytom.lib.pytom_volume calls with read \
     function below
     """
 
@@ -46,11 +48,11 @@ def read(file, subregion=[0, 0, 0, 0, 0, 0], sampling=[0, 0, 0], binning=[0, 0, 
     2 will bin with a kernelsize of 2 pixels along each dimension, 3 will bin
     with a kernelsize of 3 pixels along each dimension and so forth.
     @type binning:  List of 3 integers
-    @return: A volume object. L{pytom_volume.vol}
+    @return: A volume object. L{pytom.lib.pytom_volume.vol}
     @author: Thomas Hrabe
     """
     from pytom.tools.files import checkFileExists
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
 
     if not isinstance(file, str):
         raise TypeError('File parameter must be a string!')
@@ -71,28 +73,28 @@ def read(file, subregion=[0, 0, 0, 0, 0, 0], sampling=[0, 0, 0], binning=[0, 0, 
             raise
 
 
-def readSubvolumeFromFourierspaceFile(filename, sizeX, sizeY, sizeZ):
+def readSubvolumeFromFourierspaceFile(filename, size_x, size_y, size_z):
     """
     readSubvolumeFromFourierspaceFile: This function is required when data \
     (in real space) is read in binned mode and a related fourier space file
     like a wedge needs to be read alongside.
     Works only if fourier file is reduced complex without any shift applied.
     @param filename: The fourier space file name
-    @param sizeX: X final size of subvolume if it was complete
+    @param size_x: X final size of subvolume if it was complete
     (what L{pytom.basic.structures.Wedge.returnWedgeVolume} with
     humanUnderstandable == True returns)
-    @param sizeY: Y final size of subvolume if it was complete
+    @param size_y: Y final size of subvolume if it was complete
     (what L{pytom.basic.structures.Wedge.returnWedgeVolume}
     with humanUnderstandable == True returns)
-    @param sizeZ: Z final size of subvolume if it was complete
+    @param size_z: Z final size of subvolume if it was complete
     (what L{pytom.basic.structures.Wedge.returnWedgeVolume}
     with humanUnderstandable == True returns)
     @return: A subvolume
     @author: Thomas Hrabe
     """
-    from pytom_volume import vol, subvolume, paste
+    from pytom.lib.pytom_volume import vol, subvolume, paste
     from pytom.basic.fourier import fourierSizeOperation
-    [newX, newY, newZ] = fourierSizeOperation(sizeX, sizeY, sizeZ,
+    [newX, newY, newZ] = fourierSizeOperation(size_x, size_y, size_z,
                                               reducedToFull=False)
     newVolume = vol(newX, newY, newZ)
     newVolume.setAll(0)
@@ -108,8 +110,8 @@ def readSubvolumeFromFourierspaceFile(filename, sizeX, sizeY, sizeZ):
     else:
         raise TypeError('Filename must be a string')
 
-    originalSizeX = int(originalVolume.sizeX())
-    originalSizeY = int(originalVolume.sizeY())
+    originalSizeX = int(originalVolume.size_x())
+    originalSizeY = int(originalVolume.size_y())
 
     # the original volume is reduced complex without shift ->
     # zero frequency is in outer corner (0,0,0)
@@ -325,7 +327,7 @@ def atomList2em(atomList, pixelSize, cubeSize, densityNegative=False):
     @return:
     """
     from math import floor
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
 
     if len(atomList) == 0:
         raise RuntimeError('atomList2em : Your atom list is empty!')
@@ -408,7 +410,7 @@ def recenterVolume(volume, densityNegative=False):
     from pytom.agnostic.io import read, write
     from pytom.agnostic.tools import paste_in_center
     from pytom.gpu.initialize import xp
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     import os
 
     try:
@@ -455,7 +457,7 @@ def initSphere(cubeSize, radius, smoothing=0, centerX=None, centerY=None, center
     @param centerY: Center of shpere along Y axis
     @param centerZ: Center of shpere along Z axis
     """
-    from pytom_volume import vol, initSphere
+    from pytom.lib.pytom_volume import vol, initSphere
 
     sphere = vol(cubeSize, cubeSize, cubeSize)
     sphere.setAll(0)
@@ -482,7 +484,7 @@ def cutParticlesFromTomogram(particleList, cubeSize, sourceTomogram, coordinateB
     @param cubeSize: Size of cut out cubes
     @type cubeSize: int
     @param sourceTomogram: The source tomogram (either file name or volume).
-    @type sourceTomogram: L{str} or L{pytom_volume.vol}
+    @type sourceTomogram: L{str} or L{pytom.lib.pytom_volume.vol}
     @param coordinateBinning: binning factor affecting coordinates. was template matching processed on binned data? use fractions (1/2 , 1/4) if tomogram is binned and coordinates are from unbinned...
     @param binningFactorOut: binning factor for final cubes
     @author: Thomas Hrabe
@@ -496,7 +498,7 @@ def cutParticlesFromTomogram(particleList, cubeSize, sourceTomogram, coordinateB
         raise RuntimeError(
             'The destination directory ' + destinationDirectory + ' does not exist. Create directory first.')
 
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
 
     cubeRadius = cubeSize / 2
 
@@ -768,7 +770,7 @@ def read_em(filename, binning=None):
     @type binning: 3-dim array
     @return: [data, header]
     """
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
 
     # read the header
     header = read_em_header(filename)
@@ -795,14 +797,14 @@ def write_em(filename, data, header=None):
     @param filename: filename
     @type filename: str
     @param data: volume data
-    @type data: pytom_volume.vol
+    @type data: pytom.lib.pytom_volume.vol
     @param header: em header
     @type header: EMHeader
     """
     data.write(filename)  # write the data first
 
     if header:  # write the header
-        header.set_dim(data.sizeX(), data.sizeY(), data.sizeZ())  # set the dimension
+        header.set_dim(data.size_x(), data.size_y(), data.size_z())  # set the dimension
         try:
             f = open(filename, 'rb+')
             f.write(header.to_binary())
@@ -879,7 +881,7 @@ def mdoc2meta(filename, target, prefix=None, outname=''):
     numpy.savetxt(newFilename, metadata, fmt=fmt, header=header)
 
 def ccp42em(filename, target, prefix='sorted_', outname=None):
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
 
@@ -896,7 +898,7 @@ def ccp42em(filename, target, prefix='sorted_', outname=None):
     emfile.write(newFilename, 'em')
 
 def ccp42mrc(filename, target, prefix='sorted_', outname=None):
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
 
@@ -931,7 +933,7 @@ def em2mrc(filename, target, prefix='sorted_', outname=None):
     write(newFilename, data, tilt_angle=tilt_angle)
 
 def em2ccp4(filename, target, prefix='sorted_', outname=None):
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
 
@@ -948,7 +950,7 @@ def em2ccp4(filename, target, prefix='sorted_', outname=None):
     emfile.write(newFilename, 'ccp4')
 
 def mrc2ccp4(filename, target, prefix='sorted_', outname=None):
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.tools.files import checkFileExists, checkDirExists
     import os
 
@@ -1011,7 +1013,7 @@ def pdb2em(filename, target, prefix='', pixelSize=1, cubeSize=200, chain=None, i
     @author: Thomas Hrabe & Luis Kuhn
     """
     from math import floor
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
 
     pdbPath = filename
 
@@ -1042,7 +1044,7 @@ def pdb2mrc(pdbPath, pixelSize=1, cubeSize=200, chain=None, invertDensity=False,
 
     if fname:
         from pytom.agnostic.io import write as writeNPY
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
 
         writeNPY(fname, vol2npy(vol))
 
@@ -1059,7 +1061,7 @@ def mmCIF2em(mmCIFPath, pixelSize=1, cubeSize=200, chain=None, densityNegative=F
     @author: Thomas Hrabe
     """
     from math import floor
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
 
     atomList = mmCIFParser(mmCIFPath, chain)
 
@@ -1084,7 +1086,7 @@ def mmCIF2mrc(mmCIFPath, pixelSize=1, cubeSize=200, chain=None, densityNegative=
     @author: Thomas Hrabe
     """
     from math import floor
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
 
     atomList = mmCIFParser(mmCIFPath, chain)
 
@@ -1095,7 +1097,7 @@ def mmCIF2mrc(mmCIFPath, pixelSize=1, cubeSize=200, chain=None, densityNegative=
 
     if fname:
         from pytom.agnostic.io import write as writeNPY
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
 
         writeNPY(fname, vol2npy(vol))
 
@@ -1103,22 +1105,29 @@ def mmCIF2mrc(mmCIFPath, pixelSize=1, cubeSize=200, chain=None, densityNegative=
         return vol
 
 
-def txt2pl(filename, target, prefix='', outname='', subtomoPrefix=None, wedgeAngle=None):
+def txt2pl(filename, target, prefix='', outname='', subtomoPrefix=None, wedge_angle=None):
     from pytom.basic.structures import ParticleList
     particleList_file = outname
     coordinate_file = outname if outname else name_to_format(filename, target, "pl")
     pl = ParticleList()
     pl.loadCoordinateFile( filename=coordinate_file, name_prefix=subtomoPrefix,
-        wedgeAngle=wedgeAngle)
+        wedge_angle=wedge_angle)
     pl.toXMLFile(particleList_file)
 
 
-def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
+def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedge_angles=None,
+            angle_file='', sorted_folder='', rln_voltage=None, rln_spherical_aberration=None):
     from pytom.agnostic.tools import convert_angles
     from pytom.basic.structures import ParticleList
     from pytom.basic.datatypes import RELION31_PICKPOS_STAR, fmtR31S, headerRelion31Subtomo
+    from pytom.basic.datatypes import DATATYPE_RELION31_EXTENDED, fmtR31EXTENDED, headerRelion31EXTENDEDSubtomo
+    from lxml.etree import XMLSyntaxError
     import os
     import numpy as np
+
+    if pixelsize == 1:
+        print('\nWARNING: You likely did not specify a pixel size for the particle star file, might cause unexpected '
+              'behaviour in Relion.\n')
 
     # If filename is a directory combine all xmls, otherwise read filename
     if os.path.isdir(filename):
@@ -1129,31 +1138,36 @@ def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
                 tempxml = ParticleList()
                 tempxml.fromXMLFile(fname)
                 pl = pl + tempxml
-            except:
+            except (IndexError, XMLSyntaxError):
+                # XMLSyntaxError occurs when file does not have proper XML formatting and cannot be parsed
+                # IndexError occurs when file has XML formatting but is not in the ParticleList format
+                # ====> we pass these, because there might be some other files when pooling a full directory
                 pass
     else:
         pl = ParticleList()
         pl.fromXMLFile(filename)
 
-    stardata = np.zeros((len(pl)), dtype=RELION31_PICKPOS_STAR)
+    # are we dealing with a subtomogram type particle list with 3d ctf volumes?
+    subtomo_flag = pl[0].getWedge().getType() == 'Wedge3dCTF'
+
+    if subtomo_flag and (rln_voltage is None or rln_spherical_aberration is None):
+        print('\nConversion from pytom particle list to relion subtomo star files requires some additional '
+              'information that pytom cannot store in its format. Please provide voltage and spherical aberration for '
+              'file conversion. Exiting...\n')
+        raise ValueError
+
+    stardata = np.zeros((len(pl)), dtype=(DATATYPE_RELION31_EXTENDED if subtomo_flag else RELION31_PICKPOS_STAR))
 
     for n, p in enumerate(pl):
         x, y, z = p.getPickPosition().toVector()
 
         # this is not needed as Warp requires filling in A spacing for subtomo positions
-        # factor = binningPyTom / binningWarpM
-        stardata['CoordinateX'][n] = x  # * factor
-        stardata['CoordinateY'][n] = y  # * factor
-        stardata['CoordinateZ'][n] = z  # * factor
+        factor = binningPyTom / binningWarpM
+        stardata['CoordinateX'][n] = x * factor
+        stardata['CoordinateY'][n] = y * factor
+        stardata['CoordinateZ'][n] = z * factor
 
-        stardata['MicrographName'][n] = p.getPickPosition().getOriginFilename()
-
-        stardata['Magnification'][n] = 1
-
-        stardata['DetectorPixelSize'][n] = pixelsize
-
-        stardata['GroupNumber'][n] = p.getClass()
-
+        # rotations angles
         z0, z1, x = p.getRotation().toVector()
         z0, y, z1 = convert_angles((z0, x, z1), rotation_order='zxz', return_order='zyz')
 
@@ -1163,27 +1177,51 @@ def pl2star(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
         stardata['AngleTilt'][n] = -y
         stardata['AnglePsi'][n] = -z1
 
+        stardata['MicrographName'][n] = p.getPickPosition().getOriginFilename()
+        stardata['Magnification'][n] = 10000.0  # same as what Warp fills in
+        stardata['DetectorPixelSize'][n] = pixelsize
+        stardata['GroupNumber'][n] = 0  # add the column because Warp also has this in
+
+        if subtomo_flag:
+            stardata['CtfMaxResolution'][n] = p.getWedge().getWedgeObject().get_ctf_max_resolution()
+            stardata['ImageName'][n] = p.getFilename()
+            stardata['CtfImage'][n] = p.getWedge().getFilename()
+            stardata['PixelSize'][n] = pixelsize
+
+            shift = p.getShift()  # Relion has shift in Angstrom so multiply with pixel size
+            stardata['OriginXAngst'][n] = shift.getX() * pixelsize
+            stardata['OriginYAngst'][n] = shift.getY() * pixelsize
+            stardata['OriginZAngst'][n] = shift.getZ() * pixelsize
+            stardata['ClassNumber'][n] = p.getClass()
+            stardata['Voltage'][n] = rln_voltage
+            stardata['SphericalAberration'][n] = rln_spherical_aberration
+
     newFilename = name_to_format(filename if outname == '' else outname, target, "star")
 
-    np.savetxt(newFilename, stardata, fmt=fmtR31S, header=headerRelion31Subtomo, comments='')
+    np.savetxt(newFilename, stardata,
+               fmt=fmtR31EXTENDED if subtomo_flag else fmtR31S,
+               header=headerRelion31EXTENDEDSubtomo if subtomo_flag else headerRelion31Subtomo,
+               comments='')
 
 
-def star2xml(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
-    star2pl(filename, target, prefix, pixelsize, binningPyTom, binningWarpM, outname, wedgeAngles)
+def star2xml(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedge_angles=None,
+             angle_file='', sorted_folder='', rln_voltage=None, rln_spherical_aberration=None):
+    star2pl(filename, target, prefix, pixelsize, binningPyTom, binningWarpM, outname, wedge_angles, angle_file,
+            sorted_folder, rln_voltage, rln_spherical_aberration)
 
 
-def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None,
-            prexf='', sorted_folder=''):
+def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedge_angles=None,
+            angle_file='', sorted_folder='', rln_voltage=None, rln_spherical_aberration=None):
     from pytom.agnostic.tools import convert_angles
     from pytom.agnostic.io import read_star
-    from pytom.basic.structures import ParticleList, Particle, PickPosition, Rotation, Shift
+    from pytom.basic.structures import ParticleList, Particle, PickPosition, Rotation, Shift, Wedge
     from pytom.basic.score import FLCFScore
 
     stardata = read_star(filename)
 
     pl = ParticleList()
 
-    for n in range(len(stardata['CoordinateX'])):
+    for n in range(stardata.shape[0]):
 
         if 'ImageName' in stardata.dtype.names:
             p = Particle(filename=stardata['ImageName'][n])
@@ -1191,27 +1229,23 @@ def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
             p = Particle()
 
         # ===== pick position in tomogram
-        p.setPickPosition(PickPosition(stardata['CoordinateX'][n],
-                                       stardata['CoordinateY'][n],
-                                       stardata['CoordinateZ'][n],
+        p.setPickPosition(PickPosition(stardata['CoordinateX'][n] * (binningWarpM / binningPyTom),
+                                       stardata['CoordinateY'][n] * (binningWarpM / binningPyTom),
+                                       stardata['CoordinateZ'][n] * (binningWarpM / binningPyTom),
                                        originFilename=stardata['MicrographName'][n]))
 
         # ======= set shifts
-        if 'OriginXAngst' in stardata.dtype.names:
+        if ('OriginXAngst' in stardata.dtype.names and 'OriginYAngst' in stardata.dtype.names and 'OriginZAngst' in
+                stardata.dtype.names):
             star_pixel_size = stardata['PixelSize'][n]
             x_shift, y_shift, z_shift = stardata['OriginXAngst'][n], stardata['OriginYAngst'][n], \
                                         stardata['OriginZAngst'][n]
 
             p.setShift(Shift(x=x_shift / star_pixel_size, y=y_shift / star_pixel_size, z=z_shift / star_pixel_size))
 
-            # factor = binningWarpM / binningPyTom
-            # p.getShift().setX(x * factor)
-            # p.getShift().setY(y * factor)
-            # p.getShift().setZ(z * factor)
-
         # ======= class info from relion
-        if 'GroupNumber' in stardata.dtype.names:
-            p.setClass(stardata['GroupNumber'][n])
+        if 'ClassNumber' in stardata.dtype.names:
+            p.setClass(stardata['ClassNumber'][n])
 
         # ======= convert and set rotation
         # relion uses internal axis, while pytom external, or the other way around
@@ -1225,11 +1259,14 @@ def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
         p.setRotation(Rotation(z1=z0, x=x, z2=z1, paradigm='ZXZ'))
 
         # ====== set wedge angles
-        if wedgeAngles is not None:
-            p.getWedge().setWedgeAngles(wedgeAngles)
+        if wedge_angles is not None:  # wedge angles override a 3d ctf volume
+            p.getWedge().setWedgeAngles(wedge_angles)
+        elif 'CtfImage' in stardata.dtype.names:
+            p.setWedge(Wedge(wedge_3d_ctf_file=stardata['CtfImage'][n],
+                             ctf_max_resolution=stardata['CtfMaxResolution'][n]))
 
         # ===== set empty score
-        p.setScore(FLCFScore())
+        p.setScore(FLCFScore(0.))
 
         pl.append(p)
 
@@ -1237,14 +1274,78 @@ def star2pl(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningW
 
     pl.toXMLFile(newFilename)
 
-def log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedgeAngles=None, prexf='', sorted_folder=''):
+
+def xf2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedge_angles=None,
+           angle_file='', sorted_folder='', rln_voltage=None, rln_spherical_aberration=None):
+    """
+    Conversion of IMOD or AreTomo alignment parameters to pytom. These alignments are always stored in an .xf file.
+    Tilt angles can be provided via the angle_file parameters, this should be an .tlt or .rawtlt file.
+
+    :param filename: .xf file
+    :param target: target dir to write to
+    :param angle_file: .tlt or .rawtlt file
+    :param sorted_folder: folder where unpacked sorted tilt series is stored
+    (Unused: :param prefix:
+        :param pixelsize:
+        :param binningPyTom:
+        :param binningWarpM:
+        :param outname:
+        :param wedge_angles:)
+    Output is written to: target + alignmentResults.txt
+
+    @author: Marten Chaillet
+    """
+    from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO, \
+        FMT_ALIGNMENT_RESULTS_RO, HEADER_ALIGNMENT_RESULTS_RO
+
+    assert angle_file.endswith('.tlt') or angle_file.endswith('.rawtlt'), 'angle file in wrong format'
+
+    # set projection prefix name
+    prefix, filetype = 'sorted_', 'mrc'
+
+    # load imod .xf file and .tlt file
+    xf_data = np.loadtxt(filename)
+    tilt_angles = np.loadtxt(angle_file)
+
+    assert len(xf_data) == len(tilt_angles), '.xf and .tlt do not have the same length'
+
+    # initialize empty pytom tilt alignment datatype
+    alignment = np.zeros(len(tilt_angles), dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
+
+    for n, ((shx, shy), mat, tilt) in enumerate(zip(xf_data[:, -2:], xf_data[:, :4], tilt_angles)):
+        # put matrix elements into 2d affine matrix
+        mxf = np.stack([mat[:2], mat[2:4]]).T  # == np.array([mat[0], mat[2]], [mat[1], mat[3]])
+
+        # get the transformation parameters
+        x_shift, y_shift = np.dot(mxf.T, np.array((-shx, -shy)))
+        scale = np.sqrt(mxf[0, 0] ** 2 + mxf[1, 0] ** 2)
+        in_plane_rotation = - np.rad2deg(np.arctan2(mxf[1, 0], mxf[0, 0]))
+
+        alignment['TiltAngle'][n] = tilt
+        alignment['AlignmentTransX'][n] = x_shift
+        alignment['AlignmentTransY'][n] = y_shift
+        alignment['InPlaneRotation'][n] = in_plane_rotation
+        alignment['Magnification'][n] = scale
+        alignment['OperationOrder'][n] = 'TRS'
+
+    # set sorted filenames in pytomproject folder
+    alignment['FileName'] = sorted([os.path.join(sorted_folder, fname) for fname in os.listdir(sorted_folder) if
+                                    fname.startswith(prefix) and fname.endswith('.' + filetype)])
+
+    # save alignmentresults text files in the target location
+    savetxt(os.path.join(target, 'alignmentResults.txt'), alignment, fmt=FMT_ALIGNMENT_RESULTS_RO,
+            header=HEADER_ALIGNMENT_RESULTS_RO)
+
+
+def log2txt(filename, target, prefix='', pixelsize=1., binningPyTom=1., binningWarpM=1., outname='', wedge_angles=None,
+            angle_file='', sorted_folder='', rln_voltage=None, rln_spherical_aberration=None):
     import numpy as np
     from pytom.basic.datatypes import DATATYPE_TASOLUTION as dtype_ta, DATATYPE_ALIGNMENT_RESULTS_RO, FMT_ALIGNMENT_RESULTS_RO, HEADER_ALIGNMENT_RESULTS_RO
     from pytom.voltools.utils import transform_matrix
     import os
 
-    ta_fname = filename
-    shift_fname = prexf
+    ta_fname = angle_file
+    shift_fname = filename
     prefix, filetype, folder = 'sorted_', 'mrc', sorted_folder
 
     if folder == '': folder =target
@@ -1359,16 +1460,16 @@ def txt2wimp(fname, target, prefix, outname=''):
     out.write(wimpfile)
     out.close()
 
+
 def txt2fid(fname, target, prefix, outname=''):
     import os
     outname = outname if outname else os.path.join(target, fname.split('/')[-1][:-4] + '.wimp')
     txt2wimp(fname,outname=outname)
     os.system('wimp')
 
+
 def name_to_format(filename, target, extension):
-    import os
-    basename = os.path.basename(filename)
-    return target + ("" if target.endswith(os.sep) else os.sep) + ".".join(basename.split(".")[:-1]) + '.' + extension
+    return os.path.join(target, os.path.splitext(os.path.basename(filename))[0] + '.' + extension)
 
 
 def headerline(line):

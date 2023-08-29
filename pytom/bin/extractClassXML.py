@@ -8,8 +8,8 @@ from pytom.basic.structures import ParticleList, Rotation
 from copy import deepcopy
 import random
 import numpy
-from pytom_volume import read
-from pytom_numpy import vol2npy
+from pytom.lib.pytom_volume import read
+from pytom.lib.pytom_numpy import vol2npy
 import os
 import lxml.etree as et
 

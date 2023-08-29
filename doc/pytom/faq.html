@@ -234,7 +234,7 @@ Next, you can run a short script that prints all MPI node ids (ranks) a PyTom jo
 <br/>
 <div class="codeFragment">
 <code>
-import pytom_mpi<br/><br/>
+import pytom.lib.pytom_mpi as pytom_mpi<br/><br/>
 
 pytom_mpi.init()<br/>
 print pytom_mpi.rank()<br/>
@@ -288,7 +288,7 @@ If you get this error, python for some reason does not know the class type and k
 You can resolve this by importing the class before running some code.<br/><br/>
 <div class="codeFragment">
 <code>
-from pytom_volume import vol
+from pytom.lib.pytom_volume import vol
 </code>
 </div><br/><br/>
 The code above  imports <code>vol</code> before the line error occurs and resolves this bug.

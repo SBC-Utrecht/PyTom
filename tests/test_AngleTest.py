@@ -29,7 +29,7 @@ class pytom_AngleTest(unittest.TestCase):
     
     def test_AngleEMList_focusRotation(self):
         from pytom.angles.globalSampling import GlobalSampling
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         import os
         
         v = vol(3,2,1)

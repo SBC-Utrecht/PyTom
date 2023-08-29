@@ -346,7 +346,7 @@ class ExMaxJob(PyTomClass):
         """
         
         from pytom.tools.files import checkFileExists,checkDirExists
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         
         self._particleList.check()
         
@@ -385,7 +385,7 @@ class ExMaxWorker(object):
         @param verbose: Print debug messages (False by default) 
         """
     
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         from pytom.parallel.alignmentMessages import MaximisationJobMsg,MaximisationResultMsg,ExpectationJobMsg,ExpectationResultMsg
         from pytom.parallel.messages import StatusMessage,MessageError
         from pytom.basic.exceptions import ParameterError
@@ -488,7 +488,7 @@ class ExMaxWorker(object):
         
         
         if self._particle.__class__ == Particle:
-            from pytom_volume import read
+            from pytom.lib.pytom_volume import read
             particleFile    = self._particle.getFilename()
             # changed FF: binning now solely done in bestAlignment
             particle        = read(particleFile,0,0,0,0,0,0,0,0,0,
@@ -520,7 +520,7 @@ class ExMaxWorker(object):
             referenceObject = self._reference
         else:
             if self._reference.__class__ == Reference:
-                from pytom_volume import read
+                from pytom.lib.pytom_volume import read
                 referenceObject     = self._reference
                 referenceFile       = self._reference.getReferenceFilename()
                 # changed FF: binning only in bestAlignment function
@@ -530,16 +530,16 @@ class ExMaxWorker(object):
            
             if self._referenceWeighting == str and len(self._referenceWeighting) > 0:
                 # changed FF: binning only in bestAlignment function
-                from pytom_volume import read
+                from pytom.lib.pytom_volume import read
                 self._referenceWeighting        = read(self._referenceWeighting)
                 #if self._binning == 1:
-                #    from pytom_volume import read
+                #    from pytom.lib.pytom_volume import read
                 #    self._referenceWeighting        = read(self._referenceWeighting)
                 #else:
                 #    from pytom.basic.files import readSubvolumeFromFourierspaceFile
                 #    self._referenceWeighting        = readSubvolumeFromFourierspaceFile(
-                #                                    self._referenceWeightingFile,reference.sizeX(),
-                #                                    reference.sizeY(),reference.sizeZ())
+                #                                    self._referenceWeightingFile,reference.size_x(),
+                #                                    reference.size_y(),reference.size_z())
         pScore = self._particle.getScore()
         
         if not pScore:
@@ -688,7 +688,7 @@ class ExMaxManager(PyTomClass):
         distributeAlignment: Distribute job in worker pool
         """
         
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         from pytom.alignment.structures import MaximisationJob,ExpectationJob
         from pytom.tools.files import checkFileExists,checkDirExists
         from pytom.parallel.alignmentMessages import MaximisationJobMsg,MaximisationResultMsg
@@ -843,7 +843,7 @@ class ExMaxManager(PyTomClass):
         parallelEnd : Sends status message = end to all workers. All workers will terminate upon receiving this message.
         @author: Thomas Hrabe
         """
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
         from pytom.parallel.messages import StatusMessage
         
         mpi_numberNodes = pytom_mpi.size()
@@ -854,16 +854,16 @@ class ExMaxManager(PyTomClass):
             msg.setStatus("End")
             pytom_mpi.send(str(msg),i)
     
-    def determineResolution(self,filename,numberShells = None , resolutionCriterion=0.125):
+    def determine_resolution(self,filename,numberShells = None , resolution_criterion=0.125):
         """
-        determineResolution: determines resolution of current alignment. Sets the L{pytom.alignment.preprocessing} bandpass to current resolution + x.
+        determine_resolution: determines resolution of current alignment. Sets the L{pytom.alignment.preprocessing} bandpass to current resolution + x.
         @param filename: Filenames for FSC 
         @param numberShells: How many shells do we use
-        @param resolutionCriterion: 
+        @param resolution_criterion: 
         @author: Thomas Hrabe
         """
-        from pytom.basic.correlation import FSC,determineResolution
-        from pytom_volume import read
+        from pytom.basic.correlation import fsc, determine_resolution
+        from pytom.lib.pytom_volume import read
         from pytom.basic.score import RScore
         self._saveForFSC(self._destination + filename)
         
@@ -875,12 +875,12 @@ class ExMaxManager(PyTomClass):
         even = read(self._destination + filename+'even.em')
         
         if not numberShells:
-            numberShells = int(odd.sizeX())
+            numberShells = int(odd.size_x())
             """@ivar numberShells: max. number of shells"""
         
-        fsc = FSC(odd,even,numberShells)
+        calc_fsc = fsc(odd,even,numberShells)
         
-        resolution = determineResolution(fsc,resolutionCriterion)
+        resolution = determine_resolution(calc_fsc,resolution_criterion)
         
         return resolution
      
@@ -898,7 +898,7 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
     from pytom.basic.structures import Reference
     mpiWorks = True
     try: 
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
     
         if not pytom_mpi.isInitialised():
             if verbose:
@@ -916,7 +916,7 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
     if pytom_mpi.size() >1:
         
         if mpi_myid == 0:
-            from pytom_volume import read
+            from pytom.lib.pytom_volume import read
             from pytom.basic.filter import lowpassFilter
             from pytom.alignment.alignmentFunctions import _disrtibuteAverageMPI,alignmentProgressToHTML
             
@@ -930,7 +930,7 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
             r = exMaxJob.getReference()
             rVol = r.getVolume()
             
-            cubeSize = rVol.sizeX() 
+            cubeSize = rVol.size_x() 
             
             symmetry = exMaxJob.getSymmetry()
             
@@ -995,24 +995,24 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
                         print('Determine resolution.')
                     if symmetry.getNFold() == 1:
                         #here we get the current resolution in nyquist / the band  and returns the number of bands used
-                        [resNyquist,resolutionBand,numberBands]  = newParticleList.determineResolution( 
-                                                                   criterion=exMaxJob.getFSCCriterion(), numberBands = cubeSize / 2, 
+                        [resNyquist,resolutionBand,number_bands]  = newParticleList.determine_resolution( 
+                                                                   criterion=exMaxJob.getFSCCriterion(), number_bands = cubeSize / 2, 
                                                                    mask=exMaxJob.getMask(), keepHalfsetAverages = True, 
                                                                    halfsetPrefix=exMaxJob.getDestination() + 'fsc-'+str(iteration)+'-', 
                                                                    verbose=verbose )
                     else:
                         if verbose:
                             print('Applying ', symmetry.getNFold(), 'fold symmetry to resolution')
-                        [resNyquist,resolutionBand,numberBands]  = symmetrizedParticleList.determineResolution(
-                                                                   criterion=exMaxJob.getFSCCriterion(), numberBands = cubeSize / 2, 
+                        [resNyquist,resolutionBand,number_bands]  = symmetrizedParticleList.determine_resolution(
+                                                                   criterion=exMaxJob.getFSCCriterion(), number_bands = cubeSize / 2, 
                                                                    mask=exMaxJob.getMask(), keepHalfsetAverages = True, 
                                                                    halfsetPrefix=exMaxJob.getDestination() + 'fsc-'+str(iteration)+'-', 
                                                                    verbose=verbose )
                     
                     #here we convert the current resolution to angstroms.    
                     resolutionAngstrom = bandToAngstrom( resolutionBand,
-                                                         sampleInfo.getPixelSize(),numberBands,1 )
-		        #sampleInfo.getPixelSize(),numberBands,exMaxJob.getBinning() )
+                                                         sampleInfo.getPixelSize(),number_bands,1 )
+		        #sampleInfo.getPixelSize(),number_bands,exMaxJob.getBinning() )
 
                     if verbose:
                         print('Current resolution :' + str(resolutionAngstrom) + ' Angstrom')
@@ -1032,7 +1032,7 @@ def parallelStart(exMaxJob,verbose,sendFinishMessage = True):
                         #convert upper value to BAND
                         newResolutionBand = int( ceil( angstromToBand( 
                                                 newResolution,sampleInfo.getPixelSize(),
-                                                numberBands,1) ))
+                                                number_bands,1) ))
                         #update job
                         preprocessing.setHighestFrequency(newResolutionBand)
                         exMaxJob.setPreprocessing(preprocessing)
@@ -1100,7 +1100,7 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
     @param sendFinishMessage: Send finish message to worker nodes. True by default, False for multi ref alignment for instance 
     """
         
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     from pytom.basic.filter import lowpassFilter
     from pytom.alignment.alignmentFunctions import average,alignmentProgressToHTML
     from pytom.alignment.structures import AlignmentList
@@ -1113,7 +1113,7 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
     r = exMaxJob.getReference()
     rVol = r.getVolume()
     
-    cubeSize = rVol.sizeX() 
+    cubeSize = rVol.size_x() 
     
     symmetry = exMaxJob.getSymmetry()
     
@@ -1170,20 +1170,20 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
             if verbose:
                 print('Determine resolution.')
             if symmetry.getNFold() == 1:
-                [resNyquist,resolutionBand,numberBands]  = newParticleList.determineResolution(
-                    criterion=exMaxJob.getFSCCriterion(), numberBands=cubeSize/2, mask=exMaxJob.getMask(),
+                [resNyquist,resolutionBand,number_bands]  = newParticleList.determine_resolution(
+                    criterion=exMaxJob.getFSCCriterion(), number_bands=cubeSize/2, mask=exMaxJob.getMask(),
                     keepHalfsetAverages = True, halfsetPrefix=exMaxJob.getDestination() + 'fsc-'+str(iteration)+'-',
                     verbose=verbose )
             else:
                 if verbose:
                     print('Applying ', symmetry.getNFold(), 'fold symmetry to resolution')
-                [resNyquist,resolutionBand,numberBands]  = symmetrizedParticleList.determineResolution(
-                    criterion=exMaxJob.getFSCCriterion(), numberBands =cubeSize/2, mask=exMaxJob.getMask(),
+                [resNyquist,resolutionBand,number_bands]  = symmetrizedParticleList.determine_resolution(
+                    criterion=exMaxJob.getFSCCriterion(), number_bands =cubeSize/2, mask=exMaxJob.getMask(),
                     keepHalfsetAverages=True, halfsetPrefix=exMaxJob.getDestination() + 'fsc-'+str(iteration)+'-',
                     verbose=verbose )
                 
-            resolutionAngstrom = bandToAngstrom( resolutionBand,sampleInfo.getPixelSize(),numberBands,1 )
-            #resolutionAngstrom = bandToAngstrom( resolutionBand,sampleInfo.getPixelSize(),numberBands,exMaxJob.getBinning() )
+            resolutionAngstrom = bandToAngstrom( resolutionBand,sampleInfo.getPixelSize(),number_bands,1 )
+            #resolutionAngstrom = bandToAngstrom( resolutionBand,sampleInfo.getPixelSize(),number_bands,exMaxJob.getBinning() )
 
             if verbose:
                 print('Current resolution :' + str(resolutionAngstrom) + ' Angstrom')
@@ -1200,8 +1200,8 @@ def sequentialStart(exMaxJob,verbose,sendFinishMessage = True):
                 newResolution = resolutionAngstrom * (1 - exMaxJob.getAdaptiveOffset()) #determine better resolution (in ANGSTROM)        
                 newResolutionBand = int( ceil( angstromToBand(resolution=newResolution,
                                                               pixelSize=sampleInfo.getPixelSize(),
-                                                              numberOfBands=numberBands, scale=1))) # FF: fixed bug!
-                                #numberOfBands=numberBands, scale=exMaxJob.getBinning()))) #convert upper value to BANDS
+                                                              number_of_bands=number_bands, scale=1))) # FF: fixed bug!
+                                #number_of_bands=number_bands, scale=exMaxJob.getBinning()))) #convert upper value to BANDS
                 #update job
                 preprocessing.setHighestFrequency(newResolutionBand)
                 exMaxJob.setPreprocessing(preprocessing)

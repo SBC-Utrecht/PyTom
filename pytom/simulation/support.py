@@ -92,11 +92,10 @@ def reduce_resolution_real(input, spacing, resolution):
 
     @author: Marten Chaillet
     """
-    assert 'cpu' in device, 'reducing resolution with gaussian kernel is done through scipy which for now only works ' \
-                            'on numpy arrays, and not cupy arrays'
-    #TODO might be done in newer cupy versions via cupyx.scipy
-
-    from scipy.ndimage import gaussian_filter
+    if 'gpu' in device:
+        from cupyx.scipy.ndimage import gaussian_filter
+    else:
+        from scipy.ndimage import gaussian_filter
 
     # here it needs to be fwhm to sigma, while in fourier space hwhm to sigma
     return gaussian_filter(input, sigma=fwhm_to_sigma(resolution / (2 * spacing)))
@@ -302,8 +301,12 @@ def add_correlated_noise(noise_size, dim):
 
     @author: Marten Chaillet
     """
-    from numpy.fft import ifftn, fftn, fftshift
-    from numpy.random import random
+    if 'gpu' in device:
+        from cupy.fft import ifftn, fftshift, fftn
+        from cupy.random import random
+    else:
+        from numpy.fft import ifftn, fftshift, fftn
+        from numpy.random import random
 
     if noise_size == 0:
         # 0 value will not work
@@ -334,7 +337,7 @@ def add_white_noise(volume, SNR=1):
         return volume
 
     from math import sqrt
-    from pytom_volume import vol, mean, variance, gaussianNoise
+    from pytom.lib.pytom_volume import vol, mean, variance, gaussianNoise
 
     m = mean(volume)
     s = sqrt(variance(volume, False) / SNR)  # SNR = Var(signal) / Var(noise)
@@ -346,7 +349,7 @@ def add_white_noise(volume, SNR=1):
     #    elif s==0:
     #        s =1
 
-    noise = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+    noise = vol(volume.size_x(), volume.size_y(), volume.size_z())
 
     gaussianNoise(noise, m, s)  # s is actually the std
 

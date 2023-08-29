@@ -9,7 +9,7 @@ def mean0std1(volume,copyFlag=False):
     @return: If copyFlag == True, then return a normalised copy.
     @author: Thomas Hrabe
     """
-    import pytom_volume
+    import pytom.lib.pytom_volume as pytom_volume
     from math import sqrt
     from pytom.tools.maths import epsilon
     
@@ -27,7 +27,7 @@ def mean0std1(volume,copyFlag=False):
     
         volume.shiftscale(0,1./float(volumeStd))
     else:
-        volumeCopy = pytom_volume.vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        volumeCopy = pytom_volume.vol(volume.size_x(),volume.size_y(),volume.size_z())
         volumeCopy.copyVolume(volume)
         volumeMean = pytom_volume.mean(volumeCopy)
         volumeCopy.shiftscale(-1.*volumeMean,1)
@@ -60,7 +60,7 @@ def normaliseUnderMask(volume, mask, p=None):
     from pytom.tools.maths import epsilon
     #from math import sqrt
     if not p:
-        from pytom_volume import sum
+        from pytom.lib.pytom_volume import sum
         p = sum(mask)
     #meanT = sum(volume) / p
     ## subtract mean and mask
@@ -79,26 +79,4 @@ def normaliseUnderMask(volume, mask, p=None):
         print("Volume empty - no normalization done")
         res = volume
     return (res,p)
-
-
-def subtractMeanUnderMask(volume, mask):
-    """
-    subtract mean from volume/image under mask 
-
-    @param volume: volume/image
-    @type volume: L{pytom_volume.vol}
-    @param mask: mask
-    @type mask: L{pytom_volume.vol}
-    @return: volume/image
-    @rtype: L{pytom_volume.vol}
-    """
-    from pytom_volume import sum as sumvol
-    from pytom.tools.maths import epsilon
-    #npix = volume.sizeX() * volume.sizeY() * volume.sizeZ()
-    normvol = volume*mask
-    if stdT > epsilon:
-        normvol = sumvol(normvol) / sumvol(mask)
-    else:
-        print("Mask empty - no subratction done")
-    return normvol
 

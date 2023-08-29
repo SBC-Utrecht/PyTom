@@ -17,8 +17,8 @@ def writeCroppedParticles(particleListName, output, center, cubesize):
 
     """
     from pytom.basic.structures import ParticleList, Particle, Shift
-    from pytom_volume import transformSpline as transform
-    from pytom_volume import subvolume, vol
+    from pytom.lib.pytom_volume import transformSpline as transform
+    from pytom.lib.pytom_volume import subvolume, vol
 
 
     pl = ParticleList()
@@ -26,10 +26,10 @@ def writeCroppedParticles(particleListName, output, center, cubesize):
     #copy particle list for list of cropped particles
     pl_new = pl.copy()
     pvol = pl[0].getVolume()
-    sizeX = pvol.sizeX() 
-    sizeY = pvol.sizeY()
-    sizeZ = pvol.sizeZ() 
-    pvol_ali = vol(sizeX, sizeY, sizeZ) 
+    size_x = pvol.size_x() 
+    size_y = pvol.size_y()
+    size_z = pvol.size_z() 
+    pvol_ali = vol(size_x, size_y, size_z) 
     subV = vol(cubesize, cubesize, cubesize)
 
     sub_startX = center[0]-cubesize//2
@@ -46,7 +46,7 @@ def writeCroppedParticles(particleListName, output, center, cubesize):
         rotinvert = rot.invert()
         shiftV = part.getShift() 
         transform(pvol, pvol_ali, rotinvert[0], rotinvert[1], rotinvert[2], 
-                  sizeX/2, sizeY/2, sizeZ/2, -shiftV[0], -shiftV[1], -shiftV[2], 0, 0, 0) 
+                  size_x/2, size_y/2, size_z/2, -shiftV[0], -shiftV[1], -shiftV[2], 0, 0, 0) 
         # box out subvolume
         subV = vol(cubesize, cubesize, cubesize)
         subV = subvolume(pvol_ali, sub_startX, sub_startY, sub_startZ, cubesize, cubesize, cubesize)

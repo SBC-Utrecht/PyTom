@@ -257,7 +257,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
         self.tomogram = None
         self.row, self.column = 0, 1
-        rows, columns = 20, 20
+        rows, columns = 25, 20  # ?
         self.items = [['', ] * columns, ] * rows
         w = 170
 
@@ -304,9 +304,9 @@ class SubtomoAnalysis(GuiTabWidget):
                                   'If so, add the cropped magnitude as an offset.\nExample: 200 for 200 px cropping' +
                                   ' in the z-dimension.',
                                   value=0, stepsize=1, minimum=-4000, maximum=4000)
-        # self.insert_label_line_push(parent, 'Result file particle polishing', mode + 'polishFile', mode='file',
-        #                             filetype='txt', initdir=self.polishfolder, # cstep=-1,
-        #                             tooltip='Select a resultfile from particle polishing (Optional).')
+        self.insert_label_line(parent, 'Scale factor', mode + 'scale_factor_particle',
+                               validator=QDoubleValidator(bottom=0), value='1',
+                               tooltip="Integer number of cpu cores to use if running on cpu")
         self.insert_label_line(parent, 'cores', mode + 'cores', validator=QIntValidator(),
                                tooltip="Integer number of cpu cores to use if running on cpu" )
         self.insert_label_line(parent, "GPU's", mode + 'gpuID', width=w, cstep=0, validator=QIntValidator(),
@@ -320,6 +320,7 @@ class SubtomoAnalysis(GuiTabWidget):
         self.widgets[mode + 'gpuString'] = QLineEdit('')
         self.widgets[mode + 'numberMpiCores'] = QLineEdit('')
         self.widgets[mode + 'cores_flag'] = QLineEdit('')
+        self.widgets[mode + 'particle_polish_flag'] = QLineEdit('')
 
         # self.widgets[mode + 'particlelist'].textChanged.connect(lambda d, m=mode: self.updateMeta(m))
         # self.widgets[mode + 'polishFile'].textChanged.connect(lambda d, m=mode: self.updatePolishFlag(m))
@@ -338,8 +339,9 @@ class SubtomoAnalysis(GuiTabWidget):
                      mode + 'SizeSubtomos', mode + 'BinFactorSubtomos', mode + 'OffsetX', mode + 'OffsetY',
                      mode + 'OffsetZ', self.subtomodir, mode + 'WeightingFactor',
                      mode + 'cores_flag', mode + 'projectionDir', mode + 'firstAngle', mode + 'lastAngle',
+                     mode + 'scale_factor', mode + 'particle_polish_flag',
                      mode + 'gpuString', extractParticles]
-        # mode + projectionDir  # mode + 'polishFlag'
+
         mandatory_fill = [mode + 'particlelist', mode + 'alignmentResultsFile']
 
         self.update_gpu_flag(self.widgets[mode + 'gpuID'], self.widgets[mode + 'gpuString'])
@@ -428,7 +430,7 @@ class SubtomoAnalysis(GuiTabWidget):
             tomo_folder = os.path.join(self.tomogram_folder, tomogram)
 
             # check if the tomogram is available in this pytom project, otherwise skip and put pop up message
-            if not tomogram in project_tomograms or not os.path.exists(tomo_folder):
+            if tomogram not in project_tomograms or not os.path.exists(tomo_folder):
                 if not skip_pop_up_shown:
                     self.popup_messagebox('Warning', 'Invalid particles found',
                                           'Some of the provided particles were picked in tilt-series that are not in '
@@ -449,13 +451,21 @@ class SubtomoAnalysis(GuiTabWidget):
                             break
                     # we might have found an alignment file
 
+            if len(alignment_choices) == 0:
+                self.popup_messagebox('Warning', 'Tilt-series without alignment',
+                                      f'Tilt-series {tomogram} does not have alignment parameters (perhaps more '
+                                      f'series). '
+                                      f'Add an alignment for this series before continuing with reconstruction.')
+                return
+
             # get ctf options
             sorted_dir = os.path.join(tomo_folder, 'sorted')
             ctf_sorted_dir = os.path.join(tomo_folder, 'ctf', 'sorted_ctf')
             tilt_choices = []
             if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
                 tilt_choices.append('sorted')
-            if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+            if os.path.exists(ctf_sorted_dir) and \
+                    len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
                 tilt_choices.append('sorted_ctf')
 
             # get tomogram binning from particle list
@@ -607,6 +617,7 @@ class SubtomoAnalysis(GuiTabWidget):
 
                     elif gpu_ids and gpu_ids in jobCode.keys():
                         jobCode[gpu_ids] += f'\nwait\n\n{cmd}\n'
+                        nsj += 1
 
                     elif not f'noGPU_{nsj % num_nodes}' in jobCode.keys():
                         if self.checkbox[pid].isChecked():
@@ -623,28 +634,19 @@ class SubtomoAnalysis(GuiTabWidget):
 
                     else:
                         jobCode[f'noGPU_{nsj % num_nodes}'] += f'\nwait\n\n{cmd}\n'
+                        nsj += 1
 
-            wid = []
-            todoList = {}
+            qIDs, num_submitted_jobs = [], 0
 
-            for key in jobCode.keys():
-                if not key in todoList:
-                    todoList[key] = []
-                todoList[key].append([execfilenames[key], pid, jobCode[key]])
+            for key, values in jobCode.items():
+                ID, num = self.submitBatchJob(execfilenames[key], pid, values)
+                qIDs.append(ID)
+                num_submitted_jobs += 1
 
-            from time import sleep
-            for key in todoList.keys():
-                print(f'starting {len(todoList[key])} jobs on device {key}')
-                self.localJobs[self.workerID] = []
-                wid.append(self.workerID)
-                proc = Worker(fn=self.multiSeq, args=((self.submitBatchJob, todoList[key], self.workerID)))
-                self.threadPool.start(proc)
-                self.workerID += 1
-                sleep(.01)
-
-            if nsj:
-                self.popup_messagebox('Info', 'Submission Status', f'Submitted {nsj} jobs to the queue.')
-                self.addProgressBarToStatusBar(wid, key='QJobs', job_description='Subtom Recon Batch')
+            if num_submitted_jobs > 0:
+                self.popup_messagebox('Info', 'Submission Status', f'Submitted {num_submitted_jobs} jobs to the queue.')
+                self.addProgressBarToStatusBar(qIDs, key='QJobs', job_description='Subtom Recon Batch',
+                                               num_submitted_jobs=num_submitted_jobs)
 
         except ValueError:
             self.popup_messagebox('Warning', 'Invalid value in field',
@@ -787,10 +789,12 @@ class SubtomoAnalysis(GuiTabWidget):
                 if t in base: base = base.split(t)[0] + t
 
             if base + '.mrc' in os.listdir(self.tomogramfolder) or base + '.em' in os.listdir(self.tomogramfolder):
-                if os.path.exists(os.path.join(self.tomogramfolder, base + '.mrc')):
-                    folder = os.popen('ls -alrt {}.mrc'.format(os.path.join(self.tomogramfolder, base))).read()[:-1]
-                elif os.path.exists(os.path.join(self.tomogramfolder, base + '.em')):
-                    folder = os.popen('ls -alrt {}.em'.format(os.path.join(self.tomogramfolder, base))).read()[:-1]
+                temp_mrc = os.path.join(self.tomogramfolder, base + '.mrc')
+                temp_em = os.path.join(self.tomogramfolder, base + '.em')
+                if os.path.exists(temp_mrc):
+                    folder = subprocess.run(['ls','-alrt',temp_mrc], capture_output=True, text=True).stdout[:-1]
+                elif os.path.exists(temp_em):
+                    folder = subprocess.run(['ls','-alrt', temp_em], capture_output=True, text=True).stdout[:-1]
                 else:
                     folder = ''
                 if not folder: continue
@@ -805,7 +809,7 @@ class SubtomoAnalysis(GuiTabWidget):
                 al = os.path.join(os.path.dirname(os.path.dirname(folder)), 'alignment')
                 ctf = os.path.join(os.path.dirname(os.path.dirname(folder)), 'ctf')
                 choices = [al + '/' + f for f in os.listdir(al) if 'marker_' in f and os.path.isdir(al + '/' + f)]
-                # choices = list(map(str,range(markerdata.sizeZ()))) # + ['closest']
+                # choices = list(map(str,range(markerdata.size_z()))) # + ['closest']
                 # a = sorted(glob.glob('{}/Reconstruction*-*.out'.format(folder)))[-1]
 
                 try:
@@ -819,8 +823,6 @@ class SubtomoAnalysis(GuiTabWidget):
                         os.path.basename(particleFile)))
                     binning = 8
                     refmarkindex = 1
-                # binning = os.popen('cat {} | grep "--referenceMarkerIndex" '.format(a)).read()[:-1]
-                # print(binning)
                 origin = ['alignment', 'ctf', 'sorted']
                 metafiles = [os.path.join(sor, f) for f in os.listdir(sor) if f.endswith('.meta')] + ['']
 
@@ -1509,7 +1511,8 @@ class SubtomoAnalysis(GuiTabWidget):
         tilt_choices = []
         if len([f for f in os.listdir(sorted_dir) if f.endswith('.mrc')]) > 0:
             tilt_choices.append('sorted')
-        if len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0:  # at least
+        if (os.path.exists(ctf_sorted_dir) and 
+            len([f for f in os.listdir(ctf_sorted_dir) if f.endswith('.mrc')]) > 0):  # at least
             tilt_choices.append('sorted_ctf')
         # set choices in the widget
         self.widgets[mode + 'ctfCorrChoice'].currentIndexChanged.connect(
@@ -1541,8 +1544,8 @@ class SubtomoAnalysis(GuiTabWidget):
             self.widgets[mode + 'lastAngle'].setMaximum(max_angle)
             self.widgets[mode + 'lastAngle'].setValue(max_angle)
 
-        except IndexError:
-            print('No alignment result files found in alignment directory')
+        except (IndexError, FileNotFoundError):
+            print(f'No alignment result files found in alignment directory for {self.tomogram}.')
 
     def update_alignment_choice_batch(self, row_id, table_id):
         w_tomogram = self.tables[table_id].widgets['widget_{}_1'.format(row_id)]
@@ -1550,7 +1553,8 @@ class SubtomoAnalysis(GuiTabWidget):
         w_first_angle = self.tables[table_id].widgets['widget_{}_4'.format(row_id)]
         w_last_angle = self.tables[table_id].widgets['widget_{}_5'.format(row_id)]
 
-        # set the alignment file but if sorted exists, if not get sorted_ctf
+        # dont try this part, its better if the gui crashes, you should not be able to do anything for the tomogram
+        # in batch mode if no alignment is available. instead i built a check before to prevent crashing at this point.
         ar_file = os.path.join(self.tomogram_folder, w_tomogram.text(), 'alignment',
                                w_alignment.currentText(), 'GlobalAlignment', 'sorted', 'alignmentResults.txt')
         if not os.path.exists(ar_file):
@@ -1888,8 +1892,8 @@ class SubtomoAnalysis(GuiTabWidget):
         folder = self.widgets[key_outputDir].text()
         if not os.path.exists(folder): os.mkdir(folder)
         output_name = os.path.join( folder, 'average.em')
-
-        out = os.popen('cd {}; average.py -p {} -a {} -c 4'.format(self.subtomodir, particleList, output_name)).read()
+        out = subprocess.run(['average.py', '-p', particleList, '-a', output_name, '-c', '4'], cwd=self.subtomodir,
+                capture_output=True, text=True).stdout
         print(out)
         if not os.path.exists(particleList):
             self.popup_messagebox('Warning', 'Averaging Failed',

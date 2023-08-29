@@ -51,22 +51,25 @@ public:
 	/**
 	 *	\brief Wrapper function
 	 */
-	std::size_t sizeX() const{
+	std::size_t size_x() const{
 		return this->getSizeX();
 	};
 	/**
 	 *	\brief Wrapper function
 	 */
-	std::size_t sizeY() const{
+	std::size_t size_y() const{
 		return this->getSizeY();
 	};
 	/**
 	 *	\brief Wrapper function
 	 */
-	std::size_t sizeZ() const{
+	std::size_t size_z() const{
 		return this->getSizeZ();
 	};
-
+	/**
+	 * mimic numpy array shape attribute
+	 */
+	std::tuple<std::size_t, std::size_t, std::size_t> shape= std::make_tuple(this->getSizeX(), this->getSizeY(), this->getSizeZ());
 	float getFtSizeX() const{
 		return this->ftSizeX;
 	};
@@ -83,20 +86,20 @@ public:
 		return this->ftSizeZ;
 	};
 
-	void setFtSizeX(float sizeX){
-		this->ftSizeX=sizeX;
+	void setFtSizeX(float size_x){
+		this->ftSizeX=size_x;
 	};
 	/**
 	*	\brief Wrapper function
 	*/
-	void setFtSizeY(float sizeY){
-		this->ftSizeY=sizeY;
+	void setFtSizeY(float size_y){
+		this->ftSizeY=size_y;
 	};
 	/**
 	*	\brief Wrapper function
 	*/
-	void setFtSizeZ(float sizeZ){
-		this->ftSizeZ=sizeZ;
+	void setFtSizeZ(float size_z){
+		this->ftSizeZ=size_z;
 	};
 	/**
 	 *	\brief Wrapper function

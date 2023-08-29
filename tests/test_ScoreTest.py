@@ -4,7 +4,7 @@ class pytom_ScoreTest(unittest.TestCase):
     
     def setUp(self):
         """set up"""
-        from pytom_volume import vol, initSphere
+        from pytom.lib.pytom_volume import vol, initSphere
         from pytom.basic.structures import WedgeInfo
         from pytom.simulation.SimpleSubtomogram import simpleSimulation
 
@@ -18,14 +18,14 @@ class pytom_ScoreTest(unittest.TestCase):
         # there is a slight inconsistency when smoothing > 0 -
         # cleaner implementation would be multipliction with sqrt(mask) in corr function
         initSphere(self.mask,13,0,0,16,16,16)
-        self.wi = WedgeInfo(wedgeAngle=self.wedge, rotation=[10.0,20.0,30.0], 
+        self.wi = WedgeInfo(wedge_angle=self.wedge, rotation=[10.0,20.0,30.0], 
               cutoffRadius=0.0)
         self.s = simpleSimulation( volume=self.v, rotation=self.rotation, 
               shiftV=self.shift, wedgeInfo=self.wi, SNR=10.)
 
     def test_xcfScore(self):
         from pytom.basic.score import xcfScore as score
-        from pytom_volume import peak
+        from pytom.lib.pytom_volume import peak
 
         sc = score()
         # consistency of scoring coefficient and scoring function - difference 
@@ -45,7 +45,7 @@ class pytom_ScoreTest(unittest.TestCase):
         test nxcf score
         """
         from pytom.basic.score import nxcfScore as score
-        from pytom_volume import peak
+        from pytom.lib.pytom_volume import peak
 
         sc = score()
         # check auto-correlation coefficient
@@ -79,7 +79,7 @@ class pytom_ScoreTest(unittest.TestCase):
         test FLCF score
         """
         from pytom.basic.score import FLCFScore as score
-        from pytom_volume import peak
+        from pytom.lib.pytom_volume import peak
         
         sc = score()
         # check auto-correlation coefficient
@@ -99,7 +99,7 @@ class pytom_ScoreTest(unittest.TestCase):
         second order correlation score
         """
         from pytom.basic.score import SOCScore as score
-        from pytom_volume import peak
+        from pytom.lib.pytom_volume import peak
 
         sc = score()
         # check auto-correlation coefficient

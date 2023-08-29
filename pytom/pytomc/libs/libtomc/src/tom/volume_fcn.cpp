@@ -1922,19 +1922,19 @@ tom::Volume<T> tom::vectorize(tom::Volume<T> &source){
  * Access easyly a subregion of source
  *******************************************************************************/
 template<typename T>
-tom::Volume<T> tom::getSubregion(tom::Volume<T> &source,std::size_t startX,std::size_t startY,std::size_t startZ,std::size_t sizeX,std::size_t sizeY,std::size_t sizeZ){
+tom::Volume<T> tom::getSubregion(tom::Volume<T> &source,std::size_t startX,std::size_t startY,std::size_t startZ,std::size_t size_x,std::size_t size_y,std::size_t size_z){
 
 	if(startX < 0) throw std::runtime_error(std::string("tom::getSubregion - StartX is <0 ?!"));
 	if(startY < 0) throw std::runtime_error(std::string("tom::getSubregion - StartY is <0 ?!"));
 	if(startZ < 0) throw std::runtime_error(std::string("tom::getSubregion - StartZ is <0 ?!"));
 
-	if(startX + sizeX > source.getSizeX()) throw std::runtime_error(std::string("tom::getSubregion - startX +sizeX is larger than source.sizeX!"));
-	if(startY + sizeY > source.getSizeY()) throw std::runtime_error(std::string("tom::getSubregion - startY +sizeY is larger than source.sizeY!"));
-	if(startZ + sizeZ > source.getSizeZ()) throw std::runtime_error(std::string("tom::getSubregion - startZ +sizeZ is larger than source.sizeZ!"));
+	if(startX + size_x > source.getSizeX()) throw std::runtime_error(std::string("tom::getSubregion - startX +size_x is larger than source.size_x!"));
+	if(startY + size_y > source.getSizeY()) throw std::runtime_error(std::string("tom::getSubregion - startY +size_y is larger than source.size_y!"));
+	if(startZ + size_z > source.getSizeZ()) throw std::runtime_error(std::string("tom::getSubregion - startZ +size_z is larger than source.size_z!"));
 
-	tom::Volume<T> returnVolume(sizeX,sizeY,sizeZ,NULL,NULL);
+	tom::Volume<T> returnVolume(size_x,size_y,size_z,NULL,NULL);
 
-	tom::Volume<T> viewWindow(source,(void*)&source.get(startX,startY,startZ),sizeX,sizeY,sizeZ,source.getStrideX(),source.getStrideY(),source.getStrideZ());
+	tom::Volume<T> viewWindow(source,(void*)&source.get(startX,startY,startZ),size_x,size_y,size_z,source.getStrideX(),source.getStrideY(),source.getStrideZ());
 
 	returnVolume.setValues(viewWindow);
 	return returnVolume;
@@ -1953,13 +1953,13 @@ void tom::putSubregion(tom::Volume<T> &source, tom::Volume<T> &destination,std::
 	if(positionY < 0) throw std::runtime_error(std::string("tom::putSubregion - positionY is <0 ?!"));
 	if(positionZ < 0) throw std::runtime_error(std::string("tom::putSubregion - positionZ is <0 ?!"));
 
-	if(positionX > destination.getSizeX()) throw std::runtime_error(std::string("tom::putSubregion - positionX is larger than destination.sizeX!"));
-	if(positionY > destination.getSizeY()) throw std::runtime_error(std::string("tom::putSubregion - positionY is larger than destination.sizeY!"));
-	if(positionZ > destination.getSizeZ()) throw std::runtime_error(std::string("tom::putSubregion - positionZ is larger than destination.sizeZ!"));
+	if(positionX > destination.getSizeX()) throw std::runtime_error(std::string("tom::putSubregion - positionX is larger than destination.size_x!"));
+	if(positionY > destination.getSizeY()) throw std::runtime_error(std::string("tom::putSubregion - positionY is larger than destination.size_y!"));
+	if(positionZ > destination.getSizeZ()) throw std::runtime_error(std::string("tom::putSubregion - positionZ is larger than destination.size_z!"));
 
-	if(positionX + source.getSizeX() > destination.getSizeX()) throw std::runtime_error(std::string("tom::putSubregion - positionX + source.getSizeX is larger than destination.sizeX!"));
-	if(positionY + source.getSizeY() > destination.getSizeY()) throw std::runtime_error(std::string("tom::putSubregion - positionY + source.getSizeY is larger than destination.sizeY!"));
-	if(positionZ + source.getSizeZ() > destination.getSizeZ()) throw std::runtime_error(std::string("tom::putSubregion - positionZ + source.getSizeZ is larger than destination.sizeZ!"));
+	if(positionX + source.getSizeX() > destination.getSizeX()) throw std::runtime_error(std::string("tom::putSubregion - positionX + source.getSizeX is larger than destination.size_x!"));
+	if(positionY + source.getSizeY() > destination.getSizeY()) throw std::runtime_error(std::string("tom::putSubregion - positionY + source.getSizeY is larger than destination.size_y!"));
+	if(positionZ + source.getSizeZ() > destination.getSizeZ()) throw std::runtime_error(std::string("tom::putSubregion - positionZ + source.getSizeZ is larger than destination.size_z!"));
 
 	tom::Volume<T> viewWindow(destination,(void*)&destination.get(positionX,positionY,positionZ),source.getSizeX(),source.getSizeY(),source.getSizeZ(),destination.getStrideX(),destination.getStrideY(),destination.getStrideZ());
 
@@ -2128,11 +2128,11 @@ template void tom::gaussian_noise<double>(tom::Volume<double> &v, double mean, d
 template tom::Volume<float> tom::vectorize(tom::Volume<float> &v);
 template tom::Volume<double> tom::vectorize(tom::Volume<double> &v);
 
-template tom::Volume<float> tom::getSubregion(tom::Volume<float> &source,std::size_t startX,std::size_t startY,std::size_t startZ,std::size_t sizeX,std::size_t sizeY,std::size_t sizeZ);
-template tom::Volume<double> tom::getSubregion(tom::Volume<double> &source,std::size_t startX,std::size_t startY,std::size_t startZ,std::size_t sizeX,std::size_t sizeY,std::size_t sizeZ);
+template tom::Volume<float> tom::getSubregion(tom::Volume<float> &source,std::size_t startX,std::size_t startY,std::size_t startZ,std::size_t size_x,std::size_t size_y,std::size_t size_z);
+template tom::Volume<double> tom::getSubregion(tom::Volume<double> &source,std::size_t startX,std::size_t startY,std::size_t startZ,std::size_t size_x,std::size_t size_y,std::size_t size_z);
 
-template tom::Volume<std::complex<float> > tom::getSubregion(tom::Volume<std::complex<float> > &source,std::size_t startX,std::size_t startY,std::size_t startZ,std::size_t sizeX,std::size_t sizeY,std::size_t sizeZ);
-template tom::Volume<std::complex<double> > tom::getSubregion(tom::Volume<std::complex<double> > &source,std::size_t startX,std::size_t startY,std::size_t startZ,std::size_t sizeX,std::size_t sizeY,std::size_t sizeZ);
+template tom::Volume<std::complex<float> > tom::getSubregion(tom::Volume<std::complex<float> > &source,std::size_t startX,std::size_t startY,std::size_t startZ,std::size_t size_x,std::size_t size_y,std::size_t size_z);
+template tom::Volume<std::complex<double> > tom::getSubregion(tom::Volume<std::complex<double> > &source,std::size_t startX,std::size_t startY,std::size_t startZ,std::size_t size_x,std::size_t size_y,std::size_t size_z);
 
 template void tom::putSubregion(tom::Volume<float > &source, tom::Volume<float>& destination,std::size_t positionX,std::size_t positionY,std::size_t positionZ);
 template void tom::putSubregion(tom::Volume<double> &source, tom::Volume<double> &destination,std::size_t positionX,std::size_t positionY,std::size_t positionZ);
