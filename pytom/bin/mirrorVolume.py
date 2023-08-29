@@ -33,7 +33,7 @@ if __name__ == '__main__':
     if output_filename is None:
         output_filename = input_filename.split('.')[0] + '_mirror.em'
 
-    from pytom_volume import read, vol, mirrorVolume
+    from pytom.lib.pytom_volume import read, vol, mirrorVolume
     v = read(input_filename)
     res = vol(v)
     mirrorVolume(v, res)

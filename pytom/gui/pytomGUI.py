@@ -3,7 +3,9 @@
 # python basic imports
 import sys
 import os
+import subprocess
 import json
+import subprocess
 
 global PID
 
@@ -25,13 +27,15 @@ if not pytompath:
 def update_env_vars(pytompath):
     '''Make sure all pytom functionality can be imported from within the script. '''
     if 0:
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
     else:
         update_vars = False
         for search in ('LD_LIBRARY_PATH','PATH','PYTHONPATH'):
             # Check if env vars include all paths set in paths.csh
             query_string = "cat {}/bin/paths.sh | grep 'export {}'".format(pytompath, search, search)
-            string = os.popen(query_string).read()[:-1].split("'")[1]
+            string = subprocess.run(
+                    [query_string], shell=True, capture_output=True, text=True
+                    ).stdout[:-1].split("'")[1]
             for new_lib in (string.split(':')):
                 new_lib = new_lib.replace("'","")
 
@@ -219,7 +223,7 @@ class PyTomGui(QMainWindow, CommonFunctions):
         self.projectname = ''
         self.label = QLineEdit(self)
         self.label.textChanged.connect(lambda ignore: self.prepareStartProject())
-        widget = NewProject(self,self.label)
+        widget = NewProject(self, self.label)
         widget.show()
 
     def open_project(self, name=None):
@@ -474,7 +478,9 @@ class PyTomGui(QMainWindow, CommonFunctions):
 
         pids = []
 
-        for line in [pid for pid in os.popen(f"""ps -ef""").read().split('\n') if pid]:
+        for line in [pid 
+                for pid in subprocess.run(['ps','-ef'], capture_output=True, text=True).stdout.splitlines() 
+                if pid]:
             p = line.split()
             if p[0] == uid and query in line and p[1] != PID:
                 pids.append(p[1])
@@ -559,8 +565,6 @@ if __name__ == '__main__':
     sys.excepthook = exception_hook
 
     for fname, module in [( 'motioncor2', 'motioncor2/1.2.1' ), ('header', 'imod/4.10.25')]:
-        if 1:
-            result = os.popen('which {}'.format(fname)).read()[:-1]
-            if not result:
-                print('Please load the {} module'.format(module))
+        if subprocess.run(['which', fname], capture_output=True, text=True).returncode != 0:
+            print('Please load the {} module'.format(module))
     main()

@@ -9,26 +9,25 @@ class pytom_FilterTest(unittest.TestCase):
         """
         test wedge filter functions and their consistency
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol, complexRealMult
         from pytom.basic.structures import WedgeInfo,Rotation,Shift
         from pytom.basic.filter import filter
         from pytom.basic.fourier import fft, ifft
-        from pytom_volume import complexRealMult
 
         v = vol(32,32,32)
         v.setAll(0.0)
         v.setV(1.,16,16,16)
 
         wedgeInfo = WedgeInfo(30.0)#,[10.0,20.0,30.0],0.0)
-        wvol = wedgeInfo.returnWedgeVolume(v.sizeX(), v.sizeY(), v.sizeZ())
-        wfil = wedgeInfo.returnWedgeFilter(v.sizeX(), v.sizeY(), v.sizeZ())
+        wvol = wedgeInfo.returnWedgeVolume(v.size_x(), v.size_y(), v.size_z())
+        wfil = wedgeInfo.returnWedgeFilter(v.size_x(), v.size_y(), v.size_z())
         vfil1 = wedgeInfo.apply(v)
         vfil2 = filter(v,wfil)
 
         fv = fft(v)
         fvol3 = complexRealMult(fv,wvol)
         vfil3 = ifft(fvol3)
-        vfil3.shiftscale(0.0,1/float(v.sizeX()*v.sizeY()*v.sizeZ()))
+        vfil3.shiftscale(0.0,1/float(v.size_x()*v.size_y()*v.size_z()))
 
         self.assertAlmostEqual(vfil1.getV(16,16,16),vfil2[0].getV(16,16,16),2,"Wedge Filter Inconsistency")
         self.assertAlmostEqual(vfil1.getV(16,16,16),vfil3.getV(16,16,16),2,"Wedge Filter Inconsistency")
@@ -36,11 +35,9 @@ class pytom_FilterTest(unittest.TestCase):
     def test_wedgeRotation(self):
         """
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol, rotate, complexRealMult
         from pytom.basic.structures import Wedge, Rotation
-        from pytom_volume import rotate
         from pytom.basic.fourier import fft, ifft
-        from pytom_volume import complexRealMult
         from pytom.basic.filter import rotateWeighting
 
         dim = 24
@@ -51,28 +48,28 @@ class pytom_FilterTest(unittest.TestCase):
         rot = Rotation(90.,0.,30.)
         wangle = 30.
 
-        wedgeInfo = Wedge(wedgeAngles=wangle, cutoffRadius=0.0, tiltAxis='Y', smooth=3.0)
+        wedgeInfo = Wedge(wedge_angles=wangle, cutoffRadius=0.0, tiltAxis='Y', smooth=3.0)
         tmp = wedgeInfo.apply(v)
-        vfil1 = vol(v.sizeX(),v.sizeY(),v.sizeZ())
+        vfil1 = vol(v.size_x(),v.size_y(),v.size_z())
         rotate(tmp, vfil1, rot[0], rot[1], rot[2])
 
-        wedgeInfoRot = Wedge(wedgeAngles=wangle, cutoffRadius=0.0,tiltAxis=rot,smooth = 3.0)
+        wedgeInfoRot = Wedge(wedge_angles=wangle, cutoffRadius=0.0,tiltAxis=rot,smooth = 3.0)
         vfil2 = wedgeInfoRot.apply(v)
         #vfil2.write('xxx2.em')
 
-        wrot = wedgeInfo.returnWedgeVolume(v.sizeX(), v.sizeY(), v.sizeZ(), False, rot)
+        wrot = wedgeInfo.returnWedgeVolume(v.size_x(), v.size_y(), v.size_z(), False, rot)
         fv = fft(v)
         fvol3 = complexRealMult(fv,wrot)
         vfil3 = ifft(fvol3)
-        vfil3.shiftscale(0.0,1/float(v.sizeX()*v.sizeY()*v.sizeZ()))
+        vfil3.shiftscale(0.0,1/float(v.size_x()*v.size_y()*v.size_z()))
         #vfil3.write('xxx3.em')
 
-        w = wedgeInfo.returnWedgeVolume(v.sizeX(), v.sizeY(), v.sizeZ(), False)
+        w = wedgeInfo.returnWedgeVolume(v.size_x(), v.size_y(), v.size_z(), False)
         wrot = rotateWeighting( weighting=w, z1=rot[0], z2=rot[1], x=rot[2], mask=None,
                                 isReducedComplex=None,returnReducedComplex=True)
         fvol4 = complexRealMult(fv,wrot)
         vfil4 = ifft(fvol4)
-        vfil4.shiftscale(0.0,1/float(v.sizeX()*v.sizeY()*v.sizeZ()))
+        vfil4.shiftscale(0.0,1/float(v.size_x()*v.size_y()*v.size_z()))
         #vfil4.write('xxx4.em')
 
         self.assertAlmostEqual(vfil1.getV(17,17,17),vfil2.getV(17,17,17),2,"Wedge Filter Rotation :(")
@@ -83,7 +80,7 @@ class pytom_FilterTest(unittest.TestCase):
         """
         Why is this one here?
         """
-        import pytom_volume
+        import pytom.lib.pytom_volume as pytom_volume
         from pytom.basic import correlation
         s = pytom_volume.vol(32,32,32)
         s2 = pytom_volume.vol(32,32,32)
@@ -101,7 +98,7 @@ class pytom_FilterTest(unittest.TestCase):
 
     def test_bandpassFilter(self):
 
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from pytom.basic.filter import bandpassFilter
 
         refNoise = vol(64,64,64)
@@ -122,9 +119,9 @@ class pytom_FilterTest(unittest.TestCase):
         """
 	    output of filtering should be almost equal to input
         """
-        import pytom_volume
+        import pytom.lib.pytom_volume as pytom_volume
         from pytom.basic.filter import filter
-        from pytom_freqweight import weight
+        from pytom.lib.pytom_freqweight import weight
         
         vol1 = pytom_volume.vol(64,64,64)
         vol2 = pytom_volume.vol(64,64,64)
@@ -148,7 +145,7 @@ class pytom_FilterTest(unittest.TestCase):
         """
         output of ramp filtering
         """
-        from pytom_volume import vol, complexRealMult, peak
+        from pytom.lib.pytom_volume import vol, complexRealMult, peak
         from pytom.basic.filter import filter as fil
         from pytom.basic.filter import circleFilter,rampFilter,fourierFilterShift
         from pytom.basic.fourier import fft,ifft
@@ -160,8 +157,8 @@ class pytom_FilterTest(unittest.TestCase):
 
         w = fourierFilterShift(rampFilter(64,64))
         
-        weiproj = ifft( complexRealMult( fft( im), w) )/(im.sizeX()*
-	          im.sizeY()*im.sizeZ())
+        weiproj = ifft( complexRealMult( fft( im), w) )/(im.size_x()*
+	          im.size_y()*im.size_z())
 
         pos = peak(weiproj)
         val = weiproj.getV(pos[0],pos[1],pos[2])
@@ -174,8 +171,8 @@ class pytom_FilterTest(unittest.TestCase):
         w = fourierFilterShift(rampFilter(64,64))
         w.write('wei.em')
 
-        weiproj = ifft( complexRealMult( fft( im), w) )/(im.sizeX()*
-	          im.sizeY()*im.sizeZ())
+        weiproj = ifft( complexRealMult( fft( im), w) )/(im.size_x()*
+	          im.size_y()*im.size_z())
         weiproj.write('weiproj.em')
 
         pos = peak(weiproj)
@@ -188,14 +185,14 @@ class pytom_FilterTest(unittest.TestCase):
         os.system('rm weiproj.em')
         
     def test_complexDiv(self):
-        from pytom_volume import vol, complexDiv,abs,peak
+        from pytom.lib.pytom_volume import vol, complexDiv,abs,peak
         from pytom.basic.fourier import fft,ifft
         
         v = vol(64,64,64)
         w = vol(64,64,33)
-        sizeX = v.sizeX()
-        sizeY = v.sizeY()
-        sizeZ = v.sizeZ()
+        size_x = v.size_x()
+        size_y = v.size_y()
+        size_z = v.size_z()
         
         v.setAll(0)
         v.setV(1,33,33,33)
@@ -204,7 +201,7 @@ class pytom_FilterTest(unittest.TestCase):
         fv = fft(v);
         r = complexDiv(fv,w)
         result = ifft(r)       
-        result.shiftscale(0.0,1/float(sizeX*sizeY*sizeZ))
+        result.shiftscale(0.0,1/float(size_x*size_y*size_z))
         
         dif = v - result
         abs(dif)
@@ -218,7 +215,7 @@ class pytom_FilterTest(unittest.TestCase):
         """test filter by 1-d profile"""
         from pytom.basic.filter import profile2FourierVol
         from pytom.basic.fourier import convolute, powerspectrum
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from math import sqrt
         
         #generate radial Fourier Filter

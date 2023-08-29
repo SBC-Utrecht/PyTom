@@ -5,6 +5,7 @@ Test CTF with astigmatism and rectangular images shapes.
 """
 import unittest
 import numpy as np
+from pytom.gpu.initialize import xp
 
 
 class CTFTest(unittest.TestCase):
@@ -23,7 +24,7 @@ class CTFTest(unittest.TestCase):
         self.gold_size = self.gold_bead.shape
 
         self.x, self.y, self.z = 1000, 1000, 300
-        self.potential = np.zeros((self.x, self.y, self.z), dtype=self.gold_bead.dtype)
+        self.potential = xp.zeros((self.x, self.y, self.z), dtype=self.gold_bead.dtype)
         self.potential[self.x//2:self.x//2 + self.gold_size[0], self.y//2:self.y//2+self.gold_size[1],
                                 self.z//2:self.z//2+self.gold_size[2]] = self.gold_bead
 

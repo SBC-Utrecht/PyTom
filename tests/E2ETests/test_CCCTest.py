@@ -3,6 +3,12 @@ test auto-focused classification
 """
 import unittest
 import os
+try:
+    import cupy
+    GPU=True
+except ImportError:
+    # No GPU
+    GPU=False
 
 class pytom_MyFunctionTest(unittest.TestCase):
 
@@ -17,7 +23,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         # set parameters for ACL
         self.settings = {}
         self.settings["frequency"] = 40
-        self.settings["outputDirectory"] = 'outputCCC/'
+        self.settings["outputDirectory"] = 'outputCCC'
         if not os.path.exists(self.settings["outputDirectory"]):
             os.mkdir(self.settings["outputDirectory"])
 
@@ -29,7 +35,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         #self.settings["offset"] = None
         #self.settings["mask"] = options.mask
 
-        self.settings["mask"] = f'./testData/mask_45.em'
+        self.settings["mask"] = f'../testData/mask_45.em'
 
 
         #self.settings["fmask"] = None
@@ -53,7 +59,7 @@ class pytom_MyFunctionTest(unittest.TestCase):
         check that files are written and remove them
         """
         from helper_functions import cleanUp_RandomParticleList
-        import os
+        import shutil
         # for iclass in range(0, self.settings["ncluster"]):
         #     tline = 'initial_'+str(iclass)+'.em'
         #     self.remove_file( filename=tline)
@@ -73,8 +79,8 @@ class pytom_MyFunctionTest(unittest.TestCase):
 
         self.remove_file( filename=f'{self.settings["outputDirectory"]}/correlation_matrix.csv')
 
-        cleanUp_RandomParticleList( pl_filename=self.pl_filename, pdir=self.pdir)
-        os.removedirs(self.settings["outputDirectory"])
+        cleanUp_RandomParticleList(pl_filename=self.pl_filename, pdir=self.pdir)
+        shutil.rmtree(self.settings["outputDirectory"])
 
     def remove_file(self, filename):
         """
@@ -105,8 +111,8 @@ class pytom_MyFunctionTest(unittest.TestCase):
         print(cmd)
         os.system(cmd)
         self.cleanUp()
-
-    def CCC_GPU(self):
+    @unittest.skipUnless(GPU, 'No GPU available')
+    def test_CCC_GPU(self):
         """
         test gpu implementation
         """
@@ -120,8 +126,6 @@ class pytom_MyFunctionTest(unittest.TestCase):
         cmd += ' -g 0'
         print(cmd)
         os.system(cmd)
-        os.system(f'rm -rf {self.settings["outputDirectory"]}')
-
         self.cleanUp()
 
 

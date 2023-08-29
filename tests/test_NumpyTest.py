@@ -5,8 +5,8 @@ Created on Jan 12, 2022
 """
 import unittest
 import numpy as np
-from pytom_volume import vol, gaussianNoise
-import pytom_numpy
+from pytom.lib.pytom_volume import vol, gaussianNoise
+import pytom.lib.pytom_numpy as pytom_numpy
 
 
 class pytom_NumpyTest(unittest.TestCase):

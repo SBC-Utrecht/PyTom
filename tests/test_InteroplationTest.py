@@ -1,9 +1,29 @@
-import unittest, os, numba
+import unittest, os
 import numpy as np
 import pytom.voltools as vt
-import time
-from pytom_volume import vol, transform, transformCubic, transformSpline, transformFourierSpline, variance
-from pytom.agnostic.interpolation import fill_values_real_spline, fill_values_real_spline_parallel
+from pytom.lib.pytom_volume import vol, transform, transformCubic, transformSpline, transformFourierSpline, variance
+from pytom.agnostic.interpolation import fill_values_real_spline
+from pytom.gpu.initialize import device
+
+
+def print_warning():
+    print(''
+          '################################################################'
+          '################################################################'
+          '##                                                            ##'
+          '##                                                            ##'
+          '##                       DONT PANIC! But...,                  ##'
+          '##         gpu functionality cannot be tested because         ##'
+          '##               CUPY cannot be imported.                     ##'
+          '##                                                            ##'
+          '##                                                            ##'
+          '################################################################'
+          '################################################################'
+          '')
+
+
+if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+    print_warning()
 
 
 class pytom_InterpolationTest(unittest.TestCase):
@@ -66,7 +86,11 @@ class pytom_InterpolationTest(unittest.TestCase):
     @unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False),
                      "The test below uses a GPU and cannot execute in a docker environment")
     def test_voltools_gpu(self):
-        import cupy as cp
+        try:
+            import cupy as cp
+        except ImportError:
+            print_warning()
+            raise unittest.SkipTest("No working cupy install found.")
         box = cp.zeros(self.dims, dtype=cp.float32)
         box[self.point[0], self.point[1], self.point[2]] = 1.
 
@@ -75,9 +99,9 @@ class pytom_InterpolationTest(unittest.TestCase):
 
         for name in self.vt_interpolation:
             vt.transform(box, rotation=self.forward, rotation_order=self.order, center=self.center, output=box_rot,
-                         device='gpu:0', interpolation=name)
+                         device=device, interpolation=name)
             vt.transform(box_rot, rotation=self.backward, rotation_order=self.order, center=self.center, output=box_org,
-                         device='gpu:0', interpolation=name)
+                         device=device, interpolation=name)
             print(f'variance for vt {name} interpolation on gpu: {(box - box_org).var()}')
             self.assertTrue(expr=(box - box_org).var() < self.eps,
                             msg=f"point box after forward backward rotation differs too much for vt gpu {name}")
@@ -106,37 +130,6 @@ class pytom_InterpolationTest(unittest.TestCase):
         print(f'variance for spline interpolation with numba: {(box - box_org).var()}')
         self.assertTrue(expr=(box - box_org).var() < self.eps,
                         msg=f"point box after forward backward rotation differs too much for numba spline")
-
-    @unittest.skipIf(os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False),
-                     "The test below uses multiple cores and cannot execute in a docker environment")
-    def test_numba_interpolation_parallel(self):
-        print('before parallel: ', numba.get_num_threads())
-        numba.set_num_threads(4)
-        print('after setting for parallel: ', numba.get_num_threads())
-
-        box = np.zeros(self.dims, dtype=np.float32)
-        box[self.point[0], self.point[1], self.point[2]] = 1.
-        box_rot = np.zeros_like(box)
-        box_org = np.zeros_like(box)
-
-        mtx_forward = vt.utils.transform_matrix(rotation=self.forward, rotation_order=self.order, center=self.center)
-        mtx_backward = vt.utils.transform_matrix(rotation=self.backward, rotation_order=self.order, center=self.center)
-
-        fill_values_real_spline_parallel(box, box_rot, mtx_forward)
-        fill_values_real_spline_parallel(box_rot, box_org, mtx_backward)
-
-        # parallel function only becomes feasible for larger array dimensions than specified here
-        t1 = time.time()
-        for i in range(10):
-            box_rot *= 0
-            box_org *= 0
-            fill_values_real_spline_parallel(box, box_rot, mtx_forward)
-            fill_values_real_spline_parallel(box_rot, box_org, mtx_backward)
-        print('execution numba 4 threads: ', (time.time() - t1) / 10)
-
-        print(f'variance for spline interpolation with numba parallel: {(box - box_org).var()}')
-        self.assertTrue(expr=(box - box_org).var() < self.eps,
-                        msg=f"point box after forward backward rotation differs too much for numba spline parallel")
 
 
 if __name__ == '__main__':

@@ -87,7 +87,7 @@ def std(volume,mask,meanVolume=0,fMask=0,numberOfMaskVoxels=-1):
 #    """
 #    
 #    resV = mean_moving_mask(volume, mask)
-#    res = resV.getV(resV.sizeX()/2,resV.sizeY()/2,resV.sizeZ()/2)
+#    res = resV.getV(resV.size_x()/2,resV.size_y()/2,resV.size_z()/2)
 #    
 #    return res
 #    
@@ -111,17 +111,17 @@ def statisticOfDistanceMatrix(distanceMatrix):
     if not distanceMatrix.__class__ == vol:
         raise TypeError('Parameter must be a pytom_volume.vol!')
 
-    if distanceMatrix.sizeZ() > 1:
+    if distanceMatrix.size_z() > 1:
         raise RuntimeError('Parameter must be a 2D pytom_volume.vol!')
 
-    if distanceMatrix.sizeX() != distanceMatrix.sizeY():
+    if distanceMatrix.size_x() != distanceMatrix.size_y():
         raise RuntimeError('Matrix must be a square! Size x != y')
 
     values = []
 
-    for i in range(distanceMatrix.sizeX()):
-        if i < distanceMatrix.sizeX():
-            for j in range(i+1,distanceMatrix.sizeY()):
+    for i in range(distanceMatrix.size_x()):
+        if i < distanceMatrix.size_x():
+            for j in range(i+1,distanceMatrix.size_y()):
                 values.append(distanceMatrix(i,j,0))
 
     m = listMean(values)
@@ -148,15 +148,15 @@ def averagePlanes(volume,sliceStart,sliceEnd,sliceStep=1,axis='Z'):
     for i in range(sliceStart,sliceEnd,sliceStep):
         
         if axis == 'X':
-            v = subvolume(volume,0,0,i,volume.sizeX(),volume.sizeY(),1)
+            v = subvolume(volume,0,0,i,volume.size_x(),volume.size_y(),1)
             planes.append(v)
             
         if axis == 'Y':
-            v = subvolume(volume,0,0,i,volume.sizeX(),volume.sizeY(),1)
+            v = subvolume(volume,0,0,i,volume.size_x(),volume.size_y(),1)
             planes.append(v)
         
         if axis == 'Z':
-            v = subvolume(volume,0,0,i,volume.sizeX(),volume.sizeY(),1)
+            v = subvolume(volume,0,0,i,volume.size_x(),volume.size_y(),1)
             planes.append(v)
     
     if len(planes)>0:

@@ -151,7 +151,7 @@ class FRMJob(PyTomClass): # i need to rename the class, but for now it works
         
         # for the constraint
         try:
-            from sh_alignment.constrained_frm import AngularConstraint
+            from pytom.lib.constrained_frm import AngularConstraint
             con = jobDescription.xpath('AngularConstraint')
             if len(con) != 0:
                 ac = AngularConstraint()
@@ -345,7 +345,7 @@ class FRMWorker():
                 # apply symmetries before determine resolution
                 even = job.symmetries.applyToParticle(even)
                 odd = job.symmetries.applyToParticle(odd)
-                resNyquist, resolutionBand, numberBands = self.determine_resolution(even, odd, job.fsc_criterion, None, job.mask, verbose)
+                resNyquist, resolutionBand, number_bands = self.determine_resolution(even, odd, job.fsc_criterion, None, job.mask, verbose)
                 
                 # write the half set to the disk
                 even.write(os.path.join(self.destination, 'fsc_'+str(i)+'_even.em'))
@@ -354,7 +354,7 @@ class FRMWorker():
                 # determine the resolution
                 if verbose:
                     print(self.node_name + ': determining the resolution ...')
-                current_resolution = bandToAngstrom(resolutionBand, job.sampleInformation.getPixelSize(), numberBands, 1)
+                current_resolution = bandToAngstrom(resolutionBand, job.sampleInformation.getPixelSize(), number_bands, 1)
                 if verbose:
                     print(self.node_name + ': current resolution ' + str(current_resolution), resNyquist)
                 
@@ -393,7 +393,7 @@ class FRMWorker():
                         old_freq = new_freq
                 else:
                     old_freq = new_freq
-                if new_freq >= numberBands:
+                if new_freq >= number_bands:
                     print(self.node_name + ': New frequency too high. Terminate!')
                     break
                 
@@ -423,8 +423,8 @@ class FRMWorker():
         pytom_mpi.finalise()
     
     def run(self, verbose=False):
-        from sh_alignment.frm import frm_align
-        from sh_alignment.constrained_frm import frm_constrained_align, AngularConstraint
+        from pytom.lib.frm import frm_align
+        from pytom.lib.constrained_frm import frm_constrained_align, AngularConstraint
         from pytom.basic.structures import Shift, Rotation
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.transformations import resize, resizeFourier
@@ -450,7 +450,7 @@ class FRMWorker():
                 if type(ref) == tuple:
                     ref = ref[0]
             # re-set max frequency in case it exceeds Nyquist - a bit brute force
-            job.freq = min(job.freq, ref.sizeX()//2-1)
+            job.freq = min(job.freq, ref.size_x()//2-1)
             # run the job
             for p in job.particleList:
                 if verbose:
@@ -493,12 +493,12 @@ class FRMWorker():
                                                 job.peak_offset, mask)
 
                 if job.binning > 1:
-                    pos[0] = job.binning*(pos[0]-v.sizeX()/2)
-                    pos[1] = job.binning*(pos[1]-v.sizeY()/2) 
-                    pos[2] = job.binning*(pos[2]-v.sizeZ()/2)
+                    pos[0] = job.binning*(pos[0]-v.size_x()/2)
+                    pos[1] = job.binning*(pos[1]-v.size_y()/2) 
+                    pos[2] = job.binning*(pos[2]-v.size_z()/2)
                     p.setShift(Shift([pos[0], pos[1], pos[2]]))
                 else:     
-                    p.setShift(Shift([pos[0]-v.sizeX()/2, pos[1]-v.sizeY()/2, pos[2]-v.sizeZ()/2]))
+                    p.setShift(Shift([pos[0]-v.size_x()/2, pos[1]-v.size_y()/2, pos[2]-v.size_z()/2]))
                 p.setRotation(Rotation(angle))
                 p.setScore(FRMScore(score))
                 
@@ -577,27 +577,27 @@ class FRMWorker():
         f_pre = fft(pre)
         r = complexDiv(f_pre, wedge)
         average = ifft(r)
-        average.shiftscale(0.0,1/float(average.sizeX()*average.sizeY()*average.sizeZ()))
+        average.shiftscale(0.0,1/float(average.size_x()*average.size_y()*average.size_z()))
         
         return average
     
-    def determine_resolution(self, even, odd, criterion, numberBands, mask, verbose=False):
+    def determine_resolution(self, even, odd, criterion, number_bands, mask, verbose=False):
         """For the master node, determine the resolution.
            @param even: particle list even
            @type even: L{pytom.basic.structures.ParticleList}
            @param odd: particle list odd
            @type odd: L{pytom.basic.structures.ParticleList}
         """
-        from pytom.basic.correlation import FSC, determineResolution
+        from pytom.basic.correlation import fsc, determine_resolution
         
-        if not numberBands:
-            numberBands = even.sizeX()/2
+        if not number_bands:
+            number_bands = even.size_x()/2
         
-        fsc = FSC(even, odd, numberBands, mask, verbose=False)
+        calc_fsc = fsc(even, odd, number_bands, mask, verbose=False)
         if verbose:
-            print(self.node_name + ': FSC: ' + str(fsc))
+            print(self.node_name + ': FSC: ' + str(calc_fsc))
         
-        return determineResolution(fsc, criterion, verbose=False)
+        return determine_resolution(calc_fsc, criterion, verbose=False)
     
     def send_job(self, job, dest):
         """

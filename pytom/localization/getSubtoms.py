@@ -42,7 +42,7 @@ if __name__ == '__main__':
     if not dest_dir:
         dest_dir = '.'
     
-    from pytom_volume import read, subvolume
+    from pytom.lib.pytom_volume import read, subvolume
     v = read(vol_filename)
     
     from pytom.basic.structures import ParticleList, Particle, WedgeInfo
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     res = ParticleList(dest_dir)
     for p in pl:
         x,y,z = p.getPickPosition().toVector()
-        x = regulaize(int(x), v.sizeX()); y = regulaize(int(y), v.sizeY()); z = regulaize(int(z), v.sizeZ())
+        x = regulaize(int(x), v.size_x()); y = regulaize(int(y), v.size_y()); z = regulaize(int(z), v.size_z())
         new_vol = subvolume(v, x, y, z, 2*radius, 2*radius, 2*radius)
         name = dest_dir+'/'+p.getFilename()
         new_vol.write(name) # write the subtomograms to the disk

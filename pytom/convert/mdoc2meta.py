@@ -7,6 +7,8 @@ except:
     pass
 import sys
 import os
+import shutil
+from pathlib import Path
 import pickle, json
 import numpy as np
 
@@ -15,7 +17,7 @@ if sys.version_info[0] < 3:
     raise Exception("The GUI requires Python 3")
 
 global pytompath
-pytompath = os.path.dirname(os.popen('dirname `which pytom`').read()[:-1])
+pytompath = Path(shutil.which('pytom')).parents[1]
 
 if not pytompath:
     print('Pytom package is not available. Please load, or install Pytom.')
@@ -24,28 +26,31 @@ if not pytompath:
 def update_env_vars(pytompath):
     '''Make sure all pytom functionality can be imported from within the script. '''
     try:
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
     except:
-        update_vars = False
-        for search in ('LD_LIBRARY_PATH','PATH','PYTHONPATH'):
-            # Check if env vars include all paths set in paths.csh
-            query_string = "cat {}/bin/paths.csh | grep 'setenv {}' | grep -v '${}'".format(pytompath, search,search)
-            string = os.popen(query_string).read()[:-1].split()[-1]
-            for new_lib in (string.split(':')):
-                new_lib = new_lib.replace("'","")
-
-                if not new_lib in os.environ[search].split(':'):
-                    os.environ[search] += ':'+new_lib
-                    update_vars = True
-        #If any of the env vars are updated reopen this script.
-        if update_vars:
-            if len(sys.argv) < 2:
-                pythonVersion = 'python{d[0]}.{d[1]}'.format( d=sys.version_info )
-                path = os.popen('which {}'.format(pythonVersion)).read()[:-1]
-                sys.argv = [path] + sys.argv
-
-            os.execv(sys.argv[0],sys.argv)
-            #os.execv('/cm/shared/apps/python3/3.7/bin/python3.7', sys.argv)
+        raise ImportError("Cannot import name 'read' from 'pytom.lib.pytom_volume'")
+        # TODO: this requires a paths.csh that does not exist anymore, this whole function should probably be removed
+        # update_vars = False
+        # for search in ('LD_LIBRARY_PATH','PATH','PYTHONPATH'):
+        #    
+        #    # Check if env vars include all paths set in paths.csh
+        #    query_cmd = f"cat {}/bin/paths.csh | grep 'setenv {}' | grep -v '${}'".format(pytompath, search,search)
+        #    string = os.popen(query_string).read()[:-1].split()[-1]
+        #    for new_lib in (string.split(':')):
+        #        new_lib = new_lib.replace("'","")
+        #
+        #        if not new_lib in os.environ[search].split(':'):
+        #            os.environ[search] += ':'+new_lib
+        #            update_vars = True
+        ##If any of the env vars are updated reopen this script.
+        #if update_vars:
+        #    if len(sys.argv) < 2:
+        #        pythonVersion = 'python{d[0]}.{d[1]}'.format( d=sys.version_info )
+        #        path = os.popen('which {}'.format(pythonVersion)).read()[:-1]
+        #        sys.argv = [path] + sys.argv
+        #
+        #    os.execv(sys.argv[0],sys.argv)
+        #    #os.execv('/cm/shared/apps/python3/3.7/bin/python3.7', sys.argv)
 update_env_vars(pytompath)
 
 from pylab import *

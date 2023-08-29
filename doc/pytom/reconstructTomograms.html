@@ -356,7 +356,7 @@ Here is an example how to reduce the size in <em>z</em>:
 <div class="codeFragment">
 <code>
 $ipytom<br/>
-from pytom_volume import read, subvolume<br/>
+from pytom.lib.pytom_volume import read, subvolume<br/>
 v = read('tomogram.em')<br/>
 #this function will cut out a subvolume the size 512,512,256 out of the original volume starting at position 0,0,128<br/>
 s = subvolume(v,0,0,128,512,512,256) <br/>

@@ -6,6 +6,7 @@ import pyqtgraph as pg
 import multiprocessing
 import getpass
 import re
+import subprocess
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -464,7 +465,7 @@ class CommonFunctions():
 
     def insert_spinbox(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=0, cstep=0,width=0, height=0,
                        validator=None, password=False, tooltip='', logvar=False, value=None, att=False, enabled=True,
-                       maximum=0, minimum=0, stepsize=0, widgetType=QSpinBox, decimals=0):
+                       maximum=0, minimum=0, stepsize: int=0, widgetType=QSpinBox, decimals=0):
 
         widget = widgetType(self)
         widget.setLocale(QLocale('.'))
@@ -609,12 +610,13 @@ class CommonFunctions():
 
     def insert_label_spinbox(self, parent, wname, text='', rowspan=1, columnspan=1, rstep=1, cstep=-1, width=0, height=0,
                              validator=None, tooltip='', value=None, att=False, enabled=True, maximum=0, minimum=0,
-                             wtype=QSpinBox, stepsize=0, logvar=True, decimals=0):
+                             wtype=QSpinBox, stepsize: int=0, logvar=True, decimals=0):
 
         self.insert_label(parent, text=text, cstep=1, alignment=Qt.AlignRight, tooltip=tooltip)
+        # TODO: remove the typecast after typing of this file is complete
         self.insert_spinbox(parent, wname, validator=validator, width=width, enabled=enabled,
                             maximum=maximum, minimum=minimum, cstep=cstep, rstep=rstep, value=value,
-                            widgetType=wtype, stepsize=stepsize, logvar=logvar, decimals=decimals)
+                            widgetType=wtype, stepsize=int(stepsize), logvar=logvar, decimals=decimals)
 
     def insert_label_line_push(self, parent, textlabel, wname, tooltip='', text='', cstep=-2, rstep=1, validator=None,
                                mode='folder', remote=False, pushtext='Browse', width=150, filetype='',action='',
@@ -702,7 +704,6 @@ class CommonFunctions():
     def insert_gen_text_exe(self, parent, mode, action='', paramsAction=[], paramsXML=[], paramsCmd=[],
                             paramsSbatch={}, xmlfilename='', exefilename='exe.sh', jobfield=False, gpu=False,
                             queue=True, cs=3, mandatory_fill=[]):
-
         if not queue:
             self.insert_label_action(parent, 'Generate command', cstep=1, rstep=-1, sizepolicy=self.sizePolicyB,
                                            action=self.gen_action, wname=mode + 'GeneratePushButton',
@@ -741,7 +742,6 @@ class CommonFunctions():
                                                    action, paramsAction, mode])
 
     def exe_action(self, params):
-
         mode = params[6]
         if not self.widgets[mode + 'ExecutePushButton'].isEnabled():
             return
@@ -779,9 +779,9 @@ class CommonFunctions():
             exefile.close()
 
             if self.widgets[mode+'queue'].isChecked():
-                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
+                dd = subprocess.run([self.qcommand, exefilename], text=True, capture_output=True)
                 print('Submitted')
-                text = dd.read()[:-1]
+                text = dd.stdout[:-1]
                 id = text.split()[-1]
                 self.popup_messagebox('Info','Submitted job to the queue', text)
 
@@ -823,7 +823,12 @@ class CommonFunctions():
     def countNumberOfParticles(self, wname):
         filename = self.widgets[wname].text()
         if filename and os.path.exists(filename):
-            numberParticles = os.popen(f'grep Shift {filename} | wc -l').read()[:-1]
+            numberParticles = subprocess.run(
+                    [f'grep Shift {filename} | wc -l'],
+                    shell=True,
+                    text=True,
+                    capture_output=True
+                    ).stdout[:-1]
             self.popup_messagebox('Info', 'Number of Particles in ParticleList', f'Number of particles in {os.path.basename(filename)}: {numberParticles}')
 
     def checkLocalJob(self, ID):
@@ -1113,8 +1118,9 @@ class CommonFunctions():
         outjob.close()
 
         if self.checkbox[id].isChecked():
-            dd = os.popen('{} {}'.format(self.qcommand, execfilename))
-            text = dd.read()[:-1]
+            dd = subprocess.run([self.qcommand, execfilename],
+                    shell=True, text=True, capture_output=True)
+            text = dd.stdout[:-1]
             try:
                 ID = text.split()[-1]
             except:
@@ -1134,18 +1140,6 @@ class CommonFunctions():
                 self.submit_local_job(execfilename, ID)
 
             return 'Local_'+ID, 0
-
-    def multiSeq(self, func, params, wID=0, threaded=False):
-        import time
-        maxtime = 600
-        for execfilename, pid, job in params:
-            sleeptime = 0
-            ID, num = func(execfilename, pid, job, threaded=threaded)
-            if num == 0:
-                self.localJobs[wID].append(ID)
-                # while self.localqID[ID.split('_')[-1]] == 0 and sleeptime < maxtime:
-                #     time.sleep(5)
-                #     sleeptime += 5
 
     def getLocalID(self):
         import os
@@ -1186,8 +1180,8 @@ class CommonFunctions():
 
             if queue:
 
-                dd = os.popen('{} {}'.format(self.qcommand, exefilename))
-                text = dd.read()[:-1]
+                dd = subprocess.run([self.qcommand, exefilename], text=True, capture_output=True)
+                text = dd.stdout[:-1]
                 id = text.split()[-1]
                 logcopy = os.path.join(self.projectname, f'LogFiles/{id}_{os.path.basename(exefilename)}')
                 os.system(f'cp {exefilename} {logcopy}')
@@ -1247,7 +1241,7 @@ class CommonFunctions():
 
         qids = qt
 
-        runningJobs = [rid[:-1] for rid in os.popen(" squeue | awk 'NR > 1 {print $1}' ").readlines()]
+        runningJobs = [rid[:-1] for rid in subprocess.run([" squeue | awk 'NR > 1 {print $1}' "], shell=True, text=True, capture_output=True).stdout.splitlines()]
         inQueue = [str(int(qid)) for qid in qids if qid in runningJobs]
         inQueue += [qid[6:] for qid in qids if str(qid).startswith('Local_') and self.localqID[qid[6:]] == 0]
         if len(qt) < num_submitted_jobs:
@@ -1515,13 +1509,13 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
         try:
             radius = int(self.widgets['radius'].text())
             smooth = float(self.widgets['smooth_factor'].value())
-            sizeX = int(self.widgets['size_template_x'].text())
-            sizeY = int(self.widgets['size_template_y'].text())
-            sizeZ = int(self.widgets['size_template_z'].text())
+            size_x = int(self.widgets['size_template_x'].text())
+            size_y = int(self.widgets['size_template_y'].text())
+            size_z = int(self.widgets['size_template_z'].text())
             try:
                 folder = params[4] if params[4] else self.parent().projectname
                 print(folder)
-                fname = os.path.join(folder, f'Mask_{sizeX}_{radius}_{smooth:.2f}.mrc')
+                fname = os.path.join(folder, f'Mask_{size_x}_{radius}_{smooth:.2f}.mrc')
             except Exception as e:
                 print(e)
                 tomoname = os.path.basename(self.parent().widgets['v03_TemplateMatch_tomoFname'].text())
@@ -1536,7 +1530,7 @@ class CreateMaskFile(QMainWindow, CommonFunctions):
 
             if maskfilename and not maskfilename.endswith('.mrc'): maskfilename += '.mrc'
             try:
-                success = initSphere(sizeX, sizeY, sizeZ, radius=radius, smooth=smooth, filename=maskfilename)
+                success = initSphere(size_x, size_y, size_z, radius=radius, smooth=smooth, filename=maskfilename)
                 if success:
                     self.parent().widgets[params[3]].setText(maskfilename)
                 else:
@@ -1729,7 +1723,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
         for i in range(len(headers)):
 
             if i+1 == len(headers):
-                hh.setResizeMode(i, QHeaderView.Stretch)
+                hh.setSectionResizeMode(i, QHeaderView.Stretch)
             elif sizes[i] == 0:
                 hh.setSectionResizeMode(i,QHeaderView.ResizeToContents)
             else:
@@ -1985,7 +1979,7 @@ class SimpleTable(QMainWindow, CommonFunctions):
             elif 'widget_{}_{}'.format(i,rowIndex) in self.widgets.keys() and widgetType=='lineedit':
                 self.widgets['widget_{}_{}'.format(i,rowIndex)].setText(self.general_widgets[rowIndex].text())
 
-        self.table.horizontalHeader().setResizeMode(len(self.headers)-1, QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(len(self.headers)-1, QHeaderView.Stretch)
 
         for i in range(self.table.columnCount()):
             self.table2.setColumnWidth(i, self.table.columnWidth(i))
@@ -1999,7 +1993,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
         self.addTabs(headers=headers, offx=offx, offy=offy, dimx=dimx, dimy=dimy,soff=50)
 
     def addTabs(self, headers, widget=QWidget, subheaders=[], offx=0,offy=0,dimx=900,dimy=721,soff=0,
-                sizeX=900,sizeY=700, tabUIs=None, tabs=None, tab_actions=None, static_tabs=None):
+                size_x=900,size_y=700, tabUIs=None, tabs=None, tab_actions=None, static_tabs=None):
 
         self.size_policies()
         self.scrollarea = QScrollArea(self)
@@ -2010,7 +2004,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
         self.scrollarea.setContentsMargins(0,0,0,0)
         #self.scrollarea.setGeometry(offx, offy, dimx, dimy)
 
-        self.scrollarea.setGeometry(0,0,sizeX,sizeY)
+        self.scrollarea.setGeometry(0,0,size_x,size_y)
         self.scrollarea.setFrameShape(QFrame.NoFrame)
 
         self.tabWidget = QTabWidget(self.scrollarea)
@@ -2182,7 +2176,7 @@ class GuiTabWidget(QWidget, CommonFunctions):
         self.ECCounter = 0
 
 
-class KeyPressGraphicsWindow(pg.GraphicsWindow):
+class KeyPressGraphicsWindow(pg.GraphicsLayoutWidget):
     sigKeyPress = pyqtSignal(object)
 
     def __init__(self, *args, **kwargs):
@@ -2263,7 +2257,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
         self.circles_list = [self.circles_left, self.circles_cent, self.circles_bottom]
         self.particleList = []
 
-        self.leftcanvas = w1 = pg.GraphicsWindow(size=(250, 750), border=True)
+        self.leftcanvas = w1 = pg.GraphicsLayoutWidget(size=(250, 750), border=True)
         self.leftimage  = w1.addViewBox(row=0, col=0)
         self.leftimage.setMouseEnabled(False, False)
 
@@ -2272,7 +2266,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
         self.centimage.setMenuEnabled(False)
         self.target = w3 = pg.ImageView()
 
-        self.bottomcanvas = w2 = pg.GraphicsWindow(size=(750, 250), border=True)
+        self.bottomcanvas = w2 = pg.GraphicsLayoutWidget(size=(750, 250), border=True)
         self.bottomimage  = w2.addViewBox(row=0, col=0 )
         self.bottomimage.setMouseEnabled(False, False)
 
@@ -2424,7 +2418,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
 
         if self.title.endswith('em'):
             from pytom.basic.files import read
-            from pytom_numpy import vol2npy
+            from pytom.lib.pytom_numpy import vol2npy
             vol  = read(self.title)
             self.mask = copy.deepcopy( vol2npy(vol) )
             self.mask = self.mask.T
@@ -2617,7 +2611,7 @@ class CreateMaskTMOld(QMainWindow, CommonFunctions):
 
         if self.title.endswith('em'):
             from pytom.basic.files import read
-            from pytom_numpy import vol2npy
+            from pytom.lib.pytom_numpy import vol2npy
             vol  = read(self.title)
             self.vol = copy.deepcopy( vol2npy(vol) )
             self.vol = self.vol.T
@@ -2702,7 +2696,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
         self.circles_list = [self.circles_left, self.circles_cent, self.circles_bottom]
         self.particleList = []
 
-        self.leftcanvas = w1 = pg.GraphicsWindow(size=(250, 750), border=True)
+        self.leftcanvas = w1 = pg.GraphicsLayoutWidget(size=(250, 750), border=True)
         self.leftimage = w1.addViewBox(row=0, col=0)
         self.leftimage.setMouseEnabled(False, False)
 
@@ -2711,7 +2705,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
         self.centimage.setMenuEnabled(False)
         self.target = w3 = pg.ImageView()
 
-        self.bottomcanvas = w2 = pg.GraphicsWindow(size=(750, 250), border=True)
+        self.bottomcanvas = w2 = pg.GraphicsLayoutWidget(size=(750, 250), border=True)
         self.bottomimage = w2.addViewBox(row=0, col=0)
         self.bottomimage.setMouseEnabled(False, False)
 
@@ -2888,7 +2882,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
 
         if self.title.endswith('em'):
             from pytom.basic.files import read
-            from pytom_numpy import vol2npy
+            from pytom.lib.pytom_numpy import vol2npy
             vol = read(self.title)
             self.mask = copy.deepcopy(vol2npy(vol))
             self.mask = self.mask.T
@@ -3092,7 +3086,7 @@ class CreateMaskTM(QMainWindow, CommonFunctions):
 
         if self.title.endswith('em'):
             from pytom.basic.files import read
-            from pytom_numpy import vol2npy
+            from pytom.lib.pytom_numpy import vol2npy
             vol = read(self.title)
             self.vol = copy.deepcopy(vol2npy(vol))
             self.vol = self.vol.T
@@ -3203,7 +3197,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.circles_list = [self.circles_left, self.circles_cent, self.circles_bottom]
         self.particleList = []
 
-        self.leftcanvas = w1 = pg.GraphicsWindow(size=(200, 600), border=True)
+        self.leftcanvas = w1 = pg.GraphicsLayoutWidget(size=(200, 600), border=True)
         self.leftimage  = w1.addViewBox(row=0, col=0)
         self.leftimage.setMouseEnabled(False, False)
 
@@ -3216,7 +3210,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         self.target = w3 = pg.ImageView()
         self.title = parent.widgets['v03_manualpp_tomogramFname'].text()
 
-        self.bottomcanvas = w2 = pg.GraphicsWindow(size=(600, 200), border=True)
+        self.bottomcanvas = w2 = pg.GraphicsLayoutWidget(size=(600, 200), border=True)
         self.bottomimage  = w2.addViewBox(row=0, col=0 )
         self.bottomimage.setMouseEnabled(False, False)
 
@@ -3404,7 +3398,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
                 # read as em or mrc file
                 if fname.endswith('.em'):
                     from pytom.basic.files import read
-                    from pytom_numpy import vol2npy
+                    from pytom.lib.pytom_numpy import vol2npy
                     vol = read(fname)
                     self.mask = copy.deepcopy(vol2npy(vol))
                     self.mask = self.mask.T  # why transpose ?
@@ -3863,7 +3857,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         try:
             if self.title.endswith('em'):
                 from pytom.basic.files import read
-                from pytom_numpy import vol2npy
+                from pytom.lib.pytom_numpy import vol2npy
                 vol  = read(self.title)
                 self.vol = copy.deepcopy( vol2npy(vol) )
                 self.vol = self.vol.T
@@ -3906,9 +3900,8 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.close()
 
     def setAngle(self):
+        folder = os.path.dirname(subprocess.run(['ls','-alrt', self.tomogram_name], text=True, capture_output=True).stdout.splitlines()[-1])
         try:
-            folder = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
-
             specimen_angle_file = os.path.join(folder, 'specimen_rotation_angle.txt')
             if os.path.exists(specimen_angle_file):
                 angle = float(open(specimen_angle_file,'r').read()[:-1])
@@ -3917,7 +3910,6 @@ class ParticlePicker(QMainWindow, CommonFunctions):
         except Exception as e:
             print(e)
             angle=0
-        folder = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
         if os.path.exists(os.path.join(folder, 'WBP_Reconstruction.sh')):
             d = open(os.path.join(folder, 'WBP_Reconstruction.sh'), 'r').read()[:-1]
             try:
@@ -4006,7 +3998,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             self.leftimage.addItem(self.lineL)
             return
         try:
-            tt = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
+            tt = os.path.dirname(subprocess.run(['ls','-alrt', self.tomogram_name], text=True, capture_output=True).stdout.splitlines()[-1])
             self.folder = tt
             zlimitfile = os.path.join(tt, 'z_limits.txt')
 
@@ -4055,7 +4047,7 @@ class ParticlePicker(QMainWindow, CommonFunctions):
             print('\n\n\n', e)
 
     def save_angle(self):
-        tt = os.path.dirname(os.popen(f'ls -alrt {self.tomogram_name}').read().split()[-1])
+        tt = os.path.dirname(subprocess.run(['ls','-alrt',self.tomogram_name], text=True, capture_output=True).stdout.splitlines()[-1])
         self.folder = tt
         sra_file = os.path.join(tt, 'specimen_rotation_angle.txt')
         if os.path.exists(os.path.join(os.path.dirname(sra_file), 'WBP_Reconstruction.sh')):
@@ -4257,8 +4249,9 @@ class SelectModules(QWidget):
         self.p = parent
 
         q = "module avail --long 2>&1 | awk 'NR >2 {print $1}'"
-        avail = [line for line in os.popen(q).readlines() if not line.startswith('/')
-                 and not line.startswith('shared') and not 'intel' in line]
+        avail = [line for line in subprocess.run([q], shell=True, capture_output=True, text=True).stdout.splitlines() 
+                if not line.startswith('/')
+                and not line.startswith('shared') and not 'intel' in line]
         # only add pytom, imod, and motioncor, rest is contained now in the conda environment
         self.grouped = [mod.strip("\n") for mod in avail if 'motioncor' in mod
                         or 'imod' in mod or 'pytom' in mod or 'python' in mod
@@ -4638,8 +4631,52 @@ class PlotterSubPlots(QMainWindow,CommonFunctions):
                     break
 
 
-# Windows Connected to Icons in header bar.
+# Select folder with tomograms to load them all at once for batch template matching
+class SelectTomogramDir(QMainWindow, CommonFunctions):
+    '''This class lets you browse to a directory to load all .mrc or .em tomos in it.'''
+    def __init__(self, parent):
+        super(SelectTomogramDir, self).__init__(parent)
+        self.setGeometry(50, 50, 300, 100)
+        self.cwidget = QWidget()
+        self.gridLayout = QGridLayout()
+        self.setWindowModality(Qt.ApplicationModal)
+        self.p = parent
 
+        self.cwidget.setLayout(self.gridLayout)
+        self.setCentralWidget(self.cwidget)
+        self.fill()
+
+    def fill(self):
+        columns, rows = 5, 5
+
+        self.items, self.widgets = [['', ] * columns, ] * rows, {}
+        parent = self.gridLayout
+
+        self.row, self.column = 0, 1
+        self.insert_label(parent, text='Select tomogram directory', rstep=1, alignment=Qt.AlignHCenter,
+                          tooltip='Provide the foldername where a bunch of tomograms are located.')
+        self.insert_lineedit(parent, 'tomogramdir', cstep=1)
+        self.insert_pushbutton(parent, cstep=self.column * -1+1, rstep=1, text='Browse',
+                               action=self.browse, params=['folder', self.items[self.row][self.column - 1], ''])
+        self.insert_pushbutton(parent, cstep=self.column * -1+1, rstep=1, text='Select',
+                               action=self.return_value)
+
+    def return_value(self, params):
+        path = self.widgets['tomogramdir'].text()
+
+        files = [os.path.join(path, fname) for fname in os.listdir(path) if fname.endswith('.em') or fname.endswith(
+                '.mrc')]
+
+        self.p.tomogramlist = files
+
+        if len(files) == 0:
+            QMessageBox().warning(self, "No tomograms in folder",
+                                  "Folder needs to contain tomograms in .mrc or .em format.", QMessageBox.Ok)
+
+        self.close()
+
+
+# Windows Connected to Icons in header bar.
 class NewProject(QMainWindow, CommonFunctions):
     '''This class creates a new windows for browsing'''
     def __init__(self,parent,label):
@@ -4725,7 +4762,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         headers = ['Queuing Parameters', 'Data Transfer', 'Tomographic Reconstruction', 'Particle Picking', 'Subtomogram Analysis']
         subheaders = [[], ] * len(headers)
 
-        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, sizeX=800, sizeY=500)
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, size_x=800, size_y=500)
 
         self.table_layouts = {}
         self.tables = {}
@@ -4837,6 +4874,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
                                                     cores=self.num_cores, modules=self.parent().modules)
                 except:
                     self.qparams[jobname] = QParams(modules=self.parent().modules)
+                self.qparams[jobname].update_settings(self, store=True)  # write to pickle
 
         id = 'tab1'
         self.row, self.column = 0, 1
@@ -4912,7 +4950,7 @@ class GeneralSettings(QMainWindow, GuiTabWidget, CommonFunctions):
         # inexperienced with queueing systems.
         existing_queues = []
         for n, value in enumerate(self.qcommanddict.values()):
-            if value != 'none' and os.path.exists(os.popen('which {}'.format(value)).read()[:-1]):
+            if subprocess.run(['which', value], capture_output=True, text=True).returncode == 0:
                 existing_queues.append(n)
         queue_index = self.queue_system_options.index(self.queue_system)
         if queue_index in existing_queues:
@@ -5056,7 +5094,7 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
         self.tabs_dict, self.tab_actions = {}, {}
 
         self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict,
-                     tab_actions=self.tab_actions, sizeX=700, sizeY=300)
+                     tab_actions=self.tab_actions, size_x=700, size_y=300)
 
         self.table_layouts = {}
         self.tables = {}
@@ -5248,7 +5286,6 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
             values = []
             tomograms = {}
             for logfile in logfiles[::-1]:
-                # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
                 dir = os.path.dirname(logfile)
                 ids = os.path.basename(logfile).split('-')[0]
                 infile = glob.glob(f"{dir}/{ids}_*.sh")
@@ -5363,7 +5400,6 @@ class PlotWindow(QMainWindow, GuiTabWidget, CommonFunctions):
                     continue
                 for logfile in sorted(glob.glob(
                         f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/alignment/marker*/*/*/logfile*.txt')):
-                    # tom = os.popen(f'cat {logfile} | grep "Name of Reconstruction Volume:" | awk "{print $5} " ').read()[:-1]
                     logdata = open(logfile, 'r').read()
                     try:
                         ctffolder = f'{self.projectname}/03_Tomographic_Reconstruction/{tomofolder}/ctf/sorted_ctf/'
@@ -5604,7 +5640,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         headers = ['Local Jobs', 'Queued Jobs']
         subheaders = [[], ] * len(headers)
 
-        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, sizeX=900, sizeY=550)
+        self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, size_x=900, size_y=550)
         self.table_layouts = {}
         self.tables = {}
         self.pbs = {}
@@ -5686,7 +5722,7 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
         tooltip = []
         values = []
         added_jobs = []
-        processes = [pid for pid in os.popen(f'''ps -u {getpass.getuser()} -f ''').read().split('\n') if pid]
+        processes = [pid for pid in subprocess.run(['ps', '-u', f'{getpass.getuser()}', '-f'], capture_output=True, text=True).stdout.splitlines() if pid]
 
         self.localJobStrings = {}
         self.pids = []
@@ -5775,7 +5811,12 @@ class ExecutedJobs(QMainWindow, GuiTabWidget, CommonFunctions):
 
         import getpass
         whoami = getpass.getuser()
-        qjobs = [int(line.split()[0]) for line in os.popen(f'squeue -u {whoami} | grep -v JOBID').readlines()]
+        qjobs = [int(line.split()[0]) for line in 
+                subprocess.run([f'squeue -u {whoami} | grep -v JOBID'],
+                    shell=True,
+                    capture_output=True,
+                    text=True
+                    ).stdout.splitlines()]
         added_jobs = []
         for n, logfile in enumerate(self.jobFilesQueue):
             queueId = int(os.path.basename(logfile).split('-')[0])
@@ -5884,7 +5925,7 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
         tabUIs = [[self.tab1UI]]
         static_tabs = [[True]]
         self.addTabs(headers=headers, widget=GuiTabWidget, subheaders=subheaders, tabUIs=tabUIs, tabs=self.tabs_dict,
-                     tab_actions=self.tab_actions, static_tabs=static_tabs, sizeY=800)
+                     tab_actions=self.tab_actions, static_tabs=static_tabs, size_y=800)
 
     def tab1UI(self, key, title='DataConversion'):
         tooltip = ''
@@ -5896,50 +5937,99 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
         self.items = [['', ] * columns, ] * rows
         w = 170
 
-        self.insert_label(parent,cstep=1,sizepolicy=self.sizePolicyB, width=400 )
+        self.insert_label(parent,cstep=0,sizepolicy=self.sizePolicyB, width=400 )
         self.insert_label_line_push(parent, 'Input file', wname=mode+'InputFile',width=w, initdir=self.tomogramfolder,
                                     tooltip='Select the tomogram file used for template matching.',
                                     filetype=['mrc', 'em', 'rec', 'st', 'log', 'txt', 'star', 'meta', 'xml'], mode='file')
         self.insert_label_line_push(parent,'Folder With Files', mode +'InputFolder',width=w,
                                     tooltip='Select the file where the sorted tiltimages are located.\n')
         self.insert_label_line_push(parent,'Output/Target Folder', mode +'TargetFolder',
-                                    'Select the folder where theoutput file(s) are saved.\n',width=w)
-        self.insert_label_line(parent, 'Prefix Query (Optional)', mode + 'PrefixQuery',
-                                    'With what symbols do the file names begin.\n',width=w)
-        self.insert_label_line(parent, 'Suffix Query (Optional)', mode + 'SuffixQuery',
-                                    'What do the filenames end with.\n',width=w)
+                                    'Select the folder where the output file(s) are saved.\n',width=w)
         self.insert_label_combobox(parent,'Output file type',mode+'OutputType',
                                    labels=['em', 'mrc', 'rec', 'st', 'txt', 'meta', 'log', 'star', 'xml'],
                                    tooltip='Select the file type of the output file',
                                    width=w,cstep=-1)
         self.insert_label_line(parent, 'Output Name (Optional)', mode + 'OutputName',
                                'What is the file name off your output file (Optional).\n',width=w)
+        self.insert_label_line(parent, 'Chain Data (Optional)', mode + 'ChainData',
+                               'Data needed for conversion from the special formats (pdb and mmCIF), \n'
+                               'in the format pixelsSize,cubeSize,invertDensity,chain (invertDensity is 1 or 0) (Optional).\n',
+                               width=w)
+        self.insert_label_line(parent, 'Prefix (Optional)', mode + 'Prefix',
+                                    'Data needed for the conversion from coordinates to a particle list.\n'
+                                    'Path and filename for subtomogram files (e.g., MyPath/particle_).\n',width=w)
         self.insert_label_line(parent, 'Wedge Angle(s) (Optional)', mode + 'WedgeAngles',
-                               'What are the wedgeAngles. Example: 30 or 30,30.\n',width=w)
+                               'What are the wedge_angles. Example: 30 or 30,30.\n',width=w)
+        self.insert_label_line(parent, 'Prefix Query (Optional)', mode + 'PrefixQuery',
+                                    'With what symbols do the file names begin.\n',width=w)
+        self.insert_label_line(parent, 'Suffix Query (Optional)', mode + 'SuffixQuery',
+                                    'What do the filenames end with.\n',width=w)
         self.insert_label_spinbox(parent, mode + 'PixelSize', 'Pixel Size (A)',
                                   wtype=QDoubleSpinBox, minimum=0.1, stepsize=0.1, value=1.0)
-        self.insert_label_line_push(parent, 'Alignment result file IMOD (.xf)', wname=mode+'AlignXF',width=w, initdir=self.tomogramfolder,
-                                    tooltip='Select the tomogram file used for template matching.',
-                                    filetype=['xf'], mode='file')
-        self.insert_label_line_push(parent, 'Folder Sorted Images', wname=mode+'SortedFolder',width=w, initdir=self.tomogramfolder,
-                                    tooltip='Select the fodler with sorted images used for reconstruction.', mode='folder', cstep=-1)
+        self.insert_label_spinbox(parent, mode + 'BinPytom', 'Linear binning factor for PyTom tomograms',
+                                  wtype=QSpinBox, minimum=1, value=1)
+        self.insert_label_spinbox(parent, mode + 'BinWarpM', 'Linear binning factor for warp/m volumes',
+                                  wtype=QSpinBox, minimum=1, value=1)
+        self.insert_label_line_push(parent,'Tilt file (optional)', mode +'TltFile',
+                                    'Select .tlt file or .rawtlt in case tile angles have not been optimized during alignment.\n',
+                                    filetype=['tlt','rawtlt'], mode='file',
+                                    width=w)
+        self.insert_label_line_push(parent, 'Folder Sorted Images (optional)', wname=mode+'SortedFolder',width=w, initdir=self.tomogramfolder,
+                                    tooltip='Select the folder with sorted images used for reconstruction.', mode='folder')
+        self.insert_label_line(parent, 'RELION voltage (Optional)', wname=mode + 'RlnVoltage',
+                               tooltip='Voltage for relion3 starfiles.',width=w)
 
+        #cstep needed here (last item) to align the generate box
+        self.insert_label_line(parent, 'RELION spherical aberration (Optional)', wname=mode + 'RlnSphericalAberration',
+                               tooltip='Spherical aberration for relion3 starfiles.',width=w, cstep=1) 
+ 
         self.flags_dict = {}
-        for name, flag in (('InputFile', '-f'), ('InputFolder', '-d'), ('PrefixQuery', '--prefixQuery'),
-                           ('SuffixQuery', '--suffixQuery'), ('OutputName', '--outname'),
-                           ('WedgeAngles', '--wedgeAngles'), ('AlignXF', '--alignxf'),
-                           ('SortedFolder', '--sortedFolder')):
+        # Mimic pytom/bin/convert.py in order
+        for name, flag in (('InputFile', '-f'),
+                           ('InputFolder', '-d'),
+                           ('OutputType', '-o'),
+                           ('OutputName', '--outname'),
+                           ('ChainData', '-c'),
+                           ('Prefix', '-s'),
+                           ('WedgeAngles', '-w'),
+                           ('PrefixQuery', '--prefixQuery'),
+                           ('SuffixQuery', '--suffixQuery'),
+                           ('PixelSize', '--pixelSize'),
+                           ('BinPytom', '--binPyTom'),
+                           ('BinWarpM', '--binWarpM'),
+                           ('TltFile', '--tlt-file'),
+                           ('SortedFolder', '--sortedFolder'),
+                           ('RlnVoltage', '--rln-voltage'),
+                           ('RlnSphericalAberration', '--rln-spherical-aberration'),
+                           ):
             self.widgets[mode + 'flag' + name] = QLineEdit()
-            self.widgets[mode + name].textChanged.connect(lambda dummy, m=mode, ff=flag, nn=name: self.updateFlag(m, ff, nn))
+            if hasattr(self.widgets[mode + name], 'textChanged'):
+                self.widgets[mode + name].textChanged.connect(lambda dummy, m=mode, ff=flag, nn=name: self.updateFlag(m, ff, nn))
+            else: #Got QComboBox widget instead
+                 self.widgets[mode + name].currentTextChanged.connect(lambda dummy, m=mode, ff=flag, nn=name: self.updateFlag(m, ff, nn))
             self.updateFlag(mode, flag, name)
 
         execfilename = [mode + 'TargetFolder', 'convert.sh']
 
         paramsSbatch = guiFunctions.createGenericDict(fname='ConvertData', folder=self.logfolder)
-        paramsCmd    = [mode + 'TargetFolder', mode + 'flagInputFile', mode + 'flagInputFolder',
-                        mode + 'flagPrefixQuery', mode + 'flagSuffixQuery', mode + 'OutputType',
-                        mode + 'flagOutputName', mode + 'PixelSize', mode + 'flagAlignXF',
-                        mode + 'flagSortedFolder', mode + 'flagWedgeAngles', templateConvertData]
+        paramsCmd    = [mode + 'TargetFolder', 
+                        mode + 'flagInputFile',
+                        mode + 'flagInputFolder',
+                        mode + 'flagOutputType',
+                        mode + 'flagOutputName',
+                        mode + 'flagChainData',
+                        mode + 'flagPrefix',
+                        mode + 'flagWedgeAngles',
+                        mode + 'flagPrefixQuery',
+                        mode + 'flagSuffixQuery',
+                        mode + 'flagPixelSize',
+                        mode + 'flagBinPytom',
+                        mode + 'flagBinWarpM',
+                        mode + 'flagTltFile',
+                        mode + 'flagSortedFolder',
+                        mode + 'flagRlnVoltage',
+                        mode + 'flagRlnSphericalAberration',
+                        templateConvertData]
 
         self.insert_gen_text_exe(parent, mode, jobfield=False, exefilename=execfilename, paramsSbatch = paramsSbatch,
                                  paramsCmd=paramsCmd, mandatory_fill = [mode + 'TargetFolder'])
@@ -5949,7 +6039,10 @@ class ConvertData(QMainWindow, GuiTabWidget, CommonFunctions):
 
 
     def updateFlag(self, mode, flag, name):
-        a = self.widgets[mode + name].text()
+        if hasattr(self.widgets[mode + name], 'text'):
+            a = self.widgets[mode + name].text()
+        else:  # QComboBox instead
+            a = self.widgets[mode + name].currentText()
         if a:
             self.widgets[mode+'flag'+name].setText(f'{flag} {a} ')
         else:
@@ -6371,7 +6464,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
         self.dirId = self.parent().widgets[self.mode + 'sliceDirection'].currentIndex()
         self.slicedir = self.parent().widgets[self.mode + 'sliceDirection'].currentText()
 
-        self.leftcanvas = w1 = pg.GraphicsWindow(size=(200, 600), border=True)
+        self.leftcanvas = w1 = pg.GraphicsLayoutWidget(size=(200, 600), border=True)
         self.leftimage = w1.addViewBox(row=0, col=0)
         self.leftimage.setMouseEnabled(False, False)
 
@@ -6382,7 +6475,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
         self.datalabel = pg.LabelItem(justify='right')
         self.centcanvas.addItem(self.datalabel, row=0, col=0,)
 
-        self.bottomcanvas = w2 = pg.GraphicsWindow(size=(600, 200), border=True)
+        self.bottomcanvas = w2 = pg.GraphicsLayoutWidget(size=(600, 200), border=True)
         self.bottomimage = w2.addViewBox(row=0, col=0)
         self.bottomimage.setMouseEnabled(False, False)
 
@@ -6558,7 +6651,7 @@ class Viewer3D(QMainWindow, CommonFunctions):
         try:
             if self.title.endswith('em'):
                 from pytom.agnostic.io import read
-                from pytom_numpy import vol2npy
+                from pytom.lib.pytom_numpy import vol2npy
                 self.vol = read(self.title)
                 self.vol = self.vol.T
                 #self.vol = np.fft.fftshift(np.abs(np.fft.fftn(self.vol))**2)

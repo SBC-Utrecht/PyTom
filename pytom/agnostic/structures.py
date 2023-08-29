@@ -3,6 +3,7 @@ from pytom.basic.structures import Rotation as RotationPytomC
 from pytom.agnostic.io import read
 from pytom.agnostic.transform import fftshift, fourier_reduced2full
 from pytom.agnostic.filter import applyFourierFilter
+import scipy.optimize
 
 
 class PyTomClassError(Exception):
@@ -256,11 +257,11 @@ class Preprocessing(PyTomClass):
         """
         apply: Performs preprocessing of volume and reference
         @param volume: volume to be pre-processed
-        @type volume: L{pytom_volume.vol}
+        @type volume: L{pytom.lib.pytom_volume.vol}
         @param bypassFlag: Set if only bandpassFilter needed. False otherwise and all routines will be processed.
         @param downscale: not used anymore
         @param particle: particle Volume to be subtracted from input volume
-        @type particle: L{pytom_volume.vol}
+        @type particle: L{pytom.lib.pytom_volume.vol}
         @return: Returns modified volume
         @author: Thomas Hrabe
         """
@@ -292,7 +293,6 @@ class Preprocessing(PyTomClass):
 
         if self._weightingOn and (not bypassFlag):
             from pytom.agnostic.io import read
-            from pytom.agnostic.structures import Weight as weight
             from pytom.agnostic.filter import applyFourierFilter
 
             # TODO What exactly is read here? I interpreted this as a volume
@@ -801,7 +801,7 @@ class Reference(PyTomClass):
         @param verbose: talkative
         @type verbose: bool
         @return: [newReferenceVolume,newSumOfWedges]
-        @rtype: [L{pytom_volume.vol},L{pytom_volume.vol}]
+        @rtype: [L{pytom.lib.pytom_volume.vol},L{pytom.lib.pytom_volume.vol}]
         @change: more accurate binning now in Fourier space - FF
         """
         # if flag is set and both files exist, do subtract particle from reference
@@ -962,135 +962,35 @@ class Reference(PyTomClass):
             raise IOError('Could not find reference file: ' + str(self._referenceFile))
 
 
-class ReferenceList(PyTomClass):
-    """
-    ReferenceList: A list of references. Used for multi ref alignment and also for multi ref picking
-    """
-
-    def __init__(self):
-        self._referenceList = []
-
-    def append(self, reference):
-        self._referenceList.append(reference)
-
-    def toXML(self):
-        """
-        toXML : Compiles a XML file from job object
-        @author: Thomas Hrabe
-        """
-        from lxml import etree
-
-        listElement = etree.Element('ReferenceList')
-
-        for reference in self._referenceList:
-            listElement.append(reference.toXML())
-
-        return listElement
-
-    def fromXML(self, xmlObj):
-        """
-        fromXML : Assigns values to job attributes from XML object
-        @param xmlObj: A xml object
-        @type xmlObj: L{lxml.etree._Element}
-        @author: Thomas Hrabe
-        """
-
-        from lxml.etree import _Element
-
-        if xmlObj.__class__ != _Element:
-            raise TypeError('You must provide a valid XML-MaximisationJob object.')
-
-        references = xmlObj.xpath('Reference')
-
-        for reference in references:
-            ref = Reference('')
-            ref.fromXML(reference)
-
-            self._referenceList.append(ref)
-
-    def len(self):
-        # @deprecated: use len(x) instead
-        return len(self._referenceList)
-
-    def _getReferenceByName(self, referenceName):
-        """
-        _getReferenceByName: Selects a reference from this list. This is a private helper function, call ReferenceList[ReferenceName] instead
-        @return: The reference searched or None if not found
-        @rtype: L{pytom.agnostic.structures.Reference}
-        """
-        from pytom.agnostic.structures import Reference
-
-        refXML = self.xpath('/ReferenceList/Reference[@File="' + referenceName + '"]')
-
-        if len(refXML) == 0:
-            return None
-        else:
-            ref = Reference()
-            ref.fromXML(refXML[0])
-            return ref
-
-    def __len__(self):
-        return len(self._referenceList)
-
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            if key < self.len():
-                return self._referenceList[key]
-            else:
-                raise IndexError('Index out of range.')
-        elif key.__class__ == str:
-
-            reference = self._getReferenceByName(key)
-
-            if not reference:
-                raise IndexError('Reference named ' + key + ' not in list')
-
-            return reference
-        else:
-            assert False
-
-    def __setitem__(self, key, value):
-        """
-        @todo: implementation of a[key] = value for key=int and string and value test value.__class__==Reference
-        """
-
-        if isinstance(key, int):
-            if key < self.len():
-                self._referenceList[key] = value
-            else:
-                raise IndexError('Index out of range.')
-        else:
-            assert False
-
-
 class Wedge(PyTomClass):
     """
     Wedge: used as an dummy class to distinguish between single tilt axis wedge and double tilt axis wedge in fromXML
     """
 
-    def __init__(self, wedgeAngles=[0.0, 0.0], cutoffRadius=0.0, tiltAxis='Y', smooth=0.0, wedge_3d_ctf_file=''):
+    def __init__(self, wedge_angles=[0.0, 0.0], cutoffRadius=0.0, tiltAxis='Y', smooth=0.0, wedge_3d_ctf_file='',
+                 ctf_max_resolution=0.):
         """
         __init__: This constructor is compatible to L{pytom.agnostic.structures.SingleTiltWedge} and L{pytom.agnostic.structures.DoubleTiltWedge}.
         """
         if wedge_3d_ctf_file != '':
             # we need to initialize the 3d
-            self._wedgeObject = Wedge3dCTF(filename=wedge_3d_ctf_file)
+            self._wedgeObject = Wedge3dCTF(filename=wedge_3d_ctf_file, ctf_max_resolution=ctf_max_resolution)
             self._type = 'Wedge3dCTF'
         else:
             try:
 
-                if wedgeAngles.__class__ == list and wedgeAngles[0].__class__ == list and len(wedgeAngles[0]) == 2 and \
-                        wedgeAngles[1].__class__ == list and len(wedgeAngles[1]) == 2:
-                    self._wedgeObject = DoubleTiltWedge(wedgeAngles=wedgeAngles, tiltAxis1='Y', rotation12=tiltAxis,
+                if wedge_angles.__class__ == list and wedge_angles[0].__class__ == list and len(wedge_angles[0]) == 2 and \
+                        wedge_angles[1].__class__ == list and len(wedge_angles[1]) == 2:
+                    self._wedgeObject = DoubleTiltWedge(wedge_angles=wedge_angles, tiltAxis1='Y', rotation12=tiltAxis,
                                                         cutoffRadius=cutoffRadius, smooth=smooth)
                     self._type = 'DoubleTiltWedge'
                 else:
 
                     raise RuntimeError('Do SingleTiltWedge')
             except:
-                if wedgeAngles.__class__ == list and wedgeAngles[0].__class__ == list and wedgeAngles[1].__class__ == list:
+                if wedge_angles.__class__ == list and wedge_angles[0].__class__ == list and wedge_angles[1].__class__ == list:
                     raise TypeError('Wrong parameters for SingleTiltWedge object error thrown by Wedge object!')
-                self._wedgeObject = SingleTiltWedge(wedgeAngles, cutoffRadius=cutoffRadius, tiltAxis=tiltAxis,
+                self._wedgeObject = SingleTiltWedge(wedge_angles, cutoffRadius=cutoffRadius, tiltAxis=tiltAxis,
                                                     smooth=smooth)
                 self._type = 'SingleTiltWedge'
 
@@ -1100,8 +1000,8 @@ class Wedge(PyTomClass):
         @param wedgeSizeX: volume size for x (original size)
         @param wedgeSizeY: volume size for y (original size)
         @param wedgeSizeZ: volume size for z (original size)
-        @rtype: L{pytom_freqweight.weight}
-        @return: Weighting object. Remember, the wedge will be cutoff at sizeX/2 if no cutoff provided in constructor or cutoff == 0!
+        @rtype: L{pytom.lib.pytom_freqweight.weight}
+        @return: Weighting object. Remember, the wedge will be cutoff at size_x/2 if no cutoff provided in constructor or cutoff == 0!
         @author: Thomas Hrabe
         """
         if self._type == 'Wedge3dCTF':
@@ -1120,7 +1020,7 @@ class Wedge(PyTomClass):
         @param humanUnderstandable: if True (default is False), the volume will be transformed from reducedComplex to full and shifted afterwards
         @param rotation: rotation of wedge
 
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe
         """
 
@@ -1136,13 +1036,16 @@ class Wedge(PyTomClass):
         else:
             return self._wedgeObject.getWedgeAngle()
 
+    def getType(self):
+        return self._type
+
     def apply(self, volume, rotation=None):
         """
         apply: Applies this wedge to a given volume
         @param volume: The volume to be filtered
-        @type volume: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+        @type volume: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
         @return: The filtered volume
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe
         """
 
@@ -1242,10 +1145,10 @@ class SingleTiltWedge(PyTomClass):
     @author: Thomas Hrabe
     """
 
-    def __init__(self, wedgeAngle=0.0, rotation=None, cutoffRadius=0.0, tiltAxis='Y', smooth=0.0):
+    def __init__(self, wedge_angle=0.0, rotation=None, cutoffRadius=0.0, tiltAxis='Y', smooth=0.0):
         """
-        @param wedgeAngle: The wedge angle. In wedge halfs.
-        @type wedgeAngle: either float (for symmetric wedge) or [float,float]  for \
+        @param wedge_angle: The wedge angle. In wedge halfs.
+        @type wedge_angle: either float (for symmetric wedge) or [float,float]  for \
             asymmetric wedge.
         @param rotation: deprecated!!! Only leave it here for compatibility reason.
         @deprecated: rotation
@@ -1256,15 +1159,15 @@ class SingleTiltWedge(PyTomClass):
         @type tiltAxis: str or L{pytom.agnostic.structures.Rotation}
         @param smooth: Smoothing size of wedge at the edges in degrees. Default is 0.
         """
-        if wedgeAngle.__class__ == list:
-            assert wedgeAngle[0] >= 0
-            assert wedgeAngle[1] >= 0
-            self._wedgeAngle1 = wedgeAngle[0]
-            self._wedgeAngle2 = wedgeAngle[1]
+        if wedge_angle.__class__ == list:
+            assert wedge_angle[0] >= 0
+            assert wedge_angle[1] >= 0
+            self._wedge_angle1 = wedge_angle[0]
+            self._wedge_angle2 = wedge_angle[1]
         else:
-            assert wedgeAngle >= 0
-            self._wedgeAngle1 = wedgeAngle
-            self._wedgeAngle2 = wedgeAngle
+            assert wedge_angle >= 0
+            self._wedge_angle1 = wedge_angle
+            self._wedge_angle2 = wedge_angle
 
         if rotation:
             pass  # print("average: Warning - input rotation will not be used because deprecated!")
@@ -1296,14 +1199,14 @@ class SingleTiltWedge(PyTomClass):
 
     def getWedgeAngle(self):
         """
-        getWedgeAngle : Getter method for wedgeAngle
-        @return: self.wedgeAngle in openingAngle/2. If its an asymmetric wedge, a list [angle1,angle2] will be returned
+        getWedgeAngle : Getter method for wedge_angle
+        @return: self.wedge_angle in openingAngle/2. If its an asymmetric wedge, a list [angle1,angle2] will be returned
         @author: Thomas Hrabe
         """
-        if self._wedgeAngle1 == self._wedgeAngle2:
-            return self._wedgeAngle1
+        if self._wedge_angle1 == self._wedge_angle2:
+            return self._wedge_angle1
         else:
-            return [self._wedgeAngle1, self._wedgeAngle2]
+            return [self._wedge_angle1, self._wedge_angle2]
 
     def getTiltAxisRotation(self):
         from pytom.agnostic.structures import Rotation
@@ -1324,8 +1227,8 @@ class SingleTiltWedge(PyTomClass):
         @param wedgeSizeZ: volume size for z (original size)
         @param rotation: Apply rotation to the wedge
         @type rotation: L{pytom.agnostic.structures.Rotation}
-        @rtype: L{pytom_freqweight.weight}
-        @return: Weighting object. Remember, the wedge will be cutoff at sizeX/2 if no cutoff provided in constructor or cutoff == 0!
+        @rtype: L{pytom.lib.pytom_freqweight.weight}
+        @return: Weighting object. Remember, the wedge will be cutoff at size_x/2 if no cutoff provided in constructor or cutoff == 0!
         @author: Thomas Hrabe
         """
         # This import from own file ....
@@ -1333,7 +1236,7 @@ class SingleTiltWedge(PyTomClass):
             cut = wedgeSizeX // 2
         else:
             cut = self._cutoffRadius
-        weightObject = Weight(self._wedgeAngle1, self._wedgeAngle2, cut, wedgeSizeX, wedgeSizeY, wedgeSizeZ,
+        weightObject = Weight(self._wedge_angle1, self._wedge_angle2, cut, wedgeSizeX, wedgeSizeY, wedgeSizeZ,
                               self._smooth)
 
         if (not isinstance(rotation, Rotation)) and (not isinstance(rotation, RotationPytomC)):
@@ -1355,12 +1258,12 @@ class SingleTiltWedge(PyTomClass):
         be transformed from reducedComplex to full and shifted afterwards
         @param rotation: rotation of wedge
 
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe
         """
         wedgeVolume = None
 
-        if abs(self._wedgeAngle1) < 1E-4 and abs(self._wedgeAngle2) < 1E-4:
+        if abs(self._wedge_angle1) < 1E-4 and abs(self._wedge_angle2) < 1E-4:
 
             if not humanUnderstandable:
                 wedgeVolume = xp.ones((wedgeSizeX, wedgeSizeY, wedgeSizeZ // 2 + 1), dtype=xp.float32)
@@ -1386,17 +1289,17 @@ class SingleTiltWedge(PyTomClass):
         """
         apply: Applies this wedge to a given volume
         @param volume: The volume to be filtered
-        @type volume: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+        @type volume: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
         @param rotation: rotate the wedge
         @type rotation: L{pytom.agnostic.structures.Rotation}
         @return: The filtered volume
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe
         """
         if not volume.__class__ == xp.array((1)).__class__:
             raise TypeError('SingleTiltWedge: You must provide a xp.array here!')
 
-        if self._wedgeAngle1 > 0 or self._wedgeAngle2 > 0:
+        if self._wedge_angle1 > 0 or self._wedge_angle2 > 0:
             from pytom.agnostic.filter import applyFourierFilter as filter
 
             wedgeFilter = self.returnWedgeVolume(volume.shape[0], volume.shape[1], volume.shape[2], rotation)
@@ -1429,11 +1332,11 @@ class SingleTiltWedge(PyTomClass):
             raise TypeError('Is not a lxml.etree._Element! You must provide a valid XML-Wedge object.')
 
         if (xmlObj.get('Angle1') == None):
-            self._wedgeAngle1 = float(xmlObj.get('Angle'))
-            self._wedgeAngle2 = float(xmlObj.get('Angle'))
+            self._wedge_angle1 = float(xmlObj.get('Angle'))
+            self._wedge_angle2 = float(xmlObj.get('Angle'))
         else:
-            self._wedgeAngle1 = float(xmlObj.get('Angle1'))
-            self._wedgeAngle2 = float(xmlObj.get('Angle2'))
+            self._wedge_angle1 = float(xmlObj.get('Angle1'))
+            self._wedge_angle2 = float(xmlObj.get('Angle2'))
 
         self._cutoffRadius = float(xmlObj.get('CutoffRadius'))
 
@@ -1459,8 +1362,8 @@ class SingleTiltWedge(PyTomClass):
         """
         from lxml import etree
 
-        wedgeElement = etree.Element('SingleTiltWedge', Angle1=str(self._wedgeAngle1),
-                                     Angle2=str(self._wedgeAngle2), CutoffRadius=str(self._cutoffRadius),
+        wedgeElement = etree.Element('SingleTiltWedge', Angle1=str(self._wedge_angle1),
+                                     Angle2=str(self._wedge_angle2), CutoffRadius=str(self._cutoffRadius),
                                      Smooth=str(self._smooth))
 
         if ((not isinstance(self._tiltAxisRotation, int)) or
@@ -1478,7 +1381,7 @@ class SingleTiltWedge(PyTomClass):
     def setWedgeAngles(self, wedgeangles=(30, 30)):
         if len(wedgeangles) == 1:
             wedgeangles = [wedgeangles[0], wedgeangles[1]]
-        self._wedgeAngle1, self._wedgeAngle2 = wedgeangles
+        self._wedge_angle1, self._wedge_angle2 = wedgeangles
 
 
 class WedgeInfo(SingleTiltWedge):
@@ -1493,10 +1396,10 @@ class DoubleTiltWedge(SingleTiltWedge):
     DoubleTiltWedge: Represents a wedge determined for a double tilt series of projections
     """
 
-    def __init__(self, wedgeAngles=[[0, 0], [0, 0]], tiltAxis1='Y', rotation12=[90, 0, 0], cutoffRadius=0.0,
+    def __init__(self, wedge_angles=[[0, 0], [0, 0]], tiltAxis1='Y', rotation12=[90, 0, 0], cutoffRadius=0.0,
                  smooth=0.0):
         """Initialize a double tilt wedge
-        @param wedgeAngles: List of the tilt parameters [[tilt1.1,tilt1.2],[tilt2.1,tilt2.2]]. \
+        @param wedge_angles: List of the tilt parameters [[tilt1.1,tilt1.2],[tilt2.1,tilt2.2]]. \
 The missing region. All should be positive degrees.
         @param tiltAxis1: Specify tilt axis of first tilt here. The first tilt axis \
 will be Y, the second might differ. Unless specified otherwise, it will \
@@ -1510,8 +1413,8 @@ be generated. If omitted / 0, filter is fixed to size/2.
         @param smooth: Smoothing size of wedge at the edges in degrees. Default is 0.
         """
         from pytom.agnostic.structures import SingleTiltWedge
-        tilt1 = wedgeAngles[0]
-        tilt2 = wedgeAngles[1]
+        tilt1 = wedge_angles[0]
+        tilt2 = wedge_angles[1]
 
         if tilt1.__class__ != list or tilt2.__class__ != list:
             raise TypeError('These are the wrong parameters for double tilt wedge!')
@@ -1559,7 +1462,7 @@ be generated. If omitted / 0, filter is fixed to size/2.
             be transformed from reducedComplex to full and shifted afterwards
         @param rotation: rotation of 2nd wedge with respect to 1st
         @return: average of both wedges
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe
         """
 
@@ -1622,19 +1525,19 @@ be generated. If omitted / 0, filter is fixed to size/2.
         """
         apply: Applies this wedge to a given volume
         @param volume: The volume to be filtered
-        @type volume: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+        @type volume: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
         @param rotation: rotate the wedge
         @type rotation: L{pytom.agnostic.structures.Rotation}
         @return: The filtered volume
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @author: Thomas Hrabe
         """
         from pytom.agnostic.filter import applyFourierFilter
 
         if not volume.__class__ == xp.array:
-            raise TypeError('You must provide a pytom_volume.vol here!')
+            raise TypeError('You must provide a pytom.lib.pytom_volume.vol here!')
 
-        wedgeVolume = self.returnWedgeVolume(volume.sizeX(), volume.sizeY(), volume.sizeZ(),
+        wedgeVolume = self.returnWedgeVolume(volume.size_x(), volume.size_y(), volume.size_z(),
                                              humanUnderstandable=False, rotation=rotation)
 
         result = applyFourierFilter(volume, wedgeVolume)
@@ -1649,12 +1552,13 @@ class Wedge3dCTF(PyTomClass):
     first needs to be converted to have the z axis as the reduced fourier space dimension.
     """
 
-    def __init__(self, filename=''):
+    def __init__(self, filename='', ctf_max_resolution=0.):
         """
         Class is mainly an io wrapper for the 3d ctf volumes so only needs a filename.
         @param filename: path to .mrc/.em file
         """
         self._filename = filename
+        self._ctf_max_resolution = ctf_max_resolution
 
         # for FRM
         self._wedge_vol = None  # cache for storing the wedge volume
@@ -1666,6 +1570,12 @@ class Wedge3dCTF(PyTomClass):
 
     def setFilename(self, filename):
         self._filename = filename
+
+    def get_ctf_max_resolution(self):
+        return self._ctf_max_resolution
+
+    def set_ctf_max_resolution(self, ctf_max_resolution):
+        self._ctf_max_resolution = ctf_max_resolution
 
     def returnWedgeVolume(self, wedgeSizeX=None, wedgeSizeY=None, wedgeSizeZ=None, humanUnderstandable=False,
                           rotation=None):
@@ -1715,6 +1625,7 @@ class Wedge3dCTF(PyTomClass):
             raise TypeError('Is not a lxml.etree._Element! You must provide a valid XML-Wedge object.')
 
         self._filename = xmlObj.get('Filename')
+        self._ctf_max_resolution = float(xmlObj.get('CtfMaxResolution'))
 
     def toXML(self):
         """
@@ -1724,7 +1635,8 @@ class Wedge3dCTF(PyTomClass):
         """
         from lxml import etree
 
-        wedgeElement = etree.Element('Wedge3dCTF', Filename=self._filename)
+        wedgeElement = etree.Element('Wedge3dCTF', Filename=self._filename,
+                                     CtfMaxResolution=str(self._ctf_max_resolution))
 
         return wedgeElement
 
@@ -1782,7 +1694,7 @@ class GeneralWedge(PyTomClass):
     def apply(self, volume, rotation=None):
 
         if not volume.__class__ == xp.array:
-            raise TypeError('You must provide a pytom_volume.vol here!')
+            raise TypeError('You must provide a xp.ndarray here!')
 
         from pytom.agnostic.filter import applyFourierFilter as filter
         wedgeFilter = self.returnWedgeFilter(None, None, None, rotation)
@@ -1801,14 +1713,14 @@ class GeneralWedge(PyTomClass):
         # read the weight volume
         self._read_weight()
 
-        size_x = self._weight_vol.sizeX()
-        size_y = self._weight_vol.sizeY()
-        size_z = self._weight_vol.sizeZ()
+        size_x = self._weight_vol.size_x()
+        size_y = self._weight_vol.size_y()
+        size_z = self._weight_vol.size_z()
 
         # start sampling
         import numpy as np
         from math import pi, sin, cos
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         from scipy.ndimage.interpolation import map_coordinates
         v = vol2npy(self._weight_vol)
 
@@ -1986,7 +1898,7 @@ class Particle(PyTomClass):
         @param binning: binning factor (e.g., 2 makes it 2 times smaller in each dim)
         @type binning: int or float
         @return: volume
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         @change: FF
         """
         from pytom.agnostic.io import read
@@ -2230,7 +2142,7 @@ class Particle(PyTomClass):
         getTransformedVolume: Returns particle volume with applied inverse rotation and inverse shift
         @param binning: binning factor
         @type binning: C{int}
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
         from pytom.agnostic.structures import Shift, Rotation
         from pytom.voltools import transform
@@ -2557,7 +2469,7 @@ class ParticleList(PyTomClass):
 
         motifList = read(motlFile)
 
-        numberParticles = motifList.sizeY()
+        numberParticles = motifList.size_y()
 
         for i in range(numberParticles):
 
@@ -2587,7 +2499,7 @@ class ParticleList(PyTomClass):
         @warning: Resulting MOTL - Particle Index (4th entry) is increment 1:numberParticles. Does not neccessarily match to the particleFilename! Check L{copyFiles} for that.
         @param filename: The filename
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
 
         numberParticles = len(self)
 
@@ -2968,7 +2880,7 @@ class ParticleList(PyTomClass):
         @type progressBar: bool
         """
         from pytom.tools.files import checkDirExists
-        import pytom_mpi
+        import pytom.lib.pytom_mpi as pytom_mpi
 
         if not checkDirExists(directory):
             raise RuntimeError('Directory specified does not exist!')
@@ -3023,12 +2935,12 @@ class ParticleList(PyTomClass):
                 self._particleList[ii] = odd[iodd]
                 iodd = iodd + 1
 
-    def determineResolution(self, criterion=0.5, numberBands=None, mask=None, verbose=False, plot='',
+    def determine_resolution(self, criterion=0.5, number_bands=None, mask=None, verbose=False, plot='',
                             keepHalfsetAverages=False, halfsetPrefix='', parallel=True, randomize=0.8):
         """
-        determineResolution
+        determine_resolution
         @param criterion: The resolution criterion
-        @param numberBands: Will use cubesizeX / 2 as default if not specified
+        @param number_bands: Will use cubesize_x / 2 as default if not specified
         @param mask: A mask used for specifying location of particle. Can be None
         @param verbose: Verbose mode. Default -> False
         @param plot: Plot FSC curve to disk? Provide svg or png filename here. Default is '' -> no plot!
@@ -3037,16 +2949,16 @@ class ParticleList(PyTomClass):
         @param parallel: If True (default), this function will enable parallel averaging if possible.
         @param randomize: if you want to correct your resolution using phases randomization set this variable to a value between 0 and 1.
         @type randomize: float
-        @return: [Resolution in Nyquist , resolution in band, numberBands]
+        @return: [Resolution in Nyquist , resolution in band, number_bands]
         @todo: Change return type to L{pytom.agnostic.structures.resolution} to make it clearer.
         """
         if len(self) < 2:
             raise RuntimeError('ParticleList must have at least 2 elements to determine resolution!')
 
         from pytom.agnostic.io import read
-        from pytom.basic.correlation import FSC, determineResolution
-        import pytom_mpi
-        from pytom_numpy import vol2npy
+        from pytom.basic.correlation import fsc, determine_resolution
+        import pytom.lib.pytom_mpi as pytom_mpi
+        from pytom.lib.pytom_numpy import vol2npy
 
         import os
 
@@ -3084,49 +2996,50 @@ class ParticleList(PyTomClass):
             os.system('rm ' + halfsetPrefix + 'even-PreWedge.em')
             os.system('rm ' + halfsetPrefix + 'even-WedgeSumUnscaled.em')
 
-        if not numberBands:
-            numberBands = oddVolume.sizeX() / 2
+        if not number_bands:
+            number_bands = oddVolume.size_x() / 2
 
         if verbose:
-            print('Using ', numberBands, ' shells for FSC')
+            print('Using ', number_bands, ' shells for FSC')
 
         # oddVolume = vol2npy(oddVolume).copy()
         # evenVolume = vol2npy(evenVolume).copy()
 
-        fsc = FSC(oddVolume, evenVolume, numberBands, mask, verbose)
-
+        calc_fsc = fsc(oddVolume, evenVolume, number_bands, mask, verbose)
+        #TODO: After this the variable f seems to appear (maybe original name of (calc_)fsc)
+        #      This should always have errored out, is this dead code?
         if randomize is None:
             for (ii, fscel) in enumerate(f):
                 f[ii] = 2. * fscel / (1. + fscel)
-            r = determineResolution(f, fscCriterion, verbose)
+            r = determine_resolution(f, fscCriterion, verbose)
         else:
-            randomizationFrequency = np.floor(determineResolution(np.array(f), float(randomize), verbose)[1])
-            oddVolumeRandomizedPhase = correlation.randomizePhaseBeyondFreq(vol2npy(v1), randomizationFrequency)
-            evenVolumeRandomizedPhase = correlation.randomizePhaseBeyondFreq(vol2npy(v2), randomizationFrequency)
+            randomizationFrequency = np.floor(determine_resolution(np.array(f), float(randomize), verbose)[1])
+            oddVolumeRandomizedPhase = correlation.randomize_phase_beyond_freq(vol2npy(v1), randomizationFrequency)
+            evenVolumeRandomizedPhase = correlation.randomize_phase_beyond_freq(vol2npy(v2), randomizationFrequency)
             write('randOdd.mrc', oddVolumeRandomizedPhase)
             write('randEven.mrc', evenVolumeRandomizedPhase)
             oddVolumeRandomizedPhase = read('randOdd.mrc')
             evenVolumeRandomizedPhase = read('randEven.mrc')
-            fsc2 = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
-            fsc_true = list(correlation.calc_FSC_true(np.array(f), np.array(fsc2)))
+            fsc2 = fsc(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, number_bands, mask, verbose)
+            fsc_true = list(correlation.calc_fsc_true(np.array(f), np.array(fsc2)))
             for (ii, fscel) in enumerate(fsc_true):
                 fsc_true[ii] = 2. * fscel / (1. + fscel)
-            r = determineResolution(fsc_true, fscCriterion, verbose)
-        # randomizationFrequency = np.floor(determineResolution(fsc, 0.8, verbose)[1])
+            r = determine_resolution(fsc_true, fscCriterion, verbose)
+        # randomizationFrequency = np.floor(determine_resolution(fsc, 0.8, verbose)[1])
 
-        # oddVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
-        # evenVolumeRandomizedPhase = randomizePhaseBeyondFreq(oddVolume, randomizationFrequency)
-        # fsc2 = FSC(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, numberBands, mask, verbose)
+        # oddVolumeRandomizedPhase = randomize_phase_beyond_freq(oddVolume, randomizationFrequency)
+        # evenVolumeRandomizedPhase = randomize_phase_beyond_freq(oddVolume, randomizationFrequency)
+        # fsc2 = fsc(oddVolumeRandomizedPhase, evenVolumeRandomizedPhase, number_bands, mask, verbose)
         if verbose:
             print('FSC list:')
-            print(fsc)
+            print(calc_fsc)
             print('FSC_Random:\n', fsc2)
             print('FSC_true:\n', fsc_true)
 
         if not plot == '':
             try:
                 from pytom.plotting.plot import plotFSC
-                plotFSC(fsc, plot)
+                plotFSC(calc_fsc, plot)
             except:
                 pass
 
@@ -3277,13 +3190,13 @@ class ParticleList(PyTomClass):
         """
         Calculate the variance map on the aligned particle list.
         @param average: average of the aligned particle list
-        @type average: L{pytom_volume.vol}
+        @type average: L{pytom.lib.pytom_volume.vol}
         @param verbose: verbose mode
         @type verbose: L{boolean}
         @return: 3D variance map
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
-        from pytom_volume import variance
+        from pytom.lib.pytom_volume import variance
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.agnostic.filter import applyFourierFilter
 
@@ -3332,17 +3245,17 @@ class ParticleList(PyTomClass):
         Calculate the standard deviation map using getVarianceMap function.
 
         @param average: average of the aligned particle list
-        @type average: L{pytom_volume.vol}
+        @type average: L{pytom.lib.pytom_volume.vol}
         @param verbose: verbose mode
         @type verbose: L{boolean}
         @return: 3D standard deviation map
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
         if average is None:
             from pytom.alignment.alignmentFunctions import average2
             average, fsc = average2(self, False, False, False, mask, verbose=verbose)
 
-        from pytom_volume import abs, power
+        from pytom.lib.pytom_volume import abs, power
         vm = self.getVarianceMap(average, verbose)
 
         std_map = abs(vm)  # sometimes it can have negative values
@@ -3358,7 +3271,7 @@ class ParticleList(PyTomClass):
     def getCVMap(self, average=None, std_map=None, threshold=None, negative_density=True, verbose=True):
         """Calculate the coefficient of variance map.
         """
-        from pytom_volume import vol, variance, mean, abs
+        from pytom.lib.pytom_volume import vol, variance, mean, abs
         if average is None:
             from pytom.alignment.alignmentFunctions import average2
             average, fsc = average2(self, False, False, False, verbose=verbose)
@@ -3405,7 +3318,7 @@ class ParticleList(PyTomClass):
 
         return res
 
-    def loadCoordinateFile(self, filename, name_prefix=None, wedgeAngle=None, infoGUI=None):
+    def loadCoordinateFile(self, filename, name_prefix=None, wedge_angle=None, infoGUI=None):
         """
         Initialize the particle list using the given coordinate file.
         The coordinate file simply contains three columns of X, Y and Z separated
@@ -3413,8 +3326,8 @@ class ParticleList(PyTomClass):
 
         @param filename: Coordinate file name.
         @param name_prefix: Particle name prefix
-        @param wedgeAngle: angle(s) specifying single axis tilt
-        @type wedgeAngle: float or 2-dim list of floats
+        @param wedge_angle: angle(s) specifying single axis tilt
+        @type wedge_angle: float or 2-dim list of floats
         """
         if not name_prefix:
             name_prefix = './particle_'
@@ -3423,8 +3336,8 @@ class ParticleList(PyTomClass):
             self._particleList
         except:
             self._particleList = []
-        if wedgeAngle:
-            wedge = SingleTiltWedge(wedgeAngle=wedgeAngle)
+        if wedge_angle:
+            wedge = SingleTiltWedge(wedge_angle=wedge_angle)
         try:
             f = open(filename, 'r')
             ff = [line for line in f.readlines()]
@@ -3439,7 +3352,7 @@ class ParticleList(PyTomClass):
                 p = Particle(name_prefix + str(i) + '.em', rotation=None, shift=None,
                              wedge=None, className=0, pickPosition=PickPosition(x, y, z),
                              score=None, infoGUI=infoGUI)
-                if wedgeAngle:
+                if wedge_angle:
                     p.setWedge(wedge)
                 self._particleList.append(p)
                 i += 1
@@ -4081,7 +3994,7 @@ class Shift(PyTomClass):
         @return: rotated shift (note: shift itself remains unaltered)
         @rtype: L{pytom.agnostic.structures.Shift}
         """
-        assert isinstance(object=rot, class_or_type_or_tuple=Rotation), "rot must be of type Rotation"
+        assert isinstance(rot, Rotation), "rot must be of type Rotation"
         m = rot.toMatrix(fourByfour=True) * self.toMatrix()
         return Shift(x=m.getColumn(3)[0], y=m.getColumn(3)[1], z=m.getColumn(3)[2])
 
@@ -4482,14 +4395,14 @@ class PointSymmetry(Symmetry):
             raise ParameterError("Symmetry object: axis must either be 'Z' or a list of two tilt angles")
 
         if not mask:
-            mask = vol(volume.sizeX(), volume.sizeY(), volume.sizeZ())
+            mask = vol(volume.size_x(), volume.size_y(), volume.size_z())
             mask.setAll(1)
         elif mask.__class__ == Mask:
             mask = mask.getVolume()
 
         ccList = []
 
-        rotatedVolume = xp.zeros((volume.sizeX(), volume.sizeY(), volume.sizeZ()), dtype=xp.float32)
+        rotatedVolume = xp.zeros((volume.size_x(), volume.size_y(), volume.size_z()), dtype=xp.float32)
 
         currentRotation = rotations.nextRotation()
 
@@ -4527,10 +4440,10 @@ class PointSymmetry(Symmetry):
 
         volumeTexture = StaticVolume(volume, device=device, interpolation=interpolation)
 
-        sizeX,sizeY,sizeZ = volume.shape
+        size_x,size_y,size_z = volume.shape
 
-        symVolume = xp.zeros((sizeX, sizeY, sizeZ), dtype=xp.float32)
-        rotVolume = xp.zeros((sizeX, sizeY, sizeZ), dtype=xp.float32)
+        symVolume = xp.zeros((size_x, size_y, size_z), dtype=xp.float32)
+        rotVolume = xp.zeros((size_x, size_y, size_z), dtype=xp.float32)
 
 
         symmetryAngle = 360 / float(self._nfold)
@@ -4549,7 +4462,7 @@ class PointSymmetry(Symmetry):
             # search for the best match after the symmetry rotation
             if self._search_ang != 0:
                 from pytom.agnostic.correlation import xcc
-                tmp = xp.zeros((sizeX, sizeY, sizeZ), dtype=xp.float32)
+                tmp = xp.zeros((size_x, size_y, size_z), dtype=xp.float32)
                 max_cc = None
                 best_ang = None
                 if isinstance(self._search_ang, int):
@@ -4586,52 +4499,53 @@ class PointSymmetry(Symmetry):
         return symVolume
 
 
-class MultiSymmetries(PyTomClass):
-    """Multiple symmetries support.
-    """
-
-    def __init__(self, symmetries=None):
-        if symmetries is not None:
-            if symmetries.__class__ != list:
-                raise TypeError('The symmetries should be a list containing all the symmetries object!')
-            for s in symmetries:
-                if s.__class__ != Symmetry:
-                    raise TypeError('Each of the object in the list should be of type Symmetry!')
-            self.symmetries = symmetries
-        else:
-            self.symmetries = []
-
-    def toXML(self):
-        from lxml import etree
-
-        jobElement = etree.Element("MultiSymmetries")
-        for s in self.symmetries:
-            jobElement.append(s.toXML())
-
-        return jobElement
-
-    def fromXML(self, xmlObj):
-        from lxml.etree import _Element
-        if xmlObj.__class__ != _Element:
-            raise TypeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
-        if xmlObj.tag == 'MultiSymmetries':
-            element = xmlObj
-        else:
-            TypeError('MultiSymmetries: You must provide a valid MultiSymmetries XML object.')
-
-        symmetries_elements = element.xpath('Symmetry')
-        self.symmetries = []
-        for s in symmetries_elements:
-            sym = Symmetry()
-            sym = sym.fromXML(s)
-            self.symmetries.append(sym)
-
-    def applyToParticle(self, volume):
-        symVolume = volume
-        for sym in self.symmetries:
-            symVolume = sym.applyToParticle(symVolume)
-
-        return symVolume
+# TODO remove in next cleaning
+# class MultiSymmetries(PyTomClass):
+#     """Multiple symmetries support.
+#     """
+#
+#     def __init__(self, symmetries=None):
+#         if symmetries is not None:
+#             if symmetries.__class__ != list:
+#                 raise TypeError('The symmetries should be a list containing all the symmetries object!')
+#             for s in symmetries:
+#                 if s.__class__ != Symmetry:
+#                     raise TypeError('Each of the object in the list should be of type Symmetry!')
+#             self.symmetries = symmetries
+#         else:
+#             self.symmetries = []
+#
+#     def toXML(self):
+#         from lxml import etree
+#
+#         jobElement = etree.Element("MultiSymmetries")
+#         for s in self.symmetries:
+#             jobElement.append(s.toXML())
+#
+#         return jobElement
+#
+#     def fromXML(self, xmlObj):
+#         from lxml.etree import _Element
+#         if xmlObj.__class__ != _Element:
+#             raise TypeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
+#         if xmlObj.tag == 'MultiSymmetries':
+#             element = xmlObj
+#         else:
+#             TypeError('MultiSymmetries: You must provide a valid MultiSymmetries XML object.')
+#
+#         symmetries_elements = element.xpath('Symmetry')
+#         self.symmetries = []
+#         for s in symmetries_elements:
+#             sym = Symmetry()
+#             sym = sym.fromXML(s)
+#             self.symmetries.append(sym)
+#
+#     def applyToParticle(self, volume):
+#         symVolume = volume
+#         for sym in self.symmetries:
+#             symVolume = sym.applyToParticle(symVolume)
+#
+#         return symVolume
 
 
 class HelicalSymmetry(Symmetry):
@@ -4755,176 +4669,14 @@ class HelicalSymmetry(Symmetry):
         self._isRightSymmetry = symmetry_element.get('IsRightSymmetry') == 'True'
 
 
-class SampleInformation(PyTomClass):
-    """
-    SampleInformation: Contains aquisition details of image data such as pixelsize, diameter of the imaged complex.
-    Pixelsize and particle diameter are required for the adaptive filter adjustment.
-    This class can be further extended to carry other sample specific parameters that
-    might be required during localization / alignment / classification or other applications.
-    """
-
-    def __init__(self, pixelSize=-1, particleDiameter=-1):
-        """
-        __init__:
-        @type pixelSize: float
-        @param pixelSize: Pixelsize of the data used. Set in Angstroms!
-        @type particleDiameter: float
-        @param particleDiameter: Diameter of imaged complex. Set in Angstroms!
-        """
-        self._pixelSize = pixelSize
-        self._particleDiameter = particleDiameter
-
-    def getPixelSize(self):
-        return self._pixelSize
-
-    def getParticleDiameter(self):
-        return self._particleDiameter
-
-    def setPixelSize(self, value):
-        assert float(value) > 0
-        self._pixelSize = float(value)
-
-    def setParticleDiameter(self, value):
-        assert float(value) > 0
-        self._particleDiameter = float(value)
-
-    def toXML(self):
-        """
-        toXML : Compiles a XML file from result object
-        rtype : L{lxml.etree._Element}
-        @author: Thomas Hrabe
-        """
-        from lxml import etree
-
-        return etree.Element('SampleInformation', PixelSize=str(float(self._pixelSize)),
-                             ParticleDiameter=str(float(self._particleDiameter)))
-
-    def fromXML(self, xmlObj):
-        """
-        fromXML:
-        @param xmlObj: A xml object
-        @type xmlObj: L{lxml.etree._Element}
-        @author: Thomas Hrabe
-        """
-
-        from lxml.etree import _Element
-
-        if xmlObj.__class__ != _Element:
-            raise RuntimeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
-
-        if xmlObj.tag == 'SampleInformation':
-            symmetry_element = xmlObj
-        else:
-            raise RuntimeError('Is not a SampleInformation object! You must provide a valid SampleInformation.')
-
-        self._pixelSize = float(symmetry_element.get('PixelSize'))
-        self._particleDiameter = float(symmetry_element.get('ParticleDiameter'))
-
-
-class Resolution(PyTomClass):
-    """
-    Resolution: Stores current resolution information. Stores sample specific parameters
-    to keep track with which parameters this resolution was calculated.
-    """
-
-    def __init__(self, value, criterion, sampleInformation):
-        """
-        __init__: Will fill this object with information
-        @type value: float
-        @param value: The current resolution determined for a dataset. It depends on the values specified in sampleInformation.
-        @type criterion: float . Value in [0;1] !
-        @param criterion: The FSC criterion used to determine resolution.
-        @type sampleInformation: L{pytom.structures.basic.SampleInformation}
-        @param sampleInformation: Sample specific parameters.
-        """
-
-        self._value = value
-        self._criterion = criterion
-        self._sampleInformation = sampleInformation
-
-    def toXML(self):
-
-        from lxml import etree
-
-        element = etree.Element('Resolution', Value=str(self._value), Criterion=str(self._criterion))
-        element.append(self._sampleInformation.toXML())
-
-        return element
-
-    def fromXML(self, xmlObj):
-        from lxml.etree import _Element
-
-        if xmlObj.__class__ != _Element:
-            raise RuntimeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
-
-        if xmlObj.tag == 'Resolution':
-            element = xmlObj
-        else:
-            raise RuntimeError('Is not a Resolution object!')
-
-        self._value = str(element.get('Value'))
-        self._criterion = str(element.get('Criterion'))
-
-        self._sampleInformation = SampleInformation()
-        self._sampleInformation.fromXML(element.xpath('SampleInformation')[0])
-
-
-class BandPassFilter(PyTomClass):
-    def __init__(self, lowestFrequency, highestFrequency, smooth):
-        """
-        __init__: Will fill this object with information
-        @param lowestFrequency:
-        @param highestFrequency:
-        @param smooth:
-        """
-
-        self._lowestFrequency = lowestFrequency
-        self._highestFrequency = highestFrequency
-        self._smooth = smooth
-
-    def toXML(self):
-
-        from lxml import etree
-
-        element = etree.Element('BandPassFilter', LowestFrequency=str(self._lowestFrequency),
-                                HighestFrequency=str(self._highestFrequency), Smooth=str(self._smooth))
-
-        return element
-
-    def fromXML(self, xmlObj):
-        from lxml.etree import _Element
-
-        if xmlObj.__class__ != _Element:
-            raise TypeError('Is not a lxml.etree._Element! You must provide a valid XMLobject.')
-
-        if xmlObj.tag == 'BandPassFilter':
-            element = xmlObj
-        else:
-            raise TypeError('BandPassFilter: Is not a BandPassFilter XML object!')
-
-        self._lowestFrequency = float(element.get('LowestFrequency'))
-        self._highestFrequency = float(element.get('HighestFrequency'))
-        self._smooth = float(element.get('Smooth'))
-
-    def filter(self, volume):
-        from pytom.agnostic.filter import bandpass as bandpassFilter
-
-        if volume.sizeX() / 2 < self._highestFrequency or volume.sizeY() / 2 < self._highestFrequency or volume.sizeZ() / 2 < self._highestFrequency:
-            print("Warning: Highest frequency in bandpass is larger than volume size.")
-
-        res = bandpassFilter(volume, self._lowestFrequency, self._highestFrequency, bpf=None, smooth=self._smooth,
-                             fourierOnly=False)
-        return res[0]
-
-
 class Weight():
-    def __init__(self, wedgeAngle1=0, wedgeAngle2=0, cutOffRadius=0, sizeX=0, sizeY=0, sizeZ=0, smooth=0, rotation=None):
-        self.wedgeAngle1 = wedgeAngle1
-        self.wedgeAngle2 = wedgeAngle2
+    def __init__(self, wedge_angle1=0, wedge_angle2=0, cutOffRadius=0, size_x=0, size_y=0, size_z=0, smooth=0, rotation=None):
+        self.wedge_angle1 = wedge_angle1
+        self.wedge_angle2 = wedge_angle2
         self.cutOffRadius = cutOffRadius
-        self.sizeX = sizeX
-        self.sizeY = sizeY
-        self.sizeZ = sizeZ
+        self.size_x = size_x
+        self.size_y = size_y
+        self.size_z = size_z
         self.smooth=smooth
         self.rotation = rotation
 
@@ -4942,15 +4694,12 @@ class Weight():
         from pytom.agnostic.filter import create_wedge
         from pytom.agnostic.transform import fourier_reduced2full
 
-        wedge = create_wedge(self.wedgeAngle1, self.wedgeAngle2, self.cutOffRadius, self.sizeX, self.sizeY, self.sizeZ, self.smooth, self.rotation)
+        wedge = create_wedge(self.wedge_angle1, self.wedge_angle2, self.cutOffRadius, self.size_x, self.size_y, self.size_z, self.smooth, self.rotation)
 
         if reducedComplex == False:
             wedge = fourier_reduced2full(wedge)
 
         return wedge
-
-
-import scipy.optimize
 
 
 class Alignment:
@@ -4960,13 +4709,13 @@ class Alignment:
         alignment of a particle against a reference
 
         @param vol1: (constant) volume
-        @type vol1: L{pytom_volume.vol}
+        @type vol1: L{pytom.lib.pytom_volume.vol}
         @param vol2: volume that is matched to reference
-        @type vol2: L{pytom_volume.vol}
+        @type vol2: L{pytom.lib.pytom_volume.vol}
         @param score: score for alignment - e.g., pytom.basic.correlation.nxcc
         @type score: L{pytom.basic.correlation}
         @param mask: mask correlation is constrained on
-        @type mask: L{pytom_volume.vol}
+        @type mask: L{pytom.lib.pytom_volume.vol}
         @param iniRot: initial rotation of vol2
         @type iniRot: L{pytom.basic.Rotation}
         @param iniTrans: initial translation of vol2
@@ -5094,7 +4843,7 @@ class Alignment:
         set search volume (vol1 internally)
 
         @param vol1: search volume
-        @type vol1: L{pytom_volume.vol}
+        @type vol1: L{pytom.lib.pytom_volume.vol}
 
         """
         from pytom.agnostic.normalise import normaliseUnderMask, mean0std1
@@ -5122,7 +4871,7 @@ class Alignment:
         self.val = float(-1. * (self.score(volume=self.vol1,
                                            template=self.rotvol2,
                                            mask=self.mask,
-                                           volumeIsNormalized=True)))
+                                           volume_is_normalized=True)))
 
         return self.val
 

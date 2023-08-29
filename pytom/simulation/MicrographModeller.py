@@ -18,8 +18,11 @@ from tqdm import tqdm
 # math
 # from pytom.basic.files import *
 import numpy as xp
+# TODO: see which code paths can become agnostic vs only numpy
+import numpy as np
 import random
 import pytom.simulation.physics as physics
+from pytom.lib.pytom_numpy import npy2vol
 
 # Plotting, use Qt5Agg to prevent conflict with tkinter in pylab on cluster
 # import matplotlib
@@ -820,6 +823,16 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
     """
     from pytom.voltools import transform
     from pytom.simulation.microscope import transmission_function, fresnel_propagator
+    
+    # cast possible cupy to numpy for now
+    # TODO: see if this can be done on the gpu
+    if hasattr(ctf, 'get'):
+        ctf=ctf.get()
+    if hasattr(mtf, 'get'):
+        mtf=mtf.get()
+    if hasattr(dqe, 'get'):
+        dqe=dqe.get()
+
 
     print('Transforming sample for tilt/frame ', frame)
 
@@ -897,6 +910,9 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
 
     # calculate the fresnel propagator (identical for same dz)
     propagator = fresnel_propagator(image_size, pixel_size, voltage, msdz)
+    # cast to numpy if required
+    if hasattr(propagator, 'get'):
+        propagator = propagator.get()
 
     # Wave propagation with MULTISLICE method, psi_multislice is complex
     psi_multislice = xp.zeros((image_size,image_size), dtype=xp.complex64) + 1 # +1 for initial probability
@@ -911,6 +927,10 @@ def parallel_project(grandcell, frame, image_size, pixel_size, msdz, n_slices, c
         msdz_end = num_px_last_slice * pixel_size
         psi_t[:, :, -1] = transmission_function(projected_potent_ms[:, :, -1], voltage, msdz_end)
         propagator_end = fresnel_propagator(image_size, pixel_size, voltage, msdz_end)
+        # cast to numpy if required
+        #TODO: remove once this becomes agnostic
+        if hasattr(propagator_end, 'get'):
+            propagator_end = propagator_end.get()
         wave_field = xp.fft.fftn( xp.fft.ifftshift(psi_multislice) * xp.fft.ifftshift(psi_t[:, :, -1]) )
         psi_multislice = xp.fft.fftshift( xp.fft.ifftn( wave_field * xp.fft.ifftshift(propagator_end) ) )
 
@@ -1068,7 +1088,10 @@ def generate_tilt_series_cpu(save_path,
             grandcell = grandcell.astype(xp_type)
             solvent_amplitude = 0.0
     else:
-        if grandcell.dtype == complex:
+        # this will cast to numpy if input is cupy
+        if hasattr(grandcell,'get'):
+            grandcell = grandcell.get()
+        if xp.iscomplexobj(grandcell):
             solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
             # set dtype to be complex64 to save memory
             xp_type = xp.complex64
@@ -1401,7 +1424,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
             grandcell = grandcell.astype(xp.float32)
             solvent_amplitude = 0.0
     else:
-        if grandcell.dtype == complex:
+        if xp.iscomplexobj(grandcell):
             solvent_amplitude = physics.potential_amplitude(physics.AMORPHOUS_ICE_DENSITY, physics.WATER_MW, voltage)
             # set dtype to be complex64 to save memory
             grandcell = grandcell.astype(xp.complex64)
@@ -1605,7 +1628,7 @@ def generate_frame_series_cpu(save_path, n_frames=20, nodes=1, image_size=None, 
     return
 
 
-def FSS(fimage1, fimage2, numberBands, verbose=False):
+def FSS(fimage1, fimage2, number_bands, verbose=False):
     """
     algorithm FSS = Fourier Shell Scaling
     Scale the values of fimage1 to the values in fimage2 per band in fourier space. The mean of each band is calculated
@@ -1616,8 +1639,8 @@ def FSS(fimage1, fimage2, numberBands, verbose=False):
     @type  fimage1: L{np.ndarray}
     @param fimage2: the example fourier amplitudes, 2d array
     @type  fimage2: L{np.ndarray}
-    @param numberBands: number of rings to scale, determines precision
-    @type  numberBands: L{int}
+    @param number_bands: number of rings to scale, determines precision
+    @type  number_bands: L{int}
     @param verbose: be talkative
     @type  verbose: L{bool}
 
@@ -1626,7 +1649,7 @@ def FSS(fimage1, fimage2, numberBands, verbose=False):
 
     @author: Marten Chaillet
     """
-    from pytom.agnostic.correlation import meanUnderMask
+    from pytom.agnostic.normalise import meanUnderMask
     from pytom.simulation.support import bandpass_mask
 
     assert fimage1.shape == fimage2.shape, "volumes not of same size"
@@ -1635,7 +1658,7 @@ def FSS(fimage1, fimage2, numberBands, verbose=False):
     if verbose:
         print(f'shape of images is: {fimage1.shape}')
 
-    increment = int(fimage1.shape[0] / 2 * 1 / numberBands)
+    increment = int(fimage1.shape[0] / 2 * 1 / number_bands)
     band = [-1, -1]
 
     output = xp.zeros(fimage1.shape)
@@ -1675,7 +1698,7 @@ def FSS(fimage1, fimage2, numberBands, verbose=False):
     return output
 
 
-def scale_image(image1, image2, numberBands):
+def scale_image(image1, image2, number_bands):
     """
     Scale the amplitudes of image1 to those of image2 in fourier space. This function handles Fourier transforms and
     passes amplitude (absolute) to the Fourier shell scaling algorithm. Upon return the scaled amplitudes are recombined
@@ -1685,8 +1708,8 @@ def scale_image(image1, image2, numberBands):
     @type  image1: L{np.ndarray}
     @param image2: example image for scaling, 2d array
     @type  image2: L{np.ndarray}
-    @param numberBands: number of rings to use for scaling, determines the sharpness of scaling
-    @type  numberBands: L{int}
+    @param number_bands: number of rings to use for scaling, determines the sharpness of scaling
+    @type  number_bands: L{int}
 
     @return: scaled image1, 2d array
     @rtype:  L{np.ndarray}
@@ -1698,7 +1721,7 @@ def scale_image(image1, image2, numberBands):
 
     # scale the amplitudes of 1 to those of 2 using fourier shells
     scaled_amp = FSS(xp.abs(xp.fft.fftshift(xp.fft.fftn(image1))), xp.abs(xp.fft.fftshift(xp.fft.fftn(image2))),
-                     numberBands, verbose=False)
+                     number_bands, verbose=False)
     # construct the output volume with the scaled amplitudes and phase infomation of volume 1
     fout = xp.fft.ifftn(xp.fft.ifftshift(scaled_amp) * xp.exp(1j * xp.angle(xp.fft.fftn(image1))))
 
@@ -1920,8 +1943,14 @@ def reconstruct_tomogram(save_path, weighting=-1, reconstruction_bin=1,
     projections.load_alignment(filename_align)
     vol = projections.reconstructVolume(dims=vol_size, reconstructionPosition=[0, 0, 0], binning=reconstruction_bin,
                                         weighting=weighting)
+    # cast to numpy and then volume if not an vol already
+    if hasattr(vol, 'get'):
+        vol = vol.get()
+    if isinstance(vol, xp.ndarray):
+        vol = np.asfortranarray(vol)
+        vol = npy2vol(vol, vol.ndim)
     vol.write(filename_output)
-    os.system(f'em2mrc.py -f {filename_output} -t {os.path.dirname(filename_output)}')
+    os.system(f'convert.py -f {filename_output} -o mrc -t {os.path.dirname(filename_output)}')
     os.system(f'rm {filename_output}')
 
     # only if binning during reconstruction is used or the scaled projections are used, ground truth annotation needs

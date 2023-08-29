@@ -25,7 +25,7 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
     res.volFilename = job.volume.getFilename()
 
     from pytom.basic.files import read, write_em
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from copy import deepcopy
 
     if resultFilename == '':
@@ -60,7 +60,7 @@ def extractCandidates(jobFilename='', resultFilename='', orientFilename='', size
     
     if sizeParticle is None:
         ref = job.reference.getVolume()
-        sizeParticle = [ref.sizeX(), ref.sizeY(), ref.sizeZ()]
+        sizeParticle = [ref.size_x(), ref.size_y(), ref.size_z()]
 
     particleList = res.findParticles(sizeParticle, maxNumParticle, minScore, write2disk, margin,
                                      offset=job.volume.subregion[:3], structured_mask=structuredMask)

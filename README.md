@@ -6,7 +6,7 @@ PyTom is a toolbox developed for interpreting cryo electron tomography data. All
 
 ### Prerequisites
 
-PyTomGUI is designed to run on linux systems. All required packages are managed via conda. For further info see the wiki [installation page](https://github.com/FridoF/PyTom/wiki/Installation).
+PyTomGUI is designed to run on linux systems. All required packages are managed via conda. For further info see the wiki [installation page](https://github.com/SBC-Utrecht/PyTom/wiki/Installation).
 
 If you want to make use of PyTomGUI interfacing with motioncor2 and IMOD's ctf correction, you will need to install these:
 
@@ -21,7 +21,7 @@ Git needs to be installed to clone the repository. Git can be installed by sudo 
 
 ```
 mkdir pytom
-git clone https://github.com/FridoF/PyTom.git pytom
+git clone https://github.com/SBC-Utrecht/PyTom.git pytom
 cd pytom
 ```
 
@@ -31,19 +31,17 @@ Only in case you do not have the miniconda environment manager installed, run th
 bash installMiniconda.sh
 ```
 
-Please remember the location where miniconda is installed [CONDA_INSTALL_DIR], because we need it later on. By default it will be installed in the homo directory ~/miniconda3.
-
 Now we are ready to create the conda environment for pytom (solving all the dependencies might take a moment):
 
 ```
-conda env create -f environments/pytom_py3.8_cu10.1.yaml --name pytom_env
+conda env create -f environments/pytom_full.yaml --name pytom_env
 ```
 
 Activate the environment and run the pytom installation scripts to compile the backend (will take ~5 minutes):
 
 ```
 conda activate pytom_env
-python setup.py install --prefix [CONDA_INSTALL_DIR]/envs/pytom_env
+python setup.py install --prefix $CONDA_PREFIX
 ```
 
 Now everything should be setup to start pytom. You can start the GUI by running the following:
@@ -103,7 +101,7 @@ After installation you can run pytom unit tests that check the functionality of 
 
 ```
 cd tests
-pytom -m unittest discover
+python -m unittest discover
 ```
 
 ## Versioning

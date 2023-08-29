@@ -14,7 +14,7 @@ if __name__ == '__main__':
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
     from pytom.basic.structures import ParticleList,Rotation,PointSymmetry
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     
     helper = ScriptHelper(sys.argv[0].split('/')[-1],
                           description='Generate a symmetrized density.',
@@ -26,7 +26,7 @@ if __name__ == '__main__':
                                     ScriptOption(['--z1Rotation'], 'First rotation around z axis', True, True),
                                     ScriptOption(['--xRotation'], 'Rotation around x axis', True, True),
                                     ScriptOption(['--z2Rotation'], 'Second rotation around z axis', True, True),
-                                    ScriptOption(['--help'], 'Print help.', False, False)])
+                                    ScriptOption(['--help'], 'Print help.', False, True)])
     
     if len(sys.argv) == 1:
         print(helper)
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     
     if particleListName:
         newParticleList = symmetry.apply(pl)
-        newParticleList.average(resul)
+        newParticleList.average(result)
     elif volumeName:
         newVolume = symmetry.applyToParticle(volume,Rotation(0,z2,x))
         newVolume.write(result)

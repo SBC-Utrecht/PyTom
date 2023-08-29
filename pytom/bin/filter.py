@@ -15,7 +15,7 @@ if __name__ == '__main__':
     from pytom.tools.script_helper import ScriptHelper, ScriptOption
     from pytom.tools.parse_script_options import parse_script_options
     from pytom.basic.filter import bandpassFilter
-    from pytom_volume import read
+    from pytom.lib.pytom_volume import read
     
     helper = ScriptHelper(sys.argv[0].split('/')[-1], # script name
                           description='Will filter (band/low/high pass) a file. Choose values between 0 and 1.',
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     if highestFrequency:
         highestFrequency = int(highestFrequency)
     else:
-        highestFrequency = v.sizeX()/2
+        highestFrequency = v.size_x()/2
     
     if smooth:
         smooth = int(smooth)
@@ -61,7 +61,7 @@ if __name__ == '__main__':
         smooth = 0 
         
     
-    r = bandpassFilter(v, str(lowestFrequency) + ':' + str(highestFrequency)+';', None, smooth)
+    r = bandpassFilter(v, lowestFrequency, highestFrequency, None, smooth)
     
     r[0].write(target)
     

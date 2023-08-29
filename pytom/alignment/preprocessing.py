@@ -79,16 +79,16 @@ class Preprocessing(PyTomClass):
         """
         apply: Performs preprocessing of volume and reference
         @param volume: volume to be pre-processed
-        @type volume: L{pytom_volume.vol}
+        @type volume: L{pytom.lib.pytom_volume.vol}
         @param bypassFlag: Set if only bandpassFilter needed. False otherwise and all routines will be processed.
         @param downscale: not used anymore
         @param particle: particle Volume to be subtracted from input volume
-        @type particle: L{pytom_volume.vol}
+        @type particle: L{pytom.lib.pytom_volume.vol}
         @return: Returns modified volume
         @author: Thomas Hrabe  
         """
         
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         
         if self._bandpassOn:
 
@@ -97,8 +97,8 @@ class Preprocessing(PyTomClass):
             # if frequencies specified in Nyquist, 0.5 being highest
             # fixed wrong adjustment of frequencies upon binning - FF
             if self._highestFrequency < 1:
-                highestFrequency = self._highestFrequency*volume.sizeX()
-                lowestFrequency = self._lowestFrequency*volume.sizeX()
+                highestFrequency = self._highestFrequency*volume.size_x()
+                lowestFrequency = self._lowestFrequency*volume.size_x()
             else:
                 highestFrequency = self._highestFrequency
                 lowestFrequency = self._lowestFrequency
@@ -109,17 +109,17 @@ class Preprocessing(PyTomClass):
 
         if self._prerotateOn and (not bypassFlag):
             
-            from pytom_volume import rotate
+            from pytom.lib.pytom_volume import rotate
         
-            rot = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+            rot = vol(volume.size_x(),volume.size_y(),volume.size_z())
             rotation = self.prerotate
             rotate( volume, rot, rotation[0], rotation[1], rotation[2])
             volume = rot 
 
         if self._weightingOn and (not bypassFlag):
             
-            from pytom_volume import read
-            from pytom_freqweight import weight
+            from pytom.lib.pytom_volume import read
+            from pytom.lib.pytom_freqweight import weight
             from pytom.basic.fourier import fft, ifft
             
             wedgeSum = read(self._weightingFile)

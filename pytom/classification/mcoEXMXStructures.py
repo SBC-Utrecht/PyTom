@@ -361,7 +361,7 @@ class MCOEXMXWorker(ExMaxWorker):
                     self._referenceWeighting        = read(self._referenceWeighting)
                 else:
                     from pytom.basic.files import readSubvolumeFromFourierspaceFile
-                    self._referenceWeighting        = readSubvolumeFromFourierspaceFile(self._referenceWeightingFile,reference.sizeX(),reference.sizeY(),reference.sizeZ())
+                    self._referenceWeighting        = readSubvolumeFromFourierspaceFile(self._referenceWeightingFile,reference.size_x(),reference.size_y(),reference.size_z())
         
         
         self._mask.setBinning(self._binning)

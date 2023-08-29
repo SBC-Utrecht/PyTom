@@ -292,7 +292,7 @@ class GLocalSamplingJob(PyTomClass):
             "GLocalSamplingJob: ref must be Reference or None"
         if score is None:
             score = FLCFScore()
-        assert type(score) == Score or type(score) == FLCFScore, "GLocalSamplingJob: score is of type Score"
+        assert isinstance(score, Score), "GLocalSamplingJob: score is of type Score"
         assert (type(mask) == Mask) or (type(mask) == type(None)), \
             "GLocalSamplingJob: mask is of type Mask"
         if preprocessing is None:
@@ -309,10 +309,8 @@ class GLocalSamplingJob(PyTomClass):
                                                    preprocessing=preprocessing, fsc_criterion=fsc_criterion,
                                                    symmetries=symmetries)
         if rotations is None:
-            from pytom.angles.localSampling import LocalSampling
             rotations = LocalSampling(shells=3, increment=3., z1Start=0., z2Start=0., xStart=0.)
-        assert type(rotations) == LocalSampling or type(
-            rotations) == AngleObject, "GLocalSamplingJob: rotations is LocalSampling"
+        assert isinstance(rotations, AngleObject), "GLocalSamplingJob: rotations is LocalSampling"
         assert type(binning) == int, "GLocalSamplingJob: binning is an int"
         assert type(adaptive_res) == float, "GLocalSamplingJob: adaptive_res is of type float"
         self.samplingParameters = SamplingParameters(rotations=rotations,

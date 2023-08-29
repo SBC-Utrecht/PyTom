@@ -41,7 +41,7 @@ def put_in_shared_stack(stack_dtype, stack_shape, image, index):
     @rtype:
     """
     import numpy as np
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     # create a np view to global shared_stack
     _shared_stack_np = np.frombuffer(shared_stack.get_obj(),
                                                        dtype=stack_dtype).reshape(stack_shape, order='F')
@@ -84,14 +84,14 @@ def align_single_projection(index, projection_list, tilt_angles, shared_dtype, s
 
     @author: Marten Chaillet
     """
-    from pytom_volume import complexRealMult, vol, pasteCenter, mean
+    from pytom.lib.pytom_volume import complexRealMult, vol, pasteCenter, mean
     from pytom.basic.functions import taper_edges
     from pytom.basic.transformations import general_transform2d, resize
     from pytom.basic.fourier import ifft, fft
     from pytom.basic.filter import filter, circleFilter, rampFilter, exactFilter, fourierFilterShift, \
         fourierFilterShift_ReducedComplex
     from pytom.basic.files import read
-    import pytom_freqweight
+    import pytom.lib.pytom_freqweight as pytom_freqweight
 
     projection = projection_list[index + offset]
     tilt_angle = tilt_angles[index + offset]
@@ -151,7 +151,7 @@ def align_single_projection(index, projection_list, tilt_angles, shared_dtype, s
 
     # IMOD Rotates around size/2 -0.5, wheras pytom defaults to rotating around size/2
     # so IMOD default order is scaling > rotation > translation, that seems a weird order...
-    center = ((image.sizeX() - 1) / 2., (image.sizeY() - 1) / 2., 0) if order == [1, 0, 2] else None
+    center = ((image.size_x() - 1) / 2., (image.size_y() - 1) / 2., 0) if order == [1, 0, 2] else None
 
     if not (rot == 0 and transX == 0 and transY == 0 and mag == 1):
         image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order,
@@ -293,7 +293,7 @@ class Projection(PyTomClass):
         from pytom.basic.files import readProxy as read
         
         proj = read(self._filename)
-        return proj.sizeX(), proj.sizeY(), proj.sizeZ()
+        return proj.size_x(), proj.size_y(), proj.size_z()
 
     def getFilename(self):
         return self._filename
@@ -477,8 +477,8 @@ class Projection(PyTomClass):
         """
         from pytom.basic.files import readProxy as read
         p = read(self._filename)
-        self._xSize = p.sizeX()
-        self._ySize = p.sizeY()
+        self._xSize = p.size_x()
+        self._ySize = p.size_y()
         
     def getXSize(self):
         """
@@ -826,7 +826,7 @@ class ProjectionList(PyTomClass):
         @type specimen_angle: float
 
         @return: reconstructed volume
-        @rtype: L{pytom_volume.vol} or L{numpy.ndarray}
+        @rtype: L{pytom.lib.pytom_volume.vol} or L{numpy.ndarray}
         """
         from pytom.gpu.initialize import device
 
@@ -942,12 +942,12 @@ class ProjectionList(PyTomClass):
         @type specimen_angle: float
 
         @return: reconstructed volume
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
 
         @author: FF
         last change: include binning in reconstructionPosition
         """
-        from pytom_volume import vol, backProject
+        from pytom.lib.pytom_volume import vol, backProject
         import time
         import sys
 
@@ -982,9 +982,9 @@ class ProjectionList(PyTomClass):
             sys.exit(0)
 
         # volume storing reconstruction offset from center (x,y,z)
-        recPosVol = vol(3, vol_img.sizeZ(), 1)
+        recPosVol = vol(3, vol_img.size_z(), 1)
         recPosVol.setAll(0.0)
-        for iproj in range(0, vol_img.sizeZ()):
+        for iproj in range(0, vol_img.size_z()):
             for ii in range(0, 3):
                 recPosVol.setV(float(reconstructionPosition[ii] / binning), ii, iproj, 0)
 
@@ -1030,7 +1030,7 @@ class ProjectionList(PyTomClass):
         import time, os, sys
         from pytom.agnostic.io import write
         # from pytom.basic.files import write_em
-        from pytom_volume import vol, backProject, rescaleSpline
+        from pytom.lib.pytom_volume import vol, backProject, rescaleSpline
         from pytom.tools.ProgressBar import FixedProgBar
         from multiprocessing import Process, set_start_method
 
@@ -1150,11 +1150,11 @@ class ProjectionList(PyTomClass):
 
                 vol_bp.setAll(0.0)
 
-                reconstructionPosition = vol(3, vol_img.sizeZ(), 1)
+                reconstructionPosition = vol(3, vol_img.size_z(), 1)
                 reconstructionPosition.setAll(0.0)
 
                 # adjust coordinates of subvolumes to binned reconstruction
-                for i in range(vol_img.sizeZ()):
+                for i in range(vol_img.size_z()):
                     reconstructionPosition(float(p.getPickPosition().getX() / binning), 0, i, 0)
                     reconstructionPosition(float(p.getPickPosition().getY() / binning), 1, i, 0)
                     reconstructionPosition(float(p.getPickPosition().getZ() / binning), 2, i, 0)
@@ -1247,7 +1247,7 @@ class ProjectionList(PyTomClass):
 
     def extract_single_particle(self, particles, pid, verbose, binning, post_scale, cube_size, filename_ppr,
                                 gpuID, temp_dir):
-        from pytom_volume import vol, backProject, rescaleSpline
+        from pytom.lib.pytom_volume import vol, backProject, rescaleSpline
         from pytom.basic.files import read
         import numpy as np
         import time
@@ -1264,7 +1264,7 @@ class ProjectionList(PyTomClass):
 
             # put in variables
             [vol_img, vol_phi, vol_the, vol_offsetProjections] = stacks
-            num_projections = vol_img.sizeZ()
+            num_projections = vol_img.size_z()
 
             vol_bp = vol(cube_size, cube_size, cube_size)
             vol_bp.setAll(0.0)
@@ -1345,7 +1345,7 @@ class ProjectionList(PyTomClass):
         @param verbose:
         @param outputScale: Scale the output by a factor. 1 will leave as it is, 2 will scale by 2, 3 by 3, 4 by 4...
         """
-        from pytom_volume import vol, complexRealMult, rescaleSpline
+        from pytom.lib.pytom_volume import vol, complexRealMult, rescaleSpline
         from pytom.basic.files import readProxy as read
         from pytom.reconstruction.reconstructionFunctions import positionInProjection
         from pytom.tools.files import writeSpider, checkDirExists
@@ -1362,12 +1362,12 @@ class ProjectionList(PyTomClass):
             numberParticleProjections = 0
 
         tmpImage = read(self._list[0].getFilename())
-        imgSizeX = tmpImage.sizeX()
-        imgSizeY = tmpImage.sizeY()
+        imgSizeX = tmpImage.size_x()
+        imgSizeY = tmpImage.size_y()
 
         if applyWeighting:
             weightSlice = fourierFilterShift(rampFilter(projectionSize, projectionSize))
-            circleFilterRadius = tmpImage.sizeX() / 2
+            circleFilterRadius = tmpImage.size_x() / 2
             circleSlice = fourierFilterShift(circleFilter(projectionSize, projectionSize, circleFilterRadius))
 
         for p in particles:
@@ -1491,7 +1491,7 @@ class ProjectionList(PyTomClass):
 
     # ====== new general to_projection_stack functions ===================
     def to_projection_stack(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
-                            scale_factor_particle=1., angle_specimen=0., particle_diameter=280, pixel_size=2.62,
+                            scale_factor_particle=1., angle_specimen=0., particle_diameter=None, pixel_size=2.62,
                             tilt_range=None, show_progress_bar=False, verbose=False):
         """
         Create a projection stack from current Projections in the ProjectionList by weighting the projections.
@@ -1521,7 +1521,7 @@ class ProjectionList(PyTomClass):
 
         @author: Marten Chaillet
         """
-        from pytom_volume import complexRealMult, vol, paste, pasteCenter, mean
+        from pytom.lib.pytom_volume import complexRealMult, vol, paste, pasteCenter, mean
         from pytom.basic.functions import taper_edges
         from pytom.basic.transformations import general_transform2d, resize
         from pytom.basic.fourier import ifft, fft
@@ -1529,7 +1529,7 @@ class ProjectionList(PyTomClass):
             fourierFilterShift_ReducedComplex
         from pytom.basic.files import read
         from pytom.tools.ProgressBar import FixedProgBar
-        import pytom_freqweight
+        import pytom.lib.pytom_freqweight as pytom_freqweight
 
         if low_pass_freq > 1.:
             low_pass_freq = 1.
@@ -1568,9 +1568,12 @@ class ProjectionList(PyTomClass):
         offsetStack = vol(1, 2, len(tilts_in_range))
         offsetStack.setAll(0.0)
 
-        # design filters
-        # sliceWidth = imdim  # this should be relative to the particle size as that determines the crowther freq
-        slice_width = (pixel_size * binning * imdim) / particle_diameter
+        if particle_diameter is None:  # if no particle diameter provided we set slice width relative to full image size
+            slice_width = 1
+        elif particle_diameter <= 0: # Particle diameter should be bigger than 0
+            raise ValueError("particle diameter must be greater than 0")
+        else:  # ideal slice width for exact filter is relative to particle diameter
+            slice_width = (pixel_size * binning * imdim) / particle_diameter
 
         # pre-determine analytical weighting function and lowpass for speedup
         if weighting == -1:
@@ -1636,7 +1639,7 @@ class ProjectionList(PyTomClass):
 
             # IMOD Rotates around size/2 -0.5, wheras pytom defaults to rotating around size/2
             # so IMOD default order is scaling > rotation > translation, default order usually
-            center = ((image.sizeX() - 1) / 2., (image.sizeY() - 1) / 2., 0) if order == [1, 0, 2] else None
+            center = ((image.size_x() - 1) / 2., (image.size_y() - 1) / 2., 0) if order == [1, 0, 2] else None
 
             if not (rot == 0 and transX == 0 and transY == 0 and mag == 1):
                 image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order,
@@ -1684,13 +1687,13 @@ class ProjectionList(PyTomClass):
         self._shared_stack_np[:] = np.zeros(self._shared_stack_shape, dtype=self._shared_dtype, order='F')
 
     def _retrieve_shared_stack(self, stack_vol):
-        from pytom_numpy import npy2vol
+        from pytom.lib.pytom_numpy import npy2vol
         copy = self._shared_stack_np.copy(order='F')
         del self._shared_stack_np, self._shared_stack
         stack_vol.copyVolume(npy2vol(copy, len(copy.shape)))
 
     def to_projection_stack_parallel(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
-                                     scale_factor_particle=1., angle_specimen=0., particle_diameter=280,
+                                     scale_factor_particle=1., angle_specimen=0., particle_diameter=None,
                                      pixel_size=2.62, tilt_range=None, num_procs=1, show_progress_bar=False,
                                      verbose=False):
         """
@@ -1724,7 +1727,7 @@ class ProjectionList(PyTomClass):
 
         @author: Marten Chaillet
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from functools import partial
         import multiprocessing as mp
         from contextlib import closing
@@ -1745,10 +1748,12 @@ class ProjectionList(PyTomClass):
 
         imdim = max(imdimX, imdimY)
 
-        # design filters
-        # sliceWidth = imdim  # this should be relative to the particle size as that determines the crowther freq
-        # set slice width for exact filter
-        slice_width = (pixel_size * binning * imdim) / particle_diameter
+        if particle_diameter is None:  # if no particle diameter provided we set slice width relative to full image size
+            slice_width = 1
+        elif particle_diameter <= 0: # Particle diameter should be bigger than 0
+            raise ValueError("particle diameter must be greater than 0")
+        else:  # ideal slice width for exact filter is relative to particle diameter
+            slice_width = (pixel_size * binning * imdim) / particle_diameter
 
         # get a list of tilt angles that are in the range
         tilts_in_range = [t for t in self._tilt_angles if tilt_range[0] <= int(round(t)) <= tilt_range[1]]
@@ -1803,7 +1808,7 @@ class ProjectionList(PyTomClass):
         return [stack, phiStack, thetaStack, offsetStack]
 
     def to_projection_stack_gpu(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
-                                scale_factor_particle=1., angle_specimen=0., particle_diameter=270, pixel_size=2.62,
+                                scale_factor_particle=1., angle_specimen=0., particle_diameter=None, pixel_size=2.62,
                                 tilt_range=None, show_progress_bar=False, verbose=False):
         from pytom.agnostic.io import read
         from pytom.agnostic.tools import taper_edges, paste_in_center
@@ -1813,7 +1818,7 @@ class ProjectionList(PyTomClass):
         from pytom.agnostic.transform import resize
         from pytom.tools.ProgressBar import FixedProgBar
         from pytom.basic.transformations import general_transform_matrix
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         import numpy as np
 
         if low_pass_freq > 1.:
@@ -1846,11 +1851,12 @@ class ProjectionList(PyTomClass):
         thetaStack = xp.zeros((len(tilts_in_range)), dtype=xp.float32)
         offsetStack = xp.zeros((len(tilts_in_range), 2), dtype=xp.int32)
 
-        # set slice width for exact filter, smaller objects will have a higher overlap frequency
-        # cut off is calculated as: cut == f_ij / Ny * (dim // 2)
-        # f_ij = 1 / (D * sin th_ij)   => the max overlap frequency of projection i and j
-        # ny = 1 / (2 * px)
-        slice_width = particle_diameter / (pixel_size * binning)
+        if particle_diameter is None: # if no particle diameter provided we set slice width relative to full image size
+            slice_width = 1
+        elif particle_diameter <= 0: # Particle diameter should be bigger than 0
+            raise ValueError("particle diameter must be greater than 0")
+        else:  # ideal slice width for exact filter is relative to particle diameter
+            slice_width = (pixel_size * binning * imdim) / particle_diameter
 
         # pre-determine analytical weighting function and lowpass for speedup
         if weighting == -1:
@@ -1974,921 +1980,3 @@ class ProjectionList(PyTomClass):
                 print(tilt_angle, projection.getOffsetX(), projection.getOffsetY())
 
         return [stack, phiStack, thetaStack, offsetStack]
-
-    # =========== Old projection stack functions ======================
-    def toProjectionStack(self, weighting=0, binning=1, low_pass_freq=0.9, apply_circle_filter=True,
-                          scale_factor_particle=1, angle_specimen=0, showProgressBar=False, verbose=False):
-        """
-        toProjectionStack:
-
-        @param binning: binning factor
-        @type binning: int
-        @param applyWeighting: applyWeighting
-        @type applyWeighting: bool
-        @param tiltAngle: optional tiltAngle of image
-        @type tiltAngle: float
-        @param showProgressBar: show pretty bar
-        @type showProgressBar: bool
-        @param verbose: talkative
-        @type verbose: bool
-        @param num_procs: number of parallel processes (for the future)
-        @type num_procs: int
-        @param scaleFactorParticle: scaling factor for the reconstruction default=1 (not used)
-        @type scaleFactorParticle: float
-
-        @return: Will return a stack of projections - [Imagestack,phiStack,thetaStack,offsetStack]
-        """
-        from pytom_volume import vol, paste, complexRealMult, pasteCenter, mean
-        from pytom.basic.files import readProxy as read
-        from pytom.tools.ProgressBar import FixedProgBar
-        from pytom.basic.fourier import fft, ifft
-        from pytom.basic.filter import filter, circleFilter, rampFilter, exactFilter, fourierFilterShift, \
-            fourierFilterShift_ReducedComplex
-        from pytom.agnostic.io import read_size
-        import pytom_freqweight
-
-        # determine image dimensions according to first image in projection list
-        imdimX = read_size(self._list[0].getFilename(), 'x')
-        imdimY = read_size(self._list[0].getFilename(), 'y')
-        imdim = max(imdimX, imdimY)
-
-        if binning > 1:
-            imdimX = int(float(imdimX) / float(binning) + .5)
-            imdimY = int(float(imdimY) / float(binning) + .5)
-            imdim = int(float(imdim) / float(binning) + .5)
-
-        # prepare stacks
-        stack = vol(imdim, imdim, len(self._list))
-        stack.setAll(0.0)
-
-        phiStack = vol(1, 1, len(self._list))
-        phiStack.setAll(0.0)
-
-        thetaStack = vol(1, 1, len(self._list))
-        thetaStack.setAll(0.0)
-
-        offsetStack = vol(1, 2, len(self._list))
-        offsetStack.setAll(0.0)
-
-        # design filters
-        sliceWidth = imdim  # this should be relative to the particle size as that determines the crowther freq
-
-        if weighting == -1:
-            weightSlice = fourierFilterShift(rampFilter(imdim, imdim))
-
-        if apply_circle_filter:
-            circleFilterRadius = imdim // 2
-            circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imdim, imdim, circleFilterRadius))
-        else:
-            circleSlice = vol(imdim, imdim // 2 + 1, 1)
-            circleSlice.setAll(1.0)
-
-        # design lowpass filter
-        if low_pass_freq > 0:
-            print(f'Creating low-pass filter for projections. Fraction of Nyquist {lowpassFilter}')
-            if low_pass_freq > 1.:
-                low_pass_freq = 1.
-                print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
-            lpf = pytom_freqweight.weight(0.0, low_pass_freq * imdim // 2, imdim, imdim // 2 + 1, 1,
-                                          low_pass_freq / 5. * imdim)
-
-        if showProgressBar:
-            progressBar = FixedProgBar(0, len(self._particleList), 'Stack creation')
-            progressBar.update(0)
-
-        self.tilt_angles = []  # TODO is this also not already initiated at the class init?
-
-        for ii, projection in enumerate(self._list):
-            self.tilt_angles.append(projection._tiltAngle)  # TODO are these correctly assigned????
-
-        self.tilt_angles = sorted(self.tilt_angles)  # they need to be sorted, and the specific angle is got later
-
-        for ii, projection in enumerate(self._list):
-
-            if verbose:
-                print(projection)
-
-            image = read(projection.getFilename(), 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, 1)
-
-            # normalize to contrast - subtract mean and norm to mean
-            immean = mean(image)
-            image = (image - immean) / immean
-
-            if imdimY != imdimX:
-                newImage = vol(imdim, imdim, 1)
-                newImage.setAll(0)
-                pasteCenter(image, newImage)
-                image = newImage
-
-            if low_pass_freq > 0:
-                filtered = filter(volume=image, filterObject=lpf, fourierOnly=False)
-                image = filtered[0]
-
-            # weighting
-            if weighting == -1:  # ramp filter
-                image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
-            elif weighting == 1:  # exact filter
-                print('weighting == 1, exact filter, needs tilt angle infomration, currently not provided')
-                weightSlice = fourierFilterShift(exactFilter(self.tilt_angles, projection._tiltAngle,
-                                                             imdim, imdim, sliceWidth))
-                image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
-
-            thetaStack(int(round(projection.getTiltAngle() - angle_specimen)), 0, 0, ii)
-            offsetStack(projection.getOffsetX(), 0, 0, ii)
-            offsetStack(projection.getOffsetY(), 0, 1, ii)
-            paste(image, stack, 0, 0, ii)
-
-            if showProgressBar:
-                progressBar.update(ii)
-
-            if verbose:
-                print(projection.getTiltAngle(), projection.getOffsetX(), projection.getOffsetY())
-
-        return [stack, phiStack, thetaStack, offsetStack]
-
-    def toProjectionStackFromAlignmentResultsFile(self, alignmentResultsFile, weighting=0,
-                                                  binning=1, low_pass_freq=0.9, apply_circle_filter=True,
-                                                  scale_factor_particle=1, order=[2,1,0],
-                                                  angle_specimen=0, showProgressBar=False, verbose=False):
-        # TODO angle_specimen is not used
-        """read image and create aligned projection stack, based on the results described in the alignmentResultFile.
-
-           @param alignmentResultsFile: filename of alignment result file (see pytom.basic.datatypes)
-           @type alignmentResultsFile: txt
-           @param weighting: weighting (<0: analytical weighting, >1: exact weighting, 0/None: no weighting )
-           @type weighting: float
-           @param lowpassFilter: lowpass filter (in Nyquist)
-           @type lowpassFilter: float
-           @param binning: binning (default: 1 = no binning). binning=2: 2x2 pixels -> 1 pixel, binning=3: 3x3 pixels -> 1 pixel, etc.
-           @type binnning: int
-           @param circleFilter: optional circular filter in fourier space
-           @type circleFilter: bool
-           @param num_procs: number of parallel processes default=1
-           @type num_procs: int
-           @param verbose: print output default=False
-           @type verbose: bool
-           @param scaleFactorParticle: scaling factor for the reconstruction default=1
-           @type scaleFactorParticle: float
-
-           @return: Will return a stack of projections - [Imagestack,phiStack,thetaStack,offsetStack]
-
-           @author: GS
-        """
-        from pytom_volume import complexRealMult, vol, paste, pasteCenter, mean
-        from pytom.basic.functions import taper_edges
-        from pytom.basic.transformations import general_transform2d, resize
-        from pytom.basic.fourier import ifft, fft
-        from pytom.basic.filter import filter, circleFilter, rampFilter, exactFilter, fourierFilterShift, \
-            fourierFilterShift_ReducedComplex
-        from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO  # TODO why two types of alignment result file
-        from pytom.gui.guiFunctions import datatypeAR, loadstar
-        from pytom.agnostic.io import read_size  # TODO is this needed?
-        from pytom.tools.ProgressBar import FixedProgBar
-        import pytom_freqweight
-
-        print(f"Create aligned images from {alignmentResultsFile}")
-
-        try:
-            alignmentResults = loadstar(alignmentResultsFile, dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
-
-        except:
-            alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
-
-        imageList = alignmentResults['FileName']  # TODO do not read these, use self._list instead
-        tilt_angles = alignmentResults['TiltAngle']
-
-        imdimX = read_size(imageList[0], 'x')
-        imdimY = read_size(imageList[0], 'y')
-        imdim = max(imdimX, imdimY)
-
-        if binning > 1:
-            imdimX = int(float(imdimX) / float(binning) + .5)
-            imdimY = int(float(imdimY) / float(binning) + .5)
-            imdim = int(float(imdim) / float(binning) + .5)
-
-        # prepare stacks
-        stack = vol(imdim, imdim, len(imageList))
-        stack.setAll(0.0)
-
-        phiStack = vol(1, 1, len(imageList))
-        phiStack.setAll(0.0)
-
-        thetaStack = vol(1, 1, len(imageList))
-        thetaStack.setAll(0.0)
-
-        offsetStack = vol(1, 2, len(imageList))
-        offsetStack.setAll(0.0)
-
-        # design filters
-        sliceWidth = imdim  # this should be relative to the particle size as that determines the crowther freq
-
-        # pre-determine analytical weighting function and lowpass for speedup
-        if weighting == -1:
-            weightSlice = fourierFilterShift(rampFilter(imdim, imdim))
-
-        if apply_circle_filter:
-            circleFilterRadius = imdim // 2
-            circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imdim, imdim, circleFilterRadius))
-        else:
-            circleSlice = vol(imdim, imdim // 2 + 1, 1)
-            circleSlice.setAll(1.0)
-
-        # design lowpass filter
-        if low_pass_freq > 0:
-            print(f'Creating low-pass filter for projections. Fraction of Nyquist {lowpassFilter}')
-            if low_pass_freq > 1.:
-                low_pass_freq = 1.
-                print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
-            lpf = pytom_freqweight.weight(0.0, low_pass_freq * imdim // 2, imdim, imdim // 2 + 1, 1,
-                                          low_pass_freq / 5. * imdim)
-
-        projectionList = ProjectionList()
-        for n, image in enumerate(imageList):
-            atx = alignmentResults['AlignmentTransX'][n]
-            aty = alignmentResults['AlignmentTransY'][n]
-            rot = alignmentResults['InPlaneRotation'][n]
-            mag = alignmentResults['Magnification'][n]
-            projection = Projection(imageList[n], tiltAngle=tilt_angles[n], alignmentTransX=atx, alignmentTransY=aty,
-                                    alignmentRotation=rot, alignmentMagnification=mag)
-            projectionList.append(projection)
-
-        if showProgressBar:
-            progressBar = FixedProgBar(0, len(self._particleList), 'Stack creation')
-            progressBar.update(0)
-
-        for ii, projection in enumerate(projectionList):
-
-            if verbose:
-                print(projection)
-
-            if projection._filename.split('.')[-1] == 'st':
-                from pytom.basic.files import EMHeader, read
-                idx = projection._index
-                image = read(file=projection._filename,
-                             subregion=[0, 0, idx - 1, imdim, imdim, 1],
-                             sampling=[0, 0, 0], binning=[0, 0, 0])
-                if not (binning == 1) or (binning == None):
-                    image = resize(volume=image, factor=1 / float(binning))[0]
-            else:
-                # read projection files
-                from pytom.basic.files import EMHeader, read, read_em_header
-                image = read(str(projection._filename))
-                # image = rotate(image,180.,0.,0.)
-                image = resize(volume=image, factor=1 / float(binning))[0]
-
-            tiltAngle = projection._tiltAngle
-
-            # normalize to contrast - subtract mean and norm to mean
-            immean = mean(image)
-            image = (image - immean) / immean
-
-            # smoothen borders to prevent high contrast oscillations
-            image = taper_edges(image, imdim // 30)[0]
-
-            # transform projection according to tilt alignment
-            transX = projection._alignmentTransX / binning
-            transY = projection._alignmentTransY / binning
-            rot = float(projection._alignmentRotation)
-            mag = float(projection._alignmentMagnification) * scale_factor_particle
-
-            # 3 -- square if needed
-            if imdimY != imdimX:
-                newImage = vol(imdim, imdim, 1)
-                newImage.setAll(0)
-                pasteCenter(image, newImage)
-                image = newImage
-
-            if 'OperationOrder' in alignmentResults.dtype.names:
-                from pytom.agnostic.tools import convert_operation_order_str2list as str2list
-                operation_string = alignmentResults['OperationOrder'][ii]
-                order = str2list(operation_string)
-
-            # IMOD Rotates around size/2 -0.5, wheras pytom defaults to rotating around size/2
-            center = (image.sizeX()/2-0.5, image.sizeY()/2-0.5, 0) if order == [1,2,0] else None
-
-            image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True,
-                                        center=center)
-
-            if low_pass_freq > 0:
-                filtered = filter(volume=image, filterObject=lpf, fourierOnly=False)
-                image = filtered[0]
-
-            # smoothen once more to avoid edges
-            image = taper_edges(image, imdim // 30)[0]
-
-            # weighting
-            if weighting == -1:  # ramp filter
-                image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
-            elif weighting == 1:  # exact filter
-                weightSlice = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
-                image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
-
-            thetaStack(int(round(projection.getTiltAngle()))-self.angle_specimen, 0, 0, ii)
-            offsetStack(int(round(projection.getOffsetX())), 0, 0, ii)
-            offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
-            paste(image, stack, 0, 0, ii)
-
-            if showProgressBar:
-                progressBar.update(ii)
-
-            if verbose:
-                print(projection.getTiltAngle(), projection.getOffsetX(), projection.getOffsetY())
-
-        return [stack, phiStack, thetaStack, offsetStack]
-
-    def toProjectionStackParallel(self, alignmentResultsFile, weighting=None, lowpassFilter=0.9, binning=1,
-                                  circleFilter=False, scaleFactorParticle=1, order=[2,1,0], angle_specimen=0,
-                                  num_procs=1, verbose=False):
-        """read image and create aligned projection stack in parallel, based on the results described in the alignmentResultFile.
-
-        @param alignmentResultsFile: result file generate by the alignment script.
-        @type alignmentResultsFile: str
-        @param weighting: weighting (<0: analytical weighting, >1: exact weighting, 0/None: no weighting )
-        @type weighting: float
-        @param lowpassFilter: lowpass filter (in Nyquist)
-        @type lowpassFilter: float
-        @param binning: binning (default: 1 = no binning). binning=2: 2x2 pixels -> 1 pixel, binning=3: 3x3 pixels -> 1 pixel, etc.
-        @param circleFilter: optional circular filter in fourier space
-        @type circleFilter: bool
-        @param num_procs: number of parallel processes default=1
-        @type num_procs: int
-        @param verbose: print output default=False
-        @type verbose: bool
-        @param scaleFactorParticle: scaling factor for the reconstruction default=1
-        @type scaleFactorParticle: float
-
-        @return Will return a stack of projections - [Imagestack,phiStack,thetaStack,offsetStack]
-
-        @author: GS
-        """
-        import numpy
-        from pytom_numpy import vol2npy
-        from pytom.basic.files import read
-        from pytom.basic.filter import circleFilter as cf, rampFilter, exactFilter, fourierFilterShift, \
-            fourierFilterShift_ReducedComplex
-        from pytom_volume import complexRealMult, vol, paste, pasteCenter
-        import pytom_freqweight
-        from pytom.basic.transformations import resize, rotate
-        from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
-        from pytom.basic.datatypes import DATATYPE_ALIGNMENT_RESULTS_RO
-        from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
-        from pytom_numpy import vol2npy
-        import time, os
-        from multiprocessing import Process
-        from pytom.agnostic.io import read_size
-
-        if 1: print(f"Create aligned images from {alignmentResultsFile}")
-        try:
-            alignmentResults = loadstar(alignmentResultsFile, dtype=DATATYPE_ALIGNMENT_RESULTS_RO)
-
-        except:
-            alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
-        imageList = alignmentResults['FileName']
-        tilt_angles = alignmentResults['TiltAngle']
-
-        imdimX = read_size(imageList[0], 'x')
-        imdimY = read_size(imageList[0], 'y')
-        imdim = max(imdimX, imdimY)
-
-        if binning > 1:
-            imdimX = int(float(imdimX) / float(binning) + .5)
-            imdimY = int(float(imdimY) / float(binning) + .5)
-            imdim = int(float(imdim) / float(binning) + .5)
-        else:
-            imdim = imdim
-
-        sliceWidth = imdim
-
-        projectionList = ProjectionList()
-        for n, image in enumerate(imageList):
-            atx = alignmentResults['AlignmentTransX'][n]
-            aty = alignmentResults['AlignmentTransY'][n]
-            rot = alignmentResults['InPlaneRotation'][n]
-            mag = alignmentResults['Magnification'][n]
-            projection = Projection(imageList[n], tiltAngle=tilt_angles[n], alignmentTransX=atx, alignmentTransY=aty,
-                                    alignmentRotation=rot, alignmentMagnification=mag)
-            projectionList.append(projection)
-
-        stack = vol(imdim, imdim, len(imageList))
-        stack.setAll(0.0)
-
-        phiStack = vol(1, 1, len(imageList))
-        phiStack.setAll(0.0)
-
-        thetaStack = vol(1, 1, len(imageList))
-        thetaStack.setAll(0.0)
-
-        offsetStack = vol(1, 2, len(imageList))
-        offsetStack.setAll(0.0)
-
-        procs = []
-
-        rnum = numpy.random.randint(0, 1000000)
-
-        for (ii, projection) in enumerate(projectionList):
-            while len(procs) >= num_procs:
-                time.sleep(1)
-                procs = [proc for proc in procs if proc.is_alive()]
-
-            if 'OperationOrder' in alignmentResults.dtype.names:
-                from pytom.agnostic.tools import convert_operation_order_str2list as str2list
-                operation_string = alignmentResults['OperationOrder'][ii]
-                order = str2list(operation_string)
-                if verbose: print(order)
-
-            else:
-                order =[2,1,0]
-
-            args = (projection._filename, projection._index, projection._tiltAngle, tilt_angles, sliceWidth,
-                    projection._alignmentTransX, projection._alignmentTransY, projection._alignmentRotation,
-                    projection._alignmentMagnification, order,
-                    scaleFactorParticle, weighting, imdim, imdimX, imdimY, binning, lowpassFilter, circleFilter,
-                    f'TEMP{rnum}_{ii}.mrc')
-
-            proc = Process(target=self.align_single_image, args=args)
-            procs.append(proc)
-            proc.start()
-
-        while len(procs) > 0:
-            time.sleep(1)
-            procs = [proc for proc in procs if proc.is_alive()]
-
-        for (ii, projection) in enumerate(projectionList):
-            image = read(f'TEMP{rnum}_{ii}.mrc')
-            thetaStack(int(round(projection.getTiltAngle())) - self.angle_specimen, 0, 0, ii)
-            offsetStack(int(round(projection.getOffsetX())), 0, 0, ii)
-            offsetStack(int(round(projection.getOffsetY())), 0, 1, ii)
-            paste(image, stack, 0, 0, ii)
-            os.system(f'rm TEMP{rnum}_{ii}.mrc')
-
-        return [stack, phiStack, thetaStack, offsetStack]
-
-    def align_single_image(self, filename, index, tiltAngle, tilt_angles, sliceWidth, alignmentTransX, alignmentTransY,
-                           alignmentRotation, alignmentMagnification, order,
-                           scaleFactorParticle, weighting, imdim, imdimX, imdimY, binning, lowpassFilter, circleFilter,
-                           fname):
-        """read image and create alignment images using the given params.
-
-           @param fname: filename of tilt image
-           @type fname: str
-           @param index: index of image
-           @type index: int
-           @param tiltAngle: tilt angle of tilt image
-           @type tiltAngle: float
-           @param tilt_angles: all angles of tiltseries
-           @type tilt_angles: numpy.ndarray or list
-           @param sliceWidth: width of a slice in fourier space
-           @type sliceWidth: int
-           @param alignmentTransX: translation of tilt image in x-direction
-           @type alignmentTransX: float
-           @param alignmentTransY: translation of tilt image in y-direction
-           @type alignmentTransY: float
-           @param alignmentRotation: in-plane rotation of tilt image
-           @type alignmentRotation: float
-           @param alignmentMagnification: magnificaiton of tilt image
-           @type alignmentMagnification: float
-           @param scaleFactorParticle: scaling factor for the reconstruction default=1
-           @type scaleFactorParticle: float
-           @param weighting: weighting (<0: analytical weighting, >1: exact weighting, 0/None: no weighting )
-           @type weighting: float
-           @param imdim: max(imdimX, imdimY)
-           @type imdim: int
-           @param imdimX: num pixels in x-direction
-           @type imdimX: int
-           @param imdimY: num pix in y-dimension
-           @type imdimY: int
-           @param lowpassFilter: lowpass filter (in Nyquist)
-           @type lowpassFilter: float
-           @param binning: binning (default: 1 = no binning). binning=2: 2x2 pixels -> 1 pixel, binning=3: 3x3 pixels -> 1 pixel, etc.
-           @param circleFilter: optional circular filter in fourier space
-           @type circleFilter: bool
-           @param fname: output filename, used for storage of alignment image. If np2vol would work, writing would not be needed.
-           @type fname: str
-
-           @author: GS
-        """
-
-
-        from pytom.basic.functions import taper_edges
-        from pytom.basic.transformations import general_transform2d
-        from pytom.basic.fourier import ifft, fft
-        from pytom.basic.filter import filter as filterFunction, bandpassFilter
-        from pytom.basic.filter import circleFilter as cf, rampFilter, exactFilter, fourierFilterShift, \
-            fourierFilterShift_ReducedComplex
-        from pytom_volume import complexRealMult, vol, paste, pasteCenter
-        import pytom_freqweight
-        from pytom.basic.transformations import resize
-        from pytom_numpy import vol2npy
-        import time
-
-        s = time.time()
-
-        if (weighting != None) and (float(weighting) < -0.001):
-            weightSlice = fourierFilterShift(rampFilter(imdim, imdim))
-
-        if circleFilter:
-            circleFilterRadius = imdim // 2
-            circleSlice = fourierFilterShift_ReducedComplex(cf(imdim, imdim, circleFilterRadius))
-        else:
-            circleSlice = vol(imdim, imdim // 2 + 1, 1)
-            circleSlice.setAll(1.0)
-
-        # design lowpass filter
-        if lowpassFilter:
-            print(f'Creating low-pass filter for projections. Fraction of Nyquist {lowpassFilter}')
-            if lowpassFilter > 1.:
-                lowpassFilter = 1.
-                print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
-            # weighting filter: arguments: (angle, cutoff radius, dimx, dimy,
-            lpf = pytom_freqweight.weight(0.0, lowpassFilter * imdim // 2, imdim, imdim // 2 + 1, 1,
-                                          lowpassFilter / 5. * imdim)
-
-        if filename.split('.')[-1] == 'st':
-            from pytom.basic.files import EMHeader, read
-            idx = index
-            image = read(file=filename,
-                         subregion=[0, 0, idx - 1, imdim, imdim, 1],
-                         sampling=[0, 0, 0], binning=[0, 0, 0])
-            if not (binning == 1) or (binning == None):
-                image = resize(volume=image, factor=1 / float(binning))[0]
-        else:
-            # read projection files
-            from pytom.basic.files import EMHeader, read, read_em_header
-            image = read(str(filename))
-            # image = rotate(image,180.,0.,0.)
-            image = resize(volume=image, factor=1 / float(binning))[0]
-
-        tiltAngle = tiltAngle
-
-        # normalize to contrast - subtract mean and norm to mean
-        immean = vol2npy(image).mean()
-        image = (image - immean) / immean
-
-        # smoothen borders to prevent high contrast oscillations
-        image = taper_edges(image, imdim // 30)[0]
-
-        # transform projection according to tilt alignment
-        transX = alignmentTransX / binning
-        transY = alignmentTransY / binning
-        rot = float(alignmentRotation)
-        mag = float(alignmentMagnification) * scaleFactorParticle
-
-        # 3 -- square if needed
-        if imdimY != imdimX:
-            newImage = vol(imdim, imdim, 1)
-            newImage.setAll(0)
-            pasteCenter(image, newImage)
-            image = newImage
-
-        # IMOD Rotates around size/2 -0.5, wheras pytom rotates around size/2
-
-        center = (image.sizeX()/2-1, image.sizeY()/2-1, 0) if order == [1,2,0] else None
-
-        image = general_transform2d(v=image, rot=rot, shift=[transX, transY], scale=mag, order=order, crop=True, center=center)
-
-        if lowpassFilter:
-            filtered = filterFunction(volume=image, filterObject=lpf, fourierOnly=False)
-            image = filtered[0]
-
-        # smoothen once more to avoid edges
-        image = taper_edges(image, imdim // 30)[0]
-
-        # analytical weighting
-        if (weighting != None) and (weighting < 0):
-            image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
-
-        elif (weighting != None) and (weighting > 0):
-            weightSlice = fourierFilterShift(exactFilter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
-            image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
-
-        image.write(fname)
-
-        print(f'time to calculate {fname}: {time.time()-s:.2f}')
-
-    # TODO add toProjectionStackGPU and toProjectionStackFr...FileGPU
-    # TODO tell user that order is not used if not yet implemented
-    def toProjectionStackGPU(self, binning=1, applyWeighting=False, scaleFactorParticle=1, showProgressBar=False,
-                             verbose=False,):
-        """
-        toProjectionStack for the GPU
-
-        @param binning: binning factor
-        @type binning: int
-        @param applyWeighting: applyWeighting
-        @type applyWeighting: bool
-        @param tiltAngle: optional tiltAngle of image
-        @type tiltAngle: float
-        @param showProgressBar: show pretty bar
-        @type showProgressBar: bool
-        @param verbose: talkative
-        @type verbose: bool
-        @param num_procs: number of parallel processes (for the future)
-        @type num_procs: int
-        @param scaleFactorParticle: scaling factor for the reconstruction default=1 (not used)
-        @type scaleFactorParticle: float
-
-        @return: Will return a stack of projections - [Imagestack,phiStack,thetaStack,offsetStack]
-        """
-        from pytom_numpy import vol2npy
-        from pytom_volume import vol, paste, complexRealMult
-        from pytom.basic.files import readProxy as read
-        from pytom.tools.ProgressBar import FixedProgBar
-        from pytom.basic.fourier import fft, ifft
-        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, rotateFilter, fourierFilterShift, \
-            fourierFilterShift_ReducedComplex
-        from pytom.agnostic.io import read_size
-
-        # determine image dimensions according to first image in projection list
-        imdimX = read_size(self._list[0].getFilename(), 'x')
-        imdimY = read_size(self._list[0].getFilename(), 'y')
-        imdim = max(imdimX, imdimY)
-
-        stack = vol(imdim, imdim, len(self._list))
-        stack.setAll(0.0)
-
-        phiStack = vol(1, 1, len(self._list))
-        phiStack.setAll(0.0)
-
-        thetaStack = vol(1, 1, len(self._list))
-        thetaStack.setAll(0.0)
-
-        offsetStack = vol(1, 2, len(self._list))
-        offsetStack.setAll(0.0)
-
-        if int(applyWeighting):
-            weightSlice = fourierFilterShift(rampFilter(imdim, imdim))
-
-            circleFilterRadius = imdim // 2
-            circleSlice = fourierFilterShift_ReducedComplex(circleFilter(imdim, imdim, circleFilterRadius))
-
-        if showProgressBar:
-            progressBar = FixedProgBar(0, len(self._particleList), 'Particle volumes generated ')
-            progressBar.update(0)
-
-        self.tilt_angles = []
-
-        for (i, projection) in enumerate(self._list):
-            self.tilt_angles.append(projection._tiltAngle)
-
-        self.tilt_angles = sorted(self.tilt_angles)
-
-        for (i, projection) in enumerate(self._list):
-
-            if verbose:
-                print(projection)
-
-            if int((applyWeighting)) >= 1:
-
-                if int(applyWeighting) != 2:
-                    weightSlice = fourierFilterShift(exactFilter(self.tilt_angles, projection._tiltAngle,
-                                                                 imdim, imdim, imdim))
-
-                else:
-                    weightSlice = fourierFilterShift(rotateFilter(self.tilt_angles, projection._tiltAngle,
-                                                                  imdim, imdim, imdim))
-
-            image = read(projection.getFilename(), 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, 1)
-
-            if int(applyWeighting):
-                image = ifft(complexRealMult(complexRealMult(fft(image), weightSlice), circleSlice), scaling=True)
-
-            if verbose:
-                print(projection.getTiltAngle(), projection.getOffsetX(), projection.getOffsetY())
-
-            thetaStack(int(round(projection.getTiltAngle() - self.angle_specimen)), 0, 0, i)
-            offsetStack(projection.getOffsetX(), 0, 0, i)
-            offsetStack(projection.getOffsetY(), 0, 1, i)
-            paste(image, stack, 0, 0, i)
-
-            if showProgressBar:
-                progressBar.update(i)
-
-        return [stack, phiStack, thetaStack, offsetStack]
-
-    def toProjectionStackFromAlignmentResultsFileGPU(self, alignmentResultsFile, weighting=None, lowpassFilter=0.9,
-                                                     binning=1, circleFilter=True, scaleFactorParicle=1, order=[2,1,0],
-                                                     angle_specimen=0, verbose=False):
-        from pytom.gui.guiFunctions import fmtAR, headerAlignmentResults, datatype, datatypeAR, loadstar
-        from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
-        from pytom.agnostic.io import read, write, read_size
-        from pytom.agnostic.tools import taper_edges, create_circle, paste_in_center as pasteCenter
-        from pytom.agnostic.filter import circle_filter, ramp_filter, exact_filter, ellipse_filter
-        import pytom.voltools as vt
-        from pytom.gpu.initialize import xp, device
-        from pytom.agnostic.transform import resize
-
-        print("Create aligned images from alignResults.txt")
-
-        alignmentResults = loadstar(alignmentResultsFile, dtype=datatypeAR)
-        imageList = alignmentResults['FileName']
-        tilt_angles = alignmentResults['TiltAngle']
-
-        imdimX = read_size(imageList[0], 'x')
-        imdimY = read_size(imageList[0], 'y')
-
-        if binning > 1:
-            imdimX = int(float(imdimX) / float(binning) + .5)
-            imdimY = int(float(imdimY) / float(binning) + .5)
-
-        imdim = max(imdimY, imdimX)
-        sliceWidth = imdim
-
-        if (weighting != None) and (float(weighting) < -0.001):
-            cfreq = abs(tilt_angles[1:] - tilt_angles[:-1])
-            cfreq = float(1 / xp.sin(cfreq.min() * xp.pi / 180)) // 1
-            weightSlice = xp.fft.fftshift(ramp_filter(imdim, imdim, cfreq, len(tilt_angles)))
-
-        if circleFilter:
-            circleFilterRadiusX = imdim // 2
-            circleFilterRadiusY = imdim // 2
-            # why ellipse filter?? imdim is always identical
-            circleSlice = xp.fft.fftshift(ellipse_filter(imdim, imdim, circleFilterRadiusX, circleFilterRadiusY))
-        else:
-            circleSlice = xp.ones((imdim, imdim))
-
-        # design lowpass filter
-        if lowpassFilter:
-            if lowpassFilter > 1.:
-                lowpassFilter = 1.
-                print("Warning: lowpassFilter > 1 - set to 1 (=Nyquist)")
-
-        projectionList = ProjectionList()
-        for n, image in enumerate(imageList):
-            atx = alignmentResults['AlignmentTransX'][n]
-            aty = alignmentResults['AlignmentTransY'][n]
-            rot = alignmentResults['InPlaneRotation'][n]
-            mag = 1 / (alignmentResults['Magnification'][n])
-            projection = Projection(imageList[n], tiltAngle=tilt_angles[n], alignmentTransX=atx, alignmentTransY=aty,
-                                    alignmentRotation=rot, alignmentMagnification=mag)
-            projectionList.append(projection)
-
-        stack = xp.zeros((imdim, imdim, len(imageList)), dtype=xp.float32)
-        phiStack = xp.zeros((len(imageList)), dtype=xp.float32)
-        thetaStack = xp.zeros((len(imageList)), dtype=xp.float32)
-        offsetStack = xp.zeros((len(imageList), 2), dtype=xp.float32)
-
-        for (ii, projection) in enumerate(projectionList):
-            # print(f'Align {projection._filename}')
-            image = read(str(projection._filename)).squeeze()
-
-            if binning > 1:
-                image = resize(image, 1 / binning)
-
-            tiltAngle = projection._tiltAngle
-
-            # 1 -- normalize to contrast - subtract mean and norm to mean
-            immean = image.mean()
-            image = (image - immean) / immean
-
-            # 2 -- smoothen borders to prevent high contrast oscillations
-            if ii == 0:
-                image, taper_mask = taper_edges(image, imdim // 30)
-
-            else:
-                image *= taper_mask  # taper_edges(image,imdim//30,taper_mask)[0]
-
-            # 3 -- square if needed
-            if imdimY != imdimX:
-                newImage = xp.zeros((imdim, imdim), dtype=xp.float32)
-                image = pasteCenter(image, newImage)
-
-            # 4 -- transform projection according to tilt alignment
-            transX = projection._alignmentTransX / binning
-            transY = projection._alignmentTransY / binning
-            rot = float(projection._alignmentRotation)
-            mag = float(projection._alignmentMagnification)
-
-            inputImage = xp.expand_dims(image, 2)
-
-            if ii == 0:
-                outputImage = xp.zeros_like(inputImage, dtype=xp.float32)
-            else:
-                outputImage *= 0
-
-            # TODO provide operation order parameter to voltools
-            # TODO voltools should now do 2d transforms as well
-            vt.transform(inputImage.astype(xp.float32), rotation=[0, 0, rot], rotation_order='rxyz', output=outputImage,
-                         device=device, translation=[transX, transY, 0], scale=[mag, mag, 1],
-                         interpolation='filt_bspline')
-            del inputImage
-            image = outputImage.squeeze()
-
-            # 5 -- lowpass filter (optional)
-            if lowpassFilter:
-                from pytom.agnostic.filter import bandpass_circle
-                image = bandpass_circle(image, high=lowpassFilter * imdim // 2, sigma=lowpassFilter / 5. * imdim)
-
-            # 6 -- smoothen once more to avoid edges
-            if imdimY == imdimX:
-                image *= taper_mask
-            else:
-                image = taper_edges(image, imdim // 30)[0]
-
-            # 7 -- weighting
-            if (weighting != None) and (weighting < 0):
-                # image = (ifft(complexRealMult(fft(image), w_func)) / (image.sizeX() * image.sizeY() * image.sizeZ()))
-                image = xp.fft.ifftn(xp.fft.fftn(image) * weightSlice * circleSlice).real
-            elif (weighting != None) and (weighting > 0):
-                weightSlice = xp.fft.fftshift(exact_filter(tilt_angles, tiltAngle, imdim, imdim, sliceWidth))
-                image = xp.fft.ifftn(xp.fft.fftn(image) * weightSlice * circleSlice).real
-
-            thetaStack[ii] = float(round(projection.getTiltAngle() - angle_specimen))
-            offsetStack[ii, :] = xp.array([int(round(projection.getOffsetX())), int(round(projection.getOffsetY()))])
-            stack[:, :, ii] = image
-
-        return [stack, phiStack, thetaStack, offsetStack]
-
-    # TODO Bottom three functions are currently useless
-    def read_projections(self, pid, num_procs, imgDim, applyWeighting, verbose, binning):
-        from pytom_volume import vol, paste, complexRealMult
-        from pytom.basic.files import readProxy as read
-        from pytom.tools.ProgressBar import FixedProgBar
-        from pytom.basic.fourier import fft, ifft
-        from pytom.basic.filter import circleFilter, rampFilter, exactFilter, fourierFilterShift, \
-            fourierFilterShift_ReducedComplex
-
-        reduced_list = self._list[pid::num_procs]
-
-        for (i, projection) in enumerate(reduced_list):
-            print(i * num_procs + pid)
-
-            if int(applyWeighting) >= 1:
-                print(self.tilt_angles, projection._tiltAngle, imgDim)
-
-                self.temp_weightSlice = fourierFilterShift(exactFilter(self.tilt_angles, projection._tiltAngle,
-                                                                       imgDim, imgDim, imgDim))
-
-            image = read(projection.getFilename(), 0, 0, 0, 0, 0, 0, 0, 0, 0, binning, binning, 1)
-
-            if int(applyWeighting):
-                image = ifft(complexRealMult(complexRealMult(fft(image), self.temp_weightSlice), self.temp_circleSlice))
-
-            self.temp_thetaStack(int(round(projection.getTiltAngle())), 0, 0, pid + num_procs * i)
-            self.temp_offsetStack(projection.getOffsetX(), 0, 0, i * num_procs + pid)
-            self.temp_offsetStack(projection.getOffsetY(), 0, 1, i * num_procs + pid)
-            paste(image, self.temp_stack, 0, 0, i * num_procs + pid)
-
-    def saveAsProjectionStack(self,filename,scale=1,applyWeighting=False,showProgressBar=False,verbose=False):
-        """
-        saveAsProjectionStack: Saves this projection list as a stack of projections
-        """
-        stack = self.toProjectionStack(scale,applyWeighting,showProgressBar,verbose)
-        stack.write(filename)
-
-    def setAlignmentParameters(self,alignmentXMLFile,verbose=False):
-        """
-        setAlignmentParameters:
-
-        @param alignmentXMLFile:
-        @param verbose: verbose level
-	    @type verbose: bool
-        """
-        from lxml import etree
-        from pytom.tools.files import readStringFile
-        
-        string = readStringFile(alignmentXMLFile)
-        alignXML = etree.fromstring(string)
-        
-        if verbose:
-            print(etree.tostring(alignXML,pretty_print = True))
-        
-        for projection in self:
-            
-            projectionName = projection.getFilename()
-            
-            names = alignXML.xpath('/root/projection/name') 
-            
-            for name in names:
-                id = -1
-                
-                if str(name.text).find(projectionName) > -1 or projectionName.find(str(name.text)) > -1:
-                    id = int(name.get('idx'))
-                else:
-                    continue
-                
-                if verbose:
-                    print(etree.tostring(name,pretty_print = True))
-                
-                query = '/root/projection/alpha[@idx=' +str(id)+ ']'
-                if verbose:
-                    print(query)
-                angle = alignXML.xpath(query)
-                projection.setAlignmentRotation(float(angle[0].text))
-                
-                query = '/root/projection/tx[@idx="'+str(id)+'"]'
-                if verbose:
-                    print(query)
-                x = alignXML.xpath(query)
-                projection.setAlignmentTransX(float(x[0].text))
-                
-                query = '/root/projection/ty[@idx="'+str(id)+'"]'
-                if verbose:
-                    print(query)
-                y = alignXML.xpath(query)
-                projection.setAlignmentTransY(float(y[0].text))
-                
-                query = '/root/projection/s[@idx="'+str(id)+'"]'
-                if verbose:
-                    print(query)
-                magnification = alignXML.xpath(query)
-                projection.setAlignmentMagnification(float(magnification[0].text))

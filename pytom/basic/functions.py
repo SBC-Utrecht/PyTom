@@ -4,15 +4,15 @@ last change: aug 31, 2012 FF
 
 @author: hrabe, foerster
 '''
-def initSphere(sizeX, sizeY, sizeZ, radius, smooth=0, maxradius=0, cent=None, filename=''):
+def initSphere(size_x, size_y, size_z, radius, smooth=0, maxradius=0, cent=None, filename=''):
     """
     initSphere: Initializes a sphere
-    @param sizeX: X size of cube
-    @type sizeX: int
-    @param sizeY: Y size of cube
-    @type sizeY: int
-    @param sizeZ: Z size of cube
-    @type sizeZ: int
+    @param size_x: X size of cube
+    @type size_x: int
+    @param size_y: Y size of cube
+    @type size_y: int
+    @param size_z: Z size of cube
+    @type size_z: int
     @param radius: Radius of sphere mask
     @type radius: float
     @param smooth: Smooth of sphere mask
@@ -22,15 +22,15 @@ def initSphere(sizeX, sizeY, sizeZ, radius, smooth=0, maxradius=0, cent=None, fi
     @type cent: array (3-dim)
     @param filename: If specified by the user, the spherical mask will be written to disk.    
     """
-    from pytom_volume import initSphere, vol
+    from pytom.lib.pytom_volume import initSphere, vol
     
         
-    v = vol(sizeX,sizeY,sizeZ)
+    v = vol(size_x,size_y,size_z)
     
     if cent:
         initSphere(v, radius, smooth, maxradius, cent[0], cent[1], cent[2])
     else:
-        initSphere(v, radius, smooth, maxradius, sizeX/2, sizeY/2, sizeZ/2)
+        initSphere(v, radius, smooth, maxradius, size_x/2, size_y/2, size_z/2)
     
     if filename != '':
         v.write(filename)
@@ -46,7 +46,7 @@ def taper_edges(image, width, taper_mask=None):
     @param width: width of edge
     @type width: int
     @param taper_mask: mask for tapering - if None it will be generated
-    @type taper_mask: L{pytom_volume.vol}
+    @type taper_mask: L{pytom.lib.pytom_volume.vol}
 
     @return: image with smoothened edges, taper_mask
     @rtype: array-like
@@ -54,11 +54,11 @@ def taper_edges(image, width, taper_mask=None):
     @author: FF
     """
     import numpy
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     from math import cos, pi
 
-    assert type(image) == vol, "taper_edges: image must be type pytom_volume.vol"
-    dims = [image.sizeX(), image.sizeY(), image.sizeZ()]
+    assert type(image) == vol, "taper_edges: image must be type pytom.lib.pytom_volume.vol"
+    dims = [image.size_x(), image.size_y(), image.size_z()]
     assert dims[0]>1, "taper_edges: image must be 2D or 3D"
     assert dims[1]>1, "taper_edges: image must be 2D or 3D"
 
@@ -108,7 +108,7 @@ def limit_in_sphere( invol, r_max=None, lowlimit=None, lowval=0., hilimit=None, 
     limit grey values of volume within center radius
 
     @param invol: input volume
-    @type invol: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+    @type invol: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
     @param r_max: radius
     @type r_max: L{int}
     @param lowlimit: lower limit - all values below this value that lie in the specified radius will be replaced \
@@ -129,20 +129,20 @@ def limit_in_sphere( invol, r_max=None, lowlimit=None, lowval=0., hilimit=None, 
     """
     from math import sqrt
     if not r_max:
-        r_max=invol.sizeY()/2-1
+        r_max=invol.size_y()/2-1
     if reduced:
         centX1 = 0
-        centX2 = invol.sizeX()-1
+        centX2 = invol.size_x()-1
         centY1 = 0
-        centY2 = invol.sizeY()-1
+        centY2 = invol.size_y()-1
         centZ  = 0
     else:
-        centX1 = int(invol.sizeX()/2+.5)
-        centY1 = int(invol.sizeY()/2+.5)
-        centZ  = int(invol.sizeZ()/2+.5)
-    for ix in range(0,invol.sizeX()):
-        for iy in range(0,invol.sizeY()):
-            for iz in range(0,invol.sizeZ()):
+        centX1 = int(invol.size_x()/2+.5)
+        centY1 = int(invol.size_y()/2+.5)
+        centZ  = int(invol.size_z()/2+.5)
+    for ix in range(0,invol.size_x()):
+        for iy in range(0,invol.size_y()):
+            for iz in range(0,invol.size_z()):
                 if reduced:
                     d1 = (ix-centX1)**2
                     d2 = (ix-centX2)**2
@@ -178,23 +178,23 @@ def scale(volume,factor,interpolation='Spline'):
     if factor <=0:
         raise RuntimeError('Scaling factor must be > 0!')
     
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
     from math import ceil
     
     if interpolation == 'Spline':
-        from pytom_volume import rescaleSpline as rescale
+        from pytom.lib.pytom_volume import rescaleSpline as rescale
     elif interpolation == 'Lagrange':
-        from pytom_volume import rescaleCubic as rescale
+        from pytom.lib.pytom_volume import rescaleCubic as rescale
     elif interpolation == 'Linear':
-        from pytom_volume import rescale
+        from pytom.lib.pytom_volume import rescale
          
     
-    sizeX = volume.sizeX()
-    sizeY = volume.sizeY()
-    sizeZ = volume.sizeZ()
-    newSizeX = int(ceil(sizeX * float(factor)))
-    newSizeY = int(ceil(sizeY * float(factor)))
-    newSizeZ = int(ceil(sizeZ * float(factor)))
+    size_x = volume.size_x()
+    size_y = volume.size_y()
+    size_z = volume.size_z()
+    newSizeX = int(ceil(size_x * float(factor)))
+    newSizeY = int(ceil(size_y * float(factor)))
+    newSizeZ = int(ceil(size_z * float(factor)))
 
     newVolume = vol(newSizeX,newSizeY,newSizeZ)
     rescale(volume,newVolume)
@@ -219,17 +219,17 @@ def mirror(volume,axis = 'x',copyFlag = True):
     elif axis == 'z':
         transformation = [1,1,-1]
     
-    centerX = volume.sizeX()
-    centerY = volume.sizeY()
-    centerZ = volume.sizeZ()
+    centerX = volume.size_x()
+    centerY = volume.size_y()
+    centerZ = volume.size_z()
     
     if copyFlag:
-        from pytom_volume import vol
-        returnVolume = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        from pytom.lib.pytom_volume import vol
+        returnVolume = vol(volume.size_x(),volume.size_y(),volume.size_z())
         
-        for x in range(volume.sizeX()):
-            for y in range(volume.sizeY()):
-                for z in range(volume.sizeZ()):
+        for x in range(volume.size_x()):
+            for y in range(volume.size_y()):
+                for z in range(volume.size_z()):
                     
                     xMirrored = (x-centerX) * transformation[0] + centerX
                     yMirrored = (y-centerY) * transformation[1] + centerY
@@ -239,9 +239,9 @@ def mirror(volume,axis = 'x',copyFlag = True):
         return returnVolume
         
     else:
-        for x in range(volume.sizeX()):
-            for y in range(volume.sizeY()):
-                for z in range(volume.sizeZ()):
+        for x in range(volume.size_x()):
+            for y in range(volume.size_y()):
+                for z in range(volume.size_z()):
                     
                     tmp = volume.getV(x,y,z)
                     xMirrored = (x-centerX) * transformation[0] + centerX

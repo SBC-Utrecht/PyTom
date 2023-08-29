@@ -1,7 +1,7 @@
 templateXML       = '''<JobDescription Destination="{d[6]}">
   <Volume Filename="{d[0]}" Subregion=" 0,0,{d[7]},{d[8]},{d[9]},{d[10]} "/>
   <Reference Weighting="" File="{d[1]}"/>
-  <Mask Filename="{d[2]}" Binning="1" isSphere="True"/>
+  <Mask Filename="{d[2]}" Binning="1" isSphere="{d[11]}"/>
   <WedgeInfo Angle1="{d[3]}" Angle2="{d[4]}" CutoffRadius="0.0" TiltAxis="custom">
     <Rotation Z1="0.0" Z2="0.0" X="0.0"/>
   </WedgeInfo>
@@ -10,25 +10,6 @@ templateXML       = '''<JobDescription Destination="{d[6]}">
     <DistanceFunction Deviation="0.0" Mean="0.0" Filename=""/>
   </Score>
 </JobDescription>'''
-
-old = '''
-<JobDescription>
-  <Volume Filename="{d[0]}">
-  </Volume>
-  <Reference File="{d[1]}">
-  </Reference>
-  <Mask Filename="{d[2]}" Binning="1" isSphere="True">
-  </Mask>
-  <WedgeInfo Angle1="{d[3]}" Angle2="{d[4]}" CutoffRadius="0.0" TiltAxis="custom">
-    <Rotation Z1="0.0" Z2="0.0" X="0.0">
-    </Rotation>
-  </WedgeInfo>
-  </Angles>
-  <Score Type="FLCFScore" Value="-100000000">
-  </Score>
-</JobDescription>
- 
-'''
 
 
 templateAlignment = '''cd {d[0]}; 
@@ -344,8 +325,7 @@ templateAverageParticleList = '''cd {d[0]}
 
 average.py -p {d[2]} -a {d[3]} -c {d[4]} {d[5]}'''
 
-
+# Hardcoded length for now due to str.format not allowing list slicing
 templateConvertData = '''cd {d[0]}
 
-convert.py -t ./ {d[1]}{d[2]}{d[3]}{d[4]} -o {d[5]} {d[6]} --pixelSize {d[7]} \\
-{d[8]}{d[9]}{d[10]}'''
+convert.py -t ./ ''' + ' '.join(f'{{d[{i}]}}' for i in range(1, 17))

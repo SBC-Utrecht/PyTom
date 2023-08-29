@@ -1,6 +1,8 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 from pytom.gpu.initialize import xp, device
+# Typing imports
+from pytom.gpu.initialize import xpt
 
 def rotate_axis(data, angle, axis='z'):
     """Rotate the volume around certain axis.
@@ -239,16 +241,16 @@ def scale(volume, factor, interpolation='Spline'):
 
     volume = volume.squeeze()
 
-    sizeX = volume.shape[0]
-    sizeY = volume.shape[1]
-    sizeZ = 1
-    newSizeX = int(xp.floor(sizeX * float(factor) + 0.5))
-    newSizeY = int(xp.floor(sizeY * float(factor) + 0.5))
+    size_x = volume.shape[0]
+    size_y = volume.shape[1]
+    size_z = 1
+    newSizeX = int(xp.floor(size_x * float(factor) + 0.5))
+    newSizeY = int(xp.floor(size_y * float(factor) + 0.5))
     newSizeZ = 1
 
     if len(volume.shape) == 3:
-        sizeZ = volume.shape[2]
-        newSizeZ = int(xp.floor(sizeZ * factor + 0.5))
+        size_z = volume.shape[2]
+        newSizeZ = int(xp.floor(size_z * factor + 0.5))
         scaleF = [1/factor, 1/factor, 1/factor]
     else:
         scaleF = [1/factor, 1/factor, 1]
@@ -293,7 +295,7 @@ def resize(volume, factor, interpolation='Fourier'):
         return scale(volume, factor, interpolation=interpolation)
     else:
         fvol = xp.fft.rfftn(volume)
-        outsize= tuple((numpy.around(numpy.array(volume.shape)*factor,0)).astype(numpy.int))
+        outsize= tuple((numpy.around(numpy.array(volume.shape)*factor,0)).astype(int))
         newfvol = resizeFourier(fvol=fvol, factor=factor, isodd=volume.shape[-1]%2)
 
         newvol = xp.fft.irfftn(newfvol, s=outsize)
@@ -600,7 +602,7 @@ def conv3d(data, kernel):
     d = convolve(data, kernel)
     return d
 
-def fourier_reduced2full(data, isodd=False, reduced_axis=2):
+def fourier_reduced2full(data, isodd=False, reduced_axis=2) -> xpt.NDArray:
     """Return an Hermitian symmetried data.
     Only defined for volumes
     """

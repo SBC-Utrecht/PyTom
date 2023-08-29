@@ -7,7 +7,7 @@ import sys
 import glob
 from pytom.basic.structures import ParticleList, Rotation
 from pytom.basic.files import read
-from pytom_numpy import vol2npy
+from pytom.lib.pytom_numpy import vol2npy
 # import matplotlib
 # matplotlib.use('Qt5Agg')
 # from pylab import *
@@ -58,20 +58,22 @@ def mirrorParticleList(particleList, outname, directory='./'):
 
 def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='zxz'):
     import os
-
+    import subprocess
     assert os.path.exists(chimeraOutputFile)
 
 
 
     try:
-        vec = os.popen(
-            "cat " + chimeraOutputFile + " | grep rotation_axis | head -1 | awk '{print $5, $4, $3}'").read()[:-1]
+        vec = subprocess.run(
+                ["cat " + chimeraOutputFile + " | grep rotation_axis | head -1 | awk '{print $5, $4, $3}'"],
+                shell=True, capture_output=True, text=True).stdout[:-1]
         rotation_vector = [float(line) for line in vec.split(',') if line]
         rotation_vector[0] *= -1
         rotation_vector[1] *= -1
         rotation_vector[2] *= -1
-
-        rot = os.popen("cat " + chimeraOutputFile + " | grep rotation_angle | head -1 | awk '{print $2}'").read()[:-1]
+        
+        rot = subprocess.run(["cat " + chimeraOutputFile + " | grep rotation_angle | head -1 | awk '{print $2}'"],
+                shell=True, capture_output=True, text=True).stdout[:-1]
         rotation_angle = float(rot.replace(',', ''))
         r = R.from_rotvec((numpy.array(rotation_vector)))  # -numpy.array(ref_vector)))
         z1, x, z2 = r.as_euler("zxz", degrees=True)
@@ -80,7 +82,7 @@ def parseChimeraOutputFile(chimeraOutputFile, ref_vector=[0, 0, 1], convention='
 
     return z1 - rotation_angle, x, z2
 
-def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiplypickpos=1, multiplyshift=None,
+def updatePL(fnames, outnames, directory='', suffix='', wedge_angles=[], multiplypickpos=1, multiplyshift=None,
              new_center=[], sizeSubtomo=64, move_shift=False, binSubtomo=1, binRecon=1, rotation=[],
              anglelist='', mirror=False,  tomogram_dir='./', convention='zxz', scalePP=None):
     if type(fnames) == str:
@@ -88,7 +90,7 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
     if type(outnames) == str:
         outnames = [outnames]
 
-    try: wedgelen = len(wedgeangles)
+    try: wedgelen = len(wedge_angles)
     except: wedgelen = 0
 
     for n, xmlfile in enumerate(fnames):
@@ -124,7 +126,7 @@ def updatePL(fnames, outnames, directory='', suffix='', wedgeangles=[], multiply
             # Update wedge angles of angle1 and angle2
             if wedgelen >  n + 1:
                 w = particle.getWedge()
-                w.setWedgeAngles(wedgeangles[n*2:n*2+2])
+                w.setWedgeAngles(wedge_angles[n*2:n*2+2])
 
             # Multiply pick position
             if abs(multiplypickpos - 1) > 1E-3:
@@ -205,7 +207,7 @@ if __name__ == '__main__':
                ScriptOption(['-f', '--fileName'], 'particleList filesname.', True, False),
                ScriptOption(['-s', '--suffix'], 'Suffix placed behind last dirname before particle_??.em.', True, True),
                ScriptOption(['-d', '--subtomoDirectory'], 'Update directory of subtomogram reconstructions. If "particle_" is included in name, only dirname before prefix is considered', True, True),
-               ScriptOption(['-w', '--wedgeAngles'],'Wedge angles for all particles. if one angle is given, both angles are updated with this angle.', True, True),
+               ScriptOption(['-w', '--wedge_angles'],'Wedge angles for all particles. if one angle is given, both angles are updated with this angle.', True, True),
                ScriptOption(['-a', '--rotatePL'], 'Rotate the particle list according to either chimera output file or three euler angles (separated by ,).', True,True),
                ScriptOption(['-i', '--shiftToPickPos'], 'move the shift to pick position. The parameter sypplied is the binning factor to go from shift to pick position.', True, True),
                ScriptOption(['-h', '--help'], 'Help.', False, True)]
@@ -220,7 +222,7 @@ if __name__ == '__main__':
         sys.exit()
 
     try:
-        outname, XMLfnames, suffix, prefix, wedgeangles, rotate, shiftBin, help = parse_script_options(sys.argv[1:], helper)
+        outname, XMLfnames, suffix, prefix, wedge_angles, rotate, shiftBin, help = parse_script_options(sys.argv[1:], helper)
     except Exception as e:
         print(e)
         sys.exit()
@@ -231,15 +233,15 @@ if __name__ == '__main__':
 
     fnames = []
 
-    if wedgeangles:
-        wedgeangles = wedgeangles.split(',')
-        if len(wedgeangles) %2:
-            wedgeangles = wedgeangles+[wedgeangles[-1]]
+    if wedge_angles:
+        wedge_angles = wedge_angles.split(',')
+        if len(wedge_angles) %2:
+            wedge_angles = wedge_angles+[wedge_angles[-1]]
     else:
-        wedgeangles= []
+        wedge_angles= []
 
     try:
-        wedgeangles = list(map(float,wedgeangles))
+        wedge_angles = list(map(float,wedge_angles))
     except Exception as e:
         print("Wedge Angle Error: ", e)
         sys.exit()
@@ -273,7 +275,7 @@ if __name__ == '__main__':
 
 
 
-    updatePL(fnames, outname, directory=directory, wedgeangles=wedgeangles, suffix=suffix)
+    updatePL(fnames, outname, directory=directory, wedge_angles=wedge_angles, suffix=suffix)
 
     print('Success: Particle List updated!')
 

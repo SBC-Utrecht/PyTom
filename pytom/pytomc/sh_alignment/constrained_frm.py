@@ -241,13 +241,13 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
     Parameters
     ----------
     vf: Volume Nr. 1
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: Mask of vf in Fourier space.
         pytom.basic.structures.Wedge. If none, no missing wedge.
 
     vg: Volume Nr. 2 / Reference
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: Mask of vg in Fourier space.
         pytom.basic.structures.Wedge. If none, no missing wedge.
@@ -263,13 +263,13 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
     peak_offset: The maximal offset which allows the peak of the score to be.
                  Or simply speaking, the maximal distance allowed to shift vg to match vf.
                  This parameter is needed to prevent shifting the reference volume out of the frame.
-                 pytom_volume.vol / Integer. By default is half of the volume radius.
+                 pytom.lib.pytom_volume.vol / Integer. By default is half of the volume radius.
 
     mask: Mask volume for vg in real space.
-          pytom_volume.vol
+          pytom.lib.pytom_volume.vol
 
     constraint: Angular constraint
-                sh_alignment.constrained_frm.AngularConstraint
+                pytom.lib.constrained_frm.AngularConstraint
 
     weights: Obsolete.
 
@@ -284,15 +284,15 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
     (The best translation and rotation (Euler angle, ZXZ convention [Phi, Psi, Theta]) to transform vg to match vf.
     (best_translation, best_rotation, correlation_score)
     """
-    from pytom_volume import vol, rotateSpline, peak
+    from pytom.lib.pytom_volume import vol, rotateSpline, peak
     from pytom.basic.transformations import shift
-    from pytom.basic.correlation import FLCF
+    from pytom.basic.correlation import flcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Mask, SingleTiltWedge
-    from pytom_volume import initSphere
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_volume import initSphere
+    from pytom.lib.pytom_numpy import vol2npy
 
-    if vf.sizeX()!=vg.sizeX() or vf.sizeY()!=vg.sizeY() or vf.sizeZ()!=vg.sizeZ():
+    if vf.size_x()!=vg.size_x() or vf.size_y()!=vg.size_y() or vf.size_z()!=vg.size_z():
         raise RuntimeError('Two volumes must have the same size!')
 
     if wf is None:
@@ -301,20 +301,20 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
         wg = SingleTiltWedge(0)
 
     if peak_offset is None:
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, vf.sizeX()/4, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, vf.size_x()/4, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif isinstance(peak_offset, int):
         peak_radius = peak_offset
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, peak_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif peak_offset.__class__ == vol:
         pass
     else:
         raise RuntimeError('Peak offset is given wrong!')
 
     # cut out the outer part which normally contains nonsense
-    m = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-    initSphere(m, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+    m = vol(vf.size_x(), vf.size_y(), vf.size_z())
+    initSphere(m, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     vf = vf*m
     vg = vg*m
     if mask is None:
@@ -330,7 +330,7 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
         res = frm_find_topn_constrained_angles_interp(score, num_seeds, get_adaptive_bw(max_freq, b)/16., constraint)
     else:
         # the position is given by the user
-        vf2 = shift(vf, -position[0]+vf.sizeX()/2, -position[1]+vf.sizeY()/2, -position[2]+vf.sizeZ()/2, 'fourier')
+        vf2 = shift(vf, -position[0]+vf.size_x()/2, -position[1]+vf.size_y()/2, -position[2]+vf.size_z()/2, 'fourier')
         score = frm_correlate(vf2, wf, vg, wg, b, max_freq, weights, ps=False)
         orientation, max_value = frm_find_best_constrained_angle_interp(score, constraint=constraint)
 
@@ -339,8 +339,8 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
     # iteratively refine the position & orientation
     from pytom.tools.maths import euclidianDistance
     max_iter = 10 # maximal number of iterations
-    mask2 = vol(mask.sizeX(), mask.sizeY(), mask.sizeZ()) # store the rotated mask
-    vg2 = vol(vg.sizeX(), vg.sizeY(), vg.sizeZ())
+    mask2 = vol(mask.size_x(), mask.size_y(), mask.size_z()) # store the rotated mask
+    vg2 = vol(vg.size_x(), vg.size_y(), vg.size_z())
     lowpass_vf = lowpassFilter(vf, max_freq, max_freq/10.)[0]
 
     max_position = None
@@ -357,7 +357,7 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
             rotateSpline(mask, mask2, orientation[0], orientation[1], orientation[2]) # rotate the mask as well
             vg2 = wf.apply(vg2) # then apply the wedge
             vg2 = lowpassFilter(vg2, max_freq, max_freq/10.)[0]
-            score = FLCF(lowpass_vf, vg2, mask2) # find the position
+            score = flcf(lowpass_vf, vg2, mask2) # find the position
             pos = peak(score, peak_offset)
             pos, val = find_subpixel_peak_position(vol2npy(score), pos)
             if val > lm_value:
@@ -378,7 +378,7 @@ def frm_constrained_align(vf, wf, vg, wg, b, max_freq, peak_offset=None, mask=No
 
             # here we shift the target, not the reference
             # if you dont want the shift to change the energy landscape, use fourier shift
-            vf2 = shift(vf, -lm_pos[0]+vf.sizeX()/2, -lm_pos[1]+vf.sizeY()/2, -lm_pos[2]+vf.sizeZ()/2, 'fourier')
+            vf2 = shift(vf, -lm_pos[0]+vf.size_x()/2, -lm_pos[1]+vf.size_y()/2, -lm_pos[2]+vf.size_z()/2, 'fourier')
             score = frm_correlate(vf2, wf, vg, wg, b, max_freq, weights, False, denominator1, denominator2, True)
             orientation, val = frm_find_best_constrained_angle_interp(score, constraint=constraint)
             

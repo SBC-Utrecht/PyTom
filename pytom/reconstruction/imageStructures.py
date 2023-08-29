@@ -6,7 +6,7 @@ started on Feb 02, 2013
 
 
 from pytom.basic.structures import PyTomClass
-from pytom_volume import vol
+from pytom.lib.pytom_volume import vol
 
 class Image(PyTomClass):
     """
@@ -36,7 +36,7 @@ class Image(PyTomClass):
         @type index: L{int}
         """
         self.verbose = verbose
-        from pytom_volume import read, vol
+        from pytom.lib.pytom_volume import read, vol
         if filename:
             self.read(filename=filename, boxCoords=boxCoords, dims=dims)
         else:
@@ -61,7 +61,7 @@ class Image(PyTomClass):
         @param dims: dimensions of subframe
         @type dims: 2-dim or 3-dim list
         """
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
 
         self.data = read(filename, int(boxCoords[0]), int(boxCoords[1]), int(boxCoords[2]),
                          int(dims[0]), int(dims[1]), int(dims[2]), 0, 0, 0, 1, 1, 1)
@@ -108,16 +108,16 @@ class Image(PyTomClass):
                     raise ValueError("Value for mask radius must be > 0!")
                 from pytom.basic.functions import initSphere
 
-                mask = initSphere(sizeX=self.data.sizeX(), sizeY=self.data.sizeY(),
-                                  sizeZ=self.data.sizeZ(), radius=mask,
+                mask = initSphere(size_x=self.data.size_x(), size_y=self.data.size_y(),
+                                  size_z=self.data.size_z(), radius=mask,
                                   smooth=mask/10., maxradius=0, cent=None)
             # user-specified generic mask
             else:
                 if type(mask) != vol:
-                    raise TypeError("Mask must be pytom_volume.vol")
-                if ((mask.sizeX() != self.data.sizeX()) or
-                        (mask.sizeY() != self.data.sizeY()) or
-                        (mask.sizeZ() != self.data.sizeZ())):
+                    raise TypeError("Mask must be pytom.lib.pytom_volume.vol")
+                if ((mask.size_x() != self.data.size_x()) or
+                        (mask.size_y() != self.data.size_y()) or
+                        (mask.size_z() != self.data.size_z())):
                     raise ValueError("Mask have same dimension as image")
 
             normvol, p = normaliseUnderMask(volume=self.data, mask=mask, p=p)
@@ -138,9 +138,9 @@ class Image(PyTomClass):
         @param width: width of tapered edge
         @type width: L{float} or L{int}
         @param taper_mask: mask for tapering - if None it will be generated
-        @type taper_mask: L{pytom_volume.vol}
+        @type taper_mask: L{pytom.lib.pytom_volume.vol}
         @return: taper_mask
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
         from pytom.basic.functions import taper_edges
 
@@ -260,8 +260,8 @@ class ImageStack(PyTomClass):
             # copy working copy
             self.imageCopies.append(image.copy())
         if self.dimX == 0:
-            self.dimX = image.data.sizeX()
-            self.dimY = image.data.sizeY()
+            self.dimX = image.data.size_x()
+            self.dimY = image.data.size_y()
 
     def write(self, filename):
         """
@@ -270,7 +270,7 @@ class ImageStack(PyTomClass):
         @param filename: name of stack
         @type filename: L{str}
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
 
         stack = vol(self.dimX, self.dimY, len(self.images))
         for ii in range(0, len(self.images)):
@@ -287,7 +287,7 @@ class ImageStack(PyTomClass):
         @param filename: name of stack
         @type filename: L{str}
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
 
         stack = vol(self.dimX, self.dimY, len(self.images))
         for ii in range(0, len(self.images)):
@@ -302,9 +302,9 @@ class ImageStack(PyTomClass):
         average Image Stack
 
         @param mask: mask is multiplied with average if specified
-        @type mask: L{pytom_volume.vol}
+        @type mask: L{pytom.lib.pytom_volume.vol}
         @return: average
-        @rtype: L{ptom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
         from pytom.basic.transformations import general_transform2d
 
@@ -337,9 +337,9 @@ class ImageStack(PyTomClass):
         @param ii: index of image to be subtracted
         @type ii: L{int}
         @param mask: mask is multiplied with average if specified
-        @type mask: L{pytom_volume.vol}
+        @type mask: L{pytom.lib.pytom_volume.vol}
         @return: average of remaining images
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
         av = vol(self.dimX, self.dimY, 1)
         av.copyVolume(self.averageData)
@@ -356,11 +356,11 @@ class ImageStack(PyTomClass):
         @param niter: number of iterations
         @type niter: L{int}
         @param mask: mask applied to average before alignment
-        @type mask: L{pytom_volume.vol}
+        @type mask: L{pytom.lib.pytom_volume.vol}
         @author: FF
         """
-        from pytom.basic.correlation import nXcf, subPixelPeak
-        from pytom_volume import peak
+        from pytom.basic.correlation import norm_xcf, sub_pixel_peak
+        from pytom.lib.pytom_volume import peak
 
         for iexMax in range(0, niter):
             if self.verbose:
@@ -371,11 +371,11 @@ class ImageStack(PyTomClass):
             self.average(mask=mask)
             # Ex-step
             for ii in range(0, len(self.images)):
-                ccf = nXcf(volume=self.images[ii].data,
+                ccf = norm_xcf(volume=self.images[ii].data,
                            template=self.subtractImageFromAverage(ii=ii, mask=mask))
                 pos = peak(ccf)
-                peakinfo = subPixelPeak(scoreVolume=ccf, coordinates=pos,
-                                        cubeLength=8, verbose=self.verbose)
+                peakinfo = sub_pixel_peak(score_volume=ccf, coordinates=pos,
+                                        cube_length=8, verbose=self.verbose)
                 peakval = peakinfo[0]
                 pos = peakinfo[1]
                 self.images[ii].shiftX = float(pos[0] - self.dimX)
@@ -396,7 +396,7 @@ class ImageStack(PyTomClass):
         @param normtype: normalization type
         @type normtype: str ("StdMeanInMask", )
         @param mask: mask used for normalization
-        @type mask: L{pytom_volume.vol}
+        @type mask: L{pytom.lib.pytom_volume.vol}
         """
         for ii in range(0, len(self.images)):
             self.p = self.images[ii].normalize(normtype=normtype, mask=mask,
@@ -410,10 +410,10 @@ class ImageStack(PyTomClass):
         @param width: width of tapered edge
         @type width: L{float} or L{int}
         @param taper_mask: mask for tapering - if None it will be generated
-        @type taper_mask: L{pytom_volume.vol}
+        @type taper_mask: L{pytom.lib.pytom_volume.vol}
 
         @return taper_mask
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
         for ii in range(0, len(self.images)):
             taper_mask = self.images[ii].taper_edges(width=width, taper_mask=taper_mask)

@@ -35,16 +35,16 @@ class Volume(PyTomClass):
         Note the subregion, sampling and binning parameters are not the same as
         those attributes in the class.
 
-        @param subregion: subregion [startX, startY, startZ, sizeX, sizeY, sizeZ]
+        @param subregion: subregion [startX, startY, startZ, size_x, size_y, size_z]
         @type subregion: list
         @param sampling: sampling [factorX, factorY, factorZ]
         @type sampling: list
         @param binning: binning [factorX, factorY, factorZ]
         @type binning: list
         
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.tools.files import checkFileExists
         
         if not checkFileExists(self._filename):
@@ -176,9 +176,9 @@ class FoundParticle(PyTomClass):
         """
         getVolume: Get volume of the found particle
         
-        @rtype: L{pytom_volume.vol}
+        @rtype: L{pytom.lib.pytom_volume.vol}
         """
-        from pytom_volume import read
+        from pytom.lib.pytom_volume import read
         from pytom.tools.files import checkFileExists
         
         if not checkFileExists(self._filename):

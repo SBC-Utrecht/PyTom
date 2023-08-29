@@ -5,10 +5,12 @@ from pytom.gpu.initialize import xp, device
 import numpy as np
 from pytom.agnostic.transform import resize as RESIZE
 
+#Typing imports
+from pytom.gpu.initialize import xpt
 epsilon = 1E-8
 
 
-def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False):
+def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False) -> xpt.NDArray[float]:
     """Create a 3D sphere volume.
     @param size: size of the resulting volume.
     @param radius: radius of the sphere inside the volume.
@@ -37,7 +39,7 @@ def create_sphere(size, radius=-1, sigma=0, num_sigma=2, center=None, gpu=False)
 
     return sphere
 
-def create_circle(size, radius=-1, sigma=0, num_sigma=3, center=None):
+def create_circle(size, radius=-1, sigma=0, num_sigma=3, center=None) -> xpt.NDArray[float]:
     """Create a 3D sphere volume.
 
     @param size: size of the resulting volume.
@@ -117,10 +119,13 @@ def paste_in_center(volume, volume2, gpu=False):
     if 0:
         pass#raise Exception('pasteCenter not defined for gpu yet.')
     else:
-        l,l2 = len(volume.shape), len(volume.shape)
-        assert l == l2
-        for i in range(l):
-            assert volume.shape[i] <= volume2.shape[i]
+        l,l2 = len(volume.shape), len(volume2.shape)
+        if l != l2:
+            raise ValueError(f"Can't overlap a volume with dimension {l} with a volume of dimension {l2}")
+
+        if not (all(i <= j for i,j in zip(volume.shape, volume2.shape)) or
+                all(i >= j for i,j in zip(volume.shape, volume2.shape))):
+            raise ValueError(f"Do not know how to overlap shape {volume.shape} with shape {volume2.shape}")
 
         if len(volume.shape) == 3:
             sx,sy,sz = volume.shape
@@ -138,7 +143,12 @@ def paste_in_center(volume, volume2, gpu=False):
         if len(volume.shape) == 2:
             sx,sy = volume.shape
             SX, SY = volume2.shape
-            volume2[SX//2-sx//2:SX//2+sx//2+sx%2,SY//2-sy//2:SY//2+sy//2+sy%2] = volume
+            if SX <= sx:
+                volume2[:,:,:] = volume[sx//2-SX//2:sx//2+SX//2+SX%2,
+                                        sy//2-SY//2:sy//2+SY//2+SY%2]
+            else:
+                volume2[SX//2-sx//2:SX//2+sx//2+sx%2,
+                        SY//2-sy//2:SY//2+sy//2+sy%2] = volume
             return volume2
 
 
@@ -197,7 +207,7 @@ def determineRotationCenter(particle, binning):
     """
     determineRotationCenter:
     @param particle: The particle
-    @type particle: Either L{pytom_volume.vol} or string specifying the particle file name
+    @type particle: Either L{pytom.lib.pytom_volume.vol} or string specifying the particle file name
     @param binning: Binning factor
     @return: [centerX,centerY,centerZ]
 
@@ -223,7 +233,7 @@ def invert_WedgeSum( invol, r_max=None, lowlimit=0., lowval=0.):
     invert wedge sum - avoid division by zero and boost of high frequencies
 
     @param invol: input volume
-    @type invol: L{pytom_volume.vol} or L{pytom_volume.vol_comp}
+    @type invol: L{pytom.lib.pytom_volume.vol} or L{pytom.lib.pytom_volume.vol_comp}
     @param r_max: radius
     @type r_max: L{int}
     @param lowlimit: lower limit - all values below this value that lie in the specified radius will be replaced \
@@ -265,7 +275,7 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
     @param vol1: volume 1
     @param vol2: volume 2
     @mask: mask volume
-    @type mask: L{pytom_volume.vol}
+    @type mask: L{pytom.lib.pytom_volume.vol}
     @param nband: Number of bands
     @type nband: L{int}
     @param iniRot: initial guess for rotation
@@ -281,15 +291,15 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
         note: filvol2 is NOT rotated and translated!
     @author: FF
     """
-    from pytom.agnostic.correlation import FSC
+    from pytom.agnostic.correlation import fsc
     from pytom.agnostic.filter import filter_volume_by_profile
     from pytom.agnostic.structures import Alignment
     from pytom.agnostic.correlation import nxcc
     from pytom.voltools import transform
 
     # filter volumes prior to alignment according to SNR
-    fsc = FSC(volume1=vol1, volume2=vol2, numberBands=nband)
-    fil = design_fsc_filter(fsc=fsc, fildim=int(vol2.shape[2]//2))
+    calc_fsc = fsc(volume1=vol1, volume2=vol2, number_bands=nband)
+    fil = design_fsc_filter(fsc=calc_fsc, fildim=int(vol2.shape[2]//2))
     #filter only one volume so that resulting CCC is weighted by SNR only once
     filvol2 = filter_volume_by_profile(volume=vol2, profile=fil)
     # align vol2 to vol1
@@ -315,14 +325,14 @@ def alignVolumesAndFilterByFSC(vol1, vol2, mask=None, nband=None, iniRot=None, i
               translation=(optiTrans[0], optiTrans[1], optiTrans[2]), device=device)
     # finally compute FSC and filter of both volumes
     if not nband:
-        nband = int(vol2.sizeX()/2)
-    fsc = FSC(volume1=vol1, volume2=vol2_alig, numberBands=nband)
-    fil = design_fsc_filter(fsc=fsc, fildim=int(vol2.shape[0]//2), fsc_criterion=fsc_criterion)
+        nband = int(vol2.size_x()/2)
+    calc_fsc = fsc(volume1=vol1, volume2=vol2_alig, number_bands=nband)
+    fil = design_fsc_filter(fsc=calc_fsc, fildim=int(vol2.shape[0]//2), fsc_criterion=fsc_criterion)
     filvol1 = filter_volume_by_profile(volume=vol1, profile=fil)
     #filvol2 = filter_volume_by_profile( volume=vol2_alig, profile=fil)
     filvol2 = filter_volume_by_profile(volume=vol2, profile=fil)
 
-    return (filvol1, filvol2, fsc, fil, optiRot, optiTrans)
+    return (filvol1, filvol2, calc_fsc, fil, optiRot, optiTrans)
 
 
 def design_fsc_filter(fsc, fildim=None, fsc_criterion=0.143):
@@ -381,7 +391,7 @@ def design_fsc_filter(fsc, fildim=None, fsc_criterion=0.143):
 
 
 def subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, stepSizeZ):
-    from pytom_volume import vol, subvolume
+    from pytom.lib.pytom_volume import vol, subvolume
 
     if volume.__class__ != vol:
         return volume[sub_startX:sub_startX+stepSizeX, sub_startY:sub_startY+stepSizeY, sub_startZ:sub_startZ+stepSizeZ]
@@ -389,8 +399,8 @@ def subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, 
         return subvolume(volume, sub_startX, sub_startY, sub_startZ, stepSizeX, stepSizeY, stepSizeZ)
 
 def putSubVolume(subvolume, volume, startX, startY, startZ):
-    from pytom_volume import vol, putSubVolume
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_volume import vol, putSubVolume
+    from pytom.lib.pytom_numpy import vol2npy
 
     if volume.__class__ == vol and subvolume.__class__ == vol:
         putSubVolume(subvolume, volume, startX, startY, startZ)

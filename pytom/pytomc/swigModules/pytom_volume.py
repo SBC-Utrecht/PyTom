@@ -119,19 +119,19 @@ class vol(_object):
     __swig_destroy__ = _pytom_volume.delete_vol
     __del__ = lambda self: None
 
-    def sizeX(self):
-        """sizeX(vol self) -> std::size_t"""
-        return _pytom_volume.vol_sizeX(self)
+    def size_x(self):
+        """size_x(vol self) -> std::size_t"""
+        return _pytom_volume.vol_size_x(self)
 
 
-    def sizeY(self):
-        """sizeY(vol self) -> std::size_t"""
-        return _pytom_volume.vol_sizeY(self)
+    def size_y(self):
+        """size_y(vol self) -> std::size_t"""
+        return _pytom_volume.vol_size_y(self)
 
 
-    def sizeZ(self):
-        """sizeZ(vol self) -> std::size_t"""
-        return _pytom_volume.vol_sizeZ(self)
+    def size_z(self):
+        """size_z(vol self) -> std::size_t"""
+        return _pytom_volume.vol_size_z(self)
 
 
     def getFtSizeX(self):
@@ -149,19 +149,19 @@ class vol(_object):
         return _pytom_volume.vol_getFtSizeZ(self)
 
 
-    def setFtSizeX(self, sizeX):
-        """setFtSizeX(vol self, float sizeX)"""
-        return _pytom_volume.vol_setFtSizeX(self, sizeX)
+    def setFtSizeX(self, size_x):
+        """setFtSizeX(vol self, float size_x)"""
+        return _pytom_volume.vol_setFtSizeX(self, size_x)
 
 
-    def setFtSizeY(self, sizeY):
-        """setFtSizeY(vol self, float sizeY)"""
-        return _pytom_volume.vol_setFtSizeY(self, sizeY)
+    def setFtSizeY(self, size_y):
+        """setFtSizeY(vol self, float size_y)"""
+        return _pytom_volume.vol_setFtSizeY(self, size_y)
 
 
-    def setFtSizeZ(self, sizeZ):
-        """setFtSizeZ(vol self, float sizeZ)"""
-        return _pytom_volume.vol_setFtSizeZ(self, sizeZ)
+    def setFtSizeZ(self, size_z):
+        """setFtSizeZ(vol self, float size_z)"""
+        return _pytom_volume.vol_setFtSizeZ(self, size_z)
 
 
     def strideX(self):
@@ -301,19 +301,19 @@ class vol_comp(_object):
     __swig_destroy__ = _pytom_volume.delete_vol_comp
     __del__ = lambda self: None
 
-    def sizeX(self):
-        """sizeX(vol_comp self) -> std::size_t"""
-        return _pytom_volume.vol_comp_sizeX(self)
+    def size_x(self):
+        """size_x(vol_comp self) -> std::size_t"""
+        return _pytom_volume.vol_comp_size_x(self)
 
 
-    def sizeY(self):
-        """sizeY(vol_comp self) -> std::size_t"""
-        return _pytom_volume.vol_comp_sizeY(self)
+    def size_y(self):
+        """size_y(vol_comp self) -> std::size_t"""
+        return _pytom_volume.vol_comp_size_y(self)
 
 
-    def sizeZ(self):
-        """sizeZ(vol_comp self) -> std::size_t"""
-        return _pytom_volume.vol_comp_sizeZ(self)
+    def size_z(self):
+        """size_z(vol_comp self) -> std::size_t"""
+        return _pytom_volume.vol_comp_size_z(self)
 
 
     def getFtSizeX(self):
@@ -331,19 +331,19 @@ class vol_comp(_object):
         return _pytom_volume.vol_comp_getFtSizeZ(self)
 
 
-    def setFtSizeX(self, sizeX):
-        """setFtSizeX(vol_comp self, float sizeX)"""
-        return _pytom_volume.vol_comp_setFtSizeX(self, sizeX)
+    def setFtSizeX(self, size_x):
+        """setFtSizeX(vol_comp self, float size_x)"""
+        return _pytom_volume.vol_comp_setFtSizeX(self, size_x)
 
 
-    def setFtSizeY(self, sizeY):
-        """setFtSizeY(vol_comp self, float sizeY)"""
-        return _pytom_volume.vol_comp_setFtSizeY(self, sizeY)
+    def setFtSizeY(self, size_y):
+        """setFtSizeY(vol_comp self, float size_y)"""
+        return _pytom_volume.vol_comp_setFtSizeY(self, size_y)
 
 
-    def setFtSizeZ(self, sizeZ):
-        """setFtSizeZ(vol_comp self, float sizeZ)"""
-        return _pytom_volume.vol_comp_setFtSizeZ(self, sizeZ)
+    def setFtSizeZ(self, size_z):
+        """setFtSizeZ(vol_comp self, float size_z)"""
+        return _pytom_volume.vol_comp_setFtSizeZ(self, size_z)
 
 
     def strideX(self):

@@ -17,7 +17,7 @@ try:
     a = a * mask
     b = b * mask
 except Exception as e:
-    print(e)
+    print("Something wrong with the mask, defaulting to np.ones")
     mask = np.ones_like(a)
 #a = np.angle(np.fft.fftshift(np.fft.fftn(a)))
 #b = np.angle(np.fft.fftshift(np.fft.fftn(b)))

@@ -4,7 +4,7 @@ def frm_determine_orientation_rscore(vf, wf, vg, wg, b, radius=None, weights=Non
     """Obsolete.
     """
     if not radius: # set the radius
-        radius = vf.sizeX()/2
+        radius = vf.size_x()/2
     if not weights: # set the weights
         weights = [1 for i in range(radius)]
     
@@ -21,9 +21,9 @@ def frm_determine_orientation_rscore(vf, wf, vg, wg, b, radius=None, weights=Non
         raise RuntimeError("Argument b is not valid!")
     
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, rescale, abs, real
+    from pytom.lib.pytom_volume import vol, reducedToFull, rescale, abs, real
     from .vol2sf import vol2sf
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from math import log, ceil, pow
 
     # IMPORTANT!!! Should firstly do the IFFTSHIFT on the volume data (NOT FFTSHIFT since for odd-sized data it matters!),
@@ -71,7 +71,7 @@ def frm_fourier_adaptive_wedge_vol_rscore(vf, wf, vg, wg, b, radius=None, weight
     """Obsolete.
     """
     if not radius: # set the radius
-        radius = vf.sizeX()/2
+        radius = vf.size_x()/2
     if not weights: # set the weights
         weights = [1 for i in range(radius)]
 
@@ -88,9 +88,9 @@ def frm_fourier_adaptive_wedge_vol_rscore(vf, wf, vg, wg, b, radius=None, weight
         raise RuntimeError("Argument b is not valid!")
 
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, real, imag, rescale
+    from pytom.lib.pytom_volume import vol, reducedToFull, real, imag, rescale
     from .vol2sf import vol2sf
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from math import log, ceil, pow
 
     # IMPORTANT!!! Should firstly do the IFFTSHIFT on the volume data (NOT FFTSHIFT since for odd-sized data it matters!),
@@ -137,38 +137,37 @@ def frm_fourier_adaptive_wedge_vol_rscore(vf, wf, vg, wg, b, radius=None, weight
 def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None, weights=None, position=None):
     """Obsolete.
     """
-    from pytom_volume import vol, rotateSpline, peak
+    from pytom.lib.pytom_volume import vol, rotateSpline, peak, initSphere
     from pytom.basic.transformations import shift
     from pytom.basic.correlation import xcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Mask
-    from pytom_volume import initSphere
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
 
-    if vf.sizeX()!=vg.sizeX() or vf.sizeY()!=vg.sizeY() or vf.sizeZ()!=vg.sizeZ():
+    if vf.size_x()!=vg.size_x() or vf.size_y()!=vg.size_y() or vf.size_z()!=vg.size_z():
         raise RuntimeError('Two volumes must have the same size!')
 
     if mask is None:
-        mask = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(mask, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        mask = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(mask, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif mask.__class__ == vol:
         pass
     elif mask.__class__ == Mask:
         mask = mask.getVolume()
     elif isinstance(mask, int):
         mask_radius = mask
-        mask = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(mask, mask_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        mask = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(mask, mask_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     else:
         raise RuntimeError('Given mask has wrong type!')
 
     if peak_offset is None:
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif isinstance(peak_offset, int):
         peak_radius = peak_offset
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, peak_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif peak_offset.__class__ == vol:
         pass
     else:
@@ -188,7 +187,7 @@ def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=
         orientations = frm_determine_orientation_rscore(vf, wf, vg, wg, b, radius, weights)
     else:
         # the position is given by the user
-        vf2 = shift(vf, -position[0]+vf.sizeX()/2, -position[1]+vf.sizeY()/2, -position[2]+vf.sizeZ()/2, 'spline')
+        vf2 = shift(vf, -position[0]+vf.size_x()/2, -position[1]+vf.size_y()/2, -position[2]+vf.size_z()/2, 'spline')
         res = frm_fourier_adaptive_wedge_vol_rscore(vf2, wf, vg, wg, b, radius, weights)
         orientation, max_value = frm_find_best_angle_interp(res)
 
@@ -200,7 +199,7 @@ def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=
     max_iter = 10 # maximal number of iterations
     wedge = WedgeInfo([90+wf[0], 90-wf[1]])
     old_pos = [-1, -1, -1]
-    vg2 = vol(vg.sizeX(), vg.sizeY(), vg.sizeZ())
+    vg2 = vol(vg.size_x(), vg.size_y(), vg.size_z())
     lowpass_vf = lowpassFilter(vf, radius, 0)[0]
     for i in range(max_iter):
         peak_value = 0.0
@@ -226,7 +225,7 @@ def frm_align_vol_rscore(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=
 
         # here we shift the target, not the reference
         # if you dont want the shift to change the energy landscape, use fourier shift
-        vf2 = shift(vf, -position[0]+vf.sizeX()/2, -position[1]+vf.sizeY()/2, -position[2]+vf.sizeZ()/2, 'fourier')
+        vf2 = shift(vf, -position[0]+vf.size_x()/2, -position[1]+vf.size_y()/2, -position[2]+vf.size_z()/2, 'fourier')
         res = frm_fourier_adaptive_wedge_vol_rscore(vf2, wf, vg, wg, b, radius, weights)
         orientations = frm_find_topn_angles_interp(res)
 
@@ -240,13 +239,13 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     Parameters
     ----------
     vf: The volume you want to match.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: The single tilt wedge information of volume vf.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
 
     vg: The reference volume.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: The single tilt wedge information of volume vg.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
@@ -267,31 +266,30 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     The best translation and rotation (Euler angle, ZXZ convention [Phi, Psi, Theta]) to transform vg to match vf.
     (best_translation, best_rotation, correlation_score)
     """
-    from pytom_volume import vol, rotateSpline, max, peak
-    from pytom.basic.correlation import nXcf
+    from pytom.lib.pytom_volume import vol, rotateSpline, max, peak, initSphere
+    from pytom.basic.correlation import norm_xcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import WedgeInfo
-    from pytom_volume import initSphere
 
     if not radius: # set the radius
-        radius = vf.sizeX()/2
+        radius = vf.size_x()/2
 
     if peak_offset is None:
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif isinstance(peak_offset, int):
         peak_radius = peak_offset
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, peak_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif peak_offset.__class__ == vol:
         pass
     else:
         raise RuntimeError('Peak offset is given wrong!')
     
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, rescale, abs, real
+    from pytom.lib.pytom_volume import vol, reducedToFull, rescale, abs, real
     from .vol2sf import vol2sf
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from math import log, ceil, pow
 
     # IMPORTANT!!! Should firstly do the IFFTSHIFT on the volume data (NOT FFTSHIFT since for odd-sized data it matters!),
@@ -317,11 +315,11 @@ def bart_align_vol(vf, wf, vg, wg, b, radius=None, peak_offset=None):
     corr = frm_constrained_corr(sf, mf, sg, mg)
     ang, val = frm_find_best_angle_interp(corr)
 
-    tmp = vol(vg.sizeX(),vg.sizeY(),vg.sizeZ())
+    tmp = vol(vg.size_x(),vg.size_y(),vg.size_z())
     rotateSpline(vg, tmp, ang[0], ang[1], ang[2])
     wedge_f = WedgeInfo(90+wf[0], 90-wf[1])
     wedge_g = WedgeInfo(90+wg[0], 90-wg[1])
-    cc = nXcf(lowpassFilter(wedge_g.apply(vf), radius, 0)[0], lowpassFilter(wedge_f.apply(tmp), radius, 0)[0])
+    cc = norm_xcf(lowpassFilter(wedge_g.apply(vf), radius, 0)[0], lowpassFilter(wedge_f.apply(tmp), radius, 0)[0])
     pos = peak(cc, peak_offset)
     pos, score = find_subpixel_peak_position(vol2npy(cc), pos)
 
@@ -334,13 +332,13 @@ def frm_fourier_adaptive_wedge_vol(vf, wf, vg, wg, b, radius=None, weights=None,
     Parameters
     ----------
     vf: The volume you want to match.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: The single tilt wedge information of volume vf.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
 
     vg: The reference volume.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: The single tilt wedge information of volume vg.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
@@ -363,7 +361,7 @@ def frm_fourier_adaptive_wedge_vol(vf, wf, vg, wg, b, radius=None, weights=None,
     The correlation function of Euler angle.
     """
     if not radius: # set the radius
-        radius = vf.sizeX()/2
+        radius = vf.size_x()/2
     if not weights: # set the weights
         weights = [1 for i in range(radius)]
 
@@ -380,9 +378,9 @@ def frm_fourier_adaptive_wedge_vol(vf, wf, vg, wg, b, radius=None, weights=None,
         raise RuntimeError("Argument b is not valid!")
 
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, real, imag, rescale
+    from pytom.lib.pytom_volume import vol, reducedToFull, real, imag, rescale
     from .vol2sf import vol2sf
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from math import log, ceil, pow
 
     # IMPORTANT!!! Should firstly do the IFFTSHIFT on the volume data (NOT FFTSHIFT since for odd-sized data it matters!),
@@ -442,13 +440,13 @@ def frm_determine_orientation(vf, wf, vg, wg, b, radius=None, weights=None, r_sc
     Parameters
     ----------
     vf: The volume you want to match.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: The single tilt wedge information of volume vf.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
 
     vg: The reference volume.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: The single tilt wedge information of volume vg.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
@@ -471,7 +469,7 @@ def frm_determine_orientation(vf, wf, vg, wg, b, radius=None, weights=None, r_sc
     The angle (Euler angle, ZXZ convention [Phi, Psi, Theta]) to rotate vg to match vf.
     """
     if not radius: # set the radius
-        radius = vf.sizeX()/2
+        radius = vf.size_x()/2
     if not weights: # set the weights
         weights = [1 for i in range(radius)]
     
@@ -488,9 +486,9 @@ def frm_determine_orientation(vf, wf, vg, wg, b, radius=None, weights=None, r_sc
         raise RuntimeError("Argument b is not valid!")
     
     from pytom.basic.fourier import fft, ifft, ftshift, iftshift
-    from pytom_volume import vol, reducedToFull, rescale, abs, real
+    from pytom.lib.pytom_volume import vol, reducedToFull, rescale, abs, real
     from .vol2sf import vol2sf
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
     from math import log, ceil, pow
 
     # IMPORTANT!!! Should firstly do the IFFTSHIFT on the volume data (NOT FFTSHIFT since for odd-sized data it matters!),
@@ -551,13 +549,13 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
     Parameters
     ----------
     vf: The volume you want to match.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wf: The single tilt wedge information of volume vf.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
 
     vg: The reference volume.
-        pytom_volume.vol
+        pytom.lib.pytom_volume.vol
 
     wg: The single tilt wedge information of volume vg.
         [missing_wedge_angle1, missing_wedge_angle2]. Note this is defined different with frm_align im frm.py!
@@ -579,38 +577,37 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
     The best translation and rotation (Euler angle, ZXZ convention [Phi, Psi, Theta]) to transform vg to match vf.
     (best_translation, best_rotation, correlation_score)
     """
-    from pytom_volume import vol, rotateSpline, peak
+    from pytom.lib.pytom_volume import vol, rotateSpline, peak, initSphere
     from pytom.basic.transformations import shift
-    from pytom.basic.correlation import nXcf
+    from pytom.basic.correlation import norm_xcf
     from pytom.basic.filter import lowpassFilter
     from pytom.basic.structures import Mask
-    from pytom_volume import initSphere
-    from pytom_numpy import vol2npy
+    from pytom.lib.pytom_numpy import vol2npy
 
-    if vf.sizeX()!=vg.sizeX() or vf.sizeY()!=vg.sizeY() or vf.sizeZ()!=vg.sizeZ():
+    if vf.size_x()!=vg.size_x() or vf.size_y()!=vg.size_y() or vf.size_z()!=vg.size_z():
         raise RuntimeError('Two volumes must have the same size!')
 
     if mask is None:
-        mask = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(mask, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        mask = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(mask, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif mask.__class__ == vol:
         pass
     elif mask.__class__ == Mask:
         mask = mask.getVolume()
     elif isinstance(mask, int):
         mask_radius = mask
-        mask = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(mask, mask_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        mask = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(mask, mask_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     else:
         raise RuntimeError('Given mask has wrong type!')
 
     if peak_offset is None:
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, vf.sizeX()/2, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, vf.size_x()/2, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif isinstance(peak_offset, int):
         peak_radius = peak_offset
-        peak_offset = vol(vf.sizeX(), vf.sizeY(), vf.sizeZ())
-        initSphere(peak_offset, peak_radius, 0,0, vf.sizeX()/2,vf.sizeY()/2,vf.sizeZ()/2)
+        peak_offset = vol(vf.size_x(), vf.size_y(), vf.size_z())
+        initSphere(peak_offset, peak_radius, 0,0, vf.size_x()/2,vf.size_y()/2,vf.size_z()/2)
     elif peak_offset.__class__ == vol:
         pass
     else:
@@ -626,7 +623,7 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
         orientations = frm_determine_orientation(vf, wf, vg, wg, b, radius, None, None, False)
     else:
         # the position is given by the user
-        vf2 = shift(vf, -position[0]+vf.sizeX()/2, -position[1]+vf.sizeY()/2, -position[2]+vf.sizeZ()/2, 'spline')
+        vf2 = shift(vf, -position[0]+vf.size_x()/2, -position[1]+vf.size_y()/2, -position[2]+vf.size_z()/2, 'spline')
         res = frm_fourier_adaptive_wedge_vol(vf2, wf, vg, wg, b, radius, None, None, False)
         orientation, max_value = frm_find_best_angle_interp(res)
 
@@ -638,7 +635,7 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
     max_iter = 1 # maximal number of iterations
     wedge = WedgeInfo([90+wf[0], 90-wf[1]])
     old_pos = [-1, -1, -1]
-    vg2 = vol(vg.sizeX(), vg.sizeY(), vg.sizeZ())
+    vg2 = vol(vg.size_x(), vg.size_y(), vg.size_z())
     lowpass_vf = lowpassFilter(vf, radius, 0)[0]
     
     peak_value = 0.0
@@ -650,7 +647,7 @@ def xu_align_vol(vf, wf, vg, wg, b, radius=None, mask=None, peak_offset=None):
         rotateSpline(vg, vg2, orientation[0], orientation[1], orientation[2]) # first rotate
         vg2 = wedge.apply(vg2) # then apply the wedge
         vg2 = lowpassFilter(vg2, radius, 0)[0]
-        res = nXcf(lowpass_vf, vg2) # find the position
+        res = norm_xcf(lowpass_vf, vg2) # find the position
         pos = peak(res, peak_offset)
         # val = res(pos[0], pos[1], pos[2])
         pos, val = find_subpixel_peak_position(vol2npy(res), pos)

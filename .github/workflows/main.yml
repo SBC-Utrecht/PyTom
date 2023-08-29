@@ -25,4 +25,4 @@ jobs:
         run: docker build -t pytom .
 
       - name: Run tests inside the container
-        run: docker run -w /app/tests/ pytom pytom -m unittest discover
+        run: docker run -w /app/tests/ pytom "python -m unittest discover"

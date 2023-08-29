@@ -16,7 +16,7 @@ class pytom_2DImageTest(unittest.TestCase):
         self.snr= .1
         self.radius = 7.
 
-        self.sph = initSphere(sizeX=self.dim, sizeY=self.dim, sizeZ=1, 
+        self.sph = initSphere(size_x=self.dim, size_y=self.dim, size_z=1, 
             radius=self.radius, smooth=1., 
             maxradius=0, cent=None, filename='')
         self.imageStack = ImageStack()

@@ -344,7 +344,7 @@ class AngleObject(PyTomClass):
         @param filename: Name of file to save to 
         @param inputIsRadians: 
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         
         no = self.numberRotations()
          
@@ -376,7 +376,7 @@ class AngleObject(PyTomClass):
         """
         from pytom.tools.toImage import volumeToPNG
         from pytom.tools.files import dump2TextFile
-        from pytom_volume import vol,rotateSpline
+        from pytom.lib.pytom_volume import vol,rotateSpline
         from pytom.tools.files import getPytomPath,readStringFile
         from pytom.frontend.htmlDefines import headResponse200,copyright
     
@@ -390,10 +390,10 @@ class AngleObject(PyTomClass):
         html = html + '<table>\n'
         html = html + '<tr><td>Z1 (Phi) Z2 (Psi) X(Theta)</td><td>x-Slice</td><td>y-Slice</td><td>z-Slice</td></tr>'
         
-        rotated = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+        rotated = vol(volume.size_x(),volume.size_y(),volume.size_z())
         
         if not mask:
-            mask = vol(volume.sizeX(),volume.sizeY(),volume.sizeZ())
+            mask = vol(volume.size_x(),volume.size_y(),volume.size_z())
             mask.setAll(1)
             
         volume = volume * mask    
@@ -407,11 +407,11 @@ class AngleObject(PyTomClass):
         
             rotateSpline(volume,rotated,rotation[0],rotation[1],rotation[2])
             html = html + '<tr><td>' + str(rotation[0]) + ' ' + str(rotation[1]) + ' ' + str(rotation[2]) +'</td>/n'
-            volumeToPNG(rotated,directory + str(rotationCounter) + '-x.png',rotated.sizeX()/2,'x')
+            volumeToPNG(rotated,directory + str(rotationCounter) + '-x.png',rotated.size_x()/2,'x')
             html = html + '<td><img src="' + directory + str(rotationCounter) + '-x.png"/></td>'
-            volumeToPNG(rotated,directory + str(rotationCounter) + '-y.png',rotated.sizeY()/2,'y')
+            volumeToPNG(rotated,directory + str(rotationCounter) + '-y.png',rotated.size_y()/2,'y')
             html = html + '<td><img src="' + directory + str(rotationCounter) + '-y.png"/></td>'
-            volumeToPNG(rotated,directory + str(rotationCounter) + '-z.png',rotated.sizeZ()/2,'z')
+            volumeToPNG(rotated,directory + str(rotationCounter) + '-z.png',rotated.size_z()/2,'z')
             html = html + '<td><img src="' + directory + str(rotationCounter) + '-z.png"/></td>'
             
             rotation = self.nextRotation()
@@ -429,10 +429,10 @@ class AngleObject(PyTomClass):
         """
         rotationDistanceMatrix: Generate a matrix of rotation distances. The 
         distance is determined by L{pytom.angles.quaternions.Quaternion.distance}.
-        @return: L{pytom_volume.vol} of rotation distances
+        @return: L{pytom.lib.pytom_volume.vol} of rotation distances
         @author: Thomas Hrabe
         """
-        from pytom_volume import vol
+        from pytom.lib.pytom_volume import vol
         from pytom.tools.maths import rotation_distance
         numberOfRotations = len(self)
 

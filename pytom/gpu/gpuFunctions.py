@@ -32,7 +32,7 @@ def find_coords_max_ccmap(volume):
     return xp.unravel_index(volume.argmax(),volume.shape)
 
 
-def subPixelPeak(inp, k=1, ignore_border=1):
+def sub_pixel_peak(inp, k=1, ignore_border=1):
     from pytom.voltools import transform
     is2d = len(inp.shape.squeeze()) == 2
     if is2d:
@@ -208,7 +208,7 @@ if 'gpu' in device:
 
     }''', 'argmax')
 else:
-    argmax = xp.argmax()
+    argmax = xp.argmax
 
 
 def invert_first_last_axis(volume):

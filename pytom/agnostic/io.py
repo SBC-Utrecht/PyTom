@@ -3,11 +3,14 @@
 
 from pytom.gpu.initialize import xp, device
 import numpy as np
-
+#typing imports
+import pytom.lib as pytom_lib
 
 # Reading functions
+from typing import Union
+from pytom.gpu.initialize import xpt
 
-def read(filename, ndarray=True, order='F', keepnumpy=False, deviceID=None, dtype=None, read_optics_group=False):
+def read(filename, ndarray=True, order='F', keepnumpy=False, deviceID=None, dtype=None, read_optics_group=False) -> Union[xpt.NDArray[float], pytom_lib.pytom_volume.vol]:
     """General reading function. Can read em, mrc, st, rec, txt, log and star file. For EM and MRC files: only support read the type float32 on little-endian machines.
 
     @param filename: file name to read.
@@ -62,7 +65,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'AmplitudeCorrelationMaskedMaps': np.double,
                              'AmplitudeCorrelationUnmaskedMaps': np.double,
                              'AnglePsi': np.double,
-                             'AnglePsiFlip': np.bool,
+                             'AnglePsiFlip': bool,
                              'AnglePsiFlipRatio': np.double,
                              'AnglePsiPrior': np.double,
                              'AngleRot': np.double,
@@ -116,8 +119,8 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'CorrelationFitGuinierPlot': np.double,
                              'CtfAstigmatism': np.double,
                              'CtfBfactor': np.double,
-                             'CtfDataAreCtfPremultiplied': np.bool,
-                             'CtfDataArePhaseFlipped': np.bool,
+                             'CtfDataAreCtfPremultiplied': bool,
+                             'CtfDataArePhaseFlipped': bool,
                              'CtfFigureOfMerit': np.double,
                              'CtfImage': 'U200',
                              'CtfMaxResolution': np.double,
@@ -137,29 +140,29 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'Diff2RandomHalves': np.double,
                              'DifferentialPhaseResidualMaskedMaps': np.double,
                              'DifferentialPhaseResidualUnmaskedMaps': np.double,
-                             'DoAutoRefine': np.bool,
-                             'DoCorrectCtf': np.bool,
-                             'DoCorrectMagnification': np.bool,
-                             'DoCorrectNorm': np.bool,
-                             'DoCorrectScale': np.bool,
-                             'DoExternalReconstruct': np.bool,
-                             'DoFastSubsetOptimisation': np.bool,
-                             'DoHelicalRefine': np.bool,
-                             'DoIgnoreCtfUntilFirstPeak': np.bool,
-                             'DoMapEstimation': np.bool,
-                             'DoOnlyFlipCtfPhases': np.bool,
-                             'DoRealignMovies': np.bool,
-                             'DoSkipAlign': np.bool,
-                             'DoSkipRotate': np.bool,
-                             'DoSolventFlattening': np.bool,
-                             'DoSolventFscCorrection': np.bool,
-                             'DoSplitRandomHalves': np.bool,
-                             'DoStochasticEM': np.bool,
-                             'DoStochasticGradientDescent': np.bool,
-                             'DoZeroMask': np.bool,
+                             'DoAutoRefine': bool,
+                             'DoCorrectCtf': bool,
+                             'DoCorrectMagnification': bool,
+                             'DoCorrectNorm': bool,
+                             'DoCorrectScale': bool,
+                             'DoExternalReconstruct': bool,
+                             'DoFastSubsetOptimisation': bool,
+                             'DoHelicalRefine': bool,
+                             'DoIgnoreCtfUntilFirstPeak': bool,
+                             'DoMapEstimation': bool,
+                             'DoOnlyFlipCtfPhases': bool,
+                             'DoRealignMovies': bool,
+                             'DoSkipAlign': bool,
+                             'DoSkipRotate': bool,
+                             'DoSolventFlattening': bool,
+                             'DoSolventFscCorrection': bool,
+                             'DoSplitRandomHalves': bool,
+                             'DoStochasticEM': bool,
+                             'DoStochasticGradientDescent': bool,
+                             'DoZeroMask': bool,
                              'EERGrouping': 'i4',
                              'EERUpsampling': 'i4',
-                             'Enabled': np.bool,
+                             'Enabled': bool,
                              'EnergyLoss': np.double,
                              'EstimatedResolution': np.double,
                              'EvenZernike': np.double,
@@ -172,9 +175,9 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'FinalResolution': np.double,
                              'FittedInterceptGuinierPlot': np.double,
                              'FittedSlopeGuinierPlot': np.double,
-                             'FixSigmaNoiseEstimates': np.bool,
-                             'FixSigmaOffsetEstimates': np.bool,
-                             'FixTauEstimates': np.bool,
+                             'FixSigmaNoiseEstimates': bool,
+                             'FixSigmaOffsetEstimates': bool,
+                             'FixTauEstimates': bool,
                              'FourierCompleteness': np.double,
                              'FourierMask': 'U200',
                              'FourierShellCorrelation': np.double,
@@ -189,13 +192,13 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'GroupNrParticles': 'i4',
                              'GroupNumber': 'i4',
                              'GroupScaleCorrection': np.double,
-                             'HasConverged': np.bool,
-                             'HasHighFscAtResolLimit': np.bool,
+                             'HasConverged': bool,
+                             'HasHighFscAtResolLimit': bool,
                              'HasLargeSizeIncreaseIterationsAgo': 'i4',
                              'HealpixOrder': 'i4',
                              'HealpixOrderOriginal': 'i4',
                              'HelicalCentralProportion': np.double,
-                             'HelicalKeepTiltPriorFixed': np.bool,
+                             'HelicalKeepTiltPriorFixed': bool,
                              'HelicalMaskTubeInnerDiameter': np.double,
                              'HelicalMaskTubeOuterDiameter': np.double,
                              'HelicalOffsetStep': np.double,
@@ -205,7 +208,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'HelicalRiseMax': np.double,
                              'HelicalRiseMin': np.double,
                              'HelicalSigmaDistance': np.double,
-                             'HelicalSymmetryLocalRefinement': np.bool,
+                             'HelicalSymmetryLocalRefinement': bool,
                              'HelicalTrackLength': np.double,
                              'HelicalTrackLengthAngst': np.double,
                              'HelicalTubeID': 'i4',
@@ -217,7 +220,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'HelicalTwistMin': np.double,
                              'HighresLimitExpectation': np.double,
                              'HighresLimitSGD': np.double,
-                             'IgnoreHelicalSymmetry': np.bool,
+                             'IgnoreHelicalSymmetry': bool,
                              'ImageDimensionality': 'i4',
                              'ImageId': 'i4',
                              'ImageName': 'U200',
@@ -229,11 +232,11 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'ImageSizeZ': 'i4',
                              'ImageWeight': np.double,
                              'IncrementImageSize': 'i4',
-                             'Is3DSampling': np.bool,
-                             'Is3DTranslationalSampling': np.bool,
-                             'IsFlip': np.bool,
-                             'IsHelix': np.bool,
-                             'JobIsContinue': np.bool,
+                             'Is3DSampling': bool,
+                             'Is3DTranslationalSampling': bool,
+                             'IsFlip': bool,
+                             'IsHelix': bool,
+                             'JobIsContinue': bool,
                              'JobOptionDefaultValue': 'U200',
                              'JobOptionDirectoryDefault': 'U200',
                              'JobOptionFilePattern': 'U200',
@@ -395,7 +398,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'ReferenceSigma2': np.double,
                              'ReferenceSpectralPower': np.double,
                              'ReferenceTau2': np.double,
-                             'RefsAreCtfCorrected': np.bool,
+                             'RefsAreCtfCorrected': bool,
                              'Resolution': np.double,
                              'ResolutionInversePixel': np.double,
                              'ResolutionSquared': np.double,
@@ -407,12 +410,12 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'SamplingRateY': np.double,
                              'SamplingRateZ': np.double,
                              'ScheduleBooleanVariableName': 'U200',
-                             'ScheduleBooleanVariableResetValue': np.bool,
-                             'ScheduleBooleanVariableValue': np.bool,
+                             'ScheduleBooleanVariableResetValue': bool,
+                             'ScheduleBooleanVariableValue': bool,
                              'ScheduleCurrentNodeName': 'U200',
                              'ScheduleEdgeBooleanVariable': 'U200',
                              'ScheduleEdgeInputNodeName': 'U200',
-                             'ScheduleEdgeIsFork': np.bool,
+                             'ScheduleEdgeIsFork': bool,
                              'ScheduleEdgeNumber': 'i4',
                              'ScheduleEdgeOutputNodeName': 'U200',
                              'ScheduleEdgeOutputNodeNameIfTrue': 'U200',
@@ -420,7 +423,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'ScheduleFloatVariableName': 'U200',
                              'ScheduleFloatVariableResetValue': np.double,
                              'ScheduleFloatVariableValue': np.double,
-                             'ScheduleJobHasStarted': np.bool,
+                             'ScheduleJobHasStarted': bool,
                              'ScheduleJobMode': 'U200',
                              'ScheduleJobName': 'U200',
                              'ScheduleJobNameOriginal': 'U200',
@@ -446,7 +449,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'SgdMuFactor': np.double,
                              'SgdSigma2FudgeHalflife': 'i4',
                              'SgdSigma2FudgeInitial': np.double,
-                             'SgdSkipAnneal': np.bool,
+                             'SgdSkipAnneal': bool,
                              'SgdStepsize': np.double,
                              'SgdSubsetSize': 'i4',
                              'SgdWriteEverySubset': 'i4',
@@ -478,7 +481,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'UnfilteredMapHalf1': 'U200',
                              'UnfilteredMapHalf2': 'U200',
                              'UnknownLabel': 'U200',
-                             'UseTooCoarseSampling': np.bool,
+                             'UseTooCoarseSampling': bool,
                              'Voltage': np.double,
                              'WidthMaskEdge': 'i4'}
 
@@ -544,8 +547,8 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'CorrelationFitGuinierPlot': np.double,
                              'CtfAstigmatism': np.double,
                              'CtfBfactor': np.double,
-                             'CtfDataAreCtfPremultiplied': np.bool,
-                             'CtfDataArePhaseFlipped': np.bool,
+                             'CtfDataAreCtfPremultiplied': bool,
+                             'CtfDataArePhaseFlipped': bool,
                              'CtfFigureOfMerit': np.double,
                              'CtfImage': 'U200',
                              'CtfMaxResolution': np.double,
@@ -564,34 +567,34 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'Diff2RandomHalves': np.double,
                              'DifferentialPhaseResidualMaskedMaps': np.double,
                              'DifferentialPhaseResidualUnmaskedMaps': np.double,
-                             'DoAutoRefine': np.bool,
-                             'DoCorrectCtf': np.bool,
-                             'DoCorrectMagnification': np.bool,
-                             'DoCorrectNorm': np.bool,
-                             'DoCorrectScale': np.bool,
-                             'DoFastSubsetOptimisation': np.bool,
-                             'DoHelicalRefine': np.bool,
-                             'DoIgnoreCtfUntilFirstPeak': np.bool,
-                             'DoMapEstimation': np.bool,
-                             'DoOnlyFlipCtfPhases': np.bool,
-                             'DoRealignMovies': np.bool,
-                             'DoSkipAlign': np.bool,
-                             'DoSkipRotate': np.bool,
-                             'DoSolventFlattening': np.bool,
-                             'DoSolventFscCorrection': np.bool,
-                             'DoSplitRandomHalves': np.bool,
-                             'DoStochasticGradientDescent': np.bool,
-                             'DoZeroMask': np.bool,
-                             'Enabled': np.bool,
+                             'DoAutoRefine': bool,
+                             'DoCorrectCtf': bool,
+                             'DoCorrectMagnification': bool,
+                             'DoCorrectNorm': bool,
+                             'DoCorrectScale': bool,
+                             'DoFastSubsetOptimisation': bool,
+                             'DoHelicalRefine': bool,
+                             'DoIgnoreCtfUntilFirstPeak': bool,
+                             'DoMapEstimation': bool,
+                             'DoOnlyFlipCtfPhases': bool,
+                             'DoRealignMovies': bool,
+                             'DoSkipAlign': bool,
+                             'DoSkipRotate': bool,
+                             'DoSolventFlattening': bool,
+                             'DoSolventFscCorrection': bool,
+                             'DoSplitRandomHalves': bool,
+                             'DoStochasticGradientDescent': bool,
+                             'DoZeroMask': bool,
+                             'Enabled': bool,
                              'EnergyLoss': np.double,
                              'EstimatedResolution': np.double,
                              'ExperimentalDataStarFile': 'U200',
                              'FinalResolution': np.double,
                              'FittedInterceptGuinierPlot': np.double,
                              'FittedSlopeGuinierPlot': np.double,
-                             'FixSigmaNoiseEstimates': np.bool,
-                             'FixSigmaOffsetEstimates': np.bool,
-                             'FixTauEstimates': np.bool,
+                             'FixSigmaNoiseEstimates': bool,
+                             'FixSigmaOffsetEstimates': bool,
+                             'FixTauEstimates': bool,
                              'FourierCompleteness': np.double,
                              'FourierShellCorrelation': np.double,
                              'FourierShellCorrelationCorrected': np.double,
@@ -603,12 +606,12 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'GroupNrParticles': 'i4',
                              'GroupNumber': 'i4',
                              'GroupScaleCorrection': np.double,
-                             'HasConverged': np.bool,
-                             'HasHighFscAtResolLimit': np.bool,
+                             'HasConverged': bool,
+                             'HasHighFscAtResolLimit': bool,
                              'HasLargeSizeIncreaseIterationsAgo': 'i4',
                              'HealpixOrder': 'i4',
                              'HelicalCentralProportion': np.double,
-                             'HelicalKeepTiltPriorFixed': np.bool,
+                             'HelicalKeepTiltPriorFixed': bool,
                              'HelicalMaskTubeInnerDiameter': np.double,
                              'HelicalMaskTubeOuterDiameter': np.double,
                              'HelicalOffsetStep': np.double,
@@ -618,7 +621,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'HelicalRiseMax': np.double,
                              'HelicalRiseMin': np.double,
                              'HelicalSigmaDistance': np.double,
-                             'HelicalSymmetryLocalRefinement': np.bool,
+                             'HelicalSymmetryLocalRefinement': bool,
                              'HelicalTrackLength': np.double,
                              'HelicalTubeID': 'i4',
                              'HelicalTubePitch': np.double,
@@ -629,7 +632,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'HelicalTwistMin': np.double,
                              'HighresLimitExpectation': np.double,
                              'HighresLimitSGD': np.double,
-                             'IgnoreHelicalSymmetry': np.bool,
+                             'IgnoreHelicalSymmetry': bool,
                              'ImageDimensionality': 'i4',
                              'ImageId': 'i4',
                              'ImageName': 'U200',
@@ -640,10 +643,10 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'ImageSizeZ': 'i4',
                              'ImageWeight': np.double,
                              'IncrementImageSize': 'i4',
-                             'Is3DSampling': np.bool,
-                             'Is3DTranslationalSampling': np.bool,
-                             'IsFlip': np.bool,
-                             'IsHelix': np.bool,
+                             'Is3DSampling': bool,
+                             'Is3DTranslationalSampling': bool,
+                             'IsFlip': bool,
+                             'IsHelix': bool,
                              'JoinHalvesUntilThisResolution': np.double,
                              'KullbackLeiblerDivergence': np.double,
                              'KurtosisExcessValue': np.double,
@@ -766,7 +769,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'ReferenceSigma2': np.double,
                              'ReferenceSpectralPower': np.double,
                              'ReferenceTau2': np.double,
-                             'RefsAreCtfCorrected': np.bool,
+                             'RefsAreCtfCorrected': bool,
                              'Resolution': np.double,
                              'ResolutionInversePixel': np.double,
                              'ResolutionSquared': np.double,
@@ -789,7 +792,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'SgdMuFactor': np.double,
                              'SgdSigma2FudgeHalflife': 'i4',
                              'SgdSigma2FudgeInitial': np.double,
-                             'SgdSkipAnneal': np.bool,
+                             'SgdSkipAnneal': bool,
                              'SgdStepsize': np.double,
                              'SgdSubsetSize': 'i4',
                              'SgdWriteEverySubset': 'i4',
@@ -819,7 +822,7 @@ def read_star(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
                              'TransversalDisplacement': np.double,
                              'UnfilteredMapHalf1': 'U200',
                              'UnfilteredMapHalf2': 'U200',
-                             'UseTooCoarseSampling': np.bool,
+                             'UseTooCoarseSampling': bool,
                              'Voltage': np.double,
                              'WidthMaskEdge': 'i4'}
 
@@ -856,7 +859,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'AmplitudeCorrelationMaskedMaps': np.double,
                              'AmplitudeCorrelationUnmaskedMaps': np.double,
                              'AnglePsi': np.double,
-                             'AnglePsiFlip': np.bool,
+                             'AnglePsiFlip': bool,
                              'AnglePsiFlipRatio': np.double,
                              'AnglePsiPrior': np.double,
                              'AngleRot': np.double,
@@ -910,8 +913,8 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'CorrelationFitGuinierPlot': np.double,
                              'CtfAstigmatism': np.double,
                              'CtfBfactor': np.double,
-                             'CtfDataAreCtfPremultiplied': np.bool,
-                             'CtfDataArePhaseFlipped': np.bool,
+                             'CtfDataAreCtfPremultiplied': bool,
+                             'CtfDataArePhaseFlipped': bool,
                              'CtfFigureOfMerit': np.double,
                              'CtfImage': 'U200',
                              'CtfMaxResolution': np.double,
@@ -931,29 +934,29 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'Diff2RandomHalves': np.double,
                              'DifferentialPhaseResidualMaskedMaps': np.double,
                              'DifferentialPhaseResidualUnmaskedMaps': np.double,
-                             'DoAutoRefine': np.bool,
-                             'DoCorrectCtf': np.bool,
-                             'DoCorrectMagnification': np.bool,
-                             'DoCorrectNorm': np.bool,
-                             'DoCorrectScale': np.bool,
-                             'DoExternalReconstruct': np.bool,
-                             'DoFastSubsetOptimisation': np.bool,
-                             'DoHelicalRefine': np.bool,
-                             'DoIgnoreCtfUntilFirstPeak': np.bool,
-                             'DoMapEstimation': np.bool,
-                             'DoOnlyFlipCtfPhases': np.bool,
-                             'DoRealignMovies': np.bool,
-                             'DoSkipAlign': np.bool,
-                             'DoSkipRotate': np.bool,
-                             'DoSolventFlattening': np.bool,
-                             'DoSolventFscCorrection': np.bool,
-                             'DoSplitRandomHalves': np.bool,
-                             'DoStochasticEM': np.bool,
-                             'DoStochasticGradientDescent': np.bool,
-                             'DoZeroMask': np.bool,
+                             'DoAutoRefine': bool,
+                             'DoCorrectCtf': bool,
+                             'DoCorrectMagnification': bool,
+                             'DoCorrectNorm': bool,
+                             'DoCorrectScale': bool,
+                             'DoExternalReconstruct': bool,
+                             'DoFastSubsetOptimisation': bool,
+                             'DoHelicalRefine': bool,
+                             'DoIgnoreCtfUntilFirstPeak': bool,
+                             'DoMapEstimation': bool,
+                             'DoOnlyFlipCtfPhases': bool,
+                             'DoRealignMovies': bool,
+                             'DoSkipAlign': bool,
+                             'DoSkipRotate': bool,
+                             'DoSolventFlattening': bool,
+                             'DoSolventFscCorrection': bool,
+                             'DoSplitRandomHalves': bool,
+                             'DoStochasticEM': bool,
+                             'DoStochasticGradientDescent': bool,
+                             'DoZeroMask': bool,
                              'EERGrouping': 'i4',
                              'EERUpsampling': 'i4',
-                             'Enabled': np.bool,
+                             'Enabled': bool,
                              'EnergyLoss': np.double,
                              'EstimatedResolution': np.double,
                              'EvenZernike': np.double,
@@ -966,9 +969,9 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'FinalResolution': np.double,
                              'FittedInterceptGuinierPlot': np.double,
                              'FittedSlopeGuinierPlot': np.double,
-                             'FixSigmaNoiseEstimates': np.bool,
-                             'FixSigmaOffsetEstimates': np.bool,
-                             'FixTauEstimates': np.bool,
+                             'FixSigmaNoiseEstimates': bool,
+                             'FixSigmaOffsetEstimates': bool,
+                             'FixTauEstimates': bool,
                              'FourierCompleteness': np.double,
                              'FourierMask': 'U200',
                              'FourierShellCorrelation': np.double,
@@ -983,13 +986,13 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'GroupNrParticles': 'i4',
                              'GroupNumber': 'i4',
                              'GroupScaleCorrection': np.double,
-                             'HasConverged': np.bool,
-                             'HasHighFscAtResolLimit': np.bool,
+                             'HasConverged': bool,
+                             'HasHighFscAtResolLimit': bool,
                              'HasLargeSizeIncreaseIterationsAgo': 'i4',
                              'HealpixOrder': 'i4',
                              'HealpixOrderOriginal': 'i4',
                              'HelicalCentralProportion': np.double,
-                             'HelicalKeepTiltPriorFixed': np.bool,
+                             'HelicalKeepTiltPriorFixed': bool,
                              'HelicalMaskTubeInnerDiameter': np.double,
                              'HelicalMaskTubeOuterDiameter': np.double,
                              'HelicalOffsetStep': np.double,
@@ -999,7 +1002,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'HelicalRiseMax': np.double,
                              'HelicalRiseMin': np.double,
                              'HelicalSigmaDistance': np.double,
-                             'HelicalSymmetryLocalRefinement': np.bool,
+                             'HelicalSymmetryLocalRefinement': bool,
                              'HelicalTrackLength': np.double,
                              'HelicalTrackLengthAngst': np.double,
                              'HelicalTubeID': 'i4',
@@ -1011,7 +1014,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'HelicalTwistMin': np.double,
                              'HighresLimitExpectation': np.double,
                              'HighresLimitSGD': np.double,
-                             'IgnoreHelicalSymmetry': np.bool,
+                             'IgnoreHelicalSymmetry': bool,
                              'ImageDimensionality': 'i4',
                              'ImageId': 'i4',
                              'ImageName': 'U200',
@@ -1023,11 +1026,11 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'ImageSizeZ': 'i4',
                              'ImageWeight': np.double,
                              'IncrementImageSize': 'i4',
-                             'Is3DSampling': np.bool,
-                             'Is3DTranslationalSampling': np.bool,
-                             'IsFlip': np.bool,
-                             'IsHelix': np.bool,
-                             'JobIsContinue': np.bool,
+                             'Is3DSampling': bool,
+                             'Is3DTranslationalSampling': bool,
+                             'IsFlip': bool,
+                             'IsHelix': bool,
+                             'JobIsContinue': bool,
                              'JobOptionDefaultValue': 'U200',
                              'JobOptionDirectoryDefault': 'U200',
                              'JobOptionFilePattern': 'U200',
@@ -1189,7 +1192,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'ReferenceSigma2': np.double,
                              'ReferenceSpectralPower': np.double,
                              'ReferenceTau2': np.double,
-                             'RefsAreCtfCorrected': np.bool,
+                             'RefsAreCtfCorrected': bool,
                              'Resolution': np.double,
                              'ResolutionInversePixel': np.double,
                              'ResolutionSquared': np.double,
@@ -1201,12 +1204,12 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'SamplingRateY': np.double,
                              'SamplingRateZ': np.double,
                              'ScheduleBooleanVariableName': 'U200',
-                             'ScheduleBooleanVariableResetValue': np.bool,
-                             'ScheduleBooleanVariableValue': np.bool,
+                             'ScheduleBooleanVariableResetValue': bool,
+                             'ScheduleBooleanVariableValue': bool,
                              'ScheduleCurrentNodeName': 'U200',
                              'ScheduleEdgeBooleanVariable': 'U200',
                              'ScheduleEdgeInputNodeName': 'U200',
-                             'ScheduleEdgeIsFork': np.bool,
+                             'ScheduleEdgeIsFork': bool,
                              'ScheduleEdgeNumber': 'i4',
                              'ScheduleEdgeOutputNodeName': 'U200',
                              'ScheduleEdgeOutputNodeNameIfTrue': 'U200',
@@ -1214,7 +1217,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'ScheduleFloatVariableName': 'U200',
                              'ScheduleFloatVariableResetValue': np.double,
                              'ScheduleFloatVariableValue': np.double,
-                             'ScheduleJobHasStarted': np.bool,
+                             'ScheduleJobHasStarted': bool,
                              'ScheduleJobMode': 'U200',
                              'ScheduleJobName': 'U200',
                              'ScheduleJobNameOriginal': 'U200',
@@ -1240,7 +1243,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'SgdMuFactor': np.double,
                              'SgdSigma2FudgeHalflife': 'i4',
                              'SgdSigma2FudgeInitial': np.double,
-                             'SgdSkipAnneal': np.bool,
+                             'SgdSkipAnneal': bool,
                              'SgdStepsize': np.double,
                              'SgdSubsetSize': 'i4',
                              'SgdWriteEverySubset': 'i4',
@@ -1272,7 +1275,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'UnfilteredMapHalf1': 'U200',
                              'UnfilteredMapHalf2': 'U200',
                              'UnknownLabel': 'U200',
-                             'UseTooCoarseSampling': np.bool,
+                             'UseTooCoarseSampling': bool,
                              'Voltage': np.double,
                              'WidthMaskEdge': 'i4'}
 
@@ -1338,8 +1341,8 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'CorrelationFitGuinierPlot': np.double,
                              'CtfAstigmatism': np.double,
                              'CtfBfactor': np.double,
-                             'CtfDataAreCtfPremultiplied': np.bool,
-                             'CtfDataArePhaseFlipped': np.bool,
+                             'CtfDataAreCtfPremultiplied': bool,
+                             'CtfDataArePhaseFlipped': bool,
                              'CtfFigureOfMerit': np.double,
                              'CtfImage': 'U200',
                              'CtfMaxResolution': np.double,
@@ -1358,34 +1361,34 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'Diff2RandomHalves': np.double,
                              'DifferentialPhaseResidualMaskedMaps': np.double,
                              'DifferentialPhaseResidualUnmaskedMaps': np.double,
-                             'DoAutoRefine': np.bool,
-                             'DoCorrectCtf': np.bool,
-                             'DoCorrectMagnification': np.bool,
-                             'DoCorrectNorm': np.bool,
-                             'DoCorrectScale': np.bool,
-                             'DoFastSubsetOptimisation': np.bool,
-                             'DoHelicalRefine': np.bool,
-                             'DoIgnoreCtfUntilFirstPeak': np.bool,
-                             'DoMapEstimation': np.bool,
-                             'DoOnlyFlipCtfPhases': np.bool,
-                             'DoRealignMovies': np.bool,
-                             'DoSkipAlign': np.bool,
-                             'DoSkipRotate': np.bool,
-                             'DoSolventFlattening': np.bool,
-                             'DoSolventFscCorrection': np.bool,
-                             'DoSplitRandomHalves': np.bool,
-                             'DoStochasticGradientDescent': np.bool,
-                             'DoZeroMask': np.bool,
-                             'Enabled': np.bool,
+                             'DoAutoRefine': bool,
+                             'DoCorrectCtf': bool,
+                             'DoCorrectMagnification': bool,
+                             'DoCorrectNorm': bool,
+                             'DoCorrectScale': bool,
+                             'DoFastSubsetOptimisation': bool,
+                             'DoHelicalRefine': bool,
+                             'DoIgnoreCtfUntilFirstPeak': bool,
+                             'DoMapEstimation': bool,
+                             'DoOnlyFlipCtfPhases': bool,
+                             'DoRealignMovies': bool,
+                             'DoSkipAlign': bool,
+                             'DoSkipRotate': bool,
+                             'DoSolventFlattening': bool,
+                             'DoSolventFscCorrection': bool,
+                             'DoSplitRandomHalves': bool,
+                             'DoStochasticGradientDescent': bool,
+                             'DoZeroMask': bool,
+                             'Enabled': bool,
                              'EnergyLoss': np.double,
                              'EstimatedResolution': np.double,
                              'ExperimentalDataStarFile': 'U200',
                              'FinalResolution': np.double,
                              'FittedInterceptGuinierPlot': np.double,
                              'FittedSlopeGuinierPlot': np.double,
-                             'FixSigmaNoiseEstimates': np.bool,
-                             'FixSigmaOffsetEstimates': np.bool,
-                             'FixTauEstimates': np.bool,
+                             'FixSigmaNoiseEstimates': bool,
+                             'FixSigmaOffsetEstimates': bool,
+                             'FixTauEstimates': bool,
                              'FourierCompleteness': np.double,
                              'FourierShellCorrelation': np.double,
                              'FourierShellCorrelationCorrected': np.double,
@@ -1397,12 +1400,12 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'GroupNrParticles': 'i4',
                              'GroupNumber': 'i4',
                              'GroupScaleCorrection': np.double,
-                             'HasConverged': np.bool,
-                             'HasHighFscAtResolLimit': np.bool,
+                             'HasConverged': bool,
+                             'HasHighFscAtResolLimit': bool,
                              'HasLargeSizeIncreaseIterationsAgo': 'i4',
                              'HealpixOrder': 'i4',
                              'HelicalCentralProportion': np.double,
-                             'HelicalKeepTiltPriorFixed': np.bool,
+                             'HelicalKeepTiltPriorFixed': bool,
                              'HelicalMaskTubeInnerDiameter': np.double,
                              'HelicalMaskTubeOuterDiameter': np.double,
                              'HelicalOffsetStep': np.double,
@@ -1412,7 +1415,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'HelicalRiseMax': np.double,
                              'HelicalRiseMin': np.double,
                              'HelicalSigmaDistance': np.double,
-                             'HelicalSymmetryLocalRefinement': np.bool,
+                             'HelicalSymmetryLocalRefinement': bool,
                              'HelicalTrackLength': np.double,
                              'HelicalTubeID': 'i4',
                              'HelicalTubePitch': np.double,
@@ -1423,7 +1426,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'HelicalTwistMin': np.double,
                              'HighresLimitExpectation': np.double,
                              'HighresLimitSGD': np.double,
-                             'IgnoreHelicalSymmetry': np.bool,
+                             'IgnoreHelicalSymmetry': bool,
                              'ImageDimensionality': 'i4',
                              'ImageId': 'i4',
                              'ImageName': 'U200',
@@ -1434,10 +1437,10 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'ImageSizeZ': 'i4',
                              'ImageWeight': np.double,
                              'IncrementImageSize': 'i4',
-                             'Is3DSampling': np.bool,
-                             'Is3DTranslationalSampling': np.bool,
-                             'IsFlip': np.bool,
-                             'IsHelix': np.bool,
+                             'Is3DSampling': bool,
+                             'Is3DTranslationalSampling': bool,
+                             'IsFlip': bool,
+                             'IsHelix': bool,
                              'JoinHalvesUntilThisResolution': np.double,
                              'KullbackLeiblerDivergence': np.double,
                              'KurtosisExcessValue': np.double,
@@ -1560,7 +1563,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'ReferenceSigma2': np.double,
                              'ReferenceSpectralPower': np.double,
                              'ReferenceTau2': np.double,
-                             'RefsAreCtfCorrected': np.bool,
+                             'RefsAreCtfCorrected': bool,
                              'Resolution': np.double,
                              'ResolutionInversePixel': np.double,
                              'ResolutionSquared': np.double,
@@ -1583,7 +1586,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'SgdMuFactor': np.double,
                              'SgdSigma2FudgeHalflife': 'i4',
                              'SgdSigma2FudgeInitial': np.double,
-                             'SgdSkipAnneal': np.bool,
+                             'SgdSkipAnneal': bool,
                              'SgdStepsize': np.double,
                              'SgdSubsetSize': 'i4',
                              'SgdWriteEverySubset': 'i4',
@@ -1613,7 +1616,7 @@ def read_star_optics_group(filename, order='F', keepnumpy=False, deviceID=None, 
                              'TransversalDisplacement': np.double,
                              'UnfilteredMapHalf1': 'U200',
                              'UnfilteredMapHalf2': 'U200',
-                             'UseTooCoarseSampling': np.bool,
+                             'UseTooCoarseSampling': bool,
                              'Voltage': np.double,
                              'WidthMaskEdge': 'i4'}
 
@@ -1859,17 +1862,6 @@ def read_tilt_angle(filename):
     return tilt_angle
 
 
-def read_rotation_angles(filename):
-    f = open(filename, 'rb')
-    try:
-        header_data = np.fromfile(f, np.dtype('float32'), 256)
-        z1, x, z2 = header_data[43:46]
-    finally:
-        f.close()
-
-    return [z1, x, z2]
-
-
 def read_pixelsize(filename, dim=''):
     import sys
     import numpy as np
@@ -1907,20 +1899,20 @@ def read_pixelsize(filename, dim=''):
         return [x, y, z]
 
 
-def readSubvolumeFromFourierspaceFile(filename, sizeX, sizeY, sizeZ):
+def readSubvolumeFromFourierspaceFile(filename, size_x, size_y, size_z):
     """
     readSubvolumeFromFourierspaceFile: This function is required when data \
     (in real space) is read in binned mode and a related fourier space file
     like a wedge needs to be read alongside.
     Works only if fourier file is reduced complex without any shift applied.
     @param filename: The fourier space file name
-    @param sizeX: X final size of subvolume if it was complete
+    @param size_x: X final size of subvolume if it was complete
     (what L{pytom.basic.structures.Wedge.returnWedgeVolume} with
     humanUnderstandable == True returns)
-    @param sizeY: Y final size of subvolume if it was complete
+    @param size_y: Y final size of subvolume if it was complete
     (what L{pytom.basic.structures.Wedge.returnWedgeVolume}
     with humanUnderstandable == True returns)
-    @param sizeZ: Z final size of subvolume if it was complete
+    @param size_z: Z final size of subvolume if it was complete
     (what L{pytom.basic.structures.Wedge.returnWedgeVolume}
     with humanUnderstandable == True returns)
     @return: A subvolume
@@ -1928,7 +1920,7 @@ def readSubvolumeFromFourierspaceFile(filename, sizeX, sizeY, sizeZ):
     """
     from pytom.agnostic.io import read
     from pytom.basic.fourier import fourierSizeOperation
-    [newX, newY, newZ] = fourierSizeOperation(sizeX, sizeY, sizeZ,
+    [newX, newY, newZ] = fourierSizeOperation(size_x, size_y, size_z,
                                               reducedToFull=False)
 
     if filename.__class__ == str:
@@ -1941,8 +1933,8 @@ def readSubvolumeFromFourierspaceFile(filename, sizeX, sizeY, sizeZ):
         raise TypeError('Filename must be a string')
 
     originalVolume = xp.fft.fftshift(originalVolume, axes=(0, 1))
-    newVolume = originalVolume[sizeX // 2 - newX // 2:sizeX // 2 + newX // 2,
-                sizeY // 2 - newY // 2:sizeY // 2 + newY // 2, :newZ]
+    newVolume = originalVolume[size_x // 2 - newX // 2:size_x // 2 + newX // 2,
+                size_y // 2 - newY // 2:size_y // 2 + newY // 2, :newZ]
     newVolume = xp.fft.fftshift(newVolume, axes=(0, 1))
 
     return newVolume
@@ -2011,11 +2003,11 @@ def write(filename, data, tilt_angle=0, pixel_size=1, order='F', fmt=None, heade
 
     """
     import os
-    from pytom_volume import vol
+    from pytom.lib.pytom_volume import vol
 
     # Define the allowed file formats and related write function.
     write_functions = {'em': write_em,
-                       'mrc': write_mrc, 'rec': write_mrc, 'st': write_mrc,
+                       'mrc': write_mrc, 'rec': write_mrc, 'st': write_mrc, 'mrcs': write_mrc,
                        'txt': write_txt, 'log': write_txt, 'star': write_star, 'meta': write_txt}
 
     # Extension determines which write function is called
@@ -2027,7 +2019,7 @@ def write(filename, data, tilt_angle=0, pixel_size=1, order='F', fmt=None, heade
 
     # If data is instance of vol datatype, convert data to numpy array. Needed because header is defined differently.
     if isinstance(data, vol):
-        from pytom_numpy import vol2npy
+        from pytom.lib.pytom_numpy import vol2npy
         try:
             data_npy = vol2npy(data).copy()
             # Write data to file, using respective write function
@@ -2142,7 +2134,7 @@ def write_mrc(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnific
     f = open(filename, 'wb')
     try:
         f.write(header)
-        f.write(data.tostring(order=order))  # fortran-order array
+        f.write(data.tobytes(order=order))  # fortran-order array
     finally:
         f.close()
 
@@ -2186,55 +2178,17 @@ def write_em(filename, data, tilt_angle=0, pixel_size=1, inplanerot=0, magnifica
 
     f = open(filename, 'wb')
     try:
-        f.write(header.tostring())
-        f.write(data.tostring(order=order))  # fortran-order array
-    finally:
-        f.close()
-
-
-def write_rotation_angles(filename, z1=0, z2=0, x=0):
-    assert filename.endswith('.mrc')
-    header = read_header(filename)
-    header[43:46] = [z1, x, z2]
-    data = read(filename)
-    f = open(filename, 'wb')
-    try:
-        f.write(header.tostring())
-        f.write(data.tostring(order='F'))  # fortran-order array
-    finally:
-        f.close()
-
-
-def write_tilt_angle(filename, tilt_angle):
-    emfile = filename.endswith('.em') * 1
-    header = read_header(filename)
-    if emfile:
-        header[42] = int(round(tilt_angle * 1000))
-    else:
-        header[43] = tilt_angle
-    data = read(filename)
-
-    f = open(filename, 'wb')
-    try:
-        f.write(tostring(header))
-        f.write(data.tostring(order='F'))  # fortran-order array
+        f.write(header.tobytes())
+        f.write(data.tobytes(order=order))  # fortran-order array
     finally:
         f.close()
 
 
 # Supporting functions write
-def tostring(header):
-    strings = []
-    for value in header:
-        strings.append(binary_string(value, type(value)))
-
-    header = b"".join(strings)
-    return header
-
 
 def binary_string(values, type):
     import numpy as np
-    return np.array(values, type).tostring()
+    return np.array(values, type).tobytes()
 
 
 def n2v(data):
@@ -2244,8 +2198,8 @@ def n2v(data):
     @param data: data to convert.
     """
     try:
-        from pytom_volume import vol
-        from pytom_numpy import npy2vol
+        from pytom.lib.pytom_volume import vol
+        from pytom.lib.pytom_numpy import npy2vol
     except:
         raise ImportError("Pytom library is not installed or set properly!")
 

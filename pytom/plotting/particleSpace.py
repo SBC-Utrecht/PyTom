@@ -22,11 +22,11 @@ def particleVolume(particleList, templateVolume, dimX, dimY, dimZ, volume=None):
         z2 = p.getRotation().getZ2()
         x1 = p.getRotation().getX()        
               
-        tempTemplate = vol(templateVolume.sizeX(), templateVolume.sizeY(), templateVolume.sizeZ())
+        tempTemplate = vol(templateVolume.size_x(), templateVolume.size_y(), templateVolume.size_z())
         tempTemplate.setAll(0.0)
         rotate(templateVolume, tempTemplate, z1, z2, x1)
-        tempTemplate = tempTemplate + subvolume(volume, int(x -templateVolume.sizeX()/2), int(y -templateVolume.sizeY()/2), int(z -templateVolume.sizeZ()/2), templateVolume.sizeX(), templateVolume.sizeY(), templateVolume.sizeZ())        
-        paste(tempTemplate, volume, int(x -templateVolume.sizeX()/2), int(y -templateVolume.sizeY()/2), int(z -templateVolume.sizeZ()/2))
+        tempTemplate = tempTemplate + subvolume(volume, int(x -templateVolume.size_x()/2), int(y -templateVolume.size_y()/2), int(z -templateVolume.size_z()/2), templateVolume.size_x(), templateVolume.size_y(), templateVolume.size_z())        
+        paste(tempTemplate, volume, int(x -templateVolume.size_x()/2), int(y -templateVolume.size_y()/2), int(z -templateVolume.size_z()/2))
   
     return volume
 

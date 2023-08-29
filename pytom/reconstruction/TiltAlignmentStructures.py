@@ -1,14 +1,13 @@
 '''
 Structures for alignment of tilt series using fiducial markers
 '''
-from pytom_volume import read
+from pytom.lib.pytom_volume import read, vol
 import numpy
 import os
 from pytom.reconstruction.reconstructionStructures import Projection, ProjectionList
 from pytom.reconstruction.tiltAlignmentFunctions import alignmentFixMagRot
 from pytom.basic.structures import PyTomClass
-from pytom_volume import vol
-from pytom_numpy import vol2npy
+from pytom.lib.pytom_numpy import vol2npy
 from pytom.gui.guiFunctions import loadstar
 
 class TiltSeries(PyTomClass):
@@ -277,10 +276,10 @@ class TiltSeries(PyTomClass):
 
         if markerFileName.endswith('.em') or markerFileName.endswith('.mrc'):
             markerFileVol = read(markerFileName)
-            nproj = markerFileVol.sizeY()
+            nproj = markerFileVol.size_y()
             nproj -= self._firstIndex
             nproj -= self._lenPI - self._lastIndex
-            nmark = markerFileVol.sizeZ()
+            nmark = markerFileVol.size_z()
             markerFile = vol2npy(markerFileVol)
             markerFile = markerFile[:, self._firstIndex:self._lastIndex, :]
 
@@ -440,7 +439,7 @@ class TiltSeries(PyTomClass):
         """
         from pytom.basic.files import read_em, write_em
         from pytom.basic.filter import filter as filterFunction
-        import pytom_freqweight
+        import pytom.lib.pytom_freqweight as pytom_freqweight
         from pytom.basic.transformations import resize
 
         if binning:
@@ -1798,7 +1797,7 @@ class TiltAlignment:
         from pytom.reconstruction.imageStructures import ImageStack
 
         # prepare mask
-        #mask = initSphere(sizeX=dimBox, sizeY=dimBox, sizeZ=1, radius=dimBox/5.,
+        #mask = initSphere(size_x=dimBox, size_y=dimBox, size_z=1, radius=dimBox/5.,
         #          smooth=dimBox/5., maxradius=0, cent=None)
         mask = None
 

@@ -30,9 +30,9 @@ public:
 		 *	\brief Wrapper constructor
 		 */
 		swigFftPlan(swigVolume<T,TSCALE_SHIFT> &v,swigVolume<std::complex<T>,TSCALE_SHIFT > &cv){
-			tom::Volume<T>* pv = new tom::Volume<T>(&v.get(), v.sizeX(), v.sizeY(), v.sizeZ(), v.strideX(), v.strideY(), v.strideZ(), false, NULL);
+			tom::Volume<T>* pv = new tom::Volume<T>(&v.get(), v.size_x(), v.size_y(), v.size_z(), v.strideX(), v.strideY(), v.strideZ(), false, NULL);
 			this->timeDomainP.reset(pv);
-			tom::Volume<std::complex<T> >* pcv = new tom::Volume<std::complex<T> >(&cv.get(), cv.sizeX(), cv.sizeY(), cv.sizeZ(), cv.strideX(), cv.strideY(), cv.strideZ(), false, NULL);
+			tom::Volume<std::complex<T> >* pcv = new tom::Volume<std::complex<T> >(&cv.get(), cv.size_x(), cv.size_y(), cv.size_z(), cv.strideX(), cv.strideY(), cv.strideZ(), false, NULL);
 			this->frequencyDomainP.reset(pcv);
 			tom::fftw::Plan<T>* pp = new tom::fftw::Plan<T>(*this->timeDomainP.get(),*this->frequencyDomainP.get(), FFTW_ESTIMATE | FFTW_PRESERVE_INPUT);
 			this->r2cPlanP.reset(pp);
@@ -42,9 +42,9 @@ public:
 		 *	\brief Wrapper constructor
 		 */
 		swigFftPlan(swigVolume<std::complex<T>,TSCALE_SHIFT > &cv,swigVolume<T,TSCALE_SHIFT> &v){
-			tom::Volume<T>* pv = new tom::Volume<T>(&v.get(), v.sizeX(), v.sizeY(), v.sizeZ(), v.strideX(), v.strideY(), v.strideZ(), false, NULL);
+			tom::Volume<T>* pv = new tom::Volume<T>(&v.get(), v.size_x(), v.size_y(), v.size_z(), v.strideX(), v.strideY(), v.strideZ(), false, NULL);
 			this->timeDomainP.reset(pv);
-			tom::Volume<std::complex<T> >* pcv = new tom::Volume<std::complex<T> >(&cv.get(), cv.sizeX(), cv.sizeY(), cv.sizeZ(), cv.strideX(), cv.strideY(), cv.strideZ(), false, NULL);
+			tom::Volume<std::complex<T> >* pcv = new tom::Volume<std::complex<T> >(&cv.get(), cv.size_x(), cv.size_y(), cv.size_z(), cv.strideX(), cv.strideY(), cv.strideZ(), false, NULL);
 			this->frequencyDomainP.reset(pcv);
 			tom::fftw::Plan<T>* pp = new tom::fftw::Plan<T>(*this->frequencyDomainP.get(),*this->timeDomainP.get(), FFTW_ESTIMATE);
 			this->c2rPlanP.reset(pp);

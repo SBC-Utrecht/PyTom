@@ -162,7 +162,7 @@ void rotate(swigVolume<T,TSCALE_SHIFT>& src,swigVolume<T,TSCALE_SHIFT>& dst,doub
 	psi = tom::math::deg2rad(psi);
 	theta = tom::math::deg2rad(theta);
 
-	int z = src.sizeZ();
+	int z = src.size_z();
 
 	//if 2D image, rotate inplane
 	if(z == 1)
@@ -170,7 +170,7 @@ void rotate(swigVolume<T,TSCALE_SHIFT>& src,swigVolume<T,TSCALE_SHIFT>& dst,doub
 	else
 		z = z/2;
 
-	tom::transf::rotate(src,dst,phi,psi,theta,src.sizeX()/2,src.sizeY()/2,z,0,0,0,0,0,0);
+	tom::transf::rotate(src,dst,phi,psi,theta,src.size_x()/2,src.size_y()/2,z,0,0,0,0,0,0);
 
 }
 
@@ -203,14 +203,14 @@ void rotateCubic(swigVolume<T,TSCALE_SHIFT>& src,swigVolume<T,TSCALE_SHIFT>& dst
 	psi = tom::math::deg2rad(psi);
 	theta = tom::math::deg2rad(theta);
 
-	int z = src.sizeZ();
+	int z = src.size_z();
 
 	//if 2D image, rotate inplane
 	if(z == 1)
 	z=0;
 	else
 	z = z/2;
-	tom::transf::rotateCubic(src,dst,phi,psi,theta,src.sizeX()/2,src.sizeY()/2,z,0,0,0,0,0,0);
+	tom::transf::rotateCubic(src,dst,phi,psi,theta,src.size_x()/2,src.size_y()/2,z,0,0,0,0,0,0);
 
 }
 
@@ -243,14 +243,14 @@ void rotateSpline(swigVolume<T,TSCALE_SHIFT>& src,swigVolume<T,TSCALE_SHIFT>& ds
 	psi = tom::math::deg2rad(psi);
 	theta = tom::math::deg2rad(theta);
 
-	int z = src.sizeZ();
+	int z = src.size_z();
 
 	//if 2D image, rotate inplane
 	if(z == 1)
 	z=0;
 	else
 	z = z/2;
-	tom::transf::rotateSpline(src,dst,phi,psi,theta,src.sizeX()/2,src.sizeY()/2,z,0,0,0,0,0,0);
+	tom::transf::rotateSpline(src,dst,phi,psi,theta,src.size_x()/2,src.size_y()/2,z,0,0,0,0,0,0);
 
 }
 
@@ -394,24 +394,24 @@ swigVolume<T,TSCALE_SHIFT> projectSum(const swigVolume<T,TSCALE_SHIFT>& volume, 
 	if(axis < 0 || axis > 2)
 		throw std::runtime_error("Axis must be between 0-2!");
 
-	std::size_t sizeX = volume.getSizeX();
-	std::size_t sizeY = volume.getSizeY();
-	std::size_t sizeZ = volume.getSizeZ();
+	std::size_t size_x = volume.getSizeX();
+	std::size_t size_y = volume.getSizeY();
+	std::size_t size_z = volume.getSizeZ();
 
 	std::size_t x;
 	std::size_t y;
 
 	if(axis == 0) {
-		x = sizeY;
-		y = sizeZ;
+		x = size_y;
+		y = size_z;
 	}
 	else if(axis == 1) {
-		x = sizeX;
-		y = sizeZ;
+		x = size_x;
+		y = size_z;
 	}
 	else {
-		x = sizeX;
-		y = sizeY;
+		x = size_x;
+		y = size_y;
 	}
 
 	tom::Volume<T> res(x,y,1,NULL,NULL);
@@ -422,15 +422,15 @@ swigVolume<T,TSCALE_SHIFT> projectSum(const swigVolume<T,TSCALE_SHIFT>& volume, 
 			int sum = 0;
 
 			if(axis == 0) {
-				for(int ii=0; ii<sizeX; ii++)
+				for(int ii=0; ii<size_x; ii++)
 					sum += volume.get(ii,i,j);
 			}
 			else if(axis == 1) {
-				for(int jj=0; jj<sizeY; jj++)
+				for(int jj=0; jj<size_y; jj++)
 					sum += volume.get(i,jj,j);
 			}
 			else {
-				for(int kk=0; kk<sizeZ; kk++)
+				for(int kk=0; kk<size_z; kk++)
 					sum += volume.get(i,j,kk);
 			}
 
@@ -498,9 +498,9 @@ template<typename T,typename TSCALE_SHIFT>
 swigTom::swigVolume<T,TSCALE_SHIFT> reducedToFull(swigVolume<T,TSCALE_SHIFT>& volume){
 	std::size_t x,y,z;
 	if(((std::size_t)volume.getFtSizeX()) == 0 && ((std::size_t)volume.getFtSizeY()) == 0 && ((std::size_t)volume.getFtSizeZ()) == 0){
-		x = volume.sizeX();
-		y = volume.sizeY();
-		z = (volume.sizeZ()-1)*2;
+		x = volume.size_x();
+		y = volume.size_y();
+		z = (volume.size_z()-1)*2;
 		if((z-y == 1 || z-y == -1) && y == x)
 			z = y;
 	}
@@ -529,15 +529,15 @@ swigTom::swigVolume<T,TSCALE_SHIFT> reducedToFull(swigVolume<T,TSCALE_SHIFT>& vo
 template<typename T,typename TSCALE_SHIFT>
 swigTom::swigVolume<T,TSCALE_SHIFT> fullToReduced(swigVolume<T,TSCALE_SHIFT>& volume){
     
-    std::size_t sizeX,sizeY,sizeZ;
-    sizeX = volume.getSizeX();
-	sizeY = volume.getSizeY();
-	// sizeZ = (volume.getSizeZ()+1)/2;
-	sizeZ = volume.getSizeZ()/2 + 1;
+    std::size_t size_x,size_y,size_z;
+    size_x = volume.getSizeX();
+	size_y = volume.getSizeY();
+	// size_z = (volume.getSizeZ()+1)/2;
+	size_z = volume.getSizeZ()/2 + 1;
 
-    swigVolume<T,TSCALE_SHIFT> subvolume(tom::getSubregion(volume,0,0,0,sizeX,sizeY,sizeZ));
-    subvolume.setFtSizeX(sizeX);
-    subvolume.setFtSizeY(sizeY);
+    swigVolume<T,TSCALE_SHIFT> subvolume(tom::getSubregion(volume,0,0,0,size_x,size_y,size_z));
+    subvolume.setFtSizeX(size_x);
+    subvolume.setFtSizeY(size_y);
     subvolume.setFtSizeZ(volume.getSizeZ());
     
     return subvolume;
@@ -615,16 +615,16 @@ void writeSubregion(swigVolume<T,T> &source, std::string filename, std::size_t p
 template<typename T,typename TSHIFT_SCALE>
 void updateResFromIdx(swigVolume<T,TSHIFT_SCALE>& resV,const swigVolume<T,TSHIFT_SCALE>& newV, swigVolume<T,TSHIFT_SCALE>& orientV, const std::size_t orientIdx)
 {
-	std::size_t sizeX = newV.getSizeX();
-	std::size_t sizeY = newV.getSizeY();
-	std::size_t sizeZ = newV.getSizeZ();
-	if(sizeX > resV.getSizeX() || sizeY > resV.getSizeY() || sizeZ > resV.getSizeZ()
+	std::size_t size_x = newV.getSizeX();
+	std::size_t size_y = newV.getSizeY();
+	std::size_t size_z = newV.getSizeZ();
+	if(size_x > resV.getSizeX() || size_y > resV.getSizeY() || size_z > resV.getSizeZ()
 		|| resV.getSizeX() != orientV.getSizeX() || resV.getSizeY() != orientV.getSizeY() || resV.getSizeZ() != orientV.getSizeZ())
 		throw std::runtime_error("Volumes sizes not consistent!");
 
-	for(int i=0; i<sizeX; i++)
-		for(int j=0; j<sizeY; j++)
-			for(int k=0; k<sizeZ; k++)
+	for(int i=0; i<size_x; i++)
+		for(int j=0; j<size_y; j++)
+			for(int k=0; k<size_z; k++)
 			{
 				if(resV.get(i,j,k) < newV.get(i,j,k))
 				{
@@ -647,17 +647,17 @@ void updateResFromIdx(swigVolume<T,TSHIFT_SCALE>& resV,const swigVolume<T,TSHIFT
 template<typename T,typename TSHIFT_SCALE>
 void updateResFromVol(swigVolume<T,TSHIFT_SCALE>& resV,const swigVolume<T,TSHIFT_SCALE>& newV, swigVolume<T,TSHIFT_SCALE>& orientV, const swigVolume<T,TSHIFT_SCALE>& neworientV)
 {
-	std::size_t sizeX = resV.getSizeX();
-	std::size_t sizeY = resV.getSizeY();
-	std::size_t sizeZ = resV.getSizeZ();
-	if(sizeX != newV.getSizeX() || sizeY != newV.getSizeY() || sizeZ != newV.getSizeZ()
-		|| sizeX != orientV.getSizeX() || sizeY != orientV.getSizeY() || sizeZ != orientV.getSizeZ()
-		|| sizeX != neworientV.getSizeX() || sizeY != neworientV.getSizeY() || sizeZ != neworientV.getSizeZ())
+	std::size_t size_x = resV.getSizeX();
+	std::size_t size_y = resV.getSizeY();
+	std::size_t size_z = resV.getSizeZ();
+	if(size_x != newV.getSizeX() || size_y != newV.getSizeY() || size_z != newV.getSizeZ()
+		|| size_x != orientV.getSizeX() || size_y != orientV.getSizeY() || size_z != orientV.getSizeZ()
+		|| size_x != neworientV.getSizeX() || size_y != neworientV.getSizeY() || size_z != neworientV.getSizeZ())
 		throw std::runtime_error("Volumes have different sizes!");
 
-	for(int i=0; i<sizeX; i++)
-		for(int j=0; j<sizeY; j++)
-			for(int k=0; k<sizeZ; k++)
+	for(int i=0; i<size_x; i++)
+		for(int j=0; j<size_y; j++)
+			for(int k=0; k<size_z; k++)
 			{
 				if(resV.get(i,j,k) < newV.get(i,j,k))
 				{
@@ -670,17 +670,17 @@ void updateResFromVol(swigVolume<T,TSHIFT_SCALE>& resV,const swigVolume<T,TSHIFT
 template<typename T,typename TSHIFT_SCALE>
 void mirrorVolume(swigVolume<T,TSHIFT_SCALE>& src, swigVolume<T,TSHIFT_SCALE>& des)
 {
-	std::size_t sizeX = src.getSizeX();
-	std::size_t sizeY = src.getSizeY();
-	std::size_t sizeZ = src.getSizeZ();
-	if(sizeX != des.getSizeX() || sizeY != des.getSizeY() || sizeZ != des.getSizeZ())
+	std::size_t size_x = src.getSizeX();
+	std::size_t size_y = src.getSizeY();
+	std::size_t size_z = src.getSizeZ();
+	if(size_x != des.getSizeX() || size_y != des.getSizeY() || size_z != des.getSizeZ())
 		throw std::runtime_error("Volumes have different sizes!");
 
 	// swap according to the center of x
-	int l = sizeX-1;
-	for(int i=0; i<sizeX; i++)
-		for(int j=0; j<sizeY; j++)
-			for(int k=0; k<sizeZ; k++)
+	int l = size_x-1;
+	for(int i=0; i<size_x; i++)
+		for(int j=0; j<size_y; j++)
+			for(int k=0; k<size_z; k++)
 			{
 				des.get(l-i,j,k) = src.get(i,j,k);
 			}
@@ -763,13 +763,13 @@ void backProject(swigVolume<T,TSCALE_SHIFT>& src,
 	int img_num;
 	float off1, off2, off3;
 
-	vol_x = dst.sizeX();
-	vol_y = dst.sizeY();
-	vol_z = dst.sizeZ();
+	vol_x = dst.size_x();
+	vol_y = dst.size_y();
+	vol_z = dst.size_z();
 
-	img_x = src.sizeX();
-	img_y = src.sizeY();
-	img_num = src.sizeZ();
+	img_x = src.size_x();
+	img_y = src.size_y();
+	img_num = src.size_z();
 
 	off1 = offsetPaticle.getV(0, 0, 0);
 	off2 = offsetPaticle.getV(1, 0, 0);
@@ -809,13 +809,13 @@ void backProject(swigVolume<T,TSCALE_SHIFT>& src,
 		int img_x, img_y;
 		int img_num;
 		
-		vol_x = dst.sizeX();
-		vol_y = dst.sizeY();
-		vol_z = dst.sizeZ();
+		vol_x = dst.size_x();
+		vol_y = dst.size_y();
+		vol_z = dst.size_z();
 		
-		img_x = src.sizeX();
-		img_y = src.sizeY();
-		img_num = src.sizeZ();
+		img_x = src.size_x();
+		img_y = src.size_y();
+		img_num = src.size_z();
 		
 		dst.setAll(0.0);
 		
@@ -847,13 +847,13 @@ swigVolume<std::complex<T>,TSCALE_SHIFT> complexRealMult(const swigVolume<std::c
 template<typename T, typename TSCALE_SHIFT>
 swigVolume<T,TSCALE_SHIFT> real(const swigVolume<std::complex<T>,TSCALE_SHIFT> &vol){
         
-    swigVolume<T,TSCALE_SHIFT> realVol = swigVolume<T,TSCALE_SHIFT>(vol.sizeX(),vol.sizeY(),vol.sizeZ());
+    swigVolume<T,TSCALE_SHIFT> realVol = swigVolume<T,TSCALE_SHIFT>(vol.size_x(),vol.size_y(),vol.size_z());
         
     std::complex<T> val=0;
         
-    for(std::size_t x = 0; x<vol.sizeX();x++){
-        for(std::size_t y = 0; y<vol.sizeY();y++){
-            for(std::size_t z = 0; z<vol.sizeZ();z++){
+    for(std::size_t x = 0; x<vol.size_x();x++){
+        for(std::size_t y = 0; y<vol.size_y();y++){
+            for(std::size_t z = 0; z<vol.size_z();z++){
                 val = vol.get(x,y,z);
                 realVol(val.real(),x,y,z);
             }
@@ -867,13 +867,13 @@ swigVolume<T,TSCALE_SHIFT> real(const swigVolume<std::complex<T>,TSCALE_SHIFT> &
 template<typename T, typename TSCALE_SHIFT>
 swigVolume<T,TSCALE_SHIFT> imag(const swigVolume<std::complex<T>,TSCALE_SHIFT> &vol){
         
-    swigVolume<T,TSCALE_SHIFT> imagVol = swigVolume<T,TSCALE_SHIFT>(vol.sizeX(),vol.sizeY(),vol.sizeZ());
+    swigVolume<T,TSCALE_SHIFT> imagVol = swigVolume<T,TSCALE_SHIFT>(vol.size_x(),vol.size_y(),vol.size_z());
         
     std::complex<T> val=0;
         
-    for(std::size_t x = 0; x<vol.sizeX();x++){
-        for(std::size_t y = 0; y<vol.sizeY();y++){
-            for(std::size_t z = 0; z<vol.sizeZ();z++){
+    for(std::size_t x = 0; x<vol.size_x();x++){
+        for(std::size_t y = 0; y<vol.size_y();y++){
+            for(std::size_t z = 0; z<vol.size_z();z++){
                 val = vol.get(x,y,z);
                 imagVol(val.imag(),x,y,z);
             }
@@ -891,11 +891,11 @@ swigVolume<std::complex<T>,TSCALE_SHIFT> mergeRealImag(const swigVolume<T,TSCALE
         throw std::runtime_error("Volumes in mergeRealImag must have same size!");
     }
     
-    swigVolume<std::complex<T>,TSCALE_SHIFT> complexVol = swigVolume<std::complex<T>,TSCALE_SHIFT>(real.sizeX(),real.sizeY(),real.sizeZ());
+    swigVolume<std::complex<T>,TSCALE_SHIFT> complexVol = swigVolume<std::complex<T>,TSCALE_SHIFT>(real.size_x(),real.size_y(),real.size_z());
     
-    for(std::size_t x = 0; x<real.sizeX();x++){
-        for(std::size_t y = 0; y<real.sizeY();y++){
-            for(std::size_t z = 0; z<real.sizeZ();z++){
+    for(std::size_t x = 0; x<real.size_x();x++){
+        for(std::size_t y = 0; y<real.size_y();y++){
+            for(std::size_t z = 0; z<real.size_z();z++){
                 std::complex<T> val(real.get(x,y,z), imag.get(x,y,z));
                 complexVol(val,x,y,z);
             }
@@ -1075,9 +1075,9 @@ swigVolume<T,TSCALE_SHIFT> rotateSplineInFourier(swigVolume<T,TSCALE_SHIFT>& src
     swigTom::swigVolume<T,TSCALE_SHIFT> full = reducedToFull(src);
     
     tom::fftshift(full,false);
-    swigVolume<T,TSCALE_SHIFT> dst(full.sizeX(),full.sizeY(),full.sizeZ());
+    swigVolume<T,TSCALE_SHIFT> dst(full.size_x(),full.size_y(),full.size_z());
 
-	std::size_t z = full.sizeZ();
+	std::size_t z = full.size_z();
     
     //if 2D image, rotate inplane
     if(z == 1)
@@ -1085,7 +1085,7 @@ swigVolume<T,TSCALE_SHIFT> rotateSplineInFourier(swigVolume<T,TSCALE_SHIFT>& src
     else
         z = z/2;
 
-    tom::transf::rotateFourierSpline(full,dst,phi,psi,theta,(double)full.sizeX()/2,(double)full.sizeY()/2,(double)z,(T)0);
+    tom::transf::rotateFourierSpline(full,dst,phi,psi,theta,(double)full.size_x()/2,(double)full.size_y()/2,(double)z,(T)0);
     tom::fftshift(dst,true);
 
     return fullToReduced(dst);
@@ -1107,9 +1107,9 @@ swigVolume<T,TSCALE_SHIFT> transformFourierSpline(swigVolume<T,TSCALE_SHIFT>& sr
     swigTom::swigVolume<T,TSCALE_SHIFT> full = reducedToFull(src);
 
     tom::fftshift(full,false);
-    swigVolume<T,TSCALE_SHIFT> dst(full.sizeX(),full.sizeY(),full.sizeZ());
+    swigVolume<T,TSCALE_SHIFT> dst(full.size_x(),full.size_y(),full.size_z());
 
-	std::size_t z = full.sizeZ();
+	std::size_t z = full.size_z();
 
     //if 2D image, rotate inplane
     if(z == 1)
@@ -1117,7 +1117,7 @@ swigVolume<T,TSCALE_SHIFT> transformFourierSpline(swigVolume<T,TSCALE_SHIFT>& sr
     else
         z = z/2;
 
-    tom::transf::transformFourierSpline(full,dst,phi,psi,theta,(double)full.sizeX()/2,(double)full.sizeY()/2,(double)z, shiftX, shiftY, shiftZ,(T)0);
+    tom::transf::transformFourierSpline(full,dst,phi,psi,theta,(double)full.size_x()/2,(double)full.size_y()/2,(double)z, shiftX, shiftY, shiftZ,(T)0);
     tom::fftshift(dst,true);
 
     return fullToReduced(dst);
