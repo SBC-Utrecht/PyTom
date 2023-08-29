@@ -1,5 +1,3 @@
-# DISCLAIMER: This repo is supposed to be for internal group use only! We made it public to have access to the nice github features and we don't feel anything is sensitive. As a user please use the [user version](https://github.com/FridoF/PyTom) and report any issues there!
-
 # PytomGUI
 
 PyTom is a toolbox developed for interpreting cryo electron tomography data. All steps from reconstruction, localization, alignment and classification are covered with standard and improved methods.
