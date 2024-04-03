@@ -4,7 +4,7 @@ PyTom is a toolbox developed for interpreting cryo electron tomography data. All
 
 ## Latest developments
 
-Although this repository does provide the original implementation of GPU-accelerated template matching, the latest developments are only available in our standalone package: [pytom-match-pick](https://github.com/SBC-Utrecht/pytom-match-pick). This includes improved permformance in both speed and accuracy, and a per-tilt weighting model.
+Although this repository does provide the original implementation of GPU-accelerated template matching, the latest developments are only available in our standalone package: [pytom-match-pick](https://github.com/SBC-Utrecht/pytom-match-pick). This includes improved permformance in both speed and accuracy, a per-tilt weighting model, and improved cut-off estimation.
 
 ## Getting Started
 
