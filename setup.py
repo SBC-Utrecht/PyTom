@@ -62,7 +62,7 @@ setup(
     author='`FridoF',
     author_email='strubi.pytom@uu.nl',
     url='https://github.com/SBC-Utrecht/PyTom.git',
-    install_requires=['lxml', 'scipy', 'boost', 'numpy>=1.18'],
+    install_requires=['lxml', 'scipy', 'boost', 'numpy>=1.18,<2'],
     extras_require={
         'gpu': ['cupy'],
         'gui': ['PyQt5', 'pyqtgraph', 'mrcfile'],
