@@ -182,7 +182,7 @@ includeFile,include_numpy = find("ndarrayobject.h",includePaths)
 if include_numpy is None:
     try:
         import numpy
-        path = os.path.join(numpy.__path__[0], 'core/include/numpy')
+        path = numpy.get_include()
         includePaths = [path] + includePaths
         includeFile,include_numpy = find("ndarrayobject.h",includePaths)    
     except Exception as e:
