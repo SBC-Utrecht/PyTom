@@ -4,7 +4,7 @@ channels:
 dependencies:
 - python=3
 - ipython
-- numpy
+- numpy<2
 - lxml
 - scipy
 - boost
