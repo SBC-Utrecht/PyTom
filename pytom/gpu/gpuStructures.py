@@ -435,6 +435,8 @@ class GLocalAlignmentPlan():
 
         # get the shift
         peak_shift = [ip - s // 2 for ip, s in zip(interpolated_peak, self.ccc_map.shape)]
+        # get the shift without binning
+        peak_shift = [ip*self.binning for ip in peak_shift]
 
         # compared to cpu there is always a shift of 2 here... likely goes wrong before this function
         # print([ip - s // 2 for ip, s in zip(peak, self.ccc_map.shape)])

@@ -317,7 +317,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
         else:
             from pytom.gpu.gpuFunctions import applyFourierFilter
             from pytom.agnostic.io import read
-            print(">>>>>>>>> Aligning Even ....")
+            print(">>>>>>>>> Aligning Even {len(evenSplitList)} processes on {alignmentJob.gpu}....")
             resultsEven = mpi.parfor(alignParticleListGPU, list(zip(evenSplitList,
                                         [currentReferenceEven] * len(evenSplitList),
                                         [evenCompoundWedgeFile] * len(evenSplitList),
@@ -327,8 +327,8 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                         [alignmentJob.scoringParameters.preprocessing] * len(evenSplitList),
                                         [progressBar] * neven,
                                         [alignmentJob.samplingParameters.binning] * len(evenSplitList),
-                                        [verbose] * len(evenSplitList),alignmentJob.gpu)))
-            print(">>>>>>>>> Aligning Odd  ....")
+                                        [verbose] * len(evenSplitList), [alignmentJob.gpu[p % len(alignmentJob.gpu)] for p in range(len(evenSplitList))])))
+            print(">>>>>>>>> Aligning Odd {len(oddSplitList)} processes on {alignmentJob.gpu}....")
             resultsOdd = mpi.parfor(alignParticleListGPU, list(zip(oddSplitList,
                                         [currentReferenceOdd]*len(oddSplitList),
                                         [oddCompoundWedgeFile]*len(oddSplitList),
@@ -337,7 +337,7 @@ def mainAlignmentLoop(alignmentJob, verbose=False):
                                         [alignmentJob.destination+"/"+'CurrentMask.xml']*len(oddSplitList),
                                         [alignmentJob.scoringParameters.preprocessing]*len(oddSplitList),
                                         [progressBar]*nodd, [alignmentJob.samplingParameters.binning]*len(oddSplitList),
-                                        [verbose]*len(oddSplitList), alignmentJob.gpu)))
+                                        [verbose]*len(oddSplitList), [alignmentJob.gpu[p % len(alignmentJob.gpu)] for p in range(len(oddSplitList))])))
 
             xp.cuda.Device(alignmentJob.gpu[0]).use()
             bestPeaksEvenSplit, plansEven = zip(*resultsEven)
@@ -829,10 +829,11 @@ def averageParallel(particleList,averageName, showProgressBar=False, verbose=Fal
 
     #reference = average(particleList=plist, averageName=xxx, showProgressBar=True, verbose=False,
     # createInfoVolumes=False, weighting=weighting, norm=False)
+    print(f"{splitFactor} averaging processes on {gpuIDs}")
 
     averageList = mpi.parfor( average, list(zip(splitLists, avgNameList, [showProgressBar]*splitFactor,
                                            [verbose]*splitFactor, [createInfoVolumes]*splitFactor,
-                                           [weighting]*splitFactor, [norm]*splitFactor, gpuIDs)))
+                                           [weighting]*splitFactor, [norm]*splitFactor, [gpuIDs[p % len(gpuIDs)] for p in range(len(splitLists))])))
     if 'gpu' in device:
         xp.cuda.Device(gpuIDs[0]).use()
 
