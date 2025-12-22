@@ -1717,6 +1717,8 @@ def read_mrc(filename, order='F', keepnumpy=False, deviceID=None, dtype=None):
             dt_data = np.dtype('complex32')
         elif dt == 6:  # float complex
             dt_data = np.dtype('uint16')
+        elif dt == 12:
+            dt_data = np.dtype('float16')
         else:
             raise Exception("Data type not supported yet!")
 
