@@ -723,7 +723,7 @@ static double distance_eulers(unsigned long i, unsigned long j, double *corr[]){
   /* returns the distance between the rotations given by the Euler angles in
      corr[1,2,3][i] and corr[1,2,3][j] */
 
-  extern void get_rot_matrix ();
+  extern void get_rot_matrix (double [3][3], double, double, double);
   double matrix1[3][3],matrix2[3][3]; 
   int k, l;
   double temp, trace;
@@ -748,7 +748,7 @@ static double distance_eulers(unsigned long i, unsigned long j, double *corr[]){
 double angle_distance(double a1, double a2, double a3, double b1, double b2, double b3)
 /* psi, the, phi order */
 {
-  extern void get_rot_matrix ();
+  extern void get_rot_matrix (double [3][3], double, double, double);
   double matrix1[3][3],matrix2[3][3]; 
   int k, l;
   double temp, trace;
