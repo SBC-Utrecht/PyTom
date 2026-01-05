@@ -379,8 +379,8 @@ void eu_lattman (double eu_range[3][2], double delta, unsigned long *eu_count, f
   double sparsing_cosine = cos(0.5*delta*ROT_CONV); 
   /* suggested Lattman sparsing tolerance: 0.5 delta */
 
-  double deviation_cosine();
-  void get_rot_matrix();
+  double deviation_cosine(double [3][3], double [3][3);
+  void get_rot_matrix(double [3][3], double, double, double);
 
   psi_steps   = (int)ceil((eu_range[0][1]-eu_range[0][0])/delta);
   theta_steps = (int)ceil((eu_range[1][1]-eu_range[1][0])/delta);
@@ -485,8 +485,8 @@ char similar_eulers(double a1,double a2,double a3,double b1,double b2,double b3)
 /* checks if two orientations are within 1 degree                          */
 /* this can be slow if one of the orientations remains the same in a loop  */
 
-  void get_rot_matrix ();
-  double deviation_cosine ();
+  void get_rot_matrix (double [3][3], double, double, double);
+  double deviation_cosine (double [3][3], double [3][3);
   
   double matrix1[3][3],matrix2[3][3];
   
