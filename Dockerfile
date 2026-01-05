@@ -20,6 +20,8 @@ ADD doc /app/doc
 ADD tutorials /app/doc
 ADD MANIFEST.in LICENSE LICENSE.txt .gitmodules .gitignore setup.py /app/
 
+# add compiler
+RUN apt-get update && apt-get install -y build-essential
 # compile/setup pytom
 RUN python setup.py install --prefix $CONDA_PREFIX
 
